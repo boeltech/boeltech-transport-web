@@ -61,7 +61,7 @@ export function UserActions({
   if (variant === "buttons") {
     return (
       <>
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
           {canUpdate ? (
             <Button
               variant="outline"

@@ -30,6 +30,7 @@ import {
 import { useListingFilters, useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { BranchStatus, useBranches } from "@features/branches";
 import { MasterImportWizard, importsCopy } from "@features/imports";
@@ -51,6 +52,17 @@ import { vehiclesCopy } from "../copy/vehiclesCopy";
 import { VEHICLE_STATUS_CONFIG } from "../index";
 
 const listFilterCopy = vehiclesCopy.list.filters;
+
+function deleteVehicleErrorDescription(error: unknown): string {
+  const message =
+    error instanceof Error && error.message
+      ? error.message
+      : "No se pudo eliminar el vehículo";
+  if (isApiError(error) && error.code === "VEHICLE_ASSIGNED_TO_ACTIVE_TRIP") {
+    return `${message} Revise Viajes y reasigne la flota.`;
+  }
+  return message;
+}
 
 // ============================================================================
 // COMPONENT
@@ -135,7 +147,7 @@ export function VehicleListPage() {
     onError: (error) => {
       toast({
         title: "Error al eliminar",
-        description: error.message,
+        description: deleteVehicleErrorDescription(error),
         variant: "destructive",
       });
     },

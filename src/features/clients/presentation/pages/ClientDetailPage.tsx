@@ -373,19 +373,21 @@ export function ClientDetailPage() {
         icon: <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />,
         iconVariant: client.isActive ? "primary" : "muted",
         iconShape: client.type === "individual" ? "circle" : "rounded",
-        title: getClientDisplayName(client),
+        title: (
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{getClientDisplayName(client)}</span>
+            <ClientStatusBadge
+              status={operationalStatusFromClient(client.isActive)}
+              showIcon
+              size="sm"
+            />
+          </span>
+        ),
         subtitle: (
           <ClientDetailHeaderSubtitle
             clientCode={client.clientCode}
             typeLabel={typeConfig.label}
             rfc={rfc}
-          />
-        ),
-        statusBadge: (
-          <ClientStatusBadge
-            status={operationalStatusFromClient(client.isActive)}
-            showIcon
-            size="sm"
           />
         ),
         actions: <ClientActions client={client} variant="buttons" />,

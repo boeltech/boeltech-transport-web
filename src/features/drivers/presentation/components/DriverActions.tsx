@@ -362,7 +362,7 @@ export function DriverActions(props: DriverActionsProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
         {/* Editar */}
         {canUpdate && (
           <Button

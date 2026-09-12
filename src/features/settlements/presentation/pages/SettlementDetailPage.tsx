@@ -129,14 +129,32 @@ export function SettlementDetailPage() {
         header={{
           backHref: SETTLEMENTS_LIST_PATH,
           backLabel: copy.actions.backToList,
-          icon: <Banknote className="h-5 w-5 text-primary" />,
-          title: settlement?.settlementNumber ?? "Liquidación",
-          subtitle: settlement
-            ? `${settlement.employeeFullName ?? "—"} · ${formatDate(settlement.periodStart)} – ${formatDate(settlement.periodEnd)}`
-            : undefined,
-          statusBadge: settlement ? <SettlementStatusBadge status={settlement.status} showIcon /> : undefined,
+          icon: <Banknote className="h-6 w-6" />,
+          title: settlement ? (
+            <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="shrink-0">{settlement.settlementNumber}</span>
+              <SettlementStatusBadge
+                status={settlement.status}
+                showIcon
+                size="sm"
+              />
+            </span>
+          ) : (
+            "Liquidación"
+          ),
+          subtitle: settlement ? (
+            <div className="space-y-0.5">
+              <p className="truncate text-sm text-muted-foreground">
+                {settlement.employeeFullName ?? "—"}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {formatDate(settlement.periodStart)} –{" "}
+                {formatDate(settlement.periodEnd)}
+              </p>
+            </div>
+          ) : undefined,
           actions: settlement ? (
-            <div className="flex items-center gap-2">
+            <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"

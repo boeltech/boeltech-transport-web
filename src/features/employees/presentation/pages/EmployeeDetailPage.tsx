@@ -281,7 +281,12 @@ export function EmployeeDetailPage() {
         backHref: "/employees",
         icon: <User className="h-6 w-6" />,
         iconVariant: isTerminated ? "muted" : "primary",
-        title: employee.fullName,
+        title: (
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{employee.fullName}</span>
+            <EmployeeStatusBadge status={employee.status} showIcon size="sm" />
+          </span>
+        ),
         subtitle: (
           <EmployeeDetailHeaderSubtitle
             employeeNumber={employee.employeeNumber}
@@ -289,9 +294,6 @@ export function EmployeeDetailPage() {
             department={employee.department}
             isTerminated={isTerminated}
           />
-        ),
-        statusBadge: (
-          <EmployeeStatusBadge status={employee.status} showIcon size="sm" />
         ),
         actions: !isTerminated ? (
           <EmployeeActions

@@ -34,8 +34,8 @@ export function ClientDetailHeaderSubtitle({
   }, [rfc, toast]);
 
   return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+    <div className="space-y-0.5">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
         <span className="font-mono">{clientCode}</span>
         <span aria-hidden>·</span>
         <span>{typeLabel}</span>
@@ -58,7 +58,7 @@ export function ClientDetailHeaderSubtitle({
           </>
         ) : null}
       </div>
-      <p className="text-xs text-muted-foreground">{copy.editCue}</p>
+      <p className="truncate text-xs text-muted-foreground">{copy.editCue}</p>
     </div>
   );
 }

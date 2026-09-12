@@ -24,7 +24,7 @@ export function VehicleDetailHeaderSubtitle({
       <p className="truncate text-sm text-muted-foreground">
         {copy.format.headerSubtitle(typeLabel, licensePlate)}
       </p>
-      <p className="truncate text-sm text-muted-foreground">
+      <p className="truncate text-xs text-muted-foreground">
         {copy.format.vehicleLine(brand, model, year)}
         {!isActive ? (
           <span className="text-destructive"> · {copy.state.inactiveRegistration}</span>

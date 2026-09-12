@@ -46,6 +46,7 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import { useUpdateVehicle, useDeleteVehicle } from "../../application";
 import {
   VehicleStatus,
@@ -66,6 +67,25 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
+
+const VEHICLE_ASSIGNED_DELETE_CODES = new Set([
+  "VEHICLE_ASSIGNED_TO_ACTIVE_TRIP",
+]);
+
+function deleteVehicleErrorDescription(error: unknown): string {
+  const message =
+    error instanceof Error && error.message
+      ? error.message
+      : "No se pudo eliminar el vehículo";
+  if (
+    isApiError(error) &&
+    error.code &&
+    VEHICLE_ASSIGNED_DELETE_CODES.has(error.code)
+  ) {
+    return `${message} Revise Viajes y reasigne la flota.`;
+  }
+  return message;
+}
 
 // ============================================================================
 // TYPES
@@ -231,7 +251,7 @@ export function VehicleActions(props: VehicleActionsProps) {
     onError: (error) => {
       toast({
         title: "Error al eliminar",
-        description: error.message,
+        description: deleteVehicleErrorDescription(error),
         variant: "destructive",
       });
     },
@@ -383,7 +403,7 @@ export function VehicleActions(props: VehicleActionsProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
         {/* Editar */}
         {canUpdate && (
           <Button

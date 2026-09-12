@@ -21,7 +21,7 @@ export function EmployeeDetailHeaderSubtitle({
         {copy.format.headerLine(employeeNumber, position, department)}
       </p>
       {isTerminated ? (
-        <p className="text-sm text-destructive">
+        <p className="truncate text-xs text-destructive">
           {copy.state.terminatedRegistration}
         </p>
       ) : null}

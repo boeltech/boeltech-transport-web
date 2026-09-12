@@ -172,12 +172,17 @@ export const DetailPageShell = memo(function DetailPageShell({
       {/* ====================================================================
        * Header
        * ================================================================== */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between xl:gap-4">
+        {/*
+          Peso del header (xl+): info ≥55 %, CTAs ≤40 %.
+          Hasta xl: título a ancho completo. Sin flex-wrap en icono+texto.
+        */}
+        <div className="flex min-w-0 flex-1 items-start gap-3 xl:min-w-[55%]">
           {backHref ? (
             <Button
               variant="ghost"
               size="icon"
+              className="shrink-0"
               onClick={() => navigate(backHref)}
               aria-label={header.backLabel ?? "Volver"}
             >
@@ -193,19 +198,23 @@ export const DetailPageShell = memo(function DetailPageShell({
           >
             {header.icon}
           </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold">{header.title}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold leading-tight">{header.title}</h1>
             {header.subtitle ? (
-              <div className="text-sm text-muted-foreground">{header.subtitle}</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {header.subtitle}
+              </div>
             ) : null}
           </div>
           {header.statusBadge ? (
-            <div className="shrink-0">{header.statusBadge}</div>
+            <div className="shrink-0 self-center">{header.statusBadge}</div>
           ) : null}
         </div>
 
         {header.actions ? (
-          <div className="shrink-0">{header.actions}</div>
+          <div className="flex w-full min-w-0 justify-end xl:max-w-[40%] xl:shrink">
+            {header.actions}
+          </div>
         ) : null}
       </div>
 

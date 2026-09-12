@@ -150,7 +150,12 @@ export function VehicleDetailPage() {
           !vehicle.isActive || vehicle.status === VehicleStatus.OUT_OF_SERVICE
             ? "muted"
             : "primary",
-        title: vehicle.unitNumber,
+        title: (
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{vehicle.unitNumber}</span>
+            <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />
+          </span>
+        ),
         subtitle: (
           <VehicleDetailHeaderSubtitle
             typeLabel={typeLabel}
@@ -160,9 +165,6 @@ export function VehicleDetailPage() {
             year={vehicle.year}
             isActive={vehicle.isActive}
           />
-        ),
-        statusBadge: (
-          <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />
         ),
         actions: (
           <VehicleActions
