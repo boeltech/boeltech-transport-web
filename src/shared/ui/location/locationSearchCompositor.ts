@@ -222,10 +222,13 @@ export function locationValueToAddressSearchListItem(
 /**
  * Synthesize a search item for mapbox/create drafts so trip surfaces can keep
  * AddressSearchListItem-shaped handlers (snapshot-only; no catalog FK).
+ * Preserves `satAmbiguities` for composer put-ready gating (ADR-0092).
  */
 export function synthesizeSearchItemFromLocationValue(
   value: import("./LocationField.types").LocationValue,
-): AddressSearchListItem {
+): AddressSearchListItem & {
+  satAmbiguities?: import("./LocationField.types").AmbiguityField[];
+} {
   const addressType =
     (value.addressType as AddressSearchListItem["addressType"] | null | undefined) ??
     "other";
@@ -258,6 +261,9 @@ export function synthesizeSearchItemFromLocationValue(
       : {}),
     ...(value.destinatarioName != null
       ? { destinatarioName: value.destinatarioName }
+      : {}),
+    ...(value.satAmbiguities?.length
+      ? { satAmbiguities: [...value.satAmbiguities] }
       : {}),
   };
 }

@@ -118,6 +118,7 @@ export function LocationField({
         <LocationCard
           value={value}
           variant={cardVariant}
+          context={context}
           showCartaPorteStatus={showCartaPorteStatus}
           disabled={disabled}
           onChangeRequest={() => setPickerOpen(true)}
@@ -152,8 +153,9 @@ export function LocationField({
           if (!next) setPreferMapPin(false);
         }}
         value={sheetDraft}
+        context={context}
         onSave={(next) => {
-          onChange({ ...next, satAmbiguities: undefined });
+          onChange(next);
           setSheetOpen(false);
           setPreferMapPin(false);
         }}

@@ -29,10 +29,23 @@ import {
 } from "@shared/ui/sheet";
 
 import { LOCATION_FIELD_COPY } from "./locationFieldCopy";
-import type { LocationValue } from "./LocationField.types";
+import type {
+  AmbiguityField,
+  LocationContext,
+  LocationValue,
+} from "./LocationField.types";
 
 /** D3: evita parpadeo del resolve SAT al tipar en el sheet. */
 const SAT_RESOLVE_DEBOUNCE_MS = 350;
+
+/** Mínimo para habilitar Usar: solo nombre, o umbral tripStop (ADR-0092). */
+export type LocationSheetRequirements = "name" | "tripStop";
+
+function requirementsForContext(
+  context: LocationContext | undefined,
+): LocationSheetRequirements {
+  return context === "tripStop" ? "tripStop" : "name";
+}
 
 const AddressGeolocationPanel = lazy(
   () => import("@shared/ui/address-input/AddressGeolocationPanel"),
@@ -52,6 +65,13 @@ export interface LocationSheetProps {
    * and scroll the map section into view (ADR-0092 SQ-D6).
    */
   preferMapPin?: boolean;
+  /**
+   * Completeness gate for Usar. Defaults from `context` when provided
+   * (`tripStop` → coords + CP + name).
+   */
+  requirements?: LocationSheetRequirements;
+  /** Prefer this over bare `requirements` when set (LocationField passes context). */
+  context?: LocationContext;
   disabled?: boolean;
   className?: string;
   /** Optional catalog for non-blocking duplicate warnings (D8). */
@@ -86,10 +106,14 @@ export function LocationSheet({
   title = LOCATION_FIELD_COPY.sheetTitle,
   showMap = true,
   preferMapPin = false,
+  requirements: requirementsProp,
+  context,
   disabled = false,
   className,
   existingAddresses = EMPTY_EXISTING_ADDRESSES,
 }: LocationSheetProps) {
+  const requirements =
+    requirementsProp ?? requirementsForContext(context);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const mapSectionRef = useRef<HTMLDivElement>(null);
   const lastAutoSatRef = useRef<Partial<AutoSatSnapshot>>({});
@@ -114,13 +138,14 @@ export function LocationSheet({
     null,
   );
   const [isResolving, setIsResolving] = useState(false);
-  const [hasAmbiguity, setHasAmbiguity] = useState(false);
+  const [satAmbiguities, setSatAmbiguities] = useState<AmbiguityField[]>([]);
   const [geocodingAccuracy, setGeocodingAccuracy] = useState<
     LocationValue["geocodingAccuracy"]
   >(null);
   const [duplicateWarnings, setDuplicateWarnings] = useState<
     DuplicateWarning[]
   >([]);
+  const hasAmbiguity = satAmbiguities.length > 0;
 
   satFieldsRef.current = {
     satStateCode,
@@ -154,7 +179,7 @@ export function LocationSheet({
     setGeocodingAccuracy(value?.geocodingAccuracy ?? null);
     // Prefill is user/catalog data — do not treat as auto-written until resolve fills.
     lastAutoSatRef.current = {};
-    setHasAmbiguity((value?.satAmbiguities?.length ?? 0) > 0);
+    setSatAmbiguities(value?.satAmbiguities ? [...value.satAmbiguities] : []);
     setDuplicateWarnings([]);
     setIsResolving(false);
     const t = window.setTimeout(() => {
@@ -253,13 +278,14 @@ export function LocationSheet({
         setSatMunicipalityCode(nextMunicipality);
         setNeighborhoodName(nextNeighborhoodName);
         setSatNeighborhoodCode(nextNeighborhoodCode);
-        setHasAmbiguity(
-          result.ambiguities.length > 0 ||
-            (value?.satAmbiguities?.length ?? 0) > 0,
-        );
+        const mergedAmbiguities: AmbiguityField[] =
+          result.ambiguities.length > 0
+            ? result.ambiguities
+            : (value?.satAmbiguities ?? []);
+        setSatAmbiguities([...mergedAmbiguities]);
       } catch {
         if (!cancelled) {
-          setHasAmbiguity(true);
+          setSatAmbiguities(["postalCode"]);
         }
       } finally {
         if (!cancelled) setIsResolving(false);
@@ -339,10 +365,25 @@ export function LocationSheet({
             : "manual"
           : "address_only",
       satCountryCode: value?.satCountryCode ?? "MEX",
-      satAmbiguities: undefined,
+      satAmbiguities: satAmbiguities.length > 0 ? [...satAmbiguities] : undefined,
     });
     onOpenChange(false);
   };
+
+  const hasTripStopCoords =
+    latitude != null &&
+    longitude != null &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude);
+  const canSaveByRequirements =
+    requirements === "tripStop"
+      ? Boolean(
+          locationName.trim() &&
+            /^\d{5}$/.test(postalCode.trim()) &&
+            hasTripStopCoords,
+        )
+      : Boolean(locationName.trim());
+  const saveDisabled = disabled || isResolving || !canSaveByRequirements;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -525,6 +566,11 @@ export function LocationSheet({
         </div>
 
         <SheetFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
+          {requirements === "tripStop" && !canSaveByRequirements ? (
+            <p className="mr-auto text-xs text-muted-foreground sm:max-w-[14rem]">
+              {LOCATION_FIELD_COPY.tripStopUseHint}
+            </p>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -536,7 +582,7 @@ export function LocationSheet({
           <Button
             type="button"
             onClick={handleSave}
-            disabled={disabled || !locationName.trim() || isResolving}
+            disabled={saveDisabled}
           >
             {LOCATION_FIELD_COPY.save}
           </Button>

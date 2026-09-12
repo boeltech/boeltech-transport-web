@@ -1,3 +1,4 @@
+import { isCartaPorteListBadgeReady } from "@boeltech/cfdi-domain";
 import { MapPin } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
@@ -5,12 +6,18 @@ import { Button } from "@shared/ui/button";
 
 import { LOCATION_FIELD_COPY } from "./locationFieldCopy";
 import { formatLocationAddressSummary } from "./locationSearchCompositor";
-import type { LocationCardVariant, LocationValue } from "./LocationField.types";
+import type {
+  LocationCardVariant,
+  LocationContext,
+  LocationValue,
+} from "./LocationField.types";
 import { LocationStatus } from "./LocationStatus";
 
 export interface LocationCardProps {
   value: LocationValue;
   variant?: LocationCardVariant;
+  /** Drives readiness chip copy (fiscal ≠ Carta Porte). */
+  context?: LocationContext;
   onChangeRequest?: () => void;
   onEditRequest?: () => void;
   showCartaPorteStatus?: boolean;
@@ -18,9 +25,21 @@ export interface LocationCardProps {
   className?: string;
 }
 
+/** Prefer API/catalog flag; if absent, derive list-badge readiness from SAT fields. */
+function resolveReadiness(value: LocationValue): boolean {
+  if (value.isCartaPorteReady != null) return value.isCartaPorteReady;
+  return isCartaPorteListBadgeReady({
+    sat_country_code: value.satCountryCode,
+    sat_state_code: value.satStateCode,
+    sat_municipality_code: value.satMunicipalityCode,
+    postal_code: value.postalCode,
+  });
+}
+
 export function LocationCard({
   value,
   variant = "default",
+  context,
   onChangeRequest,
   onEditRequest,
   showCartaPorteStatus = false,
@@ -77,8 +96,9 @@ export function LocationCard({
             </div>
             <LocationStatus
               geocodingAccuracy={value.geocodingAccuracy}
-              isCartaPorteReady={value.isCartaPorteReady}
+              isCartaPorteReady={resolveReadiness(value)}
               showCartaPorte={showCartaPorteStatus}
+              context={context}
             />
           </div>
 

@@ -160,7 +160,7 @@ describe("LocationSheet H3", () => {
     expect(
       screen.getByText(LOCATION_FIELD_COPY.ambiguityHint),
     ).toBeInTheDocument();
-    expect(LOCATION_FIELD_COPY.ambiguityHint).toMatch(/Afinar domicilio/);
+    expect(LOCATION_FIELD_COPY.ambiguityHint).toMatch(/Completar domicilio/);
   });
 
   it("hides pin tip when ambiguity banner is shown (D4)", () => {
@@ -357,5 +357,117 @@ describe("LocationSheet H3", () => {
     expect(screen.queryByText("Más detalles")).not.toBeInTheDocument();
     expect(screen.queryByText("Punto aproximado")).not.toBeInTheDocument();
     expect(screen.queryByText(LOCATION_FIELD_COPY.cartaPorteReady)).not.toBeInTheDocument();
+  });
+
+  it("keeps satAmbiguities on Usar so consumers can gate Completar domicilio", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    vi.mocked(resolveMapboxToSat).mockResolvedValue({
+      resolved: { satStateCode: "22" },
+      confidence: "low",
+      ambiguities: ["neighborhood", "municipality"],
+      mapboxLabel: "",
+    });
+
+    render(
+      <LocationSheet
+        open
+        onOpenChange={vi.fn()}
+        value={{
+          locationName: "Altea",
+          postalCode: "76127",
+        }}
+        onSave={onSave}
+        showMap={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(LOCATION_FIELD_COPY.ambiguityHint),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: LOCATION_FIELD_COPY.save }),
+    );
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        satAmbiguities: ["neighborhood", "municipality"],
+      }),
+    );
+  });
+
+  it("disables Usar for tripStop when name+CP lack map coordinates", async () => {
+    vi.mocked(resolveMapboxToSat).mockResolvedValue({
+      resolved: { satStateCode: "22" },
+      confidence: "low",
+      ambiguities: ["neighborhood"],
+      mapboxLabel: "",
+    });
+
+    render(
+      <LocationSheet
+        open
+        onOpenChange={vi.fn()}
+        context="tripStop"
+        value={{
+          locationName: "Altea",
+          postalCode: "76127",
+        }}
+        onSave={vi.fn()}
+        showMap
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: LOCATION_FIELD_COPY.save }),
+      ).toBeDisabled();
+    });
+    expect(
+      screen.getByText(LOCATION_FIELD_COPY.tripStopUseHint),
+    ).toBeInTheDocument();
+  });
+
+  it("enables Usar for tripStop when name, CP and coordinates are set", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    vi.mocked(resolveMapboxToSat).mockResolvedValue({
+      resolved: {
+        satStateCode: "22",
+        satMunicipalityCode: "014",
+        neighborhoodName: "Centro",
+      },
+      confidence: "high",
+      ambiguities: [],
+      mapboxLabel: "",
+    });
+
+    render(
+      <LocationSheet
+        open
+        onOpenChange={vi.fn()}
+        context="tripStop"
+        value={{
+          locationName: "Altea",
+          postalCode: "76127",
+          street: "Calle Uno",
+          latitude: 20.59,
+          longitude: -100.39,
+        }}
+        onSave={onSave}
+        showMap
+      />,
+    );
+
+    const save = screen.getByRole("button", {
+      name: LOCATION_FIELD_COPY.save,
+    });
+    await waitFor(() => {
+      expect(save).not.toBeDisabled();
+    });
+    await user.click(save);
+    expect(onSave).toHaveBeenCalled();
   });
 });

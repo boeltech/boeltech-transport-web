@@ -47,6 +47,9 @@ export const LOCATION_FIELD_COPY = {
   mapSection: "Punto en el mapa",
   cartaPorteReady: "Lista para Carta Porte",
   cartaPorteNotReady: "Faltan datos para Carta Porte",
+  /** Readiness chip when `context="fiscal"` (emisor / facturación; no es Ubicación CP). */
+  fiscalReady: "Listo para facturas",
+  fiscalNotReady: "Faltan datos para facturas",
   noCoordinates: "Sin punto en el mapa",
   emptyHint: "Busca en el catálogo o en el mapa, o crea una nueva.",
   emptyHintCreateOnly: "Busca en el mapa o crea una nueva.",
@@ -59,7 +62,9 @@ export const LOCATION_FIELD_COPY = {
   resolvingSat: "Buscando colonia y municipio…",
   resolvedNeighborhood: "Colonia",
   ambiguityHint:
-    "Hay más de una colonia o municipio posibles. Tras Usar, elige la correcta en «Afinar domicilio».",
+    "Hay más de una colonia o municipio posibles. Tras Usar, elige la correcta en «Completar domicilio».",
+  tripStopUseHint:
+    "Para usarla en la ruta: nombre, código postal y punto en el mapa.",
   duplicateWarningTitle: "Parece que esta ubicación ya existe",
   duplicateWarningBody:
     "Puedes continuar o elegir la que ya está registrada. No bloquea el guardado.",

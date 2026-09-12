@@ -10,7 +10,7 @@ Patrón UX transversal **BUSCAR → ENCONTRAR → CONFIRMAR → USAR** sobre el 
 | `LocationPicker` | Popover + Command; fusión catálogo + Mapbox |
 | `LocationCard` | Post-confirmación (`compact` \| `default` \| `detailed` \| `operational`) |
 | `LocationSheet` | Confirmación: nombre → calle/núm/CP → pin en el mapa (`confirmationMode`) |
-| `LocationStatus` | Badge de `geocodingAccuracy` (+ Carta Porte opcional) |
+| `LocationStatus` | Badge de `geocodingAccuracy` (+ readiness opcional: Carta Porte en operativo / «facturas» en `fiscal`) |
 | `useLocationSearch` | React Query interno + Mapbox en paralelo (`bias_from_query`, `query_meta`) |
 | `composeLocationSearchResults` | Orden D3 (puro); eleva Crear si `searchConfidence=low` |
 | `locationValueToSatAddressFields` | Prefill SAT/geo hacia formularios (F4+) |

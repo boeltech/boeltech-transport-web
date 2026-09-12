@@ -83,6 +83,45 @@ describe("branchFormToCreateDTO", () => {
       },
     });
   });
+
+  it("prefers address.locationName over branch name for location_name", () => {
+    const dto = branchFormToCreateDTO({
+      code: "QRO-01",
+      name: "Sucursal Querétaro",
+      status: BranchStatus.ACTIVE,
+      isMain: false,
+      address: {
+        ...validAddress,
+        locationName: "Sucursal Los Arcos",
+      },
+      phone: "",
+      email: "",
+      managerName: "",
+      notes: "",
+    });
+
+    expect(dto.address.location_name).toBe("Sucursal Los Arcos");
+    expect(dto.name).toBe("Sucursal Querétaro");
+  });
+
+  it("falls back to branch name when address.locationName is empty", () => {
+    const dto = branchFormToCreateDTO({
+      code: "QRO-01",
+      name: "Sucursal Querétaro",
+      status: BranchStatus.ACTIVE,
+      isMain: false,
+      address: {
+        ...validAddress,
+        locationName: "   ",
+      },
+      phone: "",
+      email: "",
+      managerName: "",
+      notes: "",
+    });
+
+    expect(dto.address.location_name).toBe("Sucursal Querétaro");
+  });
 });
 
 describe("branchFormToUpdateDTO", () => {
@@ -105,7 +144,26 @@ describe("branchFormToUpdateDTO", () => {
       address: {
         sat_state_code: "19",
         postal_code: "64000",
+        location_name: "Sucursal actualizada",
       },
     });
+  });
+
+  it("uses address.locationName for location_name on update", () => {
+    const dto = branchFormToUpdateDTO({
+      ...defaultBranchFormValues,
+      code: "MTY-01",
+      name: "Sucursal actualizada",
+      address: {
+        ...validAddress,
+        locationName: "CEDIS Norte",
+      },
+      phone: "",
+      email: "",
+      managerName: "",
+      notes: "",
+    });
+
+    expect(dto.address?.location_name).toBe("CEDIS Norte");
   });
 });

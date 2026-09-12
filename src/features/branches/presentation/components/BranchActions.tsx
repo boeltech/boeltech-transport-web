@@ -146,7 +146,7 @@ export function BranchActions({
   if (variant === "buttons") {
     return (
       <>
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
           {canUpdate && isActive ? (
             <Button
               variant="outline"

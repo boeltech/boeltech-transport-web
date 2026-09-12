@@ -9,5 +9,11 @@ interface BranchDetailHeaderSubtitleProps {
 export function BranchDetailHeaderSubtitle({
   code,
 }: BranchDetailHeaderSubtitleProps) {
-  return <p className="text-sm text-muted-foreground">{copy.subtitle(code)}</p>;
+  return (
+    <div className="space-y-0.5">
+      <p className="truncate text-sm text-muted-foreground">
+        {copy.subtitle(code)}
+      </p>
+    </div>
+  );
 }

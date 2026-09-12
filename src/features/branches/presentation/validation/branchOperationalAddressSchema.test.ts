@@ -49,6 +49,23 @@ describe("branchOperationalAddressFormSchema", () => {
     const result = branchOperationalAddressFormSchema.safeParse(validAddress);
     expect(result.success).toBe(true);
   });
+
+  it("defaults include empty locationName and null geocodingAccuracy", () => {
+    expect(defaultBranchOperationalAddressValues.locationName).toBe("");
+    expect(defaultBranchOperationalAddressValues.geocodingAccuracy).toBeNull();
+  });
+
+  it("accepts locationName and geocodingAccuracy", () => {
+    const result = branchOperationalAddressFormSchema.safeParse({
+      ...validAddress,
+      locationName: "Sucursal Los Arcos",
+      geocodingAccuracy: "approximate",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.locationName).toBe("Sucursal Los Arcos");
+    expect(result.data.geocodingAccuracy).toBe("approximate");
+  });
 });
 
 describe("validateBranchOperationalAddressFormComplete", () => {

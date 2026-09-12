@@ -1,4 +1,4 @@
-import { useMemo, type ReactElement, type ReactNode } from "react";
+import { useMemo, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -278,18 +278,6 @@ export function BranchDetailPage() {
     deleteMutation.mutate(branchId);
   };
 
-  const statusBadges: ReactNode =
-    branch ? (
-      <div className="flex flex-wrap items-center gap-2">
-        <BranchStatusBadge status={branch.status} showIcon size="sm" />
-        {branch.isMain ? (
-          <Badge variant="info" tone="soft">
-            {branchesCopy.card.mainBadge}
-          </Badge>
-        ) : null}
-      </div>
-    ) : undefined;
-
   const notesText = branch?.notes?.trim() ?? "";
 
   return (
@@ -311,11 +299,22 @@ export function BranchDetailPage() {
           branch && (!branch.isActive || branch.status === BranchStatus.INACTIVE)
             ? "muted"
             : "primary",
-        title: branch?.name ?? copy.title,
+        title: branch ? (
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{branch.name}</span>
+            <BranchStatusBadge status={branch.status} showIcon size="sm" />
+            {branch.isMain ? (
+              <Badge variant="info" tone="soft" className="text-xs font-medium">
+                {branchesCopy.card.mainBadge}
+              </Badge>
+            ) : null}
+          </span>
+        ) : (
+          copy.title
+        ),
         subtitle: branch ? (
           <BranchDetailHeaderSubtitle code={branch.code} />
         ) : undefined,
-        statusBadge: statusBadges,
         actions:
           branch ? (
             <BranchActions

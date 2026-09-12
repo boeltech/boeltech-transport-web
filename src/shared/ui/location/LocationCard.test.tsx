@@ -53,4 +53,64 @@ describe("LocationCard", () => {
     render(<LocationCard value={value} variant="operational" />);
     expect(screen.getByText("Parque Industrial")).toBeInTheDocument();
   });
+
+  it("shows fiscal readiness copy when context is fiscal", () => {
+    render(
+      <LocationCard
+        value={value}
+        context="fiscal"
+        showCartaPorteStatus
+      />,
+    );
+    expect(screen.getByText(LOCATION_FIELD_COPY.fiscalReady)).toBeInTheDocument();
+    expect(
+      screen.queryByText(LOCATION_FIELD_COPY.cartaPorteReady),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps Carta Porte readiness copy for trip stops", () => {
+    render(
+      <LocationCard
+        value={value}
+        context="tripStop"
+        showCartaPorteStatus
+      />,
+    );
+    expect(
+      screen.getByText(LOCATION_FIELD_COPY.cartaPorteReady),
+    ).toBeInTheDocument();
+  });
+
+  it("derives not-ready fiscal badge when SAT fields are incomplete", () => {
+    const incomplete: LocationValue = {
+      locationName: "Domicilio fiscal",
+      postalCode: "06600",
+      satCountryCode: "MEX",
+      // sin estado → badge list no ready
+      isCartaPorteReady: undefined,
+    };
+    render(
+      <LocationCard
+        value={incomplete}
+        context="fiscal"
+        showCartaPorteStatus
+      />,
+    );
+    expect(
+      screen.getByText(LOCATION_FIELD_COPY.fiscalNotReady),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back title to street summary when locationName is missing", () => {
+    const withoutName: LocationValue = {
+      locationName: null,
+      street: "Boulevard Bernardo Quintana Arrioja",
+      exteriorNumber: "12",
+      postalCode: "76022",
+    };
+    render(<LocationCard value={withoutName} />);
+    expect(
+      screen.getByText("Boulevard Bernardo Quintana Arrioja 12 · CP 76022"),
+    ).toBeInTheDocument();
+  });
 });

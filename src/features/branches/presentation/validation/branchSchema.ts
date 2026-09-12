@@ -66,6 +66,8 @@ function addressToApiPayload(
   locationName: string,
 ) {
   const normalized = normalizeBranchOperationalAddressFormData(address);
+  const resolvedLocationName =
+    normalized.locationName.trim() || locationName.trim();
   return {
     street: normalized.street,
     exterior_number: trimOrUndefined(normalized.exteriorNumber),
@@ -80,7 +82,7 @@ function addressToApiPayload(
     sat_neighborhood_code: emptyToNull(normalized.satNeighborhoodCode),
     latitude: normalized.latitude ?? null,
     longitude: normalized.longitude ?? null,
-    location_name: locationName.trim(),
+    location_name: resolvedLocationName,
     reference: emptyToNull(normalized.reference),
   };
 }

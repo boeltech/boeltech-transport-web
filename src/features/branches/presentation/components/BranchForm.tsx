@@ -88,6 +88,7 @@ interface BranchFormProps {
 const WIZARD_ADDRESS_STEP_INDEX = 1;
 
 const BRANCH_ADDRESS_SAT_KEYS = [
+  "locationName",
   "street",
   "exteriorNumber",
   "interiorNumber",
@@ -100,6 +101,7 @@ const BRANCH_ADDRESS_SAT_KEYS = [
   "localityName",
   "satNeighborhoodCode",
   "neighborhoodName",
+  "geocodingAccuracy",
   "latitude",
   "longitude",
 ] as const satisfies readonly (keyof BranchFormData["address"])[];
@@ -147,6 +149,8 @@ function branchToFormData(branch: Branch): BranchFormData {
     address: {
       addressType: "branch",
       isPrimary: true,
+      locationName: branch.address.locationName ?? "",
+      geocodingAccuracy: null,
       street: branch.address.street,
       exteriorNumber: branch.address.exteriorNumber ?? "",
       interiorNumber: branch.address.interiorNumber,
@@ -503,7 +507,11 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
           const addressResult =
             await validateBranchOperationalAddressFormComplete(
               getValues("address"),
-              { locationName: getValues("name") },
+              {
+                locationName:
+                  getValues("address.locationName")?.trim() ||
+                  getValues("name"),
+              },
             );
           if (!addressResult.ok) {
             applyAddressFieldErrors(addressResult.fieldErrors);
@@ -538,7 +546,10 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
       async (data: BranchFormData) => {
         const addressResult = await validateBranchOperationalAddressFormComplete(
           data.address,
-          { locationName: data.name },
+          {
+            locationName:
+              data.address.locationName?.trim() || data.name,
+          },
         );
 
         if (!addressResult.ok) {
@@ -564,6 +575,7 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
     const locationFieldValue = useMemo(
       () =>
         locationValueFromSatAddressFields({
+          locationName: addressWatch?.locationName,
           street: addressWatch?.street,
           exteriorNumber: addressWatch?.exteriorNumber,
           interiorNumber: addressWatch?.interiorNumber,
@@ -578,6 +590,7 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
           neighborhoodName: addressWatch?.neighborhoodName,
           latitude: addressWatch?.latitude,
           longitude: addressWatch?.longitude,
+          geocodingAccuracy: addressWatch?.geocodingAccuracy ?? null,
         }),
       [addressWatch],
     );

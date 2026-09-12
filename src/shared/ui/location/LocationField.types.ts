@@ -104,7 +104,7 @@ export interface LocationFieldProps {
   disabled?: boolean;
   error?: string;
   className?: string;
-  /** Show Carta Porte readiness chip on status. */
+  /** Show readiness chip on status (Carta Porte copy, or fiscal/invoice copy when `context="fiscal"`). */
   showCartaPorteStatus?: boolean;
   /** Open create sheet instead of only calling onChange for create sentinel. */
   onCreateRequest?: () => void;

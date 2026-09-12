@@ -380,7 +380,9 @@ describe("branches workflow smoke", () => {
     await user.click(screen.getByText("Sucursal Secundaria"));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Sucursal Secundaria" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: /Sucursal Secundaria/ }),
+      ).toBeInTheDocument();
     });
 
     // Tab Resumen (por defecto, sin ?tab= en la URL)
@@ -424,7 +426,9 @@ describe("branches workflow smoke", () => {
     await user.click(screen.getByText("Sucursal El Marqués"));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Sucursal El Marqués" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: /Sucursal El Marqués/ }),
+      ).toBeInTheDocument();
     });
 
     expect(
@@ -538,7 +542,7 @@ describe("branches workflow smoke", () => {
     await waitFor(() => {
       expect(mockCreate).toHaveBeenCalled();
       expect(
-        screen.getByRole("heading", { name: "Sucursal Nueva Smoke" }),
+        screen.getByRole("heading", { name: /Sucursal Nueva Smoke/ }),
       ).toBeInTheDocument();
     });
   });

@@ -9,16 +9,29 @@ import {
   parseClientAddressFormCreate,
 } from "@shared/cfdi/addressPayloadBridge";
 import {
+  GEOCODING_ACCURACY_VALUES,
+  type GeocodingAccuracy,
+} from "@shared/location/geocodingAccuracy";
+import {
   cp31AddressDomUxFields,
   cp31RequiredSatLocationUxFields,
   requiredTrimmed,
   withLatLngPairRefinement,
 } from "@shared/validation/addressFormUx";
 
+const geocodingAccuracySchema = z
+  .enum(GEOCODING_ACCURACY_VALUES as unknown as [GeocodingAccuracy, ...GeocodingAccuracy[]])
+  .nullable()
+  .optional();
+
 const branchOperationalDomShape = {
   addressType: z.literal("branch"),
   isPrimary: z.literal(true),
   ...cp31AddressDomUxFields,
+  /** Nombre del lugar (LocationSheet); independiente del `name` de la sucursal. */
+  locationName: z.string().max(200).default(""),
+  /** Solo UI/card tras Usar; no se mapea a `geocoding_source` del API en v1. */
+  geocodingAccuracy: geocodingAccuracySchema,
   street: requiredTrimmed(200, "La calle"),
   exteriorNumber: requiredTrimmed(20, "El número exterior"),
 };
@@ -51,6 +64,8 @@ export function normalizeBranchOperationalAddressFormData(
     ...data,
     addressType: "branch",
     isPrimary: true,
+    locationName: (data.locationName ?? "").trim(),
+    geocodingAccuracy: data.geocodingAccuracy ?? null,
     street: (data.street ?? "").trim(),
     exteriorNumber: (data.exteriorNumber ?? "").trim(),
     postalCode: (data.postalCode ?? "").trim(),
@@ -68,6 +83,8 @@ export const defaultBranchOperationalAddressValues: BranchOperationalAddressForm
   {
     addressType: "branch",
     isPrimary: true,
+    locationName: "",
+    geocodingAccuracy: null,
     street: "",
     exteriorNumber: "",
     interiorNumber: null,
