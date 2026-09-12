@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm } from "react-hook-form";
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { ROLES } from "@shared/constants/roles";
@@ -98,6 +98,9 @@ function Harness({
       ...defaultValues,
     } as TripWizardFormValues,
   });
+  const [allowExpiredDocs, setAllowExpiredDocs] = useState(
+    props.allowExpiredDocs ?? false,
+  );
 
   return (
     <TripAssignmentResourceFields
@@ -109,6 +112,8 @@ function Harness({
       excludedDriverEmployeeIds={props.excludedDriverEmployeeIds}
       idPrefix={props.idPrefix}
       density={props.density}
+      allowExpiredDocs={allowExpiredDocs}
+      onAllowExpiredDocsChange={setAllowExpiredDocs}
     />
   );
 }
@@ -225,6 +230,17 @@ describe("TripAssignmentResourceFields", () => {
     expect(busyOption).toHaveAttribute("data-disabled");
     await user.keyboard("{Escape}");
 
+    await user.click(driverCombobox());
+    listbox = await screen.findByRole("listbox");
+    expect(
+      within(listbox).queryByText(copy.state.withExpiredDocs),
+    ).not.toBeInTheDocument();
+    const expiredDriverWhileBlocked = within(listbox).getByRole("option", {
+      name: /Conductor Vencido/,
+    });
+    expect(expiredDriverWhileBlocked).toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+
     await user.click(allowExpiredDocsCheckbox());
     await user.click(vehicleCombobox());
     listbox = await screen.findByRole("listbox");
@@ -239,6 +255,17 @@ describe("TripAssignmentResourceFields", () => {
     expect(
       within(listbox).getByRole("option", { name: /BSY-444/ }),
     ).toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+
+    await user.click(driverCombobox());
+    listbox = await screen.findByRole("listbox");
+    expect(
+      within(listbox).getByText(copy.state.withExpiredDocs),
+    ).toBeInTheDocument();
+    const expiredDriverSelectable = within(listbox).getByRole("option", {
+      name: /Conductor Vencido/,
+    });
+    expect(expiredDriverSelectable).not.toHaveAttribute("data-disabled");
   });
 
   it("clears expired vehicle selection when allow-expired opt-in is turned off", async () => {
@@ -252,6 +279,7 @@ describe("TripAssignmentResourceFields", () => {
           vehicleId: "",
         } as TripWizardFormValues,
       });
+      const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
 
       return (
         <>
@@ -261,6 +289,8 @@ describe("TripAssignmentResourceFields", () => {
             drivers={drivers}
             isLoadingVehicles={false}
             isLoadingDrivers={false}
+            allowExpiredDocs={allowExpiredDocs}
+            onAllowExpiredDocsChange={setAllowExpiredDocs}
           />
           <button
             type="button"

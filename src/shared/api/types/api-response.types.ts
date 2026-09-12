@@ -22,6 +22,8 @@
 export interface ApiSingleResponse<TRaw> {
   data: TRaw;
   message?: string;
+  /** Soft-warns no bloqueantes (p. ej. FISCAL_ATTENTION_PENDING al cierre). */
+  warnings?: Array<{ code: string; message: string }>;
 }
 
 // ---------------------------------------------------------------------------

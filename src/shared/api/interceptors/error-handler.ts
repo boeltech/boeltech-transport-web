@@ -182,6 +182,10 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   VEHICLE_ON_TRIP: "No se puede modificar un vehículo en viaje",
   VEHICLE_NOT_ASSIGNABLE: "El vehículo no puede ser asignado",
   VEHICLE_ALREADY_ASSIGNED: "El vehículo ya está asignado en esas fechas",
+  VEHICLE_ASSIGNED_TO_ACTIVE_TRIP:
+    "No se puede dar de baja la unidad porque tiene viajes activos. Reasigne o libere la flota en esos viajes antes de continuar.",
+  VEHICLE_INACTIVE:
+    "La unidad asignada está dada de baja. Reasigne la flota del viaje antes de confirmar la reserva.",
   INVALID_STATUS_TRANSITION: "Transición de estado no permitida",
   INVALID_MILEAGE: "El kilometraje no puede ser menor al actual",
 

@@ -169,6 +169,7 @@ export function TripTrailerAssignmentFields({
     form as UseFormReturn<TripTrailerAssignmentHostFormValues>;
   const selectedVehicleId = watch("vehicleId");
   const trailers = watch("trailers") ?? [];
+  const formSatConfig = (watch("satConfigAutotransporteCode") ?? "").trim();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetTargetPosition, setSheetTargetPosition] = useState<1 | 2>(1);
   const [showSecondSelect, setShowSecondSelect] = useState(false);
@@ -176,11 +177,23 @@ export function TripTrailerAssignmentFields({
   const { data: assignableTrailersRaw = [], isLoading } = useAssignableTrailers({
     refetchOnMount: "always",
   });
-  const keepAssignableTrailerIds = useRef(
-    new Set(
-      (getValues("trailers") ?? []).map((item) => item.trailerId),
-    ),
-  ).current;
+
+  /** Snapshot of assigned trailer ids — re-seed when form hydrates (sheet reset). */
+  const keepAssignableTrailerIdsRef = useRef<Set<string>>(new Set());
+  const trailerIdsKey = trailers
+    .map((item) => item.trailerId)
+    .filter(Boolean)
+    .sort()
+    .join(",");
+  if (
+    trailerIdsKey &&
+    keepAssignableTrailerIdsRef.current.size === 0
+  ) {
+    keepAssignableTrailerIdsRef.current = new Set(
+      trailers.map((item) => item.trailerId).filter(Boolean),
+    );
+  }
+  const keepAssignableTrailerIds = keepAssignableTrailerIdsRef.current;
 
   const assignableTrailers = useMemo(
     () =>
@@ -196,17 +209,32 @@ export function TripTrailerAssignmentFields({
     [vehicles, selectedVehicleId],
   );
 
+  // Prefer assignable catalog; fall back to form (sheet reset / trip snapshot)
+  // so S/R UI and trailers survive while vehicles query is still loading.
   const configCode = (
-    selectedVehicle?.satConfigAutotransporteCode ?? ""
+    selectedVehicle?.satConfigAutotransporteCode ?? formSatConfig
   ).trim();
   const requiresTrailers =
     !!configCode && configVehicularLikelyRequiresRemolques(configCode);
+  const configStillResolving = Boolean(selectedVehicleId) && !configCode;
 
   useEffect(() => {
-    setValue("satConfigAutotransporteCode", configCode, {
-      shouldDirty: false,
-      shouldValidate: true,
-    });
+    if (selectedVehicle?.satConfigAutotransporteCode) {
+      setValue(
+        "satConfigAutotransporteCode",
+        selectedVehicle.satConfigAutotransporteCode,
+        { shouldDirty: false, shouldValidate: true },
+      );
+    } else if (!selectedVehicleId) {
+      setValue("satConfigAutotransporteCode", "", {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+
+    // Do not clear trailers while config is unknown (hard-refresh race).
+    if (configStillResolving) return;
+
     if (!requiresTrailers) {
       const current = getValues("trailers") ?? [];
       if (current.length > 0) {
@@ -214,7 +242,15 @@ export function TripTrailerAssignmentFields({
       }
       setShowSecondSelect(false);
     }
-  }, [configCode, requiresTrailers, setValue, getValues]);
+  }, [
+    configCode,
+    configStillResolving,
+    requiresTrailers,
+    selectedVehicle?.satConfigAutotransporteCode,
+    selectedVehicleId,
+    setValue,
+    getValues,
+  ]);
 
   useEffect(() => {
     if ((trailers ?? []).some((t) => t.position === 2)) {

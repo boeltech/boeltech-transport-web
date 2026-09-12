@@ -122,7 +122,34 @@ describe("buildAssignableDriversForTripWizard", () => {
 
   it("marks expired license as overridable", () => {
     const result = buildAssignableDriversForTripWizard(
-      [driver({ id: "drv-expired", isLicenseExpired: true })],
+      [driver({ id: "drv-expired", isLicenseExpired: true, isFederalLicenseExpired: true })],
+      new Set(),
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      blockReason: "Licencia vencida",
+      expiredDocsOverridable: true,
+    });
+  });
+
+  it("marks state-only expired license as overridable even when aggregate is false", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [
+        driver({
+          id: "drv-state-only",
+          federalLicenseNumber: null,
+          federalLicenseCategory: null,
+          federalLicenseExpiry: null,
+          stateLicenseNumber: "EST-100000",
+          stateLicenseExpiry: "2026-09-08",
+          hasFederalLicense: false,
+          hasStateLicense: true,
+          isFederalLicenseExpired: false,
+          isStateLicenseExpired: true,
+          isLicenseExpired: false,
+        }),
+      ],
       new Set(),
     );
 
@@ -162,9 +189,22 @@ describe("buildAssignableDriversForTripWizard", () => {
     });
   });
 
-  it("does not waive on_trip even when keep id matches", () => {
+  it("keeps on_trip driver assignable when it is the trip current assignment", () => {
     const result = buildAssignableDriversForTripWizard(
       [driver({ id: "drv-current", status: "on_trip" })],
+      new Set(),
+      { keepAssignableDriverId: "drv-current" },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      blockReason: undefined,
+    });
+  });
+
+  it("does not waive on_trip for a different driver", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [driver({ id: "drv-other", status: "on_trip" })],
       new Set(),
       { keepAssignableDriverId: "drv-current" },
     );
@@ -173,5 +213,27 @@ describe("buildAssignableDriversForTripWizard", () => {
       canBeAssigned: false,
       blockReason: "En viaje",
     });
+  });
+
+  it("does not promote reserved+expired license to softBusy when softBusySelectable", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [
+        driver({
+          id: "drv-expired-reserved",
+          status: "reserved",
+          isLicenseExpired: true,
+          isFederalLicenseExpired: true,
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      expiredDocsOverridable: true,
+      blockReason: "Licencia vencida",
+    });
+    expect(result[0]?.softBusy).toBeUndefined();
   });
 });

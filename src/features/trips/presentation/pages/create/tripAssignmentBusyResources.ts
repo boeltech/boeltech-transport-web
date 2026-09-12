@@ -88,6 +88,81 @@ export function buildBusyAssignmentResourceIds(
   trips: readonly TripListItem[],
   excludeTripId?: string,
 ): BusyAssignmentResourceIds {
+  return buildBusyAssignmentResourceIdsFromStatuses(
+    trips,
+    excludeTripId,
+    ACTIVE_ASSIGNMENT_STATUSES,
+  );
+}
+
+const BUSY_ON_ACTIVE_TRIP = "Asignado a un viaje activo";
+const HELD_ON_DRAFT_RESERVE = "En reserva";
+
+export { BUSY_ON_ACTIVE_TRIP, HELD_ON_DRAFT_RESERVE };
+
+function toScheduleMs(value: Date | null | undefined): number | null {
+  if (!value || Number.isNaN(value.getTime())) return null;
+  return value.getTime();
+}
+
+/** Inclusive interval overlap; missing arrival collapses to departure instant. */
+export function tripScheduleWindowsOverlap(
+  a: {
+    scheduledDeparture: Date | null | undefined;
+    scheduledArrival?: Date | null | undefined;
+  },
+  b: {
+    scheduledDeparture: Date | null | undefined;
+    scheduledArrival?: Date | null | undefined;
+  },
+): boolean {
+  const aStart = toScheduleMs(a.scheduledDeparture);
+  const bStart = toScheduleMs(b.scheduledDeparture);
+  if (aStart == null || bStart == null) return false;
+  const aEnd = toScheduleMs(a.scheduledArrival) ?? aStart;
+  const bEnd = toScheduleMs(b.scheduledArrival) ?? bStart;
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
+export function filterTripsOverlappingWindow(
+  trips: readonly TripListItem[],
+  window: {
+    scheduledDeparture: Date | null | undefined;
+    scheduledArrival?: Date | null | undefined;
+  },
+): TripListItem[] {
+  return trips.filter((trip) =>
+    tripScheduleWindowsOverlap(
+      {
+        scheduledDeparture: trip.scheduledDeparture,
+        scheduledArrival: trip.scheduledArrival,
+      },
+      window,
+    ),
+  );
+}
+
+/**
+ * Soft-hold resources from draft (Reserva) trips only.
+ * Caller should pass draft-only list (PD5 — never merge into hard busy).
+ */
+export function buildDraftHoldAssignmentResourceIds(
+  trips: readonly TripListItem[],
+  excludeTripId?: string,
+): BusyAssignmentResourceIds {
+  const draftOnly = trips.filter((trip) => trip.status === TripStatus.DRAFT);
+  return buildBusyAssignmentResourceIdsFromStatuses(
+    draftOnly,
+    excludeTripId,
+    [TripStatus.DRAFT],
+  );
+}
+
+function buildBusyAssignmentResourceIdsFromStatuses(
+  trips: readonly TripListItem[],
+  excludeTripId: string | undefined,
+  statuses: readonly TripStatusType[],
+): BusyAssignmentResourceIds {
   const vehicleIds = new Set<string>();
   const driverIds = new Set<string>();
   const employeeIds = new Set<string>();
@@ -97,7 +172,7 @@ export function buildBusyAssignmentResourceIds(
 
   for (const trip of trips) {
     if (excludeTripId && trip.id === excludeTripId) continue;
-    if (!ACTIVE_ASSIGNMENT_STATUSES.includes(trip.status)) continue;
+    if (!statuses.includes(trip.status)) continue;
 
     const conflict = conflictFromTrip(trip);
 
@@ -135,9 +210,34 @@ export function buildBusyAssignmentResourceIds(
   };
 }
 
-const BUSY_ON_ACTIVE_TRIP = "Asignado a un viaje activo";
+/**
+ * Marks draft-hold resources as selectable softBusy (hard busy already applied).
+ * Hard-blocked resources win — holds never override operational busy.
+ */
+export function applyDraftHoldSoftSignalToVehicles(
+  vehicles: readonly AssignableVehicleItem[],
+  holdVehicleIds: ReadonlySet<string>,
+  options?: {
+    conflicts?: ReadonlyMap<string, AssignmentConflict>;
+  },
+): AssignableVehicleItem[] {
+  const conflicts = options?.conflicts;
+  return vehicles.map((vehicle) => {
+    if (!holdVehicleIds.has(vehicle.id)) return vehicle;
+    if (!vehicle.canBeAssigned || vehicle.softBusy) return vehicle;
 
-export { BUSY_ON_ACTIVE_TRIP };
+    const conflict = conflicts?.get(vehicle.id);
+    return {
+      ...vehicle,
+      canBeAssigned: true as const,
+      softBusy: true as const,
+      assignmentConflict: conflict,
+      blockReason: conflict
+        ? conflictBadgeLabel(conflict)
+        : HELD_ON_DRAFT_RESERVE,
+    };
+  });
+}
 
 function isFleetCommitStatus(status: string | undefined): boolean {
   return status === "reserved" || status === "on_trip";
@@ -164,7 +264,8 @@ export function applyBusyResourcesToVehicles(
     const isBusy = busyVehicleIds.has(vehicle.id);
     const isCommitStatus = isFleetCommitStatus(vehicle.status);
 
-    if (keepId && vehicle.id === keepId && vehicle.status === "reserved") {
+    // Current trip assignment: reserved (scheduled) or on_trip (in progress / ADR-0093).
+    if (keepId && vehicle.id === keepId && isFleetCommitStatus(vehicle.status)) {
       return {
         ...vehicle,
         canBeAssigned: true as const,
@@ -185,6 +286,16 @@ export function applyBusyResourcesToVehicles(
       }
 
       if (isBusy || isCommitStatus) {
+        // ADR-0066: expired docs stay gated by allowExpiredDocs — do not promote
+        // reserved/on_trip (or busy) into soft-busy selectable.
+        if (vehicle.expiredDocsOverridable === true) {
+          return {
+            ...vehicle,
+            canBeAssigned: false as const,
+            softBusy: undefined,
+            assignmentConflict: conflict,
+          };
+        }
         return {
           ...vehicle,
           canBeAssigned: true as const,
@@ -219,7 +330,7 @@ export function applyBusyResourcesToVehicles(
       !next.canBeAssigned &&
       keepId &&
       next.id === keepId &&
-      next.status === "reserved"
+      isFleetCommitStatus(next.status)
     ) {
       return {
         ...next,

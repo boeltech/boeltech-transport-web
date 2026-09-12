@@ -5,9 +5,13 @@ import type { AssignableVehicleItem } from "@features/vehicles/domain";
 
 import {
   applyBusyResourcesToVehicles,
+  applyDraftHoldSoftSignalToVehicles,
   applySoftBusyToTrailers,
   buildBusyAssignmentResourceIds,
+  buildDraftHoldAssignmentResourceIds,
+  filterTripsOverlappingWindow,
   pickPreferredConflict,
+  tripScheduleWindowsOverlap,
 } from "./tripAssignmentBusyResources";
 
 function trip(
@@ -244,13 +248,32 @@ describe("applyBusyResourcesToVehicles", () => {
     });
   });
 
-  it("does not waive reserved for a different vehicle", () => {
+  it("keeps on_trip vehicle assignable when it is the trip current assignment", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-current", {
+          status: "on_trip",
+          canBeAssigned: false,
+          blockReason: "En viaje",
+        }),
+      ],
+      new Set(),
+      { keepAssignableVehicleId: "veh-current" },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      blockReason: undefined,
+    });
+  });
+
+  it("does not waive on_trip for a different vehicle", () => {
     const result = applyBusyResourcesToVehicles(
       [
         vehicle("veh-other", {
-          status: "reserved",
+          status: "on_trip",
           canBeAssigned: false,
-          blockReason: "Reservado",
+          blockReason: "En viaje",
         }),
       ],
       new Set(),
@@ -259,8 +282,30 @@ describe("applyBusyResourcesToVehicles", () => {
 
     expect(result[0]).toMatchObject({
       canBeAssigned: false,
-      blockReason: "Reservado",
+      blockReason: "En viaje",
     });
+  });
+
+  it("does not promote reserved+expiredDocs to softBusy when softBusySelectable", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-expired-reserved", {
+          status: "reserved",
+          canBeAssigned: false,
+          expiredDocsOverridable: true,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      expiredDocsOverridable: true,
+      blockReason: "Seguro vencido",
+    });
+    expect(result[0]?.softBusy).toBeUndefined();
   });
 });
 
@@ -300,5 +345,106 @@ describe("applySoftBusyToTrailers", () => {
 
     expect(result[0]?.softBusy).toBeUndefined();
     expect(result[0]?.canBeAssigned).toBe(false);
+  });
+});
+
+describe("tripScheduleWindowsOverlap / filterTripsOverlappingWindow", () => {
+  it("detects overlapping windows", () => {
+    expect(
+      tripScheduleWindowsOverlap(
+        {
+          scheduledDeparture: new Date("2026-08-30T08:00:00Z"),
+          scheduledArrival: new Date("2026-08-30T18:00:00Z"),
+        },
+        {
+          scheduledDeparture: new Date("2026-08-30T12:00:00Z"),
+          scheduledArrival: new Date("2026-08-30T14:00:00Z"),
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("filters non-overlapping drafts out", () => {
+    const filtered = filterTripsOverlappingWindow(
+      [
+        trip({
+          id: "overlap",
+          status: TripStatus.DRAFT,
+          scheduledDeparture: new Date("2026-08-30T10:00:00Z"),
+          scheduledArrival: new Date("2026-08-30T12:00:00Z"),
+        }),
+        trip({
+          id: "far",
+          status: TripStatus.DRAFT,
+          scheduledDeparture: new Date("2026-09-10T08:00:00Z"),
+          scheduledArrival: new Date("2026-09-10T18:00:00Z"),
+        }),
+      ],
+      {
+        scheduledDeparture: new Date("2026-08-30T08:00:00Z"),
+        scheduledArrival: new Date("2026-08-30T18:00:00Z"),
+      },
+    );
+    expect(filtered.map((t) => t.id)).toEqual(["overlap"]);
+  });
+});
+
+describe("buildDraftHoldAssignmentResourceIds + applyDraftHoldSoftSignal", () => {
+  it("only includes draft resources", () => {
+    const holds = buildDraftHoldAssignmentResourceIds([
+      trip({
+        id: "d1",
+        tripCode: "RSV-1",
+        status: TripStatus.DRAFT,
+        vehicle: { id: "veh-hold", unitNumber: "U", licensePlate: "X" },
+        driver: { id: "drv-hold", fullName: "Hold" },
+      }),
+      trip({
+        id: "s1",
+        status: TripStatus.SCHEDULED,
+        vehicle: { id: "veh-sched", unitNumber: "U2", licensePlate: "Y" },
+      }),
+    ]);
+    expect([...holds.vehicleIds]).toEqual(["veh-hold"]);
+    expect([...holds.driverIds]).toEqual(["drv-hold"]);
+  });
+
+  it("marks assignable vehicles soft without hard-blocking", () => {
+    const conflict = {
+      tripId: "d1",
+      tripCode: "RSV-1",
+      status: TripStatus.DRAFT,
+      scheduledDeparture: new Date("2026-08-30T10:00:00Z"),
+    };
+    const hardApplied = applyBusyResourcesToVehicles(
+      [vehicle("veh-hold"), vehicle("veh-free")],
+      new Set(),
+    );
+    const result = applyDraftHoldSoftSignalToVehicles(
+      hardApplied,
+      new Set(["veh-hold"]),
+      { conflicts: new Map([["veh-hold", conflict]]) },
+    );
+    expect(result.find((v) => v.id === "veh-hold")).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "Reserva",
+    });
+    expect(result.find((v) => v.id === "veh-free")?.softBusy).toBeUndefined();
+  });
+
+  it("does not override hard-busy vehicles", () => {
+    const hardBlocked = applyBusyResourcesToVehicles(
+      [vehicle("veh-busy")],
+      new Set(["veh-busy"]),
+    );
+    const result = applyDraftHoldSoftSignalToVehicles(
+      hardBlocked,
+      new Set(["veh-busy"]),
+    );
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      softBusy: undefined,
+    });
   });
 });

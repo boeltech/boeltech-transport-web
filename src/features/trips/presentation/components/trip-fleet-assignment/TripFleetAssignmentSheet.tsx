@@ -62,27 +62,32 @@ import { useDrivers } from "@features/drivers/application";
 import { useEmployees } from "@features/employees";
 import {
   useActiveAssignmentTripsForBusy,
-  useUpdateTrip,
+  useDraftHoldAssignmentTripsForSoft,
+  useReassignTripFleet,
   invalidateTripAssignmentResources,
 } from "@features/trips/application";
 import {
   TripStatus,
   type Trip,
-  type UpdateTripInput,
 } from "@features/trips/domain";
 
 import {
   applyBusyResourcesToVehicles,
+  applyDraftHoldSoftSignalToVehicles,
   buildBusyAssignmentResourceIds,
+  buildDraftHoldAssignmentResourceIds,
   conflictBadgeLabel,
+  filterTripsOverlappingWindow,
   formatConflictDeparture,
 } from "../../pages/create/tripAssignmentBusyResources";
 import {
+  applyDraftHoldSoftSignalToDrivers,
   buildAssignableDriversForTripWizard,
   type AssignableDriverItem,
 } from "../../pages/create/tripAssignmentDrivers";
 import {
   buildAssignableSupportStaffForTripWizard,
+  applyDraftHoldSoftSignalToSupportStaff,
   type SupportStaffPositionFilter,
 } from "../../pages/create/tripAssignmentSupportStaff";
 import { resolveSelectedAssignmentLicenseSoftSignal } from "../../pages/create/tripAssignmentLicenseMatch";
@@ -97,6 +102,7 @@ import {
   tripFleetAssignmentSchema,
   type TripFleetAssignmentFormValues,
 } from "./fleetAssignmentValidation";
+import { isFleetAssignmentCpRelevantChange } from "./isFleetAssignmentCpRelevantChange";
 import {
   FLEET_ASSIGNMENT_SHEET_BODY_CLASS,
   FLEET_ASSIGNMENT_SHEET_CONTENT_CLASS,
@@ -186,6 +192,9 @@ export function TripFleetAssignmentSheet({
     control,
     handleSubmit,
     setValue,
+    getValues,
+    trigger,
+    register,
     reset,
     formState: { isSubmitting, errors },
   } = form;
@@ -234,6 +243,15 @@ export function TripFleetAssignmentSheet({
     refetchOnMount: "always",
   });
 
+  const softHoldFromDraft =
+    trip.status === TripStatus.SCHEDULED ||
+    trip.status === TripStatus.IN_PROGRESS;
+
+  const { data: draftHoldTripsResult } = useDraftHoldAssignmentTripsForSoft({
+    enabled: open && softHoldFromDraft,
+    refetchOnMount: "always",
+  });
+
   const [showAllFleet, setShowAllFleet] = useState(false);
   const watchedAllowExpiredDocs = form.watch("allowExpiredDocs");
   const effectiveAllowExpiredDocs =
@@ -256,23 +274,60 @@ export function TripFleetAssignmentSheet({
     );
   }, [activeTripsResult?.items, trip.id]);
 
+  const draftHoldResources = useMemo(() => {
+    if (!softHoldFromDraft) {
+      return buildDraftHoldAssignmentResourceIds([], trip.id);
+    }
+    const overlapping = filterTripsOverlappingWindow(
+      draftHoldTripsResult?.items ?? [],
+      {
+        scheduledDeparture: trip.scheduledDeparture,
+        scheduledArrival: trip.scheduledArrival,
+      },
+    );
+    return buildDraftHoldAssignmentResourceIds(overlapping, trip.id);
+  }, [
+    softHoldFromDraft,
+    draftHoldTripsResult?.items,
+    trip.id,
+    trip.scheduledDeparture,
+    trip.scheduledArrival,
+  ]);
+
   // Producto: en draft, soft-busy es seleccionable con aviso (no hard-block Zod).
   // En scheduled/otros, softBusySelectable=false → UI hard-block de recursos busy.
   const softBusySelectable = trip.status === TripStatus.DRAFT;
 
+  const softSelectGroupLabel = softBusySelectable
+    ? copy.labels.softBusyGroup
+    : copy.labels.softHoldGroup;
+
   const vehicles = useMemo(() => {
-    return applyBusyResourcesToVehicles(vehiclesRaw, busyResources.vehicleIds, {
-      keepAssignableVehicleId: trip.vehicle?.id ?? trip.vehicleId,
-      softBusySelectable,
-      conflicts: busyResources.vehicleConflicts,
-    });
+    const withHardOrDraftSoft = applyBusyResourcesToVehicles(
+      vehiclesRaw,
+      busyResources.vehicleIds,
+      {
+        keepAssignableVehicleId: trip.vehicle?.id ?? trip.vehicleId,
+        softBusySelectable,
+        conflicts: busyResources.vehicleConflicts,
+      },
+    );
+    if (!softHoldFromDraft) return withHardOrDraftSoft;
+    return applyDraftHoldSoftSignalToVehicles(
+      withHardOrDraftSoft,
+      draftHoldResources.vehicleIds,
+      { conflicts: draftHoldResources.vehicleConflicts },
+    );
   }, [
     vehiclesRaw,
     busyResources.vehicleIds,
     busyResources.vehicleConflicts,
+    draftHoldResources.vehicleIds,
+    draftHoldResources.vehicleConflicts,
     trip.vehicle?.id,
     trip.vehicleId,
     softBusySelectable,
+    softHoldFromDraft,
   ]);
 
   const fleetDrivers = useMemo(
@@ -280,26 +335,33 @@ export function TripFleetAssignmentSheet({
     [driversPage?.data],
   );
 
-  const assignableDrivers = useMemo(
-    (): AssignableDriverItem[] =>
-      buildAssignableDriversForTripWizard(
-        fleetDrivers,
-        busyResources.driverIds,
-        {
-          keepAssignableDriverId: trip.driver?.id ?? trip.driverId,
-          softBusySelectable,
-          conflicts: busyResources.driverConflicts,
-        },
-      ),
-    [
+  const assignableDrivers = useMemo((): AssignableDriverItem[] => {
+    const withHardOrDraftSoft = buildAssignableDriversForTripWizard(
       fleetDrivers,
       busyResources.driverIds,
-      busyResources.driverConflicts,
-      trip.driver?.id,
-      trip.driverId,
-      softBusySelectable,
-    ],
-  );
+      {
+        keepAssignableDriverId: trip.driver?.id ?? trip.driverId,
+        softBusySelectable,
+        conflicts: busyResources.driverConflicts,
+      },
+    );
+    if (!softHoldFromDraft) return withHardOrDraftSoft;
+    return applyDraftHoldSoftSignalToDrivers(
+      withHardOrDraftSoft,
+      draftHoldResources.driverIds,
+      { conflicts: draftHoldResources.driverConflicts },
+    );
+  }, [
+    fleetDrivers,
+    busyResources.driverIds,
+    busyResources.driverConflicts,
+    draftHoldResources.driverIds,
+    draftHoldResources.driverConflicts,
+    trip.driver?.id,
+    trip.driverId,
+    softBusySelectable,
+    softHoldFromDraft,
+  ]);
 
   const scopedVehicles = useMemo(
     () => vehicles.filter((v) => matchesOriginBranch(v.branchId)),
@@ -557,7 +619,7 @@ export function TripFleetAssignmentSheet({
   }, [selectedVehicle, selectedDriver]);
 
   const supportStaffOptions = useMemo(() => {
-    return buildAssignableSupportStaffForTripWizard({
+    const base = buildAssignableSupportStaffForTripWizard({
       employees: activeEmployees,
       driversByEmployeeId,
       busyResources,
@@ -565,6 +627,12 @@ export function TripFleetAssignmentSheet({
       excludeEmployeeIds: excludedEmployeeIdsForSupport,
       softBusySelectable,
     });
+    if (!softHoldFromDraft) return base;
+    return applyDraftHoldSoftSignalToSupportStaff(
+      base,
+      draftHoldResources.employeeIds,
+      draftHoldResources.employeeConflicts,
+    );
   }, [
     activeEmployees,
     driversByEmployeeId,
@@ -572,14 +640,22 @@ export function TripFleetAssignmentSheet({
     supportStaffPositionFilter,
     excludedEmployeeIdsForSupport,
     softBusySelectable,
+    softHoldFromDraft,
+    draftHoldResources.employeeIds,
+    draftHoldResources.employeeConflicts,
   ]);
 
-  const handleAddSupportStaff = useCallback(() => {
+  /**
+   * Commits draft filter + employee into RHF `internalStaff`.
+   * Shared by «Agregar integrante» and submit flush (H1).
+   * @returns false when validation failed (error on employee select).
+   */
+  const commitDraftSupportStaff = useCallback((): boolean => {
     setStaffAddError(null);
     const empId = draftStaffEmployeeId.trim();
     if (!empId) {
       setStaffAddError(copy.errors.selectEmployeeToAdd);
-      return;
+      return false;
     }
 
     const targetOption = supportStaffOptions.find(
@@ -589,12 +665,12 @@ export function TripFleetAssignmentSheet({
       setStaffAddError(
         targetOption.blockReason ?? copy.errors.employeeUnavailable,
       );
-      return;
+      return false;
     }
 
     if (excludedEmployeeIdsForSupport.has(empId)) {
       setStaffAddError(copy.errors.employeeAlreadyAssigned);
-      return;
+      return false;
     }
 
     const defaultRole =
@@ -602,21 +678,39 @@ export function TripFleetAssignmentSheet({
         ? "secondary_driver"
         : "helper";
 
-    internalStaffFieldArray.append({
+    const nextMember = {
       employeeId: empId,
       internalRole: defaultRole,
       isPaymentResponsible: false,
       paymentNotes: "",
+    } as const;
+
+    // replace (not append-only) so form values keep employeeId for Zod submit.
+    // Network repro: append without registered employeeId → PATCH internal_staff: [].
+    const next = [...(getValues("internalStaff") ?? []), nextMember];
+    internalStaffFieldArray.replace(next);
+    setValue("internalStaff", next, {
+      shouldDirty: true,
+      shouldValidate: true,
     });
+    void trigger("internalStaff");
 
     setDraftStaffEmployeeId("");
+    return true;
   }, [
     draftStaffEmployeeId,
     supportStaffOptions,
     excludedEmployeeIdsForSupport,
     supportStaffPositionFilter,
+    getValues,
+    setValue,
+    trigger,
     internalStaffFieldArray,
   ]);
+
+  const handleAddSupportStaff = useCallback(() => {
+    commitDraftSupportStaff();
+  }, [commitDraftSupportStaff]);
 
   const employeeNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -626,14 +720,23 @@ export function TripFleetAssignmentSheet({
     return map;
   }, [activeEmployees]);
 
-  // Update Trip Mutation
-  const updateTripMutation = useUpdateTrip({
-    onSuccess: async () => {
+  // ADR-0093 — flota vía PATCH /fleet (funciona mid-trip; no usa canEditTrip)
+  const reassignFleetMutation = useReassignTripFleet(trip.id, {
+    onSuccess: async (result) => {
       await invalidateTripAssignmentResources(queryClient);
       toast({
         title: copy.toasts.success,
         variant: "default",
       });
+      if (result.warnings?.length) {
+        for (const warning of result.warnings) {
+          toast({
+            title: copy.toasts.overlapWarningTitle,
+            description: warning.message,
+            variant: "warning",
+          });
+        }
+      }
       onOpenChange(false);
     },
     onError: (err) => {
@@ -645,52 +748,96 @@ export function TripFleetAssignmentSheet({
     },
   });
 
-  const isStamped = trip.invoicing?.invoiceStatus === "stamped";
-  const isFormBusy = isSubmitting || updateTripMutation.isPending;
+  const isStamped =
+    trip.invoicing?.invoiceStatus === "stamped" ||
+    trip.invoicing?.invoiceStatus === "cancellation_pending";
+  const isFormBusy = isSubmitting || reassignFleetMutation.isPending;
   const isSaveDisabled = isFormBusy || awaitingVehicleConfigSync;
   const summaryMessages = collectFieldErrorMessages(errors);
   const requiresStaffRemovalConfirm =
     trip.status === TripStatus.IN_PROGRESS || trip.status === TripStatus.COMPLETED;
+
+  const applyInternalStaffRemoval = (index: number) => {
+    const current = getValues("internalStaff") ?? [];
+    const next = current.filter((_, i) => i !== index);
+    internalStaffFieldArray.replace(next);
+    setValue("internalStaff", next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    void trigger("internalStaff");
+    return next;
+  };
 
   const handleRemoveSupportStaff = (index: number, employeeName: string) => {
     if (requiresStaffRemovalConfirm) {
       setRemoveStaffDialog({ index, employeeName });
       return;
     }
-    internalStaffFieldArray.remove(index);
+    applyInternalStaffRemoval(index);
   };
 
+  /**
+   * Confirmación en in_progress/completed: el copy promete remoción irreversible
+   * (elegibilidad liquidación), así que persistimos con PATCH /fleet de inmediato.
+   * Solo actualizar el form local + cerrar el sheet (bug Radix Sheet no-modal)
+   * descartaba el cambio al reabrir.
+   */
   const confirmRemoveSupportStaff = () => {
-    if (removeStaffDialog) {
-      internalStaffFieldArray.remove(removeStaffDialog.index);
-      setRemoveStaffDialog(null);
-    }
-  };
+    if (!removeStaffDialog || isFormBusy) return;
 
-  const executeUpdate = (values: TripFleetAssignmentFormValues) => {
-    const payload: UpdateTripInput = {
-      vehicleId: values.vehicleId,
-      driverId: values.driverId,
-      trailers: values.trailers,
-      satConfigAutotransporteCode: values.satConfigAutotransporteCode,
-      internalStaff: values.internalStaff,
-      allowExpiredDocs: values.allowExpiredDocs,
+    const next = applyInternalStaffRemoval(removeStaffDialog.index);
+    setRemoveStaffDialog(null);
+
+    const values = getValues();
+    const payload: TripFleetAssignmentFormValues = {
+      ...values,
+      internalStaff: next,
     };
 
-    updateTripMutation.mutate({
-      id: trip.id,
-      data: payload,
-    });
-  };
-
-  const onFormSubmit = (values: TripFleetAssignmentFormValues) => {
-    if (isStamped) {
-      setPendingSubmitValues(values);
+    if (isStamped && isFleetAssignmentCpRelevantChange(trip, payload)) {
+      setPendingSubmitValues(payload);
       setConfirmFiscalDialogOpen(true);
       return;
     }
 
-    executeUpdate(values);
+    executeUpdate(payload);
+  };
+
+  const executeUpdate = (values: TripFleetAssignmentFormValues) => {
+    const internalStaff = getValues("internalStaff") ?? values.internalStaff ?? [];
+    reassignFleetMutation.mutate({
+      vehicleId: values.vehicleId,
+      driverId: values.driverId,
+      trailers: values.trailers,
+      internalStaff,
+      allowExpiredDocs: values.allowExpiredDocs,
+    });
+  };
+
+  const onFormSubmit = (values: TripFleetAssignmentFormValues) => {
+    // Flush pending Personal de apoyo draft so Guardar includes the selection
+    // without requiring an extra click on «Agregar integrante».
+    if (draftStaffEmployeeId.trim()) {
+      const committed = commitDraftSupportStaff();
+      if (!committed) {
+        setShowValidationSummary(true);
+        return;
+      }
+    }
+
+    const submitted: TripFleetAssignmentFormValues = {
+      ...values,
+      internalStaff: getValues("internalStaff") ?? values.internalStaff ?? [],
+    };
+
+    if (isStamped && isFleetAssignmentCpRelevantChange(trip, submitted)) {
+      setPendingSubmitValues(submitted);
+      setConfirmFiscalDialogOpen(true);
+      return;
+    }
+
+    executeUpdate(submitted);
   };
 
   const handleConfirmFiscalUpdate = () => {
@@ -707,12 +854,32 @@ export function TripFleetAssignmentSheet({
     }
   };
 
+  const hasNestedConfirmDialog =
+    removeStaffDialog !== null || confirmFiscalDialogOpen;
+
+  const handleSheetOpenChange = (nextOpen: boolean) => {
+    // Sheet is non-modal: clicks on AlertDialog count as "outside" and would
+    // dismiss the sheet, discarding unpersisted staff edits.
+    if (!nextOpen && hasNestedConfirmDialog) return;
+    onOpenChange(nextOpen);
+  };
+
+  const preventSheetDismissWhileDialogOpen = (
+    event: CustomEvent<{ originalEvent: Event }>,
+  ) => {
+    if (hasNestedConfirmDialog) {
+      event.preventDefault();
+    }
+  };
+
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet open={open} onOpenChange={handleSheetOpenChange}>
         <SheetContent
           side="right"
           className={FLEET_ASSIGNMENT_SHEET_CONTENT_CLASS}
+          onInteractOutside={preventSheetDismissWhileDialogOpen}
+          onPointerDownOutside={preventSheetDismissWhileDialogOpen}
         >
           <SheetHeader className={FLEET_ASSIGNMENT_SHEET_HEADER_CLASS}>
             <SheetTitle>{copy.sheetTitle}</SheetTitle>
@@ -881,7 +1048,7 @@ export function TripFleetAssignmentSheet({
                                     ) : null}
                                     <SelectLabel className="flex items-center gap-1.5 text-warning">
                                       <AlertTriangle className="h-3.5 w-3.5" />
-                                      {copy.labels.softBusyGroup}
+                                      {softSelectGroupLabel}
                                     </SelectLabel>
                                     {softBusyVehicles.map((v) => (
                                       <SelectItem key={v.id} value={v.id}>
@@ -1072,7 +1239,7 @@ export function TripFleetAssignmentSheet({
                                     ) : null}
                                     <SelectLabel className="flex items-center gap-1.5 text-warning">
                                       <AlertTriangle className="h-3.5 w-3.5" />
-                                      {copy.labels.softBusyGroup}
+                                      {softSelectGroupLabel}
                                     </SelectLabel>
                                     {softBusyDriversForSelect.map((d) => (
                                       <SelectItem key={d.id} value={d.id}>
@@ -1153,53 +1320,89 @@ export function TripFleetAssignmentSheet({
                     <DetailAlertCard
                       severity="warning"
                       icon={<AlertTriangle className="h-5 w-5" />}
-                      title={copy.alerts.softBusyTitle}
+                      title={
+                        softHoldFromDraft
+                          ? copy.alerts.softHoldTitle
+                          : copy.alerts.softBusyTitle
+                      }
                       items={[
                         ...(selectedVehicle?.softBusy
                           ? [
                               {
-                                text: selectedVehicle.assignmentConflict
-                                  ? copy.alerts.softBusyBody({
-                                      resourceLabel:
+                                text: softHoldFromDraft
+                                  ? selectedVehicle.assignmentConflict
+                                    ? copy.alerts.softHoldBody({
+                                        resourceLabel:
+                                          copy.alerts.softBusyVehicleLabel,
+                                        tripCode:
+                                          selectedVehicle.assignmentConflict
+                                            .tripCode,
+                                        departureLabel: formatConflictDeparture(
+                                          selectedVehicle.assignmentConflict
+                                            .scheduledDeparture,
+                                        ),
+                                      })
+                                    : copy.alerts.softHoldBodyGeneric(
                                         copy.alerts.softBusyVehicleLabel,
-                                      tripCode:
-                                        selectedVehicle.assignmentConflict
-                                          .tripCode,
-                                      statusLabel: conflictBadgeLabel(
-                                        selectedVehicle.assignmentConflict,
+                                      )
+                                  : selectedVehicle.assignmentConflict
+                                    ? copy.alerts.softBusyBody({
+                                        resourceLabel:
+                                          copy.alerts.softBusyVehicleLabel,
+                                        tripCode:
+                                          selectedVehicle.assignmentConflict
+                                            .tripCode,
+                                        statusLabel: conflictBadgeLabel(
+                                          selectedVehicle.assignmentConflict,
+                                        ),
+                                        departureLabel: formatConflictDeparture(
+                                          selectedVehicle.assignmentConflict
+                                            .scheduledDeparture,
+                                        ),
+                                      })
+                                    : copy.alerts.softBusyBodyGeneric(
+                                        copy.alerts.softBusyVehicleLabel,
                                       ),
-                                      departureLabel: formatConflictDeparture(
-                                        selectedVehicle.assignmentConflict
-                                          .scheduledDeparture,
-                                      ),
-                                    })
-                                  : copy.alerts.softBusyBodyGeneric(
-                                      copy.alerts.softBusyVehicleLabel,
-                                    ),
                               },
                             ]
                           : []),
                         ...(selectedDriver?.softBusy
                           ? [
                               {
-                                text: selectedDriver.assignmentConflict
-                                  ? copy.alerts.softBusyBody({
-                                      resourceLabel:
+                                text: softHoldFromDraft
+                                  ? selectedDriver.assignmentConflict
+                                    ? copy.alerts.softHoldBody({
+                                        resourceLabel:
+                                          copy.alerts.softBusyDriverLabel,
+                                        tripCode:
+                                          selectedDriver.assignmentConflict
+                                            .tripCode,
+                                        departureLabel: formatConflictDeparture(
+                                          selectedDriver.assignmentConflict
+                                            .scheduledDeparture,
+                                        ),
+                                      })
+                                    : copy.alerts.softHoldBodyGeneric(
                                         copy.alerts.softBusyDriverLabel,
-                                      tripCode:
-                                        selectedDriver.assignmentConflict
-                                          .tripCode,
-                                      statusLabel: conflictBadgeLabel(
-                                        selectedDriver.assignmentConflict,
+                                      )
+                                  : selectedDriver.assignmentConflict
+                                    ? copy.alerts.softBusyBody({
+                                        resourceLabel:
+                                          copy.alerts.softBusyDriverLabel,
+                                        tripCode:
+                                          selectedDriver.assignmentConflict
+                                            .tripCode,
+                                        statusLabel: conflictBadgeLabel(
+                                          selectedDriver.assignmentConflict,
+                                        ),
+                                        departureLabel: formatConflictDeparture(
+                                          selectedDriver.assignmentConflict
+                                            .scheduledDeparture,
+                                        ),
+                                      })
+                                    : copy.alerts.softBusyBodyGeneric(
+                                        copy.alerts.softBusyDriverLabel,
                                       ),
-                                      departureLabel: formatConflictDeparture(
-                                        selectedDriver.assignmentConflict
-                                          .scheduledDeparture,
-                                      ),
-                                    })
-                                  : copy.alerts.softBusyBodyGeneric(
-                                      copy.alerts.softBusyDriverLabel,
-                                    ),
                               },
                             ]
                           : []),
@@ -1293,7 +1496,7 @@ export function TripFleetAssignmentSheet({
                             <SelectGroup>
                               <SelectLabel className="flex items-center gap-1.5 text-warning">
                                 <AlertTriangle className="h-3.5 w-3.5" />
-                                {copy.labels.softBusyGroup}
+                                {softSelectGroupLabel}
                               </SelectLabel>
                               {supportStaffOptions
                                 .filter((opt) => opt.softBusy)
@@ -1361,6 +1564,12 @@ export function TripFleetAssignmentSheet({
                             key={field.id}
                             className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3 text-sm shadow-xs"
                           >
+                            <input
+                              type="hidden"
+                              {...register(
+                                `internalStaff.${index}.employeeId` as const,
+                              )}
+                            />
                             <div className="space-y-1 min-w-0">
                               <p className="font-medium text-foreground">
                                 {employeeName}
@@ -1433,7 +1642,7 @@ export function TripFleetAssignmentSheet({
                 type="button"
                 variant="outline"
                 className={FLEET_ASSIGNMENT_SHEET_PRIMARY_BUTTON_CLASS}
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleSheetOpenChange(false)}
                 disabled={isFormBusy}
               >
                 {copy.cancelButton}
@@ -1500,7 +1709,11 @@ export function TripFleetAssignmentSheet({
           <AlertDialogFooter>
             <AlertDialogCancel>{copy.removeStaffConfirm.cancel}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmRemoveSupportStaff}
+              onClick={(event) => {
+                event.preventDefault();
+                confirmRemoveSupportStaff();
+              }}
+              disabled={isFormBusy}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {copy.removeStaffConfirm.confirm}

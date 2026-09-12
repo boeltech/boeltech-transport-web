@@ -5,9 +5,11 @@ import type { DriverListItem } from "@features/drivers/domain";
 
 import { BUSY_ON_ACTIVE_TRIP, EMPTY_BUSY_ASSIGNMENT_RESOURCES } from "./tripAssignmentBusyResources";
 import {
+  applyDraftHoldSoftSignalToSupportStaff,
   buildAssignableSupportStaffForTripWizard,
   findSupportStaffAssignability,
 } from "./tripAssignmentSupportStaff";
+import { TripStatus } from "@features/trips/domain";
 
 function employee(
   overrides: Partial<EmployeeListItem> & Pick<EmployeeListItem, "id" | "fullName">,
@@ -236,5 +238,49 @@ describe("findSupportStaffAssignability", () => {
     });
 
     expect(item?.canBeAssigned).toBe(true);
+  });
+});
+
+describe("applyDraftHoldSoftSignalToSupportStaff", () => {
+  it("marks held employees soft without overriding hard blocks", () => {
+    const available = {
+      employeeId: "emp-hold",
+      fullName: "Hold",
+      position: "Ayudante general",
+      internalRole: "helper" as const,
+      canBeAssigned: true,
+    };
+    const hardBlocked = {
+      employeeId: "emp-busy",
+      fullName: "Busy",
+      position: "Ayudante general",
+      internalRole: "helper" as const,
+      canBeAssigned: false,
+      blockReason: BUSY_ON_ACTIVE_TRIP,
+    };
+
+    const result = applyDraftHoldSoftSignalToSupportStaff(
+      [available, hardBlocked],
+      new Set(["emp-hold", "emp-busy"]),
+      new Map([
+        [
+          "emp-hold",
+          {
+            tripId: "d1",
+            tripCode: "RSV-1",
+            status: TripStatus.DRAFT,
+            scheduledDeparture: new Date("2026-09-05T10:00:00Z"),
+          },
+        ],
+      ]),
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "Reserva",
+    });
+    expect(result[1]?.canBeAssigned).toBe(false);
+    expect(result[1]?.softBusy).toBeUndefined();
   });
 });

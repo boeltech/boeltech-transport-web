@@ -240,4 +240,51 @@ describe("ApiError.fromAxiosError", () => {
     expect(error.message).not.toContain("variable de entorno");
     expect(error.code).toBe("PAC_CONFIG_ERROR");
   });
+
+  it("fallback de diccionario para VEHICLE_ASSIGNED_TO_ACTIVE_TRIP sin mensaje", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError(
+        {
+          code: "VEHICLE_ASSIGNED_TO_ACTIVE_TRIP",
+        },
+        409,
+      ),
+    );
+
+    expect(error.code).toBe("VEHICLE_ASSIGNED_TO_ACTIVE_TRIP");
+    expect(error.message).toContain("viajes activos");
+    expect(error.message).toContain("Reasigne");
+  });
+
+  it("fallback de diccionario para VEHICLE_INACTIVE sin mensaje", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError(
+        {
+          code: "VEHICLE_INACTIVE",
+        },
+        409,
+      ),
+    );
+
+    expect(error.code).toBe("VEHICLE_INACTIVE");
+    expect(error.message).toContain("dada de baja");
+    expect(error.message).toContain("Reasigne la flota");
+  });
+
+  it("conserva mensaje del backend con trip_code en VEHICLE_ASSIGNED_TO_ACTIVE_TRIP", () => {
+    const backendMessage =
+      "No se puede dar de baja la unidad porque tiene viajes activos (TRP-260907-0002). Reasigne o libere la flota en esos viajes antes de continuar.";
+    const error = ApiError.fromAxiosError(
+      buildAxiosError(
+        {
+          error: backendMessage,
+          code: "VEHICLE_ASSIGNED_TO_ACTIVE_TRIP",
+        },
+        409,
+      ),
+    );
+
+    expect(error.message).toBe(backendMessage);
+    expect(error.message).toContain("TRP-260907-0002");
+  });
 });

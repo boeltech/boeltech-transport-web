@@ -20,10 +20,13 @@ import { isApiError } from "@shared/api/interceptors/error-handler";
 export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   // ===== VEHÍCULOS =====
   VEHICLE_NOT_FOUND: "El vehículo seleccionado no existe",
-  VEHICLE_INACTIVE: "El vehículo seleccionado no está activo",
+  VEHICLE_INACTIVE:
+    "La unidad asignada está dada de baja. Reasigne la flota del viaje antes de confirmar la reserva.",
   VEHICLE_NOT_AVAILABLE:
     "El vehículo no está disponible (puede estar en otro viaje o en mantenimiento)",
   VEHICLE_ON_TRIP: "No se puede modificar un vehículo que está en viaje",
+  VEHICLE_ASSIGNED_TO_ACTIVE_TRIP:
+    "No se puede dar de baja la unidad porque tiene viajes activos. Reasigne o libere la flota en esos viajes antes de continuar.",
   UNIT_NUMBER_EXISTS: "El número de unidad ya existe",
   LICENSE_PLATE_EXISTS: "La placa ya está registrada",
 

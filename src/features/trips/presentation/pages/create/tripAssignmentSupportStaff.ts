@@ -3,6 +3,7 @@ import type { DriverListItem } from "@features/drivers/domain";
 
 import {
   BUSY_ON_ACTIVE_TRIP,
+  HELD_ON_DRAFT_RESERVE,
   conflictBadgeLabel,
   type AssignmentConflict,
   type BusyAssignmentResourceIds,
@@ -204,4 +205,30 @@ export function findSupportStaffAssignability(
   }).filter((row) => row.employeeId === employeeId);
 
   return item;
+}
+
+/**
+ * Marks draft-hold employees as selectable softBusy after hard busy was applied.
+ * Hard-blocked rows win — holds never override operational busy.
+ */
+export function applyDraftHoldSoftSignalToSupportStaff(
+  options: readonly AssignableSupportStaffItem[],
+  holdEmployeeIds: ReadonlySet<string>,
+  holdConflicts?: ReadonlyMap<string, AssignmentConflict>,
+): AssignableSupportStaffItem[] {
+  return options.map((opt) => {
+    if (!holdEmployeeIds.has(opt.employeeId)) return opt;
+    if (!opt.canBeAssigned || opt.softBusy) return opt;
+
+    const conflict = holdConflicts?.get(opt.employeeId);
+    return {
+      ...opt,
+      canBeAssigned: true,
+      softBusy: true,
+      assignmentConflict: conflict,
+      blockReason: conflict
+        ? conflictBadgeLabel(conflict)
+        : HELD_ON_DRAFT_RESERVE,
+    };
+  });
 }

@@ -2,6 +2,7 @@
  * Remolques reserved/on_trip no se ofrecen como libres al armar otra reserva.
  */
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm } from "react-hook-form";
@@ -87,19 +88,58 @@ function vehicleSr(): AssignableVehicleItem {
 
 function Harness({
   trailers = [],
+  vehicles,
+  satConfigAutotransporteCode = "",
 }: {
   trailers?: TripWizardFormValues["trailers"];
+  vehicles?: AssignableVehicleItem[];
+  satConfigAutotransporteCode?: string;
 }) {
   const form = useForm<TripWizardFormValues>({
     defaultValues: {
       ...defaultWizardFormValues,
       vehicleId: VEHICLE_SR_ID,
       trailers,
+      satConfigAutotransporteCode,
     } as TripWizardFormValues,
   });
   return (
     <MemoryRouter>
-      <TripTrailerAssignmentFields form={form} vehicles={[vehicleSr()]} />
+      <TripTrailerAssignmentFields
+        form={form}
+        vehicles={vehicles ?? [vehicleSr()]}
+      />
+      <pre data-testid="trailers-json">
+        {JSON.stringify(form.watch("trailers"))}
+      </pre>
+    </MemoryRouter>
+  );
+}
+
+function LoadingThenReadyHarness({
+  trailers,
+}: {
+  trailers: TripWizardFormValues["trailers"];
+}) {
+  const [vehicles, setVehicles] = useState<AssignableVehicleItem[]>([]);
+  const form = useForm<TripWizardFormValues>({
+    defaultValues: {
+      ...defaultWizardFormValues,
+      vehicleId: VEHICLE_SR_ID,
+      trailers,
+      satConfigAutotransporteCode: "",
+    } as TripWizardFormValues,
+  });
+
+  return (
+    <MemoryRouter>
+      <TripTrailerAssignmentFields form={form} vehicles={vehicles} />
+      <button type="button" onClick={() => setVehicles([vehicleSr()])}>
+        load-vehicles
+      </button>
+      <pre data-testid="trailers-json">
+        {JSON.stringify(form.watch("trailers"))}
+      </pre>
     </MemoryRouter>
   );
 }
@@ -141,5 +181,35 @@ describe("TripTrailerAssignmentFields", () => {
         name: copy.format.trailerOption("12MN4P6", "CTR003"),
       }),
     ).not.toHaveAttribute("data-disabled");
+  });
+
+  it("does not clear trailers while config resolves after hard-refresh race", async () => {
+    const user = userEvent.setup();
+    const assigned = [{ trailerId: RESERVED_ID, position: 1 as const }];
+    render(<LoadingThenReadyHarness trailers={assigned} />);
+
+    expect(screen.getByTestId("trailers-json").textContent).toBe(
+      JSON.stringify(assigned),
+    );
+
+    await user.click(screen.getByRole("button", { name: "load-vehicles" }));
+
+    expect(screen.getByTestId("trailers-json").textContent).toBe(
+      JSON.stringify(assigned),
+    );
+    expect(
+      screen.getByRole("combobox", { name: /Remolque 1/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not clear trailers when vehicles list is empty and form satConfig is empty yet", () => {
+    const assigned = [{ trailerId: RESERVED_ID, position: 1 as const }];
+    render(
+      <Harness trailers={assigned} vehicles={[]} satConfigAutotransporteCode="" />,
+    );
+
+    expect(screen.getByTestId("trailers-json").textContent).toBe(
+      JSON.stringify(assigned),
+    );
   });
 });

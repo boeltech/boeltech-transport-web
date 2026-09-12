@@ -79,6 +79,9 @@ export interface TripAssignmentResourceFieldsProps {
   density?: TripAssignmentDensity;
   /** Draft: soft-busy seleccionable. Scheduled sheet: false. */
   softBusySelectable?: boolean;
+  /** ADR-0066: intención del operador (fuente de verdad del payload). */
+  allowExpiredDocs: boolean;
+  onAllowExpiredDocsChange: (value: boolean) => void;
 }
 
 export function TripAssignmentResourceFields({
@@ -91,6 +94,8 @@ export function TripAssignmentResourceFields({
   idPrefix = "",
   density = "default",
   softBusySelectable = false,
+  allowExpiredDocs,
+  onAllowExpiredDocsChange,
 }: TripAssignmentResourceFieldsProps) {
   const { control } = form;
   const selectedVehicleId = form.watch("vehicleId");
@@ -104,7 +109,6 @@ export function TripAssignmentResourceFields({
     user?.role != null && ALLOW_EXPIRED_DOCS_ROLES.has(user.role);
 
   const [showAllFleet, setShowAllFleet] = useState(false);
-  const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
   const [fleetOptionsOpen, setFleetOptionsOpen] = useState(!isReserveDensity);
 
   const effectiveAllowExpiredDocs = canAllowExpiredDocs && allowExpiredDocs;
@@ -363,7 +367,7 @@ export function TripAssignmentResourceFields({
             className="mt-0.5"
             checked={effectiveAllowExpiredDocs}
             onCheckedChange={(checked) =>
-              setAllowExpiredDocs(canAllowExpiredDocs && checked === true)
+              onAllowExpiredDocsChange(canAllowExpiredDocs && checked === true)
             }
           />
           <Label htmlFor={allowExpiredDocsId} className="cursor-pointer">
