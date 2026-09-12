@@ -9,7 +9,7 @@
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import type { UseCaseResult } from "@shared/utils/errorMapper";
 import type { Driver, IDriverRepository, UpdateDriverDTO } from "../../domain";
-import { isExpired } from "@shared/utils/dateUtils";
+import { isStrictlyPast } from "@shared/utils/dateUtils";
 
 // ============================================================================
 // USE CASE
@@ -90,7 +90,7 @@ export class UpdateDriverUseCase {
    * Validación sync local (sin round-trips). Unicidad de licencia la resuelve la API.
    */
   private validate(data: UpdateDriverDTO): UseCaseResult<Driver> {
-    if (data.federalLicenseExpiry && isExpired(data.federalLicenseExpiry)) {
+    if (data.federalLicenseExpiry && isStrictlyPast(data.federalLicenseExpiry)) {
       return {
         success: false,
         error: {
@@ -101,7 +101,7 @@ export class UpdateDriverUseCase {
       };
     }
 
-    if (data.stateLicenseExpiry && isExpired(data.stateLicenseExpiry)) {
+    if (data.stateLicenseExpiry && isStrictlyPast(data.stateLicenseExpiry)) {
       return {
         success: false,
         error: {

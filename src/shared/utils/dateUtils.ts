@@ -184,7 +184,21 @@ function getMexicoOffsetMs(): number {
 // UTILIDADES de comparación (Tipo A)
 // ──────────────────────────────────────────────
 
+/**
+ * True when the civil date is today or earlier (Mexico calendar day).
+ * Same-day expiry is treated as expired for assignment/display.
+ */
 export function isExpired(dateString: string | null | undefined): boolean {
+  if (!dateString) return false;
+  const today = getTodayString();
+  return dateString <= today;
+}
+
+/**
+ * True when the civil date is strictly before today (Mexico calendar day).
+ * Use for create/edit forms that allow capturing today's expiry.
+ */
+export function isStrictlyPast(dateString: string | null | undefined): boolean {
   if (!dateString) return false;
   const today = getTodayString();
   return dateString < today;
@@ -197,7 +211,7 @@ export function isExpiringSoon(
   if (!dateString) return false;
   const today = getTodayString();
   const future = addDays(today, withinDays);
-  return dateString >= today && dateString <= future;
+  return dateString > today && dateString <= future;
 }
 
 export function getTodayString(): string {

@@ -1,4 +1,3 @@
-import { Badge } from "@shared/ui/badge";
 import type { DriverLicenseJurisdiction } from "../../domain";
 import { driversCopy } from "../copy/driversCopy";
 
@@ -31,26 +30,20 @@ export function DriverDetailHeaderSubtitle({
       ? copy.format.licenseLine(licenseTypeLabel, licenseNumber)
       : copy.hint.empty;
 
+  const secondaryLine = jurisdictionLabel
+    ? `${licenseLine} · ${jurisdictionLabel}`
+    : licenseLine;
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       <p className="truncate text-sm text-muted-foreground">
         {employeeNumber
           ? copy.format.employeeLine(employeeNumber)
           : copy.state.noEmployeeNumber}
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="truncate text-sm text-muted-foreground">
-          <span className="font-mono">{licenseLine}</span>
-        </p>
-        {jurisdictionLabel ? (
-          <Badge
-            variant={jurisdiction === "state" ? "secondary" : "outline"}
-            className="text-[10px] font-normal"
-          >
-            {jurisdictionLabel}
-          </Badge>
-        ) : null}
-      </div>
+      <p className="truncate font-mono text-xs text-muted-foreground">
+        {secondaryLine}
+      </p>
     </div>
   );
 }

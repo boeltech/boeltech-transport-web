@@ -14,7 +14,7 @@
  */
 
 import { z } from "zod";
-import { isExpired } from "@shared/utils/dateUtils";
+import { isStrictlyPast } from "@shared/utils/dateUtils";
 import {
   LicenseType,
   LICENSE_TYPE_LABELS,
@@ -264,7 +264,7 @@ export const driverSchema = z.object({
     });
   }
 
-  if (federalExpiry && isExpired(federalExpiry)) {
+  if (federalExpiry && isStrictlyPast(federalExpiry)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "La fecha de vencimiento federal no puede ser en el pasado",
@@ -272,7 +272,7 @@ export const driverSchema = z.object({
     });
   }
 
-  if (stateExpiry && isExpired(stateExpiry)) {
+  if (stateExpiry && isStrictlyPast(stateExpiry)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "La fecha de vencimiento estatal no puede ser en el pasado",

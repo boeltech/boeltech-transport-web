@@ -84,9 +84,7 @@ export function DriverDetailTripsTab({ driverId }: DriverDetailTripsTabProps) {
               <div className="shrink-0 text-right">
                 <Badge variant="outline">{statusLabel}</Badge>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDate(
-                    trip.scheduledDeparture.toISOString().split("T")[0],
-                  )}
+                  {formatDate(trip.scheduledDeparture.toISOString())}
                 </p>
               </div>
             </div>

@@ -309,7 +309,12 @@ export function DriverDetailPage() {
         backHref: "/drivers",
         icon: <User className="h-6 w-6" />,
         iconShape: "circle",
-        title: fullName,
+        title: (
+          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="shrink-0">{fullName}</span>
+            <DriverStatusBadge status={driver.status} showIcon size="sm" />
+          </span>
+        ),
         subtitle: (
           <DriverDetailHeaderSubtitle
             employeeNumber={driver.employee?.employeeNumber ?? null}
@@ -317,9 +322,6 @@ export function DriverDetailPage() {
             licenseNumber={primaryLicenseNumber}
             jurisdiction={licenseJurisdiction}
           />
-        ),
-        statusBadge: (
-          <DriverStatusBadge status={driver.status} showIcon size="sm" />
         ),
         actions: (
           <DriverActions

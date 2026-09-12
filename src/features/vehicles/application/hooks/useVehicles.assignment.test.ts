@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { VehicleListItem } from "@features/vehicles/domain";
 import { classifyVehicleForAssignment } from "@features/vehicles/application/hooks/useVehicles";
@@ -44,6 +44,23 @@ describe("classifyVehicleForAssignment", () => {
       blockReason: "Seguro vencido",
       expiredDocsOverridable: true,
     });
+  });
+
+  it("marks same-day insurance expiry as overridable", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T18:00:00.000Z"));
+    try {
+      const result = classifyVehicleForAssignment(
+        vehicle({ id: "veh-same-day", insuranceExpiry: "2026-09-08" }),
+      );
+      expect(result).toMatchObject({
+        canBeAssigned: false,
+        blockReason: "Seguro vencido",
+        expiredDocsOverridable: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("marks expired SCT permit as overridable", () => {

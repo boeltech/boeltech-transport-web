@@ -93,4 +93,59 @@ describe("tripAssignmentSelectability", () => {
       ),
     ).toBe(true);
   });
+
+  it("blocks softBusy+expiredDocs vehicle when toggle is off", () => {
+    expect(
+      isVehicleSelectableWithFilters(
+        {
+          canBeAssigned: true,
+          softBusy: true,
+          expiredDocsOverridable: true,
+        },
+        { allowExpiredDocs: false, inBranchScope: true },
+      ),
+    ).toBe(false);
+    expect(
+      isVehicleSelectableWithFilters(
+        {
+          canBeAssigned: true,
+          softBusy: true,
+          expiredDocsOverridable: true,
+        },
+        { allowExpiredDocs: true, inBranchScope: true },
+      ),
+    ).toBe(true);
+  });
+
+  it("blocks softBusy+expiredDocs driver when toggle is off", () => {
+    expect(
+      isDriverSelectableWithFilters(
+        {
+          canBeAssigned: true,
+          softBusy: true,
+          expiredDocsOverridable: true,
+        },
+        { allowExpiredDocs: false, inBranchScope: true },
+      ),
+    ).toBe(false);
+    expect(
+      isDriverSelectableWithFilters(
+        {
+          canBeAssigned: true,
+          softBusy: true,
+          expiredDocsOverridable: true,
+        },
+        { allowExpiredDocs: true, inBranchScope: true },
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps keepId-style expired vehicle when toggle is off (canBeAssigned, no softBusy)", () => {
+    expect(
+      isVehicleSelectableWithFilters(
+        { canBeAssigned: true, expiredDocsOverridable: true },
+        { allowExpiredDocs: false, inBranchScope: true },
+      ),
+    ).toBe(true);
+  });
 });
