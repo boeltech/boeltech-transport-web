@@ -1,0 +1,14 @@
+---
+description: Instantáneas del sistema en PostgreSQL deben usar TIMESTAMPTZ (no TIMESTAMP sin zona).
+globs: "**/*.sql"
+alwaysApply: true
+---
+
+# Fechas y horas en base de datos (PostgreSQL)
+
+- **Instantes del sistema** (cuándo ocurrió algo, auditoría, `created_at`, `updated_at`, `*_at`, ventanas temporales): usar **`TIMESTAMPTZ`**.
+- No usar `TIMESTAMP` sin zona para datos que representan un momento en el tiempo con semántica de aplicación (evitar ambigüedad al cambiar zona/DST).
+- Valores por defecto habituales: `DEFAULT NOW()` o equivalente sobre columnas `TIMESTAMPTZ`.
+- En migraciones **nuevas**, nuevas columnas y tablas deben seguir esta convención.
+- No editar migraciones ya aplicadas en entornos compartidos; si hay corrección de tipo, hacerlo con **migración nueva** (`ALTER COLUMN ... TYPE TIMESTAMPTZ USING ...` cuando aplique).
+- En API y frontend, seguir intercambiando fechas como **ISO 8601 en string** (como ya establece el proyecto); la zona queda definida en el tipo SQL del backend.

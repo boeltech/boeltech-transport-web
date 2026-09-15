@@ -1,0 +1,47 @@
+---
+description: Prevenir cierre de Sheet al abrirse desde DropdownMenu — onFocusOutside obligatorio
+globs: src/**/components/*Sheet*.tsx, src/**/components/*sheet*.tsx
+alwaysApply: false
+---
+
+# Sheet abierto desde DropdownMenu — onFocusOutside
+
+Cuando un `Sheet` no-modal (`modal={false}`, default del design system) se abre desde un `DropdownMenuItem` con `setTimeout`, Radix dispara `onFocusOutside` y cierra el sheet inmediatamente porque el foco aún no está dentro del panel.
+
+## Regla
+
+Todo `SheetContent` cuyo `Sheet` pueda abrirse desde un menú desplegable (`DropdownMenu`, `ContextMenu`, o similar) **debe** incluir:
+
+```tsx
+<SheetContent
+  ...
+  onFocusOutside={(e) => e.preventDefault()}
+>
+```
+
+No eliminar ni refactorizar esta prop al homologar layout, extraer sub-componentes o cambiar clases CSS.
+
+## Ejemplo completo (patrón seguro)
+
+```tsx
+// En el componente del menú (DropdownMenuItem)
+onSelect={() => {
+  setTimeout(() => onOpenSheet(), 0);
+}}
+
+// En el componente del Sheet
+<Sheet open={open} onOpenChange={onOpenChange}>
+  <SheetContent
+    className={SHEET_CONTENT_CLASS}
+    side="right"
+    onFocusOutside={(e) => e.preventDefault()}
+  >
+    {open ? <SheetBody /> : null}
+  </SheetContent>
+</Sheet>
+```
+
+## Referencia
+
+- `TripRevenueSplitSheet` abierto desde `TripInvoiceActions` (menú "Facturación")
+- Bug original: el sheet se cerraba instantáneamente al seleccionar "Repartir flete entre clientes..." del dropdown

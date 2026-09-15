@@ -1,0 +1,34 @@
+---
+description: Patrón UX de validación en formularios (FieldInlineError, error en controles, FormValidationSummary)
+alwaysApply: false
+---
+
+# Validación UX en formularios (web)
+
+Guía completa: `D:\cowork\boeltech\erp-transport\docs\design-system\form-validation-pattern.md`  
+Wizards (shell + `WizardFormRef`): `src/shared/ui/page-shells/README.md` · `D:\cowork\boeltech\erp-transport\docs\design-system\wizard-page-pattern.md`  
+Primitivos: `src/shared/ui/form/README.md` · tests: `src/shared/ui/form/formValidationUx.test.tsx` · `src/shared/ui/page-shells/WizardPageShell.test.tsx`
+
+## Obligatorio en formularios nuevos o tocados
+
+1. **RHF + Zod** (`zodResolver`); `mode: "onChange"` en formularios largos.
+2. Cada campo con error:
+   - `error={Boolean(fieldState.error)}` (o mensaje derivado) en `Input` / `SelectTrigger` / `Textarea` / `CatalogSelect`.
+   - `FieldInlineError` con el mismo `fieldId` que el `id` del control (`#fieldId-error`).
+   - `getFieldErrorAriaProps(fieldId, message)` o `getRegisterFieldErrorProps` si usas `register()`.
+3. **Wizards (alta):** page con `WizardPageShell` + form con `WizardFormRef` (`triggerStepValidation` / `requestSubmit`). Por paso: `trigger(camposDelPaso, { shouldFocus: true })`; si falla → `FormValidationSummary` al pie. **Sin toast** al pulsar Siguiente (el shell no notifica validación). Ver `src/shared/ui/page-shells/README.md`.
+4. Preferir `FormFieldShell`, `RHFTextField`, `RHFSelectField`, `RHFCatalogField` sobre `FormMessage` de shadcn.
+
+## Prohibido
+
+- `<p className="text-sm text-destructive">` bajo campos en features nuevas.
+- Mezclar `FormMessage` y `FieldInlineError` en el mismo formulario.
+- Banner global que repite errores ya visibles bajo el campo (direcciones: `addressFormNoticeRules`).
+- Duplicar reglas SAT del paquete; usar `addressPayloadBridge` / `validate*AddressFormComplete`.
+
+## Checklist PR (copiar en descripción si aplica)
+
+- [ ] `error` + ARIA en todos los controles editables
+- [ ] `FieldInlineError` (`text-xs`) bajo cada campo con error
+- [ ] Wizard: `WizardPageShell` + `WizardFormRef`; resumen tras `trigger` fallido (no toast en paso)
+- [ ] Domicilio: segunda pasada SAT vía `@boeltech/cfdi-domain` (ADR-0043)

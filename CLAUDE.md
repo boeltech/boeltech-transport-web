@@ -1,4 +1,4 @@
-# CLAUDE.md — boeltech-transport-web
+﻿# CLAUDE.md — boeltech-transport-web
 
 Guía mínima para agentes en este repo. **Documentación detallada:** `D:\cowork\boeltech\erp-transport\docs\README.md` (rutas absolutas; ajustar si clonas fuera de `D:\cowork`).
 
@@ -55,7 +55,7 @@ npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
 
 **Envío automático de facturas (ADR-0083, F0–F3):** opt-in `invoice_auto_dispatch_enabled` + corrida `origin=scheduled` tras corte CDMX · badge Automática · alerta failed en factura · inbox `billing_dispatch` · smoke `npm run test:smoke:invoice-auto-dispatch`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\envio-automatico-facturas-usuario.md` · SDD `design/sdd/invoice-auto-dispatch/`. Local: worker (`npm run dev:worker`) + migr. **155**.
 
-**Viaje en falso (ADR-0079, Aceptado · F0–F3 código):** ingreso sin CP como único CFDI del mismo viaje (`billing_scope=false_trip`); no relaja D2 de 0068; start no exige cargas. UI `?scope=false_trip` · smoke `npm run test:smoke:trip-false-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\viaje-en-falso-usuario.md`. Evidencia PAC V7-FALSO pendiente. Capa 1 job UX en paralelo. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · SDD `design/sdd/trip-false-trip/`.
+**Viaje en falso (ADR-0079, Aceptado · F0–F3 código):** ingreso sin CP como único CFDI del mismo viaje (`billing_scope=false_trip`); no relaja D2 de 0068; start no exige cargas. UI `?scope=false_trip` · smoke `npm run test:smoke:trip-false-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\viaje-en-falso-usuario.md`. Evidencia PAC V7-FALSO pendiente. PRD (job UX) en paralelo. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · SDD `design/sdd/trip-false-trip/`.
 
 **Flexibilidad mid-trip (ADR-0093, Aceptado · F0–F4 · Enmienda E1):** en `in_progress` replan de paradas `pending` (composer pending-only + `PUT …/stops:replan`), append carga, reasignar flota y mutar `base_rate` sin relajar `canEditTrip`; bandera `requires_fiscal_attention` + sustitución 04. Smoke `npm run test:smoke:trip-mid-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\viajes\flexibilidad-mid-trip-usuario.md`. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0093-flexibilidad-operativa-mid-trip.md` · SDD `design/sdd/trip-mid-trip-flexibility/`.
 
@@ -159,3 +159,8 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 ## Git
 
 Conventional Commits · ramas `feature/...`, `bugfix/...`.
+
+
+## Cursor rules (versionadas en repo)
+Core en .cursor/rules/ (Cloud Agents las ven): `form-validation-ux`, `overlays-toast`, `sheet-from-menu-focus`, `frontend-api-env`, `database-timestamptz`, `cfdi-domain-adr-0043`.
+`plans/` y prompts locales siguen gitignored — no always-on.
