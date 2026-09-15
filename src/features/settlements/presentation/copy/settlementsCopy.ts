@@ -2,6 +2,39 @@ export const settlementsCopy = {
   title: "Pagos a Operadores",
   description:
     "Calcula y registra los pagos a choferes por sus viajes, descuenta anticipos y lleva el control hasta la transferencia.",
+  hub: {
+    title: "Pagos a operadores",
+    description:
+      "Arma el corte, pide VoBo cuando aplica y registra el pago al operador.",
+    navAriaLabel: "Secciones de pagos a operadores",
+    settingsAction: "Configuración",
+    tabs: {
+      porPagar: "Por pagar",
+      porAutorizar: "Por autorizar",
+      adelantos: "Adelantos",
+      comoTePago: "Cómo te pago",
+      tablaRutas: "Tabla de rutas",
+    },
+    createCut: "Armar corte",
+    pendingApprovalEmptyTitle: "Nada por autorizar",
+    pendingApprovalEmptyDescription:
+      "Cuando un corte requiera VoBo, aparecerá aquí para que lo autorice alguien distinto de quien lo armó.",
+    settings: {
+      title: "Configuración de pagos a operadores",
+      description:
+        "Umbral de VoBo y activación del flujo greenfield. El API aplica las reglas; esta pantalla solo las configura.",
+      thresholdLabel: "Umbral de VoBo (MXN)",
+      thresholdHint:
+        "Si el neto del corte es igual o mayor a este monto, o hay ajustes manuales, se exige VoBo.",
+      flagLabel: "Activar pagos a operadores v1",
+      flagHint:
+        "Con la bandera apagada se mantiene el flujo actual de liquidaciones (ADR-0085–0089).",
+      save: "Guardar",
+      saving: "Guardando…",
+      success: "Configuración actualizada",
+      error: "No se pudo guardar la configuración",
+    },
+  },
   tabs: {
     settlements: "Liquidaciones",
     advances: "Anticipos pendientes",
@@ -130,6 +163,8 @@ export const settlementsCopy = {
     disburse: "Registrar pago al operador",
     saveDraft: "Guardar como borrador",
     submitApproval: "Enviar para autorización",
+    pedirVobo: "Pedir VoBo",
+    makerExecuteForbidden: "Quien armó el corte no puede registrar el pago",
     cancelSettlement: "Cancelar liquidación",
     cancel: "Cancelar",
     confirm: "Confirmar",
@@ -239,6 +274,7 @@ export const settlementsCopy = {
     selfApprovalNotAllowedAuthorize: "No puedes autorizar un anticipo que tú mismo enviaste",
     selfApprovalNotAllowedReject: "No puedes rechazar un anticipo que tú mismo enviaste",
     selfApprovalBadge: "Auto-aprobación no permitida",
+    makerExecuteBadge: "Quien armó el corte no puede registrar el pago",
     selfApprovalSettlementAuthorize:
       "No puedes autorizar una liquidación que tú mismo enviaste",
     selfApprovalSettlementReject:
@@ -495,6 +531,8 @@ export const settlementsCopy = {
         approverDefaultName: "Tesorería / Operaciones",
         approverDisclaimerDisbursed: "Liquidación revisada y pagada por administración.",
         approverDisclaimerPending: "Liquidación autorizada, pendiente de pago.",
+        pendingPaymentBanner: "PENDIENTE DE PAGO",
+        finalReceiptBanner: "Recibo de pago",
         disbursedOnPrefix: "Pagado el",
       },
     },
@@ -535,8 +573,14 @@ export const settlementsCopy = {
       commissionsLabel: "Pago por viajes",
       reimbursementsLabel: "Reembolsos",
       submitApprovalBtn: "Enviar para autorización",
+      pedirVoboBtn: "Pedir VoBo",
       submitApprovalSegregationHint:
         "Otro usuario con permiso de autorizar en Finanzas debe revisar esta liquidación.",
+      bypassDraftHint:
+        "El neto está bajo el umbral y no hay ajustes: se guarda en borrador. Quien armó el corte no puede registrar el pago; otro usuario con permiso de ejecutar lo hace.",
+      commercialFreightHint:
+        "El % sobre flete usa el monto comercial al completar el viaje, no el CFDI timbrado.",
+      reservedAdvanceHint: "Reservado en un corte pendiente; se aplica al pagar.",
       saveDraftBtn: "Guardar borrador",
       cancelBtn: "Cancelar",
       noItemsToSettle: "No hay viajes ni sueldo base para liquidar en este período.",
@@ -567,7 +611,10 @@ export const settlementsCopy = {
     },
     dialog: {
       title: "¿Confirmar y enviar?",
+      voboTitle: "¿Pedir VoBo?",
       description: "Revisa el monto a pagar antes de enviar a autorización.",
+      voboDescription:
+        "Se reserva el saldo de anticipos y el corte pasa a Por autorizar. Quien pide VoBo no puede autorizarlo.",
       driverLabel: "Operador",
       periodLabel: "Período",
       netLabel: "A pagar",
@@ -635,7 +682,10 @@ export const settlementsCopy = {
   },
   advancesDialog: {
     title: "Registrar anticipo a operador",
+    loanTitle: "Registrar préstamo a operador",
     description: "Captura los datos del anticipo de viaje o viáticos entregados al operador.",
+    loanDescription:
+      "En esta versión solo se registran préstamos. El saldo se reserva al pedir VoBo o al pagar, y se aplica cuando el corte queda pagado.",
     employeeLabel: "Operador / Empleado *",
     employeePlaceholder: "Seleccionar operador",
     amountLabel: "Monto ($) *",

@@ -49,6 +49,7 @@ describe("compensation mappers", () => {
     });
 
     expect(mapped.name).toBe("Operador foráneo");
+    expect(mapped.midTripPayoutPolicy).toBe("split_by_assigned_km");
     expect(mapped.rules[0]?.routeType).toBe("long_haul");
     expect(mapped.fixedAllowances[0]?.amount).toBe(500);
     expect(mapped.corridorIds).toEqual(["corridor-1"]);

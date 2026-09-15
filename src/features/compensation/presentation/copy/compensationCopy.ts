@@ -143,6 +143,9 @@ export const compensationCopy = {
     },
     paymentDescription:
       "Elige un tipo de viaje y cuánto se paga. Ejemplo: foráneo a $3.00 por km.",
+    midTripPolicyLabel: "Pago si cambia el operador a mitad del viaje",
+    midTripPolicyHint:
+      "Por defecto se reparte según km asignados. Si falta km usable, el API usa partes iguales.",
     allowancesDescription:
       "Montos fijos que se suman siempre, sin importar el viaje (comidas, transporte, etc.).",
     corridorsDescription:

@@ -39,6 +39,10 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
     approveSettlement: vi.fn(),
     rejectSettlement: vi.fn(),
     disburseSettlement: vi.fn(),
+    getSettings: vi.fn().mockResolvedValue({
+      pagosOperadoresGreenfieldV1: false,
+      voboThresholdMxn: 5000,
+    }),
   },
 }));
 

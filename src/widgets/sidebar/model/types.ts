@@ -41,6 +41,11 @@ export interface NavItem {
   disabled?: boolean;
   /** Solo resalta con pathname exacto (hub con rutas hermanas bajo el mismo prefijo). */
   exactPath?: boolean;
+  /**
+   * Prefijos extra que también marcan el ítem activo
+   * (p. ej. hub Pagos a operadores cubre /finance/compensation).
+   */
+  activePathPrefixes?: string[];
 }
 
 // ============================================

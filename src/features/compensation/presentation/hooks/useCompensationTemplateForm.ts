@@ -120,6 +120,7 @@ export function useCompensationTemplateForm({
             name: values.name,
             description: values.description?.trim() ? values.description.trim() : null,
             isActive: values.isActive,
+            midTripPayoutPolicy: values.midTripPayoutPolicy,
             rules: values.rules,
             fixedAllowances: values.fixedAllowances,
             corridorIds: values.corridorIds,

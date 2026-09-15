@@ -22,6 +22,9 @@ import {
 import type { NavGroup, NavItem } from "./types";
 import type { UserRole } from "@shared/constants/roles";
 import type { Module, Action } from "@shared/permissions/domain/entities";
+import { navigationCopy } from "../copy/navigationCopy";
+import { COMPENSATION_HUB_PATH } from "@features/compensation/application/compensationRoutes";
+import { usePagosOperadoresGreenfield } from "@features/settlements/application/hooks/useSettlementSettings";
 
 // ============================================================================
 // TYPES
@@ -95,6 +98,7 @@ function checkPathActive(
   currentPath: string,
   targetPath: string,
   exactOnly = false,
+  extraPrefixes: string[] = [],
 ): boolean {
   // Coincidencia exacta
   if (currentPath === targetPath) return true;
@@ -105,6 +109,15 @@ function checkPathActive(
   // Pero no activar "/" para cualquier ruta
   if (targetPath !== "/" && currentPath.startsWith(targetPath + "/")) {
     return true;
+  }
+
+  for (const prefix of extraPrefixes) {
+    if (
+      currentPath === prefix ||
+      (prefix !== "/" && currentPath.startsWith(`${prefix}/`))
+    ) {
+      return true;
+    }
   }
 
   return false;
@@ -126,7 +139,7 @@ export function findActiveNavItem(
 
   for (const item of items) {
     const key = navPathKey(item);
-    if (!checkPathActive(currentPath, key, item.exactPath)) continue;
+    if (!checkPathActive(currentPath, key, item.exactPath, item.activePathPrefixes)) continue;
 
     const queryScore = navQueryScore(item, currentSearch);
     if (
@@ -201,6 +214,30 @@ export function filterNavigation(
   return filtered;
 }
 
+export function applyOperatorPaymentsNav(
+  groups: NavGroup[],
+  greenfieldEnabled: boolean,
+): NavGroup[] {
+  if (!greenfieldEnabled) return groups;
+  return groups.map((group) => {
+    if (group.id !== "finance") return group;
+    return {
+      ...group,
+      items: group.items
+        .filter((item) => item.id !== "finance-agreements")
+        .map((item) =>
+          item.id === "finance-settlements"
+            ? {
+                ...item,
+                label: navigationCopy.item.financeOperatorPayments,
+                activePathPrefixes: [COMPENSATION_HUB_PATH],
+              }
+            : item,
+        ),
+    };
+  });
+}
+
 /**
  * Encuentra el breadcrumb actual basado en el path
  */
@@ -237,6 +274,7 @@ function findNavItemByPath(
 export function useNavigation(): UseNavigationReturn {
   const location = useLocation();
   const { hasPermission, role, isLoading } = usePermissions();
+  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
 
   const currentPath = location.pathname;
   const currentSearch = location.search;
@@ -251,8 +289,11 @@ export function useNavigation(): UseNavigationReturn {
       : isDriverPortalRole(role)
         ? driverPortalNavigationConfig
         : navigationConfig;
-    return filterNavigation(config, hasPermission, role);
-  }, [hasPermission, role]);
+    return applyOperatorPaymentsNav(
+      filterNavigation(config, hasPermission, role),
+      greenfieldEnabled,
+    );
+  }, [hasPermission, role, greenfieldEnabled]);
 
   /**
    * Todos los items accesibles en formato plano

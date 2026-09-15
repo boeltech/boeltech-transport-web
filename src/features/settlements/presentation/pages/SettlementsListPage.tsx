@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Banknote, History, Plus, ArrowUpRight } from "lucide-react";
+import { Banknote, History, Plus, ArrowUpRight, Settings } from "lucide-react";
 import {
   WorkbenchPageShell,
   type WorkbenchBucket,
@@ -33,6 +33,7 @@ import {
   useSettlementWorkbench,
   useSettlementWorkbenchCounts,
   useSettlementsReadiness,
+  usePagosOperadoresGreenfield,
 } from "../../application/hooks";
 import {
   resolveSettlementsListRedirect,
@@ -53,6 +54,7 @@ import {
   SettlementBacklogTable,
   SettlementPipelineQueue,
   SettlementsSetupChecklist,
+  SettlementSettingsSheet,
 } from "../components";
 import { mapSettlementWorkbenchBuckets } from "../utils/mapSettlementWorkbenchBuckets";
 import type { DriverSettlement } from "../../domain/entities";
@@ -78,6 +80,9 @@ export function SettlementsListPage() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
+  const canUpdate = hasPermission("settlements", "update");
+  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const defaultsAppliedRef = useRef(false);
 
   const { data: branchesData } = useBranches({
@@ -339,8 +344,9 @@ export function SettlementsListPage() {
   return (
     <>
       <WorkbenchPageShell
-        title={copy.title}
-        description={copy.description}
+        title={greenfieldEnabled ? settlementsCopy.hub.title : copy.title}
+        description={greenfieldEnabled ? settlementsCopy.hub.description : copy.description}
+        showHeader={!greenfieldEnabled}
         primaryAction={
           canCreate
             ? {
@@ -435,6 +441,18 @@ export function SettlementsListPage() {
                 <History className="h-4 w-4" />
                 {workbenchCopy.actions.viewFullHistory}
               </Button>
+              {!greenfieldEnabled && canUpdate ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSettingsOpen(true)}
+                  className="gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  {settlementsCopy.hub.settingsAction}
+                </Button>
+              ) : null}
               <ViewModeToggle {...filters.viewModeProps} />
             </>
           ),
@@ -541,11 +559,15 @@ export function SettlementsListPage() {
         )}
         pagination={activePagination}
         onPageChange={filters.setPage}
-        relatedConfig={{
-          label: copy.actions.manageAgreements,
-          href: COMPENSATION_TEMPLATES_PATH,
-          description: workbenchCopy.readiness.relatedConfigDescription,
-        }}
+        relatedConfig={
+          greenfieldEnabled
+            ? undefined
+            : {
+                label: copy.actions.manageAgreements,
+                href: COMPENSATION_TEMPLATES_PATH,
+                description: workbenchCopy.readiness.relatedConfigDescription,
+              }
+        }
       />
 
       {disburseSettlement ? (
@@ -570,6 +592,10 @@ export function SettlementsListPage() {
           void refetchWorkbenchCounts();
           void refetchWorkbench();
         }}
+      />
+      <SettlementSettingsSheet
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
       />
     </>
   );

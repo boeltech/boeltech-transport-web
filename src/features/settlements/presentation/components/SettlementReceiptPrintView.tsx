@@ -33,6 +33,9 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
     const paymentMethodLabel = settlement.disbursementMethod
       ? DISBURSEMENT_METHOD_LABELS[settlement.disbursementMethod as DisbursementMethod] ?? settlement.disbursementMethod
       : null;
+    const isPaid = settlement.status === "disbursed" || Boolean(settlement.disbursedAt);
+    const isApprovedPendingPay =
+      settlement.status === "approved" && !isPaid;
 
     return (
       <div
@@ -56,6 +59,15 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                 {SETTLEMENT_STATUS_LABELS[settlement.status] ?? settlement.status}
               </span>
             </p>
+            {isApprovedPendingPay ? (
+              <p className="mt-1 inline-block border-2 border-black px-2 py-0.5 text-[10px] font-black tracking-wide">
+                {receiptCopy.signatures.pendingPaymentBanner}
+              </p>
+            ) : isPaid ? (
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide">
+                {receiptCopy.signatures.finalReceiptBanner}
+              </p>
+            ) : null}
             <p className="text-[10px] text-gray-500">
               {receiptCopy.issueDateLabel} {formatDate(settlement.createdAt || new Date().toISOString())}
             </p>
@@ -262,9 +274,11 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             </p>
             <p className="text-[10px] font-semibold text-gray-700">{receiptCopy.signatures.approverTitle}</p>
             <p className="text-[9px] text-gray-500 mt-0.5 leading-tight">
-              {settlement.disbursedAt
-                ? `${receiptCopy.signatures.disbursedOnPrefix} ${formatDate(settlement.disbursedAt)} · ${receiptCopy.signatures.approverDisclaimerDisbursed}`
-                : receiptCopy.signatures.approverDisclaimerPending}
+              {isPaid
+                ? `${receiptCopy.signatures.disbursedOnPrefix} ${formatDate(settlement.disbursedAt!)} · ${receiptCopy.signatures.approverDisclaimerDisbursed}`
+                : isApprovedPendingPay
+                  ? `${receiptCopy.signatures.pendingPaymentBanner} · ${receiptCopy.signatures.approverDisclaimerPending}`
+                  : receiptCopy.signatures.approverDisclaimerPending}
             </p>
           </div>
         </div>

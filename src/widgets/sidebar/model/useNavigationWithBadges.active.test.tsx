@@ -24,6 +24,14 @@ vi.mock("@features/approvals", () => ({
   usePendingApprovalsCount: () => pendingCount(),
 }));
 
+vi.mock("@features/settlements/application/hooks/useSettlementSettings", () => ({
+  usePagosOperadoresGreenfield: () => ({
+    enabled: false,
+    thresholdMxn: 5000,
+    isLoading: false,
+  }),
+}));
+
 function renderNavigation(initialEntry: string) {
   return renderHook(() => useNavigationWithBadges(), {
     wrapper: ({ children }: { children: ReactNode }) => (

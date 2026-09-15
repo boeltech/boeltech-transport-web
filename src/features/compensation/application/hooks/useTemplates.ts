@@ -50,6 +50,7 @@ export function useUpdateCompensationTemplate() {
       name?: string;
       description?: string | null;
       isActive?: boolean;
+      midTripPayoutPolicy?: string;
       rules?: CompensationTemplateRule[];
       fixedAllowances?: TemplateFixedAllowance[];
       corridorIds?: string[];

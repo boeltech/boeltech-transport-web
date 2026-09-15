@@ -80,6 +80,11 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     updateAgreement: (...args: unknown[]) => mockUpdateAgreement(...args),
     deleteAgreement: (...args: unknown[]) => mockDeleteAgreement(...args),
     getWorkbench: (...args: unknown[]) => mockGetWorkbench(...args),
+    getSettings: vi.fn().mockResolvedValue({
+      pagosOperadoresGreenfieldV1: false,
+      voboThresholdMxn: 5000,
+    }),
+    updateSettings: vi.fn(),
   },
 }));
 

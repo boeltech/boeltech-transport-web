@@ -77,6 +77,11 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     createSettlement: vi.fn(),
     createAgreement: vi.fn(),
     updateAgreement: vi.fn(),
+    getSettings: vi.fn().mockResolvedValue({
+      pagosOperadoresGreenfieldV1: false,
+      voboThresholdMxn: 5000,
+    }),
+    updateSettings: vi.fn(),
   },
 }));
 

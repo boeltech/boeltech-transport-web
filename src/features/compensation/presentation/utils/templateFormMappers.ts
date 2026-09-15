@@ -24,6 +24,7 @@ export const DEFAULT_TEMPLATE_FORM_VALUES: CompensationTemplateFormData = {
   name: "",
   description: "",
   isActive: true,
+  midTripPayoutPolicy: "split_by_assigned_km",
   rules: DEFAULT_TEMPLATE_RULES,
   fixedAllowances: [],
   corridorIds: [],
@@ -36,6 +37,7 @@ export function templateToForm(
     name: template.name,
     description: template.description ?? "",
     isActive: template.isActive,
+    midTripPayoutPolicy: template.midTripPayoutPolicy ?? "split_by_assigned_km",
     rules: template.rules.map((rule) => ({
       routeType: rule.routeType,
       commissionType: rule.commissionType,
@@ -64,6 +66,7 @@ export function buildDuplicateTemplatePayload(
     name,
     description: template.description ?? null,
     isActive: template.isActive,
+    midTripPayoutPolicy: template.midTripPayoutPolicy,
     rules: template.rules.map((rule) => ({
       routeType: rule.routeType,
       commissionType: rule.commissionType,

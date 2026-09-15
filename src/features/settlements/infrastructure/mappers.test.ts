@@ -6,6 +6,7 @@ import {
   mapSettlementPreview,
   mapListSettlementsResponse,
   mapListAdvancesResponse,
+  mapSettlementSettings,
   type ApiCompensationAgreementRaw,
   type ApiDriverAdvanceRaw,
   type ApiDriverSettlementRaw,
@@ -169,6 +170,11 @@ describe("Settlements Infrastructure Mappers", () => {
       notes: "Corte quincena 1 agosto",
       created_at: "2026-08-15T18:00:00Z",
       updated_at: "2026-08-16T10:00:00Z",
+      has_manual_adjustments: false,
+      vobo_required: true,
+      advances_reserved: false,
+      advances_applied: false,
+      created_by: "user-creator",
       items: [
         {
           id: "item-1",
@@ -194,6 +200,9 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.grossAmount).toBe(4500);
     expect(mapped.netAmount).toBe(3500);
     expect(mapped.submittedBy).toBe("user-creator");
+    expect(mapped.voboRequired).toBe(true);
+    expect(mapped.hasManualAdjustments).toBe(false);
+    expect(mapped.createdBy).toBe("user-creator");
     expect(mapped.items).toHaveLength(1);
     expect(mapped.items?.[0]?.itemType).toBe("trip_commission");
   });
@@ -219,6 +228,8 @@ describe("Settlements Infrastructure Mappers", () => {
           applied_rule: "Tarifa foránea $3.5/km",
           calculated_commission: 3150,
           approved_reimbursable_expenses: 500,
+          freight_base: "commercial_at_complete",
+          mid_trip_share_ratio: 0.4,
         },
       ],
       open_advances: [
@@ -247,6 +258,8 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.eligibleTrips).toHaveLength(1);
     expect(mapped.eligibleTrips[0].routeType).toBe("long_haul");
     expect(mapped.eligibleTrips[0].appliedRule).toBe("Tarifa foránea $3.5/km");
+    expect(mapped.eligibleTrips[0].freightBase).toBe("commercial_at_complete");
+    expect(mapped.eligibleTrips[0].midTripShareRatio).toBe(0.4);
     expect(mapped.openAdvances).toHaveLength(1);
     expect(mapped.summary.totalBaseSalary).toBe(3000);
     expect(mapped.summary.netAmount).toBe(5650);
@@ -318,5 +331,14 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.pagination.page).toBe(2);
     expect(mapped.pagination.limit).toBe(20);
     expect(mapped.pagination.totalPages).toBe(3);
+  });
+
+  it("mapea settings greenfield y umbral de VoBo", () => {
+    const mapped = mapSettlementSettings({
+      pagos_operadores_greenfield_v1: true,
+      vobo_threshold_mxn: 7500,
+    });
+    expect(mapped.pagosOperadoresGreenfieldV1).toBe(true);
+    expect(mapped.voboThresholdMxn).toBe(7500);
   });
 });

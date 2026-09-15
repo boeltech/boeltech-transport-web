@@ -198,8 +198,13 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
                 </TableCell>
 
                 {/* Saldo restante */}
-                <TableCell className="text-right tabular-nums font-bold text-primary whitespace-nowrap">
-                  {formatMxCurrency(adv.balanceRemaining)}
+                <TableCell className="text-right tabular-nums font-bold text-primary">
+                  {formatMxCurrency(adv.availableBalance ?? adv.balanceRemaining)}
+                  {adv.reservedAmount && adv.reservedAmount > 0 ? (
+                    <p className="text-[10px] font-normal text-muted-foreground whitespace-normal mt-0.5">
+                      {copy.createPage.summary.reservedAdvanceHint}
+                    </p>
+                  ) : null}
                 </TableCell>
 
                 {/* Fecha entrega */}

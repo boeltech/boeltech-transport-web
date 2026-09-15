@@ -311,6 +311,16 @@ const SettlementsAdvancesPage = lazyWithRetry(() =>
     default: m.SettlementsAdvancesPage,
   })),
 );
+const SettlementsPendingApprovalPage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({
+    default: m.SettlementsPendingApprovalPage,
+  })),
+);
+const OperatorPaymentsHubLayout = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({
+    default: m.OperatorPaymentsHubLayout,
+  })),
+);
 const SettlementCreatePage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementCreatePage })),
 );
@@ -977,12 +987,19 @@ export const router = createBrowserRouter([
                 element: <ModuleRoute module="settlements" />,
                 children: [
                   {
+                    element: withSuspense(OperatorPaymentsHubLayout),
+                    children: [
+                  {
                     path: "/finance/settlements/registry",
                     element: withSuspense(SettlementsRegistryPage),
                   },
                   {
                     path: "/finance/settlements/advances",
                     element: withSuspense(SettlementsAdvancesPage),
+                  },
+                  {
+                    path: "/finance/settlements/pending-approval",
+                    element: withSuspense(SettlementsPendingApprovalPage),
                   },
                   {
                     path: "/finance/settlements",
@@ -1015,12 +1032,14 @@ export const router = createBrowserRouter([
                     ],
                   },
                   {
-                    path: "/finance/compensation/templates/:id/build",
-                    element: withSuspense(CompensationSchemeBuilderPage),
-                  },
-                  {
                     path: "/finance/agreements",
                     element: withSuspense(AgreementsLegacyRedirect),
+                  },
+                    ],
+                  },
+                  {
+                    path: "/finance/compensation/templates/:id/build",
+                    element: withSuspense(CompensationSchemeBuilderPage),
                   },
                 ],
               },

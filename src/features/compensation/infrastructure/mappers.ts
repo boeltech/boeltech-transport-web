@@ -1,8 +1,10 @@
 import { deepToCamel } from "@shared/api";
 import type {
   AgreementCommissionType,
+  MidTripPayoutPolicy,
   TripRouteType,
 } from "@features/settlements";
+import { DEFAULT_MID_TRIP_PAYOUT_POLICY } from "@features/settlements/domain/enums";
 import type {
   BatchAssignmentConflict,
   BatchAssignmentResult,
@@ -58,6 +60,7 @@ export interface ApiCompensationTemplateRaw {
   name: string;
   description: string | null;
   is_active: boolean;
+  mid_trip_payout_policy?: string;
   rules: ApiCompensationTemplateRuleRaw[];
   fixed_allowances: ApiTemplateFixedAllowanceRaw[];
   corridor_ids: string[];
@@ -142,6 +145,9 @@ export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTempla
     name: raw.name,
     description: raw.description,
     isActive: raw.is_active,
+    midTripPayoutPolicy:
+      (raw.mid_trip_payout_policy as MidTripPayoutPolicy | undefined) ??
+      DEFAULT_MID_TRIP_PAYOUT_POLICY,
     rules: (raw.rules ?? []).map(mapTemplateRule),
     fixedAllowances: (raw.fixed_allowances ?? []).map(mapFixedAllowance),
     corridorIds: raw.corridor_ids ?? [],
@@ -253,6 +259,7 @@ export interface ApiCompensationTemplateCamel {
   name: string;
   description: string | null;
   isActive: boolean;
+  midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules: ApiCompensationTemplateRuleCamel[];
   fixedAllowances: ApiTemplateFixedAllowanceCamel[];
   corridorIds: string[];
@@ -352,6 +359,8 @@ export function mapTemplateFromApi(raw: ApiCompensationTemplateCamel): Compensat
     name: raw.name,
     description: raw.description,
     isActive: raw.isActive,
+    midTripPayoutPolicy:
+      raw.midTripPayoutPolicy ?? DEFAULT_MID_TRIP_PAYOUT_POLICY,
     rules: (raw.rules ?? []).map(mapTemplateRuleFromApi),
     fixedAllowances: (raw.fixedAllowances ?? []).map(mapFixedAllowanceFromApi),
     corridorIds: raw.corridorIds ?? [],
