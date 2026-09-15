@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Banknote, History, Plus, ArrowUpRight, Settings } from "lucide-react";
 import {
   WorkbenchPageShell,
@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@shared/ui/tooltip";
 import { ViewModeToggle } from "@shared/ui/listing";
@@ -151,12 +152,7 @@ export function SettlementsListPage() {
     refetch: refetchWorkbench,
   } = useSettlementWorkbench(workbenchParams);
 
-  useEffect(() => {
-    const redirect = resolveSettlementsListRedirect(location.search);
-    if (redirect) {
-      navigate(redirect, { replace: true });
-    }
-  }, [location.search, navigate]);
+  const listRedirect = resolveSettlementsListRedirect(location.search);
 
   useEffect(() => {
     if (filters.filters.bucket === "approval") {
@@ -341,8 +337,12 @@ export function SettlementsListPage() {
     backlogRows.length === 0;
   const showBeforeAwareness = showChecklist || showSchemesBridge;
 
+  if (listRedirect) {
+    return <Navigate to={listRedirect} replace />;
+  }
+
   return (
-    <>
+    <TooltipProvider delayDuration={0}>
       <WorkbenchPageShell
         title={greenfieldEnabled ? settlementsCopy.hub.title : copy.title}
         description={greenfieldEnabled ? settlementsCopy.hub.description : copy.description}
@@ -597,6 +597,6 @@ export function SettlementsListPage() {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
       />
-    </>
+    </TooltipProvider>
   );
 }

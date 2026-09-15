@@ -384,7 +384,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("+ Total Percepciones")).toBeInTheDocument();
+    expect(screen.getByText("Lo ganado")).toBeInTheDocument();
     expect(screen.getAllByText("$3,500.00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("-$1,000.00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Comisión por viaje")).toBeInTheDocument();
@@ -432,7 +432,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     // Verificar que el diálogo de vista previa está abierto y la clase activa está en body
     expect(
-      screen.getByRole("heading", { name: /Recibo de Liquidación Imprimible/i }),
+      screen.getByRole("heading", { name: /Recibo de liquidación/i }),
     ).toBeInTheDocument();
     expect(document.body.classList.contains("print-receipt-active")).toBe(true);
 
@@ -526,13 +526,14 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: /Configurar tarifas/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /Esquemas de compensación/i }),
+      ).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("link", { name: /Configurar tarifas/i })).toHaveAttribute(
-      "href",
-      "/finance/agreements",
-    );
+    expect(
+      screen.getByRole("link", { name: /Esquemas de compensación/i }),
+    ).toHaveAttribute("href", "/finance/compensation/templates");
   });
 
   it("6. Renderiza el dialog de registrar anticipo con componente MoneyInput", async () => {
@@ -706,7 +707,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     await user.click(printBtn);
 
-    expect(screen.getByText("Recibo de Liquidación Imprimible")).toBeInTheDocument();
+    expect(screen.getByText("Recibo de liquidación")).toBeInTheDocument();
     expect(screen.getByText("Liquidación de Viajes y Pago a Operador")).toBeInTheDocument();
     expect(screen.getByText("Firma de Conformidad del Operador")).toBeInTheDocument();
     expect(screen.getByText("Revisado y Autorizado / Empresa")).toBeInTheDocument();

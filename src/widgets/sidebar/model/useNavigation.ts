@@ -24,7 +24,6 @@ import type { UserRole } from "@shared/constants/roles";
 import type { Module, Action } from "@shared/permissions/domain/entities";
 import { navigationCopy } from "../copy/navigationCopy";
 import { COMPENSATION_HUB_PATH } from "@features/compensation/application/compensationRoutes";
-import { usePagosOperadoresGreenfield } from "@features/settlements/application/hooks/useSettlementSettings";
 
 // ============================================================================
 // TYPES
@@ -271,10 +270,15 @@ function findNavItemByPath(
 // HOOK
 // ============================================================================
 
-export function useNavigation(): UseNavigationReturn {
+/**
+ * Navegación filtrada por permisos.
+ * El relabel “Pagos a operadores” se aplica solo si el caller pasa
+ * `greenfieldEnabled` (p. ej. `useNavigationWithBadges` / command menu).
+ * No consultar settings aquí: varios tests montan el hook sin QueryClient.
+ */
+export function useNavigation(greenfieldEnabled = false): UseNavigationReturn {
   const location = useLocation();
   const { hasPermission, role, isLoading } = usePermissions();
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
 
   const currentPath = location.pathname;
   const currentSearch = location.search;

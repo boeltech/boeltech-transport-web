@@ -2,7 +2,7 @@
  * El sidebar consume los ítems ya enriquecidos con badge (copias del original),
  * así que el ítem activo tiene que resolverse igual con o sin badge.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
@@ -19,17 +19,18 @@ vi.mock("@/shared/permissions", async (importOriginal) => ({
 }));
 
 const pendingCount = vi.fn(() => ({ data: 3 }));
+const greenfieldState = {
+  enabled: false,
+  thresholdMxn: 5000,
+  isLoading: false,
+};
 
 vi.mock("@features/approvals", () => ({
   usePendingApprovalsCount: () => pendingCount(),
 }));
 
 vi.mock("@features/settlements/application/hooks/useSettlementSettings", () => ({
-  usePagosOperadoresGreenfield: () => ({
-    enabled: false,
-    thresholdMxn: 5000,
-    isLoading: false,
-  }),
+  usePagosOperadoresGreenfield: () => greenfieldState,
 }));
 
 function renderNavigation(initialEntry: string) {
@@ -48,6 +49,21 @@ function itemById(
 }
 
 describe("useNavigationWithBadges", () => {
+  beforeEach(() => {
+    greenfieldState.enabled = false;
+  });
+
+  it("relabels Pagos a operadores and hides Esquemas when the tenant flag is on", () => {
+    greenfieldState.enabled = true;
+    const { result } = renderNavigation("/finance/settlements");
+    const settlements = itemById(result.current.navigation, "finance-settlements");
+    const agreements = itemById(result.current.navigation, "finance-agreements");
+
+    expect(settlements?.label).toBe("Pagos a operadores");
+    expect(agreements).toBeUndefined();
+    expect(result.current.isItemActive(settlements!)).toBe(true);
+  });
+
   it("marks the badged approvals item as active on its route", () => {
     const { result } = renderNavigation("/finance/approvals?status=pending");
     const approvals = itemById(result.current.navigation, "finance-approvals");
