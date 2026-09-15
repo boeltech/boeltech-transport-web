@@ -13,6 +13,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { SettlementsListPage } from "@features/settlements/presentation/pages/SettlementsListPage";
 import { SettlementsRegistryPage } from "@features/settlements/presentation/pages/SettlementsRegistryPage";
 import { SettlementsAdvancesPage } from "@features/settlements/presentation/pages/SettlementsAdvancesPage";
@@ -385,10 +386,12 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     });
 
     expect(screen.getByText("Lo ganado")).toBeInTheDocument();
-    expect(screen.getAllByText("$3,500.00").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("-$1,000.00").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Comisión por viaje")).toBeInTheDocument();
-    expect(screen.getByText("Deducción de anticipo")).toBeInTheDocument();
+    expect(screen.getAllByText(formatMxCurrency(3500)).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(`-${formatMxCurrency(1000)}`).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Pago por viaje")).toBeInTheDocument();
+    expect(screen.getByText("Descuento de anticipo")).toBeInTheDocument();
 
     // Botones de acción para autorizar
     const authorizeBtn = screen.getByRole("button", { name: /Autorizar/i });
