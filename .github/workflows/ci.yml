@@ -21,7 +21,9 @@ jobs:
           scope: "@boeltech"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm view @boeltech/cfdi-domain@0.25.1 dist --json
+          npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
