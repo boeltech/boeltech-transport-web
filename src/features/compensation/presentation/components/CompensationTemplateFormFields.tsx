@@ -32,7 +32,7 @@ export function CompensationTemplateFormFields({
   watchedRules,
   validationMessages,
 }: CompensationTemplateFormFieldsProps) {
-  const { control, register, formState: { errors } } = form;
+  const { control, register, setValue, formState: { errors } } = form;
 
   return (
     <div className="space-y-6">
@@ -45,6 +45,7 @@ export function CompensationTemplateFormFields({
       />
       <TemplateAllowancesSection
         control={control}
+        setValue={setValue}
         register={register}
         allowanceFields={allowanceFields}
         appendAllowance={appendAllowance}

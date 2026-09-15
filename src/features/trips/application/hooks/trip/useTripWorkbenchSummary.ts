@@ -52,16 +52,6 @@ function overdueCountQuery() {
   };
 }
 
-const EMPTY_SUMMARY: TripWorkbenchSummary = {
-  draft: 0,
-  scheduled: 0,
-  inProgress: 0,
-  completed: 0,
-  cancelled: 0,
-  fiscalAttention: 0,
-  overdue: 0,
-};
-
 export function useTripWorkbenchSummary() {
   const queries = useMemo(
     () => [
