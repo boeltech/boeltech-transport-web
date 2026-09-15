@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { ClipboardCheck } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
@@ -74,6 +75,7 @@ export function SettlementsPendingApprovalPage() {
       onPageChange={filters.setPage}
       entityLabelPlural="cortes por autorizar"
       emptyState={{
+        icon: <ClipboardCheck className="h-8 w-8 text-muted-foreground" />,
         title: hubCopy.pendingApprovalEmptyTitle,
         description: hubCopy.pendingApprovalEmptyDescription,
       }}

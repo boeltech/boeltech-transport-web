@@ -16,5 +16,6 @@ export * from "./SettlementReceiptPrintView";
 export * from "./SettlementWorkbenchKpiStrip";
 export * from "./SettlementBacklogTable";
 export * from "./SettlementPipelineQueue";
+export * from "./SettlementsSetupChecklist";
 export * from "./SettlementSettingsSheet";
 export * from "./OperatorPaymentsHubLayout";

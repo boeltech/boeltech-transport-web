@@ -263,7 +263,7 @@ export type DisburseSettlementFormValues = z.infer<
 export type DisburseSettlementFormData = DisburseSettlementFormValues;
 
 export const settlementSettingsFormSchema = z.object({
-  voboThresholdMxn: z.coerce
+  voboThresholdMxn: z
     .number({ error: "El umbral es obligatorio" })
     .min(0, "El umbral no puede ser negativo"),
   pagosOperadoresGreenfieldV1: z.boolean(),

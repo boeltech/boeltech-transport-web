@@ -54,7 +54,7 @@ export function SettlementSettingsSheet({
     reset,
     formState: { errors, isSubmitting },
   } = useForm<SettlementSettingsFormData>({
-    resolver: zodResolver(settlementSettingsFormSchema),
+    resolver: zodResolver(settlementSettingsFormSchema) as never,
     defaultValues: {
       voboThresholdMxn: DEFAULT_VOBO_THRESHOLD_MXN,
       pagosOperadoresGreenfieldV1: false,
