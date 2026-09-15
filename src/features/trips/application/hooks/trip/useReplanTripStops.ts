@@ -53,7 +53,7 @@ export function useReplanTripStops(
     retry: 0,
     mutationFn: (pendingStops: ReplanPendingStopInput[]) =>
       tripsApi.replanStops(tripId, pendingStops),
-    onSuccess: async (data, variables, context) => {
+    onSuccess: async (data, variables, context, mutation) => {
       queryClient.setQueryData<Trip>(tripQueryKeys.detail(tripId), (previous) => {
         if (!previous) return data;
         return {
@@ -75,13 +75,13 @@ export function useReplanTripStops(
         );
       }
       await invalidateTripAfterStopsMutation(queryClient, tripId);
-      await userOnSuccess?.(data, variables, context);
+      await userOnSuccess?.(data, variables, context, mutation);
     },
-    onError: (error, variables, context) => {
-      userOnError?.(error, variables, context);
+    onError: (error, variables, context, mutation) => {
+      userOnError?.(error, variables, context, mutation);
     },
-    onSettled: (data, error, variables, context) => {
-      userOnSettled?.(data, error, variables, context);
+    onSettled: (data, error, variables, context, mutation) => {
+      userOnSettled?.(data, error, variables, context, mutation);
     },
   });
 }

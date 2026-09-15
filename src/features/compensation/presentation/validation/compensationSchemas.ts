@@ -97,7 +97,7 @@ export const corridorTariffFormSchema = z
     destinationRefType: z.enum(["branch", "city_label", "postal_code"]),
     destinationRefValue: z.string().min(1, "Indica el destino").max(120),
     fixedAmount: z.coerce
-      .number({ invalid_type_error: "Indica la tarifa fija" })
+      .number({ error: "Indica la tarifa fija" })
       .positive("La tarifa debe ser mayor a 0"),
     notes: z.string().max(2000).optional().nullable(),
     isActive: z.boolean().default(true),

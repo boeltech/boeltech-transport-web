@@ -46,6 +46,7 @@ export function CompensationTemplateFormFields({
       <TemplateAllowancesSection
         control={control}
         register={register}
+        setValue={form.setValue}
         allowanceFields={allowanceFields}
         appendAllowance={appendAllowance}
         removeAllowance={removeAllowance}

@@ -21,6 +21,7 @@ export function BuilderAllowancesSection({
       <TemplateAllowancesSection
         control={form.control}
         register={form.register}
+        setValue={form.setValue}
         allowanceFields={allowanceFields}
         appendAllowance={appendAllowance}
         removeAllowance={removeAllowance}
