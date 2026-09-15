@@ -392,7 +392,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     await user.click(screen.getByText("Ver desglose"));
     expect(screen.getAllByText("Pago por viaje").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Descuento de anticipo")).toBeInTheDocument();
+    expect(screen.getAllByText("Descuento de anticipo").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(formatMxCurrency(3500)).length).toBeGreaterThanOrEqual(1);
 
     // Botones de acción para autorizar
