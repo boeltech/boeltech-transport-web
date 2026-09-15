@@ -126,6 +126,7 @@ const createCorridorDefaultValues: CorridorTariffFormInput = {
   originRefValue: "",
   destinationRefType: "city_label",
   destinationRefValue: "",
+  fixedAmount: undefined,
   notes: "",
   isActive: true,
 };
@@ -334,7 +335,11 @@ export function CorridorTariffSheet({
 
     mode: "onChange",
 
-    resolver: zodResolver(corridorTariffFormSchema) as Resolver<CorridorTariffFormData>,
+    resolver: zodResolver(corridorTariffFormSchema) as Resolver<
+      CorridorTariffFormInput,
+      unknown,
+      CorridorTariffFormData
+    >,
 
     defaultValues: createCorridorDefaultValues,
 
@@ -421,6 +426,8 @@ export function CorridorTariffSheet({
       destinationRefType: "city_label",
 
       destinationRefValue: "",
+
+      fixedAmount: undefined,
 
       notes: "",
 
@@ -812,7 +819,7 @@ export function CorridorTariffSheet({
 
                     name={field.name}
 
-                    value={field.value}
+                    value={typeof field.value === "number" ? field.value : undefined}
 
                     onValueChange={field.onChange}
 

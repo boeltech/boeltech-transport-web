@@ -4,6 +4,7 @@ import {
   type UseFieldArrayAppend,
   type UseFieldArrayRemove,
   type UseFormRegister,
+  type UseFormSetValue,
 } from "react-hook-form";
 import { Banknote, Plus, Trash2 } from "lucide-react";
 import { Button } from "@shared/ui/button";
@@ -32,6 +33,7 @@ const detailCopy = compensationCopy.templateDetail;
 interface TemplateAllowancesSectionProps {
   control: Control<CompensationTemplateFormData>;
   register: UseFormRegister<CompensationTemplateFormData>;
+  setValue: UseFormSetValue<CompensationTemplateFormData>;
   allowanceFields: { id: string }[];
   appendAllowance: UseFieldArrayAppend<CompensationTemplateFormData, "fixedAllowances">;
   removeAllowance: UseFieldArrayRemove;
@@ -47,6 +49,7 @@ function defaultLabelForType(type: FixedAllowanceType): string {
 export function TemplateAllowancesSection({
   control,
   register,
+  setValue,
   allowanceFields,
   appendAllowance,
   removeAllowance,
@@ -123,7 +126,7 @@ export function TemplateAllowancesSection({
                           const nextType = value as FixedAllowanceType;
                           typeField.onChange(nextType);
                           if (operationalLexicon && nextType !== "other") {
-                            control.setValue(
+                            setValue(
                               `fixedAllowances.${index}.label`,
                               defaultLabelForType(nextType),
                               { shouldDirty: true },

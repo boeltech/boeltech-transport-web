@@ -319,7 +319,7 @@ export function mapSettlementItem(raw: ApiSettlementItemRaw): SettlementItem {
 }
 
 export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
-  const snapshot = deepToCamel(raw.agreement_snapshot) as DriverSettlement["agreementSnapshot"];
+  const snapshot = deepToCamel(raw.agreement_snapshot) as unknown as DriverSettlement["agreementSnapshot"];
   return {
     id: raw.id,
     tenantId: raw.tenant_id,
@@ -364,7 +364,7 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
     employeeName: raw.employee_name,
     periodStart: raw.period_start,
     periodEnd: raw.period_end,
-    agreement: deepToCamel(raw.agreement) as SettlementPreview["agreement"],
+    agreement: deepToCamel(raw.agreement) as unknown as SettlementPreview["agreement"],
     template: raw.template
       ? {
           id: raw.template.id,
