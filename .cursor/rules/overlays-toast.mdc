@@ -1,0 +1,40 @@
+---
+description: Reglas Sheet/Dialog/Toast — overlays, mutaciones y feedback en ERP-T
+globs:
+  - src/shared/ui/sheet/**
+  - src/shared/ui/toast/**
+  - src/shared/ui/dialog/**
+  - src/features/**/*Sheet*.tsx
+  - src/features/**/*Dialog*.tsx
+---
+
+# Overlays y toast
+
+## Sheet
+
+- **No** pasar `modal={true}` a `<Sheet>` salvo excepción documentada en el PR (sin toasts ni portales externos con el sheet abierto).
+- **No** duplicar `onInteractOutside` / guard Sonner en features — vive en [`sheet.tsx`](../../src/shared/ui/sheet/sheet.tsx) vía [`sonnerDismissGuard.ts`](../../src/shared/ui/toast/sonnerDismissGuard.ts).
+
+## Dialog
+
+- Mantener `modal={true}` (default Radix) para confirmaciones.
+- Errores API con dialog abierto → **`Alert` inline** en `DialogContent`; no depender solo de toast.
+
+## Feedback en mutaciones desde overlay
+
+| Escenario | Patrón |
+|-----------|--------|
+| Éxito | Toast; cerrar overlay |
+| Error corto (≤ ~160 chars) | Toast (sheet) o Alert (dialog) |
+| Error largo (PAC/SAT) | `Alert` inline + toast breve con `useOverlayMutationFeedback` |
+| Validación RHF | `FormValidationSummary` / `FieldInlineError`; sin toast |
+
+## Variantes toast
+
+- Preferir `variant: "error"` en código nuevo; `destructive` es alias soportado.
+
+## Referencias
+
+- [`src/shared/ui/toast/README.md`](../../src/shared/ui/toast/README.md)
+- Skill design-system § Overlays
+- Skill detail-sheet-master-detail § Toast y errores API

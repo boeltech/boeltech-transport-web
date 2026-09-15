@@ -1,0 +1,61 @@
+---
+description: Dominio compartido @boeltech/cfdi-domain para reglas, validaciones y fiscal (ADR-0043)
+alwaysApply: true
+---
+
+# Dominio compartido `@boeltech/cfdi-domain` (ADR-0043)
+
+Reglas fiscales/operativas de Trips, Carta Porte, facturación y seguimiento viven en el paquete **`boeltech-cfdi-domain`**. En API y web **consume** el paquete; no dupliques lógica núcleo en features.
+
+## Dónde implementar vs consumir
+
+| Tipo de cambio | Dónde |
+|---|---|
+| Regla de negocio reutilizable, schema Zod de contrato API, serialización CP/REP, `Result` de validación | Paquete (`boeltech-cfdi-domain`) |
+| Adaptador HTTP/SQL, persistencia, UI wizard, mapeo snake/camel | API / web |
+
+Si el cambio afecta contrato API y formulario, primero el paquete y después alinear consumidores.
+
+## Entry points públicos (no importar rutas internas `src/**`)
+
+Lista alineada a `package.json` v0.3+ y [`contributing-public-api.md`](D:\cowork\boeltech\erp-transport\docs\cfdi-domain\contributing-public-api.md):
+
+- `@boeltech/cfdi-domain` — reglas, tipos, helpers (`reglas`, `MERCANCIA_CP31_DETAIL_KEYS`, `sortTrackingEventsForTimeline`, …)
+- `@boeltech/cfdi-domain/validadores/trips` — schemas Zod compartidos de viajes/paradas/carga
+- `@boeltech/cfdi-domain/validadores/trip-payload-result` — `parseCreateTripBody` / `parseCreateCargoBody`, `validationErrorsToRecord`
+- `@boeltech/cfdi-domain/validadores/address` — Zod estructural snake_case (`createAddressSchema`, …); **no** sustituye parsers SAT
+- `@boeltech/cfdi-domain/validadores/address-payload-result` — **direcciones = parse del paquete** (`parseCreateAddressBody`, `parseUpdateAddressBody`, `validateInlineStopAddressSat`)
+- `@boeltech/cfdi-domain/validadores/invoice` — sustitución y contratos de factura (API; web solo si consume el mismo contrato)
+- `@boeltech/cfdi-domain/validadores/payment` — registro de pago (API)
+- `@boeltech/cfdi-domain/validadores/tracking` — schemas de eventos de seguimiento (API; web prefiere root si reexporta)
+- `@boeltech/cfdi-domain/reglas/address-readiness` — obligatoriedad Domicilio CP31 = XSD (`cp31-domicilio-xsd.ts`); lookup CP solo catálogos
+- `@boeltech/cfdi-domain/reglas/tracking-rules` — reglas de elegibilidad/timeline (opcional si root no basta)
+- `@boeltech/cfdi-domain/entidades/tracking-event` — tipos de evento (opcional si root no basta)
+- `@boeltech/cfdi-domain/serializadores/carta-porte-31` — XML complemento Carta Porte 3.1 (API)
+- `@boeltech/cfdi-domain/serializadores/rep20` — XML complemento recepción de pagos 2.0 (API)
+
+Rollout domicilios v0.3+ (web): `D:\cowork\boeltech\erp-transport\docs\direcciones\address-cfdi-domain-v03-rollout-web.md` (índice unificado: `address-cfdi-domain-v03-rollout.md`).
+
+## Web
+
+- **Viajes:** `validateTripApiPayload.ts` con schemas de `validadores/trips`; no redefinir `createTripSchema` / `updateTripSchema` locales ni duplicar `parseCreateTripBody` salvo tests de contrato explícitos.
+- **Direcciones:** `src/shared/cfdi/addressPayloadBridge.ts` + `validateClientAddressFormComplete`; no duplicar reglas SAT ni `.merge()` Zod con el paquete.
+- **Seguimiento:** timeline y orden con helpers del root (`sortTrackingEventsForTimeline`); copy/UX de botones en features; no redefinir códigos de evento ni transiciones del paquete.
+- Wizard: alinear create/update con schemas del paquete; validación UX solo si no contradice el contrato compartido.
+- Catálogos regulatorios: `createCatalogProviderRest` / `fetchRegulatoryFlagsForSatProductCp` (`CatalogProvider.getPostalCodeLookup`).
+
+## API
+
+- Reexportar validadores de viajes desde `trip.validation.ts`; controllers con `parseCreateTripBody` / `parseCreateCargoBody` cuando aplique.
+- Enriquecimiento y persistencia de carga bajo `cfdi_domain_v1`; no reintroducir ramas legacy paralelas.
+
+## Rollout y pruebas
+
+- Activación gradual por tenant (`cfdi_domain_v1`) para viajes/carga: `D:\cowork\boeltech\erp-transport\docs\facturacion\cfdi-domain-v1-rollout-runbook.md`.
+- Rollout **direcciones SAT v0.3+**: `D:\cowork\boeltech\erp-transport\docs\direcciones\address-cfdi-domain-v03-rollout.md`.
+- Tras cambios de contrato: contract tests web (`src/shared/cfdi/contract-address-validation.test.ts`) y regresión Trips (`npm run test:trips:regression`).
+
+## Excepciones
+
+- Copy, layout y validación puramente de UX del wizard o del tab Seguimiento sin impacto en contrato API.
+- Lógica de infraestructura (repos, controllers, mappers) que no replique reglas del paquete.

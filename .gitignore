@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -29,9 +29,17 @@ dist-ssr
 .claude
 skills-lock.json
 
-# Cursor IDE (plans, local state — do not version)
-.cursor/
-
+# Cursor IDE (plans, local state â€” do not version)
+# Cursor IDE local (plans/prompts/state) — core rules allowlisted below
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/form-validation-ux.mdc
+!.cursor/rules/overlays-toast.mdc
+!.cursor/rules/sheet-from-menu-focus.mdc
+!.cursor/rules/frontend-api-env.mdc
+!.cursor/rules/database-timestamptz.mdc
+!.cursor/rules/cfdi-domain-adr-0043.mdc
 # Local-only dev/demo routes (manual testing)
 src/pages/dev/
 
@@ -43,3 +51,4 @@ tsc-errors-frontend.txt
 
 # Cursor Canvas local analytical artifacts
 canvases/
+

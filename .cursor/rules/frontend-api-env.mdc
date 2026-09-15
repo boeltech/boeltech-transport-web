@@ -1,0 +1,12 @@
+---
+description: Variables Vite correctas para el cliente API (evita typos de documentación)
+alwaysApply: true
+---
+
+# Configuración API del frontend
+
+- **Base URL de la API:** variable de entorno **`VITE_API_URL`** (único nombre soportado en código). Valor por defecto en `src/shared/config/env.ts`: `http://localhost:3000/api/v1` si no está definida.
+- **Timeout de Axios (opcional):** **`VITE_API_TIMEOUT`** en milisegundos (por defecto 30000).
+- **Ejemplo:** `env/.env.example` y lectura en runtime vía `import.meta.env` / `env.ts`.
+
+No usar nombres alternativos o typos legados (p. ej. cadenas con dígitos repetidos en el nombre de la variable); si aparecen en notas antiguas, sustituir por **`VITE_API_URL`**.
