@@ -1,16 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useSearchParams, type SetURLSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { getTodayMexicoDateString } from "@boeltech/cfdi-domain";
-import { Send, Wallet } from "lucide-react";
-import {
-  WorkbenchPageShell,
-  type ActiveFilterChip,
-} from "@shared/ui/page-shells";
+import { Send } from "lucide-react";
+import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import { ListingResultsSummary } from "@shared/ui/listing";
+import { ListingResultsSummary, type ActiveFilterChip } from "@shared/ui/listing";
 import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -190,7 +187,6 @@ export function FinanceCobrosPage() {
       rfcChips={rfcChips}
       onRfcSearch={handleRfcSearch}
       onClearRfc={handleClearRfc}
-      setSearchParams={setSearchParams}
       onPaymentRegistered={handlePaymentRegistered}
     />
   );
@@ -208,7 +204,6 @@ function FinanceCobrosWorkbench({
   rfcChips,
   onRfcSearch,
   onClearRfc,
-  setSearchParams,
   onPaymentRegistered,
 }: {
   rfcFromUrl: string;
@@ -218,7 +213,6 @@ function FinanceCobrosWorkbench({
   rfcChips: ActiveFilterChip[];
   onRfcSearch: (rfc: string) => void;
   onClearRfc: () => void;
-  setSearchParams: SetURLSearchParams;
   onPaymentRegistered: (followThrough: CobrosFollowThrough) => void;
 }) {
   const { toast } = useToast();

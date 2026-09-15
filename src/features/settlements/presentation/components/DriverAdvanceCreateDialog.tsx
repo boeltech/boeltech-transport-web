@@ -82,7 +82,7 @@ export function DriverAdvanceCreateDialog({
       bankReference: "",
       submitForApproval: true,
       notes: "",
-    } as DriverAdvanceFormData,
+    } as unknown as DriverAdvanceFormData,
   });
 
   const selectedCategory = watch("category");
@@ -101,7 +101,7 @@ export function DriverAdvanceCreateDialog({
         submitForApproval: true,
         notes: "",
         tripId: "",
-      } as DriverAdvanceFormData);
+      } as unknown as DriverAdvanceFormData);
     }
   }, [open, defaultEmployeeId, reset]);
 
