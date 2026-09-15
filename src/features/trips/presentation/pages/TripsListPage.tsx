@@ -57,7 +57,7 @@ import {
   useCancelTrip,
   useTripWorkbenchSummary,
 } from "../../application";
-import { type TripStatusType, TripStatus } from "../../domain";
+import { type TripStatusType } from "../../domain";
 import {
   TripTable,
   TripCard,

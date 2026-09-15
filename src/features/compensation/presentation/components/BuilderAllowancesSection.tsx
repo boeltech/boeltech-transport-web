@@ -20,6 +20,7 @@ export function BuilderAllowancesSection({
       <p className="text-sm text-muted-foreground">{copy.allowancesDescription}</p>
       <TemplateAllowancesSection
         control={form.control}
+        setValue={form.setValue}
         register={form.register}
         allowanceFields={allowanceFields}
         appendAllowance={appendAllowance}
