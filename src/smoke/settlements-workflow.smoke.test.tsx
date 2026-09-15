@@ -386,12 +386,14 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     });
 
     expect(screen.getByText("Lo ganado")).toBeInTheDocument();
-    expect(screen.getAllByText(formatMxCurrency(3500)).length).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getAllByText(`-${formatMxCurrency(1000)}`).length,
-    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(formatMxCurrency(4000))).toBeInTheDocument();
+    expect(screen.getByText(`-${formatMxCurrency(1000)}`)).toBeInTheDocument();
+    expect(screen.getByText(formatMxCurrency(3000))).toBeInTheDocument();
+
+    await user.click(screen.getByText("Ver desglose"));
     expect(screen.getByText("Pago por viaje")).toBeInTheDocument();
     expect(screen.getByText("Descuento de anticipo")).toBeInTheDocument();
+    expect(screen.getAllByText(formatMxCurrency(3500)).length).toBeGreaterThanOrEqual(1);
 
     // Botones de acción para autorizar
     const authorizeBtn = screen.getByRole("button", { name: /Autorizar/i });
