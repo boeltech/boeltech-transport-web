@@ -158,6 +158,7 @@ export const driverAdvanceFormSchema = z.object({
     "per_diem",
     "cash_advance",
     "emergency",
+    "loan",
   ]),
   paymentMethod: z
     .enum(["bank_transfer", "check", "cash", "electronic_wallet"])
@@ -260,3 +261,12 @@ export type DisburseSettlementFormValues = z.infer<
   typeof disburseSettlementFormSchema
 >;
 export type DisburseSettlementFormData = DisburseSettlementFormValues;
+
+export const settlementSettingsFormSchema = z.object({
+  voboThresholdMxn: z
+    .number({ error: "El umbral es obligatorio" })
+    .min(0, "El umbral no puede ser negativo"),
+  pagosOperadoresGreenfieldV1: z.boolean(),
+});
+
+export type SettlementSettingsFormData = z.infer<typeof settlementSettingsFormSchema>;

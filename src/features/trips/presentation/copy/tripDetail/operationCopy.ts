@@ -120,12 +120,12 @@ export const operationCopy = {
     },
     alerts: {
       licenseSoftMatchTitle: "Aviso de compatibilidad de licencia",
-      fiscalImpactTitle: "CFDI / Carta Porte timbrada",
+      fiscalImpactTitle: "Factura ya emitida",
       fiscalImpactBody:
-        "Este viaje ya cuenta con CFDI y Carta Porte timbrados. Cambiar unidad, conductor (operador principal) o remolques impacta el complemento y requerirá sustitución del CFDI. El equipo de apoyo no forma parte de Carta Porte y no dispara esa revisión.",
-      fiscalConfirmDialogTitle: "¿Confirmar reasignación con Carta Porte timbrada?",
+        "Este viaje ya cuenta con factura emitida. Cambiar unidad, conductor (operador principal) o remolques impacta el documento de transporte y requerirá sustitución de la factura. El equipo de apoyo no forma parte de ese documento y no dispara esa revisión.",
+      fiscalConfirmDialogTitle: "¿Confirmar reasignación con factura emitida?",
       fiscalConfirmDialogBody: (tripCode: string) =>
-        `El viaje ${tripCode} tiene un CFDI timbrado asociado. Al cambiar unidad, conductor (operador principal) o remolques, la información física en ruta no coincidirá con el documento fiscal vigente hasta que se genere la sustitución correspondiente. El equipo de apoyo no forma parte del complemento.`,
+        `El viaje ${tripCode} tiene una factura emitida asociada. Al cambiar unidad, conductor (operador principal) o remolques, la información física en ruta no coincidirá con el documento vigente hasta que se genere la sustitución correspondiente. El equipo de apoyo no forma parte del documento de transporte.`,
       fiscalConfirmDialogConfirm: "Sí, reasignar flota",
       fiscalConfirmDialogCancel: "Regresar al formulario",
       expiredAssignmentTitle: "Asignación con documentación vencida",

@@ -77,7 +77,8 @@ export type AdvanceCategory =
   | "tolls"
   | "per_diem"
   | "cash_advance"
-  | "emergency";
+  | "emergency"
+  | "loan";
 
 export const ADVANCE_CATEGORY_LABELS: Record<AdvanceCategory, string> = {
   travel_advance: "Anticipo de viaje",
@@ -86,7 +87,32 @@ export const ADVANCE_CATEGORY_LABELS: Record<AdvanceCategory, string> = {
   per_diem: "Viáticos",
   cash_advance: "Efectivo / Préstamo",
   emergency: "Emergencia en ruta",
+  loan: "Préstamo",
 };
+
+/** Greenfield v1 loan-only create. */
+export const GREENFIELD_ADVANCE_CATEGORIES: readonly AdvanceCategory[] = ["loan"];
+
+export type MidTripPayoutPolicy =
+  | "split_by_assigned_km"
+  | "equal_parts"
+  | "pay_only_closer"
+  | "pay_only_dispatcher";
+
+export const MID_TRIP_PAYOUT_POLICY_LABELS: Record<MidTripPayoutPolicy, string> = {
+  split_by_assigned_km: "Prorrateo por km asignados",
+  equal_parts: "Partes iguales",
+  pay_only_closer: "Solo quien cierra el viaje",
+  pay_only_dispatcher: "Solo quien despacha",
+};
+
+export const DEFAULT_MID_TRIP_PAYOUT_POLICY: MidTripPayoutPolicy =
+  "split_by_assigned_km";
+
+export const DEFAULT_VOBO_THRESHOLD_MXN = 5000;
+
+export const PAGOS_OPERADORES_GREENFIELD_FLAG =
+  "pagos_operadores_greenfield_v1" as const;
 
 export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
   fuel: "Combustible",

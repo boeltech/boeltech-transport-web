@@ -11,6 +11,7 @@ const sampleTemplate: CompensationTemplate = {
   name: "Esquema foráneo",
   description: "Notas",
   isActive: false,
+  midTripPayoutPolicy: "split_by_assigned_km",
   rules: [
     {
       routeType: "long_haul",
@@ -40,6 +41,7 @@ describe("templateToForm", () => {
       name: "Esquema foráneo",
       description: "Notas",
       isActive: false,
+      midTripPayoutPolicy: "split_by_assigned_km",
       rules: [
         {
           routeType: "long_haul",
@@ -81,6 +83,7 @@ describe("templateToForm", () => {
       name: "Esquema foráneo (copia)",
       description: "Notas",
       isActive: false,
+      midTripPayoutPolicy: "split_by_assigned_km",
       rules: [
         {
           routeType: "long_haul",

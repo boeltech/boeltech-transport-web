@@ -1,11 +1,16 @@
-import { createRef } from "react";
+import { createRef, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ClientForm, type ClientFormRef } from "./ClientForm";
 import type { Client } from "../../domain";
 
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("@features/settings/application/hooks/useBillingSchemes", () => ({
+  useBillingSchemes: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock("@features/catalogs", () => ({
@@ -46,10 +51,19 @@ const editClient = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 } as Client;
 
+function renderWithQuery(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+}
+
 describe("ClientForm edit API field errors", () => {
   it("applyApiValidationErrors marca taxId con FieldInlineError + aria-invalid", async () => {
     const ref = createRef<ClientFormRef>();
-    render(
+    renderWithQuery(
       <ClientForm
         ref={ref}
         mode="edit"

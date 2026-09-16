@@ -27,6 +27,14 @@ export const compensationTemplateFormSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(120),
   description: z.string().max(2000).optional().nullable(),
   isActive: z.boolean().default(true),
+  midTripPayoutPolicy: z
+    .enum([
+      "split_by_assigned_km",
+      "equal_parts",
+      "pay_only_closer",
+      "pay_only_dispatcher",
+    ])
+    .default("split_by_assigned_km"),
   rules: z.array(compensationTemplateRuleSchema).default([]),
   fixedAllowances: z.array(templateFixedAllowanceSchema).default([]),
   corridorIds: z.array(z.string().uuid()).default([]),

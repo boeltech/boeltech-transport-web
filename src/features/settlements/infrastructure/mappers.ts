@@ -12,7 +12,13 @@ import type {
   SettlementBacklogRow,
   SettlementWorkbenchData,
   SettlementWorkbenchSummary,
+  TenantSettlementSettings,
 } from "../domain/entities";
+import {
+  DEFAULT_MID_TRIP_PAYOUT_POLICY,
+  DEFAULT_VOBO_THRESHOLD_MXN,
+  type MidTripPayoutPolicy,
+} from "../domain/enums";
 
 export interface ApiCompensationAgreementRuleRaw {
   id?: string;
@@ -44,6 +50,7 @@ export interface ApiCompensationAgreementRaw {
   effective_to: string | null;
   is_active: boolean;
   notes: string | null;
+  mid_trip_payout_policy?: string;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +65,8 @@ export interface ApiDriverAdvanceRaw {
   trip_code?: string;
   amount: number;
   balance_remaining: number;
+  reserved_amount?: number;
+  available_balance?: number;
   currency: string;
   category: string;
   status: string;
@@ -128,6 +137,12 @@ export interface ApiDriverSettlementRaw {
   created_at: string;
   updated_at: string;
   items?: ApiSettlementItemRaw[];
+  has_manual_adjustments?: boolean;
+  vobo_required?: boolean;
+  advances_reserved?: boolean;
+  advances_applied?: boolean;
+  created_by?: string | null;
+  created_by_name?: string | null;
 }
 
 export interface ApiSettlementPreviewRaw {
@@ -170,12 +185,16 @@ export interface ApiSettlementPreviewRaw {
       fixed_amount: number;
       replaces_km_commission: boolean;
     };
+    freight_base?: "commercial_at_complete" | "live_base_rate";
+    mid_trip_share_ratio?: number;
   }>;
   open_advances: Array<{
     advance_id: string;
     folio: string;
     amount: number;
     balance_remaining: number;
+    reserved_amount?: number;
+    available_balance?: number;
     category: string;
     disbursed_at: string | null;
   }>;
@@ -188,6 +207,11 @@ export interface ApiSettlementPreviewRaw {
     gross_amount: number;
     net_amount: number;
   };
+}
+
+export interface ApiTenantSettlementSettingsRaw {
+  pagos_operadores_greenfield_v1: boolean;
+  vobo_threshold_mxn: number;
 }
 
 export interface ApiPaginationRaw {
@@ -262,6 +286,8 @@ export function mapAgreement(raw: ApiCompensationAgreementRaw): CompensationAgre
     effectiveTo: raw.effective_to,
     isActive: Boolean(raw.is_active),
     notes: raw.notes ?? null,
+    midTripPayoutPolicy: (raw.mid_trip_payout_policy as MidTripPayoutPolicy | undefined)
+      ?? DEFAULT_MID_TRIP_PAYOUT_POLICY,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -278,6 +304,10 @@ export function mapAdvance(raw: ApiDriverAdvanceRaw): DriverAdvance {
     tripCode: raw.trip_code ?? null,
     amount: Number(raw.amount),
     balanceRemaining: Number(raw.balance_remaining),
+    reservedAmount:
+      raw.reserved_amount !== undefined ? Number(raw.reserved_amount) : undefined,
+    availableBalance:
+      raw.available_balance !== undefined ? Number(raw.available_balance) : undefined,
     currency: raw.currency,
     category: raw.category as DriverAdvance["category"],
     status: raw.status as DriverAdvance["status"],
@@ -353,6 +383,12 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
     rejectionReason: raw.rejection_reason,
     notes: raw.notes,
     items: raw.items ? raw.items.map(mapSettlementItem) : undefined,
+    hasManualAdjustments: Boolean(raw.has_manual_adjustments),
+    voboRequired: raw.vobo_required,
+    advancesReserved: Boolean(raw.advances_reserved),
+    advancesApplied: Boolean(raw.advances_applied),
+    createdBy: raw.created_by ?? null,
+    createdByName: raw.created_by_name ?? null,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -405,12 +441,21 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
             replacesKmCommission: Boolean(trip.corridor_match.replaces_km_commission),
           }
         : undefined,
+      freightBase: trip.freight_base,
+      midTripShareRatio:
+        trip.mid_trip_share_ratio !== undefined
+          ? Number(trip.mid_trip_share_ratio)
+          : undefined,
     })),
     openAdvances: (raw.open_advances ?? []).map((adv) => ({
       advanceId: adv.advance_id,
       folio: adv.folio,
       amount: Number(adv.amount),
       balanceRemaining: Number(adv.balance_remaining),
+      reservedAmount:
+        adv.reserved_amount !== undefined ? Number(adv.reserved_amount) : undefined,
+      availableBalance:
+        adv.available_balance !== undefined ? Number(adv.available_balance) : undefined,
       category: adv.category as OpenAdvancePreview["category"],
       disbursedAt: adv.disbursed_at,
     })),
@@ -509,4 +554,16 @@ export function mapWorkbenchResponse(raw: unknown): SettlementWorkbenchData {
   };
   const backlog = (payload.backlog ?? []).map(mapBacklogRow);
   return { summary, backlog };
+}
+
+export function mapSettlementSettings(
+  raw: ApiTenantSettlementSettingsRaw,
+): TenantSettlementSettings {
+  return {
+    pagosOperadoresGreenfieldV1: Boolean(raw.pagos_operadores_greenfield_v1),
+    voboThresholdMxn:
+      raw.vobo_threshold_mxn !== undefined && raw.vobo_threshold_mxn !== null
+        ? Number(raw.vobo_threshold_mxn)
+        : DEFAULT_VOBO_THRESHOLD_MXN,
+  };
 }

@@ -14,6 +14,8 @@ import {
   settlementsAdvancesPath,
   settlementsRegistryPath,
   settlementsWorkbenchBucketPath,
+  resolveOperatorPaymentsHubTab,
+  SETTLEMENTS_PENDING_APPROVAL_PATH,
 } from "./settlementsRoutes";
 
 describe("settlementsRoutes", () => {
@@ -22,6 +24,9 @@ describe("settlementsRoutes", () => {
     expect(SETTLEMENTS_CREATE_PATH).toBe("/finance/settlements/new");
     expect(SETTLEMENTS_REGISTRY_PATH).toBe("/finance/settlements/registry");
     expect(SETTLEMENTS_ADVANCES_PATH).toBe("/finance/settlements/advances");
+    expect(SETTLEMENTS_PENDING_APPROVAL_PATH).toBe(
+      "/finance/settlements/pending-approval",
+    );
     expect(SETTLEMENTS_AGREEMENTS_PATH).toBe("/finance/agreements");
   });
 
@@ -87,6 +92,24 @@ describe("settlementsRoutes", () => {
     expect(settlementsWorkbenchBucketPath("payable")).toBe(
       "/finance/settlements?bucket=payable",
     );
+  });
+
+  it("resuelve tabs del hub Pagos a operadores", () => {
+    expect(resolveOperatorPaymentsHubTab("/finance/settlements")).toBe(
+      "por-pagar",
+    );
+    expect(
+      resolveOperatorPaymentsHubTab("/finance/settlements/pending-approval"),
+    ).toBe("por-autorizar");
+    expect(resolveOperatorPaymentsHubTab("/finance/settlements/advances")).toBe(
+      "adelantos",
+    );
+    expect(
+      resolveOperatorPaymentsHubTab("/finance/compensation/templates"),
+    ).toBe("como-te-pago");
+    expect(
+      resolveOperatorPaymentsHubTab("/finance/compensation/corridors"),
+    ).toBe("tabla-de-rutas");
   });
 
   describe("resolveLegacySettlementsPath", () => {

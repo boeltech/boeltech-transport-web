@@ -5,7 +5,9 @@ import { ROLE_DEFINITIONS } from "@shared/permissions/domain/rolePermissions";
 import type { Module, Action } from "@shared/permissions/domain/entities";
 import type { NavItem } from "./types";
 import { navigationConfig } from "./navigation";
-import { filterNavigation, findActiveNavItem } from "./useNavigation";
+import { applyOperatorPaymentsNav, filterNavigation, findActiveNavItem } from "./useNavigation";
+import { navigationCopy } from "../copy/navigationCopy";
+import { COMPENSATION_HUB_PATH } from "@features/compensation/application/compensationRoutes";
 
 const hub: NavItem = {
   id: "finance-hub",
@@ -123,8 +125,8 @@ describe("filterNavigation", () => {
     expect(billingGroup?.items.map((i) => i.id)).toEqual([
       "finance-invoiceable",
       "finance-invoices",
-      "finance-cobros",
       "finance-dispatch-runs",
+      "finance-cobros",
     ]);
 
     const financeGroup = filtered.find((g) => g.id === "finance");
@@ -135,5 +137,21 @@ describe("filterNavigation", () => {
       "finance-agreements",
       "finance-analysis",
     ]);
+  });
+});
+
+describe("applyOperatorPaymentsNav", () => {
+  it("no altera la nav cuando el flag está apagado", () => {
+    expect(applyOperatorPaymentsNav(navigationConfig, false)).toBe(navigationConfig);
+  });
+
+  it("relabel Pagos a operadores, oculta Esquemas y cubre compensation", () => {
+    const result = applyOperatorPaymentsNav(navigationConfig, true);
+    const finance = result.find((g) => g.id === "finance");
+    const ids = finance?.items.map((i) => i.id) ?? [];
+    expect(ids).not.toContain("finance-agreements");
+    const settlements = finance?.items.find((i) => i.id === "finance-settlements");
+    expect(settlements?.label).toBe(navigationCopy.item.financeOperatorPayments);
+    expect(settlements?.activePathPrefixes).toEqual([COMPENSATION_HUB_PATH]);
   });
 });

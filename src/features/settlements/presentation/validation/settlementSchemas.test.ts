@@ -6,6 +6,7 @@ import {
   previewSettlementQuerySchema,
   createSettlementFormSchema,
   disburseSettlementFormSchema,
+  settlementSettingsFormSchema,
 } from "./settlementSchemas";
 
 describe("Settlement Validation Schemas (Fase 0)", () => {
@@ -170,6 +171,16 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
       }
     });
 
+    it("acepta categoría loan (greenfield v1)", () => {
+      const result = driverAdvanceFormSchema.safeParse({
+        employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+        amount: 800,
+        category: "loan" as const,
+        paymentMethod: "bank_transfer" as const,
+      });
+      expect(result.success).toBe(true);
+    });
+
     it("rechaza un monto no positivo o indefinido", () => {
       const invalidData = {
         employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -322,6 +333,24 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
         expect(result.data.disbursedAt).toBe("2026-08-16T12:00:00Z");
         expect(result.data.notes).toBe("Pago efectuado");
       }
+    });
+  });
+
+  describe("settlementSettingsFormSchema", () => {
+    it("acepta umbral 0 y flag apagada", () => {
+      const result = settlementSettingsFormSchema.safeParse({
+        voboThresholdMxn: 0,
+        pagosOperadoresGreenfieldV1: false,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("rechaza umbral negativo", () => {
+      const result = settlementSettingsFormSchema.safeParse({
+        voboThresholdMxn: -1,
+        pagosOperadoresGreenfieldV1: true,
+      });
+      expect(result.success).toBe(false);
     });
   });
 });

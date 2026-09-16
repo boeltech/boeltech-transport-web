@@ -29,6 +29,7 @@ export const navigationCopy = {
     financeCobros: "Cobros",
     financeApprovals: "Aprobaciones",
     financeSettlements: "Liquidaciones",
+    financeOperatorPayments: "Pagos a operadores",
     financeAgreements: "Esquemas de compensación",
     financeDispatchRuns: "Envío",
     financeAnalysis: "Rentabilidad",

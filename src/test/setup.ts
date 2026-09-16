@@ -14,6 +14,10 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
+// jsdom may omit scrollIntoView or ship a stub that throws; cmdk / Radix call it on mount.
+Element.prototype.scrollIntoView = function scrollIntoView() {};
+window.scrollTo = function scrollTo() {};
+
 class MockIntersectionObserver implements IntersectionObserver {
   readonly root: Element | Document | null = null;
   readonly rootMargin = "";
@@ -57,3 +61,12 @@ Object.defineProperty(window, "ResizeObserver", {
   writable: true,
   value: MockResizeObserver,
 });
+
+// jsdom ships requestSubmit as a stub that throws "Not implemented".
+HTMLFormElement.prototype.requestSubmit = function requestSubmit(
+  this: HTMLFormElement,
+  submitter?: HTMLElement,
+) {
+  void submitter;
+  this.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+};

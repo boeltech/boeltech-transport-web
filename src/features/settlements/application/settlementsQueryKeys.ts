@@ -34,4 +34,6 @@ export const settlementsQueryKeys = {
   workbench: () => [...settlementsQueryKeys.all, "workbench"] as const,
   workbenchList: (params: ListWorkbenchParams) =>
     [...settlementsQueryKeys.workbench(), params] as const,
+
+  settings: () => [...settlementsQueryKeys.all, "settings"] as const,
 };

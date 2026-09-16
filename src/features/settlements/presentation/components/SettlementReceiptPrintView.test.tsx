@@ -146,6 +146,25 @@ describe("SettlementReceiptPrintView", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Lic. Roberto Garza")).toBeInTheDocument();
     expect(screen.getByText("Revisado y Autorizado / Empresa")).toBeInTheDocument();
+    expect(screen.getByText("Recibo de pago")).toBeInTheDocument();
+  });
+
+  it("muestra PENDIENTE DE PAGO cuando está Autorizado sin dispersión", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={{
+          ...mockSettlement,
+          status: "approved",
+          disbursedAt: null,
+          disbursedBy: null,
+          disbursementMethod: null,
+          disbursementReference: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("PENDIENTE DE PAGO")).toBeInTheDocument();
+    expect(screen.queryByText("Recibo de pago")).not.toBeInTheDocument();
   });
 
   it("escapes malicious HTML payloads in companyName, notes, and employee name (XSS prevention)", () => {

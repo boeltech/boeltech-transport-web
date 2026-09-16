@@ -272,8 +272,9 @@ describe("smoke ADR-0077 trip trailers", () => {
         />
       </TestProviders>,
     );
-    expect(screen.getByText(/Remolques/i)).toBeInTheDocument();
-    expect(screen.getByText(/REM1234/)).toBeInTheDocument();
+    // Section label "Remolques" also appears in the card description ("…remolques…").
+    expect(screen.getByText("Remolques")).toBeInTheDocument();
+    expect(screen.getByText("REM1234 · 1")).toBeInTheDocument();
   });
 
   it("VehicleForm cutover links to /trailers", () => {

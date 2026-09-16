@@ -66,7 +66,12 @@ export function getEffectiveStopNombre(stop: TripStop): string {
       ""
     );
   }
-  return stop.nombreRemitenteDestinatario?.trim() ?? "";
+  // Origen: mirror RFC dual-read (primary nombre, then legacy delivery).
+  return (
+    stop.nombreRemitenteDestinatario?.trim() ||
+    stop.deliveryNombreRemitenteDestinatario?.trim() ||
+    ""
+  );
 }
 
 export function isStopRfcInvalidForStamp(stop: TripStop): boolean {

@@ -1,5 +1,9 @@
 import {
 
+  COMPENSATION_CORRIDORS_PATH,
+
+  COMPENSATION_HUB_PATH,
+
   COMPENSATION_TEMPLATES_PATH,
 
   resolveLegacyAgreementsPath,
@@ -27,6 +31,9 @@ export const SETTLEMENTS_CREATE_PATH = "/finance/settlements/new";
 export const SETTLEMENTS_REGISTRY_PATH = "/finance/settlements/registry";
 
 export const SETTLEMENTS_ADVANCES_PATH = "/finance/settlements/advances";
+
+export const SETTLEMENTS_PENDING_APPROVAL_PATH =
+  "/finance/settlements/pending-approval";
 
 /** Legacy path — redirige a hub compensación ADR-0089. */
 
@@ -340,6 +347,40 @@ export function resolveLegacySettlementsPath(
 
   return search ? `${SETTLEMENTS_LIST_PATH}${search}` : SETTLEMENTS_LIST_PATH;
 
+}
+
+export type OperatorPaymentsHubTab =
+  | "por-pagar"
+  | "por-autorizar"
+  | "adelantos"
+  | "como-te-pago"
+  | "tabla-de-rutas";
+
+export function resolveOperatorPaymentsHubTab(
+  pathname: string,
+): OperatorPaymentsHubTab {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+
+  if (normalized === SETTLEMENTS_PENDING_APPROVAL_PATH) return "por-autorizar";
+  if (
+    normalized === SETTLEMENTS_ADVANCES_PATH ||
+    normalized.startsWith(`${SETTLEMENTS_ADVANCES_PATH}/`)
+  ) {
+    return "adelantos";
+  }
+  if (
+    normalized === COMPENSATION_CORRIDORS_PATH ||
+    normalized.startsWith(`${COMPENSATION_CORRIDORS_PATH}/`)
+  ) {
+    return "tabla-de-rutas";
+  }
+  if (
+    normalized === COMPENSATION_HUB_PATH ||
+    normalized.startsWith(`${COMPENSATION_HUB_PATH}/`)
+  ) {
+    return "como-te-pago";
+  }
+  return "por-pagar";
 }
 
 

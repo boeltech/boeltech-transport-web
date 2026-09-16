@@ -10,11 +10,13 @@ const {
   mockCreateSettlement,
   mockFetchEmployees,
   mockListAssignments,
+  mockGetSettings,
 } = vi.hoisted(() => ({
   mockPreviewSettlement: vi.fn(),
   mockCreateSettlement: vi.fn(),
   mockFetchEmployees: vi.fn(),
   mockListAssignments: vi.fn(),
+  mockGetSettings: vi.fn(),
 }));
 
 vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
@@ -24,6 +26,8 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     listAgreements: vi.fn(),
     updateAgreement: vi.fn(),
     createAgreement: vi.fn(),
+    getSettings: (...args: unknown[]) => mockGetSettings(...args),
+    updateSettings: vi.fn(),
   },
 }));
 
@@ -163,6 +167,10 @@ describe("SettlementCreatePage Component", () => {
     mockPreviewSettlement.mockResolvedValue(mockPreview);
     mockCreateSettlement.mockResolvedValue({ id: "settlement-new-1" });
     mockListAssignments.mockResolvedValue({ data: [], pagination: { total: 0, page: 1, pageSize: 100, totalPages: 0 } });
+    mockGetSettings.mockResolvedValue({
+      pagosOperadoresGreenfieldV1: false,
+      voboThresholdMxn: 5000,
+    });
   });
 
   it("renderiza el formulario inicial y carga el cálculo del pago cuando hay empleado seleccionado", async () => {
@@ -414,5 +422,76 @@ describe("SettlementCreatePage Component", () => {
     expect(screen.getByText(/Corredor: MTY-CDMX/i)).toBeInTheDocument();
     expect(screen.getByText(/Prestaciones fijas/i)).toBeInTheDocument();
     expect(screen.getAllByText("$1,200.00").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("con flag greenfield ON y neto sobre umbral muestra Pedir VoBo (no Registrar pago)", async () => {
+    mockGetSettings.mockResolvedValue({
+      pagosOperadoresGreenfieldV1: true,
+      voboThresholdMxn: 5000,
+    });
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("VIA-100")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: /Pedir VoBo/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Enviar para autorización/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Registrar pago/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("con flag greenfield ON y neto bajo umbral solo ofrece Guardar borrador", async () => {
+    mockGetSettings.mockResolvedValue({
+      pagosOperadoresGreenfieldV1: true,
+      voboThresholdMxn: 5000,
+    });
+    mockPreviewSettlement.mockResolvedValue({
+      ...mockPreview,
+      eligibleTrips: [
+        {
+          ...mockPreview.eligibleTrips[1],
+          calculatedCommission: 0,
+          approvedReimbursableExpenses: 0,
+        },
+      ],
+      openAdvances: [],
+      summary: {
+        totalCommissions: 0,
+        totalBaseSalary: 800,
+        totalReimbursements: 0,
+        suggestedAdvanceDeduction: 0,
+        grossAmount: 800,
+        netAmount: 800,
+      },
+    });
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Registrar pago/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/se guarda en borrador/i)).toBeInTheDocument();
   });
 });

@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useOutletContext } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { SETTLEMENTS_CREATE_PATH } from "@features/settlements/application/settlementsRoutes";
+import { usePagosOperadoresGreenfield } from "@features/settlements/application/hooks/useSettlementSettings";
 import {
   COMPENSATION_CORRIDORS_PATH,
   COMPENSATION_TEMPLATES_PATH,
@@ -10,7 +11,10 @@ import {
 import { useCompensationReadiness } from "../../application/hooks";
 import { compensationCopy } from "../copy/compensationCopy";
 import { HubPageShell } from "@shared/ui/page-shells";
-import type { CompensationHubCreateAction } from "../hooks/useRegisterCompensationHubCreateAction";
+import type {
+  CompensationHubCreateAction,
+  CompensationHubOutletContext,
+} from "../hooks/useRegisterCompensationHubCreateAction";
 
 const copy = compensationCopy.hub;
 const GUIDE_STORAGE_KEY = "compensation-hub-steps-collapsed";
@@ -19,6 +23,8 @@ export function CompensationHubLayout() {
   const { pathname } = useLocation();
   const activeTab = resolveCompensationHubTab(pathname);
   const { isReady } = useCompensationReadiness();
+  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
+  const parentContext = useOutletContext<CompensationHubOutletContext | undefined>();
   const [createAction, setCreateAction] =
     useState<CompensationHubCreateAction | null>(null);
 
@@ -33,6 +39,10 @@ export function CompensationHubLayout() {
     () => ({ setCreateAction: handleSetCreateAction }),
     [handleSetCreateAction],
   );
+
+  if (greenfieldEnabled) {
+    return <Outlet context={parentContext ?? outletContext} />;
+  }
 
   return (
     <HubPageShell

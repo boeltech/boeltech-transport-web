@@ -6,6 +6,7 @@ import type {
   DriverSettlement,
   SettlementPreview,
   SettlementWorkbenchData,
+  TenantSettlementSettings,
 } from "../domain/entities";
 import {
   mapAgreement,
@@ -15,11 +16,13 @@ import {
   mapListAdvancesResponse,
   mapListSettlementsResponse,
   mapWorkbenchResponse,
+  mapSettlementSettings,
   type ApiCompensationAgreementRaw,
   type ApiDriverAdvanceRaw,
   type ApiDriverSettlementRaw,
   type ApiPaginationRaw,
   type ApiSettlementPreviewRaw,
+  type ApiTenantSettlementSettingsRaw,
 } from "./mappers";
 import type {
   CompensationAgreementFormData,
@@ -60,6 +63,24 @@ export interface ListWorkbenchParams {
 }
 
 export const settlementsApi = {
+  getSettings: async (): Promise<TenantSettlementSettings> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiTenantSettlementSettingsRaw>>(
+      `${BASE_ENDPOINT}/settings`,
+    );
+    return mapSettlementSettings(response.data);
+  },
+
+  updateSettings: async (payload: {
+    voboThresholdMxn?: number;
+    pagosOperadoresGreenfieldV1?: boolean;
+  }): Promise<TenantSettlementSettings> => {
+    const response = await apiClient.patch<ApiSingleResponse<ApiTenantSettlementSettingsRaw>>(
+      `${BASE_ENDPOINT}/settings`,
+      payload,
+    );
+    return mapSettlementSettings(response.data);
+  },
+
   // ==========================================================================
   // AGREEMENTS
   // ==========================================================================

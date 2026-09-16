@@ -7,7 +7,7 @@ import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { settlementsCopy } from "../copy/settlementsCopy";
-import { useDriverAdvances } from "../../application/hooks";
+import { useDriverAdvances, usePagosOperadoresGreenfield } from "../../application/hooks";
 import { SETTLEMENTS_LIST_PATH } from "../../application/settlementsRoutes";
 import {
   DriverAdvancesTable,
@@ -16,6 +16,7 @@ import {
   DriverAdvanceCreateDialog,
 } from "../components";
 import { exportDriverAdvancesCsv } from "../utils/settlementExportHelpers";
+import { useRegisterCompensationHubCreateAction } from "@features/compensation/presentation/hooks/useRegisterCompensationHubCreateAction";
 
 const copy = settlementsCopy;
 const workbenchCopy = settlementsCopy.workbench;
@@ -31,7 +32,18 @@ export function SettlementsAdvancesPage() {
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
   const canExport = hasPermission("settlements", "read");
+  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+
+  const openCreate = useCallback(() => setAdvanceDialogOpen(true), []);
+  const hubCreateAction = useMemo(
+    () =>
+      canCreate && greenfieldEnabled
+        ? { label: copy.actions.createAdvance, onClick: openCreate }
+        : null,
+    [canCreate, greenfieldEnabled, openCreate],
+  );
+  useRegisterCompensationHubCreateAction(hubCreateAction);
 
   const filters = useListingFilters<"employeeId">({
     filters: {
@@ -95,6 +107,7 @@ export function SettlementsAdvancesPage() {
   return (
     <>
       <ListPageShell
+        showHeader={!greenfieldEnabled}
         title={copy.tabs.advances}
         description="Anticipos en gestión: por autorizar, por entregar o con saldo pendiente de descontar."
         primaryAction={
@@ -132,12 +145,14 @@ export function SettlementsAdvancesPage() {
             : undefined,
         }}
         beforeToolbar={
+          greenfieldEnabled ? undefined : (
           <Button asChild type="button" variant="link" size="sm" className="h-auto px-0">
             <Link to={SETTLEMENTS_LIST_PATH}>
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               {workbenchCopy.actions.backToWorkbench}
             </Link>
           </Button>
+          )
         }
         toolbar={{
           search: {

@@ -50,6 +50,7 @@ import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import {
   useSettlementPreview,
   useCreateSettlement,
+  usePagosOperadoresGreenfield,
 } from "../../application/hooks";
 import {
   SETTLEMENTS_LIST_PATH,
@@ -65,6 +66,7 @@ import {
   pickAssignmentBySettlementTiebreak,
 } from "@features/compensation/presentation/utils/templateAssignmentOverlap";
 import type { CreateSettlementFormData } from "../validation/settlementSchemas";
+import { resolveGreenfieldCreateCta } from "../utils/greenfieldCta";
 import {
   COMPENSATION_SALARY_PERIOD_LABELS,
   TRIP_ROUTE_TYPE_LABELS,
@@ -79,11 +81,23 @@ const copy = settlementsCopy;
 const createCopy = settlementsCopy.createPage;
 const governanceCopy = settlementsCopy.agreementGovernance;
 
+function deductableAdvanceBalance(adv: {
+  balanceRemaining: number;
+  availableBalance?: number;
+}): number {
+  if (typeof adv.availableBalance === "number") {
+    return Math.max(0, adv.availableBalance);
+  }
+  return adv.balanceRemaining;
+}
+
 export function SettlementCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const createMutation = useCreateSettlement();
+  const { enabled: greenfieldEnabled, thresholdMxn } =
+    usePagosOperadoresGreenfield();
 
   // Filter state for live preview (initialize with searchParams if present)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
@@ -228,6 +242,13 @@ export function SettlementCreatePage() {
   ).length;
 
   const netAmount = Math.max(0, grossAmount - totalAdvancesDeducted);
+  const greenfieldCreateCta = greenfieldEnabled
+    ? resolveGreenfieldCreateCta({
+        netAmount,
+        hasManualAdjustments: false,
+        thresholdMxn,
+      })
+    : null;
 
   const agreement = preview?.agreement as Record<string, unknown> | undefined;
   const readiness = useMemo(
@@ -675,6 +696,11 @@ export function SettlementCreatePage() {
                                       <span>{trip.distanceKm} km</span>
                                       <span className="mx-1.5 opacity-40">·</span>
                                       <span>Flete {formatMxCurrency(trip.freightRevenue)}</span>
+                                      {trip.freightBase === "commercial_at_complete" ? (
+                                        <span className="block text-[10px] opacity-80">
+                                          al completar
+                                        </span>
+                                      ) : null}
                                     </TableCell>
                                   </>
                                 ) : null}
@@ -761,17 +787,20 @@ export function SettlementCreatePage() {
                           {preview.openAdvances.map((adv) => {
                             const isSelected = advanceDeductions[adv.advanceId] !== undefined;
                             const currentVal = advanceDeductions[adv.advanceId] ?? 0;
-                            const remainingAfterDeduction = Math.max(0, adv.balanceRemaining - currentVal);
+                            const maxDeduct = deductableAdvanceBalance(adv);
+                            const remainingAfterDeduction = Math.max(0, maxDeduct - currentVal);
+                            const reservedAmount = adv.reservedAmount ?? 0;
 
                             return (
                               <TableRow key={adv.advanceId} className={isSelected ? "bg-muted/30" : ""}>
                                 <TableCell className="text-center">
                                   <Checkbox
                                     checked={isSelected}
+                                    disabled={maxDeduct <= 0}
                                     onCheckedChange={(checked) =>
                                       handleAdvanceToggle(
                                         adv.advanceId,
-                                        adv.balanceRemaining,
+                                        maxDeduct,
                                         checked === true,
                                       )
                                     }
@@ -791,7 +820,12 @@ export function SettlementCreatePage() {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right tabular-nums font-medium text-foreground text-xs">
-                                  {formatMxCurrency(adv.balanceRemaining)}
+                                  {formatMxCurrency(maxDeduct)}
+                                  {reservedAmount > 0 ? (
+                                    <span className="block text-[10px] font-normal text-muted-foreground mt-0.5">
+                                      {createCopy.summary.reservedAdvanceHint}
+                                    </span>
+                                  ) : null}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="space-y-1">
@@ -799,13 +833,13 @@ export function SettlementCreatePage() {
                                       type="number"
                                       step="0.01"
                                       min="0"
-                                      max={adv.balanceRemaining}
+                                      max={maxDeduct}
                                       disabled={!isSelected}
                                       value={isSelected ? currentVal : ""}
                                       onChange={(e) =>
                                         handleAdvanceAmountChange(
                                           adv.advanceId,
-                                          adv.balanceRemaining,
+                                          maxDeduct,
                                           parseFloat(e.target.value) || 0,
                                         )
                                       }
@@ -954,25 +988,44 @@ export function SettlementCreatePage() {
                     )}
                     {hasSettlementContent ? (
                       <>
+                        {greenfieldCreateCta !== "guardar_borrador" ? (
+                          <>
+                            <Button
+                              className="w-full"
+                              disabled={createMutation.isPending || !canProceedWithSave}
+                              onClick={() => setConfirmDialogOpen(true)}
+                            >
+                              <Send className="mr-2 h-4 w-4" />
+                              {greenfieldEnabled
+                                ? createCopy.summary.pedirVoboBtn
+                                : createCopy.summary.submitApprovalBtn}
+                            </Button>
+                            <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
+                              {createCopy.summary.submitApprovalSegregationHint}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
+                            {createCopy.summary.bypassDraftHint}
+                          </p>
+                        )}
                         <Button
-                          className="w-full"
-                          disabled={createMutation.isPending || !canProceedWithSave}
-                          onClick={() => setConfirmDialogOpen(true)}
-                        >
-                          <Send className="mr-2 h-4 w-4" />
-                          {createCopy.summary.submitApprovalBtn}
-                        </Button>
-                        <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                          {createCopy.summary.submitApprovalSegregationHint}
-                        </p>
-                        <Button
-                          variant="secondary"
+                          variant={
+                            greenfieldCreateCta === "guardar_borrador"
+                              ? "default"
+                              : "secondary"
+                          }
                           className="w-full"
                           disabled={createMutation.isPending || !canProceedWithSave}
                           onClick={() => handleSave(false)}
                         >
                           {createCopy.summary.saveDraftBtn}
                         </Button>
+                        {greenfieldEnabled ? (
+                          <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
+                            {createCopy.summary.commercialFreightHint}
+                          </p>
+                        ) : null}
                         {!canProceedWithSave && (
                           <p className="text-[11px] text-center text-muted-foreground py-0.5">
                             {createCopy.summary.actionsBlockedUntilReady}
@@ -1033,9 +1086,15 @@ export function SettlementCreatePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              {createCopy.dialog.title}
+              {greenfieldEnabled
+                ? createCopy.dialog.voboTitle
+                : createCopy.dialog.title}
             </DialogTitle>
-            <DialogDescription>{createCopy.dialog.description}</DialogDescription>
+            <DialogDescription>
+              {greenfieldEnabled
+                ? createCopy.dialog.voboDescription
+                : createCopy.dialog.description}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="rounded-lg border bg-muted/30 p-3.5 space-y-2.5 text-sm">

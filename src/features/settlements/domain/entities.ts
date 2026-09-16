@@ -12,6 +12,7 @@ import type {
   CompensationCalculationType,
   CompensationSalaryPeriod,
   DisbursementMethod,
+  MidTripPayoutPolicy,
   SettlementItemType,
   SettlementStatus,
   TripRouteType,
@@ -53,6 +54,7 @@ export interface CompensationAgreement {
   readonly effectiveTo: string | null;
   readonly isActive: boolean;
   readonly notes: string | null;
+  readonly midTripPayoutPolicy?: MidTripPayoutPolicy;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -71,6 +73,8 @@ export interface DriverAdvance {
   readonly tripCode?: string | null;
   readonly amount: number;
   readonly balanceRemaining: number;
+  readonly reservedAmount?: number;
+  readonly availableBalance?: number;
   readonly currency: string;
   readonly category: AdvanceCategory;
   readonly status: AdvanceStatus;
@@ -148,6 +152,7 @@ export interface AgreementSnapshot {
   readonly ratePerKm?: number;
   readonly percentageRate?: number;
   readonly helperDailyRate?: number;
+  readonly midTripPayoutPolicy?: MidTripPayoutPolicy;
   readonly currency: string;
 }
 
@@ -187,6 +192,10 @@ export interface DriverSettlement {
   readonly rejectionReason: string | null;
   readonly notes: string | null;
   readonly items?: readonly SettlementItem[];
+  readonly hasManualAdjustments?: boolean;
+  readonly voboRequired?: boolean;
+  readonly advancesReserved?: boolean;
+  readonly advancesApplied?: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -214,6 +223,8 @@ export interface EligibleTripPreview {
     readonly fixedAmount: number;
     readonly replacesKmCommission: boolean;
   };
+  readonly freightBase?: "commercial_at_complete" | "live_base_rate";
+  readonly midTripShareRatio?: number;
 }
 
 export interface OpenAdvancePreview {
@@ -221,6 +232,8 @@ export interface OpenAdvancePreview {
   readonly folio: string;
   readonly amount: number;
   readonly balanceRemaining: number;
+  readonly reservedAmount?: number;
+  readonly availableBalance?: number;
   readonly category: AdvanceCategory;
   readonly disbursedAt: string | null;
 }
@@ -306,4 +319,9 @@ export interface SettlementWorkbenchSummary {
 export interface SettlementWorkbenchData {
   readonly summary: SettlementWorkbenchSummary;
   readonly backlog: readonly SettlementBacklogRow[];
+}
+
+export interface TenantSettlementSettings {
+  readonly pagosOperadoresGreenfieldV1: boolean;
+  readonly voboThresholdMxn: number;
 }

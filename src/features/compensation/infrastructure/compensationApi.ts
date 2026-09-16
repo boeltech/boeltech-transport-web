@@ -64,6 +64,7 @@ function toTemplatePayload(payload: CreateCompensationTemplatePayload) {
     name: payload.name,
     description: payload.description ?? null,
     isActive: payload.isActive ?? true,
+    midTripPayoutPolicy: payload.midTripPayoutPolicy,
     rules: (payload.rules ?? []).map((rule) => ({
       routeType: rule.routeType,
       commissionType: rule.commissionType,
@@ -114,6 +115,7 @@ function toPatchTemplatePayload(payload: {
   name?: string;
   description?: string | null;
   isActive?: boolean;
+  midTripPayoutPolicy?: string;
   rules?: CompensationTemplateRule[];
   fixedAllowances?: TemplateFixedAllowance[];
   corridorIds?: string[];
@@ -123,6 +125,9 @@ function toPatchTemplatePayload(payload: {
   if (payload.name !== undefined) body.name = payload.name;
   if (payload.description !== undefined) body.description = payload.description;
   if (payload.isActive !== undefined) body.isActive = payload.isActive;
+  if (payload.midTripPayoutPolicy !== undefined) {
+    body.midTripPayoutPolicy = payload.midTripPayoutPolicy;
+  }
 
   if (payload.rules !== undefined) {
     body.rules = payload.rules.map((rule) => ({
@@ -209,6 +214,7 @@ export const compensationApi = {
       name?: string;
       description?: string | null;
       isActive?: boolean;
+      midTripPayoutPolicy?: string;
       rules?: CompensationTemplateRule[];
       fixedAllowances?: TemplateFixedAllowance[];
       corridorIds?: string[];

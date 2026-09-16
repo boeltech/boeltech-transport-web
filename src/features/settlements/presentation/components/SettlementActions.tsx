@@ -51,9 +51,15 @@ import {
   useRejectSettlement,
   useSubmitSettlement,
 } from "../../application/hooks/useSettlements";
+import { usePagosOperadoresGreenfield } from "../../application/hooks/useSettlementSettings";
 import { settlementsCompensationApprovalsPath } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
+import {
+  canDisburseGreenfield,
+  canSubmitGreenfieldVobo,
+  isSettlementMaker,
+} from "../utils/greenfieldCta";
 
 const copy = settlementsCopy;
 
@@ -81,6 +87,7 @@ export function SettlementActions({
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
   const canExecute = hasPermission("settlements", "execute");
+  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
 
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -97,14 +104,33 @@ export function SettlementActions({
   const isDraft = settlement.status === "draft";
   const isApproved = settlement.status === "approved";
   const isSelfApproval = Boolean(
-    settlement.submittedBy && user?.id && settlement.submittedBy === user.id,
+    greenfieldEnabled
+      ? isSettlementMaker(settlement, user?.id)
+      : settlement.submittedBy && user?.id && settlement.submittedBy === user.id,
   );
+  const isMaker = isSettlementMaker(settlement, user?.id);
 
-  const canSubmit = canUpdate && isDraft;
+  const canSubmit = greenfieldEnabled
+    ? canSubmitGreenfieldVobo({ settlement, canUpdate })
+    : canUpdate && isDraft;
   const canCancel = canUpdate && isDraft;
   const canApprove = canUpdate && isPendingApproval && !isSelfApproval;
   const canReject = canUpdate && isPendingApproval && !isSelfApproval;
-  const canDisburse = canExecute && isApproved;
+  const canDisburse = greenfieldEnabled
+    ? canDisburseGreenfield({
+        settlement,
+        userId: user?.id,
+        canExecute,
+      })
+    : canExecute && isApproved;
+  const showMakerExecuteBadge =
+    greenfieldEnabled &&
+    isMaker &&
+    canExecute &&
+    (isApproved || (isDraft && settlement.voboRequired === false));
+  const submitLabel = greenfieldEnabled
+    ? copy.actions.pedirVobo
+    : copy.actions.submitApproval;
 
   const handleSubmit = async () => {
     try {
@@ -354,7 +380,7 @@ export function SettlementActions({
               disabled={submitMutation.isPending}
             >
               <Send className="mr-2 h-4 w-4" />
-              {copy.actions.submitApproval}
+              {submitLabel}
             </Button>
           )}
           {canReject && (
@@ -379,6 +405,11 @@ export function SettlementActions({
           {isSelfApproval && isPendingApproval && (
             <span className="text-xs text-muted-foreground italic px-1">
               {copy.toasts.selfApprovalBadge}
+            </span>
+          )}
+          {showMakerExecuteBadge && (
+            <span className="text-xs text-muted-foreground italic px-1">
+              {copy.toasts.makerExecuteBadge}
             </span>
           )}
           {canDisburse && (
@@ -430,7 +461,7 @@ export function SettlementActions({
                 disabled={submitMutation.isPending}
               >
                 <Send className="mr-2 h-4 w-4" />
-                {copy.actions.submitApproval}
+                {submitLabel}
               </DropdownMenuItem>
               {canCancel ? (
                 <DropdownMenuItem
@@ -491,6 +522,17 @@ export function SettlementActions({
               >
                 <Banknote className="mr-2 h-4 w-4" />
                 {copy.actions.disburse}
+              </DropdownMenuItem>
+            </>
+          )}
+          {showMakerExecuteBadge && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled
+                className="text-xs text-muted-foreground italic cursor-not-allowed"
+              >
+                {copy.toasts.makerExecuteBadge}
               </DropdownMenuItem>
             </>
           )}

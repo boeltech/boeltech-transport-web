@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { usePendingApprovalsCount } from "@features/approvals";
+import { usePagosOperadoresGreenfield } from "@features/settlements/application/hooks/useSettlementSettings";
 import { useNavigation } from "./useNavigation";
 import type { NavGroup, NavItem } from "./types";
 
@@ -22,7 +23,8 @@ export function enrichNavigationWithBadges(
 }
 
 export function useNavigationWithBadges() {
-  const base = useNavigation();
+  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
+  const base = useNavigation(greenfieldEnabled);
   const { data: pendingCount } = usePendingApprovalsCount();
 
   const navigation = useMemo(

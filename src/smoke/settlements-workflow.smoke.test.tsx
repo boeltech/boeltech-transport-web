@@ -13,6 +13,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { TooltipProvider } from "@shared/ui/tooltip";
 import { SettlementsListPage } from "@features/settlements/presentation/pages/SettlementsListPage";
 import { SettlementsRegistryPage } from "@features/settlements/presentation/pages/SettlementsRegistryPage";
 import { SettlementsAdvancesPage } from "@features/settlements/presentation/pages/SettlementsAdvancesPage";
@@ -22,6 +24,7 @@ import { SettlementDetailPage } from "@features/settlements/presentation/pages/S
 import { ApprovalRowCompensation } from "@features/approvals/presentation/components/ApprovalRowCompensation";
 import { ApprovalRowAdvance } from "@features/approvals/presentation/components/ApprovalRowAdvance";
 import type { ApprovableItem } from "@features/approvals/domain";
+import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
 
 const {
   mockListSettlements,
@@ -80,6 +83,11 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     updateAgreement: (...args: unknown[]) => mockUpdateAgreement(...args),
     deleteAgreement: (...args: unknown[]) => mockDeleteAgreement(...args),
     getWorkbench: (...args: unknown[]) => mockGetWorkbench(...args),
+    getSettings: vi.fn().mockResolvedValue({
+      pagosOperadoresGreenfieldV1: false,
+      voboThresholdMxn: 5000,
+    }),
+    updateSettings: vi.fn(),
   },
 }));
 
@@ -379,11 +387,18 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("+ Total Percepciones")).toBeInTheDocument();
-    expect(screen.getAllByText("$3,500.00").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("-$1,000.00").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Comisión por viaje")).toBeInTheDocument();
-    expect(screen.getByText("Deducción de anticipo")).toBeInTheDocument();
+    expect(screen.getByText("Lo ganado")).toBeInTheDocument();
+expect(screen.getByText("Anticipos")).toBeInTheDocument();
+    expect(screen.getByText("A pagar")).toBeInTheDocument();
+    expect(screen.getAllByText(formatMxCurrency(4000)).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(`-${formatMxCurrency(1000)}`).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(formatMxCurrency(3000)).length).toBeGreaterThanOrEqual(1);
+
+    // Desglose colapsado por defecto fuera de draft/rejected
+    await user.click(screen.getByText(/Ver desglose/i));
+    expect(screen.getAllByText("Pago por viaje").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Descuento de anticipo").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(formatMxCurrency(3500)).length).toBeGreaterThanOrEqual(1);
 
     // Botones de acción para autorizar
     const authorizeBtn = screen.getByRole("button", { name: /Autorizar/i });
@@ -427,7 +442,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     // Verificar que el diálogo de vista previa está abierto y la clase activa está en body
     expect(
-      screen.getByRole("heading", { name: /Recibo de Liquidación Imprimible/i }),
+      screen.getByRole("heading", { name: /Recibo de liquidación/i }),
     ).toBeInTheDocument();
     expect(document.body.classList.contains("print-receipt-active")).toBe(true);
 
@@ -512,22 +527,24 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements"]}>
-          <Routes>
-            <Route path="/finance/settlements" element={<SettlementsListPage />} />
-          </Routes>
-        </MemoryRouter>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter initialEntries={["/finance/settlements"]}>
+            <Routes>
+              <Route path="/finance/settlements" element={<SettlementsListPage />} />
+            </Routes>
+          </MemoryRouter>
+        </TooltipProvider>
       </QueryClientProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: /Configurar tarifas/i })).toBeInTheDocument();
+      const links = screen.getAllByRole("link", {
+        name: /esquemas de compensación/i,
+      });
+      expect(
+        links.some((link) => link.getAttribute("href") === COMPENSATION_TEMPLATES_PATH),
+      ).toBe(true);
     });
-
-    expect(screen.getByRole("link", { name: /Configurar tarifas/i })).toHaveAttribute(
-      "href",
-      "/finance/agreements",
-    );
   });
 
   it("6. Renderiza el dialog de registrar anticipo con componente MoneyInput", async () => {
@@ -701,7 +718,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     await user.click(printBtn);
 
-    expect(screen.getByText("Recibo de Liquidación Imprimible")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Recibo de liquidación/i })).toBeInTheDocument();
     expect(screen.getByText("Liquidación de Viajes y Pago a Operador")).toBeInTheDocument();
     expect(screen.getByText("Firma de Conformidad del Operador")).toBeInTheDocument();
     expect(screen.getByText("Revisado y Autorizado / Empresa")).toBeInTheDocument();
@@ -712,15 +729,17 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements?tab=agreements"]}>
-          <Routes>
-            <Route path="/finance/settlements" element={<SettlementsListPage />} />
-            <Route
-              path="/finance/compensation/templates"
-              element={<div>compensation-templates-hub</div>}
-            />
-          </Routes>
-        </MemoryRouter>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter initialEntries={["/finance/settlements?tab=agreements"]}>
+            <Routes>
+              <Route path="/finance/settlements" element={<SettlementsListPage />} />
+              <Route
+                path="/finance/compensation/templates"
+                element={<div>compensation-templates-hub</div>}
+              />
+            </Routes>
+          </MemoryRouter>
+        </TooltipProvider>
       </QueryClientProvider>,
     );
 

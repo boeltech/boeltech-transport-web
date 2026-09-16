@@ -7,6 +7,7 @@ import type {
   FixedAllowancePeriod,
   FixedAllowanceType,
 } from "./enums";
+import type { MidTripPayoutPolicy } from "@features/settlements/domain/enums";
 
 export interface CompensationTemplateRule {
   id?: string;
@@ -46,6 +47,7 @@ export interface CompensationTemplate {
   name: string;
   description?: string | null;
   isActive: boolean;
+  midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules: CompensationTemplateRule[];
   fixedAllowances: TemplateFixedAllowance[];
   corridorIds: string[];
@@ -89,6 +91,7 @@ export interface CreateCompensationTemplatePayload {
   name: string;
   description?: string | null;
   isActive?: boolean;
+  midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules?: CompensationTemplateRule[];
   fixedAllowances?: TemplateFixedAllowance[];
   corridorIds?: string[];
