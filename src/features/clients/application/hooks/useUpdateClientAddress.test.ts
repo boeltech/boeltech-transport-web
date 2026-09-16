@@ -1,12 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useUpdateClientAddress } from "./useUpdateClientAddress";
 import { clientQueryKeys, type ClientAddress } from "../../domain";
-import { invoiceQueryKeys } from "@features/invoicing/application";
 
-const invalidateQueries = vi.fn();
-const removeQueries = vi.fn();
-const setQueryData = vi.fn();
-const useMutationMock = vi.fn((config: unknown) => config);
+const {
+  invalidateQueries,
+  removeQueries,
+  setQueryData,
+  useMutationMock,
+  invoicePrefillKey,
+} = vi.hoisted(() => {
+  const invoicePrefillKey = ["invoices", "prefill"] as const;
+  return {
+    invalidateQueries: vi.fn(),
+    removeQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    useMutationMock: vi.fn((config: unknown) => config),
+    invoicePrefillKey,
+  };
+});
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn(),
@@ -20,6 +31,19 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
+}));
+
+// Avoid @features/invoicing barrel → useInvoiceReceiverClientType → @features/clients
+// which pulls CreateClientUseCase against this incomplete infrastructure mock.
+vi.mock("@features/invoicing/application", () => ({
+  invoiceQueryKeys: {
+    prefills: () => invoicePrefillKey,
+  },
+  evictInvoicePrefillQueries: (queryClient: {
+    removeQueries: (arg: { queryKey: unknown }) => void;
+  }) => {
+    queryClient.removeQueries({ queryKey: invoicePrefillKey });
+  },
 }));
 
 vi.mock("../../infrastructure", () => ({
@@ -67,7 +91,7 @@ describe("useUpdateClientAddress cache invalidation", () => {
       queryKey: clientQueryKeys.addresses("client-1"),
     });
     expect(removeQueries).toHaveBeenCalledWith({
-      queryKey: invoiceQueryKeys.prefills(),
+      queryKey: invoicePrefillKey,
     });
   });
 });

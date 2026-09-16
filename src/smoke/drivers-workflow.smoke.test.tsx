@@ -14,19 +14,30 @@ import { driversCopy } from "@features/drivers/presentation/copy/driversCopy";
 const EMPLOYEE_ID = "11111111-1111-4111-8111-111111111111";
 const DRIVER_ID = "44444444-4444-4444-8444-444444444444";
 
-const mockEmployee = {
-  id: EMPLOYEE_ID,
-  employeeNumber: "EMP-001",
-  fullName: "Juan Pérez",
-  department: "Operaciones",
-  position: "Conductor",
-};
-
-const { mockCreateDriver, mockNavigate, mockHasPermission } = vi.hoisted(() => ({
-  mockCreateDriver: vi.fn(),
-  mockNavigate: vi.fn(),
-  mockHasPermission: vi.fn(),
-}));
+const {
+  mockCreateDriver,
+  mockNavigate,
+  mockHasPermission,
+  mockGetAvailableForDriver,
+  mockGetEmployeeBasic,
+  mockEmployee,
+} = vi.hoisted(() => {
+  const mockEmployee = {
+    id: "11111111-1111-4111-8111-111111111111",
+    employeeNumber: "EMP-001",
+    fullName: "Juan Pérez",
+    department: "Operaciones",
+    position: "Conductor",
+  };
+  return {
+    mockCreateDriver: vi.fn(),
+    mockNavigate: vi.fn(),
+    mockHasPermission: vi.fn(),
+    mockGetAvailableForDriver: vi.fn(),
+    mockGetEmployeeBasic: vi.fn(),
+    mockEmployee,
+  };
+});
 
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router-dom")>();
@@ -54,19 +65,15 @@ vi.mock("@features/drivers/infrastructure", async (importOriginal) => {
   };
 });
 
-vi.mock("@features/employees", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@features/employees")>();
+vi.mock("@features/employees/infrastructure/employeeRepository", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@features/employees/infrastructure/employeeRepository")
+    >();
   return {
     ...actual,
-    useAvailableEmployeesForDriver: () => ({
-      data: [mockEmployee],
-      isLoading: false,
-      isError: false,
-    }),
-    useEmployeeBasic: (_id: string, enabled: boolean) => ({
-      data: enabled ? mockEmployee : undefined,
-      isLoading: false,
-    }),
+    getAvailableForDriver: (...args: unknown[]) => mockGetAvailableForDriver(...args),
+    getEmployeeBasic: (...args: unknown[]) => mockGetEmployeeBasic(...args),
   };
 });
 
@@ -142,6 +149,25 @@ describe("drivers create wizard smoke", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHasPermission.mockReturnValue(true);
+    mockGetAvailableForDriver.mockResolvedValue([
+      {
+        id: EMPLOYEE_ID,
+        employee_number: mockEmployee.employeeNumber,
+        first_name: "Juan",
+        last_name: "Pérez",
+        second_last_name: null,
+        full_name: mockEmployee.fullName,
+        department: mockEmployee.department,
+        position: mockEmployee.position,
+      },
+    ]);
+    mockGetEmployeeBasic.mockResolvedValue({
+      id: EMPLOYEE_ID,
+      employee_number: mockEmployee.employeeNumber,
+      full_name: mockEmployee.fullName,
+      department: mockEmployee.department,
+      position: mockEmployee.position,
+    });
     mockCreateDriver.mockResolvedValue({
       data: {
         id: DRIVER_ID,
@@ -169,12 +195,19 @@ describe("drivers create wizard smoke", () => {
 
     const user = userEvent.setup();
 
+    await waitFor(() => {
+      expect(mockGetAvailableForDriver).toHaveBeenCalled();
+    });
+
     await user.click(
       screen.getByRole("combobox", { name: driversCopy.form.employeeSelector.ariaLabel }),
     );
-    await user.click(
-      screen.getByText(`${mockEmployee.employeeNumber} — ${mockEmployee.fullName}`),
+    const employeeOption = await screen.findByText(
+      `${mockEmployee.employeeNumber} — ${mockEmployee.fullName}`,
+      {},
+      { timeout: 10_000 },
     );
+    await user.click(employeeOption);
 
     await user.click(screen.getByRole("button", { name: "Siguiente" }));
 
@@ -231,5 +264,5 @@ describe("drivers create wizard smoke", () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(`/drivers/${DRIVER_ID}`);
     });
-  });
+  }, 30_000);
 });

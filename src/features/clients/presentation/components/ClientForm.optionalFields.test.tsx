@@ -1,10 +1,15 @@
-import { createRef } from "react";
+import { createRef, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ClientForm, type ClientFormRef } from "./ClientForm";
 
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("@features/settings/application/hooks/useBillingSchemes", () => ({
+  useBillingSchemes: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock("@features/catalogs", () => ({
@@ -29,10 +34,19 @@ vi.mock("@features/catalogs", () => ({
   ),
 }));
 
+function renderWithQuery(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+}
+
 describe("ClientForm optional field errors", () => {
   it("muestra FieldInlineError + aria-invalid bajo tradeName cuando es inválido", async () => {
     const ref = createRef<ClientFormRef>();
-    render(
+    renderWithQuery(
       <ClientForm
         ref={ref}
         mode="create"

@@ -125,8 +125,8 @@ describe("filterNavigation", () => {
     expect(billingGroup?.items.map((i) => i.id)).toEqual([
       "finance-invoiceable",
       "finance-invoices",
-      "finance-cobros",
       "finance-dispatch-runs",
+      "finance-cobros",
     ]);
 
     const financeGroup = filtered.find((g) => g.id === "finance");

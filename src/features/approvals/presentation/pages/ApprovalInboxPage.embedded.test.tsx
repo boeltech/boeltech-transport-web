@@ -37,6 +37,13 @@ vi.mock("@shared/permissions", () => ({
   }),
 }));
 
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({
+    user: { id: "user-approver-1", fullName: "Gerente Demo", role: "manager" },
+    isAuthenticated: true,
+  }),
+}));
+
 vi.mock("@shared/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/hooks")>();
   return { ...actual, useToast: () => ({ toast: vi.fn() }) };

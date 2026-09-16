@@ -403,9 +403,14 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       ).toBeInTheDocument();
     });
 
+    // ADR-0091 D5.1: identidad vive fuera del nav; secciones operativas en tabs.
     expect(
-      screen.getAllByRole("tab", { name: /Identidad/i }).length,
+      screen.queryByRole("tab", { name: /Identidad/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("tab", { name: /Pago por tipo de viaje/i }).length,
     ).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
   });
 
   it("1d. Abre Builder desde Editar y muestra resumen en prosa", async () => {
@@ -428,9 +433,10 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     expect(screen.getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
+    // Vista previa vive en el footer del Builder (botón), no como link en el inspector.
     expect(
-      screen.getByRole("link", { name: /Vista previa con Roberto González/i }),
-    ).toHaveAttribute("href", "/finance/settlements/new?employeeId=emp-1");
+      screen.getByRole("button", { name: "Vista previa de liquidación" }),
+    ).toBeInTheDocument();
   });
 
   it("2. Lista corredores foráneos con tarifa fija", async () => {
@@ -502,7 +508,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     expect(screen.getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
-    expect(screen.getByText(/Prestación Comidas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pago fijo Comidas/i)).toBeInTheDocument();
   });
 
   it("5. Abre sheet de asignación masiva desde CTA Operadores", async () => {
@@ -540,9 +546,9 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(screen.getByText("VIA-200")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Plantilla Operador foráneo/i)).toBeInTheDocument();
+    expect(screen.getByText(/Esquema Operador foráneo/i)).toBeInTheDocument();
     expect(screen.getByText(/Corredor: México → MTY/i)).toBeInTheDocument();
-    expect(screen.getByText(/Prestaciones fijas:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Prestaciones fijas/i)).toBeInTheDocument();
     expect(screen.getAllByText("$1,500.00").length).toBeGreaterThanOrEqual(1);
   });
 
@@ -580,10 +586,10 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Esquema de compensación activo/i)).toBeInTheDocument();
+      expect(screen.getByText(/Acuerdo de pago activo/i)).toBeInTheDocument();
     });
 
-    expect(screen.queryByText(/Prestaciones fijas:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Prestaciones fijas/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("$3,500.00").length).toBeGreaterThanOrEqual(1);
   });
 });

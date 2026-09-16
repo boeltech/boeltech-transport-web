@@ -9,7 +9,6 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Invoice } from "@features/invoicing/domain";
 import { InvoiceActions } from "@features/invoicing/presentation/components/InvoiceActions";
-import { TripDetailRouteTab } from "@features/trips/presentation/components/trip-route";
 import { TripStatus, type Trip, type TripStop } from "@features/trips/domain";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 
@@ -75,6 +74,7 @@ vi.mock("@shared/permissions", () => ({
     isAuthenticated: true,
     role: "admin",
   }),
+  useRole: () => "admin",
 }));
 
 vi.mock("@shared/hooks", async (importOriginal) => {
@@ -483,7 +483,7 @@ describe("smoke fiscal-edit workflow", () => {
     expect(mockStamp).not.toHaveBeenCalled();
   });
 
-  it("shows fiscal correction chip on route tab when RFC is valid and invoice is draft", async () => {
+  it("opens fiscal correction sheet with RFC and Domicilio tabs from stamp error CTA", async () => {
     const user = userEvent.setup();
     const trip = createTrip([
       createStop({
@@ -501,27 +501,24 @@ describe("smoke fiscal-edit workflow", () => {
       }),
     ]);
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <TripDetailRouteTab
-            trip={trip}
-            tripStatus={TripStatus.COMPLETED}
-            orderedStops={trip.stops ?? []}
-            progress={100}
-            canEditStructural={false}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    mockStamp.mockReset();
+    mockStamp.mockRejectedValueOnce(
+      new ApiError("RFC inválido en parada #2", 422, "INVALID_RFC_AT_STOP", {
+        stopId: STOP_ID,
+        currentRfc: "EKU9003173C9",
+        stopOrder: 2,
+      }),
     );
 
-    const chips = screen.getAllByText("Corregir datos fiscales");
-    expect(chips.length).toBeGreaterThanOrEqual(1);
-    await user.click(chips[0]!);
+    renderInvoiceActions(trip);
+
+    await user.click(screen.getByRole("button", { name: "Timbrar" }));
+
+    await waitFor(() => {
+      expect(lastDestructiveToast?.action?.label).toBe("Corregir RFC");
+    });
+
+    lastDestructiveToast?.action?.onClick();
 
     expect(
       await screen.findByRole("heading", { name: "Corregir datos fiscales" }),

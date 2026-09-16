@@ -10,6 +10,9 @@ import { TripFiscalCorrectionSheet } from "@features/trips/presentation/componen
 import * as addressSearchApi from "@shared/ui/address-picker/addressSearchApi";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 
+// cmdk calls scrollIntoView on the active item; jsdom stubs may still throw.
+Element.prototype.scrollIntoView = vi.fn();
+
 vi.mock("@shared/geolocation/useCoordinatesPostalCodeWarning", () => ({
   useCoordinatesPostalCodeWarning: vi.fn(() => null),
 }));

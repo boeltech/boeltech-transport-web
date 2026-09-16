@@ -104,16 +104,24 @@ describe("FinanceCobrosPage", () => {
     sessionStorage.removeItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
   });
 
-  it("shows the RFC task and a path to Resumen when there is no rfc", () => {
+  it("shows the workbench empty state when there is no rfc", () => {
     renderWithTheme(<FinanceCobrosPage />, {
       route: ["/finance/cobros"],
     });
 
-    expect(screen.getByText("Registrar un cobro")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobros" })).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Ir a Resumen" }),
-    ).toHaveAttribute("href", "/finance");
+      screen.getByText(
+        "Registra cobros por RFC y revisa comprobantes de pago pendientes.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Busca al cliente por RFC y elige las facturas que cubre el mismo depósito/,
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Facturas abiertas a crédito")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Excepciones REP/i })).toBeInTheDocument();
     expect(screen.getByText("Comprobantes por atender")).toBeInTheDocument();
   });
 
@@ -128,10 +136,11 @@ describe("FinanceCobrosPage", () => {
       route: ["/finance/cobros?rfc=xaxx010101000"],
     });
 
-    expect(screen.getByText("RFC XAXX010101000")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cambiar RFC" })).toBeInTheDocument();
-    expect(screen.getByText("Cliente Demo")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "A-10" })[0]).toBeInTheDocument();
+    expect(screen.getByText("RFC: XAXX010101000")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Quitar filtro RFC: XAXX010101000" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "A-10" }).length).toBeGreaterThan(0);
 
     await user.click(
       screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
@@ -164,7 +173,8 @@ describe("FinanceCobrosPage", () => {
     ).toHaveAttribute("href", "/invoices/inv-1");
   });
 
-  it("lists a failed REP as work in Cobros with a link to the invoice", () => {
+  it("lists a failed REP as work in Cobros with a link to the invoice", async () => {
+    const user = userEvent.setup();
     repExceptions.data = {
       data: [
         {
@@ -197,6 +207,8 @@ describe("FinanceCobrosPage", () => {
     renderWithTheme(<FinanceCobrosPage />, {
       route: ["/finance/cobros"],
     });
+
+    await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
 
     expect(screen.getByText("Sello fallido")).toBeInTheDocument();
     expect(screen.getByText("Plazo vencido", { exact: false })).toBeInTheDocument();
