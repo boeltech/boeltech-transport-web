@@ -131,6 +131,7 @@ export interface ApiDriverSettlementRaw {
   approved_by_name?: string;
   submitted_at?: string | null;
   submitted_by?: string | null;
+  submitted_by_name?: string | null;
   rejection_reason: string | null;
   notes: string | null;
   trips_count?: number;
@@ -372,6 +373,7 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
     currency: raw.currency,
     submittedAt: raw.submitted_at ?? null,
     submittedBy: raw.submitted_by ?? null,
+    submittedByName: raw.submitted_by_name ?? null,
     disbursedAt: raw.disbursed_at,
     disbursedBy: raw.disbursed_by,
     disbursedByName: raw.disbursed_by_name,

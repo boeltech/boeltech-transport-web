@@ -154,4 +154,50 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     expect(screen.getByText("Auto-aprobación no permitida")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Autorizar/i })).not.toBeInTheDocument();
   });
+
+  it("H4: el paso Elaboró muestra el nombre que ahora llena el API", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      createdByName: "Ana Capataz",
+      submittedByName: "Ana Capataz",
+    });
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+          <Routes>
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Elaboró")).toBeInTheDocument();
+    expect(screen.getByText("Ana Capataz")).toBeInTheDocument();
+  });
+
+  it("H4: sin nombres del API el paso Elaboró queda vacío (regresión previa)", async () => {
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+          <Routes>
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Ana Capataz")).not.toBeInTheDocument();
+  });
 });

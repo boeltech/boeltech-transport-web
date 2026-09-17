@@ -166,6 +166,8 @@ describe("Settlements Infrastructure Mappers", () => {
       approved_by_name: "Gerente Operaciones",
       submitted_at: "2026-08-15T18:00:00Z",
       submitted_by: "user-creator",
+      submitted_by_name: "Ana Capataz",
+      created_by_name: "Ana Capataz",
       rejection_reason: null,
       notes: "Corte quincena 1 agosto",
       created_at: "2026-08-15T18:00:00Z",
@@ -203,8 +205,48 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.voboRequired).toBe(true);
     expect(mapped.hasManualAdjustments).toBe(false);
     expect(mapped.createdBy).toBe("user-creator");
+    // H4: la traza de quién armó el corte y quién pidió el VoBo llega del API.
+    expect(mapped.createdByName).toBe("Ana Capataz");
+    expect(mapped.submittedByName).toBe("Ana Capataz");
     expect(mapped.items).toHaveLength(1);
     expect(mapped.items?.[0]?.itemType).toBe("trip_commission");
+  });
+
+  it("H4: sin nombres en la respuesta, la traza queda en null y no en undefined", () => {
+    const raw = {
+      id: "st-2",
+      tenant_id: "tenant-1",
+      settlement_number: "LIQ-202608-0002",
+      employee_id: "emp-1",
+      agreement_snapshot: {},
+      period_start: "2026-08-01",
+      period_end: "2026-08-15",
+      status: "draft",
+      total_trips_commission: 0,
+      total_base_salary: 0,
+      total_reimbursable_expenses: 0,
+      total_bonuses: 0,
+      total_advances_deducted: 0,
+      total_other_deductions: 0,
+      gross_amount: 0,
+      net_amount: 0,
+      currency: "MXN",
+      disbursed_at: null,
+      disbursed_by: null,
+      disbursement_method: null,
+      disbursement_reference: null,
+      approved_at: null,
+      approved_by: null,
+      rejection_reason: null,
+      notes: null,
+      created_at: "2026-08-15T18:00:00Z",
+      updated_at: "2026-08-15T18:00:00Z",
+    } satisfies ApiDriverSettlementRaw;
+
+    const mapped = mapSettlement(raw);
+
+    expect(mapped.createdByName).toBeNull();
+    expect(mapped.submittedByName).toBeNull();
   });
 
   it("mapea preliquidación (preview) con route_type y applied_rule", () => {

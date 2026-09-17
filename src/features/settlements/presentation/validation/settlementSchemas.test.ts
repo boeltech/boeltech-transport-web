@@ -334,13 +334,39 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
         expect(result.data.notes).toBe("Pago efectuado");
       }
     });
+
+    it("H7: rechaza una fecha de pago futura antes de llamar al API", () => {
+      const inOneHour = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const result = disburseSettlementFormSchema.safeParse({
+        disbursementMethod: "cash" as const,
+        disbursementReference: "REF-1",
+        disbursedAt: inOneHour,
+        notes: "",
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe("La fecha de pago no puede ser futura");
+      }
+    });
+
+    it("H7: tolera el desfase de reloj entre navegador y servidor", () => {
+      const inTwoMinutes = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+      const result = disburseSettlementFormSchema.safeParse({
+        disbursementMethod: "cash" as const,
+        disbursementReference: "REF-1",
+        disbursedAt: inTwoMinutes,
+        notes: "",
+      });
+
+      expect(result.success).toBe(true);
+    });
   });
 
   describe("settlementSettingsFormSchema", () => {
-    it("acepta umbral 0 y flag apagada", () => {
+    it("acepta umbral 0", () => {
       const result = settlementSettingsFormSchema.safeParse({
         voboThresholdMxn: 0,
-        pagosOperadoresGreenfieldV1: false,
       });
       expect(result.success).toBe(true);
     });
@@ -348,9 +374,14 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
     it("rechaza umbral negativo", () => {
       const result = settlementSettingsFormSchema.safeParse({
         voboThresholdMxn: -1,
-        pagosOperadoresGreenfieldV1: true,
       });
       expect(result.success).toBe(false);
+    });
+
+    it("no declara la bandera greenfield: el umbral es el único campo del formulario", () => {
+      expect(Object.keys(settlementSettingsFormSchema.shape)).toEqual([
+        "voboThresholdMxn",
+      ]);
     });
   });
 });

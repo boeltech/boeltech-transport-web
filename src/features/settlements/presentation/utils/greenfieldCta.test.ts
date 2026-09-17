@@ -4,6 +4,7 @@ import {
   canSubmitGreenfieldVobo,
   isSettlementMaker,
   isVoboRequiredForPreview,
+  resolveCreateSettlementFeedback,
   resolveGreenfieldCreateCta,
 } from "./greenfieldCta";
 
@@ -101,5 +102,34 @@ describe("greenfieldCta", () => {
         canUpdate: true,
       }),
     ).toBe(false);
+  });
+
+  describe("H6: el aviso post-creación sale del estado devuelto por el API", () => {
+    it("avisa degradación cuando se pidió VoBo y volvió un borrador", () => {
+      expect(
+        resolveCreateSettlementFeedback({
+          submitForApproval: true,
+          resultStatus: "draft",
+        }),
+      ).toBe("degraded_to_draft");
+    });
+
+    it("confirma envío solo si el API dejó la liquidación por autorizar", () => {
+      expect(
+        resolveCreateSettlementFeedback({
+          submitForApproval: true,
+          resultStatus: "pending_approval",
+        }),
+      ).toBe("submitted_for_approval");
+    });
+
+    it("guardar borrador explícito no se anuncia como degradación", () => {
+      expect(
+        resolveCreateSettlementFeedback({
+          submitForApproval: false,
+          resultStatus: "draft",
+        }),
+      ).toBe("saved_as_draft");
+    });
   });
 });

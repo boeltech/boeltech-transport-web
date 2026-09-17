@@ -87,7 +87,11 @@ export function SettlementActions({
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
   const canExecute = hasPermission("settlements", "execute");
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
+  const {
+    enabled: greenfieldEnabled,
+    isReady: settingsReady,
+    isError: settingsError,
+  } = usePagosOperadoresGreenfield();
 
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -103,26 +107,38 @@ export function SettlementActions({
   const isPendingApproval = settlement.status === "pending_approval";
   const isDraft = settlement.status === "draft";
   const isApproved = settlement.status === "approved";
+  // Con la configuración sin cargar no se conoce la política del tenant: la regla
+  // de maker-checker se toma en su versión más estricta (greenfield) para no
+  // abrir la autorización por un fallo de red.
   const isSelfApproval = Boolean(
-    greenfieldEnabled
+    greenfieldEnabled || !settingsReady
       ? isSettlementMaker(settlement, user?.id)
       : settlement.submittedBy && user?.id && settlement.submittedBy === user.id,
   );
   const isMaker = isSettlementMaker(settlement, user?.id);
 
-  const canSubmit = greenfieldEnabled
-    ? canSubmitGreenfieldVobo({ settlement, canUpdate })
-    : canUpdate && isDraft;
+  const canSubmit =
+    settingsReady &&
+    (greenfieldEnabled
+      ? canSubmitGreenfieldVobo({ settlement, canUpdate })
+      : canUpdate && isDraft);
   const canCancel = canUpdate && isDraft;
   const canApprove = canUpdate && isPendingApproval && !isSelfApproval;
   const canReject = canUpdate && isPendingApproval && !isSelfApproval;
-  const canDisburse = greenfieldEnabled
-    ? canDisburseGreenfield({
-        settlement,
-        userId: user?.id,
-        canExecute,
-      })
-    : canExecute && isApproved;
+  const canDisburse =
+    settingsReady &&
+    (greenfieldEnabled
+      ? canDisburseGreenfield({
+          settlement,
+          userId: user?.id,
+          canExecute,
+        })
+      : canExecute && isApproved);
+  // El bloqueo solo se anuncia a quien intentaría mover dinero.
+  const showSettingsUnavailable =
+    settingsError &&
+    (canUpdate || canExecute) &&
+    (isDraft || isPendingApproval || isApproved);
   const showMakerExecuteBadge =
     greenfieldEnabled &&
     isMaker &&
@@ -418,6 +434,11 @@ export function SettlementActions({
               {copy.actions.disburse}
             </Button>
           )}
+          {showSettingsUnavailable && (
+            <span className="text-xs text-destructive px-1">
+              {copy.toasts.settingsUnavailable}
+            </span>
+          )}
         </div>
         {dialogs}
       </>
@@ -533,6 +554,17 @@ export function SettlementActions({
                 className="text-xs text-muted-foreground italic cursor-not-allowed"
               >
                 {copy.toasts.makerExecuteBadge}
+              </DropdownMenuItem>
+            </>
+          )}
+          {showSettingsUnavailable && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled
+                className="text-xs text-destructive italic cursor-not-allowed"
+              >
+                {copy.toasts.settingsUnavailable}
               </DropdownMenuItem>
             </>
           )}

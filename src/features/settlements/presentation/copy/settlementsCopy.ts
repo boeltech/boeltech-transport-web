@@ -22,13 +22,10 @@ export const settlementsCopy = {
     settings: {
       title: "Configuración de pagos a operadores",
       description:
-        "Umbral de VoBo y activación del flujo greenfield. El API aplica las reglas; esta pantalla solo las configura.",
+        "Umbral de VoBo. El API aplica las reglas; esta pantalla solo las configura.",
       thresholdLabel: "Umbral de VoBo (MXN)",
       thresholdHint:
         "Si el neto del corte es igual o mayor a este monto, o hay ajustes manuales, se exige VoBo.",
-      flagLabel: "Activar pagos a operadores v1",
-      flagHint:
-        "Con la bandera apagada se mantiene el flujo actual de liquidaciones (ADR-0085–0089).",
       save: "Guardar",
       saving: "Guardando…",
       success: "Configuración actualizada",
@@ -275,6 +272,8 @@ export const settlementsCopy = {
     selfApprovalNotAllowedReject: "No puedes rechazar un anticipo que tú mismo enviaste",
     selfApprovalBadge: "Auto-aprobación no permitida",
     makerExecuteBadge: "Quien armó el corte no puede registrar el pago",
+    settingsUnavailable:
+      "No se pudo leer la configuración de pagos a operadores; recarga la página antes de mover dinero",
     selfApprovalSettlementAuthorize:
       "No puedes autorizar una liquidación que tú mismo enviaste",
     selfApprovalSettlementReject:
@@ -644,6 +643,9 @@ export const settlementsCopy = {
       missingRequiredParams: "Completa los datos del operador y rango de fechas",
       submitSuccess: "Liquidación enviada para autorización",
       draftSuccess: "Liquidación guardada como borrador",
+      submitDegradedToDraft: "Liquidación guardada como borrador",
+      submitDegradedToDraftHint:
+        "El neto quedó bajo el umbral vigente, así que no requiere VoBo: quedó lista para que otro usuario registre el pago.",
       createError: "Error al generar liquidación",
       agreementRequired: "Asigna un esquema de compensación o confirma el registro solo de reembolsos",
     },

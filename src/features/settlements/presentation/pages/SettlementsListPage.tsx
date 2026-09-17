@@ -25,6 +25,8 @@ import {
 import { ViewModeToggle } from "@shared/ui/listing";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
+import { ROLES } from "@shared/constants/roles";
+import { useAuth } from "@features/auth";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { useBranches } from "@features/branches";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
@@ -80,8 +82,11 @@ export function SettlementsListPage() {
   const location = useLocation();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
   const canCreate = hasPermission("settlements", "create");
   const canUpdate = hasPermission("settlements", "update");
+  // Lockstep con PATCH /settlements/settings (requireAdmin).
+  const canEditSettings = canUpdate && user?.role === ROLES.ADMIN;
   const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const defaultsAppliedRef = useRef(false);
@@ -441,7 +446,7 @@ export function SettlementsListPage() {
                 <History className="h-4 w-4" />
                 {workbenchCopy.actions.viewFullHistory}
               </Button>
-              {!greenfieldEnabled && canUpdate ? (
+              {!greenfieldEnabled && canEditSettings ? (
                 <Button
                   type="button"
                   variant="outline"

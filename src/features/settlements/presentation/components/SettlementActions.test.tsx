@@ -16,7 +16,9 @@ const mockCancelSettlement = vi.fn();
 const mockGreenfield = vi.fn(() => ({
   enabled: false,
   thresholdMxn: 5000,
+  isReady: true,
   isLoading: false,
+  isError: false,
 }));
 
 vi.mock("@shared/permissions", () => ({
@@ -102,7 +104,9 @@ describe("SettlementActions", () => {
     mockGreenfield.mockReturnValue({
       enabled: false,
       thresholdMxn: 5000,
+      isReady: true,
       isLoading: false,
+      isError: false,
     });
     mockUsePermissions.mockReturnValue({
       hasPermission: vi.fn((resource: string, action: string) => {
@@ -273,7 +277,9 @@ describe("SettlementActions", () => {
       mockGreenfield.mockReturnValue({
         enabled: true,
         thresholdMxn: 5000,
+        isReady: true,
         isLoading: false,
+        isError: false,
       });
     });
 
@@ -376,6 +382,68 @@ describe("SettlementActions", () => {
       expect(
         screen.queryByRole("button", { name: /Registrar pago/i }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("H8: configuración de pagos sin cargar", () => {
+    it("bloquea Registrar pago y avisa cuando la lectura falló", () => {
+      mockGreenfield.mockReturnValue({
+        enabled: false,
+        thresholdMxn: 5000,
+        isReady: false,
+        isLoading: false,
+        isError: true,
+      });
+      const queryClient = createTestQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <SettlementActions
+              variant="buttons"
+              settlement={{
+                ...sampleSettlement,
+                status: "approved",
+                createdBy: "user-creator-123",
+                submittedBy: "user-creator-123",
+              }}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      expect(
+        screen.queryByRole("button", { name: /Registrar pago/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/No se pudo leer la configuración de pagos a operadores/i),
+      ).toBeInTheDocument();
+    });
+
+    it("no ofrece enviar a autorización mientras la configuración carga", () => {
+      mockGreenfield.mockReturnValue({
+        enabled: false,
+        thresholdMxn: 5000,
+        isReady: false,
+        isLoading: true,
+        isError: false,
+      });
+      const queryClient = createTestQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <SettlementActions variant="buttons" settlement={draftSettlement} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      expect(
+        screen.queryByRole("button", { name: /Enviar para autorización/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
+      // Cancelar no mueve dinero: sigue disponible.
+      expect(
+        screen.getByRole("button", { name: /Cancelar liquidación/i }),
+      ).toBeInTheDocument();
     });
   });
 });

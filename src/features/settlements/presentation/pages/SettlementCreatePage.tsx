@@ -66,7 +66,10 @@ import {
   pickAssignmentBySettlementTiebreak,
 } from "@features/compensation/presentation/utils/templateAssignmentOverlap";
 import type { CreateSettlementFormData } from "../validation/settlementSchemas";
-import { resolveGreenfieldCreateCta } from "../utils/greenfieldCta";
+import {
+  resolveCreateSettlementFeedback,
+  resolveGreenfieldCreateCta,
+} from "../utils/greenfieldCta";
 import {
   COMPENSATION_SALARY_PERIOD_LABELS,
   TRIP_ROUTE_TYPE_LABELS,
@@ -96,8 +99,12 @@ export function SettlementCreatePage() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const createMutation = useCreateSettlement();
-  const { enabled: greenfieldEnabled, thresholdMxn } =
-    usePagosOperadoresGreenfield();
+  const {
+    enabled: greenfieldEnabled,
+    thresholdMxn,
+    isReady: settingsReady,
+    isError: settingsError,
+  } = usePagosOperadoresGreenfield();
 
   // Filter state for live preview (initialize with searchParams if present)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
@@ -280,7 +287,8 @@ export function SettlementCreatePage() {
   const hasReimbursementOrAdvanceWork =
     totalReimbursements > 0 || selectedAdvancesCount > 0;
   const canProceedWithSave =
-    isAgreementReady || (reimbursementsOnlyOptIn && hasReimbursementOrAdvanceWork);
+    settingsReady &&
+    (isAgreementReady || (reimbursementsOnlyOptIn && hasReimbursementOrAdvanceWork));
   const hasSettlementContent =
     (preview?.eligibleTrips.length ?? 0) > 0 ||
     totalBaseSalary > 0 ||
@@ -368,11 +376,24 @@ export function SettlementCreatePage() {
       };
 
       const result = await createMutation.mutateAsync(payload);
+      // El API es la fuente de verdad del VoBo: si degradó el envío a borrador
+      // (neto bajo el umbral vigente), el aviso lo dice en vez de mentir con un
+      // "enviada para autorización" que nunca ocurrió.
+      const feedback = resolveCreateSettlementFeedback({
+        submitForApproval,
+        resultStatus: result.status,
+      });
+      const degradedToDraft = feedback === "degraded_to_draft";
       toast({
-        title: submitForApproval
-          ? createCopy.toasts.submitSuccess
-          : createCopy.toasts.draftSuccess,
-        variant: "success",
+        title: degradedToDraft
+          ? createCopy.toasts.submitDegradedToDraft
+          : feedback === "submitted_for_approval"
+            ? createCopy.toasts.submitSuccess
+            : createCopy.toasts.draftSuccess,
+        description: degradedToDraft
+          ? createCopy.toasts.submitDegradedToDraftHint
+          : undefined,
+        variant: degradedToDraft ? "default" : "success",
       });
       setConfirmDialogOpen(false);
       navigate(settlementDetailPath(result.id));
@@ -1026,7 +1047,12 @@ export function SettlementCreatePage() {
                             {createCopy.summary.commercialFreightHint}
                           </p>
                         ) : null}
-                        {!canProceedWithSave && (
+                        {settingsError && (
+                          <p className="text-[11px] text-center text-destructive py-0.5">
+                            {copy.toasts.settingsUnavailable}
+                          </p>
+                        )}
+                        {!canProceedWithSave && !settingsError && (
                           <p className="text-[11px] text-center text-muted-foreground py-0.5">
                             {createCopy.summary.actionsBlockedUntilReady}
                           </p>

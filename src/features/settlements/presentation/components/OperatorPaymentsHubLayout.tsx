@@ -3,6 +3,8 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Plus, Settings } from "lucide-react";
 import { HubPageShell } from "@shared/ui/page-shells";
 import { usePermissions } from "@shared/permissions";
+import { ROLES } from "@shared/constants/roles";
+import { useAuth } from "@features/auth";
 import {
   COMPENSATION_CORRIDORS_PATH,
   COMPENSATION_TEMPLATES_PATH,
@@ -28,9 +30,13 @@ export function OperatorPaymentsHubLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
   const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
   const canCreate = hasPermission("settlements", "create");
-  const canUpdate = hasPermission("settlements", "update");
+  // Lockstep con PATCH /settlements/settings: política de dinero solo para admin,
+  // no para todo el que puede editar liquidaciones.
+  const canEditSettings =
+    hasPermission("settlements", "update") && user?.role === ROLES.ADMIN;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createAction, setCreateAction] =
     useState<CompensationHubCreateAction | null>(null);
@@ -83,7 +89,7 @@ export function OperatorPaymentsHubLayout() {
               : undefined
         }
         secondaryActions={
-          canUpdate
+          canEditSettings
             ? [
                 {
                   id: "settings",

@@ -253,7 +253,19 @@ export const disburseSettlementFormSchema = z.object({
     .trim()
     .min(1, "La referencia o folio de pago es obligatoria")
     .max(100, "Máximo 100 caracteres"),
-  disbursedAt: z.string().trim().min(1, "Fecha de pago obligatoria"),
+  // Misma cota que el API (10 min de tolerancia de reloj), para que una fecha
+  // futura se vea inline en el formulario en vez de volver como 400.
+  disbursedAt: z
+    .string()
+    .trim()
+    .min(1, "Fecha de pago obligatoria")
+    .refine(
+      (value) => {
+        const parsed = Date.parse(value);
+        return Number.isNaN(parsed) || parsed <= Date.now() + 10 * 60 * 1000;
+      },
+      { message: "La fecha de pago no puede ser futura" },
+    ),
   notes: z.string().trim().max(500, "Máximo 500 caracteres").optional().or(z.literal("")),
 });
 
@@ -266,7 +278,6 @@ export const settlementSettingsFormSchema = z.object({
   voboThresholdMxn: z
     .number({ error: "El umbral es obligatorio" })
     .min(0, "El umbral no puede ser negativo"),
-  pagosOperadoresGreenfieldV1: z.boolean(),
 });
 
 export type SettlementSettingsFormData = z.infer<typeof settlementSettingsFormSchema>;

@@ -4,21 +4,12 @@ import { settlementsQueryKeys } from "../settlementsQueryKeys";
 import { DEFAULT_VOBO_THRESHOLD_MXN } from "../../domain/enums";
 import type { TenantSettlementSettings } from "../../domain/entities";
 
-const SETTINGS_OFF: TenantSettlementSettings = {
-  pagosOperadoresGreenfieldV1: false,
-  voboThresholdMxn: DEFAULT_VOBO_THRESHOLD_MXN,
-};
-
 export function useSettlementSettings(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: settlementsQueryKeys.settings(),
-    queryFn: async () => {
-      try {
-        return await settlementsApi.getSettings();
-      } catch {
-        return SETTINGS_OFF;
-      }
-    },
+    // Sin fallback silencioso: un fallo debe llegar como isError para que las
+    // acciones de dinero se bloqueen en vez de asumir el camino as-is.
+    queryFn: () => settlementsApi.getSettings(),
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
     retry: false,
@@ -40,18 +31,22 @@ export function useUpdateSettlementSettings() {
 }
 
 /**
- * Tenant flag `pagos_operadores_greenfield_v1`. Missing/error = OFF (as-is ADR-0085–0089).
+ * Tenant flag `pagos_operadores_greenfield_v1`.
+ *
+ * `enabled` solo describe la configuración ya cargada. Mientras `isReady` sea
+ * false no se conoce la política del tenant, así que quien dispare dinero
+ * (dispersar, pedir VoBo, crear anticipo) debe esperar en lugar de asumir OFF.
  */
 export function usePagosOperadoresGreenfield() {
   const query = useSettlementSettings();
-  const enabled = query.data?.pagosOperadoresGreenfieldV1 === true;
-  const thresholdMxn = query.data?.voboThresholdMxn ?? DEFAULT_VOBO_THRESHOLD_MXN;
+  const settings: TenantSettlementSettings | undefined = query.data;
 
   return {
-    enabled,
-    thresholdMxn,
+    enabled: settings?.pagosOperadoresGreenfieldV1 === true,
+    thresholdMxn: settings?.voboThresholdMxn ?? DEFAULT_VOBO_THRESHOLD_MXN,
+    isReady: query.isSuccess,
     isLoading: query.isLoading,
     isError: query.isError,
-    settings: query.data,
+    settings,
   };
 }

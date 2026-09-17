@@ -64,7 +64,11 @@ export function DriverAdvanceCreateDialog({
   const { toast } = useToast();
   const [apiError, setApiError] = useState<string | null>(null);
   const createMutation = useCreateDriverAdvance();
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
+  const {
+    enabled: greenfieldEnabled,
+    isReady: settingsReady,
+    isError: settingsError,
+  } = usePagosOperadoresGreenfield();
   const categoryOptions = greenfieldEnabled
     ? GREENFIELD_ADVANCE_CATEGORIES
     : (Object.keys(ADVANCE_CATEGORY_LABELS) as AdvanceCategory[]);
@@ -144,6 +148,15 @@ export function DriverAdvanceCreateDialog({
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{apiError}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {settingsError ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {settlementsCopy.toasts.settingsUnavailable}
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -306,7 +319,12 @@ export function DriverAdvanceCreateDialog({
             >
               {settlementsCopy.actions.cancel}
             </Button>
-            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
+            <Button
+              type="submit"
+              // Sin configuración cargada no se sabe qué categorías permite el
+              // tenant: se espera en lugar de crear un anticipo que el API rechace.
+              disabled={isSubmitting || createMutation.isPending || !settingsReady}
+            >
               {createMutation.isPending ? copy.saving : copy.save}
             </Button>
           </DialogFooter>
