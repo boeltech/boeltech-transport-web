@@ -139,8 +139,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 | Índice general | `D:\cowork\boeltech\erp-transport\docs\README.md` |
 | Design system | `...\docs\design-system\` + `...\planes\cerrados\propuesta-shells-ux-ui-erp-t.md` |
 | Wizards (alta) | `src/shared/ui/page-shells/README.md` · `...\docs\design-system\wizard-page-pattern.md` |
-| Mejoras UX/UI / copy | `.cursor/prompts/ux-ui-mejoras.md` |
-| Landing + login (look / motion / assets) | `.cursor/prompts/landing-visual-polish.md` |
+| Mejoras UX/UI / copy | capacidad `ux-ui-mejoras` (BLD) — ver **Capacidades Cursor** abajo |
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
 | Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |
 | Viajes — canvas de alta (ADR-0078, Aceptado · F0–F4) | `...\design\adr\0078-alta-viaje-canvas-completar-en-detalle.md` · addendum composer **Aceptado** (E1 web, sin API) · SDD `...\design\sdd\trip-canvas-intake\` |
@@ -163,4 +162,33 @@ Conventional Commits · ramas `feature/...`, `bugfix/...`.
 
 ## Cursor rules (versionadas en repo)
 Core en .cursor/rules/ (Cloud Agents las ven): `form-validation-ux`, `overlays-toast`, `sheet-from-menu-focus`, `frontend-api-env`, `database-timestamptz`, `cfdi-domain-adr-0043`.
-`plans/` y prompts locales siguen gitignored — no always-on.
+`.cursor/plans/` sigue gitignored — no always-on.
+
+## Capacidades Cursor (Software Factory)
+
+Los prompts de revisión, auditoría y planeación **ya no viven en este repo**. Fuente de verdad:
+
+`D:\boeltech\software-factory\factory\cursor-capabilities\` — catálogo en su `README.md`.
+
+Cada capacidad trae ficha de gobernanza: tag de capa (DOM/PLT/PRD/TEC/BLD/QA/REL), quién la
+activa y **techo de autoridad**. Las que tocan este repo: `ux-ui-mejoras` (BLD),
+`auditoria-design-system` (BLD), `auditoria-formularios` (BLD), `auditoria-codigo-seguridad` (TEC),
+`revision-diseno-producto` (PRD).
+
+Puntero local: `.cursor/prompts/README.md`. No copiar los prompts de vuelta aquí.
+
+### Roles invocables (subagentes)
+
+`/experto-transporte` · `/disenador-producto` · `/lider-tecnico` · `/qa` · `/arquitecto-saas` — los
+cinco son `readonly` (techo L1: revisan y dictaminan, no implementan). Orden de capas:
+`DOM → PRD → TEC → BLD`. En este repo `/disenador-producto` decide flujo, navegación y
+densidad **antes** de tocar UI.
+
+**`/frontend-senior`** es quien implementa (**L2 acotado**: escribe archivos, **no ejecuta
+git** — sin rama, sin commit, sin PR; el commit lo haces tú a mano), cargando la capacidad
+`ux-ui-mejoras` en modo `implementar`. No arranca sin handoff de PRD o TEC y pedido in scope
+— es el DoR de E5. Se le indica **una fase** y devuelve la lista de archivos tocados.
+
+Se definen en `D:\boeltech\software-factory\factory\agents\` y se materializan aquí con
+`software-factory\scripts\sync-agents.ps1`. **`.cursor/agents/` es generado y gitignored** —
+no editar a mano. Arrancan sin tu contexto: indícales el pedido (`pedidos/<slug>/PEDIDO.md`).

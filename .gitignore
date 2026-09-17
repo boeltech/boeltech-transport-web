@@ -40,6 +40,10 @@ skills-lock.json
 !.cursor/rules/frontend-api-env.mdc
 !.cursor/rules/database-timestamptz.mdc
 !.cursor/rules/cfdi-domain-adr-0043.mdc
+# Puntero a las capacidades en software-factory (los prompts ya no viven aquí)
+!.cursor/prompts/
+.cursor/prompts/*
+!.cursor/prompts/README.md
 # Local-only dev/demo routes (manual testing)
 src/pages/dev/
 
