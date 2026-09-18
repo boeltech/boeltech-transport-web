@@ -13,10 +13,9 @@ const mockApproveSettlement = vi.fn();
 const mockRejectSettlement = vi.fn();
 const mockSubmitSettlement = vi.fn();
 const mockCancelSettlement = vi.fn();
-const mockGreenfield = vi.fn(() => ({
-  enabled: false,
-  thresholdMxn: 5000,
-  isReady: true,
+const mockSettingsQuery = vi.fn(() => ({
+  data: { voboThresholdMxn: 0, activeApproverCount: 2, activeExecutorCount: 2 },
+  isSuccess: true,
   isLoading: false,
   isError: false,
 }));
@@ -34,8 +33,7 @@ vi.mock("@shared/hooks", () => ({
 }));
 
 vi.mock("../../application/hooks/useSettlementSettings", () => ({
-  usePagosOperadoresGreenfield: () => mockGreenfield(),
-  useSettlementSettings: () => ({ data: undefined, isLoading: false }),
+  useSettlementSettings: () => mockSettingsQuery(),
 }));
 
 vi.mock("../../infrastructure/settlementsApi", () => ({
@@ -101,10 +99,9 @@ const draftSettlement: DriverSettlement = {
 describe("SettlementActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGreenfield.mockReturnValue({
-      enabled: false,
-      thresholdMxn: 5000,
-      isReady: true,
+    mockSettingsQuery.mockReturnValue({
+      data: { voboThresholdMxn: 0, activeApproverCount: 2, activeExecutorCount: 2 },
+      isSuccess: true,
       isLoading: false,
       isError: false,
     });
@@ -136,7 +133,7 @@ describe("SettlementActions", () => {
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
     expect(screen.getByText("Autorizar")).toBeInTheDocument();
     expect(screen.getByText("Rechazar")).toBeInTheDocument();
-    expect(screen.queryByText("Enviar para autorización")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pedir VoBo")).not.toBeInTheDocument();
   });
 
   it("muestra badge de auto-aprobación cuando el usuario es el solicitante (H2)", async () => {
@@ -159,102 +156,93 @@ describe("SettlementActions", () => {
     expect(screen.queryByText("Autorizar")).not.toBeInTheDocument();
   });
 
-  it("variant=buttons muestra Autorizar/Rechazar cuando el revisor no es el solicitante", () => {
+  it("D3′: muestra Autorizar al maker cuando activeApproverCount === 1", async () => {
+    mockSettingsQuery.mockReturnValue({
+      data: { voboThresholdMxn: 0, activeApproverCount: 1, activeExecutorCount: 1 },
+      isSuccess: true,
+      isLoading: false,
+      isError: false,
+    });
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
+    });
+    const user = userEvent.setup();
     const queryClient = createTestQueryClient();
 
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <SettlementActions variant="buttons" settlement={sampleSettlement} />
+          <SettlementActions settlement={sampleSettlement} onView={vi.fn()} />
         </MemoryRouter>
       </QueryClientProvider>,
     );
 
-    expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Rechazar/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    expect(screen.getByText("Autorizar")).toBeInTheDocument();
+    expect(screen.getByText("Rechazar")).toBeInTheDocument();
+    expect(screen.queryByText("Auto-aprobación no permitida")).not.toBeInTheDocument();
   });
 
-  it("variant=buttons oculta Autorizar y muestra badge si self-submit (H2/H9)", () => {
+  it("D3′: muestra Registrar pago al maker cuando activeExecutorCount === 1", () => {
+    mockSettingsQuery.mockReturnValue({
+      data: { voboThresholdMxn: 0, activeApproverCount: 1, activeExecutorCount: 1 },
+      isSuccess: true,
+      isLoading: false,
+      isError: false,
+    });
     mockUseAuth.mockReturnValue({
       user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
     });
     const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions variant="buttons" settlement={sampleSettlement} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-
-    expect(screen.getByText("Auto-aprobación no permitida")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Autorizar/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Rechazar/i })).not.toBeInTheDocument();
-  });
-
-  it("variant=buttons muestra Registrar pago solo en approved + execute", () => {
-    const queryClient = createTestQueryClient();
-
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
           <SettlementActions
             variant="buttons"
-            settlement={{ ...sampleSettlement, status: "approved" }}
+            settlement={{
+              ...sampleSettlement,
+              status: "approved",
+              createdBy: "user-creator-123",
+              submittedBy: "user-creator-123",
+            }}
           />
         </MemoryRouter>
       </QueryClientProvider>,
     );
 
     expect(screen.getByRole("button", { name: /Registrar pago/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Autorizar/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Quien armó el corte no puede registrar el pago"),
+    ).not.toBeInTheDocument();
   });
 
-  it("draft muestra Enviar/Cancelar y no Rechazar (buttons)", () => {
+  it("muestra Pedir VoBo en borrador que lo requiere", () => {
     const queryClient = createTestQueryClient();
-
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <SettlementActions variant="buttons" settlement={draftSettlement} />
+          <SettlementActions
+            variant="buttons"
+            settlement={{
+              ...draftSettlement,
+              voboRequired: true,
+              createdBy: "user-creator-123",
+            }}
+          />
         </MemoryRouter>
       </QueryClientProvider>,
     );
 
-    expect(
-      screen.getByRole("button", { name: /Enviar para autorización/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Cancelar liquidación/i }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Rechazar$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Autorizar/i })).not.toBeInTheDocument();
-  });
-
-  it("draft sin permiso update oculta Enviar/Cancelar", () => {
-    mockUsePermissions.mockReturnValue({
-      hasPermission: vi.fn(() => false),
-    });
-    const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions variant="buttons" settlement={draftSettlement} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-
+    expect(screen.getByRole("button", { name: /Pedir VoBo/i })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Enviar para autorización/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Cancelar liquidación/i }),
+      screen.queryByRole("button", { name: /Registrar pago/i }),
     ).not.toBeInTheDocument();
   });
 
-  it("draft en menú muestra Enviar y Cancelar liquidación", async () => {
+  it("draft en menú muestra Pedir VoBo y Cancelar liquidación", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
 
@@ -267,183 +255,113 @@ describe("SettlementActions", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
-    expect(screen.getByText("Enviar para autorización")).toBeInTheDocument();
+    expect(screen.getByText("Pedir VoBo")).toBeInTheDocument();
     expect(screen.getByText("Cancelar liquidación")).toBeInTheDocument();
     expect(screen.queryByText("Rechazar")).not.toBeInTheDocument();
   });
 
-  describe("greenfield v1", () => {
-    beforeEach(() => {
-      mockGreenfield.mockReturnValue({
-        enabled: true,
-        thresholdMxn: 5000,
-        isReady: true,
-        isLoading: false,
-        isError: false,
-      });
+  it("oculta Registrar pago al maker en bypass (borrador sin VoBo)", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
     });
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SettlementActions
+            variant="buttons"
+            settlement={{
+              ...draftSettlement,
+              voboRequired: false,
+              createdBy: "user-creator-123",
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
 
-    it("muestra Pedir VoBo en borrador que lo requiere", () => {
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={{
-                ...draftSettlement,
-                voboRequired: true,
-                createdBy: "user-creator-123",
-              }}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
-
-      expect(screen.getByRole("button", { name: /Pedir VoBo/i })).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: /Enviar para autorización/i }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: /Registrar pago/i }),
-      ).not.toBeInTheDocument();
-    });
-
-    it("oculta Registrar pago al maker en bypass (borrador sin VoBo)", () => {
-      mockUseAuth.mockReturnValue({
-        user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-      });
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={{
-                ...draftSettlement,
-                voboRequired: false,
-                createdBy: "user-creator-123",
-              }}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
-
-      expect(screen.getByText("Quien armó el corte no puede registrar el pago")).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: /Registrar pago/i }),
-      ).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
-    });
-
-    it("permite Registrar pago desde borrador bypass si no es el maker", () => {
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={{
-                ...draftSettlement,
-                voboRequired: false,
-                createdBy: "user-creator-123",
-              }}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
-
-      expect(screen.getByRole("button", { name: /Registrar pago/i })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
-    });
-
-    it("oculta Registrar pago al maker en Autorizado", () => {
-      mockUseAuth.mockReturnValue({
-        user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-      });
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={{
-                ...sampleSettlement,
-                status: "approved",
-                createdBy: "user-creator-123",
-                submittedBy: "user-creator-123",
-              }}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
-
-      expect(screen.getByText("Quien armó el corte no puede registrar el pago")).toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: /Registrar pago/i }),
-      ).not.toBeInTheDocument();
-    });
+    expect(screen.getByText("Quien armó el corte no puede registrar el pago")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Registrar pago/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
   });
 
-  describe("H8: configuración de pagos sin cargar", () => {
-    it("bloquea Registrar pago y avisa cuando la lectura falló", () => {
-      mockGreenfield.mockReturnValue({
-        enabled: false,
-        thresholdMxn: 5000,
-        isReady: false,
-        isLoading: false,
-        isError: true,
-      });
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={{
-                ...sampleSettlement,
-                status: "approved",
-                createdBy: "user-creator-123",
-                submittedBy: "user-creator-123",
-              }}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
+  it("permite Registrar pago desde borrador bypass si no es el maker", () => {
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SettlementActions
+            variant="buttons"
+            settlement={{
+              ...draftSettlement,
+              voboRequired: false,
+              createdBy: "user-creator-123",
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
 
-      expect(
-        screen.queryByRole("button", { name: /Registrar pago/i }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByText(/No se pudo leer la configuración de pagos a operadores/i),
-      ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Registrar pago/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
+  });
+
+  it("oculta Registrar pago al maker en Autorizado", () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
     });
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SettlementActions
+            variant="buttons"
+            settlement={{
+              ...sampleSettlement,
+              status: "approved",
+              createdBy: "user-creator-123",
+              submittedBy: "user-creator-123",
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
 
-    it("no ofrece enviar a autorización mientras la configuración carga", () => {
-      mockGreenfield.mockReturnValue({
-        enabled: false,
-        thresholdMxn: 5000,
-        isReady: false,
-        isLoading: true,
-        isError: false,
-      });
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions variant="buttons" settlement={draftSettlement} />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
+    expect(screen.getByText("Quien armó el corte no puede registrar el pago")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Registrar pago/i }),
+    ).not.toBeInTheDocument();
+  });
 
-      expect(
-        screen.queryByRole("button", { name: /Enviar para autorización/i }),
-      ).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
-      // Cancelar no mueve dinero: sigue disponible.
-      expect(
-        screen.getByRole("button", { name: /Cancelar liquidación/i }),
-      ).toBeInTheDocument();
+  it("aviso de umbral no bloquea CTAs cuando falla la lectura de settings", () => {
+    mockSettingsQuery.mockReturnValue({
+      data: undefined,
+      isSuccess: false,
+      isLoading: false,
+      isError: true,
     });
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SettlementActions
+            variant="buttons"
+            settlement={{
+              ...sampleSettlement,
+              status: "approved",
+              createdBy: "user-creator-123",
+              submittedBy: "user-creator-123",
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: /Registrar pago/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/No se pudo leer la configuración de pagos a operadores/i),
+    ).toBeInTheDocument();
   });
 });

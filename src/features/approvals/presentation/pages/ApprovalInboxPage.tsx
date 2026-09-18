@@ -55,13 +55,14 @@ import {
 } from "../utils/approvalInboxFilters";
 import {
   formatApprovableApproveConfirmDescription,
-  isSelfSubmittedApproval,
+  blocksSelfSubmittedApproval,
 } from "../utils/approvalConfirmHelpers";
 import {
   mapApprovalWorkbenchBuckets,
   type ApprovalWorkbenchType,
 } from "../utils/mapApprovalWorkbenchBuckets";
 import { formatListingDateRangeLabel } from "@shared/ui/listing";
+import { useSettlementSettings } from "@features/settlements/application";
 
 const copy = approvalsCopy.inbox;
 const BULK_MAX = 50;
@@ -88,6 +89,8 @@ export function ApprovalInboxPage({
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("finance_approvals", "update");
   const currentUserId = user?.id;
+  const { data: settlementSettings } = useSettlementSettings();
+  const activeApproverCount = settlementSettings?.activeApproverCount;
   const [searchParams, setSearchParams] = useSearchParams();
   const defaultsAppliedRef = useRef(false);
 
@@ -447,7 +450,10 @@ export function ApprovalInboxPage({
 
   const handleToggleItem = useCallback(
     (item: ApprovableItem, checked: boolean) => {
-      if (checked && isSelfSubmittedApproval(item, currentUserId)) {
+      if (
+        checked &&
+        blocksSelfSubmittedApproval(item, currentUserId, { activeApproverCount })
+      ) {
         toast({
           title: copy.actions.selfApprovalNotAllowed,
           variant: "destructive",
@@ -468,7 +474,7 @@ export function ApprovalInboxPage({
         return next;
       });
     },
-    [toast, currentUserId],
+    [toast, currentUserId, activeApproverCount],
   );
 
   const handleToggleAll = useCallback(
@@ -481,12 +487,14 @@ export function ApprovalInboxPage({
         .filter(
           (item) =>
             isApprovableActionable(item) &&
-            !isSelfSubmittedApproval(item, currentUserId),
+            !blocksSelfSubmittedApproval(item, currentUserId, {
+              activeApproverCount,
+            }),
         )
         .slice(0, BULK_MAX);
       setSelectedIds(new Set(actionable.map((item) => item.id)));
     },
-    [items, currentUserId],
+    [items, currentUserId, activeApproverCount],
   );
 
   const handleApproveConfirm = useCallback(() => {
@@ -640,10 +648,15 @@ export function ApprovalInboxPage({
                 selectedIds={selectedIds}
                 canUpdate={canUpdate}
                 currentUserId={currentUserId}
+                activeApproverCount={activeApproverCount}
                 onToggleItem={handleToggleItem}
                 onToggleAll={handleToggleAll}
                 onApprove={(item) => {
-                  if (isSelfSubmittedApproval(item, currentUserId)) {
+                  if (
+                    blocksSelfSubmittedApproval(item, currentUserId, {
+                      activeApproverCount,
+                    })
+                  ) {
                     toast({
                       title: copy.actions.selfApprovalNotAllowed,
                       variant: "destructive",
@@ -653,7 +666,11 @@ export function ApprovalInboxPage({
                   setApproveTarget(item);
                 }}
                 onReject={(item) => {
-                  if (isSelfSubmittedApproval(item, currentUserId)) {
+                  if (
+                    blocksSelfSubmittedApproval(item, currentUserId, {
+                      activeApproverCount,
+                    })
+                  ) {
                     toast({
                       title: copy.actions.selfApprovalNotAllowed,
                       variant: "destructive",

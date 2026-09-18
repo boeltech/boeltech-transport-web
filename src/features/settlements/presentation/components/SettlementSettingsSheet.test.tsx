@@ -49,7 +49,11 @@ describe("SettlementSettingsSheet", () => {
     vi.clearAllMocks();
     mockMutateAsync.mockResolvedValue(undefined);
     mockUseSettlementSettings.mockReturnValue({
-      data: { voboThresholdMxn: 1500, pagosOperadoresGreenfieldV1: false },
+      data: {
+        voboThresholdMxn: 1500,
+        activeApproverCount: 2,
+        activeExecutorCount: 2,
+      },
       isLoading: false,
     });
   });
@@ -62,13 +66,13 @@ describe("SettlementSettingsSheet", () => {
     const threshold = screen.getByLabelText(copy.thresholdLabel) as HTMLInputElement;
     expect(Number(threshold.value.replace(/,/g, ""))).toBe(1500);
     expect(screen.getByText(copy.thresholdHint)).toBeInTheDocument();
+    expect(copy.thresholdHint).toMatch(/umbral 0/i);
   });
 
-  it("no ofrece ninguna forma de encender pagos_operadores_greenfield_v1", () => {
+  it("no ofrece toggle ni controles de feature flag retirado", () => {
     renderSheet();
 
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(document.getElementById("greenfield-flag")).toBeNull();
     expect(
       screen.queryByText(/Activar pagos a operadores/i),
     ).not.toBeInTheDocument();

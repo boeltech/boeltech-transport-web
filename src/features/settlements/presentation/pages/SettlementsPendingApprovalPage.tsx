@@ -6,7 +6,7 @@ import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { settlementsCopy } from "../copy/settlementsCopy";
-import { usePagosOperadoresGreenfield, useSettlements } from "../../application/hooks";
+import { useSettlements, useSettlementSettings } from "../../application/hooks";
 import { settlementDetailPath } from "../../application/settlementsRoutes";
 import {
   SettlementCard,
@@ -22,8 +22,12 @@ export function SettlementsPendingApprovalPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
   const canUpdate = hasPermission("settlements", "update");
+  const { data: settings } = useSettlementSettings();
+  const pendingEmptyDescription =
+    settings?.activeApproverCount === 1
+      ? hubCopy.pendingApprovalEmptyDescriptionSingle
+      : hubCopy.pendingApprovalEmptyDescription;
 
   const filters = useListingFilters<"employeeId">({
     filters: { employeeId: {} },
@@ -66,9 +70,9 @@ export function SettlementsPendingApprovalPage() {
 
   return (
     <ListPageShell
-      showHeader={!greenfieldEnabled}
+      showHeader={false}
       title={hubCopy.tabs.porAutorizar}
-      description={hubCopy.pendingApprovalEmptyDescription}
+      description={pendingEmptyDescription}
       items={settlements as DriverSettlement[]}
       isLoading={isLoading}
       pagination={pagination}
@@ -77,7 +81,7 @@ export function SettlementsPendingApprovalPage() {
       emptyState={{
         icon: <ClipboardCheck className="h-8 w-8 text-muted-foreground" />,
         title: hubCopy.pendingApprovalEmptyTitle,
-        description: hubCopy.pendingApprovalEmptyDescription,
+        description: pendingEmptyDescription,
       }}
       toolbar={{
         search: {
@@ -109,7 +113,7 @@ export function SettlementsPendingApprovalPage() {
           isLoading={isLoading}
           onView={handleView}
           onActionComplete={() => void refetch()}
-          approvalLinkOnly={!canUpdate || !greenfieldEnabled}
+          approvalLinkOnly={!canUpdate}
           emptyMessage={hubCopy.pendingApprovalEmptyDescription}
           columnMode="pipeline"
         />
@@ -121,7 +125,7 @@ export function SettlementsPendingApprovalPage() {
             settlement={settlement}
             onView={handleView}
             onActionComplete={() => void refetch()}
-            approvalLinkOnly={!canUpdate || !greenfieldEnabled}
+            approvalLinkOnly={!canUpdate}
           />
         ))
       }

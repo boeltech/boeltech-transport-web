@@ -20,7 +20,6 @@ import {
   resolveOperatorPaymentsHubTab,
   settlementCreatePath,
 } from "../../application/settlementsRoutes";
-import { usePagosOperadoresGreenfield } from "../../application/hooks";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { SettlementSettingsSheet } from "./SettlementSettingsSheet";
 
@@ -31,7 +30,6 @@ export function OperatorPaymentsHubLayout() {
   const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
   const canCreate = hasPermission("settlements", "create");
   // Lockstep con PATCH /settlements/settings: política de dinero solo para admin,
   // no para todo el que puede editar liquidaciones.
@@ -51,10 +49,6 @@ export function OperatorPaymentsHubLayout() {
     () => ({ setCreateAction: handleSetCreateAction }),
     [handleSetCreateAction],
   );
-
-  if (!greenfieldEnabled) {
-    return <Outlet />;
-  }
 
   const activeTab = resolveOperatorPaymentsHubTab(pathname);
   const porPagarCreate =

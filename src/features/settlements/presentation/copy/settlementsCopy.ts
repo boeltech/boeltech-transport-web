@@ -1,7 +1,7 @@
 export const settlementsCopy = {
-  title: "Pagos a Operadores",
+  title: "Pagos a operadores",
   description:
-    "Calcula y registra los pagos a choferes por sus viajes, descuenta anticipos y lleva el control hasta la transferencia.",
+    "Arma el corte, pide VoBo cuando aplica y registra el pago al operador.",
   hub: {
     title: "Pagos a operadores",
     description:
@@ -11,7 +11,7 @@ export const settlementsCopy = {
     tabs: {
       porPagar: "Por pagar",
       porAutorizar: "Por autorizar",
-      adelantos: "Adelantos",
+      adelantos: "Anticipos",
       comoTePago: "Cómo te pago",
       tablaRutas: "Tabla de rutas",
     },
@@ -19,13 +19,15 @@ export const settlementsCopy = {
     pendingApprovalEmptyTitle: "Nada por autorizar",
     pendingApprovalEmptyDescription:
       "Cuando un corte requiera VoBo, aparecerá aquí para que lo autorice alguien distinto de quien lo armó.",
+    pendingApprovalEmptyDescriptionSingle:
+      "Cuando un corte requiera VoBo, aparecerá aquí. Eres el único autorizador activo: podrás autorizarlo tú mismo (queda evidencia).",
     settings: {
       title: "Configuración de pagos a operadores",
       description:
         "Umbral de VoBo. El API aplica las reglas; esta pantalla solo las configura.",
       thresholdLabel: "Umbral de VoBo (MXN)",
       thresholdHint:
-        "Si el neto del corte es igual o mayor a este monto, o hay ajustes manuales, se exige VoBo.",
+        "Con umbral 0 (valor por defecto) todo corte con neto ≥ $0 exige VoBo hasta que un admin lo suba. Si el neto es igual o mayor a este monto, o hay ajustes manuales, se exige autorización.",
       save: "Guardar",
       saving: "Guardando…",
       success: "Configuración actualizada",
@@ -420,6 +422,12 @@ export const settlementsCopy = {
       pendingDisbursement: "Pendiente de pago",
       notDisbursed: "Sin pago",
       notApproved: "Sin autorizar",
+      selfSegregatedApproval: "Autorizado en modo un solo responsable",
+      selfSegregatedApprovalCount: (count: number) =>
+        `Autorizado en modo un solo responsable (${count} autorizador al momento)`,
+      selfSegregatedDisbursement: "Pago registrado en modo un solo responsable",
+      selfSegregatedDisbursementCount: (count: number) =>
+        `Pago registrado en modo un solo responsable (${count} ejecutor al momento)`,
     },
     paymentInfo: {
       title: "Pago registrado",
@@ -575,8 +583,12 @@ export const settlementsCopy = {
       pedirVoboBtn: "Pedir VoBo",
       submitApprovalSegregationHint:
         "Otro usuario con permiso de autorizar en Finanzas debe revisar esta liquidación.",
+      submitApprovalSegregationHintSingle:
+        "Eres el único autorizador activo: podrás autorizar este corte (queda evidencia de un solo responsable).",
       bypassDraftHint:
         "El neto está bajo el umbral y no hay ajustes: se guarda en borrador. Quien armó el corte no puede registrar el pago; otro usuario con permiso de ejecutar lo hace.",
+      bypassDraftHintSingle:
+        "El neto está bajo el umbral y no hay ajustes: se guarda en borrador. Eres el único ejecutor activo: podrás registrar el pago (queda evidencia).",
       commercialFreightHint:
         "El % sobre flete usa el monto comercial al completar el viaje, no el CFDI timbrado.",
       reservedAdvanceHint: "Reservado en un corte pendiente; se aplica al pagar.",
@@ -684,10 +696,8 @@ export const settlementsCopy = {
   },
   advancesDialog: {
     title: "Registrar anticipo a operador",
-    loanTitle: "Registrar préstamo a operador",
-    description: "Captura los datos del anticipo de viaje o viáticos entregados al operador.",
-    loanDescription:
-      "En esta versión solo se registran préstamos. El saldo se reserva al pedir VoBo o al pagar, y se aplica cuando el corte queda pagado.",
+    description:
+      "Captura el anticipo (viaje, combustible, préstamo u otra categoría). El saldo se reserva al autorizar o entregar y se descuenta en la liquidación.",
     employeeLabel: "Operador / Empleado *",
     employeePlaceholder: "Seleccionar operador",
     amountLabel: "Monto ($) *",

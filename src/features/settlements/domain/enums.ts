@@ -90,9 +90,6 @@ export const ADVANCE_CATEGORY_LABELS: Record<AdvanceCategory, string> = {
   loan: "Préstamo",
 };
 
-/** Greenfield v1 loan-only create. */
-export const GREENFIELD_ADVANCE_CATEGORIES: readonly AdvanceCategory[] = ["loan"];
-
 export type MidTripPayoutPolicy =
   | "split_by_assigned_km"
   | "equal_parts"
@@ -109,10 +106,8 @@ export const MID_TRIP_PAYOUT_POLICY_LABELS: Record<MidTripPayoutPolicy, string> 
 export const DEFAULT_MID_TRIP_PAYOUT_POLICY: MidTripPayoutPolicy =
   "split_by_assigned_km";
 
-export const DEFAULT_VOBO_THRESHOLD_MXN = 5000;
-
-export const PAGOS_OPERADORES_GREENFIELD_FLAG =
-  "pagos_operadores_greenfield_v1" as const;
+/** D13 — VoBo por defecto desde el primer peso. */
+export const DEFAULT_VOBO_THRESHOLD_MXN = 0;
 
 export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
   fuel: "Combustible",

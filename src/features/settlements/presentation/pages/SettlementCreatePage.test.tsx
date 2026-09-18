@@ -168,8 +168,9 @@ describe("SettlementCreatePage Component", () => {
     mockCreateSettlement.mockResolvedValue({ id: "settlement-new-1" });
     mockListAssignments.mockResolvedValue({ data: [], pagination: { total: 0, page: 1, pageSize: 100, totalPages: 0 } });
     mockGetSettings.mockResolvedValue({
-      pagosOperadoresGreenfieldV1: false,
-      voboThresholdMxn: 5000,
+      voboThresholdMxn: 0,
+      activeApproverCount: 2,
+      activeExecutorCount: 2,
     });
   });
 
@@ -218,10 +219,10 @@ describe("SettlementCreatePage Component", () => {
     expect(screen.getAllByText("$5,300.00").length).toBeGreaterThanOrEqual(1);
 
     // Abrir diálogo mínimo de confirmación
-    const submitBtn = screen.getByRole("button", { name: /Enviar para autorización/i });
+    const submitBtn = screen.getByRole("button", { name: /Pedir VoBo/i });
     await user.click(submitBtn);
 
-    expect(screen.getByRole("heading", { name: /¿Confirmar y enviar\?/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /¿Pedir VoBo\?/i })).toBeInTheDocument();
     expect(screen.getAllByText(/^A pagar$/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Percepciones brutas:/i)).not.toBeInTheDocument();
 
@@ -322,7 +323,7 @@ describe("SettlementCreatePage Component", () => {
       screen.getByRole("link", { name: /Ir a esquemas de compensación/i }),
     ).toBeInTheDocument();
 
-    const submitBtn = screen.getByRole("button", { name: /Enviar para autorización/i });
+    const submitBtn = screen.getByRole("button", { name: /Pedir VoBo/i });
     expect(submitBtn).toBeDisabled();
     expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeDisabled();
   });
@@ -424,10 +425,11 @@ describe("SettlementCreatePage Component", () => {
     expect(screen.getAllByText("$1,200.00").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("con flag greenfield ON y neto sobre umbral muestra Pedir VoBo (no Registrar pago)", async () => {
+  it("con neto sobre umbral muestra Pedir VoBo (no Registrar pago)", async () => {
     mockGetSettings.mockResolvedValue({
-      pagosOperadoresGreenfieldV1: true,
       voboThresholdMxn: 5000,
+      activeApproverCount: 2,
+      activeExecutorCount: 2,
     });
     const queryClient = createTestQueryClient();
     render(
@@ -451,10 +453,11 @@ describe("SettlementCreatePage Component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("con flag greenfield ON y neto bajo umbral solo ofrece Guardar borrador", async () => {
+  it("con neto bajo umbral solo ofrece Guardar borrador", async () => {
     mockGetSettings.mockResolvedValue({
-      pagosOperadoresGreenfieldV1: true,
       voboThresholdMxn: 5000,
+      activeApproverCount: 2,
+      activeExecutorCount: 2,
     });
     mockPreviewSettlement.mockResolvedValue({
       ...mockPreview,

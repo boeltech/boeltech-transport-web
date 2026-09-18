@@ -2,7 +2,7 @@ import { DEFAULT_VOBO_THRESHOLD_MXN } from "../../domain/enums";
 import type { DriverSettlement } from "../../domain/entities";
 
 /**
- * Display gating aligned with API #32 `isVoboRequired`.
+ * Display gating aligned with API `isVoboRequired`.
  * API remains the source of truth; this only picks CTAs before persist.
  */
 export function isVoboRequiredForPreview(input: {
@@ -15,13 +15,13 @@ export function isVoboRequiredForPreview(input: {
   return input.netAmount >= threshold;
 }
 
-export type GreenfieldCreateCta = "pedir_vobo" | "guardar_borrador";
+export type SettlementCreateCta = "pedir_vobo" | "guardar_borrador";
 
-export function resolveGreenfieldCreateCta(input: {
+export function resolveCreateCta(input: {
   netAmount: number;
   hasManualAdjustments: boolean;
   thresholdMxn?: number;
-}): GreenfieldCreateCta {
+}): SettlementCreateCta {
   return isVoboRequiredForPreview(input) ? "pedir_vobo" : "guardar_borrador";
 }
 
@@ -51,16 +51,62 @@ export function isSettlementMaker(
   return settlement.createdBy === userId || settlement.submittedBy === userId;
 }
 
-export function canDisburseGreenfield(input: {
+/** D3′: un solo autorizador activo puede autorizar/rechazar aunque sea maker. */
+export function allowsMakerAsApprover(
+  activeApproverCount: number | null | undefined,
+): boolean {
+  return activeApproverCount === 1;
+}
+
+/** D3′: un solo ejecutor activo puede registrar el pago aunque sea maker. */
+export function allowsMakerAsExecutor(
+  activeExecutorCount: number | null | undefined,
+): boolean {
+  return activeExecutorCount === 1;
+}
+
+export function canApproveSettlement(input: {
+  settlement: Pick<DriverSettlement, "status" | "createdBy" | "submittedBy">;
+  userId: string | null | undefined;
+  canUpdate: boolean;
+  activeApproverCount?: number | null;
+}): boolean {
+  if (!input.canUpdate) return false;
+  if (input.settlement.status !== "pending_approval") return false;
+  if (
+    isSettlementMaker(input.settlement, input.userId) &&
+    !allowsMakerAsApprover(input.activeApproverCount)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function canRejectSettlement(input: {
+  settlement: Pick<DriverSettlement, "status" | "createdBy" | "submittedBy">;
+  userId: string | null | undefined;
+  canUpdate: boolean;
+  activeApproverCount?: number | null;
+}): boolean {
+  return canApproveSettlement(input);
+}
+
+export function canDisburse(input: {
   settlement: Pick<
     DriverSettlement,
     "status" | "voboRequired" | "createdBy" | "submittedBy"
   >;
   userId: string | null | undefined;
   canExecute: boolean;
+  activeExecutorCount?: number | null;
 }): boolean {
   if (!input.canExecute) return false;
-  if (isSettlementMaker(input.settlement, input.userId)) return false;
+  if (
+    isSettlementMaker(input.settlement, input.userId) &&
+    !allowsMakerAsExecutor(input.activeExecutorCount)
+  ) {
+    return false;
+  }
 
   const { status, voboRequired } = input.settlement;
   if (status === "approved") return true;
@@ -68,7 +114,7 @@ export function canDisburseGreenfield(input: {
   return false;
 }
 
-export function canSubmitGreenfieldVobo(input: {
+export function canSubmitVobo(input: {
   settlement: Pick<DriverSettlement, "status" | "voboRequired">;
   canUpdate: boolean;
 }): boolean {

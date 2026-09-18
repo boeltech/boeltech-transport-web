@@ -20,7 +20,6 @@ import { useNavigate } from "react-router-dom";
 import { FileText, Route } from "lucide-react";
 
 import { useNavigation } from "@widgets/sidebar";
-import { usePagosOperadoresGreenfield } from "@features/settlements/application/hooks/useSettlementSettings";
 import { useDebounce } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { useTrips } from "@features/trips";
@@ -51,8 +50,7 @@ export function GlobalCommandMenu({
   onOpenChange,
 }: GlobalCommandMenuProps) {
   const navigate = useNavigate();
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
-  const { navigation } = useNavigation(greenfieldEnabled);
+  const { navigation } = useNavigation();
   const { hasPermission } = usePermissions();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);

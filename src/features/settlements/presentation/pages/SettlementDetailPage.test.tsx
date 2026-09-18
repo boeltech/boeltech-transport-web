@@ -40,8 +40,9 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
     rejectSettlement: vi.fn(),
     disburseSettlement: vi.fn(),
     getSettings: vi.fn().mockResolvedValue({
-      pagosOperadoresGreenfieldV1: false,
-      voboThresholdMxn: 5000,
+      voboThresholdMxn: 0,
+      activeApproverCount: 2,
+      activeExecutorCount: 2,
     }),
   },
 }));
@@ -199,5 +200,47 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     });
 
     expect(screen.queryByText("Ana Capataz")).not.toBeInTheDocument();
+  });
+
+  it("D3′: muestra evidencia self-segregated en el timeline", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "disbursed",
+      approvedAt: "2026-09-16T11:00:00Z",
+      approvedBy: "user-solo",
+      approvedByName: "Admin Único",
+      disbursedAt: "2026-09-16T12:00:00Z",
+      disbursedBy: "user-solo",
+      disbursedByName: "Admin Único",
+      disbursementMethod: "bank_transfer",
+      disbursementReference: "SPEI-9",
+      selfSegregatedApproval: true,
+      approverCountAtApprove: 1,
+      selfSegregatedDisbursement: true,
+      executorCountAtDisburse: 1,
+    });
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+          <Routes>
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(/Autorizado en modo un solo responsable/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Pago registrado en modo un solo responsable/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Auto-aprobación no permitida/i)).not.toBeInTheDocument();
   });
 });

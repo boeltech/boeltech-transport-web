@@ -40,12 +40,10 @@ import {
 import {
   ADVANCE_CATEGORY_LABELS,
   DISBURSEMENT_METHOD_LABELS,
-  GREENFIELD_ADVANCE_CATEGORIES,
   type AdvanceCategory,
   type DisbursementMethod,
 } from "../../domain/enums";
 import { settlementsCopy } from "../copy/settlementsCopy";
-import { usePagosOperadoresGreenfield } from "../../application/hooks";
 
 interface DriverAdvanceCreateDialogProps {
   open: boolean;
@@ -53,6 +51,8 @@ interface DriverAdvanceCreateDialogProps {
   defaultEmployeeId?: string;
   onSuccess?: () => void;
 }
+
+const CATEGORY_OPTIONS = Object.keys(ADVANCE_CATEGORY_LABELS) as AdvanceCategory[];
 
 export function DriverAdvanceCreateDialog({
   open,
@@ -64,14 +64,6 @@ export function DriverAdvanceCreateDialog({
   const { toast } = useToast();
   const [apiError, setApiError] = useState<string | null>(null);
   const createMutation = useCreateDriverAdvance();
-  const {
-    enabled: greenfieldEnabled,
-    isReady: settingsReady,
-    isError: settingsError,
-  } = usePagosOperadoresGreenfield();
-  const categoryOptions = greenfieldEnabled
-    ? GREENFIELD_ADVANCE_CATEGORIES
-    : (Object.keys(ADVANCE_CATEGORY_LABELS) as AdvanceCategory[]);
 
   const {
     register,
@@ -87,7 +79,7 @@ export function DriverAdvanceCreateDialog({
       employeeId: defaultEmployeeId ?? "",
       amount: undefined,
       currency: "MXN",
-      category: greenfieldEnabled ? "loan" : "travel_advance",
+      category: "travel_advance",
       paymentMethod: "bank_transfer",
       bankReference: "",
       submitForApproval: true,
@@ -105,7 +97,7 @@ export function DriverAdvanceCreateDialog({
         employeeId: defaultEmployeeId ?? "",
         amount: undefined,
         currency: "MXN",
-        category: greenfieldEnabled ? "loan" : "travel_advance",
+        category: "travel_advance",
         paymentMethod: "bank_transfer",
         bankReference: "",
         submitForApproval: true,
@@ -113,7 +105,7 @@ export function DriverAdvanceCreateDialog({
         tripId: "",
       } as unknown as DriverAdvanceFormData);
     }
-  }, [open, defaultEmployeeId, reset, greenfieldEnabled]);
+  }, [open, defaultEmployeeId, reset]);
 
   const onSubmit = async (data: DriverAdvanceFormData) => {
     try {
@@ -136,27 +128,14 @@ export function DriverAdvanceCreateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {greenfieldEnabled ? copy.loanTitle : copy.title}
-          </DialogTitle>
-          <DialogDescription>
-            {greenfieldEnabled ? copy.loanDescription : copy.description}
-          </DialogDescription>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
         {apiError ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{apiError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {settingsError ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {settlementsCopy.toasts.settingsUnavailable}
-            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -212,7 +191,6 @@ export function DriverAdvanceCreateDialog({
                 onValueChange={(val) =>
                   setValue("category", val as AdvanceCategory, { shouldValidate: true })
                 }
-                disabled={greenfieldEnabled}
               >
                 <SelectTrigger
                   id="adv-category"
@@ -221,13 +199,11 @@ export function DriverAdvanceCreateDialog({
                   <SelectValue placeholder={copy.categoryPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {(categoryOptions).map(
-                    (cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {ADVANCE_CATEGORY_LABELS[cat]}
-                      </SelectItem>
-                    ),
-                  )}
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {ADVANCE_CATEGORY_LABELS[cat]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FieldInlineError fieldId="adv-category" message={errors.category?.message} />
@@ -276,7 +252,6 @@ export function DriverAdvanceCreateDialog({
             </div>
           </div>
 
-          {/* CHECKBOX ENVIAR DIRECTAMENTE A AUTORIZACIÓN (ADR-0086) */}
           <div className="rounded-md border bg-muted/20 p-3 flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="adv-submit-for-approval" className="text-xs font-semibold cursor-pointer">
@@ -321,9 +296,7 @@ export function DriverAdvanceCreateDialog({
             </Button>
             <Button
               type="submit"
-              // Sin configuración cargada no se sabe qué categorías permite el
-              // tenant: se espera en lugar de crear un anticipo que el API rechace.
-              disabled={isSubmitting || createMutation.isPending || !settingsReady}
+              disabled={isSubmitting || createMutation.isPending}
             >
               {createMutation.isPending ? copy.saving : copy.save}
             </Button>

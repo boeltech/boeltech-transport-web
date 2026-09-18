@@ -11,7 +11,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import type { ApprovableItem } from "../../domain";
 import { isApprovableActionable } from "../../domain";
 import { approvalsCopy } from "../copy/approvalsCopy";
-import { isSelfSubmittedApproval } from "../utils/approvalConfirmHelpers";
+import { blocksSelfSubmittedApproval } from "../utils/approvalConfirmHelpers";
 import { ApprovalRow } from "./ApprovalRow";
 
 const copy = approvalsCopy.inbox.table;
@@ -35,6 +35,11 @@ export interface ApprovalInboxProps {
   canUpdate: boolean;
   /** Usuario actual — excluye self-approval del checkbox y acciones. */
   currentUserId?: string | null;
+  /**
+   * Conteos live de autorizadores (settlements settings). Permite D3′ en
+   * `internal_staff_compensation` cuando === 1.
+   */
+  activeApproverCount?: number | null;
   onToggleItem: (item: ApprovableItem, checked: boolean) => void;
   onToggleAll: (checked: boolean) => void;
   onApprove: (item: ApprovableItem) => void;
@@ -46,11 +51,12 @@ function canActOnItem(
   item: ApprovableItem,
   canUpdate: boolean,
   currentUserId?: string | null,
+  activeApproverCount?: number | null,
 ): boolean {
   return (
     canUpdate &&
     isApprovableActionable(item) &&
-    !isSelfSubmittedApproval(item, currentUserId)
+    !blocksSelfSubmittedApproval(item, currentUserId, { activeApproverCount })
   );
 }
 
@@ -60,6 +66,7 @@ export function ApprovalInbox({
   selectedIds,
   canUpdate,
   currentUserId,
+  activeApproverCount,
   onToggleItem,
   onToggleAll,
   onApprove,
@@ -67,7 +74,7 @@ export function ApprovalInbox({
   maxSelection = 50,
 }: ApprovalInboxProps) {
   const selectableItems = items.filter((item) =>
-    canActOnItem(item, canUpdate, currentUserId),
+    canActOnItem(item, canUpdate, currentUserId, activeApproverCount),
   );
   const allSelected =
     selectableItems.length > 0 &&
@@ -125,7 +132,12 @@ export function ApprovalInbox({
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const actionable = canActOnItem(item, canUpdate, currentUserId);
+            const actionable = canActOnItem(
+              item,
+              canUpdate,
+              currentUserId,
+              activeApproverCount,
+            );
             const selectable =
               actionable &&
               (selectedIds.has(item.id) || selectedIds.size < maxSelection);

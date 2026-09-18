@@ -368,6 +368,15 @@ export function SettlementDetailPage() {
                             ? formatDate(settlement.approvedAt)
                             : dCopy.workflow.notApproved}
                         </p>
+                        {settlement.selfSegregatedApproval ? (
+                          <p className="text-[10px] text-muted-foreground italic mt-0.5">
+                            {settlement.approverCountAtApprove != null
+                              ? dCopy.workflow.selfSegregatedApprovalCount(
+                                  settlement.approverCountAtApprove,
+                                )
+                              : dCopy.workflow.selfSegregatedApproval}
+                          </p>
+                        ) : null}
                       </li>
 
                       <li className="relative">
@@ -403,6 +412,15 @@ export function SettlementDetailPage() {
                                 {settlement.disbursementReference ?? "—"}
                               </span>
                             </p>
+                            {settlement.selfSegregatedDisbursement ? (
+                              <p className="text-[10px] text-muted-foreground italic">
+                                {settlement.executorCountAtDisburse != null
+                                  ? dCopy.workflow.selfSegregatedDisbursementCount(
+                                      settlement.executorCountAtDisburse,
+                                    )
+                                  : dCopy.workflow.selfSegregatedDisbursement}
+                              </p>
+                            ) : null}
                           </div>
                         ) : (
                           <>

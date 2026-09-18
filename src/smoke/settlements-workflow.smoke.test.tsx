@@ -18,6 +18,7 @@ import { TooltipProvider } from "@shared/ui/tooltip";
 import { SettlementsListPage } from "@features/settlements/presentation/pages/SettlementsListPage";
 import { SettlementsRegistryPage } from "@features/settlements/presentation/pages/SettlementsRegistryPage";
 import { SettlementsAdvancesPage } from "@features/settlements/presentation/pages/SettlementsAdvancesPage";
+import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
 import { AgreementsLegacyRedirect } from "@features/compensation/presentation/routes/AgreementsLegacyRedirect";
 import { SettlementCreatePage } from "@features/settlements/presentation/pages/SettlementCreatePage";
 import { SettlementDetailPage } from "@features/settlements/presentation/pages/SettlementDetailPage";
@@ -84,8 +85,9 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     deleteAgreement: (...args: unknown[]) => mockDeleteAgreement(...args),
     getWorkbench: (...args: unknown[]) => mockGetWorkbench(...args),
     getSettings: vi.fn().mockResolvedValue({
-      pagosOperadoresGreenfieldV1: false,
-      voboThresholdMxn: 5000,
+      voboThresholdMxn: 0,
+      activeApproverCount: 1,
+      activeExecutorCount: 1,
     }),
     updateSettings: vi.fn(),
   },
@@ -555,10 +557,12 @@ expect(screen.getByText("Anticipos")).toBeInTheDocument();
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={["/finance/settlements/advances"]}>
           <Routes>
-            <Route
-              path="/finance/settlements/advances"
-              element={<SettlementsAdvancesPage />}
-            />
+            <Route element={<OperatorPaymentsHubLayout />}>
+              <Route
+                path="/finance/settlements/advances"
+                element={<SettlementsAdvancesPage />}
+              />
+            </Route>
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -566,11 +570,11 @@ expect(screen.getByText("Anticipos")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: /Anticipos pendientes/i }),
+        screen.getByRole("heading", { name: /Pagos a operadores/i }),
       ).toBeInTheDocument();
     });
 
-    // Click en Registrar anticipo
+    // Click en Registrar anticipo (CTA del hub)
     const createBtn = screen.getByRole("button", { name: /Registrar anticipo/i });
     await user.click(createBtn);
 

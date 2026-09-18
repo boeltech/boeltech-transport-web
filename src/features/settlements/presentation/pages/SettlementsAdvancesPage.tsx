@@ -1,14 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Download, Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { settlementsCopy } from "../copy/settlementsCopy";
-import { useDriverAdvances, usePagosOperadoresGreenfield } from "../../application/hooks";
-import { SETTLEMENTS_LIST_PATH } from "../../application/settlementsRoutes";
+import { useDriverAdvances } from "../../application/hooks";
 import {
   DriverAdvancesTable,
   DriverAdvanceCard,
@@ -19,7 +17,6 @@ import { exportDriverAdvancesCsv } from "../utils/settlementExportHelpers";
 import { useRegisterCompensationHubCreateAction } from "@features/compensation/presentation/hooks/useRegisterCompensationHubCreateAction";
 
 const copy = settlementsCopy;
-const workbenchCopy = settlementsCopy.workbench;
 
 /**
  * Gestión de anticipos — ListPageShell (ADR-0090 Fase 2; fuera del workbench).
@@ -32,16 +29,15 @@ export function SettlementsAdvancesPage() {
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
   const canExport = hasPermission("settlements", "read");
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
 
   const openCreate = useCallback(() => setAdvanceDialogOpen(true), []);
   const hubCreateAction = useMemo(
     () =>
-      canCreate && greenfieldEnabled
+      canCreate
         ? { label: copy.actions.createAdvance, onClick: openCreate }
         : null,
-    [canCreate, greenfieldEnabled, openCreate],
+    [canCreate, openCreate],
   );
   useRegisterCompensationHubCreateAction(hubCreateAction);
 
@@ -107,7 +103,7 @@ export function SettlementsAdvancesPage() {
   return (
     <>
       <ListPageShell
-        showHeader={!greenfieldEnabled}
+        showHeader={false}
         title={copy.tabs.advances}
         description="Anticipos en gestión: por autorizar, por entregar o con saldo pendiente de descontar."
         primaryAction={
@@ -144,16 +140,6 @@ export function SettlementsAdvancesPage() {
               }
             : undefined,
         }}
-        beforeToolbar={
-          greenfieldEnabled ? undefined : (
-          <Button asChild type="button" variant="link" size="sm" className="h-auto px-0">
-            <Link to={SETTLEMENTS_LIST_PATH}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              {workbenchCopy.actions.backToWorkbench}
-            </Link>
-          </Button>
-          )
-        }
         toolbar={{
           search: {
             ...filters.searchProps,

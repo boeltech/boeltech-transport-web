@@ -72,7 +72,6 @@ export const settlementsApi = {
 
   updateSettings: async (payload: {
     voboThresholdMxn?: number;
-    pagosOperadoresGreenfieldV1?: boolean;
   }): Promise<TenantSettlementSettings> => {
     const response = await apiClient.patch<ApiSingleResponse<ApiTenantSettlementSettingsRaw>>(
       `${BASE_ENDPOINT}/settings`,

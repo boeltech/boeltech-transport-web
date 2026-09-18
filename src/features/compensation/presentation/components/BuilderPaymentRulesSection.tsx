@@ -2,7 +2,6 @@ import type { UseCompensationTemplateFormResult } from "../hooks/useCompensation
 import { compensationCopy } from "../copy/compensationCopy";
 import { TemplateRulesSection } from "./TemplateRulesSection";
 import { RHFSelectField } from "@shared/ui/form";
-import { usePagosOperadoresGreenfield } from "@features/settlements/application/hooks/useSettlementSettings";
 import { MID_TRIP_PAYOUT_POLICY_LABELS } from "@features/settlements/domain/enums";
 
 const copy = compensationCopy.builder;
@@ -23,21 +22,17 @@ export function BuilderPaymentRulesSection({
   removeRule,
   watchedRules,
 }: BuilderPaymentRulesSectionProps) {
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
-
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{copy.paymentDescription}</p>
-      {greenfieldEnabled ? (
-        <RHFSelectField
-          control={form.control}
-          name="midTripPayoutPolicy"
-          label={copy.midTripPolicyLabel}
-          description={copy.midTripPolicyHint}
-          options={MID_TRIP_OPTIONS}
-          fieldId="mid-trip-payout-policy"
-        />
-      ) : null}
+      <RHFSelectField
+        control={form.control}
+        name="midTripPayoutPolicy"
+        label={copy.midTripPolicyLabel}
+        description={copy.midTripPolicyHint}
+        options={MID_TRIP_OPTIONS}
+        fieldId="mid-trip-payout-policy"
+      />
       <TemplateRulesSection
         control={form.control}
         ruleFields={ruleFields}

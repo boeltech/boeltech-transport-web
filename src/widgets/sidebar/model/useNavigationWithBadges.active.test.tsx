@@ -19,18 +19,9 @@ vi.mock("@/shared/permissions", async (importOriginal) => ({
 }));
 
 const pendingCount = vi.fn(() => ({ data: 3 }));
-const greenfieldState = {
-  enabled: false,
-  thresholdMxn: 5000,
-  isLoading: false,
-};
 
 vi.mock("@features/approvals", () => ({
   usePendingApprovalsCount: () => pendingCount(),
-}));
-
-vi.mock("@features/settlements/application/hooks/useSettlementSettings", () => ({
-  usePagosOperadoresGreenfield: () => greenfieldState,
 }));
 
 function renderNavigation(initialEntry: string) {
@@ -50,11 +41,10 @@ function itemById(
 
 describe("useNavigationWithBadges", () => {
   beforeEach(() => {
-    greenfieldState.enabled = false;
+    pendingCount.mockReturnValue({ data: 3 });
   });
 
-  it("relabels Pagos a operadores and hides Esquemas when the tenant flag is on", () => {
-    greenfieldState.enabled = true;
+  it("relabels Pagos a operadores and hides Esquemas (D-P1 hub always)", () => {
     const { result } = renderNavigation("/finance/settlements");
     const settlements = itemById(result.current.navigation, "finance-settlements");
     const agreements = itemById(result.current.navigation, "finance-agreements");

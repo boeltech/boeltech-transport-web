@@ -196,6 +196,12 @@ export interface DriverSettlement {
   readonly voboRequired?: boolean;
   readonly advancesReserved?: boolean;
   readonly advancesApplied?: boolean;
+  /** D3′: true si se autorizó con un solo autorizador activo. */
+  readonly selfSegregatedApproval?: boolean;
+  readonly approverCountAtApprove?: number | null;
+  /** D3′: true si se registró el pago con un solo ejecutor activo. */
+  readonly selfSegregatedDisbursement?: boolean;
+  readonly executorCountAtDisburse?: number | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -322,6 +328,9 @@ export interface SettlementWorkbenchData {
 }
 
 export interface TenantSettlementSettings {
-  readonly pagosOperadoresGreenfieldV1: boolean;
   readonly voboThresholdMxn: number;
+  /** Usuarios activos con settlements.update (live; F17a). */
+  readonly activeApproverCount: number;
+  /** Usuarios activos con settlements.execute (live; F17a). */
+  readonly activeExecutorCount: number;
 }

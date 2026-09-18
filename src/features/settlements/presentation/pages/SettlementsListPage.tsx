@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Banknote, History, Plus, ArrowUpRight, Settings } from "lucide-react";
+import { Banknote, History, Plus, ArrowUpRight } from "lucide-react";
 import {
   WorkbenchPageShell,
   type WorkbenchBucket,
@@ -25,8 +25,6 @@ import {
 import { ViewModeToggle } from "@shared/ui/listing";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
-import { ROLES } from "@shared/constants/roles";
-import { useAuth } from "@features/auth";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { useBranches } from "@features/branches";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
@@ -36,7 +34,6 @@ import {
   useSettlementWorkbench,
   useSettlementWorkbenchCounts,
   useSettlementsReadiness,
-  usePagosOperadoresGreenfield,
 } from "../../application/hooks";
 import {
   resolveSettlementsListRedirect,
@@ -57,13 +54,13 @@ import {
   SettlementBacklogTable,
   SettlementPipelineQueue,
   SettlementsSetupChecklist,
-  SettlementSettingsSheet,
 } from "../components";
 import { mapSettlementWorkbenchBuckets } from "../utils/mapSettlementWorkbenchBuckets";
 import type { DriverSettlement } from "../../domain/entities";
 
 const copy = settlementsCopy;
 const workbenchCopy = settlementsCopy.workbench;
+const hubCopy = settlementsCopy.hub;
 
 function isWorkbenchBucket(
   value: string,
@@ -82,13 +79,7 @@ export function SettlementsListPage() {
   const location = useLocation();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const { user } = useAuth();
   const canCreate = hasPermission("settlements", "create");
-  const canUpdate = hasPermission("settlements", "update");
-  // Lockstep con PATCH /settlements/settings (requireAdmin).
-  const canEditSettings = canUpdate && user?.role === ROLES.ADMIN;
-  const { enabled: greenfieldEnabled } = usePagosOperadoresGreenfield();
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const defaultsAppliedRef = useRef(false);
 
   const { data: branchesData } = useBranches({
@@ -349,9 +340,9 @@ export function SettlementsListPage() {
   return (
     <TooltipProvider delayDuration={0}>
       <WorkbenchPageShell
-        title={greenfieldEnabled ? settlementsCopy.hub.title : copy.title}
-        description={greenfieldEnabled ? settlementsCopy.hub.description : copy.description}
-        showHeader={!greenfieldEnabled}
+        title={hubCopy.title}
+        description={hubCopy.description}
+        showHeader={false}
         primaryAction={
           canCreate
             ? {
@@ -446,18 +437,6 @@ export function SettlementsListPage() {
                 <History className="h-4 w-4" />
                 {workbenchCopy.actions.viewFullHistory}
               </Button>
-              {!greenfieldEnabled && canEditSettings ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSettingsOpen(true)}
-                  className="gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  {settlementsCopy.hub.settingsAction}
-                </Button>
-              ) : null}
               <ViewModeToggle {...filters.viewModeProps} />
             </>
           ),
@@ -564,15 +543,6 @@ export function SettlementsListPage() {
         )}
         pagination={activePagination}
         onPageChange={filters.setPage}
-        relatedConfig={
-          greenfieldEnabled
-            ? undefined
-            : {
-                label: copy.actions.manageAgreements,
-                href: COMPENSATION_TEMPLATES_PATH,
-                description: workbenchCopy.readiness.relatedConfigDescription,
-              }
-        }
       />
 
       {disburseSettlement ? (
@@ -597,10 +567,6 @@ export function SettlementsListPage() {
           void refetchWorkbenchCounts();
           void refetchWorkbench();
         }}
-      />
-      <SettlementSettingsSheet
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
       />
     </TooltipProvider>
   );

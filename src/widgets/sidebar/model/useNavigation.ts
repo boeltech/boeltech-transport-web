@@ -213,11 +213,7 @@ export function filterNavigation(
   return filtered;
 }
 
-export function applyOperatorPaymentsNav(
-  groups: NavGroup[],
-  greenfieldEnabled: boolean,
-): NavGroup[] {
-  if (!greenfieldEnabled) return groups;
+export function applyOperatorPaymentsNav(groups: NavGroup[]): NavGroup[] {
   return groups.map((group) => {
     if (group.id !== "finance") return group;
     return {
@@ -272,11 +268,10 @@ function findNavItemByPath(
 
 /**
  * Navegación filtrada por permisos.
- * El relabel “Pagos a operadores” se aplica solo si el caller pasa
- * `greenfieldEnabled` (p. ej. `useNavigationWithBadges` / command menu).
+ * El relabel “Pagos a operadores” y el hub (D-P1) se aplican siempre.
  * No consultar settings aquí: varios tests montan el hook sin QueryClient.
  */
-export function useNavigation(greenfieldEnabled = false): UseNavigationReturn {
+export function useNavigation(): UseNavigationReturn {
   const location = useLocation();
   const { hasPermission, role, isLoading } = usePermissions();
 
@@ -295,9 +290,8 @@ export function useNavigation(greenfieldEnabled = false): UseNavigationReturn {
         : navigationConfig;
     return applyOperatorPaymentsNav(
       filterNavigation(config, hasPermission, role),
-      greenfieldEnabled,
     );
-  }, [hasPermission, role, greenfieldEnabled]);
+  }, [hasPermission, role]);
 
   /**
    * Todos los items accesibles en formato plano

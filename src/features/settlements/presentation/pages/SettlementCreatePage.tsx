@@ -50,7 +50,7 @@ import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import {
   useSettlementPreview,
   useCreateSettlement,
-  usePagosOperadoresGreenfield,
+  useSettlementSettings,
 } from "../../application/hooks";
 import {
   SETTLEMENTS_LIST_PATH,
@@ -68,12 +68,13 @@ import {
 import type { CreateSettlementFormData } from "../validation/settlementSchemas";
 import {
   resolveCreateSettlementFeedback,
-  resolveGreenfieldCreateCta,
-} from "../utils/greenfieldCta";
+  resolveCreateCta,
+} from "../utils/settlementCta";
 import {
   COMPENSATION_SALARY_PERIOD_LABELS,
   TRIP_ROUTE_TYPE_LABELS,
   ADVANCE_CATEGORY_LABELS,
+  DEFAULT_VOBO_THRESHOLD_MXN,
   type CompensationCalculationType,
   type CompensationSalaryPeriod,
   type TripRouteType,
@@ -100,11 +101,12 @@ export function SettlementCreatePage() {
   const { toast } = useToast();
   const createMutation = useCreateSettlement();
   const {
-    enabled: greenfieldEnabled,
-    thresholdMxn,
-    isReady: settingsReady,
+    data: settings,
     isError: settingsError,
-  } = usePagosOperadoresGreenfield();
+  } = useSettlementSettings();
+  const thresholdMxn = settings?.voboThresholdMxn ?? DEFAULT_VOBO_THRESHOLD_MXN;
+  const activeApproverCount = settings?.activeApproverCount;
+  const activeExecutorCount = settings?.activeExecutorCount;
 
   // Filter state for live preview (initialize with searchParams if present)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
@@ -249,13 +251,11 @@ export function SettlementCreatePage() {
   ).length;
 
   const netAmount = Math.max(0, grossAmount - totalAdvancesDeducted);
-  const greenfieldCreateCta = greenfieldEnabled
-    ? resolveGreenfieldCreateCta({
-        netAmount,
-        hasManualAdjustments: false,
-        thresholdMxn,
-      })
-    : null;
+  const createCta = resolveCreateCta({
+    netAmount,
+    hasManualAdjustments: false,
+    thresholdMxn,
+  });
 
   const agreement = preview?.agreement as Record<string, unknown> | undefined;
   const readiness = useMemo(
@@ -287,8 +287,7 @@ export function SettlementCreatePage() {
   const hasReimbursementOrAdvanceWork =
     totalReimbursements > 0 || selectedAdvancesCount > 0;
   const canProceedWithSave =
-    settingsReady &&
-    (isAgreementReady || (reimbursementsOnlyOptIn && hasReimbursementOrAdvanceWork));
+    isAgreementReady || (reimbursementsOnlyOptIn && hasReimbursementOrAdvanceWork);
   const hasSettlementContent =
     (preview?.eligibleTrips.length ?? 0) > 0 ||
     totalBaseSalary > 0 ||
@@ -1009,7 +1008,7 @@ export function SettlementCreatePage() {
                     )}
                     {hasSettlementContent ? (
                       <>
-                        {greenfieldCreateCta !== "guardar_borrador" ? (
+                        {createCta !== "guardar_borrador" ? (
                           <>
                             <Button
                               className="w-full"
@@ -1017,22 +1016,24 @@ export function SettlementCreatePage() {
                               onClick={() => setConfirmDialogOpen(true)}
                             >
                               <Send className="mr-2 h-4 w-4" />
-                              {greenfieldEnabled
-                                ? createCopy.summary.pedirVoboBtn
-                                : createCopy.summary.submitApprovalBtn}
+                              {createCopy.summary.pedirVoboBtn}
                             </Button>
                             <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                              {createCopy.summary.submitApprovalSegregationHint}
+                              {activeApproverCount === 1
+                                ? createCopy.summary.submitApprovalSegregationHintSingle
+                                : createCopy.summary.submitApprovalSegregationHint}
                             </p>
                           </>
                         ) : (
                           <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                            {createCopy.summary.bypassDraftHint}
+                            {activeExecutorCount === 1
+                              ? createCopy.summary.bypassDraftHintSingle
+                              : createCopy.summary.bypassDraftHint}
                           </p>
                         )}
                         <Button
                           variant={
-                            greenfieldCreateCta === "guardar_borrador"
+                            createCta === "guardar_borrador"
                               ? "default"
                               : "secondary"
                           }
@@ -1042,11 +1043,9 @@ export function SettlementCreatePage() {
                         >
                           {createCopy.summary.saveDraftBtn}
                         </Button>
-                        {greenfieldEnabled ? (
-                          <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                            {createCopy.summary.commercialFreightHint}
-                          </p>
-                        ) : null}
+                        <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
+                          {createCopy.summary.commercialFreightHint}
+                        </p>
                         {settingsError && (
                           <p className="text-[11px] text-center text-destructive py-0.5">
                             {copy.toasts.settingsUnavailable}
@@ -1112,14 +1111,10 @@ export function SettlementCreatePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              {greenfieldEnabled
-                ? createCopy.dialog.voboTitle
-                : createCopy.dialog.title}
+              {createCopy.dialog.voboTitle}
             </DialogTitle>
             <DialogDescription>
-              {greenfieldEnabled
-                ? createCopy.dialog.voboDescription
-                : createCopy.dialog.description}
+              {createCopy.dialog.voboDescription}
             </DialogDescription>
           </DialogHeader>
 

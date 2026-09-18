@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  canDisburseGreenfield,
-  canSubmitGreenfieldVobo,
+  canApproveSettlement,
+  canDisburse,
+  canRejectSettlement,
+  canSubmitVobo,
   isSettlementMaker,
   isVoboRequiredForPreview,
   resolveCreateSettlementFeedback,
-  resolveGreenfieldCreateCta,
-} from "./greenfieldCta";
+  resolveCreateCta,
+} from "./settlementCta";
 
-describe("greenfieldCta", () => {
-  it("requiere VoBo si el neto alcanza el umbral", () => {
+describe("settlementCta", () => {
+  it("requiere VoBo si el neto alcanza el umbral (default 0)", () => {
     expect(
-      isVoboRequiredForPreview({ netAmount: 5000, hasManualAdjustments: false }),
+      isVoboRequiredForPreview({ netAmount: 0, hasManualAdjustments: false }),
     ).toBe(true);
     expect(
       isVoboRequiredForPreview({
@@ -34,10 +36,14 @@ describe("greenfieldCta", () => {
 
   it("elige Pedir VoBo vs Guardar borrador según umbral", () => {
     expect(
-      resolveGreenfieldCreateCta({ netAmount: 8000, hasManualAdjustments: false }),
+      resolveCreateCta({ netAmount: 8000, hasManualAdjustments: false }),
     ).toBe("pedir_vobo");
     expect(
-      resolveGreenfieldCreateCta({ netAmount: 100, hasManualAdjustments: false }),
+      resolveCreateCta({
+        netAmount: 100,
+        hasManualAdjustments: false,
+        thresholdMxn: 5000,
+      }),
     ).toBe("guardar_borrador");
   });
 
@@ -53,7 +59,7 @@ describe("greenfieldCta", () => {
     );
   });
 
-  it("no permite ejecutar al maker ni sin permiso execute", () => {
+  it("no permite ejecutar al maker ni sin permiso execute (multi-user)", () => {
     const draftBypass = {
       status: "draft" as const,
       voboRequired: false,
@@ -61,43 +67,103 @@ describe("greenfieldCta", () => {
       submittedBy: null,
     };
     expect(
-      canDisburseGreenfield({
+      canDisburse({
         settlement: draftBypass,
         userId: "maker",
         canExecute: true,
+        activeExecutorCount: 2,
       }),
     ).toBe(false);
     expect(
-      canDisburseGreenfield({
+      canDisburse({
         settlement: draftBypass,
         userId: "executor",
         canExecute: true,
+        activeExecutorCount: 2,
       }),
     ).toBe(true);
     expect(
-      canDisburseGreenfield({
+      canDisburse({
         settlement: { ...draftBypass, status: "approved" },
         userId: "executor",
         canExecute: false,
+        activeExecutorCount: 2,
+      }),
+    ).toBe(false);
+  });
+
+  it("D3′: maker puede autorizar/rechazar si activeApproverCount === 1", () => {
+    const pending = {
+      status: "pending_approval" as const,
+      createdBy: "maker",
+      submittedBy: "maker",
+    };
+    expect(
+      canApproveSettlement({
+        settlement: pending,
+        userId: "maker",
+        canUpdate: true,
+        activeApproverCount: 1,
+      }),
+    ).toBe(true);
+    expect(
+      canRejectSettlement({
+        settlement: pending,
+        userId: "maker",
+        canUpdate: true,
+        activeApproverCount: 1,
+      }),
+    ).toBe(true);
+    expect(
+      canApproveSettlement({
+        settlement: pending,
+        userId: "maker",
+        canUpdate: true,
+        activeApproverCount: 2,
+      }),
+    ).toBe(false);
+  });
+
+  it("D3′: maker puede registrar pago si activeExecutorCount === 1", () => {
+    const approved = {
+      status: "approved" as const,
+      voboRequired: true,
+      createdBy: "maker",
+      submittedBy: "maker",
+    };
+    expect(
+      canDisburse({
+        settlement: approved,
+        userId: "maker",
+        canExecute: true,
+        activeExecutorCount: 1,
+      }),
+    ).toBe(true);
+    expect(
+      canDisburse({
+        settlement: approved,
+        userId: "maker",
+        canExecute: true,
+        activeExecutorCount: 2,
       }),
     ).toBe(false);
   });
 
   it("Pedir VoBo solo en borrador que lo requiere", () => {
     expect(
-      canSubmitGreenfieldVobo({
+      canSubmitVobo({
         settlement: { status: "draft", voboRequired: true },
         canUpdate: true,
       }),
     ).toBe(true);
     expect(
-      canSubmitGreenfieldVobo({
+      canSubmitVobo({
         settlement: { status: "draft", voboRequired: false },
         canUpdate: true,
       }),
     ).toBe(false);
     expect(
-      canSubmitGreenfieldVobo({
+      canSubmitVobo({
         settlement: { status: "pending_approval", voboRequired: true },
         canUpdate: true,
       }),

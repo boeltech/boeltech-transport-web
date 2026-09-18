@@ -210,6 +210,65 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.submittedByName).toBe("Ana Capataz");
     expect(mapped.items).toHaveLength(1);
     expect(mapped.items?.[0]?.itemType).toBe("trip_commission");
+    expect(mapped.selfSegregatedApproval).toBe(false);
+    expect(mapped.approverCountAtApprove).toBeNull();
+    expect(mapped.selfSegregatedDisbursement).toBe(false);
+    expect(mapped.executorCountAtDisburse).toBeNull();
+  });
+
+  it("mapea evidencia D3′ self-segregated en liquidación", () => {
+    const raw: ApiDriverSettlementRaw = {
+      id: "st-d3",
+      tenant_id: "tenant-1",
+      settlement_number: "LIQ-202609-0009",
+      employee_id: "emp-1",
+      employee_full_name: "Pedro Infante",
+      agreement_snapshot: { currency: "MXN" },
+      period_start: "2026-09-01",
+      period_end: "2026-09-15",
+      status: "disbursed",
+      total_trips_commission: 1000,
+      total_base_salary: 0,
+      total_reimbursable_expenses: 0,
+      total_bonuses: 0,
+      total_advances_deducted: 0,
+      total_other_deductions: 0,
+      gross_amount: 1000,
+      net_amount: 1000,
+      currency: "MXN",
+      disbursed_at: "2026-09-16T12:00:00Z",
+      disbursed_by: "user-solo",
+      disbursement_method: "bank_transfer",
+      disbursement_reference: "SPEI-1",
+      approved_at: "2026-09-16T11:00:00Z",
+      approved_by: "user-solo",
+      rejection_reason: null,
+      notes: null,
+      created_at: "2026-09-16T10:00:00Z",
+      updated_at: "2026-09-16T12:00:00Z",
+      self_segregated_approval: true,
+      approver_count_at_approve: 1,
+      self_segregated_disbursement: true,
+      executor_count_at_disburse: 1,
+      created_by: "user-solo",
+    };
+
+    const mapped = mapSettlement(raw);
+    expect(mapped.selfSegregatedApproval).toBe(true);
+    expect(mapped.approverCountAtApprove).toBe(1);
+    expect(mapped.selfSegregatedDisbursement).toBe(true);
+    expect(mapped.executorCountAtDisburse).toBe(1);
+  });
+
+  it("mapea settings con umbral de VoBo y conteos D3′", () => {
+    const mapped = mapSettlementSettings({
+      vobo_threshold_mxn: 7500,
+      active_approver_count: 1,
+      active_executor_count: 2,
+    });
+    expect(mapped.voboThresholdMxn).toBe(7500);
+    expect(mapped.activeApproverCount).toBe(1);
+    expect(mapped.activeExecutorCount).toBe(2);
   });
 
   it("H4: sin nombres en la respuesta, la traza queda en null y no en undefined", () => {
@@ -373,14 +432,5 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.pagination.page).toBe(2);
     expect(mapped.pagination.limit).toBe(20);
     expect(mapped.pagination.totalPages).toBe(3);
-  });
-
-  it("mapea settings greenfield y umbral de VoBo", () => {
-    const mapped = mapSettlementSettings({
-      pagos_operadores_greenfield_v1: true,
-      vobo_threshold_mxn: 7500,
-    });
-    expect(mapped.pagosOperadoresGreenfieldV1).toBe(true);
-    expect(mapped.voboThresholdMxn).toBe(7500);
   });
 });

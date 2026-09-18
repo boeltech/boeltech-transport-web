@@ -171,7 +171,7 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
       }
     });
 
-    it("acepta categoría loan (greenfield v1)", () => {
+    it("acepta categoría loan", () => {
       const result = driverAdvanceFormSchema.safeParse({
         employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
         amount: 800,
@@ -378,7 +378,7 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
       expect(result.success).toBe(false);
     });
 
-    it("no declara la bandera greenfield: el umbral es el único campo del formulario", () => {
+    it("el umbral es el único campo del formulario de settings", () => {
       expect(Object.keys(settlementSettingsFormSchema.shape)).toEqual([
         "voboThresholdMxn",
       ]);

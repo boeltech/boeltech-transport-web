@@ -51,15 +51,17 @@ import {
   useRejectSettlement,
   useSubmitSettlement,
 } from "../../application/hooks/useSettlements";
-import { usePagosOperadoresGreenfield } from "../../application/hooks/useSettlementSettings";
+import { useSettlementSettings } from "../../application/hooks/useSettlementSettings";
 import { settlementsCompensationApprovalsPath } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
 import {
-  canDisburseGreenfield,
-  canSubmitGreenfieldVobo,
+  canApproveSettlement,
+  canDisburse,
+  canRejectSettlement,
+  canSubmitVobo,
   isSettlementMaker,
-} from "../utils/greenfieldCta";
+} from "../utils/settlementCta";
 
 const copy = settlementsCopy;
 
@@ -88,10 +90,11 @@ export function SettlementActions({
   const canUpdate = hasPermission("settlements", "update");
   const canExecute = hasPermission("settlements", "execute");
   const {
-    enabled: greenfieldEnabled,
-    isReady: settingsReady,
+    data: settings,
     isError: settingsError,
-  } = usePagosOperadoresGreenfield();
+  } = useSettlementSettings();
+  const activeApproverCount = settings?.activeApproverCount;
+  const activeExecutorCount = settings?.activeExecutorCount;
 
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -107,46 +110,43 @@ export function SettlementActions({
   const isPendingApproval = settlement.status === "pending_approval";
   const isDraft = settlement.status === "draft";
   const isApproved = settlement.status === "approved";
-  // Con la configuración sin cargar no se conoce la política del tenant: la regla
-  // de maker-checker se toma en su versión más estricta (greenfield) para no
-  // abrir la autorización por un fallo de red.
-  const isSelfApproval = Boolean(
-    greenfieldEnabled || !settingsReady
-      ? isSettlementMaker(settlement, user?.id)
-      : settlement.submittedBy && user?.id && settlement.submittedBy === user.id,
-  );
-  const isMaker = isSettlementMaker(settlement, user?.id);
+  const isSelfApproval = isSettlementMaker(settlement, user?.id);
+  const isMaker = isSelfApproval;
+  const makerBlockedAsApprover =
+    isSelfApproval && activeApproverCount !== 1;
+  const makerBlockedAsExecutor =
+    isMaker && activeExecutorCount !== 1;
 
-  const canSubmit =
-    settingsReady &&
-    (greenfieldEnabled
-      ? canSubmitGreenfieldVobo({ settlement, canUpdate })
-      : canUpdate && isDraft);
+  const canSubmit = canSubmitVobo({ settlement, canUpdate });
   const canCancel = canUpdate && isDraft;
-  const canApprove = canUpdate && isPendingApproval && !isSelfApproval;
-  const canReject = canUpdate && isPendingApproval && !isSelfApproval;
-  const canDisburse =
-    settingsReady &&
-    (greenfieldEnabled
-      ? canDisburseGreenfield({
-          settlement,
-          userId: user?.id,
-          canExecute,
-        })
-      : canExecute && isApproved);
-  // El bloqueo solo se anuncia a quien intentaría mover dinero.
+  const canApprove = canApproveSettlement({
+    settlement,
+    userId: user?.id,
+    canUpdate,
+    activeApproverCount,
+  });
+  const canReject = canRejectSettlement({
+    settlement,
+    userId: user?.id,
+    canUpdate,
+    activeApproverCount,
+  });
+  const canDisburseAction = canDisburse({
+    settlement,
+    userId: user?.id,
+    canExecute,
+    activeExecutorCount,
+  });
+  // Aviso informativo del umbral; no bloquea CTAs — el API es la autoridad.
   const showSettingsUnavailable =
     settingsError &&
     (canUpdate || canExecute) &&
     (isDraft || isPendingApproval || isApproved);
   const showMakerExecuteBadge =
-    greenfieldEnabled &&
-    isMaker &&
+    makerBlockedAsExecutor &&
     canExecute &&
     (isApproved || (isDraft && settlement.voboRequired === false));
-  const submitLabel = greenfieldEnabled
-    ? copy.actions.pedirVobo
-    : copy.actions.submitApproval;
+  const submitLabel = copy.actions.pedirVobo;
 
   const handleSubmit = async () => {
     try {
@@ -166,7 +166,7 @@ export function SettlementActions({
   };
 
   const handleApprove = async () => {
-    if (isSelfApproval) {
+    if (makerBlockedAsApprover) {
       toast({
         title: copy.toasts.selfApprovalSettlementAuthorize,
         variant: "destructive",
@@ -209,7 +209,7 @@ export function SettlementActions({
   };
 
   const handleReject = async () => {
-    if (isSelfApproval) {
+    if (makerBlockedAsApprover) {
       toast({
         title: copy.toasts.selfApprovalSettlementReject,
         variant: "destructive",
@@ -418,7 +418,7 @@ export function SettlementActions({
               {copy.actions.approve}
             </Button>
           )}
-          {isSelfApproval && isPendingApproval && (
+          {makerBlockedAsApprover && isPendingApproval && (
             <span className="text-xs text-muted-foreground italic px-1">
               {copy.toasts.selfApprovalBadge}
             </span>
@@ -428,7 +428,7 @@ export function SettlementActions({
               {copy.toasts.makerExecuteBadge}
             </span>
           )}
-          {canDisburse && (
+          {canDisburseAction && (
             <Button onClick={openDisburse}>
               <Banknote className="mr-2 h-4 w-4" />
               {copy.actions.disburse}
@@ -500,7 +500,7 @@ export function SettlementActions({
           {!approvalLinkOnly && canUpdate && isPendingApproval && (
             <>
               <DropdownMenuSeparator />
-              {isSelfApproval ? (
+              {makerBlockedAsApprover ? (
                 <DropdownMenuItem
                   disabled
                   className="text-xs text-muted-foreground italic cursor-not-allowed"
@@ -534,7 +534,7 @@ export function SettlementActions({
             </>
           )}
 
-          {canDisburse && (onDisburse || variant === "dropdown") && (
+          {canDisburseAction && (onDisburse || variant === "dropdown") && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

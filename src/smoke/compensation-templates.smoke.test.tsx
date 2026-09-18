@@ -17,6 +17,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
 import { CompensationHubLayout } from "@features/compensation/presentation/components/CompensationHubLayout";
 import { CompensationTemplateListPage } from "@features/compensation/presentation/pages/CompensationTemplateListPage";
 import { CompensationSchemeBuilderPage } from "@features/compensation/presentation/pages/CompensationSchemeBuilderPage";
@@ -78,8 +79,9 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     createAgreement: vi.fn(),
     updateAgreement: vi.fn(),
     getSettings: vi.fn().mockResolvedValue({
-      pagosOperadoresGreenfieldV1: false,
-      voboThresholdMxn: 5000,
+      voboThresholdMxn: 0,
+      activeApproverCount: 1,
+      activeExecutorCount: 1,
     }),
     updateSettings: vi.fn(),
   },
@@ -110,6 +112,13 @@ vi.mock("@shared/permissions", () => ({
     isLoading: false,
     isAuthenticated: true,
     role: "accountant",
+  }),
+}));
+
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({
+    user: { id: "user-accountant-1", fullName: "Contador General", role: "accountant" },
+    isAuthenticated: true,
   }),
 }));
 
@@ -199,10 +208,12 @@ const mockCreatedTemplate = {
 
 const compensationRoutes = (
   <>
-    <Route path="/finance/compensation" element={<CompensationHubLayout />}>
-      <Route path="templates" element={<CompensationTemplateListPage />} />
-      <Route path="templates/:id" element={<CompensationTemplateDetailRedirect />} />
-      <Route path="corridors" element={<CorridorTariffsListPage />} />
+    <Route element={<OperatorPaymentsHubLayout />}>
+      <Route path="/finance/compensation" element={<CompensationHubLayout />}>
+        <Route path="templates" element={<CompensationTemplateListPage />} />
+        <Route path="templates/:id" element={<CompensationTemplateDetailRedirect />} />
+        <Route path="corridors" element={<CorridorTariffsListPage />} />
+      </Route>
     </Route>
     <Route
       path="/finance/compensation/templates/:id/build"
@@ -332,8 +343,8 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(screen.getAllByText("Operador foráneo").length).toBeGreaterThan(0);
     });
 
-    expect(screen.getByRole("heading", { name: /Esquemas de compensación/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /^Esquemas$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Pagos a operadores/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Cómo te pago/i })).toBeInTheDocument();
   });
 
   it("1b. Lista plantillas muestra paginación cuando hay más de una página", async () => {
@@ -446,7 +457,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       <Routes>{compensationRoutes}</Routes>,
     );
 
-    await user.click(screen.getByRole("tab", { name: /Rutas con tarifa fija/i }));
+    await user.click(screen.getByRole("tab", { name: /Tabla de rutas/i }));
 
     await waitFor(() => {
       expect(screen.getByText("México → MTY")).toBeInTheDocument();

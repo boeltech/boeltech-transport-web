@@ -141,12 +141,8 @@ describe("filterNavigation", () => {
 });
 
 describe("applyOperatorPaymentsNav", () => {
-  it("no altera la nav cuando el flag está apagado", () => {
-    expect(applyOperatorPaymentsNav(navigationConfig, false)).toBe(navigationConfig);
-  });
-
-  it("relabel Pagos a operadores, oculta Esquemas y cubre compensation", () => {
-    const result = applyOperatorPaymentsNav(navigationConfig, true);
+  it("relabel Pagos a operadores, oculta Esquemas y cubre compensation (D-P1)", () => {
+    const result = applyOperatorPaymentsNav(navigationConfig);
     const finance = result.find((g) => g.id === "finance");
     const ids = finance?.items.map((i) => i.id) ?? [];
     expect(ids).not.toContain("finance-agreements");

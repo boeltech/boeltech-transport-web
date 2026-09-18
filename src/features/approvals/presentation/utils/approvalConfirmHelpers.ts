@@ -16,6 +16,25 @@ export function isSelfSubmittedApproval(
   return Boolean(userId && item.submittedBy && item.submittedBy === userId);
 }
 
+/**
+ * D3′ (liquidaciones): si hay un solo autorizador activo, no bloquear self-submit
+ * de `internal_staff_compensation`. Anticipos y gastos siguen bloqueados.
+ */
+export function blocksSelfSubmittedApproval(
+  item: ApprovableItem,
+  userId: string | null | undefined,
+  options?: { activeApproverCount?: number | null },
+): boolean {
+  if (!isSelfSubmittedApproval(item, userId)) return false;
+  if (
+    item.approvableType === "internal_staff_compensation" &&
+    options?.activeApproverCount === 1
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function formatApprovableApproveConfirmDescription(
   item: ApprovableItem | null,
 ): string {

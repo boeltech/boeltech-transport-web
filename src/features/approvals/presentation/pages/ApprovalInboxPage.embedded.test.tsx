@@ -44,6 +44,23 @@ vi.mock("@features/auth", () => ({
   }),
 }));
 
+vi.mock("@features/settlements/application", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@features/settlements/application")>();
+  return {
+    ...actual,
+    useSettlementSettings: () => ({
+      data: {
+        voboThresholdMxn: 0,
+        activeApproverCount: 2,
+        activeExecutorCount: 2,
+      },
+      isLoading: false,
+      isError: false,
+    }),
+  };
+});
+
 vi.mock("@shared/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/hooks")>();
   return { ...actual, useToast: () => ({ toast: vi.fn() }) };

@@ -142,6 +142,10 @@ export interface ApiDriverSettlementRaw {
   vobo_required?: boolean;
   advances_reserved?: boolean;
   advances_applied?: boolean;
+  self_segregated_approval?: boolean;
+  approver_count_at_approve?: number | null;
+  self_segregated_disbursement?: boolean;
+  executor_count_at_disburse?: number | null;
   created_by?: string | null;
   created_by_name?: string | null;
 }
@@ -211,8 +215,9 @@ export interface ApiSettlementPreviewRaw {
 }
 
 export interface ApiTenantSettlementSettingsRaw {
-  pagos_operadores_greenfield_v1: boolean;
   vobo_threshold_mxn: number;
+  active_approver_count: number;
+  active_executor_count: number;
 }
 
 export interface ApiPaginationRaw {
@@ -389,6 +394,16 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
     voboRequired: raw.vobo_required,
     advancesReserved: Boolean(raw.advances_reserved),
     advancesApplied: Boolean(raw.advances_applied),
+    selfSegregatedApproval: Boolean(raw.self_segregated_approval),
+    approverCountAtApprove:
+      raw.approver_count_at_approve === undefined || raw.approver_count_at_approve === null
+        ? null
+        : Number(raw.approver_count_at_approve),
+    selfSegregatedDisbursement: Boolean(raw.self_segregated_disbursement),
+    executorCountAtDisburse:
+      raw.executor_count_at_disburse === undefined || raw.executor_count_at_disburse === null
+        ? null
+        : Number(raw.executor_count_at_disburse),
     createdBy: raw.created_by ?? null,
     createdByName: raw.created_by_name ?? null,
     createdAt: raw.created_at,
@@ -562,10 +577,11 @@ export function mapSettlementSettings(
   raw: ApiTenantSettlementSettingsRaw,
 ): TenantSettlementSettings {
   return {
-    pagosOperadoresGreenfieldV1: Boolean(raw.pagos_operadores_greenfield_v1),
     voboThresholdMxn:
       raw.vobo_threshold_mxn !== undefined && raw.vobo_threshold_mxn !== null
         ? Number(raw.vobo_threshold_mxn)
         : DEFAULT_VOBO_THRESHOLD_MXN,
+    activeApproverCount: Number(raw.active_approver_count) || 0,
+    activeExecutorCount: Number(raw.active_executor_count) || 0,
   };
 }
