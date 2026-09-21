@@ -1,5 +1,5 @@
 import type { WorkbenchBucket, WorkbenchBucketTone } from "@shared/ui/page-shells";
-import type { FinanceInvoiceListItem } from "@features/finance/domain";
+import type { FinanceOpenPpdSummary } from "@features/finance/domain";
 import {
   COBROS_WORKBENCH_BUCKETS,
   type CobrosBucketId,
@@ -10,49 +10,30 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 const copy = financeCopy.cobros.workbench;
 
 // ============================================================================
-// CLIENT-SIDE COUNTS (degraded mode — no backend aggregation endpoint yet)
+// COUNTS (desde summary API — no conteos de la página)
 // ============================================================================
 
 export interface CobrosBucketCounts {
-  all: number;
-  overdue: number;
+  open: number;
   partial: number;
   rep_exceptions: number;
 }
 
-/**
- * Counts invoices by bucket using client-side heuristics.
- * TODO: replace with backend aggregate endpoint when available.
- */
-export function countInvoicesByCobrosBucket(
-  invoices: FinanceInvoiceListItem[],
-  repExceptionsCount: number,
+export function countsFromOpenPpdSummary(
+  summary: FinanceOpenPpdSummary,
 ): CobrosBucketCounts {
-  let overdue = 0;
-  let partial = 0;
-
-  const today = new Date().toISOString().slice(0, 10);
-
-  for (const invoice of invoices) {
-    const isPaidPartially = invoice.totalPaid > 0 && invoice.balanceDue > 0;
-    if (isPaidPartially) partial++;
-
-    // dueDate not available on FinanceInvoiceListItem yet — use issuedAt + 30d heuristic
-    // TODO: backend should expose due_date or overdue flag; for now mark none as overdue
-    // so bucket renders with 0 until backend supports it.
-  }
-
-  // overdue stays 0 until backend exposes due_date on listing items
-  void today;
-  void overdue;
-
   return {
-    all: invoices.length,
-    overdue: 0,
-    partial,
-    rep_exceptions: repExceptionsCount,
+    open: summary.open,
+    partial: summary.partial,
+    rep_exceptions: summary.repExceptions,
   };
 }
+
+export const EMPTY_COBROS_BUCKET_COUNTS: CobrosBucketCounts = {
+  open: 0,
+  partial: 0,
+  rep_exceptions: 0,
+};
 
 // ============================================================================
 // BUCKET → WorkbenchBucket[] MAPPER
@@ -63,17 +44,16 @@ function toneForBucket(
   count: number,
 ): WorkbenchBucketTone {
   if (count <= 0) return "default";
-  if (bucket === "overdue") return "destructive";
   if (bucket === "partial") return "warning";
   if (bucket === "rep_exceptions") return "destructive";
-  return "default";
+  return "success";
 }
 
 export interface MapCobrosWorkbenchBucketsParams {
   counts: CobrosBucketCounts;
   activeBucket: CobrosBucketId;
   onBucketChange: (bucket: CobrosBucketId) => void;
-  /** Total balance for the "all" bucket description. */
+  /** Saldo total del universo `open` filtrado (summary.totalBalance). */
   totalBalance?: number;
 }
 
@@ -87,7 +67,7 @@ export function mapCobrosWorkbenchBuckets({
     id: bucket,
     label: copy.buckets[bucket],
     description:
-      bucket === "all" && totalBalance != null
+      bucket === "open" && totalBalance != null
         ? formatMxCurrency(totalBalance)
         : copy.bucketDescriptions[bucket],
     count: counts[bucket],

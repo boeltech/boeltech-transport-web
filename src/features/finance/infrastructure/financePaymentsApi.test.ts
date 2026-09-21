@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   financePaymentsApi,
   mapOpenPpdPagination,
+  mapOpenPpdSummary,
   mapRepExceptionItem,
 } from "./financePaymentsApi";
 
@@ -53,12 +54,43 @@ describe("mapOpenPpdPagination", () => {
   });
 });
 
+describe("mapOpenPpdSummary", () => {
+  it("maps snake_case and camelCase summary payloads", () => {
+    expect(
+      mapOpenPpdSummary({
+        open: 1,
+        partial: 2,
+        rep_exceptions: 3,
+        total_balance: 10.5,
+      }),
+    ).toEqual({
+      open: 1,
+      partial: 2,
+      repExceptions: 3,
+      totalBalance: 10.5,
+    });
+    expect(
+      mapOpenPpdSummary({
+        open: 1,
+        partial: 2,
+        repExceptions: 3,
+        totalBalance: 10.5,
+      }),
+    ).toEqual({
+      open: 1,
+      partial: 2,
+      repExceptions: 3,
+      totalBalance: 10.5,
+    });
+  });
+});
+
 describe("financePaymentsApi.getOpenPpdInvoices", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("passes page and limit and maps pagination", async () => {
+  it("lists the global queue without receiver_rfc and maps pagination", async () => {
     getMock.mockResolvedValue({
       data: [
         {
@@ -83,14 +115,14 @@ describe("financePaymentsApi.getOpenPpdInvoices", () => {
       },
     });
 
-    const result = await financePaymentsApi.getOpenPpdInvoices(
-      "XAXX010101000",
-      1,
-      50,
-    );
+    const result = await financePaymentsApi.getOpenPpdInvoices({
+      page: 1,
+      limit: 50,
+      cobrosBucket: "open",
+    });
 
     expect(getMock).toHaveBeenCalledWith(
-      "/finance/open-ppd-invoices?receiver_rfc=XAXX010101000&page=1&limit=50",
+      "/finance/open-ppd-invoices?page=1&limit=50&cobros_bucket=open",
     );
     expect(result.pagination).toEqual({
       page: 1,
@@ -99,6 +131,52 @@ describe("financePaymentsApi.getOpenPpdInvoices", () => {
       totalPages: 2,
     });
     expect(result.data[0]?.receiverRfc).toBe("XAXX010101000");
+  });
+
+  it("passes optional receiver_rfc and search", async () => {
+    getMock.mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 50, total: 0, total_pages: 1 },
+    });
+
+    await financePaymentsApi.getOpenPpdInvoices({
+      receiverRfc: "XAXX010101000",
+      search: "Cliente",
+      cobrosBucket: "partial",
+      page: 2,
+      limit: 25,
+    });
+
+    expect(getMock).toHaveBeenCalledWith(
+      "/finance/open-ppd-invoices?page=2&limit=25&receiver_rfc=XAXX010101000&search=Cliente&cobros_bucket=partial",
+    );
+  });
+});
+
+describe("financePaymentsApi.getOpenPpdSummary", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("maps summary snake_case without overdue", async () => {
+    getMock.mockResolvedValue({
+      data: {
+        open: 42,
+        partial: 7,
+        rep_exceptions: 3,
+        total_balance: 125000.5,
+      },
+    });
+
+    const result = await financePaymentsApi.getOpenPpdSummary();
+
+    expect(getMock).toHaveBeenCalledWith("/finance/open-ppd-summary");
+    expect(result).toEqual({
+      open: 42,
+      partial: 7,
+      repExceptions: 3,
+      totalBalance: 125000.5,
+    });
   });
 });
 

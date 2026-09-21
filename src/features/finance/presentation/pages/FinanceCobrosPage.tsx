@@ -1,11 +1,12 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getTodayMexicoDateString } from "@boeltech/cfdi-domain";
-import { Send } from "lucide-react";
+import { FileClock, Send } from "lucide-react";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
+import { EmptyState } from "@shared/ui/feedback-states";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { ListingResultsSummary } from "@shared/ui/listing";
@@ -17,6 +18,7 @@ import {
   FINANCE_COBROS_RFC_PARAM,
   OPEN_PPD_INVOICES_PAGE_SIZE,
   useOpenPpdInvoices,
+  useOpenPpdSummary,
   useRegisterFinancePayment,
   useRepExceptions,
 } from "@features/finance/application";
@@ -33,26 +35,38 @@ import {
 } from "../config/financeCobrosConfig";
 import {
   DEFAULT_COBROS_BUCKET,
+  isCobrosListBucket,
   type CobrosBucketId,
 } from "../config/cobrosWorkbenchConfig";
 import { financeCopy } from "../copy";
 import { getChainRepairAffectedLabels } from "../utils/chainRepairPlanLabels";
 import {
   buildCobrosFollowThrough,
+  clearCobrosFollowThrough,
   readCobrosFollowThrough,
+  shouldClearCobrosFollowThrough,
   writeCobrosFollowThrough,
   type CobrosFollowThrough,
 } from "../utils/cobrosFollowThrough";
 import {
-  countInvoicesByCobrosBucket,
+  cobrosInvoicesForPageToggle,
+  isCobrosInvoiceSelectable,
+  resolveCobrosSelectionAnchorRfc,
+} from "../utils/cobrosSelection";
+import {
+  countsFromOpenPpdSummary,
+  EMPTY_COBROS_BUCKET_COUNTS,
   mapCobrosWorkbenchBuckets,
 } from "../utils/mapCobrosWorkbenchBuckets";
+
+/** Enough rows to resolve a single-RFC follow-through without false clears. */
+const FOLLOW_THROUGH_EXCEPTIONS_LIMIT = 50;
 
 const copy = financeCopy.cobros;
 const workbenchCopy = financeCopy.cobros.workbench;
 
 // ============================================================================
-// CobrosRegisterBar (unchanged)
+// CobrosRegisterBar
 // ============================================================================
 
 function CobrosRegisterBar({
@@ -140,6 +154,53 @@ export function FinanceCobrosPage() {
     setFollowThrough(next);
   };
 
+  const handleDismissFollowThrough = useCallback(() => {
+    clearCobrosFollowThrough();
+    setFollowThrough(null);
+  }, []);
+
+  // Auto-clear when REP leaves exceptions / stamped (#33 F2)
+  const seenFollowThroughInExceptionsRef = useRef<string | null>(null);
+  const { data: followThroughExceptions, isFetched: followThroughExceptionsFetched, isError: followThroughExceptionsError } =
+    useRepExceptions({
+      page: 1,
+      limit: FOLLOW_THROUGH_EXCEPTIONS_LIMIT,
+      receiverRfc: followThrough?.receiverRfc ?? null,
+      enabled: Boolean(followThrough),
+    });
+
+  useEffect(() => {
+    if (!followThrough) {
+      seenFollowThroughInExceptionsRef.current = null;
+      return;
+    }
+    if (followThroughExceptionsError) return;
+    const items = followThroughExceptions?.data ?? [];
+    const total = followThroughExceptions?.pagination?.total ?? items.length;
+    const paymentIds = items.map((item) => item.paymentId);
+    if (paymentIds.includes(followThrough.paymentId)) {
+      seenFollowThroughInExceptionsRef.current = followThrough.paymentId;
+    }
+    if (
+      !shouldClearCobrosFollowThrough(followThrough, {
+        exceptionsFetched: followThroughExceptionsFetched,
+        exceptionPaymentIds: paymentIds,
+        exceptionsMayBeIncomplete: total > items.length,
+        previouslySeenInExceptions:
+          seenFollowThroughInExceptionsRef.current === followThrough.paymentId,
+      })
+    ) {
+      return;
+    }
+    clearCobrosFollowThrough();
+    setFollowThrough(null);
+  }, [
+    followThrough,
+    followThroughExceptions,
+    followThroughExceptionsFetched,
+    followThroughExceptionsError,
+  ]);
+
   const handleRfcSearch = useCallback(
     (rfc: string) => {
       setSearchParams(
@@ -189,6 +250,7 @@ export function FinanceCobrosPage() {
       onRfcSearch={handleRfcSearch}
       onClearRfc={handleClearRfc}
       onPaymentRegistered={handlePaymentRegistered}
+      onDismissFollowThrough={handleDismissFollowThrough}
     />
   );
 }
@@ -206,6 +268,7 @@ function FinanceCobrosWorkbench({
   onRfcSearch,
   onClearRfc,
   onPaymentRegistered,
+  onDismissFollowThrough,
 }: {
   rfcFromUrl: string;
   activeBucket: CobrosBucketId;
@@ -215,11 +278,13 @@ function FinanceCobrosWorkbench({
   onRfcSearch: (rfc: string) => void;
   onClearRfc: () => void;
   onPaymentRegistered: (followThrough: CobrosFollowThrough) => void;
+  onDismissFollowThrough: () => void;
 }) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canRegisterPayment = hasPermission("finance", "create");
-  const searchRfc = rfcFromUrl || null;
+  const filterRfc = rfcFromUrl || null;
+  const isListBucket = isCobrosListBucket(activeBucket);
 
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -232,51 +297,53 @@ function FinanceCobrosWorkbench({
     useState<RegisterFinancePaymentPayload | null>(null);
   const loteSnapshotRef = useRef<FinanceInvoiceListItem[]>([]);
 
-  const { data, isLoading, isError, refetch } = useOpenPpdInvoices(searchRfc, {
+  // Clear selection when RFC filter changes
+  useEffect(() => {
+    setSelected({});
+    setPage(1);
+  }, [filterRfc]);
+
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useOpenPpdInvoices({
+    receiverRfc: filterRfc,
+    cobrosBucket: isListBucket ? activeBucket : null,
     page,
     limit: OPEN_PPD_INVOICES_PAGE_SIZE,
+    enabled: isListBucket,
   });
+
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    refetch: refetchSummary,
+  } = useOpenPpdSummary({
+    receiverRfc: filterRfc,
+  });
+
   const invoices = useMemo(() => data?.data ?? [], [data]);
   const pagination = data?.pagination;
 
-  // REP exceptions count for bucket badge
-  const { data: repData } = useRepExceptions({
-    page: 1,
-    limit: 1,
-    receiverRfc: searchRfc,
-  });
-  const repExceptionsCount = repData?.pagination?.total ?? 0;
-
-  // Client-side bucket counts (degraded mode)
   const bucketCounts = useMemo(
-    () => countInvoicesByCobrosBucket(invoices, repExceptionsCount),
-    [invoices, repExceptionsCount],
-  );
-
-  const pageBalance = useMemo(
     () =>
-      invoices.reduce(
-        (sum, invoice) => sum + Number(invoice.balanceDue.toFixed(2)),
-        0,
-      ),
-    [invoices],
+      summary
+        ? countsFromOpenPpdSummary(summary)
+        : EMPTY_COBROS_BUCKET_COUNTS,
+    [summary],
   );
-
-  // Filter invoices client-side by active bucket
-  const filteredInvoices = useMemo(() => {
-    if (activeBucket === "all") return invoices;
-    if (activeBucket === "partial") {
-      return invoices.filter((i) => i.totalPaid > 0 && i.balanceDue > 0);
-    }
-    // overdue: no due_date available yet — show all (TODO: backend)
-    if (activeBucket === "overdue") return [];
-    // rep_exceptions: handled separately in renderContent
-    return invoices;
-  }, [invoices, activeBucket]);
 
   const selectedInvoices = useMemo(
-    () => filteredInvoices.filter((invoice) => selected[invoice.id]),
-    [filteredInvoices, selected],
+    () => invoices.filter((invoice) => selected[invoice.id]),
+    [invoices, selected],
+  );
+
+  const selectionAnchorRfc = useMemo(
+    () => resolveCobrosSelectionAnchorRfc(invoices, selected),
+    [invoices, selected],
   );
 
   const selectedTotal = useMemo(
@@ -290,8 +357,12 @@ function FinanceCobrosWorkbench({
 
   const formattedSelectedTotal = formatMxCurrency(selectedTotal);
   const paymentDate = getTodayMexicoDateString();
+  const paymentReceiverRfc = selectionAnchorRfc;
   const showRegisterBar =
-    canRegisterPayment && selectedInvoices.length > 0 && filteredInvoices.length > 0;
+    canRegisterPayment &&
+    selectedInvoices.length > 0 &&
+    Boolean(paymentReceiverRfc) &&
+    invoices.length > 0;
 
   const { mutate, isPending } = useRegisterFinancePayment({
     onSuccess: (data: FinancePayment, variables) => {
@@ -335,13 +406,17 @@ function FinanceCobrosWorkbench({
   };
 
   const toggleInvoice = (invoice: FinanceInvoiceListItem, checked: boolean) => {
+    if (checked && !isCobrosInvoiceSelectable(invoice, selectionAnchorRfc)) {
+      return;
+    }
     setSelected((prev) => ({ ...prev, [invoice.id]: checked }));
   };
 
   const togglePage = (checked: boolean) => {
+    const targets = cobrosInvoicesForPageToggle(invoices, selectionAnchorRfc);
     setSelected((prev) => {
       const next = { ...prev };
-      for (const invoice of filteredInvoices) {
+      for (const invoice of targets) {
         next[invoice.id] = checked;
       }
       return next;
@@ -351,14 +426,14 @@ function FinanceCobrosWorkbench({
   const buildPayload = (
     confirmChainRepair?: boolean,
   ): RegisterFinancePaymentPayload | null => {
-    if (!searchRfc || selectedInvoices.length === 0) return null;
+    if (!paymentReceiverRfc || selectedInvoices.length === 0) return null;
     const allocations = selectedInvoices.map((invoice) => ({
       ingressInvoiceId: invoice.id,
       amount: Number(invoice.balanceDue.toFixed(2)),
     }));
     const amount = allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
     return {
-      receiverRfc: searchRfc,
+      receiverRfc: paymentReceiverRfc,
       amount,
       currency: "MXN",
       exchangeRate: 1,
@@ -393,134 +468,34 @@ function FinanceCobrosWorkbench({
     setPage(nextPage);
   };
 
-  const handleRefresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
+  const handleBucketChange = useCallback(
+    (bucket: CobrosBucketId) => {
+      setSelected({});
+      setPage(1);
+      onBucketChange(bucket);
+    },
+    [onBucketChange],
+  );
 
-  // Buckets
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refetch(), refetchSummary()]);
+  }, [refetch, refetchSummary]);
+
   const buckets = useMemo(
     () =>
       mapCobrosWorkbenchBuckets({
         counts: bucketCounts,
         activeBucket,
-        onBucketChange: (bucket) => {
-          setSelected({});
-          setPage(1);
-          onBucketChange(bucket);
-        },
-        totalBalance: pageBalance,
+        onBucketChange: handleBucketChange,
+        totalBalance: summary?.totalBalance,
       }),
-    [bucketCounts, activeBucket, onBucketChange, pageBalance],
+    [bucketCounts, activeBucket, handleBucketChange, summary?.totalBalance],
   );
 
-  // renderContent: bucket rep_exceptions → exceptions section; rest → invoice table
-  const renderContent = useCallback(() => {
-    if (activeBucket === "rep_exceptions") {
-      return (
-        <FinanceRepExceptionsSection
-          key={`exceptions-${rfcFromUrl || "all"}`}
-          receiverRfc={searchRfc}
-        />
-      );
-    }
-
-    const showInvoiceContent =
-      searchRfc && (isLoading || filteredInvoices.length > 0) && !isError;
-
-    if (!searchRfc) {
-      return (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            {copy.taskDescription}
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (isError) {
-      return (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-destructive">{copy.loadError}</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => refetch()}
-            >
-              {copy.retry}
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (!isLoading && filteredInvoices.length === 0) {
-      return (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            {copy.emptyTitle}
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (!showInvoiceContent) return null;
-
-    return (
-      <div className="space-y-4">
-        {showRegisterBar ? (
-          <CobrosRegisterBar
-            count={selectedInvoices.length}
-            total={formattedSelectedTotal}
-            onRegister={() => setSheetOpen(true)}
-          />
-        ) : null}
-        {pagination && pagination.total > 0 ? (
-          <ListingResultsSummary
-            entityLabelPlural={copy.entityLabelPlural}
-            total={pagination.total}
-            page={pagination.page}
-            limit={pagination.limit}
-          />
-        ) : null}
-        <FinanceCobrosInvoiceTable
-          invoices={filteredInvoices}
-          selected={selected}
-          isLoading={isLoading && filteredInvoices.length === 0}
-          onToggle={toggleInvoice}
-          onTogglePage={togglePage}
-        />
-        {showRegisterBar ? (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardContent className="p-4">
-              <CobrosRegisterBar
-                count={selectedInvoices.length}
-                total={formattedSelectedTotal}
-                onRegister={() => setSheetOpen(true)}
-              />
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
-    );
-  }, [
-    activeBucket,
-    rfcFromUrl,
-    searchRfc,
-    isLoading,
-    isError,
-    filteredInvoices,
-    selected,
-    selectedInvoices,
-    formattedSelectedTotal,
-    showRegisterBar,
-    pagination,
-    refetch,
-    toggleInvoice,
-    togglePage,
-  ]);
+  const isDegraded = isListBucket && isError && !isLoading;
+  const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
+  const hasRfcFilter = Boolean(filterRfc);
+  const listLoading = isListBucket && (isLoading || summaryLoading);
 
   return (
     <>
@@ -529,12 +504,19 @@ function FinanceCobrosWorkbench({
         description={workbenchCopy.description}
         beforeAwareness={
           followThrough ? (
-            <FinanceCobrosFollowThroughAlert followThrough={followThrough} />
+            <FinanceCobrosFollowThroughAlert
+              followThrough={followThrough}
+              onDismiss={onDismissFollowThrough}
+            />
           ) : undefined
         }
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.bucketsAriaLabel}
-        bucketsLoading={isLoading && invoices.length === 0}
+        bucketsLoading={summaryLoading}
+        isDegraded={isDegraded}
+        degradedMessage={workbenchCopy.degradedMessage}
+        degradedHref="/finance/invoices"
+        degradedLinkLabel={workbenchCopy.degradedLinkLabel}
         toolbar={{
           filters: (
             <RfcToolbarFilter onSubmit={onRfcSearch} />
@@ -543,11 +525,107 @@ function FinanceCobrosWorkbench({
           onClearFilters: rfcFromUrl ? onClearRfc : undefined,
           hasFilters: Boolean(rfcFromUrl),
           onRefresh: handleRefresh,
-          isRefreshing: isLoading,
+          isRefreshing: isFetching || summaryLoading,
         }}
-        renderContent={renderContent}
+        renderContent={() => {
+          if (activeBucket === "rep_exceptions") {
+            return (
+              <FinanceRepExceptionsSection
+                key={`exceptions-${rfcFromUrl || "all"}`}
+                receiverRfc={filterRfc}
+              />
+            );
+          }
+
+          if (listLoading) {
+            return (
+              <FinanceCobrosInvoiceTable
+                invoices={[]}
+                selected={{}}
+                isLoading
+                onToggle={() => undefined}
+                onTogglePage={() => undefined}
+              />
+            );
+          }
+
+          if (isError) {
+            return (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-sm text-destructive">{copy.loadError}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => refetch()}
+                  >
+                    {copy.retry}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          if (invoices.length === 0) {
+            const emptyCopy = hasRfcFilter
+              ? workbenchCopy.emptyWithFilters
+              : emptyBucket;
+            return (
+              <EmptyState
+                icon={
+                  <FileClock className="h-10 w-10 text-muted-foreground" />
+                }
+                title={emptyCopy.title}
+                description={emptyCopy.description}
+                secondaryCta={
+                  hasRfcFilter
+                    ? {
+                        label: workbenchCopy.emptyWithFilters.clearFilters,
+                        onClick: onClearRfc,
+                        variant: "outline" as const,
+                      }
+                    : undefined
+                }
+              />
+            );
+          }
+
+          return (
+            <div className="space-y-4">
+              {pagination && pagination.total > 0 ? (
+                <ListingResultsSummary
+                  entityLabelPlural={copy.entityLabelPlural}
+                  total={pagination.total}
+                  page={pagination.page}
+                  limit={pagination.limit}
+                />
+              ) : null}
+              <FinanceCobrosInvoiceTable
+                invoices={invoices}
+                selected={selected}
+                anchorRfc={selectionAnchorRfc}
+                isLoading={false}
+                onToggle={toggleInvoice}
+                onTogglePage={togglePage}
+              />
+              {showRegisterBar ? (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4">
+                    <CobrosRegisterBar
+                      count={selectedInvoices.length}
+                      total={formattedSelectedTotal}
+                      onRegister={() => setSheetOpen(true)}
+                    />
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          );
+        }}
         pagination={
-          activeBucket !== "rep_exceptions" && pagination
+          isListBucket && pagination
             ? {
                 page: pagination.page,
                 totalPages: pagination.totalPages,
@@ -556,7 +634,12 @@ function FinanceCobrosWorkbench({
               }
             : undefined
         }
-        onPageChange={activeBucket !== "rep_exceptions" ? handlePageChange : undefined}
+        onPageChange={isListBucket ? handlePageChange : undefined}
+        relatedConfig={{
+          label: workbenchCopy.relatedConfig.label,
+          href: "/finance",
+          description: workbenchCopy.relatedConfig.description,
+        }}
       />
 
       {canRegisterPayment ? (
@@ -565,7 +648,7 @@ function FinanceCobrosWorkbench({
           onOpenChange={setSheetOpen}
           invoices={selectedInvoices}
           total={selectedTotal}
-          receiverRfc={searchRfc ?? ""}
+          receiverRfc={paymentReceiverRfc ?? ""}
           paymentDate={paymentDate}
           reference={reference}
           onReferenceChange={setReference}

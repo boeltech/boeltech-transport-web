@@ -20,20 +20,21 @@ const exportCopy = {
 const cobrosCopy = {
   taskTitle: "Registrar un cobro",
   taskDescription:
-    "Busca al cliente por RFC y elige las facturas que cubre el mismo depósito. Aquí cada factura se cobra por el saldo completo. Un cobro parcial de una sola factura se registra en su detalle.",
+    "Cola de cartera PPD con saldo. Elige facturas del mismo RFC que cubre el depósito. Aquí cada factura se cobra por el saldo completo. Un cobro parcial de una sola factura se registra en su detalle.",
   receiverRfcLabel: "RFC del cliente",
   rfcPlaceholder: "XAXX010101000",
-  search: "Buscar",
+  search: "Filtrar",
   changeRfc: "Cambiar RFC",
   rfcChip: (rfc: string) => `RFC ${rfc}`,
   summaryLink:
-    "Si no tienes el RFC, ábrelo desde Resumen → estado de cuenta → Cobrar.",
+    "Si buscas un cliente concreto, ábrelo desde Resumen → estado de cuenta → Cobrar.",
   summaryLinkCta: "Ir a Resumen",
   retry: "Reintentar",
   loadErrorTitle: "No se pudo consultar",
   loadError: "No se pudieron cargar las facturas.",
   emptyTitle: "Sin facturas abiertas",
-  empty: "No hay facturas a crédito con saldo pendiente para este RFC.",
+  empty: "No hay facturas a crédito con saldo pendiente en la cola.",
+  emptyWithRfc: "No hay facturas a crédito con saldo pendiente para este RFC.",
   metrics: {
     openInvoices: "Facturas abiertas",
     openBalance: "Por cobrar",
@@ -42,8 +43,10 @@ const cobrosCopy = {
   },
   tableTitle: "Facturas abiertas a crédito",
   tableDescription:
-    "Selecciona las facturas que cubre el mismo cobro. Se aplicará el por cobrar completo de cada una (no una parcialidad).",
-  selectAllAria: "Seleccionar todas las facturas de esta página",
+    "Selecciona facturas del mismo RFC que cubre el depósito. Se aplicará el por cobrar completo de cada una (no una parcialidad).",
+  selectAllAria: "Seleccionar todas las facturas del mismo RFC en esta página",
+  sameRfcOnlyHint:
+    "Solo puedes registrar un cobro con facturas del mismo RFC.",
   register: "Registrar cobro",
   registerCta: (count: number, total: string) =>
     `Registrar cobro · ${count} factura${count === 1 ? "" : "s"} · ${total}`,
@@ -80,6 +83,7 @@ const cobrosCopy = {
     openInvoice: (folio: string) => `Abrir factura ${folio}`,
     repStatusLabel: "Comprobante de pago",
     hint: "Si el sello falla o se acerca el plazo, el cobro aparece abajo en Comprobantes por atender.",
+    dismissAriaLabel: "Cerrar aviso de cobro registrado",
   },
   exceptions: {
     title: "Comprobantes por atender",
@@ -114,21 +118,51 @@ const cobrosCopy = {
   },
   workbench: {
     title: "Cobros",
-    description: "Registra cobros por RFC y revisa comprobantes de pago pendientes.",
+    description:
+      "Cola de cartera a crédito: registra depósitos por el mismo RFC y revisa comprobantes de pago pendientes.",
     bucketsAriaLabel: "Estado de cobranza",
-    rfcFilterPlaceholder: "Buscar por RFC…",
+    rfcFilterPlaceholder: "Filtrar por RFC…",
     rfcChipLabel: (rfc: string) => `RFC: ${rfc}`,
     buckets: {
-      all: "Todas",
-      overdue: "Vencidas",
+      open: "Por cobrar",
       partial: "Pago parcial",
       rep_exceptions: "Excepciones REP",
     },
     bucketDescriptions: {
-      all: "Facturas PPD abiertas con saldo pendiente",
-      overdue: "Fecha de pago vencida",
+      open: "Facturas PPD abiertas con saldo pendiente",
       partial: "Con pagos registrados y saldo remanente",
       rep_exceptions: "Comprobantes por atender",
+    },
+    emptyByBucket: {
+      open: {
+        title: "Nada por cobrar",
+        description:
+          "No hay facturas a crédito con saldo pendiente en la cola actual.",
+      },
+      partial: {
+        title: "Sin pagos parciales",
+        description:
+          "No hay facturas con pagos registrados y saldo remanente.",
+      },
+      rep_exceptions: {
+        title: "Sin excepciones REP",
+        description:
+          "No hay comprobantes de pago pendientes de sello en este alcance.",
+      },
+    },
+    emptyWithFilters: {
+      title: "Sin resultados para este RFC",
+      description:
+        "No hay facturas abiertas para el RFC filtrado. Quita el filtro para ver la cola completa.",
+      clearFilters: "Quitar filtro RFC",
+    },
+    degradedMessage:
+      "No se pudo cargar la cola de cobros. Consulta Facturas o el Resumen mientras tanto.",
+    degradedLinkLabel: "Ir a facturas",
+    relatedConfig: {
+      label: "Ver resumen de cartera",
+      description:
+        "Indicadores de cobro y estado de cuenta por cliente.",
     },
   },
   toastError: "No se pudo registrar el cobro",
@@ -142,8 +176,11 @@ const cobrosCopy = {
     cancel: "Volver",
   },
   selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
+  selectInvoiceDisabled: (folio: string) =>
+    `No seleccionable: factura ${folio} es de otro RFC`,
   columns: {
     invoice: "Factura",
+    client: "Cliente",
     issuedAt: "Emisión",
     trips: "Viajes",
     total: "Total",
@@ -167,7 +204,8 @@ export const financeCopy = {
       },
       cobros: {
         title: "Cobros",
-        subtitle: "Registra cobros por RFC y revisa comprobantes de pago pendientes.",
+        subtitle:
+          "Cola de cartera a crédito y comprobantes de pago pendientes.",
       },
       analysis: {
         title: "Análisis",

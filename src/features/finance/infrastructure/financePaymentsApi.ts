@@ -2,6 +2,7 @@ import { apiClient } from "@shared/api";
 import type {
   FinanceInvoiceListItem,
   FinanceInvoicePagination,
+  FinanceOpenPpdSummary,
   FinancePayment,
   FinanceRepExceptionItem,
   PaginatedFinanceInvoices,
@@ -9,6 +10,21 @@ import type {
 } from "@features/finance/domain";
 
 export const OPEN_PPD_INVOICES_PAGE_SIZE = 50;
+
+export type CobrosApiBucket = "open" | "partial";
+
+export interface GetOpenPpdInvoicesParams {
+  receiverRfc?: string | null;
+  search?: string | null;
+  cobrosBucket?: CobrosApiBucket | null;
+  page?: number;
+  limit?: number;
+}
+
+export interface GetOpenPpdSummaryParams {
+  receiverRfc?: string | null;
+  search?: string | null;
+}
 
 export interface FinancePaymentAllocationPayload {
   ingressInvoiceId: string;
@@ -160,17 +176,44 @@ export function mapRepExceptionItem(
   };
 }
 
+export function mapOpenPpdSummary(
+  raw: Record<string, unknown> | undefined,
+): FinanceOpenPpdSummary {
+  return {
+    open: Math.max(0, asFiniteNumber(raw?.open, 0)),
+    partial: Math.max(0, asFiniteNumber(raw?.partial, 0)),
+    repExceptions: Math.max(
+      0,
+      asFiniteNumber(raw?.rep_exceptions ?? raw?.repExceptions, 0),
+    ),
+    totalBalance: asFiniteNumber(
+      raw?.total_balance ?? raw?.totalBalance,
+      0,
+    ),
+  };
+}
+
 export const financePaymentsApi = {
   getOpenPpdInvoices: async (
-    receiverRfc: string,
-    page = 1,
-    limit = OPEN_PPD_INVOICES_PAGE_SIZE,
+    options: GetOpenPpdInvoicesParams = {},
   ): Promise<PaginatedFinanceInvoices> => {
+    const page = options.page ?? 1;
+    const limit = options.limit ?? OPEN_PPD_INVOICES_PAGE_SIZE;
     const params = new URLSearchParams({
-      receiver_rfc: receiverRfc,
       page: String(page),
       limit: String(limit),
     });
+    const receiverRfc = options.receiverRfc?.trim();
+    if (receiverRfc) {
+      params.set("receiver_rfc", receiverRfc.toUpperCase());
+    }
+    const search = options.search?.trim();
+    if (search) {
+      params.set("search", search);
+    }
+    if (options.cobrosBucket) {
+      params.set("cobros_bucket", options.cobrosBucket);
+    }
     const response = await apiClient.get<{
       data: unknown[];
       pagination: Record<string, unknown>;
@@ -183,6 +226,27 @@ export const financePaymentsApi = {
         response.pagination as Record<string, unknown> | undefined,
       ),
     };
+  },
+
+  getOpenPpdSummary: async (
+    options: GetOpenPpdSummaryParams = {},
+  ): Promise<FinanceOpenPpdSummary> => {
+    const params = new URLSearchParams();
+    const receiverRfc = options.receiverRfc?.trim();
+    if (receiverRfc) {
+      params.set("receiver_rfc", receiverRfc.toUpperCase());
+    }
+    const search = options.search?.trim();
+    if (search) {
+      params.set("search", search);
+    }
+    const query = params.toString();
+    const response = await apiClient.get<{ data: Record<string, unknown> }>(
+      query
+        ? `/finance/open-ppd-summary?${query}`
+        : "/finance/open-ppd-summary",
+    );
+    return mapOpenPpdSummary(response.data as Record<string, unknown>);
   },
 
   getRepExceptions: async (options?: {

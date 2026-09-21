@@ -16,6 +16,7 @@ export { useFinanceInvoicesList } from "./hooks/useFinanceInvoicesList";
 export {
   OPEN_PPD_INVOICES_PAGE_SIZE,
   useOpenPpdInvoices,
+  useOpenPpdSummary,
   useRegisterFinancePayment,
   useRepExceptions,
 } from "./hooks/useFinancePayments";

@@ -33,4 +33,5 @@ export type {
   FinanceRepExceptionAllocation,
   FinanceRepExceptionItem,
   PaginatedFinanceRepExceptions,
+  FinanceOpenPpdSummary,
 } from "./entities";

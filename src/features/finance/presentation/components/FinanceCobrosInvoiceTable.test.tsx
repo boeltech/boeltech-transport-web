@@ -35,6 +35,7 @@ function renderTable(
       <FinanceCobrosInvoiceTable
         invoices={invoices}
         selected={props.selected ?? {}}
+        anchorRfc={props.anchorRfc}
         onToggle={props.onToggle ?? vi.fn()}
         onTogglePage={props.onTogglePage ?? vi.fn()}
         isLoading={props.isLoading}
@@ -44,14 +45,40 @@ function renderTable(
 }
 
 describe("FinanceCobrosInvoiceTable", () => {
-  it("links the folio and shows trip codes without repeating RFC", () => {
+  it("links the folio and shows client with RFC for the mixed queue", () => {
     renderTable();
 
     const folioLinks = screen.getAllByRole("link", { name: "A-10" });
     expect(folioLinks[0]).toHaveAttribute("href", "/invoices/inv-1");
     expect(screen.getAllByText("TRP-001").length).toBeGreaterThan(0);
-    expect(screen.queryByText("XAXX010101000")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("XAXX010101000").length).toBeGreaterThan(0);
     expect(screen.queryByText("A crédito")).not.toBeInTheDocument();
+  });
+
+  it("disables checkboxes for invoices outside the selection RFC anchor", () => {
+    renderTable({
+      invoices: [
+        buildInvoice(),
+        buildInvoice({
+          id: "inv-2",
+          folio: 11,
+          receiverRfc: "XEXX010101000",
+          receiverName: "Otro",
+        }),
+      ],
+      selected: { "inv-1": true },
+      anchorRfc: "XAXX010101000",
+    });
+
+    expect(
+      screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0],
+    ).toBeEnabled();
+    expect(
+      screen.getAllByRole("checkbox", {
+        name: "No seleccionable: factura A-11 es de otro RFC",
+      })[0],
+    ).toBeDisabled();
   });
 
   it("selects the current page from the header checkbox", async () => {
@@ -66,7 +93,7 @@ describe("FinanceCobrosInvoiceTable", () => {
     });
 
     const selectAll = screen.getAllByRole("checkbox", {
-      name: "Seleccionar todas las facturas de esta página",
+      name: "Seleccionar todas las facturas del mismo RFC en esta página",
     });
     await user.click(selectAll[0]!);
     expect(onTogglePage).toHaveBeenCalledWith(true);

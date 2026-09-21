@@ -14,6 +14,7 @@ import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
+import { isCobrosInvoiceSelectable } from "../utils/cobrosSelection";
 
 const copy = financeCopy.cobros;
 const SKELETON_ROWS = 8;
@@ -42,9 +43,25 @@ function TripCodes({ codes }: { codes: string[] }) {
   );
 }
 
+function ClientCell({ invoice }: { invoice: FinanceInvoiceListItem }) {
+  const name = invoice.receiverName?.trim();
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-sm">{name || invoice.receiverRfc}</p>
+      {name ? (
+        <p className="font-mono text-xs text-muted-foreground">
+          {invoice.receiverRfc}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 interface FinanceCobrosInvoiceTableProps {
   invoices: FinanceInvoiceListItem[];
   selected: Record<string, boolean>;
+  /** RFC ancla de la selección; deshabilita filas de otro RFC. */
+  anchorRfc?: string | null;
   isLoading?: boolean;
   onToggle: (invoice: FinanceInvoiceListItem, checked: boolean) => void;
   onTogglePage: (checked: boolean) => void;
@@ -53,13 +70,20 @@ interface FinanceCobrosInvoiceTableProps {
 export function FinanceCobrosInvoiceTable({
   invoices,
   selected,
+  anchorRfc = null,
   isLoading = false,
   onToggle,
   onTogglePage,
 }: FinanceCobrosInvoiceTableProps) {
-  const selectedOnPage = invoices.filter((invoice) => selected[invoice.id]);
+  const selectableOnPage = invoices.filter((invoice) =>
+    isCobrosInvoiceSelectable(invoice, anchorRfc),
+  );
+  const selectedOnPage = selectableOnPage.filter(
+    (invoice) => selected[invoice.id],
+  );
   const allSelected =
-    invoices.length > 0 && selectedOnPage.length === invoices.length;
+    selectableOnPage.length > 0 &&
+    selectedOnPage.length === selectableOnPage.length;
   const someSelected = selectedOnPage.length > 0 && !allSelected;
   const selectAllState = allSelected
     ? true
@@ -76,6 +100,7 @@ export function FinanceCobrosInvoiceTable({
               <TableRow>
                 <TableHead className="w-10" />
                 <TableHead>{copy.columns.invoice}</TableHead>
+                <TableHead>{copy.columns.client}</TableHead>
                 <TableHead>{copy.columns.issuedAt}</TableHead>
                 <TableHead>{copy.columns.trips}</TableHead>
                 <TableHead className="text-right">{copy.columns.total}</TableHead>
@@ -90,6 +115,9 @@ export function FinanceCobrosInvoiceTable({
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-36" />
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-4 w-24" />
@@ -128,9 +156,11 @@ export function FinanceCobrosInvoiceTable({
                   checked={selectAllState}
                   onCheckedChange={(checked) => onTogglePage(checked === true)}
                   aria-label={copy.selectAllAria}
+                  disabled={selectableOnPage.length === 0}
                 />
               </TableHead>
               <TableHead>{copy.columns.invoice}</TableHead>
+              <TableHead>{copy.columns.client}</TableHead>
               <TableHead>{copy.columns.issuedAt}</TableHead>
               <TableHead>{copy.columns.trips}</TableHead>
               <TableHead className="text-right">{copy.columns.total}</TableHead>
@@ -141,15 +171,24 @@ export function FinanceCobrosInvoiceTable({
             {invoices.map((invoice) => {
               const folio = invoiceFolio(invoice);
               const isChecked = Boolean(selected[invoice.id]);
+              const selectable = isCobrosInvoiceSelectable(invoice, anchorRfc);
               return (
-                <TableRow key={invoice.id}>
+                <TableRow
+                  key={invoice.id}
+                  className={selectable ? undefined : "opacity-60"}
+                >
                   <TableCell>
                     <Checkbox
                       checked={isChecked}
+                      disabled={!selectable}
                       onCheckedChange={(checked) =>
                         onToggle(invoice, checked === true)
                       }
-                      aria-label={copy.selectInvoice(folio)}
+                      aria-label={
+                        selectable
+                          ? copy.selectInvoice(folio)
+                          : copy.selectInvoiceDisabled(folio)
+                      }
                     />
                   </TableCell>
                   <TableCell className="font-medium">
@@ -159,6 +198,9 @@ export function FinanceCobrosInvoiceTable({
                     >
                       {folio}
                     </Link>
+                  </TableCell>
+                  <TableCell>
+                    <ClientCell invoice={invoice} />
                   </TableCell>
                   <TableCell>{formatDate(invoice.issuedAt)}</TableCell>
                   <TableCell>
@@ -183,20 +225,30 @@ export function FinanceCobrosInvoiceTable({
             checked={selectAllState}
             onCheckedChange={(checked) => onTogglePage(checked === true)}
             aria-label={copy.selectAllAria}
+            disabled={selectableOnPage.length === 0}
           />
           <span className="text-sm font-medium">{copy.selectAllAria}</span>
         </div>
         {invoices.map((invoice) => {
           const folio = invoiceFolio(invoice);
+          const selectable = isCobrosInvoiceSelectable(invoice, anchorRfc);
           return (
-            <div key={invoice.id} className="flex items-start gap-3 py-3">
+            <div
+              key={invoice.id}
+              className={`flex items-start gap-3 py-3 ${selectable ? "" : "opacity-60"}`}
+            >
               <div className="pt-1">
                 <Checkbox
                   checked={Boolean(selected[invoice.id])}
+                  disabled={!selectable}
                   onCheckedChange={(checked) =>
                     onToggle(invoice, checked === true)
                   }
-                  aria-label={copy.selectInvoice(folio)}
+                  aria-label={
+                    selectable
+                      ? copy.selectInvoice(folio)
+                      : copy.selectInvoiceDisabled(folio)
+                  }
                 />
               </div>
               <div className="min-w-0 flex-1 space-y-1">
@@ -206,6 +258,7 @@ export function FinanceCobrosInvoiceTable({
                 >
                   {folio}
                 </Link>
+                <ClientCell invoice={invoice} />
                 <p className="text-xs text-muted-foreground">
                   {copy.columns.issuedAt}: {formatDate(invoice.issuedAt)}
                 </p>

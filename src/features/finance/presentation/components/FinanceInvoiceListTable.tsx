@@ -205,7 +205,7 @@ export function FinanceInvoiceListTable({
               </TableCell>
               <TableCell className="text-right">
                 {(() => {
-                  const { balanceDue, isPueSettled } = getListDisplayAmounts(invoice);
+                  const { balanceDue } = getListDisplayAmounts(invoice);
                   if (balanceDue > 0) {
                     return (
                       <span className="font-medium text-destructive">
@@ -214,9 +214,7 @@ export function FinanceInvoiceListTable({
                     );
                   }
                   return (
-                    <span className="text-sm text-success">
-                      {isPueSettled ? copy.table.settledPue : copy.table.paid}
-                    </span>
+                    <span className="text-sm text-success">{copy.table.paid}</span>
                   );
                 })()}
               </TableCell>

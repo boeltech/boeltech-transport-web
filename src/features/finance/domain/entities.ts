@@ -324,3 +324,11 @@ export interface PaginatedFinanceRepExceptions {
   readonly data: FinanceRepExceptionItem[];
   readonly pagination: FinanceInvoicePagination;
 }
+
+/** Response `GET /finance/open-ppd-summary` (Cobros workbench variante A). */
+export interface FinanceOpenPpdSummary {
+  readonly open: number;
+  readonly partial: number;
+  readonly repExceptions: number;
+  readonly totalBalance: number;
+}

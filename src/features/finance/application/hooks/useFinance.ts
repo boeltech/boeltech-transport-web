@@ -39,6 +39,15 @@ export const financeQueryKeys = {
     limit: number,
   ) =>
     [...financeQueryKeys.all, "rep-exceptions", receiverRfc, page, limit] as const,
+  openPpdInvoices: (filters: {
+    receiverRfc: string | null;
+    search: string | null;
+    cobrosBucket: string | null;
+    page: number;
+    limit: number;
+  }) => [...financeQueryKeys.all, "open-ppd", filters] as const,
+  openPpdSummary: (receiverRfc: string | null, search: string | null) =>
+    [...financeQueryKeys.all, "open-ppd-summary", receiverRfc, search] as const,
 };
 
 export const useFinanceSummary = (options?: { enabled?: boolean }) =>

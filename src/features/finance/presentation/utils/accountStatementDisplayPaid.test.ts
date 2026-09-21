@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getAccountStatementDisplayPaid } from "./accountStatementDisplayPaid";
 
 describe("getAccountStatementDisplayPaid", () => {
-  it("shows PUE settlement when total_paid is raw 0 and balance is 0", () => {
+  it("shows paid when balance is 0 (aplicaciones reales)", () => {
     expect(
       getAccountStatementDisplayPaid({
         totalInvoiced: 31920,
@@ -20,7 +20,7 @@ describe("getAccountStatementDisplayPaid", () => {
     ).toBe(2000);
   });
 
-  it("sums PUE settlement plus PPD payments for mixed clients", () => {
+  it("reflects remaining balance for mixed portfolios", () => {
     expect(
       getAccountStatementDisplayPaid({
         totalInvoiced: 15000,
@@ -46,5 +46,14 @@ describe("getAccountStatementDisplayPaid", () => {
     const cajaTotalPaid = 0;
     expect(displayPaid).toBe(31920);
     expect(displayPaid).not.toBe(cajaTotalPaid);
+  });
+
+  it("shows unpaid PUE when API balance equals total", () => {
+    expect(
+      getAccountStatementDisplayPaid({
+        totalInvoiced: 1160,
+        balanceDue: 1160,
+      }),
+    ).toBe(0);
   });
 });

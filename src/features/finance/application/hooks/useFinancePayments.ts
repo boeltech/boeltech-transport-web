@@ -3,6 +3,7 @@ import type { UseMutationOptions } from "@tanstack/react-query";
 import {
   financePaymentsApi,
   OPEN_PPD_INVOICES_PAGE_SIZE,
+  type CobrosApiBucket,
   type RegisterFinancePaymentPayload,
 } from "@features/finance/infrastructure/financePaymentsApi";
 import { financeQueryKeys } from "./useFinance";
@@ -15,22 +16,73 @@ const invoiceInvalidationKeys = {
   detail: (id: string) => ["invoices", "detail", id] as const,
 };
 
-export function useOpenPpdInvoices(
-  receiverRfc: string | null,
-  options?: { enabled?: boolean; page?: number; limit?: number },
-) {
+export function useOpenPpdInvoices(options?: {
+  receiverRfc?: string | null;
+  search?: string | null;
+  cobrosBucket?: CobrosApiBucket | null;
+  enabled?: boolean;
+  page?: number;
+  limit?: number;
+}) {
   const page = options?.page ?? 1;
   const limit = options?.limit ?? OPEN_PPD_INVOICES_PAGE_SIZE;
+  const receiverRfc = options?.receiverRfc ?? null;
+  const search = options?.search ?? null;
+  const cobrosBucket = options?.cobrosBucket ?? null;
   return useQuery({
-    queryKey: [...financeQueryKeys.all, "open-ppd", receiverRfc, page, limit] as const,
+    queryKey: financeQueryKeys.openPpdInvoices({
+      receiverRfc,
+      search,
+      cobrosBucket,
+      page,
+      limit,
+    }),
     queryFn: () =>
-      financePaymentsApi.getOpenPpdInvoices(receiverRfc!, page, limit),
-    enabled: Boolean(receiverRfc) && (options?.enabled ?? true),
+      financePaymentsApi.getOpenPpdInvoices({
+        receiverRfc,
+        search,
+        cobrosBucket,
+        page,
+        limit,
+      }),
+    enabled: options?.enabled ?? true,
     staleTime: 30_000,
     placeholderData: (previous, previousQuery) => {
-      if (previousQuery?.queryKey[2] === receiverRfc) return previous;
+      const prevKey = previousQuery?.queryKey;
+      if (!prevKey || prevKey[1] !== "open-ppd") return undefined;
+      const prevFilters = prevKey[2] as {
+        receiverRfc?: string | null;
+        search?: string | null;
+        cobrosBucket?: CobrosApiBucket | null;
+      };
+      if (
+        prevFilters?.receiverRfc === receiverRfc &&
+        prevFilters?.search === search &&
+        prevFilters?.cobrosBucket === cobrosBucket
+      ) {
+        return previous;
+      }
       return undefined;
     },
+  });
+}
+
+export function useOpenPpdSummary(options?: {
+  receiverRfc?: string | null;
+  search?: string | null;
+  enabled?: boolean;
+}) {
+  const receiverRfc = options?.receiverRfc ?? null;
+  const search = options?.search ?? null;
+  return useQuery({
+    queryKey: financeQueryKeys.openPpdSummary(receiverRfc, search),
+    queryFn: () =>
+      financePaymentsApi.getOpenPpdSummary({
+        receiverRfc,
+        search,
+      }),
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
   });
 }
 

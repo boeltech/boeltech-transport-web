@@ -17,6 +17,8 @@ export interface CobrosFollowThrough {
   readonly paymentDate: string;
   readonly repStatus: string;
   readonly invoices: CobrosFollowThroughInvoice[];
+  /** ISO timestamp when the snapshot was written (F2 lifecycle). */
+  readonly recordedAt?: string;
 }
 
 function isFollowThroughInvoice(value: unknown): value is CobrosFollowThroughInvoice {
@@ -45,6 +47,8 @@ export function parseCobrosFollowThrough(raw: unknown): CobrosFollowThrough | nu
   }
   const invoices = value.invoices.filter(isFollowThroughInvoice);
   if (invoices.length === 0) return null;
+  const recordedAt =
+    typeof value.recordedAt === "string" ? value.recordedAt : undefined;
   return {
     paymentId: value.paymentId,
     receiverRfc: value.receiverRfc,
@@ -52,6 +56,7 @@ export function parseCobrosFollowThrough(raw: unknown): CobrosFollowThrough | nu
     paymentDate: value.paymentDate,
     repStatus: value.repStatus,
     invoices,
+    ...(recordedAt ? { recordedAt } : {}),
   };
 }
 
@@ -78,6 +83,7 @@ export function buildCobrosFollowThrough(
       folio: invoice.folio,
       amount: amountByInvoiceId.get(invoice.id) ?? invoice.balanceDue,
     })),
+    recordedAt: new Date().toISOString(),
   };
 }
 
@@ -102,4 +108,50 @@ export function writeCobrosFollowThrough(value: CobrosFollowThrough): void {
   } catch {
     // Quota or private mode: the in-memory panel still covers this visit.
   }
+}
+
+export function clearCobrosFollowThrough(): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
+  } catch {
+    // Private mode: ignore; caller still clears React state.
+  }
+}
+
+/** Grace before treating “absent from exceptions” as resolved (stale cache / indexing). */
+export const COBROS_FOLLOW_THROUGH_ABSENCE_GRACE_MS = 3_000;
+
+/**
+ * Banner lifecycle (issue #33 F2): clear when REP is stamped, or when the
+ * payment left the exceptions bucket after we already observed it there, or
+ * after a short grace when a return visit finds it gone (stamp completed).
+ */
+export function shouldClearCobrosFollowThrough(
+  followThrough: CobrosFollowThrough,
+  live: {
+    readonly exceptionsFetched: boolean;
+    readonly exceptionPaymentIds: ReadonlySet<string> | readonly string[];
+    /** True when the fetched page may omit the payment (pagination). */
+    readonly exceptionsMayBeIncomplete?: boolean;
+    /** True once this paymentId appeared in a successful exceptions fetch. */
+    readonly previouslySeenInExceptions: boolean;
+    /** Clock for grace window tests; defaults to Date.now(). */
+    readonly nowMs?: number;
+  },
+): boolean {
+  if (followThrough.repStatus === "stamped") return true;
+  if (!live.exceptionsFetched) return false;
+  if (live.exceptionsMayBeIncomplete) return false;
+  const ids =
+    live.exceptionPaymentIds instanceof Set
+      ? live.exceptionPaymentIds
+      : new Set(live.exceptionPaymentIds);
+  if (ids.has(followThrough.paymentId)) return false;
+  if (live.previouslySeenInExceptions) return true;
+  if (!followThrough.recordedAt) return false;
+  const recordedMs = Date.parse(followThrough.recordedAt);
+  if (Number.isNaN(recordedMs)) return false;
+  const nowMs = live.nowMs ?? Date.now();
+  return nowMs - recordedMs >= COBROS_FOLLOW_THROUGH_ABSENCE_GRACE_MS;
 }
