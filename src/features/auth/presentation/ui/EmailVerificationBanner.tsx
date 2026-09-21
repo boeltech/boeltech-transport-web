@@ -4,7 +4,9 @@ import { useAuth } from "@features/auth";
 import { authApi } from "@features/auth/infrastructure";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
+import { toastSuccess } from "@shared/hooks/useToast";
 import { mapBackendError } from "@shared/utils/errorMapper";
+import { emailVerificationBannerCopy as copy } from "./emailVerificationBannerCopy";
 
 /**
  * Banner soft-gate: pide verificar correo sin bloquear el uso del ERP.
@@ -13,6 +15,7 @@ import { mapBackendError } from "@shared/utils/errorMapper";
 export function EmailVerificationBanner() {
   const { user, refreshProfile } = useAuth();
   const [sending, setSending] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,10 +29,7 @@ export function EmailVerificationBanner() {
     setMessage(null);
     try {
       const result = await authApi.resendEmailVerification();
-      setMessage(
-        result.message ||
-          "Te enviamos un nuevo enlace de verificación. Revisa tu bandeja.",
-      );
+      setMessage(result.message || copy.resendSuccessDefault);
     } catch (err) {
       setError(mapBackendError(err).message);
     } finally {
@@ -38,22 +38,30 @@ export function EmailVerificationBanner() {
   };
 
   const handleRefreshProfile = async () => {
+    setChecking(true);
+    setError(null);
+    setMessage(null);
     try {
-      await refreshProfile();
-      setMessage("Perfil actualizado.");
+      const updated = await refreshProfile();
+      if (updated?.emailVerifiedAt != null) {
+        toastSuccess(copy.verifiedToast);
+        return;
+      }
+      setMessage(copy.stillPending);
     } catch (err) {
       setError(mapBackendError(err).message);
+    } finally {
+      setChecking(false);
     }
   };
 
+  const busy = sending || checking;
+
   return (
     <div className="mb-4">
-      <AlertWithIcon variant="warning" title="Verifica tu correo">
+      <AlertWithIcon variant="warning" title={copy.title}>
         <div className="space-y-2 text-sm">
-          <p>
-            Enviamos un enlace a <strong>{user.email}</strong>. Debes
-            verificarlo antes de completar el onboarding.
-          </p>
+          <p>{copy.body(user.email)}</p>
           {message ? <p className="text-foreground">{message}</p> : null}
           {error ? <p className="text-destructive">{error}</p> : null}
           <div className="flex flex-wrap gap-2 pt-1">
@@ -61,19 +69,20 @@ export function EmailVerificationBanner() {
               type="button"
               size="sm"
               variant="secondary"
-              disabled={sending}
+              disabled={busy}
               onClick={handleResend}
             >
               <Mail className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              {sending ? "Enviando…" : "Reenviar correo"}
+              {sending ? copy.resendSending : copy.resendButton}
             </Button>
             <Button
               type="button"
               size="sm"
               variant="ghost"
+              disabled={busy}
               onClick={handleRefreshProfile}
             >
-              Ya verifiqué
+              {checking ? copy.confirmChecking : copy.confirmButton}
             </Button>
           </div>
         </div>

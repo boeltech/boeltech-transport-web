@@ -223,6 +223,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
     "La factura sustituta ya se timbró, pero no se pudo cancelar el CFDI original. Usa «Reintentar cancelación del original» o contacta a soporte con el UUID de la sustituta.",
   SUBSTITUTION_ALREADY_HAS_REPLACEMENT:
     "Ya existe una factura sustituta para esta factura. No sustituyas de nuevo; reintenta la cancelación del original si sigue activa.",
+  INVOICE_HAS_PAYMENTS:
+    "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar mientras haya cobros.",
   RATE_LIMIT_EXCEEDED:
     "Demasiados envíos en poco tiempo. Espera un momento e inténtalo de nuevo.",
 

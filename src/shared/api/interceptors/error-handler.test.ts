@@ -207,6 +207,56 @@ describe("ApiError.fromAxiosError", () => {
     expect(error.message).not.toContain("dirección de facturación");
   });
 
+  // Contrato T5-002 / #31: API F1 envía hint y xml_checks en texto plano
+  // (RFC con & real, no entidad HTML). La UI debe mostrar L&O… sin L&amp;O literales.
+  it("CFDI40147 hint con RFC que contiene & se muestra en texto plano (sin &amp; literal)", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
+        code: "PAC_VALIDATION_ERROR",
+        details: {
+          pac_provider: "profact",
+          pac_code: "21001",
+          pac_rule: "CFDI40147",
+          hint: "El código postal fiscal 01210 no coincide con el registrado ante el SAT para el RFC L&O950913MSA. Si la factura ya muestra ese código, no lo cambie en el cliente: confírmelo en la constancia de situación fiscal del receptor y, si es el mismo, pida apoyo a soporte.",
+          xml_checks: {
+            receptorRfc: "L&O950913MSA",
+            receptorPostalCode: "01210",
+            lugarExpedicion: "63901",
+          },
+        },
+      }),
+    );
+
+    expect(error.message).toContain("L&O950913MSA");
+    expect(error.message).not.toContain("L&amp;O");
+    expect(error.message).toContain("01210");
+  });
+
+  it("CFDI40147 sin hint reensambla RFC con & desde xml_checks.receptorRfc en texto plano", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
+        code: "PAC_VALIDATION_ERROR",
+        details: {
+          pac_provider: "profact",
+          pac_code: "21001",
+          pac_rule: "CFDI40147",
+          xml_checks: {
+            receptorRfc: "L&O950913MSA",
+            receptorPostalCode: "01210",
+            lugarExpedicion: "63901",
+          },
+        },
+      }),
+    );
+
+    expect(error.message).toContain("L&O950913MSA");
+    expect(error.message).not.toContain("L&amp;O");
+    expect(error.message).toContain("El código postal fiscal 01210");
+    expect(error.message).toContain("RFC L&O950913MSA");
+  });
+
   it("prefers dictionary for PAC_NOT_IMPLEMENTED even if data.error is technical", () => {
     const error = ApiError.fromAxiosError(
       buildAxiosError({

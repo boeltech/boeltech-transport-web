@@ -5,12 +5,13 @@
  */
 
 import { createContext } from "react";
-import type { AuthState, LoginCredentials, UserJSON } from "../../domain";
+import type { AuthState, LoginCredentials, User, UserJSON } from "../../domain";
 
 export interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  /** Actualiza sesión; devuelve el User cargado (o undefined si no hay sesión). */
+  refreshProfile: () => Promise<User | undefined>;
   replaceSessionUser: (json: UserJSON, accessToken?: string) => void;
   applySessionTokens: (accessToken: string, refreshToken: string) => void;
 }

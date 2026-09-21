@@ -89,9 +89,11 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   FINISH_FAILED: "Error al finalizar el viaje",
   GET_FAILED: "Error al obtener los datos",
 
-  // ===== PLAN / LÍMITES (WS-D) =====
+  // ===== PLAN / LÍMITES (WS-D · ADR-0095) =====
   USER_LIMIT_REACHED:
     "Tu plan no tiene plazas libres para más usuarios activos. Revisa Tu plan para ampliarlo.",
+  USER_OVER_QUOTA:
+    "Ya tienes más usuarios activos que tu cupo. Puedes seguir operando; desactiva a alguien o contacta a Boeltech para ajustar antes de crear o invitar.",
   BRANCH_LIMIT_REACHED:
     "Tu plan permite 1 sucursal. Contacta a soporte para ampliar tu plan.",
   BRANCH_NOT_PLAN_ELIGIBLE:
@@ -122,6 +124,8 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
     "Los importes de retención no coinciden con el 4% requerido para persona moral.",
   INVOICE_CONCEPTS_INVALID:
     "Las partidas de la factura no son coherentes con los importes totales.",
+  INVOICE_HAS_PAYMENTS:
+    "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar mientras haya cobros.",
   SUBSTITUTION_CANCEL_FAILED:
     "La factura sustituta ya se timbró, pero no se pudo cancelar el CFDI original. Usa «Reintentar cancelación del original» o contacta a soporte con el UUID de la sustituta.",
   SUBSTITUTION_ALREADY_HAS_REPLACEMENT:

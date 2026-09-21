@@ -137,6 +137,12 @@ export const usersCopy = {
     createDisabled: "Sin plazas libres en tu plan",
     inviteDisabled: "No puedes sumar más personas con tu plan actual.",
   },
+  /** ADR-0095 — 409 USER_OVER_QUOTA (cupo excedido; operar OK, no crecer). */
+  overQuota: {
+    title: "Usuarios por encima de tu cupo",
+    description:
+      "Ya tienes más usuarios activos que tu cupo. Puedes seguir operando; desactiva a alguien o contacta a Boeltech antes de crear o invitar.",
+  },
   create: {
     title: "Sumar persona",
     subtitle: "Registra a alguien de tu equipo",

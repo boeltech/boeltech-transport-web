@@ -157,10 +157,21 @@ export function AddUserSheet({
       onInvited?.();
     },
     onError: (error) => {
-      if (isApiError(error) && error.code === "USER_LIMIT_REACHED") {
+      if (
+        isApiError(error) &&
+        (error.code === "USER_LIMIT_REACHED" ||
+          error.code === "USER_OVER_QUOTA")
+      ) {
+        const isOverQuota = error.code === "USER_OVER_QUOTA";
         toast({
-          title: usersCopy.limitReached.title,
-          description: error.message || usersCopy.limitReached.description,
+          title: isOverQuota
+            ? usersCopy.overQuota.title
+            : usersCopy.limitReached.title,
+          description:
+            error.message ||
+            (isOverQuota
+              ? usersCopy.overQuota.description
+              : usersCopy.limitReached.description),
           variant: "error",
         });
         return;
@@ -235,10 +246,20 @@ export function AddUserSheet({
         onCompleted?.();
         onInvited?.();
       } catch (err: unknown) {
-        if (isApiError(err) && err.code === "USER_LIMIT_REACHED") {
+        if (
+          isApiError(err) &&
+          (err.code === "USER_LIMIT_REACHED" || err.code === "USER_OVER_QUOTA")
+        ) {
+          const isOverQuota = err.code === "USER_OVER_QUOTA";
           toast({
-            title: usersCopy.limitReached.title,
-            description: err.message || usersCopy.limitReached.description,
+            title: isOverQuota
+              ? usersCopy.overQuota.title
+              : usersCopy.limitReached.title,
+            description:
+              err.message ||
+              (isOverQuota
+                ? usersCopy.overQuota.description
+                : usersCopy.limitReached.description),
             variant: "error",
           });
           return;

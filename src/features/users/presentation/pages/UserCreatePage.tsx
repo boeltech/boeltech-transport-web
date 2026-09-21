@@ -27,10 +27,21 @@ export function UserCreatePage() {
       navigate("/users");
     },
     onError: (error) => {
-      if (isApiError(error) && error.code === "USER_LIMIT_REACHED") {
+      if (
+        isApiError(error) &&
+        (error.code === "USER_LIMIT_REACHED" ||
+          error.code === "USER_OVER_QUOTA")
+      ) {
+        const isOverQuota = error.code === "USER_OVER_QUOTA";
         toast({
-          title: usersCopy.limitReached.title,
-          description: error.message || usersCopy.limitReached.description,
+          title: isOverQuota
+            ? usersCopy.overQuota.title
+            : usersCopy.limitReached.title,
+          description:
+            error.message ||
+            (isOverQuota
+              ? usersCopy.overQuota.description
+              : usersCopy.limitReached.description),
           variant: "destructive",
         });
         return;

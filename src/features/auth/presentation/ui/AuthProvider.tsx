@@ -323,10 +323,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // ==========================================
   const refreshProfile = useCallback(async () => {
     if (persistsAuthTokens() && !tokenStorage.getToken()) {
-      return;
+      return undefined;
     }
     if (!persistsAuthTokens() && !tokenStorage.getUser() && !usesAuthCookies()) {
-      return;
+      return undefined;
     }
 
     const userData = await authRepository.getProfile();
@@ -340,6 +340,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user,
       isAuthenticated: true,
     }));
+    return user;
   }, [authRepository]);
 
   const replaceSessionUser = useCallback(
