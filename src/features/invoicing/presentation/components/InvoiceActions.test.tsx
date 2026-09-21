@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import type { Invoice } from "@features/invoicing/domain";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import { InvoiceActions } from "./InvoiceActions";
 import { invoicingCopy } from "../copy/invoicingCopy";
 
@@ -54,6 +55,22 @@ vi.mock("@features/trips/application", () => ({
   useTrip: (...args: unknown[]) => mockUseTrip(...args),
 }));
 
+vi.mock("@shared/hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/hooks")>();
+  return {
+    ...actual,
+    useToast: () => ({
+      toast: vi.fn(),
+      success: vi.fn(),
+      error: vi.fn(),
+      warning: vi.fn(),
+      info: vi.fn(),
+      promise: vi.fn(),
+      dismiss: vi.fn(),
+    }),
+  };
+});
+
 vi.mock("./SubstituteInvoiceSheet", () => ({
   SubstituteInvoiceSheet: ({
     open,
@@ -63,6 +80,19 @@ vi.mock("./SubstituteInvoiceSheet", () => ({
     open ? (
       <div role="dialog" aria-label="Sustituir factura">
         Substitute sheet open
+      </div>
+    ) : null,
+}));
+
+vi.mock("./CancelInvoiceDialog", () => ({
+  CancelInvoiceDialog: ({
+    open,
+  }: {
+    open: boolean;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Cancelar factura">
+        Cancel dialog open
       </div>
     ) : null,
 }));
@@ -117,6 +147,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     totalPaid: 0,
     balanceDue: 1160,
     canSubstituteInvoice: false,
+    canCancelInvoice: undefined,
     createdAt: "2026-06-01T12:00:00.000Z",
     updatedAt: "2026-06-01T12:05:00.000Z",
     createdBy: "user-1",
@@ -181,8 +212,21 @@ describe("InvoiceActions register payment visibility", () => {
     mockUseTrip.mockReturnValue({ data: undefined });
   });
 
-  it("hides Registrar pago for stamped PUE even with pending raw balance", () => {
+  it("shows Registrar pago for stamped PUE with pending balance", () => {
     renderActions(buildInvoice());
+
+    expect(
+      screen.getByRole("button", { name: /Registrar pago/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides Registrar pago for stamped PUE when fully paid", () => {
+    renderActions(
+      buildInvoice({
+        totalPaid: 1160,
+        balanceDue: 0,
+      }),
+    );
 
     expect(
       screen.queryByRole("button", { name: /Registrar pago/i }),
@@ -305,6 +349,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
       data: {
         requiresFiscalAttention: true,
         operationalOutcome: "completed",
+        status: "in_progress",
       },
     });
 
@@ -354,6 +399,109 @@ describe("InvoiceActions RBAC execute/delete", () => {
     ).toBeInTheDocument();
   });
 
+  it("elevates Cancelar (not Sustituir) when linked trip is cancelled + fiscal attention", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "standard",
+        status: "cancelled",
+      },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+        canCancelInvoice: true,
+        totalPaid: 0,
+        payments: [],
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+    );
+
+    const primaryCancel = screen.getByRole("button", {
+      name: actionsCopy.cancel,
+    });
+    expect(primaryCancel).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(primaryCancel);
+    expect(
+      await screen.findByRole("dialog", { name: "Cancelar factura" }),
+    ).toBeInTheDocument();
+  });
+
+  it("post-cancel with cobros: no Sustituir primary; blocked Cancel path", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "standard",
+        status: "cancelled",
+      },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+        canCancelInvoice: false,
+        totalPaid: 500,
+        payments: [],
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: actionsCopy.cancelBlockedTitle }),
+    ).toBeInTheDocument();
+  });
+
   it("opens substitute sheet when openSubstituteRequestKey increments", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
@@ -363,6 +511,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
       data: {
         requiresFiscalAttention: true,
         operationalOutcome: "completed",
+        status: "in_progress",
       },
     });
 
@@ -501,10 +650,153 @@ describe("InvoiceActions RBAC execute/delete", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("manager with cobros sees Sustituir disabled instead of hiding it", async () => {
+  it("elevates Cancelar as primary when false_trip needs cancel CFDI (no Sustituir)", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
         action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        operationalOutcome: "false_trip",
+        requiresFiscalAttention: true,
+        invoicing: tripInvoicingFixture({
+          hasActivePrincipalInvoice: true,
+          invoiceId: "inv-1",
+          invoiceStatus: "stamped",
+        }),
+      },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            originCity: "QRO",
+            originState: "QRO",
+            destinationCity: "CDMX",
+            destinationState: "CMX",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+          },
+        ],
+      }),
+    );
+
+    const primaryCancel = screen.getByRole("button", {
+      name: actionsCopy.cancel,
+    });
+    expect(primaryCancel).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(primaryCancel);
+    expect(
+      await screen.findByRole("dialog", { name: "Cancelar factura" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens cancel dialog when openCancelRequestKey increments", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        operationalOutcome: "false_trip",
+        requiresFiscalAttention: true,
+        invoicing: tripInvoicingFixture({
+          hasActivePrincipalInvoice: true,
+          invoiceId: "inv-1",
+          invoiceStatus: "stamped",
+        }),
+      },
+    });
+
+    const invoice = buildInvoice({
+      status: "stamped",
+      canSubstituteInvoice: true,
+      trips: [
+        {
+          tripId: "trip-1",
+          tripCode: "V-1",
+          clientName: "Cliente",
+          scheduledDeparture: "2026-06-01T12:00:00.000Z",
+          originCity: "QRO",
+          originState: "QRO",
+          destinationCity: "CDMX",
+          destinationState: "CMX",
+          baseRate: 1000,
+          billingScope: "primary_transport",
+        },
+      ],
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openCancelRequestKey={0}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.queryByRole("dialog", { name: "Cancelar factura" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openCancelRequestKey={1}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Cancelar factura" }),
+    ).toBeInTheDocument();
+  });
+
+  it("manager with cobros sees Sustituir and Cancelar disabled instead of opening SAT dialogs", async () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        (module === "invoices" &&
+          (action === "execute" || action === "read")) ||
+        (module === "finance" && action === "read"),
     );
 
     renderActions(
@@ -512,6 +804,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
         status: "stamped",
         paymentMethod: "PPD",
         canSubstituteInvoice: false,
+        canCancelInvoice: false,
         totalPaid: 500,
         balanceDue: 660,
         payments: [
@@ -550,17 +843,216 @@ describe("InvoiceActions RBAC execute/delete", () => {
     const substitute = screen.getByRole("menuitem", {
       name: actionsCopy.substituteBlockedTitle,
     });
+    const cancel = screen.getByRole("menuitem", {
+      name: actionsCopy.cancelBlockedTitle,
+    });
 
     expect(substitute).toHaveAttribute("aria-disabled", "true");
+    expect(cancel).toHaveAttribute("aria-disabled", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Cancelar factura" }),
+    ).not.toBeInTheDocument();
 
     await user.hover(substitute.closest("span")!);
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       invoicingCopy.detail.actions.substituteBlocked,
     );
+  });
+
+  it("does not open CancelInvoiceDialog when openCancelRequestKey fires with cobros", async () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        (module === "invoices" &&
+          (action === "execute" || action === "read")) ||
+        (module === "finance" && action === "read"),
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        operationalOutcome: "false_trip",
+        requiresFiscalAttention: true,
+        invoicing: tripInvoicingFixture({
+          hasActivePrincipalInvoice: true,
+          invoiceId: "inv-1",
+          invoiceStatus: "stamped",
+        }),
+      },
+    });
+
+    const invoice = buildInvoice({
+      status: "stamped",
+      canSubstituteInvoice: false,
+      canCancelInvoice: false,
+      totalPaid: 500,
+      balanceDue: 660,
+      payments: [
+        {
+          id: "pay-1",
+          invoiceId: "inv-1",
+          amount: 500,
+          currency: "MXN",
+          exchangeRate: 1,
+          amountMxn: 500,
+          paymentDate: "2026-06-02",
+          paymentTime: "12:00:00",
+          paymentForm: "03",
+          paymentFormName: null,
+          reference: null,
+          notes: null,
+          createdAt: "2026-06-02T12:00:00.000Z",
+          createdByName: null,
+          repCfdiUuid: null,
+          repStampedAt: null,
+          repStatus: "pending",
+          repAttempts: 1,
+          repLastError: null,
+          hasRepXml: false,
+          repNumParcialidad: 1,
+          repImpSaldoAnt: null,
+          repImpSaldoInsoluto: null,
+          repImpPagado: null,
+        },
+      ],
+      trips: [
+        {
+          tripId: "trip-1",
+          tripCode: "V-1",
+          clientName: "Cliente",
+          scheduledDeparture: "2026-06-01T12:00:00.000Z",
+          baseRate: 1000,
+          billingScope: "false_trip",
+          originCity: "Mty",
+          originState: "NL",
+          destinationCity: "Gdl",
+          destinationState: "JAL",
+        },
+      ],
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openCancelRequestKey={0}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    const primaryCancel = screen.getByRole("button", {
+      name: actionsCopy.cancelBlockedTitle,
+    });
+    expect(primaryCancel).toBeDisabled();
     expect(
-      screen.getByRole("menuitem", { name: actionsCopy.cancel }),
+      screen.queryByRole("dialog", { name: "Cancelar factura" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openCancelRequestKey={1}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("alertdialog", {
+        name: actionsCopy.cancelBlockedTitle,
+      }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(actionsCopy.cancelBlocked),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: actionsCopy.cancelBlockedViewPayments,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: actionsCopy.cancelBlockedGoToCobros,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Cancelar factura" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("blocks cancel with defensive fallback when API omits canCancelInvoice but cobros exist", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+        canCancelInvoice: undefined,
+        totalPaid: 100,
+        balanceDue: 1060,
+        payments: [
+          {
+            id: "pay-2",
+            invoiceId: "inv-1",
+            amount: 100,
+            currency: "MXN",
+            exchangeRate: 1,
+            amountMxn: 100,
+            paymentDate: "2026-06-02",
+            paymentTime: "12:00:00",
+            paymentForm: "03",
+            paymentFormName: null,
+            reference: null,
+            notes: null,
+            createdAt: "2026-06-02T12:00:00.000Z",
+            createdByName: null,
+            repCfdiUuid: null,
+            repStampedAt: null,
+            repStatus: "pending",
+            repAttempts: 0,
+            repLastError: null,
+            hasRepXml: false,
+            repNumParcialidad: 1,
+            repImpSaldoAnt: null,
+            repImpSaldoInsoluto: null,
+            repImpPagado: null,
+          },
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    await openMoreMenu(user);
+
+    expect(
+      screen.getByRole("menuitem", { name: actionsCopy.cancelBlockedTitle }),
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.cancel }),
+    ).not.toBeInTheDocument();
   });
 
   it("user with delete but not execute does not see Cancelar on stamped invoice", async () => {

@@ -10,8 +10,7 @@ import { invoicingCopy } from "../copy/invoicingCopy";
 const copy = invoicingCopy.detail;
 
 export function buildInvoiceStats(invoice: Invoice): StatCardProps[] {
-  const { totalPaid, balanceDue, isPueSettled } =
-    getInvoiceDisplayAmounts(invoice);
+  const { totalPaid, balanceDue } = getInvoiceDisplayAmounts(invoice);
 
   return [
     {
@@ -31,7 +30,6 @@ export function buildInvoiceStats(invoice: Invoice): StatCardProps[] {
       value: formatMxCurrency(balanceDue),
       icon: <Scale className="h-5 w-5" />,
       tone: balanceDue > 0 ? "warning" : "neutral",
-      description: isPueSettled ? copy.hint.pueSettled : undefined,
     },
   ];
 }

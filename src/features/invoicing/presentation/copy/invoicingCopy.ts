@@ -156,7 +156,8 @@ export const invoicingCopy = {
     alreadyInvoicedBody:
       "El cliente de esta porción del reparto ya tiene una factura activa. Ábrela desde el viaje o elige otra porción pendiente.",
     attachCartaPorteLabel: "Adjuntar Carta Porte a esta factura",
-    attachCartaPorteHint: "Solo una porción del viaje debe portar Carta Porte.",
+    attachCartaPorteHint:
+      "Según el reparto del flete. Para cambiarlo, edita el reparto en el viaje.",
     attachCartaPorteDisabledHint:
       "Carta Porte ya adjunta en otra factura de este viaje.",
     cartaPorteOnInvoice: "Carta Porte en esta factura: sí",
@@ -449,8 +450,8 @@ export const invoicingCopy = {
       cancellationPendingSat:
         "Pendiente de aceptación del cliente",
       pueSettled:
-        "Se liquidó al emitir (pago de contado)",
-      pueSettledTitle: "PUE — pago en una sola exhibición",
+        "PUE: liquidación fiscal al emitir; el cobro se registra aparte",
+      pueSettledTitle: "PUE — método de pago fiscal",
       repFiscalDeadlineApproaching: (deadline: string) =>
         `Uno o más pagos deben sellar su comprobante de pago antes del ${deadline} (5.º día del mes siguiente).`,
       repFiscalDeadlineOverdue: (deadline: string) =>
@@ -466,10 +467,33 @@ export const invoicingCopy = {
       /** Continuidad fiscal mid-trip (ADR-0093) — alinear con tripDetail shellCopy. */
       fiscalAttentionTitle: "Revisión de facturación pendiente",
       fiscalAttentionBody:
-        "Hubo cambios operativos en el viaje después de facturar. Sustituye esta factura al cerrar el viaje o antes de cobrar el ajuste.",
+        "Hubo cambios operativos en el viaje después de facturar. Si la flota no es asignable (docs vencidos), reasigna en Operación del viaje; luego sustituye esta factura al cerrar o antes de cobrar el ajuste.",
       /** Link textual en el banner (CTA elevado vive en el header). */
       fiscalAttentionLink: "Sustituir",
       fiscalAttentionChip: "Atención fiscal",
+      /** Viaje en falso con flete vigente (ADR-0079 / web #34) — cancelar, no sustituir. */
+      falseTripCancelCfdiTitle: "Cancela la factura de flete",
+      falseTripCancelCfdiBody:
+        "En la factura usa el motivo de operación no realizada. No conserves ni sustituyas esa factura.",
+      /** Link textual en el banner (CTA elevado vive en el header). */
+      falseTripCancelCfdiLink: "Cancelar",
+      /** CA-06 / PD1: falso + cobros — copy de callejón, sin CTA de cancel viable. */
+      falseTripCancelCfdiBlockedTitle: "No se puede cancelar con cobros",
+      falseTripCancelCfdiBlockedBody:
+        "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar mientras haya cobros.",
+      falseTripCancelCfdiBlockedLink: "Ver pagos",
+      /**
+       * Viaje cancelled + bandera (post-cancel) — cancelar CFDI, no sustituir.
+       * Con cobros: limitación + Ver pagos (nunca Sustituir).
+       */
+      postCancelCancelCfdiTitle: "Cancela la factura",
+      postCancelCancelCfdiBody:
+        "El viaje quedó cancelado. Usa el motivo de operación no realizada. No sustituyas esta factura.",
+      postCancelCancelCfdiLink: "Cancelar",
+      postCancelCancelCfdiBlockedTitle: "No se puede cancelar con cobros",
+      postCancelCancelCfdiBlockedBody:
+        "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar ni sustituir mientras haya cobros; desaplique o revierta los pagos y, si aplica, gestione los complementos de pago con contabilidad; después cancele el CFDI (motivo 03, operación no realizada).",
+      postCancelCancelCfdiBlockedLink: "Ver pagos",
     },
     substitute: {
       title: "Sustituir factura",
@@ -487,7 +511,7 @@ export const invoicingCopy = {
         "Si no cambias nada abajo, se repite el contenido actual.",
       optionalSectionHeading: "¿Qué quieres corregir? (opcional)",
       optionalSectionHint:
-        "Los campos muestran los datos actuales; solo se envían los que modifiques.",
+        "Los campos muestran los datos actuales; solo se envían los que modifiques. Flota con docs vencidos, remolques o equipo: corrige en Operación del viaje (Reasignar flota), no aquí.",
       optionalBadge: "Opcional",
       sectionHintMoreLabel: "Más detalle",
       amounts: {
@@ -529,9 +553,11 @@ export const invoicingCopy = {
       assignment: {
         sectionTitle: "Operador y unidad",
         sectionHint:
-          "Cambia conductor o vehículo del viaje si no coinciden con lo que debe ir en el complemento de transporte.",
+          "Cambia operador o unidad si no coinciden con el complemento. Si no están asignables (docs vencidos), ve a Operación → Reasignar flota y vuelve a sustituir.",
         sectionHintDetail:
-          "Al cambiar la unidad en un viaje cerrado, el kilometraje recorrido (odómetro final − inicial) se transfiere a la nueva unidad.",
+          "El permiso de documentación vencida solo está en Reasignar flota del viaje, no en este sheet. Completa datos faltantes en el maestro o reasigna ahí; luego regresa a sustituir. Al cambiar la unidad en un viaje cerrado, el kilometraje recorrido (odómetro final − inicial) se transfiere a la nueva unidad.",
+        expiredDocsPathHint:
+          "Unidad u operador con documentación vencida: en el detalle del viaje usa Operación → Reasignar flota (activa el permiso ahí) y vuelve a este sheet.",
         noPermission:
           "Tu rol no permite cambiar operador o unidad. Solicita acceso a un administrador.",
         loadingTrip: (tripCode: string) => `Cargando viaje ${tripCode}…`,
@@ -545,6 +571,8 @@ export const invoicingCopy = {
         reasonTooShort: "El motivo debe tener al menos 5 caracteres",
         noAssignmentChange:
           "Selecciona un operador o una unidad distinta a la asignación actual del viaje",
+        fleetIncomplete:
+          "Completa los datos de flota en el maestro o reasigna en Operación → Reasignar flota; luego vuelve a sustituir.",
         saveCorrection: "Incluir en sustitución",
         editAgain: "Actualizar corrección",
       },
@@ -621,7 +649,7 @@ export const invoicingCopy = {
       confirmLoadingTrips: "Cargando viajes…",
       successTitle: "Sustitución completada",
       successDescription: (serie: string, folio: number) =>
-        `Factura ${serie}-${folio} emitida. La factura original quedó cancelada.`,
+        `Factura ${serie}-${folio} emitida. La original quedó cancelada; la atención fiscal del viaje se limpia al actualizar.`,
       errorTitle: "Error en sustitución",
       errorSeeInline: "Revisa el mensaje detallado en el formulario.",
       cancelFailedTitle: "Sustituta timbrada; original sin cancelar",
@@ -666,6 +694,12 @@ export const invoicingCopy = {
       substituteBlocked:
         "Ya tiene cobros o complementos de pago. No hay asistente para migrar REP.",
       cancel: "Cancelar",
+      cancelBlockedTitle: "No se puede cancelar con cobros",
+      cancelBlocked:
+        "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar mientras haya cobros.",
+      cancelBlockedViewPayments: "Ver pagos",
+      cancelBlockedGoToCobros: "Ir a cobros",
+      cancelBlockedDismiss: "Entendido",
       pdfError: "No se pudo abrir el PDF",
       xmlError: "No se pudo descargar el XML",
       sendByEmail: "Enviar por correo",

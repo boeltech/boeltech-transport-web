@@ -141,7 +141,7 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
             <div className="text-right">
               <p className="font-semibold text-sm">{formatMxCurrency(invoice.total)}</p>
               {(() => {
-                const { balanceDue, isPueSettled } =
+                const { balanceDue } =
                   getInvoiceListItemDisplayAmounts(invoice);
                 return balanceDue > 0 ? (
                   <p className="text-xs text-destructive">
@@ -150,9 +150,7 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
                   </p>
                 ) : (
                   <p className="text-xs text-success">
-                    {isPueSettled
-                      ? invoicingCopy.detail.label.listSettledPue
-                      : invoicingCopy.detail.label.listSettled}
+                    {invoicingCopy.detail.label.listSettled}
                   </p>
                 );
               })()}

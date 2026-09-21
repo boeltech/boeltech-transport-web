@@ -1,7 +1,6 @@
 import {
-  effectiveBalanceDue,
-  effectiveTotalPaid,
   isPueFiscallySettled,
+  resolveInvoiceFinancialAmounts,
   type InvoiceLike,
   type SatCancellationStatus,
 } from "@boeltech/cfdi-domain";
@@ -28,9 +27,11 @@ function toInvoiceLikeFromFields(fields: {
 }
 
 function amountsFromLike(like: InvoiceLike) {
+  const financial = resolveInvoiceFinancialAmounts(like);
   return {
-    totalPaid: effectiveTotalPaid(like),
-    balanceDue: effectiveBalanceDue(like),
+    totalPaid: financial.totalPaid,
+    balanceDue: financial.balanceDue,
+    /** Atajo fiscal PUE (método de pago), no implica cobrada. */
     isPueSettled: isPueFiscallySettled(like),
   };
 }

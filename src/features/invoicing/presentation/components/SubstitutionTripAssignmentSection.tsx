@@ -78,6 +78,12 @@ function TripAssignmentEditor({
     () => applyBusyResourcesToVehicles(vehicles, new Set()),
     [vehicles],
   );
+  const hasExpiredDocsNotAssignable = useMemo(
+    () =>
+      drivers.some((d) => d.expiredDocsOverridable === true) ||
+      assignableVehicles.some((v) => v.expiredDocsOverridable === true),
+    [drivers, assignableVehicles],
+  );
 
   const [driverId, setDriverId] = useState(
     savedEntry?.driver_id ?? trip?.driverId ?? "",
@@ -173,6 +179,14 @@ function TripAssignmentEditor({
           disabled={!canExecute}
         />
       </div>
+      {hasExpiredDocsNotAssignable ? (
+        <p
+          className="text-xs text-muted-foreground"
+          data-testid="substitute-expired-docs-path-hint"
+        >
+          {copy.expiredDocsPathHint}
+        </p>
+      ) : null}
       <div className="space-y-2">
         <Label htmlFor={`substitute-assignment-reason-${tripRef.tripId}`}>
           {copy.reasonLabel}

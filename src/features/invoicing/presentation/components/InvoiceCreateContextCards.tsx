@@ -147,12 +147,12 @@ type CreateContextLineProps = {
   attachCartaPorte?: boolean;
   showCartaPorte?: boolean;
   cartaPorteAlreadyAttached?: boolean;
-  onAttachCartaPorteChange?: (checked: boolean) => void;
 };
 
 /**
  * Línea de contexto del alta: a quién se factura · qué viaje · cuánto.
  * El emisor queda como pie discreto (dato propio, no editable aquí).
+ * En split_share, Carta Porte es solo lectura (fuente = Reparto del flete).
  */
 function CreateContextLine({
   receiverName,
@@ -168,18 +168,17 @@ function CreateContextLine({
   attachCartaPorte,
   showCartaPorte,
   cartaPorteAlreadyAttached = false,
-  onAttachCartaPorteChange,
 }: CreateContextLineProps) {
   const splitShareCopy = copy.splitShare;
   const showSplitProgress =
     splitLegsTotal != null && splitLegsTotal > 0 && splitLegsInvoiced != null;
-  const showCartaPorteToggle =
-    showCartaPorte && attachCartaPorte != null && onAttachCartaPorteChange;
+  const showCartaPorteControl =
+    Boolean(showCartaPorte) && attachCartaPorte != null;
 
   /** Panel izquierdo ancho: grid horizontal en md+. */
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-4 md:p-5">
-      {showSplitProgress || showCartaPorteToggle ? (
+      {showSplitProgress || showCartaPorteControl ? (
         <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-border/60 pb-3">
           {showSplitProgress ? (
             <Badge
@@ -195,17 +194,14 @@ function CreateContextLine({
               {ctxCopy.splitSharePercent(sharePercent)}
             </Badge>
           ) : null}
-          {showCartaPorteToggle ? (
+          {showCartaPorteControl ? (
             <label className="flex items-start gap-2 text-sm">
               <input
                 id="attach-carta-porte"
                 type="checkbox"
                 className="mt-1"
                 checked={attachCartaPorte}
-                disabled={cartaPorteAlreadyAttached}
-                onChange={(event) =>
-                  onAttachCartaPorteChange(event.target.checked)
-                }
+                disabled
               />
               <span>
                 {splitShareCopy.attachCartaPorteLabel}
@@ -291,7 +287,6 @@ export type InvoiceCreateContextCardsProps = {
   attachCartaPorte?: boolean;
   showCartaPorte?: boolean;
   cartaPorteAlreadyAttached?: boolean;
-  onAttachCartaPorteChange?: (checked: boolean) => void;
 };
 
 export function InvoiceCreateContextCards({
@@ -308,7 +303,6 @@ export function InvoiceCreateContextCards({
   attachCartaPorte,
   showCartaPorte,
   cartaPorteAlreadyAttached,
-  onAttachCartaPorteChange,
 }: InvoiceCreateContextCardsProps) {
   if (mode === "create") {
     if (!prefill && !receiverName) return null;
@@ -327,7 +321,6 @@ export function InvoiceCreateContextCards({
         attachCartaPorte={attachCartaPorte}
         showCartaPorte={showCartaPorte}
         cartaPorteAlreadyAttached={cartaPorteAlreadyAttached}
-        onAttachCartaPorteChange={onAttachCartaPorteChange}
       />
     );
   }

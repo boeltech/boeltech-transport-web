@@ -20,6 +20,7 @@ import {
   type Invoice,
 } from "@features/invoicing/domain";
 import { useTrip } from "@features/trips/application";
+import { shouldShowFalseTripCancelCfdiBanner } from "@features/trips/presentation/helpers/shouldShowFalseTripCancelCfdiBanner";
 import {
   InvoiceStatusBadge,
   InvoiceActions,
@@ -72,6 +73,7 @@ export function InvoiceDetailPage() {
   );
   const [interactionBusy, setInteractionBusy] = useState(false);
   const [openSubstituteRequestKey, setOpenSubstituteRequestKey] = useState(0);
+  const [openCancelRequestKey, setOpenCancelRequestKey] = useState(0);
 
   const {
     data: invoice,
@@ -94,18 +96,75 @@ export function InvoiceDetailPage() {
     ),
   });
 
+  const showFalseTripCancelCfdi =
+    !isClientPortal &&
+    invoice?.status === "stamped" &&
+    Boolean(linkedTripForFiscal?.invoicing) &&
+    shouldShowFalseTripCancelCfdiBanner({
+      operationalOutcome: linkedTripForFiscal!.operationalOutcome,
+      requiresFiscalAttention: Boolean(
+        linkedTripForFiscal!.requiresFiscalAttention,
+      ),
+      invoicing: linkedTripForFiscal!.invoicing,
+    });
+
+  const hasInvoiceRegisteredCobros =
+    Boolean(invoice) &&
+    ((invoice!.totalPaid ?? 0) > 0 || (invoice!.payments?.length ?? 0) > 0);
+
+  /** CA-06: no empujar cancel viable cuando hay cobros / API dice no cancelable. */
+  const falseTripCancelBlockedByPayments =
+    showFalseTripCancelCfdi &&
+    hasInvoiceRegisteredCobros &&
+    (invoice!.canCancelInvoice !== undefined
+      ? !invoice!.canCancelInvoice
+      : true);
+
+  const linkedTripCancelled =
+    linkedTripForFiscal?.status === "cancelled";
+
+  /**
+   * Post-cancel: viaje cancelled + bandera (no false_trip).
+   * Orientar a Cancelar; con cobros → blocked + Ver pagos (nunca Sustituir).
+   */
+  const showPostCancelFiscalAttention =
+    !isClientPortal &&
+    invoice?.status === "stamped" &&
+    Boolean(linkedTripForFiscal?.requiresFiscalAttention) &&
+    linkedTripForFiscal?.operationalOutcome !== "false_trip" &&
+    linkedTripCancelled;
+
+  const postCancelCancelBlockedByPayments =
+    showPostCancelFiscalAttention &&
+    hasInvoiceRegisteredCobros &&
+    (invoice!.canCancelInvoice !== undefined
+      ? !invoice!.canCancelInvoice
+      : true);
+
+  /** Mid-trip / flota: Sustituir 04. Excluye false_trip y post-cancel. */
   const showTripFiscalAttention =
     !isClientPortal &&
     invoice?.status === "stamped" &&
     Boolean(linkedTripForFiscal?.requiresFiscalAttention) &&
-    linkedTripForFiscal?.operationalOutcome !== "false_trip";
+    linkedTripForFiscal?.operationalOutcome !== "false_trip" &&
+    !linkedTripCancelled;
 
   const fiscalAttentionTripIds = useMemo(() => {
-    if (!showTripFiscalAttention || !linkedTripIdForFiscal) {
+    if (
+      (!showTripFiscalAttention &&
+        !showFalseTripCancelCfdi &&
+        !showPostCancelFiscalAttention) ||
+      !linkedTripIdForFiscal
+    ) {
       return undefined;
     }
     return new Set([linkedTripIdForFiscal]);
-  }, [showTripFiscalAttention, linkedTripIdForFiscal]);
+  }, [
+    showTripFiscalAttention,
+    showFalseTripCancelCfdi,
+    showPostCancelFiscalAttention,
+    linkedTripIdForFiscal,
+  ]);
 
   const { mutate: retryRep } = useRetryRepStamp(invoice?.id ?? "", {
     onMutate: (paymentId) => setRetryingPaymentId(paymentId),
@@ -251,9 +310,89 @@ export function InvoiceDetailPage() {
       isStampedLike ||
       showRepFiscalAlert ||
       autoDispatchFailed ||
-      showTripFiscalAttention);
+      showTripFiscalAttention ||
+      showFalseTripCancelCfdi ||
+      showPostCancelFiscalAttention);
   const alerts = hasAlerts ? (
     <div className="space-y-3">
+      {showFalseTripCancelCfdi ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<Receipt className="h-5 w-5" />}
+          title={
+            falseTripCancelBlockedByPayments
+              ? copy.hint.falseTripCancelCfdiBlockedTitle
+              : copy.hint.falseTripCancelCfdiTitle
+          }
+        >
+          {falseTripCancelBlockedByPayments ? (
+            <p>
+              {copy.hint.falseTripCancelCfdiBlockedBody}{" "}
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => {
+                  document
+                    .getElementById("invoice-payments")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                {copy.hint.falseTripCancelCfdiBlockedLink}
+              </button>
+            </p>
+          ) : (
+            <p>
+              {copy.hint.falseTripCancelCfdiBody}{" "}
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => setOpenCancelRequestKey((key) => key + 1)}
+              >
+                {copy.hint.falseTripCancelCfdiLink}
+              </button>
+            </p>
+          )}
+        </DetailAlertCard>
+      ) : null}
+      {showPostCancelFiscalAttention ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<Receipt className="h-5 w-5" />}
+          title={
+            postCancelCancelBlockedByPayments
+              ? copy.hint.postCancelCancelCfdiBlockedTitle
+              : copy.hint.postCancelCancelCfdiTitle
+          }
+        >
+          {postCancelCancelBlockedByPayments ? (
+            <p>
+              {copy.hint.postCancelCancelCfdiBlockedBody}{" "}
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => {
+                  document
+                    .getElementById("invoice-payments")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                {copy.hint.postCancelCancelCfdiBlockedLink}
+              </button>
+            </p>
+          ) : (
+            <p>
+              {copy.hint.postCancelCancelCfdiBody}{" "}
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => setOpenCancelRequestKey((key) => key + 1)}
+              >
+                {copy.hint.postCancelCancelCfdiLink}
+              </button>
+            </p>
+          )}
+        </DetailAlertCard>
+      ) : null}
       {showTripFiscalAttention ? (
         <DetailAlertCard
           severity="warning"
@@ -375,6 +514,7 @@ export function InvoiceDetailPage() {
             fullInvoice={invoice}
             onBusyChange={setInteractionBusy}
             openSubstituteRequestKey={openSubstituteRequestKey}
+            openCancelRequestKey={openCancelRequestKey}
           />
         ),
       }}
@@ -410,7 +550,7 @@ export function InvoiceDetailPage() {
         <InvoiceDetailPaymentTermsCard invoice={invoice} />
 
         {invoice.payments.length > 0 ? (
-          <Card>
+          <Card id="invoice-payments">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">
                 {copy.section.payments(invoice.payments.length)}

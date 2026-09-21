@@ -98,6 +98,11 @@ export interface Invoice {
   readonly balanceDue: number;
   /** API (getById): si aplica sustitución transaccional Fase 5. */
   readonly canSubstituteInvoice?: boolean;
+  /**
+   * API (getById): si se puede cancelar / solicitar cancelación.
+   * `false` con cobros aplicados (`INVOICE_HAS_PAYMENTS`).
+   */
+  readonly canCancelInvoice?: boolean;
   // Auditoría
   readonly createdAt: string;
   readonly updatedAt: string;

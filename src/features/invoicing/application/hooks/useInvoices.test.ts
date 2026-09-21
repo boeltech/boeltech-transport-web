@@ -5,6 +5,7 @@ import {
   useCancelInvoice,
   useDeleteInvoice,
   useSubstituteStampedInvoice,
+  useRetryRepStamp,
   invoiceQueryKeys,
 } from "./useInvoices";
 import { tripQueryKeys } from "@features/trips/domain";
@@ -50,6 +51,7 @@ vi.mock("@features/invoicing/infrastructure", () => ({
     stamp: vi.fn(),
     cancel: vi.fn(),
     registerPayment: vi.fn(),
+    retryRepStamp: vi.fn(),
     substituteStampedInvoice: vi.fn(),
     openPdf: vi.fn(),
     downloadXml: vi.fn(),
@@ -148,6 +150,9 @@ describe("useCancelInvoice cache invalidation", () => {
 
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: tripQueryKeys.detail(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.revenueSplit(tripId),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: tripQueryKeys.lists(),
@@ -254,6 +259,34 @@ describe("useSubstituteStampedInvoice cache invalidation", () => {
     expect(onSuccessSpy).toHaveBeenCalled();
   });
 
+  it("invalidates linked trip detail after success without trip or amount corrections (T4-041 clear flag refresh)", async () => {
+    const mutationConfig = useSubstituteStampedInvoice(invoiceId) as unknown as {
+      onSuccess: (
+        data: SubstituteStampedInvoiceResult,
+        variables: { cancellationReason: string },
+        context: unknown,
+        mutation: unknown,
+      ) => Promise<void>;
+    };
+
+    await mutationConfig.onSuccess(
+      makeResult(),
+      { cancellationReason: "Alinear CFDI tras cambio operativo" },
+      {},
+      {},
+    );
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.detail(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.lists(),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.all,
+    });
+  });
+
   it("invalidates vehicle and driver caches when trip assignment corrections are sent", async () => {
     const oldVehicleId = "vehicle-old";
     const newVehicleId = "vehicle-new";
@@ -346,6 +379,45 @@ describe("useDeleteInvoice cache eviction", () => {
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: ["trips"],
+    });
+    expect(onSuccessSpy).toHaveBeenCalled();
+  });
+});
+
+describe("useRetryRepStamp cache invalidation", () => {
+  beforeEach(() => {
+    invalidateQueries.mockReset();
+    invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
+    refetchQueries.mockReset();
+    refetchQueries.mockResolvedValue(undefined);
+    onSuccessSpy.mockReset();
+    useMutationMock.mockClear();
+  });
+
+  it("invalidates invoice detail/lists and finance root for Cobros REP bucket", () => {
+    const invoiceId = "inv-1";
+    const mutationConfig = useRetryRepStamp(invoiceId, {
+      onSuccess: onSuccessSpy,
+    }) as unknown as {
+      onSuccess: (
+        data: unknown,
+        variables: string,
+        context: unknown,
+        mutation: unknown,
+      ) => void;
+    };
+
+    mutationConfig.onSuccess({}, "pay-1", {}, {});
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: invoiceQueryKeys.detail(invoiceId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: invoiceQueryKeys.lists(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["finance"],
     });
     expect(onSuccessSpy).toHaveBeenCalled();
   });

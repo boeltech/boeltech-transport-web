@@ -143,67 +143,82 @@ export function CancelInvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      {/*
+        Layout local (issue #36): max-h + body scroll + footer anclado.
+        No cambia el primitivo Dialog del DS. overflow solo en el body
+        (Select Motivo SAT usa Portal; no se recorta).
+      */}
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-md">
+        <DialogHeader className="shrink-0 space-y-1.5 px-6 pt-6 text-left">
           <DialogTitle>{copy.cancelDialog.title}</DialogTitle>
         </DialogHeader>
 
-        <p className="text-sm text-muted-foreground">
-          {copy.cancelDialog.description}
-        </p>
+        <form
+          onSubmit={handleFormSubmit}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div
+            data-slot="cancel-invoice-body"
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4"
+          >
+            <p className="text-sm text-muted-foreground">
+              {copy.cancelDialog.description}
+            </p>
 
-        {hasRegisteredPayments ? (
-          <Alert variant="warning">
-            <AlertTitle>{copy.cancelDialog.paymentsNoticeTitle}</AlertTitle>
-            <AlertDescription>{copy.cancelDialog.paymentsNotice}</AlertDescription>
-          </Alert>
-        ) : null}
+            {hasRegisteredPayments ? (
+              <Alert variant="warning">
+                <AlertTitle>{copy.cancelDialog.paymentsNoticeTitle}</AlertTitle>
+                <AlertDescription>
+                  {copy.cancelDialog.paymentsNotice}
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
-        <form onSubmit={handleFormSubmit} className="space-y-4">
-          {submissionError ? (
-            <Alert variant="destructive">
-              <AlertTitle>{copy.cancelErrorTitle}</AlertTitle>
-              <AlertDescription className="select-text whitespace-pre-wrap break-words">
-                {submissionError}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+            {submissionError ? (
+              <Alert variant="destructive">
+                <AlertTitle>{copy.cancelErrorTitle}</AlertTitle>
+                <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                  {submissionError}
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
-          <RHFSelectField
-            control={control}
-            name="cancellation_code"
-            label={copy.cancelDialog.satMotive}
-            required
-            placeholder={copy.cancelDialog.satMotivePlaceholder}
-            options={MOTIVOS}
-          />
+            <RHFSelectField
+              control={control}
+              name="cancellation_code"
+              label={copy.cancelDialog.satMotive}
+              required
+              placeholder={copy.cancelDialog.satMotivePlaceholder}
+              options={MOTIVOS}
+            />
 
-          <RHFTextField
-            control={control}
-            name="cancellation_reason"
-            label={copy.cancelDialog.reason}
-            required
-            placeholder={copy.cancelDialog.reasonPlaceholder}
-          />
-
-          {cancellationCode === "01" ? (
             <RHFTextField
               control={control}
-              name="replacement_cfdi_uuid"
-              label={copy.cancelDialog.replacementUuid}
+              name="cancellation_reason"
+              label={copy.cancelDialog.reason}
               required
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              placeholder={copy.cancelDialog.reasonPlaceholder}
             />
-          ) : null}
 
-          {showValidationSummary && validationMessages.length > 0 ? (
-            <FormValidationSummary
-              title={copy.cancelDialog.validationSummary}
-              messages={validationMessages}
-            />
-          ) : null}
+            {cancellationCode === "01" ? (
+              <RHFTextField
+                control={control}
+                name="replacement_cfdi_uuid"
+                label={copy.cancelDialog.replacementUuid}
+                required
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              />
+            ) : null}
 
-          <DialogFooter>
+            {showValidationSummary && validationMessages.length > 0 ? (
+              <FormValidationSummary
+                title={copy.cancelDialog.validationSummary}
+                messages={validationMessages}
+              />
+            ) : null}
+          </div>
+
+          <DialogFooter className="shrink-0 border-t px-6 py-4 sm:space-x-2">
             <Button
               type="button"
               variant="outline"
@@ -211,12 +226,10 @@ export function CancelInvoiceDialog({
             >
               {copy.cancelDialog.back}
             </Button>
-            <Button
-              type="submit"
-              variant="destructive"
-              disabled={isPending}
-            >
-              {isPending ? copy.cancelDialog.submitting : copy.cancelDialog.confirm}
+            <Button type="submit" variant="destructive" disabled={isPending}>
+              {isPending
+                ? copy.cancelDialog.submitting
+                : copy.cancelDialog.confirm}
             </Button>
           </DialogFooter>
         </form>

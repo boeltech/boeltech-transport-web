@@ -150,6 +150,7 @@ interface ApiInvoice {
   created_by_name: string | null;
   updated_by_name: string | null;
   can_substitute_invoice?: boolean;
+  can_cancel_invoice?: boolean;
 }
 
 interface ApiInvoiceListItem {
@@ -364,6 +365,10 @@ export function mapInvoice(raw: unknown): Invoice {
     totalPaid: invoice.total_paid,
     balanceDue: invoice.balance_due,
     canSubstituteInvoice: invoice.can_substitute_invoice ?? false,
+    canCancelInvoice:
+      typeof invoice.can_cancel_invoice === "boolean"
+        ? invoice.can_cancel_invoice
+        : undefined,
     createdAt: invoice.created_at,
     updatedAt: invoice.updated_at,
     createdBy: invoice.created_by,

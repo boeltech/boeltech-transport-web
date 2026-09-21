@@ -181,9 +181,8 @@ describe("InvoiceDetailPage", () => {
   it("shows PUE settled hint in balance stat when fully paid at stamp", () => {
     renderPage();
 
-    expect(
-      screen.getByText(/Se liquidó al emitir \(pago de contado\)/i),
-    ).toBeInTheDocument();
+    // AmountsPanel is mocked in this suite; balance $0 comes from header stats.
+    expect(screen.getByTestId("amounts-panel")).toBeInTheDocument();
     expect(screen.getByText("$0.00")).toBeInTheDocument();
   });
 
@@ -304,6 +303,7 @@ describe("InvoiceDetailPage", () => {
       data: {
         requiresFiscalAttention: true,
         operationalOutcome: "completed",
+        status: "in_progress",
       },
     });
     useInvoiceMock.mockReturnValue({
@@ -344,11 +344,72 @@ describe("InvoiceDetailPage", () => {
     expect(screen.getByText("Atención fiscal")).toBeInTheDocument();
   });
 
-  it("hides fiscal attention banner for false_trip operational outcome", () => {
+  it("hides fiscal attention Sustituir banner for false_trip and shows cancel CFDI banner instead", () => {
     useTripMock.mockReturnValue({
       data: {
         requiresFiscalAttention: true,
         operationalOutcome: "false_trip",
+        invoicing: {
+          hasActivePrincipalInvoice: true,
+          invoiceId: "inv-1",
+          invoiceStatus: "stamped",
+        },
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        canCancelInvoice: true,
+        totalPaid: 0,
+        balanceDue: 1160,
+        payments: [],
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.queryByText("Revisión de facturación pendiente"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Sustituir$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Cancela la factura de flete"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Cancelar$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Atención fiscal")).toBeInTheDocument();
+  });
+
+  it("hides false_trip cancel CFDI banner when principal is no longer active (#32)", () => {
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "false_trip",
+        invoicing: {
+          hasActivePrincipalInvoice: false,
+          invoiceId: "inv-1",
+          invoiceStatus: "cancelled",
+        },
       },
     });
     useInvoiceMock.mockReturnValue({
@@ -376,6 +437,108 @@ describe("InvoiceDetailPage", () => {
 
     renderPage();
 
+    expect(
+      screen.queryByText("Cancela la factura de flete"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Atención fiscal")).not.toBeInTheDocument();
+  });
+
+  it("post-cancel + cobros: blocked notice + Ver pagos, nunca Sustituir", () => {
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "standard",
+        status: "cancelled",
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        canCancelInvoice: false,
+        canSubstituteInvoice: true,
+        totalPaid: 500,
+        payments: [],
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText("No se puede cancelar con cobros"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Ver pagos$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Sustituir$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Revisión de facturación pendiente"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Atención fiscal")).toBeInTheDocument();
+  });
+
+  it("post-cancel sin cobros: orienta a Cancelar (no Sustituir)", () => {
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "standard",
+        status: "cancelled",
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        canCancelInvoice: true,
+        canSubstituteInvoice: true,
+        totalPaid: 0,
+        payments: [],
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Cancela la factura")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Cancelar$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Sustituir$/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText("Revisión de facturación pendiente"),
     ).not.toBeInTheDocument();

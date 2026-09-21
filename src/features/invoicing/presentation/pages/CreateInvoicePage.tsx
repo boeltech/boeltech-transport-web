@@ -136,9 +136,6 @@ export function CreateInvoicePage() {
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [apiErrorMessages, setApiErrorMessages] = useState<string[]>([]);
   const hydratedPrefillKeyRef = useRef<string | null>(null);
-  const [attachCartaPorte, setAttachCartaPorte] = useState(
-    attachCartaPorteFromQuery,
-  );
   const hydratedEditKeyRef = useRef<string | null>(null);
 
   const {
@@ -169,6 +166,12 @@ export function CreateInvoicePage() {
     !isFalseTripScope;
   const cartaPorteAlreadyAttached =
     tripContext?.invoicing.cartaPorteAttached === true;
+  /** Solo lectura: prefill/query del reparto; no toggle en esta pantalla (#37). */
+  const attachCartaPorte = cartaPorteAlreadyAttached
+    ? false
+    : typeof prefill?.attachCartaPorte === "boolean"
+      ? prefill.attachCartaPorte
+      : attachCartaPorteFromQuery;
   const splitShareCopy = copy.splitShare;
 
   const {
@@ -374,37 +377,7 @@ export function CreateInvoicePage() {
     }
   }, [tripId, isEditMode, form]);
 
-    useEffect(() => {
-    if (!isSplitShareScope || isEditMode) return;
-    if (typeof prefill?.attachCartaPorte === "boolean") {
-      setAttachCartaPorte(prefill.attachCartaPorte);
-    } else if (attachCartaPorteFromQuery) {
-      setAttachCartaPorte(true);
-    }
-  }, [
-    isSplitShareScope,
-    isEditMode,
-    prefill?.attachCartaPorte,
-    attachCartaPorteFromQuery,
-  ]);
-
   useEffect(() => {
-    if (
-      isSplitShareScope &&
-      !isEditMode &&
-      cartaPorteAlreadyAttached &&
-      attachCartaPorte
-    ) {
-      setAttachCartaPorte(false);
-    }
-  }, [
-    isSplitShareScope,
-    isEditMode,
-    cartaPorteAlreadyAttached,
-    attachCartaPorte,
-  ]);
-
-useEffect(() => {
     if (!isEditMode && prefill) {
       if (
         !shouldHydrateInvoiceCreate(
@@ -991,9 +964,6 @@ useEffect(() => {
           }
           showCartaPorte={isSplitShareScope && !isEditMode}
           cartaPorteAlreadyAttached={cartaPorteAlreadyAttached}
-          onAttachCartaPorteChange={
-            isSplitShareScope && !isEditMode ? setAttachCartaPorte : undefined
-          }
         />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:items-start">

@@ -21,6 +21,7 @@ const userFacingStrings = [
   invoicingCopy.splitShare.alreadyInvoicedTitle,
   invoicingCopy.splitShare.alreadyInvoicedBody,
   invoicingCopy.splitShare.attachCartaPorteHint,
+  invoicingCopy.splitShare.attachCartaPorteDisabledHint,
   invoicingCopy.createContext.splitSharePercent(60),
   invoicingCopy.createContext.splitShareProgress(1, 2),
   invoicingCopy.createContext.receiverHeading,
@@ -41,5 +42,10 @@ describe("invoicingCopy split_share product handoff", () => {
     expect(invoicingCopy.create.submitHint).not.toMatch(/timbrar/i);
     expect(invoicingCopy.create.submitHint).not.toMatch(/borrador/i);
     expect(invoicingCopy.createContext.receiverHeading).toBe("Cliente a cobrar");
+  });
+
+  it("hint CP apunta al reparto como fuente de verdad (opción 2 / #37)", () => {
+    expect(invoicingCopy.splitShare.attachCartaPorteHint).toMatch(/reparto del flete/i);
+    expect(invoicingCopy.splitShare.attachCartaPorteHint).toMatch(/edita el reparto/i);
   });
 });

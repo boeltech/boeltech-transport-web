@@ -267,6 +267,70 @@ describe("toApiCreateInvoice split_share (ADR-0081)", () => {
   });
 });
 
+describe("invoicing mappers can_cancel_invoice", () => {
+  const baseRaw = {
+    id: "inv-cancel-flag",
+    tenant_id: "t-1",
+    serie: "A",
+    folio: 9,
+    status: "stamped",
+    issuer_rfc: "AAA010101AAA",
+    issuer_name: "Emisor",
+    issuer_tax_regime: "601",
+    issue_location: "64000",
+    receiver_rfc: "BBB010101BBB",
+    receiver_name: "Receptor",
+    cfdi_usage: "G03",
+    receiver_tax_regime: "601",
+    receiver_postal_code: "64000",
+    payment_form: "99",
+    payment_method: "PPD",
+    currency: "MXN",
+    exchange_rate: 1,
+    subtotal: 500,
+    discount: 0,
+    total_tax: 80,
+    retained_tax: 0,
+    total: 580,
+    balance_due: 580,
+    total_paid: 0,
+    notes: null,
+    cfdi_uuid: "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
+    stamped_at: "2026-07-01T10:00:00.000Z",
+    cancelled_at: null,
+    cancellation_reason: null,
+    created_at: "2026-07-01T10:00:00.000Z",
+    updated_at: "2026-07-01T10:00:00.000Z",
+    concepts: [],
+    trips: [],
+    payments: [],
+    sat_cancellation_status: "none",
+    sat_cancellation_message: null,
+    pac_provider: null,
+    xml_content: null,
+    qr_code: null,
+    pdf_url: null,
+    issued_at: "2026-07-01T10:00:00.000Z",
+    created_by: null,
+    updated_by: null,
+    created_by_name: null,
+    updated_by_name: null,
+  };
+
+  it("mapInvoice maps can_cancel_invoice true/false", () => {
+    expect(
+      mapInvoice({ ...baseRaw, can_cancel_invoice: true }).canCancelInvoice,
+    ).toBe(true);
+    expect(
+      mapInvoice({ ...baseRaw, can_cancel_invoice: false }).canCancelInvoice,
+    ).toBe(false);
+  });
+
+  it("mapInvoice leaves canCancelInvoice undefined when API omits the flag", () => {
+    expect(mapInvoice(baseRaw).canCancelInvoice).toBeUndefined();
+  });
+});
+
 describe("invoicing mappers dispatch_sent_at", () => {
   it("mapInvoice maps dispatch_sent_at", () => {
     const invoice = mapInvoice({

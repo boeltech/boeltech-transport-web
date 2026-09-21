@@ -143,6 +143,35 @@ describe("PaymentFormDialog", () => {
     );
   });
 
+  it("allows PUE registration with financial balance and without PPD chain hint", async () => {
+    const user = userEvent.setup();
+    renderDialog(
+      buildInvoice({
+        paymentMethod: "PUE",
+        paymentForm: "03",
+        currency: "MXN",
+        exchangeRate: 1,
+        totalPaid: 0,
+        balanceDue: 1160,
+      }),
+    );
+
+    expect(screen.getByText("Por cobrar")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Más sobre factura a crédito/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Registrar pago$/i }));
+
+    expect(mutateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 1160,
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
+  });
+
   it("shows Alert when API rejects overpayment (stale balance)", () => {
     renderDialog();
     expect(registerPaymentOnError).toBeTypeOf("function");

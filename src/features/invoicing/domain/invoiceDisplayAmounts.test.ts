@@ -64,11 +64,11 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
 }
 
 describe("invoiceDisplayAmounts", () => {
-  it("shows stamped PUE as fully paid with zero balance", () => {
+  it("shows stamped PUE without payment as pending (cobrado 0, saldo = total)", () => {
     const amounts = getInvoiceDisplayAmounts(buildInvoice());
 
-    expect(amounts.balanceDue).toBe(0);
-    expect(amounts.totalPaid).toBe(1160);
+    expect(amounts.balanceDue).toBe(1160);
+    expect(amounts.totalPaid).toBe(0);
     expect(amounts.isPueSettled).toBe(true);
   });
 
@@ -94,7 +94,20 @@ describe("invoiceDisplayAmounts", () => {
       totalPaid: 0,
     });
 
+    expect(amounts.balanceDue).toBe(1160);
+    expect(amounts.totalPaid).toBe(0);
+  });
+
+  it("treats stamped PUE with registered payment as paid", () => {
+    const amounts = getInvoiceDisplayAmounts(
+      buildInvoice({
+        totalPaid: 1160,
+        balanceDue: 0,
+      }),
+    );
+
     expect(amounts.balanceDue).toBe(0);
     expect(amounts.totalPaid).toBe(1160);
+    expect(amounts.isPueSettled).toBe(true);
   });
 });

@@ -202,6 +202,14 @@ describe("SubstituteInvoiceSheet", () => {
       screen.getByText(/¿Qué quieres corregir\? \(opcional\)/i),
     ).toBeInTheDocument();
     expect(
+      screen.getByText(/Reasignar flota/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", {
+        name: /documentación vencida|Permitir/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: /^Sustituir factura$/i }),
     ).toBeInTheDocument();
     expect(

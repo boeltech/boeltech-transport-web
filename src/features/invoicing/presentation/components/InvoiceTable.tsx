@@ -209,7 +209,7 @@ export function InvoiceTable({
               {/* Por cobrar */}
               <TableCell className="text-right">
                 {(() => {
-                  const { balanceDue, isPueSettled } =
+                  const { balanceDue } =
                     getInvoiceListItemDisplayAmounts(inv);
                   return balanceDue > 0 ? (
                     <span className="text-destructive font-medium">
@@ -217,9 +217,7 @@ export function InvoiceTable({
                     </span>
                   ) : (
                     <span className="text-success text-sm">
-                      {isPueSettled
-                        ? invoicingCopy.detail.label.listSettledPue
-                        : invoicingCopy.detail.label.listSettled}
+                      {invoicingCopy.detail.label.listSettled}
                     </span>
                   );
                 })()}

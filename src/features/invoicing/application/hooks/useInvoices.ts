@@ -127,6 +127,10 @@ async function invalidateSubstitutionTripCaches(
     await queryClient.invalidateQueries({
       queryKey: tripQueryKeys.detail(tripId),
     });
+    // C7: cancel último split_share con viaje cancelled → split auto-closed.
+    await queryClient.invalidateQueries({
+      queryKey: tripQueryKeys.revenueSplit(tripId),
+    });
   }
 
   if (amountCorrections) {
@@ -392,6 +396,8 @@ export function useRetryRepStamp(
         queryKey: invoiceQueryKeys.detail(invoiceId),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+      // Cobros «Excepciones REP» + follow-through banner (#33 F2)
+      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });

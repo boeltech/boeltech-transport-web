@@ -58,7 +58,7 @@ import {
   Mail,
   ChevronDown,
 } from "lucide-react";
-import { canRegisterPayment } from "@boeltech/cfdi-domain";
+import { canRegisterFinancialPayment } from "@boeltech/cfdi-domain";
 import { useDeleteInvoice, useOpenInvoicePdf, useDownloadInvoiceXml } from "@features/invoicing/application";
 import { parseInvoiceBillingScope, toInvoiceLike } from "@features/invoicing/domain";
 import { useTrip } from "@features/trips/application";
@@ -66,6 +66,7 @@ import {
   describeStampApiError,
   useTripFiscalSheets,
 } from "@features/trips/presentation/components/trip-fiscal";
+import { shouldShowFalseTripCancelCfdiBanner } from "@features/trips/presentation/helpers/shouldShowFalseTripCancelCfdiBanner";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
@@ -107,6 +108,11 @@ interface InvoiceActionsProps {
    * SubstituteInvoiceSheet cuando la acción está permitida.
    */
   openSubstituteRequestKey?: number;
+  /**
+   * Incrementar desde el banner de cancelar flete en viaje en falso (ADR-0079 /
+   * web #34) para abrir CancelInvoiceDialog cuando la acción está permitida.
+   */
+  openCancelRequestKey?: number;
 }
 
 export function InvoiceActions({
@@ -121,6 +127,7 @@ export function InvoiceActions({
   onActionComplete,
   onBusyChange,
   openSubstituteRequestKey = 0,
+  openCancelRequestKey = 0,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -132,6 +139,7 @@ export function InvoiceActions({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelBlockedDialogOpen, setCancelBlockedDialogOpen] = useState(false);
   const [substituteSheetOpen, setSubstituteSheetOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const openSendDialogRef = useRef<() => void>(() => {});
@@ -139,6 +147,7 @@ export function InvoiceActions({
   const [overlayInvoice, setOverlayInvoice] = useState<Invoice | null>(null);
   const lastBusyRef = useRef(false);
   const lastOpenSubstituteKeyRef = useRef(0);
+  const lastOpenCancelKeyRef = useRef(0);
 
   // ── Mutations (solo usadas en variant="buttons") ──────────────────────────
 
@@ -182,6 +191,7 @@ export function InvoiceActions({
   const canExecute = hasPermission("invoices", "execute");
   // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
   const canExport = hasPermission("invoices", "read");
+  const canReadFinanceCobros = hasPermission("finance", "read");
   const canAdminManagerFiscal =
     role === ROLES.ADMIN || role === ROLES.MANAGER;
 
@@ -193,49 +203,113 @@ export function InvoiceActions({
   const canShowRegisterPayment =
     Boolean(fullInvoice) &&
     canExecute &&
-    canRegisterPayment(toInvoiceLike(fullInvoice!));
+    canRegisterFinancialPayment(toInvoiceLike(fullInvoice!));
 
   const linkedTripId = fullInvoice?.trips[0]?.tripId;
-  const isPrimaryFreightInvoice =
-    parseInvoiceBillingScope(fullInvoice?.trips[0]?.billingScope) ===
-    "primary_transport";
+  const linkedBillingScope = parseInvoiceBillingScope(
+    fullInvoice?.trips[0]?.billingScope,
+  );
+  /** Flete principal o CFDI de desplazamiento en falso — ambos pueden pedir gate trip. */
+  const isFreightLinkedInvoice =
+    linkedBillingScope === "primary_transport" ||
+    linkedBillingScope === "false_trip";
   const { data: linkedTrip } = useTrip(linkedTripId ?? "", {
-    enabled: Boolean(isStamped && isPrimaryFreightInvoice && linkedTripId),
+    enabled: Boolean(isStamped && isFreightLinkedInvoice && linkedTripId),
   });
   const hideSubstituteForFalseTrip =
     linkedTrip?.operationalOutcome === "false_trip";
+  /** Post-cancel: no empujar / no mostrar Sustituir; el camino es Cancelar. */
+  const hideSubstituteForPostCancel = linkedTrip?.status === "cancelled";
+  const hideSubstitute =
+    hideSubstituteForFalseTrip || hideSubstituteForPostCancel;
 
   const tripNeedsFiscalAttention =
-    Boolean(linkedTrip?.requiresFiscalAttention) && !hideSubstituteForFalseTrip;
+    Boolean(linkedTrip?.requiresFiscalAttention) && !hideSubstitute;
+
+  const needsFalseTripCancel =
+    Boolean(linkedTrip?.invoicing) &&
+    shouldShowFalseTripCancelCfdiBanner({
+      operationalOutcome: linkedTrip!.operationalOutcome,
+      requiresFiscalAttention: Boolean(linkedTrip!.requiresFiscalAttention),
+      invoicing: linkedTrip!.invoicing,
+    });
+
+  const needsPostCancelCancel =
+    Boolean(linkedTrip?.requiresFiscalAttention) &&
+    linkedTrip?.status === "cancelled" &&
+    linkedTrip?.operationalOutcome !== "false_trip";
 
   const canShowSubstitute =
     isStamped &&
     Boolean(fullInvoice?.canSubstituteInvoice) &&
     canExecute &&
     canAdminManagerFiscal &&
-    !hideSubstituteForFalseTrip;
+    !hideSubstitute;
 
   const hasRegisteredCobros =
     Boolean(fullInvoice) &&
     ((fullInvoice!.totalPaid ?? 0) > 0 || (fullInvoice!.payments?.length ?? 0) > 0);
 
+  /**
+   * Prefer API flag; if absent (mocks viejos), bloquear cuando ya hay cobros.
+   */
+  const isCancelEligible =
+    fullInvoice?.canCancelInvoice !== undefined
+      ? fullInvoice.canCancelInvoice
+      : !hasRegisteredCobros;
+
   const showBlockedSubstitute =
     isStamped &&
     canExecute &&
     canAdminManagerFiscal &&
-    !hideSubstituteForFalseTrip &&
+    !hideSubstitute &&
     Boolean(fullInvoice) &&
     !fullInvoice!.canSubstituteInvoice &&
     hasRegisteredCobros;
 
-  /** Eleva Sustituir fuera de «Más» cuando el viaje pide continuidad fiscal. */
+  /** Eleva Sustituir fuera de «Más» cuando el viaje pide continuidad fiscal mid-trip. */
   const elevateSubstitutePrimary =
     variant === "buttons" &&
     tripNeedsFiscalAttention &&
     (canShowSubstitute || showBlockedSubstitute);
 
   const canShowCancel =
-    isStamped && canExecute && canAdminManagerFiscal;
+    isStamped &&
+    canExecute &&
+    canAdminManagerFiscal &&
+    isCancelEligible;
+
+  const showBlockedCancel =
+    isStamped &&
+    canExecute &&
+    canAdminManagerFiscal &&
+    Boolean(fullInvoice) &&
+    !isCancelEligible &&
+    hasRegisteredCobros;
+
+  /** Eleva Cancelar cuando false_trip o post-cancel piden cancelar el flete (no Sustituir). */
+  const elevateCancelPrimary =
+    variant === "buttons" &&
+    (needsFalseTripCancel || needsPostCancelCancel) &&
+    (canShowCancel || showBlockedCancel);
+
+  const openCancelBlockedFeedback = () => {
+    setCancelBlockedDialogOpen(true);
+    toast({
+      variant: "destructive",
+      title: actionsCopy.cancelBlockedTitle,
+      description: actionsCopy.cancelBlocked,
+    });
+  };
+
+  const scrollToInvoicePayments = () => {
+    document
+      .getElementById("invoice-payments")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const elevateFiscalPrimary =
+    elevateSubstitutePrimary || elevateCancelPrimary;
 
   const canShowExport = Boolean(fullInvoice) && isStampedLike && canExport;
 
@@ -336,6 +410,28 @@ export function InvoiceActions({
     toast,
   ]);
 
+  useEffect(() => {
+    if (variant !== "buttons") return;
+    if (!openCancelRequestKey || openCancelRequestKey === lastOpenCancelKeyRef.current) {
+      return;
+    }
+    lastOpenCancelKeyRef.current = openCancelRequestKey;
+    if (canShowCancel && fullInvoice) {
+      openOverlayWithSnapshot(fullInvoice, "cancel");
+      return;
+    }
+    if (showBlockedCancel) {
+      openCancelBlockedFeedback();
+    }
+  }, [
+    variant,
+    openCancelRequestKey,
+    canShowCancel,
+    showBlockedCancel,
+    fullInvoice,
+    toast,
+  ]);
+
   const folioCombined = `${invoiceSerie}-${invoiceFolio}`;
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -422,9 +518,9 @@ export function InvoiceActions({
 
   const primaryIsStamp = isDraft && canCreate && canExecute;
   const primaryIsPayment = canShowRegisterPayment && Boolean(fullInvoice);
-  /** Con atención fiscal, Sustituir es la única primaria; pago pasa a secundaria. */
-  const paymentIsSecondary = primaryIsPayment && elevateSubstitutePrimary;
-  const paymentIsPrimary = primaryIsPayment && !elevateSubstitutePrimary;
+  /** Con atención fiscal, Sustituir/Cancelar es la única primaria; pago pasa a secundaria. */
+  const paymentIsSecondary = primaryIsPayment && elevateFiscalPrimary;
+  const paymentIsPrimary = primaryIsPayment && !elevateFiscalPrimary;
   const hasDownloadMenu = canShowExport && Boolean(fullInvoice);
   const hasStampedXml =
     Boolean(fullInvoice) &&
@@ -433,7 +529,8 @@ export function InvoiceActions({
     (isDraft && (canUpdate || canDelete)) ||
     (showBlockedSubstitute && !elevateSubstitutePrimary) ||
     (canShowSubstitute && Boolean(fullInvoice) && !elevateSubstitutePrimary) ||
-    canShowCancel;
+    (showBlockedCancel && !elevateCancelPrimary) ||
+    (canShowCancel && !elevateCancelPrimary);
   /** Enviar / Descargar / pago secundario viven en «Más» bajo lg. */
   const hasResponsiveOverflow =
     canShowSendByEmail || hasDownloadMenu || paymentIsSecondary;
@@ -443,6 +540,7 @@ export function InvoiceActions({
     primaryIsStamp ||
     paymentIsPrimary ||
     elevateSubstitutePrimary ||
+    elevateCancelPrimary ||
     hasMoreMenu;
 
   if (!hasToolbar) return null;
@@ -454,6 +552,8 @@ export function InvoiceActions({
     (showBlockedSubstitute ||
       (canShowSubstitute && Boolean(fullInvoice))) &&
     !elevateSubstitutePrimary;
+  const moreHasCancelItem =
+    (showBlockedCancel || canShowCancel) && !elevateCancelPrimary;
   const moreHasEditDraft = isDraft && canUpdate;
   const moreHasItemsBeforeCancel =
     moreHasMobileOverflow || moreHasEditDraft || moreHasSubstituteItem;
@@ -512,6 +612,39 @@ export function InvoiceActions({
           >
             <RefreshCw className="mr-2 h-4 w-4" />
             {actionsCopy.substitute}
+          </Button>
+        ) : null}
+
+        {elevateCancelPrimary && showBlockedCancel ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled
+                  aria-label={actionsCopy.cancelBlockedTitle}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  {actionsCopy.cancel}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-left">
+              {actionsCopy.cancelBlocked}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+
+        {elevateCancelPrimary && canShowCancel && fullInvoice ? (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => openOverlayWithSnapshot(fullInvoice, "cancel")}
+            disabled={isLoading}
+          >
+            <XCircle className="mr-2 h-4 w-4" />
+            {actionsCopy.cancel}
           </Button>
         ) : null}
 
@@ -748,7 +881,34 @@ export function InvoiceActions({
                 </DropdownMenuItem>
               ) : null}
 
-              {canShowCancel ? (
+              {showBlockedCancel && !elevateCancelPrimary ? (
+                <>
+                  {moreHasItemsBeforeCancel ? (
+                    <DropdownMenuSeparator
+                      className={cancelSeparatorClassName}
+                    />
+                  ) : null}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="block w-full">
+                        <DropdownMenuItem
+                          disabled
+                          aria-label={actionsCopy.cancelBlockedTitle}
+                          className="w-full text-destructive focus:text-destructive focus:bg-destructive/10"
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          {actionsCopy.cancel}
+                        </DropdownMenuItem>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs text-left">
+                      {actionsCopy.cancelBlocked}
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              ) : null}
+
+              {canShowCancel && !elevateCancelPrimary ? (
                 <>
                   {moreHasItemsBeforeCancel ? (
                     <DropdownMenuSeparator
@@ -774,7 +934,7 @@ export function InvoiceActions({
                 <>
                   {moreHasEditDraft ||
                   moreHasSubstituteItem ||
-                  canShowCancel ? (
+                  moreHasCancelItem ? (
                     <DropdownMenuSeparator />
                   ) : null}
                   <DropdownMenuItem
@@ -834,18 +994,59 @@ export function InvoiceActions({
         />
       )}
 
-      {/* Cancel dialog */}
-      {overlayInvoice && cancelDialogOpen && (
+      {/* Cancel dialog — solo camino elegible (sin cobros). */}
+      {overlayInvoice && cancelDialogOpen && canShowCancel ? (
         <CancelInvoiceDialog
           invoiceId={invoiceId}
           open={cancelDialogOpen}
           defaultCancellationCode={
-            hideSubstituteForFalseTrip ? "03" : undefined
+            hideSubstitute ? "03" : undefined
           }
-          hasRegisteredPayments={hasRegisteredCobros}
           onOpenChange={(open) => handleOverlayOpenChange("cancel", open)}
         />
-      )}
+      ) : null}
+
+      {/* Hard-block cancel con cobros (PD1 / PD7) */}
+      <AlertDialog
+        open={cancelBlockedDialogOpen}
+        onOpenChange={setCancelBlockedDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {actionsCopy.cancelBlockedTitle}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {actionsCopy.cancelBlocked}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <AlertDialogCancel>
+              {actionsCopy.cancelBlockedDismiss}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setCancelBlockedDialogOpen(false);
+                scrollToInvoicePayments();
+              }}
+            >
+              {actionsCopy.cancelBlockedViewPayments}
+            </AlertDialogAction>
+            {canReadFinanceCobros ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCancelBlockedDialogOpen(false);
+                  navigate("/finance/cobros");
+                }}
+              >
+                {actionsCopy.cancelBlockedGoToCobros}
+              </Button>
+            ) : null}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Substitute stamped invoice (SAT 01) */}
       {overlayInvoice && substituteSheetOpen && (
