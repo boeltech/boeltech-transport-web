@@ -74,7 +74,36 @@ const MOCK_SUBSCRIPTION: BillingSubscription = {
   trialEndsAt: null,
   notes: null,
   limits: { maxUsers: 3, maxBranches: 1, historyMonths: 6 },
+  capacityBandCode: "operacion_esencial",
+  pendingCapacityBandCode: null,
+  capacity: {
+    bandCode: "operacion_esencial",
+    pendingBandCode: null,
+    users: {
+      granted: 3,
+      usage: 1,
+      limitReached: false,
+      overQuota: false,
+      overQuotaCount: 0,
+      status: "within_limit",
+    },
+    branches: {
+      granted: 1,
+      usage: 1,
+      limitReached: true,
+      overQuota: false,
+      overQuotaCount: 0,
+      status: "within_limit",
+    },
+    historyMonths: { granted: 6 },
+  },
   profitabilityLevel: "L0",
+  pricePerMotrizCents: null,
+  stampsPerMotriz: 30,
+  bandQMin: null,
+  bandQMax: null,
+  overagePriceCents: 600,
+  qFact: null,
 };
 
 const MOCK_USAGE: BillingUsage = {

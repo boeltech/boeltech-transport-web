@@ -41,6 +41,9 @@ interface BillingStampsCardProps {
   isLoading: boolean;
   usagePercent: number;
   stampsRemaining: number;
+  /** SoT v5 — opcional para hint bolsa = stamps × Q. */
+  stampsPerMotriz?: number;
+  qFact?: number | null;
 }
 
 const TONE_INDICATOR: Record<
@@ -57,6 +60,8 @@ export function BillingStampsCard({
   isLoading,
   usagePercent,
   stampsRemaining,
+  stampsPerMotriz,
+  qFact,
 }: BillingStampsCardProps) {
   const copy = billingCopy.stamps;
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -67,6 +72,11 @@ export function BillingStampsCard({
   const periodLabel = usage?.periodKey
     ? formatBillingPeriodKey(usage.periodKey)
     : null;
+  const showBolsaHint =
+    stampsPerMotriz != null &&
+    stampsPerMotriz > 0 &&
+    qFact != null &&
+    qFact >= 0;
 
   return (
     <Card>
@@ -100,6 +110,11 @@ export function BillingStampsCard({
                 <p className="text-sm text-muted-foreground">
                   {copy.remaining(stampsRemaining)}
                 </p>
+                {showBolsaHint ? (
+                  <p className="text-xs text-muted-foreground">
+                    {copy.bolsaHint(stampsPerMotriz, qFact)}
+                  </p>
+                ) : null}
               </div>
               <Badge
                 variant={tone === "primary" ? "neutral" : tone}
@@ -129,11 +144,26 @@ export function BillingStampsCard({
 
             {usage.overageStamps > 0 ? (
               <AlertWithIcon variant="warning" title={copy.overageTitle}>
-                {copy.overage(
-                  usage.overageStamps,
-                  formatBillingPriceCents(usage.overageTotalCents),
-                )}
+                <p>
+                  {copy.overage(
+                    usage.overageStamps,
+                    formatBillingPriceCents(usage.overageTotalCents),
+                  )}
+                </p>
+                {usage.overagePriceCents > 0 ? (
+                  <p className="mt-1 text-sm">
+                    {copy.overageUnit(
+                      formatBillingPriceCents(usage.overagePriceCents),
+                    )}
+                  </p>
+                ) : null}
               </AlertWithIcon>
+            ) : usage.overagePriceCents > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {copy.overageUnit(
+                  formatBillingPriceCents(usage.overagePriceCents),
+                )}
+              </p>
             ) : null}
 
             <Collapsible

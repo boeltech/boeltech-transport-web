@@ -7,6 +7,7 @@ import {
   mapPlatformUser,
   mapPlatformAuditLogItem,
   mapPlatformTenantStampUsage,
+  mapPlatformTenantSubscription,
   mapPlatformTenantEntitlements,
   mapPlatformModuleCatalogItem,
   mapPlatformSaasArRow,
@@ -236,6 +237,37 @@ describe("platform mappers", () => {
     expect(plan.monthlyPriceCents).toBe(74900);
     expect(plan.includedStamps).toBe(120);
     expect(plan.quotaPolicy).toBe("soft_cap");
+    expect(plan.pricePerMotrizCents).toBeNull();
+    expect(plan.stampsPerMotriz).toBe(30);
+    expect(plan.bandQMin).toBeNull();
+    expect(plan.bandQMax).toBeNull();
+  });
+
+  it("mapPlatformBillingPlan maps SoT v5 motriz fields", () => {
+    const plan = mapPlatformBillingPlan({
+      code: "operacion_pequena",
+      name: "Operación Pequeña",
+      max_users: 10,
+      max_branches: 3,
+      history_months: 12,
+      is_active: true,
+      monthly_price_cents: 0,
+      annual_price_cents: null,
+      included_stamps: 0,
+      overage_price_cents: 600,
+      quota_policy: "soft_cap",
+      features: {},
+      price_per_motriz_cents: 31900,
+      stamps_per_motriz: 30,
+      band_q_min: 6,
+      band_q_max: 30,
+    });
+
+    expect(plan.monthlyPriceCents).toBe(0);
+    expect(plan.pricePerMotrizCents).toBe(31900);
+    expect(plan.stampsPerMotriz).toBe(30);
+    expect(plan.bandQMin).toBe(6);
+    expect(plan.bandQMax).toBe(30);
   });
 
   it("toApiCreatePlatformTenant serializes admin names", () => {
@@ -292,6 +324,69 @@ describe("platform mappers", () => {
 
     expect(usage.includedStamps).toBe(120);
     expect(usage.stampsUsed).toBe(40);
+  });
+
+  it("mapPlatformTenantSubscription exposes SoT v5 motriz + ADR-0095 capacity", () => {
+    const sub = mapPlatformTenantSubscription({
+      plan_code: "operacion_pequena",
+      plan_name: "Operación Pequeña",
+      status: "active",
+      billing_cycle: "monthly",
+      monthly_price_cents: 0,
+      included_stamps: 420,
+      stamps_used_this_period: 12,
+      quota_policy: "soft_cap",
+      current_period_start: "2026-09-01T06:00:00.000Z",
+      current_period_end: "2026-10-01T05:59:59.999Z",
+      trial_ends_at: null,
+      notes: null,
+      capacity_band_code: "operacion_pequena",
+      pending_capacity_band_code: null,
+      limits: {
+        max_users: 10,
+        max_branches: 3,
+        history_months: 12,
+      },
+      capacity: {
+        band_code: "operacion_pequena",
+        pending_band_code: null,
+        users: {
+          granted: 10,
+          usage: 4,
+          limit_reached: false,
+          over_quota: false,
+          over_quota_count: 0,
+          status: "within_limit",
+        },
+        branches: {
+          granted: 3,
+          usage: 1,
+          limit_reached: false,
+          over_quota: false,
+          over_quota_count: 0,
+          status: "within_limit",
+        },
+        history_months: { granted: 12 },
+      },
+      profitability_level: "L0",
+      price_per_motriz_cents: 31900,
+      stamps_per_motriz: 30,
+      band_q_min: 6,
+      band_q_max: 30,
+      overage_price_cents: 500,
+      q_fact: 14,
+    });
+
+    expect(sub.pricePerMotrizCents).toBe(31900);
+    expect(sub.stampsPerMotriz).toBe(30);
+    expect(sub.bandQMin).toBe(6);
+    expect(sub.bandQMax).toBe(30);
+    expect(sub.overagePriceCents).toBe(500);
+    expect(sub.qFact).toBe(14);
+    expect(sub.capacityBandCode).toBe("operacion_pequena");
+    expect(sub.pendingCapacityBandCode).toBeNull();
+    expect(sub.capacity.users.status).toBe("within_limit");
+    expect(sub.capacity.users.granted).toBe(10);
   });
 
   it("mapPlatformTenantEntitlements delegates to billing mapper", () => {

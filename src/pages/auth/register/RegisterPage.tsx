@@ -566,7 +566,12 @@ const RegisterPage = () => {
                 </div>
 
                 <div className="bg-muted/40 space-y-3 rounded-lg border p-4">
-                  <p className="text-sm font-medium">{copy.plan.previewTitle}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{copy.plan.previewTitle}</p>
+                    <Badge variant="info" tone="soft">
+                      {copy.plan.orientativeBadge}
+                    </Badge>
+                  </div>
                   <div>
                     <p className="text-foreground text-sm font-semibold">
                       {preferredPlan.name}
@@ -576,9 +581,11 @@ const RegisterPage = () => {
                     </p>
                     <p className="text-primary text-xl font-bold tracking-tight tabular-nums">
                       {preferredPlan.priceAmount}
-                      <span className="text-muted-foreground ml-1 text-sm font-medium">
-                        {preferredPlan.pricePeriod}
-                      </span>
+                      {preferredPlan.pricePeriod ? (
+                        <span className="text-muted-foreground ml-1 text-sm font-medium">
+                          {preferredPlan.pricePeriod}
+                        </span>
+                      ) : null}
                     </p>
                   </div>
                   <div>
@@ -586,10 +593,14 @@ const RegisterPage = () => {
                       {copy.plan.capacityLabel}
                     </p>
                     <ul className="text-muted-foreground space-y-1 text-xs">
-                      <li>{preferredPlan.unitsLabel}</li>
+                      {preferredPlan.unitsLabel ? (
+                        <li>{preferredPlan.unitsLabel}</li>
+                      ) : null}
                       <li>{preferredPlan.usersLabel}</li>
                       <li>{preferredPlan.branchesLabel}</li>
-                      <li>{preferredPlan.stampsLabel}</li>
+                      {preferredPlan.stampsLabel ? (
+                        <li>{preferredPlan.stampsLabel}</li>
+                      ) : null}
                     </ul>
                   </div>
                   <p className="text-foreground text-xs font-medium">

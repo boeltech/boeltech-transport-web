@@ -93,7 +93,36 @@ const MOCK_SUBSCRIPTION: BillingSubscription = {
   trialEndsAt: null,
   notes: null,
   limits: { maxUsers: 3, maxBranches: 1, historyMonths: 6 },
+  capacityBandCode: "operacion_esencial",
+  pendingCapacityBandCode: null,
+  capacity: {
+    bandCode: "operacion_esencial",
+    pendingBandCode: null,
+    users: {
+      granted: 3,
+      usage: 1,
+      limitReached: false,
+      overQuota: false,
+      overQuotaCount: 0,
+      status: "within_limit",
+    },
+    branches: {
+      granted: 1,
+      usage: 1,
+      limitReached: true,
+      overQuota: false,
+      overQuotaCount: 0,
+      status: "within_limit",
+    },
+    historyMonths: { granted: 6 },
+  },
   profitabilityLevel: "L0",
+  pricePerMotrizCents: null,
+  stampsPerMotriz: 30,
+  bandQMin: null,
+  bandQMax: null,
+  overagePriceCents: 600,
+  qFact: null,
 };
 
 const MOCK_USAGE: BillingUsage = {
@@ -276,6 +305,144 @@ describe("billing workflow smoke (Imp-v1d)", () => {
 
     // El precio del plan aparece una sola vez: ya no se duplica en KPIs (D3).
     expect(screen.getAllByText("$749.00")).toHaveLength(1);
+  });
+
+  it("renders SoT v5 motriz semantics (piloto 14 × $319)", async () => {
+    mockGetSubscription.mockResolvedValue({
+      ...MOCK_SUBSCRIPTION,
+      planCode: "operacion_pequena",
+      planName: "Operación Pequeña",
+      monthlyPriceCents: 0,
+      includedStamps: 420,
+      stampsUsedThisPeriod: 12,
+      pricePerMotrizCents: 31900,
+      stampsPerMotriz: 30,
+      bandQMin: 6,
+      bandQMax: 30,
+      overagePriceCents: 500,
+      qFact: 14,
+    });
+    mockGetUsage.mockResolvedValue({
+      ...MOCK_USAGE,
+      planCode: "operacion_pequena",
+      includedStamps: 420,
+      stampsUsed: 12,
+      overageStamps: 0,
+      overagePriceCents: 500,
+      overageTotalCents: 0,
+    });
+    mockGetEntitlements.mockResolvedValue({
+      ...MOCK_ENTITLEMENTS_WITHOUT,
+      // API SoT F3b: cargo plan = Q×P (14×31900), IVA 16% en summary
+      commercialSummary: {
+        ...EMPTY_COMMERCIAL_SUMMARY,
+        planMonthlyPriceCents: 446600,
+        modulesTotalCents: 0,
+        overageTotalCents: 0,
+        subtotalCents: 446600,
+        ivaCents: 71456,
+        estimatedTotalCents: 518056,
+      },
+    });
+    mockGetAccess.mockResolvedValue({
+      subscriptionStatus: "active",
+      isOperational: true,
+      trialEndsAt: null,
+      planName: "Operación Pequeña",
+      effectiveModuleCodes: [],
+    });
+
+    render(
+      <TestProviders>
+        <BillingSubscriptionPage />
+      </TestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Operación Pequeña").length).toBeGreaterThan(0);
+    });
+
+    expect(
+      screen.getAllByText(billingCopy.plan.bandLabels.pequena).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/\$319\.00 \/ motriz \/ mes/)).toBeInTheDocument();
+    expect(screen.getByText(/14 motrizes este periodo/)).toBeInTheDocument();
+    expect(screen.getByText(/420 timbres \(30 × 14\)/)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.stamps.title)).toBeInTheDocument();
+    expect(screen.getByText(/Bolsa = 30 × 14 motrizes/)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.costs.rows.motrizCargo)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.plan.noFeeNote)).toBeInTheDocument();
+    // Cargo plan 14×319 = $4,466 desde summary API; estimado + IVA = $5,180.56
+    expect(screen.getAllByText(/\$4,466\.00/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/\$5,180\.56/)).toBeInTheDocument();
+  });
+
+  /** DoD piloto CEO (F4): Q=4 Micro · 4×$389=$1,556 · bolsa 120 · total c/IVA ~$1,804.96 */
+  it("renders SoT v5 motriz semantics (piloto CEO 4 × $389)", async () => {
+    mockGetSubscription.mockResolvedValue({
+      ...MOCK_SUBSCRIPTION,
+      planCode: "operacion_micro",
+      planName: "Operación Micro",
+      monthlyPriceCents: 0,
+      includedStamps: 120,
+      stampsUsedThisPeriod: 8,
+      pricePerMotrizCents: 38900,
+      stampsPerMotriz: 30,
+      bandQMin: 1,
+      bandQMax: 5,
+      overagePriceCents: 600,
+      qFact: 4,
+    });
+    mockGetUsage.mockResolvedValue({
+      ...MOCK_USAGE,
+      planCode: "operacion_micro",
+      includedStamps: 120,
+      stampsUsed: 8,
+      overageStamps: 0,
+      overagePriceCents: 600,
+      overageTotalCents: 0,
+    });
+    mockGetEntitlements.mockResolvedValue({
+      ...MOCK_ENTITLEMENTS_WITHOUT,
+      commercialSummary: {
+        ...EMPTY_COMMERCIAL_SUMMARY,
+        planMonthlyPriceCents: 155600,
+        modulesTotalCents: 0,
+        overageTotalCents: 0,
+        subtotalCents: 155600,
+        ivaCents: 24896,
+        estimatedTotalCents: 180496,
+      },
+    });
+    mockGetAccess.mockResolvedValue({
+      subscriptionStatus: "active",
+      isOperational: true,
+      trialEndsAt: null,
+      planName: "Operación Micro",
+      effectiveModuleCodes: [],
+    });
+
+    render(
+      <TestProviders>
+        <BillingSubscriptionPage />
+      </TestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Operación Micro").length).toBeGreaterThan(0);
+    });
+
+    expect(
+      screen.getAllByText(billingCopy.plan.bandLabels.micro).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/\$389\.00 \/ motriz \/ mes/)).toBeInTheDocument();
+    expect(screen.getByText(/4 motrizes este periodo/)).toBeInTheDocument();
+    expect(screen.getByText(/120 timbres \(30 × 4\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Bolsa = 30 × 4 motrizes/)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.costs.rows.motrizCargo)).toBeInTheDocument();
+    // Cargo 4×389 = $1,556; estimado + IVA = $1,804.96
+    expect(screen.getAllByText(/\$1,556\.00/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/\$1,804\.96/)).toBeInTheDocument();
   });
 
   it("shows a single notice when stamps run out (D5)", async () => {

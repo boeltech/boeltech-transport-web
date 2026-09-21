@@ -19,6 +19,7 @@ import {
 } from "@shared/ui/collapsible";
 import { cn } from "@shared/lib/utils/cn";
 import { useToast } from "@shared/hooks";
+import { computeBolsaStamps } from "@features/billing";
 import {
   computeStampUsagePercent,
   resolveStampUsageAlertLevel,
@@ -36,6 +37,7 @@ import {
   formatBillingPriceCents,
   getStampUsageTone,
 } from "../utils/platformBillingFormatters";
+import { resolvePlatformPlanPriceDisplay } from "../utils/resolvePlatformPlanPriceDisplay";
 
 interface TenantThisMonthCardProps {
   tenantId: string;
@@ -69,11 +71,32 @@ export function TenantThisMonthCard({
   const ent = entitlements.data;
 
   const stampsUsed = usage?.stampsUsed ?? sub?.stampsUsedThisPeriod ?? 0;
-  const includedStamps = usage?.includedStamps ?? sub?.includedStamps ?? 0;
+  const bolsaFromMotriz =
+    sub != null
+      ? computeBolsaStamps({
+          qFact: sub.qFact,
+          stampsPerMotriz: sub.stampsPerMotriz,
+          includedStamps: usage?.includedStamps ?? sub.includedStamps,
+        })
+      : null;
+  const includedStamps =
+    bolsaFromMotriz ?? usage?.includedStamps ?? sub?.includedStamps ?? 0;
   const usagePercent = computeStampUsagePercent(stampsUsed, includedStamps);
   const stampsRemaining = Math.max(0, includedStamps - stampsUsed);
   const stampTone = getStampUsageTone(usagePercent);
   const usageAlertLevel = resolveStampUsageAlertLevel(usagePercent);
+
+  const planPrice = sub ? resolvePlatformPlanPriceDisplay(sub) : null;
+  const bolsaHint =
+    sub != null &&
+    sub.qFact != null &&
+    Number.isFinite(sub.qFact) &&
+    sub.stampsPerMotriz > 0
+      ? platformCopy.tenants.detail.planPrice.bolsaHint(
+          sub.stampsPerMotriz,
+          sub.qFact,
+        )
+      : null;
 
   const displayPlan =
     sub?.planName ?? planName ?? copy.sections.planFallback;
@@ -150,13 +173,20 @@ export function TenantThisMonthCard({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-lg border bg-muted/20 p-4">
                 <p className="text-xs font-medium text-muted-foreground">
-                  {copy.metrics.monthlyPrice}
+                  {planPrice?.kind === "motriz_cargo"
+                    ? copy.planPrice.labelCargo
+                    : planPrice?.kind === "motriz_pending_q"
+                      ? copy.planPrice.labelUnit
+                      : copy.metrics.monthlyPrice}
                 </p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
-                  {sub
-                    ? formatBillingPriceCents(sub.monthlyPriceCents)
-                    : "—"}
+                  {planPrice ? planPrice.primary : "—"}
                 </p>
+                {planPrice?.secondary ? (
+                  <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                    {planPrice.secondary}
+                  </p>
+                ) : null}
               </div>
               <div className="rounded-lg border bg-muted/20 p-4">
                 <p className="text-xs font-medium text-muted-foreground">
@@ -190,6 +220,11 @@ export function TenantThisMonthCard({
                         ? ` · ${stampCopy.prepaidRemaining(usage!.prepaidRemaining)}`
                         : ""}
                     </p>
+                    {bolsaHint ? (
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {bolsaHint}
+                      </p>
+                    ) : null}
                   </div>
                   <Badge
                     variant={

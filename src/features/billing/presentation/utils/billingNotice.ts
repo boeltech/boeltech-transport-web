@@ -5,12 +5,15 @@
  * condiciones que no ganan quedan como texto secundario en su bloque, nunca
  * como una alerta adicional.
  *
- * Prioridad (producto PD2/PD5 · ADR-0072 · Capa 1 D3):
+ * Prioridad (producto PD2/PD5 · ADR-0072 · ADR-0095 · Capa 1 D3):
  * no_plan → blocked → past_due (sin saldo open) → trial_exhausted →
- * trial_ended → stamps_exhausted → stamps_low → branches_over_quota
+ * trial_ended → stamps_exhausted → stamps_low → capacity_over_quota
  *
  * El saldo open (`hasOpenArrears`) se muestra en `BillingArrearsCard`, no como
  * aviso duplicado. Con saldo open, `past_due` también se omite (la card cubre).
+ *
+ * OVER_LIMIT (users/branches): un solo notice `capacity_over_quota`; el alcance
+ * (users | branches | both) lo resuelve la UI con los flags de input.
  *
  * El fin de prueba se resuelve por `status` cuando el API lo expresa; si sigue
  * en `trialing` la fecha solo puede compararse contra el reloj del navegador.
@@ -30,7 +33,11 @@ export type BillingNoticeId =
   | "trial_ended"
   | "stamps_exhausted"
   | "stamps_low"
+  | "capacity_over_quota"
+  /** @deprecated Prefer `capacity_over_quota` (ADR-0095). */
   | "branches_over_quota";
+
+export type CapacityOverQuotaScope = "users" | "branches" | "both";
 
 export interface BillingNoticeInput {
   /** Falso mientras la suscripción no ha resuelto: no se decide nada aún. */
@@ -40,7 +47,10 @@ export interface BillingNoticeInput {
   includedStamps?: number | null;
   stampsUsed?: number | null;
   usagePercent: number;
+  /** Preferir snapshot `capacity.branches.overQuota` (ADR-0095). */
   branchesOverQuota: boolean;
+  /** Snapshot `capacity.users.overQuota` (ADR-0095). */
+  usersOverQuota?: boolean;
   /** `total_open_cents > 0` desde GET /billing/arrears — card, no notice. */
   hasOpenArrears?: boolean;
   /** Referencia temporal inyectable (tests y comparación de fin de prueba). */
@@ -48,6 +58,18 @@ export interface BillingNoticeInput {
 }
 
 const BLOCKED_STATUSES = new Set(["paused", "canceled"]);
+
+export function resolveCapacityOverQuotaScope(input: {
+  usersOverQuota?: boolean;
+  branchesOverQuota?: boolean;
+}): CapacityOverQuotaScope | null {
+  const users = Boolean(input.usersOverQuota);
+  const branches = Boolean(input.branchesOverQuota);
+  if (users && branches) return "both";
+  if (users) return "users";
+  if (branches) return "branches";
+  return null;
+}
 
 export function resolveBillingNotice(
   input: BillingNoticeInput,
@@ -88,7 +110,9 @@ export function resolveBillingNotice(
     return "stamps_low";
   }
 
-  if (input.branchesOverQuota) return "branches_over_quota";
+  if (input.usersOverQuota || input.branchesOverQuota) {
+    return "capacity_over_quota";
+  }
 
   return null;
 }

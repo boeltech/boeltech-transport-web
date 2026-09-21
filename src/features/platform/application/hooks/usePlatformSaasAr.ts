@@ -27,6 +27,9 @@ function invalidateArQueries(
   queryClient.invalidateQueries({
     queryKey: platformQueryKeys.tenantSubscription(tenantId),
   });
+  queryClient.invalidateQueries({
+    queryKey: platformQueryKeys.tenantPaymentMethods(tenantId),
+  });
   queryClient.invalidateQueries({ queryKey: platformQueryKeys.tenantLists() });
 }
 
@@ -43,6 +46,18 @@ export const usePlatformTenantSaasInvoices = (tenantId: string) =>
     queryFn: () => platformApi.listTenantSaasInvoices(tenantId),
     enabled: !!tenantId,
     staleTime: 15_000,
+  });
+
+export const usePlatformTenantPaymentMethods = (
+  tenantId: string,
+  options?: { enabled?: boolean },
+) =>
+  useQuery({
+    queryKey: platformQueryKeys.tenantPaymentMethods(tenantId),
+    queryFn: () => platformApi.listTenantPaymentMethods(tenantId),
+    enabled: !!tenantId && (options?.enabled ?? true),
+    staleTime: 30_000,
+    retry: false,
   });
 
 export const useTenantReconciliationPreview = (
@@ -103,6 +118,29 @@ export const useMarkSaasInvoicePaid = (
   return useMutation({
     mutationFn: ({ tenantId, invoiceId, payload }) =>
       platformApi.markSaasInvoicePaid(tenantId, invoiceId, payload),
+    onSuccess: (result, variables, ...rest) => {
+      invalidateArQueries(queryClient, variables.tenantId);
+      onSuccess?.(result, variables, ...rest);
+    },
+    ...restOptions,
+  });
+};
+
+export const useChargeSaasInvoiceStripe = (
+  options?: Omit<
+    UseMutationOptions<
+      Awaited<ReturnType<typeof platformApi.chargeSaasInvoiceStripe>>,
+      Error,
+      { tenantId: string; invoiceId: string }
+    >,
+    "mutationFn"
+  >,
+) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options ?? {};
+  return useMutation({
+    mutationFn: ({ tenantId, invoiceId }) =>
+      platformApi.chargeSaasInvoiceStripe(tenantId, invoiceId),
     onSuccess: (result, variables, ...rest) => {
       invalidateArQueries(queryClient, variables.tenantId);
       onSuccess?.(result, variables, ...rest);

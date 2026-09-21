@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { BillingArrears } from "../../domain/entities";
 import { billingCopy } from "../copy/billingCopy";
 import { formatBillingPeriodKey } from "../utils/billingFormatters";
@@ -38,6 +39,7 @@ describe("BillingArrearsCard", () => {
     expect(screen.getByText(/Vence el/)).toBeInTheDocument();
     expect(screen.getByText(/Por pagar/)).toBeInTheDocument();
     expect(screen.queryByText(/Al corriente/)).not.toBeInTheDocument();
+    expect(screen.queryByText(billingCopy.arrears.payNow)).not.toBeInTheDocument();
   });
 
   it("shows overdue wording when daysOverdue > 0", () => {
@@ -60,5 +62,45 @@ describe("BillingArrearsCard", () => {
   it("shows loading copy while resolving", () => {
     render(<BillingArrearsCard data={ARREARS} isLoading />);
     expect(screen.getByText(billingCopy.arrears.loading)).toBeInTheDocument();
+  });
+
+  it("shows Pagar ahora when Stripe pay is allowed and default PM exists", async () => {
+    const user = userEvent.setup();
+    const onPayInvoice = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <BillingArrearsCard
+        data={ARREARS}
+        canPayWithStripe
+        hasDefaultPaymentMethod
+        onPayInvoice={onPayInvoice}
+      />,
+    );
+
+    const payBtn = screen.getByRole("button", {
+      name: billingCopy.arrears.payNow,
+    });
+    await user.click(payBtn);
+    expect(onPayInvoice).toHaveBeenCalledWith("inv-july");
+  });
+
+  it("hides Pagar ahora without default PM and shows hint", () => {
+    render(
+      <BillingArrearsCard
+        data={ARREARS}
+        canPayWithStripe
+        hasDefaultPaymentMethod={false}
+        onPayInvoice={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(billingCopy.arrears.payNow)).not.toBeInTheDocument();
+    expect(screen.getByText(billingCopy.arrears.payNeedsCard)).toBeInTheDocument();
+  });
+
+  it("uses SaaS subscription copy, not CFDI freight wording", () => {
+    render(<BillingArrearsCard data={ARREARS} />);
+    expect(screen.getByText(/suscripción Boeltech/i)).toBeInTheDocument();
+    expect(screen.getByText(/facturas CFDI de flete/i)).toBeInTheDocument();
   });
 });

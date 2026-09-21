@@ -8,13 +8,18 @@ export const DECLARED_FLEET_BANDS = [
 
 export type DeclaredFleetBand = (typeof DECLARED_FLEET_BANDS)[number];
 
-export const DEFAULT_OPERATIONAL_PLAN_CODE = "operacion_esencial";
+/** SoT v5 motriz — default sin banda = Micro (no Esencial v3). */
+export const DEFAULT_OPERATIONAL_PLAN_CODE = "operacion_micro";
 
+/**
+ * Mapa banda declarada → plan_code v5.
+ * Nota TEC: banda UI `1_10` recomienda Micro aunque la banda micro de cobro es 1–5.
+ */
 export const OPERATIONAL_PLAN_BY_BAND: Record<DeclaredFleetBand, string> = {
-  "1_10": "operacion_esencial",
-  "11_30": "operacion_crecimiento",
-  "31_100": "operacion_escala",
-  "100_plus": "operacion_corporativo",
+  "1_10": "operacion_micro",
+  "11_30": "operacion_pequena",
+  "31_100": "operacion_mediana",
+  "100_plus": "operacion_grande",
 };
 
 export function isDeclaredFleetBand(
@@ -24,8 +29,8 @@ export function isDeclaredFleetBand(
 }
 
 /**
- * Recomienda `plan_code` Operación según banda de flota.
- * Sin banda → Esencial (menor fricción / SoT §9.4).
+ * Recomienda `plan_code` Operación según banda de flota (SoT v5).
+ * Sin banda → Micro.
  */
 export function recommendOperationalPlanCode(input: {
   band?: DeclaredFleetBand | null;

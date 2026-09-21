@@ -33,6 +33,14 @@ import {
   type ApiBillingUsage,
 } from "@features/billing/infrastructure/mappers";
 
+/** Re-export SaaS payment mappers so platformApi does not deep-import billing twice. */
+export {
+  mapBillingPaymentMethod,
+  mapSaasInvoicePayResult,
+  type ApiBillingPaymentMethod,
+  type ApiSaasInvoicePayResult,
+} from "@features/billing/infrastructure/mappers";
+
 export interface ApiPlatformUser {
   id: string;
   email: string;
@@ -134,7 +142,13 @@ export interface ApiPlatformBillingPlan {
   overage_price_cents?: number;
   quota_policy?: string;
   features?: Record<string, unknown>;
+  price_per_motriz_cents?: number | null;
+  stamps_per_motriz?: number | null;
+  band_q_min?: number | null;
+  band_q_max?: number | null;
 }
+
+const DEFAULT_STAMPS_PER_MOTRIZ = 30;
 
 export const mapPlatformUser = (raw: ApiPlatformUser): PlatformUserJSON => ({
   id: raw.id,
@@ -246,6 +260,13 @@ export const mapPlatformBillingPlan = (
   overagePriceCents: raw.overage_price_cents ?? 0,
   quotaPolicy: raw.quota_policy ?? "soft_cap",
   features: raw.features ?? {},
+  pricePerMotrizCents: raw.price_per_motriz_cents ?? null,
+  stampsPerMotriz:
+    raw.stamps_per_motriz != null && raw.stamps_per_motriz > 0
+      ? raw.stamps_per_motriz
+      : DEFAULT_STAMPS_PER_MOTRIZ,
+  bandQMin: raw.band_q_min ?? null,
+  bandQMax: raw.band_q_max ?? null,
 });
 
 export const toApiCreatePlatformTenant = (payload: {

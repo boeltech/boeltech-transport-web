@@ -1,7 +1,7 @@
 /**
  * Copy de la landing pública (`/welcome`).
  * Namespace: landing.copy.*
- * Alineado a SoT comercial v3.2 (§3.2 núcleo L0, §4 add-ons, §6.6 trial).
+ * Alineado a SoT comercial v5 motriz (bandas Micro/Pequeña/Mediana/Grande).
  * Handoff Capa 1 (D1–D7): embudo outcome → prueba → precio.
  */
 import { BRAND } from "@shared/ui/brand";
@@ -94,7 +94,7 @@ export const landingCopy = {
     id: "producto",
     title: "Qué incluye el núcleo operativo",
     subtitle:
-      "El mismo alcance en los cuatro planes Operación. La diferencia entre tiers es capacidad (usuarios, sucursales, timbres), no funciones básicas.",
+      "El mismo alcance en los cuatro planes Operación. La diferencia entre bandas es capacidad (motrizes, usuarios, sucursales e historial), no funciones básicas.",
     includedBadge: "Incluido",
     items: [
       {
@@ -173,33 +173,39 @@ export const landingCopy = {
     id: "pricing",
     title: "Planes Operación",
     subtitle:
-      "Elige capacidad según el tamaño de tu flota. El mismo núcleo en todos los tiers: viajes, flota, clientes y facturación fiscal MX.",
-    annualNote: "Pago anual: −15% sobre el precio de lista del plan Operación.",
+      "Pagás por motriz. Cada banda incluye cupo de usuarios, sucursales e historial consultable — sin fee de cuenta.",
+    /** Footnote suave: sin promesa de descuento anual como SoT. */
+    annualNote: "¿Facturación anual? Consulta con ventas.",
     optionalsNote:
       "Opcionales y packs se contratan aparte y no incluyen capacidad extra del plan.",
-    priceHint: "Precios de lista MXN · sin IVA · prueba 14 días sin tarjeta",
-    priceHintClosed: "Precios de lista MXN · sin IVA · alta con ventas",
+    priceHint:
+      "Precios MXN por motriz · mes · sin IVA · sin fee de cuenta · prueba 14 días sin tarjeta",
+    priceHintClosed:
+      "Precios MXN por motriz · mes · sin IVA · sin fee de cuenta · alta con ventas",
     familyLabel: "Operación",
     cta: "Empezar prueba gratis",
+    /** Grande / cotización: no vender «prueba» como si hubiera P de lista. */
+    ctaQuote: "Solicitar cotización",
     ctaSecondary: "Hablar con ventas",
     popularBadge: "Más elegido",
-    popularCode: "operacion_crecimiento",
+    popularCode: "operacion_pequena",
     featureLabels: {
       fleet: "Flota orientativa",
       users: "Usuarios",
       branches: "Sucursales",
-      stamps: "Timbres / mes",
+      stamps: "Timbres / motriz",
+      history: "Historial",
       l0: "Núcleo incluido (CFDI, Carta Porte, REP)",
     },
     audiences: {
-      operacion_esencial:
+      operacion_micro:
         "Para flotas compactas que digitalizan operación y facturan en regla.",
-      operacion_crecimiento:
-        "Para PyMEs en expansión que necesitan más usuarios, sucursales y timbres.",
-      operacion_escala:
-        "Para operación multi-sucursal con mayor volumen fiscal y de equipo.",
-      operacion_corporativo:
-        "Para redes grandes: capacidad abierta y acompañamiento comercial.",
+      operacion_pequena:
+        "Para PyMEs en expansión que necesitan más cupo de usuarios, sucursales e historial.",
+      operacion_mediana:
+        "Para operación multi-sucursal con mayor volumen de flota y equipo.",
+      operacion_grande:
+        "Para redes grandes: capacidad a medida y acompañamiento comercial.",
     } as Record<string, string>,
   },
 

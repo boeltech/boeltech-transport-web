@@ -321,6 +321,11 @@ const PricingSection = () => {
           {plans.map((plan, index) => {
             const isPopular = plan.code === pricing.popularCode;
             const audience = pricing.audiences[plan.code] ?? plan.unitsLabel;
+            /** Grande / sin P de lista: CTA cotización, no «empezar prueba». */
+            const isQuote =
+              plan.code === "operacion_grande" ||
+              plan.priceAmount === "Cotización" ||
+              !plan.pricePeriod;
 
             return (
               <LandingReveal key={plan.code}>
@@ -360,9 +365,11 @@ const PricingSection = () => {
                     >
                       {plan.priceAmount}
                     </span>
-                    <span className="text-muted-foreground text-sm font-medium">
-                      {plan.pricePeriod}
-                    </span>
+                    {plan.pricePeriod ? (
+                      <span className="text-muted-foreground text-sm font-medium">
+                        {plan.pricePeriod}
+                      </span>
+                    ) : null}
                   </p>
 
                   <p className="text-muted-foreground mt-3 min-h-[2.75rem] text-sm leading-relaxed">
@@ -399,15 +406,28 @@ const PricingSection = () => {
                         {plan.branchesBadge}
                       </span>
                     </li>
-                    <li className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground flex items-center gap-2.5">
-                        <CheckCircle className="text-primary h-4 w-4 shrink-0" />
-                        {pricing.featureLabels.stamps}
-                      </span>
-                      <span className="text-foreground text-sm font-medium tabular-nums">
-                        {plan.stampsBadge}
-                      </span>
-                    </li>
+                    {plan.stampsBadge ? (
+                      <li className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground flex items-center gap-2.5">
+                          <CheckCircle className="text-primary h-4 w-4 shrink-0" />
+                          {pricing.featureLabels.stamps}
+                        </span>
+                        <span className="text-foreground text-sm font-medium tabular-nums">
+                          {plan.stampsBadge}
+                        </span>
+                      </li>
+                    ) : null}
+                    {plan.historyLabel ? (
+                      <li className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground flex items-center gap-2.5">
+                          <CheckCircle className="text-primary h-4 w-4 shrink-0" />
+                          {pricing.featureLabels.history}
+                        </span>
+                        <span className="text-foreground text-sm font-medium tabular-nums">
+                          {plan.historyLabel}
+                        </span>
+                      </li>
+                    ) : null}
                     <li className="flex items-start gap-2.5 pt-1">
                       <CheckCircle className="text-primary mt-0.5 h-4 w-4 shrink-0" />
                       <span className="text-foreground text-sm">
@@ -423,7 +443,11 @@ const PricingSection = () => {
                       variant={isPopular ? "default" : "outline"}
                       asChild
                     >
-                      {registrationOpen ? (
+                      {isQuote ? (
+                        <a href="mailto:ventas@boeltech.com">
+                          {pricing.ctaQuote}
+                        </a>
+                      ) : registrationOpen ? (
                         <Link to="/register">{pricing.cta}</Link>
                       ) : (
                         <a href="mailto:ventas@boeltech.com">
@@ -431,11 +455,18 @@ const PricingSection = () => {
                         </a>
                       )}
                     </Button>
-                    <Button className="w-full" size="sm" variant="ghost" asChild>
-                      <a href="mailto:ventas@boeltech.com">
-                        {pricing.ctaSecondary}
-                      </a>
-                    </Button>
+                    {!isQuote ? (
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        variant="ghost"
+                        asChild
+                      >
+                        <a href="mailto:ventas@boeltech.com">
+                          {pricing.ctaSecondary}
+                        </a>
+                      </Button>
+                    ) : null}
                   </div>
 
                   <p className="text-muted-foreground mt-4 text-center text-[11px] leading-snug">

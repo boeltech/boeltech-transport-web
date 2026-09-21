@@ -170,6 +170,12 @@ export interface PlatformBillingPlan {
   overagePriceCents: number;
   quotaPolicy: string;
   features: Record<string, unknown>;
+  /** SoT v5 — $/motriz (null = legacy flat o Grande cotización). */
+  pricePerMotrizCents: number | null;
+  /** Timbres incluidos por motriz. Default API 30. */
+  stampsPerMotriz: number;
+  bandQMin: number | null;
+  bandQMax: number | null;
 }
 
 export interface PlatformMetrics {
@@ -213,33 +219,21 @@ export interface UpdatePlatformTenantStatusPayload {
   reason?: string;
 }
 
-export type PlatformProfitabilityLevel =
-  | "L0"
-  | "L1"
-  | "L2"
-  | "L3"
-  | "L4";
+import type {
+  BillingEntitlements,
+  BillingSubscription,
+  ProfitabilityLevel,
+} from "@features/billing/domain/entities";
 
-export interface PlatformTenantSubscription {
-  planCode: string;
-  planName: string;
-  status: string;
-  billingCycle: string;
-  monthlyPriceCents: number;
-  includedStamps: number;
-  stampsUsedThisPeriod: number;
-  quotaPolicy: string;
-  currentPeriodStart: string;
-  currentPeriodEnd: string;
-  trialEndsAt: string | null;
-  notes: string | null;
-  limits: {
-    maxUsers: number | null;
-    maxBranches: number | null;
-    historyMonths: number | null;
-  };
-  profitabilityLevel: PlatformProfitabilityLevel;
-}
+/** Alias del eje comercial tenant (SoT v5 + ADR-0095 capacity). */
+export type PlatformProfitabilityLevel = ProfitabilityLevel;
+
+/**
+ * Misma superficie que billing tenant (`BillingSubscription`):
+ * motriz (pricePerMotrizCents, qFact, …) + capacity (ADR-0095).
+ * Mapper: `mapPlatformTenantSubscription` = `mapBillingSubscription`.
+ */
+export type PlatformTenantSubscription = BillingSubscription;
 
 export interface PlatformTenantStampUsage {
   tenantId: string;
@@ -296,8 +290,6 @@ export interface PlatformModuleCatalogItem {
   priceGaCents: number | null;
   memberCodes: string[];
 }
-
-import type { BillingEntitlements } from "@features/billing/domain/entities";
 
 export type PlatformTenantEntitlements = BillingEntitlements;
 
@@ -535,6 +527,8 @@ export const platformQueryKeys = {
       tenantId,
       invoiceId,
     ] as const,
+  tenantPaymentMethods: (tenantId: string) =>
+    [...platformQueryKeys.tenants(), "payment-methods", tenantId] as const,
   tenantReconciliationPreview: (tenantId: string, periodKey: string) =>
     [
       ...platformQueryKeys.tenants(),

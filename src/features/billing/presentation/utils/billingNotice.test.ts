@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isTrialDateReached, resolveBillingNotice } from "./billingNotice";
+import {
+  isTrialDateReached,
+  resolveBillingNotice,
+  resolveCapacityOverQuotaScope,
+} from "./billingNotice";
 
 const NOW = new Date("2026-08-01T12:00:00.000Z").getTime();
 
@@ -135,6 +139,7 @@ describe("resolveBillingNotice", () => {
         ...base,
         usagePercent: 100,
         branchesOverQuota: true,
+        usersOverQuota: true,
       }),
     ).toBe("stamps_exhausted");
   });
@@ -146,10 +151,36 @@ describe("resolveBillingNotice", () => {
     expect(resolveBillingNotice({ ...base, usagePercent: 79 })).toBeNull();
   });
 
-  it("el sobrecupo de sucursales es el último de la fila", () => {
+  it("capacity_over_quota es el último de la fila (users o branches)", () => {
     expect(
       resolveBillingNotice({ ...base, branchesOverQuota: true }),
-    ).toBe("branches_over_quota");
+    ).toBe("capacity_over_quota");
+    expect(
+      resolveBillingNotice({ ...base, usersOverQuota: true }),
+    ).toBe("capacity_over_quota");
+    expect(
+      resolveBillingNotice({
+        ...base,
+        usersOverQuota: true,
+        branchesOverQuota: true,
+      }),
+    ).toBe("capacity_over_quota");
+  });
+
+  it("resolveCapacityOverQuotaScope distingue users / branches / both", () => {
+    expect(
+      resolveCapacityOverQuotaScope({ usersOverQuota: true }),
+    ).toBe("users");
+    expect(
+      resolveCapacityOverQuotaScope({ branchesOverQuota: true }),
+    ).toBe("branches");
+    expect(
+      resolveCapacityOverQuotaScope({
+        usersOverQuota: true,
+        branchesOverQuota: true,
+      }),
+    ).toBe("both");
+    expect(resolveCapacityOverQuotaScope({})).toBeNull();
   });
 
   it("sin condiciones no muestra aviso", () => {

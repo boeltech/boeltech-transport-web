@@ -1,6 +1,7 @@
 /**
  * Copy del embudo de registro self-serve.
  * Namespace: register.funnel.copy.*
+ * SoT v5 motriz — preferencia orientativa; alta real inicia en Micro.
  */
 export const registerFunnelCopy = {
   /** Única mención de trial en viewport (panel / mobile stepper). D5 */
@@ -23,8 +24,9 @@ export const registerFunnelCopy = {
     plan: {
       title: "Plan y flota",
       shortLabel: "Plan",
-      description: "Elige un plan según el tamaño de tu operación",
-      panelHint: "Orientamos el plan a tu tamaño de flota",
+      description:
+        "Preferencia orientativa según el tamaño de tu operación",
+      panelHint: "Cupos y precio por motriz — la preferencia no compra el plan",
     },
     admin: {
       title: "Administrador",
@@ -59,18 +61,20 @@ export const registerFunnelCopy = {
   plan: {
     fleetLabel: "¿Cuántas unidades operas?",
     fleetPlaceholder: "Opcional — tip de plan",
-    fleetNone: "Sin declarar (plan Esencial por defecto)",
+    fleetNone: "Sin declarar (plan Micro por defecto)",
     fleetHint:
-      "Rangos orientativos del catálogo comercial. No bloquean un plan distinto.",
+      "Rangos orientativos del catálogo comercial. No bloquean una preferencia distinta.",
     planLabel: "Plan preferido",
     planHint:
-      "Puedes elegir otro plan distinto al sugerido. Al crear la cuenta se guarda el plan y la flota declarada; la suscripción arranca en periodo de prueba.",
+      "Preferencia orientativa: exploras cupos y precio por motriz. La banda de cobro la fija tu flota activa (Q_fact). El alta self-serve inicia en prueba con Operación Micro.",
     recommendedBadge: "Recomendado",
-    previewTitle: "Resumen del plan",
-    priceListLabel: "Precio de lista",
+    orientativeBadge: "Orientativo",
+    previewTitle: "Resumen orientativo",
+    priceListLabel: "Precio por motriz",
     capacityLabel: "Capacidad",
     trialNote: "Incluye prueba: 14 días · 15 timbres · sin tarjeta",
-    priceNote: "Sin IVA · cobro al terminar la prueba según el plan elegido",
+    priceNote:
+      "Sin IVA · sin fee · la preferencia no compra el plan; el cobro real depende de tu flota (Q_fact) al salir de prueba",
   },
 
   admin: {
@@ -94,7 +98,7 @@ export const registerFunnelCopy = {
     fleetNone: "Sin declarar",
     preferredPlan: "Plan preferido",
     serverNote:
-      "Al crear la cuenta guardamos el plan elegido y la flota que declaraste. La suscripción arranca en periodo de prueba. Si no eliges plan, usamos Operación Esencial.",
+      "Guardamos tu preferencia de plan y la flota declarada. El alta inicia en periodo de prueba con Operación Micro. La banda de cobro la fija tu flota activa (Q_fact); la preferencia es solo orientativa.",
     acceptTerms: "Acepto los términos y condiciones",
     termsPrefix: "Al registrarte aceptas nuestros",
     terms: "términos de servicio",

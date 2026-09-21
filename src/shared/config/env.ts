@@ -42,6 +42,10 @@ interface AppConfig {
     release: string;
     enabled: boolean;
   };
+  /** Stripe Elements (SaaS AR). Vacío = CTAs de pago ocultos. */
+  stripe: {
+    publishableKey: string;
+  };
 }
 
 const config: AppConfig = {
@@ -92,6 +96,11 @@ const config: AppConfig = {
     enabled:
       Boolean(import.meta.env.VITE_SENTRY_DSN) && import.meta.env.PROD,
   },
+  stripe: {
+    publishableKey: (
+      import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
+    ).trim(),
+  },
 };
 
 // Freeze para evitar modificaciones accidentales
@@ -103,6 +112,7 @@ Object.freeze(config.auth);
 Object.freeze(config.app);
 Object.freeze(config.support);
 Object.freeze(config.observability);
+Object.freeze(config.stripe);
 
 export default config;
 

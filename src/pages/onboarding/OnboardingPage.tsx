@@ -170,7 +170,7 @@ export default function OnboardingPage() {
                     {copy.plan.preferredTitle}
                   </p>
                   <Badge variant="info" tone="soft">
-                    Orientativo
+                    {copy.plan.orientativeBadge}
                   </Badge>
                 </div>
                 <p className="text-sm">
@@ -182,11 +182,19 @@ export default function OnboardingPage() {
                 <p className="text-muted-foreground text-sm">
                   {copy.plan.fleetLabel}: {fleetLabel}
                 </p>
+                <p className="text-muted-foreground text-xs">
+                  {copy.plan.limitsTitle}
+                </p>
                 <ul className="text-muted-foreground list-inside list-disc space-y-1 text-xs">
                   <li>{preferredPlan.priceLabel}</li>
+                  {preferredPlan.unitsLabel ? (
+                    <li>{preferredPlan.unitsLabel}</li>
+                  ) : null}
                   <li>{preferredPlan.usersLabel}</li>
                   <li>{preferredPlan.branchesLabel}</li>
-                  <li>{preferredPlan.stampsLabel}</li>
+                  {preferredPlan.stampsLabel ? (
+                    <li>{preferredPlan.stampsLabel}</li>
+                  ) : null}
                 </ul>
               </div>
 

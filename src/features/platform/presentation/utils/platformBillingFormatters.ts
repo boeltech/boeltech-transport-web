@@ -24,11 +24,34 @@ export function formatPlatformHistoryMonths(
   return platformCopy.tenants.detail.subscription.historyMonths(months);
 }
 
+/** SoT ADR-0095: historial = consultable en listados. */
+export function formatPlatformHistoryMonthsConsultable(
+  months: number | null | undefined,
+): string {
+  if (months == null) return platformCopy.tenants.detail.subscription.unlimited;
+  return platformCopy.tenants.detail.subscription.historyMonthsConsultable(
+    months,
+  );
+}
+
 export function formatPlatformLimitValue(
   value: number | null | undefined,
 ): string {
   if (value == null) return platformCopy.tenants.detail.subscription.unlimited;
   return String(value);
+}
+
+/** usage/granted; si usage es null (legacy) solo muestra granted. */
+export function formatPlatformUsageGranted(
+  usage: number | null | undefined,
+  granted: number | null | undefined,
+): string {
+  const grantedLabel = formatPlatformLimitValue(granted);
+  if (usage == null) return grantedLabel;
+  return platformCopy.tenants.detail.subscription.usageGranted(
+    usage,
+    grantedLabel,
+  );
 }
 
 export function getPlatformQuotaPolicyLabel(policy: string): string {

@@ -1,9 +1,12 @@
+import { Link } from "react-router-dom";
 import { AlertWithIcon } from "@shared/ui/alert";
-import { BranchOverQuotaBanner } from "@features/branches/presentation/components/BranchOverQuotaBanner";
-import type { BranchListMeta } from "@features/branches/domain";
+import { Button } from "@shared/ui/button";
 import { billingCopy } from "../copy/billingCopy";
 import { getStampRunOutSentence } from "../utils/billingFormatters";
-import type { BillingNoticeId } from "../utils/billingNotice";
+import {
+  resolveCapacityOverQuotaScope,
+  type BillingNoticeId,
+} from "../utils/billingNotice";
 
 interface BillingStatusNoticeProps {
   notice: BillingNoticeId | null;
@@ -12,7 +15,9 @@ interface BillingStatusNoticeProps {
   trialEndsAtLabel: string;
   graceDeadlineLabel: string;
   quotaPolicy: string;
-  branchesMeta?: BranchListMeta;
+  /** ADR-0095 — flags del snapshot capacity (o meta branches como fallback). */
+  usersOverQuota?: boolean;
+  branchesOverQuota?: boolean;
 }
 
 function ContactMailtoLink({ label }: { label: string }) {
@@ -29,7 +34,7 @@ function ContactMailtoLink({ label }: { label: string }) {
 }
 
 /**
- * Avisos críticos (bloqueo, prueba, timbres, past_due sin saldo open).
+ * Avisos críticos (bloqueo, prueba, timbres, past_due sin saldo open, OVER_LIMIT).
  * Saldo open → `BillingArrearsCard` (D3/D8).
  */
 export function BillingStatusNotice({
@@ -39,14 +44,38 @@ export function BillingStatusNotice({
   trialEndsAtLabel,
   graceDeadlineLabel,
   quotaPolicy,
-  branchesMeta,
+  usersOverQuota = false,
+  branchesOverQuota = false,
 }: BillingStatusNoticeProps) {
   if (!notice) return null;
 
   const copy = billingCopy.notices;
 
-  if (notice === "branches_over_quota") {
-    return <BranchOverQuotaBanner meta={branchesMeta} hideBillingLink />;
+  if (notice === "capacity_over_quota" || notice === "branches_over_quota") {
+    const scope =
+      resolveCapacityOverQuotaScope({ usersOverQuota, branchesOverQuota }) ??
+      "branches";
+    const over = copy.capacityOverQuota;
+    return (
+      <AlertWithIcon variant="warning" title={over.title[scope]}>
+        <p>{over.description[scope]}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {scope === "users" || scope === "both" ? (
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link to="/users">{over.goUsers}</Link>
+            </Button>
+          ) : null}
+          {scope === "branches" || scope === "both" ? (
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link to="/branches">{over.goBranches}</Link>
+            </Button>
+          ) : null}
+          <Button type="button" size="sm" variant="secondary" asChild>
+            <a href={`mailto:${billingCopy.contact.email}`}>{copy.contactCta}</a>
+          </Button>
+        </div>
+      </AlertWithIcon>
+    );
   }
 
   if (notice === "no_plan" || notice === "blocked") {

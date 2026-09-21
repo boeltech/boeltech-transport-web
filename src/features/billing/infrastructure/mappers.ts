@@ -1,11 +1,37 @@
 import type {
   BillingAccess,
   BillingArrears,
+  BillingCapacity,
+  BillingCapacityDimension,
+  BillingCapacityStatus,
   BillingEntitlements,
+  BillingPaymentMethod,
+  BillingSetupIntent,
   BillingSubscription,
   BillingUsage,
   ProfitabilityLevel,
+  SaasInvoicePayResult,
+  SaasPayStatus,
 } from "../domain/entities";
+
+export interface ApiBillingCapacityDimension {
+  granted: number | null;
+  usage: number;
+  limit_reached: boolean;
+  over_quota: boolean;
+  over_quota_count: number;
+  status: BillingCapacityStatus;
+}
+
+export interface ApiBillingCapacity {
+  band_code: string;
+  pending_band_code: string | null;
+  users: ApiBillingCapacityDimension;
+  branches: ApiBillingCapacityDimension;
+  history_months: {
+    granted: number | null;
+  };
+}
 
 export interface ApiBillingSubscription {
   plan_code: string;
@@ -25,8 +51,20 @@ export interface ApiBillingSubscription {
     max_branches: number | null;
     history_months: number | null;
   };
+  /** ADR-0095 — opcionales por compat con payloads legacy. */
+  capacity_band_code?: string;
+  pending_capacity_band_code?: string | null;
+  capacity?: ApiBillingCapacity;
   profitability_level: ProfitabilityLevel;
+  /** SoT v5 — opcionales por compat con payloads legacy. */
+  price_per_motriz_cents?: number | null;
+  stamps_per_motriz?: number;
+  band_q_min?: number | null;
+  band_q_max?: number | null;
+  overage_price_cents?: number;
+  q_fact?: number | null;
 }
+
 
 export interface ApiBillingUsage {
   tenant_id: string;
@@ -121,28 +159,105 @@ export const mapBillingAccess = (raw: ApiBillingAccess): BillingAccess => ({
   effectiveModuleCodes: raw.effective_module_codes,
 });
 
+const DEFAULT_STAMPS_PER_MOTRIZ = 30;
+
+const mapCapacityDimension = (
+  raw: ApiBillingCapacityDimension,
+): BillingCapacityDimension => ({
+  granted: raw.granted,
+  usage: raw.usage,
+  limitReached: raw.limit_reached,
+  overQuota: raw.over_quota,
+  overQuotaCount: raw.over_quota_count,
+  status: raw.status,
+});
+
+/** Legacy: granted desde limits; usage desconocido; sin over_quota inventado. */
+const synthesizeLegacyCapacity = (
+  planCode: string,
+  capacityBandCode: string | undefined,
+  pendingBandCode: string | null | undefined,
+  limits: {
+    max_users: number | null;
+    max_branches: number | null;
+    history_months: number | null;
+  },
+): BillingCapacity => {
+  const within = (): BillingCapacityDimension => ({
+    granted: null,
+    usage: null,
+    limitReached: false,
+    overQuota: false,
+    overQuotaCount: 0,
+    status: "within_limit",
+  });
+
+  return {
+    bandCode: capacityBandCode || planCode,
+    pendingBandCode: pendingBandCode ?? null,
+    users: { ...within(), granted: limits.max_users },
+    branches: { ...within(), granted: limits.max_branches },
+    historyMonths: { granted: limits.history_months },
+  };
+};
+
+export const mapBillingCapacity = (
+  raw: ApiBillingCapacity,
+): BillingCapacity => ({
+  bandCode: raw.band_code,
+  pendingBandCode: raw.pending_band_code,
+  users: mapCapacityDimension(raw.users),
+  branches: mapCapacityDimension(raw.branches),
+  historyMonths: { granted: raw.history_months.granted },
+});
+
 export const mapBillingSubscription = (
   raw: ApiBillingSubscription,
-): BillingSubscription => ({
-  planCode: raw.plan_code,
-  planName: raw.plan_name,
-  status: raw.status,
-  billingCycle: raw.billing_cycle,
-  monthlyPriceCents: raw.monthly_price_cents,
-  includedStamps: raw.included_stamps,
-  stampsUsedThisPeriod: raw.stamps_used_this_period,
-  quotaPolicy: raw.quota_policy,
-  currentPeriodStart: raw.current_period_start,
-  currentPeriodEnd: raw.current_period_end,
-  trialEndsAt: raw.trial_ends_at,
-  notes: raw.notes,
-  limits: {
-    maxUsers: raw.limits.max_users,
-    maxBranches: raw.limits.max_branches,
-    historyMonths: raw.limits.history_months,
-  },
-  profitabilityLevel: raw.profitability_level,
-});
+): BillingSubscription => {
+  const capacityBandCode = raw.capacity_band_code ?? raw.plan_code;
+  const pendingCapacityBandCode = raw.pending_capacity_band_code ?? null;
+  const capacity = raw.capacity
+    ? mapBillingCapacity(raw.capacity)
+    : synthesizeLegacyCapacity(
+        raw.plan_code,
+        raw.capacity_band_code,
+        raw.pending_capacity_band_code,
+        raw.limits,
+      );
+
+  return {
+    planCode: raw.plan_code,
+    planName: raw.plan_name,
+    status: raw.status,
+    billingCycle: raw.billing_cycle,
+    monthlyPriceCents: raw.monthly_price_cents,
+    includedStamps: raw.included_stamps,
+    stampsUsedThisPeriod: raw.stamps_used_this_period,
+    quotaPolicy: raw.quota_policy,
+    currentPeriodStart: raw.current_period_start,
+    currentPeriodEnd: raw.current_period_end,
+    trialEndsAt: raw.trial_ends_at,
+    notes: raw.notes,
+    limits: {
+      maxUsers: raw.limits.max_users,
+      maxBranches: raw.limits.max_branches,
+      historyMonths: raw.limits.history_months,
+    },
+    capacityBandCode,
+    pendingCapacityBandCode,
+    capacity,
+    profitabilityLevel: raw.profitability_level,
+    pricePerMotrizCents: raw.price_per_motriz_cents ?? null,
+    stampsPerMotriz:
+      raw.stamps_per_motriz != null && raw.stamps_per_motriz > 0
+        ? raw.stamps_per_motriz
+        : DEFAULT_STAMPS_PER_MOTRIZ,
+    bandQMin: raw.band_q_min ?? null,
+    bandQMax: raw.band_q_max ?? null,
+    overagePriceCents: raw.overage_price_cents ?? 0,
+    qFact: raw.q_fact ?? null,
+  };
+};
 
 export const mapBillingUsage = (raw: ApiBillingUsage): BillingUsage => ({
   tenantId: raw.tenant_id,
@@ -220,3 +335,72 @@ export const mapBillingArrears = (raw: ApiBillingArrears): BillingArrears => ({
     issuedAt: invoice.issued_at,
   })),
 });
+
+export interface ApiBillingPaymentMethod {
+  id: string;
+  tenant_id: string;
+  gateway: string;
+  gateway_payment_method_id: string;
+  brand: string | null;
+  last4: string | null;
+  exp_month: number | null;
+  exp_year: number | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiBillingSetupIntent {
+  client_secret: string;
+  customer_id: string;
+  setup_intent_id: string;
+}
+
+export interface ApiSaasInvoicePayResult {
+  saas_invoice_id: string;
+  status: SaasPayStatus | string;
+  gateway_payment_id: string;
+  amount_cents?: number;
+  client_secret?: string | null;
+}
+
+/** Function declarations (not const) so ESM live bindings resolve under barrel/HMR load. */
+export function mapBillingPaymentMethod(
+  raw: ApiBillingPaymentMethod,
+): BillingPaymentMethod {
+  return {
+    id: raw.id,
+    tenantId: raw.tenant_id,
+    gateway: raw.gateway,
+    gatewayPaymentMethodId: raw.gateway_payment_method_id,
+    brand: raw.brand,
+    last4: raw.last4,
+    expMonth: raw.exp_month,
+    expYear: raw.exp_year,
+    isDefault: raw.is_default,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
+export function mapBillingSetupIntent(
+  raw: ApiBillingSetupIntent,
+): BillingSetupIntent {
+  return {
+    clientSecret: raw.client_secret,
+    customerId: raw.customer_id,
+    setupIntentId: raw.setup_intent_id,
+  };
+}
+
+export function mapSaasInvoicePayResult(
+  raw: ApiSaasInvoicePayResult,
+): SaasInvoicePayResult {
+  return {
+    saasInvoiceId: raw.saas_invoice_id,
+    status: raw.status as SaasPayStatus,
+    gatewayPaymentId: raw.gateway_payment_id,
+    amountCents: raw.amount_cents,
+    clientSecret: raw.client_secret ?? null,
+  };
+}

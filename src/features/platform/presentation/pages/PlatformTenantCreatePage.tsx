@@ -53,6 +53,7 @@ import { platformCopy } from "../copy/platformCopy";
 import {
   formatPlanPriceCents,
   formatPlanSelectLabel,
+  isMotrizListPrice,
 } from "../utils/formatPlanLabel";
 import { formatPlatformLimitValue } from "../utils/platformBillingFormatters";
 import {
@@ -552,7 +553,15 @@ export function PlatformTenantCreatePage() {
                   <InfoRow
                     variant="inline"
                     label={copy.planPreview.price}
-                    value={formatPlanPriceCents(selectedPlan.monthlyPriceCents)}
+                    value={
+                      isMotrizListPrice(selectedPlan)
+                        ? copy.planPreview.pricePerMotriz(
+                            formatPlanPriceCents(
+                              selectedPlan.pricePerMotrizCents!,
+                            ),
+                          )
+                        : formatPlanPriceCents(selectedPlan.monthlyPriceCents)
+                    }
                   />
                   <InfoRow
                     variant="inline"
@@ -567,9 +576,15 @@ export function PlatformTenantCreatePage() {
                   <InfoRow
                     variant="inline"
                     label={copy.planPreview.stamps}
-                    value={copy.planPreview.stampsPerMonth(
-                      selectedPlan.includedStamps,
-                    )}
+                    value={
+                      isMotrizListPrice(selectedPlan)
+                        ? copy.planPreview.stampsPerMotriz(
+                            selectedPlan.stampsPerMotriz,
+                          )
+                        : copy.planPreview.stampsPerMonth(
+                            selectedPlan.includedStamps,
+                          )
+                    }
                   />
                 </div>
               ) : null}

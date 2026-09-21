@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Wallet } from "lucide-react";
+import { Button } from "@shared/ui/button";
 import {
   Card,
   CardContent,
@@ -18,13 +20,34 @@ import {
 interface BillingArrearsCardProps {
   data: BillingArrears;
   isLoading?: boolean;
+  /** billing.update + Stripe publishable + gateway up. */
+  canPayWithStripe?: boolean;
+  hasDefaultPaymentMethod?: boolean;
+  payingInvoiceId?: string | null;
+  onPayInvoice?: (invoiceId: string) => void | Promise<void>;
 }
 
 export function BillingArrearsCard({
   data,
   isLoading = false,
+  canPayWithStripe = false,
+  hasDefaultPaymentMethod = false,
+  payingInvoiceId = null,
+  onPayInvoice,
 }: BillingArrearsCardProps) {
   const copy = billingCopy.arrears;
+  const [localPayingId, setLocalPayingId] = useState<string | null>(null);
+  const activePayingId = payingInvoiceId ?? localPayingId;
+
+  const handlePay = async (invoiceId: string) => {
+    if (!onPayInvoice) return;
+    setLocalPayingId(invoiceId);
+    try {
+      await onPayInvoice(invoiceId);
+    } finally {
+      setLocalPayingId(null);
+    }
+  };
 
   return (
     <Card
@@ -81,11 +104,17 @@ export function BillingArrearsCard({
                 const statusLine = [duePart, statusPart]
                   .filter(Boolean)
                   .join(" · ");
+                const showPay =
+                  canPayWithStripe &&
+                  hasDefaultPaymentMethod &&
+                  Boolean(onPayInvoice) &&
+                  invoice.status === "open";
+                const isPaying = activePayingId === invoice.id;
 
                 return (
                   <li
                     key={invoice.id}
-                    className="flex flex-col gap-0.5 px-3 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+                    className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                   >
                     <div className="min-w-0">
                       <p className="font-medium">{periodLabel}</p>
@@ -95,13 +124,32 @@ export function BillingArrearsCard({
                         </p>
                       ) : null}
                     </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums">
-                      {amountLabel}
-                    </p>
+                    <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+                      <p className="text-sm font-semibold tabular-nums">
+                        {amountLabel}
+                      </p>
+                      {showPay ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={isPaying || Boolean(activePayingId)}
+                          onClick={() => void handlePay(invoice.id)}
+                        >
+                          {isPaying ? copy.paying : copy.payNow}
+                        </Button>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}
             </ul>
+
+            {canPayWithStripe && !hasDefaultPaymentMethod ? (
+              <p className="text-xs text-warning-soft-foreground/80">
+                {copy.payNeedsCard}
+              </p>
+            ) : null}
 
             <p className="text-xs text-warning-soft-foreground/80">
               {copy.footer}

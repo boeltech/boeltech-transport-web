@@ -1,21 +1,18 @@
 /**
- * Catálogo estático de planes Operación (SoT v3.2 §3.1).
- * Fallback del embudo público cuando GET /onboarding/plans falla o está vacío.
+ * Catálogo estático de planes Operación (fallback embudo público).
  * Preferir `usePublicOperationalPlans` en landing/registro/onboarding.
+ * SoT v5 motriz — Q×P + matriz cupos (5/15/40 · 1/3/10 · 12/24/36).
  */
-import {
-  DEFAULT_OPERATIONAL_PLAN_CODE,
-  type DeclaredFleetBand,
-} from "./recommendOperationalPlan";
+import type { DeclaredFleetBand } from "./recommendOperationalPlan";
 
 export type OperationalPlanCatalogItem = {
   code: string;
   name: string;
   /** Nombre corto para cards de pricing (sin prefijo «Operación»). */
   shortName: string;
-  /** Importe tipográfico principal, p. ej. "$749" o "desde $3,999". */
+  /** Importe tipográfico principal, p. ej. "$389" o "Cotización". */
   priceAmount: string;
-  /** Sufijo de periodo, p. ej. "/mes". */
+  /** Sufijo de periodo, p. ej. "/motriz · mes" o "" (cotización). */
   pricePeriod: string;
   unitsLabel: string;
   priceLabel: string;
@@ -26,71 +23,78 @@ export type OperationalPlanCatalogItem = {
   usersBadge: string;
   branchesBadge: string;
   stampsBadge: string;
+  /** Historial consultable (F2 landing); opcional en fallback estático. */
+  historyLabel?: string;
 };
 
 export const OPERATIONAL_PLAN_CATALOG: readonly OperationalPlanCatalogItem[] = [
   {
-    code: "operacion_esencial",
-    name: "Operación Esencial",
-    shortName: "Esencial",
-    priceAmount: "$749",
-    pricePeriod: "/mes",
-    unitsLabel: "1–10 unidades",
-    priceLabel: "$749 / mes",
-    usersLabel: "3 usuarios",
+    code: "operacion_micro",
+    name: "Operación Micro",
+    shortName: "Micro",
+    priceAmount: "$389",
+    pricePeriod: "/motriz · mes",
+    unitsLabel: "1–5 unidades",
+    priceLabel: "$389 / motriz · mes",
+    usersLabel: "5 usuarios",
     branchesLabel: "1 sucursal",
-    stampsLabel: "120 timbres/mes",
-    usersBadge: "3",
+    stampsLabel: "30 timbres/motriz",
+    usersBadge: "5",
     branchesBadge: "1",
-    stampsBadge: "120",
+    stampsBadge: "30",
+    historyLabel: "12 meses consultable",
   },
   {
-    code: "operacion_crecimiento",
-    name: "Operación Crecimiento",
-    shortName: "Crecimiento",
-    priceAmount: "$1,499",
-    pricePeriod: "/mes",
-    unitsLabel: "11–30 unidades",
-    priceLabel: "$1,499 / mes",
-    usersLabel: "10 usuarios",
+    code: "operacion_pequena",
+    name: "Operación Pequeña",
+    shortName: "Pequeña",
+    priceAmount: "$319",
+    pricePeriod: "/motriz · mes",
+    unitsLabel: "6–30 unidades",
+    priceLabel: "$319 / motriz · mes",
+    usersLabel: "15 usuarios",
     branchesLabel: "3 sucursales",
-    stampsLabel: "380 timbres/mes",
-    usersBadge: "10",
+    stampsLabel: "30 timbres/motriz",
+    usersBadge: "15",
     branchesBadge: "3",
-    stampsBadge: "380",
+    stampsBadge: "30",
+    historyLabel: "24 meses",
   },
   {
-    code: "operacion_escala",
-    name: "Operación Escala",
-    shortName: "Escala",
-    priceAmount: "$2,999",
-    pricePeriod: "/mes",
+    code: "operacion_mediana",
+    name: "Operación Mediana",
+    shortName: "Mediana",
+    priceAmount: "$299",
+    pricePeriod: "/motriz · mes",
     unitsLabel: "31–100 unidades",
-    priceLabel: "$2,999 / mes",
-    usersLabel: "30 usuarios",
+    priceLabel: "$299 / motriz · mes",
+    usersLabel: "40 usuarios",
     branchesLabel: "10 sucursales",
-    stampsLabel: "1,200 timbres/mes",
-    usersBadge: "30",
+    stampsLabel: "30 timbres/motriz",
+    usersBadge: "40",
     branchesBadge: "10",
-    stampsBadge: "1,200",
+    stampsBadge: "30",
+    historyLabel: "36 meses",
   },
   {
-    code: "operacion_corporativo",
-    name: "Operación Corporativo",
-    shortName: "Corporativo",
-    priceAmount: "desde $3,999",
-    pricePeriod: "/mes",
-    unitsLabel: "100+ unidades",
-    priceLabel: "desde $3,999 / mes",
-    usersLabel: "Usuarios ilimitados",
-    branchesLabel: "Sucursales ilimitadas",
-    stampsLabel: "≥1,500 timbres/mes",
-    usersBadge: "∞",
-    branchesBadge: "∞",
-    stampsBadge: "≥1,500",
+    code: "operacion_grande",
+    name: "Operación Grande",
+    shortName: "Grande",
+    priceAmount: "Cotización",
+    pricePeriod: "",
+    unitsLabel: "101+ unidades",
+    priceLabel: "Cotización",
+    usersLabel: "Según SOW",
+    branchesLabel: "SOW",
+    stampsLabel: "30 timbres/motriz o SOW",
+    usersBadge: "SOW",
+    branchesBadge: "SOW",
+    stampsBadge: "30",
+    historyLabel: "SOW",
   },
 ] as const;
 
+/** Etiquetas de banda declarada en UI (Register/Onboarding). Códigos DeclaredFleetBand intactos. */
 export const FLEET_BAND_LABELS: Record<DeclaredFleetBand, string> = {
   "1_10": "1–10 unidades",
   "11_30": "11–30 unidades",
@@ -103,8 +107,6 @@ export function getOperationalPlanByCode(
 ): OperationalPlanCatalogItem {
   return (
     OPERATIONAL_PLAN_CATALOG.find((p) => p.code === code) ??
-    OPERATIONAL_PLAN_CATALOG.find(
-      (p) => p.code === DEFAULT_OPERATIONAL_PLAN_CODE,
-    )!
+    OPERATIONAL_PLAN_CATALOG[0]!
   );
 }

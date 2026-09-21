@@ -240,7 +240,8 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "billing_service_concepts.update",
       "billing_service_concepts.delete",
 
-      // SaaS billing read-only
+      // SaaS billing — read (accountant); update = admin only via isAdminRole bypass
+      // Lockstep API PERMISSIONS.billing.update: ["admin"] (Stripe-A WS-A / ADR-0076 E6)
       "billing.read",
 
       // Nómina - Control total

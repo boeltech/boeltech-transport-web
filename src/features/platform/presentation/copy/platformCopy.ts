@@ -173,8 +173,24 @@ export const platformCopy = {
         overview: "Datos de alta",
         usage: "Capacidad",
         operation: "Capacidad de la empresa",
-        capacitySummary: (users: number, branches: number) =>
-          `${users} usuarios · ${branches} sucursales`,
+        /** usage · branches; con granted (ADR-0095) muestra usage/granted. */
+        capacitySummary: (
+          users: number,
+          branches: number,
+          granted?: {
+            users: number | null;
+            branches: number | null;
+          },
+        ) => {
+          if (!granted) {
+            return `${users} usuarios · ${branches} sucursales`;
+          }
+          const usersGranted =
+            granted.users == null ? "Ilimitado" : String(granted.users);
+          const branchesGranted =
+            granted.branches == null ? "Ilimitado" : String(granted.branches);
+          return `${users} / ${usersGranted} usuarios · ${branches} / ${branchesGranted} sucursales`;
+        },
         plan: "Plan comercial",
         subscription: "Detalle del plan",
         stampUsage: "Consumo de timbres",
@@ -278,6 +294,24 @@ export const platformCopy = {
         activeModules: "Módulos contratados",
         activeModulesHint: "Complementos activos",
       },
+      /** SoT v5 — hero/fila de precio (Q×P, pending Q, cotización, legacy). */
+      planPrice: {
+        quote: "Cotización por flota",
+        quoteHint:
+          "Banda Grande / SOW: sin P de lista; el cargo se acuerda deal a deal.",
+        pendingQ: "Sin Q facturable aún",
+        pricePerMotriz: (amount: string) => `${amount} / motriz / mes`,
+        cargoHint: (unit: string, q: number) =>
+          q === 1
+            ? `${unit}/motriz · 1 motriz`
+            : `${unit}/motriz · ${q} motrizes`,
+        bolsaHint: (stampsPer: number, q: number) =>
+          `Bolsa: ${stampsPer} × ${q}`,
+        labelCargo: "Cargo por motrizes",
+        labelUnit: "Precio por motriz",
+        labelQuote: "Precio",
+        labelLegacy: "Precio de lista",
+      },
       usage: {
         users: "Usuarios activos",
         branches: "Sucursales activas",
@@ -302,6 +336,19 @@ export const platformCopy = {
         unlimited: "Ilimitado",
         historyMonths: (months: number) =>
           months === 1 ? "1 mes" : `${months} meses`,
+        /** SoT ADR-0095: historial = consultable en listados (nunca “retención SAT”). */
+        historyMonthsConsultable: (months: number) =>
+          months === 1
+            ? "1 mes consultable en listados"
+            : `${months} meses consultables en listados`,
+        /** usage / granted; granted null → ilimitado. */
+        usageGranted: (usage: number, grantedLabel: string) =>
+          `${usage} / ${grantedLabel}`,
+        /** Operador platform: exceso visible; operar OK, no crecer. */
+        overLimitHint:
+          "OVER_LIMIT — por encima del cupo: puede operar; no puede crecer.",
+        pendingBandHint:
+          "Cupo baja el 1.º del próximo mes (ciclo CDMX).",
         fields: {
           plan: "Plan comercial",
           status: "Estado",
@@ -309,9 +356,11 @@ export const platformCopy = {
           price: "Precio de lista",
           period: "Periodo actual",
           profitabilityLevel: "Indicador interno de margen",
-          users: "Usuarios incluidos",
-          branches: "Sucursales incluidas",
-          historyRetention: "Retención de historial",
+          users: "Usuarios",
+          branches: "Sucursales",
+          historyConsultable: "Historial consultable",
+          /** @deprecated alias — usar historyConsultable (ADR-0095). */
+          historyRetention: "Historial consultable",
           trial: "Fin de prueba",
           notes: "Notas del acuerdo",
         },
@@ -445,7 +494,7 @@ export const platformCopy = {
         adminLastName: "Apellido",
         fleetBand: "¿Cuántas unidades opera la empresa?",
         fleetBandPlaceholder: "Opcional — tip de plan",
-        fleetBandNone: "Sin declarar (default Esencial)",
+        fleetBandNone: "Sin declarar (default Micro)",
         plan: "Plan comercial",
         planPlaceholder: "Selecciona un plan",
         recommendedBadge: "Recomendado",
@@ -486,11 +535,13 @@ export const platformCopy = {
       planPreview: {
         title: "Resumen del plan seleccionado",
         price: "Precio de lista",
+        pricePerMotriz: (amount: string) => `${amount} / motriz / mes`,
         users: "Usuarios incluidos",
         branches: "Sucursales incluidas",
         stamps: "Timbres incluidos",
         unlimited: "Ilimitado",
         stampsPerMonth: (count: number) => `${count} timbres/mes`,
+        stampsPerMotriz: (count: number) => `${count} timbres / motriz`,
       },
       notice: {
         title: "Qué ocurre al crear",
@@ -882,6 +933,7 @@ export const platformCopy = {
     actions: {
       issue: "Nuevo cobro",
       markPaid: "Registrar pago",
+      chargeStripe: "Cobrar con Stripe",
       void: "Anular",
       viewTenant: "Ver empresa",
       viewAr: "Ver en Cobros",
@@ -916,6 +968,32 @@ export const platformCopy = {
       exportCloseNotClosed:
         "Solo periodos cerrados. El mes en curso es estimado (card Este mes).",
       exportCloseInvalidPeriod: "Usa el formato AAAA-MM (ej. 2026-07).",
+      /** Badge tarjeta SaaS (ADR-0076) — no CFDI de flete. */
+      cardOnFile: (last4: string) => `Tarjeta ••${last4}`,
+      cardMissing: "Sin tarjeta",
+      cardLoading: "Tarjeta…",
+      chargeNeedsCard:
+        "La empresa no tiene tarjeta guardada para cargos de suscripción. Pídele que la agregue en Ajustes → Suscripción.",
+    },
+    chargeStripe: {
+      title: "Cobrar con Stripe",
+      description:
+        "Cargo de suscripción SaaS Boeltech a la tarjeta guardada de la empresa. No es un cobro de flete ni CFDI de viaje.",
+      amountLabel: "Monto a cobrar",
+      amountHint: "Igual al saldo pendiente del cobro (no editable).",
+      cardLabel: "Tarjeta",
+      cardMissing:
+        "Sin tarjeta predeterminada. No se puede cobrar hasta que la empresa guarde un método de pago.",
+      submit: "Confirmar cobro",
+      submitting: "Cobrando…",
+      authenticating: "Confirmando autenticación…",
+      success: "Cargo de suscripción registrado",
+      requiresAction:
+        "Confirma la autenticación de la tarjeta para completar el cargo.",
+      failed: "No se pudo completar el cargo de suscripción.",
+      error: "No se pudo cobrar con Stripe",
+      gatewayUnavailable:
+        "Cobro con Stripe no está configurado en este entorno.",
     },
     closeHint:
       "Los pendientes son cobros ya emitidos. Para montos de un mes aún no cargado: Exportar cierre en la empresa (o CLI masivo) → CFDI fuera → Nuevo cobro.",

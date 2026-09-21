@@ -11,11 +11,23 @@ import { platformApi } from "../../infrastructure/platformApi";
 vi.mock("../../infrastructure/platformApi", () => ({
   platformApi: {
     listTenantSaasInvoices: vi.fn(),
+    listTenantPaymentMethods: vi.fn(),
     downloadTenantReconciliationCsv: vi.fn(),
     getTenantReconciliationJson: vi.fn(),
     issueSaasInvoice: vi.fn(),
+    chargeSaasInvoiceStripe: vi.fn(),
   },
 }));
+
+const isStripePublishableConfigured = vi.fn(() => false);
+vi.mock("@features/billing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/billing")>();
+  return {
+    ...actual,
+    isStripePublishableConfigured: () => isStripePublishableConfigured(),
+    isSaasStripeNotConfiguredError: actual.isSaasStripeNotConfiguredError,
+  };
+});
 
 const toastMock = vi.fn();
 vi.mock("@shared/hooks", async (importOriginal) => {
@@ -48,6 +60,7 @@ function renderCard(canMutate: boolean) {
 describe("TenantSaasArCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isStripePublishableConfigured.mockReturnValue(false);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date("2026-08-10T18:00:00.000Z"));
     mockedApi.listTenantSaasInvoices.mockResolvedValue([
@@ -80,6 +93,7 @@ describe("TenantSaasArCard", () => {
         updatedAt: "2026-08-01T16:00:00.000Z",
       },
     ]);
+    mockedApi.listTenantPaymentMethods.mockResolvedValue([]);
     mockedApi.downloadTenantReconciliationCsv.mockResolvedValue(undefined);
   });
 
@@ -131,6 +145,71 @@ describe("TenantSaasArCard", () => {
     expect(
       screen.getByRole("button", { name: platformCopy.ar.actions.void }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: platformCopy.ar.actions.chargeStripe,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Cobrar con Stripe when publishable key and default PM exist", async () => {
+    isStripePublishableConfigured.mockReturnValue(true);
+    mockedApi.listTenantPaymentMethods.mockResolvedValue([
+      {
+        id: "pm-1",
+        tenantId: "tenant-1",
+        gateway: "stripe",
+        gatewayPaymentMethodId: "pm_stripe",
+        brand: "visa",
+        last4: "4242",
+        expMonth: 12,
+        expYear: 2030,
+        isDefault: true,
+        createdAt: "2026-08-01T16:00:00.000Z",
+        updatedAt: "2026-08-01T16:00:00.000Z",
+      },
+    ]);
+
+    renderCard(true);
+
+    expect(
+      await screen.findByRole("button", {
+        name: platformCopy.ar.actions.chargeStripe,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(platformCopy.ar.card.cardOnFile("4242")),
+    ).toBeInTheDocument();
+  });
+
+  it("hides Cobrar con Stripe for support (canMutate false) even with Stripe ready", async () => {
+    isStripePublishableConfigured.mockReturnValue(true);
+    mockedApi.listTenantPaymentMethods.mockResolvedValue([
+      {
+        id: "pm-1",
+        tenantId: "tenant-1",
+        gateway: "stripe",
+        gatewayPaymentMethodId: "pm_stripe",
+        brand: "visa",
+        last4: "4242",
+        expMonth: 12,
+        expYear: 2030,
+        isDefault: true,
+        createdAt: "2026-08-01T16:00:00.000Z",
+        updatedAt: "2026-08-01T16:00:00.000Z",
+      },
+    ]);
+
+    renderCard(false);
+
+    expect(
+      await screen.findByText(formatBillingPeriodKey("2026-07")),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: platformCopy.ar.actions.chargeStripe,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("defaults close period to last closed month and exports CSV", async () => {

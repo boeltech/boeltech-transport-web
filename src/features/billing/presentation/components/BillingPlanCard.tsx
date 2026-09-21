@@ -13,11 +13,21 @@ import { formatDate } from "@shared/utils/dateUtils";
 import type { BillingSubscription } from "../../domain/entities";
 import { billingCopy } from "../copy/billingCopy";
 import {
+  formatBillingPriceCents,
   formatHistoryMonths,
+  formatHistoryMonthsConsultable,
   formatLimitValue,
+  formatUsageGranted,
   getSubscriptionStatusLabel,
 } from "../utils/billingFormatters";
 import { isTrialDateReached } from "../utils/billingNotice";
+import {
+  computeBolsaStamps,
+  computeMotrizCargoCents,
+  formatBandQRange,
+  isMotrizPricing,
+  resolveMotrizBand,
+} from "../utils/motrizPricing";
 
 interface BillingPlanCardProps {
   subscription?: BillingSubscription | null;
@@ -33,6 +43,55 @@ export function BillingPlanCard({
 }: BillingPlanCardProps) {
   const copy = billingCopy.plan;
   const trialEnded = isTrialDateReached(subscription?.trialEndsAt);
+  const motriz = subscription ? isMotrizPricing(subscription) : false;
+  const band = subscription ? resolveMotrizBand(subscription) : null;
+  const bandLabel = band ? copy.bandLabels[band] : null;
+  const bandRange = subscription
+    ? formatBandQRange(subscription.bandQMin, subscription.bandQMax)
+    : null;
+  const bolsa =
+    subscription && motriz
+      ? computeBolsaStamps({
+          qFact: subscription.qFact,
+          stampsPerMotriz: subscription.stampsPerMotriz,
+          includedStamps: includedStamps ?? subscription.includedStamps,
+        })
+      : null;
+  const cargoCents =
+    subscription && motriz
+      ? computeMotrizCargoCents(
+          subscription.qFact,
+          subscription.pricePerMotrizCents,
+        )
+      : null;
+  const isQuote =
+    motriz &&
+    (band === "grande" ||
+      subscription?.pricePerMotrizCents == null ||
+      (subscription?.pricePerMotrizCents ?? 0) <= 0);
+
+  const capacity = subscription?.capacity;
+  const usersGranted =
+    capacity?.users.granted ?? subscription?.limits.maxUsers ?? null;
+  const branchesGranted =
+    capacity?.branches.granted ?? subscription?.limits.maxBranches ?? null;
+  const historyGranted =
+    capacity?.historyMonths.granted ??
+    subscription?.limits.historyMonths ??
+    null;
+  const usersOverLimit = capacity?.users.status === "over_limit";
+  const branchesOverLimit = capacity?.branches.status === "over_limit";
+  const pendingBand =
+    capacity?.pendingBandCode ?? subscription?.pendingCapacityBandCode ?? null;
+
+  const capacityPitch =
+    subscription && capacity
+      ? copy.capacityPitch(
+          formatLimitValue(usersGranted),
+          formatLimitValue(branchesGranted),
+          formatHistoryMonths(historyGranted),
+        )
+      : null;
 
   return (
     <Card>
@@ -55,22 +114,129 @@ export function BillingPlanCard({
               <Badge variant="neutral" tone="soft">
                 {getSubscriptionStatusLabel(subscription.status)}
               </Badge>
+              {bandLabel ? (
+                <Badge variant="info" tone="soft">
+                  {bandLabel}
+                </Badge>
+              ) : null}
             </div>
+
+            {capacityPitch ? (
+              <p className="text-xs text-muted-foreground">{capacityPitch}</p>
+            ) : null}
+
+            {pendingBand ? (
+              <p className="text-xs text-muted-foreground">
+                {copy.pendingBandHint}
+              </p>
+            ) : null}
+
+            {motriz ? (
+              <div className="space-y-1 rounded-lg border bg-muted/40 px-3 py-3">
+                {isQuote ? (
+                  <>
+                    <p className="text-2xl font-semibold tracking-tight">
+                      {copy.pricePerMotrizQuote}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.pricePerMotrizQuoteHint}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-semibold tracking-tight tabular-nums">
+                      {copy.pricePerMotriz(
+                        formatBillingPriceCents(
+                          subscription.pricePerMotrizCents ?? 0,
+                        ),
+                      )}
+                    </p>
+                    {cargoCents != null &&
+                    subscription.qFact != null &&
+                    subscription.pricePerMotrizCents != null ? (
+                      <p className="text-sm text-muted-foreground tabular-nums">
+                        {copy.cargoEstimate(
+                          subscription.qFact,
+                          formatBillingPriceCents(
+                            subscription.pricePerMotrizCents,
+                          ),
+                          formatBillingPriceCents(cargoCents),
+                        )}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+                <p className="text-xs text-muted-foreground">{copy.noFeeNote}</p>
+              </div>
+            ) : null}
+
+            {motriz && bandLabel && bandRange ? (
+              <InfoRow
+                variant="inline"
+                label={copy.fields.band}
+                value={`${bandLabel} · ${copy.bandRange(bandRange)}`}
+              />
+            ) : null}
+
+            {motriz ? (
+              <InfoRow
+                variant="inline"
+                label={copy.fields.qFact}
+                value={
+                  subscription.qFact != null
+                    ? copy.qFactValue(subscription.qFact)
+                    : copy.qFactPending
+                }
+              />
+            ) : null}
+
+            {motriz && bolsa != null ? (
+              <InfoRow
+                variant="inline"
+                label={copy.fields.bolsa}
+                value={copy.bolsaValue(
+                  bolsa,
+                  subscription.stampsPerMotriz,
+                  subscription.qFact,
+                )}
+              />
+            ) : null}
+
+            {motriz && subscription.overagePriceCents > 0 ? (
+              <InfoRow
+                variant="inline"
+                label={copy.fields.overageUnit}
+                value={copy.overageUnitValue(
+                  formatBillingPriceCents(subscription.overagePriceCents),
+                )}
+              />
+            ) : null}
 
             <InfoRow
               variant="inline"
               label={copy.fields.users}
-              value={formatLimitValue(subscription.limits.maxUsers)}
+              value={formatUsageGranted(capacity?.users.usage, usersGranted)}
+              alert={usersOverLimit ? "warning" : undefined}
             />
+            {usersOverLimit ? (
+              <p className="text-xs text-muted-foreground">{copy.overLimitHint}</p>
+            ) : null}
             <InfoRow
               variant="inline"
               label={copy.fields.branches}
-              value={formatLimitValue(subscription.limits.maxBranches)}
+              value={formatUsageGranted(
+                capacity?.branches.usage,
+                branchesGranted,
+              )}
+              alert={branchesOverLimit ? "warning" : undefined}
             />
+            {branchesOverLimit ? (
+              <p className="text-xs text-muted-foreground">{copy.overLimitHint}</p>
+            ) : null}
             <InfoRow
               variant="inline"
-              label={copy.fields.historyRetention}
-              value={formatHistoryMonths(subscription.limits.historyMonths)}
+              label={copy.fields.historyConsultable}
+              value={formatHistoryMonthsConsultable(historyGranted)}
             />
             {subscription.trialEndsAt ? (
               <InfoRow
@@ -120,3 +286,4 @@ export function BillingPlanCard({
     </Card>
   );
 }
+

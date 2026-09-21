@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -15,8 +15,15 @@ import {
   TableRow,
 } from "@shared/ui/table";
 import { useToast } from "@shared/hooks";
+import {
+  isSaasStripeNotConfiguredError,
+  isStripePublishableConfigured,
+} from "@features/billing";
 import type { PlatformSaasInvoice } from "../../domain/entities";
-import { usePlatformTenantSaasInvoices } from "../../application/hooks/usePlatformSaasAr";
+import {
+  usePlatformTenantPaymentMethods,
+  usePlatformTenantSaasInvoices,
+} from "../../application/hooks/usePlatformSaasAr";
 import { platformApi } from "../../infrastructure/platformApi";
 import { platformCopy } from "../copy/platformCopy";
 import {
@@ -31,6 +38,7 @@ import {
 import { formatDate } from "@shared/utils/dateUtils";
 import { IssueSaasInvoiceSheet } from "./IssueSaasInvoiceSheet";
 import { MarkSaasInvoicePaidSheet } from "./MarkSaasInvoicePaidSheet";
+import { ChargeSaasInvoiceStripeSheet } from "./ChargeSaasInvoiceStripeSheet";
 import { VoidSaasInvoiceDialog } from "./VoidSaasInvoiceDialog";
 
 interface TenantSaasArCardProps {
@@ -53,12 +61,38 @@ export function TenantSaasArCard({
   const { data: invoices = [], isLoading } =
     usePlatformTenantSaasInvoices(tenantId);
 
+  const stripeConfigured = isStripePublishableConfigured();
+  const [stripeGatewayDown, setStripeGatewayDown] = useState(false);
+  const canUseStripe = canMutate && stripeConfigured && !stripeGatewayDown;
+
+  const paymentMethods = usePlatformTenantPaymentMethods(tenantId, {
+    enabled: canUseStripe,
+  });
+
+  useEffect(() => {
+    if (
+      paymentMethods.isError &&
+      isSaasStripeNotConfiguredError(paymentMethods.error)
+    ) {
+      setStripeGatewayDown(true);
+    }
+  }, [paymentMethods.isError, paymentMethods.error]);
+
+  const defaultPm = useMemo(() => {
+    const items = paymentMethods.data ?? [];
+    return items.find((pm) => pm.isDefault) ?? null;
+  }, [paymentMethods.data]);
+
+  const hasDefaultPaymentMethod = Boolean(defaultPm);
+
   const [issueOpen, setIssueOpen] = useState(false);
   const [closePeriodKey, setClosePeriodKey] = useState(lastClosed);
   const [exporting, setExporting] = useState(false);
   const [payInvoice, setPayInvoice] = useState<PlatformSaasInvoice | null>(
     null,
   );
+  const [chargeInvoice, setChargeInvoice] =
+    useState<PlatformSaasInvoice | null>(null);
   const [voidInvoice, setVoidInvoice] = useState<PlatformSaasInvoice | null>(
     null,
   );
@@ -110,11 +144,28 @@ export function TenantSaasArCard({
             <p className="mt-1 text-sm text-muted-foreground">
               {copy.card.description}
             </p>
-            {openCount > 0 ? (
-              <Badge variant="warning" className="mt-2">
-                {copy.card.openBadge(openCount)}
-              </Badge>
-            ) : null}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {openCount > 0 ? (
+                <Badge variant="warning">
+                  {copy.card.openBadge(openCount)}
+                </Badge>
+              ) : null}
+              {canUseStripe ? (
+                paymentMethods.isLoading ? (
+                  <Badge tone="soft" variant="secondary">
+                    {copy.card.cardLoading}
+                  </Badge>
+                ) : hasDefaultPaymentMethod && defaultPm?.last4 ? (
+                  <Badge tone="soft" variant="secondary">
+                    {copy.card.cardOnFile(defaultPm.last4)}
+                  </Badge>
+                ) : (
+                  <Badge tone="soft" variant="secondary">
+                    {copy.card.cardMissing}
+                  </Badge>
+                )
+              ) : null}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
@@ -167,6 +218,15 @@ export function TenantSaasArCard({
             </div>
           ) : null}
 
+          {canUseStripe &&
+          !paymentMethods.isLoading &&
+          !hasDefaultPaymentMethod &&
+          openCount > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {copy.card.chargeNeedsCard}
+            </p>
+          ) : null}
+
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Cargando…</p>
           ) : invoices.length === 0 ? (
@@ -188,6 +248,10 @@ export function TenantSaasArCard({
                 {invoices.map((invoice) => {
                   const isOverdue =
                     invoice.status === "open" && invoice.daysOverdue > 0;
+                  const showCharge =
+                    canUseStripe &&
+                    hasDefaultPaymentMethod &&
+                    invoice.status === "open";
                   return (
                     <TableRow key={invoice.id}>
                       <TableCell>
@@ -232,6 +296,15 @@ export function TenantSaasArCard({
                         <TableCell>
                           {invoice.status === "open" ? (
                             <div className="flex flex-wrap gap-1">
+                              {showCharge ? (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => setChargeInvoice(invoice)}
+                                >
+                                  {copy.actions.chargeStripe}
+                                </Button>
+                              ) : null}
                               <Button
                                 size="sm"
                                 onClick={() => setPayInvoice(invoice)}
@@ -276,6 +349,14 @@ export function TenantSaasArCard({
         onOpenChange={(open) => {
           if (!open) setPayInvoice(null);
         }}
+      />
+      <ChargeSaasInvoiceStripeSheet
+        invoice={chargeInvoice}
+        open={!!chargeInvoice}
+        onOpenChange={(open) => {
+          if (!open) setChargeInvoice(null);
+        }}
+        onGatewayUnavailable={() => setStripeGatewayDown(true)}
       />
       <VoidSaasInvoiceDialog
         invoice={voidInvoice}

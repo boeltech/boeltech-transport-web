@@ -40,6 +40,10 @@ import type {
   PlatformLoginResult,
   PlatformMfaStatus,
 } from "../domain/entities";
+import type {
+  BillingPaymentMethod,
+  SaasInvoicePayResult,
+} from "@features/billing/domain/entities";
 import {
   mapPlatformBillingPlan,
   mapPlatformMetrics,
@@ -76,6 +80,10 @@ import {
   type ApiPlatformSaasInvoiceDetail,
   type ApiPlatformReconciliationRow,
   type ApiPlatformLoginData,
+  mapBillingPaymentMethod,
+  mapSaasInvoicePayResult,
+  type ApiBillingPaymentMethod,
+  type ApiSaasInvoicePayResult,
 } from "./mappers";
 import type {
   ApiBillingEntitlements,
@@ -682,6 +690,36 @@ export const platformApi = {
       { authScope: "platform" },
     );
     return mapPlatformSaasInvoiceDetail(response.data);
+  },
+
+  /** GET /platform/tenants/:id/payment-methods (owner + support RO). */
+  listTenantPaymentMethods: async (
+    tenantId: string,
+  ): Promise<BillingPaymentMethod[]> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiBillingPaymentMethod[]>
+    >(`${BASE}/tenants/${tenantId}/payment-methods`, {
+      authScope: "platform",
+    });
+    return (response.data ?? []).map(mapBillingPaymentMethod);
+  },
+
+  /**
+   * POST /platform/tenants/:id/saas-invoices/:invoiceId/charge-stripe (owner).
+   * Cargo SaaS AR — ADR-0076 (no CFDI de flete).
+   */
+  chargeSaasInvoiceStripe: async (
+    tenantId: string,
+    invoiceId: string,
+  ): Promise<SaasInvoicePayResult> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSaasInvoicePayResult>
+    >(
+      `${BASE}/tenants/${tenantId}/saas-invoices/${invoiceId}/charge-stripe`,
+      {},
+      { authScope: "platform" },
+    );
+    return mapSaasInvoicePayResult(response.data);
   },
 
   getTenantReconciliationJson: async (

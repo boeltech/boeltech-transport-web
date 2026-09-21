@@ -40,10 +40,29 @@ export function formatHistoryMonths(months: number | null | undefined): string {
   return billingCopy.plan.historyMonths(months);
 }
 
+/** SoT ADR-0095: historial = consultable en listados. */
+export function formatHistoryMonthsConsultable(
+  months: number | null | undefined,
+): string {
+  if (months == null) return billingCopy.plan.unlimited;
+  return billingCopy.plan.historyMonthsConsultable(months);
+}
+
 export function formatLimitValue(value: number | null | undefined): string {
   if (value == null) return billingCopy.plan.unlimited;
   return String(value);
 }
+
+/** usage/granted; si usage es null (legacy) solo muestra granted. */
+export function formatUsageGranted(
+  usage: number | null | undefined,
+  granted: number | null | undefined,
+): string {
+  const grantedLabel = formatLimitValue(granted);
+  if (usage == null) return grantedLabel;
+  return billingCopy.plan.usageGranted(usage, grantedLabel);
+}
+
 
 export function getSubscriptionStatusLabel(status: string): string {
   return billingCopy.plan.statusLabels[status] ?? status;

@@ -149,20 +149,26 @@ describe("smoke platform tenant admin activation (ADR-0073)", () => {
     vi.clearAllMocks();
     seedPlatformSession();
     mockGetProfile.mockResolvedValue(PLATFORM_OWNER);
+    // SoT v5: catálogo de planes tipado (motriz + bandas). Este smoke no
+    // ejercita el hero Q×P del detalle; evidencia de precio → platform-admin-workflow.
     mockListPlans.mockResolvedValue([
       {
-        code: "operacion_esencial",
-        name: "Operación Esencial",
-        maxUsers: 5,
-        maxBranches: 2,
+        code: "operacion_pequena",
+        name: "Operación Pequeña",
+        maxUsers: 10,
+        maxBranches: 3,
         historyMonths: 12,
         isActive: true,
-        monthlyPriceCents: 74900,
+        monthlyPriceCents: 0,
         annualPriceCents: null,
-        includedStamps: 15,
-        overagePriceCents: 0,
+        includedStamps: 420,
+        overagePriceCents: 500,
         quotaPolicy: "soft_cap",
         features: {},
+        pricePerMotrizCents: 31900,
+        stampsPerMotriz: 30,
+        bandQMin: 6,
+        bandQMax: 30,
       },
     ]);
     mockResendAdminActivation.mockResolvedValue({

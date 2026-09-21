@@ -18,6 +18,7 @@ import {
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
+import { isStripePublishableConfigured } from "@features/billing";
 import {
   PLATFORM_SAAS_INVOICE_STATUS_VALUES,
   isPlatformOwner,
@@ -39,6 +40,7 @@ import {
 import { ArTenantFilter } from "../components/ArTenantFilter";
 import { IssueSaasInvoiceSheet } from "../components/IssueSaasInvoiceSheet";
 import { MarkSaasInvoicePaidSheet } from "../components/MarkSaasInvoicePaidSheet";
+import { ChargeSaasInvoiceStripeSheet } from "../components/ChargeSaasInvoiceStripeSheet";
 import { VoidSaasInvoiceDialog } from "../components/VoidSaasInvoiceDialog";
 
 type ArView = "pending" | "overdue" | "all";
@@ -62,6 +64,10 @@ export function PlatformArLedgerPage() {
   const { toast } = useToast();
   const { user } = usePlatformAuth();
   const canMutate = isPlatformOwner(user?.platformRole);
+  const stripeConfigured = isStripePublishableConfigured();
+  const [stripeGatewayDown, setStripeGatewayDown] = useState(false);
+  const canChargeStripe =
+    canMutate && stripeConfigured && !stripeGatewayDown;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const statusParam = searchParams.get("status") || "";
@@ -121,6 +127,7 @@ export function PlatformArLedgerPage() {
 
   const [issueTenantId, setIssueTenantId] = useState<string | null>(null);
   const [payRow, setPayRow] = useState<PlatformSaasArRow | null>(null);
+  const [chargeRow, setChargeRow] = useState<PlatformSaasArRow | null>(null);
   const [voidRow, setVoidRow] = useState<PlatformSaasArRow | null>(null);
 
   const setParam = (key: string, value: string) => {
@@ -319,6 +326,15 @@ export function PlatformArLedgerPage() {
                     <TableCell>
                       {canMutate && row.status === "open" ? (
                         <div className="flex flex-wrap gap-1">
+                          {canChargeStripe ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setChargeRow(row)}
+                            >
+                              {copy.actions.chargeStripe}
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             onClick={() => setPayRow(row)}
@@ -365,6 +381,14 @@ export function PlatformArLedgerPage() {
         onOpenChange={(open) => {
           if (!open) setPayRow(null);
         }}
+      />
+      <ChargeSaasInvoiceStripeSheet
+        invoice={chargeRow}
+        open={!!chargeRow}
+        onOpenChange={(open) => {
+          if (!open) setChargeRow(null);
+        }}
+        onGatewayUnavailable={() => setStripeGatewayDown(true)}
       />
       <VoidSaasInvoiceDialog
         invoice={voidRow}

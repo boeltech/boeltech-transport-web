@@ -1,6 +1,10 @@
 /**
  * Smoke ADR-0062 — consola plataforma tenant 0 (métricas → empresas → suspender).
  * Mock de API; no requiere backend ni Playwright.
+ *
+ * SoT v5 (Fase 4): detalle monta TenantThisMonthCard con suscripción motriz
+ * (Q=14 × P=31900¢ = 446600¢) + capacity ADR-0095 (OVER_LIMIT observable).
+ * Activate / AR smokes no ejercitan el hero de precio; este es el camino de evidencia.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -8,10 +12,14 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { BillingCapacity } from "@features/billing";
 import type {
+  PlatformBillingPlan,
   PlatformMetrics,
   PlatformTenantDetail,
   PlatformTenantListItem,
+  PlatformTenantStampUsage,
+  PlatformTenantSubscription,
   PlatformUserJSON,
 } from "@features/platform/domain/entities";
 import { PlatformDashboardPage } from "@features/platform/presentation/pages/PlatformDashboardPage";
@@ -23,8 +31,18 @@ import {
   platformTokenStorage,
 } from "@features/platform/infrastructure/platformTokenStorage";
 import { platformCopy } from "@features/platform/presentation/copy/platformCopy";
+import { formatBillingPriceCents } from "@features/platform/presentation/utils/platformBillingFormatters";
 
 const TENANT_ID = "tenant-smoke-1";
+
+/** Piloto SoT v5: 14 × $319.00 = $4,466.00 */
+const MOTRIZ_Q = 14;
+const MOTRIZ_P_CENTS = 31900;
+const MOTRIZ_CARGO_CENTS = MOTRIZ_Q * MOTRIZ_P_CENTS; // 446600
+const MODULES_CENTS = 5900;
+const SUBTOTAL_CENTS = MOTRIZ_CARGO_CENTS + MODULES_CENTS; // 452500
+const IVA_CENTS = Math.round(SUBTOTAL_CENTS * 0.16); // 72400
+const ESTIMATED_TOTAL_CENTS = SUBTOTAL_CENTS + IVA_CENTS; // 524900
 
 const mockGetMetrics = vi.fn();
 const mockListTenants = vi.fn();
@@ -32,6 +50,9 @@ const mockGetTenantById = vi.fn();
 const mockUpdateTenantStatus = vi.fn();
 const mockListPlans = vi.fn();
 const mockGetTenantEntitlements = vi.fn();
+const mockGetTenantSubscription = vi.fn();
+const mockGetTenantStampUsage = vi.fn();
+const mockListTenantSaasInvoices = vi.fn();
 
 vi.mock("@features/platform/infrastructure/platformApi", () => ({
   platformApi: {
@@ -56,6 +77,12 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
     updateTenantStatus: (...args: unknown[]) => mockUpdateTenantStatus(...args),
     getTenantEntitlements: (...args: unknown[]) =>
       mockGetTenantEntitlements(...args),
+    getTenantSubscription: (...args: unknown[]) =>
+      mockGetTenantSubscription(...args),
+    getTenantStampUsage: (...args: unknown[]) =>
+      mockGetTenantStampUsage(...args),
+    listTenantSaasInvoices: (...args: unknown[]) =>
+      mockListTenantSaasInvoices(...args),
   },
 }));
 
@@ -78,6 +105,121 @@ const PLATFORM_USER: PlatformUserJSON = {
   mfaEnabledAt: "2026-01-01T00:00:00.000Z",
 };
 
+const MOTRIZ_PLAN: PlatformBillingPlan = {
+  code: "operacion_pequena",
+  name: "Operación Pequeña",
+  maxUsers: 10,
+  maxBranches: 3,
+  historyMonths: 12,
+  isActive: true,
+  monthlyPriceCents: 0,
+  annualPriceCents: null,
+  includedStamps: 420,
+  overagePriceCents: 500,
+  quotaPolicy: "soft_cap",
+  features: {},
+  pricePerMotrizCents: MOTRIZ_P_CENTS,
+  stampsPerMotriz: 30,
+  bandQMin: 6,
+  bandQMax: 30,
+};
+
+const CRECIMIENTO_PLAN: PlatformBillingPlan = {
+  code: "operacion_crecimiento",
+  name: "Operación Crecimiento",
+  maxUsers: 25,
+  maxBranches: 8,
+  historyMonths: 24,
+  isActive: true,
+  monthlyPriceCents: 0,
+  annualPriceCents: null,
+  includedStamps: 900,
+  overagePriceCents: 500,
+  quotaPolicy: "soft_cap",
+  features: {},
+  pricePerMotrizCents: 28900,
+  stampsPerMotriz: 30,
+  bandQMin: 31,
+  bandQMax: 80,
+};
+
+function withinCapacity(
+  overrides: Partial<BillingCapacity> = {},
+): BillingCapacity {
+  return {
+    bandCode: "operacion_pequena",
+    pendingBandCode: null,
+    users: {
+      granted: 5,
+      usage: 8,
+      limitReached: true,
+      overQuota: true,
+      overQuotaCount: 3,
+      status: "over_limit",
+    },
+    branches: {
+      granted: 3,
+      usage: 1,
+      limitReached: false,
+      overQuota: false,
+      overQuotaCount: 0,
+      status: "within_limit",
+    },
+    historyMonths: { granted: 12 },
+    ...overrides,
+  };
+}
+
+function createMotrizSubscription(
+  overrides: Partial<PlatformTenantSubscription> = {},
+): PlatformTenantSubscription {
+  return {
+    planCode: "operacion_pequena",
+    planName: "Operación Pequeña",
+    status: "active",
+    billingCycle: "monthly",
+    monthlyPriceCents: 0,
+    includedStamps: 420,
+    stampsUsedThisPeriod: 12,
+    quotaPolicy: "soft_cap",
+    currentPeriodStart: "2026-07-01T06:00:00.000Z",
+    currentPeriodEnd: "2026-08-01T06:00:00.000Z",
+    trialEndsAt: null,
+    notes: null,
+    limits: {
+      maxUsers: 5,
+      maxBranches: 3,
+      historyMonths: 12,
+    },
+    capacityBandCode: "operacion_pequena",
+    pendingCapacityBandCode: null,
+    capacity: withinCapacity(),
+    profitabilityLevel: "L1",
+    pricePerMotrizCents: MOTRIZ_P_CENTS,
+    stampsPerMotriz: 30,
+    bandQMin: 6,
+    bandQMax: 30,
+    overagePriceCents: 500,
+    qFact: MOTRIZ_Q,
+    ...overrides,
+  };
+}
+
+function createStampUsage(): PlatformTenantStampUsage {
+  return {
+    tenantId: TENANT_ID,
+    planCode: "operacion_pequena",
+    periodKey: "2026-07",
+    includedStamps: 420,
+    stampsUsed: 12,
+    overageStamps: 0,
+    overageTotalCents: 0,
+    quotaPolicy: "soft_cap",
+    prepaidRemaining: 0,
+    prepaidConsumed: 0,
+  };
+}
+
 function createActiveTenant(): PlatformTenantDetail {
   return {
     id: TENANT_ID,
@@ -85,16 +227,16 @@ function createActiveTenant(): PlatformTenantDetail {
     subdomain: "demo-transporte",
     status: "active",
     subscriptionStatus: "active",
-    planCode: "operacion_esencial",
-    planName: "Operación Esencial",
+    planCode: "operacion_pequena",
+    planName: "Operación Pequeña",
     declaredFleetBand: null,
     declaredFleetUnits: null,
-    userCount: 3,
+    userCount: 8,
     branchCount: 1,
     tripCount: 12,
     createdAt: "2026-06-01T10:00:00.000Z",
     suspendedAt: null,
-    usage: { userCount: 3, branchCount: 1, tripCount: 12 },
+    usage: { userCount: 8, branchCount: 1, tripCount: 12 },
     adminActivation: {
       status: "activated",
       email: "admin@demo.mx",
@@ -112,7 +254,7 @@ function createMetrics(): PlatformMetrics {
     activeTenants: 3,
     suspendedTenants: 1,
     tenantsByPlan: {
-      operacion_esencial: 2,
+      operacion_pequena: 2,
       operacion_crecimiento: 1,
     },
     totalUsers: 18,
@@ -151,26 +293,11 @@ describe("smoke platform admin workflow", () => {
     vi.clearAllMocks();
     seedPlatformSession();
 
-    mockListPlans.mockResolvedValue([
-      {
-        code: "operacion_esencial",
-        name: "Operación Esencial",
-        maxUsers: 5,
-        maxBranches: 2,
-        historyMonths: 12,
-        isActive: true,
-      },
-      {
-        code: "operacion_crecimiento",
-        name: "Operación Crecimiento",
-        maxUsers: 15,
-        maxBranches: 5,
-        historyMonths: 24,
-        isActive: true,
-      },
-    ]);
-
+    mockListPlans.mockResolvedValue([MOTRIZ_PLAN, CRECIMIENTO_PLAN]);
     mockGetMetrics.mockResolvedValue(createMetrics());
+    mockGetTenantSubscription.mockResolvedValue(createMotrizSubscription());
+    mockGetTenantStampUsage.mockResolvedValue(createStampUsage());
+    mockListTenantSaasInvoices.mockResolvedValue([]);
 
     mockGetTenantEntitlements.mockResolvedValue({
       directEntitlements: [
@@ -180,7 +307,7 @@ describe("smoke platform admin workflow", () => {
           kind: "addon",
           status: "active",
           activatedAt: "2026-07-01T12:00:00.000Z",
-          priceLockedCents: 5900,
+          priceLockedCents: MODULES_CENTS,
           priceTier: "ea",
           memberCodes: [],
         },
@@ -189,12 +316,12 @@ describe("smoke platform admin workflow", () => {
       profitabilityLevel: "L1",
       catalog: [],
       commercialSummary: {
-        planMonthlyPriceCents: 74900,
-        modulesTotalCents: 5900,
+        planMonthlyPriceCents: MOTRIZ_CARGO_CENTS,
+        modulesTotalCents: MODULES_CENTS,
         overageTotalCents: 0,
-        subtotalCents: 80800,
-        ivaCents: 12928,
-        estimatedTotalCents: 93728,
+        subtotalCents: SUBTOTAL_CENTS,
+        ivaCents: IVA_CENTS,
+        estimatedTotalCents: ESTIMATED_TOTAL_CENTS,
         currency: "MXN",
         periodKey: "2026-07",
         billingCycle: "monthly",
@@ -216,11 +343,11 @@ describe("smoke platform admin workflow", () => {
     expect(screen.getByText("4")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("18")).toBeInTheDocument();
-    expect(screen.getByText("Operación Esencial")).toBeInTheDocument();
+    expect(screen.getByText("Operación Pequeña")).toBeInTheDocument();
     expect(screen.getByText("Operación Crecimiento")).toBeInTheDocument();
   });
 
-  it("lists tenants, opens detail, and suspends the tenant", async () => {
+  it("lists tenants, opens detail with SoT v5 Q×P + OVER_LIMIT, and suspends", async () => {
     const user = userEvent.setup();
     let tenantState = createActiveTenant();
 
@@ -272,7 +399,39 @@ describe("smoke platform admin workflow", () => {
     expect(
       await screen.findByText(platformCopy.tenants.detail.sections.thisMonth),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/\$937/).length).toBeGreaterThan(0);
+
+    // SoT v5 evidencia: cargo Q×P en hero de «Este mes» (no flat $749).
+    expect(
+      await screen.findByText(formatBillingPriceCents(MOTRIZ_CARGO_CENTS)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        platformCopy.tenants.detail.planPrice.cargoHint(
+          formatBillingPriceCents(MOTRIZ_P_CENTS),
+          MOTRIZ_Q,
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(formatBillingPriceCents(74900))).toBeNull();
+
+    // Capacity ADR-0095: usage/granted + OVER_LIMIT en card Operación.
+    expect(
+      await screen.findByText(
+        platformCopy.tenants.detail.sections.capacitySummary(8, 1, {
+          users: 5,
+          branches: 3,
+        }),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(platformCopy.tenants.detail.subscription.overLimitHint),
+    ).toBeInTheDocument();
+
+    // Estimado comercial coherente con Q×P (no $937 de flat v3).
+    expect(
+      screen.getAllByText(formatBillingPriceCents(ESTIMATED_TOTAL_CENTS))
+        .length,
+    ).toBeGreaterThan(0);
 
     await user.click(
       screen.getByRole("button", {

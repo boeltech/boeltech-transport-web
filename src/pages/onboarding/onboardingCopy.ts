@@ -1,6 +1,7 @@
 /**
  * Copy del onboarding de producto.
  * Namespace: onboarding.copy.*
+ * SoT v5 motriz — preferencia orientativa; estado real en Tu plan.
  */
 import { BRAND } from "@shared/ui/brand";
 
@@ -24,7 +25,7 @@ export const onboardingCopy = {
     },
     plan: {
       title: "Tu plan",
-      description: "Prueba, límites y consumo",
+      description: "Preferencia, prueba y estado real",
     },
     workspace: {
       title: "Tu espacio",
@@ -38,8 +39,8 @@ export const onboardingCopy = {
   welcome: {
     body: (name: string, roleLabel: string) =>
       roleLabel
-        ? `Hola, ${name}. Este asistente configura tu primera experiencia: preferencias, una vista de tu plan comercial y el menú según tu rol (${roleLabel}). Al finalizar, no volveremos a mostrarlo en tus próximos accesos.`
-        : `Hola, ${name}. Este asistente configura tu primera experiencia: preferencias, una vista de tu plan comercial y el menú según tu rol. Al finalizar, no volveremos a mostrarlo en tus próximos accesos.`,
+        ? `Hola, ${name}. Este asistente configura tu primera experiencia: preferencias, una vista de tu preferencia comercial y el menú según tu rol (${roleLabel}). Al finalizar, no volveremos a mostrarlo en tus próximos accesos.`
+        : `Hola, ${name}. Este asistente configura tu primera experiencia: preferencias, una vista de tu preferencia comercial y el menú según tu rol. Al finalizar, no volveremos a mostrarlo en tus próximos accesos.`,
   },
   preferences: {
     themeLabel: "Apariencia",
@@ -48,16 +49,17 @@ export const onboardingCopy = {
   },
   plan: {
     preferredTitle: "Preferencia al registrarte",
+    orientativeBadge: "Orientativo",
     fleetLabel: "Flota declarada",
     fleetNone: "Sin declarar",
     planLabel: "Plan preferido",
     serverTitle: "Estado en el servidor",
     serverBody:
-      "El alta pública guarda tu plan y flota declarada, y deja la suscripción en prueba. Consulta Tu plan para ver estado, fin de prueba y cupo reales.",
+      "Tu preferencia es solo orientativa. El alta self-serve inicia en prueba con Operación Micro. Consulta Tu plan para ver estado, fin de prueba, cupo y cobro reales (banda según flota / Q_fact).",
     trialTitle: "Periodo de prueba",
     trialBody:
       "14 días · 15 timbres · sin tarjeta. El detalle vigente de tu tenant (estado En prueba, fechas y cupo) aparece en Tu plan.",
-    limitsTitle: "Capacidad del plan (lista)",
+    limitsTitle: "Capacidad orientativa (lista)",
     ctaSubscription: "Ver Tu plan",
     ctaHint: "Abre Configuración → Tu plan cuando termines el asistente.",
   },

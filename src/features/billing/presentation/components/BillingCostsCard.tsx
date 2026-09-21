@@ -16,13 +16,17 @@ import {
 import { InfoRow } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { cn } from "@shared/lib/utils/cn";
-import type { BillingCommercialSummary } from "../../domain/entities";
+import type {
+  BillingCommercialSummary,
+  BillingSubscription,
+} from "../../domain/entities";
 import { billingCopy } from "../copy/billingCopy";
 import {
   formatBillingPeriodKey,
   formatBillingPriceCents,
   getBillingCycleLabel,
 } from "../utils/billingFormatters";
+import { isMotrizPricing } from "../utils/motrizPricing";
 
 interface BillingCostsCardProps {
   summary?: BillingCommercialSummary;
@@ -30,6 +34,8 @@ interface BillingCostsCardProps {
   billingCycle?: string | null;
   /** `period_key` del usage (misma etiqueta CDMX que el card de timbres). */
   periodKey?: string | null;
+  /** SoT v5 — labels/hints motriz; totales vienen del commercial_summary API. */
+  subscription?: BillingSubscription | null;
 }
 
 export function BillingCostsCard({
@@ -37,6 +43,7 @@ export function BillingCostsCard({
   isLoading,
   billingCycle,
   periodKey,
+  subscription,
 }: BillingCostsCardProps) {
   const copy = billingCopy.costs;
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -44,6 +51,17 @@ export function BillingCostsCard({
   const periodLabel = resolvedPeriodKey
     ? formatBillingPeriodKey(resolvedPeriodKey)
     : null;
+
+  const motriz = subscription ? isMotrizPricing(subscription) : false;
+  const isQuote =
+    motriz &&
+    (subscription?.pricePerMotrizCents == null ||
+      (subscription?.pricePerMotrizCents ?? 0) <= 0);
+
+  /** API SoT: flat monthly o cargo Q×P ya en `plan_monthly_price_cents`. */
+  const planRowCents = summary?.planMonthlyPriceCents ?? null;
+  const modulesCents = summary?.modulesTotalCents ?? 0;
+  const overageCents = summary?.overageTotalCents ?? 0;
 
   return (
     <Card>
@@ -72,7 +90,9 @@ export function BillingCostsCard({
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">{copy.totalLabel}</p>
               <p className="text-3xl font-semibold tabular-nums">
-                {formatBillingPriceCents(summary.estimatedTotalCents)}
+                {isQuote && summary.estimatedTotalCents === 0
+                  ? copy.quotePending
+                  : formatBillingPriceCents(summary.estimatedTotalCents)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {billingCycle
@@ -82,21 +102,50 @@ export function BillingCostsCard({
             </div>
 
             <div>
-              <InfoRow
-                variant="inline"
-                label={copy.rows.plan}
-                value={formatBillingPriceCents(summary.planMonthlyPriceCents)}
-              />
+              {motriz ? (
+                isQuote ? (
+                  <InfoRow
+                    variant="inline"
+                    label={copy.rows.motrizQuote}
+                    value={copy.quotePending}
+                  />
+                ) : (
+                  <>
+                    <InfoRow
+                      variant="inline"
+                      label={copy.rows.motrizCargo}
+                      value={formatBillingPriceCents(planRowCents ?? 0)}
+                    />
+                    {subscription?.qFact != null &&
+                    subscription.pricePerMotrizCents != null ? (
+                      <p className="pb-2 text-xs text-muted-foreground">
+                        {copy.motrizCargoHint(
+                          subscription.qFact,
+                          formatBillingPriceCents(
+                            subscription.pricePerMotrizCents,
+                          ),
+                        )}
+                      </p>
+                    ) : null}
+                  </>
+                )
+              ) : (
+                <InfoRow
+                  variant="inline"
+                  label={copy.rows.plan}
+                  value={formatBillingPriceCents(summary.planMonthlyPriceCents)}
+                />
+              )}
               <InfoRow
                 variant="inline"
                 label={copy.rows.modules}
-                value={formatBillingPriceCents(summary.modulesTotalCents)}
+                value={formatBillingPriceCents(modulesCents)}
               />
-              {summary.overageTotalCents > 0 ? (
+              {overageCents > 0 ? (
                 <InfoRow
                   variant="inline"
                   label={copy.rows.overage}
-                  value={formatBillingPriceCents(summary.overageTotalCents)}
+                  value={formatBillingPriceCents(overageCents)}
                 />
               ) : null}
             </div>

@@ -209,10 +209,24 @@ export function PlatformTenantDetailPage() {
               <CardContent>
                 <p className="text-sm">
                   {platformCopy.tenants.detail.sections.capacitySummary(
-                    tenant.usage.userCount,
-                    tenant.usage.branchCount,
+                    subscription?.capacity?.users.usage ??
+                      tenant.usage.userCount,
+                    subscription?.capacity?.branches.usage ??
+                      tenant.usage.branchCount,
+                    subscription?.capacity
+                      ? {
+                          users: subscription.capacity.users.granted,
+                          branches: subscription.capacity.branches.granted,
+                        }
+                      : undefined,
                   )}
                 </p>
+                {subscription?.capacity?.users.status === "over_limit" ||
+                subscription?.capacity?.branches.status === "over_limit" ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {platformCopy.tenants.detail.subscription.overLimitHint}
+                  </p>
+                ) : null}
                 {tenant.suspendedAt ? (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {platformCopy.tenants.detail.suspendedAt(

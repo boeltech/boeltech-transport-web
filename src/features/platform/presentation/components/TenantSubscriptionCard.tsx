@@ -10,18 +10,34 @@ import {
 } from "../../application/hooks/usePlatformBilling";
 import { platformCopy } from "../copy/platformCopy";
 import {
-  formatBillingPriceCents,
-  formatPlatformHistoryMonths,
-  formatPlatformLimitValue,
+  formatPlatformHistoryMonthsConsultable,
+  formatPlatformUsageGranted,
   getPlatformBillingCycleLabel,
   getPlatformQuotaPolicyDescription,
   getPlatformQuotaPolicyLabel,
   getPlatformSubscriptionStatusLabel,
   getProfitabilityLevelDetail,
 } from "../utils/platformBillingFormatters";
+import { resolvePlatformPlanPriceDisplay } from "../utils/resolvePlatformPlanPriceDisplay";
 
 interface TenantSubscriptionCardProps {
   tenantId: string;
+}
+
+function planPriceRowLabel(
+  kind: ReturnType<typeof resolvePlatformPlanPriceDisplay>["kind"],
+): string {
+  const copy = platformCopy.tenants.detail.planPrice;
+  switch (kind) {
+    case "motriz_cargo":
+      return copy.labelCargo;
+    case "motriz_pending_q":
+      return copy.labelUnit;
+    case "motriz_quote":
+      return copy.labelQuote;
+    default:
+      return copy.labelLegacy;
+  }
 }
 
 /** Detalle avanzado del plan (límites, margen, política de excedente, notas). */
@@ -31,6 +47,25 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
   const { data: subscription, isLoading, isError } =
     usePlatformTenantSubscription(tenantId);
   const { data: usage } = usePlatformTenantStampUsage(tenantId);
+  const planPrice = subscription
+    ? resolvePlatformPlanPriceDisplay(subscription)
+    : null;
+
+  const capacity = subscription?.capacity;
+  const usersGranted =
+    capacity?.users.granted ?? subscription?.limits.maxUsers ?? null;
+  const branchesGranted =
+    capacity?.branches.granted ?? subscription?.limits.maxBranches ?? null;
+  const historyGranted =
+    capacity?.historyMonths.granted ??
+    subscription?.limits.historyMonths ??
+    null;
+  const usersOverLimit = capacity?.users.status === "over_limit";
+  const branchesOverLimit = capacity?.branches.status === "over_limit";
+  const pendingBand =
+    capacity?.pendingBandCode ??
+    subscription?.pendingCapacityBandCode ??
+    null;
 
   return (
     <Card>
@@ -44,7 +79,7 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
       <CardContent className="space-y-3">
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{copy.loading}</p>
-        ) : isError || !subscription ? (
+        ) : isError || !subscription || !planPrice ? (
           <EmptyState
             icon={<CreditCard className="h-10 w-10" />}
             title={copy.unavailable}
@@ -69,28 +104,52 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
             />
             <InfoRow
               variant="inline"
-              label={copy.fields.price}
-              value={formatBillingPriceCents(subscription.monthlyPriceCents)}
+              label={planPriceRowLabel(planPrice.kind)}
+              value={planPrice.primary}
             />
+            {planPrice.secondary ? (
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {planPrice.secondary}
+              </p>
+            ) : null}
             <InfoRow
               variant="inline"
               label={copy.fields.period}
               value={`${formatDateTime(subscription.currentPeriodStart)} — ${formatDateTime(subscription.currentPeriodEnd)}`}
             />
+            {pendingBand ? (
+              <p className="text-xs text-muted-foreground">
+                {copy.pendingBandHint}
+              </p>
+            ) : null}
             <InfoRow
               variant="inline"
               label={copy.fields.users}
-              value={formatPlatformLimitValue(subscription.limits.maxUsers)}
+              value={formatPlatformUsageGranted(
+                capacity?.users.usage,
+                usersGranted,
+              )}
+              alert={usersOverLimit ? "warning" : undefined}
             />
+            {usersOverLimit ? (
+              <p className="text-xs text-muted-foreground">{copy.overLimitHint}</p>
+            ) : null}
             <InfoRow
               variant="inline"
               label={copy.fields.branches}
-              value={formatPlatformLimitValue(subscription.limits.maxBranches)}
+              value={formatPlatformUsageGranted(
+                capacity?.branches.usage,
+                branchesGranted,
+              )}
+              alert={branchesOverLimit ? "warning" : undefined}
             />
+            {branchesOverLimit ? (
+              <p className="text-xs text-muted-foreground">{copy.overLimitHint}</p>
+            ) : null}
             <InfoRow
               variant="inline"
-              label={copy.fields.historyRetention}
-              value={formatPlatformHistoryMonths(subscription.limits.historyMonths)}
+              label={copy.fields.historyConsultable}
+              value={formatPlatformHistoryMonthsConsultable(historyGranted)}
             />
             {subscription.trialEndsAt ? (
               <InfoRow
