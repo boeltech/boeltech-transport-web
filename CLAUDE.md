@@ -21,6 +21,7 @@ npm run test:smoke:platform-tenant-activate # smoke ADR-0073 activación admin (
 npm run test:smoke:platform-catalogs-import # smoke release kit SAT (hub + plantilla + estimate; support RO)
 npm run test:smoke:billing       # smoke ADR-0064 plan/consumo + paywall equipo de apoyo
 npm run test:smoke:billing-ar    # smoke ADR-0072 saldo AR tenant (julio open → mark paid)
+npm run test:smoke:billing-stripe # smoke ADR-0076 Stripe-A: Pagar ahora tenant + Cobrar con Stripe platform (mock)
 npm run test:smoke:billing-dispatch # smoke ADR-0082 corrida preview → confirm-send (digest)
 npm run test:smoke:invoice-auto-dispatch # smoke ADR-0083 flag + badge Automática + alerta failed
 npm run test:smoke:auth-phase2   # smoke ADR-0070 MFA/sesiones/cookies (contrato cliente + interceptor)
@@ -45,7 +46,7 @@ npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
 
 **Plataforma (ADR-0062):** consola en `/platform/*` (panel, empresas, catálogos globales, **auditoría** `/platform/audit`) · login `/platform/login` · API `POST /api/v1/platform/auth/login` · requiere backend Fase 3+ y migr. **106** (`platform_owner` en enum) + `npm run seed:platform-owner` en API. **Activación admin al alta (ADR-0073):** email activate + gate login; UI card/resend/rotate + `/activate-tenant`; smoke `npm run test:smoke:platform-tenant-activate`; guía `docs/plataforma/panel-tenant0-usuario.md` §3.2/3.3.
 
-**Billing SaaS v1 (ADR-0064):** `@features/billing` read-only en `/settings/subscription` (plan, consumo timbres, módulos, nivel L, retención) · consola platform (suscripción, entitlements, export conciliación CSV) · paywall `internal_staff_compensation` en wizard viajes. Guía operador: `D:\cowork\boeltech\erp-transport\docs\facturacion\billing-saas-operacion-manual.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\saas-commercial-integration\sdd.md`.
+**Billing SaaS v1 (ADR-0064):** `@features/billing` en `/settings/subscription` (plan, consumo timbres, módulos, nivel L, retención, saldo AR, métodos de pago Stripe-A) · consola platform (suscripción, entitlements, CxC, Cobrar con Stripe) · paywall `internal_staff_compensation` en wizard viajes · smoke `test:smoke:billing-stripe`. Guía operador: `D:\cowork\boeltech\erp-transport\docs\facturacion\billing-saas-operacion-manual.md` §9–§10 · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\saas-commercial-integration\sdd.md` · Stripe: `D:\cowork\boeltech\erp-transport\design\sdd\saas-stripe-gateway\sdd.md`.
 
 **Multifactura por viaje (ADR-0068):** factura de flete (primaria + Carta Porte) y N facturas accesorias (solo servicios, sin CP) ligadas al mismo viaje · UI `?scope=accessory` · smoke `npm run test:smoke:trip-multi-invoice`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\facturas-accesorias-viaje-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\trip-multi-invoice\sdd.md`.
 

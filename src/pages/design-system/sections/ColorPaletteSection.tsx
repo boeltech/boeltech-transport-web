@@ -12,6 +12,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { useTheme } from "@/shared/hooks/useTheme";
 
 interface SwatchProps {
   label: string;
@@ -78,6 +79,10 @@ const SEMANTIC_TOKENS = [
 ] as const;
 
 export function ColorPaletteSection() {
+  const { isDark } = useTheme();
+  /** Semantic `--primary` target step (light → 600, dark → 500). */
+  const primarySemanticStep = isDark ? "500" : "600";
+
   return (
     <div className="space-y-8">
       {/* Primary scale */}
@@ -88,23 +93,33 @@ export function ColorPaletteSection() {
         <CardContent>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11">
             {PRIMARY_STEPS.map((step) => {
-              const isBase = step === "600";
+              const isSemanticBase = step === primarySemanticStep;
               return (
                 <Swatch
                   key={step}
                   label={step}
                   token={`primary-${step}`}
                   textToken={Number(step) >= 500 ? "primary-foreground" : "foreground"}
-                  note={isBase ? "BASE" : undefined}
+                  note={
+                    isSemanticBase
+                      ? isDark
+                        ? "BASE dark (--primary)"
+                        : "BASE light (--primary)"
+                      : undefined
+                  }
                 />
               );
             })}
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            <code className="font-mono text-xs">--primary-600</code> es el color
-            de marca usado por <code className="font-mono text-xs">--primary</code>{" "}
-            y <code className="font-mono text-xs">--ring</code>. La escala
-            completa está disponible como utilidades Tailwind:{" "}
+            El token semántico{" "}
+            <code className="font-mono text-xs">--primary</code> apunta a{" "}
+            <code className="font-mono text-xs">--primary-600</code> en light y a{" "}
+            <code className="font-mono text-xs">--primary-500</code> en dark.{" "}
+            <code className="font-mono text-xs">--ring</code> usa{" "}
+            <code className="font-mono text-xs">primary-500</code> (light) /{" "}
+            <code className="font-mono text-xs">primary-400</code> (dark). La
+            escala completa está disponible como utilidades Tailwind:{" "}
             <code className="font-mono text-xs">bg-primary-50</code>,{" "}
             <code className="font-mono text-xs">text-primary-700</code>, etc.
           </p>

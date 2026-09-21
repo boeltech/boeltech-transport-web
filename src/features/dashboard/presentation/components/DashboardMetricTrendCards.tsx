@@ -41,48 +41,70 @@ function ScorecardCell({
   ariaLabel?: string;
   className?: string;
 }) {
+  // Semantic fill on neutral card — same pattern as DashboardKpiStrip
+  // (`text-warning`). Never use `*-foreground` here: those tokens are for
+  // text *on* solid warning/success fills and fail AA on bg-card in dark.
   const valueClass =
-    tone === "warning" && !isLoading
-      ? "text-warning-foreground"
-      : "text-foreground";
+    tone === "warning" && !isLoading ? "text-warning" : "text-foreground";
 
   const body = (
-    <div className={cn("flex h-full flex-col gap-1 p-5 sm:p-6", className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        {chip && !isLoading ? (
-          <Badge variant="warning" tone="soft" className="text-xs">
-            {chip}
-          </Badge>
-        ) : null}
+    <div className="flex h-full min-h-0 flex-col justify-between gap-6 p-5 sm:p-6">
+      <div className="space-y-1">
+        <div className="flex min-h-5 items-center gap-2">
+          <p className="min-w-0 text-sm font-medium text-muted-foreground">
+            {title}
+          </p>
+          {chip && !isLoading ? (
+            <Badge
+              variant="warning"
+              tone="soft"
+              className="shrink-0 text-xs"
+            >
+              {chip}
+            </Badge>
+          ) : null}
+        </div>
+        <p className="min-h-4 text-xs text-muted-foreground">
+          {subtitle ?? "\u00a0"}
+        </p>
       </div>
-      {subtitle ? (
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
-      ) : null}
-      {isLoading ? (
-        <Skeleton className="mt-1 h-8 w-28" />
-      ) : (
+      <div className="space-y-1">
+        {isLoading ? (
+          <Skeleton className="h-8 w-28" />
+        ) : (
+          <p
+            className={cn(
+              "text-2xl font-semibold tabular-nums tracking-tight",
+              valueClass,
+            )}
+          >
+            {value}
+          </p>
+        )}
         <p
           className={cn(
-            "text-2xl font-semibold tabular-nums tracking-tight",
-            valueClass,
+            "min-h-4 text-xs",
+            hint && !isLoading ? "text-warning" : "text-transparent",
           )}
+          aria-hidden={!hint || isLoading}
         >
-          {value}
+          {hint && !isLoading ? hint : "\u00a0"}
         </p>
-      )}
-      {hint && !isLoading ? (
-        <p className="text-xs text-warning-foreground">{hint}</p>
-      ) : null}
+      </div>
     </div>
   );
 
-  if (!onClick) return body;
+  if (!onClick) {
+    return <div className={cn("h-full min-w-0", className)}>{body}</div>;
+  }
 
   return (
     <button
       type="button"
-      className="w-full rounded-none text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className={cn(
+        "block h-full min-w-0 w-full rounded-none text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        className,
+      )}
       onClick={onClick}
       aria-label={ariaLabel}
     >

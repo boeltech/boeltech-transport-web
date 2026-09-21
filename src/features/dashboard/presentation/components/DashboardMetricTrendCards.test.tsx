@@ -97,4 +97,64 @@ describe("DashboardMetricTrendCards", () => {
       "/finance/approvals?status=pending&type=trip_expense",
     );
   });
+
+  it("uses text-warning (not warning-foreground) for provisional margin amount", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: {
+                financial_month: buildFinancialMonth({
+                  actual_margin: 338_510,
+                  trips_with_pending_expenses: 1,
+                }),
+              },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+        />
+      </MemoryRouter>,
+    );
+
+    const amount = screen.getByText(/338/);
+    expect(amount.className).toContain("text-warning");
+    expect(amount.className).not.toContain("text-warning-foreground");
+
+    const hint = screen.getByText(
+      dashboardCopy.scorecard.margin.provisionalHint,
+    );
+    expect(hint.className).toContain("text-warning");
+    expect(hint.className).not.toContain("text-warning-foreground");
+  });
+
+  it("uses text-warning for overdue amount when balance is past due", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: { financial_month: buildFinancialMonth() },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+          financeSummary={
+            {
+              collectedThisMonth: 0,
+              totalReceivable: 0,
+              totalOverdue: 12_500,
+            } as never
+          }
+        />
+      </MemoryRouter>,
+    );
+
+    const overdueAmount = screen.getByText(/12/);
+    expect(overdueAmount.className).toContain("text-warning");
+    expect(overdueAmount.className).not.toContain("text-warning-foreground");
+  });
 });

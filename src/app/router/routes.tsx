@@ -414,54 +414,54 @@ const DesignSystemPage = lazyWithRetry(() => import("@/pages/design-system"));
 const OnboardingPage = lazyWithRetry(() => import("@/pages/onboarding/OnboardingPage"));
 
 const PlatformLoginPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformLoginPage,
-  })),
+  import("@features/platform/presentation/pages/PlatformLoginPage").then(
+    (m) => ({ default: m.PlatformLoginPage }),
+  ),
 );
 const PlatformShell = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformShell,
+  import("@features/platform/presentation/layout/PlatformShell").then((m) => ({
+    default: m.PlatformShell,
   })),
 );
 const PlatformDashboardPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformDashboardPage,
-  })),
+  import("@features/platform/presentation/pages/PlatformDashboardPage").then(
+    (m) => ({ default: m.PlatformDashboardPage }),
+  ),
 );
 const PlatformTenantsListPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformTenantsListPage,
-  })),
+  import("@features/platform/presentation/pages/PlatformTenantsListPage").then(
+    (m) => ({ default: m.PlatformTenantsListPage }),
+  ),
 );
 const PlatformTenantCreatePage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformTenantCreatePage,
-  })),
+  import("@features/platform/presentation/pages/PlatformTenantCreatePage").then(
+    (m) => ({ default: m.PlatformTenantCreatePage }),
+  ),
 );
 const PlatformTenantDetailPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformTenantDetailPage,
-  })),
+  import("@features/platform/presentation/pages/PlatformTenantDetailPage").then(
+    (m) => ({ default: m.PlatformTenantDetailPage }),
+  ),
 );
 const PlatformGlobalCatalogsPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformGlobalCatalogsPage,
-  })),
+  import(
+    "@features/platform/presentation/pages/PlatformGlobalCatalogsPage"
+  ).then((m) => ({ default: m.PlatformGlobalCatalogsPage })),
 );
 const PlatformAuditLogPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformAuditLogPage,
-  })),
+  import("@features/platform/presentation/pages/PlatformAuditLogPage").then(
+    (m) => ({ default: m.PlatformAuditLogPage }),
+  ),
 );
 const PlatformArLedgerPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformArLedgerPage,
-  })),
+  import("@features/platform/presentation/pages/PlatformArLedgerPage").then(
+    (m) => ({ default: m.PlatformArLedgerPage }),
+  ),
 );
 const PlatformSecurityPage = lazyWithRetry(() =>
-  import("@features/platform").then((module) => ({
-    default: module.PlatformSecurityPage,
-  })),
+  import("@features/platform/presentation/pages/PlatformSecurityPage").then(
+    (m) => ({ default: m.PlatformSecurityPage }),
+  ),
 );
 
 // Errors
