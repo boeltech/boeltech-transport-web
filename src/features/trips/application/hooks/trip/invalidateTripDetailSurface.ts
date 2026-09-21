@@ -28,6 +28,12 @@ export async function invalidateTripDetailSurface(
     queryKey: tripQueryKeys.detail(tripId),
   });
 
+  // C7: split puede auto-cancelarse en la misma tx (cancel viaje) o quedar
+  // active con RFA; la query anidada debe refrescarse de forma explícita.
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.revenueSplit(tripId),
+  });
+
   if (statusNeedsTrackingTimeline(opts?.status)) {
     await queryClient.invalidateQueries({
       queryKey: tripQueryKeys.timeline(tripId),

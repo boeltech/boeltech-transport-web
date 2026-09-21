@@ -24,6 +24,12 @@ import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@shared/ui/dropdown-menu";
+import {
   AlertCircle,
   Truck,
   Clock,
@@ -32,6 +38,7 @@ import {
   Receipt,
   Loader2,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 
 // ── Hooks de Application Layer ─────────────────────────────────────────────
@@ -41,6 +48,7 @@ import {
   useTripCargos,
   useTripExpenses,
   useTripExpensesSummary,
+  useTripRevenueSplit,
   calculateDistance,
   calculateTripDuration,
   formatDuration,
@@ -98,6 +106,8 @@ import {
 } from "./tripDetailQueryGating";
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
 import { buildPostCancelFiscalAlertLines } from "../helpers/buildPostCancelFiscalAlertLines";
+import { resolveFiscalAttentionBannerMode } from "../helpers/resolveFiscalAttentionBannerMode";
+import { resolveFiscalAttentionCta } from "../helpers/resolveFiscalAttentionCta";
 
 const shell = tripDetailCopy.shell;
 
@@ -153,6 +163,19 @@ export function TripDetailPage() {
     error: tripError,
     refetch: refetchTrip,
   } = useTrip(tripId);
+
+  const needsFiscalAttentionSplitLegs =
+    !isLeanTripPortal &&
+    Boolean(trip?.requiresFiscalAttention) &&
+    Boolean(trip?.invoicing.hasActiveSplit) &&
+    trip?.operationalOutcome !== "false_trip";
+
+  const {
+    data: revenueSplitForFiscalCta,
+    isFetched: revenueSplitForFiscalCtaFetched,
+  } = useTripRevenueSplit(tripId, {
+    enabled: Boolean(tripId) && needsFiscalAttentionSplitLegs,
+  });
 
   const tripQueryState = resolveDetailQueryErrorState({
     missingId: !tripId,
@@ -380,8 +403,16 @@ export function TripDetailPage() {
       );
     }
 
-    if (!isLeanTripPortal && trip.operationalOutcome === "false_trip") {
-      if (trip.requiresFiscalAttention && trip.invoicing.invoiceId) {
+    if (!isLeanTripPortal) {
+      const fiscalBannerMode = resolveFiscalAttentionBannerMode({
+        operationalOutcome: trip.operationalOutcome,
+        requiresFiscalAttention: trip.requiresFiscalAttention,
+        status: trip.status,
+        invoicing: trip.invoicing,
+      });
+
+      if (fiscalBannerMode === "falseTrip") {
+        const cancelInvoiceId = trip.invoicing.invoiceId;
         cards.push(
           <DetailAlertCard
             key="false-trip-cancel-cfdi"
@@ -390,38 +421,124 @@ export function TripDetailPage() {
             title={shell.alert.falseTripCancelCfdiTitle}
           >
             <p>{shell.alert.falseTripCancelCfdiBody}</p>
-            <Button variant="outline" size="sm" className="mt-2" asChild>
-              <Link to={`/invoices/${trip.invoicing.invoiceId}`}>
-                {shell.alert.falseTripCancelCfdiCta}
+            {cancelInvoiceId ? (
+              <Button variant="outline" size="sm" className="mt-2" asChild>
+                <Link to={`/invoices/${cancelInvoiceId}`}>
+                  {shell.alert.falseTripCancelCfdiCta}
+                </Link>
+              </Button>
+            ) : null}
+          </DetailAlertCard>,
+        );
+      } else if (
+        fiscalBannerMode === "postCancel" ||
+        fiscalBannerMode === "midTrip"
+      ) {
+        const isPostCancel = fiscalBannerMode === "postCancel";
+        const fiscalCta = resolveFiscalAttentionCta({
+          requiresFiscalAttention: trip.requiresFiscalAttention,
+          hasActiveSplit: trip.invoicing.hasActiveSplit,
+          principalInvoiceId: trip.invoicing.invoiceId,
+          splitLegsReady: revenueSplitForFiscalCtaFetched,
+          splitLegs: revenueSplitForFiscalCta?.legs ?? [],
+        });
+
+        let body: string = isPostCancel
+          ? shell.alert.postCancelFiscalAttentionNoInvoiceBody
+          : shell.alert.fiscalAttentionNoInvoiceBody;
+        let cta: ReactElement | null = null;
+
+        if (fiscalCta.kind === "primary") {
+          body =
+            fiscalCta.bodyKey === "withInvoice"
+              ? isPostCancel
+                ? shell.alert.postCancelFiscalAttentionBody
+                : shell.alert.fiscalAttentionBody
+              : isPostCancel
+                ? shell.alert.postCancelFiscalAttentionNoInvoiceBody
+                : shell.alert.fiscalAttentionNoInvoiceBody;
+          if (fiscalCta.invoiceId) {
+            cta = (
+              <Link
+                to={`/invoices/${fiscalCta.invoiceId}`}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {isPostCancel
+                  ? shell.alert.postCancelFiscalAttentionCta
+                  : shell.alert.fiscalAttentionCta}
               </Link>
-            </Button>
+            );
+          }
+        } else if (fiscalCta.kind === "split") {
+          if (fiscalCta.bodyKey === "noInvoicesYet") {
+            body = isPostCancel
+              ? shell.alert.postCancelFiscalAttentionSplitNoInvoiceBody
+              : shell.alert.fiscalAttentionSplitNoInvoiceBody;
+          } else {
+            body = isPostCancel
+              ? shell.alert.postCancelFiscalAttentionSplitBody
+              : shell.alert.fiscalAttentionSplitBody;
+          }
+          if (fiscalCta.bodyKey === "withInvoices") {
+            const legs = fiscalCta.invoicedLegs;
+            if (legs.length === 1) {
+              cta = (
+                <Link
+                  to={`/invoices/${legs[0].invoiceId}`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {isPostCancel
+                    ? shell.alert.postCancelFiscalAttentionSplitCta
+                    : shell.alert.fiscalAttentionSplitCta}
+                </Link>
+              );
+            } else if (legs.length > 1) {
+              cta = (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      {isPostCancel
+                        ? shell.alert.postCancelFiscalAttentionSplitMenuCta
+                        : shell.alert.fiscalAttentionSplitMenuCta}
+                      <ChevronDown className="ml-0.5 h-3.5 w-3.5 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    {legs.map((leg) => (
+                      <DropdownMenuItem key={leg.invoiceId} asChild>
+                        <Link to={`/invoices/${leg.invoiceId}`}>
+                          {shell.alert.fiscalAttentionSplitLegCta(leg.label)}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+          }
+        }
+
+        cards.push(
+          <DetailAlertCard
+            key={isPostCancel ? "post-cancel-fiscal" : "fiscal-attention"}
+            severity="warning"
+            icon={<Receipt className="h-5 w-5" />}
+            title={
+              isPostCancel
+                ? shell.alert.postCancelFiscalAttentionTitle
+                : shell.alert.fiscalAttentionTitle
+            }
+          >
+            <p>
+              {body} {cta}
+            </p>
           </DetailAlertCard>,
         );
       }
-    } else if (!isLeanTripPortal && trip.requiresFiscalAttention) {
-      const invoiceId = trip.invoicing.invoiceId;
-      cards.push(
-        <DetailAlertCard
-          key="fiscal-attention"
-          severity="warning"
-          icon={<Receipt className="h-5 w-5" />}
-          title={shell.alert.fiscalAttentionTitle}
-        >
-          <p>
-            {invoiceId
-              ? shell.alert.fiscalAttentionBody
-              : shell.alert.fiscalAttentionNoInvoiceBody}{" "}
-            {invoiceId ? (
-              <Link
-                to={`/invoices/${invoiceId}`}
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                {shell.alert.fiscalAttentionCta}
-              </Link>
-            ) : null}
-          </p>
-        </DetailAlertCard>,
-      );
     }
 
     if (
@@ -514,12 +631,26 @@ export function TripDetailPage() {
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
           title={shell.alert.openIncidentTitle}
-          items={[
-            {
-              text: shell.alert.openIncidentBody,
-            },
-          ]}
-        />,
+        >
+          <p>{shell.alert.openIncidentBody}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => {
+              setSearchParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.set("tab", "tracking");
+                  return next;
+                },
+                { replace: true },
+              );
+            }}
+          >
+            {shell.alert.openIncidentCta}
+          </Button>
+        </DetailAlertCard>,
       );
     }
 
@@ -534,6 +665,8 @@ export function TripDetailPage() {
     tripReadiness,
     setSearchParams,
     isLeanTripPortal,
+    revenueSplitForFiscalCta,
+    revenueSplitForFiscalCtaFetched,
   ]);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -958,6 +1091,7 @@ export function TripDetailPage() {
                   cargos={cargos}
                   operationalOutcome={trip.operationalOutcome}
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
+                  hasActiveSplit={trip.invoicing.hasActiveSplit}
                   requiresFiscalAttention={trip.requiresFiscalAttention}
                 />
               </Suspense>
@@ -1016,6 +1150,8 @@ export function TripDetailPage() {
                         tripId={trip.id}
                         tripStatus={resolvedDisplayStatus}
                         baseRate={trip.costs.baseRate}
+                        facturadoVigente={trip.facturadoVigente}
+                        cobradoViaje={trip.cobradoViaje}
                         cfdiDocumentIntent={trip.cfdiDocumentIntent}
                         clientId={trip.client?.id}
                         vehicleId={trip.vehicle?.id}

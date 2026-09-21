@@ -147,7 +147,7 @@ describe("TripAssignmentResourceFields", () => {
       licensePlate: "BSY-444",
       branchId: "branch-a",
       canBeAssigned: false,
-      blockReason: "En viaje",
+      blockReason: "En Viaje",
     }),
   ];
 
@@ -179,7 +179,7 @@ describe("TripAssignmentResourceFields", () => {
       employeeId: "emp-busy",
       branchId: "branch-a",
       canBeAssigned: false,
-      blockReason: "En viaje",
+      blockReason: "En Viaje",
     }),
   ];
 

@@ -43,7 +43,7 @@ export const basicInfoCopy = {
     fleetBranchFilter:
       "Listado filtrado por la base operativa. Activa la opción para ver todo el catálogo.",
     allowExpiredDocs:
-      "Muestra activos con seguro, permiso SCT o licencia vencidos, o sin fecha de vigencia, para asignarlos.",
+      "Muestra activos con seguro, permiso SCT o licencia vencidos (con fecha) para asignarlos. Sin vigencia o sin registro no se liberan con este permiso.",
   },
   hintLabel: {
     originBranch: "Base operativa del viaje",

@@ -437,6 +437,16 @@ export interface ApiTripResponse {
   toll_cost: string | number;
   other_costs: string | number;
   total_cost: string | number;
+  /**
+   * SUM subtotal CFDI ingreso stamped vigentes (detail).
+   * No es base_rate ni cobrado_viaje.
+   */
+  facturado_vigente?: string | number | null;
+  /**
+   * Suma de montos aplicados a CFDI ingreso stamped vigentes (detail).
+   * No es base_rate.
+   */
+  cobrado_viaje?: string | number | null;
 
   // Estado
   status: TripStatusType;

@@ -37,6 +37,11 @@ export const EMPTY_BUSY_ASSIGNMENT_RESOURCES: BusyAssignmentResourceIds = {
   employeeConflicts: new Map(),
 };
 
+const BUSY_ON_ACTIVE_TRIP = "Asignado a un viaje activo";
+const HELD_ON_DRAFT_RESERVE = "En reserva";
+
+export { BUSY_ON_ACTIVE_TRIP, HELD_ON_DRAFT_RESERVE };
+
 function conflictFromTrip(trip: TripListItem): AssignmentConflict {
   return {
     tripId: trip.id,
@@ -65,11 +70,53 @@ export function pickPreferredConflict(
   return candidateTs < existingTs ? candidate : existing;
 }
 
+/**
+ * Canonical occupancy badge for assignment selects.
+ * Maps trip status ↔ fleet commit status to the same label so unidad,
+ * conductor and remolque never diverge (e.g. "En Curso" vs "En viaje").
+ */
+export const FLEET_OCCUPANCY_BADGE = {
+  ON_TRIP: "En Viaje",
+  RESERVED: "Reservado",
+} as const;
+
+export function assignmentOccupancyBadgeLabel(
+  status: string | null | undefined,
+): string | null {
+  switch (status) {
+    case "on_trip":
+    case TripStatus.IN_PROGRESS:
+      return FLEET_OCCUPANCY_BADGE.ON_TRIP;
+    case "reserved":
+    case TripStatus.SCHEDULED:
+      return FLEET_OCCUPANCY_BADGE.RESERVED;
+    default:
+      return null;
+  }
+}
+
 export function conflictBadgeLabel(conflict: {
   status: TripStatusType | string;
 }): string {
-  const status = conflict.status as TripStatusType;
-  return TRIP_STATUS_LABELS[status] ?? String(conflict.status);
+  return (
+    assignmentOccupancyBadgeLabel(conflict.status) ??
+    TRIP_STATUS_LABELS[conflict.status as TripStatusType] ??
+    String(conflict.status)
+  );
+}
+
+/** True when blockReason is only occupancy (soft-busy may promote). */
+export function isFleetStatusOnlyOccupancyBlock(
+  status: string | undefined,
+  blockReason: string | undefined,
+): boolean {
+  if (!blockReason) return false;
+  if (blockReason === BUSY_ON_ACTIVE_TRIP) return true;
+  const occupancy = assignmentOccupancyBadgeLabel(status);
+  if (occupancy && blockReason === occupancy) return true;
+  // Legacy casing from older classifiers / trailers.
+  if (status === "on_trip" && blockReason === "En viaje") return true;
+  return false;
 }
 
 export function formatConflictDeparture(
@@ -94,11 +141,6 @@ export function buildBusyAssignmentResourceIds(
     ACTIVE_ASSIGNMENT_STATUSES,
   );
 }
-
-const BUSY_ON_ACTIVE_TRIP = "Asignado a un viaje activo";
-const HELD_ON_DRAFT_RESERVE = "En reserva";
-
-export { BUSY_ON_ACTIVE_TRIP, HELD_ON_DRAFT_RESERVE };
 
 function toScheduleMs(value: Date | null | undefined): number | null {
   if (!value || Number.isNaN(value.getTime())) return null;
@@ -232,9 +274,13 @@ export function applyDraftHoldSoftSignalToVehicles(
       canBeAssigned: true as const,
       softBusy: true as const,
       assignmentConflict: conflict,
-      blockReason: conflict
-        ? conflictBadgeLabel(conflict)
-        : HELD_ON_DRAFT_RESERVE,
+      // Keep expired-docs reason for reopen alert; soft-hold uses assignmentConflict.
+      blockReason:
+        vehicle.expiredDocsOverridable === true && vehicle.blockReason
+          ? vehicle.blockReason
+          : conflict
+            ? conflictBadgeLabel(conflict)
+            : HELD_ON_DRAFT_RESERVE,
     };
   });
 }
@@ -264,14 +310,19 @@ export function applyBusyResourcesToVehicles(
     const isBusy = busyVehicleIds.has(vehicle.id);
     const isCommitStatus = isFleetCommitStatus(vehicle.status);
 
-    // Current trip assignment: reserved (scheduled) or on_trip (in progress / ADR-0093).
-    if (keepId && vehicle.id === keepId && isFleetCommitStatus(vehicle.status)) {
+    // Current trip assignment: grandfather reopen (draft / scheduled / in_progress).
+    // Keep expiredDocsOverridable + reason for alert; never softBusy / fleetHardBlocked.
+    if (keepId && vehicle.id === keepId) {
       return {
         ...vehicle,
         canBeAssigned: true as const,
-        blockReason: undefined,
         softBusy: undefined,
+        fleetHardBlocked: undefined,
         assignmentConflict: undefined,
+        blockReason:
+          vehicle.expiredDocsOverridable === true
+            ? vehicle.blockReason
+            : undefined,
       };
     }
 
@@ -281,6 +332,7 @@ export function applyBusyResourcesToVehicles(
         return {
           ...vehicle,
           softBusy: undefined,
+          fleetHardBlocked: undefined,
           assignmentConflict: undefined,
         };
       }
@@ -288,61 +340,74 @@ export function applyBusyResourcesToVehicles(
       if (isBusy || isCommitStatus) {
         // ADR-0066: expired docs stay gated by allowExpiredDocs — do not promote
         // reserved/on_trip (or busy) into soft-busy selectable.
+        // Product priority: «Con documentación vencida» over «En otro viaje».
         if (vehicle.expiredDocsOverridable === true) {
           return {
             ...vehicle,
             canBeAssigned: false as const,
             softBusy: undefined,
+            fleetHardBlocked: undefined,
             assignmentConflict: conflict,
           };
+        }
+        // Hard docs / stamp incomplete on commit status: keep non-selectable.
+        // Pure status blocks («En Viaje» / «Reservado») still soft-promote below.
+        if (!vehicle.canBeAssigned) {
+          if (
+            !isFleetStatusOnlyOccupancyBlock(
+              vehicle.status,
+              vehicle.blockReason,
+            )
+          ) {
+            return {
+              ...vehicle,
+              softBusy: undefined,
+              fleetHardBlocked: undefined,
+              assignmentConflict: conflict,
+            };
+          }
         }
         return {
           ...vehicle,
           canBeAssigned: true as const,
           softBusy: true as const,
+          fleetHardBlocked: undefined,
           assignmentConflict: conflict,
           blockReason: conflict
             ? conflictBadgeLabel(conflict)
-            : (vehicle.blockReason ?? BUSY_ON_ACTIVE_TRIP),
+            : (assignmentOccupancyBadgeLabel(vehicle.status) ??
+              vehicle.blockReason ??
+              BUSY_ON_ACTIVE_TRIP),
         };
       }
 
       return {
         ...vehicle,
         softBusy: undefined,
+        fleetHardBlocked: undefined,
         assignmentConflict: undefined,
       };
     }
 
-    let next = vehicle;
-
-    if (isBusy && vehicle.canBeAssigned) {
-      next = {
+    // Hard mode (scheduled / in_progress): occupation is never liberated by
+    // allowExpiredDocs — including when the classifier already marked expired docs.
+    if (isBusy || isCommitStatus) {
+      const occupancyReason = conflict
+        ? conflictBadgeLabel(conflict)
+        : (assignmentOccupancyBadgeLabel(vehicle.status) ?? BUSY_ON_ACTIVE_TRIP);
+      return {
         ...vehicle,
         canBeAssigned: false as const,
-        blockReason: BUSY_ON_ACTIVE_TRIP,
+        fleetHardBlocked: true as const,
         softBusy: undefined,
-        assignmentConflict: undefined,
-      };
-    }
-
-    if (
-      !next.canBeAssigned &&
-      keepId &&
-      next.id === keepId &&
-      isFleetCommitStatus(next.status)
-    ) {
-      return {
-        ...next,
-        canBeAssigned: true as const,
-        blockReason: undefined,
-        softBusy: undefined,
-        assignmentConflict: undefined,
+        assignmentConflict: conflict,
+        blockReason: occupancyReason,
       };
     }
 
     return {
-      ...next,
+      ...vehicle,
+      fleetHardBlocked: undefined,
       softBusy: undefined,
       assignmentConflict: undefined,
     };
@@ -392,7 +457,10 @@ export function applySoftBusyToTrailers<T extends SoftBusyTrailerLike>(
         ...trailer,
         canBeAssigned: true as const,
         softBusy: true as const,
-        blockReason: trailer.blockReason ?? BUSY_ON_ACTIVE_TRIP,
+        blockReason:
+          assignmentOccupancyBadgeLabel(trailer.status) ??
+          trailer.blockReason ??
+          BUSY_ON_ACTIVE_TRIP,
       };
     }
 

@@ -77,6 +77,26 @@ describe("describeStampApiError", () => {
     expect(message).not.toContain("validación fiscal/XSD");
   });
 
+  it("hint CFDI40147 con RFC que contiene & se muestra sin entidad HTML literal", () => {
+    const hint =
+      "El código postal fiscal 01210 no coincide con el registrado ante el SAT para el RFC L&O950913MSA. Si la factura ya muestra ese código, no lo cambie en el cliente: confírmelo en la constancia de situación fiscal del receptor y, si es el mismo, pida apoyo a soporte.";
+    const error = new ApiError(
+      "El PAC rechazó el CFDI por validación fiscal/XSD.",
+      422,
+      "PAC_VALIDATION_ERROR",
+      {
+        pac_rule: "CFDI40147",
+        hint,
+      },
+    );
+
+    const message = describeStampApiError(error);
+
+    expect(message).toContain("L&O950913MSA");
+    expect(message).not.toContain("L&amp;O");
+    expect(message).not.toContain("validación fiscal/XSD");
+  });
+
   it("incluye hint de PAC_ISSUED_AT_OUT_OF_RANGE cuando aporta reintento", () => {
     const hint =
       "Vuelve a intentar el timbrado; al timbrar se actualiza la fecha de emisión. Si el error persiste: (1) si Comprobante.Fecha va adelantada vs el reloj ProFact, ajusta PROFACT_FECHA_CLOCK_OFFSET_MINUTES (sandbox suele necesitar -60); (2) verifica la hora del servidor API.";

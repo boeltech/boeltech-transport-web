@@ -72,4 +72,24 @@ describe("invalidateTripDetailSurface", () => {
 
     expect(queryClient.getQueryData(tripQueryKeys.timeline(tripId))).toBeUndefined();
   });
+
+  it("invalidates revenue-split alongside trip detail (C7)", async () => {
+    const tripId = "trip-5";
+    queryClient.setQueryData(tripQueryKeys.detail(tripId), { id: tripId });
+    queryClient.setQueryData(tripQueryKeys.revenueSplit(tripId), {
+      status: "active",
+    });
+
+    await invalidateTripDetailSurface(queryClient, tripId, {
+      status: TripStatus.CANCELLED,
+    });
+
+    expect(
+      queryClient.getQueryState(tripQueryKeys.detail(tripId))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(tripQueryKeys.revenueSplit(tripId))
+        ?.isInvalidated,
+    ).toBe(true);
+  });
 });

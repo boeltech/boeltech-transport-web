@@ -590,6 +590,12 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
       otherCosts: toNumberOrDefault(api.other_costs),
       totalCost: toNumberOrDefault(api.total_cost),
     },
+    facturadoVigente:
+      api.facturado_vigente == null
+        ? null
+        : toNumberOrDefault(api.facturado_vigente),
+    cobradoViaje:
+      api.cobrado_viaje == null ? null : toNumberOrDefault(api.cobrado_viaje),
 
     // Detailed costs y profitability se calculan aparte
     detailedCosts: null,

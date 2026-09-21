@@ -556,6 +556,17 @@ export interface Trip {
 
   // Costos
   readonly costs: CostBreakdown;
+  /**
+   * SUM subtotal CFDI ingreso stamped vigentes del viaje.
+   * Detail API; no confundir con `costs.baseRate` ni con `cobradoViaje`.
+   * Ausente en listados.
+   */
+  readonly facturadoVigente?: number | null;
+  /**
+   * Suma de montos aplicados a CFDI ingreso stamped vigentes del viaje.
+   * Detail API; no confundir con `costs.baseRate`. Ausente en listados.
+   */
+  readonly cobradoViaje?: number | null;
   readonly detailedCosts: DetailedCostBreakdown | null;
   readonly profitability: TripProfitability | null;
 

@@ -27,7 +27,11 @@ import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useActiveClients } from "@features/clients/application";
-import type { Trip, TripRevenueSplit } from "@features/trips/domain";
+import {
+  TripStatus,
+  type Trip,
+  type TripRevenueSplit,
+} from "@features/trips/domain";
 import {
   useDeleteTripRevenueSplit,
   useTripRevenueSplit,
@@ -42,7 +46,10 @@ import {
   type TripRevenueSplitFormValues,
 } from "../helpers/tripRevenueSplitDraft";
 import { canUpsertTripRevenueSplit } from "./trip-fiscal/tripFiscalHelpers";
-import { TripRevenueSplitCancelDialog } from "./TripRevenueSplitCancelDialog";
+import {
+  TripRevenueSplitCancelDialog,
+  type TripRevenueSplitCancelDialogMode,
+} from "./TripRevenueSplitCancelDialog";
 import { TripRevenueSplitEditorSection } from "./TripRevenueSplitEditorSection";
 import { TripRevenueSplitLegListReadOnly } from "./TripRevenueSplitLegListReadOnly";
 import {
@@ -215,7 +222,11 @@ function TripRevenueSplitSheetBody({
       setEditorOpen(false);
     } else {
       reset(buildRevenueSplitFormValuesFromSplit(nextSplit, trip.clientId));
-      setEditorOpen(nextSplit.status !== "active" && upsertEligibility.allowed);
+      setEditorOpen(
+        nextSplit.status === "draft" &&
+          upsertEligibility.allowed &&
+          trip.status !== TripStatus.CANCELLED,
+      );
     }
     setSessionDirty(false);
     setShowSummary(false);
@@ -251,29 +262,59 @@ function TripRevenueSplitSheetBody({
     return client?.tradeName || client?.legalName || clientId.slice(0, 8);
   };
 
+  const isTripCancelled = trip.status === TripStatus.CANCELLED;
   const isActive = split?.status === "active";
+  const isSplitCancelled = split?.status === "cancelled";
+  const isDraft = split?.status === "draft";
+  const legsWithoutInvoice =
+    split?.legs.every((leg) => !leg.invoiceId) ?? false;
+  const hasInvoicedLegs =
+    split?.legs.some((leg) => Boolean(leg.invoiceId)) ?? false;
+
+  // C7: viaje cancelled → sheet en modo cierre / read-only (sin creates).
   const showEditor =
     canUpdate &&
+    !isTripCancelled &&
     !isActive &&
+    !isSplitCancelled &&
     upsertEligibility.allowed &&
     (editorOpen || split != null);
   const showStartCta =
     canUpdate &&
+    !isTripCancelled &&
     !isActive &&
+    !isSplitCancelled &&
     !showEditor &&
     !split &&
     upsertEligibility.allowed;
   const showDraftReadOnly =
-    split != null && split.status !== "active" && !upsertEligibility.allowed;
+    isDraft && !upsertEligibility.allowed && !isTripCancelled;
+  const showCancelledReadOnly = isSplitCancelled;
+  const showPostCancelActive =
+    isTripCancelled && isActive && split != null;
+
+  // DELETE normal (viaje vivo) o escape hatch C7 (cancelled + active sin facturas).
   const canCancelActive =
     canUpdate &&
+    !isTripCancelled &&
     isActive &&
-    split.legs.every((leg) => !leg.invoiceId);
+    legsWithoutInvoice;
   const canCancelDraft =
     canUpdate &&
-    split != null &&
-    split.status !== "active" &&
-    split.legs.every((leg) => !leg.invoiceId);
+    !isTripCancelled &&
+    isDraft &&
+    legsWithoutInvoice;
+  const canEscapeCancelActive =
+    canUpdate &&
+    isTripCancelled &&
+    isActive &&
+    legsWithoutInvoice;
+  const showCancelButton =
+    canCancelActive || canCancelDraft || canEscapeCancelActive;
+  const cancelDialogMode: TripRevenueSplitCancelDialogMode =
+    canEscapeCancelActive ? "escape" : "default";
+  const pendingLegMode =
+    isTripCancelled || isSplitCancelled ? "doNotIssue" : "default";
 
   function applyPreset6040() {
     const current = getValues("legs");
@@ -445,8 +486,16 @@ function TripRevenueSplitSheetBody({
         ) : null}
 
         {split ? (
-          <Badge variant={isActive ? "default" : "outline"}>
-            {isActive ? sectionCopy.splitLabel : splitCopy.draftChip}
+          <Badge
+            variant={
+              isActive ? "default" : isSplitCancelled ? "secondary" : "outline"
+            }
+          >
+            {isActive
+              ? sectionCopy.splitLabel
+              : isSplitCancelled
+                ? splitCopy.cancelledChip
+                : splitCopy.draftChip}
           </Badge>
         ) : null}
 
@@ -459,12 +508,34 @@ function TripRevenueSplitSheetBody({
           </div>
         ) : null}
 
-        {isActive && split ? (
+        {showPostCancelActive && split ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">
+              {splitCopy.postCancelActiveTitle}
+            </p>
+            {hasInvoicedLegs ? (
+              <p className="text-xs text-muted-foreground">
+                {splitCopy.postCancelActiveHint}
+              </p>
+            ) : null}
+            <TripRevenueSplitLegListReadOnly
+              split={split}
+              trip={trip}
+              pendingLegMode={pendingLegMode}
+            />
+          </div>
+        ) : null}
+
+        {isActive && split && !isTripCancelled ? (
           <div className="space-y-2">
             <p className="text-sm font-medium">
               {splitCopy.activeReadOnlyTitle}
             </p>
-            <TripRevenueSplitLegListReadOnly split={split} trip={trip} />
+            <TripRevenueSplitLegListReadOnly
+              split={split}
+              trip={trip}
+              pendingLegMode={pendingLegMode}
+            />
           </div>
         ) : null}
         {showDraftReadOnly && split ? (
@@ -472,7 +543,23 @@ function TripRevenueSplitSheetBody({
             <p className="text-sm font-medium">
               {splitCopy.draftReadOnlyTitle}
             </p>
-            <TripRevenueSplitLegListReadOnly split={split} trip={trip} />
+            <TripRevenueSplitLegListReadOnly
+              split={split}
+              trip={trip}
+              pendingLegMode={pendingLegMode}
+            />
+          </div>
+        ) : null}
+        {showCancelledReadOnly && split ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">
+              {splitCopy.cancelledReadOnlyTitle}
+            </p>
+            <TripRevenueSplitLegListReadOnly
+              split={split}
+              trip={trip}
+              pendingLegMode={pendingLegMode}
+            />
           </div>
         ) : null}
 
@@ -507,7 +594,7 @@ function TripRevenueSplitSheetBody({
           />
         ) : null}
 
-        {canCancelActive || canCancelDraft ? (
+        {showCancelButton ? (
           <Button
             type="button"
             size="sm"
@@ -515,11 +602,13 @@ function TripRevenueSplitSheetBody({
             onClick={() => setCancelDialogOpen(true)}
             disabled={remove.isPending}
           >
-            {splitCopy.cancelActive}
+            {canEscapeCancelActive
+              ? splitCopy.escapeCancelActive
+              : splitCopy.cancelActive}
           </Button>
         ) : null}
 
-        {isActive ? (
+        {isActive && !isTripCancelled ? (
           <p className="text-xs text-muted-foreground">
             {tripFiscalCopy.invoiceActions.collectionByReceiverHint}
           </p>
@@ -550,6 +639,7 @@ function TripRevenueSplitSheetBody({
         open={cancelDialogOpen}
         onOpenChange={setCancelDialogOpen}
         isPending={remove.isPending}
+        mode={cancelDialogMode}
         onConfirm={() => {
           void onCancel();
         }}

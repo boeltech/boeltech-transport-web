@@ -113,6 +113,11 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   onQuickCloseTrip?: () => void;
   /** ADR-0079 / ADR-0088: oculta atajo si el viaje es en falso. */
   operationalOutcome?: TripOperationalOutcomeType;
+  /**
+   * T4-043 / ADR-0081: prorrateo activo (`invoicing.hasActiveSplit`).
+   * Si true, no se muestra el CTA de viaje en falso (mutex API).
+   */
+  hasActiveSplit?: boolean;
   /** PD1: CTA secundario «El cliente canceló la carga» → sheet de declaración. */
   onDeclareFalseTrip?: () => void;
   /** Evidencia contextual: el padre abre sheets con esta parada como referencia GPS. */
@@ -520,6 +525,7 @@ export function TripTrackingStopsCargosMasterDetail({
   onCloseTrip,
   onQuickCloseTrip,
   operationalOutcome,
+  hasActiveSplit = false,
   onDeclareFalseTrip,
   onRegisterNote,
   onRegisterIncident,
@@ -675,10 +681,14 @@ export function TripTrackingStopsCargosMasterDetail({
     canOperateTracking &&
     onQuickCloseTrip != null &&
     canQuickCloseTrip(tripStatus, stops, cargos, operationalOutcome);
-  const showsDeclareFalseTripCta =
+  const declareFalseTripBaseEligible =
     canOperateTracking &&
     onDeclareFalseTrip != null &&
-    canDeclareFalseTrip(tripStatus, stops, cargos);
+    canDeclareFalseTrip(tripStatus, stops, cargos, false);
+  const showsDeclareFalseTripCta =
+    declareFalseTripBaseEligible && !hasActiveSplit;
+  const showsDeclareFalseTripSplitBlockHint =
+    declareFalseTripBaseEligible && hasActiveSplit;
 
   const handleSelect = (stopId: string) => {
     setUserSelectedId(stopId);
@@ -837,6 +847,14 @@ export function TripTrackingStopsCargosMasterDetail({
                     {STOP_TRANSITION_COPY.declareFalseTrip}
                   </p>
                 </div>
+              ) : showsDeclareFalseTripSplitBlockHint ? (
+                <p
+                  id={declareFalseTripHintId}
+                  className="text-xs text-muted-foreground"
+                  role="status"
+                >
+                  {trackingCopy.hint.declareFalseTripBlockedBySplit}
+                </p>
               ) : null}
               {primary.kind === "cargo_blocked" &&
               primary.stop &&

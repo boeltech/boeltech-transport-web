@@ -1038,6 +1038,10 @@ export function TripFormPage() {
               softBusySelectable={softBusySelectable}
               allowExpiredDocs={allowExpiredDocs}
               onAllowExpiredDocsChange={setAllowExpiredDocs}
+              keepVehicleId={
+                isEditMode ? existingTrip?.vehicleId : undefined
+              }
+              keepDriverId={isEditMode ? existingTrip?.driverId : undefined}
             />
           );
         case 1:

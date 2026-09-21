@@ -60,6 +60,8 @@ export type QuickCloseTripSheetProps = {
   destinationStop?: TripStop | null;
   /** ADR-0093 — soft-warn al finalizar con bandera fiscal. */
   requiresFiscalAttention?: boolean;
+  /** Soft-warn al completar con incidente en bitácora (solo aviso). */
+  hasOpenIncident?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -90,6 +92,7 @@ function QuickCloseTripSheetBody({
   actualDeparture,
   destinationStop,
   requiresFiscalAttention = false,
+  hasOpenIncident = false,
   onOpenChange,
   onSuccess,
 }: QuickCloseTripSheetBodyProps) {
@@ -243,6 +246,9 @@ function QuickCloseTripSheetBody({
             ...(requiresFiscalAttention
               ? [{ text: copy.sheet.quickCloseFiscalAttention }]
               : []),
+            ...(hasOpenIncident
+              ? [{ text: copy.sheet.closeOpenIncidentWarning }]
+              : []),
           ]}
         />
 
@@ -349,6 +355,7 @@ export function QuickCloseTripSheet({
   actualDeparture,
   destinationStop,
   requiresFiscalAttention = false,
+  hasOpenIncident = false,
   open,
   onOpenChange,
   onSuccess,
@@ -376,6 +383,7 @@ export function QuickCloseTripSheet({
             actualDeparture={actualDeparture}
             destinationStop={destinationStop}
             requiresFiscalAttention={requiresFiscalAttention}
+            hasOpenIncident={hasOpenIncident}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

@@ -93,6 +93,7 @@ import {
 import { resolveSelectedAssignmentLicenseSoftSignal } from "../../pages/create/tripAssignmentLicenseMatch";
 import { getDriverLicenseAssignmentSoftSignal } from "@features/drivers";
 import {
+  isExpiredDocsGroupMember,
   shouldClearVehicleSelection,
   shouldClearDriverSelection,
 } from "../../pages/create/tripAssignmentSelectability";
@@ -174,10 +175,10 @@ export function TripFleetAssignmentSheet({
           isPaymentResponsible: m.isPaymentResponsible ?? false,
           paymentNotes: m.paymentNotes ?? "",
         })) ?? [],
-      // Privileged roles: opt-in exception on by default; user may uncheck when visible.
-      allowExpiredDocs: canAllowExpiredDocs,
+      // ADR-0066: default off (parity with canvas /trips/new). Opt-in only.
+      allowExpiredDocs: false,
     };
-  }, [trip, canAllowExpiredDocs]);
+  }, [trip]);
 
   const form = useForm<TripFleetAssignmentFormValues>({
     resolver: zodResolver(
@@ -392,12 +393,8 @@ export function TripFleetAssignmentSheet({
 
   const expiredDocsVehicles = useMemo(
     () =>
-      scopedVehicles.filter(
-        (v) =>
-          !v.canBeAssigned &&
-          !v.softBusy &&
-          effectiveAllowExpiredDocs &&
-          v.expiredDocsOverridable === true,
+      scopedVehicles.filter((v) =>
+        isExpiredDocsGroupMember(v, effectiveAllowExpiredDocs),
       ),
     [scopedVehicles, effectiveAllowExpiredDocs],
   );
@@ -408,7 +405,7 @@ export function TripFleetAssignmentSheet({
         (v) =>
           !v.canBeAssigned &&
           !v.softBusy &&
-          !(effectiveAllowExpiredDocs && v.expiredDocsOverridable === true),
+          !isExpiredDocsGroupMember(v, effectiveAllowExpiredDocs),
       ),
     [scopedVehicles, effectiveAllowExpiredDocs],
   );
@@ -507,17 +504,14 @@ export function TripFleetAssignmentSheet({
     );
     const expiredDocs = scopedDrivers.filter(
       (d) =>
-        !d.canBeAssigned &&
-        !d.softBusy &&
-        d.expiredDocsOverridable === true &&
-        effectiveAllowExpiredDocs &&
+        isExpiredDocsGroupMember(d, effectiveAllowExpiredDocs) &&
         keepInDriverSelect(d),
     );
     const blocked = scopedDrivers.filter(
       (d) =>
         !d.canBeAssigned &&
         !d.softBusy &&
-        !(effectiveAllowExpiredDocs && d.expiredDocsOverridable === true) &&
+        !isExpiredDocsGroupMember(d, effectiveAllowExpiredDocs) &&
         keepInDriverSelect(d),
     );
 
@@ -536,6 +530,11 @@ export function TripFleetAssignmentSheet({
 
   // Auto-clear selection when filters change and selected item is no longer selectable.
   // Only while the sheet is open — otherwise the always-mounted sheet would toast on trip detail enter.
+  // Keep-current grandfather: do not clear the trip's current vehicle/driver for expired docs
+  // when allowExpiredDocs is off (ADR-0066 reopen).
+  const keepVehicleId = trip.vehicle?.id ?? trip.vehicleId;
+  const keepDriverId = trip.driver?.id ?? trip.driverId;
+
   useEffect(() => {
     if (!open) return;
     if (!watchedVehicleId) return;
@@ -544,6 +543,7 @@ export function TripFleetAssignmentSheet({
       shouldClearVehicleSelection(vehicle, {
         allowExpiredDocs: effectiveAllowExpiredDocs,
         inBranchScope: matchesOriginBranch(vehicle?.branchId),
+        keepResourceId: keepVehicleId,
       })
     ) {
       setValue("vehicleId", "", { shouldDirty: true, shouldValidate: true });
@@ -562,6 +562,7 @@ export function TripFleetAssignmentSheet({
     watchedVehicleId,
     vehicles,
     matchesOriginBranch,
+    keepVehicleId,
     setValue,
     toast,
   ]);
@@ -574,6 +575,7 @@ export function TripFleetAssignmentSheet({
       shouldClearDriverSelection(driver, {
         allowExpiredDocs: effectiveAllowExpiredDocs,
         inBranchScope: matchesOriginBranch(driver?.branchId),
+        keepResourceId: keepDriverId,
       })
     ) {
       setValue("driverId", "", { shouldDirty: true, shouldValidate: true });
@@ -591,6 +593,7 @@ export function TripFleetAssignmentSheet({
     watchedDriverId,
     assignableDrivers,
     matchesOriginBranch,
+    keepDriverId,
     setValue,
     toast,
   ]);

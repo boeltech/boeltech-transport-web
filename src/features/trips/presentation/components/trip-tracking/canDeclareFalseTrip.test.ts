@@ -64,4 +64,18 @@ describe("canDeclareFalseTrip", () => {
       canDeclareFalseTrip(TripStatus.COMPLETED, [originArrived]),
     ).toBe(false);
   });
+
+  it("is false when revenue split is active (T4-043 mutex with false_trip)", () => {
+    expect(
+      canDeclareFalseTrip(TripStatus.IN_PROGRESS, [originArrived], [], true),
+    ).toBe(false);
+    expect(
+      canDeclareFalseTrip(
+        TripStatus.IN_PROGRESS,
+        [originArrived],
+        [cargo({ status: CargoStatus.PENDING })],
+        true,
+      ),
+    ).toBe(false);
+  });
 });

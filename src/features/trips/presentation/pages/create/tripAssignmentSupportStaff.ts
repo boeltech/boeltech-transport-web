@@ -4,6 +4,7 @@ import type { DriverListItem } from "@features/drivers/domain";
 import {
   BUSY_ON_ACTIVE_TRIP,
   HELD_ON_DRAFT_RESERVE,
+  assignmentOccupancyBadgeLabel,
   conflictBadgeLabel,
   type AssignmentConflict,
   type BusyAssignmentResourceIds,
@@ -110,7 +111,9 @@ function classifySupportStaffAssignability(
           assignmentConflict: conflict,
           blockReason: conflict
             ? conflictBadgeLabel(conflict)
-            : (driverAssignability.blockReason ?? BUSY_ON_ACTIVE_TRIP),
+            : (assignmentOccupancyBadgeLabel(driver.status) ??
+              driverAssignability.blockReason ??
+              BUSY_ON_ACTIVE_TRIP),
         };
       }
       if (busyResources.driverIds.has(driver.id)) {

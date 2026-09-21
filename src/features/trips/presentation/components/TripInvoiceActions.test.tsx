@@ -162,3 +162,105 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1");
   });
 });
+
+describe("TripInvoiceActions cancelled trip (hard-gate create)", () => {
+  beforeEach(() => {
+    mockNavigate.mockReset();
+  });
+
+  it("headerMenu: hides all create CTAs even if API canGenerate* is true", async () => {
+    const user = userEvent.setup();
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <TripInvoiceActions
+            trip={makeTrip({
+              status: TripStatus.CANCELLED,
+              operationalOutcome: "standard",
+              invoicing: tripInvoicingFixture({
+                canGenerateInvoice: true,
+                canGenerateAccessoryInvoice: true,
+                canGenerateFalseTripInvoice: true,
+                canGenerateSplitShareInvoice: true,
+                invoiceId: "inv-cancelled-1",
+                invoiceFolio: "A-1",
+                invoiceStatus: "stamped",
+                hasActivePrincipalInvoice: true,
+                accessoryInvoices: [
+                  {
+                    id: "acc-1",
+                    folio: "ACC-1",
+                    status: "stamped",
+                    total: 100,
+                  },
+                ],
+              }),
+            })}
+            presentation="headerMenu"
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.viewPrimary,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.viewAccessory("ACC-1"),
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generateAccessory,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("inline: does not offer create CTA when cancelled despite canGenerate flags", () => {
+    renderActions(
+      makeTrip({
+        status: TripStatus.CANCELLED,
+        operationalOutcome: "false_trip",
+        invoicing: tripInvoicingFixture({
+          canGenerateFalseTripInvoice: true,
+          canGenerateInvoice: true,
+          canGenerateAccessoryInvoice: true,
+        }),
+      }),
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
+  });
+});

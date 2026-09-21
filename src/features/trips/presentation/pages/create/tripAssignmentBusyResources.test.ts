@@ -7,8 +7,10 @@ import {
   applyBusyResourcesToVehicles,
   applyDraftHoldSoftSignalToVehicles,
   applySoftBusyToTrailers,
+  assignmentOccupancyBadgeLabel,
   buildBusyAssignmentResourceIds,
   buildDraftHoldAssignmentResourceIds,
+  conflictBadgeLabel,
   filterTripsOverlappingWindow,
   pickPreferredConflict,
   tripScheduleWindowsOverlap,
@@ -48,6 +50,44 @@ function vehicle(
     ...over,
   } as AssignableVehicleItem;
 }
+
+describe("assignmentOccupancyBadgeLabel / conflictBadgeLabel", () => {
+  it("uses the same badge for trip in_progress and fleet on_trip", () => {
+    expect(assignmentOccupancyBadgeLabel("on_trip")).toBe("En Viaje");
+    expect(assignmentOccupancyBadgeLabel(TripStatus.IN_PROGRESS)).toBe(
+      "En Viaje",
+    );
+    expect(
+      conflictBadgeLabel({ status: TripStatus.IN_PROGRESS }),
+    ).toBe("En Viaje");
+  });
+
+  it("uses the same badge for trip scheduled and fleet reserved", () => {
+    expect(assignmentOccupancyBadgeLabel("reserved")).toBe("Reservado");
+    expect(assignmentOccupancyBadgeLabel(TripStatus.SCHEDULED)).toBe(
+      "Reservado",
+    );
+    expect(conflictBadgeLabel({ status: TripStatus.SCHEDULED })).toBe(
+      "Reservado",
+    );
+  });
+
+  it("aligns softBusy trailer on_trip badge with vehicle occupancy label", () => {
+    const result = applySoftBusyToTrailers(
+      [
+        {
+          id: "trl-1",
+          status: "on_trip",
+          canBeAssigned: false,
+          blockReason: "En viaje",
+        },
+      ],
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]?.blockReason).toBe("En Viaje");
+  });
+});
 
 describe("buildBusyAssignmentResourceIds", () => {
   it("includes vehicle and driver from in_progress and scheduled trips", () => {
@@ -183,7 +223,7 @@ describe("applyBusyResourcesToVehicles", () => {
     expect(result.find((v) => v.id === "veh-busy")).toMatchObject({
       canBeAssigned: true,
       softBusy: true,
-      blockReason: "Programado",
+      blockReason: "Reservado",
       assignmentConflict: conflict,
     });
     expect(result.find((v) => v.id === "veh-free")?.softBusy).toBeUndefined();
@@ -248,13 +288,39 @@ describe("applyBusyResourcesToVehicles", () => {
     });
   });
 
+  it("keeps available+expired vehicle when it is the trip current assignment", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-current", {
+          status: "available",
+          canBeAssigned: false,
+          expiredDocsOverridable: true,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(),
+      {
+        softBusySelectable: true,
+        keepAssignableVehicleId: "veh-current",
+      },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      expiredDocsOverridable: true,
+      blockReason: "Seguro vencido",
+      softBusy: undefined,
+      fleetHardBlocked: undefined,
+    });
+  });
+
   it("keeps on_trip vehicle assignable when it is the trip current assignment", () => {
     const result = applyBusyResourcesToVehicles(
       [
         vehicle("veh-current", {
           status: "on_trip",
           canBeAssigned: false,
-          blockReason: "En viaje",
+          blockReason: "En Viaje",
         }),
       ],
       new Set(),
@@ -273,7 +339,7 @@ describe("applyBusyResourcesToVehicles", () => {
         vehicle("veh-other", {
           status: "on_trip",
           canBeAssigned: false,
-          blockReason: "En viaje",
+          blockReason: "En Viaje",
         }),
       ],
       new Set(),
@@ -282,7 +348,8 @@ describe("applyBusyResourcesToVehicles", () => {
 
     expect(result[0]).toMatchObject({
       canBeAssigned: false,
-      blockReason: "En viaje",
+      fleetHardBlocked: true,
+      blockReason: "En Viaje",
     });
   });
 
@@ -306,6 +373,123 @@ describe("applyBusyResourcesToVehicles", () => {
       blockReason: "Seguro vencido",
     });
     expect(result[0]?.softBusy).toBeUndefined();
+    expect(result[0]?.fleetHardBlocked).toBeUndefined();
+  });
+
+  it("does not promote on_trip+expiredDocs to softBusy (docs group priority)", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-expired-on-trip", {
+          status: "on_trip",
+          canBeAssigned: false,
+          expiredDocsOverridable: true,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      expiredDocsOverridable: true,
+      blockReason: "Seguro vencido",
+    });
+    expect(result[0]?.softBusy).toBeUndefined();
+    expect(result[0]?.fleetHardBlocked).toBeUndefined();
+  });
+
+  it("still soft-promotes on_trip with docs OK", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-on-trip-ok", {
+          status: "on_trip",
+          canBeAssigned: false,
+          blockReason: "En Viaje",
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: true },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      blockReason: "En Viaje",
+    });
+  });
+
+  it("hard-blocks on_trip+expiredDocs when softBusySelectable is false", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-expired-on-trip", {
+          status: "on_trip",
+          canBeAssigned: false,
+          expiredDocsOverridable: true,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: false },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      fleetHardBlocked: true,
+      blockReason: "En Viaje",
+    });
+  });
+
+  it("hard-blocks reserved+expiredDocs when softBusySelectable is false", () => {
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-expired-reserved", {
+          status: "reserved",
+          canBeAssigned: false,
+          expiredDocsOverridable: true,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: false },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      fleetHardBlocked: true,
+      blockReason: "Reservado",
+    });
+  });
+
+  it("hard-blocks busy+expired available vehicle when softBusySelectable is false", () => {
+    const conflict = {
+      tripId: "t1",
+      tripCode: "V-100",
+      status: TripStatus.IN_PROGRESS,
+      scheduledDeparture: new Date("2026-06-03T08:00:00Z"),
+    };
+    const result = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-busy-expired", {
+          status: "available",
+          canBeAssigned: false,
+          expiredDocsOverridable: true,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(["veh-busy-expired"]),
+      {
+        softBusySelectable: false,
+        conflicts: new Map([["veh-busy-expired", conflict]]),
+      },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      fleetHardBlocked: true,
+      blockReason: "En Viaje",
+      assignmentConflict: conflict,
+    });
   });
 });
 
@@ -445,6 +629,38 @@ describe("buildDraftHoldAssignmentResourceIds + applyDraftHoldSoftSignal", () =>
     expect(result[0]).toMatchObject({
       canBeAssigned: false,
       softBusy: undefined,
+    });
+  });
+
+  it("preserves expired-docs blockReason when soft-holding keep current", () => {
+    const conflict = {
+      tripId: "d1",
+      tripCode: "RSV-1",
+      status: TripStatus.DRAFT,
+      scheduledDeparture: new Date("2026-08-30T10:00:00Z"),
+    };
+    const kept = applyBusyResourcesToVehicles(
+      [
+        vehicle("veh-hold", {
+          canBeAssigned: false,
+          expiredDocsOverridable: true,
+          blockReason: "Seguro vencido",
+        }),
+      ],
+      new Set(),
+      { keepAssignableVehicleId: "veh-hold" },
+    );
+    const result = applyDraftHoldSoftSignalToVehicles(
+      kept,
+      new Set(["veh-hold"]),
+      { conflicts: new Map([["veh-hold", conflict]]) },
+    );
+    expect(result[0]).toMatchObject({
+      canBeAssigned: true,
+      softBusy: true,
+      expiredDocsOverridable: true,
+      blockReason: "Seguro vencido",
+      assignmentConflict: conflict,
     });
   });
 });

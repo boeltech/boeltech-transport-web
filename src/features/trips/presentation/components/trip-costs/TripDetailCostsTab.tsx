@@ -65,6 +65,10 @@ export interface TripDetailCostsTabProps {
   tripId: string;
   tripStatus: string;
   baseRate: number;
+  /** Subtotal CFDI ingreso stamped vigentes; distinta de tarifa base. */
+  facturadoVigente?: number | null;
+  /** Cobranza aplicada a CFDI del viaje; distinta de tarifa base. */
+  cobradoViaje?: number | null;
   cfdiDocumentIntent: "ingreso" | "traslado";
   clientId?: string;
   vehicleId?: string;
@@ -264,6 +268,8 @@ export function TripDetailCostsTab({
   tripId,
   tripStatus,
   baseRate,
+  facturadoVigente = null,
+  cobradoViaje = null,
   cfdiDocumentIntent,
   clientId,
   vehicleId,
@@ -673,6 +679,8 @@ export function TripDetailCostsTab({
             snapshot={financialSnapshot}
             variant="totals"
             summaryCopy={copy.financialSummary}
+            facturadoVigente={facturadoVigente}
+            cobradoViaje={cobradoViaje}
             title={
               isCompleted
                 ? copy.financialSummary.section.title

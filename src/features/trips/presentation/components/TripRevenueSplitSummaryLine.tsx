@@ -5,7 +5,7 @@
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
-import type { Trip } from "@features/trips/domain";
+import { TripStatus, type Trip } from "@features/trips/domain";
 import { useTripRevenueSplit } from "@features/trips/application";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 
@@ -23,6 +23,7 @@ export function TripRevenueSplitSummaryLine({
   const { hasPermission } = usePermissions();
   const canRead = hasPermission("trips", "read");
   const isFalseTrip = trip.operationalOutcome === "false_trip";
+  const isTripCancelled = trip.status === TripStatus.CANCELLED;
 
   const { data: split } = useTripRevenueSplit(trip.id, {
     enabled:
@@ -36,7 +37,7 @@ export function TripRevenueSplitSummaryLine({
   if (isFalseTrip || !canRead) return null;
 
   const isActive = trip.invoicing.hasActiveSplit;
-  const isDraft = split != null && split.status !== "active";
+  const isDraft = split?.status === "draft";
 
   if (!isActive && !isDraft) return null;
 
@@ -61,8 +62,9 @@ export function TripRevenueSplitSummaryLine({
 
   const clients = trip.invoicing.splitLegsTotal;
   const invoiced = trip.invoicing.splitLegsInvoiced;
-  const summaryLine =
-    invoiced >= clients && clients > 0
+  const summaryLine = isTripCancelled
+    ? splitCopy.summaryPostCancel(clients)
+    : invoiced >= clients && clients > 0
       ? splitCopy.summaryComplete(clients)
       : invoiced > 0
         ? splitCopy.summaryInProgress(clients)

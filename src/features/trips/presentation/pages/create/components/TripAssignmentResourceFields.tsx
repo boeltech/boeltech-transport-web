@@ -45,6 +45,7 @@ import { wizardCopy } from "../../../copy";
 import type { AssignableDriverItem } from "../tripAssignmentDrivers";
 import { resolveSelectedAssignmentLicenseSoftSignal } from "../tripAssignmentLicenseMatch";
 import {
+  isExpiredDocsGroupMember,
   shouldClearDriverSelection,
   shouldClearVehicleSelection,
 } from "../tripAssignmentSelectability";
@@ -82,6 +83,9 @@ export interface TripAssignmentResourceFieldsProps {
   /** ADR-0066: intención del operador (fuente de verdad del payload). */
   allowExpiredDocs: boolean;
   onAllowExpiredDocsChange: (value: boolean) => void;
+  /** Edit/reopen: IDs already on the trip — do not auto-clear for expired docs. */
+  keepVehicleId?: string;
+  keepDriverId?: string;
 }
 
 export function TripAssignmentResourceFields({
@@ -96,6 +100,8 @@ export function TripAssignmentResourceFields({
   softBusySelectable = false,
   allowExpiredDocs,
   onAllowExpiredDocsChange,
+  keepVehicleId,
+  keepDriverId,
 }: TripAssignmentResourceFieldsProps) {
   const { control } = form;
   const selectedVehicleId = form.watch("vehicleId");
@@ -140,18 +146,14 @@ export function TripAssignmentResourceFields({
     (v) => v.canBeAssigned && !v.softBusy,
   );
   const softBusyVehicles = scopedVehicles.filter((v) => v.softBusy === true);
-  const expiredDocsVehicles = scopedVehicles.filter(
-    (v) =>
-      !v.canBeAssigned &&
-      !v.softBusy &&
-      effectiveAllowExpiredDocs &&
-      v.expiredDocsOverridable === true,
+  const expiredDocsVehicles = scopedVehicles.filter((v) =>
+    isExpiredDocsGroupMember(v, effectiveAllowExpiredDocs),
   );
   const blockedVehicles = scopedVehicles.filter(
     (v) =>
       !v.canBeAssigned &&
       !v.softBusy &&
-      !(effectiveAllowExpiredDocs && v.expiredDocsOverridable === true),
+      !isExpiredDocsGroupMember(v, effectiveAllowExpiredDocs),
   );
 
   const hasExpiredDocsInScope = useMemo(
@@ -261,17 +263,14 @@ export function TripAssignmentResourceFields({
     );
     const expiredDocsSelectable = scopedDrivers.filter(
       (d) =>
-        !d.canBeAssigned &&
-        !d.softBusy &&
-        d.expiredDocsOverridable === true &&
-        effectiveAllowExpiredDocs &&
+        isExpiredDocsGroupMember(d, effectiveAllowExpiredDocs) &&
         keepInDriverSelect(d),
     );
     const blocked = scopedDrivers.filter(
       (d) =>
         !d.canBeAssigned &&
         !d.softBusy &&
-        !(effectiveAllowExpiredDocs && d.expiredDocsOverridable === true) &&
+        !isExpiredDocsGroupMember(d, effectiveAllowExpiredDocs) &&
         keepInDriverSelect(d),
     );
     return {
@@ -294,6 +293,7 @@ export function TripAssignmentResourceFields({
       shouldClearVehicleSelection(vehicle, {
         allowExpiredDocs: effectiveAllowExpiredDocs,
         inBranchScope: matchesOriginBranch(vehicle?.branchId),
+        keepResourceId: keepVehicleId,
       })
     ) {
       form.setValue("vehicleId", "", { shouldDirty: true, shouldValidate: true });
@@ -312,6 +312,7 @@ export function TripAssignmentResourceFields({
     selectedVehicleId,
     vehicles,
     matchesOriginBranch,
+    keepVehicleId,
     form,
     toast,
   ]);
@@ -323,6 +324,7 @@ export function TripAssignmentResourceFields({
       shouldClearDriverSelection(driver, {
         allowExpiredDocs: effectiveAllowExpiredDocs,
         inBranchScope: matchesOriginBranch(driver?.branchId),
+        keepResourceId: keepDriverId,
       })
     ) {
       form.setValue("driverId", "", { shouldDirty: true, shouldValidate: true });
@@ -339,6 +341,7 @@ export function TripAssignmentResourceFields({
     selectedDriverId,
     drivers,
     matchesOriginBranch,
+    keepDriverId,
     form,
     toast,
   ]);

@@ -69,6 +69,10 @@ interface TripTrackingTabProps {
   operationalOutcome?: TripOperationalOutcomeType;
   /** ADR-0079: actor del falso si el API lo envía en el viaje (fallback de bitácora). */
   falseTripDeclaredBy?: string | null;
+  /**
+   * T4-043: `trip.invoicing.hasActiveSplit` — bloquea CTA de viaje en falso.
+   */
+  hasActiveSplit?: boolean;
   /** ADR-0093 — soft-warn al finalizar. */
   requiresFiscalAttention?: boolean;
   onCargosChanged?: () => void;
@@ -84,6 +88,7 @@ export function TripTrackingTab({
   cargos: cargosProp = [],
   operationalOutcome,
   falseTripDeclaredBy = null,
+  hasActiveSplit = false,
   requiresFiscalAttention = false,
   onCargosChanged,
 }: TripTrackingTabProps) {
@@ -417,6 +422,7 @@ export function TripTrackingTab({
           canOperateTracking ? () => setQuickCloseSheetOpen(true) : undefined
         }
         operationalOutcome={operationalOutcome}
+        hasActiveSplit={hasActiveSplit}
         onDeclareFalseTrip={
           canOperateTracking ? () => setFalseTripSheetOpen(true) : undefined
         }
@@ -576,6 +582,7 @@ export function TripTrackingTab({
             cargos={cargos}
             orderedStops={orderedStops}
             requiresFiscalAttention={requiresFiscalAttention}
+            hasOpenIncident={timeline.trip.hasOpenIncident}
             open={tripArrivalSheetOpen}
             onOpenChange={setTripArrivalSheetOpen}
           />
@@ -589,6 +596,7 @@ export function TripTrackingTab({
             actualDeparture={timeline.trip.actualDeparture ?? undefined}
             destinationStop={destinationStop}
             requiresFiscalAttention={requiresFiscalAttention}
+            hasOpenIncident={timeline.trip.hasOpenIncident}
             open={quickCloseSheetOpen}
             onOpenChange={setQuickCloseSheetOpen}
           />

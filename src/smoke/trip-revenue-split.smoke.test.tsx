@@ -27,6 +27,7 @@ import {
   InvoiceBillingScopeBadge,
   resolveInvoiceBillingScope,
 } from "@features/invoicing/presentation/components/InvoiceBillingScopeBadge";
+import { InvoiceCreateContextCards } from "@features/invoicing/presentation/components/InvoiceCreateContextCards";
 import { toApiCreateInvoice } from "@features/invoicing/infrastructure/mappers";
 import type { CreateInvoicePayload } from "@features/invoicing/domain";
 import {
@@ -493,5 +494,36 @@ describe("smoke ADR-0081 trip revenue split", () => {
         name: tripFiscalCopy.invoiceActions.generateSplitShare(CLIENT_A),
       }),
     ).toBeInTheDocument();
+  });
+
+  it("Nueva factura split_share: CP visible y disabled (carrier checked; no toggle)", async () => {
+    const user = userEvent.setup();
+    render(
+      <TestProviders>
+        <InvoiceCreateContextCards
+          mode="create"
+          receiverName={CLIENT_A}
+          receiverRfc={RFC_A}
+          total={6960}
+          sharePercent={60}
+          splitLegsInvoiced={0}
+          splitLegsTotal={2}
+          attachCartaPorte
+          showCartaPorte
+        />
+      </TestProviders>,
+    );
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: new RegExp(invoicingCopy.splitShare.attachCartaPorteLabel, "i"),
+    });
+    expect(checkbox).toBeDisabled();
+    expect(checkbox).toBeChecked();
+    expect(
+      screen.getByText(invoicingCopy.splitShare.attachCartaPorteHint),
+    ).toBeInTheDocument();
+
+    await user.click(checkbox);
+    expect(checkbox).toBeChecked();
   });
 });

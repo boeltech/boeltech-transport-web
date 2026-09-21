@@ -131,7 +131,7 @@ describe("buildAssignableSupportStaffForTripWizard", () => {
     expect(result[0]).toMatchObject({
       canBeAssigned: true,
       softBusy: true,
-      blockReason: "En Curso",
+      blockReason: "En Viaje",
       assignmentConflict: conflict,
     });
   });
@@ -152,7 +152,7 @@ describe("buildAssignableSupportStaffForTripWizard", () => {
 
     expect(result[0]).toMatchObject({
       canBeAssigned: false,
-      blockReason: "En viaje",
+      blockReason: "En Viaje",
       internalRole: "secondary_driver",
     });
   });

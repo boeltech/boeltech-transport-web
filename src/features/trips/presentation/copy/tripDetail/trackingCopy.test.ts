@@ -87,6 +87,19 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
       "Sugerido: 3,200 km (inicial) + 1,200 km (distancia planificada) = 4,400 km (final)",
     );
   });
+
+  it("usa soft-warn de incidente en bitácora sin resolución aparte (T4-039)", () => {
+    expect(trackingCopy.sheet.closeOpenIncidentWarning).toBe(
+      "Este viaje tiene un incidente en bitácora. Al finalizar, la marca se limpia; no se registra una resolución aparte.",
+    );
+    expect(trackingCopy.sheet.closeOpenIncidentWarning).not.toMatch(
+      /sin cerrar|atender|resolver/i,
+    );
+    expect(trackingCopy.hint.openIncident).toBe(
+      "Hay un incidente en bitácora. Revísalo antes de cerrar el viaje.",
+    );
+    expect(trackingCopy.hint.openIncident).not.toMatch(/sin cerrar|abierto/i);
+  });
 });
 
 describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {
@@ -97,6 +110,21 @@ describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {
       /CFDI|Carta Porte|timbrar|SAT/i,
     );
     expect(trackingCopy.action.declareFalseTrip).toBe("Declarar viaje en falso");
+  });
+
+  it("nudge de gastos invita a capturar ahora sin afirmar bloqueo post-cierre", () => {
+    expect(trackingCopy.sheet.declareFalseTripExpensesTitle).toBe(
+      "Conviene capturar los gastos ahora",
+    );
+    expect(trackingCopy.sheet.declareFalseTripExpensesBody).toMatch(
+      /aún puedes registrarlos/i,
+    );
+    expect(trackingCopy.sheet.declareFalseTripExpensesBody).not.toMatch(
+      /en terminal ya no|ya no se editan|no se pueden/i,
+    );
+    expect(trackingCopy.sheet.declareFalseTripExpensesCta).toBe(
+      "Ir a dinero del viaje",
+    );
   });
 });
 

@@ -113,6 +113,8 @@ export const costsCopy = {
     label: {
       freight: "Flete",
       baseRate: "Tarifa base",
+      facturadoVigente: "Facturado vigente",
+      cobradoViaje: "Cobrado del viaje",
       income: "Ingreso",
       costs: "Ruta y unidad",
       expenses: "Operador y extras",

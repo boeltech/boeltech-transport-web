@@ -4,13 +4,15 @@ import { tripDetailCopy } from "../copy";
 
 const shell = tripDetailCopy.shell;
 
+/**
+ * Líneas del alert efímero post-cancel.
+ * Copy humano fijo desde shellCopy — no volcar codes API
+ * (`request_cancellation`, `keep_cfdi`, etc.).
+ */
 export function buildPostCancelFiscalAlertLines(
   fiscal: TripFiscalActionRequired,
 ): string[] {
-  const lines: string[] = [];
-  if (fiscal.suggestedActions?.length) {
-    lines.push(...fiscal.suggestedActions);
-  }
+  const lines: string[] = [shell.alert.postCancelFiscalActionLine];
   lines.push(
     shell.alert.postCancelFiscalInvoiceStatus(
       getTripInvoiceStatusLabel(fiscal.invoiceStatus),

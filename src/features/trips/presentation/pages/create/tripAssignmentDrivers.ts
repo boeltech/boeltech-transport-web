@@ -5,15 +5,22 @@ import { isExpiringSoon } from "@shared/utils/dateUtils";
 import {
   BUSY_ON_ACTIVE_TRIP,
   HELD_ON_DRAFT_RESERVE,
+  assignmentOccupancyBadgeLabel,
   conflictBadgeLabel,
   type AssignmentConflict,
 } from "./tripAssignmentBusyResources";
+import { DRIVER_STATUS_LABELS } from "@features/drivers/domain";
 
 export interface AssignableDriverItem extends DriverListItem {
   canBeAssigned: boolean;
   blockReason?: string;
   displayName: string;
   expiredDocsOverridable?: boolean;
+  /**
+   * Scheduled/in_progress: occupied on another trip (busy or reserved/on_trip).
+   * Never liberated by allowExpiredDocs.
+   */
+  fleetHardBlocked?: boolean;
   softBusy?: boolean;
   assignmentConflict?: AssignmentConflict;
 }
@@ -50,14 +57,6 @@ export function classifyDriverAssignability(
   }
 
   if (driver.status !== "available") {
-    const statusReasons: Record<string, string> = {
-      reserved: "Reservado",
-      on_trip: "En viaje",
-      resting: "Descansando",
-      on_vacation: "De vacaciones",
-      on_leave: "Con permiso",
-      terminated: "Dado de baja",
-    };
     // reserved/on_trip are fleet-commit statuses: surface expired docs so soft-busy
     // cannot promote them without allowExpiredDocs (parity with vehicles ADR-0066).
     if (
@@ -72,7 +71,10 @@ export function classifyDriverAssignability(
     }
     return {
       canBeAssigned: false,
-      blockReason: statusReasons[driver.status] || driver.status,
+      blockReason:
+        DRIVER_STATUS_LABELS[driver.status] ??
+        assignmentOccupancyBadgeLabel(driver.status) ??
+        driver.status,
     };
   }
 
@@ -116,13 +118,15 @@ export function buildAssignableDriversForTripWizard(
     const isBusy = busyDriverIds.has(driver.id);
     const isCommitStatus = isFleetCommitStatus(driver.status);
 
-    // Current trip assignment: reserved (scheduled) or on_trip (in progress / ADR-0093).
-    if (keepId && driver.id === keepId && isFleetCommitStatus(driver.status)) {
+    // Current trip assignment: grandfather reopen (draft / scheduled / in_progress).
+    if (keepId && driver.id === keepId) {
       return {
         ...driver,
         canBeAssigned: true,
-        blockReason: undefined,
+        blockReason:
+          expiredDocsOverridable === true ? blockReason : undefined,
         expiredDocsOverridable,
+        fleetHardBlocked: undefined,
         softBusy: undefined,
         assignmentConflict: undefined,
         displayName,
@@ -136,6 +140,7 @@ export function buildAssignableDriversForTripWizard(
           canBeAssigned,
           blockReason,
           expiredDocsOverridable,
+          fleetHardBlocked: undefined,
           softBusy: undefined,
           assignmentConflict: undefined,
           displayName,
@@ -151,6 +156,7 @@ export function buildAssignableDriversForTripWizard(
             canBeAssigned: false,
             blockReason,
             expiredDocsOverridable,
+            fleetHardBlocked: undefined,
             softBusy: undefined,
             assignmentConflict: conflict,
             displayName,
@@ -160,10 +166,13 @@ export function buildAssignableDriversForTripWizard(
           ...driver,
           canBeAssigned: true,
           softBusy: true,
+          fleetHardBlocked: undefined,
           assignmentConflict: conflict,
           blockReason: conflict
             ? conflictBadgeLabel(conflict)
-            : (blockReason ?? BUSY_ON_ACTIVE_TRIP),
+            : (assignmentOccupancyBadgeLabel(driver.status) ??
+              blockReason ??
+              BUSY_ON_ACTIVE_TRIP),
           expiredDocsOverridable,
           displayName,
         };
@@ -174,36 +183,27 @@ export function buildAssignableDriversForTripWizard(
         canBeAssigned,
         blockReason,
         expiredDocsOverridable,
+        fleetHardBlocked: undefined,
         softBusy: undefined,
         assignmentConflict: undefined,
         displayName,
       };
     }
 
-    if (canBeAssigned && isBusy) {
+    // Hard mode (scheduled / in_progress): occupation is never liberated by
+    // allowExpiredDocs — including when the classifier already marked expired docs.
+    if (isBusy || isCommitStatus) {
+      const occupancyReason = conflict
+        ? conflictBadgeLabel(conflict)
+        : (assignmentOccupancyBadgeLabel(driver.status) ?? BUSY_ON_ACTIVE_TRIP);
       return {
         ...driver,
         canBeAssigned: false,
-        blockReason: BUSY_ON_ACTIVE_TRIP,
-        displayName,
-        softBusy: undefined,
-        assignmentConflict: undefined,
-      };
-    }
-
-    if (
-      !canBeAssigned &&
-      keepId &&
-      driver.id === keepId &&
-      isFleetCommitStatus(driver.status)
-    ) {
-      return {
-        ...driver,
-        canBeAssigned: true,
-        blockReason: undefined,
+        fleetHardBlocked: true,
+        blockReason: occupancyReason,
         expiredDocsOverridable,
         softBusy: undefined,
-        assignmentConflict: undefined,
+        assignmentConflict: conflict,
         displayName,
       };
     }
@@ -213,6 +213,7 @@ export function buildAssignableDriversForTripWizard(
       canBeAssigned,
       blockReason,
       expiredDocsOverridable,
+      fleetHardBlocked: undefined,
       softBusy: undefined,
       assignmentConflict: undefined,
       displayName,
@@ -241,9 +242,12 @@ export function applyDraftHoldSoftSignalToDrivers(
       canBeAssigned: true,
       softBusy: true,
       assignmentConflict: conflict,
-      blockReason: conflict
-        ? conflictBadgeLabel(conflict)
-        : HELD_ON_DRAFT_RESERVE,
+      blockReason:
+        driver.expiredDocsOverridable === true && driver.blockReason
+          ? driver.blockReason
+          : conflict
+            ? conflictBadgeLabel(conflict)
+            : HELD_ON_DRAFT_RESERVE,
     };
   });
 }

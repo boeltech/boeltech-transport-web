@@ -23,6 +23,10 @@ export type TripFinancialSummaryCopy = {
   label: {
     freight: string;
     baseRate: string;
+    /** Subtotal CFDI ingreso stamped vigentes (detail); distinta de tarifa. */
+    facturadoVigente?: string;
+    /** Cobranza aplicada al viaje (detail); distinta de tarifa base. */
+    cobradoViaje?: string;
     income: string;
     costs: string;
     expenses: string;
@@ -56,6 +60,16 @@ export interface TripWizardFinancialSummaryProps {
   marginLabel?: string;
   /** Copy del resumen; por defecto wizard. Detalle pasa tripDetailCopy.costs.financialSummary. */
   summaryCopy?: TripFinancialSummaryCopy;
+  /**
+   * Subtotal CFDI ingreso stamped vigentes (detail). No sustituye tarifa base.
+   * Se muestra solo cuando no es null/undefined (misma regla que cobradoViaje).
+   */
+  facturadoVigente?: number | null;
+  /**
+   * Cobranza aplicada a CFDI del viaje (detail). No sustituye tarifa base.
+   * Se muestra solo cuando no es null/undefined.
+   */
+  cobradoViaje?: number | null;
 }
 
 function TripWizardFinancialSummaryBody({
@@ -66,6 +80,8 @@ function TripWizardFinancialSummaryBody({
   calculationStatusHint,
   marginLabel,
   copy,
+  facturadoVigente,
+  cobradoViaje,
 }: {
   snapshot: TripWizardFinancialSnapshot;
   variant: "lines" | "totals";
@@ -74,10 +90,16 @@ function TripWizardFinancialSummaryBody({
   calculationStatusHint?: string | null;
   marginLabel?: string;
   copy: TripFinancialSummaryCopy;
+  facturadoVigente?: number | null;
+  cobradoViaje?: number | null;
 }) {
   const { operationalCosts, indirectExpenses, financial, marginToneClass } =
     snapshot;
   const resolvedMarginLabel = marginLabel ?? copy.label.margin;
+  const showFacturadoVigente =
+    facturadoVigente != null && Boolean(copy.label.facturadoVigente);
+  const showCobradoViaje =
+    cobradoViaje != null && Boolean(copy.label.cobradoViaje);
 
   const statusBlock =
     calculationStatusHint || queuedCostsHint ? (
@@ -108,6 +130,20 @@ function TripWizardFinancialSummaryBody({
             </span>
           }
         />
+        {showFacturadoVigente ? (
+          <InfoRow
+            variant="inline"
+            label={copy.label.facturadoVigente!}
+            value={formatMxCurrency(facturadoVigente!)}
+          />
+        ) : null}
+        {showCobradoViaje ? (
+          <InfoRow
+            variant="inline"
+            label={copy.label.cobradoViaje!}
+            value={formatMxCurrency(cobradoViaje!)}
+          />
+        ) : null}
         <InfoRow
           variant="inline"
           label={copy.label.costs}
@@ -263,6 +299,8 @@ export function TripWizardFinancialSummary({
   calculationStatusHint,
   marginLabel,
   summaryCopy,
+  facturadoVigente,
+  cobradoViaje,
 }: TripWizardFinancialSummaryProps) {
   const copy = summaryCopy ?? defaultCopy;
 
@@ -277,6 +315,8 @@ export function TripWizardFinancialSummary({
           calculationStatusHint={calculationStatusHint}
           marginLabel={marginLabel}
           copy={copy}
+          facturadoVigente={facturadoVigente}
+          cobradoViaje={cobradoViaje}
         />
       </div>
     );
@@ -299,6 +339,8 @@ export function TripWizardFinancialSummary({
           calculationStatusHint={calculationStatusHint}
           marginLabel={marginLabel}
           copy={copy}
+          facturadoVigente={facturadoVigente}
+          cobradoViaje={cobradoViaje}
         />
       </CardContent>
     </Card>

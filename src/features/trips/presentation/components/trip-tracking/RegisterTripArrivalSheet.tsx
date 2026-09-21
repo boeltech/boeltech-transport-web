@@ -63,6 +63,8 @@ export type RegisterTripArrivalSheetProps = {
   orderedStops?: readonly TripStop[];
   /** ADR-0093 — soft-warn al finalizar con bandera fiscal. */
   requiresFiscalAttention?: boolean;
+  /** Soft-warn al finalizar con incidente en bitácora (solo aviso). */
+  hasOpenIncident?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -115,6 +117,7 @@ function RegisterTripArrivalSheetBody({
   cargos = [],
   orderedStops = [],
   requiresFiscalAttention = false,
+  hasOpenIncident = false,
   onOpenChange,
   onSuccess,
 }: RegisterTripArrivalSheetBodyProps) {
@@ -287,6 +290,14 @@ function RegisterTripArrivalSheetBody({
           />
         ) : null}
 
+        {hasOpenIncident ? (
+          <DetailAlertCard
+            severity="warning"
+            title={copy.sheet.quickCloseWarningTitle}
+            items={[{ text: copy.sheet.closeOpenIncidentWarning }]}
+          />
+        ) : null}
+
         {formError ? (
           <p role="alert" className="text-xs text-destructive">
             {formError}
@@ -400,6 +411,7 @@ export function RegisterTripArrivalSheet({
   cargos,
   orderedStops,
   requiresFiscalAttention = false,
+  hasOpenIncident = false,
   open,
   onOpenChange,
   onSuccess,
@@ -429,6 +441,7 @@ export function RegisterTripArrivalSheet({
             cargos={cargos}
             orderedStops={orderedStops}
             requiresFiscalAttention={requiresFiscalAttention}
+            hasOpenIncident={hasOpenIncident}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

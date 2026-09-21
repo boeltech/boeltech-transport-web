@@ -105,6 +105,9 @@ export const trackingCopy = {
       "Cargas no operadas: se marcarán como entregadas.",
     quickCloseFiscalAttention:
       "Hay atención fiscal pendiente. Puedes cerrar el viaje; sustituye la factura al cobrar el ajuste.",
+    /** Soft-warn al finalizar/completar con incidente en bitácora (solo aviso; no bloquea). */
+    closeOpenIncidentWarning:
+      "Este viaje tiene un incidente en bitácora. Al finalizar, la marca se limpia; no se registra una resolución aparte.",
     quickCloseOccurredAtLabel: "¿A qué hora terminó el viaje?",
     quickCloseNotesLabel: "Motivo (recomendado)",
     quickCloseNotesPlaceholder:
@@ -126,9 +129,9 @@ export const trackingCopy = {
       "Las cargas pendientes se cancelan. No hace falta cancelarlas antes.",
     declareFalseTripEffectInvoice:
       "Después puedes facturar el desplazamiento.",
-    declareFalseTripExpensesTitle: "Captura los gastos antes de cerrar",
+    declareFalseTripExpensesTitle: "Conviene capturar los gastos ahora",
     declareFalseTripExpensesBody:
-      "En terminal ya no se editan. Si aún faltan casetas o combustible, regístralos ahora.",
+      "Tras cerrar aún puedes registrarlos unos días; si faltan casetas o combustible, hazlo ya desde dinero del viaje.",
     declareFalseTripExpensesCta: "Ir a dinero del viaje",
     notesOptional: "Notas (opcional)",
     notesPlaceholder: "Observaciones operativas…",
@@ -217,7 +220,8 @@ export const trackingCopy = {
     mobileDetailSheet: "Parada",
     actionsScope: "Registra la operación de la parada siguiente.",
     nextStepFallback: "Sin acciones pendientes",
-    openIncident: "Hay un incidente abierto. Revisa la bitácora antes de cerrar.",
+    openIncident:
+      "Hay un incidente en bitácora. Revísalo antes de cerrar el viaje.",
     incidentLabel: "Incidente",
     timelineHasEvents: "Registro de operaciones del viaje.",
     stopRoleOrigin: "Llegada, cargas y salida de origen",
@@ -241,6 +245,9 @@ export const trackingCopy = {
     updatedAgo: (ago: string) => `Actualizado ${ago}`,
     quickCloseTransition:
       "Cierra sin registrar cada parada. Las no visitadas se completan automáticamente.",
+    /** T4-043: mutex false_trip vs split activo (API 409 SPLIT_INCOMPATIBLE_WITH_FALSE_TRIP). */
+    declareFalseTripBlockedBySplit:
+      "Cancela el prorrateo activo antes de declarar viaje en falso.",
   },
   format: {
     cargoWeight: (kg: number) => `${kg.toLocaleString("es-MX")} kg`,

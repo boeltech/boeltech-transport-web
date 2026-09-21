@@ -11,19 +11,30 @@ const splitCopy = tripFiscalCopy.revenueSplit;
 export interface TripRevenueSplitLegListReadOnlyProps {
   split: TripRevenueSplit;
   trip: Trip;
+  /**
+   * C7 post-cancel: piernas sin factura usan «Sin factura · no emitir»
+   * (no «Pendiente de facturar»).
+   */
+  pendingLegMode?: "default" | "doNotIssue";
 }
 
 export function TripRevenueSplitLegListReadOnly({
   split,
   trip,
+  pendingLegMode = "default",
 }: TripRevenueSplitLegListReadOnlyProps) {
+  const pendingLabel =
+    pendingLegMode === "doNotIssue"
+      ? splitCopy.statusNoInvoiceDoNotIssue
+      : splitCopy.statusPending;
+
   return (
     <ul className="space-y-2">
       {split.legs.map((leg) => {
         const label = leg.clientLegalName || leg.clientId.slice(0, 8);
         const statusLabel = leg.invoiceId
           ? splitCopy.statusInvoiced
-          : splitCopy.statusPending;
+          : pendingLabel;
         return (
           <li
             key={leg.id}

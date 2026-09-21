@@ -85,7 +85,7 @@ export const operationCopy = {
     },
     hints: {
       allowExpiredDocs:
-        "Habilita la asignación a pesar de tener póliza, permiso SCT o licencia fuera de vigencia, o sin fecha de vigencia.",
+        "Habilita la asignación a pesar de tener póliza, permiso SCT o licencia vencidos (con fecha). Sin vigencia o sin registro no se liberan con este permiso.",
       vehicleSelect: "Selecciona una unidad disponible para el viaje.",
       driverSelect: "Selecciona un operador disponible.",
       supportStaff:

@@ -88,7 +88,7 @@ describe("buildAssignableDriversForTripWizard", () => {
     expect(result[0]).toMatchObject({
       canBeAssigned: true,
       softBusy: true,
-      blockReason: "Programado",
+      blockReason: "Reservado",
       assignmentConflict: conflict,
     });
   });
@@ -101,7 +101,8 @@ describe("buildAssignableDriversForTripWizard", () => {
 
     expect(result[0]).toMatchObject({
       canBeAssigned: false,
-      blockReason: "En viaje",
+      fleetHardBlocked: true,
+      blockReason: "En Viaje",
     });
     expect(result[0]?.expiredDocsOverridable).toBeUndefined();
   });
@@ -116,7 +117,7 @@ describe("buildAssignableDriversForTripWizard", () => {
     expect(result[0]).toMatchObject({
       canBeAssigned: true,
       softBusy: true,
-      blockReason: "En viaje",
+      blockReason: "En Viaje",
     });
   });
 
@@ -211,7 +212,8 @@ describe("buildAssignableDriversForTripWizard", () => {
 
     expect(result[0]).toMatchObject({
       canBeAssigned: false,
-      blockReason: "En viaje",
+      fleetHardBlocked: true,
+      blockReason: "En Viaje",
     });
   });
 
@@ -235,5 +237,48 @@ describe("buildAssignableDriversForTripWizard", () => {
       blockReason: "Licencia vencida",
     });
     expect(result[0]?.softBusy).toBeUndefined();
+    expect(result[0]?.fleetHardBlocked).toBeUndefined();
+  });
+
+  it("hard-blocks on_trip+expired license when softBusySelectable is false", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [
+        driver({
+          id: "drv-expired-on-trip",
+          status: "on_trip",
+          isLicenseExpired: true,
+          isFederalLicenseExpired: true,
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: false },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      fleetHardBlocked: true,
+      blockReason: "En Viaje",
+    });
+  });
+
+  it("hard-blocks reserved+expired license when softBusySelectable is false", () => {
+    const result = buildAssignableDriversForTripWizard(
+      [
+        driver({
+          id: "drv-expired-reserved",
+          status: "reserved",
+          isLicenseExpired: true,
+          isFederalLicenseExpired: true,
+        }),
+      ],
+      new Set(),
+      { softBusySelectable: false },
+    );
+
+    expect(result[0]).toMatchObject({
+      canBeAssigned: false,
+      fleetHardBlocked: true,
+      blockReason: "Reservado",
+    });
   });
 });

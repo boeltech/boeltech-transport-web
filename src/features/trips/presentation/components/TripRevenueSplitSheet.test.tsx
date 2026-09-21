@@ -330,3 +330,149 @@ describe("TripRevenueSplitSheet — hidratación y validación (H1/H3)", () => {
     expect(mockUpsert).not.toHaveBeenCalled();
   });
 });
+
+describe("TripRevenueSplitSheet — post-cancel C7", () => {
+  beforeEach(() => {
+    mockUpsert.mockReset();
+  });
+
+  it("viaje cancelled + split active con facturas: checklist, sin Cerrar reparto obligatorio", async () => {
+    mockSplitState = {
+      data: makeDraftSplit({
+        status: "active",
+        legs: [
+          {
+            id: "leg-1",
+            clientId: RESERVA_CLIENT_ID,
+            clientLegalName: RESERVA_CLIENT_NAME,
+            clientRfc: "AAA010101AAA",
+            sharePercent: 60,
+            sortOrder: 0,
+            suggestedCartaPorte: false,
+            invoiceId: "inv-1",
+          },
+          {
+            id: "leg-2",
+            clientId: OTHER_CLIENT_ID,
+            clientLegalName: OTHER_CLIENT_NAME,
+            clientRfc: "BBB010101BBB",
+            sharePercent: 40,
+            sortOrder: 1,
+            suggestedCartaPorte: false,
+            invoiceId: null,
+          },
+        ],
+      }),
+      isLoading: false,
+      isFetched: true,
+    };
+
+    const trip = {
+      ...makeTrip(RESERVA_CLIENT_ID),
+      status: TripStatus.CANCELLED,
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        hasActiveSplit: true,
+        blockReason: null,
+      }),
+    } as Trip;
+
+    renderSheet(trip);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(tripFiscalCopy.revenueSplit.postCancelActiveTitle),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(tripFiscalCopy.revenueSplit.postCancelActiveHint),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        new RegExp(tripFiscalCopy.revenueSplit.statusNoInvoiceDoNotIssue),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.revenueSplit.escapeCancelActive,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.revenueSplit.cancelActive,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.revenueSplit.startCta,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("viaje cancelled + split already cancelled: estado cerrado, sin CTA cerrar", async () => {
+    mockSplitState = {
+      data: makeDraftSplit({ status: "cancelled" }),
+      isLoading: false,
+      isFetched: true,
+    };
+
+    const trip = {
+      ...makeTrip(RESERVA_CLIENT_ID),
+      status: TripStatus.CANCELLED,
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        hasActiveSplit: false,
+        blockReason: null,
+      }),
+    } as Trip;
+
+    renderSheet(trip);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(tripFiscalCopy.revenueSplit.cancelledReadOnlyTitle),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(tripFiscalCopy.revenueSplit.cancelledChip),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.revenueSplit.escapeCancelActive,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.revenueSplit.cancelActive,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("viaje cancelled + split active sin facturas: escape hatch Cerrar reparto", async () => {
+    mockSplitState = {
+      data: makeDraftSplit({ status: "active" }),
+      isLoading: false,
+      isFetched: true,
+    };
+
+    const trip = {
+      ...makeTrip(RESERVA_CLIENT_ID),
+      status: TripStatus.CANCELLED,
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        hasActiveSplit: true,
+        blockReason: null,
+      }),
+    } as Trip;
+
+    renderSheet(trip);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: tripFiscalCopy.revenueSplit.escapeCancelActive,
+        }),
+      ).toBeInTheDocument();
+    });
+  });
+});

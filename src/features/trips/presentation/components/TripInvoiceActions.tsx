@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
-import type { Trip } from "@features/trips/domain";
+import { TripStatus, type Trip } from "@features/trips/domain";
 import { getTripInvoicingBadgeConfig, toDetailInvoicingBadge } from "@features/trips";
 import { useTripRevenueSplit } from "@features/trips/application";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
@@ -75,15 +75,20 @@ export function TripInvoiceActions({
     (canReadInvoices || canCreateInvoices) && !!trip.invoicing.invoiceId;
 
   const isFalseTripOutcome = trip.operationalOutcome === "false_trip";
+  /** Defensa local: viaje cancelado no ofrece CTAs de create (no solo flags API). */
+  const isTripCancelled = trip.status === TripStatus.CANCELLED;
 
   const canShowCreateInvoiceAction =
+    !isTripCancelled &&
     canCreateInvoices &&
     trip.invoicing.canGenerateInvoice &&
     !isFalseTripOutcome &&
     !trip.invoicing.hasActiveSplit;
 
   const canShowFalseTripInvoiceAction =
-    canCreateInvoices && trip.invoicing.canGenerateFalseTripInvoice;
+    !isTripCancelled &&
+    canCreateInvoices &&
+    trip.invoicing.canGenerateFalseTripInvoice;
 
   const upsertEligibility = canUpsertTripRevenueSplit(trip);
 
@@ -96,14 +101,14 @@ export function TripInvoiceActions({
         trip.invoicing.splitLegsTotal > 0),
   });
 
-  const hasDraftSplit =
-    revenueSplit != null && revenueSplit.status !== "active";
+  const hasDraftSplit = revenueSplit?.status === "draft";
   const activeSplitLegs =
     revenueSplit?.status === "active" ? revenueSplit.legs : [];
   const pendingSplitLegs = activeSplitLegs.filter((leg) => !leg.invoiceId);
   const invoicedSplitLegs = activeSplitLegs.filter((leg) => !!leg.invoiceId);
 
   const canShowSplitShareInvoiceAction =
+    !isTripCancelled &&
     canCreateInvoices &&
     trip.invoicing.canGenerateSplitShareInvoice &&
     !isFalseTripOutcome &&
@@ -118,8 +123,8 @@ export function TripInvoiceActions({
     canReadTrip &&
     (trip.invoicing.hasActiveSplit ||
       hasDraftSplit ||
-      upsertEligibility.allowed ||
-      upsertEligibility.blockReason != null);
+      (!isTripCancelled &&
+        (upsertEligibility.allowed || upsertEligibility.blockReason != null)));
 
   const revenueSplitMenuLabel = trip.invoicing.hasActiveSplit
     ? copy.viewRevenueSplitMenu
@@ -134,6 +139,7 @@ export function TripInvoiceActions({
       !upsertEligibility.allowed);
 
   const canShowAccessoryInvoiceAction =
+    !isTripCancelled &&
     canCreateInvoices &&
     trip.invoicing.canGenerateAccessoryInvoice &&
     !isFalseTripOutcome;
@@ -149,8 +155,10 @@ export function TripInvoiceActions({
     accessoryInvoices.length > 0 ||
     canViewSplitInvoices;
 
+  // Usar CTAs efectivos (no solo flags API): cancelled hard-gatea creates
+  // pero debe seguir mostrando ver factura / reparto.
   const canShowLinkedInvoiceState =
-    !trip.invoicing.canGenerateInvoice &&
+    !canShowCreateInvoiceAction &&
     !canShowFalseTripInvoiceAction &&
     (hasInvoiceEvidence ||
       canShowAccessoryInvoiceAction ||

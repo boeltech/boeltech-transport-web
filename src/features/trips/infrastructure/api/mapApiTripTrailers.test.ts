@@ -91,6 +91,190 @@ describe("mapApiTrip trailers", () => {
     });
   });
 
+  it("maps cobrado_viaje to cobradoViaje on detail response", () => {
+    const trip = mapApiTrip({
+      id: "trip-1",
+      tenant_id: "tenant-1",
+      trip_code: "V-1",
+      vehicle_id: "veh-1",
+      driver_id: "drv-1",
+      client_id: null,
+      origin_branch_id: null,
+      status: "completed",
+      cfdi_document_intent: "ingreso",
+      scheduled_departure: "2026-08-01T12:00:00.000Z",
+      scheduled_arrival: null,
+      actual_departure: null,
+      actual_arrival: null,
+      start_mileage: null,
+      end_mileage: null,
+      origin_city: "QRO",
+      origin_state: null,
+      destination_city: "CDMX",
+      destination_state: null,
+      cargo_description: null,
+      cargo_weight: null,
+      cargo_volume: null,
+      cargo_units: null,
+      cargo_value: null,
+      base_rate: 10000,
+      fuel_cost: 0,
+      toll_cost: 0,
+      other_costs: 0,
+      total_cost: 0,
+      cobrado_viaje: 8500.5,
+      notes: null,
+      cancellation_reason: null,
+      total_dist_rec: null,
+      id_ccp: null,
+      created_at: "2026-08-01T12:00:00.000Z",
+      updated_at: "2026-08-01T12:00:00.000Z",
+      created_by: null,
+      updated_by: null,
+    } as ApiTripResponse);
+
+    expect(trip.costs.baseRate).toBe(10000);
+    expect(trip.cobradoViaje).toBe(8500.5);
+  });
+
+  it("maps facturado_vigente to facturadoVigente on detail response", () => {
+    const trip = mapApiTrip({
+      id: "trip-1",
+      tenant_id: "tenant-1",
+      trip_code: "V-1",
+      vehicle_id: "veh-1",
+      driver_id: "drv-1",
+      client_id: null,
+      origin_branch_id: null,
+      status: "completed",
+      cfdi_document_intent: "ingreso",
+      scheduled_departure: "2026-08-01T12:00:00.000Z",
+      scheduled_arrival: null,
+      actual_departure: null,
+      actual_arrival: null,
+      start_mileage: null,
+      end_mileage: null,
+      origin_city: "QRO",
+      origin_state: null,
+      destination_city: "CDMX",
+      destination_state: null,
+      cargo_description: null,
+      cargo_weight: null,
+      cargo_volume: null,
+      cargo_units: null,
+      cargo_value: null,
+      base_rate: 10000,
+      fuel_cost: 0,
+      toll_cost: 0,
+      other_costs: 0,
+      total_cost: 0,
+      facturado_vigente: 9200.25,
+      cobrado_viaje: 8500.5,
+      notes: null,
+      cancellation_reason: null,
+      total_dist_rec: null,
+      id_ccp: null,
+      created_at: "2026-08-01T12:00:00.000Z",
+      updated_at: "2026-08-01T12:00:00.000Z",
+      created_by: null,
+      updated_by: null,
+    } as ApiTripResponse);
+
+    expect(trip.costs.baseRate).toBe(10000);
+    expect(trip.facturadoVigente).toBe(9200.25);
+    expect(trip.cobradoViaje).toBe(8500.5);
+  });
+
+  it("maps facturado_vigente 0 without collapsing to null", () => {
+    const trip = mapApiTrip({
+      id: "trip-1",
+      tenant_id: "tenant-1",
+      trip_code: "V-1",
+      vehicle_id: "veh-1",
+      driver_id: "drv-1",
+      client_id: null,
+      origin_branch_id: null,
+      status: "completed",
+      cfdi_document_intent: "ingreso",
+      scheduled_departure: "2026-08-01T12:00:00.000Z",
+      scheduled_arrival: null,
+      actual_departure: null,
+      actual_arrival: null,
+      start_mileage: null,
+      end_mileage: null,
+      origin_city: "QRO",
+      origin_state: null,
+      destination_city: "CDMX",
+      destination_state: null,
+      cargo_description: null,
+      cargo_weight: null,
+      cargo_volume: null,
+      cargo_units: null,
+      cargo_value: null,
+      base_rate: 10000,
+      fuel_cost: 0,
+      toll_cost: 0,
+      other_costs: 0,
+      total_cost: 0,
+      facturado_vigente: 0,
+      notes: null,
+      cancellation_reason: null,
+      total_dist_rec: null,
+      id_ccp: null,
+      created_at: "2026-08-01T12:00:00.000Z",
+      updated_at: "2026-08-01T12:00:00.000Z",
+      created_by: null,
+      updated_by: null,
+    } as ApiTripResponse);
+
+    expect(trip.facturadoVigente).toBe(0);
+  });
+
+  it("sets cobradoViaje null when API omits cobrado_viaje", () => {
+    const trip = mapApiTrip({
+      id: "trip-1",
+      tenant_id: "tenant-1",
+      trip_code: "V-1",
+      vehicle_id: "veh-1",
+      driver_id: "drv-1",
+      client_id: null,
+      origin_branch_id: null,
+      status: "draft",
+      cfdi_document_intent: "ingreso",
+      scheduled_departure: "2026-08-01T12:00:00.000Z",
+      scheduled_arrival: null,
+      actual_departure: null,
+      actual_arrival: null,
+      start_mileage: null,
+      end_mileage: null,
+      origin_city: "QRO",
+      origin_state: null,
+      destination_city: "CDMX",
+      destination_state: null,
+      cargo_description: null,
+      cargo_weight: null,
+      cargo_volume: null,
+      cargo_units: null,
+      cargo_value: null,
+      base_rate: 0,
+      fuel_cost: 0,
+      toll_cost: 0,
+      other_costs: 0,
+      total_cost: 0,
+      notes: null,
+      cancellation_reason: null,
+      total_dist_rec: null,
+      id_ccp: null,
+      created_at: "2026-08-01T12:00:00.000Z",
+      updated_at: "2026-08-01T12:00:00.000Z",
+      created_by: null,
+      updated_by: null,
+    } as ApiTripResponse);
+
+    expect(trip.cobradoViaje).toBeNull();
+    expect(trip.facturadoVigente).toBeNull();
+  });
+
   it("leaves trailers and internalStaff undefined when API omits them", () => {
     const trip = mapApiTrip({
       id: "trip-1",

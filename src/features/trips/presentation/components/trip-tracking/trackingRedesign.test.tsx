@@ -421,6 +421,38 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(onDeclareFalseTrip).toHaveBeenCalledOnce();
   });
 
+  it("con prorrateo activo oculta CTA de viaje en falso y muestra hint (T4-043)", () => {
+    const onDeclareFalseTrip = vi.fn();
+    const originArrived = {
+      ...origin,
+      actualArrival: new Date("2026-01-01T09:00:00Z"),
+      status: "in_progress" as const,
+    };
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[originArrived, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        canOperateTracking
+        hasActiveSplit
+        onDepartOrigin={vi.fn()}
+        onDeclareFalseTrip={onDeclareFalseTrip}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: trackingCopy.action.clientCancelledCargo,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(trackingCopy.hint.declareFalseTripBlockedBySplit),
+    ).toBeInTheDocument();
+    expect(onDeclareFalseTrip).not.toHaveBeenCalled();
+  });
+
   it("en programado muestra Iniciar viaje deshabilitado si no hay paradas", async () => {
     const user = userEvent.setup();
     const onStartTrip = vi.fn();

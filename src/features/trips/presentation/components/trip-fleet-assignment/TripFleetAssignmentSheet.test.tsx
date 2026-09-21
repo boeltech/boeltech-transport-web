@@ -446,7 +446,7 @@ describe("TripFleetAssignmentSheet", () => {
           vehicleId: "veh-1",
           driverId: "drv-1",
           trailers: [],
-          allowExpiredDocs: true,
+          allowExpiredDocs: false,
         }),
       );
       expect(mockToast).toHaveBeenCalledWith(
@@ -847,7 +847,7 @@ describe("TripFleetAssignmentSheet", () => {
     expect(mockMutate).not.toHaveBeenCalled();
   });
 
-  it("shows expired docs toggle checked by default for admin and submits allowExpiredDocs true", async () => {
+  it("shows expired docs toggle unchecked by default for admin (ADR-0066) and submits true when checked", async () => {
     const user = userEvent.setup();
     const trip = makeTrip({
       vehicle: {
@@ -864,9 +864,6 @@ describe("TripFleetAssignmentSheet", () => {
       name: copy.labels.allowExpiredDocs,
     });
     expect(checkbox).toBeInTheDocument();
-    expect(checkbox).toBeChecked();
-
-    await user.click(checkbox);
     expect(checkbox).not.toBeChecked();
 
     await user.click(checkbox);
@@ -884,7 +881,7 @@ describe("TripFleetAssignmentSheet", () => {
     });
   });
 
-  it("submits allowExpiredDocs false when admin unchecks the expired docs toggle", async () => {
+  it("submits allowExpiredDocs false by default without checking the toggle", async () => {
     const user = userEvent.setup();
     renderSheet({
       trip: makeTrip({
@@ -900,8 +897,6 @@ describe("TripFleetAssignmentSheet", () => {
     const checkbox = screen.getByRole("checkbox", {
       name: copy.labels.allowExpiredDocs,
     });
-    expect(checkbox).toBeChecked();
-    await user.click(checkbox);
     expect(checkbox).not.toBeChecked();
 
     await user.click(screen.getByRole("button", { name: copy.saveButton }));
@@ -931,29 +926,10 @@ describe("TripFleetAssignmentSheet", () => {
     const checkbox = screen.getByRole("checkbox", {
       name: copy.labels.allowExpiredDocs,
     });
-    expect(checkbox).toBeChecked();
-
-    await user.click(screen.getByLabelText(/Unidad tractora/));
-    let listbox = await screen.findByRole("listbox");
-    expect(within(listbox).getByText(copy.labels.withExpiredDocs)).toBeInTheDocument();
-    expect(
-      within(listbox).getByRole("option", { name: /EXP-999/ }),
-    ).not.toHaveAttribute("data-disabled");
-    await user.keyboard("{Escape}");
-
-    await user.click(screen.getByLabelText(/Operador principal/));
-    listbox = await screen.findByRole("listbox");
-    expect(within(listbox).getByText(copy.labels.withExpiredDocs)).toBeInTheDocument();
-    expect(
-      within(listbox).getByRole("option", { name: /Conductor Vencido/ }),
-    ).not.toHaveAttribute("data-disabled");
-    await user.keyboard("{Escape}");
-
-    await user.click(checkbox);
     expect(checkbox).not.toBeChecked();
 
     await user.click(screen.getByLabelText(/Unidad tractora/));
-    listbox = await screen.findByRole("listbox");
+    let listbox = await screen.findByRole("listbox");
     expect(
       within(listbox).queryByText(copy.labels.withExpiredDocs),
     ).not.toBeInTheDocument();
@@ -970,6 +946,25 @@ describe("TripFleetAssignmentSheet", () => {
     expect(
       within(listbox).getByRole("option", { name: /Conductor Vencido/ }),
     ).toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+
+    await user.click(checkbox);
+    expect(checkbox).toBeChecked();
+
+    await user.click(screen.getByLabelText(/Unidad tractora/));
+    listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getByText(copy.labels.withExpiredDocs)).toBeInTheDocument();
+    expect(
+      within(listbox).getByRole("option", { name: /EXP-999/ }),
+    ).not.toHaveAttribute("data-disabled");
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByLabelText(/Operador principal/));
+    listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getByText(copy.labels.withExpiredDocs)).toBeInTheDocument();
+    expect(
+      within(listbox).getByRole("option", { name: /Conductor Vencido/ }),
+    ).not.toHaveAttribute("data-disabled");
   });
 
   it("shows showAllFleet checkbox when trip has originBranchId", async () => {
@@ -990,21 +985,33 @@ describe("TripFleetAssignmentSheet", () => {
     expect(checkbox).toBeChecked();
   });
 
-  it("shows warning banner when selected vehicle has expired docs", () => {
+  it("shows warning banner when expired vehicle is selected with toggle on", async () => {
+    const user = userEvent.setup();
     const tripWithExpiredVeh = makeTrip({
       vehicle: {
-        id: "veh-expired",
-        unitNumber: "U-EXP",
-        licensePlate: "EXP-999",
-        insuranceExpiry: "2020-01-01",
+        id: "veh-1",
+        unitNumber: "U-101",
+        licensePlate: "AAA-111",
         satConfigAutotransporteCode: "C2",
       },
     });
 
     renderSheet({ trip: tripWithExpiredVeh });
 
+    const checkbox = screen.getByRole("checkbox", {
+      name: copy.labels.allowExpiredDocs,
+    });
+    expect(checkbox).not.toBeChecked();
+    await user.click(checkbox);
+
+    await user.click(screen.getByLabelText(/Unidad tractora/));
+    const listbox = await screen.findByRole("listbox");
+    await user.click(
+      within(listbox).getByRole("option", { name: /EXP-999/ }),
+    );
+
     expect(
-      screen.getByText(copy.alerts.expiredAssignmentTitle),
+      await screen.findByText(copy.alerts.expiredAssignmentTitle),
     ).toBeInTheDocument();
   });
 
@@ -1271,6 +1278,64 @@ describe("TripFleetAssignmentSheet", () => {
       expect(screen.queryByText(copy.errors.vehicleRequired)).not.toBeInTheDocument();
       expect(screen.queryByText(copy.errors.driverRequired)).not.toBeInTheDocument();
       expect(screen.getAllByText(/Carlos Conductor/).length).toBeGreaterThan(0);
+    });
+
+    it("does not clear or toast when opening with current fleet that has expired docs (toggle off)", async () => {
+      mockUseAssignableVehicles.mockReturnValue({
+        data: [
+          {
+            ...mockVehicles[2],
+            status: "on_trip",
+          },
+          mockVehicles[1],
+        ],
+        isLoading: false,
+      });
+      mockUseDrivers.mockReturnValue({
+        data: {
+          data: [
+            {
+              ...mockDrivers[2],
+              status: "on_trip",
+            },
+            mockDrivers[1],
+          ],
+        },
+        isLoading: false,
+      });
+
+      renderSheet({
+        open: true,
+        trip: makeTrip({
+          status: TripStatus.IN_PROGRESS,
+          vehicle: {
+            id: "veh-expired",
+            unitNumber: "U-EXP",
+            licensePlate: "EXP-999",
+            satConfigAutotransporteCode: "C2",
+          },
+          driver: {
+            id: "drv-expired",
+            fullName: "Conductor Vencido",
+          },
+        }),
+      });
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/U-EXP|EXP-999/).length).toBeGreaterThan(0);
+      });
+
+      expect(
+        mockToast.mock.calls.filter(
+          (call) =>
+            call[0]?.title === copy.alerts.assignmentClearedTitle,
+        ),
+      ).toHaveLength(0);
+      expect(screen.queryByText(copy.errors.vehicleRequired)).not.toBeInTheDocument();
+      expect(screen.queryByText(copy.errors.driverRequired)).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("checkbox", { name: copy.labels.allowExpiredDocs }),
+      ).not.toBeChecked();
     });
   });
 

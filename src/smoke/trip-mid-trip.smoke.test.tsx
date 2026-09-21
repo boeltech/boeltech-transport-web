@@ -21,6 +21,8 @@ import { getTripDetailAccess } from "@features/trips/presentation/pages/tripDeta
 import { TripDetailRouteTab } from "@features/trips/presentation/components/trip-route/TripDetailRouteTab";
 import { tripDetailCopy } from "@features/trips/presentation/copy";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";
+import { resolveFiscalAttentionCta } from "@features/trips/presentation/helpers/resolveFiscalAttentionCta";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 
 vi.mock("@shared/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/hooks")>();
@@ -96,11 +98,13 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     stops,
     cfdiDocumentIntent: "ingreso",
     requiresFiscalAttention: true,
-    invoicing: {
+    invoicing: tripInvoicingFixture({
       invoiceId: "inv-1",
       invoiceStatus: "stamped",
       cartaPorteAttached: true,
-    },
+      hasActiveInvoice: true,
+      hasActivePrimaryInvoice: true,
+    }),
     ...overrides,
   } as Trip;
 }
@@ -150,6 +154,74 @@ describe("smoke ADR-0093 trip mid-trip flexibility", () => {
     );
     expect(tripDetailCopy.costs.hint.inProgress).not.toMatch(/edición completa/i);
     expect(tripDetailCopy.costs.hint.inProgress).toMatch(/tarifa/i);
+  });
+
+  /**
+   * T4-041-split — flag + CTA a porción (no prin).
+   * Mock: requiresFiscalAttention + hasActiveSplit + ≥2 piernas con invoiceId.
+   * No diluye asserts primary del caso anterior.
+   */
+  it("T4-041-split: flag + CTA porción sin depender de prin.invoiceId", () => {
+    const trip = makeTrip({
+      requiresFiscalAttention: true,
+      invoicing: tripInvoicingFixture({
+        invoiceId: null,
+        invoiceStatus: null,
+        cartaPorteAttached: false,
+        hasActiveSplit: true,
+        splitLegsTotal: 2,
+        splitLegsInvoiced: 2,
+      }),
+    });
+    expect(trip.requiresFiscalAttention).toBe(true);
+    expect(trip.invoicing.hasActiveSplit).toBe(true);
+    expect(trip.invoicing.invoiceId).toBeNull();
+
+    const cta = resolveFiscalAttentionCta({
+      requiresFiscalAttention: true,
+      hasActiveSplit: true,
+      principalInvoiceId: trip.invoicing.invoiceId,
+      splitLegsReady: true,
+      splitLegs: [
+        {
+          clientId: "client-a",
+          sortOrder: 0,
+          invoiceId: "inv-leg-a",
+          clientLegalName: "Cliente A SA",
+        },
+        {
+          clientId: "client-b",
+          sortOrder: 1,
+          invoiceId: "inv-leg-b",
+          clientLegalName: "Cliente B SA",
+        },
+      ],
+    });
+
+    expect(cta.kind).toBe("split");
+    if (cta.kind !== "split") return;
+    expect(cta.bodyKey).toBe("withInvoices");
+    expect(cta.invoicedLegs).toEqual([
+      { invoiceId: "inv-leg-a", label: "Cliente A SA" },
+      { invoiceId: "inv-leg-b", label: "Cliente B SA" },
+    ]);
+
+    expect(tripDetailCopy.shell.alert.fiscalAttentionSplitBody).toMatch(
+      /cada porción/i,
+    );
+    expect(tripDetailCopy.shell.alert.fiscalAttentionSplitCta).toMatch(
+      /porción/i,
+    );
+    expect(tripDetailCopy.shell.alert.fiscalAttentionSplitMenuCta).toMatch(
+      /porción/i,
+    );
+    expect(
+      tripDetailCopy.shell.alert.fiscalAttentionSplitLegCta("Cliente A SA"),
+    ).toMatch(/Porción · Cliente A SA/);
+    // Regresión primary: copy CTA estándar intacto
+    expect(tripDetailCopy.shell.alert.fiscalAttentionCta).toBe(
+      "Sustituir factura",
+    );
   });
 
   it("tab Ruta mid-trip: composer pending-only, sin CTA append", () => {

@@ -229,11 +229,18 @@ export const tripFiscalCopy = {
     saveDraft: "Guardar borrador",
     saveAndConfirm: "Guardar y confirmar",
     cancelActive: "Cancelar reparto",
+    /** Escape hatch C7: viaje cancelled + split aún active (race/bug). */
+    escapeCancelActive: "Cerrar reparto",
     cancelConfirmTitle: "¿Cancelar el reparto?",
     cancelConfirmDescription:
       "Se elimina el acuerdo de este viaje. Si aún no hay facturas por porción, podrás definir uno nuevo después.",
     cancelConfirmAction: "Sí, cancelar reparto",
     cancelConfirmDismiss: "Seguir con el reparto",
+    escapeCancelConfirmTitle: "¿Cerrar el reparto?",
+    escapeCancelConfirmDescription:
+      "El viaje está cancelado y el reparto debería haberse cerrado solo. Si sigue activo sin facturas vigentes, ciérralo aquí.",
+    escapeCancelConfirmAction: "Sí, cerrar reparto",
+    escapeCancelConfirmDismiss: "Dejarlo así",
     validationSummary: "Revisa el reparto",
     savedToast: "Reparto guardado",
     saveErrorTitle: "No se pudo guardar el reparto",
@@ -249,13 +256,20 @@ export const tripFiscalCopy = {
     cpLeg: (index: number, label: string) =>
       label || `Cliente ${index + 1}`,
     statusPending: "Pendiente de facturar",
+    /** Post-cancel / viaje cancelled: no invitar a emitir. */
+    statusNoInvoiceDoNotIssue: "Sin factura · no emitir",
     statusInvoiced: "Con factura",
     cpSuggested: "Carta Porte con este cliente",
     cpAttachedElsewhere: "Carta Porte ya en otra factura del viaje",
     viewInvoice: "Ver factura",
     draftChip: "Reparto sin confirmar",
+    cancelledChip: "Cerrado",
     activeReadOnlyTitle: "Reparto activo",
     draftReadOnlyTitle: "Borrador del reparto",
+    cancelledReadOnlyTitle: "Reparto cerrado",
+    postCancelActiveTitle: "Reparto activo · cierre tras cancelar viaje",
+    postCancelActiveHint:
+      "Cancela cada factura de porción con motivo de operación no realizada. Al cancelar la última, el reparto se cierra solo.",
     viewRevenueSplitLink: "Ver reparto",
     summaryPending: (clients: number) =>
       `Reparto del flete · ${clients} clientes · pendiente de facturar`,
@@ -263,6 +277,8 @@ export const tripFiscalCopy = {
       `Reparto del flete · ${clients} clientes · facturación en curso`,
     summaryComplete: (clients: number) =>
       `Reparto del flete · ${clients} clientes · cobro completado`,
+    summaryPostCancel: (clients: number) =>
+      `Reparto del flete · ${clients} clientes · cancelar facturas de porción`,
     legRfcSubtitle: (rfc: string) => `RFC ${rfc}`,
   },
   detailBadge: {

@@ -20,8 +20,8 @@ export type TrailerStatusType =
 export const TRAILER_STATUS_LABELS: Record<TrailerStatusType, string> = {
   [TrailerStatus.AVAILABLE]: "Disponible",
   [TrailerStatus.RESERVED]: "Reservado",
-  [TrailerStatus.ON_TRIP]: "En viaje",
-  [TrailerStatus.OUT_OF_SERVICE]: "Fuera de servicio",
+  [TrailerStatus.ON_TRIP]: "En Viaje",
+  [TrailerStatus.OUT_OF_SERVICE]: "Fuera de Servicio",
 };
 
 // ============================================================================

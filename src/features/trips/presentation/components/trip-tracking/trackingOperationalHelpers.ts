@@ -248,7 +248,7 @@ export function buildTrackingItineraryRows(
 }
 
 /**
- * Alertas de alcance del tab: incidente abierto.
+ * Alertas de alcance del tab: incidente en bitácora.
  * El hub «Qué sigue» ya cubre solo lectura; no duplicar esa banda.
  */
 export function getTrackingScopeAlertItems(

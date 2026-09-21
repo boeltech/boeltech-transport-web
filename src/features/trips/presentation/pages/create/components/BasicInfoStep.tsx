@@ -133,6 +133,8 @@ interface BasicInfoStepProps {
   softBusySelectable?: boolean;
   allowExpiredDocs: boolean;
   onAllowExpiredDocsChange: (value: boolean) => void;
+  keepVehicleId?: string;
+  keepDriverId?: string;
 }
 
 // ============================================================================
@@ -152,6 +154,8 @@ export function BasicInfoStep({
   softBusySelectable = false,
   allowExpiredDocs,
   onAllowExpiredDocsChange,
+  keepVehicleId,
+  keepDriverId,
 }: BasicInfoStepProps) {
   const { control } = form;
 
@@ -380,6 +384,8 @@ export function BasicInfoStep({
             softBusySelectable={softBusySelectable}
             allowExpiredDocs={allowExpiredDocs}
             onAllowExpiredDocsChange={onAllowExpiredDocsChange}
+            keepVehicleId={keepVehicleId}
+            keepDriverId={keepDriverId}
           />
 
           <div className="grid gap-4 sm:grid-cols-2">

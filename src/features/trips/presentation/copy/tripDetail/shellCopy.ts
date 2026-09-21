@@ -18,7 +18,7 @@ export const shellCopy = {
     history: "Historial",
     trackingLive: "En vivo",
     trackingIncident: "Incidente",
-    openIncident: "Incidente abierto",
+    openIncident: "Incidente",
   },
   stat: {
     cargo: "Cargas",
@@ -36,16 +36,25 @@ export const shellCopy = {
       `${kg.toLocaleString("es-MX")} kg total`,
   },
   alert: {
-    openIncidentTitle: "Incidente operativo abierto",
+    openIncidentTitle: "Incidente registrado en el viaje",
     openIncidentBody:
-      "Hay un incidente sin cerrar. Revise el tab Seguimiento.",
+      "Quedó en la bitácora de Seguimiento. La marca se limpia al finalizar o cancelar el viaje.",
+    openIncidentCta: "Ir a Seguimiento",
     fiscalAttentionTitle: "Revisión de facturación pendiente",
     fiscalAttentionBody:
-      "Hubo cambios operativos después de facturar. Sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Operación; luego sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
     fiscalAttentionCta: "Sustituir factura",
     fiscalAttentionChip: "Atención fiscal",
     fiscalAttentionNoInvoiceBody:
       "Hay un pendiente de facturación en este viaje. Revísalo en Facturación cuando corresponda.",
+    /** ADR-0081: prorrateo — no pretender un solo documento de flete. */
+    fiscalAttentionSplitBody:
+      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Operación; luego sustituye cada porción facturada pendiente al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+    fiscalAttentionSplitCta: "Abrir factura de porción",
+    fiscalAttentionSplitMenuCta: "Abrir factura de porción…",
+    fiscalAttentionSplitLegCta: (label: string) => `Porción · ${label}`,
+    fiscalAttentionSplitNoInvoiceBody:
+      "Hay un pendiente de facturación en este viaje con prorrateo. Revísalo en Facturación cuando corresponda.",
     falseTripChip: "Viaje en falso",
     falseTripCancelCfdiTitle: "Cancela la factura de flete",
     falseTripCancelCfdiBody:
@@ -85,10 +94,30 @@ export const shellCopy = {
     operationIncompleteTitle: "Datos de operación incompletos",
     operationVehicleMissing: "Sin datos de unidad en el viaje.",
     operationDriverMissing: "Sin datos de conductor en el viaje.",
+    /** Ephemeral tras cancelar viaje (consola facturación). */
     postCancelFiscalTitle: "Acción de facturación pendiente tras la cancelación",
+    postCancelFiscalActionLine:
+      "Cancela la(s) factura(s) vigente(s) con motivo de operación no realizada.",
     postCancelFiscalInvoiceStatus: (status: string) =>
       `Estado de factura: ${status}`,
     postCancelFiscalInvoiceRef: (ref: string) => `Referencia: ${ref}`,
+    /**
+     * Banner durable: viaje cancelled + requiresFiscalAttention (no mid-trip).
+     * Orientar a cancelar factura / abrir detalle; nunca sustituir ni flota/docs.
+     */
+    postCancelFiscalAttentionTitle:
+      "Acción de facturación pendiente tras la cancelación",
+    postCancelFiscalAttentionBody:
+      "El viaje está Cancelado y hay una factura vigente. Si no tiene cobros, cancélala con motivo de operación no realizada. Si tiene cobros, ábrela: ahí verás la limitación y el procedimiento.",
+    postCancelFiscalAttentionCta: "Abrir factura",
+    postCancelFiscalAttentionNoInvoiceBody:
+      "El viaje está Cancelado y hay un pendiente de facturación. Revísalo en Facturación cuando corresponda.",
+    postCancelFiscalAttentionSplitBody:
+      "El viaje está Cancelado y hay factura(s) vigente(s) por porción. 1) Cancela cada factura de porción con motivo de operación no realizada (si tiene cobros, ábrela: ahí verás la limitación). 2) Al cancelar la última, el reparto se cierra solo.",
+    postCancelFiscalAttentionSplitCta: "Abrir factura de porción",
+    postCancelFiscalAttentionSplitMenuCta: "Abrir factura de porción…",
+    postCancelFiscalAttentionSplitNoInvoiceBody:
+      "El viaje está Cancelado. Las porciones sin factura no deben emitirse; el reparto se cierra solo o ya quedó cerrado.",
   },
   state: {
     notFoundTitle: "Viaje no encontrado",
