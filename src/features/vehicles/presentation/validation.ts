@@ -18,6 +18,7 @@ import {
   isValidCp31Placa,
   normalizeCp31Placa,
 } from "@boeltech/cfdi-domain";
+import { isStrictlyPast } from "@shared/utils/dateUtils";
 
 // ============================================
 // Enums (mirror backend)
@@ -244,44 +245,66 @@ const vehicleFormCommonShape = {
  * requeridos para que cualquier vehículo nuevo sea timbrable en CP3.1.
  * Remolques: se asignan al viaje (ADR-0077), no en el maestro de unidad.
  */
-export const createVehicleSchema = z.object({
-  ...vehicleFormCommonShape,
+export const createVehicleSchema = z
+  .object({
+    ...vehicleFormCommonShape,
 
-  // ── Carta Porte 3.1 — Autotransporte (REQUERIDOS) ───────────────────────
-  // PermSCT — catálogo SAT c_TipoPermiso
-  satTipoPermisoCode: z
-    .string()
-    .min(1, "Selecciona el tipo de permiso SCT (PermSCT)")
-    .max(10, "Máximo 10 caracteres"),
-  // NumPermisoSCT
-  sctPermitNumber: z
-    .string()
-    .min(1, "El número de permiso SCT es requerido para Carta Porte")
-    .max(50, "Máximo 50 caracteres"),
-  // ConfigVehicular — catálogo SAT c_ConfigAutotransporte
-  satConfigAutotransporteCode: z
-    .string()
-    .min(1, "Selecciona la configuración vehicular SAT (ConfigVehicular)")
-    .max(10, "Máximo 10 caracteres"),
-  // PesoBrutoVehicular (toneladas)
-  pesoBrutoVehicular: vehicleFormPesoBrutoRequiredSchema,
-  // AseguraRespCivil
-  insuranceCompany: z
-    .string()
-    .min(
-      1,
-      "La aseguradora de responsabilidad civil es requerida para Carta Porte",
-    )
-    .max(50, "Máximo 50 caracteres"),
-  // PolizaRespCivil
-  insurancePolicy: z
-    .string()
-    .min(
-      1,
-      "La póliza de responsabilidad civil es requerida para Carta Porte",
-    )
-    .max(50, "Máximo 50 caracteres"),
-});
+    // ── Carta Porte 3.1 — Autotransporte (REQUERIDOS) ───────────────────────
+    // PermSCT — catálogo SAT c_TipoPermiso
+    satTipoPermisoCode: z
+      .string()
+      .min(1, "Selecciona el tipo de permiso SCT (PermSCT)")
+      .max(10, "Máximo 10 caracteres"),
+    // NumPermisoSCT
+    sctPermitNumber: z
+      .string()
+      .min(1, "El número de permiso SCT es requerido para Carta Porte")
+      .max(50, "Máximo 50 caracteres"),
+    // ConfigVehicular — catálogo SAT c_ConfigAutotransporte
+    satConfigAutotransporteCode: z
+      .string()
+      .min(1, "Selecciona la configuración vehicular SAT (ConfigVehicular)")
+      .max(10, "Máximo 10 caracteres"),
+    // PesoBrutoVehicular (toneladas)
+    pesoBrutoVehicular: vehicleFormPesoBrutoRequiredSchema,
+    // AseguraRespCivil
+    insuranceCompany: z
+      .string()
+      .min(
+        1,
+        "La aseguradora de responsabilidad civil es requerida para Carta Porte",
+      )
+      .max(50, "Máximo 50 caracteres"),
+    // PolizaRespCivil
+    insurancePolicy: z
+      .string()
+      .min(
+        1,
+        "La póliza de responsabilidad civil es requerida para Carta Porte",
+      )
+      .max(50, "Máximo 50 caracteres"),
+  })
+  .superRefine((data, ctx) => {
+    // D5/D6: vigencias estrictamente en el pasado (hoy OK; vacío OK — T3-013)
+    const insuranceExpiry = data.insuranceExpiry?.trim();
+    if (insuranceExpiry && isStrictlyPast(insuranceExpiry)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La fecha de vencimiento del seguro no puede ser en el pasado",
+        path: ["insuranceExpiry"],
+      });
+    }
+
+    const sctPermitExpiry = data.sctPermitExpiry?.trim();
+    if (sctPermitExpiry && isStrictlyPast(sctPermitExpiry)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "La fecha de vencimiento del permiso SCT no puede ser en el pasado",
+        path: ["sctPermitExpiry"],
+      });
+    }
+  });
 
 // ============================================
 // Edit Vehicle Form Schema — mismo set CP que alta

@@ -134,10 +134,11 @@ export function useAssignableVehicles(
 
 /**
  * Clasifica un vehículo como asignable o bloqueado.
- * Reglas en frontend (complemento al backend):
- * - Seguro / SCT sin registrar → bloqueado duro
- * - Seguro / SCT vencido o sin fecha de vigencia (póliza/número presente) → bloqueado
- *   con `expiredDocsOverridable` (filtro suave ADR-0066)
+ * Paridad ADR-0066 / API `getAssignmentBlockReason` (D1–D4):
+ * - Soft (`expiredDocsOverridable`): solo docs con fecha y `isExpired` (hoy = vencido).
+ * - Hard (sin `expiredDocsOverridable`): no registrado + sin vigencia (póliza/núm OK, fecha vacía).
+ *   El toggle `allowExpiredDocs` NUNCA libera hard blocks.
+ * Badge: «Seguro vencido» / «Permiso SCT vencido» solo con fecha; sin fecha → «Sin vigencia…».
  * Si el listado no trae póliza o número SCT pero sí vigencia, no se bloquea solo por ese campo
  * (compatibilidad con APIs que omiten esos campos en GET /vehicles).
  */
@@ -145,10 +146,89 @@ function hasDocText(value: string | null | undefined): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+type VehicleDocBlock = Pick<
+  AssignableVehicleItem,
+  "canBeAssigned" | "blockReason" | "expiredDocsOverridable"
+>;
+
+/**
+ * Hard + soft documentation gates (ADR-0066).
+ * Returns a block payload or `null` when docs are OK to continue.
+ */
+function classifyVehicleDocumentationBlock(
+  vehicle: VehicleListItem,
+): VehicleDocBlock | null {
+  const hasInsurancePolicy = hasDocText(vehicle.insurancePolicy);
+  const hasInsuranceExpiry = hasDocText(vehicle.insuranceExpiry);
+  const hasSctNumber = hasDocText(vehicle.sctPermitNumber);
+  const hasSctExpiry = hasDocText(vehicle.sctPermitExpiry);
+
+  // ── Hard — no registrado / sin vigencia (toggle NUNCA libera) ───────────
+  if (!hasInsurancePolicy && !hasInsuranceExpiry) {
+    return {
+      canBeAssigned: false,
+      blockReason: "Seguro no registrado",
+    };
+  }
+
+  if (hasInsurancePolicy && !hasInsuranceExpiry) {
+    return {
+      canBeAssigned: false,
+      blockReason: "Sin vigencia de seguro",
+    };
+  }
+
+  if (!hasSctNumber && !hasSctExpiry) {
+    return {
+      canBeAssigned: false,
+      blockReason: "Permiso SCT no registrado",
+    };
+  }
+
+  if (hasSctNumber && !hasSctExpiry) {
+    return {
+      canBeAssigned: false,
+      blockReason: "Sin vigencia de permiso SCT",
+    };
+  }
+
+  // ── Soft — fechas vencidas (liberable con allowExpiredDocs) ─────────────
+  if (hasInsuranceExpiry && isExpired(vehicle.insuranceExpiry)) {
+    return {
+      canBeAssigned: false,
+      blockReason: "Seguro vencido",
+      expiredDocsOverridable: true,
+    };
+  }
+
+  if (hasSctExpiry && isExpired(vehicle.sctPermitExpiry)) {
+    return {
+      canBeAssigned: false,
+      blockReason: "Permiso SCT vencido",
+      expiredDocsOverridable: true,
+    };
+  }
+
+  return null;
+}
+
+function isFleetCommitVehicleStatus(status: string): boolean {
+  return status === "reserved" || status === "on_trip";
+}
+
 export function classifyVehicleForAssignment(
   vehicle: VehicleListItem,
 ): AssignableVehicleItem {
   if (!isVehicleStartableStatus(vehicle.status)) {
+    // reserved/on_trip: evaluate docs before status-only block so soft-busy cannot
+    // promote expired/hard-doc units without allowExpiredDocs (parity with drivers).
+    // Product priority: «Con documentación vencida» over «En otro viaje».
+    if (isFleetCommitVehicleStatus(vehicle.status)) {
+      const docBlock = classifyVehicleDocumentationBlock(vehicle);
+      if (docBlock) {
+        return { ...vehicle, ...docBlock };
+      }
+    }
     return {
       ...vehicle,
       canBeAssigned: false,
@@ -156,68 +236,12 @@ export function classifyVehicleForAssignment(
     };
   }
 
-  const hasInsurancePolicy = hasDocText(vehicle.insurancePolicy);
-  const hasInsuranceExpiry = hasDocText(vehicle.insuranceExpiry);
-  const hasSctNumber = hasDocText(vehicle.sctPermitNumber);
-  const hasSctExpiry = hasDocText(vehicle.sctPermitExpiry);
-
-  // ── Seguro ─────────────────────────────────────────────────────────────
-  if (!hasInsurancePolicy && !hasInsuranceExpiry) {
-    return {
-      ...vehicle,
-      canBeAssigned: false,
-      blockReason: "Seguro no registrado",
-    };
+  const docBlock = classifyVehicleDocumentationBlock(vehicle);
+  if (docBlock) {
+    return { ...vehicle, ...docBlock };
   }
 
-  if (hasInsuranceExpiry && isExpired(vehicle.insuranceExpiry)) {
-    return {
-      ...vehicle,
-      canBeAssigned: false,
-      blockReason: "Seguro vencido",
-      expiredDocsOverridable: true,
-    };
-  }
-
-  if (hasInsurancePolicy && !hasInsuranceExpiry) {
-    return {
-      ...vehicle,
-      canBeAssigned: false,
-      blockReason: "Sin vigencia de seguro",
-      expiredDocsOverridable: true,
-    };
-  }
-
-  // Vigencia sin póliza en listado: se permite (API puede omitir `insurance_policy`).
-
-  // ── Permiso SCT ─────────────────────────────────────────────────────────
-  if (!hasSctNumber && !hasSctExpiry) {
-    return {
-      ...vehicle,
-      canBeAssigned: false,
-      blockReason: "Permiso SCT no registrado",
-    };
-  }
-
-  if (hasSctExpiry && isExpired(vehicle.sctPermitExpiry)) {
-    return {
-      ...vehicle,
-      canBeAssigned: false,
-      blockReason: "Permiso SCT vencido",
-      expiredDocsOverridable: true,
-    };
-  }
-
-  if (hasSctNumber && !hasSctExpiry) {
-    return {
-      ...vehicle,
-      canBeAssigned: false,
-      blockReason: "Sin vigencia de permiso SCT",
-      expiredDocsOverridable: true,
-    };
-  }
-
-  // Vigencia sin número en listado: se permite (API puede omitir `sct_permit_number`).
+  // Vigencia sin póliza/número en listado: se permite (API puede omitir esos campos).
 
   // ── Autotransporte CP stamp-ready (SoT paquete; remolques = viaje ADR-0077) ─
   const stampResult = validateVehicleForCartaPorteStamp({

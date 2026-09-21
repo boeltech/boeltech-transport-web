@@ -5,9 +5,11 @@
  * - Alta y edición exigen campos CP3.1 Autotransporte.
  * - PlacaVM SAT 5–7 vía normalizeCp31Placa / isValidCp31Placa.
  * - Remolques embebidos deprecados (ADR-0077): S/R ya no exige remolques en maestro.
+ * - Vigencias seguro/SCT: isStrictlyPast (hoy OK; vacío OK; pasado rechazado).
  */
 
 import { describe, expect, it } from "vitest";
+import { getTodayString } from "@shared/utils/dateUtils";
 import {
   createVehicleSchema,
   editVehicleFormSchema,
@@ -197,6 +199,67 @@ describe("createVehicleSchema — Carta Porte 3.1 (alta)", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("acepta alta con vencimientos vacíos (vigencia opcional)", () => {
+    const result = createVehicleSchema.safeParse({
+      ...baseAlta,
+      insuranceExpiry: "",
+      sctPermitExpiry: "",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rechaza vencimiento del seguro en el pasado", () => {
+    const result = createVehicleSchema.safeParse({
+      ...baseAlta,
+      insuranceExpiry: "2020-01-15",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (i) =>
+            i.path.includes("insuranceExpiry") &&
+            i.message.includes("vencimiento del seguro"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rechaza vencimiento del permiso SCT en el pasado", () => {
+    const result = createVehicleSchema.safeParse({
+      ...baseAlta,
+      sctPermitExpiry: "2019-06-01",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (i) =>
+            i.path.includes("sctPermitExpiry") &&
+            i.message.includes("vencimiento del permiso SCT"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("acepta vencimientos hoy o en el futuro", () => {
+    const today = getTodayString();
+    expect(
+      createVehicleSchema.safeParse({
+        ...baseAlta,
+        insuranceExpiry: today,
+        sctPermitExpiry: today,
+      }).success,
+    ).toBe(true);
+    expect(
+      createVehicleSchema.safeParse({
+        ...baseAlta,
+        insuranceExpiry: "2099-12-31",
+        sctPermitExpiry: "2099-12-31",
+      }).success,
+    ).toBe(true);
+  });
 });
 
 describe("editVehicleFormSchema — mismo set CP que alta", () => {
@@ -236,5 +299,18 @@ describe("editVehicleFormSchema — mismo set CP que alta", () => {
       remolques: [],
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rechaza edición con vencimiento del seguro en el pasado", () => {
+    const result = editVehicleFormSchema.safeParse({
+      ...baseAlta,
+      insuranceExpiry: "2020-01-15",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((i) => i.path.includes("insuranceExpiry")),
+      ).toBe(true);
+    }
   });
 });

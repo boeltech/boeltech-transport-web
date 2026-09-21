@@ -204,6 +204,11 @@ export interface AssignableVehicleItem extends VehicleListItem {
   readonly canBeAssigned: boolean;
   readonly blockReason?: string;
   readonly expiredDocsOverridable?: boolean;
+  /**
+   * Scheduled/in_progress assignment surfaces: occupied on another trip
+   * (busy set or reserved/on_trip). Never liberated by allowExpiredDocs.
+   */
+  readonly fleetHardBlocked?: boolean;
   /** Draft soft-busy: comprometido en otro viaje pero seleccionable. */
   readonly softBusy?: boolean;
   readonly assignmentConflict?: {
