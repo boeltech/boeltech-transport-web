@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import {
@@ -12,20 +12,19 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { Alert, AlertDescription } from "@shared/ui/alert";
+import { FieldInlineError } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
   useInvoiceSendRecipients,
   useSendInvoice,
 } from "@features/invoicing/application";
-import { DispatchRunRecipientsEditor } from "@features/finance/presentation/components/DispatchRunRecipientsList";
 import {
   buildSendRecipientKeys,
-  countSelectedRecipients,
-  defaultRecipientSelection,
-  toRecipientGroups,
+  defaultSelectedRecipientKeys,
   toggleRecipientKey,
 } from "../utils/invoiceSendRecipientSelection";
+import { InvoiceRecipientsChecklist } from "./InvoiceRecipientsChecklist";
 import { invoicingCopy } from "../copy/invoicingCopy";
 
 const copy = invoicingCopy.send.dialog;
@@ -50,46 +49,58 @@ export function SendInvoiceDialog({
     isError,
     refetch,
   } = useInvoiceSendRecipients(invoiceId, open);
-  const [selection, setSelection] = useState<Record<string, string[]>>({});
-
-  const groups = useMemo(
-    () => (recipientsPayload ? toRecipientGroups(recipientsPayload) : []),
-    [recipientsPayload],
-  );
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const recipientsInitKey = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!open || !recipientsPayload) return;
-    setSelection(defaultRecipientSelection(toRecipientGroups(recipientsPayload)));
-  }, [open, recipientsPayload?.clientId]);
+    if (!open) {
+      recipientsInitKey.current = null;
+      setSelectedKeys([]);
+      setApiError(null);
+      return;
+    }
+    if (!recipientsPayload) return;
+    const initKey = `${recipientsPayload.clientId}:${recipientsPayload.recipients
+      .map((recipient) => recipient.key)
+      .join(",")}`;
+    if (recipientsInitKey.current === initKey) return;
+    recipientsInitKey.current = initKey;
+    setSelectedKeys(defaultSelectedRecipientKeys(recipientsPayload));
+    setApiError(null);
+  }, [open, recipientsPayload]);
 
   const { mutate: send, isPending } = useSendInvoice(invoiceId, {
     onSuccess: () => {
+      setApiError(null);
       toast({
         variant: "success",
-        title: copy.successToast,
+        title: alreadySent ? copy.successToastResend : copy.successToast,
       });
       onSent?.();
       onOpenChange(false);
     },
     onError: (error) => {
+      const message = getErrorMessage(error);
+      setApiError(message);
       toast({
-        variant: "destructive",
+        variant: "error",
         title: copy.errorToast,
-        description: getErrorMessage(error),
+        description: message,
       });
     },
   });
 
-  const clientId = recipientsPayload?.clientId;
-  const hasEligible = groups.some((group) => group.recipients.length > 0);
-  const selectedCount = countSelectedRecipients(selection);
+  const hasEligible = (recipientsPayload?.recipients.length ?? 0) > 0;
   const zeroSelected =
-    Boolean(clientId) && (selection[clientId!]?.length ?? 0) === 0;
+    Boolean(recipientsPayload) && selectedKeys.length === 0;
+  const submitLabel = alreadySent ? copy.submitResend : copy.submit;
 
   const handleConfirm = () => {
     if (!recipientsPayload || zeroSelected) return;
+    setApiError(null);
     send({
-      recipientKeys: buildSendRecipientKeys(recipientsPayload, selection),
+      recipientKeys: buildSendRecipientKeys(recipientsPayload, selectedKeys),
     });
   };
 
@@ -106,6 +117,12 @@ export function SendInvoiceDialog({
         {alreadySent ? (
           <Alert variant="warning">
             <AlertDescription>{copy.resendWarning}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {apiError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{apiError}</AlertDescription>
           </Alert>
         ) : null}
 
@@ -131,6 +148,10 @@ export function SendInvoiceDialog({
 
         {!isLoading && !isError && recipientsPayload ? (
           <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">
+              {copy.recipientsHeading}
+            </p>
+            <p className="text-xs text-muted-foreground">{copy.recipientsHint}</p>
             {!hasEligible ? (
               <p className="text-sm text-destructive">
                 {copy.noRecipients}{" "}
@@ -143,21 +164,25 @@ export function SendInvoiceDialog({
               </p>
             ) : (
               <>
-                <DispatchRunRecipientsEditor
-                  groups={groups}
-                  selection={selection}
+                <InvoiceRecipientsChecklist
+                  recipients={recipientsPayload.recipients}
+                  selectedKeys={selectedKeys}
                   disabled={isPending}
-                  onToggle={(groupClientId, key, checked) =>
-                    setSelection((current) =>
-                      toggleRecipientKey(current, groupClientId, key, checked),
+                  idPrefix={`unit-send-${invoiceId}`}
+                  onToggle={(key, checked) =>
+                    setSelectedKeys((current) =>
+                      toggleRecipientKey(current, key, checked),
                     )
                   }
                 />
                 {zeroSelected ? (
-                  <p className="text-xs text-destructive">{copy.zeroSelected}</p>
+                  <FieldInlineError
+                    fieldId="unit-send-recipients"
+                    message={copy.zeroSelected}
+                  />
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    {copy.recipientsSelected(selectedCount)}
+                    {copy.recipientsSelected(selectedKeys.length)}
                   </p>
                 )}
               </>
@@ -186,7 +211,7 @@ export function SendInvoiceDialog({
                 {copy.submitting}
               </>
             ) : (
-              copy.submit
+              submitLabel
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

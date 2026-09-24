@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSendRecipientKeys,
-  defaultRecipientSelection,
-  toRecipientGroups,
+  defaultSelectedRecipientKeys,
+  toggleRecipientKey,
 } from "./invoiceSendRecipientSelection";
 
 describe("invoiceSendRecipientSelection", () => {
@@ -26,25 +26,35 @@ describe("invoiceSendRecipientSelection", () => {
     ],
   };
 
-  it("defaultRecipientSelection marca todos los elegibles", () => {
-    const groups = toRecipientGroups(payload);
-    const selection = defaultRecipientSelection(groups);
-    expect(selection["client-1"]).toEqual([
+  it("defaultSelectedRecipientKeys marca todos los elegibles", () => {
+    expect(defaultSelectedRecipientKeys(payload)).toEqual([
       "billing_email",
       "contact:abc",
     ]);
   });
 
   it("buildSendRecipientKeys omite body cuando están todos marcados", () => {
-    const groups = toRecipientGroups(payload);
-    const selection = defaultRecipientSelection(groups);
-    expect(buildSendRecipientKeys(payload, selection)).toBeUndefined();
+    expect(
+      buildSendRecipientKeys(payload, defaultSelectedRecipientKeys(payload)),
+    ).toBeUndefined();
   });
 
   it("buildSendRecipientKeys envía subset cuando cambia la selección", () => {
-    const selection = { "client-1": ["billing_email"] };
-    expect(buildSendRecipientKeys(payload, selection)).toEqual([
+    expect(buildSendRecipientKeys(payload, ["billing_email"])).toEqual([
       "billing_email",
     ]);
+  });
+
+  it("toggleRecipientKey agrega y quita sin duplicar", () => {
+    expect(toggleRecipientKey(["billing_email"], "contact:abc", true)).toEqual([
+      "billing_email",
+      "contact:abc",
+    ]);
+    expect(toggleRecipientKey(["billing_email"], "billing_email", false)).toEqual(
+      [],
+    );
+    expect(toggleRecipientKey(["billing_email"], "billing_email", true)).toEqual(
+      ["billing_email"],
+    );
   });
 });

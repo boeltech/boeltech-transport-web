@@ -122,6 +122,9 @@ export interface InvoiceListItem {
   readonly cfdiUuid: string | null;
   readonly receiverRfc: string;
   readonly receiverName: string;
+  /** Cliente comercial vinculado (listados de envío / filtros). */
+  readonly clientId: string | null;
+  readonly clientName: string | null;
   readonly issuedAt: string;
   readonly paymentForm: string;
   readonly paymentMethod: string;
@@ -135,6 +138,13 @@ export interface InvoiceListItem {
   readonly stampedAt: string | null;
   /** Primera vez enviada por correo (solo facturas timbradas). */
   readonly dispatchSentAt: string | null;
+  /** ADR-0083 — último ítem de corrida scheduled (listado). */
+  readonly autoDispatch?: {
+    enabledForClient: boolean;
+    lastScheduledRunId: string | null;
+    lastItemStatus: string | null;
+    lastError: string | null;
+  } | null;
   readonly tripCount: number;
   readonly tripCodes: string[];
   readonly totalPaid: number;
@@ -429,6 +439,72 @@ export interface SendInvoicePayload {
   readonly recipientKeys?: string[];
 }
 
+/** Un grupo-cliente para POST /invoices/send-batch (digest ADR-0082). */
+export interface SendInvoiceBatchGroupPayload {
+  readonly invoiceIds: string[];
+  readonly recipientKeys?: string[];
+}
+
+export interface SendInvoiceBatchPayload {
+  readonly groups: SendInvoiceBatchGroupPayload[];
+}
+
+/** Ack 202 sync outcome per group — no `sent` until post-process (F2′/F4′). */
+export type SendInvoiceBatchGroupStatus = "queued" | "failed" | "skipped";
+
+export interface SendInvoiceBatchGroupResult {
+  readonly groupKey: string;
+  readonly clientId: string | null;
+  readonly status: SendInvoiceBatchGroupStatus;
+  readonly errorMessage: string | null;
+  readonly errorCode: string | null;
+  readonly invoiceIds: string[];
+}
+
+export interface SendInvoiceBatchSummary {
+  readonly clientsQueued: number;
+  readonly clientsSkipped: number;
+  readonly clientsFailed: number;
+  readonly invoicesQueued: number;
+}
+
+/** POST /invoices/send-batch and unitario send — 202 Accepted (TEC §E.1/E.2). */
+export interface SendInvoiceBatchResult {
+  readonly batchId: string;
+  readonly status: "queued";
+  readonly groups: SendInvoiceBatchGroupResult[];
+  readonly summary: SendInvoiceBatchSummary;
+}
+
+/** GET /invoices/send-batches/:batchId — poll status (TEC §E.3). */
+export type SendBatchPollStatus =
+  | "queued"
+  | "processing"
+  | "completed"
+  | "completed_with_errors";
+
+export type SendBatchPollGroupStatus =
+  | "queued"
+  | "processing"
+  | "sent"
+  | "failed"
+  | "skipped";
+
+export interface SendBatchPollGroup {
+  readonly groupKey: string;
+  readonly clientId: string | null;
+  readonly status: SendBatchPollGroupStatus;
+  readonly errorCode: string | null;
+  readonly errorMessage: string | null;
+  readonly invoiceIds: string[];
+}
+
+export interface SendBatchPollResult {
+  readonly batchId: string;
+  readonly status: SendBatchPollStatus;
+  readonly groups: SendBatchPollGroup[];
+}
+
 export interface CreatePaymentPayload {
   amount: number;
   currency?: string;
@@ -443,8 +519,17 @@ export interface CreatePaymentPayload {
   confirmChainRepair?: boolean;
 }
 
+export type InvoiceEmailDispatchFilter = "unsent" | "sent";
+
 export interface InvoiceFilters {
   status?: InvoiceStatus;
+  /** Staff: facturas cuyos viajes tienen este client_id (wizard Enviar facturas). */
+  clientId?: string;
+  /**
+   * Filtro de envío por correo (GET /invoices?email_dispatch=).
+   * `unsent` = timbradas sin dispatch_sent_at; `sent` = ya enviadas.
+   */
+  emailDispatch?: InvoiceEmailDispatchFilter;
   receiverRfc?: string;
   dateFrom?: string;
   dateTo?: string;

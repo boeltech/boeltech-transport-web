@@ -3,7 +3,15 @@ import {
   parseInvoiceBillingScope,
   type CreateInvoicePayload,
 } from "@features/invoicing/domain";
-import { mapInvoice, toApiCreateInvoice, toApiSendInvoice } from "./mappers";
+import {
+  mapInvoice,
+  mapInvoiceListItem,
+  mapSendInvoiceBatchResult,
+  mapSendBatchPollResult,
+  toApiCreateInvoice,
+  toApiSendInvoice,
+  toApiSendInvoiceBatch,
+} from "./mappers";
 
 describe("invoicing mappers billing_scope (ADR-0068)", () => {
   it("mapInvoice maps trips[].billing_scope", () => {
@@ -424,6 +432,69 @@ describe("invoicing mappers dispatch_sent_at", () => {
   });
 });
 
+describe("mapInvoiceListItem email dispatch fields", () => {
+  const listBase = {
+    id: "inv-1",
+    tenant_id: "t-1",
+    serie: "A",
+    folio: 10,
+    cfdi_uuid: null,
+    receiver_rfc: "BBB010101BBB",
+    receiver_name: "Receptor SA",
+    issued_at: "2026-08-20T14:00:00.000Z",
+    payment_form: "99",
+    payment_method: "PPD",
+    currency: "MXN",
+    subtotal: 500,
+    total_tax: 80,
+    total: 580,
+    status: "stamped",
+    sat_cancellation_status: "none",
+    sat_cancellation_message: null,
+    stamped_at: "2026-08-20T14:00:00.000Z",
+    trip_count: 1,
+    trip_codes: ["V-1"],
+    total_paid: 0,
+    balance_due: 580,
+    created_at: "2026-07-01T10:00:00.000Z",
+    created_by_name: null,
+  };
+
+  it("maps client_id, client_name, dispatch_sent_at and auto_dispatch", () => {
+    const item = mapInvoiceListItem({
+      ...listBase,
+      client_id: "client-1",
+      client_name: "Cliente Comercial",
+      dispatch_sent_at: null,
+      auto_dispatch: {
+        enabled_for_client: true,
+        last_scheduled_run_id: "run-9",
+        last_item_status: "failed",
+        last_error: "SMTP down",
+      },
+    });
+
+    expect(item.clientId).toBe("client-1");
+    expect(item.clientName).toBe("Cliente Comercial");
+    expect(item.dispatchSentAt).toBeNull();
+    expect(item.autoDispatch).toEqual({
+      enabledForClient: true,
+      lastScheduledRunId: "run-9",
+      lastItemStatus: "failed",
+      lastError: "SMTP down",
+    });
+  });
+
+  it("defaults missing client fields to null and omits autoDispatch when absent", () => {
+    const item = mapInvoiceListItem(listBase);
+
+    expect(item.clientId).toBeNull();
+    expect(item.clientName).toBeNull();
+    expect(item.dispatchSentAt).toBeNull();
+    expect(item.autoDispatch).toBeUndefined();
+  });
+});
+
 describe("toApiSendInvoice", () => {
   it("omits body when recipientKeys is undefined (all eligible)", () => {
     expect(toApiSendInvoice({})).toEqual({});
@@ -441,6 +512,134 @@ describe("toApiSendInvoice", () => {
       toApiSendInvoice({ recipientKeys: ["billing_email", "contact:abc"] }),
     ).toEqual({
       recipient_keys: ["billing_email", "contact:abc"],
+    });
+  });
+});
+
+describe("toApiSendInvoiceBatch / mapSendInvoiceBatchResult", () => {
+  it("maps camelCase groups to snake_case body", () => {
+    expect(
+      toApiSendInvoiceBatch({
+        groups: [
+          { invoiceIds: ["a", "b"], recipientKeys: ["billing_email"] },
+          { invoiceIds: ["c"] },
+        ],
+      }),
+    ).toEqual({
+      groups: [
+        { invoice_ids: ["a", "b"], recipient_keys: ["billing_email"] },
+        { invoice_ids: ["c"] },
+      ],
+    });
+  });
+
+  it("maps API 202 batch result to camelCase (queued ack)", () => {
+    expect(
+      mapSendInvoiceBatchResult({
+        batch_id: "batch-1",
+        status: "queued",
+        groups: [
+          {
+            group_key: "client-a",
+            client_id: "client-a",
+            status: "queued",
+            error_message: null,
+            error_code: null,
+            invoice_ids: ["inv-1", "inv-2"],
+          },
+          {
+            group_key: "client-b",
+            client_id: "client-b",
+            status: "skipped",
+            error_message: "Sin destinatarios",
+            error_code: "NO_RECIPIENTS",
+            invoice_ids: ["inv-3"],
+          },
+        ],
+        summary: {
+          clients_queued: 1,
+          clients_skipped: 1,
+          clients_failed: 0,
+          invoices_queued: 2,
+        },
+      }),
+    ).toEqual({
+      batchId: "batch-1",
+      status: "queued",
+      groups: [
+        {
+          groupKey: "client-a",
+          clientId: "client-a",
+          status: "queued",
+          errorMessage: null,
+          errorCode: null,
+          invoiceIds: ["inv-1", "inv-2"],
+        },
+        {
+          groupKey: "client-b",
+          clientId: "client-b",
+          status: "skipped",
+          errorMessage: "Sin destinatarios",
+          errorCode: "NO_RECIPIENTS",
+          invoiceIds: ["inv-3"],
+        },
+      ],
+      summary: {
+        clientsQueued: 1,
+        clientsSkipped: 1,
+        clientsFailed: 0,
+        invoicesQueued: 2,
+      },
+    });
+  });
+});
+
+describe("mapSendBatchPollResult", () => {
+  it("maps poll status and groups to camelCase", () => {
+    expect(
+      mapSendBatchPollResult({
+        batch_id: "batch-1",
+        status: "completed_with_errors",
+        groups: [
+          {
+            group_key: "client-a",
+            client_id: "client-a",
+            status: "sent",
+            error_code: null,
+            error_message: null,
+            invoice_ids: ["inv-1"],
+          },
+          {
+            group_key: "client-b",
+            client_id: null,
+            status: "failed",
+            error_code: "SMTP",
+            error_message: "timeout",
+            invoice_ids: ["inv-2"],
+          },
+        ],
+      }),
+    ).toEqual({
+      batchId: "batch-1",
+      status: "completed_with_errors",
+      groups: [
+        {
+          groupKey: "client-a",
+          clientId: "client-a",
+          status: "sent",
+          errorCode: null,
+          errorMessage: null,
+          invoiceIds: ["inv-1"],
+        },
+        {
+          groupKey: "client-b",
+          clientId: null,
+          status: "failed",
+          errorCode: "SMTP",
+          errorMessage: "timeout",
+          invoiceIds: ["inv-2"],
+        },
+      ],
     });
   });
 });

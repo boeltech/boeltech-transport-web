@@ -26,6 +26,12 @@ export {
 
 export { useInvoiceReceiverClientType } from "./hooks/useInvoiceReceiverClientType";
 
+export { useSendInvoicesBatch } from "./hooks/useSendInvoicesBatch";
+export type {
+  SendInvoiceBatchGroupItem,
+  SendInvoiceBatchResultItem,
+} from "./hooks/useSendInvoicesBatch";
+
 export {
   prefetchInvoiceLinkedTrips,
   buildStopsByIdFromCache,

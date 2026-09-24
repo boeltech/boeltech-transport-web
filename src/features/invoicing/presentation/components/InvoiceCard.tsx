@@ -24,6 +24,7 @@ import {
   type InvoiceListItem,
 } from "@features/invoicing/domain";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
+import { InvoiceEmailDispatchBadge } from "./InvoiceEmailDispatchBadge";
 import { InvoiceActions } from "./InvoiceActions";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { formatDate } from "@shared/utils/dateUtils";
@@ -132,9 +133,15 @@ export function InvoiceCard({ invoice, onView, onDelete }: InvoiceCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter className="pt-3 border-t">
+          <CardFooter className="pt-3 border-t">
         <div className="flex w-full items-center justify-between gap-2">
-          <InvoiceStatusBadge status={invoice.status} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <InvoiceStatusBadge status={invoice.status} />
+            <InvoiceEmailDispatchBadge
+              status={invoice.status}
+              dispatchSentAt={invoice.dispatchSentAt}
+            />
+          </div>
 
           <div className="flex items-center gap-3">
             {/* Importes */}

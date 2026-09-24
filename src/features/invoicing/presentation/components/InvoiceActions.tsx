@@ -314,6 +314,13 @@ export function InvoiceActions({
   const canShowExport = Boolean(fullInvoice) && isStampedLike && canExport;
 
   const canShowSendByEmail = isStamped && canExecute;
+  /** F3: visible solo timbrada; si no hay permiso de execute no aparece. */
+  const showSendDisabledNotStamped =
+    variant === "buttons" && canExecute && !isStamped;
+  const alreadySentByEmail = Boolean(fullInvoice?.dispatchSentAt);
+  const sendByEmailLabel = alreadySentByEmail
+    ? actionsCopy.resendByEmail
+    : actionsCopy.sendByEmail;
 
   const fiscal = useTripFiscalSheets({
     invoiceTripRefs: fullInvoice?.trips ?? [],
@@ -533,7 +540,10 @@ export function InvoiceActions({
     (canShowCancel && !elevateCancelPrimary);
   /** Enviar / Descargar / pago secundario viven en «Más» bajo lg. */
   const hasResponsiveOverflow =
-    canShowSendByEmail || hasDownloadMenu || paymentIsSecondary;
+    canShowSendByEmail ||
+    showSendDisabledNotStamped ||
+    hasDownloadMenu ||
+    paymentIsSecondary;
   const hasMoreMenu = hasTertiaryInMore || hasResponsiveOverflow;
 
   const hasToolbar =
@@ -547,7 +557,10 @@ export function InvoiceActions({
 
   const serieFolio = folioCombined;
   const moreHasMobileOverflow =
-    paymentIsSecondary || canShowSendByEmail || hasDownloadMenu;
+    paymentIsSecondary ||
+    canShowSendByEmail ||
+    showSendDisabledNotStamped ||
+    hasDownloadMenu;
   const moreHasSubstituteItem =
     (showBlockedSubstitute ||
       (canShowSubstitute && Boolean(fullInvoice))) &&
@@ -682,8 +695,24 @@ export function InvoiceActions({
             disabled={isLoading}
           >
             <Mail className="mr-2 h-4 w-4" />
-            {actionsCopy.sendByEmail}
+            {sendByEmailLabel}
           </Button>
+        ) : null}
+
+        {showSendDisabledNotStamped ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="hidden 2xl:inline-flex">
+                <Button variant="outline" size="sm" disabled>
+                  <Mail className="mr-2 h-4 w-4" />
+                  {actionsCopy.sendByEmail}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-left">
+              {sendCopy.disabledNotStamped}
+            </TooltipContent>
+          </Tooltip>
         ) : null}
 
         {hasDownloadMenu && fullInvoice ? (
@@ -785,8 +814,24 @@ export function InvoiceActions({
                   onSelect={() => setSendDialogOpen(true)}
                 >
                   <Mail className="mr-2 h-4 w-4" />
-                  {actionsCopy.sendByEmail}
+                  {sendByEmailLabel}
                 </DropdownMenuItem>
+              ) : null}
+
+              {showSendDisabledNotStamped ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block w-full 2xl:hidden">
+                      <DropdownMenuItem disabled>
+                        <Mail className="mr-2 h-4 w-4" />
+                        {actionsCopy.sendByEmail}
+                      </DropdownMenuItem>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs text-left">
+                    {sendCopy.disabledNotStamped}
+                  </TooltipContent>
+                </Tooltip>
               ) : null}
 
               {hasDownloadMenu && fullInvoice ? (
@@ -1062,7 +1107,7 @@ export function InvoiceActions({
           invoiceId={invoiceId}
           open={sendDialogOpen}
           onOpenChange={setSendDialogOpen}
-          alreadySent={Boolean(fullInvoice?.dispatchSentAt)}
+          alreadySent={alreadySentByEmail}
           onSent={onActionComplete}
         />
       ) : null}

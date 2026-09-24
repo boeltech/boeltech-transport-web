@@ -367,7 +367,7 @@ describe("invoice auto-dispatch workflow smoke (ADR-0083)", () => {
     const link = screen.getByRole("link", {
       name: invoicingCopy.send.autoDispatchFailedLink,
     });
-    expect(link).toHaveAttribute("href", "/finance/dispatch-runs/run-auto-1");
+    expect(link).toHaveAttribute("href", "/finance/dispatch/run-auto-1");
   });
 
   it("inbox tipa billing_dispatch y tipos de envío automático", () => {

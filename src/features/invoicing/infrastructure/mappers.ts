@@ -20,6 +20,15 @@ import {
   type SubstituteStampedInvoicePayload,
   type InvoiceSendRecipients,
   type SendInvoicePayload,
+  type SendInvoiceBatchPayload,
+  type SendInvoiceBatchResult,
+  type SendInvoiceBatchGroupResult,
+  type SendInvoiceBatchGroupStatus,
+  type SendInvoiceBatchSummary,
+  type SendBatchPollResult,
+  type SendBatchPollGroup,
+  type SendBatchPollStatus,
+  type SendBatchPollGroupStatus,
 } from "@features/invoicing/domain";
 import { sanitizeRepLastErrorForDisplay } from "./sanitizeRepLastErrorForDisplay";
 
@@ -161,6 +170,8 @@ interface ApiInvoiceListItem {
   cfdi_uuid: string | null;
   receiver_rfc: string;
   receiver_name: string;
+  client_id?: string | null;
+  client_name?: string | null;
   issued_at: string;
   payment_form: string;
   payment_method: string;
@@ -173,6 +184,12 @@ interface ApiInvoiceListItem {
   sat_cancellation_message: string | null;
   stamped_at: string | null;
   dispatch_sent_at?: string | null;
+  auto_dispatch?: {
+    enabled_for_client: boolean;
+    last_scheduled_run_id: string | null;
+    last_item_status: string | null;
+    last_error: string | null;
+  } | null;
   trip_count: number;
   trip_codes: string[];
   total_paid: number;
@@ -388,6 +405,8 @@ export function mapInvoiceListItem(raw: unknown): InvoiceListItem {
     cfdiUuid: item.cfdi_uuid,
     receiverRfc: item.receiver_rfc,
     receiverName: item.receiver_name,
+    clientId: item.client_id ?? null,
+    clientName: item.client_name ?? null,
     issuedAt: item.issued_at,
     paymentForm: item.payment_form,
     paymentMethod: item.payment_method,
@@ -400,6 +419,16 @@ export function mapInvoiceListItem(raw: unknown): InvoiceListItem {
     satCancellationMessage: item.sat_cancellation_message,
     stampedAt: item.stamped_at,
     dispatchSentAt: item.dispatch_sent_at ?? null,
+    autoDispatch: item.auto_dispatch
+      ? {
+          enabledForClient: Boolean(item.auto_dispatch.enabled_for_client),
+          lastScheduledRunId: item.auto_dispatch.last_scheduled_run_id,
+          lastItemStatus: item.auto_dispatch.last_item_status,
+          lastError: item.auto_dispatch.last_error,
+        }
+      : item.auto_dispatch === null
+        ? null
+        : undefined,
     tripCount: item.trip_count,
     tripCodes: item.trip_codes ?? [],
     totalPaid: item.total_paid,
@@ -667,4 +696,155 @@ export function toApiSendInvoice(payload: SendInvoicePayload) {
     return {};
   }
   return { recipient_keys: payload.recipientKeys };
+}
+
+export function toApiSendInvoiceBatch(payload: SendInvoiceBatchPayload) {
+  return {
+    groups: payload.groups.map((group) => {
+      if (group.recipientKeys === undefined) {
+        return { invoice_ids: group.invoiceIds };
+      }
+      return {
+        invoice_ids: group.invoiceIds,
+        recipient_keys: group.recipientKeys,
+      };
+    }),
+  };
+}
+
+interface ApiSendInvoiceBatchGroupResult {
+  group_key: string;
+  client_id: string | null;
+  status: string;
+  error_message: string | null;
+  error_code: string | null;
+  invoice_ids: string[];
+}
+
+interface ApiSendInvoiceBatchSummary {
+  clients_queued: number;
+  clients_skipped: number;
+  clients_failed: number;
+  invoices_queued: number;
+}
+
+interface ApiSendInvoiceBatchResult {
+  batch_id: string;
+  status: string;
+  groups: ApiSendInvoiceBatchGroupResult[];
+  summary: ApiSendInvoiceBatchSummary;
+}
+
+function mapSendInvoiceBatchGroupStatus(
+  status: string,
+): SendInvoiceBatchGroupStatus {
+  if (status === "queued" || status === "failed" || status === "skipped") {
+    return status;
+  }
+  return "failed";
+}
+
+function mapSendInvoiceBatchGroupResult(
+  raw: ApiSendInvoiceBatchGroupResult,
+): SendInvoiceBatchGroupResult {
+  return {
+    groupKey: raw.group_key,
+    clientId: raw.client_id,
+    status: mapSendInvoiceBatchGroupStatus(raw.status),
+    errorMessage: raw.error_message,
+    errorCode: raw.error_code,
+    invoiceIds: raw.invoice_ids ?? [],
+  };
+}
+
+function mapSendInvoiceBatchSummary(
+  raw: ApiSendInvoiceBatchSummary,
+): SendInvoiceBatchSummary {
+  return {
+    clientsQueued: raw.clients_queued,
+    clientsSkipped: raw.clients_skipped,
+    clientsFailed: raw.clients_failed,
+    invoicesQueued: raw.invoices_queued,
+  };
+}
+
+export function mapSendInvoiceBatchResult(
+  raw: unknown,
+): SendInvoiceBatchResult {
+  const data = raw as ApiSendInvoiceBatchResult;
+  return {
+    batchId: data.batch_id,
+    status: "queued",
+    groups: (data.groups ?? []).map(mapSendInvoiceBatchGroupResult),
+    summary: mapSendInvoiceBatchSummary(
+      data.summary ?? {
+        clients_queued: 0,
+        clients_skipped: 0,
+        clients_failed: 0,
+        invoices_queued: 0,
+      },
+    ),
+  };
+}
+
+interface ApiSendBatchPollGroup {
+  group_key: string;
+  client_id: string | null;
+  status: string;
+  error_code: string | null;
+  error_message: string | null;
+  invoice_ids: string[];
+}
+
+interface ApiSendBatchPollResult {
+  batch_id: string;
+  status: string;
+  groups: ApiSendBatchPollGroup[];
+}
+
+function mapSendBatchPollStatus(status: string): SendBatchPollStatus {
+  if (
+    status === "queued" ||
+    status === "processing" ||
+    status === "completed" ||
+    status === "completed_with_errors"
+  ) {
+    return status;
+  }
+  return "completed_with_errors";
+}
+
+function mapSendBatchPollGroupStatus(
+  status: string,
+): SendBatchPollGroupStatus {
+  if (
+    status === "queued" ||
+    status === "processing" ||
+    status === "sent" ||
+    status === "failed" ||
+    status === "skipped"
+  ) {
+    return status;
+  }
+  return "failed";
+}
+
+function mapSendBatchPollGroup(raw: ApiSendBatchPollGroup): SendBatchPollGroup {
+  return {
+    groupKey: raw.group_key,
+    clientId: raw.client_id,
+    status: mapSendBatchPollGroupStatus(raw.status),
+    errorCode: raw.error_code,
+    errorMessage: raw.error_message,
+    invoiceIds: raw.invoice_ids ?? [],
+  };
+}
+
+export function mapSendBatchPollResult(raw: unknown): SendBatchPollResult {
+  const data = raw as ApiSendBatchPollResult;
+  return {
+    batchId: data.batch_id,
+    status: mapSendBatchPollStatus(data.status),
+    groups: (data.groups ?? []).map(mapSendBatchPollGroup),
+  };
 }

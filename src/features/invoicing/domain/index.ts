@@ -21,7 +21,18 @@ export type {
   InvoiceSendRecipient,
   InvoiceSendRecipients,
   SendInvoicePayload,
+  SendInvoiceBatchGroupPayload,
+  SendInvoiceBatchPayload,
+  SendInvoiceBatchGroupStatus,
+  SendInvoiceBatchGroupResult,
+  SendInvoiceBatchSummary,
+  SendInvoiceBatchResult,
+  SendBatchPollStatus,
+  SendBatchPollGroupStatus,
+  SendBatchPollGroup,
+  SendBatchPollResult,
   TripCorrectionEntry,
+  InvoiceEmailDispatchFilter,
   InvoiceFilters,
 } from "./entities";
 

@@ -1174,7 +1174,7 @@ describe("InvoiceActions portal client export", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Enviar por correo for stamped invoice with execute", () => {
+  it("shows Enviar for stamped invoice with execute", () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
         action === "read" || action === "execute",
@@ -1185,5 +1185,38 @@ describe("InvoiceActions portal client export", () => {
     expect(
       screen.getByRole("button", { name: invoicingCopy.send.cta }),
     ).toBeInTheDocument();
+  });
+
+  it("shows Reenviar when stamped invoice was already sent", () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "read" || action === "execute",
+    );
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        hasStampedXml: true,
+        dispatchSentAt: "2026-09-11T12:00:00.000Z",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: invoicingCopy.send.ctaResend }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows disabled Enviar with reason when invoice is not stamped", () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "read" || action === "execute",
+    );
+
+    renderActions(buildInvoice({ status: "draft" }));
+
+    const sendButton = screen.getByRole("button", {
+      name: invoicingCopy.send.cta,
+    });
+    expect(sendButton).toBeDisabled();
   });
 });

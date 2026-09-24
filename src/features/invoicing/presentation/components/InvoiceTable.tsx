@@ -19,13 +19,12 @@ import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { cn } from "@shared/lib/utils/cn";
-import { Mail } from "lucide-react";
 import {
   getInvoiceListItemDisplayAmounts,
   type InvoiceListItem,
 } from "@features/invoicing/domain";
 import { InvoiceStatusBadge } from "./InvoiceStatusBadge";
+import { InvoiceEmailDispatchBadge } from "./InvoiceEmailDispatchBadge";
 import { InvoiceActions } from "./InvoiceActions";
 import { invoicingCopy } from "../copy/invoicingCopy";
 
@@ -52,7 +51,7 @@ const TABLE_HEADERS = [
   { key: "total", label: "Total", className: "text-right" },
   { key: "balance", label: invoicingCopy.detail.label.balance, className: "text-right" },
   { key: "trips", label: "Viajes" },
-  { key: "dispatch", label: "", className: "w-10" },
+  { key: "dispatch", label: invoicingCopy.send.listColumn, className: "w-28" },
   { key: "status", label: "Estado" },
   { key: "actions", label: "", className: "w-12" },
 ];
@@ -105,7 +104,7 @@ function LoadingSkeleton() {
             <Skeleton className="h-5 w-16" />
           </TableCell>
           <TableCell>
-            <Skeleton className="h-4 w-4" />
+            <Skeleton className="h-5 w-16" />
           </TableCell>
           <TableCell>
             <Skeleton className="h-5 w-20" />
@@ -241,21 +240,11 @@ export function InvoiceTable({
 
               {/* Envío por correo */}
               <TableCell onClick={(event) => event.stopPropagation()}>
-                {inv.status === "stamped" ? (
-                  <Mail
-                    className={cn(
-                      "h-4 w-4",
-                      inv.dispatchSentAt
-                        ? "text-success"
-                        : "text-muted-foreground/45",
-                    )}
-                    aria-label={
-                      inv.dispatchSentAt
-                        ? invoicingCopy.send.listSentTitle
-                        : invoicingCopy.send.listNotSentTitle
-                    }
-                  />
-                ) : null}
+                <InvoiceEmailDispatchBadge
+                  status={inv.status}
+                  dispatchSentAt={inv.dispatchSentAt}
+                  autoDispatchLastItemStatus={inv.autoDispatch?.lastItemStatus}
+                />
               </TableCell>
 
               {/* Estado */}

@@ -10,7 +10,9 @@ import {
   type Query,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { useRef } from "react";
 import { devRefetchIntervalFn } from "@/shared/config/devPolling";
+import { useToast } from "@shared/hooks";
 import { invoicingApi } from "@features/invoicing/infrastructure";
 import { tripQueryKeys } from "@features/trips/domain";
 import type {
@@ -26,8 +28,11 @@ import type {
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
   SendInvoicePayload,
+  SendInvoiceBatchResult,
 } from "@features/invoicing/domain";
+import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
 import { invalidateFiscalCorrectionResources } from "../invalidateFiscalCorrectionResources";
+import { pollSendBatchUntilSettled } from "./sendBatchPoll";
 
 // ============================================================================
 // QUERY KEYS
@@ -161,12 +166,17 @@ async function invalidateInvoiceLinkedTripCaches(
 // QUERIES
 // ============================================================================
 
-export const useInvoices = (filters?: InvoiceFilters) => {
+export const useInvoices = (
+  filters?: InvoiceFilters,
+  options?: { enabled?: boolean; keepPreviousData?: boolean },
+) => {
+  const keepPreviousData = options?.keepPreviousData !== false;
   return useQuery({
     queryKey: invoiceQueryKeys.list(filters),
     queryFn: () => invoicingApi.getAll(filters),
     staleTime: 30_000,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData ? (prev) => prev : undefined,
+    enabled: options?.enabled ?? true,
   });
 };
 
@@ -490,22 +500,55 @@ export function useInvoiceSendRecipients(
 export function useSendInvoice(
   invoiceId: string,
   options?: Omit<
-    UseMutationOptions<Invoice, Error, SendInvoicePayload>,
+    UseMutationOptions<SendInvoiceBatchResult, Error, SendInvoicePayload>,
     "mutationFn"
   >,
 ) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const pollGenerationRef = useRef(0);
+
   return useMutation({
     mutationFn: (payload: SendInvoicePayload) =>
       invoicingApi.sendInvoice(invoiceId, payload),
     ...options,
     onSuccess: async (data, variables, context, mutation) => {
-      queryClient.setQueryData(invoiceQueryKeys.detail(invoiceId), data);
+      await queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.detail(invoiceId),
+      });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.sendRecipients(invoiceId),
       });
       await invalidateAndRefetchFinance(queryClient);
+
+      const queued = data.groups.some((g) => g.status === "queued");
+      if (queued && data.batchId) {
+        const generation = ++pollGenerationRef.current;
+        void (async () => {
+          const settled = await pollSendBatchUntilSettled(
+            data.batchId,
+            queryClient,
+          );
+          if (generation !== pollGenerationRef.current) return;
+          if (!settled) return;
+          const sent = settled.groups.filter((g) => g.status === "sent");
+          const failed = settled.groups.filter((g) => g.status === "failed");
+          if (failed.length === 0 && sent.length > 0) {
+            toast({
+              variant: "success",
+              title: invoicingCopy.send.dialog.toastCompleted,
+            });
+          } else if (failed.length > 0 && sent.length === 0) {
+            toast({
+              variant: "error",
+              title: invoicingCopy.send.dialog.toastCompletedFail,
+              description: failed[0]?.errorMessage ?? undefined,
+            });
+          }
+        })();
+      }
+
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });

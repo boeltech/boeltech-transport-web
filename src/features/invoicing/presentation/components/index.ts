@@ -1,8 +1,10 @@
 export { InvoiceStatusBadge } from "./InvoiceStatusBadge";
+export { InvoiceEmailDispatchBadge } from "./InvoiceEmailDispatchBadge";
 export { InvoiceTable } from "./InvoiceTable";
 export { InvoiceCard } from "./InvoiceCard";
 export { InvoiceCardSkeleton } from "./InvoiceCardSkeleton";
 export { InvoiceActions } from "./InvoiceActions";
+export { SendInvoiceDialog } from "./SendInvoiceDialog";
 export { PaymentFormDialog } from "./PaymentFormDialog";
 export { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 export { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";

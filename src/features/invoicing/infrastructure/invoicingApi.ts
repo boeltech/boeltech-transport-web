@@ -23,6 +23,9 @@ import type {
   InvoiceBillingScope,
   InvoiceSendRecipients,
   SendInvoicePayload,
+  SendInvoiceBatchPayload,
+  SendInvoiceBatchResult,
+  SendBatchPollResult,
 } from "@features/invoicing/domain";
 import {
   mapInvoice,
@@ -30,12 +33,15 @@ import {
   mapPayment,
   mapInvoicePrefill,
   mapInvoiceSendRecipients,
+  mapSendInvoiceBatchResult,
+  mapSendBatchPollResult,
   toApiCreateInvoice,
   toApiUpdateInvoice,
   toApiCancelInvoice,
   toApiCreatePayment,
   toApiSubstituteStampedInvoice,
   toApiSendInvoice,
+  toApiSendInvoiceBatch,
 } from "./mappers";
 
 const INVOICES = "/invoices";
@@ -49,6 +55,9 @@ export const invoicingApi = {
   getAll: async (filters?: InvoiceFilters): Promise<PaginatedInvoices> => {
     const params = new URLSearchParams();
     if (filters?.status) params.append("status", filters.status);
+    if (filters?.clientId) params.append("client_id", filters.clientId);
+    if (filters?.emailDispatch)
+      params.append("email_dispatch", filters.emailDispatch);
     if (filters?.receiverRfc)
       params.append("receiver_rfc", filters.receiverRfc);
     if (filters?.dateFrom) params.append("date_from", filters.dateFrom);
@@ -175,15 +184,43 @@ export const invoicingApi = {
     return mapInvoiceSendRecipients(response.data);
   },
 
+  /**
+   * Envío unitario = batch de 1 grupo → 202 Accepted (P11 / T6′).
+   * No espera SMTP; el job arma ZIP(1) + link.
+   */
   sendInvoice: async (
     id: string,
     payload: SendInvoicePayload,
-  ): Promise<Invoice> => {
+  ): Promise<SendInvoiceBatchResult> => {
     const response = await apiClient.post<{ data: unknown; message: string }>(
       `${INVOICES}/${id}/send`,
       toApiSendInvoice(payload),
     );
-    return mapInvoice(response.data as Record<string, unknown>);
+    return mapSendInvoiceBatchResult(response.data);
+  },
+
+  /**
+   * Digest por cliente (POST /invoices/send-batch) → 202 + batch_id (F2′/F4′).
+   * Workbench: un POST con todos los grupos-cliente del lote.
+   */
+  sendInvoicesBatch: async (
+    payload: SendInvoiceBatchPayload,
+  ): Promise<SendInvoiceBatchResult> => {
+    const response = await apiClient.post<{ data: unknown; message: string }>(
+      `${INVOICES}/send-batch`,
+      toApiSendInvoiceBatch(payload),
+    );
+    return mapSendInvoiceBatchResult(response.data);
+  },
+
+  /**
+   * Poll de lote encolado (GET /invoices/send-batches/:batchId) — TEC §E.3.
+   */
+  getSendBatchStatus: async (batchId: string): Promise<SendBatchPollResult> => {
+    const response = await apiClient.get<{ data: unknown }>(
+      `${INVOICES}/send-batches/${batchId}`,
+    );
+    return mapSendBatchPollResult(response.data);
   },
 
   // ──────────────────────────────────────────────────────────────────────────

@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Receipt, AlertCircle, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Badge } from "@shared/ui/badge";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
@@ -12,7 +11,6 @@ import { usePermissions, useRole } from "@shared/permissions";
 import { isClientPortalRole } from "@shared/constants/roles";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
-import { formatDate } from "@shared/utils/dateUtils";
 import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
@@ -23,6 +21,7 @@ import { useTrip } from "@features/trips/application";
 import { shouldShowFalseTripCancelCfdiBanner } from "@features/trips/presentation/helpers/shouldShowFalseTripCancelCfdiBanner";
 import {
   InvoiceStatusBadge,
+  InvoiceEmailDispatchBadge,
   InvoiceActions,
   InvoiceDetailHeaderSubtitle,
   buildInvoiceStats,
@@ -421,7 +420,7 @@ export function InvoiceDetailPage() {
           </span>
           {invoice.autoDispatch?.lastScheduledRunId ? (
             <Link
-              to={`/finance/dispatch-runs/${invoice.autoDispatch.lastScheduledRunId}`}
+              to={`/finance/dispatch/${invoice.autoDispatch.lastScheduledRunId}`}
               className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline"
             >
               {invoicingCopy.send.autoDispatchFailedLink}
@@ -481,19 +480,14 @@ export function InvoiceDetailPage() {
             <InvoiceBillingScopeBadge
               scope={resolveInvoiceBillingScope(invoice.trips)}
             />
-            {invoice.status === "stamped" ? (
-              <Badge
-                variant={invoice.dispatchSentAt ? "success" : "neutral"}
-                tone="soft"
-                className="text-xs font-medium"
-              >
-                {invoice.dispatchSentAt
-                  ? invoicingCopy.send.badgeSentOn(
-                      formatDate(invoice.dispatchSentAt),
-                    )
-                  : invoicingCopy.send.badgeNotSent}
-              </Badge>
-            ) : null}
+            <InvoiceEmailDispatchBadge
+              status={invoice.status}
+              dispatchSentAt={invoice.dispatchSentAt}
+              autoDispatchLastItemStatus={
+                invoice.autoDispatch?.lastItemStatus
+              }
+              mode="withDate"
+            />
           </span>
         ),
         subtitle: (

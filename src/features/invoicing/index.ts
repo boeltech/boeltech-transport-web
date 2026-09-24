@@ -16,6 +16,7 @@ export type {
   SubstituteStampedInvoicePayload,
   SubstituteStampedInvoiceResult,
   InvoiceFilters,
+  InvoiceEmailDispatchFilter,
 } from "./domain";
 export {
   InvoiceStatusLabels,
@@ -51,8 +52,10 @@ export { InvoiceDetailPage, CreateInvoicePage } from "./presentation/pages";
 // Presentation — components
 export {
   InvoiceStatusBadge,
+  InvoiceEmailDispatchBadge,
   InvoiceTable,
   InvoiceBillingScopeBadge,
+  SendInvoiceDialog,
   PaymentFormDialog,
   CancelInvoiceDialog,
   SubstituteInvoiceSheet,

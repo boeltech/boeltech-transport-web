@@ -29,6 +29,8 @@ function listInvoice(
     cfdiUuid: null,
     receiverRfc: "XAXX010101000",
     receiverName: "Cliente Demo SA",
+    clientId: null,
+    clientName: null,
     issuedAt: "2026-05-17T10:00:00.000Z",
     paymentForm: "03",
     paymentMethod: "PUE",
@@ -66,5 +68,22 @@ describe("InvoiceTable", () => {
 
     expect(screen.getByText(/09 sep 2026/i)).toBeInTheDocument();
     expect(screen.queryByText(/10 sep 2026/i)).not.toBeInTheDocument();
+  });
+
+  it("muestra chip Enviada en stamped con dispatchSentAt", () => {
+    renderWithProviders(
+      <InvoiceTable
+        invoices={[
+          listInvoice({
+            status: "stamped",
+            dispatchSentAt: "2026-09-11T12:00:00.000Z",
+          }),
+        ]}
+        isLoading={false}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Enviada")).toBeInTheDocument();
   });
 });

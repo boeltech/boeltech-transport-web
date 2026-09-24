@@ -254,42 +254,70 @@ export const invoicingCopy = {
     back: "Volver",
   },
   send: {
-    cta: "Enviar por correo",
+    cta: "Enviar",
+    ctaResend: "Reenviar",
     badgeSent: "Enviada",
     badgeNotSent: "No enviada",
+    badgeAutoFail: "Envío auto falló",
     badgeSentOn: (label: string) => `Enviada · ${label}`,
+    listColumn: "Envío",
     listSentTitle: "Enviada por correo al cliente",
     listNotSentTitle: "Aún no enviada por correo",
+    listAutoFailTitle: "Falló el envío automático; reintenta desde Envíos",
     stampSuccessTitle: "Factura timbrada exitosamente",
-    stampSuccessAction: "Enviar por correo",
+    stampSuccessAction: "Enviar",
+    disabledNotStamped:
+      "Solo facturas timbradas se pueden enviar por correo.",
     dialog: {
       title: "Enviar factura por correo",
       titleResend: "Reenviar factura por correo",
       description:
-        "Se enviará un correo con PDF y XML a los destinatarios marcados. Los cambios solo aplican a este envío.",
+        "Se enviará un correo con la lista de facturas y un enlace para descargar PDF y XML en un ZIP. No se vuelve a timbrar ni se regeneran los archivos. El envío se procesa en segundo plano.",
       resendWarning:
-        "Esta factura ya se envió antes. Reenviar puede duplicar el correo en la bandeja del cliente. No se regenera el PDF ni el XML y no se vuelve a timbrar.",
-      submit: "Confirmar y enviar",
-      submitting: "Enviando…",
+        "Esta factura ya se envió antes. Reenviar puede duplicar el correo en la bandeja del cliente y genera un enlace nuevo. No se regenera el PDF ni el XML y no se vuelve a timbrar.",
+      recipientsHeading: "Destinatarios",
+      recipientsHint:
+        "Correo de facturación y contactos que reciben facturas. Por defecto van todos marcados.",
+      submit: "Enviar",
+      submitResend: "Reenviar",
+      submitting: "Encolando…",
       cancel: "Cancelar",
       loading: "Cargando destinatarios…",
       retry: "Reintentar",
       loadError: "No se pudieron cargar los destinatarios.",
       noRecipients:
         "Sin destinatarios elegibles. Agrega correo de facturación o contactos que reciban facturas en el cliente:",
-      clientLink: "Ir al cliente",
-      zeroSelected: "Marca al menos un destinatario antes de confirmar.",
+      clientLink: "Ir a la ficha del cliente",
+      zeroSelected: "Marca al menos un destinatario antes de enviar.",
       recipientsSelected: (selected: number) =>
         selected === 1
           ? "1 destinatario seleccionado"
           : `${selected} destinatarios seleccionados`,
-      successToast: "Factura enviada por correo",
-      errorToast: "No se pudo enviar la factura",
+      successToast: "Envío encolado · 1 factura",
+      successToastResend: "Reenvío encolado · 1 factura",
+      toastCompleted: "Factura enviada por correo",
+      toastCompletedFail: "No se pudo completar el envío",
+      errorToast: "No se pudo encolar el envío",
+    },
+    /** Toasts diferidos del poll GET send-batches (workbench multi-cliente). */
+    batchPoll: {
+      toastCompleted: (invoiceCount: number, clientCount: number) => {
+        const facturas =
+          invoiceCount === 1
+            ? "1 factura"
+            : `${invoiceCount} facturas`;
+        const clientes =
+          clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
+        return `${facturas} enviadas · ${clientes}`;
+      },
+      toastJobPartial: (okClients: number, failClients: number) =>
+        `Envío parcial: ${okClients} cliente${okClients === 1 ? "" : "s"} ok, ${failClients} con error.`,
+      toastJobAllFailed: "No se pudo completar el envío a ningún cliente",
     },
     autoDispatchFailedTitle: "Falló el envío automático",
     autoDispatchFailedBody:
-      "El envío automático no pudo entregar esta factura. Reintenta con «Enviar por correo» o revisa el envío.",
-    autoDispatchFailedLink: "Ver envío",
+      "El envío automático no pudo entregar esta factura. Reintenta con «Enviar» / «Reenviar» o abre la corrida para ver el detalle.",
+    autoDispatchFailedLink: "Ver corrida",
   },
   detail: {
     section: {
@@ -702,7 +730,8 @@ export const invoicingCopy = {
       cancelBlockedDismiss: "Entendido",
       pdfError: "No se pudo abrir el PDF",
       xmlError: "No se pudo descargar el XML",
-      sendByEmail: "Enviar por correo",
+      sendByEmail: "Enviar",
+      resendByEmail: "Reenviar",
       downloadMenu: "Descargar",
       downloadGenerating: "Generando…",
       moreActions: "Más",
