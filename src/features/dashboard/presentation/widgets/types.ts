@@ -16,6 +16,8 @@ export type TripsDayRange = (typeof TRIPS_DAY_OPTIONS)[number];
 export interface DashboardWidgetContext {
   data: ReturnType<typeof useDashboard>["data"];
   isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
   navigate: ReturnType<typeof useNavigate>;
   tripsByDay?: TripsByDayData;
   tripsByDayLoading: boolean;

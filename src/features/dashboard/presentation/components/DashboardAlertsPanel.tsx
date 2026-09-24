@@ -1,7 +1,7 @@
+import { useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowRight,
   CheckCircle,
   Clock,
   FileWarning,
@@ -24,7 +24,9 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { alertVariants } from "@shared/ui/alert";
+import { ScrollArea } from "@shared/ui/scroll-area";
 import { Skeleton } from "@shared/ui/skeleton";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import {
@@ -32,6 +34,9 @@ import {
   dashboardAlertSeverityConfig,
 } from "../config/dashboardAlertSeverity";
 import { handleAlertClick } from "../utils/alertNavigation";
+
+/** Max alerts shown before "Ver las N restantes" expand CTA (P1b). */
+export const DASHBOARD_ALERTS_VISIBLE_LIMIT = 8;
 
 const ALERT_ICON_MAP: Record<AlertType, React.ElementType> = {
   overdue_trip: Clock,
@@ -41,8 +46,12 @@ const ALERT_ICON_MAP: Record<AlertType, React.ElementType> = {
   sct_permit_expiring: FileWarning,
 };
 
-const ALERT_ITEM_LAYOUT_OVERRIDES =
-  "relative flex w-full items-start gap-2.5 p-2.5 text-left [&>svg]:static [&>svg]:left-auto [&>svg]:top-auto [&>svg~*]:pl-0 [&>svg+div]:translate-y-0";
+/**
+ * Dense padding only — keep a single direct SVG child so alertVariants
+ * `[&:has(>svg)]:grid` / `grid-cols-[auto_1fr]` places icon | text without
+ * dead air (two SVGs used to fight for col-start-1).
+ */
+const ALERT_ITEM_LAYOUT_OVERRIDES = "p-2.5 text-left";
 
 function AlertItem({
   alert,
@@ -66,15 +75,14 @@ function AlertItem({
       onClick={onClick}
     >
       <Icon
-        className={cn("mt-0.5 h-4 w-4 shrink-0", severity.iconClassName)}
+        className={cn("mt-0.5 h-4 w-4 shrink-0 self-start", severity.iconClassName)}
       />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <p className="text-sm font-medium leading-snug">{alert.title}</p>
         <p className="text-xs text-muted-foreground line-clamp-2">
           {alert.description}
         </p>
       </div>
-      <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     </button>
   );
 }
@@ -104,14 +112,22 @@ function SeverityCountBadge({
 interface DashboardAlertsPanelProps {
   alerts: DashboardAlert[] | undefined;
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   navigate: ReturnType<typeof useNavigate>;
 }
 
 export function DashboardAlertsPanel({
   alerts,
   isLoading,
+  isError = false,
+  onRetry,
   navigate,
 }: DashboardAlertsPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const showUnavailable = isError && alerts == null && !isLoading;
+
   const errorCount = alerts?.filter((a) => a.severity === "error").length ?? 0;
   const warningCount =
     alerts?.filter((a) => a.severity === "warning").length ?? 0;
@@ -125,6 +141,19 @@ export function DashboardAlertsPanel({
       )
     : [];
 
+  const remaining = Math.max(0, sorted.length - DASHBOARD_ALERTS_VISIBLE_LIMIT);
+  const visibleAlerts =
+    expanded || remaining === 0
+      ? sorted
+      : sorted.slice(0, DASHBOARD_ALERTS_VISIBLE_LIMIT);
+
+  const description = (() => {
+    if (isLoading) return dashboardCopy.alerts.loading;
+    if (showUnavailable) return dashboardCopy.alerts.unavailableTitle;
+    if (sorted.length === 0) return dashboardCopy.alerts.emptyTitle;
+    return dashboardCopy.alerts.count(sorted.length);
+  })();
+
   return (
     <Card className="flex h-full flex-col">
       <CardHeader className="pb-3">
@@ -132,14 +161,8 @@ export function DashboardAlertsPanel({
           <AlertTriangle className="h-4 w-4 text-warning" />
           {dashboardCopy.alerts.title}
         </CardTitle>
-        <CardDescription>
-          {isLoading
-            ? dashboardCopy.alerts.loading
-            : sorted.length === 0
-              ? dashboardCopy.alerts.emptyTitle
-              : dashboardCopy.alerts.count(sorted.length)}
-        </CardDescription>
-        {!isLoading && sorted.length > 0 ? (
+        <CardDescription>{description}</CardDescription>
+        {!isLoading && !showUnavailable && sorted.length > 0 ? (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {errorCount > 0 ? (
               <SeverityCountBadge severity="error" count={errorCount} />
@@ -160,6 +183,18 @@ export function DashboardAlertsPanel({
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
             ))}
           </div>
+        ) : showUnavailable ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <AlertCircle className="h-10 w-10 text-destructive" />
+            <p className="text-sm text-muted-foreground">
+              {dashboardCopy.alerts.unavailableDescription}
+            </p>
+            {onRetry ? (
+              <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+                {dashboardCopy.alerts.retry}
+              </Button>
+            ) : null}
+          </div>
         ) : sorted.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center text-muted-foreground">
             <CheckCircle className="h-10 w-10 text-success" />
@@ -169,15 +204,28 @@ export function DashboardAlertsPanel({
             <p className="text-xs">{dashboardCopy.alerts.emptyDescription}</p>
           </div>
         ) : (
-          <div className="max-h-[420px] space-y-2 overflow-y-auto pr-0.5">
-            {sorted.map((alert, i) => (
-              <AlertItem
-                key={`${alert.type}-${alert.entity_id}-${i}`}
-                alert={alert}
-                onClick={() => handleAlertClick(alert, navigate)}
-              />
-            ))}
-          </div>
+          <ScrollArea className="max-h-[420px]">
+            <div className="space-y-2 pr-0.5">
+              {visibleAlerts.map((alert, i) => (
+                <AlertItem
+                  key={`${alert.type}-${alert.entity_id}-${i}`}
+                  alert={alert}
+                  onClick={() => handleAlertClick(alert, navigate)}
+                />
+              ))}
+              {!expanded && remaining > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={() => setExpanded(true)}
+                >
+                  {dashboardCopy.alerts.showRemaining(remaining)}
+                </Button>
+              ) : null}
+            </div>
+          </ScrollArea>
         )}
       </CardContent>
     </Card>

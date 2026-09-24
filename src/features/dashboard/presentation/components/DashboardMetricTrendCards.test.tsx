@@ -57,6 +57,44 @@ describe("DashboardMetricTrendCards", () => {
     expect(
       screen.getByText(dashboardCopy.scorecard.collected.title),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(dashboardCopy.scorecard.collected.subtitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dashboardCopy.scorecard.description),
+    ).toBeInTheDocument();
+  });
+
+  it("ADR-0096: Cobrado este mes title stays; subtitle excludes operational cash", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: { financial_month: buildFinancialMonth() },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+          financeSummary={{
+            collectedThisMonth: 10_000,
+            totalReceivable: 20_000,
+            totalOverdue: 0,
+          } as never}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Cobrado este mes")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Pagos de facturas en el periodo · no incluye efectivo sin CFDI/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Pagos registrados en el periodo"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows Provisional chip and navigates to approvals when pending (PD-B)", async () => {

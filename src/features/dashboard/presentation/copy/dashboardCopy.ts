@@ -1,6 +1,7 @@
 export const dashboardCopy = {
   page: {
-    subtitle: "Scorecard del mes: margen operativo, cobranza y operación",
+    subtitle:
+      "Scorecard del mes: margen operativo, cobranza de facturas y operación",
     subtitleClient: "Resumen de tus envíos recientes",
     subtitleDriver: "Tus viajes recientes y por día",
     refresh: "Actualizar",
@@ -27,11 +28,11 @@ export const dashboardCopy = {
   scorecard: {
     title: "Scorecard del mes",
     description:
-      "Margen operativo (viajes completados · costos aprobados) y cobranza (cobrado, por cobrar y vencido)",
+      "Margen de viajes completados (incluye sin CFDI) menos costos aprobados. Cobranza = pagos de facturas; el efectivo sin factura se registra en Dinero del viaje.",
     ariaLabel: "Scorecard financiero del mes",
     margin: {
       title: "Margen operativo",
-      subtitle: "Completados · costos aprobados",
+      subtitle: "Completados · tarifa · costos aprobados",
       provisionalChip: "Provisional",
       provisionalHint: "Puede bajar",
       provisionalAriaLabel:
@@ -39,7 +40,8 @@ export const dashboardCopy = {
     },
     collected: {
       title: "Cobrado este mes",
-      subtitle: "Pagos registrados en el periodo",
+      subtitle:
+        "Pagos de facturas en el periodo · no incluye efectivo sin CFDI",
     },
     receivable: {
       title: "Por cobrar",
@@ -92,8 +94,14 @@ export const dashboardCopy = {
     emptyTitle: "Sin alertas pendientes",
     emptyDescription: "No hay alertas que requieran acción",
     allClearTitle: "Todo en orden",
+    unavailableTitle: "Alertas no disponibles",
+    unavailableDescription:
+      "No se pudieron cargar las alertas. Intenta de nuevo.",
+    retry: "Reintentar",
     count: (count: number) =>
       `${count} alerta${count > 1 ? "s" : ""} operativa${count > 1 ? "s" : ""}`,
+    showRemaining: (remaining: number) =>
+      `Ver las ${remaining} restante${remaining > 1 ? "s" : ""}`,
     severity: {
       error: (count: number) => `${count} urgente${count > 1 ? "s" : ""}`,
       warning: (count: number) => `${count} aviso${count > 1 ? "s" : ""}`,

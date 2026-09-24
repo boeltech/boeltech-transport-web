@@ -109,6 +109,10 @@ function DashboardPage() {
     () => ({
       data,
       isLoading,
+      isError,
+      onRetry: () => {
+        void refetch();
+      },
       navigate,
       tripsByDay,
       tripsByDayLoading,
@@ -129,6 +133,8 @@ function DashboardPage() {
     [
       data,
       isLoading,
+      isError,
+      refetch,
       navigate,
       tripsByDay,
       tripsByDayLoading,

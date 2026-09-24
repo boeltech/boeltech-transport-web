@@ -35,6 +35,8 @@ export function renderAlerts(ctx: DashboardWidgetContext) {
     <DashboardAlertsPanel
       alerts={ctx.data?.alerts}
       isLoading={ctx.isLoading}
+      isError={ctx.isError}
+      onRetry={ctx.onRetry}
       navigate={ctx.navigate}
     />
   );
