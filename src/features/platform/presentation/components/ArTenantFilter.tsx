@@ -18,11 +18,12 @@ import {
 import { platformCopy } from "../copy/platformCopy";
 
 interface ArTenantFilterProps {
+  id?: string;
   value: string;
   onChange: (tenantId: string) => void;
 }
 
-export function ArTenantFilter({ value, onChange }: ArTenantFilterProps) {
+export function ArTenantFilter({ id, value, onChange }: ArTenantFilterProps) {
   const copy = platformCopy.ar.filters;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -52,6 +53,7 @@ export function ArTenantFilter({ value, onChange }: ArTenantFilterProps) {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            id={id}
             type="button"
             variant="outline"
             size="sm"
@@ -80,7 +82,7 @@ export function ArTenantFilter({ value, onChange }: ArTenantFilterProps) {
               {isFetching ? (
                 <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Buscando…
+                  {copy.tenantSearching}
                 </div>
               ) : (
                 <>
@@ -104,7 +106,7 @@ export function ArTenantFilter({ value, onChange }: ArTenantFilterProps) {
                         />
                         <span className="truncate">
                           {tenant.name}
-                          <span className="ml-1 text-muted-foreground">
+                          <span className="ml-1 font-mono text-muted-foreground">
                             ({tenant.subdomain})
                           </span>
                         </span>

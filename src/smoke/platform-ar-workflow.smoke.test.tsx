@@ -43,6 +43,21 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
       mfaEnabledAt: "2026-01-01T00:00:00.000Z",
     })),
     listAr: (...args: unknown[]) => mockListAr(...args),
+    getArCloseRun: vi.fn().mockResolvedValue({
+      data: {
+        periodKey: "2026-07",
+        run: {
+          ran: true,
+          ranAt: "2026-08-01T06:05:00.000Z",
+          issuedCount: 0,
+          consideredCount: 0,
+          errorsCount: 0,
+        },
+        counts: { actionable: 0, policy: 0 },
+        items: [],
+      },
+      pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
+    }),
     issueSaasInvoice: (...args: unknown[]) => mockIssue(...args),
     markSaasInvoicePaid: (...args: unknown[]) => mockMarkPaid(...args),
     getTenantReconciliationJson: (...args: unknown[]) =>
@@ -139,6 +154,7 @@ function baseInvoice(
     voidReason: null,
     notes: null,
     daysOverdue: 0,
+    origin: "manual",
     createdAt: "2026-08-01T16:00:00.000Z",
     updatedAt: "2026-08-01T16:00:00.000Z",
     tenantName: "AR Demo",

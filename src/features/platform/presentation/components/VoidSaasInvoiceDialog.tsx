@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -12,7 +12,15 @@ import {
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
+import { AlertWithIcon } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  FormValidationSummary,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import type { PlatformSaasInvoice } from "../../domain/entities";
 import { useVoidSaasInvoice } from "../../application/hooks/usePlatformSaasAr";
 import { platformCopy } from "../copy/platformCopy";
@@ -38,39 +46,48 @@ export function VoidSaasInvoiceDialog({
 }: VoidSaasInvoiceDialogProps) {
   const copy = platformCopy.ar.void;
   const { toast } = useToast();
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<VoidSaasInvoiceFormData>({
     resolver: zodResolver(voidSaasInvoiceSchema),
     defaultValues: { voidReason: "" },
   });
 
-  const voidMutation = useVoidSaasInvoice({
-    onSuccess: () => {
-      toast({ title: copy.success, variant: "success" });
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      toast({
-        title: copy.error,
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const voidMutation = useVoidSaasInvoice();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setApiError(null);
+      return;
+    }
+    setApiError(null);
     form.reset({ voidReason: "" });
   }, [open, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!invoice) return;
-    await voidMutation.mutateAsync({
-      tenantId: invoice.tenantId,
-      invoiceId: invoice.id,
-      payload: { voidReason: values.voidReason?.trim() || null },
-    });
+    setApiError(null);
+    try {
+      await voidMutation.mutateAsync({
+        tenantId: invoice.tenantId,
+        invoiceId: invoice.id,
+        payload: { voidReason: values.voidReason?.trim() || null },
+      });
+      toast({ title: copy.success, variant: "success" });
+      onOpenChange(false);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setApiError(message);
+      toast({
+        title: copy.error,
+        description: message,
+        variant: "error",
+      });
+    }
   });
+
+  const summaryErrors = collectFieldErrorMessages(form.formState.errors);
+  const voidReasonError = form.formState.errors.voidReason?.message;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,10 +106,26 @@ export function VoidSaasInvoiceDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {apiError ? (
+          <AlertWithIcon variant="destructive" title={copy.error}>
+            {apiError}
+          </AlertWithIcon>
+        ) : null}
+
         <form onSubmit={onSubmit} className="space-y-4">
+          {summaryErrors.length > 0 ? (
+            <FormValidationSummary messages={summaryErrors} />
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="voidReason">{copy.reason}</Label>
-            <Textarea id="voidReason" rows={3} {...form.register("voidReason")} />
+            <Textarea
+              id="voidReason"
+              rows={3}
+              {...form.register("voidReason")}
+              {...getRegisterFieldErrorProps("voidReason", voidReasonError)}
+            />
+            <FieldInlineError fieldId="voidReason" message={voidReasonError} />
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
@@ -101,12 +134,13 @@ export function VoidSaasInvoiceDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {copy.cancel}
             </Button>
             <Button
               type="submit"
               variant="destructive"
-              disabled={voidMutation.isPending || !invoice}
+              disabled={!invoice}
+              isLoading={voidMutation.isPending}
             >
               {voidMutation.isPending ? copy.cancelling : copy.confirm}
             </Button>

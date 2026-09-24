@@ -58,3 +58,21 @@ export function isValidBillingPeriodKey(periodKey: string): boolean {
   const month = Number(periodKey.slice(5));
   return month >= 1 && month <= 12;
 }
+
+/**
+ * Periodo de la franja / GET close-run: filtro cerrado o último cerrado CDMX.
+ * Nunca manda un mes abierto (API 422).
+ */
+export function resolveClosedPeriodKeyForCloseRun(
+  periodKeyParam: string,
+  now: Date = new Date(),
+): string {
+  const trimmed = periodKeyParam.trim();
+  if (
+    isValidBillingPeriodKey(trimmed) &&
+    isClosedBillingPeriodKey(trimmed, now)
+  ) {
+    return trimmed;
+  }
+  return getLastClosedMexicoCityPeriodKey(now);
+}

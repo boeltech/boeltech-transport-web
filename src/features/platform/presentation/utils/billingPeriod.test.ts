@@ -4,6 +4,7 @@ import {
   getMexicoCityPeriodKey,
   isClosedBillingPeriodKey,
   isValidBillingPeriodKey,
+  resolveClosedPeriodKeyForCloseRun,
 } from "./billingPeriod";
 
 describe("billingPeriod (CDMX)", () => {
@@ -32,5 +33,19 @@ describe("billingPeriod (CDMX)", () => {
     expect(isValidBillingPeriodKey("2026-07")).toBe(true);
     expect(isValidBillingPeriodKey("2026-13")).toBe(false);
     expect(isValidBillingPeriodKey("2026-7")).toBe(false);
+  });
+
+  it("resolveClosedPeriodKeyForCloseRun uses filter if closed, else last closed", () => {
+    const augustNow = new Date("2026-08-03T15:00:00.000Z");
+    expect(resolveClosedPeriodKeyForCloseRun("2026-06", augustNow)).toBe(
+      "2026-06",
+    );
+    expect(resolveClosedPeriodKeyForCloseRun("2026-08", augustNow)).toBe(
+      "2026-07",
+    );
+    expect(resolveClosedPeriodKeyForCloseRun("", augustNow)).toBe("2026-07");
+    expect(resolveClosedPeriodKeyForCloseRun("nope", augustNow)).toBe(
+      "2026-07",
+    );
   });
 });

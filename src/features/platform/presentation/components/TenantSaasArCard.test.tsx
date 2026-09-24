@@ -14,7 +14,10 @@ vi.mock("../../infrastructure/platformApi", () => ({
     listTenantPaymentMethods: vi.fn(),
     downloadTenantReconciliationCsv: vi.fn(),
     getTenantReconciliationJson: vi.fn(),
+    getArCloseRun: vi.fn(),
+    getArChargeRun: vi.fn(),
     issueSaasInvoice: vi.fn(),
+    issueSaasInvoiceDraft: vi.fn(),
     chargeSaasInvoiceStripe: vi.fn(),
   },
 }));
@@ -89,12 +92,52 @@ describe("TenantSaasArCard", () => {
         voidReason: null,
         notes: null,
         daysOverdue: 2,
+        origin: "manual",
         createdAt: "2026-08-01T16:00:00.000Z",
         updatedAt: "2026-08-01T16:00:00.000Z",
       },
     ]);
     mockedApi.listTenantPaymentMethods.mockResolvedValue([]);
     mockedApi.downloadTenantReconciliationCsv.mockResolvedValue(undefined);
+    mockedApi.getArChargeRun.mockResolvedValue({
+      data: {
+        run: {
+          ran: false,
+          id: null,
+          ranAt: null,
+          trigger: null,
+          considered: 0,
+          charged: 0,
+          errors: 0,
+        },
+        counts: {
+          charged: 0,
+          noPaymentMethod: 0,
+          failed: 0,
+          requiresAction: 0,
+          processing: 0,
+          skippedOther: 0,
+        },
+        items: [],
+        latestAttempts: [],
+      },
+      pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
+    });
+    mockedApi.getArCloseRun.mockResolvedValue({
+      data: {
+        periodKey: "2026-07",
+        run: {
+          ran: true,
+          ranAt: "2026-08-01T06:05:00.000Z",
+          issuedCount: 1,
+          consideredCount: 1,
+          errorsCount: 0,
+        },
+        counts: { actionable: 0, policy: 0 },
+        items: [],
+      },
+      pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
+    });
   });
 
   afterEach(() => {
@@ -120,7 +163,15 @@ describe("TenantSaasArCard", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: platformCopy.ar.actions.viewAr }),
-    ).toBeInTheDocument();
+    ).toHaveAttribute(
+      "href",
+      "/platform/billing/ar?status=open&tenant_id=tenant-1",
+    );
+    expect(
+      screen.queryByRole("columnheader", {
+        name: platformCopy.ar.columns.actions,
+      }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: platformCopy.ar.card.exportClose,
@@ -135,10 +186,10 @@ describe("TenantSaasArCard", () => {
       await screen.findByText(formatBillingPeriodKey("2026-07")),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
+      screen.queryByRole("button", {
         name: platformCopy.ar.actions.issue,
       }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: platformCopy.ar.actions.markPaid }),
     ).toBeInTheDocument();
@@ -237,6 +288,7 @@ describe("TenantSaasArCard", () => {
 
   it("opens Nuevo cobro with the selected closed export period", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([]);
     mockedApi.getTenantReconciliationJson.mockResolvedValue({
       tenantId: "tenant-1",
       tenantName: "Demo",
@@ -279,6 +331,240 @@ describe("TenantSaasArCard", () => {
     );
   });
 
+  it("shows Borrador badge and Emitir for draft invoices", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      {
+        id: "inv-draft",
+        tenantId: "tenant-1",
+        subscriptionId: "sub-1",
+        periodKey: "2026-07",
+        periodStart: "2026-07-01T06:00:00.000Z",
+        periodEnd: "2026-08-01T06:00:00.000Z",
+        status: "draft",
+        currency: "MXN",
+        planCode: "operacion_crecimiento",
+        stampsIncluded: 380,
+        stampsUsed: 400,
+        stampsOverage: 20,
+        subtotalCents: 170000,
+        taxCents: 27200,
+        totalCents: 197200,
+        amountDueCents: 197200,
+        amountPaidCents: 0,
+        issuedAt: null,
+        dueDate: null,
+        paidAt: null,
+        voidedAt: null,
+        voidReason: null,
+        notes: null,
+        daysOverdue: 0,
+        origin: "manual",
+        createdAt: "2026-08-01T16:00:00.000Z",
+        updatedAt: "2026-08-01T16:00:00.000Z",
+      },
+    ]);
+    mockedApi.issueSaasInvoiceDraft.mockResolvedValue({
+      id: "inv-draft",
+      tenantId: "tenant-1",
+      subscriptionId: "sub-1",
+      periodKey: "2026-07",
+      periodStart: "2026-07-01T06:00:00.000Z",
+      periodEnd: "2026-08-01T06:00:00.000Z",
+      status: "open",
+      currency: "MXN",
+      planCode: "operacion_crecimiento",
+      stampsIncluded: 380,
+      stampsUsed: 400,
+      stampsOverage: 20,
+      subtotalCents: 170000,
+      taxCents: 27200,
+      totalCents: 197200,
+      amountDueCents: 197200,
+      amountPaidCents: 0,
+      issuedAt: "2026-08-10T18:00:00.000Z",
+      dueDate: "2026-08-24T18:00:00.000Z",
+      paidAt: null,
+      voidedAt: null,
+      voidReason: null,
+      notes: null,
+      daysOverdue: 0,
+      origin: "manual",
+      createdAt: "2026-08-01T16:00:00.000Z",
+      updatedAt: "2026-08-10T18:00:00.000Z",
+      items: [],
+      payments: [],
+    });
+
+    renderCard(true);
+
+    expect(
+      await screen.findByText(platformCopy.ar.status.draft),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: platformCopy.ar.actions.markPaid,
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: platformCopy.ar.actions.issueDraft,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockedApi.issueSaasInvoiceDraft).toHaveBeenCalledWith(
+        "tenant-1",
+        "inv-draft",
+        undefined,
+      );
+    });
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: platformCopy.ar.actions.issueDraftSuccess,
+      }),
+    );
+  });
+
+  it("hides Nuevo cobro and shows policy banner on trial skip", async () => {
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([]);
+    mockedApi.getArCloseRun.mockResolvedValue({
+      data: {
+        periodKey: "2026-07",
+        run: {
+          ran: true,
+          ranAt: "2026-08-01T06:05:00.000Z",
+          issuedCount: 0,
+          consideredCount: 1,
+          errorsCount: 0,
+        },
+        counts: { actionable: 0, policy: 1 },
+        items: [
+          {
+            tenantId: "tenant-1",
+            tenantName: "Demo",
+            subdomain: "demo",
+            skipReason: "SUB_NOT_ELIGIBLE",
+            skipGroup: "policy",
+            subscriptionStatus: "trialing",
+            cutStatus: null,
+            estimatedTotalCents: 0,
+            hasFrozenAmount: false,
+            canIssueOverride: false,
+            existingVoidInvoiceId: null,
+            nonVoidInvoiceId: null,
+          },
+        ],
+      },
+      pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+    });
+
+    renderCard(true);
+
+    expect(
+      await screen.findByText(platformCopy.ar.card.skipBannerPolicy),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(platformCopy.ar.skipReasons.SUB_NOT_ELIGIBLE),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: platformCopy.ar.actions.issue }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Nuevo cobro for void-hold with frozen amount", async () => {
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([]);
+    mockedApi.getArCloseRun.mockResolvedValue({
+      data: {
+        periodKey: "2026-07",
+        run: {
+          ran: true,
+          ranAt: "2026-08-01T06:05:00.000Z",
+          issuedCount: 0,
+          consideredCount: 1,
+          errorsCount: 0,
+        },
+        counts: { actionable: 1, policy: 0 },
+        items: [
+          {
+            tenantId: "tenant-1",
+            tenantName: "Demo",
+            subdomain: "demo",
+            skipReason: "VOID_HOLD",
+            skipGroup: "actionable",
+            subscriptionStatus: "active",
+            cutStatus: "draft",
+            estimatedTotalCents: 174000,
+            hasFrozenAmount: true,
+            canIssueOverride: true,
+            existingVoidInvoiceId: "inv-void",
+            nonVoidInvoiceId: null,
+          },
+        ],
+      },
+      pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+    });
+
+    renderCard(true);
+
+    expect(
+      await screen.findByText(platformCopy.ar.card.skipBannerTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: platformCopy.ar.actions.issue }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: platformCopy.ar.actions.viewAr }),
+    ).toHaveAttribute(
+      "href",
+      "/platform/billing/ar?view=exceptions&tenant_id=tenant-1",
+    );
+  });
+
+  it("shows Auto-emitido badge on auto-issued cargo", async () => {
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      {
+        id: "inv-1",
+        tenantId: "tenant-1",
+        subscriptionId: "sub-1",
+        periodKey: "2026-07",
+        periodStart: "2026-07-01T06:00:00.000Z",
+        periodEnd: "2026-08-01T06:00:00.000Z",
+        status: "open",
+        currency: "MXN",
+        planCode: "operacion_crecimiento",
+        stampsIncluded: 380,
+        stampsUsed: 400,
+        stampsOverage: 20,
+        subtotalCents: 170000,
+        taxCents: 27200,
+        totalCents: 197200,
+        amountDueCents: 197200,
+        amountPaidCents: 0,
+        issuedAt: "2026-08-01T16:00:00.000Z",
+        dueDate: "2026-08-15T16:00:00.000Z",
+        paidAt: null,
+        voidedAt: null,
+        voidReason: null,
+        notes: null,
+        daysOverdue: 2,
+        origin: "auto_period_issue",
+        createdAt: "2026-08-01T16:00:00.000Z",
+        updatedAt: "2026-08-01T16:00:00.000Z",
+      },
+    ]);
+
+    renderCard(true);
+
+    expect(
+      await screen.findByText(platformCopy.ar.origin.auto),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: platformCopy.ar.actions.issue }),
+    ).not.toBeInTheDocument();
+  });
+
   it("blocks close export for open month", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderCard(true);
@@ -302,5 +588,49 @@ describe("TenantSaasArCard", () => {
         description: platformCopy.ar.card.exportCloseNotClosed,
       }),
     );
+  });
+
+  it("shows auto-charge chip from latest_attempts next to Estado", async () => {
+    mockedApi.getArChargeRun.mockResolvedValue({
+      data: {
+        run: {
+          ran: true,
+          id: "run-1",
+          ranAt: "2026-09-23T12:05:00.000Z",
+          trigger: "job_tick",
+          considered: 1,
+          charged: 0,
+          errors: 0,
+        },
+        counts: {
+          charged: 0,
+          noPaymentMethod: 0,
+          failed: 1,
+          requiresAction: 0,
+          processing: 0,
+          skippedOther: 0,
+        },
+        items: [],
+        latestAttempts: [
+          {
+            saasInvoiceId: "inv-1",
+            outcome: "failed",
+            skipReason: null,
+            failureCode: "card_declined",
+            createdAt: "2026-09-23T12:05:00.000Z",
+          },
+        ],
+      },
+      pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+    });
+
+    renderCard(true);
+
+    expect(
+      await screen.findByText(platformCopy.ar.chargeChip.failed),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: platformCopy.ar.actions.markPaid }),
+    ).toBeInTheDocument();
   });
 });

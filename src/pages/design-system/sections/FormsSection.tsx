@@ -22,13 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { DateField, DateTimeField } from "@shared/ui/form";
+import { DateField, DateTimeField, MonthField } from "@shared/ui/form";
 
 export function FormsSection() {
   const [checked, setChecked] = useState<boolean | "indeterminate">(true);
   const [switchOn, setSwitchOn] = useState(true);
   const [selectValue, setSelectValue] = useState("scheduled");
   const [civilDate, setCivilDate] = useState("2026-03-10");
+  const [billingMonth, setBillingMonth] = useState("2026-07");
   const [instant, setInstant] = useState("2026-03-10T08:00");
 
   return (
@@ -217,6 +218,17 @@ export function FormsSection() {
                 id="ds-date-field"
                 value={civilDate}
                 onChange={setCivilDate}
+              />
+            </div>
+          </FormRow>
+          <FormRow label="Solo mes">
+            <div className="space-y-1.5">
+              <Label htmlFor="ds-month-field">Mes de cobro</Label>
+              <MonthField
+                id="ds-month-field"
+                value={billingMonth}
+                onChange={setBillingMonth}
+                clearable
               />
             </div>
           </FormRow>

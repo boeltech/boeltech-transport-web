@@ -76,7 +76,7 @@ export function MarkSaasInvoicePaidSheet({
       toast({
         title: copy.error,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
@@ -109,7 +109,10 @@ export function MarkSaasInvoicePaidSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
+      <SheetContent
+        className="sm:max-w-md overflow-y-auto"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>
@@ -138,13 +141,13 @@ export function MarkSaasInvoicePaidSheet({
           />
 
           <div className="space-y-2">
-            <Label>{copy.method}</Label>
+            <Label htmlFor="pay-method">{copy.method}</Label>
             <Controller
               control={form.control}
               name="method"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
+                  <SelectTrigger id="pay-method">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -179,9 +182,13 @@ export function MarkSaasInvoicePaidSheet({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {copy.cancel}
             </Button>
-            <Button type="submit" disabled={markMutation.isPending || !invoice}>
+            <Button
+              type="submit"
+              disabled={!invoice}
+              isLoading={markMutation.isPending}
+            >
               {markMutation.isPending ? copy.submitting : copy.submit}
             </Button>
           </SheetFooter>

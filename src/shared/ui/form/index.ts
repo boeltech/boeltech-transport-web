@@ -17,6 +17,7 @@ export { RHFTextField, type RHFTextFieldProps } from "./RHFTextField";
 export { MoneyInput, type MoneyInputProps } from "./MoneyInput";
 export { RHFMoneyField, type RHFMoneyFieldProps } from "./RHFMoneyField";
 export { DateField, type DateFieldProps } from "./DateField";
+export { MonthField, type MonthFieldProps } from "./MonthField";
 export { DateTimeField, type DateTimeFieldProps, type DateTimePreset } from "./DateTimeField";
 export { RHFDateField, type RHFDateFieldProps } from "./RHFDateField";
 export { RHFDateTimeField, type RHFDateTimeFieldProps } from "./RHFDateTimeField";

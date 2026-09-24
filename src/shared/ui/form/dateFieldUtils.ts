@@ -1,6 +1,7 @@
 import { getTodayString } from "@shared/utils/dateUtils";
 
 export const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+export const ISO_MONTH_PATTERN = /^\d{4}-\d{2}$/;
 export const DATETIME_LOCAL_PATTERN = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/;
 
 /** Marcador para calendarios en portal (Popover anidado en filtros). */
@@ -8,6 +9,8 @@ export const DATE_FIELD_CALENDAR_ATTR = "data-date-field-calendar";
 
 export const DATE_FIELD_COPY = {
   placeholderDate: "Elegir fecha",
+  placeholderMonth: "Elegir mes",
+  clearMonth: "Quitar mes",
   mexicoTimeCaption: "Hora de México",
   previousMonth: "Mes anterior",
   nextMonth: "Mes siguiente",
@@ -35,6 +38,45 @@ export function parseIsoDateParts(value: string): IsoDateParts | null {
 
 export function formatIsoDate(year: number, month: number, day: number): string {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export type IsoMonthParts = { year: number; month: number };
+
+export function parseIsoMonthParts(value: string): IsoMonthParts | null {
+  if (!ISO_MONTH_PATTERN.test(value)) return null;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  if (!year || month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+export function formatIsoMonth(year: number, month: number): string {
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+}
+
+export function formatMonthTriggerLabel(year: number, month: number): string {
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("es-MX", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export function formatMonthShortName(month: number): string {
+  return new Date(Date.UTC(2026, month - 1, 1)).toLocaleDateString("es-MX", {
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+export function isIsoMonthInRange(
+  monthKey: string,
+  min?: string,
+  max?: string,
+): boolean {
+  if (min && monthKey < min) return false;
+  if (max && monthKey > max) return false;
+  return true;
 }
 
 export function addCalendarDays(isoDate: string, days: number): string {

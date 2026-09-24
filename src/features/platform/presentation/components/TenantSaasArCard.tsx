@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Download } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { Download, Wallet } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
@@ -14,6 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import { EmptyState } from "@shared/ui/feedback-states";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { useToast } from "@shared/hooks";
 import {
   isSaasStripeNotConfiguredError,
@@ -21,6 +29,9 @@ import {
 } from "@features/billing";
 import type { PlatformSaasInvoice } from "../../domain/entities";
 import {
+  useIssueSaasInvoiceDraft,
+  usePlatformArChargeRun,
+  usePlatformArCloseRun,
   usePlatformTenantPaymentMethods,
   usePlatformTenantSaasInvoices,
 } from "../../application/hooks/usePlatformSaasAr";
@@ -34,12 +45,17 @@ import {
   getLastClosedMexicoCityPeriodKey,
   isClosedBillingPeriodKey,
   isValidBillingPeriodKey,
+  resolveClosedPeriodKeyForCloseRun,
 } from "../utils/billingPeriod";
 import { formatDate } from "@shared/utils/dateUtils";
 import { IssueSaasInvoiceSheet } from "./IssueSaasInvoiceSheet";
 import { MarkSaasInvoicePaidSheet } from "./MarkSaasInvoicePaidSheet";
 import { ChargeSaasInvoiceStripeSheet } from "./ChargeSaasInvoiceStripeSheet";
 import { VoidSaasInvoiceDialog } from "./VoidSaasInvoiceDialog";
+import { PlatformArRowActions } from "./PlatformArRowActions";
+import { SaasInvoiceOriginBadge } from "./SaasInvoiceOriginBadge";
+import { SaasAutoChargeChip } from "./SaasAutoChargeChip";
+import { resolveAutoChargeChip } from "../utils/autoChargeChip";
 
 interface TenantSaasArCardProps {
   tenantId: string;
@@ -58,8 +74,43 @@ export function TenantSaasArCard({
   const copy = platformCopy.ar;
   const { toast } = useToast();
   const lastClosed = getLastClosedMexicoCityPeriodKey();
+  const [closePeriodKey, setClosePeriodKey] = useState(lastClosed);
   const { data: invoices = [], isLoading } =
     usePlatformTenantSaasInvoices(tenantId);
+  const closePeriodForRun = resolveClosedPeriodKeyForCloseRun(closePeriodKey);
+  const closeRunQuery = usePlatformArCloseRun({
+    periodKey: closePeriodForRun,
+    tenantId,
+    include: "all",
+    page: 1,
+    pageSize: 25,
+  });
+  const chargeRunQuery = usePlatformArChargeRun({
+    tenantId,
+    page: 1,
+    pageSize: 25,
+  });
+  const chargeAttempts = chargeRunQuery.data?.data.latestAttempts ?? [];
+  const chargeRunItems = chargeRunQuery.data?.data.items ?? [];
+  const closeRunItem = closeRunQuery.data?.data.items[0] ?? null;
+  const isPolicySkip = closeRunItem?.skipGroup === "policy";
+  const hasNonVoidForPeriod = invoices.some(
+    (invoice) =>
+      invoice.periodKey === closePeriodForRun && invoice.status !== "void",
+  );
+  const showIssueCta =
+    canMutate &&
+    !closeRunQuery.isLoading &&
+    !isPolicySkip &&
+    !hasNonVoidForPeriod &&
+    !closeRunItem?.nonVoidInvoiceId &&
+    (closeRunItem
+      ? closeRunItem.canIssueOverride && closeRunItem.hasFrozenAmount
+      : true);
+  const viewArHref =
+    closeRunItem?.skipGroup === "actionable"
+      ? `/platform/billing/ar?view=exceptions&tenant_id=${tenantId}`
+      : `/platform/billing/ar?status=open&tenant_id=${tenantId}`;
 
   const stripeConfigured = isStripePublishableConfigured();
   const [stripeGatewayDown, setStripeGatewayDown] = useState(false);
@@ -86,7 +137,6 @@ export function TenantSaasArCard({
   const hasDefaultPaymentMethod = Boolean(defaultPm);
 
   const [issueOpen, setIssueOpen] = useState(false);
-  const [closePeriodKey, setClosePeriodKey] = useState(lastClosed);
   const [exporting, setExporting] = useState(false);
   const [payInvoice, setPayInvoice] = useState<PlatformSaasInvoice | null>(
     null,
@@ -96,11 +146,38 @@ export function TenantSaasArCard({
   const [voidInvoice, setVoidInvoice] = useState<PlatformSaasInvoice | null>(
     null,
   );
+  const [issuingDraftId, setIssuingDraftId] = useState<string | null>(null);
+
+  const issueDraftMutation = useIssueSaasInvoiceDraft({
+    onSuccess: () => {
+      toast({
+        title: copy.actions.issueDraftSuccess,
+        variant: "success",
+      });
+      setIssuingDraftId(null);
+    },
+    onError: (error) => {
+      toast({
+        title: copy.actions.issueDraftError,
+        description: error.message,
+        variant: "error",
+      });
+      setIssuingDraftId(null);
+    },
+  });
 
   const openCount = useMemo(
     () => invoices.filter((i) => i.status === "open").length,
     [invoices],
   );
+
+  const handleIssueDraft = (invoice: PlatformSaasInvoice) => {
+    setIssuingDraftId(invoice.id);
+    void issueDraftMutation.mutateAsync({
+      tenantId: invoice.tenantId,
+      invoiceId: invoice.id,
+    });
+  };
 
   const handleExportClose = async () => {
     const periodKey = closePeriodKey.trim();
@@ -141,12 +218,12 @@ export function TenantSaasArCard({
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
           <div>
             <CardTitle className="text-base">{copy.card.title}</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <CardDescription className="mt-1">
               {copy.card.description}
-            </p>
+            </CardDescription>
             <div className="mt-2 flex flex-wrap gap-2">
               {openCount > 0 ? (
-                <Badge variant="warning">
+                <Badge tone="soft" variant="warning">
                   {copy.card.openBadge(openCount)}
                 </Badge>
               ) : null}
@@ -169,20 +246,33 @@ export function TenantSaasArCard({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link
-                to={`/platform/billing/ar?status=open&tenant_id=${tenantId}`}
-              >
-                {copy.actions.viewAr}
-              </Link>
+              <Link to={viewArHref}>{copy.actions.viewAr}</Link>
             </Button>
-            {canMutate ? (
-              <Button size="sm" onClick={() => setIssueOpen(true)}>
+            {showIssueCta ? (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => setIssueOpen(true)}
+              >
                 {copy.actions.issue}
               </Button>
             ) : null}
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
+          {closeRunItem ? (
+            <AlertWithIcon
+              variant={isPolicySkip ? "info" : "warning"}
+              title={
+                isPolicySkip
+                  ? copy.card.skipBannerPolicy
+                  : copy.card.skipBannerTitle
+              }
+            >
+              {copy.skipReasons[closeRunItem.skipReason]}
+            </AlertWithIcon>
+          ) : null}
+
           {canExport ? (
             <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
               <div>
@@ -228,9 +318,14 @@ export function TenantSaasArCard({
           ) : null}
 
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Cargando…</p>
+            <p className="text-sm text-muted-foreground">{copy.card.loading}</p>
           ) : invoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{copy.card.empty}</p>
+            <EmptyState
+              icon={<Wallet className="h-10 w-10" />}
+              title={copy.card.emptyTitle}
+              description={copy.card.empty}
+              size="sm"
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -258,18 +353,28 @@ export function TenantSaasArCard({
                         {formatBillingPeriodKey(invoice.periodKey)}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          tone="soft"
-                          variant={
-                            invoice.status === "open"
-                              ? "warning"
-                              : invoice.status === "paid"
-                                ? "success"
-                                : "secondary"
-                          }
-                        >
-                          {copy.status[invoice.status]}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            tone="soft"
+                            variant={
+                              invoice.status === "open"
+                                ? "warning"
+                                : invoice.status === "paid"
+                                  ? "success"
+                                  : "secondary"
+                            }
+                          >
+                            {copy.status[invoice.status]}
+                          </Badge>
+                          <SaasInvoiceOriginBadge origin={invoice.origin} />
+                          <SaasAutoChargeChip
+                            kind={resolveAutoChargeChip({
+                              invoiceId: invoice.id,
+                              latestAttempts: chargeAttempts,
+                              runItems: chargeRunItems,
+                            })}
+                          />
+                        </div>
                       </TableCell>
                       <TableCell className="tabular-nums">
                         {formatBillingPriceCents(invoice.totalCents)}
@@ -294,31 +399,24 @@ export function TenantSaasArCard({
                       </TableCell>
                       {canMutate ? (
                         <TableCell>
-                          {invoice.status === "open" ? (
-                            <div className="flex flex-wrap gap-1">
-                              {showCharge ? (
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={() => setChargeInvoice(invoice)}
-                                >
-                                  {copy.actions.chargeStripe}
-                                </Button>
-                              ) : null}
-                              <Button
-                                size="sm"
-                                onClick={() => setPayInvoice(invoice)}
-                              >
-                                {copy.actions.markPaid}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setVoidInvoice(invoice)}
-                              >
-                                {copy.actions.void}
-                              </Button>
-                            </div>
+                          {invoice.status === "draft" ? (
+                            <PlatformArRowActions
+                              variant="buttons"
+                              isDraft
+                              onIssueDraft={() => handleIssueDraft(invoice)}
+                              issueDraftPending={
+                                issuingDraftId === invoice.id &&
+                                issueDraftMutation.isPending
+                              }
+                            />
+                          ) : invoice.status === "open" ? (
+                            <PlatformArRowActions
+                              variant="buttons"
+                              canChargeStripe={showCharge}
+                              onCharge={() => setChargeInvoice(invoice)}
+                              onMarkPaid={() => setPayInvoice(invoice)}
+                              onVoid={() => setVoidInvoice(invoice)}
+                            />
                           ) : null}
                         </TableCell>
                       ) : null}

@@ -4,8 +4,11 @@ import { getTodayString } from "@shared/utils/dateUtils";
 
 import {
   addCalendarDays,
+  formatIsoMonth,
+  isIsoMonthInRange,
   joinDateTimeLocal,
   mexicoTodayAt,
+  parseIsoMonthParts,
   splitDateTimeLocal,
 } from "./dateFieldUtils";
 
@@ -32,5 +35,19 @@ describe("addCalendarDays", () => {
 describe("mexicoTodayAt", () => {
   it("uses getTodayString as the civil day", () => {
     expect(mexicoTodayAt("08:00")).toBe(`${getTodayString()}T08:00`);
+  });
+});
+
+describe("iso month helpers", () => {
+  it("parses and formats AAAA-MM keys", () => {
+    expect(parseIsoMonthParts("2026-07")).toEqual({ year: 2026, month: 7 });
+    expect(parseIsoMonthParts("2026-7")).toBeNull();
+    expect(formatIsoMonth(2026, 7)).toBe("2026-07");
+  });
+
+  it("compares month keys as civil ranges", () => {
+    expect(isIsoMonthInRange("2026-07", "2026-06", "2026-08")).toBe(true);
+    expect(isIsoMonthInRange("2026-05", "2026-06")).toBe(false);
+    expect(isIsoMonthInRange("2026-09", undefined, "2026-08")).toBe(false);
   });
 });

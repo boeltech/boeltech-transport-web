@@ -7,8 +7,11 @@ import {
 import {
   platformQueryKeys,
   type IssuePlatformSaasInvoicePayload,
+  type IssuePlatformSaasInvoiceDraftPayload,
   type MarkPlatformSaasInvoicePaidPayload,
   type PlatformArListQueryParams,
+  type PlatformChargeRunQueryParams,
+  type PlatformCloseRunQueryParams,
   type VoidPlatformSaasInvoicePayload,
 } from "../../domain/entities";
 import { platformApi } from "../../infrastructure/platformApi";
@@ -39,6 +42,66 @@ export const usePlatformArList = (params?: PlatformArListQueryParams) =>
     queryFn: () => platformApi.listAr(params),
     staleTime: 15_000,
   });
+
+export const usePlatformArCloseRun = (
+  params?: PlatformCloseRunQueryParams,
+  options?: { enabled?: boolean },
+) =>
+  useQuery({
+    queryKey: platformQueryKeys.arCloseRun(params),
+    queryFn: () => platformApi.getArCloseRun(params),
+    staleTime: 15_000,
+    placeholderData: (previous) => previous,
+    enabled: options?.enabled ?? true,
+  });
+
+export const usePlatformArChargeRun = (
+  params?: PlatformChargeRunQueryParams,
+  options?: { enabled?: boolean },
+) =>
+  useQuery({
+    queryKey: platformQueryKeys.arChargeRun(params),
+    queryFn: () => platformApi.getArChargeRun(params),
+    staleTime: 15_000,
+    placeholderData: (previous) => previous,
+    enabled: options?.enabled ?? true,
+  });
+
+export type PlatformArView = "pending" | "overdue" | "all";
+
+/** Query params for view-count chips (`pageSize: 1` → `pagination.total`). */
+export function arViewCountParams(
+  view: PlatformArView,
+  filters: Pick<PlatformArListQueryParams, "periodKey" | "tenantId"> = {},
+): PlatformArListQueryParams {
+  const shared: PlatformArListQueryParams = {
+    page: 1,
+    pageSize: 1,
+    periodKey: filters.periodKey,
+    tenantId: filters.tenantId,
+  };
+  if (view === "pending") return { ...shared, status: "open" };
+  if (view === "overdue") {
+    return { ...shared, status: "open", minDaysOverdue: 1 };
+  }
+  return shared;
+}
+
+export function usePlatformArViewCounts(
+  filters: Pick<PlatformArListQueryParams, "periodKey" | "tenantId"> = {},
+) {
+  const pending = usePlatformArList(arViewCountParams("pending", filters));
+  const overdue = usePlatformArList(arViewCountParams("overdue", filters));
+  const all = usePlatformArList(arViewCountParams("all", filters));
+
+  return {
+    pending: pending.data?.pagination.total,
+    overdue: overdue.data?.pagination.total,
+    all: all.data?.pagination.total,
+    refetch: () =>
+      Promise.all([pending.refetch(), overdue.refetch(), all.refetch()]),
+  };
+}
 
 export const usePlatformTenantSaasInvoices = (tenantId: string) =>
   useQuery({
@@ -91,6 +154,33 @@ export const useIssueSaasInvoice = (
   return useMutation({
     mutationFn: ({ tenantId, payload }) =>
       platformApi.issueSaasInvoice(tenantId, payload),
+    onSuccess: (result, variables, ...rest) => {
+      invalidateArQueries(queryClient, variables.tenantId);
+      onSuccess?.(result, variables, ...rest);
+    },
+    ...restOptions,
+  });
+};
+
+export const useIssueSaasInvoiceDraft = (
+  options?: Omit<
+    UseMutationOptions<
+      Awaited<ReturnType<typeof platformApi.issueSaasInvoiceDraft>>,
+      Error,
+      {
+        tenantId: string;
+        invoiceId: string;
+        payload?: IssuePlatformSaasInvoiceDraftPayload;
+      }
+    >,
+    "mutationFn"
+  >,
+) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options ?? {};
+  return useMutation({
+    mutationFn: ({ tenantId, invoiceId, payload }) =>
+      platformApi.issueSaasInvoiceDraft(tenantId, invoiceId, payload),
     onSuccess: (result, variables, ...rest) => {
       invalidateArQueries(queryClient, variables.tenantId);
       onSuccess?.(result, variables, ...rest);

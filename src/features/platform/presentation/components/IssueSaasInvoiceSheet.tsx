@@ -13,6 +13,13 @@ import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
   FieldInlineError,
@@ -63,10 +70,16 @@ export function IssueSaasInvoiceSheet({
     resolver: zodResolver(
       issueSaasInvoiceSchema,
     ) as Resolver<IssueSaasInvoiceFormData>,
-    defaultValues: { periodKey: resolvedDefault, notes: "", dueDays: 14 },
+    defaultValues: {
+      periodKey: resolvedDefault,
+      status: "open",
+      notes: "",
+      dueDays: 14,
+    },
   });
 
   const periodKey = form.watch("periodKey") ?? "";
+  const status = form.watch("status") ?? "open";
   const periodIsClosed =
     isValidBillingPeriodKey(periodKey) &&
     isClosedBillingPeriodKey(periodKey);
@@ -75,15 +88,20 @@ export function IssueSaasInvoiceSheet({
     useTenantReconciliationPreview(tenantId, periodKey, open && periodIsClosed);
 
   const issueMutation = useIssueSaasInvoice({
-    onSuccess: () => {
-      toast({ title: copy.success, variant: "success" });
+    onSuccess: (_result, variables) => {
+      const asDraft = variables.payload.status === "draft";
+      toast({
+        title: asDraft ? copy.successDraft : copy.success,
+        variant: "success",
+      });
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      const asDraft = variables.payload.status === "draft";
       toast({
-        title: copy.error,
+        title: asDraft ? copy.errorDraft : copy.error,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
@@ -92,6 +110,7 @@ export function IssueSaasInvoiceSheet({
     if (!open) return;
     form.reset({
       periodKey: resolvedDefault,
+      status: "open",
       notes: "",
       dueDays: 14,
     });
@@ -102,7 +121,7 @@ export function IssueSaasInvoiceSheet({
       tenantId,
       payload: {
         periodKey: values.periodKey,
-        status: "open",
+        status: values.status ?? "open",
         notes: values.notes?.trim() || null,
         dueDays: values.dueDays ?? 14,
       },
@@ -110,10 +129,14 @@ export function IssueSaasInvoiceSheet({
   });
 
   const summaryErrors = collectFieldErrorMessages(form.formState.errors);
+  const isDraft = status === "draft";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
+      <SheetContent
+        className="sm:max-w-md overflow-y-auto"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>
@@ -132,7 +155,7 @@ export function IssueSaasInvoiceSheet({
             <Label htmlFor="periodKey">{copy.periodKey}</Label>
             <Input
               id="periodKey"
-              placeholder="2026-07"
+              placeholder={copy.periodPlaceholder}
               {...form.register("periodKey")}
               {...getRegisterFieldErrorProps(
                 "periodKey",
@@ -143,6 +166,31 @@ export function IssueSaasInvoiceSheet({
               fieldId="periodKey"
               message={form.formState.errors.periodKey?.message}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="issue-status">{copy.initialStatus}</Label>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                form.setValue("status", value as "draft" | "open", {
+                  shouldValidate: true,
+                });
+              }}
+            >
+              <SelectTrigger id="issue-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open">{copy.statusOpen}</SelectItem>
+                <SelectItem value="draft">{copy.statusDraft}</SelectItem>
+              </SelectContent>
+            </Select>
+            {isDraft ? (
+              <p className="text-xs text-muted-foreground">
+                {copy.statusDraftHint}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -161,7 +209,7 @@ export function IssueSaasInvoiceSheet({
             <Textarea id="issueNotes" rows={3} {...form.register("notes")} />
           </div>
 
-          <div className="rounded-md border p-3 text-sm space-y-2">
+          <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-2">
             <p className="font-medium">{copy.preview}</p>
             {isValidBillingPeriodKey(periodKey) && !periodIsClosed ? (
               <AlertWithIcon
@@ -204,13 +252,20 @@ export function IssueSaasInvoiceSheet({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {copy.cancel}
             </Button>
             <Button
               type="submit"
-              disabled={issueMutation.isPending || !periodIsClosed}
+              disabled={!periodIsClosed}
+              isLoading={issueMutation.isPending}
             >
-              {issueMutation.isPending ? copy.submitting : copy.submit}
+              {issueMutation.isPending
+                ? isDraft
+                  ? copy.submittingDraft
+                  : copy.submitting
+                : isDraft
+                  ? copy.submitDraft
+                  : copy.submit}
             </Button>
           </SheetFooter>
         </form>

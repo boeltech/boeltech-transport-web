@@ -69,7 +69,7 @@ export function ChargeSaasInvoiceStripeSheet({
       onGatewayUnavailable?.();
       toast({
         title: copy.gatewayUnavailable,
-        variant: "destructive",
+        variant: "error",
       });
       onOpenChange(false);
     }
@@ -84,7 +84,7 @@ export function ChargeSaasInvoiceStripeSheet({
   ]);
 
   const busy = chargeMutation.isPending || authenticating;
-  const canSubmit = Boolean(invoice && defaultPm && !busy);
+  const canSubmit = Boolean(invoice && defaultPm);
 
   const handleConfirm = async () => {
     if (!invoice || !defaultPm) return;
@@ -97,7 +97,7 @@ export function ChargeSaasInvoiceStripeSheet({
       if (result.status === "requires_action") {
         const secret = result.clientSecret?.trim();
         if (!secret) {
-          toast({ title: copy.failed, variant: "destructive" });
+          toast({ title: copy.failed, variant: "error" });
           return;
         }
         toast({ title: copy.requiresAction, variant: "default" });
@@ -108,7 +108,7 @@ export function ChargeSaasInvoiceStripeSheet({
           toast({
             title: copy.failed,
             description: confirmed.message,
-            variant: "destructive",
+            variant: "error",
           });
           return;
         }
@@ -125,7 +125,7 @@ export function ChargeSaasInvoiceStripeSheet({
       }
 
       if (result.status === "failed") {
-        toast({ title: copy.failed, variant: "destructive" });
+        toast({ title: copy.failed, variant: "error" });
         return;
       }
 
@@ -137,7 +137,7 @@ export function ChargeSaasInvoiceStripeSheet({
         onGatewayUnavailable?.();
         toast({
           title: copy.gatewayUnavailable,
-          variant: "destructive",
+          variant: "error",
         });
         onOpenChange(false);
         return;
@@ -145,7 +145,7 @@ export function ChargeSaasInvoiceStripeSheet({
       toast({
         title: copy.error,
         description: getErrorMessage(error),
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -156,7 +156,10 @@ export function ChargeSaasInvoiceStripeSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
+      <SheetContent
+        className="sm:max-w-md overflow-y-auto"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>
@@ -205,11 +208,12 @@ export function ChargeSaasInvoiceStripeSheet({
             onClick={() => onOpenChange(false)}
             disabled={busy}
           >
-            Cancelar
+            {copy.cancel}
           </Button>
           <Button
             type="button"
-            disabled={!canSubmit}
+            disabled={!canSubmit || busy}
+            isLoading={busy}
             onClick={() => void handleConfirm()}
           >
             {authenticating

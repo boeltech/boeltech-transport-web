@@ -6,6 +6,11 @@ import { IssueSaasInvoiceSheet } from "./IssueSaasInvoiceSheet";
 import { platformCopy } from "../copy/platformCopy";
 import { platformApi } from "../../infrastructure/platformApi";
 
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.setPointerCapture ??= () => undefined;
+Element.prototype.releasePointerCapture ??= () => undefined;
+Element.prototype.scrollIntoView ??= () => undefined;
+
 vi.mock("../../infrastructure/platformApi", () => ({
   platformApi: {
     getTenantReconciliationJson: vi.fn(),
@@ -93,6 +98,7 @@ describe("IssueSaasInvoiceSheet", () => {
       voidReason: null,
       notes: null,
       daysOverdue: 0,
+      origin: "manual",
       createdAt: "2026-08-01T16:00:00.000Z",
       updatedAt: "2026-08-01T16:00:00.000Z",
       items: [],
@@ -129,6 +135,70 @@ describe("IssueSaasInvoiceSheet", () => {
       expect(mockedApi.issueSaasInvoice).toHaveBeenCalledWith("tenant-1", {
         periodKey: "2026-07",
         status: "open",
+        notes: null,
+        dueDays: 14,
+      });
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("can create a draft cargo when status is Borrador", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const onOpenChange = vi.fn();
+    mockedApi.issueSaasInvoice.mockResolvedValueOnce({
+      id: "inv-draft",
+      tenantId: "tenant-1",
+      subscriptionId: "sub-1",
+      periodKey: "2026-07",
+      periodStart: "2026-07-01T06:00:00.000Z",
+      periodEnd: "2026-08-01T06:00:00.000Z",
+      status: "draft",
+      currency: "MXN",
+      planCode: "operacion_crecimiento",
+      stampsIncluded: 380,
+      stampsUsed: 400,
+      stampsOverage: 20,
+      subtotalCents: 170000,
+      taxCents: 27200,
+      totalCents: 197200,
+      amountDueCents: 197200,
+      amountPaidCents: 0,
+      issuedAt: null,
+      dueDate: null,
+      paidAt: null,
+      voidedAt: null,
+      voidReason: null,
+      notes: null,
+      daysOverdue: 0,
+      origin: "manual",
+      createdAt: "2026-08-01T16:00:00.000Z",
+      updatedAt: "2026-08-01T16:00:00.000Z",
+      items: [],
+      payments: [],
+    });
+
+    renderSheet({ onOpenChange, defaultPeriodKey: "2026-07" });
+
+    await waitFor(() => {
+      expect(mockedApi.getTenantReconciliationJson).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByLabelText(copy.initialStatus));
+    expect(
+      await screen.findByRole("option", { name: copy.statusDraft }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: copy.statusDraft }));
+
+    expect(
+      await screen.findByRole("button", { name: copy.submitDraft }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: copy.submitDraft }));
+
+    await waitFor(() => {
+      expect(mockedApi.issueSaasInvoice).toHaveBeenCalledWith("tenant-1", {
+        periodKey: "2026-07",
+        status: "draft",
         notes: null,
         dueDays: 14,
       });
