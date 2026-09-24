@@ -81,13 +81,15 @@ export function InvoiceConceptLinesTable({
                   key={line.id ?? `concept-${index}`}
                   className={cn(hasError && "bg-destructive/5")}
                 >
-                  <TableCell>
+                  <TableCell className="align-top">
                     <Badge variant={isFlete ? "default" : "secondary"} className="text-xs">
                       {isFlete ? tableCopy.flete : tableCopy.service}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-[240px]">
-                    <p className="truncate text-sm">{line.description || "—"}</p>
+                  <TableCell className="align-top">
+                    <p className="whitespace-normal break-words text-sm">
+                      {line.description || "—"}
+                    </p>
                     <p className="font-mono text-xs text-muted-foreground">
                       {line.clave_prod_serv}
                     </p>
@@ -149,7 +151,9 @@ export function InvoiceConceptLinesTable({
                 <Badge variant={isFlete ? "default" : "secondary"} className="text-xs">
                   {isFlete ? tableCopy.flete : tableCopy.service}
                 </Badge>
-                <p className="truncate text-sm font-medium">{line.description || "—"}</p>
+                <p className="whitespace-normal break-words text-sm font-medium">
+                  {line.description || "—"}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {tableCopy.qtyUnitSummary(
                     line.quantity,

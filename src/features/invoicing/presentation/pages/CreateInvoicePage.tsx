@@ -66,6 +66,7 @@ import {
 import {
   invoiceCreateHydrationKey,
   shouldHydrateInvoiceCreate,
+  shouldPreserveSeededInvoiceConcepts,
 } from "./invoiceCreateHydration";
 import {
   invoiceEditHydrationKey,
@@ -389,6 +390,12 @@ export function CreateInvoicePage() {
       ) {
         return;
       }
+      const preserveConcepts = shouldPreserveSeededInvoiceConcepts(
+        hydratedPrefillKeyRef.current,
+        tripId,
+        billingScope,
+        splitLegId,
+      );
       hydratedPrefillKeyRef.current = invoiceCreateHydrationKey(
         tripId,
         billingScope,
@@ -400,6 +407,16 @@ export function CreateInvoicePage() {
         prefill.suggestedConcepts.length > 0
           ? prefill.suggestedConcepts.map(mapInvoiceConceptToFormInput)
           : [];
+      const seededConcepts = isServiceOnlyScope
+        ? suggested
+        : suggested.length > 0
+          ? suggested
+          : [
+              defaultFleteConceptFormLine(prefill.subtotal ?? 0, {
+                taxRate: resolvedTaxRate,
+                retencionAplica: personaMoral,
+              }),
+            ];
       form.reset({
         trip_ids: tripId ? [tripId] : [],
         receiver_rfc: prefill.receiverRfc ?? "",
@@ -414,17 +431,9 @@ export function CreateInvoicePage() {
         discount: 0,
         apply_retained_tax: personaMoral,
         retention_required: personaMoral,
-        concepts:
-          isServiceOnlyScope
-            ? suggested
-            : suggested.length > 0
-              ? suggested
-              : [
-                  defaultFleteConceptFormLine(prefill.subtotal ?? 0, {
-                    taxRate: resolvedTaxRate,
-                    retencionAplica: personaMoral,
-                  }),
-                ],
+        concepts: preserveConcepts
+          ? form.getValues("concepts")
+          : seededConcepts,
         total_tax: prefill.totalTax ?? 0,
         retained_tax: prefill.retainedTax ?? 0,
         total: prefill.total ?? 0,

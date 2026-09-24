@@ -359,6 +359,19 @@ describe("invoiceFormSchema", () => {
     }
   });
 
+  it("rejects concept description with |", () => {
+    const result = invoiceConceptFormSchema.safeParse({
+      ...defaultFleteConceptFormLine(1000),
+      description: "Servicio de transporte | ruta",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.message)).toContain(
+        invoicingCopy.concepts.sheet.validation.descriptionPipe,
+      );
+    }
+  });
+
   it("rejects clave_prod_serv shorter than 5 characters", () => {
     const result = invoiceConceptFormSchema.safeParse({
       ...defaultFleteConceptFormLine(1000),

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   invoiceCreateHydrationKey,
   shouldHydrateInvoiceCreate,
+  shouldPreserveSeededInvoiceConcepts,
 } from "./invoiceCreateHydration";
 
 describe("shouldHydrateInvoiceCreate", () => {
@@ -67,6 +68,19 @@ describe("shouldHydrateInvoiceCreate", () => {
   it("does not hydrate without a trip id", () => {
     expect(
       shouldHydrateInvoiceCreate(null, "", "primary_transport"),
+    ).toBe(false);
+  });
+
+  it("preserves seeded concepts on a later prefill of the same key", () => {
+    const key = invoiceCreateHydrationKey("trip-a", "primary_transport");
+    expect(
+      shouldPreserveSeededInvoiceConcepts(null, "trip-a", "primary_transport"),
+    ).toBe(false);
+    expect(
+      shouldPreserveSeededInvoiceConcepts(key, "trip-a", "primary_transport"),
+    ).toBe(true);
+    expect(
+      shouldPreserveSeededInvoiceConcepts(key, "trip-b", "primary_transport"),
     ).toBe(false);
   });
 });

@@ -40,7 +40,8 @@ export const invoiceConceptFormSchema = z.object({
   description: z
     .string()
     .min(1, conceptLineValidation.descriptionRequired)
-    .max(1000),
+    .max(1000)
+    .regex(/^[^|]*$/, conceptLineValidation.descriptionPipe),
   quantity: z.number().positive(conceptLineValidation.quantityPositive),
   unit_price: z.number().min(0, conceptLineValidation.unitPriceMin),
   amount: z.number().min(0),

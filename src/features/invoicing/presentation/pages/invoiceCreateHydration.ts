@@ -26,3 +26,14 @@ export function shouldHydrateInvoiceCreate(
   if (hydratedKey !== key) return true;
   return options?.formIsDirty !== true;
 }
+
+/** Same trip+scope+leg already seeded: keep the concept descriptions. */
+export function shouldPreserveSeededInvoiceConcepts(
+  hydratedKey: string | null,
+  tripId: string,
+  scope: InvoiceBillingScope,
+  legId?: string | null,
+): boolean {
+  if (!hydratedKey || !tripId) return false;
+  return hydratedKey === invoiceCreateHydrationKey(tripId, scope, legId);
+}

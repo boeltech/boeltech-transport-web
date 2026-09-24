@@ -65,7 +65,7 @@ export function InvoiceDetailConceptsCard({
 
                 return (
                   <TableRow key={line.id ?? `${line.conceptType}-${index}`}>
-                    <TableCell>
+                    <TableCell className="align-top">
                       <Badge
                         variant={isFlete ? "default" : "secondary"}
                         className="text-xs"
@@ -73,11 +73,13 @@ export function InvoiceDetailConceptsCard({
                         {isFlete ? copy.flete : copy.service}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="align-top font-mono text-xs">
                       {line.claveProdServ}
                     </TableCell>
-                    <TableCell className="max-w-[360px]">
-                      <p className="truncate">{line.description}</p>
+                    <TableCell className="align-top">
+                      <p className="whitespace-normal break-words">
+                        {line.description}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {line.claveUnidad} · {line.unidad}
                       </p>
@@ -122,7 +124,9 @@ export function InvoiceDetailConceptsCard({
                       {line.claveProdServ}
                     </span>
                   </div>
-                  <p className="truncate text-sm font-medium">{line.description}</p>
+                  <p className="whitespace-normal break-words text-sm font-medium">
+                    {line.description}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {copy.qtyUnitSummary(
                       line.quantity,

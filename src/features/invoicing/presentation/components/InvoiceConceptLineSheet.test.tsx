@@ -198,6 +198,18 @@ describe("InvoiceConceptLineSheet", () => {
     expect(applied.object_imp).toBe("02");
   });
 
+  it("muestra hint de que la descripción sale en PDF y XML", async () => {
+    renderSheet({
+      mode: "edit",
+      initialValues: validServiceLine,
+      editingIndex: 0,
+    });
+
+    expect(
+      screen.getByText(sheetCopy.validation.descriptionHint),
+    ).toBeInTheDocument();
+  });
+
   it("enfoca descripción cuando es el primer error", async () => {
     const user = userEvent.setup();
     renderSheet({

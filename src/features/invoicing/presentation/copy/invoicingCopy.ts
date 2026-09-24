@@ -822,6 +822,9 @@ export const invoicingCopy = {
         claveUnidadRequired: "Selecciona o captura la clave de unidad SAT.",
         unidadRequired: "Indica la unidad de medida.",
         descriptionRequired: "Indica la descripción que aparecerá en el CFDI.",
+        descriptionPipe: "La descripción no puede contener el carácter |.",
+        descriptionHint:
+          "Así aparece en el PDF y el XML. Puedes editarla; no se vuelve a generar sola.",
         quantityPositive: "La cantidad debe ser mayor a cero.",
         unitPriceMin: "El precio unitario no puede ser negativo.",
         unitPriceRequired: "Indica el precio unitario del concepto.",

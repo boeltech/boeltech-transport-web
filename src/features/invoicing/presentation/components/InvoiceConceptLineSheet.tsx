@@ -407,6 +407,7 @@ function InvoiceConceptLineSheetForm({
                   fieldId="concept-sheet-description"
                   label={copy.description}
                   required
+                  description={sheetCopy.validation.descriptionHint}
                   errorMessage={fieldState.error?.message}
                 >
                   <Input
