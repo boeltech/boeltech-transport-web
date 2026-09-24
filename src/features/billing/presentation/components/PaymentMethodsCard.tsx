@@ -271,6 +271,8 @@ export function PaymentMethodsCard({
           ) : methods.length === 0 ? (
             <p className="text-sm text-muted-foreground">{copy.empty}</p>
           ) : (
+            <>
+            <p className="text-sm text-muted-foreground">{copy.autoChargeHint}</p>
             <ul className="divide-y divide-border rounded-lg border border-border">
               {methods.map((pm) => {
                 const expiry = formatExpiry(pm);
@@ -320,6 +322,7 @@ export function PaymentMethodsCard({
                 );
               })}
             </ul>
+            </>
           )}
 
           {showMutations && !setupClientSecret ? (

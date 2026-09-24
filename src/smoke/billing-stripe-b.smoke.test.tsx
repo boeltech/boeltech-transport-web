@@ -1,11 +1,10 @@
 /**
- * Smoke Stripe-A WS-E — tenant «Pagar ahora» + platform «Cobrar con Stripe».
- * Mock de API / publishable key; no requiere backend ni Playwright.
+ * Smoke Stripe-B F3 — franja/chip de auto-cargo + Alert tenant + copy PM.
+ * Mock de API; no requiere backend ni Playwright.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BillingSubscriptionPage } from "@features/billing/presentation/pages/BillingSubscriptionPage";
@@ -29,9 +28,12 @@ const mockGetUsage = vi.fn();
 const mockGetEntitlements = vi.fn();
 const mockGetArrears = vi.fn();
 const mockListPaymentMethods = vi.fn();
-const mockPaySaasInvoice = vi.fn();
+const mockListTenantSaasInvoices = vi.fn();
+const mockListTenantPaymentMethods = vi.fn();
+const mockGetArChargeRun = vi.fn();
+const mockGetArCloseRun = vi.fn();
 
-const isStripePublishableConfigured = vi.fn(() => false);
+const isStripePublishableConfigured = vi.fn(() => true);
 
 vi.mock("@features/billing/infrastructure/stripeClient", async (importOriginal) => {
   const actual =
@@ -57,7 +59,7 @@ vi.mock("@features/billing/infrastructure/billingApi", () => ({
     confirmSetupIntent: vi.fn(),
     setDefaultPaymentMethod: vi.fn(),
     deletePaymentMethod: vi.fn(),
-    paySaasInvoice: (...args: unknown[]) => mockPaySaasInvoice(...args),
+    paySaasInvoice: vi.fn(),
   },
 }));
 
@@ -87,66 +89,20 @@ vi.mock("@features/auth", async (importOriginal) => {
   };
 });
 
-const mockListTenantSaasInvoices = vi.fn();
-const mockListTenantPaymentMethods = vi.fn();
-const mockChargeSaasInvoiceStripe = vi.fn();
-
-const EMPTY_CHARGE_RUN = {
-  data: {
-    run: {
-      ran: false,
-      id: null,
-      ranAt: null,
-      trigger: null,
-      considered: 0,
-      charged: 0,
-      errors: 0,
-    },
-    counts: {
-      charged: 0,
-      noPaymentMethod: 0,
-      failed: 0,
-      requiresAction: 0,
-      processing: 0,
-      skippedOther: 0,
-    },
-    items: [],
-    latestAttempts: [],
-  },
-  pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
-};
-
-const EMPTY_CLOSE_RUN = {
-  data: {
-    periodKey: "2026-07",
-    run: {
-      ran: true,
-      ranAt: "2026-08-01T06:05:00.000Z",
-      issuedCount: 1,
-      consideredCount: 1,
-      errorsCount: 0,
-    },
-    counts: { actionable: 0, policy: 0 },
-    items: [],
-  },
-  pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
-};
-
 vi.mock("@features/platform/infrastructure/platformApi", () => ({
   platformApi: {
     listTenantSaasInvoices: (...args: unknown[]) =>
       mockListTenantSaasInvoices(...args),
     listTenantPaymentMethods: (...args: unknown[]) =>
       mockListTenantPaymentMethods(...args),
-    chargeSaasInvoiceStripe: (...args: unknown[]) =>
-      mockChargeSaasInvoiceStripe(...args),
+    chargeSaasInvoiceStripe: vi.fn(),
     downloadTenantReconciliationCsv: vi.fn(),
     getTenantReconciliationJson: vi.fn(),
     issueSaasInvoice: vi.fn(),
     markSaasInvoicePaid: vi.fn(),
     voidSaasInvoice: vi.fn(),
-    getArChargeRun: vi.fn(() => Promise.resolve(EMPTY_CHARGE_RUN)),
-    getArCloseRun: vi.fn(() => Promise.resolve(EMPTY_CLOSE_RUN)),
+    getArChargeRun: (...args: unknown[]) => mockGetArChargeRun(...args),
+    getArCloseRun: (...args: unknown[]) => mockGetArCloseRun(...args),
   },
 }));
 
@@ -239,7 +195,7 @@ const MOCK_ENTITLEMENTS: BillingEntitlements = {
   },
 };
 
-const JULY_OPEN_ARREARS: BillingArrears = {
+const FAILED_ARREARS: BillingArrears = {
   currency: "MXN",
   openCount: 1,
   totalOpenCents: 215424,
@@ -255,6 +211,12 @@ const JULY_OPEN_ARREARS: BillingArrears = {
       dueDate: "2026-08-15T05:59:59.999Z",
       daysOverdue: 0,
       issuedAt: "2026-08-01T16:00:00.000Z",
+      lastAutoCharge: {
+        outcome: "failed",
+        skipReason: null,
+        failureCode: "card_declined",
+        createdAt: "2026-08-02T12:00:00.000Z",
+      },
     },
   ],
 };
@@ -269,6 +231,36 @@ const DEFAULT_PM: BillingPaymentMethod = {
   expMonth: 12,
   expYear: 2030,
   isDefault: true,
+  createdAt: "2026-08-01T16:00:00.000Z",
+  updatedAt: "2026-08-01T16:00:00.000Z",
+};
+
+const OPEN_INVOICE = {
+  id: "inv-july",
+  tenantId: "tenant-1",
+  subscriptionId: "sub-1",
+  periodKey: "2026-07",
+  periodStart: "2026-07-01T06:00:00.000Z",
+  periodEnd: "2026-08-01T06:00:00.000Z",
+  status: "open" as const,
+  currency: "MXN",
+  planCode: "operacion_esencial",
+  stampsIncluded: 120,
+  stampsUsed: 10,
+  stampsOverage: 0,
+  subtotalCents: 185710,
+  taxCents: 29714,
+  totalCents: 215424,
+  amountDueCents: 215424,
+  amountPaidCents: 0,
+  issuedAt: "2026-08-01T16:00:00.000Z",
+  dueDate: "2026-08-15T16:00:00.000Z",
+  paidAt: null,
+  voidedAt: null,
+  voidReason: null,
+  notes: null,
+  daysOverdue: 0,
+  origin: "auto_period_issue" as const,
   createdAt: "2026-08-01T16:00:00.000Z",
   updatedAt: "2026-08-01T16:00:00.000Z",
 };
@@ -288,10 +280,10 @@ function TestProviders({ children }: { children: ReactNode }) {
   );
 }
 
-describe("billing-stripe smoke (Stripe-A WS-E)", () => {
+describe("billing-stripe-b smoke (Stripe-B F3)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isStripePublishableConfigured.mockReturnValue(false);
+    isStripePublishableConfigured.mockReturnValue(true);
     mockGetAccess.mockResolvedValue({
       subscriptionStatus: "active",
       isOperational: true,
@@ -302,64 +294,60 @@ describe("billing-stripe smoke (Stripe-A WS-E)", () => {
     mockGetSubscription.mockResolvedValue(MOCK_SUBSCRIPTION);
     mockGetUsage.mockResolvedValue(MOCK_USAGE);
     mockGetEntitlements.mockResolvedValue(MOCK_ENTITLEMENTS);
-    mockGetArrears.mockResolvedValue(JULY_OPEN_ARREARS);
+    mockGetArrears.mockResolvedValue(FAILED_ARREARS);
     mockListPaymentMethods.mockResolvedValue([DEFAULT_PM]);
-    mockPaySaasInvoice.mockResolvedValue({
-      saasInvoiceId: "inv-july",
-      status: "paid",
-      gatewayPaymentId: "pi_smoke",
-      amountCents: 215424,
-    });
-    mockListTenantSaasInvoices.mockResolvedValue([
-      {
-        id: "inv-1",
-        tenantId: "tenant-1",
-        subscriptionId: "sub-1",
+    mockListTenantSaasInvoices.mockResolvedValue([OPEN_INVOICE]);
+    mockListTenantPaymentMethods.mockResolvedValue([DEFAULT_PM]);
+    mockGetArCloseRun.mockResolvedValue({
+      data: {
         periodKey: "2026-07",
-        periodStart: "2026-07-01T06:00:00.000Z",
-        periodEnd: "2026-08-01T06:00:00.000Z",
-        status: "open",
-        currency: "MXN",
-        planCode: "operacion_esencial",
-        stampsIncluded: 120,
-        stampsUsed: 10,
-        stampsOverage: 0,
-        subtotalCents: 185710,
-        taxCents: 29714,
-        totalCents: 215424,
-        amountDueCents: 215424,
-        amountPaidCents: 0,
-        issuedAt: "2026-08-01T16:00:00.000Z",
-        dueDate: "2026-08-15T16:00:00.000Z",
-        paidAt: null,
-        voidedAt: null,
-        voidReason: null,
-        notes: null,
-        daysOverdue: 0,
-        createdAt: "2026-08-01T16:00:00.000Z",
-        updatedAt: "2026-08-01T16:00:00.000Z",
+        run: {
+          ran: true,
+          ranAt: "2026-08-01T06:05:00.000Z",
+          issuedCount: 1,
+          consideredCount: 1,
+          errorsCount: 0,
+        },
+        counts: { actionable: 0, policy: 0 },
+        items: [],
       },
-    ]);
-    mockListTenantPaymentMethods.mockResolvedValue([
-      {
-        id: "pm-1",
-        tenantId: "tenant-1",
-        gateway: "stripe",
-        gatewayPaymentMethodId: "pm_stripe_1",
-        brand: "visa",
-        last4: "4242",
-        expMonth: 12,
-        expYear: 2030,
-        isDefault: true,
-        createdAt: "2026-08-01T16:00:00.000Z",
-        updatedAt: "2026-08-01T16:00:00.000Z",
+      pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
+    });
+    mockGetArChargeRun.mockResolvedValue({
+      data: {
+        run: {
+          ran: true,
+          id: "run-1",
+          ranAt: "2026-08-02T12:00:00.000Z",
+          trigger: "job_tick",
+          considered: 1,
+          charged: 0,
+          errors: 0,
+        },
+        counts: {
+          charged: 0,
+          noPaymentMethod: 0,
+          failed: 1,
+          requiresAction: 0,
+          processing: 0,
+          skippedOther: 0,
+        },
+        items: [],
+        latestAttempts: [
+          {
+            saasInvoiceId: "inv-july",
+            outcome: "failed",
+            skipReason: null,
+            failureCode: "card_declined",
+            createdAt: "2026-08-02T12:00:00.000Z",
+          },
+        ],
       },
-    ]);
+      pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+    });
   });
 
-  it("tenant: without publishable key hides Pagar ahora and métodos de pago", async () => {
-    isStripePublishableConfigured.mockReturnValue(false);
-
+  it("tenant: failed auto-charge shows persist alert and keeps Pagar ahora", async () => {
     render(
       <TestProviders>
         <BillingSubscriptionPage />
@@ -368,59 +356,25 @@ describe("billing-stripe smoke (Stripe-A WS-E)", () => {
 
     await waitFor(() => {
       expect(
-        screen.getAllByText(billingCopy.arrears.title).length,
-      ).toBeGreaterThan(0);
+        screen.getByText(billingCopy.arrears.autoChargeFailed),
+      ).toBeInTheDocument();
     });
-
     expect(
-      screen.queryByRole("button", { name: billingCopy.arrears.payNow }),
-    ).not.toBeInTheDocument();
+      screen.getByText(billingCopy.arrears.autoChargeFailedHint),
+    ).toBeInTheDocument();
     expect(
-      screen.queryByText(billingCopy.paymentMethods.title),
+      screen.getByRole("button", { name: billingCopy.arrears.payNow }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.paymentMethods.autoChargeHint),
+    ).toBeInTheDocument();
+    expect(billingCopy.arrears.autoChargeFailed).not.toMatch(/CFDI|flete/i);
+    expect(
+      screen.queryByText(platformCopy.ar.skipReasons.CUT_NO_FLEET),
     ).not.toBeInTheDocument();
-    expect(mockListPaymentMethods).not.toHaveBeenCalled();
   });
 
-  it("tenant: with Stripe ready shows masked card and Pagar ahora pays open invoice", async () => {
-    const user = userEvent.setup();
-    isStripePublishableConfigured.mockReturnValue(true);
-
-    render(
-      <TestProviders>
-        <BillingSubscriptionPage />
-      </TestProviders>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/visa •••• 4242/i)).toBeInTheDocument();
-    });
-
-    expect(
-      screen.getByText(billingCopy.paymentMethods.title),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(billingCopy.paymentMethods.defaultBadge),
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByText(/suscripción Boeltech/i).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getByText(/facturas CFDI de flete/i),
-    ).toBeInTheDocument();
-
-    const payBtn = await screen.findByRole("button", {
-      name: billingCopy.arrears.payNow,
-    });
-    await user.click(payBtn);
-
-    await waitFor(() => {
-      expect(mockPaySaasInvoice).toHaveBeenCalledWith("inv-july");
-    });
-  });
-
-  it("platform: owner sees Cobrar con Stripe when publishable key and default PM exist", async () => {
-    isStripePublishableConfigured.mockReturnValue(true);
-
+  it("platform: failed attempt chip is not an emission exception; override CTAs stay", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
@@ -441,46 +395,16 @@ describe("billing-stripe smoke (Stripe-A WS-E)", () => {
       await screen.findByText(formatBillingPeriodKey("2026-07")),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(platformCopy.ar.card.cardOnFile("4242")),
+      screen.getByText(platformCopy.ar.chargeChip.failed),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(platformCopy.ar.skipReasons.CUT_NO_FLEET),
+    ).not.toBeInTheDocument();
     expect(
       await screen.findByRole("button", {
         name: platformCopy.ar.actions.chargeStripe,
       }),
     ).toBeInTheDocument();
-    // Dual-rail: mark-paid SPEI/manual sigue disponible
-    expect(
-      screen.getByRole("button", { name: platformCopy.ar.actions.markPaid }),
-    ).toBeInTheDocument();
-  });
-
-  it("platform: without publishable key hides Cobrar con Stripe but keeps mark paid", async () => {
-    isStripePublishableConfigured.mockReturnValue(false);
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <TenantSaasArCard
-            tenantId="tenant-1"
-            tenantLabel="Demo"
-            canMutate
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-
-    expect(
-      await screen.findByText(formatBillingPeriodKey("2026-07")),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
-        name: platformCopy.ar.actions.chargeStripe,
-      }),
-    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: platformCopy.ar.actions.markPaid }),
     ).toBeInTheDocument();

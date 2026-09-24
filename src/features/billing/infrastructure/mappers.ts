@@ -1,6 +1,8 @@
 import type {
   BillingAccess,
   BillingArrears,
+  BillingAutoChargeOutcome,
+  BillingLastAutoCharge,
   BillingCapacity,
   BillingCapacityDimension,
   BillingCapacityStatus,
@@ -123,6 +125,13 @@ export interface ApiBillingEntitlements {
   };
 }
 
+export interface ApiBillingLastAutoCharge {
+  outcome: string;
+  skip_reason: string | null;
+  failure_code: string | null;
+  created_at: string;
+}
+
 export interface ApiBillingArrearsInvoice {
   id: string;
   period_key: string;
@@ -132,6 +141,7 @@ export interface ApiBillingArrearsInvoice {
   due_date: string | null;
   days_overdue: number;
   issued_at: string | null;
+  last_auto_charge?: ApiBillingLastAutoCharge | null;
 }
 
 export interface ApiBillingArrears {
@@ -318,6 +328,34 @@ export const mapBillingEntitlements = (
   },
 });
 
+function mapBillingAutoChargeOutcome(
+  raw: string,
+): BillingAutoChargeOutcome | null {
+  switch (raw) {
+    case "charged":
+    case "failed":
+    case "requires_action":
+    case "processing":
+      return raw;
+    default:
+      return null;
+  }
+}
+
+export function mapBillingLastAutoCharge(
+  raw: ApiBillingLastAutoCharge | null | undefined,
+): BillingLastAutoCharge | null {
+  if (!raw) return null;
+  const outcome = mapBillingAutoChargeOutcome(raw.outcome);
+  if (!outcome) return null;
+  return {
+    outcome,
+    skipReason: raw.skip_reason,
+    failureCode: raw.failure_code,
+    createdAt: raw.created_at,
+  };
+}
+
 export const mapBillingArrears = (raw: ApiBillingArrears): BillingArrears => ({
   currency: raw.currency,
   openCount: raw.open_count,
@@ -333,6 +371,7 @@ export const mapBillingArrears = (raw: ApiBillingArrears): BillingArrears => ({
     dueDate: invoice.due_date,
     daysOverdue: invoice.days_overdue,
     issuedAt: invoice.issued_at,
+    lastAutoCharge: mapBillingLastAutoCharge(invoice.last_auto_charge),
   })),
 });
 

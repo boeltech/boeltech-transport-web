@@ -7,6 +7,8 @@ export type {
   BillingEntitlements,
   BillingArrears,
   BillingArrearsInvoice,
+  BillingAutoChargeOutcome,
+  BillingLastAutoCharge,
   BillingAccess,
   BillingPaymentMethod,
   BillingSetupIntent,

@@ -271,6 +271,42 @@ describe("billing mappers", () => {
     expect(arrears.invoices[0]?.amountDueCents).toBe(215424);
     expect(arrears.invoices[0]?.daysOverdue).toBe(0);
     expect(arrears.invoices[0]?.dueDate).toBe("2026-08-15T05:59:59.999Z");
+    expect(arrears.invoices[0]?.lastAutoCharge).toBeNull();
+  });
+
+  it("mapBillingArrears maps last_auto_charge when present", () => {
+    const arrears = mapBillingArrears({
+      currency: "MXN",
+      open_count: 1,
+      total_open_cents: 215424,
+      oldest_due_date: "2026-08-15T05:59:59.999Z",
+      max_days_overdue: 0,
+      invoices: [
+        {
+          id: "inv-july",
+          period_key: "2026-07",
+          status: "open",
+          total_cents: 215424,
+          amount_due_cents: 215424,
+          due_date: "2026-08-15T05:59:59.999Z",
+          days_overdue: 0,
+          issued_at: "2026-08-01T16:00:00.000Z",
+          last_auto_charge: {
+            outcome: "failed",
+            skip_reason: null,
+            failure_code: "card_declined",
+            created_at: "2026-09-23T12:00:00.000Z",
+          },
+        },
+      ],
+    });
+
+    expect(arrears.invoices[0]?.lastAutoCharge).toEqual({
+      outcome: "failed",
+      skipReason: null,
+      failureCode: "card_declined",
+      createdAt: "2026-09-23T12:00:00.000Z",
+    });
   });
 
   it("mapBillingPaymentMethod maps masked SaaS card (WS-C)", () => {

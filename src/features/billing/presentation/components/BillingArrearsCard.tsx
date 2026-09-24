@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Wallet } from "lucide-react";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import {
   Card,
@@ -20,6 +21,8 @@ import {
 interface BillingArrearsCardProps {
   data: BillingArrears;
   isLoading?: boolean;
+  /** Fecha límite de gracia (label ya formateado desde la page). */
+  graceDeadlineLabel?: string;
   /** billing.update + Stripe publishable + gateway up. */
   canPayWithStripe?: boolean;
   hasDefaultPaymentMethod?: boolean;
@@ -30,6 +33,7 @@ interface BillingArrearsCardProps {
 export function BillingArrearsCard({
   data,
   isLoading = false,
+  graceDeadlineLabel = "",
   canPayWithStripe = false,
   hasDefaultPaymentMethod = false,
   payingInvoiceId = null,
@@ -71,6 +75,28 @@ export function BillingArrearsCard({
           </p>
         ) : (
           <>
+            {data.invoices.some(
+              (invoice) => invoice.lastAutoCharge?.outcome === "failed",
+            ) ? (
+              <AlertWithIcon
+                variant="warning"
+                title={copy.autoChargeFailed}
+              >
+                {copy.autoChargeFailedHint}
+              </AlertWithIcon>
+            ) : null}
+            {data.invoices.some(
+              (invoice) =>
+                invoice.lastAutoCharge?.outcome === "requires_action",
+            ) ? (
+              <AlertWithIcon
+                variant="warning"
+                title={copy.autoChargeRequiresAction}
+              >
+                {copy.autoChargeRequiresActionHint}
+              </AlertWithIcon>
+            ) : null}
+
             <div className="space-y-1">
               <p className="text-sm text-warning-soft-foreground/80">
                 {copy.totalLabel}
@@ -81,6 +107,11 @@ export function BillingArrearsCard({
               <p className="text-xs text-warning-soft-foreground/80">
                 {copy.openCount(data.openCount)}
               </p>
+              {graceDeadlineLabel ? (
+                <p className="text-sm text-warning-soft-foreground/90">
+                  {copy.graceOperate(graceDeadlineLabel)}
+                </p>
+              ) : null}
             </div>
 
             <ul className="divide-y divide-warning/25 rounded-lg border border-warning/30 bg-background/40">

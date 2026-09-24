@@ -30,6 +30,7 @@ import {
   BillingCostsCard,
   BillingModulesCard,
   BillingPlanCard,
+  BillingPlanStatusStrip,
   BillingStampsCard,
   BillingStatusNotice,
   PaymentMethodsCard,
@@ -39,6 +40,8 @@ import { confirmCardPaymentIfRequired } from "../utils/confirmCardPayment";
 import { resolveTenantGraceDeadline } from "../utils/billingGrace";
 import { resolveBillingNotice } from "../utils/billingNotice";
 import { computeStampUsagePercent } from "../utils/stampUsageThresholds";
+import { resolveAutoChargeChargedLabel } from "../utils/autoChargeChargedLabel";
+import { formatBillingPeriodKey } from "../utils/billingFormatters";
 
 export function BillingSubscriptionPage() {
   const copy = billingCopy;
@@ -230,6 +233,10 @@ export function BillingSubscriptionPage() {
 
   const canPayWithStripe = canUpdateBilling && stripeConfigured;
 
+  const periodUntilLabel = sub?.currentPeriodEnd
+    ? copy.planStatusStrip.periodUntil(formatDate(sub.currentPeriodEnd))
+    : null;
+
   return (
     <SettingsPageShell
       sectionTitle={copy.page.sectionTitle}
@@ -262,6 +269,7 @@ export function BillingSubscriptionPage() {
               <BillingArrearsCard
                 data={arrearsData}
                 isLoading={arrears.isLoading}
+                graceDeadlineLabel={graceDeadlineLabel}
                 canPayWithStripe={canPayWithStripe}
                 hasDefaultPaymentMethod={hasDefaultPaymentMethod}
                 payingInvoiceId={
@@ -275,14 +283,17 @@ export function BillingSubscriptionPage() {
               />
             ) : null}
 
-            {stripeConfigured ? (
-              <PaymentMethodsCard
-                enabled={canReadBilling}
-                onGatewayUnavailable={() => setStripeGatewayDown(true)}
-              />
-            ) : null}
+            {/* Zona 2 — Above-the-fold: estado/plan (D1) + cupo + estimado */}
+            <BillingPlanStatusStrip
+              subscription={sub}
+              isLoading={subscription.isLoading}
+              periodLabel={periodUntilLabel}
+              chargedLabel={resolveAutoChargeChargedLabel(
+                arrearsData?.invoices,
+                formatBillingPeriodKey,
+              )}
+            />
 
-            {/* Zona 2 — Above-the-fold: cupo + estimado */}
             <div className="grid gap-6 xl:grid-cols-2">
               <BillingStampsCard
                 usage={use}
@@ -301,7 +312,7 @@ export function BillingSubscriptionPage() {
               />
             </div>
 
-            {/* Zona 3 — Contexto: plan, extras, contacto */}
+            {/* Zona 3 — Detalle: plan, extras */}
             <div className="grid gap-6 xl:grid-cols-2">
               <BillingPlanCard
                 subscription={sub}
@@ -315,6 +326,14 @@ export function BillingSubscriptionPage() {
                 profitabilityLevel={sub?.profitabilityLevel}
               />
             </div>
+
+            {/* Zona 4 — Métodos de pago (secundarios: no empujan plan/timbres) */}
+            {stripeConfigured ? (
+              <PaymentMethodsCard
+                enabled={canReadBilling}
+                onGatewayUnavailable={() => setStripeGatewayDown(true)}
+              />
+            ) : null}
 
             <BillingContactCard />
           </>

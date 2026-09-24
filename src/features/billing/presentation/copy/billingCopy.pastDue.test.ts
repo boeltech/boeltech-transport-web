@@ -39,5 +39,28 @@ describe("billingCopy arrears + costs (ADR-0072 · D3/D4)", () => {
     );
     expect(billingCopy.costs.disclaimer.toLowerCase()).toContain("correo");
     expect(billingCopy.arrears.columns.period).toBe("Mes");
+    expect(billingCopy.costs.description.toLowerCase()).not.toContain("q ×");
+    expect(billingCopy.plan.fields.qFact).toBe("Motrizes cobrables");
+    expect(billingCopy.plan.fields.qFact).not.toMatch(/\bQ\b/);
+  });
+});
+
+describe("billingCopy Stripe-B auto-charge", () => {
+  it("uses Tlamx subscription cargo copy without CFDI/flete", () => {
+    expect(billingCopy.arrears.autoChargeFailed).toBe(
+      "No se pudo cobrar la tarjeta",
+    );
+    expect(billingCopy.arrears.autoChargeRequiresAction).toBe(
+      "Tu banco pide confirmación",
+    );
+    expect(billingCopy.paymentMethods.autoChargeHint).toMatch(/Tlamx/);
+    expect(billingCopy.paymentMethods.autoChargeHint).toMatch(
+      /transferencia/i,
+    );
+    expect(billingCopy.arrears.autoChargeFailedHint).not.toMatch(/CFDI|flete/i);
+    expect(billingCopy.arrears.autoChargeRequiresActionHint).not.toMatch(
+      /CFDI|flete/i,
+    );
+    expect(billingCopy.paymentMethods.autoChargeHint).not.toMatch(/CFDI|flete/i);
   });
 });

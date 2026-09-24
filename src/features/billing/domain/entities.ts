@@ -127,6 +127,20 @@ export interface BillingEntitlements {
   commercialSummary: BillingCommercialSummary;
 }
 
+/** Último intento auto-cargo (GET /billing/arrears). Null si no hubo intento. */
+export type BillingAutoChargeOutcome =
+  | "charged"
+  | "failed"
+  | "requires_action"
+  | "processing";
+
+export interface BillingLastAutoCharge {
+  outcome: BillingAutoChargeOutcome;
+  skipReason: string | null;
+  failureCode: string | null;
+  createdAt: string;
+}
+
 /** Cargo SaaS open del ledger AR (GET /billing/arrears). */
 export interface BillingArrearsInvoice {
   id: string;
@@ -137,6 +151,7 @@ export interface BillingArrearsInvoice {
   dueDate: string | null;
   daysOverdue: number;
   issuedAt: string | null;
+  lastAutoCharge?: BillingLastAutoCharge | null;
 }
 
 export interface BillingArrears {

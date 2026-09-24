@@ -149,6 +149,13 @@ export const billingCopy = {
         count === 1 ? "1 extra" : `${count} extra`,
     },
   },
+  /** Above-the-fold: plan + estado (D1). Detalle en BillingPlanCard. */
+  planStatusStrip: {
+    loading: "Cargando plan…",
+    periodUntil: (endLabel: string) => `Periodo hasta ${endLabel}`,
+    charged: "Cobrado",
+    chargedPeriod: (period: string) => `Cobrado · ${period}`,
+  },
   plan: {
     title: "Tu cobro por motriz",
     description:
@@ -179,7 +186,8 @@ export const billingCopy = {
     } as Record<string, string>,
     fields: {
       band: "Banda",
-      qFact: "Motrizes cobrables (Q)",
+      /** Glosa humana; la fórmula 30×Q vive en Bolsa de timbres. */
+      qFact: "Motrizes cobrables",
       bolsa: "Bolsa de timbres",
       overageUnit: "Timbre extra",
       users: "Usuarios",
@@ -197,13 +205,14 @@ export const billingCopy = {
     qFactValue: (q: number) =>
       q === 1 ? "1 motriz este periodo" : `${q} motrizes este periodo`,
     qFactPending: "Aún no hay conteo de motrizes para este periodo.",
-    bolsaValue: (bolsa: number, stampsPer: number, q: number | null) =>
-      q != null && q >= 0
-        ? `${bolsa} timbres (${stampsPer} × ${q})`
-        : `${bolsa} timbres`,
+    /** Cupo en claro; el desglose 30× vive en Bolsa de timbres. */
+    bolsaValue: (bolsa: number, _stampsPer?: number, _q?: number | null) =>
+      `${bolsa} timbres`,
     overageUnitValue: (amount: string) => `${amount} / timbre`,
     cargoEstimate: (q: number, unit: string, total: string) =>
-      `${q} × ${unit} = ${total}`,
+      q === 1
+        ? `1 motriz × ${unit} = ${total}`
+        : `${q} motrizes × ${unit} = ${total}`,
     statusLabels: {
       trialing: "En prueba",
       active: "Activa",
@@ -233,7 +242,8 @@ export const billingCopy = {
   },
   costs: {
     title: "Este mes",
-    description: "Estimación del mes en curso (Q × precio de banda + extras).",
+    description:
+      "Estimación del mes en curso (motrizes × precio de banda + extras).",
     periodLabel: (period: string) => `Mes en curso: ${period}`,
     loading: "Cargando el estimado…",
     unavailable: "No pudimos mostrar el estimado de tu mes.",
@@ -263,6 +273,11 @@ export const billingCopy = {
     title: "Saldo pendiente",
     description:
       "Todavía debes cargos de suscripción de meses anteriores. Puedes seguir operando; paga con tu método guardado o escríbenos.",
+    /** Orientación de gracia (misma idea que notice past_due; solo en la card). */
+    graceOperate: (deadlineLabel: string) =>
+      deadlineLabel
+        ? `Puedes seguir operando y facturando con normalidad. Regulariza el pago antes del ${deadlineLabel}.`
+        : "Puedes seguir operando y facturando con normalidad. Contacta a Boeltech para regularizar el pago.",
     loading: "Cargando saldo…",
     openCount: (count: number) =>
       count === 1 ? "1 cargo pendiente" : `${count} cargos pendientes`,
@@ -287,6 +302,12 @@ export const billingCopy = {
     payFailed: "No se pudo completar el cargo de suscripción.",
     payNeedsCard:
       "Guarda un método de pago abajo para pagar el cargo de suscripción desde aquí.",
+    autoChargeFailed: "No se pudo cobrar la tarjeta",
+    autoChargeFailedHint:
+      "El cargo de suscripción Tlamx sigue pendiente. Usa Pagar ahora o transfiere.",
+    autoChargeRequiresAction: "Tu banco pide confirmación",
+    autoChargeRequiresActionHint:
+      "Pulsa Pagar ahora para confirmar el cargo de suscripción Tlamx.",
     footer:
       "Estos cargos son de tu suscripción Boeltech (SaaS), no de facturas CFDI de flete. El estimado del mes actual está más abajo, en Este mes.",
     contactCta: "Escribir a Boeltech",
@@ -297,6 +318,8 @@ export const billingCopy = {
       "Tarjeta para cargos de tu suscripción Boeltech. No se usa para pagar facturas CFDI de viajes.",
     loading: "Cargando métodos de pago…",
     empty: "Aún no hay una tarjeta guardada para la suscripción.",
+    autoChargeHint:
+      "Esta tarjeta se usa para el cargo mensual de Tlamx. Puedes seguir pagando por transferencia.",
     brandFallback: "Tarjeta",
     cardLabel: (brand: string, last4: string) => `${brand} •••• ${last4}`,
     expires: (month: string, year: string) => `Vence ${month}/${year}`,

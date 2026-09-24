@@ -103,6 +103,27 @@ describe("PaymentMethodsCard", () => {
     expect(
       screen.getByText(/suscripción Boeltech/i),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.paymentMethods.autoChargeHint),
+    ).toBeInTheDocument();
+    expect(billingCopy.paymentMethods.autoChargeHint).not.toMatch(/CFDI|flete/i);
+    expect(
+      screen.queryByRole("switch"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not promise auto-charge when there is no card", async () => {
+    mockListPaymentMethods.mockResolvedValue([]);
+    wrap(<PaymentMethodsCard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(billingCopy.paymentMethods.empty),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(billingCopy.paymentMethods.autoChargeHint),
+    ).not.toBeInTheDocument();
   });
 
   it("hides mutations when accountant has billing.read only", async () => {

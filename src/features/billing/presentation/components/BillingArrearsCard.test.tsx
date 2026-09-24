@@ -103,4 +103,89 @@ describe("BillingArrearsCard", () => {
     expect(screen.getByText(/suscripción Boeltech/i)).toBeInTheDocument();
     expect(screen.getByText(/facturas CFDI de flete/i)).toBeInTheDocument();
   });
+
+  it("shows grace deadline orientation when label is provided", () => {
+    render(
+      <BillingArrearsCard
+        data={ARREARS}
+        graceDeadlineLabel="15 sep 2026"
+      />,
+    );
+
+    expect(
+      screen.getByText(billingCopy.arrears.graceOperate("15 sep 2026")),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/seguir operando y facturando/i)).toBeInTheDocument();
+    expect(screen.getByText(/antes del 15 sep 2026/)).toBeInTheDocument();
+  });
+
+  it("omits grace line when deadline label is empty", () => {
+    render(<BillingArrearsCard data={ARREARS} graceDeadlineLabel="" />);
+    expect(
+      screen.queryByText(/Regulariza el pago antes del/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows persistent failed auto-charge alert and keeps Pagar ahora", () => {
+    render(
+      <BillingArrearsCard
+        data={{
+          ...ARREARS,
+          invoices: [
+            {
+              ...ARREARS.invoices[0],
+              lastAutoCharge: {
+                outcome: "failed",
+                skipReason: null,
+                failureCode: "card_declined",
+                createdAt: "2026-09-23T12:00:00.000Z",
+              },
+            },
+          ],
+        }}
+        canPayWithStripe
+        hasDefaultPaymentMethod
+        onPayInvoice={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(billingCopy.arrears.autoChargeFailed),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: billingCopy.arrears.payNow }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows persistent 3DS alert without inventing a new status", () => {
+    render(
+      <BillingArrearsCard
+        data={{
+          ...ARREARS,
+          invoices: [
+            {
+              ...ARREARS.invoices[0],
+              lastAutoCharge: {
+                outcome: "requires_action",
+                skipReason: null,
+                failureCode: null,
+                createdAt: "2026-09-23T12:00:00.000Z",
+              },
+            },
+          ],
+        }}
+        canPayWithStripe
+        hasDefaultPaymentMethod
+        onPayInvoice={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(billingCopy.arrears.autoChargeRequiresAction),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/3DS/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: billingCopy.arrears.payNow }),
+    ).toBeInTheDocument();
+  });
 });

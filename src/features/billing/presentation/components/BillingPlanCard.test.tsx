@@ -56,7 +56,7 @@ const V5_PILOTO: BillingSubscription = {
 };
 
 describe("BillingPlanCard (SoT v5 · ADR-0095)", () => {
-  it("muestra $/motriz, banda, Q_fact, bolsa y overage unitario", () => {
+  it("muestra $/motriz, banda, motrizes cobrables, bolsa y overage unitario", () => {
     render(
       <BillingPlanCard
         subscription={V5_PILOTO}
@@ -70,11 +70,16 @@ describe("BillingPlanCard (SoT v5 · ADR-0095)", () => {
       screen.getAllByText(billingCopy.plan.bandLabels.pequena).length,
     ).toBeGreaterThan(0);
     expect(screen.getByText(/\$319\.00 \/ motriz \/ mes/)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.plan.fields.qFact)).toBeInTheDocument();
+    expect(screen.queryByText(/\b\(Q\)\b/)).not.toBeInTheDocument();
     expect(screen.getByText(/14 motrizes este periodo/)).toBeInTheDocument();
-    expect(screen.getByText(/420 timbres \(30 × 14\)/)).toBeInTheDocument();
+    expect(screen.getByText("420 timbres")).toBeInTheDocument();
+    expect(screen.queryByText(/420 timbres \(30 × 14\)/)).not.toBeInTheDocument();
     expect(screen.getByText(/\$5\.00 \/ timbre/)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.plan.noFeeNote)).toBeInTheDocument();
-    expect(screen.getByText(/14 × \$319\.00 = \$4,466\.00/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/14 motrizes × \$319\.00 = \$4,466\.00/),
+    ).toBeInTheDocument();
   });
 
   it("muestra usage/granted de usuarios y sucursales + historial consultable", () => {

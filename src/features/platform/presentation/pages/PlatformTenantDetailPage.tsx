@@ -32,6 +32,7 @@ import { TenantSaasArCard } from "../components/TenantSaasArCard";
 import { TenantAdminActivationCard } from "../components/TenantAdminActivationCard";
 import { TenantHealthBreakdownCard } from "../components/TenantHealthBreakdownCard";
 import { TenantActivityTab } from "../components/TenantActivityTab";
+import { TenantCommercialStatusStrip } from "../components/TenantCommercialStatusStrip";
 import { TenantHealthDot } from "../components/TenantHealthDot";
 import { platformCopy } from "../copy/platformCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
@@ -195,6 +196,20 @@ export function PlatformTenantDetailPage() {
           ) : undefined,
           actions,
         }}
+        alerts={
+          tenant ? (
+            <TenantCommercialStatusStrip
+              accessStatus={tenant.status}
+              subscriptionStatus={
+                subscription?.status ?? tenant.subscriptionStatus
+              }
+              planName={subscription?.planName ?? tenant.planName}
+              lifecycleStage={tenant.lifecycleStage}
+              currentPeriodStart={subscription?.currentPeriodStart}
+              trialEndsAt={subscription?.trialEndsAt}
+            />
+          ) : undefined
+        }
         tabs={
           tenant
             ? {
