@@ -18,6 +18,20 @@ import { parseInvoiceBillingScope } from "@features/invoicing/domain";
 
 const INVOICES = "/invoices";
 
+function mapAutoDispatch(
+  raw: unknown,
+): FinanceInvoiceListItem["autoDispatch"] {
+  if (raw == null || typeof raw !== "object") return null;
+  const item = raw as Record<string, unknown>;
+  const lastItemStatus = item.last_item_status ?? item.lastItemStatus;
+  return {
+    lastItemStatus:
+      lastItemStatus == null || lastItemStatus === ""
+        ? null
+        : String(lastItemStatus),
+  };
+}
+
 function mapInvoiceListItem(raw: Record<string, unknown>): FinanceInvoiceListItem {
   const total = Number(raw.total ?? 0);
   const balanceDue = Number(raw.balance_due ?? 0);
@@ -46,6 +60,7 @@ function mapInvoiceListItem(raw: Record<string, unknown>): FinanceInvoiceListIte
       raw.dispatch_sent_at == null || raw.dispatch_sent_at === ""
         ? null
         : String(raw.dispatch_sent_at),
+    autoDispatch: mapAutoDispatch(raw.auto_dispatch),
     billingScope: raw.billing_scope
       ? parseInvoiceBillingScope(String(raw.billing_scope))
       : undefined,

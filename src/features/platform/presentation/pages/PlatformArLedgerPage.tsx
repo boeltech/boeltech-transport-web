@@ -519,7 +519,7 @@ export function PlatformArLedgerPage() {
         </AlertWithIcon>
       ) : null}
 
-      <ListPageShell
+      <ListPageShell<PlatformCloseRunItem | PlatformSaasArRow>
         title={copy.title}
         showHeader={false}
         entityLabelPlural={

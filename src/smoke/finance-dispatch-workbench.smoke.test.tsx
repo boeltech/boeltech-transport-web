@@ -262,7 +262,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
       screen.getByText(dispatchRunsCopy.workbench.description),
     ).toBeInTheDocument();
     expect(screen.getAllByText("A-45").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Cliente A").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Receptor Demo").length).toBeGreaterThan(0);
   });
 
   it("muestra empty de Pendientes cuando la cola está vacía", () => {

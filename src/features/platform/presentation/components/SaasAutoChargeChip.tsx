@@ -21,7 +21,11 @@ export function SaasAutoChargeChip({ kind }: SaasAutoChargeChipProps) {
   if (!kind) return null;
   const copy = platformCopy.ar.chargeChip;
   const label =
-    kind === "no_payment_method" ? copy.noPaymentMethod : copy[kind];
+    kind === "no_payment_method"
+      ? copy.noPaymentMethod
+      : kind === "requires_action"
+        ? copy.requiresAction
+        : copy[kind];
   return (
     <Badge tone="soft" variant={chipVariant(kind)}>
       {label}

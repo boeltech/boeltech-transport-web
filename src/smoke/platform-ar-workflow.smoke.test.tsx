@@ -43,18 +43,67 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
       mfaEnabledAt: "2026-01-01T00:00:00.000Z",
     })),
     listAr: (...args: unknown[]) => mockListAr(...args),
-    getArCloseRun: vi.fn().mockResolvedValue({
+    getArCloseRun: vi.fn(async (params?: { tenantId?: string }) => {
+      const items = params?.tenantId
+        ? [
+            {
+              tenantId: TENANT_ID,
+              tenantName: "AR Demo",
+              subdomain: "ar-demo",
+              skipReason: "VOID_HOLD" as const,
+              skipGroup: "actionable" as const,
+              subscriptionStatus: "past_due",
+              cutStatus: "draft",
+              estimatedTotalCents: 185600,
+              hasFrozenAmount: true,
+              canIssueOverride: true,
+              existingVoidInvoiceId: null,
+              nonVoidInvoiceId: null,
+            },
+          ]
+        : [];
+      return {
+        data: {
+          periodKey: "2026-07",
+          run: {
+            ran: true,
+            ranAt: "2026-08-01T06:05:00.000Z",
+            issuedCount: 0,
+            consideredCount: 0,
+            errorsCount: 0,
+          },
+          counts: { actionable: 0, policy: 0 },
+          items,
+        },
+        pagination: {
+          page: 1,
+          limit: 25,
+          total: items.length,
+          totalPages: 1,
+        },
+      };
+    }),
+    getArChargeRun: vi.fn().mockResolvedValue({
       data: {
-        periodKey: "2026-07",
         run: {
           ran: true,
-          ranAt: "2026-08-01T06:05:00.000Z",
-          issuedCount: 0,
-          consideredCount: 0,
-          errorsCount: 0,
+          id: "charge-run-1",
+          ranAt: "2026-08-01T06:10:00.000Z",
+          trigger: "job_tick",
+          considered: 0,
+          charged: 0,
+          errors: 0,
         },
-        counts: { actionable: 0, policy: 0 },
+        counts: {
+          charged: 0,
+          noPaymentMethod: 0,
+          failed: 0,
+          requiresAction: 0,
+          processing: 0,
+          skippedOther: 0,
+        },
         items: [],
+        latestAttempts: [],
       },
       pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
     }),
@@ -296,11 +345,13 @@ describe("platform-ar-workflow smoke", () => {
       );
     });
 
-    expect(await screen.findByText("AR Demo")).toBeInTheDocument();
-    expect(screen.getByText(platformCopy.ar.status.open)).toBeInTheDocument();
+    expect((await screen.findAllByText("AR Demo")).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(platformCopy.ar.status.open).length,
+    ).toBeGreaterThan(0);
 
     await user.click(
-      screen.getByRole("button", { name: platformCopy.ar.actions.markPaid }),
+      screen.getAllByRole("button", { name: platformCopy.ar.actions.markPaid })[0]!,
     );
 
     const payDialog = await screen.findByRole("dialog");
@@ -319,7 +370,7 @@ describe("platform-ar-workflow smoke", () => {
     });
 
     expect(
-      await screen.findByText(platformCopy.ar.status.paid),
-    ).toBeInTheDocument();
+      (await screen.findAllByText(platformCopy.ar.status.paid)).length,
+    ).toBeGreaterThan(0);
   });
 });

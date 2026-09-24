@@ -7,6 +7,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@shared/ui/tooltip";
 import type { Invoice } from "@features/invoicing/domain";
 import { InvoiceActions } from "@features/invoicing/presentation/components/InvoiceActions";
 import { TripStatus, type Trip, type TripStop } from "@features/trips/domain";
@@ -284,16 +285,18 @@ function renderInvoiceActions(trip: Trip) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[`/invoices/${INVOICE_ID}`]}>
-        <InvoiceActions
-          variant="buttons"
-          invoiceId={INVOICE_ID}
-          invoiceSerie="A"
-          invoiceFolio={100}
-          invoiceStatus="draft"
-          fullInvoice={createInvoice()}
-        />
-      </MemoryRouter>
+      <TooltipProvider delayDuration={0}>
+        <MemoryRouter initialEntries={[`/invoices/${INVOICE_ID}`]}>
+          <InvoiceActions
+            variant="buttons"
+            invoiceId={INVOICE_ID}
+            invoiceSerie="A"
+            invoiceFolio={100}
+            invoiceStatus="draft"
+            fullInvoice={createInvoice()}
+          />
+        </MemoryRouter>
+      </TooltipProvider>
     </QueryClientProvider>,
   );
 }

@@ -5,8 +5,12 @@
 
 import { canMutateCfdiEmissionIntent } from "@boeltech/cfdi-domain/reglas/cfdi-emission-intent";
 
-import type { Trip, TripInvoicing, TripStatus } from "@features/trips/domain";
-import type { CfdiEmissionIntent } from "@features/trips/domain";
+import type {
+  CfdiEmissionIntent,
+  Trip,
+  TripInvoicing,
+  TripStatusType,
+} from "@features/trips/domain";
 
 /** Factura principal vigente (excluye draft / cancelled / ausente). */
 export function isPrincipalInvoiceLocking(
@@ -21,7 +25,7 @@ export function isPrincipalInvoiceLocking(
 }
 
 export type TripLiquidacionMutabilityInput = {
-  status: TripStatus;
+  status: TripStatusType;
   cfdiEmissionIntent: CfdiEmissionIntent;
   operationalCashCollectedAt: Date | null | undefined;
   operationalOutcome: Trip["operationalOutcome"];

@@ -85,7 +85,10 @@ function shortSatCode(code: string | undefined): string {
 }
 
 /** RFC / razón social Carta Porte: primero la dirección; si vienen vacíos en API, cliente titular. */
-export type ClientFiscalFallback = { taxId: string; legalName: string };
+export type ClientFiscalFallback = {
+  taxId: string | null;
+  legalName: string;
+};
 
 export function resolveRemitenteFiscalFromClientAddress(
   address: ClientAddress | undefined,

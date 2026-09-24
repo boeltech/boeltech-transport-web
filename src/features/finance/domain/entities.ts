@@ -216,6 +216,10 @@ export interface FinanceInvoiceListItem {
   readonly status: FinanceInvoiceStatus;
   /** Último envío por correo al cliente (`dispatch_sent_at`). */
   readonly dispatchSentAt: string | null;
+  /** ADR-0083 — último ítem de corrida scheduled (listado Finanzas). */
+  readonly autoDispatch?: {
+    lastItemStatus: string | null;
+  } | null;
   /** ADR-0081 / ADR-0068: alcance fiscal en listado Finanzas. */
   readonly billingScope?: InvoiceBillingScope;
   readonly sharePercent?: number | null;

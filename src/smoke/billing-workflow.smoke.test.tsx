@@ -367,7 +367,7 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     ).toBeGreaterThan(0);
     expect(screen.getByText(/\$319\.00 \/ motriz \/ mes/)).toBeInTheDocument();
     expect(screen.getByText(/14 motrizes este periodo/)).toBeInTheDocument();
-    expect(screen.getByText(/420 timbres \(30 × 14\)/)).toBeInTheDocument();
+    expect(screen.getByText("420 timbres")).toBeInTheDocument();
     expect(screen.getByText(billingCopy.stamps.title)).toBeInTheDocument();
     expect(screen.getByText(/Bolsa = 30 × 14 motrizes/)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.costs.rows.motrizCargo)).toBeInTheDocument();
@@ -437,7 +437,7 @@ describe("billing workflow smoke (Imp-v1d)", () => {
     ).toBeGreaterThan(0);
     expect(screen.getByText(/\$389\.00 \/ motriz \/ mes/)).toBeInTheDocument();
     expect(screen.getByText(/4 motrizes este periodo/)).toBeInTheDocument();
-    expect(screen.getByText(/120 timbres \(30 × 4\)/)).toBeInTheDocument();
+    expect(screen.getByText("120 timbres")).toBeInTheDocument();
     expect(screen.getByText(/Bolsa = 30 × 4 motrizes/)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.costs.rows.motrizCargo)).toBeInTheDocument();
     // Cargo 4×389 = $1,556; estimado + IVA = $1,804.96
