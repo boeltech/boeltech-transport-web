@@ -227,6 +227,7 @@ export function TenantThisMonthCard({
                     ) : null}
                   </div>
                   <Badge
+                    tone="soft"
                     variant={
                       stampTone === "destructive"
                         ? "destructive"

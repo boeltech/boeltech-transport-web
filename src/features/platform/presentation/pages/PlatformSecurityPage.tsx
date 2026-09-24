@@ -67,7 +67,7 @@ export function PlatformSecurityPage() {
       setSetup(null);
       setConfirmCode("");
       await refreshProfileMfa();
-      toast({ title: "MFA activado", variant: "success" });
+      toast({ title: copy.enabledToast, variant: "success" });
     } catch (err) {
       setError(mapBackendError(err).message);
     } finally {
@@ -86,7 +86,7 @@ export function PlatformSecurityPage() {
       setDisablePassword("");
       setDisableCode("");
       await refreshProfileMfa();
-      toast({ title: "MFA desactivado", variant: "success" });
+      toast({ title: copy.disabledToast, variant: "success" });
     } catch (err) {
       setError(mapBackendError(err).message);
     } finally {
@@ -115,7 +115,7 @@ export function PlatformSecurityPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
           <CardTitle className="text-base">{copy.title}</CardTitle>
-          <Badge variant={enabled ? "success" : "secondary"}>
+          <Badge variant={enabled ? "success" : "secondary"} tone="soft">
             {enabled ? copy.statusEnabled : copy.statusDisabled}
           </Badge>
         </CardHeader>
@@ -127,7 +127,7 @@ export function PlatformSecurityPage() {
           ) : null}
 
           {!enabled && !setup ? (
-            <Button onClick={onSetup} disabled={busy}>
+            <Button onClick={onSetup} isLoading={busy}>
               {copy.setup}
             </Button>
           ) : null}
@@ -137,8 +137,9 @@ export function PlatformSecurityPage() {
               <p className="text-sm">{copy.secretHint}</p>
               <PlatformTotpSetupQr
                 otpauthUrl={setup.otpauthUrl}
-                alt="QR MFA plataforma"
-                errorMessage="No se pudo generar el QR. Usa el secreto manual."
+                alt={copy.qrAlt}
+                errorMessage={copy.qrError}
+                loadingLabel={copy.qrLoading}
               />
               <p className="font-mono text-xs break-all">{setup.secret}</p>
               <div className="space-y-2">
@@ -150,14 +151,18 @@ export function PlatformSecurityPage() {
                   autoComplete="one-time-code"
                 />
               </div>
-              <Button onClick={onConfirm} disabled={busy || confirmCode.trim().length < 6}>
+              <Button
+                onClick={onConfirm}
+                isLoading={busy}
+                disabled={confirmCode.trim().length < 6}
+              >
                 {copy.confirm}
               </Button>
             </div>
           ) : null}
 
           {recoveryCodes ? (
-            <div className="space-y-2 rounded-md border p-3">
+            <div className="space-y-2 rounded-lg border p-3">
               <p className="font-medium text-sm">{copy.recoveryTitle}</p>
               <p className="text-muted-foreground text-xs">{copy.recoveryHint}</p>
               <ul className="font-mono text-sm space-y-1">
@@ -192,8 +197,8 @@ export function PlatformSecurityPage() {
               <Button
                 variant="destructive"
                 onClick={onDisable}
+                isLoading={busy}
                 disabled={
-                  busy ||
                   !disablePassword ||
                   disableCode.trim().length < 6 ||
                   mustEnroll

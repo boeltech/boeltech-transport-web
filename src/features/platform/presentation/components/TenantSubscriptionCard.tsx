@@ -1,6 +1,5 @@
 import { CreditCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { AlertWithIcon } from "@shared/ui/alert";
 import { InfoRow } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { formatDateTime } from "@shared/utils/dateUtils";
@@ -190,14 +189,6 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
                 label={copy.fields.notes}
                 value={subscription.notes}
               />
-            ) : null}
-            {subscription.status === "past_due" ? (
-              <AlertWithIcon
-                variant="warning"
-                title={platformCopy.tenants.detail.governance.grace.title}
-              >
-                {platformCopy.tenants.detail.governance.grace.itemNotes}
-              </AlertWithIcon>
             ) : null}
           </>
         )}

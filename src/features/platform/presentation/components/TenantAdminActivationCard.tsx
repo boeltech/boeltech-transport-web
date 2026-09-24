@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { InfoRow } from "@shared/ui/data-display";
@@ -63,7 +69,7 @@ export function TenantAdminActivationCard({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <CardTitle className="text-base">{copy.title}</CardTitle>
-              <p className="text-muted-foreground text-sm">{copy.description}</p>
+              <CardDescription>{copy.description}</CardDescription>
             </div>
             <AdminActivationStatusBadge status={status} />
           </div>
@@ -117,7 +123,7 @@ export function TenantAdminActivationCard({
               <Button
                 type="button"
                 variant="outline"
-                disabled={resendMutation.isPending}
+                isLoading={resendMutation.isPending}
                 onClick={() => resendMutation.mutate({ id: tenantId })}
               >
                 {resendMutation.isPending ? copy.resending : copy.resend}

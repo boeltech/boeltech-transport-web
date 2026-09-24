@@ -1,10 +1,9 @@
 import { memo, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LogOut, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import { ScrollArea } from "@shared/ui/scroll-area";
-import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { usePlatformSidebar } from "../providers/PlatformSidebarProvider";
 import { platformCopy } from "../copy/platformCopy";
 import { PlatformBrandMark } from "./PlatformBrandMark";
@@ -12,11 +11,9 @@ import {
   isPlatformNavItemActive,
   PLATFORM_NAV_ITEMS,
 } from "./platformNavigation";
-import { isPlatformOwner } from "../../domain/entities";
 
 export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
   const location = useLocation();
-  const { user, logout } = usePlatformAuth();
   const { isMobileOpen, closeMobile } = usePlatformSidebar();
 
   useEffect(() => {
@@ -42,11 +39,6 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
     };
   }, [isMobileOpen]);
 
-  const handleLogout = () => {
-    closeMobile();
-    logout();
-  };
-
   const handleNavClick = () => {
     closeMobile();
   };
@@ -64,7 +56,7 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen w-72 flex-col bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed left-0 top-0 z-50 flex h-screen w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
           isMobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
         role="dialog"
@@ -74,11 +66,11 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
           <Link
             to="/platform"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
             onClick={handleNavClick}
             aria-label={platformCopy.brand.name}
           >
-            <PlatformBrandMark />
+            <PlatformBrandMark sidebarSurface />
           </Link>
           <Button
             variant="ghost"
@@ -89,30 +81,6 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
             <X className="h-5 w-5" />
           </Button>
         </div>
-
-        {user ? (
-          <div className="border-b border-sidebar-border p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
-                {user.firstName?.[0]?.toUpperCase() || "U"}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {platformCopy.roles[user.platformRole] ?? user.platformRole}
-                  {!isPlatformOwner(user.platformRole)
-                    ? ` · ${platformCopy.shell.readOnlyHint}`
-                    : ""}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         <ScrollArea className="min-h-0 flex-1">
           <nav className="space-y-1 p-3">
@@ -126,12 +94,18 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
                   to={item.href}
                   onClick={handleNavClick}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    active &&
+                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
                   )}
                 >
+                  {active ? (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary"
+                    />
+                  ) : null}
                   <Icon className="h-5 w-5 shrink-0" />
                   {item.label}
                 </Link>
@@ -144,18 +118,10 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
           <Link
             to="/login"
             onClick={handleNavClick}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             {platformCopy.nav.erpLink}
           </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-          >
-            <LogOut className="h-5 w-5 shrink-0" />
-            {platformCopy.nav.logout}
-          </button>
         </div>
       </aside>
     </>

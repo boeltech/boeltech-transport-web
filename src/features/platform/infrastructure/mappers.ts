@@ -3,9 +3,12 @@ import type {
   CreatePlatformTenantResult,
   PlatformAdminActivation,
   PlatformBillingPlan,
+  PlatformLifecycleStageType,
   PlatformMetrics,
+  PlatformPulse,
   PlatformTenantAdmin,
   PlatformTenantDetail,
+  PlatformTenantHealth,
   PlatformTenantListItem,
   PlatformUserJSON,
   PlatformAuditLogItem,
@@ -24,6 +27,15 @@ import type {
   PlatformSaasInvoiceStatusType,
   PlatformSaasPaymentMethod,
   PlatformReconciliationPreview,
+  PlatformCloseRun,
+  PlatformCloseRunItem,
+  PlatformCloseRunSkipGroup,
+  PlatformCloseRunSkipReason,
+  PlatformChargeRun,
+  PlatformChargeRunAttempt,
+  PlatformChargeRunItem,
+  PlatformAutoChargeAttemptOutcome,
+  PlatformAutoChargeItemOutcome,
 } from "../domain/entities";
 import {
   mapBillingEntitlements,
@@ -67,6 +79,29 @@ export type ApiPlatformLoginData =
     }
   | ApiPlatformMfaChallenge;
 
+export interface ApiPlatformHealthSignals {
+  fiscal: number;
+  payment: number;
+  adoption: number;
+  fleet: number;
+  engagement: number;
+}
+
+export interface ApiPlatformHealthWeights {
+  fiscal: number;
+  payment: number;
+  adoption: number;
+  fleet: number;
+  engagement: number;
+}
+
+export interface ApiPlatformTenantHealth {
+  score: number | null;
+  as_of: string | null;
+  signals: ApiPlatformHealthSignals | null;
+  weights: ApiPlatformHealthWeights;
+}
+
 export interface ApiPlatformTenantListItem {
   id: string;
   name: string;
@@ -82,6 +117,36 @@ export interface ApiPlatformTenantListItem {
   trip_count: number;
   created_at: string;
   suspended_at: string | null;
+  health_score?: number | null;
+  lifecycle_stage?: string;
+  health_as_of?: string | null;
+}
+
+export interface ApiPlatformPulse {
+  generated_at: string;
+  health_as_of: string | null;
+  kpis: {
+    mrr_cents: number;
+    currency: string;
+    cxc_overdue_cents: number;
+    tenants_at_risk: number;
+    trials_active: number;
+    stamps_issued_mtd: number;
+    motrices_administered: number;
+    nrr_pct: number | null;
+    trial_to_paid_pct_30d: number | null;
+  };
+  attention_queue: Array<{
+    tenant_id: string;
+    name: string;
+    subdomain: string;
+    lifecycle_stage: string;
+    health_score: number | null;
+    reason_codes: string[];
+    cxc_overdue_cents: number;
+    subscription_status: string | null;
+    access_status: string;
+  }>;
 }
 
 export interface ApiPlatformAdminActivation {
@@ -105,6 +170,50 @@ export interface ApiPlatformTenantAdmin {
 export type ApiPlatformTenantDetail = ApiPlatformTenantListItem & {
   usage?: { user_count: number; branch_count: number; trip_count: number };
   admin_activation?: ApiPlatformAdminActivation | null;
+  health?: ApiPlatformTenantHealth | null;
+};
+
+const DEFAULT_HEALTH_WEIGHTS: PlatformTenantHealth["weights"] = {
+  fiscal: 0.3,
+  payment: 0.25,
+  adoption: 0.2,
+  fleet: 0.15,
+  engagement: 0.1,
+};
+
+export const emptyPlatformTenantHealth = (): PlatformTenantHealth => ({
+  score: null,
+  asOf: null,
+  signals: null,
+  weights: { ...DEFAULT_HEALTH_WEIGHTS },
+});
+
+export const mapPlatformTenantHealth = (
+  raw: ApiPlatformTenantHealth | null | undefined,
+): PlatformTenantHealth => {
+  if (!raw) return emptyPlatformTenantHealth();
+  return {
+    score: raw.score == null ? null : Number(raw.score),
+    asOf: raw.as_of ?? null,
+    signals: raw.signals
+      ? {
+          fiscal: Number(raw.signals.fiscal),
+          payment: Number(raw.signals.payment),
+          adoption: Number(raw.signals.adoption),
+          fleet: Number(raw.signals.fleet),
+          engagement: Number(raw.signals.engagement),
+        }
+      : null,
+    weights: raw.weights
+      ? {
+          fiscal: Number(raw.weights.fiscal),
+          payment: Number(raw.weights.payment),
+          adoption: Number(raw.weights.adoption),
+          fleet: Number(raw.weights.fleet),
+          engagement: Number(raw.weights.engagement),
+        }
+      : { ...DEFAULT_HEALTH_WEIGHTS },
+  };
 };
 
 export type ApiCreatePlatformTenantData = {
@@ -184,6 +293,10 @@ export const mapPlatformTenantListItem = (
   tripCount: raw.trip_count,
   createdAt: raw.created_at,
   suspendedAt: raw.suspended_at,
+  healthScore: raw.health_score == null ? null : Number(raw.health_score),
+  lifecycleStage: (raw.lifecycle_stage ??
+    "provisioning") as PlatformLifecycleStageType,
+  healthAsOf: raw.health_as_of ?? null,
 });
 
 export const mapAdminActivation = (
@@ -210,22 +323,59 @@ export const mapPlatformTenantAdmin = (
 
 export const mapPlatformTenantDetail = (
   raw: ApiPlatformTenantDetail,
-): PlatformTenantDetail => ({
-  ...mapPlatformTenantListItem(raw),
-  usage: raw.usage
-    ? {
-        userCount: raw.usage.user_count,
-        branchCount: raw.usage.branch_count,
-        tripCount: raw.usage.trip_count,
-      }
-    : {
-        userCount: raw.user_count,
-        branchCount: raw.branch_count,
-        tripCount: raw.trip_count,
-      },
-  adminActivation: raw.admin_activation
-    ? mapAdminActivation(raw.admin_activation)
-    : null,
+): PlatformTenantDetail => {
+  const listItem = mapPlatformTenantListItem(raw);
+  const health = mapPlatformTenantHealth(raw.health);
+  return {
+    ...listItem,
+    healthScore: health.score ?? listItem.healthScore,
+    healthAsOf: health.asOf ?? listItem.healthAsOf,
+    usage: raw.usage
+      ? {
+          userCount: raw.usage.user_count,
+          branchCount: raw.usage.branch_count,
+          tripCount: raw.usage.trip_count,
+        }
+      : {
+          userCount: raw.user_count,
+          branchCount: raw.branch_count,
+          tripCount: raw.trip_count,
+        },
+    adminActivation: raw.admin_activation
+      ? mapAdminActivation(raw.admin_activation)
+      : null,
+    health,
+  };
+};
+
+export const mapPlatformPulse = (raw: ApiPlatformPulse): PlatformPulse => ({
+  generatedAt: raw.generated_at,
+  healthAsOf: raw.health_as_of,
+  kpis: {
+    mrrCents: Number(raw.kpis.mrr_cents ?? 0),
+    currency: raw.kpis.currency || "MXN",
+    cxcOverdueCents: Number(raw.kpis.cxc_overdue_cents ?? 0),
+    tenantsAtRisk: Number(raw.kpis.tenants_at_risk ?? 0),
+    trialsActive: Number(raw.kpis.trials_active ?? 0),
+    stampsIssuedMtd: Number(raw.kpis.stamps_issued_mtd ?? 0),
+    motricesAdministered: Number(raw.kpis.motrices_administered ?? 0),
+    nrrPct: raw.kpis.nrr_pct == null ? null : Number(raw.kpis.nrr_pct),
+    trialToPaidPct30d:
+      raw.kpis.trial_to_paid_pct_30d == null
+        ? null
+        : Number(raw.kpis.trial_to_paid_pct_30d),
+  },
+  attentionQueue: (raw.attention_queue ?? []).map((item) => ({
+    tenantId: item.tenant_id,
+    name: item.name,
+    subdomain: item.subdomain,
+    lifecycleStage: item.lifecycle_stage as PlatformLifecycleStageType,
+    healthScore: item.health_score == null ? null : Number(item.health_score),
+    reasonCodes: item.reason_codes ?? [],
+    cxcOverdueCents: Number(item.cxc_overdue_cents ?? 0),
+    subscriptionStatus: item.subscription_status ?? null,
+    accessStatus: item.access_status,
+  })),
 });
 
 export const mapCreatePlatformTenantResult = (
@@ -323,6 +473,8 @@ export type ApiPlatformAuditLogItem = {
   platform_user_email: string | null;
   action: string;
   target_tenant_id: string | null;
+  target_tenant_subdomain?: string | null;
+  target_tenant_name?: string | null;
   target_type: string | null;
   target_id: string | null;
   metadata: Record<string, unknown>;
@@ -337,6 +489,8 @@ export const mapPlatformAuditLogItem = (
   platformUserEmail: raw.platform_user_email,
   action: raw.action,
   targetTenantId: raw.target_tenant_id,
+  targetTenantSubdomain: raw.target_tenant_subdomain ?? null,
+  targetTenantName: raw.target_tenant_name ?? null,
   targetType: raw.target_type,
   targetId: raw.target_id,
   metadata: raw.metadata ?? {},
@@ -493,8 +647,91 @@ export interface ApiPlatformSaasInvoice {
   void_reason: string | null;
   notes: string | null;
   days_overdue: number;
+  origin?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ApiPlatformCloseRunRun {
+  ran: boolean;
+  ran_at: string | null;
+  issued_count: number;
+  considered_count: number;
+  errors_count: number;
+}
+
+export interface ApiPlatformCloseRunCounts {
+  actionable: number;
+  policy: number;
+}
+
+export interface ApiPlatformCloseRunItem {
+  tenant_id: string;
+  tenant_name: string;
+  subdomain: string;
+  skip_reason: string;
+  skip_group: string;
+  subscription_status: string | null;
+  cut_status: string | null;
+  estimated_total_cents: number;
+  has_frozen_amount: boolean;
+  can_issue_override: boolean;
+  existing_void_invoice_id: string | null;
+  non_void_invoice_id: string | null;
+}
+
+export interface ApiPlatformCloseRun {
+  period_key: string;
+  run: ApiPlatformCloseRunRun;
+  counts: ApiPlatformCloseRunCounts;
+  items: ApiPlatformCloseRunItem[];
+}
+
+export interface ApiPlatformChargeRunRun {
+  ran: boolean;
+  id?: string | null;
+  ran_at?: string | null;
+  trigger?: string | null;
+  considered?: number;
+  charged?: number;
+  errors?: number;
+}
+
+export interface ApiPlatformChargeRunCounts {
+  charged?: number;
+  no_payment_method?: number;
+  failed?: number;
+  requires_action?: number;
+  processing?: number;
+  skipped_other?: number;
+}
+
+export interface ApiPlatformChargeRunItem {
+  tenant_id: string;
+  tenant_name: string;
+  subdomain: string;
+  saas_invoice_id: string;
+  period_key: string;
+  outcome: string;
+  skip_reason: string | null;
+  failure_code: string | null;
+  gateway_payment_id: string | null;
+  created_at: string;
+}
+
+export interface ApiPlatformChargeRunAttempt {
+  saas_invoice_id: string;
+  outcome: string;
+  skip_reason: string | null;
+  failure_code: string | null;
+  created_at: string;
+}
+
+export interface ApiPlatformChargeRun {
+  run: ApiPlatformChargeRunRun;
+  counts: ApiPlatformChargeRunCounts;
+  items?: ApiPlatformChargeRunItem[];
+  latest_attempts?: ApiPlatformChargeRunAttempt[];
 }
 
 export interface ApiPlatformSaasArRow extends ApiPlatformSaasInvoice {
@@ -587,8 +824,143 @@ export const mapPlatformSaasInvoice = (
   voidReason: raw.void_reason,
   notes: raw.notes,
   daysOverdue: raw.days_overdue,
+  origin: raw.origin === "auto_period_issue" ? "auto_period_issue" : "manual",
   createdAt: raw.created_at,
   updatedAt: raw.updated_at,
+});
+
+function mapCloseRunSkipReason(
+  raw: string,
+): PlatformCloseRunSkipReason {
+  switch (raw) {
+    case "NOT_CUSTOMER":
+    case "SUB_NOT_ELIGIBLE":
+    case "NO_CUT":
+    case "CUT_NO_FLEET":
+    case "CUT_QUOTE":
+    case "CUT_ERROR":
+    case "CUT_NOT_BILLABLE":
+    case "MISSING_PLAN_CODE":
+    case "MODULES_SNAPSHOT_NULL":
+    case "TOTAL_ZERO":
+    case "VOID_HOLD":
+    case "ISSUE_FAILED":
+      return raw;
+    default:
+      return "ISSUE_FAILED";
+  }
+}
+
+function mapCloseRunSkipGroup(raw: string): PlatformCloseRunSkipGroup {
+  return raw === "policy" ? "policy" : "actionable";
+}
+
+export const mapPlatformCloseRunItem = (
+  raw: ApiPlatformCloseRunItem,
+): PlatformCloseRunItem => ({
+  tenantId: raw.tenant_id,
+  tenantName: raw.tenant_name,
+  subdomain: raw.subdomain,
+  skipReason: mapCloseRunSkipReason(raw.skip_reason),
+  skipGroup: mapCloseRunSkipGroup(raw.skip_group),
+  subscriptionStatus: raw.subscription_status,
+  cutStatus: raw.cut_status,
+  estimatedTotalCents: raw.estimated_total_cents,
+  hasFrozenAmount: raw.has_frozen_amount,
+  canIssueOverride: raw.can_issue_override,
+  existingVoidInvoiceId: raw.existing_void_invoice_id,
+  nonVoidInvoiceId: raw.non_void_invoice_id,
+});
+
+export const mapPlatformCloseRun = (
+  raw: ApiPlatformCloseRun,
+): PlatformCloseRun => ({
+  periodKey: raw.period_key,
+  run: {
+    ran: raw.run.ran,
+    ranAt: raw.run.ran_at,
+    issuedCount: raw.run.issued_count,
+    consideredCount: raw.run.considered_count,
+    errorsCount: raw.run.errors_count,
+  },
+  counts: {
+    actionable: raw.counts.actionable,
+    policy: raw.counts.policy,
+  },
+  items: (raw.items ?? []).map(mapPlatformCloseRunItem),
+});
+
+function mapChargeAttemptOutcome(
+  raw: string,
+): PlatformAutoChargeAttemptOutcome | null {
+  switch (raw) {
+    case "charged":
+    case "failed":
+    case "requires_action":
+    case "processing":
+      return raw;
+    default:
+      return null;
+  }
+}
+
+function mapChargeItemOutcome(raw: string): PlatformAutoChargeItemOutcome {
+  return raw === "skipped" ? "skipped" : mapChargeAttemptOutcome(raw) ?? "skipped";
+}
+
+export const mapPlatformChargeRunItem = (
+  raw: ApiPlatformChargeRunItem,
+): PlatformChargeRunItem => ({
+  tenantId: raw.tenant_id,
+  tenantName: raw.tenant_name,
+  subdomain: raw.subdomain,
+  saasInvoiceId: raw.saas_invoice_id,
+  periodKey: raw.period_key,
+  outcome: mapChargeItemOutcome(raw.outcome),
+  skipReason: raw.skip_reason,
+  failureCode: raw.failure_code,
+  gatewayPaymentId: raw.gateway_payment_id,
+  createdAt: raw.created_at,
+});
+
+export const mapPlatformChargeRunAttempt = (
+  raw: ApiPlatformChargeRunAttempt,
+): PlatformChargeRunAttempt | null => {
+  const outcome = mapChargeAttemptOutcome(raw.outcome);
+  if (!outcome) return null;
+  return {
+    saasInvoiceId: raw.saas_invoice_id,
+    outcome,
+    skipReason: raw.skip_reason,
+    failureCode: raw.failure_code,
+    createdAt: raw.created_at,
+  };
+};
+
+export const mapPlatformChargeRun = (
+  raw: ApiPlatformChargeRun,
+): PlatformChargeRun => ({
+  run: {
+    ran: Boolean(raw.run?.ran),
+    id: raw.run?.id ?? null,
+    ranAt: raw.run?.ran_at ?? null,
+    trigger: raw.run?.trigger ?? null,
+    considered: raw.run?.considered ?? 0,
+    charged: raw.run?.charged ?? 0,
+    errors: raw.run?.errors ?? 0,
+  },
+  counts: {
+    charged: raw.counts?.charged ?? 0,
+    noPaymentMethod: raw.counts?.no_payment_method ?? 0,
+    failed: raw.counts?.failed ?? 0,
+    requiresAction: raw.counts?.requires_action ?? 0,
+    processing: raw.counts?.processing ?? 0,
+    skippedOther: raw.counts?.skipped_other ?? 0,
+  },
+  items: (raw.items ?? []).map(mapPlatformChargeRunItem),
+  latestAttempts: (raw.latest_attempts ?? [])
+    .map(mapPlatformChargeRunAttempt)
+    .filter((attempt): attempt is PlatformChargeRunAttempt => attempt != null),
 });
 
 export const mapPlatformSaasArRow = (

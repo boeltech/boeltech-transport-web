@@ -78,6 +78,52 @@ export interface PlatformMfaStatus {
   enabledAt: string | null;
 }
 
+/** Lifecycle unificado derivado (ADR-0097). No se recalcula en cliente. */
+export const PlatformLifecycleStage = {
+  PROSPECT: "prospect",
+  PROVISIONING: "provisioning",
+  TRIALING: "trialing",
+  ONBOARDING: "onboarding",
+  ACTIVE: "active",
+  AT_RISK: "at_risk",
+  SUSPENDED: "suspended",
+  CHURNED: "churned",
+  ARCHIVED: "archived",
+} as const;
+
+export type PlatformLifecycleStageType =
+  (typeof PlatformLifecycleStage)[keyof typeof PlatformLifecycleStage];
+
+export const PLATFORM_LIFECYCLE_STAGE_VALUES = Object.values(
+  PlatformLifecycleStage,
+) as PlatformLifecycleStageType[];
+
+/** Umbral visual at-risk (mismo que API); no recalcula score. */
+export const PLATFORM_HEALTH_AT_RISK_THRESHOLD = 40;
+
+export interface PlatformHealthSignals {
+  fiscal: number;
+  payment: number;
+  adoption: number;
+  fleet: number;
+  engagement: number;
+}
+
+export interface PlatformHealthWeights {
+  fiscal: number;
+  payment: number;
+  adoption: number;
+  fleet: number;
+  engagement: number;
+}
+
+export interface PlatformTenantHealth {
+  score: number | null;
+  asOf: string | null;
+  signals: PlatformHealthSignals | null;
+  weights: PlatformHealthWeights;
+}
+
 export interface PlatformTenantListItem {
   id: string;
   name: string;
@@ -94,6 +140,10 @@ export interface PlatformTenantListItem {
   tripCount: number;
   createdAt: string;
   suspendedAt: string | null;
+  /** ADR-0097 — null hasta primer refresh MV (R1 → UI "—"). */
+  healthScore: number | null;
+  lifecycleStage: PlatformLifecycleStageType;
+  healthAsOf: string | null;
 }
 
 /** Derived admin-activation status from platform GET/POST tenants (ADR-0073). */
@@ -144,6 +194,39 @@ export interface PlatformTenantDetail extends PlatformTenantListItem {
     tripCount: number;
   };
   adminActivation: PlatformAdminActivation | null;
+  /** ADR-0097 — breakdown embebido (no recalcular en cliente). */
+  health: PlatformTenantHealth;
+}
+
+export interface PlatformPulseKpis {
+  mrrCents: number;
+  currency: string;
+  cxcOverdueCents: number;
+  tenantsAtRisk: number;
+  trialsActive: number;
+  stampsIssuedMtd: number;
+  motricesAdministered: number;
+  nrrPct: number | null;
+  trialToPaidPct30d: number | null;
+}
+
+export interface PlatformPulseAttentionItem {
+  tenantId: string;
+  name: string;
+  subdomain: string;
+  lifecycleStage: PlatformLifecycleStageType;
+  healthScore: number | null;
+  reasonCodes: string[];
+  cxcOverdueCents: number;
+  subscriptionStatus: string | null;
+  accessStatus: string;
+}
+
+export interface PlatformPulse {
+  generatedAt: string;
+  healthAsOf: string | null;
+  kpis: PlatformPulseKpis;
+  attentionQueue: PlatformPulseAttentionItem[];
 }
 
 export interface CreatePlatformTenantResult {
@@ -194,6 +277,11 @@ export interface PlatformTenantsQueryParams {
   subscriptionStatus?: PlatformSubscriptionStatusType;
   planCode?: string;
   search?: string;
+  /** ADR-0097 additive filters */
+  lifecycleStage?: PlatformLifecycleStageType;
+  healthMin?: number;
+  healthMax?: number;
+  atRisk?: boolean;
 }
 
 export interface CreatePlatformTenantPayload {
@@ -327,6 +415,140 @@ export type PlatformSaasPaymentMethod =
   | "card_external"
   | "other";
 
+/** HTTP 1:1 = manual; D7-A auto-issue = auto_period_issue. */
+export type PlatformSaasInvoiceOrigin = "manual" | "auto_period_issue";
+
+export type PlatformCloseRunInclude = "actionable" | "policy" | "all";
+
+export type PlatformCloseRunSkipGroup = "actionable" | "policy";
+
+export type PlatformCloseRunSkipReason =
+  | "NOT_CUSTOMER"
+  | "SUB_NOT_ELIGIBLE"
+  | "NO_CUT"
+  | "CUT_NO_FLEET"
+  | "CUT_QUOTE"
+  | "CUT_ERROR"
+  | "CUT_NOT_BILLABLE"
+  | "MISSING_PLAN_CODE"
+  | "MODULES_SNAPSHOT_NULL"
+  | "TOTAL_ZERO"
+  | "VOID_HOLD"
+  | "ISSUE_FAILED";
+
+export interface PlatformCloseRunQueryParams {
+  periodKey?: string;
+  tenantId?: string;
+  include?: PlatformCloseRunInclude;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PlatformCloseRunSummary {
+  ran: boolean;
+  ranAt: string | null;
+  issuedCount: number;
+  consideredCount: number;
+  errorsCount: number;
+}
+
+export interface PlatformCloseRunCounts {
+  actionable: number;
+  policy: number;
+}
+
+export interface PlatformCloseRunItem {
+  tenantId: string;
+  tenantName: string;
+  subdomain: string;
+  skipReason: PlatformCloseRunSkipReason;
+  skipGroup: PlatformCloseRunSkipGroup;
+  subscriptionStatus: string | null;
+  cutStatus: string | null;
+  estimatedTotalCents: number;
+  hasFrozenAmount: boolean;
+  canIssueOverride: boolean;
+  existingVoidInvoiceId: string | null;
+  nonVoidInvoiceId: string | null;
+}
+
+export interface PlatformCloseRun {
+  periodKey: string;
+  run: PlatformCloseRunSummary;
+  counts: PlatformCloseRunCounts;
+  items: PlatformCloseRunItem[];
+}
+
+/** Stripe-B auto-cargo — GET /platform/billing/ar/charge-run (F2a). */
+export type PlatformAutoChargeAttemptOutcome =
+  | "charged"
+  | "failed"
+  | "requires_action"
+  | "processing";
+
+export type PlatformAutoChargeItemOutcome =
+  | PlatformAutoChargeAttemptOutcome
+  | "skipped";
+
+export type PlatformAutoChargeChipKind =
+  | PlatformAutoChargeAttemptOutcome
+  | "no_payment_method";
+
+export interface PlatformChargeRunQueryParams {
+  runId?: string;
+  periodKey?: string;
+  tenantId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PlatformChargeRunSummary {
+  ran: boolean;
+  id: string | null;
+  ranAt: string | null;
+  trigger: string | null;
+  considered: number;
+  charged: number;
+  errors: number;
+}
+
+export interface PlatformChargeRunCounts {
+  charged: number;
+  noPaymentMethod: number;
+  failed: number;
+  requiresAction: number;
+  processing: number;
+  skippedOther: number;
+}
+
+export interface PlatformChargeRunItem {
+  tenantId: string;
+  tenantName: string;
+  subdomain: string;
+  saasInvoiceId: string;
+  periodKey: string;
+  outcome: PlatformAutoChargeItemOutcome;
+  skipReason: string | null;
+  failureCode: string | null;
+  gatewayPaymentId: string | null;
+  createdAt: string;
+}
+
+export interface PlatformChargeRunAttempt {
+  saasInvoiceId: string;
+  outcome: PlatformAutoChargeAttemptOutcome;
+  skipReason: string | null;
+  failureCode: string | null;
+  createdAt: string;
+}
+
+export interface PlatformChargeRun {
+  run: PlatformChargeRunSummary;
+  counts: PlatformChargeRunCounts;
+  items: PlatformChargeRunItem[];
+  latestAttempts: PlatformChargeRunAttempt[];
+}
+
 export interface PlatformSaasInvoiceItem {
   id: string;
   saasInvoiceId: string;
@@ -378,6 +600,7 @@ export interface PlatformSaasInvoice {
   voidReason: string | null;
   notes: string | null;
   daysOverdue: number;
+  origin: PlatformSaasInvoiceOrigin;
   createdAt: string;
   updatedAt: string;
 }
@@ -406,6 +629,11 @@ export interface IssuePlatformSaasInvoicePayload {
   periodKey: string;
   status?: "draft" | "open";
   notes?: string | null;
+  dueDays?: number;
+}
+
+/** POST …/saas-invoices/:invoiceId/issue — promote draft → open. */
+export interface IssuePlatformSaasInvoiceDraftPayload {
   dueDays?: number;
 }
 
@@ -476,6 +704,8 @@ export interface PlatformAuditLogItem {
   platformUserEmail: string | null;
   action: string;
   targetTenantId: string | null;
+  targetTenantSubdomain: string | null;
+  targetTenantName: string | null;
   targetType: string | null;
   targetId: string | null;
   metadata: Record<string, unknown>;
@@ -495,6 +725,7 @@ export const platformQueryKeys = {
   all: ["platform"] as const,
   profile: () => [...platformQueryKeys.all, "profile"] as const,
   metrics: () => [...platformQueryKeys.all, "metrics"] as const,
+  pulse: () => [...platformQueryKeys.all, "pulse"] as const,
   plans: () => [...platformQueryKeys.all, "plans"] as const,
   tenants: () => [...platformQueryKeys.all, "tenants"] as const,
   tenantLists: () => [...platformQueryKeys.tenants(), "list"] as const,
@@ -502,6 +733,8 @@ export const platformQueryKeys = {
     [...platformQueryKeys.tenantLists(), params] as const,
   tenantDetail: (id: string) =>
     [...platformQueryKeys.tenants(), "detail", id] as const,
+  tenantHealth: (id: string) =>
+    [...platformQueryKeys.tenants(), "health", id] as const,
   tenantSubscription: (id: string) =>
     [...platformQueryKeys.tenants(), "subscription", id] as const,
   tenantStampUsage: (id: string) =>
@@ -518,6 +751,10 @@ export const platformQueryKeys = {
   ar: () => [...platformQueryKeys.all, "ar"] as const,
   arList: (params?: PlatformArListQueryParams) =>
     [...platformQueryKeys.ar(), "list", params] as const,
+  arCloseRun: (params?: PlatformCloseRunQueryParams) =>
+    [...platformQueryKeys.ar(), "close-run", params] as const,
+  arChargeRun: (params?: PlatformChargeRunQueryParams) =>
+    [...platformQueryKeys.ar(), "charge-run", params] as const,
   tenantSaasInvoices: (tenantId: string) =>
     [...platformQueryKeys.tenants(), "saas-invoices", tenantId] as const,
   tenantSaasInvoice: (tenantId: string, invoiceId: string) =>

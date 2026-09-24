@@ -1,6 +1,9 @@
 /**
- * Smoke ADR-0062 — consola plataforma tenant 0 (métricas → empresas → suspender).
+ * Smoke ADR-0062 + ADR-0097 — consola plataforma (Pulso → empresas → suspender).
  * Mock de API; no requiere backend ni Playwright.
+ *
+ * ADR-0097 F1b: landing Pulso (GET /platform/pulse), health/stage en lista,
+ * detalle con tabs Resumen | Comercial | Operación | Actividad.
  *
  * SoT v5 (Fase 4): detalle monta TenantThisMonthCard con suscripción motriz
  * (Q=14 × P=31900¢ = 446600¢) + capacity ADR-0095 (OVER_LIMIT observable).
@@ -16,6 +19,7 @@ import type { BillingCapacity } from "@features/billing";
 import type {
   PlatformBillingPlan,
   PlatformMetrics,
+  PlatformPulse,
   PlatformTenantDetail,
   PlatformTenantListItem,
   PlatformTenantStampUsage,
@@ -32,6 +36,7 @@ import {
 } from "@features/platform/infrastructure/platformTokenStorage";
 import { platformCopy } from "@features/platform/presentation/copy/platformCopy";
 import { formatBillingPriceCents } from "@features/platform/presentation/utils/platformBillingFormatters";
+import { emptyPlatformTenantHealth } from "@features/platform/infrastructure/mappers";
 
 const TENANT_ID = "tenant-smoke-1";
 
@@ -45,6 +50,7 @@ const IVA_CENTS = Math.round(SUBTOTAL_CENTS * 0.16); // 72400
 const ESTIMATED_TOTAL_CENTS = SUBTOTAL_CENTS + IVA_CENTS; // 524900
 
 const mockGetMetrics = vi.fn();
+const mockGetPulse = vi.fn();
 const mockListTenants = vi.fn();
 const mockGetTenantById = vi.fn();
 const mockUpdateTenantStatus = vi.fn();
@@ -53,6 +59,7 @@ const mockGetTenantEntitlements = vi.fn();
 const mockGetTenantSubscription = vi.fn();
 const mockGetTenantStampUsage = vi.fn();
 const mockListTenantSaasInvoices = vi.fn();
+const mockListAuditLog = vi.fn();
 
 vi.mock("@features/platform/infrastructure/platformApi", () => ({
   platformApi: {
@@ -70,6 +77,7 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
       mfaEnabledAt: "2026-01-01T00:00:00.000Z",
     })),
     getMetrics: (...args: unknown[]) => mockGetMetrics(...args),
+    getPulse: (...args: unknown[]) => mockGetPulse(...args),
     listPlans: (...args: unknown[]) => mockListPlans(...args),
     listTenants: (...args: unknown[]) => mockListTenants(...args),
     getTenantById: (...args: unknown[]) => mockGetTenantById(...args),
@@ -83,6 +91,7 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
       mockGetTenantStampUsage(...args),
     listTenantSaasInvoices: (...args: unknown[]) =>
       mockListTenantSaasInvoices(...args),
+    listAuditLog: (...args: unknown[]) => mockListAuditLog(...args),
   },
 }));
 
@@ -236,6 +245,9 @@ function createActiveTenant(): PlatformTenantDetail {
     tripCount: 12,
     createdAt: "2026-06-01T10:00:00.000Z",
     suspendedAt: null,
+    healthScore: 72,
+    lifecycleStage: "active",
+    healthAsOf: "2026-09-21T12:00:00.000Z",
     usage: { userCount: 8, branchCount: 1, tripCount: 12 },
     adminActivation: {
       status: "activated",
@@ -244,6 +256,18 @@ function createActiveTenant(): PlatformTenantDetail {
       lastSentAt: "2026-06-01T10:00:00.000Z",
       lastSendError: null,
       sendAttempts: 1,
+    },
+    health: {
+      score: 72,
+      asOf: "2026-09-21T12:00:00.000Z",
+      signals: {
+        fiscal: 80,
+        payment: 75,
+        adoption: 60,
+        fleet: 70,
+        engagement: 65,
+      },
+      weights: emptyPlatformTenantHealth().weights,
     },
   };
 }
@@ -259,6 +283,37 @@ function createMetrics(): PlatformMetrics {
     },
     totalUsers: 18,
     tenantsCreatedLast30Days: 1,
+  };
+}
+
+function createPulse(): PlatformPulse {
+  return {
+    generatedAt: "2026-09-21T12:00:00.000Z",
+    healthAsOf: "2026-09-21T11:55:00.000Z",
+    kpis: {
+      mrrCents: 1_250_000,
+      currency: "MXN",
+      cxcOverdueCents: 50_000,
+      tenantsAtRisk: 1,
+      trialsActive: 2,
+      stampsIssuedMtd: 40,
+      motricesAdministered: 14,
+      nrrPct: null,
+      trialToPaidPct30d: null,
+    },
+    attentionQueue: [
+      {
+        tenantId: TENANT_ID,
+        name: "Transporte Demo",
+        subdomain: "demo-transporte",
+        lifecycleStage: "at_risk",
+        healthScore: 32,
+        reasonCodes: ["health_below_threshold", "cxc_overdue"],
+        cxcOverdueCents: 50_000,
+        subscriptionStatus: "past_due",
+        accessStatus: "active",
+      },
+    ],
   };
 }
 
@@ -295,6 +350,11 @@ describe("smoke platform admin workflow", () => {
 
     mockListPlans.mockResolvedValue([MOTRIZ_PLAN, CRECIMIENTO_PLAN]);
     mockGetMetrics.mockResolvedValue(createMetrics());
+    mockGetPulse.mockResolvedValue(createPulse());
+    mockListAuditLog.mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    });
     mockGetTenantSubscription.mockResolvedValue(createMotrizSubscription());
     mockGetTenantStampUsage.mockResolvedValue(createStampUsage());
     mockListTenantSaasInvoices.mockResolvedValue([]);
@@ -329,22 +389,71 @@ describe("smoke platform admin workflow", () => {
     });
   });
 
-  it("renders dashboard KPIs from platform metrics", async () => {
+  it("renders Pulso KPIs and attention queue from platform pulse", async () => {
     renderPlatform(<PlatformDashboardPage />);
 
     expect(
-      await screen.findByText(platformCopy.dashboard.title),
+      await screen.findByText(platformCopy.pulse.title),
     ).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(mockGetMetrics).toHaveBeenCalled();
+      expect(mockGetPulse).toHaveBeenCalled();
     });
 
-    expect(screen.getByText("4")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("18")).toBeInTheDocument();
-    expect(screen.getByText("Operación Pequeña")).toBeInTheDocument();
-    expect(screen.getByText("Operación Crecimiento")).toBeInTheDocument();
+    expect(screen.getByText(platformCopy.pulse.kpis.mrr)).toBeInTheDocument();
+    expect(
+      screen.getByText(formatBillingPriceCents(1_250_000)),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(
+      screen.getByText(platformCopy.pulse.queue.title),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Transporte Demo").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        platformCopy.pulse.reasonCodes.health_below_threshold,
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("lists tenants with health score and lifecycle stage", async () => {
+    const tenant = createActiveTenant();
+    mockListTenants.mockResolvedValue({
+      data: [tenant as PlatformTenantListItem],
+      pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    });
+
+    renderPlatform(<PlatformTenantsListPage />, "/platform/tenants");
+
+    expect(
+      (await screen.findAllByText("Transporte Demo")).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("72").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(platformCopy.lifecycle.labels.active).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("lists null health_score as em dash (R1)", async () => {
+    const tenant = {
+      ...createActiveTenant(),
+      healthScore: null,
+      healthAsOf: null,
+    };
+    mockListTenants.mockResolvedValue({
+      data: [tenant as PlatformTenantListItem],
+      pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    });
+
+    renderPlatform(<PlatformTenantsListPage />, "/platform/tenants");
+
+    expect(
+      (await screen.findAllByText("Transporte Demo")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(platformCopy.health.nullLabel).length,
+    ).toBeGreaterThan(0);
   });
 
   it("lists tenants, opens detail with SoT v5 Q×P + OVER_LIMIT, and suspends", async () => {

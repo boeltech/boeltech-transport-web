@@ -50,7 +50,7 @@ export function TenantEntitlementsSheet({
       toast({
         title: platformCopy.tenants.entitlements.error,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
@@ -123,7 +123,9 @@ export function TenantEntitlementsSheet({
                         </Badge>
                       ) : null}
                     </div>
-                    <p className="text-xs text-muted-foreground">{item.code}</p>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {item.code}
+                    </p>
                     {item.memberCodes.length > 0 ? (
                       <p className="text-xs text-muted-foreground">
                         {copy.includesMembers(item.memberCodes.length)}

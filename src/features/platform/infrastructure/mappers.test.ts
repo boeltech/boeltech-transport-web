@@ -11,6 +11,8 @@ import {
   mapPlatformTenantEntitlements,
   mapPlatformModuleCatalogItem,
   mapPlatformSaasArRow,
+  mapPlatformCloseRun,
+  mapPlatformChargeRun,
   mapPlatformReconciliationPreview,
   toApiCreatePlatformTenant,
 } from "./mappers";
@@ -79,6 +81,32 @@ describe("platform mappers", () => {
     expect(item.tripCount).toBe(5);
     expect(item.subscriptionStatus).toBe("past_due");
     expect(item.declaredFleetBand).toBeNull();
+    expect(item.healthScore).toBeNull();
+    expect(item.lifecycleStage).toBe("provisioning");
+    expect(item.healthAsOf).toBeNull();
+  });
+
+  it("mapPlatformTenantListItem maps health and lifecycle", () => {
+    const item = mapPlatformTenantListItem({
+      id: "t1",
+      name: "Demo",
+      subdomain: "demo",
+      status: "active",
+      plan_code: "operacion_esencial",
+      plan_name: "Operación Esencial",
+      user_count: 2,
+      branch_count: 1,
+      trip_count: 5,
+      created_at: "2026-06-01T12:00:00.000Z",
+      suspended_at: null,
+      health_score: 32,
+      lifecycle_stage: "at_risk",
+      health_as_of: "2026-09-21T12:00:00.000Z",
+    });
+
+    expect(item.healthScore).toBe(32);
+    expect(item.lifecycleStage).toBe("at_risk");
+    expect(item.healthAsOf).toBe("2026-09-21T12:00:00.000Z");
   });
 
   it("mapPlatformTenantListItem maps declared fleet", () => {
@@ -121,6 +149,85 @@ describe("platform mappers", () => {
     expect(detail.usage.userCount).toBe(3);
     expect(detail.status).toBe("suspended");
     expect(detail.adminActivation).toBeNull();
+    expect(detail.health.score).toBeNull();
+    expect(detail.health.signals).toBeNull();
+  });
+
+  it("mapPlatformTenantDetail maps embedded health breakdown", () => {
+    const detail = mapPlatformTenantDetail({
+      id: "t1",
+      name: "Demo",
+      subdomain: "demo",
+      status: "active",
+      plan_code: "operacion_esencial",
+      plan_name: "Operación Esencial",
+      user_count: 1,
+      branch_count: 0,
+      trip_count: 0,
+      created_at: "2026-06-01T12:00:00.000Z",
+      suspended_at: null,
+      health_score: 72,
+      lifecycle_stage: "active",
+      health: {
+        score: 72,
+        as_of: "2026-09-21T12:00:00.000Z",
+        signals: {
+          fiscal: 80,
+          payment: 70,
+          adoption: 60,
+          fleet: 50,
+          engagement: 90,
+        },
+        weights: {
+          fiscal: 0.3,
+          payment: 0.25,
+          adoption: 0.2,
+          fleet: 0.15,
+          engagement: 0.1,
+        },
+      },
+    });
+
+    expect(detail.health.score).toBe(72);
+    expect(detail.health.signals?.fiscal).toBe(80);
+    expect(detail.healthScore).toBe(72);
+  });
+
+  it("mapPlatformPulse maps KPIs and attention queue", async () => {
+    const { mapPlatformPulse } = await import("./mappers");
+    const pulse = mapPlatformPulse({
+      generated_at: "2026-09-21T12:00:00.000Z",
+      health_as_of: "2026-09-21T11:55:00.000Z",
+      kpis: {
+        mrr_cents: 1_250_000,
+        currency: "MXN",
+        cxc_overdue_cents: 50_000,
+        tenants_at_risk: 2,
+        trials_active: 3,
+        stamps_issued_mtd: 120,
+        motrices_administered: 40,
+        nrr_pct: null,
+        trial_to_paid_pct_30d: null,
+      },
+      attention_queue: [
+        {
+          tenant_id: "t-risk",
+          name: "Riesgo SA",
+          subdomain: "riesgo",
+          lifecycle_stage: "at_risk",
+          health_score: 28,
+          reason_codes: ["health_below_threshold", "cxc_overdue"],
+          cxc_overdue_cents: 50_000,
+          subscription_status: "past_due",
+          access_status: "active",
+        },
+      ],
+    });
+
+    expect(pulse.kpis.mrrCents).toBe(1_250_000);
+    expect(pulse.attentionQueue).toHaveLength(1);
+    expect(pulse.attentionQueue[0].reasonCodes).toContain("cxc_overdue");
+    expect(pulse.attentionQueue[0].healthScore).toBe(28);
   });
 
   it("mapAdminActivation and detail map admin_activation", async () => {
@@ -295,6 +402,8 @@ describe("platform mappers", () => {
       platform_user_email: "ops@boeltech.com",
       action: "tenant_status_changed",
       target_tenant_id: "t1",
+      target_tenant_subdomain: "acme",
+      target_tenant_name: "Acme Transportes",
       target_type: "tenant",
       target_id: "t1",
       metadata: { previous_status: "active", status: "suspended" },
@@ -303,7 +412,26 @@ describe("platform mappers", () => {
 
     expect(item.platformUserEmail).toBe("ops@boeltech.com");
     expect(item.targetTenantId).toBe("t1");
+    expect(item.targetTenantSubdomain).toBe("acme");
+    expect(item.targetTenantName).toBe("Acme Transportes");
     expect(item.metadata.status).toBe("suspended");
+  });
+
+  it("mapPlatformAuditLogItem null-safes missing tenant display fields", () => {
+    const item = mapPlatformAuditLogItem({
+      id: "a2",
+      platform_user_id: null,
+      platform_user_email: null,
+      action: "saas_invoice_paid",
+      target_tenant_id: "t2",
+      target_type: "tenant",
+      target_id: "t2",
+      metadata: {},
+      created_at: "2026-07-04T18:00:00.000Z",
+    });
+
+    expect(item.targetTenantSubdomain).toBeNull();
+    expect(item.targetTenantName).toBeNull();
   });
 
   it("mapPlatformTenantStampUsage maps stamp usage fields", () => {
@@ -463,6 +591,155 @@ describe("platform mappers", () => {
     expect(row.tenantName).toBe("Demo SA");
     expect(row.daysOverdue).toBe(3);
     expect(row.totalCents).toBe(194532);
+    expect(row.origin).toBe("manual");
+  });
+
+  it("mapPlatformSaasArRow maps auto_period_issue origin", () => {
+    const row = mapPlatformSaasArRow({
+      id: "inv-1",
+      tenant_id: "t1",
+      subscription_id: "sub-1",
+      period_key: "2026-07",
+      period_start: "2026-07-01T06:00:00.000Z",
+      period_end: "2026-08-01T06:00:00.000Z",
+      status: "open",
+      currency: "MXN",
+      plan_code: "operacion_crecimiento",
+      stamps_included: 380,
+      stamps_used: 400,
+      stamps_overage: 20,
+      subtotal_cents: 167700,
+      tax_cents: 26832,
+      total_cents: 194532,
+      amount_due_cents: 194532,
+      amount_paid_cents: 0,
+      issued_at: "2026-08-01T16:00:00.000Z",
+      due_date: "2026-08-15T16:00:00.000Z",
+      paid_at: null,
+      voided_at: null,
+      void_reason: null,
+      notes: null,
+      days_overdue: 0,
+      origin: "auto_period_issue",
+      created_at: "2026-08-01T16:00:00.000Z",
+      updated_at: "2026-08-01T16:00:00.000Z",
+      tenant_name: "Demo SA",
+      subdomain: "demo",
+      subscription_status: "active",
+    });
+
+    expect(row.origin).toBe("auto_period_issue");
+  });
+
+  it("mapPlatformCloseRun maps snake_case close-run payload", () => {
+    const mapped = mapPlatformCloseRun({
+      period_key: "2026-07",
+      run: {
+        ran: true,
+        ran_at: "2026-08-01T06:05:00.000Z",
+        issued_count: 12,
+        considered_count: 14,
+        errors_count: 1,
+      },
+      counts: { actionable: 2, policy: 4 },
+      items: [
+        {
+          tenant_id: "t-void",
+          tenant_name: "Demo Void",
+          subdomain: "voidco",
+          skip_reason: "CUT_NO_FLEET",
+          skip_group: "actionable",
+          subscription_status: "active",
+          cut_status: "skipped_no_band",
+          estimated_total_cents: 174000,
+          has_frozen_amount: true,
+          can_issue_override: true,
+          existing_void_invoice_id: "inv-void",
+          non_void_invoice_id: null,
+        },
+      ],
+    });
+
+    expect(mapped.periodKey).toBe("2026-07");
+    expect(mapped.run.ran).toBe(true);
+    expect(mapped.run.ranAt).toBe("2026-08-01T06:05:00.000Z");
+    expect(mapped.run.issuedCount).toBe(12);
+    expect(mapped.counts.actionable).toBe(2);
+    expect(mapped.items[0]?.skipReason).toBe("CUT_NO_FLEET");
+    expect(mapped.items[0]?.cutStatus).toBe("skipped_no_band");
+    expect(mapped.items[0]?.canIssueOverride).toBe(true);
+    expect(mapped.items[0]?.hasFrozenAmount).toBe(true);
+    expect(mapped.items[0]?.existingVoidInvoiceId).toBe("inv-void");
+  });
+
+  it("mapPlatformChargeRun maps snake_case charge-run payload", () => {
+    const mapped = mapPlatformChargeRun({
+      run: {
+        ran: true,
+        id: "run-1",
+        ran_at: "2026-09-23T12:05:00.000Z",
+        trigger: "job_tick",
+        considered: 12,
+        charged: 8,
+        errors: 0,
+      },
+      counts: {
+        charged: 8,
+        no_payment_method: 2,
+        failed: 1,
+        requires_action: 1,
+        processing: 0,
+        skipped_other: 0,
+      },
+      items: [
+        {
+          tenant_id: "t1",
+          tenant_name: "Demo SA",
+          subdomain: "demo",
+          saas_invoice_id: "inv-1",
+          period_key: "2026-08",
+          outcome: "failed",
+          skip_reason: null,
+          failure_code: "card_declined",
+          gateway_payment_id: "pi_1",
+          created_at: "2026-09-23T12:05:00.000Z",
+        },
+      ],
+      latest_attempts: [
+        {
+          saas_invoice_id: "inv-1",
+          outcome: "failed",
+          skip_reason: null,
+          failure_code: "card_declined",
+          created_at: "2026-09-23T12:05:00.000Z",
+        },
+      ],
+    });
+
+    expect(mapped.run.ran).toBe(true);
+    expect(mapped.run.id).toBe("run-1");
+    expect(mapped.run.ranAt).toBe("2026-09-23T12:05:00.000Z");
+    expect(mapped.run.trigger).toBe("job_tick");
+    expect(mapped.counts.noPaymentMethod).toBe(2);
+    expect(mapped.counts.requiresAction).toBe(1);
+    expect(mapped.items[0]?.saasInvoiceId).toBe("inv-1");
+    expect(mapped.items[0]?.failureCode).toBe("card_declined");
+    expect(mapped.latestAttempts[0]?.outcome).toBe("failed");
+  });
+
+  it("mapPlatformChargeRun defaults an empty run", () => {
+    const mapped = mapPlatformChargeRun({
+      run: { ran: false },
+      counts: {},
+      items: [],
+      latest_attempts: [],
+    });
+
+    expect(mapped.run.ran).toBe(false);
+    expect(mapped.run.id).toBeNull();
+    expect(mapped.counts.charged).toBe(0);
+    expect(mapped.items).toEqual([]);
+    expect(mapped.latestAttempts).toEqual([]);
   });
 
   it("mapPlatformReconciliationPreview maps totals", () => {

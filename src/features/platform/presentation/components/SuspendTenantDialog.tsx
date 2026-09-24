@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -12,9 +12,13 @@ import {
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
-import { Alert, AlertDescription } from "@shared/ui/alert";
-import { FieldInlineError } from "@shared/ui/form";
+import { Alert, AlertDescription, AlertWithIcon } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
   PlatformTenantStatus,
   type PlatformTenantListItem,
@@ -64,23 +68,9 @@ export function SuspendTenantDialog({
 }: SuspendTenantDialogProps) {
   const { toast } = useToast();
   const copy = targetStatus ? getDialogCopy(targetStatus) : null;
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const updateMutation = useUpdatePlatformTenantStatus({
-    onSuccess: () => {
-      toast({
-        title: platformCopy.tenants.suspend.success,
-        variant: "success",
-      });
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      toast({
-        title: platformCopy.tenants.suspend.error,
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const updateMutation = useUpdatePlatformTenantStatus();
 
   const form = useForm<SuspendPlatformTenantFormData>({
     resolver: zodResolver(suspendPlatformTenantSchema),
@@ -88,20 +78,41 @@ export function SuspendTenantDialog({
   });
 
   useEffect(() => {
-    if (open) {
-      form.reset({ reason: "" });
+    if (!open) {
+      setApiError(null);
+      return;
     }
+    setApiError(null);
+    form.reset({ reason: "" });
   }, [open, form]);
+
+  const reasonError = form.formState.errors.reason?.message;
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!tenant || !targetStatus) return;
-    await updateMutation.mutateAsync({
-      id: tenant.id,
-      payload: {
-        status: targetStatus,
-        reason: values.reason,
-      },
-    });
+    setApiError(null);
+    try {
+      await updateMutation.mutateAsync({
+        id: tenant.id,
+        payload: {
+          status: targetStatus,
+          reason: values.reason,
+        },
+      });
+      toast({
+        title: platformCopy.tenants.suspend.success,
+        variant: "success",
+      });
+      onOpenChange(false);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setApiError(message);
+      toast({
+        title: platformCopy.tenants.suspend.error,
+        description: message,
+        variant: "error",
+      });
+    }
   });
 
   return (
@@ -112,11 +123,21 @@ export function SuspendTenantDialog({
           <DialogDescription>{copy?.description}</DialogDescription>
         </DialogHeader>
 
+        {apiError ? (
+          <AlertWithIcon
+            variant="destructive"
+            title={platformCopy.tenants.suspend.error}
+          >
+            {apiError}
+          </AlertWithIcon>
+        ) : null}
+
         <form onSubmit={onSubmit} className="space-y-4">
           {tenant ? (
             <Alert>
               <AlertDescription>
-                {tenant.name} · <strong>{tenant.subdomain}</strong>
+                {tenant.name} ·{" "}
+                <strong className="font-mono">{tenant.subdomain}</strong>
               </AlertDescription>
             </Alert>
           ) : null}
@@ -128,8 +149,9 @@ export function SuspendTenantDialog({
               rows={3}
               placeholder={platformCopy.tenants.suspend.reasonPlaceholder}
               {...form.register("reason")}
+              {...getRegisterFieldErrorProps("reason", reasonError)}
             />
-            <FieldInlineError fieldId="reason" message={form.formState.errors.reason?.message} />
+            <FieldInlineError fieldId="reason" message={reasonError} />
           </div>
 
           <DialogFooter>
@@ -138,7 +160,7 @@ export function SuspendTenantDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {platformCopy.tenants.suspend.cancel}
             </Button>
             <Button
               type="submit"
@@ -147,7 +169,7 @@ export function SuspendTenantDialog({
                   ? "default"
                   : "destructive"
               }
-              disabled={updateMutation.isPending}
+              isLoading={updateMutation.isPending}
             >
               {copy?.confirm}
             </Button>

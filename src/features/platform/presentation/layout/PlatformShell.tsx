@@ -27,9 +27,9 @@ function PlatformShellLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen transition-all duration-300 ease-in-out lg:block">
+      <div className="fixed left-0 top-0 z-40 hidden h-screen transition-all duration-300 ease-in-out lg:block">
         <PlatformSidebar />
-      </aside>
+      </div>
 
       <PlatformMobileSidebar />
       <PlatformHeader />

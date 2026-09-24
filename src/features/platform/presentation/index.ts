@@ -1,5 +1,6 @@
 export { PlatformLoginPage } from "./pages/PlatformLoginPage";
 export { PlatformDashboardPage } from "./pages/PlatformDashboardPage";
+export { PlatformPulsePage } from "./pages/PlatformPulsePage";
 export { PlatformTenantsListPage } from "./pages/PlatformTenantsListPage";
 export { PlatformTenantDetailPage } from "./pages/PlatformTenantDetailPage";
 export { PlatformTenantCreatePage } from "./pages/PlatformTenantCreatePage";

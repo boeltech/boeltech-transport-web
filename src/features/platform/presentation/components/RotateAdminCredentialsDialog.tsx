@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy, Eye, EyeOff } from "lucide-react";
+import { Copy } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,11 +17,14 @@ import { Checkbox } from "@shared/ui/checkbox";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import {
   FieldInlineError,
+  FormValidationSummary,
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import { generateSecurePassword } from "@shared/utils/generateSecurePassword";
 import { mapBackendError } from "@shared/utils/errorMapper";
+import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { PasswordVisibilityToggle } from "@pages/auth/PasswordVisibilityToggle";
 import { useRotatePlatformAdminCredentials } from "../../application/hooks/usePlatformTenants";
 import {
   rotateAdminCredentialsSchema,
@@ -88,6 +91,7 @@ function RotateAdminCredentialsDialogContent({
 
   const passwordValue = useWatch({ control, name: "password" }) ?? "";
   const resendActivation = useWatch({ control, name: "resendActivation" });
+  const summaryErrors = collectFieldErrorMessages(errors);
 
   const rotateMutation = useRotatePlatformAdminCredentials({
     onSuccess: (_result, variables) => {
@@ -129,6 +133,10 @@ function RotateAdminCredentialsDialogContent({
           </Alert>
         ) : null}
 
+        {summaryErrors.length > 0 ? (
+          <FormValidationSummary messages={summaryErrors} />
+        ) : null}
+
         <div className="space-y-2">
           <Label htmlFor="rotate-admin-password">{copy.passwordLabel}</Label>
           <div className="flex gap-2">
@@ -137,30 +145,19 @@ function RotateAdminCredentialsDialogContent({
                 id="rotate-admin-password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
+                className="pr-10"
                 {...register("password")}
                 {...getRegisterFieldErrorProps(
                   "rotate-admin-password",
                   errors.password?.message,
                 )}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={
-                  showPassword
-                    ? createCopy.passwordActions.hide
-                    : createCopy.passwordActions.show
-                }
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
+              <PasswordVisibilityToggle
+                visible={showPassword}
+                onToggle={() => setShowPassword((prev) => !prev)}
+                showLabel={createCopy.passwordActions.show}
+                hideLabel={createCopy.passwordActions.hide}
+              />
             </div>
             <Button
               type="button"
@@ -230,7 +227,7 @@ function RotateAdminCredentialsDialogContent({
           >
             {copy.cancel}
           </Button>
-          <Button type="submit" disabled={rotateMutation.isPending}>
+          <Button type="submit" isLoading={rotateMutation.isPending}>
             {rotateMutation.isPending ? copy.submitting : copy.submit}
           </Button>
         </DialogFooter>

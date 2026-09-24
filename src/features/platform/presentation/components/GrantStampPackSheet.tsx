@@ -71,7 +71,7 @@ export function GrantStampPackSheet({
       toast({
         title: copy.error,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
@@ -130,7 +130,7 @@ export function GrantStampPackSheet({
               <SelectTrigger
                 id="pack-code"
                 {...getRegisterFieldErrorProps(
-                  "catalogCode",
+                  "pack-code",
                   form.formState.errors.catalogCode?.message,
                 )}
               >
@@ -177,9 +177,9 @@ export function GrantStampPackSheet({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {copy.cancel}
             </Button>
-            <Button type="submit" disabled={grantMutation.isPending}>
+            <Button type="submit" isLoading={grantMutation.isPending}>
               {grantMutation.isPending ? copy.submitting : copy.submit}
             </Button>
           </SheetFooter>

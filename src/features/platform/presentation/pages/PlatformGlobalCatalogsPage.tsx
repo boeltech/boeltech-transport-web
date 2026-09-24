@@ -82,7 +82,7 @@ function CatalogRows({
                       <p className="font-medium">
                         {getCatalogDisplayName(type)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="font-mono text-xs text-muted-foreground">
                         {type.code}
                       </p>
                     </div>
@@ -123,7 +123,9 @@ function CatalogRows({
               <div className="space-y-3">
                 <div>
                   <p className="font-medium">{getCatalogDisplayName(type)}</p>
-                  <p className="text-xs text-muted-foreground">{type.code}</p>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {type.code}
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {copy.table.columns.version}:{" "}
                     {meta?.version ?? copy.table.versionEmpty}

@@ -104,7 +104,7 @@ export function PlatformAuditLogPage() {
       chips.push({
         id: "tenant",
         label: copy.filters.tenantChip(
-          tenantFilter?.name ?? targetTenantId.slice(0, 8),
+          tenantFilter?.subdomain ?? targetTenantId.slice(0, 8),
         ),
         onRemove: () => {
           const next = new URLSearchParams(searchParams);
@@ -141,7 +141,7 @@ export function PlatformAuditLogPage() {
   }, [
     filters.activeChips,
     targetTenantId,
-    tenantFilter?.name,
+    tenantFilter?.subdomain,
     createdFromParam,
     createdToParam,
     searchParams,
@@ -176,10 +176,10 @@ export function PlatformAuditLogPage() {
 
   const clearAllFilters = useCallback(() => {
     setDateDraft({ from: "", to: "" });
-    setSearchParams(new URLSearchParams());
-  }, [setSearchParams]);
+    filters.clearAll();
+  }, [filters]);
 
-  const tenantFilterName = tenantFilter?.name ?? null;
+  const tenantFilterLabel = tenantFilter?.subdomain ?? null;
 
   return (
     <PlatformPageShell title={copy.title} description={copy.description}>
@@ -194,7 +194,7 @@ export function PlatformAuditLogPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>
               {copy.tenantFilter.description(
-                tenantFilterName ?? targetTenantId.slice(0, 8),
+                tenantFilterLabel ?? targetTenantId.slice(0, 8),
               )}
             </span>
             <Button
@@ -234,24 +234,29 @@ export function PlatformAuditLogPage() {
         toolbar={{
           filters: (
             <div className="flex flex-wrap items-end gap-3">
-              <Select
-                value={filters.filters.action || "all"}
-                onValueChange={(value) =>
-                  filters.setFilter("action", value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder={copy.filters.action} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.allActions}</SelectItem>
-                  {Object.values(PlatformAuditAction).map((action) => (
-                    <SelectItem key={action} value={action}>
-                      {getAuditActionLabel(action)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-1">
+                <Label htmlFor="audit-action" className="text-xs">
+                  {copy.filters.action}
+                </Label>
+                <Select
+                  value={filters.filters.action || "all"}
+                  onValueChange={(value) =>
+                    filters.setFilter("action", value === "all" ? "" : value)
+                  }
+                >
+                  <SelectTrigger id="audit-action" className="w-[220px]">
+                    <SelectValue placeholder={copy.filters.action} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{copy.filters.allActions}</SelectItem>
+                    {Object.values(PlatformAuditAction).map((action) => (
+                      <SelectItem key={action} value={action}>
+                        {getAuditActionLabel(action)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-1">
                 <Label htmlFor="audit-date-from" className="text-xs">
@@ -336,11 +341,19 @@ export function PlatformAuditLogPage() {
                           <Link
                             to={`/platform/tenants/${entry.targetTenantId}`}
                             className="text-primary hover:underline"
+                            aria-label={copy.openTenantAria(
+                              getAuditTenantLabel(
+                                entry,
+                                entry.targetTenantId === targetTenantId
+                                  ? tenantFilterLabel
+                                  : null,
+                              ),
+                            )}
                           >
                             {getAuditTenantLabel(
                               entry,
                               entry.targetTenantId === targetTenantId
-                                ? tenantFilterName
+                                ? tenantFilterLabel
                                 : null,
                             )}
                           </Link>
@@ -378,11 +391,19 @@ export function PlatformAuditLogPage() {
                       <Link
                         to={`/platform/tenants/${entry.targetTenantId}`}
                         className="text-primary hover:underline"
+                        aria-label={copy.openTenantAria(
+                          getAuditTenantLabel(
+                            entry,
+                            entry.targetTenantId === targetTenantId
+                              ? tenantFilterLabel
+                              : null,
+                          ),
+                        )}
                       >
                         {getAuditTenantLabel(
                           entry,
                           entry.targetTenantId === targetTenantId
-                            ? tenantFilterName
+                            ? tenantFilterLabel
                             : null,
                         )}
                       </Link>

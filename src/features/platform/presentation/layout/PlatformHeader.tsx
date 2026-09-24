@@ -80,7 +80,13 @@ const PlatformUserMenu = memo(function PlatformUserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center gap-2 px-2">
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2 px-2"
+          aria-label={
+            user ? getUserFullName(user) : platformCopy.shell.userMenu
+          }
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
             {getUserInitials(user)}
           </div>

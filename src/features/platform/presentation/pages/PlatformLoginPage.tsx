@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Shield } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -14,7 +13,12 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
-import { FieldInlineError, getRegisterFieldErrorProps } from "@shared/ui/form";
+import {
+  FieldInlineError,
+  FormValidationSummary,
+  getRegisterFieldErrorProps,
+} from "@shared/ui/form";
+import { PasswordVisibilityToggle } from "@pages/auth/PasswordVisibilityToggle";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import {
   markPlatformFreshLoginSession,
@@ -29,6 +33,7 @@ import {
   type PlatformMfaCodeFormData,
 } from "../validation";
 import { platformCopy } from "../copy/platformCopy";
+import { PlatformBrandMark } from "../layout/PlatformBrandMark";
 
 export function PlatformLoginPage() {
   const navigate = useNavigate();
@@ -36,6 +41,7 @@ export function PlatformLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFieldSummary, setShowFieldSummary] = useState(false);
   const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(
     null,
   );
@@ -63,6 +69,15 @@ export function PlatformLoginPage() {
     }
   }, [navigate]);
 
+  const loginFieldSummaryMessages = [
+    loginForm.formState.errors.email?.message,
+    loginForm.formState.errors.password?.message,
+  ].filter((m): m is string => Boolean(m));
+
+  const mfaFieldSummaryMessages = [
+    mfaForm.formState.errors.code?.message,
+  ].filter((m): m is string => Boolean(m));
+
   const persistSession = (session: {
     accessToken: string;
     refreshToken: string;
@@ -75,55 +90,64 @@ export function PlatformLoginPage() {
     navigate(from, { replace: true });
   };
 
-  const onSubmit = loginForm.handleSubmit(async (data) => {
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      const response = await platformApi.login(data);
-      if (isPlatformMfaChallenge(response)) {
-        setMfaChallengeToken(response.mfaChallengeToken);
-        mfaForm.reset({ code: "" });
-        return;
+  const onSubmit = loginForm.handleSubmit(
+    async (data) => {
+      setError(null);
+      setShowFieldSummary(false);
+      setIsSubmitting(true);
+      try {
+        const response = await platformApi.login(data);
+        if (isPlatformMfaChallenge(response)) {
+          setMfaChallengeToken(response.mfaChallengeToken);
+          setShowFieldSummary(false);
+          mfaForm.reset({ code: "" });
+          return;
+        }
+        persistSession(response);
+      } catch (err: unknown) {
+        const mapped = mapBackendError(err);
+        setError(mapped.message || platformCopy.login.errors.invalidCredentials);
+      } finally {
+        setIsSubmitting(false);
       }
-      persistSession(response);
-    } catch (err: unknown) {
-      const mapped = mapBackendError(err);
-      setError(mapped.message || platformCopy.login.errors.invalidCredentials);
-    } finally {
-      setIsSubmitting(false);
-    }
-  });
+    },
+    () => setShowFieldSummary(true),
+  );
 
-  const onMfaSubmit = mfaForm.handleSubmit(async (values) => {
-    if (!mfaChallengeToken) return;
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      const response = await platformApi.verifyMfaLogin({
-        mfaChallengeToken,
-        code: values.code.trim(),
-      });
-      persistSession(response);
-    } catch (err: unknown) {
-      const mapped = mapBackendError(err);
-      setError(mapped.message || platformCopy.login.mfa.invalidCode);
-    } finally {
-      setIsSubmitting(false);
-    }
-  });
+  const onMfaSubmit = mfaForm.handleSubmit(
+    async (values) => {
+      if (!mfaChallengeToken) return;
+      setError(null);
+      setShowFieldSummary(false);
+      setIsSubmitting(true);
+      try {
+        const response = await platformApi.verifyMfaLogin({
+          mfaChallengeToken,
+          code: values.code.trim(),
+        });
+        persistSession(response);
+      } catch (err: unknown) {
+        const mapped = mapBackendError(err);
+        setError(mapped.message || platformCopy.login.mfa.invalidCode);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    () => setShowFieldSummary(true),
+  );
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-muted/40 to-muted p-6">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 text-center">
-          <div
-            className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
-            aria-hidden
-          >
-            <Shield className="h-6 w-6" />
+          <div className="flex justify-center">
+            <PlatformBrandMark
+              compact
+              iconClassName="h-12 w-12 rounded-xl"
+            />
           </div>
           <div className="space-y-1">
-            <CardTitle>
+            <CardTitle className="text-xl font-bold">
               {mfaChallengeToken
                 ? platformCopy.login.mfa.title
                 : platformCopy.login.title}
@@ -162,16 +186,27 @@ export function PlatformLoginPage() {
                   autoComplete="one-time-code"
                   {...mfaForm.register("code")}
                   {...getRegisterFieldErrorProps(
-                    "code",
+                    "mfa-code",
                     mfaForm.formState.errors.code?.message,
                   )}
                 />
                 <FieldInlineError
-                  fieldId="code"
+                  fieldId="mfa-code"
                   message={mfaForm.formState.errors.code?.message}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {showFieldSummary && mfaFieldSummaryMessages.length > 0 ? (
+                <FormValidationSummary
+                  title={platformCopy.login.mfa.validationSummaryTitle}
+                  messages={mfaFieldSummaryMessages}
+                />
+              ) : null}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting}
+                isLoading={isSubmitting}
+              >
                 {isSubmitting
                   ? platformCopy.login.mfa.submitting
                   : platformCopy.login.mfa.submit}
@@ -184,6 +219,7 @@ export function PlatformLoginPage() {
                 onClick={() => {
                   setMfaChallengeToken(null);
                   setError(null);
+                  setShowFieldSummary(false);
                 }}
               >
                 {platformCopy.login.mfa.back}
@@ -218,28 +254,19 @@ export function PlatformLoginPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
+                    className="pr-10"
                     {...loginForm.register("password")}
                     {...getRegisterFieldErrorProps(
                       "password",
                       loginForm.formState.errors.password?.message,
                     )}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
-                    onClick={() => setShowPassword((value) => !value)}
-                    aria-label={
-                      showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <PasswordVisibilityToggle
+                    visible={showPassword}
+                    onToggle={() => setShowPassword((value) => !value)}
+                    showLabel={platformCopy.login.showPassword}
+                    hideLabel={platformCopy.login.hidePassword}
+                  />
                 </div>
                 <FieldInlineError
                   fieldId="password"
@@ -247,7 +274,19 @@ export function PlatformLoginPage() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {showFieldSummary && loginFieldSummaryMessages.length > 0 ? (
+                <FormValidationSummary
+                  title={platformCopy.login.validationSummaryTitle}
+                  messages={loginFieldSummaryMessages}
+                />
+              ) : null}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting}
+                isLoading={isSubmitting}
+              >
                 {isSubmitting
                   ? platformCopy.login.submitting
                   : platformCopy.login.submit}

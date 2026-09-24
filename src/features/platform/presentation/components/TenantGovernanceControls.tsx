@@ -9,6 +9,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
+import { InfoRow } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { resolvePastDueGraceDeadline } from "@features/billing/presentation/utils/billingGrace";
@@ -45,6 +46,17 @@ function commercialEffect(status: string | null | undefined): string {
     ] ??
     status
   );
+}
+
+function declaredFleetDisplay(
+  band: string | null,
+  units: number | null,
+): string {
+  const copy = platformCopy.tenants.detail.governance;
+  if (!band) return copy.declaredFleetNone;
+  const bandLabel =
+    platformCopy.tenants.create.fleetBands[band] ?? band;
+  return copy.declaredFleetValue(bandLabel, units);
 }
 
 export function TenantGovernanceControls({
@@ -119,7 +131,10 @@ export function TenantGovernanceControls({
             ) : (
               <>
                 <div className="mt-2">
-                  <Badge variant={isPastDue ? "warning" : "secondary"}>
+                  <Badge
+                    tone="soft"
+                    variant={isPastDue ? "warning" : "secondary"}
+                  >
                     {commercialStatus
                       ? getPlatformSubscriptionStatusLabel(commercialStatus)
                       : copy.commercialEffect.missing}
@@ -132,6 +147,15 @@ export function TenantGovernanceControls({
             )}
           </div>
         </div>
+
+        <InfoRow
+          variant="inline"
+          label={copy.declaredFleetLabel}
+          value={declaredFleetDisplay(
+            tenant.declaredFleetBand,
+            tenant.declaredFleetUnits,
+          )}
+        />
 
         {isPastDue ? (
           <AlertWithIcon variant="warning" title={copy.grace.title}>

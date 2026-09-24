@@ -94,7 +94,7 @@ const PlatformTotpSetupQrInner = memo(function PlatformTotpSetupQrInner({
         alt={alt}
         width={size}
         height={size}
-        className="rounded-lg border border-border bg-white p-1 shadow-xs"
+        className="rounded-lg border border-border bg-card p-1 shadow-xs"
       />
     </div>
   );

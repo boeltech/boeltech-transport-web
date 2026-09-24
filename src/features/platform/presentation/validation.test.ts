@@ -77,6 +77,18 @@ describe("issueSaasInvoiceSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.dueDays).toBe(14);
+      expect(result.data.status).toBe("open");
+    }
+  });
+
+  it("accepts draft status", () => {
+    const result = issueSaasInvoiceSchema.safeParse({
+      periodKey: getLastClosedMexicoCityPeriodKey(),
+      status: "draft",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe("draft");
     }
   });
 

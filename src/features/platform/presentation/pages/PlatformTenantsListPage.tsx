@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2, Plus } from "lucide-react";
 import { PlatformPageShell } from "../layout/PlatformPageShell";
@@ -23,10 +23,12 @@ import {
 } from "@shared/ui/table";
 import { useListingFilters, useToast } from "@shared/hooks";
 import {
+  PLATFORM_LIFECYCLE_STAGE_VALUES,
   PLATFORM_SUBSCRIPTION_STATUS_VALUES,
   PLATFORM_TENANT_STATUS_LABELS,
   PlatformTenantStatus,
   isPlatformOwner,
+  type PlatformLifecycleStageType,
   type PlatformSubscriptionStatusType,
   type PlatformTenantStatusType,
 } from "../../domain/entities";
@@ -36,9 +38,34 @@ import {
 } from "../../application/hooks/usePlatformTenants";
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { PlatformTenantStatusBadge } from "../config/platformTenantStatusConfig";
+import {
+  getLifecycleStageLabel,
+  TenantLifecycleBadge,
+} from "../config/platformLifecycleConfig";
+import { TenantHealthDot } from "../components/TenantHealthDot";
 import { platformCopy } from "../copy/platformCopy";
 import { resolvePlanDisplayName } from "../utils/formatPlanLabel";
 import { getPlatformSubscriptionStatusLabel } from "../utils/platformBillingFormatters";
+
+type HealthBand = "healthy" | "watch" | "risk";
+
+function resolveHealthBand(band: string): {
+  healthMin?: number;
+  healthMax?: number;
+} {
+  if (band === "healthy") return { healthMin: 70 };
+  if (band === "watch") return { healthMin: 40, healthMax: 69 };
+  if (band === "risk") return { healthMax: 39 };
+  return {};
+}
+
+function healthBandLabel(band: string): string {
+  const copy = platformCopy.tenants.list.filters;
+  if (band === "healthy") return copy.healthHealthy;
+  if (band === "watch") return copy.healthWatch;
+  if (band === "risk") return copy.healthRisk;
+  return band;
+}
 
 export function PlatformTenantsListPage() {
   const copy = platformCopy.tenants.list;
@@ -49,11 +76,16 @@ export function PlatformTenantsListPage() {
 
   const { data: plans } = usePlatformPlans();
 
-  const filters = useListingFilters<"access" | "commercial" | "plan">({
+  const filters = useListingFilters<
+    "access" | "commercial" | "plan" | "stage" | "atRisk" | "health"
+  >({
     filters: {
       access: { paramName: "status" },
       commercial: { paramName: "subscriptionStatus" },
       plan: { paramName: "planCode" },
+      stage: { paramName: "lifecycleStage" },
+      atRisk: { paramName: "atRisk" },
+      health: { paramName: "healthBand" },
     },
     chipLabels: {
       access: (value) =>
@@ -67,8 +99,17 @@ export function PlatformTenantsListPage() {
         ),
       plan: (value) =>
         copy.filters.planChip(resolvePlanDisplayName(value, plans)),
+      stage: (value) =>
+        copy.filters.stageChip(getLifecycleStageLabel(value)),
+      atRisk: () => copy.filters.atRiskChip,
+      health: (value) => copy.filters.healthChip(healthBandLabel(value)),
     },
   });
+
+  const healthRange = useMemo(
+    () => resolveHealthBand(filters.filters.health),
+    [filters.filters.health],
+  );
 
   const { data, isLoading, isFetching, refetch } = usePlatformTenants({
     page: filters.page,
@@ -79,6 +120,11 @@ export function PlatformTenantsListPage() {
       undefined,
     planCode: filters.filters.plan || undefined,
     search: filters.search || undefined,
+    lifecycleStage:
+      (filters.filters.stage as PlatformLifecycleStageType) || undefined,
+    atRisk: filters.filters.atRisk === "true" ? true : undefined,
+    healthMin: healthRange.healthMin,
+    healthMax: healthRange.healthMax,
   });
 
   const tenants = data?.data ?? [];
@@ -164,6 +210,61 @@ export function PlatformTenantsListPage() {
               </Select>
 
               <Select
+                value={filters.filters.stage || "all"}
+                onValueChange={(value) =>
+                  filters.setFilter("stage", value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder={copy.filters.stage} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.filters.allStages}</SelectItem>
+                  {PLATFORM_LIFECYCLE_STAGE_VALUES.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {getLifecycleStageLabel(stage)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filters.filters.atRisk || "all"}
+                onValueChange={(value) =>
+                  filters.setFilter("atRisk", value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder={copy.filters.atRisk} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.filters.allRisk}</SelectItem>
+                  <SelectItem value="true">{copy.filters.atRiskOnly}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filters.filters.health || "all"}
+                onValueChange={(value) =>
+                  filters.setFilter("health", value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder={copy.filters.health} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.filters.allHealth}</SelectItem>
+                  {(
+                    ["healthy", "watch", "risk"] as HealthBand[]
+                  ).map((band) => (
+                    <SelectItem key={band} value={band}>
+                      {healthBandLabel(band)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
                 value={filters.filters.plan || "all"}
                 onValueChange={(value) =>
                   filters.setFilter("plan", value === "all" ? "" : value)
@@ -216,27 +317,36 @@ export function PlatformTenantsListPage() {
                   <TableRow>
                     <TableHead>{copy.columns.name}</TableHead>
                     <TableHead>{copy.columns.plan}</TableHead>
+                    <TableHead>{copy.columns.health}</TableHead>
+                    <TableHead>{copy.columns.stage}</TableHead>
                     <TableHead>{copy.columns.access}</TableHead>
                     <TableHead>{copy.columns.commercial}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {tenants.map((tenant) => (
-                    <TableRow
-                      key={tenant.id}
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/platform/tenants/${tenant.id}`)}
-                    >
+                    <TableRow key={tenant.id}>
                       <TableCell>
                         <div className="space-y-0.5">
-                          <p className="font-medium">{tenant.name}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <Link
+                            to={`/platform/tenants/${tenant.id}`}
+                            className="font-medium text-foreground hover:underline"
+                          >
+                            {tenant.name}
+                          </Link>
+                          <p className="font-mono text-xs text-muted-foreground">
                             {tenant.subdomain}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         {tenant.planName ?? tenant.planCode ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <TenantHealthDot score={tenant.healthScore} />
+                      </TableCell>
+                      <TableCell>
+                        <TenantLifecycleBadge status={tenant.lifecycleStage} />
                       </TableCell>
                       <TableCell>
                         <PlatformTenantStatusBadge status={tenant.status} />
@@ -260,6 +370,7 @@ export function PlatformTenantsListPage() {
                               <Link
                                 className="text-xs text-primary underline-offset-2 hover:underline"
                                 to={`/platform/billing/ar?status=open&tenant_id=${tenant.id}`}
+                                onClick={(event) => event.stopPropagation()}
                               >
                                 {platformCopy.ar.actions.viewAr}
                               </Link>
@@ -279,33 +390,37 @@ export function PlatformTenantsListPage() {
             <ul className="space-y-3 md:hidden">
               {tenants.map((tenant) => (
                 <li key={tenant.id}>
-                  <button
-                    type="button"
-                    className="w-full rounded-lg border p-4 text-left transition-colors hover:bg-muted/40"
-                    onClick={() => navigate(`/platform/tenants/${tenant.id}`)}
+                  <Link
+                    to={`/platform/tenants/${tenant.id}`}
+                    className="block w-full rounded-lg border p-4 text-left transition-colors hover:bg-muted/40"
+                    aria-label={copy.openTenantAria(tenant.name)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-medium">{tenant.name}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="font-mono text-xs text-muted-foreground">
                           {tenant.subdomain}
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        <PlatformTenantStatusBadge status={tenant.status} />
-                        {tenant.subscriptionStatus ? (
-                          <Badge variant="secondary" tone="soft">
-                            {getPlatformSubscriptionStatusLabel(
-                              tenant.subscriptionStatus,
-                            )}
-                          </Badge>
-                        ) : null}
+                        <TenantHealthDot score={tenant.healthScore} />
+                        <TenantLifecycleBadge status={tenant.lifecycleStage} />
                       </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <PlatformTenantStatusBadge status={tenant.status} />
+                      {tenant.subscriptionStatus ? (
+                        <Badge variant="secondary" tone="soft">
+                          {getPlatformSubscriptionStatusLabel(
+                            tenant.subscriptionStatus,
+                          )}
+                        </Badge>
+                      ) : null}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {tenant.planName ?? tenant.planCode ?? "—"}
                     </p>
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -116,6 +116,7 @@ export const issueSaasInvoiceSchema = z.object({
     .refine((value) => isClosedBillingPeriodKey(value), {
       message: issueCopy.periodKeyClosedOnly,
     }),
+  status: z.enum(["draft", "open"]).default("open"),
   notes: z.string().max(2000).optional(),
   dueDays: z.coerce.number().int().min(1).max(90).optional().default(14),
 });

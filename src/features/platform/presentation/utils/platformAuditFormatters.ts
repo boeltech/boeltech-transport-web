@@ -73,20 +73,27 @@ export function getAuditOperatorLabel(item: PlatformAuditLogItem): string {
 
 export function getAuditTenantLabel(
   item: PlatformAuditLogItem,
-  filteredTenantName?: string | null,
+  filteredTenantLabel?: string | null,
 ): string {
-  if (filteredTenantName) return filteredTenantName;
+  if (filteredTenantLabel) return filteredTenantLabel;
 
-  const name = metadataString(
+  if (
+    typeof item.targetTenantSubdomain === "string" &&
+    item.targetTenantSubdomain.trim().length > 0
+  ) {
+    return item.targetTenantSubdomain.trim();
+  }
+
+  const legacySubdomain = metadataString(item.metadata, "subdomain");
+  if (legacySubdomain) return legacySubdomain;
+
+  const legacyName = metadataString(
     item.metadata,
     "tenant_name",
     "company_name",
     "name",
   );
-  if (name) return name;
-
-  const subdomain = metadataString(item.metadata, "subdomain");
-  if (subdomain) return subdomain;
+  if (legacyName) return legacyName;
 
   return item.targetTenantId
     ? platformCopy.audit.unknownTenant

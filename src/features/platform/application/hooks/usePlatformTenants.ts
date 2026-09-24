@@ -21,6 +21,13 @@ export const usePlatformMetrics = () =>
     staleTime: 60_000,
   });
 
+export const usePlatformPulse = () =>
+  useQuery({
+    queryKey: platformQueryKeys.pulse(),
+    queryFn: () => platformApi.getPulse(),
+    staleTime: 60_000,
+  });
+
 export const usePlatformPlans = () =>
   useQuery({
     queryKey: platformQueryKeys.plans(),

@@ -2,13 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
-import {
-  Building2,
-  Copy,
-  Eye,
-  EyeOff,
-  Sparkles,
-} from "lucide-react";
+import { Building2, Copy, Sparkles } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import {
   Card,
@@ -39,6 +33,7 @@ import { useToast } from "@shared/hooks";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { generateSecurePassword } from "@shared/utils/generateSecurePassword";
+import { PasswordVisibilityToggle } from "@pages/auth/PasswordVisibilityToggle";
 import { isPlatformOwner } from "../../domain/entities";
 import {
   useCreatePlatformTenant,
@@ -196,7 +191,7 @@ export function PlatformTenantCreatePage() {
     } catch {
       toast({
         title: copy.passwordActions.copyError,
-        variant: "destructive",
+        variant: "error",
       });
     }
   };
@@ -362,35 +357,25 @@ export function PlatformTenantCreatePage() {
                 </Label>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                   <div className="flex min-w-0 flex-1 gap-2">
-                    <Input
-                      id="adminPassword"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      className="min-w-0 flex-1"
-                      {...register("adminPassword")}
-                      {...getRegisterFieldErrorProps(
-                        "adminPassword",
-                        errors.adminPassword?.message,
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0"
-                      aria-label={
-                        showPassword
-                          ? copy.passwordActions.hide
-                          : copy.passwordActions.show
-                      }
-                      onClick={() => setShowPassword((value) => !value)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <div className="relative min-w-0 flex-1">
+                      <Input
+                        id="adminPassword"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        className="pr-10"
+                        {...register("adminPassword")}
+                        {...getRegisterFieldErrorProps(
+                          "adminPassword",
+                          errors.adminPassword?.message,
+                        )}
+                      />
+                      <PasswordVisibilityToggle
+                        visible={showPassword}
+                        onToggle={() => setShowPassword((value) => !value)}
+                        showLabel={copy.passwordActions.show}
+                        hideLabel={copy.passwordActions.hide}
+                      />
+                    </div>
                     <Button
                       type="button"
                       variant="outline"
@@ -610,9 +595,8 @@ export function PlatformTenantCreatePage() {
             </Button>
             <Button
               type="submit"
-              disabled={
-                createMutation.isPending || plansLoading || !plans?.length
-              }
+              isLoading={createMutation.isPending}
+              disabled={plansLoading || !plans?.length}
             >
               {createMutation.isPending ? copy.submitting : copy.submit}
             </Button>

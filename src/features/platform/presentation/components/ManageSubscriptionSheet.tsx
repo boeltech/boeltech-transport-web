@@ -90,7 +90,7 @@ export function ManageSubscriptionSheet({
       toast({
         title: platformCopy.tenants.manageSubscription.error,
         description: error.message,
-        variant: "destructive",
+        variant: "error",
       });
     },
   });
@@ -184,7 +184,10 @@ export function ManageSubscriptionSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-lg">
+      <SheetContent
+        className="sm:max-w-lg"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>{copy.description}</SheetDescription>
@@ -204,7 +207,7 @@ export function ManageSubscriptionSheet({
                 <SelectTrigger
                   id="sub-planCode"
                   {...getRegisterFieldErrorProps(
-                    "planCode",
+                    "sub-planCode",
                     form.formState.errors.planCode?.message,
                   )}
                 >
@@ -331,7 +334,7 @@ export function ManageSubscriptionSheet({
             >
               {copy.cancel}
             </Button>
-            <Button type="submit" disabled={upsertMutation.isPending}>
+            <Button type="submit" isLoading={upsertMutation.isPending}>
               {upsertMutation.isPending ? copy.submitting : copy.submit}
             </Button>
           </SheetFooter>

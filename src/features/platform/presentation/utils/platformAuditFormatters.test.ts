@@ -7,6 +7,7 @@ import { platformCopy } from "../copy/platformCopy";
 import {
   getAuditActionLabel,
   getAuditMetadataSummary,
+  getAuditTenantLabel,
 } from "./platformAuditFormatters";
 
 function baseItem(
@@ -18,6 +19,8 @@ function baseItem(
     platformUserId: "u1",
     platformUserEmail: "ops@boeltech.com",
     targetTenantId: "t1",
+    targetTenantSubdomain: null,
+    targetTenantName: null,
     targetType: "tenant",
     targetId: "t1",
     createdAt: "2026-08-25T18:00:00.000Z",
@@ -140,5 +143,46 @@ describe("platformAuditFormatters", () => {
         }),
       ),
     ).toBe(platformCopy.audit.noDetail);
+  });
+
+  describe("getAuditTenantLabel", () => {
+    it("prefers targetTenantSubdomain when metadata is empty", () => {
+      expect(
+        getAuditTenantLabel(
+          baseItem({
+            action: PlatformAuditAction.SAAS_INVOICE_PAID,
+            targetTenantSubdomain: "acme",
+            targetTenantName: "Acme SA",
+            metadata: {},
+          }),
+        ),
+      ).toBe("acme");
+    });
+
+    it("falls back to metadata.subdomain when API subdomain is missing", () => {
+      expect(
+        getAuditTenantLabel(
+          baseItem({
+            action: PlatformAuditAction.TENANT_CREATED,
+            targetTenantSubdomain: null,
+            metadata: { subdomain: "legacy-co" },
+          }),
+        ),
+      ).toBe("legacy-co");
+    });
+
+    it("returns unknownTenant when only targetTenantId is present", () => {
+      expect(
+        getAuditTenantLabel(
+          baseItem({
+            action: PlatformAuditAction.SAAS_INVOICE_PAID,
+            targetTenantId: "t1",
+            targetTenantSubdomain: null,
+            targetTenantName: null,
+            metadata: {},
+          }),
+        ),
+      ).toBe(platformCopy.audit.unknownTenant);
+    });
   });
 });

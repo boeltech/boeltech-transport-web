@@ -11,12 +11,15 @@ import { platformCopy } from "../copy/platformCopy";
 type PlatformBrandMarkProps = {
   /** Solo icono (sidebar colapsado / mobile header compacto). */
   compact?: boolean;
+  /** Subtítulo con tokens de superficie sidebar (`bg-sidebar`). */
+  sidebarSurface?: boolean;
   className?: string;
   iconClassName?: string;
 };
 
 export function PlatformBrandMark({
   compact = false,
+  sidebarSurface = false,
   className,
   iconClassName,
 }: PlatformBrandMarkProps) {
@@ -36,7 +39,14 @@ export function PlatformBrandMark({
           <p className="truncate text-sm font-semibold">
             {platformCopy.brand.name}
           </p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p
+            className={cn(
+              "truncate text-xs",
+              sidebarSurface
+                ? "text-sidebar-foreground/60"
+                : "text-muted-foreground",
+            )}
+          >
             {platformCopy.brand.subtitle}
           </p>
         </div>

@@ -11,7 +11,9 @@ import type {
   PlatformAdminActivation,
   PlatformBillingPlan,
   PlatformMetrics,
+  PlatformPulse,
   PlatformTenantDetail,
+  PlatformTenantHealth,
   PlatformTenantListItem,
   PlatformTenantsQueryParams,
   PlatformUserJSON,
@@ -30,11 +32,16 @@ import type {
   MutatePlatformEntitlementPayload,
   GrantPlatformStampPackPayload,
   PlatformArListQueryParams,
+  PlatformChargeRun,
+  PlatformChargeRunQueryParams,
+  PlatformCloseRun,
+  PlatformCloseRunQueryParams,
   PlatformSaasArRow,
   PlatformSaasInvoice,
   PlatformSaasInvoiceDetail,
   PlatformReconciliationPreview,
   IssuePlatformSaasInvoicePayload,
+  IssuePlatformSaasInvoiceDraftPayload,
   MarkPlatformSaasInvoicePaidPayload,
   VoidPlatformSaasInvoicePayload,
   PlatformLoginResult,
@@ -47,7 +54,9 @@ import type {
 import {
   mapPlatformBillingPlan,
   mapPlatformMetrics,
+  mapPlatformPulse,
   mapPlatformTenantDetail,
+  mapPlatformTenantHealth,
   mapPlatformTenantListItem,
   mapPlatformUser,
   mapPlatformAuditLogItem,
@@ -60,6 +69,8 @@ import {
   mapPlatformSaasArRow,
   mapPlatformSaasInvoice,
   mapPlatformSaasInvoiceDetail,
+  mapPlatformCloseRun,
+  mapPlatformChargeRun,
   mapPlatformReconciliationPreview,
   mapAdminActivation,
   mapCreatePlatformTenantResult,
@@ -69,6 +80,8 @@ import {
   isApiPlatformMfaChallenge,
   type ApiPlatformBillingPlan,
   type ApiPlatformMetrics,
+  type ApiPlatformPulse,
+  type ApiPlatformTenantHealth,
   type ApiPlatformTenantListItem,
   type ApiPlatformTenantDetail,
   type ApiCreatePlatformTenantData,
@@ -78,6 +91,8 @@ import {
   type ApiPlatformSaasArRow,
   type ApiPlatformSaasInvoice,
   type ApiPlatformSaasInvoiceDetail,
+  type ApiPlatformCloseRun,
+  type ApiPlatformChargeRun,
   type ApiPlatformReconciliationRow,
   type ApiPlatformLoginData,
   mapBillingPaymentMethod,
@@ -226,6 +241,14 @@ export const platformApi = {
     return mapPlatformMetrics(response.data);
   },
 
+  getPulse: async (): Promise<PlatformPulse> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiPlatformPulse>>(
+      `${BASE}/pulse`,
+      { authScope: "platform" },
+    );
+    return mapPlatformPulse(response.data);
+  },
+
   listPlans: async (): Promise<PlatformBillingPlan[]> => {
     const response = await apiClient.get<
       ApiSingleResponse<ApiPlatformBillingPlan[]>
@@ -246,6 +269,13 @@ export const platformApi = {
     }
     if (params?.planCode) queryParams.plan_code = params.planCode;
     if (params?.search) queryParams.search = params.search;
+    if (params?.lifecycleStage) {
+      queryParams.lifecycle_stage = params.lifecycleStage;
+    }
+    if (params?.healthMin != null) queryParams.health_min = params.healthMin;
+    if (params?.healthMax != null) queryParams.health_max = params.healthMax;
+    if (params?.atRisk === true) queryParams.at_risk = true;
+    if (params?.atRisk === false) queryParams.at_risk = false;
 
     const response = await apiClient.get<
       ApiPaginatedResponse<ApiPlatformTenantListItem>
@@ -275,6 +305,13 @@ export const platformApi = {
       data: mapPlatformTenantDetail(response.data),
       message: response.message,
     };
+  },
+
+  getTenantHealth: async (id: string): Promise<PlatformTenantHealth> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiPlatformTenantHealth>
+    >(`${BASE}/tenants/${id}/health`, { authScope: "platform" });
+    return mapPlatformTenantHealth(response.data);
   },
 
   createTenant: async (
@@ -577,6 +614,76 @@ export const platformApi = {
     );
   },
 
+  getArCloseRun: async (
+    params?: PlatformCloseRunQueryParams,
+  ): Promise<{
+    data: PlatformCloseRun;
+    pagination: MappedPaginatedResult<unknown>["pagination"];
+  }> => {
+    const queryParams: Record<string, unknown> = {
+      page: params?.page ?? 1,
+      page_size: params?.pageSize ?? 25,
+    };
+    if (params?.periodKey) queryParams.period_key = params.periodKey;
+    if (params?.tenantId) queryParams.tenant_id = params.tenantId;
+    if (params?.include) queryParams.include = params.include;
+
+    const response = await apiClient.get<{
+      data: ApiPlatformCloseRun;
+      pagination: { page: number; page_size: number; total: number };
+    }>(`${BASE}/billing/ar/close-run`, {
+      params: queryParams,
+      authScope: "platform",
+    });
+
+    const pageSize = response.pagination.page_size;
+    const total = response.pagination.total;
+    return {
+      data: mapPlatformCloseRun(response.data),
+      pagination: {
+        page: response.pagination.page,
+        limit: pageSize,
+        total,
+        totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 0,
+      },
+    };
+  },
+
+  getArChargeRun: async (
+    params?: PlatformChargeRunQueryParams,
+  ): Promise<{
+    data: PlatformChargeRun;
+    pagination: MappedPaginatedResult<unknown>["pagination"];
+  }> => {
+    const queryParams: Record<string, unknown> = {
+      page: params?.page ?? 1,
+      page_size: params?.pageSize ?? 25,
+    };
+    if (params?.runId) queryParams.run_id = params.runId;
+    if (params?.periodKey) queryParams.period_key = params.periodKey;
+    if (params?.tenantId) queryParams.tenant_id = params.tenantId;
+
+    const response = await apiClient.get<{
+      data: ApiPlatformChargeRun;
+      pagination: { page: number; page_size: number; total: number };
+    }>(`${BASE}/billing/ar/charge-run`, {
+      params: queryParams,
+      authScope: "platform",
+    });
+
+    const pageSize = response.pagination.page_size;
+    const total = response.pagination.total;
+    return {
+      data: mapPlatformChargeRun(response.data),
+      pagination: {
+        page: response.pagination.page,
+        limit: pageSize,
+        total,
+        totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 0,
+      },
+    };
+  },
+
   listAr: async (
     params?: PlatformArListQueryParams,
   ): Promise<MappedPaginatedResult<PlatformSaasArRow>> => {
@@ -649,6 +756,25 @@ export const platformApi = {
         notes: payload.notes ?? null,
         due_days: payload.dueDays ?? 14,
       },
+      { authScope: "platform" },
+    );
+    return mapPlatformSaasInvoiceDetail(response.data);
+  },
+
+  /**
+   * POST /platform/tenants/:id/saas-invoices/:invoiceId/issue
+   * Promote draft → open (optional due_days, default 14).
+   */
+  issueSaasInvoiceDraft: async (
+    tenantId: string,
+    invoiceId: string,
+    payload?: IssuePlatformSaasInvoiceDraftPayload,
+  ): Promise<PlatformSaasInvoiceDetail> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformSaasInvoiceDetail>
+    >(
+      `${BASE}/tenants/${tenantId}/saas-invoices/${invoiceId}/issue`,
+      { due_days: payload?.dueDays ?? 14 },
       { authScope: "platform" },
     );
     return mapPlatformSaasInvoiceDetail(response.data);

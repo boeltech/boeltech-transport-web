@@ -15,12 +15,17 @@ export const platformCopy = {
     collapseSidebar: "Colapsar",
     readOnlyHint: "solo lectura",
     guestRole: "Operador",
+    userMenu: "Menú de cuenta",
+    authLoading: "Cargando sesión…",
   },
   login: {
     title: BRAND.platformName,
     description: `Inicia sesión con tu cuenta de operador ${BRAND.companyName}. Este acceso es distinto al login de empresas en ${BRAND.productName}.`,
     emailLabel: "Correo",
     passwordLabel: "Contraseña",
+    showPassword: "Mostrar contraseña",
+    hidePassword: "Ocultar contraseña",
+    validationSummaryTitle: "Revisa tus credenciales",
     submit: "Entrar a plataforma",
     submitting: "Iniciando sesión…",
     tenantLink: `¿Usas ${BRAND.productName} en tu empresa?`,
@@ -34,6 +39,7 @@ export const platformCopy = {
       description:
         "Ingresa el código de tu app autenticadora o un código de recuperación.",
       codeLabel: "Código",
+      validationSummaryTitle: "Revisa el código",
       submit: "Verificar y entrar",
       submitting: "Verificando…",
       back: "Volver al login",
@@ -52,15 +58,20 @@ export const platformCopy = {
     confirm: "Confirmar código",
     disable: "Desactivar MFA",
     secretHint: "Guarda este secreto o escanea el QR en tu app autenticadora.",
+    qrAlt: "Código QR para configurar MFA de plataforma",
+    qrError: "No se pudo generar el QR. Usa el secreto manual.",
+    qrLoading: "Generando código QR…",
     recoveryTitle: "Códigos de recuperación",
     recoveryHint:
       "Guárdalos en un lugar seguro. Cada código solo se puede usar una vez.",
     passwordLabel: "Contraseña actual",
     codeLabel: "Código TOTP",
     enabledAt: (iso: string) => `Activado el ${iso}`,
+    enabledToast: "MFA activado",
+    disabledToast: "MFA desactivado",
   },
   nav: {
-    dashboard: "Panel",
+    dashboard: "Pulso",
     tenants: "Empresas",
     ar: "Cobros",
     catalogs: "Catálogos globales",
@@ -68,6 +79,88 @@ export const platformCopy = {
     security: "Seguridad",
     logout: "Cerrar sesión",
     erpLink: `Ir a ${BRAND.productName}`,
+  },
+  pulse: {
+    title: "Pulso",
+    description:
+      "Cola de atención y KPIs del parque. Prioriza empresas en riesgo o trial por vencer.",
+    generatedAt: (iso: string) => `Generado ${iso}`,
+    healthAsOf: (iso: string) => `Health actualizado ${iso}`,
+    healthPending: "Health pendiente de primer refresh",
+    kpis: {
+      mrr: "MRR",
+      mrrHint: "Ingreso recurrente mensual estimado",
+      mrrAria: "Ver empresas",
+      cxcOverdue: "CxC vencida",
+      cxcOverdueHint: "Saldo abierto vencido",
+      cxcOverdueAria: "Ver CxC vencida",
+      atRisk: "En riesgo",
+      atRiskHint: "Empresas at-risk o score < 40",
+      atRiskAria: "Ver empresas en riesgo",
+      trials: "Trials activos",
+      trialsHint: "Suscripciones en prueba",
+      trialsAria: "Ver trials activos",
+    },
+    queue: {
+      title: "Cola de atención",
+      description: "Empresas que requieren revisión hoy.",
+      empty: {
+        title: "Sin pendientes",
+        description: "No hay empresas en la cola de atención.",
+      },
+      columns: {
+        tenant: "Empresa",
+        stage: "Etapa",
+        health: "Health",
+        reasons: "Motivos",
+      },
+    },
+    reasonCodes: {
+      health_below_threshold: "Health bajo",
+      cxc_overdue: "CxC vencida",
+      past_due: "Cobro pendiente",
+      trial_ending: "Trial por vencer",
+      suspended: "Suspendida",
+    } as Record<string, string>,
+    error: {
+      title: "No se pudo cargar el Pulso",
+      description:
+        "Revisa la conexión con la API de plataforma e intenta recargar la página.",
+    },
+  },
+  lifecycle: {
+    labels: {
+      prospect: "Prospecto",
+      provisioning: "Aprovisionando",
+      trialing: "En prueba",
+      onboarding: "Onboarding",
+      active: "Activa",
+      at_risk: "En riesgo",
+      suspended: "Suspendida",
+      churned: "Baja",
+      archived: "Archivada",
+    } as Record<string, string>,
+  },
+  health: {
+    nullLabel: "—",
+    scoreLabel: (score: number) => String(score),
+    breakdownTitle: "Salud de la empresa",
+    breakdownDescription: "Señales ponderadas del último refresh (solo lectura).",
+    asOf: (iso: string) => `Actualizado ${iso}`,
+    pending: "Sin score aún (primer refresh pendiente).",
+    signals: {
+      fiscal: "Fiscal",
+      payment: "Pago",
+      adoption: "Adopción",
+      fleet: "Flota",
+      engagement: "Engagement",
+    },
+    tone: {
+      healthy: "Saludable",
+      watch: "Vigilancia",
+      risk: "En riesgo",
+      unknown: "Sin dato",
+    },
   },
   dashboard: {
     title: "Panel de plataforma",
@@ -124,7 +217,7 @@ export const platformCopy = {
   tenants: {
     list: {
       title: "Empresas",
-      description: "Consulta acceso y suscripción de cada empresa.",
+      description: "Consulta acceso, suscripción, etapa y health de cada empresa.",
       entityLabelPlural: "empresas",
       searchPlaceholder: "Buscar por nombre o identificador…",
       create: "Nueva empresa",
@@ -135,20 +228,36 @@ export const platformCopy = {
         access: "Acceso",
         commercial: "Suscripción",
         plan: "Plan",
+        stage: "Etapa",
+        atRisk: "En riesgo",
+        health: "Health",
         allAccess: "Todos",
         allCommercial: "Todas las suscripciones",
         allPlans: "Todos los planes",
+        allStages: "Todas las etapas",
+        allHealth: "Cualquier health",
+        atRiskOnly: "Solo en riesgo",
+        allRisk: "Todas",
+        healthHealthy: "Saludable (≥ 70)",
+        healthWatch: "Vigilancia (40–69)",
+        healthRisk: "Crítico (< 40)",
         accessChip: (label: string) => `Acceso: ${label}`,
         commercialChip: (label: string) => `Suscripción: ${label}`,
         planChip: (label: string) => `Plan: ${label}`,
+        stageChip: (label: string) => `Etapa: ${label}`,
+        atRiskChip: "En riesgo",
+        healthChip: (label: string) => `Health: ${label}`,
       },
       columns: {
         name: "Empresa",
         plan: "Plan",
+        health: "Health",
+        stage: "Etapa",
         access: "Acceso",
         commercial: "Suscripción",
       },
       commercialEmpty: "Sin suscripción",
+      openTenantAria: (name: string) => `Abrir empresa ${name}`,
       empty: {
         title: "Sin empresas",
         description: "Crea la primera empresa desde aquí.",
@@ -164,6 +273,31 @@ export const platformCopy = {
       notFound: {
         title: "Empresa no encontrada",
         description: "La empresa no existe o fue eliminada.",
+      },
+      tabs: {
+        summary: "Resumen",
+        commercial: "Comercial",
+        operation: "Operación",
+        activity: "Actividad",
+      },
+      activity: {
+        title: "Actividad reciente",
+        description: "Eventos de auditoría de esta empresa.",
+        empty: {
+          title: "Sin eventos",
+          description: "Aún no hay actividad registrada para esta empresa.",
+        },
+        error: {
+          title: "No se pudo cargar la actividad",
+          description: "Intenta recargar o abre el historial completo.",
+        },
+        viewAll: "Ver en historial",
+        columns: {
+          date: "Fecha",
+          operator: "Quién",
+          action: "Qué",
+          details: "Detalle",
+        },
       },
       sections: {
         thisMonth: "Este mes",
@@ -249,6 +383,25 @@ export const platformCopy = {
         },
         readOnlyHint: "Solo el propietario puede reenviar o rotar credenciales.",
       },
+      /**
+       * First-paint strip in tenant detail header (all tabs).
+       * Acceso = tenants.status; Suscripción = subscription.status; lifecycle = secondary.
+       */
+      commercialStrip: {
+        accessLabel: "Acceso",
+        subscriptionLabel: "Suscripción",
+        planLabel: "Plan",
+        planMissing: "Sin plan",
+        subscriptionMissing: "Sin suscripción",
+        pastDueOperating: "Sigue operando · cobro pendiente",
+        graceRef: (deadlineLabel: string) =>
+          `Referencia de gracia: ${deadlineLabel}`,
+        graceMissing: "Referencia de gracia no disponible",
+        trialEnds: (dateLabel: string) => `Fin de prueba: ${dateLabel}`,
+        lifecycleLabel: "Etapa",
+        lifecycleTooltip: (stageLabel: string) =>
+          `Etapa del ciclo de vida: ${stageLabel}. Síntesis secundaria; no sustituye Acceso ni Suscripción.`,
+      },
       governance: {
         title: "Estado de la empresa",
         helpLabel: "¿Por qué hay dos estados?",
@@ -271,6 +424,10 @@ export const platformCopy = {
           missing: "Sin suscripción: no puede operar.",
         },
         commercialLoading: "Cargando suscripción…",
+        declaredFleetLabel: "Flota declarada",
+        declaredFleetNone: "Sin declarar",
+        declaredFleetValue: (bandLabel: string, units?: number | null) =>
+          units != null ? `${bandLabel} · ${units}` : bandLabel,
         grace: {
           title: "Cobro pendiente — acción manual",
           orientation: (deadlineLabel: string) =>
@@ -367,7 +524,7 @@ export const platformCopy = {
         statusLabels: {
           trialing: "En prueba",
           active: "Activa",
-          past_due: "Pago pendiente",
+          past_due: "Cobro pendiente",
           paused: "Pausada",
           canceled: "Cancelada",
         },
@@ -462,6 +619,7 @@ export const platformCopy = {
       },
       selectedHint: (stamps: number, price: string) =>
         `Se acreditarán ${stamps} timbres (${price}).`,
+      cancel: "Cancelar",
       submit: "Acreditar pack",
       submitting: "Acreditando…",
       success: "Prepago acreditado",
@@ -581,7 +739,7 @@ export const platformCopy = {
       accessDenied: "No tienes permiso para crear empresas.",
     },
     manageSubscription: {
-      title: "Cambiar plan y operación",
+      title: "Gestionar suscripción",
       description: "Cambia el plan y cómo puede operar esta empresa.",
       fleetHint: (bandLabel: string, planName: string) =>
         `Con flota ${bandLabel}, suele encajar ${planName}. Puedes elegir otro.`,
@@ -600,7 +758,7 @@ export const platformCopy = {
       statusEffects: {
         trialing: "Puede operar en periodo de prueba.",
         active: "Puede operar con el plan.",
-        past_due: "Sigue operando · pago pendiente.",
+        past_due: "Sigue operando · cobro pendiente.",
         paused: "No puede operar.",
         canceled: "No puede operar.",
       },
@@ -676,6 +834,7 @@ export const platformCopy = {
         "Baja definitiva de acceso. No cancela la suscripción ni revoca módulos; usa Gestionar suscripción para el eje comercial.",
       reasonLabel: "Motivo (opcional)",
       reasonPlaceholder: "Ej. impago, solicitud del cliente…",
+      cancel: "Cancelar",
       confirmSuspend: "Suspender acceso",
       confirmReactivate: "Reactivar acceso",
       confirmCancel: "Confirmar cancelación de acceso",
@@ -795,6 +954,7 @@ export const platformCopy = {
     unknownTenant: "Empresa desconocida",
     noDetail: "Sin detalle",
     viewTenantAudit: "Historial",
+    openTenantAria: (name: string) => `Abrir empresa ${name}`,
     empty: {
       title: "Sin eventos",
       description: "No hay registros con los filtros actuales.",
@@ -893,8 +1053,7 @@ export const platformCopy = {
   },
   ar: {
     title: "Cobros",
-    description:
-      "Quién debe, de qué mes y si está atrasado. Registra el pago cuando lo recibas.",
+    description: "Quién debe, de qué mes y si está atrasado.",
     entityLabelPlural: "cobros",
     navHint: "Cobros",
     columns: {
@@ -917,26 +1076,153 @@ export const platformCopy = {
       pending: "Pendientes",
       overdue: "Atrasados",
       all: "Todos",
+      exceptions: "Excepciones",
+      ariaLabel: "Vista de cobros",
+      chipWithCount: (label: string, count: number) => `${label} ${count}`,
+      chipAria: (label: string, count: number) => `${label}, ${count}`,
+    },
+    origin: {
+      auto: "Auto-emitido",
+      autoHint: "Emitido solo al cerrar el mes",
+    },
+    skipReasons: {
+      NOT_CUSTOMER: "No es una empresa de clientes",
+      SUB_NOT_ELIGIBLE:
+        "La suscripción no se cobra (prueba, pausada o cancelada)",
+      NO_CUT: "No hay corte de este mes",
+      CUT_NO_FLEET: "Sin flota cobrable en ese mes",
+      CUT_QUOTE: "El plan exige cotización",
+      CUT_ERROR: "El corte de ese mes falló",
+      CUT_NOT_BILLABLE: "El corte no está listo para emitir",
+      MISSING_PLAN_CODE: "Falta el plan en el corte",
+      MODULES_SNAPSHOT_NULL: "El corte no congeló los módulos",
+      TOTAL_ZERO: "El monto del mes quedó en cero",
+      VOID_HOLD: "Hay un cobro anulado de este mes",
+      ISSUE_FAILED: "La emisión automática no creó el cobro",
+    },
+    closeRun: {
+      periodLabel: (period: string) => `Mes ${period}`,
+      ranAt: (when: string) => `Corrida ${when}`,
+      notYetTitle: "El mes cerrado aún no se emite",
+      notYetDescription: "La corrida corre sola al día siguiente del cierre.",
+      zeroTitle: "Mes cerrado emitido · 0 excepciones",
+      zeroDescription: "Pasa a Pendientes y cobra.",
+      actionableTitle: (count: number) =>
+        count === 1
+          ? "Mes cerrado emitido · 1 excepción"
+          : `Mes cerrado emitido · ${count} excepciones`,
+      actionableDescription:
+        "Hay excepciones que no se emitieron solas.",
+      actionableOnExceptions: "Estas filas no se emitieron solas.",
+      viewExceptions: "Ver excepciones",
+      csvCaption: "El CSV es para el CFDI fuera.",
+      loading: "Consultando el cierre del mes…",
+      errorTitle: "No se pudo cargar el cierre del mes",
+      errorDescription: "Intenta recargar. Los cobros de abajo siguen disponibles.",
+    },
+    chargeRun: {
+      ranAt: (when: string) => `Corrida ${when}`,
+      notYetTitle: "Aún no corre el cobro automático",
+      notYetDescription:
+        "Si hay cargo pendiente y tarjeta, Tlamx intenta cobrar solo.",
+      ranTitle: "Cobro automático",
+      countsLine: (counts: {
+        charged: number;
+        noPaymentMethod: number;
+        failed: number;
+        requiresAction: number;
+        processing: number;
+      }) => {
+        const parts: string[] = [
+          counts.charged === 1 ? "1 cobrado" : `${counts.charged} cobrados`,
+        ];
+        if (counts.noPaymentMethod > 0) {
+          parts.push(
+            counts.noPaymentMethod === 1
+              ? "1 sin tarjeta"
+              : `${counts.noPaymentMethod} sin tarjeta`,
+          );
+        }
+        if (counts.failed > 0) {
+          parts.push(
+            counts.failed === 1 ? "1 falló" : `${counts.failed} fallaron`,
+          );
+        }
+        if (counts.requiresAction > 0) {
+          parts.push(
+            counts.requiresAction === 1
+              ? "1 por confirmar"
+              : `${counts.requiresAction} por confirmar`,
+          );
+        }
+        if (counts.processing > 0) {
+          parts.push(
+            counts.processing === 1
+              ? "1 procesando"
+              : `${counts.processing} procesando`,
+          );
+        }
+        return parts.join(" · ");
+      },
+      attentionDescription:
+        "Hay cargos que no se cobraron solos. Revisa Pendientes.",
+      attentionOnPending:
+        "Cobra a mano o espera el siguiente intento automático.",
+      zeroDescription: "La última corrida no dejó cargos por atender.",
+      viewPending: "Ver pendientes",
+      loading: "Consultando la última corrida de cobro…",
+      errorTitle: "No se pudo cargar la corrida de cobro",
+      errorDescription:
+        "Intenta recargar. Los cobros de abajo siguen disponibles.",
+    },
+    chargeChip: {
+      charged: "Cobrado",
+      noPaymentMethod: "Sin tarjeta",
+      failed: "Falló",
+      requiresAction: "Confirmar tarjeta",
+      processing: "Procesando",
+    },
+    exceptions: {
+      emptyNotRanTitle: "Aún no corre la emisión",
+      emptyNotRanDescription:
+        "Cuando corra el job verás aquí solo las excepciones accionables.",
+      emptyZeroTitle: "Sin excepciones",
+      emptyZeroDescription:
+        "El mes cerrado ya se emitió. Ve a Pendientes para cobrar.",
+      emptyTitle: "Sin excepciones",
+      emptyDescription: "No hay excepciones accionables con los filtros actuales.",
+      columns: {
+        tenant: "Empresa",
+        reason: "Motivo",
+        amount: "Monto",
+        actions: "Acciones",
+      },
     },
     filters: {
       status: "Estado",
       statusAll: "Todos",
-      periodKey: "Mes (AAAA-MM)",
-      periodKeyPlaceholder: "2026-07",
+      periodKey: "Mes de cobro",
+      periodKeyPlaceholder: "Elegir mes",
       minDaysOverdue: "Días de atraso mín.",
       overdueNone: "Sin mínimo",
       tenant: "Empresa",
       tenantPlaceholder: "Buscar empresa…",
       tenantEmpty: "No hay empresas con ese nombre",
       tenantClear: "Quitar filtro de empresa",
+      tenantSearching: "Buscando…",
     },
     actions: {
       issue: "Nuevo cobro",
+      issueDraft: "Emitir",
+      issueDraftSubmitting: "Emitiendo…",
+      issueDraftSuccess: "Cobro emitido",
+      issueDraftError: "No se pudo emitir el cobro",
       markPaid: "Registrar pago",
       chargeStripe: "Cobrar con Stripe",
       void: "Anular",
       viewTenant: "Ver empresa",
       viewAr: "Ver en Cobros",
+      menuAria: "Acciones del cobro",
     },
     empty: {
       title: "Sin cobros",
@@ -947,11 +1233,14 @@ export const platformCopy = {
       description: "Intenta recargar en un momento.",
     },
     readOnlyAlert:
-      "Tu rol es de solo lectura: puedes consultar los cobros, pero no emitir ni registrar pagos.",
+      "Tu rol es de solo lectura: puedes consultar los cobros, pero no emitir ni cobrar.",
     refreshToast: "Cobros actualizados",
+    refreshAria: "Actualizar lista",
     card: {
       title: "Cobros",
       description: "Cargos de servicio de esta empresa pendientes o saldados.",
+      loading: "Cargando…",
+      emptyTitle: "Sin cobros",
       empty: "Aún no hay cobros emitidos.",
       openBadge: (n: number) =>
         n === 1 ? "1 cobro pendiente" : `${n} cobros pendientes`,
@@ -959,7 +1248,10 @@ export const platformCopy = {
         n === 1 ? "1 día de atraso" : `${n} días de atraso`,
       closeExportTitle: "Cierre del mes",
       closeExportDescription:
-        "CSV del periodo cerrado para CFDI fuera y para emitir el cobro.",
+        "CSV del periodo cerrado para el CFDI fuera. El cobro del mes se emite solo.",
+      skipBannerTitle: "Este mes no se emitió solo",
+      skipBannerPolicy:
+        "No se emite cobro por política. El 1:1 tampoco aplica.",
       closePeriodLabel: "Mes de cierre",
       closePeriodPlaceholder: "2026-07",
       exportClose: "Exportar cierre",
@@ -984,6 +1276,7 @@ export const platformCopy = {
       cardLabel: "Tarjeta",
       cardMissing:
         "Sin tarjeta predeterminada. No se puede cobrar hasta que la empresa guarde un método de pago.",
+      cancel: "Cancelar",
       submit: "Confirmar cobro",
       submitting: "Cobrando…",
       authenticating: "Confirmando autenticación…",
@@ -996,14 +1289,20 @@ export const platformCopy = {
         "Cobro con Stripe no está configurado en este entorno.",
     },
     closeHint:
-      "Los pendientes son cobros ya emitidos. Para montos de un mes aún no cargado: Exportar cierre en la empresa (o CLI masivo) → CFDI fuera → Nuevo cobro.",
+      "El cobro del mes cerrado se emite solo. El CSV sigue siendo para el CFDI fuera.",
     issue: {
       title: "Nuevo cobro del mes",
       description:
         "Se calcula el monto del mes cerrado y se crea el cobro pendiente.",
       periodKey: "Mes a emitir",
+      periodPlaceholder: "2026-07",
       periodKeyClosedOnly:
         "Solo meses cerrados. El mes en curso es estimado (card Este mes).",
+      initialStatus: "Estado inicial",
+      statusOpen: "Emitida (pendiente de cobro)",
+      statusDraft: "Borrador",
+      statusDraftHint:
+        "El borrador no aparece como pendiente de cobro hasta que lo emitas.",
       notes: "Notas",
       dueDays: "Días para pagar",
       preview: "Monto del mes",
@@ -1013,10 +1312,15 @@ export const platformCopy = {
       subtotal: "Subtotal",
       iva: "Impuestos",
       total: "Total",
+      cancel: "Cancelar",
       submit: "Emitir cobro",
+      submitDraft: "Guardar borrador",
       submitting: "Emitiendo…",
+      submittingDraft: "Guardando…",
       success: "Cobro emitido",
+      successDraft: "Borrador guardado",
       error: "No se pudo emitir el cobro",
+      errorDraft: "No se pudo guardar el borrador",
     },
     markPaid: {
       title: "Registrar pago",
@@ -1031,6 +1335,7 @@ export const platformCopy = {
       },
       reference: "Referencia",
       notes: "Notas",
+      cancel: "Cancelar",
       submit: "Marcar pagado",
       submitting: "Guardando…",
       success: "Cobro marcado como pagado",
@@ -1041,6 +1346,7 @@ export const platformCopy = {
       description:
         "El cobro anulado deja de contar como pendiente y podrás emitir otro del mismo mes.",
       reason: "Motivo (opcional)",
+      cancel: "Cancelar",
       confirm: "Anular cobro",
       cancelling: "Anulando…",
       success: "Cobro anulado",

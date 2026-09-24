@@ -1,6 +1,8 @@
 import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { isPlatformOwner } from "../../domain/entities";
+import { platformCopy } from "../copy/platformCopy";
 import { usePlatformAuth } from "./PlatformAuthProvider";
 
 /**
@@ -24,8 +26,13 @@ export function PlatformMfaEnrollmentGate({
         data-testid="platform-auth-loading"
       >
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Cargando sesión…</p>
+          <Loader2
+            className="h-8 w-8 animate-spin text-primary"
+            aria-hidden
+          />
+          <p className="text-sm text-muted-foreground">
+            {platformCopy.shell.authLoading}
+          </p>
         </div>
       </div>
     );
