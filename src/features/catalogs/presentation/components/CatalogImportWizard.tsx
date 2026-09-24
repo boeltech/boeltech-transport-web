@@ -103,8 +103,14 @@ type WizardStep = "upload" | "validate" | "import" | "result";
 // ============================================================================
 
 const importOptionsSchema = z.object({
-  version: z.string().min(1, "La versión es requerida"),
-  sourceUrl: z.string().url("URL inválida").optional().or(z.literal("")),
+  version: z
+    .string()
+    .min(1, catalogImportWizardCopy.importForm.schema.versionRequired),
+  sourceUrl: z
+    .string()
+    .url(catalogImportWizardCopy.importForm.schema.invalidUrl)
+    .optional()
+    .or(z.literal("")),
   notes: z.string().optional(),
   skipErrors: z.boolean(),
   deactivateMissing: z.boolean(),
@@ -318,7 +324,7 @@ export function CatalogImportWizard({
         <div className="flex items-center gap-2 p-4 rounded-lg bg-muted">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-sm text-muted-foreground">
-            Cargando información del catálogo...
+            {wizardCopy.upload.loadingCatalog}
           </span>
         </div>
       ) : catalogType ? (
@@ -330,20 +336,21 @@ export function CatalogImportWizard({
                 v{catalogType.currentVersion.version}
               </Badge>
             ) : (
-              <Badge variant="outline">Sin versión</Badge>
+              <Badge variant="outline">{wizardCopy.upload.noVersion}</Badge>
             )}
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>
-              <strong>{catalogType.itemsCount.toLocaleString()}</strong> items
-              actuales
+              <strong>{catalogType.itemsCount.toLocaleString()}</strong>{" "}
+              {wizardCopy.upload.itemsCurrentSuffix}
             </span>
             {catalogType.currentVersion && (
               <span>
-                Última actualización:{" "}
-                {new Date(
-                  catalogType.currentVersion.publishedAt,
-                ).toLocaleDateString("es-MX")}
+                {wizardCopy.upload.lastUpdated(
+                  new Date(
+                    catalogType.currentVersion.publishedAt,
+                  ).toLocaleDateString("es-MX"),
+                )}
               </span>
             )}
           </div>
@@ -369,7 +376,7 @@ export function CatalogImportWizard({
             <FileSpreadsheet className="h-12 w-12 text-success" />
             <p className="font-medium">{file.name}</p>
             <p className="text-sm text-muted-foreground">
-              {(file.size / 1024).toFixed(1)} KB
+              {wizardCopy.upload.fileSizeKb((file.size / 1024).toFixed(1))}
             </p>
             <Button
               variant="outline"
@@ -377,18 +384,15 @@ export function CatalogImportWizard({
               onClick={() => setFile(null)}
               className="mt-2"
             >
-              Cambiar archivo
+              {wizardCopy.actions.changeFile}
             </Button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
             <Upload className="h-12 w-12 text-muted-foreground" />
-            <p className="font-medium">
-              Arrastra un archivo CSV aquí o haz clic para seleccionar
-            </p>
+            <p className="font-medium">{wizardCopy.upload.dropzoneTitle}</p>
             <p className="text-sm text-muted-foreground">
-              Formato: código, nombre, descripción (opcional), código padre
-              (opcional)
+              {wizardCopy.upload.dropzoneHint}
             </p>
             <label htmlFor="csv-upload">
               <Input
@@ -399,7 +403,7 @@ export function CatalogImportWizard({
                 className="hidden"
               />
               <Button variant="outline" className="mt-2" asChild>
-                <span>Seleccionar archivo</span>
+                <span>{wizardCopy.actions.selectFile}</span>
               </Button>
             </label>
           </div>
@@ -440,14 +444,14 @@ export function CatalogImportWizard({
           ) : (
             <Download className="h-4 w-4 mr-2" />
           )}
-          Descargar plantilla
+          {wizardCopy.actions.downloadTemplate}
         </Button>
       </div>
 
       {validationError && isErrorCode(validationError, "CATALOG_CSV_TYPE_MISMATCH") ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Tipo de catálogo incorrecto</AlertTitle>
+          <AlertTitle>{wizardCopy.csvTypeMismatch.title}</AlertTitle>
           <AlertDescription>
             {getErrorMessage(validationError)}{" "}
             {wizardCopy.csvTypeMismatchHint}
@@ -458,7 +462,7 @@ export function CatalogImportWizard({
       {importError && isErrorCode(importError, "CATALOG_CSV_TYPE_MISMATCH") ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Tipo de catálogo incorrecto</AlertTitle>
+          <AlertTitle>{wizardCopy.csvTypeMismatch.title}</AlertTitle>
           <AlertDescription>
             {getErrorMessage(importError)} {wizardCopy.csvTypeMismatchHint}
           </AlertDescription>
@@ -468,11 +472,11 @@ export function CatalogImportWizard({
       {/* Actions */}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={handleClose}>
-          Cancelar
+          {wizardCopy.actions.cancel}
         </Button>
         <Button onClick={handleValidate} disabled={!file || isValidating}>
           {isValidating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Validar archivo
+          {wizardCopy.actions.validateFile}
         </Button>
       </div>
     </div>
@@ -492,24 +496,25 @@ export function CatalogImportWizard({
           )}
           <AlertTitle>
             {validationResult.isValid
-              ? "Archivo válido"
-              : "Archivo con errores"}
+              ? wizardCopy.validate.fileValid
+              : wizardCopy.validate.fileWithErrors}
           </AlertTitle>
           <AlertDescription>
-            {validationResult.validRows} de {validationResult.totalRows}{" "}
-            registros válidos
+            {wizardCopy.validate.validRowsSummary(
+              validationResult.validRows,
+              validationResult.totalRows,
+            )}
           </AlertDescription>
         </Alert>
 
         {validationResult.estimatedDeactivateCount != null ? (
           <Alert>
             <Info className="h-4 w-4" />
-            <AlertTitle>Desactivación estimada</AlertTitle>
+            <AlertTitle>{wizardCopy.validate.estimatedDeactivateTitle}</AlertTitle>
             <AlertDescription>
-              Se desactivarían{" "}
+              {wizardCopy.validate.estimatedDeactivateBefore}{" "}
               <strong>{validationResult.estimatedDeactivateCount}</strong>{" "}
-              ítems activos si marcas «Desactivar registros que no estén en el
-              archivo» en el siguiente paso.
+              {wizardCopy.validate.estimatedDeactivateAfter}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -536,16 +541,18 @@ export function CatalogImportWizard({
         {validationResult.errors.length > 0 && (
           <div className="space-y-2">
             <p className="font-medium text-destructive">
-              Errores encontrados (
-              {validationResult.errorCount ?? validationResult.errors.length}
-              ):
+              {wizardCopy.validate.errorsFound(
+                validationResult.errorCount ?? validationResult.errors.length,
+              )}
             </p>
             <div className="max-h-40 overflow-y-auto border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-20">Fila</TableHead>
-                    <TableHead>Errores</TableHead>
+                    <TableHead className="w-20">
+                      {wizardCopy.validate.columns.row}
+                    </TableHead>
+                    <TableHead>{wizardCopy.validate.columns.errors}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -564,8 +571,14 @@ export function CatalogImportWizard({
               validationResult.errors.length > 10) && (
               <p className="text-sm text-muted-foreground">
                 {validationResult.errorsTruncated
-                  ? `Mostrando ${Math.min(10, validationResult.errors.length)} de ${validationResult.errorCount} errores (respuesta truncada).`
-                  : `Y ${validationResult.errors.length - 10} errores más...`}
+                  ? wizardCopy.validate.errorsTruncated(
+                      Math.min(10, validationResult.errors.length),
+                      validationResult.errorCount ??
+                        validationResult.errors.length,
+                    )
+                  : wizardCopy.validate.errorsMore(
+                      validationResult.errors.length - 10,
+                    )}
               </p>
             )}
           </div>
@@ -574,15 +587,17 @@ export function CatalogImportWizard({
         {/* Preview */}
         {validationResult.preview.length > 0 && (
           <div className="space-y-2">
-            <p className="font-medium">Vista previa (primeros 10 registros):</p>
+            <p className="font-medium">{wizardCopy.validate.previewTitle}</p>
             <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Padre</TableHead>
+                    <TableHead>{wizardCopy.validate.columns.code}</TableHead>
+                    <TableHead>{wizardCopy.validate.columns.name}</TableHead>
+                    <TableHead>
+                      {wizardCopy.validate.columns.description}
+                    </TableHead>
+                    <TableHead>{wizardCopy.validate.columns.parent}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -591,10 +606,10 @@ export function CatalogImportWizard({
                       <TableCell className="font-mono">{item.code}</TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                        {item.description || "—"}
+                        {item.description || wizardCopy.validate.emptyCell}
                       </TableCell>
                       <TableCell className="font-mono">
-                        {item.parentCode || "—"}
+                        {item.parentCode || wizardCopy.validate.emptyCell}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -608,14 +623,14 @@ export function CatalogImportWizard({
         <div className="flex justify-between">
           <Button variant="outline" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Anterior
+            {wizardCopy.actions.back}
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleClose}>
-              Cancelar
+              {wizardCopy.actions.cancel}
             </Button>
             <Button onClick={handleNext} disabled={!validationResult.isValid}>
-              Continuar
+              {wizardCopy.actions.continue}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
@@ -639,32 +654,29 @@ export function CatalogImportWizard({
       {catalogType?.currentVersion && (
         <Alert>
           <Info className="h-4 w-4" />
-          <AlertTitle>Versión actual</AlertTitle>
+          <AlertTitle>{wizardCopy.importForm.currentVersionTitle}</AlertTitle>
           <AlertDescription>
-            La versión actual del catálogo es{" "}
-            <strong>{catalogType.currentVersion.version}</strong> con{" "}
+            {wizardCopy.importForm.currentVersionBefore}{" "}
+            <strong>{catalogType.currentVersion.version}</strong>{" "}
+            {wizardCopy.importForm.currentVersionWith}{" "}
             <strong>
               {catalogType.currentVersion.itemsCount.toLocaleString()}
             </strong>{" "}
-            items.
+            {wizardCopy.importForm.currentVersionItemsSuffix}
           </AlertDescription>
         </Alert>
       )}
 
       <FormFieldShell
         fieldId="version"
-        label="Nueva versión"
+        label={wizardCopy.importForm.versionLabel}
         required
         errorMessage={form.formState.errors.version?.message}
-        description={
-          <>
-            Formato sugerido: X.Y.YYYYMMDD (ej: {suggestedVersion})
-          </>
-        }
+        description={wizardCopy.importForm.versionDescription(suggestedVersion)}
       >
         <Input
           id="version"
-          placeholder="ej: 1.0.20260325"
+          placeholder={wizardCopy.importForm.versionPlaceholder}
           error={Boolean(form.formState.errors.version)}
           {...form.register("version")}
           {...getFieldErrorAriaProps(
@@ -676,12 +688,12 @@ export function CatalogImportWizard({
 
       <FormFieldShell
         fieldId="sourceUrl"
-        label="URL de origen (opcional)"
+        label={wizardCopy.importForm.sourceUrlLabel}
         errorMessage={form.formState.errors.sourceUrl?.message}
       >
         <Input
           id="sourceUrl"
-          placeholder="https://www.sat.gob.mx/..."
+          placeholder={wizardCopy.importForm.sourceUrlPlaceholder}
           error={Boolean(form.formState.errors.sourceUrl)}
           {...form.register("sourceUrl")}
           {...getFieldErrorAriaProps(
@@ -693,17 +705,17 @@ export function CatalogImportWizard({
 
       {/* Notes */}
       <div className="space-y-2">
-        <Label htmlFor="notes">Notas (opcional)</Label>
+        <Label htmlFor="notes">{wizardCopy.importForm.notesLabel}</Label>
         <Input
           id="notes"
-          placeholder="Notas sobre esta versión..."
+          placeholder={wizardCopy.importForm.notesPlaceholder}
           {...form.register("notes")}
         />
       </div>
 
       {/* Options */}
       <div className="space-y-4">
-        <p className="font-medium">Opciones de importación</p>
+        <p className="font-medium">{wizardCopy.importForm.optionsTitle}</p>
 
         <Alert>
           <Info className="h-4 w-4" />
@@ -719,7 +731,7 @@ export function CatalogImportWizard({
             }
           />
           <Label htmlFor="skipErrors" className="font-normal">
-            Omitir registros con errores y continuar
+            {wizardCopy.importForm.skipErrorsLabel}
           </Label>
         </div>
 
@@ -735,7 +747,7 @@ export function CatalogImportWizard({
             htmlFor="deactivateMissing"
             className="font-normal text-warning"
           >
-            Desactivar registros que no estén en el archivo
+            {wizardCopy.importForm.deactivateMissingLabel}
           </Label>
         </div>
       </div>
@@ -743,15 +755,19 @@ export function CatalogImportWizard({
       {/* Summary */}
       <Alert>
         <Download className="h-4 w-4" />
-        <AlertTitle>Resumen de importación</AlertTitle>
+        <AlertTitle>{wizardCopy.importForm.summaryTitle}</AlertTitle>
         <AlertDescription>
-          Se importarán <strong>{validationResult?.validRows ?? 0}</strong>{" "}
-          registros al catálogo <strong>{typeName}</strong>.
+          {wizardCopy.importForm.summaryImportBefore}{" "}
+          <strong>{validationResult?.validRows ?? 0}</strong>{" "}
+          {wizardCopy.importForm.summaryImportMiddle}{" "}
+          <strong>{typeName}</strong>
+          {wizardCopy.importForm.summaryImportEnd}
           {catalogType?.itemsCount ? (
             <>
               {" "}
-              Actualmente tiene{" "}
-              <strong>{catalogType.itemsCount.toLocaleString()}</strong> items.
+              {wizardCopy.importForm.summaryCurrentBefore}{" "}
+              <strong>{catalogType.itemsCount.toLocaleString()}</strong>{" "}
+              {wizardCopy.importForm.summaryCurrentAfter}
             </>
           ) : null}
         </AlertDescription>
@@ -760,7 +776,7 @@ export function CatalogImportWizard({
       {showValidationSummary && !form.formState.isValid ? (
         <FormValidationSummary
           messages={collectFieldErrorMessages(form.formState.errors)}
-          title="Revisa la configuración de importación"
+          title={wizardCopy.importForm.validationSummaryTitle}
         />
       ) : null}
 
@@ -768,15 +784,15 @@ export function CatalogImportWizard({
       <div className="flex justify-between">
         <Button type="button" variant="outline" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Anterior
+          {wizardCopy.actions.back}
         </Button>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={handleClose}>
-            Cancelar
+            {wizardCopy.actions.cancel}
           </Button>
           <Button type="submit" disabled={isImporting}>
             {isImporting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Importar catálogo
+            {wizardCopy.actions.importCatalog}
           </Button>
         </div>
       </div>
@@ -797,12 +813,14 @@ export function CatalogImportWizard({
           )}
           <AlertTitle>
             {importResult.success
-              ? "Importación completada"
-              : "Importación completada con errores"}
+              ? wizardCopy.result.successTitle
+              : wizardCopy.result.successWithErrorsTitle}
           </AlertTitle>
           <AlertDescription>
-            Versión: {importResult.version} • Tiempo:{" "}
-            {(importResult.duration / 1000).toFixed(2)} segundos
+            {wizardCopy.result.versionDuration(
+              importResult.version,
+              (importResult.duration / 1000).toFixed(2),
+            )}
           </AlertDescription>
         </Alert>
 
@@ -810,36 +828,44 @@ export function CatalogImportWizard({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-lg bg-muted text-center">
             <p className="text-2xl font-bold">{importResult.totalRows}</p>
-            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="text-sm text-muted-foreground">
+              {wizardCopy.result.stats.total}
+            </p>
           </div>
           <div className="rounded-lg bg-success-soft p-4 text-center">
             <p className="text-2xl font-bold text-success-soft-foreground">
               {importResult.insertedCount}
             </p>
-            <p className="text-sm text-muted-foreground">Insertados</p>
+            <p className="text-sm text-muted-foreground">
+              {wizardCopy.result.stats.inserted}
+            </p>
           </div>
           <div className="rounded-lg bg-info-soft p-4 text-center">
             <p className="text-2xl font-bold text-info-soft-foreground">
               {importResult.updatedCount}
             </p>
-            <p className="text-sm text-muted-foreground">Actualizados</p>
+            <p className="text-sm text-muted-foreground">
+              {wizardCopy.result.stats.updated}
+            </p>
           </div>
           <div className="rounded-lg bg-destructive-soft p-4 text-center">
             <p className="text-2xl font-bold text-destructive-soft-foreground">
               {importResult.errorCount}
             </p>
-            <p className="text-sm text-muted-foreground">Errores</p>
+            <p className="text-sm text-muted-foreground">
+              {wizardCopy.result.stats.errors}
+            </p>
           </div>
         </div>
 
         {(importResult.deactivatedCount ?? 0) > 0 ? (
           <Alert>
             <Info className="h-4 w-4" />
-            <AlertTitle>Ítems desactivados</AlertTitle>
+            <AlertTitle>{wizardCopy.result.deactivatedTitle}</AlertTitle>
             <AlertDescription>
-              Se desactivaron{" "}
-              <strong>{importResult.deactivatedCount}</strong> registros que no
-              estaban en el archivo.
+              {wizardCopy.result.deactivatedBefore}{" "}
+              <strong>{importResult.deactivatedCount}</strong>{" "}
+              {wizardCopy.result.deactivatedAfter}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -863,13 +889,17 @@ export function CatalogImportWizard({
         {/* Errors detail */}
         {importResult.errors.length > 0 && (
           <div className="space-y-2">
-            <p className="font-medium text-destructive">Errores:</p>
+            <p className="font-medium text-destructive">
+              {wizardCopy.result.errorsTitle}
+            </p>
             <div className="max-h-40 overflow-y-auto border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-20">Fila</TableHead>
-                    <TableHead>Errores</TableHead>
+                    <TableHead className="w-20">
+                      {wizardCopy.result.columns.row}
+                    </TableHead>
+                    <TableHead>{wizardCopy.result.columns.errors}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -889,7 +919,7 @@ export function CatalogImportWizard({
 
         {/* Actions */}
         <div className="flex justify-end">
-          <Button onClick={handleClose}>Cerrar</Button>
+          <Button onClick={handleClose}>{wizardCopy.actions.close}</Button>
         </div>
       </div>
     );
@@ -900,10 +930,10 @@ export function CatalogImportWizard({
   // ══════════════════════════════════════════════════════════════════════════
 
   const stepTitles: Record<WizardStep, string> = {
-    upload: "Seleccionar archivo",
-    validate: "Validar datos",
-    import: "Configurar importación",
-    result: "Resultado",
+    upload: wizardCopy.steps.upload,
+    validate: wizardCopy.steps.validate,
+    import: wizardCopy.steps.import,
+    result: wizardCopy.steps.result,
   };
 
   const stepProgress: Record<WizardStep, number> = {
@@ -914,6 +944,8 @@ export function CatalogImportWizard({
   };
 
   const estimated = validationResult?.estimatedDeactivateCount;
+  const stepIndex = Object.keys(stepTitles).indexOf(step) + 1;
+  const stepTotal = Object.keys(stepTitles).length;
 
   return (
     <>
@@ -922,7 +954,7 @@ export function CatalogImportWizard({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Importar catálogo: {typeName}
+              {wizardCopy.dialogTitle(typeName)}
             </DialogTitle>
             <DialogDescription>{stepTitles[step]}</DialogDescription>
           </DialogHeader>
@@ -933,9 +965,7 @@ export function CatalogImportWizard({
               className="flex justify-between text-xs text-muted-foreground"
               aria-live="polite"
             >
-              <span>
-                Paso {Object.keys(stepTitles).indexOf(step) + 1} de 4
-              </span>
+              <span>{wizardCopy.stepProgress(stepIndex, stepTotal)}</span>
               <span>{stepProgress[step]}%</span>
             </div>
             <Progress value={stepProgress[step]} className="h-2" />
