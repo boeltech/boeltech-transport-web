@@ -83,6 +83,8 @@ import {
 } from "../components/shouldShowTripInvoicingConsole";
 import { TripInvoicingConsole } from "../components/TripInvoicingConsole";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
+import { TripLiquidacionChip } from "../components/TripLiquidacionChip";
+import { canEditTripLiquidacionIntent } from "../utils/tripLiquidacionMutability";
 import { TripDetailOperationTab } from "../components/trip-operation";
 import { TripDetailRouteTab } from "../components/trip-route";
 import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfirmReserveButton";
@@ -91,6 +93,7 @@ import { getCargoWeightKg } from "../components/trip-cargos/tripCargoDetailHelpe
 import { computeTripReadiness } from "../hooks/useTripReadiness";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 import { tripDetailCopy } from "../copy";
+import { cfdiEmissionIntentCopy } from "../copy/cfdiEmissionIntentCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
@@ -403,7 +406,7 @@ export function TripDetailPage() {
       );
     }
 
-    if (!isLeanTripPortal) {
+    if (!isLeanTripPortal && trip.cfdiEmissionIntent !== "sin_cfdi_efectivo") {
       const fiscalBannerMode = resolveFiscalAttentionBannerMode({
         operationalOutcome: trip.operationalOutcome,
         requiresFiscalAttention: trip.requiresFiscalAttention,
@@ -654,6 +657,19 @@ export function TripDetailPage() {
       );
     }
 
+    if (trip.cfdiEmissionIntent === "sin_cfdi_efectivo") {
+      cards.push(
+        <DetailAlertCard
+          key="sin-cfdi-efectivo"
+          severity="warning"
+          icon={<Receipt className="h-5 w-5" />}
+          title={cfdiEmissionIntentCopy.banner}
+        >
+          <p>{cfdiEmissionIntentCopy.complianceNotice}</p>
+        </DetailAlertCard>,
+      );
+    }
+
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
   }, [
@@ -792,6 +808,10 @@ export function TripDetailPage() {
 
   /** Tras cargar `trip`, el estado operativo siempre está definido. */
   const resolvedDisplayStatus: TripStatusType = trip.status;
+  const canEditLiquidacion = canEditTripLiquidacionIntent(trip, {
+    canUpdateTrip,
+    isLeanTripPortal,
+  });
   const tripForMetrics = routeDetail?.trip ?? trip;
   const distance = calculateDistance(tripForMetrics.mileage);
   const duration = calculateTripDuration(tripForMetrics);
@@ -856,19 +876,50 @@ export function TripDetailPage() {
           </span>
         ),
         subtitle: (
-          <div className="space-y-0.5">
-            <p className="truncate text-sm text-muted-foreground">
-              {formatTripRouteSubtitle(orderedStops, {
-                originCity: trip.originCity,
-                originState: trip.originState,
-                destinationCity: trip.destinationCity,
-                destinationState: trip.destinationState,
-              })}
-            </p>
-            {!isLeanTripPortal && trip.client?.legalName ? (
-              <p className="truncate text-xs text-muted-foreground">
-                {trip.client.legalName}
+          <div className="space-y-1.5">
+            <div className="space-y-0.5">
+              <p className="truncate text-sm text-muted-foreground">
+                {formatTripRouteSubtitle(orderedStops, {
+                  originCity: trip.originCity,
+                  originState: trip.originState,
+                  destinationCity: trip.destinationCity,
+                  destinationState: trip.destinationState,
+                })}
               </p>
+              {!isLeanTripPortal && trip.client?.legalName ? (
+                <p className="truncate text-xs text-muted-foreground">
+                  {trip.client.legalName}
+                </p>
+              ) : null}
+            </div>
+            {(canEditLiquidacion ||
+            trip.cfdiEmissionIntent === "sin_cfdi_efectivo") ? (
+              <div className="flex flex-wrap items-center gap-2 text-foreground">
+                {canEditLiquidacion ? (
+                  <span className="text-xs text-muted-foreground">
+                    {cfdiEmissionIntentCopy.field.label}
+                  </span>
+                ) : null}
+                <TripLiquidacionChip
+                  trip={trip}
+                  canEdit={canEditLiquidacion}
+                />
+                {trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
+                  <Badge
+                    variant={
+                      trip.operationalCashCollectedAt != null
+                        ? "success"
+                        : "neutral"
+                    }
+                    tone="soft"
+                    className="text-xs"
+                  >
+                    {trip.operationalCashCollectedAt != null
+                      ? cfdiEmissionIntentCopy.cash.statusCollected
+                      : cfdiEmissionIntentCopy.cash.statusPending}
+                  </Badge>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ),
@@ -1090,6 +1141,7 @@ export function TripDetailPage() {
                   status={resolvedDisplayStatus}
                   cargos={cargos}
                   operationalOutcome={trip.operationalOutcome}
+                  cfdiEmissionIntent={trip.cfdiEmissionIntent}
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
                   hasActiveSplit={trip.invoicing.hasActiveSplit}
                   requiresFiscalAttention={trip.requiresFiscalAttention}
@@ -1124,6 +1176,7 @@ export function TripDetailPage() {
                   isError={isErrorCargos}
                   canEditStructural={canEditStructural}
                   canAppendCargo={canAppendCargo}
+                  cfdiEmissionIntent={trip.cfdiEmissionIntent}
                   vehicleId={trip.vehicleId}
                   onRetry={() => refetchCargos()}
                 />
@@ -1153,6 +1206,12 @@ export function TripDetailPage() {
                         facturadoVigente={trip.facturadoVigente}
                         cobradoViaje={trip.cobradoViaje}
                         cfdiDocumentIntent={trip.cfdiDocumentIntent}
+                        cfdiEmissionIntent={trip.cfdiEmissionIntent}
+                        operationalCashCollectedAt={
+                          trip.operationalCashCollectedAt
+                        }
+                        operationalCashAmount={trip.operationalCashAmount}
+                        operationalCashNote={trip.operationalCashNote}
                         clientId={trip.client?.id}
                         vehicleId={trip.vehicle?.id}
                         stops={orderedStops}

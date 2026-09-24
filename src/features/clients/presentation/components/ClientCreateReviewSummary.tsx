@@ -16,6 +16,7 @@ import { CLIENT_TYPE_LABELS, PAYMENT_TERMS_LABELS } from "../../domain";
 import { getAddressTypeConfig } from "../config/clientConfig";
 import type { ClientFormData } from "../validation/clientSchema";
 import type { ClientAddressFormData } from "../validation/clientAddressSchema";
+import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
 
 const EMPTY_VALUE = "—";
 
@@ -203,10 +204,26 @@ export function ClientCreateReviewSummary({
             <p className="text-xs text-muted-foreground">{clientData.tradeName}</p>
           ) : null}
           <p className="mt-1 text-sm text-muted-foreground">
-            RFC {clientData.taxId.toUpperCase()}
+            {clientData.taxId?.trim()
+              ? `RFC ${clientData.taxId.toUpperCase()}`
+              : cfdiReceptorProfileCopy.badge.comercialOnly}
             {" · "}
             {CLIENT_TYPE_LABELS[clientData.type]}
           </p>
+          <div className="mt-2">
+            <Badge
+              variant={
+                clientData.cfdiReceptorProfile === "comercial_only"
+                  ? "secondary"
+                  : "outline"
+              }
+              className="text-xs"
+            >
+              {clientData.cfdiReceptorProfile === "comercial_only"
+                ? cfdiReceptorProfileCopy.badge.comercialOnly
+                : cfdiReceptorProfileCopy.badge.receptorCfdi}
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -214,6 +231,24 @@ export function ClientCreateReviewSummary({
         <h3 className="mb-2 text-sm font-medium text-foreground">
           Datos fiscales y comerciales
         </h3>
+        <InfoRow
+          variant="inline"
+          label={cfdiReceptorProfileCopy.field.label}
+          value={
+            clientData.cfdiReceptorProfile === "comercial_only"
+              ? cfdiReceptorProfileCopy.options.comercial_only
+              : cfdiReceptorProfileCopy.options.receptor_cfdi
+          }
+        />
+        <InfoRow
+          variant="inline"
+          label={cfdiReceptorProfileCopy.defaultLiquidacion.label}
+          value={
+            clientData.cfdiReceptorProfile === "comercial_only"
+              ? cfdiReceptorProfileCopy.defaultLiquidacion.sinCfdi
+              : cfdiReceptorProfileCopy.defaultLiquidacion.emitir
+          }
+        />
         <InfoRow
           variant="inline"
           label="Régimen fiscal"
@@ -225,6 +260,9 @@ export function ClientCreateReviewSummary({
           label="Términos de pago"
           value={PAYMENT_TERMS_LABELS[clientData.paymentTerms]}
         />
+        <p className="pb-1 text-xs text-muted-foreground">
+          {cfdiReceptorProfileCopy.paymentTermsHint}
+        </p>
         {clientData.paymentTerms === "credit" ? (
           <>
             <InfoRow
@@ -274,7 +312,13 @@ export function ClientCreateReviewSummary({
         </section>
       ) : null}
 
-      {addressData ? <ClientAddressReviewBlock data={addressData} /> : null}
+      {addressData ? (
+        <ClientAddressReviewBlock data={addressData} />
+      ) : clientData.cfdiReceptorProfile === "comercial_only" ? (
+        <p className="rounded-lg border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+          Sin domicilio fiscal. Puedes agregarlo después en Direcciones.
+        </p>
+      ) : null}
     </div>
   );
 }

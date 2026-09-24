@@ -20,9 +20,28 @@ const validCompanyValues = {
 };
 
 describe("clientSchema", () => {
-  it("createClientFormSchema acepta alta mínima válida", () => {
-    const result = createClientFormSchema.safeParse(validCompanyValues);
+  it("createClientFormSchema acepta comercial_only sin RFC", () => {
+    const result = createClientFormSchema.safeParse({
+      ...defaultClientFormValues,
+      type: "company",
+      legalName: "Abasto Central SA",
+      cfdiReceptorProfile: "comercial_only",
+      taxId: "",
+      taxRegime: "",
+      paymentTerms: "cash",
+      creditDays: 0,
+    });
     expect(result.success).toBe(true);
+  });
+
+  it("createClientFormSchema rechaza receptor_cfdi sin RFC", () => {
+    const result = createClientFormSchema.safeParse({
+      ...validCompanyValues,
+      cfdiReceptorProfile: "receptor_cfdi",
+      taxId: "",
+      taxRegime: "",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("clientFormSchema (wizard) acepta alta mínima válida", () => {
@@ -84,6 +103,7 @@ describe("clientSchema", () => {
       legalName: "Transportes Demo SA de CV",
       taxId: "AAA010101AAA",
       taxRegime: "601",
+      cfdiReceptorProfile: "receptor_cfdi",
       paymentTerms: "cash",
       creditDays: 0,
       isActive: true,
@@ -91,6 +111,7 @@ describe("clientSchema", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     } as Client;
     expect(clientToFormValues(client).invoiceAutoDispatchEnabled).toBe(false);
+    expect(clientToFormValues(client).cfdiReceptorProfile).toBe("receptor_cfdi");
   });
 
   it("clientToFormValues + clientFormDataToUpdateDto redondean opcionales vacíos", () => {

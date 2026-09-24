@@ -6,7 +6,7 @@
 
 import type { Trip } from "@features/trips/domain";
 
-type TripInvoicingGate = Pick<Trip, "invoicing">;
+type TripInvoicingGate = Pick<Trip, "invoicing" | "cfdiEmissionIntent">;
 
 /** Señales que alimentan TripFiscalSection (sin postCancel local). */
 export function hasTripFiscalSectionContent(
@@ -34,9 +34,24 @@ export function hasTripRevenueSplitBandSignal(
   );
 }
 
+function hasLinkedInvoiceEvidence(invoicing: Trip["invoicing"]): boolean {
+  return Boolean(
+    invoicing.hasActiveInvoice ||
+      invoicing.hasActivePrincipalInvoice ||
+      invoicing.invoiceId ||
+      invoicing.invoiceFolio ||
+      invoicing.invoiceStatus != null ||
+      (invoicing.accessoryInvoices?.length ?? 0) > 0 ||
+      invoicing.hasActiveSplit,
+  );
+}
+
 /**
  * Mostrar consola solo con contenido de banda: facturas ligadas, bloqueo,
  * reparto, aviso post-cancel — no solo canGenerateInvoice / status billable.
+ *
+ * ADR-0096: `sin_cfdi_efectivo` sin factura ligada no abre consola solo por
+ * `block_reason` (el banner del detalle ya explica el modo).
  */
 export function shouldShowTripInvoicingConsole(
   trip: TripInvoicingGate,
@@ -45,6 +60,13 @@ export function shouldShowTripInvoicingConsole(
   if (hasPostCancelFiscal) return true;
 
   const inv = trip.invoicing;
+  if (
+    trip.cfdiEmissionIntent === "sin_cfdi_efectivo" &&
+    !hasLinkedInvoiceEvidence(inv)
+  ) {
+    return false;
+  }
+
   return (
     hasTripFiscalSectionContent(inv) || hasTripRevenueSplitBandSignal(inv)
   );

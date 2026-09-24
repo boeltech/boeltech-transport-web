@@ -29,6 +29,7 @@ import type {
   ClientTripHistoryFilters,
   ClientType,
   PaymentTerms,
+  CfdiReceptorProfile,
   AddressType,
 } from "./entities";
 
@@ -80,8 +81,12 @@ export interface CreateClientDTO {
   // Información fiscal
   legalName: string;
   tradeName?: string;
-  taxId: string; // RFC
-  taxRegime: string; // Régimen fiscal
+  /** ADR-0096: opcional/nullable si `comercial_only`. */
+  taxId?: string | null;
+  /** ADR-0096: opcional/nullable si `comercial_only`. */
+  taxRegime?: string | null;
+  /** ADR-0096 */
+  cfdiReceptorProfile?: CfdiReceptorProfile;
 
   // Contacto principal
   contactName?: string;
@@ -108,8 +113,10 @@ export interface UpdateClientDTO {
   type?: ClientType;
   legalName?: string;
   tradeName?: string | null;
-  taxId?: string;
-  taxRegime?: string;
+  taxId?: string | null;
+  taxRegime?: string | null;
+  /** ADR-0096 */
+  cfdiReceptorProfile?: CfdiReceptorProfile;
   contactName?: string | null;
   contactPosition?: string | null;
   phone?: string | null;
@@ -232,15 +239,15 @@ export type UpdateClientAddressDTO = Partial<
 // ============================================================================
 
 /**
- * DTO combinado para el wizard de creación de cliente
- * Incluye datos del cliente + dirección fiscal obligatoria
+ * DTO combinado para el wizard de creación de cliente.
+ * Dirección fiscal obligatoria solo si perfil Receptor CFDI (ADR-0096).
  */
 export interface CreateClientWithAddressDTO {
   // Datos del cliente (Paso 1)
   client: CreateClientDTO;
 
-  // Dirección fiscal (Paso 2)
-  billingAddress: CreateClientAddressDTO;
+  // Dirección fiscal (Paso 2) — omitible si `comercial_only`
+  billingAddress?: CreateClientAddressDTO | null;
 
   /** Contacto principal opcional (Paso 1 → POST /contacts con is_primary) */
   primaryContact?: CreateClientContactDTO | null;
@@ -252,7 +259,8 @@ export interface CreateClientWithAddressDTO {
 export interface CreateClientResult {
   clientId: string;
   clientCode: string;
-  addressId: string;
+  /** Ausente si el alta omitió domicilio fiscal (`comercial_only`). */
+  addressId?: string;
 }
 
 // ============================================================================
@@ -320,7 +328,9 @@ export interface ClientListItemApiResponse {
   type: string;
   legal_name: string;
   trade_name: string | null;
-  tax_id: string;
+  tax_id: string | null;
+  /** ADR-0096 */
+  cfdi_receptor_profile?: "receptor_cfdi" | "comercial_only";
   /** @deprecated Prefer primary_contact.phone */
   phone: string | null;
   /** @deprecated Prefer primary_contact.email */
@@ -348,8 +358,10 @@ export interface ClientApiResponse {
   type: string;
   legal_name: string;
   trade_name: string | null;
-  tax_id: string;
-  tax_regime: string;
+  tax_id: string | null;
+  tax_regime: string | null;
+  /** ADR-0096 */
+  cfdi_receptor_profile?: "receptor_cfdi" | "comercial_only";
   // Contacto
   contact_name: string | null;
   contact_position: string | null;

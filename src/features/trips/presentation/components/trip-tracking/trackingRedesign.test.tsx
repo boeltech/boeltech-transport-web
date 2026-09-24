@@ -21,6 +21,7 @@ import { TripTrackingStopsCargosMasterDetail } from "./TripTrackingStopsCargosMa
 import { TripTrackingNextActionCard } from "./TripTrackingNextActionCard";
 import { TripTrackingProgressStrip } from "./TripTrackingProgressStrip";
 import { trackingCopy } from "../../copy";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 
 vi.mock("@shared/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/hooks")>();
@@ -330,6 +331,37 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(screen.queryByText(/Producto/)).not.toBeInTheDocument();
   });
 
+  it("coloca Actualizar y meta de frescura en el header de Paradas y cargas", async () => {
+    const user = userEvent.setup();
+    const onRefresh = vi.fn();
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        showLiveBadge
+        updatedAgoLabel="3 min"
+        onRefresh={onRefresh}
+      />,
+    );
+
+    const hub = document.getElementById("tracking-stops-cargos");
+    expect(hub).toBeTruthy();
+    const refresh = screen.getByRole("button", {
+      name: trackingCopy.action.refresh,
+    });
+    expect(hub).toContainElement(refresh);
+    expect(screen.getByText(trackingCopy.state.live)).toBeInTheDocument();
+    expect(
+      screen.getByText(trackingCopy.hint.updatedAgo("3 min")),
+    ).toBeInTheDocument();
+
+    await user.click(refresh);
+    expect(onRefresh).toHaveBeenCalledOnce();
+  });
+
   it("muestra peligroso en la carga del hub sin clave SAT", () => {
     const cargos = [
       cargo({
@@ -492,6 +524,57 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
         stops={[origin, waypoint, destination]}
         tripStatus={TripStatus.SCHEDULED}
         cargos={[]}
+        canOperateTracking
+        onStartTrip={onStartTrip}
+      />,
+    );
+
+    const startButton = screen.getByRole("button", {
+      name: trackingCopy.action.start,
+    });
+    expect(startButton).toBeEnabled();
+    await user.click(startButton);
+    expect(onStartTrip).toHaveBeenCalledOnce();
+  });
+
+  it("en programado con sin_cfdi_efectivo bloquea Iniciar sin cargas activas", async () => {
+    const user = userEvent.setup();
+    const onStartTrip = vi.fn();
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        cfdiEmissionIntent="sin_cfdi_efectivo"
+        canOperateTracking
+        onStartTrip={onStartTrip}
+      />,
+    );
+
+    const startButton = screen.getByRole("button", {
+      name: /Iniciar viaje/i,
+    });
+    expect(startButton).toBeDisabled();
+    expect(
+      screen.getByText(
+        cfdiEmissionIntentCopy.cargoGate.ctaStartBlocked,
+      ),
+    ).toBeInTheDocument();
+    await user.click(startButton);
+    expect(onStartTrip).not.toHaveBeenCalled();
+  });
+
+  it("en programado con emitir_cfdi permite Iniciar sin cargas (D20)", async () => {
+    const user = userEvent.setup();
+    const onStartTrip = vi.fn();
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        cfdiEmissionIntent="emitir_cfdi"
         canOperateTracking
         onStartTrip={onStartTrip}
       />,

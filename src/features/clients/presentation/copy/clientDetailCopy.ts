@@ -66,6 +66,7 @@ export const clientDetailCopy = {
     description: "Nombre legal, RFC y datos para facturar.",
     legalName: "Razón social",
     tradeName: "Nombre comercial",
+    billingProfile: "Perfil de facturación",
     taxId: "RFC",
     taxRegime: "Régimen",
     billingEmail: "Correo de facturación",
@@ -93,6 +94,8 @@ export const clientDetailCopy = {
     title: "Términos comerciales",
     description: "Forma de pago y condiciones de crédito.",
     paymentTerms: "Forma de pago",
+    paymentTermsHint:
+      "Contado o crédito. No define si el viaje se factura.",
     creditDays: "Días de crédito",
     creditDaysValue: (days: number) => `${days} días`,
   },

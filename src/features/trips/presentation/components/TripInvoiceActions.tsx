@@ -75,10 +75,13 @@ export function TripInvoiceActions({
     (canReadInvoices || canCreateInvoices) && !!trip.invoicing.invoiceId;
 
   const isFalseTripOutcome = trip.operationalOutcome === "false_trip";
+  /** ADR-0096: sin ciclo CFDI — ocultar Facturar / false_trip / split / accesorio. */
+  const isSinCfdiEfectivo = trip.cfdiEmissionIntent === "sin_cfdi_efectivo";
   /** Defensa local: viaje cancelado no ofrece CTAs de create (no solo flags API). */
   const isTripCancelled = trip.status === TripStatus.CANCELLED;
 
   const canShowCreateInvoiceAction =
+    !isSinCfdiEfectivo &&
     !isTripCancelled &&
     canCreateInvoices &&
     trip.invoicing.canGenerateInvoice &&
@@ -86,6 +89,7 @@ export function TripInvoiceActions({
     !trip.invoicing.hasActiveSplit;
 
   const canShowFalseTripInvoiceAction =
+    !isSinCfdiEfectivo &&
     !isTripCancelled &&
     canCreateInvoices &&
     trip.invoicing.canGenerateFalseTripInvoice;
@@ -94,6 +98,7 @@ export function TripInvoiceActions({
 
   const { data: revenueSplit } = useTripRevenueSplit(trip.id, {
     enabled:
+      !isSinCfdiEfectivo &&
       canReadTrip &&
       !isFalseTripOutcome &&
       (trip.invoicing.hasActiveSplit ||
@@ -108,17 +113,21 @@ export function TripInvoiceActions({
   const invoicedSplitLegs = activeSplitLegs.filter((leg) => !!leg.invoiceId);
 
   const canShowSplitShareInvoiceAction =
+    !isSinCfdiEfectivo &&
     !isTripCancelled &&
     canCreateInvoices &&
     trip.invoicing.canGenerateSplitShareInvoice &&
     !isFalseTripOutcome &&
     pendingSplitLegs.length > 0;
   const canViewSplitInvoices =
-    (canReadInvoices || canCreateInvoices) && invoicedSplitLegs.length > 0;
+    !isSinCfdiEfectivo &&
+    (canReadInvoices || canCreateInvoices) &&
+    invoicedSplitLegs.length > 0;
   const canShowSplitMenuGroup =
     canShowSplitShareInvoiceAction || canViewSplitInvoices;
 
   const canShowRevenueSplitEntry =
+    !isSinCfdiEfectivo &&
     !isFalseTripOutcome &&
     canReadTrip &&
     (trip.invoicing.hasActiveSplit ||
@@ -139,6 +148,7 @@ export function TripInvoiceActions({
       !upsertEligibility.allowed);
 
   const canShowAccessoryInvoiceAction =
+    !isSinCfdiEfectivo &&
     !isTripCancelled &&
     canCreateInvoices &&
     trip.invoicing.canGenerateAccessoryInvoice &&
@@ -186,6 +196,7 @@ export function TripInvoiceActions({
   const tripInvoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
     invoicing: trip.invoicing,
+    cfdiEmissionIntent: trip.cfdiEmissionIntent,
   });
 
   const revenueSplitMenuItem =

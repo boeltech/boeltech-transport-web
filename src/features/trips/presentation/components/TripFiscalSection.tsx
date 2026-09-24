@@ -48,6 +48,7 @@ export function TripFiscalSection({
     getTripInvoicingBadgeConfig({
       status: trip.status,
       invoicing,
+      cfdiEmissionIntent: trip.cfdiEmissionIntent,
     }),
   );
 
@@ -64,6 +65,18 @@ export function TripFiscalSection({
     invoicing.invoiceStatus === "draft" ||
     invoicing.invoiceStatus === "stamped" ||
     invoicing.invoiceStatus === "cancellation_pending";
+
+  // ADR-0096: el banner del detalle ya explica sin CFDI; no duplicar consola
+  // «Pendiente» / block_reason cuando no hay factura ligada.
+  if (
+    trip.cfdiEmissionIntent === "sin_cfdi_efectivo" &&
+    !hasLinkedPrincipalEvidence &&
+    !invoicing.hasActiveSplit &&
+    accessoryInvoices.length === 0 &&
+    !postCancelFiscal
+  ) {
+    return null;
+  }
 
   const isOperationalBlockReason =
     invoicing.blockReason != null &&

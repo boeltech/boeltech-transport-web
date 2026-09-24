@@ -96,7 +96,7 @@ export function ClientCard({ client, className }: ClientCardProps) {
       <CardContent className="pt-0 space-y-3">
         {/* RFC y Tipo */}
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-sm">{client.taxId}</span>
+          <span className="font-mono text-sm">{client.taxId ?? "—"}</span>
           <Badge variant={typeConfig.variant} className="gap-1">
             <TypeIcon className="h-3 w-3" />
             {typeConfig.labelShort}

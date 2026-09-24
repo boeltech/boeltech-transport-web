@@ -163,4 +163,19 @@ export const tripsApi = {
     }>(`/trips/${tripId}/base-rate`, { baseRate });
     return mapApiTrip(raw.data.trip);
   },
+
+  /**
+   * ADR-0096 — cobro operativo en efectivo (`operational_cash_*`).
+   * Solo viajes `sin_cfdi_efectivo`. No escribe `cobrado_viaje`.
+   */
+  async patchOperationalCash(
+    tripId: string,
+    body: { amount: number; collectedAt?: string; note?: string },
+  ): Promise<Trip> {
+    const raw = await apiClient.patch<{
+      data: { trip: ApiTripResponse };
+      message?: string;
+    }>(`/trips/${tripId}/operational-cash`, body);
+    return mapApiTrip(raw.data.trip);
+  },
 };

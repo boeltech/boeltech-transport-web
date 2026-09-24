@@ -10,9 +10,15 @@ import { useDriver } from "@features/drivers/application";
 import { DRIVER_STATUS_LABELS } from "@features/drivers/domain";
 import { useVehicle } from "@features/vehicles/application";
 import { VEHICLE_STATUS_LABELS } from "@features/vehicles/domain";
-import type { Trip, TripStop } from "@features/trips/domain";
+import type {
+  CfdiEmissionIntent,
+  Trip,
+  TripCargo,
+  TripStop,
+} from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -30,7 +36,12 @@ import {
   resolveSuggestedStartMileage,
   useSuggestedMileageField,
 } from "../startTripMileage";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { trackingCopy } from "../../copy";
+import {
+  resolveSinCfdiCargoApiErrorMessage,
+  sinCfdiCargoBlockReason,
+} from "../../utils/tripSinCfdiCargoGating";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import {
@@ -47,6 +58,7 @@ import {
 import { createTrackingIdempotencyKey } from "./trackingIdempotency";
 
 const copy = trackingCopy;
+const cargoGateCopy = cfdiEmissionIntentCopy.cargoGate;
 
 function defaultOccurredAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
@@ -61,6 +73,9 @@ export type StartTripSheetProps = {
   tripStartMileage?: number | null;
   /** Parada origen para ofrecer coords. guardadas al iniciar. */
   originStop?: Pick<TripStop, "latitude" | "longitude"> | null;
+  /** ADR-0096 — defensa sheet si se abre sin cargas activas. */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
+  cargos?: readonly TripCargo[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (trip: Trip) => void;
@@ -75,6 +90,8 @@ function StartTripSheetBody({
   driverId,
   tripStartMileage,
   originStop,
+  cfdiEmissionIntent,
+  cargos = [],
   onOpenChange,
   onSuccess,
 }: StartTripSheetBodyProps) {
@@ -83,6 +100,7 @@ function StartTripSheetBody({
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
   const [mileageError, setMileageError] = useState<string | null>(null);
+  const [cargoGateAlert, setCargoGateAlert] = useState(false);
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
@@ -140,7 +158,8 @@ function StartTripSheetBody({
     onError: (error) => {
       toast({
         title: copy.toast.startFailed,
-        description: error.message,
+        description:
+          resolveSinCfdiCargoApiErrorMessage(error) ?? error.message,
         variant: "error",
       });
     },
@@ -148,6 +167,12 @@ function StartTripSheetBody({
 
   const handleConfirm = () => {
     if (!resourceStartCheck.canStart) return;
+
+    if (sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "start")) {
+      setCargoGateAlert(true);
+      return;
+    }
+    setCargoGateAlert(false);
 
     let hasError = false;
     const parsed = mileageField.parseValue();
@@ -201,6 +226,12 @@ function StartTripSheetBody({
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
+        {cargoGateAlert ? (
+          <DetailAlertCard
+            severity="critical"
+            title={cargoGateCopy.alertSheet}
+          />
+        ) : null}
         {showAssignment ? (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
@@ -334,6 +365,8 @@ export function StartTripSheet({
   driverId,
   tripStartMileage,
   originStop,
+  cfdiEmissionIntent,
+  cargos,
   open,
   onOpenChange,
   onSuccess,
@@ -358,6 +391,8 @@ export function StartTripSheet({
             driverId={driverId}
             tripStartMileage={tripStartMileage}
             originStop={originStop}
+            cfdiEmissionIntent={cfdiEmissionIntent}
+            cargos={cargos}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

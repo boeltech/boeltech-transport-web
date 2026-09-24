@@ -145,6 +145,7 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
     clientId: trip.clientId || "",
     originBranchId: trip.originBranchId ?? "",
     cfdiDocumentIntent: trip.cfdiDocumentIntent ?? "ingreso",
+    cfdiEmissionIntent: trip.cfdiEmissionIntent ?? "emitir_cfdi",
     scheduledDeparture: utcIsoToLocalInput(trip.scheduledDeparture.toISOString()),
     scheduledArrival: trip.scheduledArrival
       ? utcIsoToLocalInput(trip.scheduledArrival.toISOString())

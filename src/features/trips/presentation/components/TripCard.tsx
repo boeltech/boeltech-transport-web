@@ -77,6 +77,7 @@ export const TripCard = memo(function TripCard({
   const invoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
     invoicing: trip.invoicing,
+    cfdiEmissionIntent: trip.cfdiEmissionIntent,
   });
 
   const handleCardClick = () => {

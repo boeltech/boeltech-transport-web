@@ -618,6 +618,18 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     idCcp: api.id_ccp,
     cfdiDocumentIntent:
       api.cfdi_document_intent === "traslado" ? "traslado" : "ingreso",
+    cfdiEmissionIntent:
+      api.cfdi_emission_intent === "sin_cfdi_efectivo"
+        ? "sin_cfdi_efectivo"
+        : "emitir_cfdi",
+    operationalCashCollectedAt: toDateOrNull(
+      api.operational_cash_collected_at ?? null,
+    ),
+    operationalCashAmount:
+      api.operational_cash_amount == null
+        ? null
+        : toNumberOrDefault(api.operational_cash_amount),
+    operationalCashNote: api.operational_cash_note ?? null,
 
     // Auditoría
     createdAt: toDate(api.created_at),
@@ -645,6 +657,12 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
       ? {
           id: api.client.id,
           legalName: api.client.legal_name,
+          cfdiReceptorProfile:
+            api.client.cfdi_receptor_profile === "comercial_only"
+              ? "comercial_only"
+              : api.client.cfdi_receptor_profile === "receptor_cfdi"
+                ? "receptor_cfdi"
+                : undefined,
         }
       : undefined,
     // Omit → undefined (no `[]`) so merge post-PUT can keep previous when API omits relations.
@@ -698,6 +716,10 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     status: api.status,
     operationalOutcome:
       api.operational_outcome === "false_trip" ? "false_trip" : "standard",
+    cfdiEmissionIntent:
+      api.cfdi_emission_intent === "sin_cfdi_efectivo"
+        ? "sin_cfdi_efectivo"
+        : "emitir_cfdi",
     falseTripDeclaredAt: toDateOrNull(api.false_trip_declared_at),
     falseTripDeclaredBy: api.false_trip_declared_by ?? null,
     cargoDescription: api.cargo_description,

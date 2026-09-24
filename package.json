@@ -45,6 +45,7 @@
     "test:smoke:settlements": "vitest run src/smoke/settlements-workflow.smoke.test.tsx src/features/settlements",
     "test:smoke:compensation-templates": "vitest run src/smoke/compensation-templates.smoke.test.tsx src/features/compensation",
     "test:smoke:location-field": "vitest run src/smoke/location-field.smoke.test.tsx src/shared/ui/location/locationValueToSatAddressFields.test.ts src/shared/ui/location/locationSearchCompositor.test.ts",
+    "test:smoke:trip-sin-cfdi": "vitest run src/smoke/trip-sin-cfdi.smoke.test.tsx src/features/trips/presentation/components/TripInvoiceActions.sinCfdi.test.tsx",
     "test:smoke:drivers": "vitest run src/smoke/drivers-workflow.smoke.test.tsx src/features/drivers/presentation/validation/driverSchema.test.ts src/features/drivers/application/hooks/useCreateDriver.test.ts"
   },
   "dependencies": {

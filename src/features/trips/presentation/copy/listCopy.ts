@@ -85,6 +85,8 @@ export const tripsListCopy = {
     /** ADR-0081: prorrateo con algunas porciones ya facturadas. */
     partial: "Parcial",
     unavailable: "No disponible",
+    /** ADR-0096: liquidación sin CFDI — no implica factura pendiente. */
+    sinCfdi: "Sin CFDI",
   },
 
   refreshSuccess: "Lista actualizada",

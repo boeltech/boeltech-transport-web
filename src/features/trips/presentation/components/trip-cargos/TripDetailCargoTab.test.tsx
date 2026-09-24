@@ -9,6 +9,7 @@ import {
   type TripStop,
 } from "@features/trips/domain";
 import { tripDetailCopy } from "../../copy";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import type { TripCargoFormValues } from "../../pages/create/components/validation";
 import { TripDetailCargoTab } from "./TripDetailCargoTab";
 
@@ -287,6 +288,36 @@ describe("TripDetailCargoTab", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(copy.state.emptyDescription)).toBeInTheDocument();
     expect(copy.state.emptyDescription).not.toMatch(/timbrar|carta porte|sat/i);
+  });
+
+  it("shows sin_cfdi empty advisory when emission intent is sin_cfdi_efectivo", () => {
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.SCHEDULED}
+          cargos={[]}
+          orderedStops={[pickupStop]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          cfdiEmissionIntent="sin_cfdi_efectivo"
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(cfdiEmissionIntentCopy.cargoGate.emptyTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(cfdiEmissionIntentCopy.cargoGate.emptyBody),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(cfdiEmissionIntentCopy.cargoGate.emptyHint),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(copy.state.emptyDescription)).not.toBeInTheDocument();
   });
 
   it("opens edit sheet from read panel with deliveries read-only", async () => {

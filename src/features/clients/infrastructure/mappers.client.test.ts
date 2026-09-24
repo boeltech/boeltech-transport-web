@@ -51,6 +51,21 @@ describe("client mappers (mapSingleResponse / mapPaginatedResponse)", () => {
     expect(data.billingEmail).toBe("billing@acme.test");
     expect(data.billingSchemeId).toBe("scheme-1");
     expect(data.invoiceAutoDispatchEnabled).toBe(false);
+    expect(data.cfdiReceptorProfile).toBe("receptor_cfdi");
+  });
+
+  it("mapClient mapea comercial_only y tax nullable", () => {
+    const { data } = mapClient({
+      data: {
+        ...snakeClient,
+        tax_id: null,
+        tax_regime: null,
+        cfdi_receptor_profile: "comercial_only",
+      },
+    });
+    expect(data.cfdiReceptorProfile).toBe("comercial_only");
+    expect(data.taxId).toBeNull();
+    expect(data.taxRegime).toBeNull();
   });
 
   it("mapPaginatedClients mapea lista paginada", () => {
@@ -129,6 +144,19 @@ describe("toApiCreateClient", () => {
     expect(payload).not.toHaveProperty("secondary_phone");
     expect(payload).not.toHaveProperty("email");
     expect(payload.billing_email).toBe("billing@acme.test");
+    expect(payload.cfdi_receptor_profile).toBe("receptor_cfdi");
+  });
+
+  it("acepta comercial_only sin tax_id", () => {
+    const payload = toApiCreateClient({
+      type: "company",
+      legalName: "Abasto Central",
+      cfdiReceptorProfile: "comercial_only",
+      paymentTerms: "cash",
+    });
+    expect(payload.cfdi_receptor_profile).toBe("comercial_only");
+    expect(payload.tax_id).toBeNull();
+    expect(payload.tax_regime).toBeNull();
   });
 });
 
@@ -197,6 +225,15 @@ describe("toApiUpdateClient", () => {
       }),
     ).toEqual({
       billing_email: "billing@acme.test",
+    });
+  });
+
+  it("incluye cfdi_receptor_profile en update", () => {
+    expect(
+      toApiUpdateClient({ cfdiReceptorProfile: "comercial_only", taxId: null }),
+    ).toEqual({
+      cfdi_receptor_profile: "comercial_only",
+      tax_id: null,
     });
   });
 });

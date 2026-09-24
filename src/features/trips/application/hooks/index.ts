@@ -38,6 +38,8 @@ export {
 } from "./trip/useReplanTripStops";
 export { useReassignTripFleet } from "./trip/useReassignTripFleet";
 export { usePatchTripBaseRate } from "./trip/usePatchTripBaseRate";
+export { usePatchTripOperationalCash } from "./trip/usePatchTripOperationalCash";
+export type { PatchTripOperationalCashInput } from "./trip/usePatchTripOperationalCash";
 export { useRouteEstimate } from "./trip/useRouteEstimate";
 
 export { useDeleteTrip } from "./trip/useDeleteTrip";

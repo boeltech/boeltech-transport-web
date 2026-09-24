@@ -48,6 +48,8 @@ export interface ApiTripTrailerResponse {
 export interface ApiClientRefResponse {
   id: string;
   legal_name: string;
+  /** ADR-0096 */
+  cfdi_receptor_profile?: "receptor_cfdi" | "comercial_only";
 }
 
 export interface ApiTripFiscalActionRequiredResponse {
@@ -466,6 +468,14 @@ export interface ApiTripResponse {
   /** Ingreso vs traslado — metadato fiscal / UX */
   cfdi_document_intent?: "ingreso" | "traslado";
 
+  /** ADR-0096 — liquidación sin CFDI vs emitir */
+  cfdi_emission_intent?: "emitir_cfdi" | "sin_cfdi_efectivo";
+
+  /** ADR-0096 — cobro operativo (F4 API; UI sheet F6) */
+  operational_cash_collected_at?: string | null;
+  operational_cash_amount?: number | string | null;
+  operational_cash_note?: string | null;
+
   // Auditoría
   created_at: string;
   updated_at: string;
@@ -509,6 +519,8 @@ export interface ApiTripListItemResponse {
   scheduled_arrival: string | null;
   status: TripStatusType;
   operational_outcome?: "standard" | "false_trip";
+  /** ADR-0096 — listado debe proyectarlo para prestamp / badge Factura. */
+  cfdi_emission_intent?: "emitir_cfdi" | "sin_cfdi_efectivo";
   false_trip_declared_at?: string | null;
   false_trip_declared_by?: string | null;
   cargo_description: string | null;

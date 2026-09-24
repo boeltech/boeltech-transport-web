@@ -11,6 +11,7 @@ import {
 import {
   StopType,
   TripStatus,
+  type CfdiEmissionIntent,
   type TripCargo,
   type TripStatusType,
   type TripStop,
@@ -23,6 +24,7 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { Skeleton } from "@shared/ui/skeleton";
 
 import { tripDetailCopy } from "../../copy";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import {
   attachStopIdsToCreateCargoMovements,
   getCargoWeightKg,
@@ -86,6 +88,8 @@ export interface TripDetailCargoTabProps {
   canEditStructural: boolean;
   /** ADR-0093 — append carga mid-trip. */
   canAppendCargo?: boolean;
+  /** ADR-0096 — empty advisory cuando liquidación sin CFDI. */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
   /** Unidad asignada — capacidad advisory (loadCapacity t→kg). */
   vehicleId?: string | null;
   onRetry: () => void;
@@ -139,6 +143,7 @@ export function TripDetailCargoTab({
   isError,
   canEditStructural,
   canAppendCargo = false,
+  cfdiEmissionIntent,
   vehicleId = null,
   onRetry,
   onCargosChanged,
@@ -449,6 +454,18 @@ export function TripDetailCargoTab({
   if (cargos.length === 0) {
     const hasPickup = pickupStops.length > 0;
     const canMutateCargo = canEditStructural || canAppendCargo;
+    const isSinCfdiEmpty =
+      hasPickup && cfdiEmissionIntent === "sin_cfdi_efectivo";
+    const emptyTitle = hasPickup
+      ? isSinCfdiEmpty
+        ? cfdiEmissionIntentCopy.cargoGate.emptyTitle
+        : copy.state.emptyTitle
+      : copy.state.emptyNoPickupTitle;
+    const emptyDescription = hasPickup
+      ? isSinCfdiEmpty
+        ? cfdiEmissionIntentCopy.cargoGate.emptyBody
+        : copy.state.emptyDescription
+      : copy.state.emptyNoPickupDescription;
     return (
       <>
         <div className="space-y-4">
@@ -456,14 +473,8 @@ export function TripDetailCargoTab({
           <div className="rounded-xl border border-dashed bg-card">
             <EmptyState
               icon={<Package />}
-              title={
-                hasPickup ? copy.state.emptyTitle : copy.state.emptyNoPickupTitle
-              }
-              description={
-                hasPickup
-                  ? copy.state.emptyDescription
-                  : copy.state.emptyNoPickupDescription
-              }
+              title={emptyTitle}
+              description={emptyDescription}
               size="md"
               cta={
                 canMutateCargo && hasPickup
@@ -480,6 +491,11 @@ export function TripDetailCargoTab({
                     : undefined
               }
             />
+            {isSinCfdiEmpty ? (
+              <p className="px-6 pb-6 -mt-2 text-center text-xs text-muted-foreground">
+                {cfdiEmissionIntentCopy.cargoGate.emptyHint}
+              </p>
+            ) : null}
           </div>
         </div>
         {cargoSheet}

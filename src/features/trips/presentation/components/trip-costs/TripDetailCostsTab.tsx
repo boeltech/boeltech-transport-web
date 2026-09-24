@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
+  Banknote,
   CircleDollarSign,
   Plus,
   Receipt,
@@ -17,6 +18,7 @@ import {
 } from "@features/trips/application/hooks/expense/useExpenseOperations";
 import {
   TripStatus,
+  type CfdiEmissionIntent,
   type ExpensesSummary,
   type TripExpense,
   type TripInvoiceStatus,
@@ -26,10 +28,12 @@ import {
 import { useVehicle } from "@features/vehicles/application";
 import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
+import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { DetailAlertCard } from "@shared/ui/data-display";
+import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
 import { TripBaseRateCard } from "./TripBaseRateCard";
+import { RegisterOperationalCashSheet } from "./RegisterOperationalCashSheet";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDateTime } from "@shared/utils/dateUtils";
 
@@ -58,6 +62,7 @@ import {
 } from "./tripExpenseFormBridge";
 import { tripExpenseToRejectApprovableItem } from "./tripExpenseRejectApprovableItem";
 import { tripDetailCopy } from "../../copy";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 
 const copy = tripDetailCopy.costs;
 
@@ -70,6 +75,11 @@ export interface TripDetailCostsTabProps {
   /** Cobranza aplicada a CFDI del viaje; distinta de tarifa base. */
   cobradoViaje?: number | null;
   cfdiDocumentIntent: "ingreso" | "traslado";
+  /** ADR-0096 — liquidación sin CFDI + cobro operativo. */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
+  operationalCashCollectedAt?: Date | null;
+  operationalCashAmount?: number | null;
+  operationalCashNote?: string | null;
   clientId?: string;
   vehicleId?: string;
   stops: TripStop[];
@@ -271,6 +281,10 @@ export function TripDetailCostsTab({
   facturadoVigente = null,
   cobradoViaje = null,
   cfdiDocumentIntent,
+  cfdiEmissionIntent,
+  operationalCashCollectedAt = null,
+  operationalCashAmount = null,
+  operationalCashNote = null,
   clientId,
   vehicleId,
   stops,
@@ -296,6 +310,11 @@ export function TripDetailCostsTab({
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canViewApprovalsHub = hasPermission("finance_approvals", "read");
+  const canRegisterOperationalCash = hasPermission("trips", "update");
+  const isSinCfdiEfectivo = cfdiEmissionIntent === "sin_cfdi_efectivo";
+  const cashCollected = operationalCashCollectedAt != null;
+  const cashCopy = cfdiEmissionIntentCopy.cash;
+  const [cashSheetOpen, setCashSheetOpen] = useState(false);
   const approvalsHubPath = useMemo(() => {
     const params = new URLSearchParams({
       tab: "approvals",
@@ -588,6 +607,65 @@ export function TripDetailCostsTab({
             incomeSourceLabel={incomeSourceLabel}
           />
 
+          {isSinCfdiEfectivo ? (
+            <Card>
+              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
+                <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
+                  <Banknote className="h-5 w-5 shrink-0" />
+                  {cashCopy.sectionTitle}
+                  <Badge
+                    variant={cashCollected ? "success" : "neutral"}
+                    tone="soft"
+                    className="text-xs font-medium"
+                  >
+                    {cashCollected
+                      ? cashCopy.statusCollected
+                      : cashCopy.statusPending}
+                  </Badge>
+                </CardTitle>
+                {!cashCollected && canRegisterOperationalCash ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCashSheetOpen(true)}
+                  >
+                    {cashCopy.ctaRegister}
+                  </Button>
+                ) : null}
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {cashCollected ? (
+                  <>
+                    <InfoRow
+                      variant="inline"
+                      label={cashCopy.scorecardLabel}
+                      value={formatMxCurrency(operationalCashAmount ?? 0)}
+                    />
+                    {operationalCashCollectedAt ? (
+                      <InfoRow
+                        variant="inline"
+                        label={cashCopy.sheet.collectedAt}
+                        value={formatDateTime(
+                          operationalCashCollectedAt.toISOString(),
+                        )}
+                      />
+                    ) : null}
+                    {operationalCashNote ? (
+                      <p className="text-sm text-muted-foreground">
+                        {operationalCashNote}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {cfdiEmissionIntentCopy.banner}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -679,14 +757,18 @@ export function TripDetailCostsTab({
             snapshot={financialSnapshot}
             variant="totals"
             summaryCopy={copy.financialSummary}
-            facturadoVigente={facturadoVigente}
-            cobradoViaje={cobradoViaje}
+            facturadoVigente={isSinCfdiEfectivo ? null : facturadoVigente}
+            cobradoViaje={isSinCfdiEfectivo ? null : cobradoViaje}
+            operationalCashAmount={
+              isSinCfdiEfectivo ? (operationalCashAmount ?? null) : null
+            }
+            showOperationalCash={isSinCfdiEfectivo}
             title={
               isCompleted
                 ? copy.financialSummary.section.title
                 : copy.financialSummary.section.titleEstimated
             }
-            incomeSourceLabel={incomeSourceLabel}
+            incomeSourceLabel={isSinCfdiEfectivo ? null : incomeSourceLabel}
             calculationStatusHint={calculationStatusHint}
             queuedCostsHint={queuedCostsHint}
             marginLabel={
@@ -727,6 +809,15 @@ export function TripDetailCostsTab({
           onSubmit={(reason) => {
             void handleRejectSubmit(reason);
           }}
+        />
+      ) : null}
+
+      {isSinCfdiEfectivo && canRegisterOperationalCash ? (
+        <RegisterOperationalCashSheet
+          tripId={tripId}
+          open={cashSheetOpen}
+          onOpenChange={setCashSheetOpen}
+          defaultAmount={baseRate}
         />
       ) : null}
     </div>

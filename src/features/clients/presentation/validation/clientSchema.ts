@@ -65,6 +65,7 @@ export const defaultClientFormValues: ClientFormData = {
   type: "company",
   legalName: "",
   tradeName: "",
+  cfdiReceptorProfile: "receptor_cfdi",
   taxId: "",
   taxRegime: "",
   contactName: "",
@@ -85,7 +86,8 @@ export function clientToFormValues(client: Client): ClientFormData {
     type: client.type,
     legalName: client.legalName,
     tradeName: client.tradeName ?? "",
-    taxId: client.taxId.trim().toUpperCase(),
+    cfdiReceptorProfile: client.cfdiReceptorProfile ?? "receptor_cfdi",
+    taxId: (client.taxId ?? "").trim().toUpperCase(),
     taxRegime: client.taxRegime ?? "",
     contactName: client.contactName ?? "",
     contactPosition: client.contactPosition ?? "",
@@ -114,15 +116,28 @@ function emptyToNull(value: string | undefined): string | null {
  * Contactos legacy (`contact_*` / phone / email) no se envían (WS-B → client_contacts).
  */
 export function clientFormDataToUpdateDto(data: ClientFormData): UpdateClientDTO {
+  const profile = data.cfdiReceptorProfile ?? "receptor_cfdi";
+  const taxIdTrimmed = data.taxId?.trim() ?? "";
+  const taxRegimeTrimmed = data.taxRegime?.trim() ?? "";
+
   return {
     type: data.type,
     legalName: data.legalName,
     tradeName: emptyToNull(data.tradeName),
-    taxId: data.taxId,
-    taxRegime: data.taxRegime,
+    cfdiReceptorProfile: profile,
+    taxId: taxIdTrimmed.length > 0 ? taxIdTrimmed.toUpperCase() : null,
+    taxRegime: taxRegimeTrimmed.length > 0 ? taxRegimeTrimmed : null,
     billingEmail: emptyToNull(data.billingEmail),
-    billingSchemeId: data.billingSchemeId?.trim() ? data.billingSchemeId : null,
-    invoiceAutoDispatchEnabled: Boolean(data.invoiceAutoDispatchEnabled),
+    billingSchemeId:
+      profile === "comercial_only"
+        ? null
+        : data.billingSchemeId?.trim()
+          ? data.billingSchemeId
+          : null,
+    invoiceAutoDispatchEnabled:
+      profile === "comercial_only"
+        ? false
+        : Boolean(data.invoiceAutoDispatchEnabled),
     paymentTerms: data.paymentTerms,
     creditDays: data.creditDays,
     creditLimit: data.creditLimit ?? null,

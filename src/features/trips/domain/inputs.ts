@@ -512,6 +512,11 @@ export interface CreateTripInput {
   /** Intención CFDI (Ingreso vs Traslado) — UX y futuro timbrado. */
   cfdiDocumentIntent?: "ingreso" | "traslado";
 
+  /**
+   * ADR-0096 — liquidación del viaje. Opcional al create (API deriva del cliente).
+   */
+  cfdiEmissionIntent?: "emitir_cfdi" | "sin_cfdi_efectivo";
+
   // Fechas programadas
   scheduledDeparture: string; // ISO 8601
   scheduledArrival?: string;
@@ -589,6 +594,9 @@ export interface UpdateTripInput {
   satConfigAutotransporteCode?: string;
 
   cfdiDocumentIntent?: "ingreso" | "traslado";
+
+  /** ADR-0096 */
+  cfdiEmissionIntent?: "emitir_cfdi" | "sin_cfdi_efectivo";
 
   // Fechas programadas
   scheduledDeparture?: string;

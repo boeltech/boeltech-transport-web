@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import { Flag, Loader2 } from "lucide-react";
 
-import type { TripStop } from "@features/trips/domain";
+import type {
+  CfdiEmissionIntent,
+  TripCargo,
+  TripStop,
+} from "@features/trips/domain";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { DetailAlertCard } from "@shared/ui/data-display";
@@ -29,7 +33,12 @@ import {
   useSuggestedMileageField,
 } from "../startTripMileage";
 import { sumRouteSegmentDistanceKm } from "../trip-route/tripRouteDetailHelpers";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { trackingCopy } from "../../copy";
+import {
+  resolveSinCfdiCargoApiErrorMessage,
+  sinCfdiCargoBlockReason,
+} from "../../utils/tripSinCfdiCargoGating";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import {
@@ -46,6 +55,7 @@ import {
 } from "./trackingSheetLayout";
 
 const copy = trackingCopy;
+const cargoGateCopy = cfdiEmissionIntentCopy.cargoGate;
 
 export type QuickCloseTripSheetProps = {
   tripId: string;
@@ -58,6 +68,9 @@ export type QuickCloseTripSheetProps = {
   scheduledDeparture?: Date | string | null;
   actualDeparture?: Date | string | null;
   destinationStop?: TripStop | null;
+  /** ADR-0096 — defensa sheet si se abre sin cargas activas. */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
+  cargos?: readonly TripCargo[];
   /** ADR-0093 — soft-warn al finalizar con bandera fiscal. */
   requiresFiscalAttention?: boolean;
   /** Soft-warn al completar con incidente en bitácora (solo aviso). */
@@ -91,6 +104,8 @@ function QuickCloseTripSheetBody({
   scheduledDeparture,
   actualDeparture,
   destinationStop,
+  cfdiEmissionIntent,
+  cargos = [],
   requiresFiscalAttention = false,
   hasOpenIncident = false,
   onOpenChange,
@@ -102,6 +117,7 @@ function QuickCloseTripSheetBody({
   const [timeError, setTimeError] = useState<string | null>(null);
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [closureNotes, setClosureNotes] = useState("");
+  const [cargoGateAlert, setCargoGateAlert] = useState(false);
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const totalDistanceKm = useMemo(() => {
@@ -165,13 +181,20 @@ function QuickCloseTripSheetBody({
     onError: (error) => {
       toast({
         title: copy.toast.quickCloseFailed,
-        description: error.message,
+        description:
+          resolveSinCfdiCargoApiErrorMessage(error) ?? error.message,
         variant: "error",
       });
     },
   });
 
   const handleConfirm = () => {
+    if (sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")) {
+      setCargoGateAlert(true);
+      return;
+    }
+    setCargoGateAlert(false);
+
     let hasError = false;
     const parsed = mileageField.parseValue();
     if (parsed === null) {
@@ -237,6 +260,12 @@ function QuickCloseTripSheetBody({
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
+        {cargoGateAlert ? (
+          <DetailAlertCard
+            severity="critical"
+            title={cargoGateCopy.alertSheet}
+          />
+        ) : null}
         <DetailAlertCard
           severity="warning"
           title={copy.sheet.quickCloseWarningTitle}
@@ -354,6 +383,8 @@ export function QuickCloseTripSheet({
   scheduledDeparture,
   actualDeparture,
   destinationStop,
+  cfdiEmissionIntent,
+  cargos,
   requiresFiscalAttention = false,
   hasOpenIncident = false,
   open,
@@ -382,6 +413,8 @@ export function QuickCloseTripSheet({
             scheduledDeparture={scheduledDeparture}
             actualDeparture={actualDeparture}
             destinationStop={destinationStop}
+            cfdiEmissionIntent={cfdiEmissionIntent}
+            cargos={cargos}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={hasOpenIncident}
             onOpenChange={onOpenChange}

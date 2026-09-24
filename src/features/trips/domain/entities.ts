@@ -107,7 +107,21 @@ export interface TripTrailerRef {
 export interface ClientRef {
   readonly id: string;
   readonly legalName: string;
+  /** ADR-0096 — presente en detalle de viaje cuando el API lo envía. */
+  readonly cfdiReceptorProfile?: "receptor_cfdi" | "comercial_only";
 }
+
+/**
+ * ADR-0096 — intención de emisión CFDI por viaje.
+ * - emitir_cfdi: ciclo fiscal canónico
+ * - sin_cfdi_efectivo: liquidación sin CFDI (efectivo / abasto)
+ */
+export type CfdiEmissionIntent = "emitir_cfdi" | "sin_cfdi_efectivo";
+
+export const CFDI_EMISSION_INTENT_LABELS: Record<CfdiEmissionIntent, string> = {
+  emitir_cfdi: "Emitir CFDI",
+  sin_cfdi_efectivo: "Sin CFDI · efectivo",
+};
 
 export interface TripInternalStaff {
   readonly id: string;
@@ -600,6 +614,20 @@ export interface Trip {
    */
   readonly cfdiDocumentIntent: "ingreso" | "traslado";
 
+  /**
+   * ADR-0096 — liquidación: emitir CFDI vs sin CFDI · efectivo.
+   * Default derivado del perfil del cliente si se omite al crear.
+   */
+  readonly cfdiEmissionIntent: CfdiEmissionIntent;
+
+  /**
+   * ADR-0096 — cobro operativo en efectivo (solo `sin_cfdi_efectivo`).
+   * Distinto de `cobradoViaje` fiscal. Mapper listo; UI sheet = F6.
+   */
+  readonly operationalCashCollectedAt: Date | null;
+  readonly operationalCashAmount: number | null;
+  readonly operationalCashNote: string | null;
+
   // Auditoría
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -640,6 +668,8 @@ export interface TripListItem {
   readonly status: TripStatusType;
   readonly routeType?: TripRouteTypeValue;
   readonly operationalOutcome: TripOperationalOutcomeType;
+  /** ADR-0096 */
+  readonly cfdiEmissionIntent: CfdiEmissionIntent;
   readonly falseTripDeclaredAt: Date | null;
   readonly falseTripDeclaredBy: string | null;
   readonly cargoDescription: string | null;

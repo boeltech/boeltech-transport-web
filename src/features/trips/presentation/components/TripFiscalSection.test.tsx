@@ -13,12 +13,14 @@ import {
 function makeTrip(
   invoicingOverrides: Parameters<typeof tripInvoicingFixture>[0] = {},
   status: (typeof TripStatus)[keyof typeof TripStatus] = TripStatus.SCHEDULED,
+  cfdiEmissionIntent: "emitir_cfdi" | "sin_cfdi_efectivo" = "emitir_cfdi",
 ) {
   return {
     id: "trip-1",
     status,
     requiresFiscalAttention: false,
     operationalOutcome: "standard" as const,
+    cfdiEmissionIntent,
     invoicing: tripInvoicingFixture(invoicingOverrides),
   } as Parameters<typeof TripFiscalSection>[0]["trip"];
 }
@@ -193,5 +195,41 @@ describe("shouldShowTripInvoicingConsole (PD2)", () => {
         false,
       ),
     ).toBe(true);
+  });
+
+  it("ADR-0096: hides console on sin_cfdi even when block_reason is set", () => {
+    expect(
+      shouldShowTripInvoicingConsole(
+        makeTrip(
+          {
+            canGenerateInvoice: false,
+            blockReason:
+              "Este viaje se liquida sin CFDI; no se crea ni timbra factura.",
+          },
+          TripStatus.SCHEDULED,
+          "sin_cfdi_efectivo",
+        ),
+        false,
+      ),
+    ).toBe(false);
+  });
+
+  it("ADR-0096: TripFiscalSection returns null for sin_cfdi without invoices", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <TripFiscalSection
+          trip={makeTrip(
+            {
+              canGenerateInvoice: false,
+              blockReason:
+                "Este viaje se liquida sin CFDI; no se crea ni timbra factura.",
+            },
+            TripStatus.SCHEDULED,
+            "sin_cfdi_efectivo",
+          )}
+        />
+      </MemoryRouter>,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });

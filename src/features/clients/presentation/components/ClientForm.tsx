@@ -70,8 +70,12 @@ import {
 } from "../validation/clientSchema";
 import { resolveClientCreateApiField, resolveClientEditApiField } from "../helpers/applyClientApiFieldErrors";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
+import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
 
 const idCopy = clientDetailCopy.identification;
+const profileCopy = cfdiReceptorProfileCopy;
+
+const COMPLIANCE_SESSION_KEY = "adr0096.compliance.dismissed";
 
 export interface ClientFormRef {
   /** Valida todos los campos y muestra errores si falla. */
@@ -104,6 +108,7 @@ const CLIENT_NOTIFY_KEYS = [
   "type",
   "legalName",
   "tradeName",
+  "cfdiReceptorProfile",
   "taxId",
   "taxRegime",
   "contactName",
@@ -224,6 +229,29 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
   const clientType = formValues?.type ?? defaultClientFormValues.type;
   const paymentTerms =
     formValues?.paymentTerms ?? defaultClientFormValues.paymentTerms;
+  const cfdiReceptorProfile =
+    formValues?.cfdiReceptorProfile ??
+    defaultClientFormValues.cfdiReceptorProfile ??
+    "receptor_cfdi";
+  const isComercialOnly = cfdiReceptorProfile === "comercial_only";
+  const taxRequired = !isComercialOnly;
+
+  const [complianceDismissed, setComplianceDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem(COMPLIANCE_SESSION_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const dismissCompliance = useCallback(() => {
+    setComplianceDismissed(true);
+    try {
+      sessionStorage.setItem(COMPLIANCE_SESSION_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -374,6 +402,87 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
         contentClassName="grid gap-4 sm:grid-cols-2"
       >
         <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="cfdiReceptorProfile">
+            {profileCopy.field.label}{" "}
+            <span className="text-destructive">*</span>
+          </Label>
+          <Controller
+            name="cfdiReceptorProfile"
+            control={control}
+            render={({ field, fieldState }) => (
+              <Select
+                key={
+                  mode === "edit"
+                    ? `cfdiReceptorProfile-${field.value}`
+                    : "cfdiReceptorProfile"
+                }
+                value={field.value ?? "receptor_cfdi"}
+                onValueChange={field.onChange}
+                disabled={disabled}
+              >
+                <SelectTrigger
+                  id="cfdiReceptorProfile"
+                  error={Boolean(fieldState.error)}
+                  {...getFieldErrorAriaProps(
+                    "cfdiReceptorProfile",
+                    fieldState.error?.message,
+                  )}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="receptor_cfdi">
+                    {profileCopy.options.receptor_cfdi}
+                  </SelectItem>
+                  <SelectItem value="comercial_only">
+                    {profileCopy.options.comercial_only}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            {isComercialOnly
+              ? profileCopy.field.hintComercial
+              : profileCopy.field.hintReceptor}
+          </p>
+          <FieldInlineError
+            fieldId="cfdiReceptorProfile"
+            message={errors.cfdiReceptorProfile?.message}
+          />
+        </div>
+
+        <div className="space-y-1 sm:col-span-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {profileCopy.defaultLiquidacion.label}:{" "}
+          </span>
+          {isComercialOnly
+            ? profileCopy.defaultLiquidacion.sinCfdi
+            : profileCopy.defaultLiquidacion.emitir}
+        </div>
+
+        {isComercialOnly && !complianceDismissed ? (
+          <div className="sm:col-span-2">
+            <Alert variant="warning">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Sin CFDI · efectivo</AlertTitle>
+              <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>{profileCopy.complianceNotice}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 self-start"
+                  onClick={dismissCompliance}
+                >
+                  Entendido
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        ) : null}
+
+        <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="legalName">
             Razón Social <span className="text-destructive">*</span>
           </Label>
@@ -399,7 +508,12 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
         </div>
         <div className="space-y-2">
           <Label htmlFor="taxId">
-            RFC <span className="text-destructive">*</span>
+            RFC{" "}
+            {taxRequired ? (
+              <span className="text-destructive">*</span>
+            ) : (
+              <span className="text-muted-foreground font-normal">(opcional)</span>
+            )}
           </Label>
           <Input
             id="taxId"
@@ -423,7 +537,12 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
         </div>
         <div className="space-y-2">
           <Label htmlFor="taxRegime">
-            Régimen Fiscal <span className="text-destructive">*</span>
+            Régimen Fiscal{" "}
+            {taxRequired ? (
+              <span className="text-destructive">*</span>
+            ) : (
+              <span className="text-muted-foreground font-normal">(opcional)</span>
+            )}
           </Label>
           <Controller
             name="taxRegime"
@@ -450,7 +569,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           />
           <FieldInlineError fieldId="taxRegime" message={errors.taxRegime?.message} />
         </div>
-        {mode === "edit" ? (
+        {mode === "edit" && !isComercialOnly ? (
           <>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="billingEmail">Correo de Facturación</Label>
@@ -522,8 +641,27 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
             </div>
           </>
         ) : null}
+        {mode === "edit" && isComercialOnly ? (
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="billingEmail">Correo de Facturación</Label>
+            <Input
+              id="billingEmail"
+              type="email"
+              disabled={disabled}
+              error={Boolean(errors.billingEmail)}
+              {...register("billingEmail")}
+              {...getFieldErrorAriaProps(
+                "billingEmail",
+                errors.billingEmail?.message,
+              )}
+            />
+            <FieldInlineError
+              fieldId="billingEmail"
+              message={errors.billingEmail?.message}
+            />
+          </div>
+        ) : null}
       </FormSectionCard>
-
       {mode !== "edit" ? (
       <FormSectionCard
         title="Contacto Principal"
@@ -660,6 +798,9 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
             )}
           />
           <FieldInlineError fieldId="paymentTerms" message={errors.paymentTerms?.message} />
+          <p className="text-xs text-muted-foreground">
+            {profileCopy.paymentTermsHint}
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="creditDays">

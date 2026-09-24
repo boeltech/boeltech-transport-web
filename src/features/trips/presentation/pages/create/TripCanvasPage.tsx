@@ -37,6 +37,7 @@ import { canvasCopy } from "../../copy/canvasCopy";
 import { wizardCopy } from "../../copy";
 import { CorridorPicker } from "../../components/corridor/CorridorPicker";
 import { RouteEstimateCard } from "../../components/corridor/RouteEstimateCard";
+import { TripLiquidacionField } from "../../components/TripLiquidacionField";
 import { replaceStopsFromCorridor } from "../../components/trip-route/buildReplaceStopsPayload";
 import { ReservePedidoStep } from "./components/ReservePedidoStep";
 import { ReserveAsignarStep } from "./components/ReserveAsignarStep";
@@ -132,6 +133,12 @@ export function TripCanvasPage() {
   const originCity = form.watch("originCity") ?? "";
   const destinationCity = form.watch("destinationCity") ?? "";
   const vehicleId = form.watch("vehicleId");
+
+  const selectedClient = useMemo(
+    () => clients.find((c) => c.id === clientId),
+    [clients, clientId],
+  );
+  const clientProfile = selectedClient?.cfdiReceptorProfile;
 
   useEffect(() => {
     if (!selectedCorridor) return;
@@ -259,12 +266,19 @@ export function TripCanvasPage() {
                 isLoadingClients={isLoadingClients}
                 afterClient={
                   clientId ? (
-                    <CorridorPicker
-                      corridors={corridors}
-                      isLoading={isLoadingCorridors}
-                      selectedKey={selectedCorridor?.corridorKey}
-                      onSelect={handleSelectCorridor}
-                    />
+                    <div className="space-y-4">
+                      <TripLiquidacionField
+                        form={form}
+                        clientId={clientId}
+                        clientProfile={clientProfile}
+                      />
+                      <CorridorPicker
+                        corridors={corridors}
+                        isLoading={isLoadingCorridors}
+                        selectedKey={selectedCorridor?.corridorKey}
+                        onSelect={handleSelectCorridor}
+                      />
+                    </div>
                   ) : null
                 }
               />

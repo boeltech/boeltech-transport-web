@@ -12,6 +12,7 @@ import { cn } from "@shared/lib/utils/cn";
 
 import type { Client } from "../../domain";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
+import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
 
 interface ClientDetailDataTabProps {
   client: Client;
@@ -63,11 +64,30 @@ export function ClientDetailDataTab({
             {client.tradeName ? (
               <InfoRow variant="inline" label={idCopy.tradeName} value={client.tradeName} />
             ) : null}
-            <InfoRow variant="inline" label={idCopy.taxId} value={client.taxId} mono copyable />
+            <InfoRow
+              variant="inline"
+              label={idCopy.billingProfile}
+              value={
+                client.cfdiReceptorProfile === "comercial_only" ? (
+                  <Badge variant="secondary" tone="soft" className="text-xs">
+                    {cfdiReceptorProfileCopy.badge.comercialOnly}
+                  </Badge>
+                ) : (
+                  cfdiReceptorProfileCopy.badge.receptorCfdi
+                )
+              }
+            />
+            <InfoRow
+              variant="inline"
+              label={idCopy.taxId}
+              value={client.taxId?.trim() || "—"}
+              mono
+              copyable={Boolean(client.taxId?.trim())}
+            />
             {taxRegimeLabel ? (
               <InfoRow variant="inline" label={idCopy.taxRegime} value={taxRegimeLabel} />
             ) : null}
-            {client.billingEmail ? (
+            {client.cfdiReceptorProfile !== "comercial_only" && client.billingEmail ? (
               <InfoRow
                 variant="inline"
                 label={idCopy.billingEmail}
@@ -81,6 +101,8 @@ export function ClientDetailDataTab({
                 }
               />
             ) : null}
+            {client.cfdiReceptorProfile !== "comercial_only" ? (
+              <>
             <InfoRow
               variant="inline"
               label={idCopy.billingScheme}
@@ -108,7 +130,8 @@ export function ClientDetailDataTab({
                   : idCopy.invoiceAutoDispatchOff
               }
             />
-          </CardContent>
+              </>
+            ) : null}          </CardContent>
         </Card>
 
         <Card className={cn(threeCol && "flex h-full flex-col")}>

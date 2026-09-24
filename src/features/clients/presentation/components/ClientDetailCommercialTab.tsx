@@ -54,6 +54,9 @@ export function ClientDetailCommercialTab({
               </Badge>
             }
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {copy.paymentTermsHint}
+          </p>
           {client.paymentTerms === "credit" ? (
             <>
               <Separator className="my-2" />

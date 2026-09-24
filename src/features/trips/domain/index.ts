@@ -117,6 +117,7 @@ export type {
   DriverRef,
   TripTrailerRef,
   ClientRef,
+  CfdiEmissionIntent,
   TripInternalStaff,
   TripInvoiceStatus,
   TripFiscalActionRequired,
@@ -148,6 +149,8 @@ export type {
   TripWorkbenchSummary,
   TripInvoiceableSummary,
 } from "./entities";
+
+export { CFDI_EMISSION_INTENT_LABELS } from "./entities";
 
 export type {
   ClientCorridor,

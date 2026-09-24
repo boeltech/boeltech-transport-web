@@ -4,9 +4,11 @@ import {
   CheckCircle2,
   Flag,
   ListOrdered,
+  Loader2,
   MapPin,
   Navigation,
   Package,
+  RefreshCw,
   Send,
   Truck,
 } from "lucide-react";
@@ -15,6 +17,7 @@ import {
   CARGO_STATUS_LABELS,
   TripStatus,
   type CargoStatusType,
+  type CfdiEmissionIntent,
   type StopStatusValue,
   type TrackingTimelineProgress,
   type TripCargo,
@@ -58,6 +61,7 @@ import {
   getCargoBlockAtStop,
 } from "../../utils/trackingCargoGating";
 import { tripStartRouteBlockReason } from "../../utils/tripStartRouteGating";
+import { sinCfdiCargoBlockReason } from "../../utils/tripSinCfdiCargoGating";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { CargoActionInline } from "./CargoActionInline";
@@ -114,6 +118,11 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   /** ADR-0079 / ADR-0088: oculta atajo si el viaje es en falso. */
   operationalOutcome?: TripOperationalOutcomeType;
   /**
+   * ADR-0096: gate de carga en Iniciar / Completar / QuickClose cuando
+   * `sin_cfdi_efectivo` y no hay cargas activas.
+   */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
+  /**
    * T4-043 / ADR-0081: prorrateo activo (`invoicing.hasActiveSplit`).
    * Si true, no se muestra el CTA de viaje en falso (mutex API).
    */
@@ -136,6 +145,14 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   canMutateCargo?: boolean;
   /** Focus request (p. ej. desde deep-link); selecciona parada en el hub. */
   focusRequest?: TrackingOperationalFocusRequest | null;
+  /**
+   * Meta de frescura del timeline en el CardHeader del hub (badge «En vivo» /
+   * «Actualizado hace…»). Evita una toolbar suelta bajo los tabs del detalle.
+   */
+  showLiveBadge?: boolean;
+  updatedAgoLabel?: string | null;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
   className?: string;
 };
 
@@ -525,6 +542,7 @@ export function TripTrackingStopsCargosMasterDetail({
   onCloseTrip,
   onQuickCloseTrip,
   operationalOutcome,
+  cfdiEmissionIntent,
   hasActiveSplit = false,
   onDeclareFalseTrip,
   onRegisterNote,
@@ -533,6 +551,10 @@ export function TripTrackingStopsCargosMasterDetail({
   canOperateTracking = true,
   canMutateCargo: canMutateCargoProp,
   focusRequest = null,
+  showLiveBadge = false,
+  updatedAgoLabel = null,
+  onRefresh,
+  isRefreshing = false,
   className,
 }: TripTrackingStopsCargosMasterDetailProps) {
   const isMobile = useMediaQuery("(max-width: 1023px)");
@@ -667,13 +689,18 @@ export function TripTrackingStopsCargosMasterDetail({
     primary.kind === "dispatch" &&
     onStartTrip != null;
   const startRouteBlockReason = showsDispatchCta
-    ? tripStartRouteBlockReason(tripStatus, stops)
+    ? (tripStartRouteBlockReason(tripStatus, stops) ??
+      sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "start"))
     : null;
   const showsStopCta =
     hubInlineAction != null &&
     hubActionLabel != null &&
     OPERABLE_HUB_KINDS.has(primary.kind) &&
     primary.kind !== "dispatch";
+  const closeCargoBlockReason =
+    showsStopCta && primary.kind === "close"
+      ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
+      : null;
   const showsOperableCta = showsDispatchCta || showsStopCta;
   const declareFalseTripHintId = useId();
   const quickCloseHintId = useId();
@@ -681,6 +708,9 @@ export function TripTrackingStopsCargosMasterDetail({
     canOperateTracking &&
     onQuickCloseTrip != null &&
     canQuickCloseTrip(tripStatus, stops, cargos, operationalOutcome);
+  const quickCloseCargoBlockReason = showsQuickCloseCta
+    ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
+    : null;
   const declareFalseTripBaseEligible =
     canOperateTracking &&
     onDeclareFalseTrip != null &&
@@ -717,11 +747,40 @@ export function TripTrackingStopsCargosMasterDetail({
 
   return (
     <Card id="tracking-stops-cargos" className={className}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <ListOrdered className="h-4 w-4 text-primary" />
-          {trackingCopy.section.stopsAndCargos}
-        </CardTitle>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ListOrdered className="h-4 w-4 shrink-0 text-primary" />
+            {trackingCopy.section.stopsAndCargos}
+          </CardTitle>
+          {showLiveBadge ? (
+            <Badge variant="secondary" className="text-xs font-normal">
+              {trackingCopy.state.live}
+            </Badge>
+          ) : null}
+          {updatedAgoLabel ? (
+            <span className="text-sm text-muted-foreground">
+              {trackingCopy.hint.updatedAgo(updatedAgoLabel)}
+            </span>
+          ) : null}
+        </div>
+        {onRefresh ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="shrink-0 gap-1.5"
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {trackingCopy.action.refresh}
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-4">
         <div
@@ -791,15 +850,18 @@ export function TripTrackingStopsCargosMasterDetail({
                   variant="default"
                   size="lg"
                   showTransition={false}
-                  onClick={() =>
+                  disabled={Boolean(closeCargoBlockReason)}
+                  disabledReason={closeCargoBlockReason ?? undefined}
+                  onClick={() => {
+                    if (closeCargoBlockReason) return;
                     dispatchInlineStopAction(hubInlineAction!, {
                       onStartTrip,
                       onArrive,
                       onDepart,
                       onDepartOrigin,
                       onCloseTrip,
-                    })
-                  }
+                    });
+                  }}
                 />
               ) : null}
               {showsQuickCloseCta ? (
@@ -809,20 +871,44 @@ export function TripTrackingStopsCargosMasterDetail({
                     variant="outline"
                     size="lg"
                     className="h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto"
-                    onClick={() => onQuickCloseTrip?.()}
-                    aria-describedby={quickCloseHintId}
+                    disabled={Boolean(quickCloseCargoBlockReason)}
+                    title={quickCloseCargoBlockReason ?? undefined}
+                    aria-label={
+                      quickCloseCargoBlockReason
+                        ? `${trackingCopy.action.quickClose}. ${quickCloseCargoBlockReason}`
+                        : undefined
+                    }
+                    onClick={() => {
+                      if (quickCloseCargoBlockReason) return;
+                      onQuickCloseTrip?.();
+                    }}
+                    aria-describedby={
+                      quickCloseCargoBlockReason
+                        ? `${quickCloseHintId}-reason`
+                        : quickCloseHintId
+                    }
                   >
                     <Flag className="mr-2 h-4 w-4 shrink-0" />
                     <span className="font-medium">
                       {trackingCopy.action.quickClose}
                     </span>
                   </Button>
-                  <p
-                    id={quickCloseHintId}
-                    className="text-xs text-muted-foreground"
-                  >
-                    {trackingCopy.hint.quickCloseTransition}
-                  </p>
+                  {quickCloseCargoBlockReason ? (
+                    <p
+                      id={`${quickCloseHintId}-reason`}
+                      className="text-xs text-muted-foreground"
+                      role="status"
+                    >
+                      {quickCloseCargoBlockReason}
+                    </p>
+                  ) : (
+                    <p
+                      id={quickCloseHintId}
+                      className="text-xs text-muted-foreground"
+                    >
+                      {trackingCopy.hint.quickCloseTransition}
+                    </p>
+                  )}
                 </div>
               ) : null}
               {showsDeclareFalseTripCta ? (

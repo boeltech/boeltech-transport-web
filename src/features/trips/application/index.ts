@@ -33,6 +33,7 @@ export {
   useReplanTripStops,
   useReassignTripFleet,
   usePatchTripBaseRate,
+  usePatchTripOperationalCash,
   useRouteEstimate,
   useScheduleTrip,
   useStartTrip,

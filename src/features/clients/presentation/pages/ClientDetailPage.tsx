@@ -25,6 +25,7 @@ import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
 import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
 import { Button } from "@shared/ui/button";
+import { Badge } from "@shared/ui/badge";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
@@ -58,6 +59,7 @@ import {
   ClientTripHistoryTab,
 } from "../components";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
+import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
 import {
   getClientTypeConfig,
   getPaymentTermsConfig,
@@ -221,7 +223,11 @@ export function ClientDetailPage() {
       ? clientAddressAlertFlags(addressQuery.data)
       : null;
 
-    if (alertFlags?.missingBillingCp) {
+    // ADR-0096: Solo comercial no emite CFDI — no pedir domicilio fiscal / CP de facturación.
+    if (
+      client.cfdiReceptorProfile !== "comercial_only" &&
+      alertFlags?.missingBillingCp
+    ) {
       cards.push(
         <DetailAlertCard
           key="missing-billing-cp"
@@ -267,7 +273,10 @@ export function ClientDetailPage() {
       );
     }
 
-    if (isClientTaxIdFormatSuspicious(client)) {
+    if (
+      client.cfdiReceptorProfile !== "comercial_only" &&
+      isClientTaxIdFormatSuspicious(client)
+    ) {
       cards.push(
         <DetailAlertCard
           key="rfc-suspicious"
@@ -359,7 +368,8 @@ export function ClientDetailPage() {
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
   const TypeIcon = typeConfig.icon;
   const PaymentIcon = paymentConfig.icon;
-  const rfc = client.taxId.trim().toUpperCase();
+  const rfc = (client.taxId ?? "").trim().toUpperCase();
+  const isComercialOnly = client.cfdiReceptorProfile === "comercial_only";
   const collectHref =
     canCollect && rfc
       ? `/finance/cobros?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfc)}`
@@ -381,6 +391,11 @@ export function ClientDetailPage() {
               showIcon
               size="sm"
             />
+            {isComercialOnly ? (
+              <Badge variant="secondary" tone="soft" className="text-xs">
+                {cfdiReceptorProfileCopy.badge.comercialOnly}
+              </Badge>
+            ) : null}
           </span>
         ),
         subtitle: (
@@ -436,7 +451,7 @@ export function ClientDetailPage() {
             content: (
               <ClientAddressMasterDetail
                 clientId={client.id}
-                clientRfc={client.taxId}
+                clientRfc={client.taxId ?? ""}
                 clientName={client.legalName}
                 readOnly={!canUpdate}
               />

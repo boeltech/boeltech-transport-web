@@ -1,8 +1,16 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
-import type { TripCargo, TripStop } from "@features/trips/domain";
+import type {
+  CfdiEmissionIntent,
+  TripCargo,
+  TripStop,
+} from "@features/trips/domain";
 import { validateCargoBeforeDeparture } from "../../utils/trackingCargoGating";
+import {
+  resolveSinCfdiCargoApiErrorMessage,
+  sinCfdiCargoBlockReason,
+} from "../../utils/tripSinCfdiCargoGating";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
 import { DetailAlertCard } from "@shared/ui/data-display";
@@ -31,6 +39,7 @@ import {
   useSuggestedMileageField,
 } from "../startTripMileage";
 import { sumRouteSegmentDistanceKm } from "../trip-route/tripRouteDetailHelpers";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
@@ -48,6 +57,7 @@ import {
 } from "./trackingSheetLayout";
 
 const copy = trackingCopy;
+const cargoGateCopy = cfdiEmissionIntentCopy.cargoGate;
 
 export type RegisterTripArrivalSheetProps = {
   tripId: string;
@@ -61,6 +71,8 @@ export type RegisterTripArrivalSheetProps = {
   displayOrder?: number;
   cargos?: readonly TripCargo[];
   orderedStops?: readonly TripStop[];
+  /** ADR-0096 — defensa sheet si se abre sin cargas activas. */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
   /** ADR-0093 — soft-warn al finalizar con bandera fiscal. */
   requiresFiscalAttention?: boolean;
   /** Soft-warn al finalizar con incidente en bitácora (solo aviso). */
@@ -116,6 +128,7 @@ function RegisterTripArrivalSheetBody({
   displayOrder,
   cargos = [],
   orderedStops = [],
+  cfdiEmissionIntent,
   requiresFiscalAttention = false,
   hasOpenIncident = false,
   onOpenChange,
@@ -128,6 +141,7 @@ function RegisterTripArrivalSheetBody({
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [closureNotes, setClosureNotes] = useState("");
+  const [cargoGateAlert, setCargoGateAlert] = useState(false);
   const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
 
   const totalDistanceKm = useMemo(() => {
@@ -191,13 +205,20 @@ function RegisterTripArrivalSheetBody({
     onError: (error) => {
       toast({
         title: copy.toast.tripCloseFailed,
-        description: error.message,
+        description:
+          resolveSinCfdiCargoApiErrorMessage(error) ?? error.message,
         variant: "error",
       });
     },
   });
 
   const handleConfirm = () => {
+    if (sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")) {
+      setCargoGateAlert(true);
+      return;
+    }
+    setCargoGateAlert(false);
+
     let hasError = false;
     const parsed = mileageField.parseValue();
     if (parsed === null) {
@@ -276,6 +297,12 @@ function RegisterTripArrivalSheetBody({
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
+        {cargoGateAlert ? (
+          <DetailAlertCard
+            severity="critical"
+            title={cargoGateCopy.alertSheet}
+          />
+        ) : null}
         {destinationStop ? (
           <p className="text-sm text-muted-foreground">
             {formatDestinationContextLine(destinationStop, displayOrder)}
@@ -410,6 +437,7 @@ export function RegisterTripArrivalSheet({
   displayOrder,
   cargos,
   orderedStops,
+  cfdiEmissionIntent,
   requiresFiscalAttention = false,
   hasOpenIncident = false,
   open,
@@ -440,6 +468,7 @@ export function RegisterTripArrivalSheet({
             displayOrder={displayOrder}
             cargos={cargos}
             orderedStops={orderedStops}
+            cfdiEmissionIntent={cfdiEmissionIntent}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={hasOpenIncident}
             onOpenChange={onOpenChange}

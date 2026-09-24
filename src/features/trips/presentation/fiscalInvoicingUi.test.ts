@@ -41,6 +41,24 @@ describe("getTripInvoicingBadgeConfig", () => {
     expect(cfg.label).toBe("Disponible");
   });
 
+  it("ADR-0096: sin_cfdi sin factura muestra Sin CFDI (no Disponible)", () => {
+    const cfg = getTripInvoicingBadgeConfig({
+      status: TripStatus.SCHEDULED,
+      cfdiEmissionIntent: "sin_cfdi_efectivo",
+      invoicing: tripInvoicingFixture({
+        canGenerateInvoice: false,
+        blockReason: "Este viaje se liquida sin CFDI; no se crea ni timbra factura.",
+      }),
+    });
+    expect(cfg.label).toBe("Sin CFDI");
+  });
+
+  it("ADR-0096: detalle remapea Sin CFDI sin usar Pendiente", () => {
+    expect(
+      toDetailInvoicingBadge({ label: "Sin CFDI", variant: "outline" }).label,
+    ).toBe("Sin CFDI");
+  });
+
   it("con split activo y porciones pendientes CTA-ready muestra Disponible", () => {
     const cfg = getTripInvoicingBadgeConfig({
       status: TripStatus.COMPLETED,

@@ -100,6 +100,7 @@ export {
   useReplanTripStops,
   useReassignTripFleet,
   usePatchTripBaseRate,
+  usePatchTripOperationalCash,
   useTripRevenueSplit,
   useUpsertTripRevenueSplit,
   useDeleteTripRevenueSplit,

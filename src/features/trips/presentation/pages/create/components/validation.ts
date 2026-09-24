@@ -802,6 +802,13 @@ export const tripWizardSchema = z.object({
    * No sustituye la decisión del PAC; Profact valida RFC en timbrado.
    */
   cfdiDocumentIntent: z.enum(["ingreso", "traslado"]).default("ingreso"),
+  /**
+   * ADR-0096 — liquidación Emitir CFDI | Sin CFDI · efectivo.
+   * Default derivado del cliente en canvas; opcional al POST (API deriva).
+   */
+  cfdiEmissionIntent: z
+    .enum(["emitir_cfdi", "sin_cfdi_efectivo"])
+    .default("emitir_cfdi"),
   scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
   // Derivado del estimatedArrival de la parada de destino (Paso 2)
   scheduledArrival: z.string().optional(),
@@ -964,6 +971,9 @@ export const tripReserveWizardSchema = z
       }),
     originBranchId: z.string().uuid().optional().or(z.literal("")),
     cfdiDocumentIntent: z.enum(["ingreso", "traslado"]).default("ingreso"),
+    cfdiEmissionIntent: z
+      .enum(["emitir_cfdi", "sin_cfdi_efectivo"])
+      .default("emitir_cfdi"),
     scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
     scheduledArrival: z.string().optional(),
     startMileage: startMileageFieldSchema,
@@ -1013,6 +1023,7 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   clientId: "",
   originBranchId: "",
   cfdiDocumentIntent: "ingreso",
+  cfdiEmissionIntent: "emitir_cfdi",
   scheduledDeparture: "",
   scheduledArrival: "",
   startMileage: undefined,

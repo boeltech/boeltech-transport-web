@@ -391,7 +391,9 @@ export function formatTripRouteSubtitle(
 }
 
 export function getTripInvoicingBadgeConfig(
-  tripItem: Pick<TripListItem, "status" | "invoicing">,
+  tripItem: Pick<TripListItem, "status" | "invoicing"> & {
+    cfdiEmissionIntent?: TripListItem["cfdiEmissionIntent"] | null;
+  },
 ): InvoicingBadgeConfig {
   const labels = tripsListCopy.invoicingBadge;
   const invoicing = tripItem.invoicing;
@@ -400,6 +402,16 @@ export function getTripInvoicingBadgeConfig(
     !!invoicing.invoiceFolio ||
     invoicing.invoiceStatus !== null ||
     !!invoicing.invoiceCfdiUuid;
+
+  // ADR-0096: sin ciclo CFDI — badge dedicado (no «Disponible» / «No disponible»).
+  if (
+    tripItem.cfdiEmissionIntent === "sin_cfdi_efectivo" &&
+    !hasLinkedInvoiceEvidence &&
+    !invoicing.hasActiveInvoice &&
+    !invoicing.hasActiveSplit
+  ) {
+    return { label: labels.sinCfdi, variant: "outline" };
+  }
 
   if (hasLinkedInvoiceEvidence || invoicing.hasActiveInvoice) {
     switch (invoicing.invoiceStatus) {
@@ -455,6 +467,9 @@ export function toDetailInvoicingBadge(
   }
   if (config.label === list.partial) {
     return { ...config, label: detail.splitPartial };
+  }
+  if (config.label === list.sinCfdi) {
+    return { ...config, label: detail.sinCfdi };
   }
   if (config.label === list.unavailable) {
     return { ...config, label: detail.pending };

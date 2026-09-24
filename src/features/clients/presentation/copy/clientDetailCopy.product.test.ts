@@ -12,7 +12,7 @@ describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
     expect(clientDetailCopy.header.editCue).toMatch(/Contactos y direcciones/i);
   });
 
-  it("superficie sin CFDI ni persona moral/física (D5)", () => {
+  it("superficie sin CFDI ni persona moral/física (D5); ADR-0096 labels viven en cfdiReceptorProfileCopy", () => {
     const blob = JSON.stringify(clientDetailCopy);
     expect(blob).not.toMatch(/CFDI/i);
     expect(blob).not.toMatch(/persona moral/i);

@@ -39,6 +39,19 @@ export type ClientType = "individual" | "company";
 export type PaymentTerms = "cash" | "credit";
 
 /**
+ * ADR-0096 — perfil de receptor CFDI del cliente.
+ * - receptor_cfdi: requiere tax_id + tax_regime (default)
+ * - comercial_only: tax nullable; no listo para timbrar
+ */
+export type CfdiReceptorProfile = "receptor_cfdi" | "comercial_only";
+
+export const CFDI_RECEPTOR_PROFILE_LABELS: Record<CfdiReceptorProfile, string> =
+  {
+    receptor_cfdi: "Receptor CFDI",
+    comercial_only: "Solo comercial",
+  };
+
+/**
  * Contacto operativo del cliente (tabla `client_contacts`, WS-B).
  */
 export interface ClientContact {
@@ -158,8 +171,12 @@ export interface Client {
   type: ClientType;
   legalName: string;
   tradeName?: string;
-  taxId: string; // RFC
-  taxRegime: string; // Régimen fiscal SAT
+  /** ADR-0096: nullable cuando `comercial_only`. */
+  taxId: string | null;
+  /** ADR-0096: nullable cuando `comercial_only`. */
+  taxRegime: string | null;
+  /** ADR-0096 */
+  cfdiReceptorProfile: CfdiReceptorProfile;
 
   // Contacto principal (legacy en fila `clients`; preferir `primaryContact`)
   /** @deprecated Prefer primaryContact / client_contacts */
@@ -210,7 +227,10 @@ export interface ClientListItem {
   type: ClientType;
   legalName: string;
   tradeName?: string;
-  taxId: string;
+  /** ADR-0096: nullable cuando `comercial_only`. */
+  taxId: string | null;
+  /** ADR-0096 */
+  cfdiReceptorProfile: CfdiReceptorProfile;
   /** @deprecated Prefer primaryContact.phone */
   phone?: string;
   /** @deprecated Prefer primaryContact.email */
@@ -234,7 +254,8 @@ export interface ClientOption {
   clientCode: string;
   legalName: string;
   tradeName?: string;
-  taxId: string;
+  taxId: string | null;
+  cfdiReceptorProfile?: CfdiReceptorProfile;
 }
 
 // ============================================================================

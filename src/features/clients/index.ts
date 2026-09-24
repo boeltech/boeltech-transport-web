@@ -33,6 +33,7 @@ export type {
   ClientOption,
   ClientType,
   PaymentTerms,
+  CfdiReceptorProfile,
   // Address types
   ClientAddress,
   AddressType,
@@ -53,6 +54,7 @@ export {
   // Constants
   CLIENT_TYPE_LABELS,
   PAYMENT_TERMS_LABELS,
+  CFDI_RECEPTOR_PROFILE_LABELS,
   ADDRESS_TYPE_LABELS,
   ADDRESS_TYPE_VARIANTS,
   CLIENT_WIZARD_STEPS,

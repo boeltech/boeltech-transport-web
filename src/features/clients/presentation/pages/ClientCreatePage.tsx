@@ -40,6 +40,9 @@ import {
 } from "../validation";
 import type { ClientFormData } from "../validation/clientSchema";
 import { resolveClientCreateApiField } from "../helpers/applyClientApiFieldErrors";
+import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
+
+const profileCopy = cfdiReceptorProfileCopy;
 
 const WIZARD_STEPS = [
   ...CLIENT_WIZARD_STEPS.map((s) => ({
@@ -56,7 +59,15 @@ const WIZARD_STEPS = [
 
 /** Solo marca el paso de revisión (sin campos). La validación real es full-form vía refs. */
 const CLIENT_CREATE_WIZARD_STEP_FIELDS: ReadonlyArray<readonly string[]> = [
-  ["type", "legalName", "taxId", "taxRegime", "paymentTerms", "creditDays"],
+  [
+    "type",
+    "legalName",
+    "cfdiReceptorProfile",
+    "taxId",
+    "taxRegime",
+    "paymentTerms",
+    "creditDays",
+  ],
   [
     "locationName",
     "street",
@@ -133,13 +144,31 @@ export function ClientCreatePage() {
   }, [clientData]);
 
   const validateAddressStep = useCallback(async (): Promise<boolean> => {
+    const clientSnapshot = clientDraftRef.current ?? clientData;
+    const isComercialOnly =
+      clientSnapshot?.cfdiReceptorProfile === "comercial_only";
+
+    // ADR-0096: domicilio fiscal omitible para Solo comercial.
+    if (isComercialOnly) {
+      const snapshot = addressDraftRef.current ?? addressData;
+      const hasAnyAddressInput = Boolean(
+        snapshot?.postalCode?.trim() ||
+          snapshot?.street?.trim() ||
+          snapshot?.satStateCode?.trim(),
+      );
+      if (!hasAnyAddressInput) {
+        setSatValidationError(null);
+        return true;
+      }
+    }
+
     const localValid = addressFormRef.current
       ? ((await addressFormRef.current.triggerValidation()) ?? false)
       : validateAddressDraft(addressDraftRef.current ?? addressData);
     if (!localValid) return false;
 
     const snapshot = addressDraftRef.current ?? addressData;
-    if (!snapshot) return false;
+    if (!snapshot) return isComercialOnly;
 
     const satResult = await validateClientAddressFormComplete(snapshot, {
       context: "billingOnCreate",
@@ -158,7 +187,7 @@ export function ClientCreatePage() {
     }
     setSatValidationError(null);
     return true;
-  }, [addressData]);
+  }, [addressData, clientData]);
 
   const applyCreateApiError = useCallback((error: unknown) => {
     if (isApiError(error) && error.hasValidationErrors()) {
@@ -220,12 +249,18 @@ export function ClientCreatePage() {
     const clientSnapshot = clientDraftRef.current ?? clientData;
     if (!clientSnapshot || !validateClientDraft(clientSnapshot)) return;
 
+    const isComercialOnly =
+      clientSnapshot.cfdiReceptorProfile === "comercial_only";
+    const taxIdTrimmed = clientSnapshot.taxId?.trim() ?? "";
+    const taxRegimeTrimmed = clientSnapshot.taxRegime?.trim() ?? "";
+
     const clientPayload = {
       type: clientSnapshot.type,
       legalName: clientSnapshot.legalName,
       tradeName: clientSnapshot.tradeName || undefined,
-      taxId: clientSnapshot.taxId,
-      taxRegime: clientSnapshot.taxRegime,
+      cfdiReceptorProfile: clientSnapshot.cfdiReceptorProfile ?? "receptor_cfdi",
+      taxId: taxIdTrimmed.length > 0 ? taxIdTrimmed.toUpperCase() : null,
+      taxRegime: taxRegimeTrimmed.length > 0 ? taxRegimeTrimmed : null,
       billingEmail: clientSnapshot.billingEmail || undefined,
       paymentTerms: clientSnapshot.paymentTerms,
       creditDays: clientSnapshot.creditDays,
@@ -234,7 +269,17 @@ export function ClientCreatePage() {
     };
 
     const addressSnapshot = addressDraftRef.current ?? addressData;
-    if (!addressSnapshot || !validateAddressDraft(addressSnapshot)) return;
+    const hasAddress =
+      addressSnapshot &&
+      Boolean(
+        addressSnapshot.postalCode?.trim() ||
+          addressSnapshot.street?.trim() ||
+          addressSnapshot.satStateCode?.trim(),
+      );
+
+    if (!isComercialOnly) {
+      if (!addressSnapshot || !validateAddressDraft(addressSnapshot)) return;
+    }
 
     setIsCreateBusy(true);
     setPageApiAlertMessages([]);
@@ -244,9 +289,12 @@ export function ClientCreatePage() {
     createClientMutation.mutate(
       {
         client: clientPayload,
-        billingAddress: clientAddressFormDataToCreateDto(addressSnapshot, {
-          context: "billingOnCreate",
-        }),
+        billingAddress:
+          hasAddress && addressSnapshot
+            ? clientAddressFormDataToCreateDto(addressSnapshot, {
+                context: "billingOnCreate",
+              })
+            : null,
         primaryContact: clientSnapshot.contactName?.trim()
           ? {
               fullName: clientSnapshot.contactName.trim(),
@@ -320,6 +368,8 @@ export function ClientCreatePage() {
       visitedStepsRef.current.add(currentStep);
       const shouldMountAddressStep =
         currentStep === 1 || visitedStepsRef.current.has(1);
+      const isComercialOnly =
+        clientData?.cfdiReceptorProfile === "comercial_only";
 
       return (
         <>
@@ -344,8 +394,9 @@ export function ClientCreatePage() {
           >
             {currentStep === 0 && !isClientValid ? (
               <p className="mb-4 max-w-md text-sm text-muted-foreground">
-                Completa los campos obligatorios (RFC según tipo de persona y
-                términos de pago si aplica) para continuar.
+                {isComercialOnly
+                  ? "Completa razón social y términos de pago para continuar. RFC es opcional en Solo comercial."
+                  : "Completa los campos obligatorios (RFC según tipo de persona y términos de pago si aplica) para continuar."}
               </p>
             ) : null}
             <ClientForm
@@ -361,7 +412,12 @@ export function ClientCreatePage() {
               className={cn(currentStep !== 1 && "hidden")}
               aria-hidden={currentStep !== 1}
             >
-              {currentStep === 1 && !isAddressValid ? (
+              {currentStep === 1 && isComercialOnly ? (
+                <p className="mb-4 max-w-md text-sm text-muted-foreground">
+                  {profileCopy.addressStep.optionalHint}
+                </p>
+              ) : null}
+              {currentStep === 1 && !isComercialOnly && !isAddressValid ? (
                 <p className="mb-4 max-w-md text-sm text-muted-foreground">
                   Completa el código postal fiscal del receptor. No hace falta
                   mapa ni RFC de Carta Porte.
@@ -396,7 +452,9 @@ export function ClientCreatePage() {
                       </span>
                     ) : null}
                     <span className="mt-1 block text-muted-foreground">
-                      RFC {clientData.taxId.toUpperCase()}
+                      {clientData.taxId?.trim()
+                        ? `RFC ${clientData.taxId.toUpperCase()}`
+                        : profileCopy.badge.comercialOnly}
                       {" · "}
                       {CLIENT_TYPE_LABELS[clientData.type]}
                     </span>

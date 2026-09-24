@@ -1,18 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { Badge } from "@shared/ui/badge";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailTimeline } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import {
   Clock,
-  Loader2,
-  RefreshCw,
   Route,
 } from "lucide-react";
-import { getOrderedStops, TripStatus, type TripOperationalOutcomeType, type TripStatusType, type TripStop, type TripCargo } from "@features/trips/domain";
+import { getOrderedStops, TripStatus, type CfdiEmissionIntent, type TripOperationalOutcomeType, type TripStatusType, type TripStop, type TripCargo } from "@features/trips/domain";
 import {
   useTripTimeline,
   useUpdateCargo,
@@ -67,6 +64,8 @@ interface TripTrackingTabProps {
   cargos?: readonly TripCargo[];
   /** ADR-0079 / ADR-0088: oculta atajo de cierre si el viaje es en falso. */
   operationalOutcome?: TripOperationalOutcomeType;
+  /** ADR-0096: oculta Declarar viaje en falso si liquidación sin CFDI. */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
   /** ADR-0079: actor del falso si el API lo envía en el viaje (fallback de bitácora). */
   falseTripDeclaredBy?: string | null;
   /**
@@ -87,6 +86,7 @@ export function TripTrackingTab({
   status,
   cargos: cargosProp = [],
   operationalOutcome,
+  cfdiEmissionIntent,
   falseTripDeclaredBy = null,
   hasActiveSplit = false,
   requiresFiscalAttention = false,
@@ -355,32 +355,6 @@ export function TripTrackingTab({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          {tripStatus === TripStatus.IN_PROGRESS ? (
-            <Badge variant="secondary" className="text-xs">
-              {trackingCopy.state.live}
-            </Badge>
-          ) : null}
-          {updatedAgoLabel ? (
-            <span>{trackingCopy.hint.updatedAgo(updatedAgoLabel)}</span>
-          ) : null}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => timelineQuery.refetch()}
-          disabled={timelineQuery.isFetching}
-        >
-          {timelineQuery.isFetching ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          {trackingCopy.action.refresh}
-        </Button>
-      </div>
-
       {scopeAlertItems.length > 0 ? (
         <DetailAlertCard
           severity={timeline.trip.hasOpenIncident ? "warning" : "info"}
@@ -403,6 +377,12 @@ export function TripTrackingTab({
         getCargoStatusVariant={getCargoStatusVariant}
         canOperateTracking={canOperateTracking}
         canMutateCargo={canMutateCargo}
+        showLiveBadge={tripStatus === TripStatus.IN_PROGRESS}
+        updatedAgoLabel={updatedAgoLabel}
+        onRefresh={() => {
+          void timelineQuery.refetch();
+        }}
+        isRefreshing={timelineQuery.isFetching}
         onStartTrip={
           canOperateTracking ? () => setStartSheetOpen(true) : undefined
         }
@@ -422,9 +402,13 @@ export function TripTrackingTab({
           canOperateTracking ? () => setQuickCloseSheetOpen(true) : undefined
         }
         operationalOutcome={operationalOutcome}
+        cfdiEmissionIntent={cfdiEmissionIntent}
         hasActiveSplit={hasActiveSplit}
         onDeclareFalseTrip={
-          canOperateTracking ? () => setFalseTripSheetOpen(true) : undefined
+          canOperateTracking &&
+          cfdiEmissionIntent !== "sin_cfdi_efectivo"
+            ? () => setFalseTripSheetOpen(true)
+            : undefined
         }
         onRegisterNote={canOperateTracking ? openNoteSheet : undefined}
         onRegisterIncident={
@@ -567,6 +551,8 @@ export function TripTrackingTab({
             driverId={driverId}
             tripStartMileage={tripStartMileage}
             originStop={originStop}
+            cfdiEmissionIntent={cfdiEmissionIntent}
+            cargos={cargos}
             open={startSheetOpen}
             onOpenChange={setStartSheetOpen}
           />
@@ -581,6 +567,7 @@ export function TripTrackingTab({
             displayOrder={destinationClosureOrder}
             cargos={cargos}
             orderedStops={orderedStops}
+            cfdiEmissionIntent={cfdiEmissionIntent}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={timeline.trip.hasOpenIncident}
             open={tripArrivalSheetOpen}
@@ -595,6 +582,8 @@ export function TripTrackingTab({
             scheduledDeparture={timeline.trip.scheduledDeparture ?? undefined}
             actualDeparture={timeline.trip.actualDeparture ?? undefined}
             destinationStop={destinationStop}
+            cargos={cargos}
+            cfdiEmissionIntent={cfdiEmissionIntent}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={timeline.trip.hasOpenIncident}
             open={quickCloseSheetOpen}

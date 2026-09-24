@@ -284,6 +284,8 @@ export const tripFiscalCopy = {
   detailBadge: {
     readyToBill: "Listo para facturar",
     pending: "Pendiente",
+    /** ADR-0096: no usar «Pendiente» en viajes sin CFDI. */
+    sinCfdi: "Sin CFDI",
     /** ADR-0081: remap de listado «Parcial». */
     splitPartial: "Facturación en curso",
   },

@@ -177,7 +177,7 @@ export function ClientTable({
 
                 {/* RFC */}
                 <TableCell className="font-mono text-sm">
-                  {client.taxId}
+                  {client.taxId ?? "—"}
                 </TableCell>
 
                 {/* Tipo */}

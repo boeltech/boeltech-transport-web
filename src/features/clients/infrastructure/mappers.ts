@@ -34,6 +34,7 @@ import type {
   ClientAddressListItem,
   ClientType,
   PaymentTerms,
+  CfdiReceptorProfile,
   AddressType,
   // DTOs
   CreateClientDTO,
@@ -46,6 +47,12 @@ import type {
   ClientAddressApiResponse,
   PaginatedResult,
 } from "../domain";
+
+function mapCfdiReceptorProfile(
+  value: string | null | undefined,
+): CfdiReceptorProfile {
+  return value === "comercial_only" ? "comercial_only" : "receptor_cfdi";
+}
 
 // ============================================================================
 // Helpers: contrato Zod del API (boeltech-transport-api)
@@ -92,7 +99,8 @@ function mapClientListItemToDomain(
     type: raw.type as ClientType,
     legalName: raw.legalName,
     tradeName: raw.tradeName ?? undefined,
-    taxId: raw.taxId,
+    taxId: raw.taxId ?? null,
+    cfdiReceptorProfile: mapCfdiReceptorProfile(raw.cfdiReceptorProfile),
     phone: primary?.phone ?? raw.phone ?? undefined,
     email: primary?.email ?? raw.email ?? undefined,
     paymentTerms: raw.paymentTerms as PaymentTerms,
@@ -111,8 +119,9 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     type: raw.type as ClientType,
     legalName: raw.legalName,
     tradeName: raw.tradeName ?? undefined,
-    taxId: raw.taxId,
-    taxRegime: raw.taxRegime,
+    taxId: raw.taxId ?? null,
+    taxRegime: raw.taxRegime ?? null,
+    cfdiReceptorProfile: mapCfdiReceptorProfile(raw.cfdiReceptorProfile),
     contactName: raw.contactName ?? undefined,
     contactPosition: raw.contactPosition ?? undefined,
     phone: raw.phone ?? undefined,
@@ -346,10 +355,14 @@ export function mapClientAddressFromApi(
 export function toApiCreateClient(
   dto: CreateClientDTO,
 ): Record<string, unknown> {
+  const profile = dto.cfdiReceptorProfile ?? "receptor_cfdi";
+  const taxId = apiOptionalTrimmedString(dto.taxId);
+  const taxRegime = apiOptionalTrimmedString(dto.taxRegime);
+
   const payload: Record<string, unknown> = {
     type: dto.type,
     legal_name: dto.legalName,
-    tax_id: dto.taxId.toUpperCase(),
+    cfdi_receptor_profile: profile,
     payment_terms: dto.paymentTerms,
     credit_days: dto.creditDays ?? 0,
     credit_limit: dto.creditLimit ?? 0,
@@ -358,7 +371,17 @@ export function toApiCreateClient(
   const tradeName = apiOptionalTrimmedString(dto.tradeName);
   if (tradeName !== undefined) payload.trade_name = tradeName;
 
-  payload.tax_regime = dto.taxRegime.trim();
+  if (taxId !== undefined) {
+    payload.tax_id = taxId.toUpperCase();
+  } else if (profile === "comercial_only") {
+    payload.tax_id = null;
+  }
+
+  if (taxRegime !== undefined) {
+    payload.tax_regime = taxRegime;
+  } else if (profile === "comercial_only") {
+    payload.tax_regime = null;
+  }
 
   // Contacto legacy (`contact_*` / phone / email) ya no se dual-write;
   // el alta usa POST /clients/:id/contacts (primaryContact).
@@ -384,8 +407,21 @@ export function toApiUpdateClient(
   if (dto.type !== undefined) result.type = dto.type;
   if (dto.legalName !== undefined) result.legal_name = dto.legalName;
   if (dto.tradeName !== undefined) result.trade_name = dto.tradeName;
-  if (dto.taxId !== undefined) result.tax_id = dto.taxId.toUpperCase();
-  if (dto.taxRegime !== undefined) result.tax_regime = dto.taxRegime;
+  if (dto.cfdiReceptorProfile !== undefined) {
+    result.cfdi_receptor_profile = dto.cfdiReceptorProfile;
+  }
+  if (dto.taxId !== undefined) {
+    result.tax_id =
+      dto.taxId == null || dto.taxId.trim() === ""
+        ? null
+        : dto.taxId.trim().toUpperCase();
+  }
+  if (dto.taxRegime !== undefined) {
+    result.tax_regime =
+      dto.taxRegime == null || dto.taxRegime.trim() === ""
+        ? null
+        : dto.taxRegime.trim();
+  }
   // Contacto legacy omitido (WS-B); contactos viven en client_contacts.
   if (dto.billingEmail !== undefined) result.billing_email = dto.billingEmail;
   if (dto.billingSchemeId !== undefined) {
