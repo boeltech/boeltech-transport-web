@@ -3,6 +3,7 @@ export { FinanceInvoicesPage } from "./FinanceInvoicesPage";
 export { FinanceInvoiceablePage } from "./FinanceInvoiceablePage";
 export { FinanceCobrosPage } from "./FinanceCobrosPage";
 export { FinanceApprovalsPage } from "./FinanceApprovalsPage";
+export { FinanceDispatchPage } from "./FinanceDispatchPage";
 export { FinanceDispatchRunsPage } from "./FinanceDispatchRunsPage";
 export { FinanceAnalysisPage } from "./FinanceAnalysisPage";
 export { ProfitabilityTab } from "./ProfitabilityTab";

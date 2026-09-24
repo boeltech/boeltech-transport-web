@@ -31,7 +31,8 @@ export const navigationCopy = {
     financeSettlements: "Liquidaciones",
     financeOperatorPayments: "Pagos a operadores",
     financeAgreements: "Esquemas de compensación",
-    financeDispatchRuns: "Envío",
+    /** Workbench unificado de envío de facturas (pendientes / enviadas / historial). */
+    financeDispatch: "Envíos",
     financeAnalysis: "Rentabilidad",
     /** Listado de facturas (staff con invoices.read y portal client). */
     financeInvoices: "Facturas",

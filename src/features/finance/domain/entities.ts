@@ -214,6 +214,8 @@ export interface FinanceInvoiceListItem {
   readonly totalPaid: number;
   readonly tripCodes: string[];
   readonly status: FinanceInvoiceStatus;
+  /** Último envío por correo al cliente (`dispatch_sent_at`). */
+  readonly dispatchSentAt: string | null;
   /** ADR-0081 / ADR-0068: alcance fiscal en listado Finanzas. */
   readonly billingScope?: InvoiceBillingScope;
   readonly sharePercent?: number | null;

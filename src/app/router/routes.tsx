@@ -281,8 +281,8 @@ const FinanceCobrosPage = lazyWithRetry(() =>
 const FinanceApprovalsPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinanceApprovalsPage })),
 );
-const FinanceDispatchRunsPage = lazyWithRetry(() =>
-  import("@features/finance").then((m) => ({ default: m.FinanceDispatchRunsPage })),
+const FinanceDispatchPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({ default: m.FinanceDispatchPage })),
 );
 const FinanceAnalysisPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinanceAnalysisPage })),
@@ -292,6 +292,21 @@ const InvoiceDetailPage = lazyWithRetry(() =>
 );
 const CreateInvoicePage = lazyWithRetry(() =>
   import("@features/invoicing").then((m) => ({ default: m.CreateInvoicePage })),
+);
+const FinanceSendInvoicesLegacyRedirect = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.FinanceSendInvoicesLegacyRedirect,
+  })),
+);
+const FinanceDispatchRunsLegacyRedirect = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.FinanceDispatchRunsLegacyRedirect,
+  })),
+);
+const FinanceDispatchRunDetailLegacyRedirect = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.FinanceDispatchRunDetailLegacyRedirect,
+  })),
 );
 const DispatchRunDetailPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.DispatchRunDetailPage })),
@@ -956,12 +971,24 @@ export const router = createBrowserRouter([
                 element: <ModuleRoute module="invoices" />,
                 children: [
                   {
+                    path: "/finance/dispatch",
+                    element: withSuspense(FinanceDispatchPage),
+                  },
+                  {
+                    path: "/finance/dispatch/:id",
+                    element: withSuspense(DispatchRunDetailPage),
+                  },
+                  {
+                    path: "/finance/send-invoices",
+                    element: withSuspense(FinanceSendInvoicesLegacyRedirect),
+                  },
+                  {
                     path: "/finance/dispatch-runs",
-                    element: withSuspense(FinanceDispatchRunsPage),
+                    element: withSuspense(FinanceDispatchRunsLegacyRedirect),
                   },
                   {
                     path: "/finance/dispatch-runs/:id",
-                    element: withSuspense(DispatchRunDetailPage),
+                    element: withSuspense(FinanceDispatchRunDetailLegacyRedirect),
                   },
                 ],
               },

@@ -89,6 +89,10 @@ function mapOpenPpdItem(raw: Record<string, unknown>): FinanceInvoiceListItem {
       ? raw.trip_codes.map((code) => String(code))
       : [],
     status: String(raw.status ?? "stamped") as FinanceInvoiceListItem["status"],
+    dispatchSentAt:
+      raw.dispatch_sent_at == null || raw.dispatch_sent_at === ""
+        ? null
+        : String(raw.dispatch_sent_at),
   };
 }
 

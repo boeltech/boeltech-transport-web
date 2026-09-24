@@ -32,6 +32,7 @@ function invoice(
     totalPaid: 0,
     tripCodes: [],
     status: "stamped",
+    dispatchSentAt: null,
     ...overrides,
   };
 }

@@ -61,6 +61,10 @@ export {
   buildFinanceAnalysisSearchParams,
   buildFinanceCobrosPath,
   resolveLegacyFinanceLocation,
+  FINANCE_DISPATCH_PATH,
+  FINANCE_DISPATCH_PENDING_HREF,
+  FINANCE_DISPATCH_HISTORY_HREF,
+  FINANCE_DISPATCH_DETAIL_PATH,
 } from "./financeRoutes";
 export {
   isFinanceAnalyticsEnabled,

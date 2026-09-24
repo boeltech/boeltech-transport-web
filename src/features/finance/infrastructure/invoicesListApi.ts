@@ -14,7 +14,7 @@ import type {
   FinanceInvoiceStatus,
   PaginatedFinanceInvoices,
 } from "@features/finance/domain";
-import { parseInvoiceBillingScope } from "@features/invoicing";
+import { parseInvoiceBillingScope } from "@features/invoicing/domain";
 
 const INVOICES = "/invoices";
 
@@ -42,6 +42,10 @@ function mapInvoiceListItem(raw: Record<string, unknown>): FinanceInvoiceListIte
       ? raw.trip_codes.map((code) => String(code))
       : [],
     status: String(raw.status ?? "draft") as FinanceInvoiceStatus,
+    dispatchSentAt:
+      raw.dispatch_sent_at == null || raw.dispatch_sent_at === ""
+        ? null
+        : String(raw.dispatch_sent_at),
     billingScope: raw.billing_scope
       ? parseInvoiceBillingScope(String(raw.billing_scope))
       : undefined,

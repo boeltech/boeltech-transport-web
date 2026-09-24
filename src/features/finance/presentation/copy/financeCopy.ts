@@ -372,6 +372,7 @@ export const financeCopy = {
       settledPue: "Liquidada",
       trips: "Viajes",
       tripsClient: "Envíos",
+      dispatch: "Envío",
       status: "Estado",
       paid: "Pagado",
       empty: "No se encontraron facturas.",

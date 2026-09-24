@@ -284,9 +284,9 @@ function renderDetail() {
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={["/finance/dispatch-runs/run-1"]}>
+      <MemoryRouter initialEntries={["/finance/dispatch/run-1"]}>
         <Routes>
-          <Route path="/finance/dispatch-runs/:id" element={children} />
+          <Route path="/finance/dispatch/:id" element={children} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>

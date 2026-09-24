@@ -102,6 +102,7 @@ function buildInvoice(
     totalPaid: 0,
     tripCodes: ["TRP-001"],
     status: "stamped",
+    dispatchSentAt: null,
     ...overrides,
   };
 }

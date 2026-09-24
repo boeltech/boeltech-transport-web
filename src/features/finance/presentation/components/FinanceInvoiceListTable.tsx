@@ -18,10 +18,9 @@ import type {
   FinanceInvoiceListItem,
   FinanceInvoiceStatus,
 } from "@features/finance/domain";
-import {
-  getDisplayAmountsFromInvoiceFields,
-  InvoiceBillingScopeBadge,
-} from "@features/invoicing";
+import { getDisplayAmountsFromInvoiceFields } from "@features/invoicing/domain";
+import { InvoiceBillingScopeBadge } from "@features/invoicing/presentation/components/InvoiceBillingScopeBadge";
+import { InvoiceEmailDispatchBadge } from "@features/invoicing/presentation/components/InvoiceEmailDispatchBadge";
 import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
 import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
@@ -31,7 +30,7 @@ import { formatFinancePaymentMethodLabel } from "../utils/formatFinancePaymentMe
 const copy = financeCopy.invoices;
 const splitShareCopy = invoicingCopy.splitShare;
 
-/** Saldo mostrado: PUE timbrada = liquidada (igual que detalle de factura). */
+/** Saldo mostrado vía dominio compartido (PUE stamped sin cobro ≠ liquidada). */
 function getListDisplayAmounts(invoice: FinanceInvoiceListItem) {
   return getDisplayAmountsFromInvoiceFields({
     status: invoice.status,
@@ -65,6 +64,7 @@ function getHeaders(isClientPortal: boolean) {
       key: "trips",
       label: isClientPortal ? copy.table.tripsClient : copy.table.trips,
     },
+    { key: "dispatch", label: copy.table.dispatch },
     { key: "status", label: copy.table.status },
   );
   return headers;
@@ -231,6 +231,15 @@ export function FinanceInvoiceListTable({
                     </Badge>
                   ) : null}
                 </div>
+              </TableCell>
+              <TableCell>
+                <InvoiceEmailDispatchBadge
+                  status={invoice.status}
+                  dispatchSentAt={invoice.dispatchSentAt}
+                  autoDispatchLastItemStatus={
+                    invoice.autoDispatch?.lastItemStatus
+                  }
+                />
               </TableCell>
               <TableCell>
                 {isClientPortal ? (

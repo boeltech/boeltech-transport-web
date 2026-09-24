@@ -13,10 +13,14 @@ export const FINANCE_ANALYSIS_VIEW_PARAM = "view";
 /** RFC precargado al abrir Cobros desde Resumen. */
 export const FINANCE_COBROS_RFC_PARAM = "rfc";
 
+/** Query param del workbench Envío de facturas (`?tab=`). */
+export const FINANCE_DISPATCH_TAB_PARAM = "tab";
+
 /** Query params que no se borran al limpiar filtros de listado. */
 export const FINANCE_PRESERVED_URL_PARAMS = [
   FINANCE_ANALYSIS_VIEW_PARAM,
   FINANCE_COBROS_RFC_PARAM,
+  FINANCE_DISPATCH_TAB_PARAM,
 ] as const;
 
 export const FINANCE_ANALYSIS_VIEWS = ["margin", "expenses"] as const;

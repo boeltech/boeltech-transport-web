@@ -108,7 +108,7 @@ describe("filterNavigation", () => {
     const billingGroup = filtered.find((g) => g.id === "billing");
     expect(billingGroup?.items.map((i) => i.id)).toEqual([
       "finance-invoices",
-      "finance-dispatch-runs",
+      "finance-dispatch",
     ]);
   });
 
@@ -125,7 +125,7 @@ describe("filterNavigation", () => {
     expect(billingGroup?.items.map((i) => i.id)).toEqual([
       "finance-invoiceable",
       "finance-invoices",
-      "finance-dispatch-runs",
+      "finance-dispatch",
       "finance-cobros",
     ]);
 

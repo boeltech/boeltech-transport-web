@@ -61,6 +61,7 @@ describe("financeInvoicesListApi", () => {
       receiverRfc: "XAXX010101000",
       status: "stamped",
       totalPaid: 0,
+      dispatchSentAt: null,
     });
 
     // Range formula used by ListingResultsSummary for page 1
@@ -133,6 +134,36 @@ describe("financeInvoicesListApi", () => {
       billingScope: "split_share",
       sharePercent: 60,
     });
+  });
+
+  it("maps dispatch_sent_at to dispatchSentAt (F4 historial mínimo)", async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          id: "inv-sent",
+          serie: "A",
+          folio: 3,
+          receiver_rfc: "XAXX010101000",
+          receiver_name: "Cliente",
+          issued_at: "2026-07-01T12:00:00.000Z",
+          payment_method: "PUE",
+          total: 1160,
+          balance_due: 0,
+          trip_codes: [],
+          status: "stamped",
+          dispatch_sent_at: "2026-09-11T12:00:00.000Z",
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        total_pages: 1,
+      },
+    });
+
+    const result = await financeInvoicesListApi.getAll({ page: 1, limit: 10 });
+    expect(result.data[0]?.dispatchSentAt).toBe("2026-09-11T12:00:00.000Z");
   });
 
   it("computes last-page range without NaN when totalPages is mapped", async () => {

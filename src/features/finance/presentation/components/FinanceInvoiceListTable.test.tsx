@@ -19,12 +19,13 @@ function buildInvoice(
     totalPaid: 0,
     tripCodes: ["TRP-260816-0004"],
     status: "stamped",
+    dispatchSentAt: null,
     ...overrides,
   };
 }
 
 describe("FinanceInvoiceListTable", () => {
-  it("shows stamped PUE as Liquidada even when API balance_due is the full total", () => {
+  it("keeps stamped PUE outstanding balance when no payment registered (T5-031)", () => {
     render(
       <FinanceInvoiceListTable
         invoices={[buildInvoice({ totalPaid: 0, balanceDue: 31920 })]}
@@ -33,10 +34,11 @@ describe("FinanceInvoiceListTable", () => {
       />,
     );
 
-    expect(screen.getByText("Liquidada")).toBeInTheDocument();
-    expect(screen.getByText("Por cobrar")).toBeInTheDocument();
-    // Total column still shows the amount; Por cobrar must not show it as outstanding.
-    expect(screen.getAllByText("$31,920.00")).toHaveLength(1);
+    // Total + Por cobrar both show the amount until there is a registered payment.
+    expect(screen.getAllByText("$31,920.00")).toHaveLength(2);
+    expect(screen.queryByText("Liquidada")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pagado")).not.toBeInTheDocument();
+    expect(screen.getByText("No enviada")).toBeInTheDocument();
   });
 
   it("keeps draft PUE balance from API until the invoice is stamped", () => {
@@ -151,5 +153,33 @@ describe("FinanceInvoiceListTable", () => {
 
     expect(screen.getByText("Timbrando…")).toBeInTheDocument();
     expect(screen.queryByText(/^stamping$/)).not.toBeInTheDocument();
+  });
+
+  it("shows Enviada chip when dispatchSentAt is set on stamped rows", () => {
+    render(
+      <FinanceInvoiceListTable
+        invoices={[
+          buildInvoice({
+            dispatchSentAt: "2026-09-11T12:00:00.000Z",
+          }),
+        ]}
+        isLoading={false}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Enviada")).toBeInTheDocument();
+  });
+
+  it("shows No enviada chip for stamped rows without dispatchSentAt", () => {
+    render(
+      <FinanceInvoiceListTable
+        invoices={[buildInvoice({ dispatchSentAt: null })]}
+        isLoading={false}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("No enviada")).toBeInTheDocument();
   });
 });

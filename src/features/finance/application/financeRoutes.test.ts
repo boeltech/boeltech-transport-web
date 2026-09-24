@@ -9,6 +9,18 @@ describe("financeRoutes", () => {
     expect(resolveLegacyFinanceLocation("?tab=summary")).toBe("/finance");
   });
 
+  it("resolveLegacyFinanceLocation maps dispatch-runs to Historial workbench", () => {
+    expect(resolveLegacyFinanceLocation("?tab=dispatch-runs")).toBe(
+      "/finance/dispatch?tab=history",
+    );
+  });
+
+  it("resolveLegacyFinanceLocation maps dispatch to workbench root", () => {
+    expect(resolveLegacyFinanceLocation("?tab=dispatch")).toBe(
+      "/finance/dispatch",
+    );
+  });
+
   it("buildFinanceAnalysisSearchParams drops month dimension for expenses view", () => {
     const current = new URLSearchParams({
       dimension: "month",

@@ -155,9 +155,9 @@ export const navigationConfig: NavGroup[] = [
         module: "invoices",
       },
       {
-        id: "finance-dispatch-runs",
-        label: copy.item.financeDispatchRuns,
-        path: "/finance/dispatch-runs",
+        id: "finance-dispatch",
+        label: copy.item.financeDispatch,
+        path: "/finance/dispatch",
         icon: Mail,
         module: "invoices",
         action: "read",

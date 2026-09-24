@@ -177,7 +177,7 @@ function PendingStampRows({
                     <Button variant="outline" size="sm" asChild>
                       <Link
                         to={buildPendingStampInvoicePath(item)}
-                        state={{ from: `/finance/dispatch-runs/${runId}` }}
+                        state={{ from: `/finance/dispatch/${runId}` }}
                       >
                         {copy.buckets.stampCta}
                       </Link>
@@ -632,7 +632,7 @@ export function DispatchRunDetailPage() {
   const handleCancel = async () => {
     if (!id) return;
     await cancelMutation.mutateAsync(id);
-    navigate("/finance/dispatch-runs");
+    navigate("/finance/dispatch?tab=history");
   };
 
   const isPending =
@@ -649,7 +649,7 @@ export function DispatchRunDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref: "/finance/dispatch-runs",
+          backHref: "/finance/dispatch?tab=history",
           backLabel: copy.backToList,
           icon: <Mail className="h-6 w-6" />,
           title: copy.title,
@@ -663,7 +663,7 @@ export function DispatchRunDetailPage() {
       <DetailPageShell
         isLoading={false}
         header={{
-          backHref: "/finance/dispatch-runs",
+          backHref: "/finance/dispatch?tab=history",
           backLabel: copy.backToList,
           icon: <Mail className="h-6 w-6" />,
           title: copy.title,
@@ -688,7 +688,7 @@ export function DispatchRunDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref: "/finance/dispatch-runs",
+        backHref: "/finance/dispatch?tab=history",
         backLabel: copy.backToList,
         icon: <Mail className="h-6 w-6" />,
         iconVariant: "primary",

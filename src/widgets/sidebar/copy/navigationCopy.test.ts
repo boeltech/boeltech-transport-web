@@ -30,6 +30,7 @@ describe("navigationCopy", () => {
     expect(labels).toContain("Configuración");
     expect(labels).toContain("Por facturar");
     expect(labels).toContain("Cobros");
+    expect(labels).toContain("Envíos");
   });
 
   it("exposes portal labels without staff finance/fleet jargon", () => {
@@ -85,13 +86,13 @@ describe("navigationConfig", () => {
     expect(billing?.items.map((item) => item.id)).toEqual([
       "finance-invoiceable",
       "finance-invoices",
-      "finance-dispatch-runs",
+      "finance-dispatch",
       "finance-cobros",
     ]);
     expect(billing?.items.map((item) => item.label)).toEqual([
       "Por facturar",
       "Facturas",
-      "Envío",
+      "Envíos",
       "Cobros",
     ]);
 

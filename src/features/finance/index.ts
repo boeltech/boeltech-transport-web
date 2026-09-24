@@ -37,6 +37,10 @@ export {
   buildFinanceCobrosPath,
   buildFinanceAnalysisSearchParams,
   resolveLegacyFinanceLocation,
+  FINANCE_DISPATCH_PATH,
+  FINANCE_DISPATCH_PENDING_HREF,
+  FINANCE_DISPATCH_HISTORY_HREF,
+  FINANCE_DISPATCH_DETAIL_PATH,
 } from "./application";
 
 export { financeApi } from "./infrastructure";
@@ -47,12 +51,19 @@ export {
   FinanceInvoiceablePage,
   FinanceCobrosPage,
   FinanceApprovalsPage,
+  FinanceDispatchPage,
   FinanceDispatchRunsPage,
   FinanceAnalysisPage,
   ProfitabilityTab,
   ExpenseAnalysisTab,
   DispatchRunDetailPage,
 } from "./presentation/pages";
+
+export {
+  FinanceSendInvoicesLegacyRedirect,
+  FinanceDispatchRunsLegacyRedirect,
+  FinanceDispatchRunDetailLegacyRedirect,
+} from "./presentation/routes/FinanceDispatchLegacyRedirects";
 
 export { FinanceIndexRoute } from "./presentation/routes/FinanceIndexRoute";
 export { StaffFinanceRoute } from "./presentation/routes/StaffFinanceRoute";
