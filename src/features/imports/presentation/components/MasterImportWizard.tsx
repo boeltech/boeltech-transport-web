@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { getErrorMessage } from "@shared/utils/errorMapper";
+import { usePermissions } from "@shared/permissions";
 import {
   DEFAULT_IMPORT_OPTIONS,
   IMPORT_IMPLEMENTED_ENTITY_TYPES,
@@ -96,6 +97,8 @@ function MasterImportWizardContent({
   onSuccess,
 }: MasterImportWizardProps) {
   const copy = importsCopy.wizard;
+  const { hasPermission } = usePermissions();
+  const canReadBilling = hasPermission("billing", "read");
 
   const [step, setStep] = useState<WizardStep>("upload");
   const [entityType, setEntityType] = useState<ImportImplementedEntityType>(
@@ -503,6 +506,26 @@ function MasterImportWizardContent({
           </span>
         </label>
       </div>
+
+      {entityType === "vehicles" ? (
+        <Alert variant="info">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            {copy.options.vehiclesBillingNotice}
+            {canReadBilling ? (
+              <>
+                {" "}
+                <Link
+                  to={copy.options.subscriptionHref}
+                  className="font-medium underline underline-offset-2"
+                >
+                  {copy.options.subscriptionLink}
+                </Link>
+              </>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {commitMutation.isPending ? (
         <Alert variant="info">

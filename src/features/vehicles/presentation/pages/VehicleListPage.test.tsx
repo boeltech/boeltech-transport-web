@@ -1,9 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { VehicleListPage } from "./VehicleListPage";
 import { vehiclesCopy } from "../copy/vehiclesCopy";
+import type { VehicleListItem } from "../../domain";
 
 const BRANCH_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -18,6 +20,7 @@ const { mockUseVehicles, mockUseDeleteVehicle, mockUseBranches } = vi.hoisted(
 vi.mock("../../application", () => ({
   useVehicles: (...args: unknown[]) => mockUseVehicles(...args),
   useDeleteVehicle: (...args: unknown[]) => mockUseDeleteVehicle(...args),
+  useUpdateVehicle: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@features/branches", () => ({
@@ -108,5 +111,111 @@ describe("VehicleListPage branch filter", () => {
     expect(
       screen.getByText(vehiclesCopy.list.filters.allBranches),
     ).toBeInTheDocument();
+  });
+});
+
+function buildListItem(
+  overrides: Partial<VehicleListItem> = {},
+): VehicleListItem {
+  return {
+    id: "v-1",
+    unitNumber: "U-01",
+    licensePlate: "ABC1234",
+    brand: "Kenworth",
+    model: "T680",
+    year: 2024,
+    type: "truck",
+    color: null,
+    status: "available",
+    currentMileage: 1000,
+    isActive: true,
+    insurancePolicy: null,
+    insuranceExpiry: null,
+    sctPermitNumber: null,
+    sctPermitExpiry: null,
+    satTipoPermisoCode: null,
+    satConfigAutotransporteCode: null,
+    pesoBrutoVehicular: null,
+    insuranceCompany: null,
+    remolques: [],
+    branchId: null,
+    branchName: null,
+    branchCode: null,
+    ...overrides,
+  };
+}
+
+describe("VehicleListPage billing policy (F1)", () => {
+  beforeEach(() => {
+    mockUseBranches.mockReturnValue({ data: { data: [] } });
+    mockUseDeleteVehicle.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    });
+  });
+
+  it("el listado no muestra copy de cobro ni suscripción", () => {
+    mockUseVehicles.mockReturnValue({
+      data: {
+        data: [buildListItem()],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 10 },
+      },
+      isLoading: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Vehículos")).toBeInTheDocument();
+    expect(screen.getByText("Gestión de la flota vehicular")).toBeInTheDocument();
+    expect(screen.queryByText(/mes completo/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/crédito/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/suscripción/i)).not.toBeInTheDocument();
+  });
+
+  it("eliminar un tracto cobrable muestra la frase de baja", async () => {
+    const user = userEvent.setup();
+    mockUseVehicles.mockReturnValue({
+      data: {
+        data: [buildListItem()],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 10 },
+      },
+      isLoading: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /abrir menú/i }));
+    await user.click(screen.getByRole("menuitem", { name: /eliminar/i }));
+
+    expect(
+      screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("eliminar un pickup no muestra la frase de crédito", async () => {
+    const user = userEvent.setup();
+    mockUseVehicles.mockReturnValue({
+      data: {
+        data: [buildListItem({ type: "pickup", unitNumber: "U-P1" })],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 10 },
+      },
+      isLoading: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /abrir menú/i }));
+    await user.click(screen.getByRole("menuitem", { name: /eliminar/i }));
+
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent("U-P1");
+    expect(dialog).not.toHaveTextContent(vehiclesCopy.billingPolicy.remove);
+    expect(dialog).not.toHaveTextContent(/crédito/i);
   });
 });

@@ -51,10 +51,12 @@ import { useUpdateVehicle, useDeleteVehicle } from "../../application";
 import {
   VehicleStatus,
   VEHICLE_STATUS_LABELS,
+  isBillableMotrizNow,
   type VehicleListItem,
   type Vehicle,
   type VehicleStatusType,
 } from "../../domain";
+import { VehicleBillingPolicyNote } from "./VehicleBillingPolicyNote";
 import {
   MoreHorizontal,
   Eye,
@@ -197,6 +199,11 @@ export function VehicleActions(props: VehicleActionsProps) {
   const id = props.vehicle?.id ?? props.vehicleId!;
   const name = props.vehicle?.unitNumber ?? props.vehicleName!;
   const currentStatus = props.vehicle?.status ?? props.status!;
+  const billableNow = isBillableMotrizNow({
+    type: props.vehicle?.type,
+    status: currentStatus,
+    isActive: props.vehicle?.isActive,
+  });
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -482,6 +489,12 @@ export function VehicleActions(props: VehicleActionsProps) {
               Esta acción no se puede deshacer. El vehículo{" "}
               <strong>{name}</strong> será eliminado permanentemente del
               sistema.
+              {billableNow ? (
+                <>
+                  {" "}
+                  <VehicleBillingPolicyNote kind="remove" />
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -518,6 +531,13 @@ export function VehicleActions(props: VehicleActionsProps) {
                   : ""}
               </strong>
               .
+              {billableNow &&
+              statusDialog.targetStatus === VehicleStatus.OUT_OF_SERVICE ? (
+                <>
+                  {" "}
+                  <VehicleBillingPolicyNote kind="remove" />
+                </>
+              ) : null}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">

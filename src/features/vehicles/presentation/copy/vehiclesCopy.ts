@@ -283,6 +283,18 @@ export const vehiclesCopy = {
       backToList: "Volver a vehículos",
     },
   },
+  /**
+   * Política de cobro motriz (F1). Frases factuales, sin montos ni preview.
+   * Prohibido: $389, IVA, overage, cupo, banda, “tu factura”, calculadora.
+   */
+  billingPolicy: {
+    create:
+      "Las unidades de tracción (tracto, tórton, rabón) se cobran este mes completo, aunque las registres a mitad de mes.",
+    remove:
+      "Deja de contar el 1.º del mes siguiente. Este mes no hay crédito.",
+    link: "Ver suscripción",
+    subscriptionHref: "/settings/subscription",
+  },
 } as const;
 
 export type VehiclesCopy = typeof vehiclesCopy;

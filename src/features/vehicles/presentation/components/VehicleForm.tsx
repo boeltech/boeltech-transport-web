@@ -55,6 +55,7 @@ import {
 import {
   VEHICLE_TYPE_LABELS,
   VehicleType,
+  isBillableMotrizType,
   type VehicleTypeValue,
   type Vehicle,
 } from "@features/vehicles/domain";
@@ -75,6 +76,7 @@ import {
   VehicleGridSelect,
 } from "./VehicleFormFields";
 import { VehicleEditIdentityBanner } from "./VehicleEditIdentityBanner";
+import { VehicleBillingPolicyNote } from "./VehicleBillingPolicyNote";
 import { vehiclesCopy } from "../copy";
 
 const fc = vehiclesCopy.form;
@@ -164,51 +166,62 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
 
 function VehicleCreateWizardSummary() {
   const form = useFormContext<CreateVehicleFormData>();
-  const v = form.getValues();
+  const v = form.watch();
+  const showBillingNotice = isBillableMotrizType(v.type);
   return (
-    <FormSectionCard
-      title={fc.section.review.title}
-      icon={<ClipboardCheck className="h-4 w-4" />}
-      description={fc.section.review.description}
-      contentClassName="grid gap-4 text-sm sm:grid-cols-2"
-    >
-        <div>
-          <p className="text-muted-foreground">{fc.label.reviewUnit}</p>
-          <p className="font-medium">{v.unitNumber || fc.hint.reviewEmpty}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{fc.label.reviewPlate}</p>
-          <p className="font-medium">{v.licensePlate || fc.hint.reviewEmpty}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{fc.label.reviewBrandModel}</p>
-          <p className="font-medium">
-            {[v.brand, v.model, v.year].filter(Boolean).join(" · ") ||
-              fc.hint.reviewEmpty}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{fc.label.reviewType}</p>
-          <p className="font-medium">
-            {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue] : fc.hint.reviewEmpty}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{fc.label.reviewMileage}</p>
-          <p className="font-medium">
-            {typeof v.currentMileage === "number"
-              ? vehiclesCopy.detail.format.statMileage(v.currentMileage)
-              : fc.hint.reviewMileageDefault}
-          </p>
-        </div>
-        <div className="sm:col-span-2">
-          <p className="text-muted-foreground">{fc.label.reviewSct}</p>
-          <p className="font-medium">
-            {[v.satTipoPermisoCode, v.sctPermitNumber].filter(Boolean).join(" · ") ||
-              fc.hint.reviewEmpty}
-          </p>
-        </div>
-    </FormSectionCard>
+    <div className="space-y-4">
+      <FormSectionCard
+        title={fc.section.review.title}
+        icon={<ClipboardCheck className="h-4 w-4" />}
+        description={fc.section.review.description}
+        contentClassName="grid gap-4 text-sm sm:grid-cols-2"
+      >
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewUnit}</p>
+            <p className="font-medium">{v.unitNumber || fc.hint.reviewEmpty}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewPlate}</p>
+            <p className="font-medium">{v.licensePlate || fc.hint.reviewEmpty}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewBrandModel}</p>
+            <p className="font-medium">
+              {[v.brand, v.model, v.year].filter(Boolean).join(" · ") ||
+                fc.hint.reviewEmpty}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewType}</p>
+            <p className="font-medium">
+              {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue] : fc.hint.reviewEmpty}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewMileage}</p>
+            <p className="font-medium">
+              {typeof v.currentMileage === "number"
+                ? vehiclesCopy.detail.format.statMileage(v.currentMileage)
+                : fc.hint.reviewMileageDefault}
+            </p>
+          </div>
+          <div className="sm:col-span-2">
+            <p className="text-muted-foreground">{fc.label.reviewSct}</p>
+            <p className="font-medium">
+              {[v.satTipoPermisoCode, v.sctPermitNumber].filter(Boolean).join(" · ") ||
+                fc.hint.reviewEmpty}
+            </p>
+          </div>
+      </FormSectionCard>
+      {showBillingNotice ? (
+        <Alert variant="info">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            <VehicleBillingPolicyNote kind="create" />
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </div>
   );
 }
 
@@ -278,8 +291,13 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     // Destructurar `formState` arriba garantiza que RHF subscribe `errors` / `isValid`
     // (proxy lazy de v7): sin esto, accesos como `form.formState.isValid` en JSX
     // pueden no re-renderizar tras un `trigger()` fallido.
-    const { control, handleSubmit: rhfHandleSubmit, trigger, formState } = form;
+    const { control, handleSubmit: rhfHandleSubmit, trigger, formState, watch } =
+      form;
     const { errors, isDirty } = formState;
+    const selectedType = watch("type");
+    const typeBillingHint = isBillableMotrizType(selectedType)
+      ? vehiclesCopy.billingPolicy.create
+      : undefined;
     const validationMessages = collectFieldErrorMessages(errors);
 
     const { data: branchesResult } = useBranches({
@@ -456,6 +474,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               label={fc.label.type}
               required
               placeholder={fc.placeholder.selectType}
+              hint={typeBillingHint}
               options={(Object.values(VehicleType) as VehicleTypeValue[]).map(
                 (value) => ({
                   value,

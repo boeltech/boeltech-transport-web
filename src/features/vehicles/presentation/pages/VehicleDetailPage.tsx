@@ -168,9 +168,7 @@ export function VehicleDetailPage() {
         ),
         actions: (
           <VehicleActions
-            vehicleId={vehicle.id}
-            vehicleName={vehicle.unitNumber}
-            status={vehicle.status}
+            vehicle={vehicle}
             variant="buttons"
             onActionComplete={refetchVehicle}
           />

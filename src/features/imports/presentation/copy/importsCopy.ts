@@ -145,6 +145,10 @@ export const importsCopy = {
       confirm: "Aplicar carga",
       back: "Anterior",
       cancel: "Cancelar",
+      vehiclesBillingNotice:
+        "Las unidades de tracción (tracto, tórton, rabón) se cobran este mes completo, aunque las registres a mitad de mes.",
+      subscriptionLink: "Ver suscripción",
+      subscriptionHref: "/settings/subscription",
     },
     result: {
       successTitle: "Carga aplicada",

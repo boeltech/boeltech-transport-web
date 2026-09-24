@@ -41,6 +41,7 @@ import { useVehicles, useDeleteVehicle } from "../../application";
 import {
   VehicleStatus,
   VehicleType,
+  isBillableMotrizNow,
   type VehicleListItem,
   type VehicleStatusType,
   type VehicleTypeValue,
@@ -48,6 +49,7 @@ import {
   VEHICLE_TYPE_LABELS,
 } from "../../domain";
 import { VehicleTable, VehicleCard, VehicleCardSkeleton } from "../components";
+import { VehicleBillingPolicyNote } from "../components/VehicleBillingPolicyNote";
 import { vehiclesCopy } from "../copy/vehiclesCopy";
 import { VEHICLE_STATUS_CONFIG } from "../index";
 
@@ -362,6 +364,12 @@ export function VehicleListPage() {
                 : ""}{" "}
               será eliminado del sistema y dejará de estar disponible para
               asignaciones a viajes.
+              {vehicleToDelete && isBillableMotrizNow(vehicleToDelete) ? (
+                <>
+                  {" "}
+                  <VehicleBillingPolicyNote kind="remove" />
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

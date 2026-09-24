@@ -37,6 +37,7 @@ export function VehicleGridField({
   label,
   required,
   errorMessage,
+  hint,
   children,
   className,
 }: {
@@ -44,6 +45,7 @@ export function VehicleGridField({
   label: ReactNode;
   required?: boolean;
   errorMessage?: string;
+  hint?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
@@ -60,6 +62,9 @@ export function VehicleGridField({
       </Label>
       <VehicleGridGrowSpacer />
       {children}
+      {hint ? (
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      ) : null}
       <FieldInlineError fieldId={fieldId} message={errorMessage} />
     </div>
   );
@@ -241,6 +246,7 @@ export function VehicleGridSelect<T extends FieldValues>({
   className,
   options,
   placeholder = "Seleccionar",
+  hint,
 }: {
   control: Control<T>;
   name: FieldPath<T>;
@@ -250,6 +256,7 @@ export function VehicleGridSelect<T extends FieldValues>({
   className?: string;
   options: VehicleGridSelectOption[];
   placeholder?: string;
+  hint?: ReactNode;
 }) {
   const resolvedId = fieldId ?? String(name);
 
@@ -266,6 +273,7 @@ export function VehicleGridSelect<T extends FieldValues>({
             label={label}
             required={required}
             errorMessage={errorMessage}
+            hint={hint}
             className={className}
           >
             <Select

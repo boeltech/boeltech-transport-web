@@ -43,6 +43,22 @@ describe("importsCopy product handoff (Capa 1 → 3)", () => {
     ).toBe(true);
   });
 
+  it("confirmación de vehículos avisa cobro de tracción sin montos", () => {
+    expect(importsCopy.wizard.options.vehiclesBillingNotice).toMatch(
+      /tracción/i,
+    );
+    expect(importsCopy.wizard.options.vehiclesBillingNotice).toMatch(
+      /mes completo/i,
+    );
+    expect(importsCopy.wizard.options.vehiclesBillingNotice).not.toMatch(
+      /\$389|\bIVA\b|overage|banda|cupo|tu factura|calculadora/i,
+    );
+    expect(importsCopy.wizard.options.subscriptionLink).toBe("Ver suscripción");
+    expect(importsCopy.wizard.options.subscriptionHref).toBe(
+      "/settings/subscription",
+    );
+  });
+
   it("guía vehículos no captura remolques en CSV (D4)", () => {
     const headers = IMPORT_TEMPLATE_GUIDES.vehicles.columns.map((c) => c.header);
     expect(headers.some((h) => h.startsWith("remolque_"))).toBe(false);
