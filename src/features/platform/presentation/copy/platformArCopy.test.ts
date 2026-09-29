@@ -74,4 +74,24 @@ describe("platformCopy.ar views counts", () => {
       /^\d{4}-\d{2}$/,
     );
   });
+
+  it("scopes the tenant card as subscription cargos, not freight CFDI", () => {
+    const { card } = platformCopy.ar;
+    expect(card.description).toBe("Cargos de esta empresa · últimos 12 meses.");
+    expect(card.viewAll).toBe("Ver todos en Cobros");
+    expect(card.paidCaption).toBe("Cobrado");
+    expect(card.description).not.toMatch(/CFDI|flete/i);
+    expect(card.viewAll).not.toMatch(/CFDI|flete/i);
+  });
+
+  it("labels the payment rail without last4 or CFDI/flete", () => {
+    expect(platformCopy.ar.columns.method).toBe("Método");
+    expect(platformCopy.ar.markPaid.methods.manual).toBe("Manual");
+    expect(platformCopy.ar.markPaid.methods.spei).toBe("Transferencia");
+    expect(platformCopy.ar.markPaid.methods.card_external).toBe("Tarjeta");
+    expect(platformCopy.ar.markPaid.methods.other).toBe("Otro");
+    expect(platformCopy.ar.markPaid.methods.stripe).toBe("Tarjeta");
+    expect(platformCopy.ar.columns.method).not.toMatch(/CFDI|flete/i);
+    expect(platformCopy.ar.markPaid.methods.stripe).not.toMatch(/last4|4242/i);
+  });
 });

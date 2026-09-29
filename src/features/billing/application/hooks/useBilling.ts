@@ -67,6 +67,18 @@ export const useBillingArrears = (options?: BillingQueryOptions) => {
   });
 };
 
+/** Historial paid+void últimos 12 meses. No usa GET /billing/arrears. */
+export const useBillingSaasInvoices = (options?: BillingQueryOptions) => {
+  const enabled = useBillingQueryEnabled() && (options?.enabled ?? true);
+  return useQuery({
+    queryKey: billingQueryKeys.saasInvoices(),
+    queryFn: () =>
+      billingApi.listSaasInvoices({ months: 12, status: "paid,void" }),
+    staleTime: 60_000,
+    enabled,
+  });
+};
+
 /**
  * Module entitlement for paywall UI. Uses slim /billing/access so roles
  * without billing.read do not treat 403 as “not entitled”.

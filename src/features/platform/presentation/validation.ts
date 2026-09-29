@@ -123,9 +123,16 @@ export const issueSaasInvoiceSchema = z.object({
 
 export type IssueSaasInvoiceFormData = z.infer<typeof issueSaasInvoiceSchema>;
 
+export const MARK_SAAS_INVOICE_PAID_METHODS = [
+  "manual",
+  "spei",
+  "card_external",
+  "other",
+] as const;
+
 export const markSaasInvoicePaidSchema = z.object({
   paidAt: z.string().min(1, "Indica la fecha de pago"),
-  method: z.enum(["manual", "spei", "card_external", "other"]),
+  method: z.enum(MARK_SAAS_INVOICE_PAID_METHODS),
   reference: z.string().max(500).optional(),
   notes: z.string().max(2000).optional(),
 });

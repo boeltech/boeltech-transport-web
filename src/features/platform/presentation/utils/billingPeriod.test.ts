@@ -3,8 +3,10 @@ import {
   getLastClosedMexicoCityPeriodKey,
   getMexicoCityPeriodKey,
   isClosedBillingPeriodKey,
+  isPeriodKeyInLastMonths,
   isValidBillingPeriodKey,
   resolveClosedPeriodKeyForCloseRun,
+  shiftBillingPeriodKey,
 } from "./billingPeriod";
 
 describe("billingPeriod (CDMX)", () => {
@@ -47,5 +49,18 @@ describe("billingPeriod (CDMX)", () => {
     expect(resolveClosedPeriodKeyForCloseRun("nope", augustNow)).toBe(
       "2026-07",
     );
+  });
+
+  it("shiftBillingPeriodKey walks calendar months", () => {
+    expect(shiftBillingPeriodKey("2026-08", -11)).toBe("2025-09");
+    expect(shiftBillingPeriodKey("2026-01", -1)).toBe("2025-12");
+  });
+
+  it("isPeriodKeyInLastMonths includes current CDMX month and 11 prior", () => {
+    const augustNow = new Date("2026-08-10T18:00:00.000Z");
+    expect(isPeriodKeyInLastMonths("2026-08", 12, augustNow)).toBe(true);
+    expect(isPeriodKeyInLastMonths("2025-09", 12, augustNow)).toBe(true);
+    expect(isPeriodKeyInLastMonths("2025-08", 12, augustNow)).toBe(false);
+    expect(isPeriodKeyInLastMonths("2025-07", 12, augustNow)).toBe(false);
   });
 });

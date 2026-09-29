@@ -76,3 +76,31 @@ export function resolveClosedPeriodKeyForCloseRun(
   }
   return getLastClosedMexicoCityPeriodKey(now);
 }
+
+/** Shift a `YYYY-MM` period by calendar months (CDMX keys are comparable as strings). */
+export function shiftBillingPeriodKey(
+  periodKey: string,
+  monthsDelta: number,
+): string {
+  const year = Number(periodKey.slice(0, 4));
+  const month = Number(periodKey.slice(5));
+  const total = year * 12 + (month - 1) + monthsDelta;
+  const nextYear = Math.floor(total / 12);
+  const nextMonth = (total % 12) + 1;
+  return `${nextYear}-${pad2(nextMonth)}`;
+}
+
+/**
+ * Inclusive CDMX window: current month plus the previous (`months - 1`).
+ * D3 card Cobros: últimos 12 meses por `periodKey`.
+ */
+export function isPeriodKeyInLastMonths(
+  periodKey: string,
+  months: number,
+  now: Date = new Date(),
+): boolean {
+  if (!isValidBillingPeriodKey(periodKey) || months < 1) return false;
+  const current = getMexicoCityPeriodKey(now);
+  const oldest = shiftBillingPeriodKey(current, -(months - 1));
+  return periodKey >= oldest;
+}

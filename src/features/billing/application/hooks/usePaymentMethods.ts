@@ -83,6 +83,9 @@ export const usePaySaasInvoice = () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: billingQueryKeys.arrears() }),
         queryClient.invalidateQueries({
+          queryKey: billingQueryKeys.saasInvoices(),
+        }),
+        queryClient.invalidateQueries({
           queryKey: billingQueryKeys.subscription(),
         }),
         queryClient.invalidateQueries({ queryKey: billingQueryKeys.access() }),

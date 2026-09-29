@@ -8,6 +8,9 @@ import {
   mapBillingSubscription,
   mapBillingUsage,
   mapSaasInvoicePayResult,
+  mapBillingSaasInvoice,
+  mapBillingSaasInvoiceList,
+  mapBillingSaasLastPayment,
 } from "./mappers";
 
 describe("billing mappers", () => {
@@ -359,5 +362,107 @@ describe("billing mappers", () => {
     });
     expect(action.status).toBe("requires_action");
     expect(action.clientSecret).toBe("pi_secret");
+  });
+
+  it("mapBillingSaasInvoice maps paid allowlist and last_payment", () => {
+    const invoice = mapBillingSaasInvoice({
+      id: "inv-paid",
+      period_key: "2026-07",
+      status: "paid",
+      total_cents: 215424,
+      amount_due_cents: 0,
+      issued_at: "2026-08-01T16:00:00.000Z",
+      due_date: "2026-08-15T05:59:59.999Z",
+      paid_at: "2026-08-03T18:00:00.000Z",
+      origin: "auto_period_issue",
+      last_payment: {
+        paid_at: "2026-08-03T18:00:00.000Z",
+        method: "stripe",
+      },
+    });
+
+    expect(invoice).toEqual({
+      id: "inv-paid",
+      periodKey: "2026-07",
+      status: "paid",
+      totalCents: 215424,
+      amountDueCents: 0,
+      issuedAt: "2026-08-01T16:00:00.000Z",
+      dueDate: "2026-08-15T05:59:59.999Z",
+      paidAt: "2026-08-03T18:00:00.000Z",
+      origin: "auto_period_issue",
+      lastPayment: {
+        paidAt: "2026-08-03T18:00:00.000Z",
+        method: "stripe",
+      },
+    });
+    expect(Object.keys(invoice!.lastPayment!)).toEqual(["paidAt", "method"]);
+  });
+
+  it("mapBillingSaasLastPayment maps missing or null last_payment to null", () => {
+    expect(mapBillingSaasLastPayment(undefined)).toBeNull();
+    expect(mapBillingSaasLastPayment(null)).toBeNull();
+    expect(
+      mapBillingSaasLastPayment({
+        paid_at: "2026-08-03T18:00:00.000Z",
+        method: "not_a_method",
+      }),
+    ).toBeNull();
+  });
+
+  it("mapBillingSaasLastPayment drops extras (notes, last4, gateway ids)", () => {
+    const mapped = mapBillingSaasLastPayment({
+      paid_at: "2026-08-03T18:00:00.000Z",
+      method: "spei",
+      notes: "no pintar",
+      last4: "4242",
+      gateway_payment_id: "pi_secret",
+    } as { paid_at: string; method: string });
+
+    expect(mapped).toEqual({
+      paidAt: "2026-08-03T18:00:00.000Z",
+      method: "spei",
+    });
+    expect(Object.keys(mapped!)).toEqual(["paidAt", "method"]);
+  });
+
+  it("mapBillingSaasInvoiceList drops open rows and maps void", () => {
+    const list = mapBillingSaasInvoiceList([
+      {
+        id: "inv-open",
+        period_key: "2026-08",
+        status: "open",
+        total_cents: 1000,
+        amount_due_cents: 1000,
+        issued_at: "2026-09-01T12:00:00.000Z",
+        due_date: "2026-09-15T05:59:59.999Z",
+        paid_at: null,
+        origin: "manual",
+        last_payment: null,
+      },
+      {
+        id: "inv-void",
+        period_key: "2026-06",
+        status: "void",
+        total_cents: 5000,
+        amount_due_cents: 0,
+        issued_at: "2026-07-01T12:00:00.000Z",
+        due_date: "2026-07-15T05:59:59.999Z",
+        paid_at: null,
+        origin: "manual",
+        last_payment: null,
+      },
+    ]);
+
+    expect(list).toHaveLength(1);
+    expect(list[0]?.id).toBe("inv-void");
+    expect(list[0]?.status).toBe("void");
+    expect(list[0]?.lastPayment).toBeNull();
+  });
+
+  it("mapBillingSaasInvoiceList maps empty envelope to []", () => {
+    expect(mapBillingSaasInvoiceList([])).toEqual([]);
+    expect(mapBillingSaasInvoiceList(null)).toEqual([]);
+    expect(mapBillingSaasInvoiceList(undefined)).toEqual([]);
   });
 });

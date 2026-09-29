@@ -1,12 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TenantSaasArCard } from "./TenantSaasArCard";
 import { platformCopy } from "../copy/platformCopy";
 import { formatBillingPeriodKey } from "../utils/platformBillingFormatters";
+import { formatDate } from "@shared/utils/dateUtils";
 import { platformApi } from "../../infrastructure/platformApi";
+import type { PlatformSaasInvoice } from "../../domain/entities";
 
 vi.mock("../../infrastructure/platformApi", () => ({
   platformApi: {
@@ -43,6 +45,50 @@ vi.mock("@shared/hooks", async (importOriginal) => {
 
 const mockedApi = vi.mocked(platformApi);
 
+function saasInvoice(
+  overrides: Partial<PlatformSaasInvoice> = {},
+): PlatformSaasInvoice {
+  return {
+    id: "inv-1",
+    tenantId: "tenant-1",
+    subscriptionId: "sub-1",
+    periodKey: "2026-07",
+    periodStart: "2026-07-01T06:00:00.000Z",
+    periodEnd: "2026-08-01T06:00:00.000Z",
+    status: "open",
+    currency: "MXN",
+    planCode: "operacion_crecimiento",
+    stampsIncluded: 380,
+    stampsUsed: 400,
+    stampsOverage: 20,
+    subtotalCents: 170000,
+    taxCents: 27200,
+    totalCents: 197200,
+    amountDueCents: 197200,
+    amountPaidCents: 0,
+    issuedAt: "2026-08-01T16:00:00.000Z",
+    dueDate: "2026-08-15T16:00:00.000Z",
+    paidAt: null,
+    voidedAt: null,
+    voidReason: null,
+    notes: null,
+    daysOverdue: 2,
+    origin: "manual",
+    lastPayment: null,
+    createdAt: "2026-08-01T16:00:00.000Z",
+    updatedAt: "2026-08-01T16:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function methodCell() {
+  const dataRow = screen
+    .getAllByRole("row")
+    .find((row) => within(row).queryAllByRole("cell").length > 0);
+  expect(dataRow).toBeTruthy();
+  return within(dataRow!).getAllByRole("cell")[4];
+}
+
 function renderCard(canMutate: boolean) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -66,37 +112,7 @@ describe("TenantSaasArCard", () => {
     isStripePublishableConfigured.mockReturnValue(false);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date("2026-08-10T18:00:00.000Z"));
-    mockedApi.listTenantSaasInvoices.mockResolvedValue([
-      {
-        id: "inv-1",
-        tenantId: "tenant-1",
-        subscriptionId: "sub-1",
-        periodKey: "2026-07",
-        periodStart: "2026-07-01T06:00:00.000Z",
-        periodEnd: "2026-08-01T06:00:00.000Z",
-        status: "open",
-        currency: "MXN",
-        planCode: "operacion_crecimiento",
-        stampsIncluded: 380,
-        stampsUsed: 400,
-        stampsOverage: 20,
-        subtotalCents: 170000,
-        taxCents: 27200,
-        totalCents: 197200,
-        amountDueCents: 197200,
-        amountPaidCents: 0,
-        issuedAt: "2026-08-01T16:00:00.000Z",
-        dueDate: "2026-08-15T16:00:00.000Z",
-        paidAt: null,
-        voidedAt: null,
-        voidReason: null,
-        notes: null,
-        daysOverdue: 2,
-        origin: "manual",
-        createdAt: "2026-08-01T16:00:00.000Z",
-        updatedAt: "2026-08-01T16:00:00.000Z",
-      },
-    ]);
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([saasInvoice()]);
     mockedApi.listTenantPaymentMethods.mockResolvedValue([]);
     mockedApi.downloadTenantReconciliationCsv.mockResolvedValue(undefined);
     mockedApi.getArChargeRun.mockResolvedValue({
@@ -162,10 +178,10 @@ describe("TenantSaasArCard", () => {
       screen.queryByRole("button", { name: platformCopy.ar.actions.void }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: platformCopy.ar.actions.viewAr }),
+      screen.getByRole("link", { name: platformCopy.ar.card.viewAll }),
     ).toHaveAttribute(
       "href",
-      "/platform/billing/ar?status=open&tenant_id=tenant-1",
+      "/platform/billing/ar?tenant_id=tenant-1&view=all",
     );
     expect(
       screen.queryByRole("columnheader", {
@@ -360,6 +376,7 @@ describe("TenantSaasArCard", () => {
         notes: null,
         daysOverdue: 0,
         origin: "manual",
+        lastPayment: null,
         createdAt: "2026-08-01T16:00:00.000Z",
         updatedAt: "2026-08-01T16:00:00.000Z",
       },
@@ -390,6 +407,7 @@ describe("TenantSaasArCard", () => {
       notes: null,
       daysOverdue: 0,
       origin: "manual",
+      lastPayment: null,
       createdAt: "2026-08-01T16:00:00.000Z",
       updatedAt: "2026-08-10T18:00:00.000Z",
       items: [],
@@ -515,7 +533,7 @@ describe("TenantSaasArCard", () => {
       screen.getByRole("button", { name: platformCopy.ar.actions.issue }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: platformCopy.ar.actions.viewAr }),
+      screen.getByRole("link", { name: platformCopy.ar.card.viewAll }),
     ).toHaveAttribute(
       "href",
       "/platform/billing/ar?view=exceptions&tenant_id=tenant-1",
@@ -524,35 +542,7 @@ describe("TenantSaasArCard", () => {
 
   it("shows Auto-emitido badge on auto-issued cargo", async () => {
     mockedApi.listTenantSaasInvoices.mockResolvedValue([
-      {
-        id: "inv-1",
-        tenantId: "tenant-1",
-        subscriptionId: "sub-1",
-        periodKey: "2026-07",
-        periodStart: "2026-07-01T06:00:00.000Z",
-        periodEnd: "2026-08-01T06:00:00.000Z",
-        status: "open",
-        currency: "MXN",
-        planCode: "operacion_crecimiento",
-        stampsIncluded: 380,
-        stampsUsed: 400,
-        stampsOverage: 20,
-        subtotalCents: 170000,
-        taxCents: 27200,
-        totalCents: 197200,
-        amountDueCents: 197200,
-        amountPaidCents: 0,
-        issuedAt: "2026-08-01T16:00:00.000Z",
-        dueDate: "2026-08-15T16:00:00.000Z",
-        paidAt: null,
-        voidedAt: null,
-        voidReason: null,
-        notes: null,
-        daysOverdue: 2,
-        origin: "auto_period_issue",
-        createdAt: "2026-08-01T16:00:00.000Z",
-        updatedAt: "2026-08-01T16:00:00.000Z",
-      },
+      saasInvoice({ origin: "auto_period_issue" }),
     ]);
 
     renderCard(true);
@@ -632,5 +622,274 @@ describe("TenantSaasArCard", () => {
     expect(
       screen.getByRole("button", { name: platformCopy.ar.actions.markPaid }),
     ).toBeInTheDocument();
+  });
+
+  it("shows paidAt as Cobrado and hides due date on paid rows", async () => {
+    const paidAt = "2026-08-03T12:00:00.000Z";
+    const dueDate = "2026-09-15T16:00:00.000Z";
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      saasInvoice({
+        id: "inv-paid",
+        status: "paid",
+        amountDueCents: 0,
+        amountPaidCents: 197200,
+        paidAt,
+        dueDate,
+        daysOverdue: 0,
+      }),
+    ]);
+
+    renderCard(false);
+
+    expect(
+      await screen.findByText(
+        `${platformCopy.ar.card.paidCaption} ${formatDate(paidAt)}`,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(formatDate(dueDate))).not.toBeInTheDocument();
+    expect(
+      screen.getByText(platformCopy.ar.card.description),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps due date and overdue on open rows", async () => {
+    renderCard(false);
+
+    expect(
+      await screen.findByText(formatDate("2026-08-15T16:00:00.000Z")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(platformCopy.ar.card.daysOverdue(2)),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(new RegExp(`^${platformCopy.ar.card.paidCaption}`)),
+    ).not.toBeInTheDocument();
+  });
+
+  it("D3: last 12 months by periodKey, plus open/draft older than the window", async () => {
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      saasInvoice({
+        id: "inv-paid-recent",
+        periodKey: "2026-07",
+        status: "paid",
+        paidAt: "2026-08-03T12:00:00.000Z",
+        daysOverdue: 0,
+      }),
+      saasInvoice({
+        id: "inv-paid-old",
+        periodKey: "2025-07",
+        status: "paid",
+        paidAt: "2025-08-03T12:00:00.000Z",
+        daysOverdue: 0,
+      }),
+      saasInvoice({
+        id: "inv-open-old",
+        periodKey: "2025-01",
+        status: "open",
+        daysOverdue: 5,
+      }),
+      saasInvoice({
+        id: "inv-draft-old",
+        periodKey: "2024-12",
+        status: "draft",
+        issuedAt: null,
+        dueDate: null,
+        daysOverdue: 0,
+      }),
+      saasInvoice({
+        id: "inv-void-old",
+        periodKey: "2025-01",
+        status: "void",
+        voidedAt: "2025-02-01T12:00:00.000Z",
+        daysOverdue: 0,
+      }),
+    ]);
+
+    renderCard(false);
+
+    expect(
+      await screen.findByText(formatBillingPeriodKey("2026-07")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(formatBillingPeriodKey("2025-01")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(formatBillingPeriodKey("2024-12")),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(formatBillingPeriodKey("2025-07")),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(platformCopy.ar.status.paid)).toBeInTheDocument();
+    expect(screen.getByText(platformCopy.ar.status.open)).toBeInTheDocument();
+    expect(screen.getByText(platformCopy.ar.status.draft)).toBeInTheDocument();
+    expect(
+      screen.queryByText(platformCopy.ar.status.void),
+    ).not.toBeInTheDocument();
+  });
+
+  it("void rows in the 12-month window show status without due date", async () => {
+    const dueDate = "2026-08-20T16:00:00.000Z";
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      saasInvoice({
+        id: "inv-void",
+        status: "void",
+        dueDate,
+        voidedAt: "2026-08-04T12:00:00.000Z",
+        daysOverdue: 0,
+      }),
+    ]);
+
+    renderCard(false);
+
+    expect(
+      await screen.findByText(platformCopy.ar.status.void),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(formatDate(dueDate))).not.toBeInTheDocument();
+  });
+
+  it("shows Tarjeta for paid last_payment.method=stripe", async () => {
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      saasInvoice({
+        status: "paid",
+        amountDueCents: 0,
+        amountPaidCents: 197200,
+        paidAt: "2026-08-03T12:00:00.000Z",
+        daysOverdue: 0,
+        lastPayment: {
+          paidAt: "2026-08-03T12:00:00.000Z",
+          method: "stripe",
+        },
+      }),
+    ]);
+
+    renderCard(false);
+
+    expect(
+      await screen.findByRole("columnheader", {
+        name: platformCopy.ar.columns.method,
+      }),
+    ).toBeInTheDocument();
+    expect(methodCell()).toHaveTextContent(
+      platformCopy.ar.markPaid.methods.stripe,
+    );
+  });
+
+  it("shows em dash when paid last_payment is null", async () => {
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      saasInvoice({
+        status: "paid",
+        amountDueCents: 0,
+        amountPaidCents: 0,
+        paidAt: "2026-08-03T12:00:00.000Z",
+        daysOverdue: 0,
+        lastPayment: null,
+      }),
+    ]);
+
+    renderCard(false);
+
+    expect(
+      await screen.findByRole("columnheader", {
+        name: platformCopy.ar.columns.method,
+      }),
+    ).toBeInTheDocument();
+    expect(methodCell()).toHaveTextContent("—");
+  });
+
+  it("D5: defaultPm.last4 never appears in the method cell", async () => {
+    isStripePublishableConfigured.mockReturnValue(true);
+    mockedApi.listTenantPaymentMethods.mockResolvedValue([
+      {
+        id: "pm-1",
+        tenantId: "tenant-1",
+        gateway: "stripe",
+        gatewayPaymentMethodId: "pm_stripe",
+        brand: "visa",
+        last4: "4242",
+        expMonth: 12,
+        expYear: 2030,
+        isDefault: true,
+        createdAt: "2026-08-01T16:00:00.000Z",
+        updatedAt: "2026-08-01T16:00:00.000Z",
+      },
+    ]);
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      saasInvoice({
+        status: "paid",
+        amountDueCents: 0,
+        amountPaidCents: 197200,
+        paidAt: "2026-08-03T12:00:00.000Z",
+        daysOverdue: 0,
+        lastPayment: {
+          paidAt: "2026-08-03T12:00:00.000Z",
+          method: "stripe",
+        },
+      }),
+    ]);
+
+    renderCard(true);
+
+    expect(
+      await screen.findByText(platformCopy.ar.card.cardOnFile("4242")),
+    ).toBeInTheDocument();
+    const cell = methodCell();
+    expect(cell).toHaveTextContent(platformCopy.ar.markPaid.methods.stripe);
+    expect(cell).not.toHaveTextContent("4242");
+    expect(cell.textContent).not.toMatch(/•{1,2}4242/);
+  });
+
+  it("keeps Auto-emitido and auto-charge chip distinct from Método", async () => {
+    mockedApi.listTenantSaasInvoices.mockResolvedValue([
+      saasInvoice({
+        origin: "auto_period_issue",
+        lastPayment: null,
+      }),
+    ]);
+    mockedApi.getArChargeRun.mockResolvedValue({
+      data: {
+        run: {
+          ran: true,
+          id: "run-1",
+          ranAt: "2026-09-23T12:05:00.000Z",
+          trigger: "job_tick",
+          considered: 1,
+          charged: 0,
+          errors: 0,
+        },
+        counts: {
+          charged: 0,
+          noPaymentMethod: 0,
+          failed: 1,
+          requiresAction: 0,
+          processing: 0,
+          skippedOther: 0,
+        },
+        items: [],
+        latestAttempts: [
+          {
+            saasInvoiceId: "inv-1",
+            outcome: "failed",
+            skipReason: null,
+            failureCode: "card_declined",
+            createdAt: "2026-09-23T12:05:00.000Z",
+          },
+        ],
+      },
+      pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+    });
+
+    renderCard(true);
+
+    expect(
+      await screen.findByText(platformCopy.ar.origin.auto),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(platformCopy.ar.chargeChip.failed),
+    ).toBeInTheDocument();
+    expect(methodCell()).toHaveTextContent("—");
+    expect(methodCell()).not.toHaveTextContent(platformCopy.ar.origin.auto);
+    expect(methodCell()).not.toHaveTextContent(
+      platformCopy.ar.chargeChip.failed,
+    );
   });
 });

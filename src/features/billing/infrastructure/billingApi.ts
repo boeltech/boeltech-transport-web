@@ -8,6 +8,8 @@ import type {
   BillingArrears,
   BillingEntitlements,
   BillingPaymentMethod,
+  BillingSaasInvoice,
+  BillingSaasInvoiceListParams,
   BillingSetupIntent,
   BillingSubscription,
   BillingUsage,
@@ -18,6 +20,7 @@ import {
   mapBillingArrears,
   mapBillingEntitlements,
   mapBillingPaymentMethod,
+  mapBillingSaasInvoiceList,
   mapBillingSetupIntent,
   mapBillingSubscription,
   mapBillingUsage,
@@ -26,6 +29,7 @@ import {
   type ApiBillingArrears,
   type ApiBillingEntitlements,
   type ApiBillingPaymentMethod,
+  type ApiBillingSaasInvoice,
   type ApiBillingSetupIntent,
   type ApiBillingSubscription,
   type ApiBillingUsage,
@@ -116,5 +120,14 @@ export const billingApi = {
       ApiSingleResponse<ApiSaasInvoicePayResult>
     >(`${BASE}/saas-invoices/${invoiceId}/pay`);
     return mapSaasInvoicePayResult(response.data);
+  },
+
+  listSaasInvoices: async (
+    params: BillingSaasInvoiceListParams,
+  ): Promise<BillingSaasInvoice[]> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiBillingSaasInvoice[]>
+    >(`${BASE}/saas-invoices`, { params });
+    return mapBillingSaasInvoiceList(response.data);
   },
 };

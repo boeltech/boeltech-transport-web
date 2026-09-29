@@ -5,6 +5,7 @@ export {
   useBillingUsage,
   useBillingEntitlements,
   useBillingArrears,
+  useBillingSaasInvoices,
   useHasBillingModule,
 } from "./application/hooks/useBilling";
 export {
@@ -29,6 +30,8 @@ export {
   type BillingPaymentMethod,
   type BillingSetupIntent,
   type SaasInvoicePayResult,
+  type BillingSaasInvoice,
+  type BillingSaasLastPayment,
 } from "./domain/index";
 /** Stripe.js helpers (WS-C) — reutilizables por platform charge (WS-D). */
 export {

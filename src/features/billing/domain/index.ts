@@ -14,6 +14,12 @@ export type {
   BillingSetupIntent,
   SaasInvoicePayResult,
   SaasPayStatus,
+  BillingSaasInvoice,
+  BillingSaasInvoiceStatus,
+  BillingSaasLastPayment,
+  BillingSaasPaymentMethod,
+  BillingSaasInvoiceOrigin,
+  BillingSaasInvoiceListParams,
 } from "./entities";
 export {
   billingQueryKeys,

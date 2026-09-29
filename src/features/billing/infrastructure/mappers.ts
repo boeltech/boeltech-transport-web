@@ -14,6 +14,11 @@ import type {
   ProfitabilityLevel,
   SaasInvoicePayResult,
   SaasPayStatus,
+  BillingSaasInvoice,
+  BillingSaasInvoiceOrigin,
+  BillingSaasInvoiceStatus,
+  BillingSaasLastPayment,
+  BillingSaasPaymentMethod,
 } from "../domain/entities";
 
 export interface ApiBillingCapacityDimension {
@@ -442,4 +447,89 @@ export function mapSaasInvoicePayResult(
     amountCents: raw.amount_cents,
     clientSecret: raw.client_secret ?? null,
   };
+}
+
+export interface ApiBillingSaasLastPayment {
+  paid_at: string;
+  method: string;
+}
+
+/** Allowlist GET /billing/saas-invoices — no last4, gateway ids ni notes. */
+export interface ApiBillingSaasInvoice {
+  id: string;
+  period_key: string;
+  status: string;
+  total_cents: number;
+  amount_due_cents: number;
+  issued_at: string | null;
+  due_date: string | null;
+  paid_at: string | null;
+  origin?: string;
+  last_payment?: ApiBillingSaasLastPayment | null;
+}
+
+const SAAS_PAYMENT_METHODS = new Set<BillingSaasPaymentMethod>([
+  "manual",
+  "spei",
+  "card_external",
+  "other",
+  "stripe",
+]);
+
+function mapBillingSaasPaymentMethod(
+  raw: string,
+): BillingSaasPaymentMethod | null {
+  return SAAS_PAYMENT_METHODS.has(raw as BillingSaasPaymentMethod)
+    ? (raw as BillingSaasPaymentMethod)
+    : null;
+}
+
+export function mapBillingSaasLastPayment(
+  raw: ApiBillingSaasLastPayment | null | undefined,
+): BillingSaasLastPayment | null {
+  if (!raw) return null;
+  const method = mapBillingSaasPaymentMethod(raw.method);
+  if (!method || !raw.paid_at) return null;
+  return {
+    paidAt: raw.paid_at,
+    method,
+  };
+}
+
+function mapBillingSaasInvoiceStatus(
+  raw: string,
+): BillingSaasInvoiceStatus | null {
+  if (raw === "paid" || raw === "void") return raw;
+  return null;
+}
+
+function mapBillingSaasInvoiceOrigin(raw: string | undefined): BillingSaasInvoiceOrigin {
+  return raw === "auto_period_issue" ? "auto_period_issue" : "manual";
+}
+
+export function mapBillingSaasInvoice(
+  raw: ApiBillingSaasInvoice,
+): BillingSaasInvoice | null {
+  const status = mapBillingSaasInvoiceStatus(raw.status);
+  if (!status) return null;
+  return {
+    id: raw.id,
+    periodKey: raw.period_key,
+    status,
+    totalCents: raw.total_cents,
+    amountDueCents: raw.amount_due_cents,
+    issuedAt: raw.issued_at,
+    dueDate: raw.due_date,
+    paidAt: raw.paid_at,
+    origin: mapBillingSaasInvoiceOrigin(raw.origin),
+    lastPayment: mapBillingSaasLastPayment(raw.last_payment),
+  };
+}
+
+export function mapBillingSaasInvoiceList(
+  raw: ApiBillingSaasInvoice[] | null | undefined,
+): BillingSaasInvoice[] {
+  return (raw ?? [])
+    .map(mapBillingSaasInvoice)
+    .filter((invoice): invoice is BillingSaasInvoice => invoice != null);
 }

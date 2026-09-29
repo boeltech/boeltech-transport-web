@@ -13,6 +13,7 @@ import {
   useBillingAccess,
   useBillingArrears,
   useBillingEntitlements,
+  useBillingSaasInvoices,
   useBillingSubscription,
   useBillingUsage,
 } from "../../application/hooks/useBilling";
@@ -31,6 +32,7 @@ import {
   BillingModulesCard,
   BillingPlanCard,
   BillingPlanStatusStrip,
+  BillingSaasInvoiceHistoryCard,
   BillingStampsCard,
   BillingStatusNotice,
   PaymentMethodsCard,
@@ -60,6 +62,7 @@ export function BillingSubscriptionPage() {
   const usage = useBillingUsage({ enabled: canReadBilling });
   const entitlements = useBillingEntitlements({ enabled: canReadBilling });
   const arrears = useBillingArrears({ enabled: canReadBilling });
+  const saasInvoices = useBillingSaasInvoices({ enabled: canReadBilling });
   const paymentMethods = usePaymentMethods({
     enabled: canReadBilling && stripeConfigured,
   });
@@ -94,8 +97,8 @@ export function BillingSubscriptionPage() {
             toastError(confirmed.message);
             return;
           }
-          // Webhook / sync cierra el ledger; refrescar arrears.
-          await arrears.refetch();
+          // Webhook / sync cierra el ledger; refrescar arrears + historial.
+          await Promise.all([arrears.refetch(), saasInvoices.refetch()]);
           toastSuccess(copy.arrears.paySuccess);
           return;
         }
@@ -122,6 +125,7 @@ export function BillingSubscriptionPage() {
     },
     [
       arrears,
+      saasInvoices,
       copy.arrears.payFailed,
       copy.arrears.payRequiresAction,
       copy.arrears.paySuccess,
@@ -334,6 +338,12 @@ export function BillingSubscriptionPage() {
                 onGatewayUnavailable={() => setStripeGatewayDown(true)}
               />
             ) : null}
+
+            <BillingSaasInvoiceHistoryCard
+              invoices={saasInvoices.data ?? []}
+              isLoading={saasInvoices.isLoading}
+              isError={saasInvoices.isError}
+            />
 
             <BillingContactCard />
           </>

@@ -44,6 +44,7 @@ import {
 import {
   getLastClosedMexicoCityPeriodKey,
   isClosedBillingPeriodKey,
+  isPeriodKeyInLastMonths,
   isValidBillingPeriodKey,
   resolveClosedPeriodKeyForCloseRun,
 } from "../utils/billingPeriod";
@@ -63,6 +64,15 @@ interface TenantSaasArCardProps {
   canMutate: boolean;
   /** Export CSV cierre (owner + support). Default true. */
   canExport?: boolean;
+}
+
+function lastPaymentMethodLabel(invoice: PlatformSaasInvoice): string {
+  if (invoice.status !== "paid" && invoice.status !== "void") {
+    return "—";
+  }
+  const method = invoice.lastPayment?.method;
+  if (!method) return "—";
+  return platformCopy.ar.markPaid.methods[method] ?? "—";
 }
 
 export function TenantSaasArCard({
@@ -110,7 +120,7 @@ export function TenantSaasArCard({
   const viewArHref =
     closeRunItem?.skipGroup === "actionable"
       ? `/platform/billing/ar?view=exceptions&tenant_id=${tenantId}`
-      : `/platform/billing/ar?status=open&tenant_id=${tenantId}`;
+      : `/platform/billing/ar?tenant_id=${tenantId}&view=all`;
 
   const stripeConfigured = isStripePublishableConfigured();
   const [stripeGatewayDown, setStripeGatewayDown] = useState(false);
@@ -168,6 +178,16 @@ export function TenantSaasArCard({
 
   const openCount = useMemo(
     () => invoices.filter((i) => i.status === "open").length,
+    [invoices],
+  );
+  const visibleInvoices = useMemo(
+    () =>
+      invoices.filter(
+        (invoice) =>
+          invoice.status === "open" ||
+          invoice.status === "draft" ||
+          isPeriodKeyInLastMonths(invoice.periodKey, 12),
+      ),
     [invoices],
   );
 
@@ -246,7 +266,7 @@ export function TenantSaasArCard({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link to={viewArHref}>{copy.actions.viewAr}</Link>
+              <Link to={viewArHref}>{copy.card.viewAll}</Link>
             </Button>
             {showIssueCta ? (
               <Button
@@ -319,7 +339,7 @@ export function TenantSaasArCard({
 
           {isLoading ? (
             <p className="text-sm text-muted-foreground">{copy.card.loading}</p>
-          ) : invoices.length === 0 ? (
+          ) : visibleInvoices.length === 0 ? (
             <EmptyState
               icon={<Wallet className="h-10 w-10" />}
               title={copy.card.emptyTitle}
@@ -334,15 +354,17 @@ export function TenantSaasArCard({
                   <TableHead>{copy.columns.status}</TableHead>
                   <TableHead>{copy.columns.total}</TableHead>
                   <TableHead>{copy.columns.dueAndOverdue}</TableHead>
+                  <TableHead>{copy.columns.method}</TableHead>
                   {canMutate ? (
                     <TableHead>{copy.columns.actions}</TableHead>
                   ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.map((invoice) => {
-                  const isOverdue =
-                    invoice.status === "open" && invoice.daysOverdue > 0;
+                {visibleInvoices.map((invoice) => {
+                  const isDueStatus =
+                    invoice.status === "open" || invoice.status === "draft";
+                  const isOverdue = isDueStatus && invoice.daysOverdue > 0;
                   const showCharge =
                     canUseStripe &&
                     hasDefaultPaymentMethod &&
@@ -380,23 +402,33 @@ export function TenantSaasArCard({
                         {formatBillingPriceCents(invoice.totalCents)}
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
+                        {invoice.status === "paid" ? (
                           <span>
-                            {invoice.dueDate
-                              ? formatDate(invoice.dueDate)
-                              : "—"}
+                            {copy.card.paidCaption}{" "}
+                            {invoice.paidAt ? formatDate(invoice.paidAt) : "—"}
                           </span>
-                          {isOverdue ? (
-                            <Badge
-                              tone="soft"
-                              variant="warning"
-                              className="w-fit"
-                            >
-                              {copy.card.daysOverdue(invoice.daysOverdue)}
-                            </Badge>
-                          ) : null}
-                        </div>
+                        ) : invoice.status === "void" ? (
+                          <span>—</span>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <span>
+                              {invoice.dueDate
+                                ? formatDate(invoice.dueDate)
+                                : "—"}
+                            </span>
+                            {isOverdue ? (
+                              <Badge
+                                tone="soft"
+                                variant="warning"
+                                className="w-fit"
+                              >
+                                {copy.card.daysOverdue(invoice.daysOverdue)}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        )}
                       </TableCell>
+                      <TableCell>{lastPaymentMethodLabel(invoice)}</TableCell>
                       {canMutate ? (
                         <TableCell>
                           {invoice.status === "draft" ? (

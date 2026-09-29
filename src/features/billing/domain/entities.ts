@@ -211,6 +211,42 @@ export interface SaasInvoicePayResult {
   clientSecret?: string | null;
 }
 
+/** Historial tenant GET /billing/saas-invoices — solo paid|void. */
+export type BillingSaasInvoiceStatus = "paid" | "void";
+
+export type BillingSaasPaymentMethod =
+  | "manual"
+  | "spei"
+  | "card_external"
+  | "other"
+  | "stripe";
+
+export type BillingSaasInvoiceOrigin = "manual" | "auto_period_issue";
+
+export interface BillingSaasLastPayment {
+  paidAt: string;
+  method: BillingSaasPaymentMethod;
+}
+
+/** Cargo SaaS cerrado (allowlist tenant). dueDate se mapea pero no se pinta. */
+export interface BillingSaasInvoice {
+  id: string;
+  periodKey: string;
+  status: BillingSaasInvoiceStatus;
+  totalCents: number;
+  amountDueCents: number;
+  issuedAt: string | null;
+  dueDate: string | null;
+  paidAt: string | null;
+  origin: BillingSaasInvoiceOrigin;
+  lastPayment: BillingSaasLastPayment | null;
+}
+
+export interface BillingSaasInvoiceListParams {
+  months: number;
+  status: string;
+}
+
 export const billingQueryKeys = {
   all: ["billing-saas"] as const,
   access: () => [...billingQueryKeys.all, "access"] as const,
@@ -219,4 +255,5 @@ export const billingQueryKeys = {
   entitlements: () => [...billingQueryKeys.all, "entitlements"] as const,
   arrears: () => [...billingQueryKeys.all, "arrears"] as const,
   paymentMethods: () => [...billingQueryKeys.all, "payment-methods"] as const,
+  saasInvoices: () => [...billingQueryKeys.all, "saas-invoices"] as const,
 };

@@ -35,6 +35,7 @@ import {
   formatBillingPriceCents,
 } from "../utils/platformBillingFormatters";
 import {
+  MARK_SAAS_INVOICE_PAID_METHODS,
   markSaasInvoicePaidSchema,
   type MarkSaasInvoicePaidFormData,
 } from "../validation";
@@ -151,11 +152,7 @@ export function MarkSaasInvoicePaidSheet({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(
-                      Object.keys(copy.methods) as Array<
-                        keyof typeof copy.methods
-                      >
-                    ).map((key) => (
+                    {MARK_SAAS_INVOICE_PAID_METHODS.map((key) => (
                       <SelectItem key={key} value={key}>
                         {copy.methods[key]}
                       </SelectItem>

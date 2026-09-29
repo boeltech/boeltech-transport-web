@@ -409,11 +409,21 @@ export const PLATFORM_SAAS_INVOICE_STATUS_VALUES = Object.values(
   PlatformSaasInvoiceStatus,
 ) as PlatformSaasInvoiceStatusType[];
 
-export type PlatformSaasPaymentMethod =
+export type PlatformSaasMarkPaidMethod =
   | "manual"
   | "spei"
   | "card_external"
   | "other";
+
+/** Ledger rail — includes `stripe` (charge/webhook). Mark-paid form excludes it. */
+export type PlatformSaasPaymentMethod =
+  | PlatformSaasMarkPaidMethod
+  | "stripe";
+
+export interface PlatformSaasLastPayment {
+  paidAt: string;
+  method: PlatformSaasPaymentMethod;
+}
 
 /** HTTP 1:1 = manual; D7-A auto-issue = auto_period_issue. */
 export type PlatformSaasInvoiceOrigin = "manual" | "auto_period_issue";
@@ -601,6 +611,7 @@ export interface PlatformSaasInvoice {
   notes: string | null;
   daysOverdue: number;
   origin: PlatformSaasInvoiceOrigin;
+  lastPayment: PlatformSaasLastPayment | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -639,7 +650,7 @@ export interface IssuePlatformSaasInvoiceDraftPayload {
 
 export interface MarkPlatformSaasInvoicePaidPayload {
   paidAt: string;
-  method?: PlatformSaasPaymentMethod;
+  method?: PlatformSaasMarkPaidMethod;
   reference?: string | null;
   notes?: string | null;
   amountCents?: number;

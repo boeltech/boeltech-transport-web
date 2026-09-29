@@ -11,6 +11,7 @@ import {
   mapPlatformTenantEntitlements,
   mapPlatformModuleCatalogItem,
   mapPlatformSaasArRow,
+  mapPlatformSaasInvoice,
   mapPlatformCloseRun,
   mapPlatformChargeRun,
   mapPlatformReconciliationPreview,
@@ -629,6 +630,83 @@ describe("platform mappers", () => {
     });
 
     expect(row.origin).toBe("auto_period_issue");
+  });
+
+  it("mapPlatformSaasInvoice maps last_payment allowlist", () => {
+    const invoice = mapPlatformSaasInvoice({
+      id: "inv-1",
+      tenant_id: "t1",
+      subscription_id: "sub-1",
+      period_key: "2026-07",
+      period_start: "2026-07-01T06:00:00.000Z",
+      period_end: "2026-08-01T06:00:00.000Z",
+      status: "paid",
+      currency: "MXN",
+      plan_code: "operacion_crecimiento",
+      stamps_included: 380,
+      stamps_used: 400,
+      stamps_overage: 20,
+      subtotal_cents: 167700,
+      tax_cents: 26832,
+      total_cents: 194532,
+      amount_due_cents: 0,
+      amount_paid_cents: 194532,
+      issued_at: "2026-08-01T16:00:00.000Z",
+      due_date: "2026-08-15T16:00:00.000Z",
+      paid_at: "2026-08-20T18:00:00.000Z",
+      voided_at: null,
+      void_reason: null,
+      notes: null,
+      days_overdue: 0,
+      last_payment: {
+        paid_at: "2026-08-20T18:00:00.000Z",
+        method: "stripe",
+      },
+      created_at: "2026-08-01T16:00:00.000Z",
+      updated_at: "2026-08-20T18:00:00.000Z",
+    });
+
+    expect(invoice.lastPayment).toEqual({
+      paidAt: "2026-08-20T18:00:00.000Z",
+      method: "stripe",
+    });
+    expect(Object.keys(invoice.lastPayment!)).toEqual(["paidAt", "method"]);
+  });
+
+  it("mapPlatformSaasInvoice maps missing or null last_payment to null", () => {
+    const raw = {
+      id: "inv-1",
+      tenant_id: "t1",
+      subscription_id: "sub-1",
+      period_key: "2026-07",
+      period_start: "2026-07-01T06:00:00.000Z",
+      period_end: "2026-08-01T06:00:00.000Z",
+      status: "paid",
+      currency: "MXN",
+      plan_code: "operacion_crecimiento",
+      stamps_included: 380,
+      stamps_used: 400,
+      stamps_overage: 20,
+      subtotal_cents: 0,
+      tax_cents: 0,
+      total_cents: 0,
+      amount_due_cents: 0,
+      amount_paid_cents: 0,
+      issued_at: "2026-08-01T16:00:00.000Z",
+      due_date: "2026-08-15T16:00:00.000Z",
+      paid_at: "2026-08-20T18:00:00.000Z",
+      voided_at: null,
+      void_reason: null,
+      notes: null,
+      days_overdue: 0,
+      created_at: "2026-08-01T16:00:00.000Z",
+      updated_at: "2026-08-20T18:00:00.000Z",
+    };
+
+    expect(mapPlatformSaasInvoice(raw).lastPayment).toBeNull();
+    expect(
+      mapPlatformSaasInvoice({ ...raw, last_payment: null }).lastPayment,
+    ).toBeNull();
   });
 
   it("mapPlatformCloseRun maps snake_case close-run payload", () => {

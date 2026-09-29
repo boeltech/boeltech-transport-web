@@ -1064,6 +1064,7 @@ export const platformCopy = {
       dueDate: "Vence",
       daysOverdue: "Atraso",
       dueAndOverdue: "Vence / atraso",
+      method: "Método",
       actions: "Acciones",
     },
     status: {
@@ -1238,10 +1239,12 @@ export const platformCopy = {
     refreshAria: "Actualizar lista",
     card: {
       title: "Cobros",
-      description: "Cargos de servicio de esta empresa pendientes o saldados.",
+      description: "Cargos de esta empresa · últimos 12 meses.",
       loading: "Cargando…",
       emptyTitle: "Sin cobros",
       empty: "Aún no hay cobros emitidos.",
+      paidCaption: "Cobrado",
+      viewAll: "Ver todos en Cobros",
       openBadge: (n: number) =>
         n === 1 ? "1 cobro pendiente" : `${n} cobros pendientes`,
       daysOverdue: (n: number) =>
@@ -1332,6 +1335,7 @@ export const platformCopy = {
         spei: "Transferencia",
         card_external: "Tarjeta",
         other: "Otro",
+        stripe: "Tarjeta",
       },
       reference: "Referencia",
       notes: "Notas",

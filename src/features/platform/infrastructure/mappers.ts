@@ -23,6 +23,7 @@ import type {
   PlatformSaasInvoiceDetail,
   PlatformSaasInvoiceItem,
   PlatformSaasInvoicePayment,
+  PlatformSaasLastPayment,
   PlatformSaasArRow,
   PlatformSaasInvoiceStatusType,
   PlatformSaasPaymentMethod,
@@ -648,8 +649,14 @@ export interface ApiPlatformSaasInvoice {
   notes: string | null;
   days_overdue: number;
   origin?: string | null;
+  last_payment?: ApiPlatformSaasLastPayment | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ApiPlatformSaasLastPayment {
+  paid_at: string;
+  method: string;
 }
 
 export interface ApiPlatformCloseRunRun {
@@ -797,6 +804,16 @@ export const mapPlatformSaasInvoicePayment = (
   createdAt: raw.created_at,
 });
 
+export const mapPlatformSaasLastPayment = (
+  raw: ApiPlatformSaasLastPayment | null | undefined,
+): PlatformSaasLastPayment | null => {
+  if (!raw) return null;
+  return {
+    paidAt: raw.paid_at,
+    method: raw.method as PlatformSaasPaymentMethod,
+  };
+};
+
 export const mapPlatformSaasInvoice = (
   raw: ApiPlatformSaasInvoice,
 ): PlatformSaasInvoice => ({
@@ -825,6 +842,7 @@ export const mapPlatformSaasInvoice = (
   notes: raw.notes,
   daysOverdue: raw.days_overdue,
   origin: raw.origin === "auto_period_issue" ? "auto_period_issue" : "manual",
+  lastPayment: mapPlatformSaasLastPayment(raw.last_payment),
   createdAt: raw.created_at,
   updatedAt: raw.updated_at,
 });

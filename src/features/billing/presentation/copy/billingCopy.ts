@@ -312,6 +312,36 @@ export const billingCopy = {
       "Estos cargos son de tu suscripción Boeltech (SaaS), no de facturas CFDI de flete. El estimado del mes actual está más abajo, en Este mes.",
     contactCta: "Escribir a Boeltech",
   },
+  saasInvoiceHistory: {
+    title: "Cargos de tu suscripción",
+    description:
+      "Meses ya cobrados. El saldo pendiente, si hay, aparece arriba.",
+    loading: "Cargando cargos…",
+    unavailable: "No pudimos mostrar el historial de cargos.",
+    columns: {
+      period: "Mes",
+      status: "Estado",
+      amount: "Monto",
+      collected: "Cobrado",
+      method: "Cómo",
+    },
+    status: {
+      paid: "Pagado",
+      void: "Anulado",
+    },
+    methods: {
+      stripe: "Tarjeta",
+      card_external: "Tarjeta",
+      spei: "Transferencia",
+      manual: "Manual",
+      other: "Otro",
+    } as Record<string, string>,
+    methodUnknown: "—",
+    emptyTitle: "Aún no hay cargos cobrados",
+    empty: "El estimado de este mes está arriba.",
+    footer:
+      "Estos cargos son de tu suscripción Tlamx, no de facturas de flete.",
+  },
   paymentMethods: {
     title: "Métodos de pago",
     description:

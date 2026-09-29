@@ -7,4 +7,5 @@ export { BillingArrearsCard } from "./BillingArrearsCard";
 export { BillingModulesCard } from "./BillingModulesCard";
 export { BillingContactCard } from "./BillingContactCard";
 export { PaymentMethodsCard } from "./PaymentMethodsCard";
+export { BillingSaasInvoiceHistoryCard } from "./BillingSaasInvoiceHistoryCard";
 
