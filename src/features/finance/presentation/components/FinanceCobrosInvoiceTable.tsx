@@ -15,6 +15,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
 import { isCobrosInvoiceSelectable } from "../utils/cobrosSelection";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = financeCopy.cobros;
 const SKELETON_ROWS = 8;
@@ -75,6 +76,7 @@ export function FinanceCobrosInvoiceTable({
   onToggle,
   onTogglePage,
 }: FinanceCobrosInvoiceTableProps) {
+  const fromState = useInvoiceQueueFromState();
   const selectableOnPage = invoices.filter((invoice) =>
     isCobrosInvoiceSelectable(invoice, anchorRfc),
   );
@@ -194,6 +196,7 @@ export function FinanceCobrosInvoiceTable({
                   <TableCell className="font-medium">
                     <Link
                       to={`/invoices/${invoice.id}`}
+                      state={fromState}
                       className="text-primary hover:underline"
                     >
                       {folio}
@@ -254,6 +257,7 @@ export function FinanceCobrosInvoiceTable({
               <div className="min-w-0 flex-1 space-y-1">
                 <Link
                   to={`/invoices/${invoice.id}`}
+                  state={fromState}
                   className="font-medium text-primary hover:underline"
                 >
                   {folio}

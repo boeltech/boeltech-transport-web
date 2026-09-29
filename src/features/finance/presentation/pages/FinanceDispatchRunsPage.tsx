@@ -1,9 +1,7 @@
 import { Navigate } from "react-router-dom";
-import { FINANCE_DISPATCH_HISTORY_HREF } from "../../application/financeRoutes";
+import { FINANCE_DISPATCH_PERIOD_PATH } from "../../application/financeRoutes";
 
-/**
- * @deprecated Prefer `/finance/dispatch?tab=history`. Redirect-only (F1).
- */
+/** @deprecated Prefer `/finance/dispatch/period`. */
 export function FinanceDispatchRunsPage() {
-  return <Navigate to={FINANCE_DISPATCH_HISTORY_HREF} replace />;
+  return <Navigate to={FINANCE_DISPATCH_PERIOD_PATH} replace />;
 }

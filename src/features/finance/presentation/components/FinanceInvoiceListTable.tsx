@@ -64,9 +64,11 @@ function getHeaders(isClientPortal: boolean) {
       key: "trips",
       label: isClientPortal ? copy.table.tripsClient : copy.table.trips,
     },
-    { key: "dispatch", label: copy.table.dispatch },
-    { key: "status", label: copy.table.status },
   );
+  if (!isClientPortal) {
+    headers.push({ key: "dispatch", label: copy.table.dispatch });
+  }
+  headers.push({ key: "status", label: copy.table.status });
   return headers;
 }
 
@@ -232,15 +234,17 @@ export function FinanceInvoiceListTable({
                   ) : null}
                 </div>
               </TableCell>
-              <TableCell>
-                <InvoiceEmailDispatchBadge
-                  status={invoice.status}
-                  dispatchSentAt={invoice.dispatchSentAt}
-                  autoDispatchLastItemStatus={
-                    invoice.autoDispatch?.lastItemStatus
-                  }
-                />
-              </TableCell>
+              {isClientPortal ? null : (
+                <TableCell>
+                  <InvoiceEmailDispatchBadge
+                    status={invoice.status}
+                    dispatchSentAt={invoice.dispatchSentAt}
+                    autoDispatchLastItemStatus={
+                      invoice.autoDispatch?.lastItemStatus
+                    }
+                  />
+                </TableCell>
+              )}
               <TableCell>
                 {isClientPortal ? (
                   <Badge variant="secondary" className="text-xs font-normal">

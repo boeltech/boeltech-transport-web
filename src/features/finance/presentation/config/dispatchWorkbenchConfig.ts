@@ -1,18 +1,17 @@
 /**
- * Configuración del workbench de Envío de facturas (F1).
+ * Configuración del workbench de Envío de facturas.
  *
  * Buckets vía `?tab=`:
- *   pending  → cola de pendientes (F2)
- *   sent     → enviadas (F4)
- *   history  → historial de corridas (funcional en F1)
+ *   pending  → cola de pendientes
+ *   sent     → enviadas
+ * El lote del periodo es crossLink (no tab).
  */
 
-export type DispatchWorkbenchTabId = "pending" | "sent" | "history";
+export type DispatchWorkbenchTabId = "pending" | "sent";
 
 export const DISPATCH_WORKBENCH_TABS: DispatchWorkbenchTabId[] = [
   "pending",
   "sent",
-  "history",
 ];
 
 export const DEFAULT_DISPATCH_TAB: DispatchWorkbenchTabId = "pending";
@@ -28,9 +27,7 @@ export const DISPATCH_SENT_PAGE_SIZE = 25;
 export function isDispatchWorkbenchTab(
   value: string | null | undefined,
 ): value is DispatchWorkbenchTabId {
-  return (
-    value === "pending" || value === "sent" || value === "history"
-  );
+  return value === "pending" || value === "sent";
 }
 
 export function parseDispatchWorkbenchTab(

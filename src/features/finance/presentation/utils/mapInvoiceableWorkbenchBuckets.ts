@@ -104,17 +104,23 @@ export interface MapInvoiceableWorkbenchBucketsParams {
   counts: InvoiceableBucketCounts;
   activeBucket: InvoiceableBucketId;
   onBucketChange: (bucket: InvoiceableBucketId) => void;
+  /** Override copy del bucket Bloqueados (contador = escala a patio). */
+  blockedDescription?: string;
 }
 
 export function mapInvoiceableWorkbenchBuckets({
   counts,
   activeBucket,
   onBucketChange,
+  blockedDescription,
 }: MapInvoiceableWorkbenchBucketsParams): WorkbenchBucket[] {
   return INVOICEABLE_WORKBENCH_BUCKETS.map((bucket) => ({
     id: bucket,
     label: copy.buckets[bucket],
-    description: copy.bucketDescriptions[bucket],
+    description:
+      bucket === "blocked"
+        ? (blockedDescription ?? copy.bucketDescriptions.blocked)
+        : copy.bucketDescriptions[bucket],
     count: counts[bucket],
     isActive: activeBucket === bucket,
     onClick: () => onBucketChange(bucket),

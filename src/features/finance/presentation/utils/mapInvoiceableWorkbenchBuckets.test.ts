@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { TripStatus } from "@features/trips/domain";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import type { TripListItem } from "@features/trips/domain";
+import { financeCopy } from "../copy";
 import {
   classifyInvoiceableBucket,
   countTripsByBucket,
   countsFromInvoiceableSummary,
+  mapInvoiceableWorkbenchBuckets,
 } from "./mapInvoiceableWorkbenchBuckets";
 
 function tripListItem(
@@ -97,6 +99,23 @@ describe("countTripsByBucket", () => {
       proration_pending: 1,
       blocked: 1,
     });
+  });
+});
+
+describe("mapInvoiceableWorkbenchBuckets", () => {
+  it("usa copy de escala a patio en Bloqueados cuando hay override accountant", () => {
+    const buckets = mapInvoiceableWorkbenchBuckets({
+      counts: { ready: 0, proration_pending: 0, blocked: 2 },
+      activeBucket: "blocked",
+      onBucketChange: () => undefined,
+      blockedDescription:
+        financeCopy.invoiceable.workbench.bucketDescriptions.blockedAccountant,
+    });
+    const blocked = buckets.find((bucket) => bucket.id === "blocked");
+    expect(blocked?.description).toBe(
+      financeCopy.invoiceable.workbench.bucketDescriptions.blockedAccountant,
+    );
+    expect(blocked?.description).not.toMatch(/Completa ruta/i);
   });
 });
 

@@ -75,7 +75,7 @@ describe("FinanceDispatchSentTable", () => {
     expect(screen.getAllByText("+1").length).toBeGreaterThan(0);
   });
 
-  it("shows Automática when lastScheduledRunId is set", () => {
+  it("shows Automático when lastScheduledRunId is set", () => {
     renderTable({
       invoices: [
         buildInvoice({
@@ -89,7 +89,7 @@ describe("FinanceDispatchSentTable", () => {
       ],
     });
 
-    expect(screen.getAllByText("Automática").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Automático").length).toBeGreaterThan(0);
   });
 
   it("allows selecting invoices from different clients", async () => {

@@ -11,6 +11,7 @@ import {
   cancelBillingDispatchRun,
   confirmSendBillingDispatchRun,
   createBillingDispatchRun,
+  fetchBillingDispatchPeriodPreview,
   fetchBillingDispatchRunById,
   fetchBillingDispatchRuns,
   previewBillingDispatchRun,
@@ -49,6 +50,8 @@ export const billingDispatchRunKeys = {
   }) => [...billingDispatchRunKeys.all, "list", params ?? {}] as const,
   detail: (id: string) =>
     [...billingDispatchRunKeys.all, "detail", id] as const,
+  periodPreview: (billingSchemeId: string) =>
+    [...billingDispatchRunKeys.all, "period-preview", billingSchemeId] as const,
 };
 
 export function useBillingDispatchRuns(params?: {
@@ -83,6 +86,17 @@ export function useBillingDispatchRun(id: string | undefined) {
   });
 }
 
+export function useBillingDispatchPeriodPreview(
+  billingSchemeId: string | undefined,
+) {
+  return useQuery({
+    queryKey: billingDispatchRunKeys.periodPreview(billingSchemeId ?? ""),
+    queryFn: () => fetchBillingDispatchPeriodPreview(billingSchemeId!),
+    enabled: Boolean(billingSchemeId),
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useCreateBillingDispatchRun() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -90,7 +104,7 @@ export function useCreateBillingDispatchRun() {
   return useMutation({
     mutationFn: (payload: CreateBillingDispatchRunPayload) =>
       createBillingDispatchRun(payload),
-    onSuccess: (run) => {
+    onSuccess: ({ run, reused }) => {
       void queryClient.invalidateQueries({
         queryKey: billingDispatchRunKeys.all,
       });
@@ -98,7 +112,9 @@ export function useCreateBillingDispatchRun() {
         billingDispatchRunKeys.detail(run.id),
         run,
       );
-      toast({ title: dispatchRunsCopy.toast.runCreated });
+      if (!reused) {
+        toast({ title: dispatchRunsCopy.toast.runCreated });
+      }
     },
     onError: () => {
       toast({

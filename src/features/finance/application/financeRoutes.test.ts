@@ -9,9 +9,9 @@ describe("financeRoutes", () => {
     expect(resolveLegacyFinanceLocation("?tab=summary")).toBe("/finance");
   });
 
-  it("resolveLegacyFinanceLocation maps dispatch-runs to Historial workbench", () => {
+  it("resolveLegacyFinanceLocation maps dispatch-runs to envíos del periodo", () => {
     expect(resolveLegacyFinanceLocation("?tab=dispatch-runs")).toBe(
-      "/finance/dispatch?tab=history",
+      "/finance/dispatch/period",
     );
   });
 

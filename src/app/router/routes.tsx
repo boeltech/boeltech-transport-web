@@ -284,6 +284,11 @@ const FinanceApprovalsPage = lazyWithRetry(() =>
 const FinanceDispatchPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinanceDispatchPage })),
 );
+const FinanceDispatchPeriodPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.FinanceDispatchPeriodPage,
+  })),
+);
 const FinanceAnalysisPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinanceAnalysisPage })),
 );
@@ -975,6 +980,10 @@ export const router = createBrowserRouter([
                     element: withSuspense(FinanceDispatchPage),
                   },
                   {
+                    path: "/finance/dispatch/period",
+                    element: withSuspense(FinanceDispatchPeriodPage),
+                  },
+                  {
                     path: "/finance/dispatch/:id",
                     element: withSuspense(DispatchRunDetailPage),
                   },
@@ -1033,10 +1042,6 @@ export const router = createBrowserRouter([
                     element: withSuspense(SettlementsListPage),
                   },
                   {
-                    path: "/finance/settlements/:id",
-                    element: withSuspense(SettlementDetailPage),
-                  },
-                  {
                     path: "/finance/compensation",
                     element: withSuspense(CompensationHubLayout),
                     children: [
@@ -1063,6 +1068,10 @@ export const router = createBrowserRouter([
                     element: withSuspense(AgreementsLegacyRedirect),
                   },
                     ],
+                  },
+                  {
+                    path: "/finance/settlements/:id",
+                    element: withSuspense(SettlementDetailPage),
                   },
                   {
                     path: "/finance/compensation/templates/:id/build",

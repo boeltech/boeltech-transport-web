@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileClock } from "lucide-react";
+import { ROLES } from "@shared/constants/roles";
+import { useRole } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import {
@@ -35,6 +37,7 @@ import {
   isInvoiceableBucket,
   type InvoiceableBucketId,
 } from "../config/invoiceableWorkbenchConfig";
+import { AccountantInvoiceableQueuesAlert } from "../components/AccountantInvoiceableQueuesAlert";
 import {
   classifyInvoiceableBucket,
   countsFromInvoiceableSummary,
@@ -215,6 +218,8 @@ function InvoiceableTripsTable({
 
 export function FinanceInvoiceablePage() {
   const navigate = useNavigate();
+  const role = useRole();
+  const isAccountant = role === ROLES.ACCOUNTANT;
 
   const filters = useFinanceListingFilters<"bucket">({
     filters: { bucket: {} },
@@ -276,8 +281,11 @@ export function FinanceInvoiceablePage() {
         counts,
         activeBucket,
         onBucketChange: handleBucketChange,
+        blockedDescription: isAccountant
+          ? workbenchCopy.bucketDescriptions.blockedAccountant
+          : undefined,
       }),
-    [activeBucket, counts, handleBucketChange],
+    [activeBucket, counts, handleBucketChange, isAccountant],
   );
 
   const handleRefresh = useCallback(async () => {
@@ -305,11 +313,17 @@ export function FinanceInvoiceablePage() {
   const isDegraded = isError && !isLoading;
   const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
   const listLoading = isLoading || summaryLoading;
+  const hasSearch = Boolean(filters.search.trim());
 
   return (
     <WorkbenchPageShell
       title={copy.title}
-      description={copy.description}
+      description={
+        isAccountant ? copy.descriptionAccountant : copy.description
+      }
+      beforeAwareness={
+        isAccountant ? <AccountantInvoiceableQueuesAlert /> : undefined
+      }
       buckets={buckets}
       bucketsAriaLabel={workbenchCopy.bucketsAriaLabel}
       bucketsLoading={summaryLoading}
@@ -343,27 +357,41 @@ export function FinanceInvoiceablePage() {
         }
 
         if (trips.length === 0) {
+          const showAccountantEmpty = isAccountant && !hasSearch;
           return (
             <EmptyState
               icon={
                 <FileClock className="h-10 w-10 text-muted-foreground" />
               }
               title={
-                filters.hasFilters ? copy.empty.title : emptyBucket.title
+                hasSearch
+                  ? copy.empty.title
+                  : showAccountantEmpty
+                    ? copy.empty.accountantTitle
+                    : emptyBucket.title
               }
               description={
-                filters.hasFilters
+                hasSearch
                   ? copy.empty.withFilters
-                  : emptyBucket.description
+                  : showAccountantEmpty
+                    ? copy.empty.accountantDescription
+                    : emptyBucket.description
               }
               secondaryCta={
-                filters.hasFilters
+                hasSearch
                   ? {
                       label: copy.empty.clearFilters,
                       onClick: filters.clearAll,
                       variant: "outline" as const,
                     }
-                  : undefined
+                  : showAccountantEmpty
+                    ? {
+                        label: copy.empty.accountantFiscalAttentionCta,
+                        onClick: () =>
+                          navigate("/trips?fiscalAttention=1"),
+                        variant: "outline" as const,
+                      }
+                    : undefined
               }
             />
           );
@@ -392,7 +420,9 @@ export function FinanceInvoiceablePage() {
       relatedConfig={{
         label: workbenchCopy.relatedConfig.label,
         href: "/finance/invoices",
-        description: workbenchCopy.relatedConfig.description,
+        description: isAccountant
+          ? workbenchCopy.relatedConfig.descriptionAccountant
+          : workbenchCopy.relatedConfig.description,
       }}
     />
   );

@@ -1,13 +1,16 @@
 /**
- * Workbench unificado de envío de facturas (F1–F4).
- * Tabs: Pendientes (F2+F3 Sheet) · Enviadas (F4) · Historial.
+ * Workbench unificado de envío de facturas.
+ * Tabs: Pendientes · Enviadas. Lotes del periodo vía crossLink + CTA de cabecera.
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
+import { usePermissions } from "@shared/permissions";
 import { useInvoices } from "@features/invoicing";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { InvoiceListItem } from "@features/invoicing";
+import { useBillingDispatchRuns } from "@features/finance/application";
 import {
   DEFAULT_DISPATCH_TAB,
   DISPATCH_TAB_PARAM,
@@ -18,22 +21,29 @@ import {
   FinanceDispatchConfirmSheet,
   type FinanceDispatchConfirmSheetMode,
 } from "../components/FinanceDispatchConfirmSheet";
-import { FinanceDispatchHistoryPanel } from "../components/FinanceDispatchHistoryPanel";
+import { FinanceDispatchCreateRunDialog } from "../components/FinanceDispatchCreateRunDialog";
 import { FinanceDispatchPendingPanel } from "../components/FinanceDispatchPendingPanel";
 import { FinanceDispatchSentPanel } from "../components/FinanceDispatchSentPanel";
+import {
+  FINANCE_DISPATCH_PERIOD_PATH,
+} from "../../application/financeRoutes";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { mapDispatchWorkbenchBuckets } from "../utils/mapDispatchWorkbenchBuckets";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = dispatchRunsCopy.workbench;
 
 export function FinanceDispatchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = parseDispatchWorkbenchTab(
-    searchParams.get(DISPATCH_TAB_PARAM),
-  );
+  const { from: returnTo } = useInvoiceQueueFromState();
+  const tabParam = searchParams.get(DISPATCH_TAB_PARAM);
+  const { hasPermission } = usePermissions();
+  const canExecute = hasPermission("invoices", "execute");
+  const activeTab = parseDispatchWorkbenchTab(tabParam);
   const [pendingCountFromPanel, setPendingCountFromPanel] = useState(0);
   const [sentCountFromPanel, setSentCountFromPanel] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [createRunOpen, setCreateRunOpen] = useState(false);
   const [confirmMode, setConfirmMode] =
     useState<FinanceDispatchConfirmSheetMode>("send");
   const [confirmInvoices, setConfirmInvoices] = useState<InvoiceListItem[]>(
@@ -42,7 +52,6 @@ export function FinanceDispatchPage() {
   /** Incrementa tras batch ok → Pending/Sent panel limpia selección. */
   const [selectionResetKey, setSelectionResetKey] = useState(0);
 
-  // Badge del bucket Pendientes aunque el tab activo sea otro.
   const { data: pendingMeta } = useInvoices({
     status: "stamped",
     emailDispatch: "unsent",
@@ -52,7 +61,6 @@ export function FinanceDispatchPage() {
   const pendingCount =
     pendingMeta?.pagination?.total ?? pendingCountFromPanel;
 
-  // Badge Enviadas (opcional F4).
   const { data: sentMeta } = useInvoices({
     status: "stamped",
     emailDispatch: "sent",
@@ -60,6 +68,12 @@ export function FinanceDispatchPage() {
     limit: 1,
   });
   const sentCount = sentMeta?.pagination?.total ?? sentCountFromPanel;
+
+  const { data: periodMeta } = useBillingDispatchRuns({
+    page: 1,
+    limit: 1,
+  });
+  const periodCount = periodMeta?.pagination?.total ?? 0;
 
   const handleTabChange = useCallback(
     (tab: DispatchWorkbenchTabId) => {
@@ -71,12 +85,8 @@ export function FinanceDispatchPage() {
           } else {
             next.set(DISPATCH_TAB_PARAM, tab);
           }
-          // Filtros del historial solo aplican en ese bucket
-          if (tab !== "history") {
-            next.delete("dispatch_status");
-            next.delete("billing_scheme_id");
-          }
-          // Búsqueda / página / periodo se reutilizan por tab activo: limpiar al cambiar
+          next.delete("dispatch_status");
+          next.delete("billing_scheme_id");
           next.delete("search");
           next.delete("page");
           next.delete("dateFrom");
@@ -103,7 +113,7 @@ export function FinanceDispatchPage() {
     setConfirmOpen(true);
   }, []);
 
-  const handleBatchComplete = useCallback((_okInvoiceIds: string[]) => {
+  const handleBatchComplete = useCallback(() => {
     setSelectionResetKey((key) => key + 1);
   }, []);
 
@@ -114,22 +124,29 @@ export function FinanceDispatchPage() {
         onTabChange: handleTabChange,
         pendingCount,
         sentCount,
+        periodCount,
       }),
-    [activeTab, handleTabChange, pendingCount, sentCount],
+    [activeTab, handleTabChange, pendingCount, sentCount, periodCount],
   );
+
+  if (tabParam === "history") {
+    return <Navigate to={FINANCE_DISPATCH_PERIOD_PATH} replace />;
+  }
 
   return (
     <>
       <WorkbenchPageShell
         title={copy.title}
         description={copy.description}
+        primaryAction={{
+          label: copy.armPeriodCta,
+          icon: <Plus className="h-4 w-4" />,
+          onClick: () => setCreateRunOpen(true),
+          visible: canExecute,
+        }}
         buckets={buckets}
         bucketsAriaLabel={copy.bucketsAriaLabel}
         renderContent={() => {
-          if (activeTab === "history") {
-            return <FinanceDispatchHistoryPanel />;
-          }
-
           if (activeTab === "sent") {
             return (
               <FinanceDispatchSentPanel
@@ -167,6 +184,13 @@ export function FinanceDispatchPage() {
         invoices={confirmInvoices}
         mode={confirmMode}
         onBatchComplete={handleBatchComplete}
+      />
+
+      <FinanceDispatchCreateRunDialog
+        open={createRunOpen}
+        onOpenChange={setCreateRunOpen}
+        alreadyOpenSource="workbench"
+        returnTo={returnTo}
       />
     </>
   );

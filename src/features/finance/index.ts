@@ -40,6 +40,7 @@ export {
   FINANCE_DISPATCH_PATH,
   FINANCE_DISPATCH_PENDING_HREF,
   FINANCE_DISPATCH_HISTORY_HREF,
+  FINANCE_DISPATCH_PERIOD_PATH,
   FINANCE_DISPATCH_DETAIL_PATH,
 } from "./application";
 
@@ -52,6 +53,7 @@ export {
   FinanceCobrosPage,
   FinanceApprovalsPage,
   FinanceDispatchPage,
+  FinanceDispatchPeriodPage,
   FinanceDispatchRunsPage,
   FinanceAnalysisPage,
   ProfitabilityTab,

@@ -30,22 +30,27 @@ const LEGACY_TAB_ALIASES: Record<
   reports: { segment: "analysis", view: "margin" },
 };
 
+/** Workbench unificado de envío de facturas. */
+export const FINANCE_DISPATCH_PATH = "/finance/dispatch";
+
+/** Lotes del periodo + frecuencias de envío. */
+export const FINANCE_DISPATCH_PERIOD_PATH = "/finance/dispatch/period";
+
+export const FINANCE_DISPATCH_PENDING_HREF = `${FINANCE_DISPATCH_PATH}?tab=pending`;
+
+/** Compat: historial de corridas → envíos del periodo. */
+export const FINANCE_DISPATCH_HISTORY_HREF = FINANCE_DISPATCH_PERIOD_PATH;
+
 const TAB_TO_PATH: Record<string, string> = {
   summary: "/finance",
   invoiceable: "/finance/invoiceable",
   cobros: "/finance/cobros",
   approvals: "/finance/approvals",
-  "dispatch-runs": "/finance/dispatch",
-  dispatch: "/finance/dispatch",
+  "dispatch-runs": FINANCE_DISPATCH_PERIOD_PATH,
+  dispatch: FINANCE_DISPATCH_PATH,
   invoices: "/finance/invoices",
   analysis: "/finance/analysis",
 };
-
-/** Workbench unificado de envío de facturas. */
-export const FINANCE_DISPATCH_PATH = "/finance/dispatch";
-
-export const FINANCE_DISPATCH_PENDING_HREF = `${FINANCE_DISPATCH_PATH}?tab=pending`;
-export const FINANCE_DISPATCH_HISTORY_HREF = `${FINANCE_DISPATCH_PATH}?tab=history`;
 
 export function FINANCE_DISPATCH_DETAIL_PATH(id: string): string {
   return `${FINANCE_DISPATCH_PATH}/${id}`;
@@ -67,11 +72,6 @@ export function resolveLegacyFinanceLocation(search: string): string {
 
   if (alias?.view && !params.has(FINANCE_ANALYSIS_VIEW_PARAM)) {
     params.set(FINANCE_ANALYSIS_VIEW_PARAM, alias.view);
-  }
-
-  // Legacy hub tab "dispatch-runs" → workbench Historial
-  if (segment === "dispatch-runs" && !params.has("tab")) {
-    params.set("tab", "history");
   }
 
   const qs = params.toString();

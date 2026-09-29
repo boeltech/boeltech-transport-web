@@ -1,5 +1,5 @@
 /**
- * Badge de origen de corrida (manual vs programada) — ADR-0083.
+ * Badge de origen del lote (manual vs automático).
  */
 
 import { Badge } from "@shared/ui/badge";

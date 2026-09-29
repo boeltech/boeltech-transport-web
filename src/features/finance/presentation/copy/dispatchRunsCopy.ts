@@ -4,18 +4,20 @@ export const dispatchRunsCopy = {
   workbench: {
     title: "Envío de facturas",
     description:
-      "Envía, reenvía y supervisa las facturas timbradas que se entregan por correo.",
+      "Mandar por correo las facturas ya emitidas. Puedes mandar ahora o armar el lote del periodo.",
     bucketsAriaLabel: "Etapas del envío de facturas",
+    armPeriodCta: "Armar envío del periodo",
     buckets: {
       pending: "Pendientes",
       sent: "Enviadas",
-      history: "Historial",
+      period: "Por periodo",
     },
     bucketDescriptions: {
-      pending: "Cola de facturas por enviar o reenviar",
-      sent: "Facturas ya entregadas por correo",
-      history: "Corridas del periodo y envío automático",
+      pending: "Facturas por mandar o reenviar",
+      sent: "Ya se mandaron por correo",
+      period: "Lotes agrupados · un correo por cliente",
     },
+    periodLinkAria: "Ver envíos del periodo",
     pending: {
       searchPlaceholder: "Buscar por folio o cliente…",
       entityLabelPlural: "facturas",
@@ -38,9 +40,9 @@ export const dispatchRunsCopy = {
       sendCta: (count: number) =>
         count === 1 ? "Enviar 1 factura" : `Enviar ${count} facturas`,
       empty: {
-        title: "Todas las facturas timbradas ya fueron enviadas",
+        title: "Todas las facturas ya emitidas ya fueron enviadas",
         description:
-          "No hay facturas pendientes de envío por correo. Revisa las enviadas o el historial.",
+          "No hay facturas pendientes de envío por correo. Revisa las enviadas o Por periodo.",
         ctaSent: "Ver facturas enviadas",
         noResultsTitle: "Sin resultados",
         withFilters:
@@ -82,7 +84,7 @@ export const dispatchRunsCopy = {
       empty: {
         title: "Aún no hay facturas enviadas por correo",
         description:
-          "Cuando envíes facturas timbradas desde Pendientes, aparecerán aquí para consultar o reenviar.",
+          "Cuando mandes facturas ya emitidas desde Pendientes, aparecerán aquí para consultar o reenviar.",
         ctaPending: "Ir a pendientes",
         noResultsTitle: "Sin resultados",
         withFilters:
@@ -95,9 +97,9 @@ export const dispatchRunsCopy = {
       title: "Confirmar envío",
       titleResend: "Confirmar reenvío",
       description:
-        "Se enviará un correo por cliente con la lista de facturas y un enlace para descargar PDF y XML en un ZIP. No se retimbra ni se regeneran los archivos. El envío se procesa en segundo plano.",
+        "Se enviará un correo por cliente con la lista de facturas y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos. El envío se procesa en segundo plano.",
       resendWarning:
-        "Estas facturas ya se enviaron antes. Reenviar puede duplicar el correo en la bandeja del cliente y genera un enlace nuevo. No se regenera el PDF ni el XML y no se vuelve a timbrar.",
+        "Estas facturas ya se enviaron antes. Reenviar puede duplicar el correo en la bandeja del cliente y genera un enlace nuevo. No se regenera el PDF ni el XML.",
       /** P12 — hint único (sin umbral >4). */
       linkHint:
         "Los archivos se descargan desde el correo (enlace), no van adjuntos.",
@@ -132,17 +134,17 @@ export const dispatchRunsCopy = {
       rfcOnlyLabel: "Sin cliente vinculado",
       progress: (current: number, total: number) =>
         total <= 1
-          ? "Encolando envío…"
-          : `Encolando cliente ${current} de ${total}…`,
+          ? "Preparando el correo…"
+          : `Preparando el correo ${current} de ${total}…`,
       confirm: "Confirmar envío",
       confirmResend: "Confirmar reenvío",
       cancel: "Cancelar",
       close: "Cerrar",
-      submitting: "Encolando…",
+      submitting: "Preparando…",
       nothingSendable:
         "No hay facturas listas para enviar. Agrega destinatarios o marca al menos un correo por cliente.",
-      resultTitle: "Resultado del encolado",
-      resultOk: "Encolado",
+      resultTitle: "Resultado",
+      resultOk: "Preparado",
       resultFail: "Error",
       resultSkipped: "Omitido",
       /** P13 — ack inmediato; no afirmar «enviadas». */
@@ -153,7 +155,7 @@ export const dispatchRunsCopy = {
             : `${invoiceCount} facturas`;
         const clientes =
           clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
-        return `Envío encolado · ${facturas} · ${clientes}`;
+        return `Correo preparado · ${facturas} · ${clientes}`;
       },
       toastQueuedResend: (invoiceCount: number, clientCount: number) => {
         const facturas =
@@ -162,86 +164,113 @@ export const dispatchRunsCopy = {
             : `${invoiceCount} facturas`;
         const clientes =
           clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
-        return `Reenvío encolado · ${facturas} · ${clientes}`;
+        return `Reenvío preparado · ${facturas} · ${clientes}`;
       },
       toastPartial: (okClients: number, failClients: number) =>
-        `Encolado parcial: ${okClients} cliente${okClients === 1 ? "" : "s"} en cola, ${failClients} con error. Revisa el detalle.`,
-      toastAllFailed: "No se pudo encolar el envío a ningún cliente",
+        `Parcial: ${okClients} cliente${okClients === 1 ? "" : "s"} preparados, ${failClients} con error. Revisa el detalle.`,
+      toastAllFailed: "No se pudo preparar el envío a ningún cliente",
     },
   },
   tab: {
-    title: "Historial de envíos",
+    title: "Envíos del periodo",
     subtitle:
-      "Archivo de corridas: reintentos, fallos, envío automático y supervisión.",
-    /** CTA hacia la cola de pendientes del workbench unificado. */
-    sendWizardCta: "Ir a pendientes",
-    sendWizardHref: "/finance/dispatch?tab=pending",
-    /** Acción del archivo (digest por esquema / periodo) — solo en tab Historial. */
-    executeCta: "Preparar envío del periodo",
+      "Revisa el lote, confirma y manda un correo por cliente. No genera facturas nuevas.",
+    executeCta: "Armar envío del periodo",
+    backToWorkbench: "Volver a envíos",
     entityLabelPlural: "envíos",
-    loadError: "Error al cargar el historial de envíos",
+    loadError: "Error al cargar los envíos del periodo",
     filters: {
+      showFilters: "Filtros",
+      statusLabel: "Estado",
+      statusAll: "Todos",
+      schemeLabel: "Frecuencia de envío",
+      schemeAll: "Todas",
       statusPlaceholder: "Estado",
-      schemePlaceholder: "Esquema de facturación",
+      schemePlaceholder: "Frecuencia de envío",
       all: "Todos",
       chipStatus: (label: string) => `Estado: ${label}`,
-      chipScheme: (name: string) => `Esquema: ${name}`,
+      chipScheme: (name: string) => `Frecuencia: ${name}`,
     },
     empty: {
-      title: "No hay envíos en el historial",
+      title: "Aún no hay envíos del periodo",
       description:
-        "Aquí verás las corridas manuales y automáticas. El envío diario de facturas está en Pendientes; el periodo por esquema queda como opción secundaria.",
-      settingsLink: "Configura los esquemas de facturación en Configuración",
+        "Primero define cada cuánto y asígnalo en los clientes.",
+      recorteTitle: "Ningún envío con estos filtros",
       withFilters:
-        "No hay envíos con los filtros actuales. Prueba otro estado o esquema de facturación.",
+        "No hay envíos con los filtros actuales. Prueba otro estado o frecuencia de envío.",
       clearFilters: "Limpiar filtros",
       onboardingTitle: "Antes del primer envío",
       onboardingSteps: [
         {
-          label: "Crea un esquema de facturación en Configuración",
-          href: "/settings/billing-schemes",
-          linkLabel: "Ir a esquemas",
+          label: "Crea una frecuencia aquí.",
         },
         {
-          label: "Asigna el esquema a tus clientes y revisa correos de facturación",
+          label: "En cada cliente, elige cada cuánto y revisa el correo.",
           href: "/clients",
           linkLabel: "Ir a clientes",
         },
         {
-          label: "Envía facturas desde Pendientes (job diario)",
-          href: "/finance/dispatch?tab=pending",
-          linkLabel: "Ir a pendientes",
+          label:
+            "Arma el envío del periodo (o activa que se mande solo).",
         },
       ] as const,
     },
     table: {
       period: "Periodo",
-      scheme: "Esquema de facturación",
+      scheme: "Frecuencia de envío",
       origin: "Origen",
       status: "Estado",
       createdAt: "Creada",
+      actions: "Acciones",
+      periodCalendar: (inclusiveStart: string, cutDate: string) =>
+        `${inclusiveStart} — corte ${cutDate}`,
+      periodEvent: (hours: number) => `Últimas ${hours} h`,
+    },
+    actions: {
+      open: "Abrir",
+      cancel: "Cancelar envío",
+      menuAria: (periodLabel: string) => `Acciones del envío ${periodLabel}`,
+    },
+    cancelDialog: {
+      title: "¿Cancelar este envío?",
+      body: "El lote queda cancelado y deja de usarse. No se borra. Después puedes armar otro del mismo corte.",
+      keepReviewing: "Seguir revisando",
+      confirm: "Cancelar envío",
     },
     origin: {
       manual: "Manual",
-      scheduled: "Automática",
+      scheduled: "Automático",
     },
     createDialog: {
-      title: "Preparar envío del periodo",
+      title: "Armar envío del periodo",
       description:
-        "Arma una corrida por esquema para revisar el periodo y enviar un correo por cliente (digest). El envío diario de facturas está en Pendientes.",
-      schemeLabel: "Esquema de facturación",
+        "Se arma el último corte ya cerrado de esa frecuencia. No es el periodo en curso y las fechas no se eligen a mano.",
+      schemeLabel: "Frecuencia de envío",
       schemeHint:
-        "Define cada cuánto se agrupan las facturas (semanal, cortes del mes o mensual).",
-      schemeSummaryLabel: "Resumen del esquema",
-      submit: "Preparar lista",
+        "Semanal, cortes del mes o mensual. El lote usa el corte que ya cerró, no el que está corriendo.",
+      schemeSummaryLabel: "Resumen de la frecuencia",
+      previewTitle: "Qué entra en este lote",
+      previewEmpty: "Elige una frecuencia para ver qué días entran.",
+      previewLoading: "Calculando el último corte cerrado…",
+      previewError: "No se pudo calcular el corte.",
+      previewRetry: "Reintentar",
+      submit: "Armar lista",
       cancel: "Cancelar",
-      noSchemes: "No hay esquemas de facturación activos.",
-      settingsLink: "Configura uno en Ajustes",
+      noSchemes: "No hay frecuencias de envío activas.",
+      settingsLink: "Crea una en Envíos del periodo",
+      alreadyOpen: {
+        title: "Ya hay un lote de este corte",
+        bodyOnList:
+          "Este corte ya tiene un envío Lista para revisar. No se armó otro. Ábrelo en la lista de esta pantalla.",
+        bodyFromWorkbench:
+          "Este corte ya tiene un envío Lista para revisar. No se armó otro. Entra a Por periodo y ábrelo en la lista.",
+        dismiss: "Entendido",
+      },
     },
   },
   status: {
     draft: "Borrador",
-    previewed: "Lista preparada",
+    previewed: "Lista para revisar",
     send_confirmed: "En proceso de envío",
     sending: "Enviando",
     completed: "Completada",
@@ -256,17 +285,32 @@ export const dispatchRunsCopy = {
     failed: "Fallido",
   },
   detail: {
-    title: "Detalle del envío",
-    schemeTypeLabel: (name: string) => `Esquema de facturación: ${name}`,
-    originScheduled: "Automática",
+    titleFallback: "Envío del periodo",
+    titleCalendar: (inclusiveStart: string, inclusiveEnd: string) =>
+      `Envío ${inclusiveStart}–${inclusiveEnd}`,
+    titleEvent: (hours: number) => `Envío de las últimas ${hours} h`,
+    subtitleClosedCut: (schemeName: string) =>
+      `Último corte cerrado · ${schemeName}`,
+    periodCalendar: (
+      inclusiveStart: string,
+      inclusiveEnd: string,
+      cutDate: string,
+    ) =>
+      `Viajes que cerraron del ${inclusiveStart} al ${inclusiveEnd}. El ${cutDate} es el día del corte y no entra.`,
+    periodEvent: (hours: number) =>
+      `Viajes que cerraron en las últimas ${hours} horas, hasta ahora.`,
+    datesFixedNote: "Las fechas las fija la frecuencia; no se pueden cambiar.",
+    schemeTypeLabel: (name: string) => `Frecuencia de envío: ${name}`,
+    originScheduled: "Automático",
     originManual: "Manual",
-    periodClosedTrips: (start: string, end: string) =>
-      `Viajes cerrados entre ${start} y ${end}`,
     refreshPreview: "Actualizar lista",
     cancelRun: "Cancelar envío",
     sendCta: "Enviar facturas",
     resendCta: "Reenviar seleccionadas",
-    backToList: "Volver al historial",
+    moreActions: "Más",
+    backToList: "Volver a envíos del periodo",
+    backToWorkbench: "Volver a envíos",
+    backToInvoice: "Volver a la factura",
     decisionSummary: (
       readyCount: number,
       clientCount: number,
@@ -282,8 +326,8 @@ export const dispatchRunsCopy = {
           : `${pendingCount} pendientes por generar`;
       return `${facturas} para ${clientes} · ${pendientes}`;
     },
-    attachmentsHint:
-      "Clientes con más de 4 facturas en este envío recibirán un archivo ZIP con todos los PDF y XML.",
+    linkHint:
+      "Los archivos se descargan desde el correo (enlace), no van adjuntos.",
     zipTooLargeError:
       "El paquete de facturas excede el tamaño de correo. Reenvía en lotes menores o envía facturas individuales.",
     sendingBanner: "Envío en curso. Esta pantalla se actualiza sola.",
@@ -308,7 +352,7 @@ export const dispatchRunsCopy = {
     buckets: {
       pendingTitle: "Faltan por generar",
       pendingNote:
-        "No se incluyen en este correo. Son trabajo de timbrado aparte: genera la factura y actualiza la lista.",
+        "No se incluyen en este correo. Genera la factura y actualiza la lista.",
       pendingCollapsedSummary: (count: number) =>
         count === 1
           ? "1 pendiente por generar (no va en este correo)"
@@ -318,7 +362,6 @@ export const dispatchRunsCopy = {
       readyTitle: "Listas para enviar",
       emptyBucket: "Ninguno en este periodo.",
       stampCta: "Generar factura",
-      tripLabel: (shortId: string) => `Viaje ${shortId}`,
       tripFallback: "Viaje",
       invoiceLabel: (number: string) => `Factura ${number}`,
       invoiceFallback: "Sin número de factura",
@@ -347,7 +390,7 @@ export const dispatchRunsCopy = {
     confirm: {
       title: "¿Enviar facturas por correo?",
       emailNote:
-        "Se enviará un correo por cliente con los archivos fiscales (PDF y XML) adjuntos. Clientes con muchas facturas recibirán un ZIP.",
+        "Se enviará un correo por cliente con la lista de facturas y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
       summaryClients: (n: number) =>
         n === 1 ? "1 cliente" : `${n} clientes`,
       summaryInvoices: (n: number) =>
@@ -371,9 +414,9 @@ export const dispatchRunsCopy = {
     resendConfirm: {
       title: "¿Reenviar facturas ya enviadas?",
       riskNote:
-        "No se regeneran el PDF ni el XML y no se vuelve a timbrar. Solo se reenvía el correo con los archivos ya generados. Por defecto estas facturas se omiten del envío normal.",
+        "No se regeneran el PDF ni el XML. Solo se reenvía el correo con los archivos ya generados. Por defecto estas facturas se omiten del envío normal.",
       emailNote:
-        "Se reenviará un correo por cliente solo con las facturas que marcaste, con PDF/XML adjuntos (o ZIP si hay muchas).",
+        "Se reenviará un correo por cliente solo con las facturas que marcaste y un enlace nuevo para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
       summaryClients: (n: number) =>
         n === 1 ? "1 cliente" : `${n} clientes`,
       summaryInvoices: (n: number) =>
@@ -401,7 +444,7 @@ export const dispatchRunsCopy = {
       error: "El envío falló",
       itemError: "Error de envío",
       errorHint:
-        "Revisa el resultado por cliente o prepara un nuevo envío del periodo para reintentar.",
+        "Revisa el resultado por cliente o arma un nuevo envío del periodo para reintentar.",
       byClientTitle: "Resultado por cliente",
       byClientDescription:
         "Resumen de a quién se envió el correo y qué facturas se incluyeron.",
@@ -421,7 +464,7 @@ export const dispatchRunsCopy = {
     },
   },
   toast: {
-    runCreated: "Lista preparada",
+    runCreated: "Lista para revisar",
     previewUpdated: "Lista actualizada",
     sendConfirmed: "Envío confirmado",
     sendFailedTitle: "No se pudo enviar las facturas",

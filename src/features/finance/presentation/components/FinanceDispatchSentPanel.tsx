@@ -23,6 +23,7 @@ import {
   DISPATCH_TAB_PARAM,
 } from "../config/dispatchWorkbenchConfig";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 import { FinanceDispatchSentTable } from "./FinanceDispatchSentTable";
 
 const copy = dispatchRunsCopy.workbench.sent;
@@ -67,6 +68,7 @@ export function FinanceDispatchSentPanel({
   const { hasPermission } = usePermissions();
   const canResend = hasPermission("invoices", "execute");
   const navigate = useNavigate();
+  const fromState = useInvoiceQueueFromState();
   const [, setSearchParams] = useSearchParams();
 
   const filters = useFinanceListingFilters<"dateFrom" | "dateTo">({
@@ -181,9 +183,9 @@ export function FinanceDispatchSentPanel({
 
   const handleRowView = useCallback(
     (invoice: InvoiceListItem) => {
-      navigate(`/invoices/${invoice.id}`);
+      navigate(`/invoices/${invoice.id}`, { state: fromState });
     },
-    [navigate],
+    [fromState, navigate],
   );
 
   const handleUnitarySent = useCallback(async () => {

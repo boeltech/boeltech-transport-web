@@ -2,10 +2,15 @@ import { Checkbox } from "@shared/ui/checkbox";
 import { Label } from "@shared/ui/label";
 import { Button } from "@shared/ui/button";
 import type {
+  BillingDispatchClientReceipt,
   BillingDispatchRunItem,
   RecipientsByClient,
 } from "../../domain/billingDispatchRun.types";
-import { DispatchRunRecipientsEditor } from "./DispatchRunRecipientsList";
+import {
+  DispatchRunClientReceipts,
+  DispatchRunRecipientsEditor,
+} from "./DispatchRunRecipientsList";
+import { DispatchRunItemStatusBadge } from "./DispatchRunItemStatusBadge";
 import {
   DispatchRunClientGroup,
   DispatchRunFolioList,
@@ -23,6 +28,7 @@ const copy = dispatchRunsCopy.detail;
 export function DispatchRunAlreadySentSection({
   items,
   recipientsByClient,
+  clientReceipts,
   invoiceSelection,
   recipientSelection,
   editable,
@@ -36,6 +42,7 @@ export function DispatchRunAlreadySentSection({
 }: {
   items: BillingDispatchRunItem[];
   recipientsByClient: RecipientsByClient[];
+  clientReceipts?: BillingDispatchClientReceipt[] | null;
   invoiceSelection: InvoiceSelectionState;
   recipientSelection: RecipientSelectionState;
   editable: boolean;
@@ -137,11 +144,14 @@ export function DispatchRunAlreadySentSection({
                 const checked = selected.has(invoiceId);
                 if (!editable) {
                   return (
-                    <span className="text-sm text-muted-foreground">
-                      {item.folio
-                        ? copy.buckets.invoiceLabel(item.folio)
-                        : copy.buckets.invoiceFallback}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <span>
+                        {item.folio
+                          ? copy.buckets.invoiceLabel(item.folio)
+                          : copy.buckets.invoiceFallback}
+                      </span>
+                      <DispatchRunItemStatusBadge status={item.status} />
+                    </div>
                   );
                 }
                 return (
@@ -170,6 +180,13 @@ export function DispatchRunAlreadySentSection({
                 groups={[group]}
                 selection={recipientSelection}
                 onToggle={onToggleRecipient}
+              />
+            ) : null}
+            {!editable &&
+            clientReceipts?.some((receipt) => receipt.clientId === clientId) ? (
+              <DispatchRunClientReceipts
+                receipts={clientReceipts}
+                clientId={clientId}
               />
             ) : null}
           </DispatchRunClientGroup>

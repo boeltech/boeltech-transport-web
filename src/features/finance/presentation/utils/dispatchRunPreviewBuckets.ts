@@ -18,17 +18,49 @@ export function countDispatchPreviewBuckets(
   };
 }
 
+/** Primer envío y este lote: si difieren >2s, el folio nació en Ya enviadas. */
+const ALREADY_SENT_RESEND_MS = 2000;
+
+function parseInstantMs(value: string | null | undefined): number | null {
+  if (!value?.trim()) return null;
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/** Folios de este corte que ya se habían enviado (skipped o reenviados en este lote). */
+export function isAlreadySentBucket(item: BillingDispatchRunItem): boolean {
+  if (item.itemKind !== "ready_to_send") return false;
+  if (item.status === "skipped") return true;
+  const firstDispatched = parseInstantMs(item.invoiceDispatchSentAt);
+  const sentThisRun = parseInstantMs(item.sentAt);
+  if (
+    firstDispatched != null &&
+    sentThisRun != null &&
+    sentThisRun - firstDispatched > ALREADY_SENT_RESEND_MS
+  ) {
+    return true;
+  }
+  if (
+    firstDispatched != null &&
+    sentThisRun == null &&
+    (item.status === "failed" || item.status === "queued")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Separa ítems de preview:
  * - pendingStamp: faltan por generar
- * - readyToSend: ready_to_send ≠ skipped (listed / post-send)
- * - alreadySent: ready_to_send ∧ skipped (omitidas; candidatas a force_resend)
+ * - readyToSend: lote de este envío (listed / enviado / fallido de primer envío)
+ * - alreadySent: ya enviadas de este corte (skipped o reenviadas)
  */
 export function splitDispatchRunItems(items: BillingDispatchRunItem[] = []) {
   const pendingStamp = items.filter((i) => i.itemKind === "pending_stamp");
   const readyAll = items.filter((i) => i.itemKind === "ready_to_send");
-  const readyToSend = readyAll.filter((i) => i.status !== "skipped");
-  const alreadySent = readyAll.filter((i) => i.status === "skipped");
+  const alreadySent = readyAll.filter(isAlreadySentBucket);
+  const readyToSend = readyAll.filter((i) => !isAlreadySentBucket(i));
   return { pendingStamp, readyToSend, alreadySent };
 }
 
@@ -46,17 +78,13 @@ function groupItemsByClient(items: BillingDispatchRunItem[]) {
 export function groupReadyToSendByClient(items: BillingDispatchRunItem[]) {
   return groupItemsByClient(
     items.filter(
-      (i) => i.itemKind === "ready_to_send" && i.status !== "skipped",
+      (i) => i.itemKind === "ready_to_send" && !isAlreadySentBucket(i),
     ),
   );
 }
 
 export function groupAlreadySentByClient(items: BillingDispatchRunItem[]) {
-  return groupItemsByClient(
-    items.filter(
-      (i) => i.itemKind === "ready_to_send" && i.status === "skipped",
-    ),
-  );
+  return groupItemsByClient(items.filter(isAlreadySentBucket));
 }
 
 export function groupPendingStampByClient(items: BillingDispatchRunItem[]) {
@@ -70,7 +98,7 @@ export function summarizeReadyToSend(items: BillingDispatchRunItem[]): {
   folioCount: number;
 } {
   const ready = items.filter(
-    (i) => i.itemKind === "ready_to_send" && i.status !== "skipped",
+    (i) => i.itemKind === "ready_to_send" && !isAlreadySentBucket(i),
   );
   return {
     clientCount: groupReadyToSendByClient(ready).size,
@@ -82,9 +110,7 @@ export function summarizeAlreadySent(items: BillingDispatchRunItem[]): {
   clientCount: number;
   folioCount: number;
 } {
-  const skipped = items.filter(
-    (i) => i.itemKind === "ready_to_send" && i.status === "skipped",
-  );
+  const skipped = items.filter(isAlreadySentBucket);
   return {
     clientCount: groupAlreadySentByClient(skipped).size,
     folioCount: skipped.length,
@@ -113,6 +139,17 @@ export function clientDisplayName(
   if (named) return named;
   if (rfc) return rfc;
   return fallback(shortId(item.clientId) || "—");
+}
+
+/** Ruta operativa del viaje pendiente de facturar; nunca el UUID. */
+export function formatPendingStampTripLabel(
+  item: Pick<BillingDispatchRunItem, "originCity" | "destinationCity">,
+  fallback: string,
+): string {
+  const origin = item.originCity?.trim() ?? "";
+  const destination = item.destinationCity?.trim() ?? "";
+  if (origin && destination) return `${origin} → ${destination}`;
+  return origin || destination || fallback;
 }
 
 export function buildPendingStampInvoicePath(item: BillingDispatchRunItem): string {

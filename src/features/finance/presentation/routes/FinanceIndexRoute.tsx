@@ -7,7 +7,7 @@ import { usePermissions } from "@shared/permissions";
 import { FinanceSummaryPage } from "../pages/FinanceSummaryPage";
 
 /**
- * /finance — Resumen para staff con analytics; redirect legacy ?tab=;
+ * /finance — Cartera para staff con analytics; redirect legacy ?tab=;
  * portal client y dispatcher sin finance.read → /finance/invoices.
  */
 export function FinanceIndexRoute() {

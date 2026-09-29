@@ -10,7 +10,7 @@ import type {
 } from "@features/finance/domain";
 
 export const FINANCE_ANALYSIS_VIEW_PARAM = "view";
-/** RFC precargado al abrir Cobros desde Resumen. */
+/** RFC precargado al abrir Cobros desde Cartera. */
 export const FINANCE_COBROS_RFC_PARAM = "rfc";
 
 /** Query param del workbench Envío de facturas (`?tab=`). */

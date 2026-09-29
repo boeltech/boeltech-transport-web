@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import type { ComponentProps } from "react";
 import type { InvoiceListItem } from "@features/invoicing/domain";
 import { FinanceDispatchPendingTable } from "./FinanceDispatchPendingTable";
@@ -70,6 +70,40 @@ describe("FinanceDispatchPendingTable", () => {
     expect(screen.queryAllByText("Cliente A")).toHaveLength(0);
     expect(screen.getAllByText("TRP-001").length).toBeGreaterThan(0);
     expect(screen.getAllByText("+1").length).toBeGreaterThan(0);
+  });
+
+  it("preserves the envíos queue in location.state.from", async () => {
+    const user = userEvent.setup();
+    function InvoiceProbe() {
+      const location = useLocation();
+      return <div>{JSON.stringify(location.state)}</div>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/finance/dispatch?tab=pending"]}>
+        <Routes>
+          <Route
+            path="/finance/dispatch"
+            element={
+              <FinanceDispatchPendingTable
+                invoices={[buildInvoice()]}
+                selected={{}}
+                onToggle={vi.fn()}
+                onTogglePage={vi.fn()}
+              />
+            }
+          />
+          <Route path="/invoices/:id" element={<InvoiceProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getAllByRole("link", { name: "A-10" })[0]);
+    expect(
+      screen.getByText(
+        JSON.stringify({ from: "/finance/dispatch?tab=pending" }),
+      ),
+    ).toBeInTheDocument();
   });
 
   it("allows selecting invoices from different clients (no RFC anchor)", async () => {

@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Landmark } from "lucide-react";
+import { Download } from "lucide-react";
+import { useAuth } from "@features/auth";
+import { ROLES } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
+import { HubPageShell } from "@shared/ui/page-shells";
+import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
 import {
   buildFinanceCobrosPath,
   useAccountStatement,
@@ -14,15 +19,18 @@ import {
 import {
   FinanceAccountStatementSection,
   FinanceAgingChart,
-  FinanceSectionHeader,
+  FinanceCycleStepper,
   FinanceSummaryCards,
 } from "../components";
 import { financeCopy } from "../copy";
+import { buildFinanceCycleSteps } from "../utils/financeHubNav";
 import { exportAgingByClientCsv } from "../utils/financeExportHelpers";
 
 export function FinanceSummaryPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const {
     data: summary,
     isLoading,
@@ -100,27 +108,51 @@ export function FinanceSummaryPage() {
     );
   }, [agingByClient, toast]);
 
+  const cycleSteps = useMemo(() => {
+    const role = user?.role;
+    return buildFinanceCycleSteps({
+      invoiceable: hasPermission("invoices", "create"),
+      dispatch:
+        role === ROLES.ADMIN ||
+        role === ROLES.MANAGER ||
+        role === ROLES.ACCOUNTANT,
+      cobros: hasPermission("finance", "create"),
+      approvals: hasPermission("finance_approvals", "read"),
+    });
+  }, [hasPermission, user?.role]);
+
+  const hub = financeCopy.page.hub;
+
   return (
-    <div className="space-y-6">
-      <FinanceSectionHeader
-        icon={<Landmark className="h-5 w-5" />}
-        title={financeCopy.page.sections.summary.title}
-        subtitle={financeCopy.page.sections.summary.subtitle}
-      />
+    <div className="space-y-4">
+      <ReportsReturnLink />
+      <HubPageShell
+        title={hub.title}
+        description={hub.description}
+        orientation={{
+          text:
+            user?.role === ROLES.ACCOUNTANT
+              ? hub.orientationAccountant
+              : user?.role === ROLES.MANAGER
+                ? hub.orientationManager
+                : hub.orientation,
+        }}
+      >
+        <FinanceCycleStepper steps={cycleSteps} />
+        <FinanceSummaryCards summary={summary} isLoading={isLoading} />
 
-      <FinanceSummaryCards summary={summary} isLoading={isLoading} />
+        <FinanceAgingChart
+          agingSummary={agingSummary}
+          isLoading={agingLoading}
+          exportAction={agingExportAction}
+        />
 
-      <FinanceAgingChart
-        agingSummary={agingSummary}
-        isLoading={agingLoading}
-        exportAction={agingExportAction}
-      />
-
-      <FinanceAccountStatementSection
-        rows={rows}
-        isLoading={stmtLoading}
-        onCollectClient={handleCollectClient}
-      />
+        <FinanceAccountStatementSection
+          rows={rows}
+          isLoading={stmtLoading}
+          onCollectClient={handleCollectClient}
+        />
+      </HubPageShell>
     </div>
   );
 }

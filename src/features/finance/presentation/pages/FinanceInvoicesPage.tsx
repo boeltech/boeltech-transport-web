@@ -15,6 +15,7 @@ import {
   useFinanceSummary,
 } from "@features/finance/application";
 import type { FinanceInvoiceStatus } from "@features/finance/domain";
+import { ClientPortalInvoicesOrientationAlert } from "../components/ClientPortalInvoicesOrientationAlert";
 import { FinanceInvoiceListTable } from "../components";
 import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import {
@@ -157,11 +158,14 @@ export function FinanceInvoicesPage() {
       <WorkbenchPageShell
         title={
           isClientPortal
-            ? financeCopy.page.portal.invoicesTab
+            ? financeCopy.page.portal.title
             : copy.title
         }
         description={
           isClientPortal ? financeCopy.page.portal.subtitle : undefined
+        }
+        beforeAwareness={
+          isClientPortal ? <ClientPortalInvoicesOrientationAlert /> : undefined
         }
         primaryAction={{
           label: newInvoiceCta.label,

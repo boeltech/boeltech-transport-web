@@ -135,7 +135,7 @@ describe("FinanceDispatchPendingPanel", () => {
     renderPanel(vi.fn(), []);
 
     expect(
-      screen.getByText("Todas las facturas timbradas ya fueron enviadas"),
+      screen.getByText("Todas las facturas ya emitidas ya fueron enviadas"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Ver facturas enviadas" }),

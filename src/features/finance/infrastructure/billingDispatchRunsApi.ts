@@ -8,17 +8,22 @@ import {
 } from "@shared/api";
 import type {
   BillingDispatchClientReceipt,
+  BillingDispatchPeriodPreview,
   BillingDispatchRun,
   BillingDispatchRunItem,
   BillingDispatchRunListItem,
   BillingDispatchRunSummary,
   ConfirmSendDispatchRunPayload,
   CreateBillingDispatchRunPayload,
+  CreateBillingDispatchRunResult,
+  DispatchCadenceKind,
   DispatchItemKind,
+  DispatchPeriodWindowFields,
   DispatchRecipient,
   DispatchRecipientKind,
   DispatchRunOrigin,
   DispatchRunStatus,
+  DispatchWindowKind,
   RecipientsByClient,
 } from "../domain/billingDispatchRun.types";
 
@@ -58,6 +63,9 @@ type ApiRunItemRaw = {
   client_id: string;
   client_name?: string | null;
   client_rfc?: string | null;
+  origin_city?: string | null;
+  destination_city?: string | null;
+  invoice_dispatch_sent_at?: string | null;
   status: string;
   folio?: string | null;
   email_message_id: string | null;
@@ -85,6 +93,12 @@ type ApiRunRaw = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  window_kind?: string | null;
+  cadence_kind?: string | null;
+  inclusive_start?: string | null;
+  inclusive_end?: string | null;
+  cut_date?: string | null;
+  window_hours?: number | null;
   summary?: {
     pending_stamp_count: number;
     ready_to_send_count: number;
@@ -94,6 +108,39 @@ type ApiRunRaw = {
   recipients_by_client?: ApiRecipientsByClientRaw[];
   client_receipts?: ApiClientReceiptRaw[] | null;
 };
+
+type ApiPeriodPreviewRaw = {
+  billing_scheme_id: string;
+  cadence_kind: string;
+  window_kind: string;
+  timezone: string;
+  period_start: string;
+  period_end: string;
+  inclusive_start: string | null;
+  inclusive_end: string | null;
+  cut_date: string | null;
+  window_hours: number | null;
+};
+
+function mapPeriodWindow(
+  raw: Partial<{
+    windowKind: string | null;
+    cadenceKind: string | null;
+    inclusiveStart: string | null;
+    inclusiveEnd: string | null;
+    cutDate: string | null;
+    windowHours: number | null;
+  }>,
+): DispatchPeriodWindowFields {
+  return {
+    windowKind: (raw.windowKind ?? null) as DispatchWindowKind | null,
+    cadenceKind: (raw.cadenceKind ?? null) as DispatchCadenceKind | null,
+    inclusiveStart: raw.inclusiveStart ?? null,
+    inclusiveEnd: raw.inclusiveEnd ?? null,
+    cutDate: raw.cutDate ?? null,
+    windowHours: raw.windowHours ?? null,
+  };
+}
 
 function mapRecipient(
   raw: DeepCamelCase<ApiRecipientRaw>,
@@ -158,6 +205,9 @@ function mapItem(
     clientId: raw.clientId,
     clientName: raw.clientName ?? undefined,
     clientRfc: raw.clientRfc ?? undefined,
+    originCity: raw.originCity ?? undefined,
+    destinationCity: raw.destinationCity ?? undefined,
+    invoiceDispatchSentAt: raw.invoiceDispatchSentAt ?? undefined,
     status: raw.status,
     folio: raw.folio ?? undefined,
     emailMessageId: raw.emailMessageId,
@@ -189,6 +239,7 @@ export function mapBillingDispatchRun(
     createdBy: raw.createdBy,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
+    ...mapPeriodWindow(raw),
     summary: raw.summary ? mapSummary(raw.summary) : undefined,
     items: raw.items?.map((item) =>
       mapItem(item as DeepCamelCase<ApiRunItemRaw>),
@@ -219,6 +270,20 @@ function mapListItem(
     sendConfirmedAt: raw.sendConfirmedAt,
     completedAt: raw.completedAt,
     createdAt: raw.createdAt,
+    ...mapPeriodWindow(raw),
+  };
+}
+
+export function mapBillingDispatchPeriodPreview(
+  raw: DeepCamelCase<ApiPeriodPreviewRaw>,
+): BillingDispatchPeriodPreview {
+  const window = mapPeriodWindow(raw);
+  return {
+    billingSchemeId: raw.billingSchemeId,
+    timezone: raw.timezone,
+    periodStart: raw.periodStart,
+    periodEnd: raw.periodEnd,
+    ...window,
   };
 }
 
@@ -263,16 +328,33 @@ export async function fetchBillingDispatchRunById(
   return mapBillingDispatchRun(data as DeepCamelCase<ApiRunRaw>);
 }
 
+export async function fetchBillingDispatchPeriodPreview(
+  billingSchemeId: string,
+): Promise<BillingDispatchPeriodPreview> {
+  const response = await apiClient.get<ApiSingleResponse<ApiPeriodPreviewRaw>>(
+    `${BASE}/period-preview`,
+    { params: { billing_scheme_id: billingSchemeId } },
+  );
+  const { data } = mapSingleResponse(response);
+  return mapBillingDispatchPeriodPreview(
+    data as DeepCamelCase<ApiPeriodPreviewRaw>,
+  );
+}
+
 export async function createBillingDispatchRun(
   payload: CreateBillingDispatchRunPayload,
-): Promise<BillingDispatchRun> {
-  const response = await apiClient.post<ApiSingleResponse<ApiRunRaw>>(BASE, {
+): Promise<CreateBillingDispatchRunResult> {
+  const response = await apiClient.getAxiosInstance().post<
+    ApiSingleResponse<ApiRunRaw>
+  >(BASE, {
     billing_scheme_id: payload.billingSchemeId,
     auto_preview: payload.autoPreview ?? true,
-    reference_at: payload.referenceAt,
   });
-  const { data } = mapSingleResponse(response);
-  return mapBillingDispatchRun(data as DeepCamelCase<ApiRunRaw>);
+  const { data } = mapSingleResponse(response.data);
+  return {
+    run: mapBillingDispatchRun(data as DeepCamelCase<ApiRunRaw>),
+    reused: response.status === 200,
+  };
 }
 
 export async function previewBillingDispatchRun(

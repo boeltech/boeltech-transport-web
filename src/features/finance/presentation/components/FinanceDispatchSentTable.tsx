@@ -23,6 +23,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { InvoiceListItem } from "@features/invoicing/domain";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { resolveDispatchSentOrigin } from "../utils/dispatchSentOrigin";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 import { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
 
 const copy = dispatchRunsCopy.workbench.sent;
@@ -143,6 +144,7 @@ export function FinanceDispatchSentTable({
   onResend,
   onView,
 }: FinanceDispatchSentTableProps) {
+  const fromState = useInvoiceQueueFromState();
   const selectedOnPage = invoices.filter((invoice) => selected[invoice.id]);
   const allSelected =
     selectable &&
@@ -271,6 +273,7 @@ export function FinanceDispatchSentTable({
                   <TableCell className="font-medium">
                     <Link
                       to={`/invoices/${invoice.id}`}
+                      state={fromState}
                       className="font-mono text-primary hover:underline"
                     >
                       {folio}
@@ -339,6 +342,7 @@ export function FinanceDispatchSentTable({
                 <div className="flex items-start justify-between gap-2">
                   <Link
                     to={`/invoices/${invoice.id}`}
+                    state={fromState}
                     className="font-mono font-medium text-primary hover:underline"
                   >
                     {folio}

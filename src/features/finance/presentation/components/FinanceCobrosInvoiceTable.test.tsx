@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import type { ComponentProps } from "react";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
 import { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
@@ -55,6 +55,40 @@ describe("FinanceCobrosInvoiceTable", () => {
     expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
     expect(screen.getAllByText("XAXX010101000").length).toBeGreaterThan(0);
     expect(screen.queryByText("A crédito")).not.toBeInTheDocument();
+  });
+
+  it("preserves the cobros queue in location.state.from", async () => {
+    const user = userEvent.setup();
+    function InvoiceProbe() {
+      const location = useLocation();
+      return <div>{JSON.stringify(location.state)}</div>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/finance/cobros?rfc=XAXX010101000"]}>
+        <Routes>
+          <Route
+            path="/finance/cobros"
+            element={
+              <FinanceCobrosInvoiceTable
+                invoices={[buildInvoice()]}
+                selected={{}}
+                onToggle={vi.fn()}
+                onTogglePage={vi.fn()}
+              />
+            }
+          />
+          <Route path="/invoices/:id" element={<InvoiceProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getAllByRole("link", { name: "A-10" })[0]);
+    expect(
+      screen.getByText(
+        JSON.stringify({ from: "/finance/cobros?rfc=XAXX010101000" }),
+      ),
+    ).toBeInTheDocument();
   });
 
   it("disables checkboxes for invoices outside the selection RFC anchor", () => {

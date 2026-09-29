@@ -6,12 +6,17 @@ import {
   isFinanceAnalysisView,
   type FinanceAnalysisView,
 } from "@features/finance/application";
+import {
+  REPORTS_WAYFINDING_COPY,
+  useReportsReturnHref,
+} from "@shared/utils/reportsWayfinding";
 import { FinanceSectionHeader } from "../components";
 import { financeCopy } from "../copy";
 import { FinanceAnalysisContent } from "./FinanceAnalysisContent";
 
 export function FinanceAnalysisPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const reportsBackHref = useReportsReturnHref();
 
   const fromUrl = searchParams.get("view");
   const view: FinanceAnalysisView = isFinanceAnalysisView(fromUrl)
@@ -36,6 +41,8 @@ export function FinanceAnalysisPage() {
         icon={<BarChart3 className="h-5 w-5" />}
         title={financeCopy.page.sections.analysis.title}
         subtitle={financeCopy.page.sections.analysis.subtitle}
+        backHref={reportsBackHref}
+        backLabel={REPORTS_WAYFINDING_COPY.backToReports}
       />
       <FinanceAnalysisContent view={view} onViewChange={handleViewChange} />
     </div>

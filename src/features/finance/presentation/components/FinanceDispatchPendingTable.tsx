@@ -15,6 +15,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { InvoiceListItem } from "@features/invoicing/domain";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { resolveDispatchPendingNote } from "../utils/dispatchPendingNote";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = dispatchRunsCopy.workbench.pending;
 const SKELETON_ROWS = 8;
@@ -94,6 +95,7 @@ export function FinanceDispatchPendingTable({
   onToggle,
   onTogglePage,
 }: FinanceDispatchPendingTableProps) {
+  const fromState = useInvoiceQueueFromState();
   const selectedOnPage = invoices.filter((invoice) => selected[invoice.id]);
   const allSelected =
     selectable &&
@@ -209,6 +211,7 @@ export function FinanceDispatchPendingTable({
                   <TableCell className="font-medium">
                     <Link
                       to={`/invoices/${invoice.id}`}
+                      state={fromState}
                       className="font-mono text-primary hover:underline"
                     >
                       {folio}
@@ -264,6 +267,7 @@ export function FinanceDispatchPendingTable({
               <div className="min-w-0 flex-1 space-y-1">
                 <Link
                   to={`/invoices/${invoice.id}`}
+                  state={fromState}
                   className="font-mono font-medium text-primary hover:underline"
                 >
                   {folio}

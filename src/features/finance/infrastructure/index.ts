@@ -4,6 +4,7 @@ export { financePaymentsApi } from "./financePaymentsApi";
 export {
   fetchBillingDispatchRuns,
   fetchBillingDispatchRunById,
+  fetchBillingDispatchPeriodPreview,
   createBillingDispatchRun,
   previewBillingDispatchRun,
   confirmSendBillingDispatchRun,

@@ -136,6 +136,23 @@ describe("FinanceInvoiceListTable", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("hides dispatch Envío column and uses Facturado in client portal", () => {
+    render(
+      <FinanceInvoiceListTable
+        invoices={[buildInvoice()]}
+        isLoading={false}
+        onView={vi.fn()}
+        isClientPortal
+      />,
+    );
+
+    expect(screen.queryByText("Envío")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enviada")).not.toBeInTheDocument();
+    expect(screen.queryByText("No enviada")).not.toBeInTheDocument();
+    expect(screen.getByText("Facturado")).toBeInTheDocument();
+    expect(screen.queryByText("Timbrada")).not.toBeInTheDocument();
+  });
+
   it("shows configured label for stamping status (not raw enum)", () => {
     render(
       <FinanceInvoiceListTable

@@ -6,6 +6,7 @@ import { Button } from "@shared/ui/button";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
 import type { CobrosFollowThrough } from "../utils/cobrosFollowThrough";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = financeCopy.cobros;
 
@@ -27,6 +28,7 @@ export function FinanceCobrosFollowThroughAlert({
   followThrough,
   onDismiss,
 }: FinanceCobrosFollowThroughAlertProps) {
+  const fromState = useInvoiceQueueFromState();
   return (
     <div className="relative">
       <AlertWithIcon variant="info" title={copy.followThrough.title}>
@@ -54,6 +56,7 @@ export function FinanceCobrosFollowThroughAlert({
                   <li key={invoice.id}>
                     <Link
                       to={`/invoices/${invoice.id}`}
+                      state={fromState}
                       className="font-medium text-primary underline-offset-4 hover:underline"
                       aria-label={copy.followThrough.openInvoice(label)}
                     >

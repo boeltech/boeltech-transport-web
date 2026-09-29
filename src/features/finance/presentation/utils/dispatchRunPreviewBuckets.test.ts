@@ -9,6 +9,7 @@ import {
   clientIdsFromItems,
   countDispatchPreviewBuckets,
   countFailedClientResults,
+  formatPendingStampTripLabel,
   groupAlreadySentByClient,
   groupPendingStampByClient,
   groupReadyToSendByClient,
@@ -81,6 +82,34 @@ describe("dispatchRunPreviewBuckets", () => {
     expect(readyToSend).toHaveLength(1);
     expect(alreadySent).toHaveLength(1);
     expect(alreadySent[0]!.invoiceId).toBe("inv2");
+  });
+
+  it("keeps force-resent folios in alreadySent when first dispatch is older", () => {
+    const items: BillingDispatchRunItem[] = [
+      item({
+        id: "resent",
+        itemKind: "ready_to_send",
+        invoiceId: "inv-old",
+        clientId: "c1",
+        status: "sent",
+        folio: "A-30",
+        invoiceDispatchSentAt: "2026-09-20T12:00:00.000Z",
+        sentAt: "2026-09-28T18:00:00.000Z",
+      }),
+      item({
+        id: "first-send",
+        itemKind: "ready_to_send",
+        invoiceId: "inv-new",
+        clientId: "c1",
+        status: "sent",
+        folio: "A-40",
+        invoiceDispatchSentAt: "2026-09-28T18:00:00.000Z",
+        sentAt: "2026-09-28T18:00:00.000Z",
+      }),
+    ];
+    const { readyToSend, alreadySent } = splitDispatchRunItems(items);
+    expect(alreadySent.map((row) => row.id)).toEqual(["resent"]);
+    expect(readyToSend.map((row) => row.id)).toEqual(["first-send"]);
   });
 
   it("groupReadyToSendByClient excludes skipped", () => {
@@ -242,6 +271,30 @@ describe("dispatchRunPreviewBuckets", () => {
         fallback,
       ),
     ).toBe("Cliente 4d8441db");
+  });
+
+  it("formatPendingStampTripLabel uses the route, never the trip id", () => {
+    expect(
+      formatPendingStampTripLabel(
+        {
+          originCity: "Monterrey",
+          destinationCity: "Saltillo",
+        },
+        "Viaje",
+      ),
+    ).toBe("Monterrey → Saltillo");
+    expect(
+      formatPendingStampTripLabel(
+        { originCity: "  Guadalajara  ", destinationCity: "" },
+        "Viaje",
+      ),
+    ).toBe("Guadalajara");
+    expect(
+      formatPendingStampTripLabel(
+        { originCity: null, destinationCity: null },
+        "Viaje",
+      ),
+    ).toBe("Viaje");
   });
 
   it("buildPendingStampInvoicePath adds scope when needed", () => {

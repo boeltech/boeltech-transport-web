@@ -27,8 +27,8 @@ const cobrosCopy = {
   changeRfc: "Cambiar RFC",
   rfcChip: (rfc: string) => `RFC ${rfc}`,
   summaryLink:
-    "Si buscas un cliente concreto, ábrelo desde Resumen → estado de cuenta → Cobrar.",
-  summaryLinkCta: "Ir a Resumen",
+    "Si buscas un cliente concreto, ábrelo desde Cartera → estado de cuenta → Cobrar.",
+  summaryLinkCta: "Ir a Cartera",
   retry: "Reintentar",
   loadErrorTitle: "No se pudo consultar",
   loadError: "No se pudieron cargar las facturas.",
@@ -157,10 +157,10 @@ const cobrosCopy = {
       clearFilters: "Quitar filtro RFC",
     },
     degradedMessage:
-      "No se pudo cargar la cola de cobros. Consulta Facturas o el Resumen mientras tanto.",
+      "No se pudo cargar la cola de cobros. Consulta Facturas o la Cartera mientras tanto.",
     degradedLinkLabel: "Ir a facturas",
     relatedConfig: {
-      label: "Ver resumen de cartera",
+      label: "Ver cartera",
       description:
         "Indicadores de cobro y estado de cuenta por cliente.",
     },
@@ -192,14 +192,56 @@ export const financeCopy = {
   page: {
     title: "Finanzas",
     subtitle: "Cobros, facturas, margen y gastos del negocio.",
+    hub: {
+      title: "Cartera",
+      description:
+        "Quién te debe, antigüedad de saldos y estado de cuenta por cliente.",
+      orientation:
+        "El ciclo del dinero está arriba. Abajo están antigüedad y estado de cuenta.",
+      /** Contador: Cartera es contexto de saldos, no la recepción del patio (D13). */
+      orientationAccountant:
+        "Aquí ves saldos y antigüedad. La escala del patio no entra por Cartera: usa Por facturar o Atención fiscal.",
+      /** Gerente: Cartera = saldos; SAT/altas no entran (D15). */
+      orientationManager:
+        "Aquí ves saldos y antigüedad. El trámite SAT y las altas no entran por Cartera.",
+      cycle: {
+        ariaLabel: "Ciclo del dinero",
+        invoiceable: {
+          verb: "Emitir",
+          label: "Por facturar",
+          hint: "Viajes listos para generar CFDI.",
+        },
+        dispatch: {
+          verb: "Enviar",
+          label: "Envíos",
+          hint: "Mandar facturas por correo.",
+        },
+        cobros: {
+          verb: "Cobrar",
+          label: "Cobros",
+          hint: "Registrar un pago a crédito.",
+        },
+        approvals: {
+          verb: "Aprobar",
+          label: "Aprobaciones",
+          hint: "Revisar solicitudes pendientes.",
+        },
+      },
+    },
     portal: {
       title: "Mis facturas",
       subtitle: "Consulta las facturas de tus envíos.",
       invoicesTab: "Facturas",
     },
+    /** Alert L1b — Borrador ≠ Facturado. Visible solo client. Key propia. */
+    clientOrientation: {
+      title: "Borrador no es Facturado",
+      body: "Solo Facturado es el documento fiscal. Si ves Borrador, pide a tu oficina que lo emita.",
+      dismiss: "Entendido",
+    },
     sections: {
       summary: {
-        title: "Resumen",
+        title: "Cartera",
         subtitle: "Indicadores de cobro, antigüedad de saldos y estado de cuenta por cliente.",
       },
       cobros: {
@@ -409,6 +451,9 @@ export const financeCopy = {
     title: "Viajes por facturar",
     description:
       "Candidatos fiscales sin factura pendiente de emitir. «Facturar» aparece cuando la operación y los datos SAT lo permiten; si falta ruta, cargas o el flete está prorrateado, abre el viaje.",
+    /** Contador: receptor del primer CFDI (D6). */
+    descriptionAccountant:
+      "Esta cola es el primer CFDI: el aviso «Pendiente de facturar» del patio. Factura cuando el viaje está listo. Si te avisaron una revisión de factura ya emitida, no es esta cola: ve a Viajes → Atención fiscal.",
     searchPlaceholder: "Buscar por folio de viaje, cliente o ruta…",
     entityLabelPlural: "viajes por facturar",
     invoiceAction: "Facturar",
@@ -433,6 +478,17 @@ export const financeCopy = {
       withFilters:
         "No hay resultados con la búsqueda actual. Prueba otro folio o cliente.",
       clearFilters: "Limpiar búsqueda",
+      /** Contador, sin filtros: el vacío puede ser correcto (D6). */
+      accountantTitle: "Nada por facturar",
+      accountantDescription:
+        "No hay un primer CFDI pendiente. Si operación avisó una revisión de factura ya emitida, esa cola es Viajes → Atención fiscal.",
+      accountantFiscalAttentionCta: "Ir a Atención fiscal",
+    },
+    queuesAlert: {
+      title: "Dos colas distintas",
+      body: "Esta es el primer CFDI. Si te avisaron revisión de una factura ya emitida, ve a Atención fiscal.",
+      fiscalAttentionLink: "Ir a Atención fiscal",
+      dismiss: "Entendido",
     },
     loadError: "Error al cargar viajes por facturar",
     workbench: {
@@ -448,6 +504,9 @@ export const financeCopy = {
           "Porciones de prorrateo listas para facturar en el viaje",
         blocked:
           "Completa ruta, cargas o datos SAT (incluye prorrateo aún no listo)",
+        /** Contador: escala a patio, no «completa ruta» (D7). */
+        blockedAccountant:
+          "Pide a operación completar ruta, cargas o datos SAT. Tú no los completas desde aquí.",
       },
       emptyByBucket: {
         ready: {
@@ -473,6 +532,8 @@ export const financeCopy = {
         label: "Ver registro de facturas",
         description:
           "Historial completo de facturas emitidas y canceladas.",
+        descriptionAccountant:
+          "Después de timbrar: envía el XML/PDF y cobra. El historial de facturas emitidas está aquí.",
       },
     },
   },
@@ -480,7 +541,7 @@ export const financeCopy = {
     scope: {
       label: "Alcance",
       operational: "Operativo",
-      with_in_progress: "Con viajes en curso",
+      with_in_progress: "Con viajes En Ruta",
       pipeline: "Estimado (viajes por iniciar)",
       cancelled: "Cancelados",
       all: "Todos",
@@ -488,7 +549,7 @@ export const financeCopy = {
     context: {
       heading: "Fuera de operación · no incluido en el margen",
       projected: "Ingreso estimado",
-      projectedHint: "Ingreso estimado de viajes en borrador y programados.",
+      projectedHint: "Ingreso estimado de viajes en Reserva y Programados.",
       cancellationLoss: "Pérdida por cancelaciones",
       cancellationLossHint:
         "Gastos aprobados de viajes cancelados (no incluye facturas canceladas).",
@@ -498,7 +559,7 @@ export const financeCopy = {
     },
     buckets: {
       realized: "Realizado",
-      in_progress: "En curso",
+      in_progress: "En Ruta",
       pipeline: "Estimado",
       cancellation_loss: "Cancelación",
     },
@@ -630,7 +691,7 @@ export const financeCopy = {
       includesHide: "Ocultar detalle",
       body: "Se incluyen conceptos de costo del viaje ya aprobados. Los pendientes aparecen cuando un gerente o administrador los aprueba en el detalle del viaje.",
       bodyRoutePrefix: "Registra conceptos en",
-      bodyRouteLink: "Viajes → detalle → Dinero del viaje",
+      bodyRouteLink: "Viajes → detalle → Costos",
       bodyRouteSuffix:
         ". La tarifa base y los costos presupuestados no alimentan este análisis.",
     },
@@ -692,7 +753,7 @@ export const financeCopy = {
     empty: {
       title: "Sin datos de gastos",
       description:
-        "No hay costos aprobados para los filtros actuales. Revisa que existan conceptos en Viajes → Dinero del viaje y que estén aprobados.",
+        "No hay costos aprobados para los filtros actuales. Revisa que existan conceptos en Viajes → Costos y que estén aprobados.",
     },
     chartsSection: {
       show: "Ver tendencia y composición",
