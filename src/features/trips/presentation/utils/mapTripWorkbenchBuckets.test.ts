@@ -59,6 +59,44 @@ describe("mapTripWorkbenchBuckets", () => {
     expect(onFiscalAttentionChange).toHaveBeenCalledWith(true);
   });
 
+  it("usa copy de estados del envío cuando hay overrides de cliente", () => {
+    const buckets = mapTripWorkbenchBuckets({
+      summary,
+      visibleBuckets: ["scheduled", "in_progress", "completed"],
+      activeBucket: null,
+      onBucketChange: vi.fn(),
+      fiscalAttentionOnly: false,
+      onFiscalAttentionChange: vi.fn(),
+      showFiscalAttention: false,
+      bucketDescriptionOverrides: {
+        scheduled: tripsListCopy.workbench.bucketDescriptions.scheduledClient,
+        in_progress: tripsListCopy.workbench.bucketDescriptions.inProgressClient,
+        completed: tripsListCopy.workbench.bucketDescriptions.completedClient,
+      },
+    });
+
+    expect(buckets.find((b) => b.id === "scheduled")?.description).toBe(
+      tripsListCopy.workbench.bucketDescriptions.scheduledClient,
+    );
+    expect(buckets.find((b) => b.id === "scheduled")?.description).not.toMatch(
+      /listos para iniciar/i,
+    );
+  });
+
+  it("oculta el bucket fiscal en portal lean aunque haya conteo", () => {
+    const buckets = mapTripWorkbenchBuckets({
+      summary,
+      visibleBuckets: ["scheduled", "in_progress", "completed"],
+      activeBucket: null,
+      onBucketChange: vi.fn(),
+      fiscalAttentionOnly: false,
+      onFiscalAttentionChange: vi.fn(),
+      showFiscalAttention: false,
+    });
+
+    expect(buckets.find((b) => b.id === "fiscal_attention")).toBeUndefined();
+  });
+
   it("oculta el bucket cuando no hay atención y el filtro está apagado", () => {
     const buckets = mapTripWorkbenchBuckets({
       summary: { ...summary, fiscalAttention: 0 },
@@ -70,5 +108,63 @@ describe("mapTripWorkbenchBuckets", () => {
     });
 
     expect(buckets.find((b) => b.id === "fiscal_attention")).toBeUndefined();
+  });
+
+  it("usa copy de escala fiscal cuando se pasa override de dispatcher", () => {
+    const buckets = mapTripWorkbenchBuckets({
+      summary,
+      visibleBuckets: TRIP_WORKBENCH_BUCKETS,
+      activeBucket: null,
+      onBucketChange: vi.fn(),
+      fiscalAttentionOnly: true,
+      onFiscalAttentionChange: vi.fn(),
+      fiscalAttentionDescription:
+        tripsListCopy.workbench.bucketDescriptions.fiscalAttentionEscalate,
+    });
+
+    const fiscal = buckets.find((b) => b.id === "fiscal_attention");
+    expect(fiscal?.description).toBe(
+      tripsListCopy.workbench.bucketDescriptions.fiscalAttentionEscalate,
+    );
+    expect(fiscal?.description).not.toMatch(/sustitución/i);
+  });
+
+  it("usa copy de receptor accountant en Atención fiscal", () => {
+    const buckets = mapTripWorkbenchBuckets({
+      summary,
+      visibleBuckets: TRIP_WORKBENCH_BUCKETS,
+      activeBucket: null,
+      onBucketChange: vi.fn(),
+      fiscalAttentionOnly: true,
+      onFiscalAttentionChange: vi.fn(),
+      fiscalAttentionDescription:
+        tripsListCopy.workbench.bucketDescriptions.fiscalAttentionAccountant,
+    });
+
+    const fiscal = buckets.find((b) => b.id === "fiscal_attention");
+    expect(fiscal?.description).toBe(
+      tripsListCopy.workbench.bucketDescriptions.fiscalAttentionAccountant,
+    );
+    expect(fiscal?.description).not.toMatch(/avisar a facturación/i);
+  });
+
+  it("usa copy de ejecución manager en Atención fiscal", () => {
+    const buckets = mapTripWorkbenchBuckets({
+      summary,
+      visibleBuckets: TRIP_WORKBENCH_BUCKETS,
+      activeBucket: null,
+      onBucketChange: vi.fn(),
+      fiscalAttentionOnly: true,
+      onFiscalAttentionChange: vi.fn(),
+      fiscalAttentionDescription:
+        tripsListCopy.workbench.bucketDescriptions.fiscalAttentionManager,
+    });
+
+    const fiscal = buckets.find((b) => b.id === "fiscal_attention");
+    expect(fiscal?.description).toBe(
+      tripsListCopy.workbench.bucketDescriptions.fiscalAttentionManager,
+    );
+    expect(fiscal?.description).not.toMatch(/avisar a facturación/i);
+    expect(fiscal?.description).not.toMatch(/pide a un gerente/i);
   });
 });

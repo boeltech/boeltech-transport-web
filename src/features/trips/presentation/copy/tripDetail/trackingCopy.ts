@@ -12,6 +12,8 @@ export const trackingCopy = {
     stopsAndCargos: "Paradas y cargas",
     /** Detalle del hub tracking (léxico operativo; no «mercancía»). */
     cargosAtStop: "Cargas en esta parada",
+    /** Portal cliente: narrativa de estado, no «Qué sigue» operativo (D11). */
+    statusClient: "Estado del envío",
     timeline: "Bitácora del viaje",
     map: "Mapa operativo",
   },
@@ -66,7 +68,7 @@ export const trackingCopy = {
   },
   sheet: {
     /** Confirmación de arranque: una línea; sin itinerario futuro. */
-    startDescription: "Confirma hora y kilometraje. El viaje pasará a «En curso».",
+    startDescription: "Confirma hora y kilometraje. El viaje pasará a «En Ruta».",
     startMileagePlaceholder: "Ej: 150000",
     loadingVehicleMileage: "Cargando kilometraje…",
     /** Un solo hint operativo cuando hay sugerencia. */
@@ -89,7 +91,7 @@ export const trackingCopy = {
     resourceBlockedDriver: (status: string) =>
       `El conductor no puede iniciar el viaje (${status}).`,
     departOriginDescription:
-      "Confirma la hora de salida. El viaje quedará en tránsito.",
+      "Confirma la hora de salida. El viaje sigue En Ruta.",
     civilTimeHint: "Hora de México",
     arrivalDescription: "Confirma la hora de llegada. La parada quedará en curso.",
     departureDescription:
@@ -116,6 +118,9 @@ export const trackingCopy = {
     declareFalseTripTitle: "Declarar viaje en falso",
     declareFalseTripDescription:
       "El viaje queda completado y se puede facturar el desplazamiento.",
+    /** Conductor: declara, no factura (D12). */
+    declareFalseTripDescriptionDriver:
+      "El viaje queda completado. Tu parte termina al declarar.",
     declareFalseTripCauseLabel: "¿Por qué se cancela la carga?",
     declareFalseTripCausePlaceholder:
       "Ej. El cliente canceló en sitio al llegar la unidad.",
@@ -131,8 +136,8 @@ export const trackingCopy = {
       "Después puedes facturar el desplazamiento.",
     declareFalseTripExpensesTitle: "Conviene capturar los gastos ahora",
     declareFalseTripExpensesBody:
-      "Tras cerrar aún puedes registrarlos unos días; si faltan casetas o combustible, hazlo ya desde dinero del viaje.",
-    declareFalseTripExpensesCta: "Ir a dinero del viaje",
+      "Tras cerrar aún puedes registrarlos unos días; si faltan casetas o combustible, hazlo ya desde Costos.",
+    declareFalseTripExpensesCta: "Ir a Costos",
     notesOptional: "Notas (opcional)",
     notesPlaceholder: "Observaciones operativas…",
     closeNotesPlaceholder: "Observaciones al finalizar…",
@@ -148,7 +153,7 @@ export const trackingCopy = {
   },
   toast: {
     tripStarted: "Viaje iniciado",
-    tripStartedDescription: (tripCode: string) => `${tripCode} está en curso`,
+    tripStartedDescription: (tripCode: string) => `${tripCode} está En Ruta`,
     originDeparted: "Salida de origen registrada",
     originDepartFailed: "Error al registrar salida de origen",
     startFailed: "Error al iniciar",
@@ -168,6 +173,8 @@ export const trackingCopy = {
     falseTripDeclared: "Viaje en falso declarado",
     falseTripDeclaredDescription: (tripCode: string) =>
       `${tripCode} quedó completado. Se puede facturar el desplazamiento.`,
+    falseTripDeclaredDescriptionDriver: (tripCode: string) =>
+      `${tripCode} quedó completado.`,
     falseTripDeclareFailed: "No se pudo declarar el viaje en falso",
     endMileageRequired: "Kilometraje final requerido",
     endMileageRequiredDescription:
@@ -220,6 +227,17 @@ export const trackingCopy = {
     mobileDetailSheet: "Parada",
     actionsScope: "Registra la operación de la parada siguiente.",
     nextStepFallback: "Sin acciones pendientes",
+    /** Portal cliente: lectura de estado (D11). Sin Iniciar/Registrar/Completar/falso. */
+    clientScheduledTitle: "Programado",
+    clientScheduledBody: "Tu envío está programado. Aún no sale.",
+    clientInProgressTitle: "En Ruta",
+    clientInProgressBody: "Tu envío está en camino.",
+    clientCompletedTitle: "Completado",
+    clientCompletedBody: "Tu envío ya llegó.",
+    clientCancelledTitle: "Cancelado",
+    clientCancelledBody: "Este envío fue cancelado.",
+    clientDraftTitle: "En preparación",
+    clientDraftBody: "Este envío aún no está programado. Consulta a tu oficina.",
     openIncident:
       "Hay un incidente en bitácora. Revísalo antes de cerrar el viaje.",
     incidentLabel: "Incidente",
@@ -233,10 +251,19 @@ export const trackingCopy = {
       count === 1
         ? "1 carga pendiente en esta parada antes de continuar."
         : `${count} cargas pendientes en esta parada antes de continuar.`,
+    /** Conductor / sin trips.update: pickup lo marca patio (D11). */
+    cargoBlockedTitleDriver: (stopLabel: string) =>
+      `Patio marca el pickup en ${stopLabel}`,
+    cargoBlockedBodyDriver:
+      "Patio marca el pickup. Avísales para continuar.",
     cargoActionRequiresArrival:
       "Registra la llegada a esta parada para operar las cargas.",
     cargoBlockedBeforeDeparture:
       "Completa las cargas de esta parada antes de registrar salida o cierre.",
+    cargoBlockedBeforeDepartureDriver:
+      "Patio marca las cargas. Avísales para continuar.",
+    /** Iniciar bloqueado: copy de dominio + escala (D10). Sin asignar/Confirmar. */
+    startBlockedEscalatePatio: "Avisa a patio.",
     legendHelp: "¿Qué significan los estados?",
     timelineLocationSaved: "Ubicación registrada",
     timelineCause: (cause: string) => `Causa: ${cause}`,
@@ -267,10 +294,10 @@ export const trackingCopy = {
     },
   },
   error: {
-    startRequiresScheduled: "Requiere estado programado.",
-    arriveRequiresInProgress: "Requiere viaje en curso y parada pendiente.",
+    startRequiresScheduled: "Requiere estado Programado.",
+    arriveRequiresInProgress: "Requiere viaje En Ruta y parada pendiente.",
     departRequiresEscala: "Requiere escala con llegada registrada.",
     closeRequiresDestination: "Requiere llegada en destino.",
-    registerRequiresInProgress: "Requiere viaje en curso.",
+    registerRequiresInProgress: "Requiere viaje En Ruta.",
   },
 } as const;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { tripDetailCopy } from "../copy";
+import { resolveTripAccessDeniedCopy } from "../utils/tripWayfinding";
 
 const shell = tripDetailCopy.shell;
 
@@ -41,5 +42,16 @@ describe("TripDetailPage error handling helpers", () => {
     expect(shell.state.accessDeniedTitle).toContain("acceso");
     expect(shell.state.loadErrorTitle).toBeTruthy();
     expect(shell.state.retryLoad).toBeTruthy();
+  });
+
+  it("403 driver escala a administración y back a Mis viajes (D9)", () => {
+    const staff = resolveTripAccessDeniedCopy(false);
+    expect(staff.description).toBe(shell.state.accessDeniedDescription);
+    expect(staff.backLabel).toBe(shell.state.backToList);
+
+    const driver = resolveTripAccessDeniedCopy(true);
+    expect(driver.description).toBe(shell.state.accessDeniedDescriptionDriver);
+    expect(driver.description).toMatch(/administración/i);
+    expect(driver.backLabel).toBe(shell.state.backToListDriver);
   });
 });

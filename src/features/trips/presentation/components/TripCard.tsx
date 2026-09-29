@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import { TripStatus, type TripListItem } from "@features/trips/domain";
-import { canDeleteTrip, canEditTrip } from "../../domain/rules";
+import { canDeleteTrip } from "../../domain/rules";
 import { TripListRouteLabel } from "./TripListRouteLabel";
 import {
   MoreVertical,
@@ -27,7 +27,6 @@ import {
   Truck,
   User,
   XCircle,
-  Pencil,
   Trash2,
   Eye,
   Navigation,
@@ -42,7 +41,6 @@ import { TripOverdueBadge } from "./TripOverdueBadge";
 interface TripCardProps {
   trip: TripListItem;
   onView?: (id: string) => void;
-  onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onCancel?: (id: string) => void;
   isSelected?: boolean;
@@ -55,7 +53,6 @@ interface TripCardProps {
 export const TripCard = memo(function TripCard({
   trip,
   onView,
-  onEdit,
   onDelete,
   onCancel,
   isSelected,
@@ -63,16 +60,14 @@ export const TripCard = memo(function TripCard({
   className,
   hideClient = false,
 }: TripCardProps) {
-  const canEdit = canEditTrip(trip.status);
   const canDelete = canDeleteTrip(trip.status);
   const canCancel =
     trip.status === TripStatus.SCHEDULED ||
     trip.status === TripStatus.IN_PROGRESS;
 
-  const showEdit = canEdit && Boolean(onEdit);
   const showCancel = canCancel && Boolean(onCancel);
   const showDelete = canDelete && Boolean(onDelete);
-  const showActionsMenu = showEdit || showCancel || showDelete;
+  const showActionsMenu = showCancel || showDelete;
 
   const invoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
@@ -146,16 +141,6 @@ export const TripCard = memo(function TripCard({
                 >
                   <Eye className="mr-2 h-4 w-4" /> Ver detalles
                 </DropdownMenuItem>
-                {showEdit && onEdit ? (
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(trip.id);
-                    }}
-                  >
-                    <Pencil className="mr-2 h-4 w-4" /> Editar
-                  </DropdownMenuItem>
-                ) : null}
                 {showCancel && onCancel ? (
                   <>
                     <DropdownMenuSeparator />

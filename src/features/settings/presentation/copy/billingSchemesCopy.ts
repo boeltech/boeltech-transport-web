@@ -2,21 +2,23 @@ import type { BillingCadenceKind } from "../../domain/billingScheme.types";
 
 export const billingSchemesCopy = {
   page: {
-    title: "Esquemas de facturación",
+    title: "Frecuencias de envío",
     description:
-      "Configura con qué frecuencia se prepara el envío de facturas por correo a cada cliente.",
-    assignmentTip: "Para activarlo, asígnalo a tus clientes.",
+      "Define cada cuánto se agrupa el correo a cada cliente.",
+    assignmentTip: "Se elige en la ficha de cada cliente",
     clientsCta: "Ir a clientes",
   },
   list: {
-    title: "Esquemas",
-    add: "Nuevo esquema",
-    emptyTitle: "Sin esquemas configurados",
-    emptyDescription: "Crea el primer esquema para definir la cadencia de envío.",
-    loading: "Cargando esquemas…",
+    title: "Frecuencias",
+    add: "Nueva frecuencia",
+    emptyTitle: "Sin frecuencias",
+    emptyDescription:
+      "Define cada cuánto se agrupa el correo (semanal, cortes del mes, mensual o al cerrar el viaje).",
+    loading: "Cargando frecuencias…",
     defaultBadge: "Predeterminado",
     inactiveBadge: "Inactivo",
-    selectPrompt: "Selecciona un esquema de la lista para ver su detalle.",
+    selectPrompt: "Selecciona una frecuencia de la lista para ver su detalle.",
+    editRowAria: (name: string) => `Editar frecuencia ${name}`,
   },
   cadence: {
     event: "Por cierre de viaje",
@@ -59,7 +61,7 @@ export const billingSchemesCopy = {
     detailsTitle: "Detalles",
     createdAt: (label: string) => `Creado: ${label}`,
     updatedAt: (label: string) => `Última actualización: ${label}`,
-    edit: "Editar esquema",
+    edit: "Editar frecuencia",
     deactivate: "Desactivar",
     periodRules: {
       frequency: (label: string) => `Frecuencia: ${label}`,
@@ -89,18 +91,18 @@ export const billingSchemesCopy = {
     },
   },
   form: {
-    createTitle: "Nuevo esquema",
-    editTitle: "Editar esquema",
-    createDescription: "Nombra el esquema y configura la frecuencia de corte.",
-    editDescription: "Ajusta la configuración del esquema.",
+    createTitle: "Nueva frecuencia",
+    editTitle: "Editar frecuencia",
+    createDescription: "Nombra la frecuencia y configura cada cuánto se agrupa el correo.",
+    editDescription: "Ajusta la configuración de la frecuencia.",
     name: "Nombre",
     nameHint: "Ej. Corte semanal jueves–viernes",
     cadence: "¿Con qué frecuencia se prepara el envío?",
     cadenceHint:
       "Cada opción define un ciclo de corte distinto. Las facturas de viajes cerrados entre un corte y el siguiente se incluyen en el envío.",
-    isDefault: "Esquema predeterminado",
+    isDefault: "Frecuencia predeterminada",
     isDefaultHint:
-      "Se ofrece por defecto al asignar clientes (o si el cliente no tiene esquema). Solo uno activo puede serlo.",
+      "Se ofrece por defecto al asignar clientes (o si el cliente no tiene frecuencia). Solo una activa puede serlo.",
     previewLabel: "Así se vería el envío",
     params: {
       windowHours: "Horas después de cerrar el viaje",
@@ -118,7 +120,7 @@ export const billingSchemesCopy = {
     save: "Guardar",
     cancel: "Cancelar",
     validation: {
-      nameRequired: "Indica un nombre para el esquema",
+      nameRequired: "Indica un nombre para la frecuencia",
       windowHoursRequired: "Indica las horas tras cerrar el viaje",
       weekdaysRequired: "Selecciona al menos un día de corte",
       monthDaysRequired: "Indica al menos un día de corte del mes",
@@ -126,17 +128,17 @@ export const billingSchemesCopy = {
     },
   },
   delete: {
-    title: "Desactivar esquema",
+    title: "Desactivar frecuencia",
     description:
-      "El esquema dejará de estar disponible para nuevos envíos programados. Los clientes asignados conservan la referencia hasta que lo cambies.",
+      "La frecuencia dejará de estar disponible para nuevos envíos programados. Los clientes asignados conservan la referencia hasta que la cambies.",
     confirm: "Desactivar",
     cancel: "Cancelar",
   },
   toast: {
-    created: "Esquema creado",
-    updated: "Esquema actualizado",
-    deleted: "Esquema desactivado",
-    error: "No se pudo guardar el esquema",
+    created: "Frecuencia creada",
+    updated: "Frecuencia actualizada",
+    deleted: "Frecuencia desactivada",
+    error: "No se pudo guardar la frecuencia",
   },
   paramsSummary: {
     event: (hours: number) => `${hours} h tras cerrar viaje`,

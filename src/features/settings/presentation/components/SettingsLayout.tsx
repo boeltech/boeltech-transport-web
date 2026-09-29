@@ -6,7 +6,6 @@
  */
 
 import { memo, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { Settings, ChevronRight } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { SettingsNavTabs } from "./SettingsNavTabs";
@@ -46,14 +45,14 @@ export const SettingsLayout = memo(function SettingsLayout({
   return (
     <div className={cn("space-y-6", className)}>
       <div className="space-y-4">
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link
-            to="/settings"
-            className="flex items-center gap-1.5 transition-colors hover:text-foreground"
-          >
+        <nav
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+          aria-label="Configuración"
+        >
+          <span className="flex items-center gap-1.5">
             <Settings className="h-4 w-4" />
             <span>Configuración</span>
-          </Link>
+          </span>
           {sectionTitle && (
             <>
               <ChevronRight className="h-4 w-4" />

@@ -34,8 +34,8 @@ export function ClientDetailCommercialTab({
   const creditSummaryQuery = useClientCreditSummary(client.id);
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      <Card className="flex flex-col">
+    <div className="flex flex-col gap-4">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <CreditCard className="h-4 w-4 shrink-0 text-primary" />
@@ -43,7 +43,7 @@ export function ClientDetailCommercialTab({
           </CardTitle>
           <CardDescription>{copy.description}</CardDescription>
         </CardHeader>
-        <CardContent className="flex-1 pt-0">
+        <CardContent className="pt-0">
           <InfoRow
             variant="inline"
             label={copy.paymentTerms}
@@ -77,7 +77,6 @@ export function ClientDetailCommercialTab({
         isLoading={creditSummaryQuery.isLoading}
         isError={creditSummaryQuery.isError}
         collectHref={collectHref}
-        className="flex-1"
       />
     </div>
   );

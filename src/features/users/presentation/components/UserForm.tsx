@@ -29,6 +29,7 @@ import { useActiveClients } from "@features/clients";
 import { formatDriverName, useDrivers } from "@features/drivers";
 import type { User } from "../../domain";
 import { usersCopy } from "../copy/usersCopy";
+import { resolvePortalLinkDescription } from "../utils/userInviteRoles";
 import {
   createUserFormSchemaWithRoleAllowlist,
   defaultCreateUserFormValues,
@@ -358,10 +359,15 @@ export function UserForm({
             <RHFSelectField
               control={control}
               name="clientId"
-              label="Cliente vinculado"
+              label={usersCopy.addUser.link.clientLabel}
               required
-              placeholder="Selecciona un cliente"
-              description="Solo verá los viajes de este cliente"
+              placeholder={usersCopy.addUser.link.clientPlaceholder}
+              description={resolvePortalLinkDescription({
+                loaded: activeClients !== undefined,
+                isEmpty: clientOptions.length === 0,
+                emptyCopy: usersCopy.addUser.link.clientEmpty,
+                filledCopy: usersCopy.addUser.link.clientDescription,
+              })}
               options={clientOptions}
             />
           </div>
@@ -372,10 +378,15 @@ export function UserForm({
             <RHFSelectField
               control={control}
               name="employeeId"
-              label="Empleado conductor"
+              label={usersCopy.addUser.link.driverLabel}
               required
-              placeholder="Selecciona un conductor"
-              description="Solo podrá operar los viajes asignados a este conductor"
+              placeholder={usersCopy.addUser.link.driverPlaceholder}
+              description={resolvePortalLinkDescription({
+                loaded: driversPage !== undefined,
+                isEmpty: employeeOptions.length === 0,
+                emptyCopy: usersCopy.addUser.link.driverEmpty,
+                filledCopy: usersCopy.addUser.link.driverDescription,
+              })}
               options={employeeOptions}
             />
           </div>

@@ -60,7 +60,10 @@ import {
   canOperateCargoAtStop,
   getCargoBlockAtStop,
 } from "../../utils/trackingCargoGating";
-import { tripStartRouteBlockReason } from "../../utils/tripStartRouteGating";
+import {
+  tripStartRouteBlockReason,
+  withPatioStartEscalation,
+} from "../../utils/tripStartRouteGating";
 import { sinCfdiCargoBlockReason } from "../../utils/tripSinCfdiCargoGating";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
@@ -85,7 +88,8 @@ import { isOriginStop } from "../trackingStopEligibility";
 import { trackingCopy } from "./trackingCopy";
 import { canDeclareFalseTrip } from "./canDeclareFalseTrip";
 import { canQuickCloseTrip } from "./canQuickCloseTrip";
-import { STOP_TRANSITION_COPY } from "./transitionCopy";
+import { resolveDeclareFalseTripTransition } from "./transitionCopy";
+import { resolveClientTrackingHubNarrative } from "../../utils/clientTrackingHub";
 import type { TrackingOperationalFocusRequest } from "./trackingOperationalFocus";
 import {
   TrackingStopStatusBadgeRow,
@@ -143,6 +147,10 @@ export type TripTrackingStopsCargosMasterDetailProps = {
    * Si se omite, hereda `canOperateTracking` (compat staff).
    */
   canMutateCargo?: boolean;
+  /** Conductor: cargo_blocked, falso e Iniciar bloqueado (D10–D12). */
+  isDriverPortal?: boolean;
+  /** Cliente: hub = narrativa de estado; sin Iniciar/Registrar/Completar/falso (D11). */
+  isClientPortal?: boolean;
   /** Focus request (p. ej. desde deep-link); selecciona parada en el hub. */
   focusRequest?: TrackingOperationalFocusRequest | null;
   /**
@@ -342,6 +350,7 @@ type TripTrackingStopOperationDetailProps = {
   onRegisterNote?: (stop: TripStop) => void;
   onRegisterIncident?: (stop: TripStop) => void;
   canRegisterEvidence?: boolean;
+  canMutateCargo?: boolean;
 };
 
 function TripTrackingStopOperationDetail({
@@ -357,6 +366,7 @@ function TripTrackingStopOperationDetail({
   onRegisterNote,
   onRegisterIncident,
   canRegisterEvidence = false,
+  canMutateCargo = true,
 }: TripTrackingStopOperationDetailProps) {
   const { primary, secondary } = formatStopTimelineLabel(
     row.stop,
@@ -393,7 +403,11 @@ function TripTrackingStopOperationDetail({
         <DetailAlertCard
           severity="warning"
           icon={<Package className="h-4 w-4" />}
-          title={trackingCopy.hint.cargoBlockedBeforeDeparture}
+          title={
+            canMutateCargo
+              ? trackingCopy.hint.cargoBlockedBeforeDeparture
+              : trackingCopy.hint.cargoBlockedBeforeDepartureDriver
+          }
           items={cargoBlock.descriptions.map((text) => ({ text }))}
         />
       ) : null}
@@ -550,6 +564,8 @@ export function TripTrackingStopsCargosMasterDetail({
   canRegisterEvidence = tripStatus === TripStatus.IN_PROGRESS,
   canOperateTracking = true,
   canMutateCargo: canMutateCargoProp,
+  isDriverPortal = false,
+  isClientPortal = false,
   focusRequest = null,
   showLiveBadge = false,
   updatedAgoLabel = null,
@@ -582,8 +598,11 @@ export function TripTrackingStopsCargosMasterDetail({
   );
 
   const primary = useMemo(
-    () => resolveTrackingPrimaryAction(tripStatus, stops, cargos),
-    [tripStatus, stops, cargos],
+    () =>
+      resolveTrackingPrimaryAction(tripStatus, stops, cargos, {
+        canMutateCargo: canMutateCargoProp ?? canOperateTracking,
+      }),
+    [tripStatus, stops, cargos, canMutateCargoProp, canOperateTracking],
   );
 
   // Ajuste de estado durante render (patrón React vs useEffect+setState en cascada).
@@ -654,7 +673,11 @@ export function TripTrackingStopsCargosMasterDetail({
 
   const showHints = tripStatus === TripStatus.IN_PROGRESS;
   const tripInProgress = tripStatus === TripStatus.IN_PROGRESS;
+  const clientHub = isClientPortal
+    ? resolveClientTrackingHubNarrative(tripStatus)
+    : null;
   const canShowStopActions =
+    !isClientPortal &&
     canOperateTracking &&
     (tripStatus === TripStatus.SCHEDULED ||
       tripStatus === TripStatus.IN_PROGRESS);
@@ -684,13 +707,18 @@ export function TripTrackingStopsCargosMasterDetail({
   const isTerminal =
     tripStatus === TripStatus.COMPLETED || tripStatus === TripStatus.CANCELLED;
   const showsDispatchCta =
+    !isClientPortal &&
     canOperateTracking &&
     tripStatus === TripStatus.SCHEDULED &&
     primary.kind === "dispatch" &&
     onStartTrip != null;
   const startRouteBlockReason = showsDispatchCta
-    ? (tripStartRouteBlockReason(tripStatus, stops) ??
-      sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "start"))
+    ? withPatioStartEscalation(
+        tripStartRouteBlockReason(tripStatus, stops) ??
+          sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "start"),
+        isDriverPortal,
+        trackingCopy.hint.startBlockedEscalatePatio,
+      )
     : null;
   const showsStopCta =
     hubInlineAction != null &&
@@ -705,6 +733,7 @@ export function TripTrackingStopsCargosMasterDetail({
   const declareFalseTripHintId = useId();
   const quickCloseHintId = useId();
   const showsQuickCloseCta =
+    !isClientPortal &&
     canOperateTracking &&
     onQuickCloseTrip != null &&
     canQuickCloseTrip(tripStatus, stops, cargos, operationalOutcome);
@@ -712,6 +741,7 @@ export function TripTrackingStopsCargosMasterDetail({
     ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
     : null;
   const declareFalseTripBaseEligible =
+    !isClientPortal &&
     canOperateTracking &&
     onDeclareFalseTrip != null &&
     canDeclareFalseTrip(tripStatus, stops, cargos, false);
@@ -742,6 +772,7 @@ export function TripTrackingStopsCargosMasterDetail({
         onRegisterNote,
         onRegisterIncident,
         canRegisterEvidence: canOperateTracking && canRegisterEvidence,
+        canMutateCargo,
       }
     : null;
 
@@ -794,8 +825,12 @@ export function TripTrackingStopsCargosMasterDetail({
           )}
         >
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold">{trackingCopy.section.objective}</p>
-            {isTerminal || primary.kind === "none" ? (
+            <p className="text-sm font-semibold">
+              {isClientPortal
+                ? trackingCopy.section.statusClient
+                : trackingCopy.section.objective}
+            </p>
+            {isClientPortal || isTerminal || primary.kind === "none" ? (
               <Badge variant="outline" className="text-[10px] font-normal">
                 {trackingCopy.state.readOnly}
               </Badge>
@@ -818,13 +853,16 @@ export function TripTrackingStopsCargosMasterDetail({
               <p
                 className={cn(
                   "font-semibold text-sm",
-                  isTerminal ? "text-muted-foreground" : null,
+                  isTerminal || isClientPortal ? "text-muted-foreground" : null,
                 )}
               >
-                {primary.title}
+                {clientHub?.title ?? primary.title}
               </p>
+              {clientHub ? (
+                <p className="text-xs text-muted-foreground">{clientHub.body}</p>
+              ) : null}
               {/* D2: con CTA operable no repetir transitionText; D3: cargo_blocked sí muestra guía. */}
-              {primary.transitionText && !showsOperableCta ? (
+              {primary.transitionText && !showsOperableCta && !isClientPortal ? (
                 <p className="text-xs text-muted-foreground">
                   {primary.transitionText}
                 </p>
@@ -930,7 +968,7 @@ export function TripTrackingStopsCargosMasterDetail({
                     id={declareFalseTripHintId}
                     className="text-xs text-muted-foreground"
                   >
-                    {STOP_TRANSITION_COPY.declareFalseTrip}
+                    {resolveDeclareFalseTripTransition(isDriverPortal)}
                   </p>
                 </div>
               ) : showsDeclareFalseTripSplitBlockHint ? (

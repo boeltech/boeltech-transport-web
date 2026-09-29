@@ -8,6 +8,7 @@
  */
 
 import { useNavigate } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { Card, CardContent, CardHeader } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { Phone, Mail } from "lucide-react";
@@ -38,6 +39,7 @@ export interface ClientCardProps {
 
 export function ClientCard({ client, className }: ClientCardProps) {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
 
   const typeConfig = getClientTypeConfig(client.type);
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
@@ -48,7 +50,7 @@ export function ClientCard({ client, className }: ClientCardProps) {
   const contactName = client.primaryContact?.fullName;
 
   const handleClick = () => {
-    navigate(`/clients/${client.id}`);
+    navigate(`/clients/${client.id}`, { state: fromState });
   };
 
   return (

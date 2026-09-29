@@ -44,6 +44,8 @@ export const basicInfoCopy = {
       "Listado filtrado por la base operativa. Activa la opción para ver todo el catálogo.",
     allowExpiredDocs:
       "Muestra activos con seguro, permiso SCT o licencia vencidos (con fecha) para asignarlos. Sin vigencia o sin registro no se liberan con este permiso.",
+    trailerEscalate:
+      "Si el remolque no está en la lista, pide el alta a administración.",
   },
   hintLabel: {
     originBranch: "Base operativa del viaje",
@@ -126,6 +128,7 @@ export const basicInfoCopy = {
     removeCollaborator: "Quitar colaborador",
     tableRemoveSrOnly: "Quitar",
     createBranch: "Crear sucursal",
+    quickCreateTrailer: "Alta rápida",
   },
   cfdiIntent: {
     ingreso: "Servicio con factura",

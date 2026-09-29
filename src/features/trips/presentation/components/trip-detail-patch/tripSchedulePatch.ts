@@ -17,11 +17,13 @@ export function buildScheduleUpdateInput(
   _trip: Trip,
   values: TripScheduleFormValues,
 ): UpdateTripInput {
+  const scheduledArrival = values.scheduledArrival.trim();
   return {
     scheduledDeparture: localInputToUtcIso(values.scheduledDeparture),
-    scheduledArrival: values.scheduledArrival
-      ? localInputToUtcIso(values.scheduledArrival)
-      : null,
+    // Omitir (no `null`): el schema Zod de update solo acepta ISO o ausente.
+    ...(scheduledArrival
+      ? { scheduledArrival: localInputToUtcIso(scheduledArrival) }
+      : {}),
   };
 }
 

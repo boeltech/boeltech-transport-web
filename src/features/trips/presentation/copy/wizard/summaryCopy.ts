@@ -2,7 +2,7 @@
  * Namespace: trips.copy.wizard.summary.*
  *
  * Checkout operativo del paso Resumen: confirmar el viaje sin reabrir la
- * captura. Léxico alineado a Cargas («mercancía») y Dinero del viaje («ruta y unidad»).
+ * captura. Léxico alineado a Cargas («mercancía») y Costos («ruta y unidad»).
  */
 export const summaryCopy = {
   page: {
@@ -22,7 +22,7 @@ export const summaryCopy = {
     info: "Asignación y programación",
     route: "Ruta",
     cargo: "Mercancías",
-    costs: "Dinero del viaje",
+    costs: "Costos",
     notes: "Notas del viaje",
   },
   sectionSummary: {

@@ -27,7 +27,7 @@ import {
   useSuggestedMileageField,
 } from "../startTripMileage";
 import { trackingCopy } from "../../copy";
-import { STOP_TRANSITION_COPY } from "./transitionCopy";
+import { resolveDeclareFalseTripTransition } from "./transitionCopy";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
 import { createTrackingIdempotencyKey } from "./trackingIdempotency";
 import {
@@ -49,6 +49,8 @@ export type DeclareFalseTripSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** Conductor: sin facturar ni link a Costos (D12). */
+  isDriverPortal?: boolean;
 };
 
 function defaultOccurredAtLocal(): string {
@@ -67,6 +69,7 @@ function DeclareFalseTripSheetBody({
   tripStartMileage,
   onOpenChange,
   onSuccess,
+  isDriverPortal = false,
 }: DeclareFalseTripSheetBodyProps) {
   const { toast } = useToast();
   const occurredAtId = "false-trip-occurred-at";
@@ -94,7 +97,9 @@ function DeclareFalseTripSheetBody({
     onSuccess: () => {
       toast({
         title: copy.toast.falseTripDeclared,
-        description: copy.toast.falseTripDeclaredDescription(tripCode),
+        description: isDriverPortal
+          ? copy.toast.falseTripDeclaredDescriptionDriver(tripCode)
+          : copy.toast.falseTripDeclaredDescription(tripCode),
         variant: "success",
       });
       onSuccess?.();
@@ -162,16 +167,18 @@ function DeclareFalseTripSheetBody({
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
-        <AlertWithIcon variant="warning" title={copy.sheet.declareFalseTripExpensesTitle}>
-          <p id={costsHintId}>{copy.sheet.declareFalseTripExpensesBody}</p>
-          <Link
-            to={`/trips/${tripId}?tab=costs`}
-            className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
-            onClick={() => onOpenChange(false)}
-          >
-            {copy.sheet.declareFalseTripExpensesCta}
-          </Link>
-        </AlertWithIcon>
+        {isDriverPortal ? null : (
+          <AlertWithIcon variant="warning" title={copy.sheet.declareFalseTripExpensesTitle}>
+            <p id={costsHintId}>{copy.sheet.declareFalseTripExpensesBody}</p>
+            <Link
+              to={`/trips/${tripId}?tab=costs`}
+              className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
+              onClick={() => onOpenChange(false)}
+            >
+              {copy.sheet.declareFalseTripExpensesCta}
+            </Link>
+          </AlertWithIcon>
+        )}
 
         <div className="space-y-2 rounded-md border bg-muted/30 px-3 py-2.5">
           <p className="text-sm font-medium">{copy.sheet.declareFalseTripEffectsTitle}</p>
@@ -179,7 +186,9 @@ function DeclareFalseTripSheetBody({
             <li>{copy.sheet.declareFalseTripEffectCompleted}</li>
             <li>{copy.sheet.declareFalseTripEffectDestination}</li>
             <li>{copy.sheet.declareFalseTripEffectCargos}</li>
-            <li>{copy.sheet.declareFalseTripEffectInvoice}</li>
+            {isDriverPortal ? null : (
+              <li>{copy.sheet.declareFalseTripEffectInvoice}</li>
+            )}
           </ul>
         </div>
 
@@ -276,7 +285,7 @@ function DeclareFalseTripSheetBody({
           id="false-trip-confirm-transition"
           className="w-full min-w-0 text-pretty text-xs leading-relaxed text-muted-foreground"
         >
-          {STOP_TRANSITION_COPY.declareFalseTrip}
+          {resolveDeclareFalseTripTransition(isDriverPortal)}
         </p>
       </SheetFooter>
     </>
@@ -291,6 +300,7 @@ export function DeclareFalseTripSheet({
   open,
   onOpenChange,
   onSuccess,
+  isDriverPortal = false,
 }: DeclareFalseTripSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -300,7 +310,11 @@ export function DeclareFalseTripSheet({
             <Ban className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
             <span>{copy.sheet.declareFalseTripTitle}</span>
           </SheetTitle>
-          <SheetDescription>{copy.sheet.declareFalseTripDescription}</SheetDescription>
+          <SheetDescription>
+            {isDriverPortal
+              ? copy.sheet.declareFalseTripDescriptionDriver
+              : copy.sheet.declareFalseTripDescription}
+          </SheetDescription>
         </SheetHeader>
 
         {open ? (
@@ -312,6 +326,7 @@ export function DeclareFalseTripSheet({
             tripStartMileage={tripStartMileage}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
+            isDriverPortal={isDriverPortal}
           />
         ) : null}
       </SheetContent>

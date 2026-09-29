@@ -80,6 +80,7 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
     await user.click(cta);
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}&scope=false_trip`,
+      { state: { from: `/trips/${TRIP_ID}` } },
     );
   });
 
@@ -159,7 +160,9 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
         name: tripFiscalCopy.invoiceActions.viewPrimary,
       }),
     );
-    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1");
+    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1", {
+      state: { from: `/trips/${TRIP_ID}` },
+    });
   });
 });
 

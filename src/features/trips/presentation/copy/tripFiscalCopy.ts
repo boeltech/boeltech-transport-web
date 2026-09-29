@@ -148,6 +148,11 @@ export const tripFiscalCopy = {
     viewPrimary: "Ver factura",
     viewAccessory: (folio: string) =>
       folio ? `Ver servicios adicionales (${folio})` : "Ver servicios adicionales",
+    pendingAccountant: "Pendiente de facturar",
+    pendingAccountantHint:
+      "El viaje está listo. Lo timbra quien tenga permiso de facturar. No tienes que hacer nada más.",
+    patioEscalateHint:
+      "Pide a patio activar el reparto o declarar el viaje en falso. Tú no lo armas desde aquí.",
   },
   invoicesSection: {
     title: "Facturas del viaje",

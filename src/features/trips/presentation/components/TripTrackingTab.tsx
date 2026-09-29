@@ -49,7 +49,8 @@ import {
 } from "../utils/cargoStatusActions";
 import { getCargoStatusVariant } from "./trip-cargos/tripCargoDetailHelpers";
 import { useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
+import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
+import { usePermissions, useRole } from "@shared/permissions";
 import { tripDetailCopy } from "../copy";
 import { showTripDetailErrorToast } from "../helpers/toastTripDetailError";
 
@@ -93,6 +94,9 @@ export function TripTrackingTab({
   onCargosChanged,
 }: TripTrackingTabProps) {
   const { hasPermission } = usePermissions();
+  const role = useRole();
+  const isDriverPortal = isDriverPortalRole(role);
+  const isClientPortal = isClientPortalRole(role);
   const canUpdateTrip = hasPermission("trips", "update");
   const canOperateTracking =
     canUpdateTrip ||
@@ -377,6 +381,8 @@ export function TripTrackingTab({
         getCargoStatusVariant={getCargoStatusVariant}
         canOperateTracking={canOperateTracking}
         canMutateCargo={canMutateCargo}
+        isDriverPortal={isDriverPortal}
+        isClientPortal={isClientPortal}
         showLiveBadge={tripStatus === TripStatus.IN_PROGRESS}
         updatedAgoLabel={updatedAgoLabel}
         onRefresh={() => {
@@ -555,6 +561,7 @@ export function TripTrackingTab({
             cargos={cargos}
             open={startSheetOpen}
             onOpenChange={setStartSheetOpen}
+            isDriverPortal={isDriverPortal}
           />
           <RegisterTripArrivalSheet
             tripId={tripId}
@@ -624,6 +631,7 @@ export function TripTrackingTab({
             open={falseTripSheetOpen}
             onOpenChange={setFalseTripSheetOpen}
             onSuccess={onCargosChanged}
+            isDriverPortal={isDriverPortal}
           />
           <RegisterTrackingNoteSheet
             tripId={tripId}

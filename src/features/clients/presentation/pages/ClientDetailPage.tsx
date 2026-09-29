@@ -11,6 +11,7 @@
 
 import { useMemo, type ReactElement } from "react";
 import { useParams } from "react-router-dom";
+import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
 import {
   Building2,
   AlertCircle,
@@ -159,6 +160,10 @@ function buildClientStats(
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const clientId = id ?? "";
+  const { backHref, backLabel } = useMasterDetailWayfinding(
+    "/clients",
+    copy.state.backToList,
+  );
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("clients", "update");
@@ -335,7 +340,8 @@ export function ClientDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref: "/clients",
+          backHref,
+          backLabel,
           icon: <Building2 className="h-6 w-6" />,
           title: copy.title.fallback,
         }}
@@ -356,7 +362,8 @@ export function ClientDetailPage() {
           backLabel: copy.state.backToList,
         }}
         header={{
-          backHref: "/clients",
+          backHref,
+          backLabel,
           icon: <Building2 className="h-6 w-6" />,
           title: copy.title.fallback,
         }}
@@ -379,7 +386,8 @@ export function ClientDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref: "/clients",
+        backHref,
+        backLabel,
         icon: <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />,
         iconVariant: client.isActive ? "primary" : "muted",
         iconShape: client.type === "individual" ? "circle" : "rounded",

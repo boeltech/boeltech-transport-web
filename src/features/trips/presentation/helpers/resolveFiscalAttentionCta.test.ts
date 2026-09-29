@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canShowFiscalSubstituteCta,
   collectInvoicedSplitLegs,
   resolveFiscalAttentionCta,
   type FiscalAttentionSplitLegInput,
@@ -53,6 +54,32 @@ describe("collectInvoicedSplitLegs", () => {
         }),
       ]),
     ).toEqual([{ invoiceId: "inv-1", label: "abcdef12" }]);
+  });
+});
+
+describe("canShowFiscalSubstituteCta", () => {
+  it("oculta Sustituir sin capacidad SAT admin|manager", () => {
+    expect(
+      canShowFiscalSubstituteCta({
+        canAdminManagerFiscal: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("no abre Sustituir solo por invoices.execute (accountant lo tiene)", () => {
+    expect(
+      canShowFiscalSubstituteCta({
+        canAdminManagerFiscal: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("muestra Sustituir solo con canAdminManagerFiscal", () => {
+    expect(
+      canShowFiscalSubstituteCta({
+        canAdminManagerFiscal: true,
+      }),
+    ).toBe(true);
   });
 });
 

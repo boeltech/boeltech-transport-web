@@ -26,8 +26,9 @@ import { SettlementSettingsSheet } from "./SettlementSettingsSheet";
 const copy = settlementsCopy.hub;
 
 export function OperatorPaymentsHubLayout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
+  const fromState = { from: `${pathname}${search}` };
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
   const canCreate = hasPermission("settlements", "create");
@@ -56,7 +57,7 @@ export function OperatorPaymentsHubLayout() {
       ? {
           id: "create-cut",
           label: copy.createCut,
-          onClick: () => navigate(settlementCreatePath()),
+          onClick: () => navigate(settlementCreatePath(), { state: fromState }),
           icon: <Plus className="mr-2 h-4 w-4" />,
         }
       : null;

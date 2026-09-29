@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 import { Button } from "@shared/ui/button";
 import {
   DropdownMenu,
@@ -73,6 +74,7 @@ export function ClientActions({
   onEdit,
 }: ClientActionsProps) {
   const navigate = useNavigate();
+  const fromState = useMasterActionFrom("/clients");
   const { hasPermission } = usePermissions();
 
   // Mutations
@@ -90,7 +92,7 @@ export function ClientActions({
 
   // Handlers
   const handleView = () => {
-    navigate(`/clients/${client.id}`);
+    navigate(`/clients/${client.id}`, { state: fromState });
   };
 
   const handleEdit = () => {
@@ -98,7 +100,7 @@ export function ClientActions({
       onEdit();
       return;
     }
-    navigate(`/clients/${client.id}/edit`);
+    navigate(`/clients/${client.id}/edit`, { state: fromState });
   };
 
   const handleActivate = () => {
@@ -116,7 +118,7 @@ export function ClientActions({
         setShowDeleteDialog(false);
         // Si estamos en el detalle, navegar a la lista
         if (variant === "buttons") {
-          navigate("/clients", { replace: true });
+          navigate(fromState?.from ?? "/clients", { replace: true });
         }
       },
     });

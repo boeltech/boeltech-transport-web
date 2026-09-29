@@ -4,16 +4,26 @@
  */
 
 export const STOP_TRANSITION_COPY = {
-  dispatch: "El viaje pasa a en curso",
-  start: "El viaje pasa a en curso",
+  dispatch: "El viaje pasa a En Ruta",
+  start: "El viaje pasa a En Ruta",
   arrive: "La parada queda en curso",
-  departOrigin: "El viaje queda en tránsito",
+  departOrigin: "El viaje sigue En Ruta",
   depart: "La parada queda completada",
   close: "La parada queda completada y el viaje se cierra",
   quickClose: "El viaje queda completado",
   declareFalseTrip:
     "El viaje queda completado. Se puede facturar el desplazamiento.",
+  /** Conductor: sin facturar (D12). */
+  declareFalseTripDriver: "El viaje queda completado.",
 } as const;
+
+export function resolveDeclareFalseTripTransition(
+  isDriverPortal: boolean,
+): string {
+  return isDriverPortal
+    ? STOP_TRANSITION_COPY.declareFalseTripDriver
+    : STOP_TRANSITION_COPY.declareFalseTrip;
+}
 
 export type StopTransitionAction = keyof typeof STOP_TRANSITION_COPY;
 

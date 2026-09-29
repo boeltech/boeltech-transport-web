@@ -6,6 +6,7 @@ import { AddUserSheet } from "./AddUserSheet";
 import { usersCopy } from "../copy/usersCopy";
 import { invitationsApi } from "@features/invitations";
 import { ApiError } from "@shared/api/interceptors/error-handler";
+import { ROLE_LABELS } from "@shared/constants/roles";
 
 vi.mock("@features/auth", () => ({
   useAuth: () => ({
@@ -35,7 +36,7 @@ vi.mock("@features/clients", () => ({
 }));
 
 vi.mock("@features/drivers", () => ({
-  useDrivers: () => ({ data: undefined }),
+  useDrivers: () => ({ data: { data: [] } }),
   formatDriverName: () => "",
 }));
 
@@ -93,6 +94,32 @@ describe("AddUserSheet", () => {
     expect(
       screen.getByRole("button", { name: usersCopy.addUser.generatePassword }),
     ).toBeInTheDocument();
+  });
+
+  it("en Invitar el default es staff y el sheet no enlaza altas de maestro", () => {
+    renderSheet();
+
+    expect(screen.getByRole("combobox", { name: /Rol/i })).toHaveTextContent(
+      ROLE_LABELS.admin,
+    );
+    expect(document.querySelector('a[href="/clients/new"]')).toBeNull();
+    expect(document.querySelector('a[href="/drivers/new"]')).toBeNull();
+  });
+
+  it("en Dar acceso ya enseña portales y no ofrece CTA de alta", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+
+    await user.click(
+      screen.getByRole("tab", { name: usersCopy.addUser.modes.register }),
+    );
+
+    expect(
+      screen.getByText(usersCopy.addUser.registerDescription),
+    ).toBeInTheDocument();
+    expect(usersCopy.addUser.registerDescription).toMatch(/portal/i);
+    expect(document.querySelector('a[href="/clients/new"]')).toBeNull();
+    expect(document.querySelector('a[href="/drivers/new"]')).toBeNull();
   });
 
   it("muestra toast de límite al invitar con USER_LIMIT_REACHED", async () => {

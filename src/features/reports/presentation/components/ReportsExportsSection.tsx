@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { REPORTS_HUB_PATH } from "@shared/utils/reportsWayfinding";
 import { Download, ExternalLink, Loader2 } from "lucide-react";
 import {
   getCurrentMonthExpenseRange,
@@ -362,7 +363,10 @@ export function ReportsExportsSection({
               </div>
 
               <Button variant="link" size="sm" className="h-auto px-0" asChild>
-                <Link to="/finance/analysis">
+                <Link
+                  to="/finance/analysis"
+                  state={{ from: REPORTS_HUB_PATH }}
+                >
                   {reportsCopy.exports.finance.advancedFiltersLink}
                   <ExternalLink className="ml-1 h-3.5 w-3.5" aria-hidden />
                 </Link>

@@ -12,10 +12,19 @@ export const costsCopy = {
   hint: {
     inProgress:
       "Registre costos y gastos reales en curso. Puede ajustar la tarifa base aquí; los gastos no sustituyen la tarifa ni el ingreso facturado.",
+    /** Operador (D12): no apunta a tarifa / efectivo / Facturado. */
+    inProgressOperator:
+      "Registre casetas, combustible y extras con Agregar de ruta o Agregar del operador.",
     postCloseWindow:
       "Puede registrar gastos tardíos hasta el {deadline}. Solo los registros en revisión se pueden editar o eliminar; los aprobados son de solo lectura.",
+    /** Operador (D11): no alta tardía ni eliminar; sí editar pending + escala. */
+    postCloseWindowOperator:
+      "Puede editar registros en revisión hasta el {deadline}. Un ticket nuevo lo da de alta un admin, gerente o contador.",
     postCloseWindowClosed:
       "Pasaron 30 días desde que cerró el viaje ({deadline}). Ya no se pueden agregar gastos; los aprobados siguen visibles en solo lectura.",
+    /** Operador (D11): solo lectura, sin SAT ni reabrir. */
+    postCloseWindowClosedOperator:
+      "El plazo para gastos ya cerró ({deadline}). Los registros quedan en solo lectura.",
     breakdown: "Distribución de lo registrado por tipo.",
     baseRateTraslado: "Opcional en viajes solo de traslado.",
     baseRateIngresoRequired: "Obligatoria para viajes con factura de servicio y cliente.",
@@ -32,9 +41,15 @@ export const costsCopy = {
     marginCriticalTitle: "Utilidad muy baja",
     marginCriticalBody:
       "El margen estimado está por debajo del 10%. Revise la tarifa o los registros.",
+    /** Operador (D12): no apunta a tarifa. */
+    marginCriticalBodyOperator:
+      "El margen estimado está por debajo del 10%. Revise los registros de ruta y del operador.",
     pendingApprovalTitle: "Registros en revisión",
     pendingApprovalBody:
       "Los registros en revisión aún no cuentan en Finanzas hasta que alguien con permiso los apruebe.",
+    /** Operador (D10): nombra quién aprueba; sin bandeja. */
+    pendingApprovalBodyOperator:
+      "Avisa a un admin, gerente o contador para que los apruebe. No se aprueban aquí.",
     pendingApprovalBodyCanApprove:
       "Apruebe los registros en revisión aquí o desde la bandeja de aprobaciones para incluirlos en reportes de Finanzas.",
     approvalsHubLink: "Ver en bandeja de aprobaciones",

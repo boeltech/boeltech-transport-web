@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import {
   Ban,
   History,
@@ -47,10 +48,12 @@ function PersonSegment({
   segment: Extract<UserActivitySegment, { kind: "person" }>;
   linkPeople: boolean;
 }) {
+  const fromState = useListQueueFromState();
   if (linkPeople && segment.userId) {
     return (
       <Link
         to={`/users/${segment.userId}`}
+        state={fromState}
         className="font-medium text-primary hover:underline"
       >
         {segment.text}

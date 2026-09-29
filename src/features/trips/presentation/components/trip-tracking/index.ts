@@ -34,6 +34,7 @@ export {
   STOP_TRANSITION_COPY,
   CARGO_TRANSITION_COPY,
   legendCopy,
+  resolveDeclareFalseTripTransition,
 } from "./transitionCopy";
 export type {
   StopTransitionAction,

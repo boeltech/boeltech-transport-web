@@ -4,9 +4,9 @@
  * Léxico operativo: identificación de negocio, crédito, contactos, direcciones y viajes.
  */
 
-/** Cohorte operativa: excluye borradores y cancelados (alineado en stats e histórico). */
+/** Cohorte operativa: excluye Reserva y Cancelado (alineado en stats e histórico). */
 const operationalCohortHint =
-  "Excluye viajes con estado borrador y cancelado" as const;
+  "Excluye viajes con estado Reserva y Cancelado" as const;
 
 const operatingRevenue = {
   label: "Ingresos",
@@ -70,20 +70,26 @@ export const clientDetailCopy = {
     taxId: "RFC",
     taxRegime: "Régimen",
     billingEmail: "Correo de facturación",
-    billingScheme: "Esquema de facturación",
-    billingSchemeEmpty: "Sin esquema — solo aparece en Por facturar",
-    billingSchemeNone: "Sin esquema (solo Por facturar)",
-    billingSchemePlaceholder: "Seleccionar esquema",
+    billingScheme: "Cada cuánto le mandamos las facturas",
+    billingSchemeNone: "Sin frecuencia",
+    billingSchemeEmptyNote:
+      "No entra a los envíos del periodo. Sí puedes mandarle facturas sueltas desde Finanzas → Envíos → Pendientes.",
+    billingSchemePlaceholder: "Seleccionar frecuencia",
     billingSchemeHint:
-      "Opcional. Con esquema, el cliente puede entrar a envíos programados; sin esquema solo aparece en Por facturar.",
-    invoiceAutoDispatch: "Envío automático de facturas",
-    invoiceAutoDispatchOn: "Activado",
-    invoiceAutoDispatchOff: "Desactivado",
+      "Opcional. Con frecuencia, el cliente entra a los envíos del periodo; sin ella, no. Aun así puedes mandarle facturas sueltas desde Finanzas → Envíos → Pendientes.",
+    invoiceAutoDispatch: "Mandar el correo del periodo sin confirmar",
+    invoiceAutoDispatchOn: "Sí, sin confirmar",
+    invoiceAutoDispatchOff: "No — pide confirmación",
     invoiceAutoDispatchHint:
-      "Si está activo y el cliente tiene esquema, el sistema prepara y envía el correo del periodo sin que lo confirmes.",
-    invoiceAutoDispatchNoSchemeTitle: "Falta esquema de facturación",
+      "Si está activo y el cliente tiene frecuencia, el sistema arma y manda el correo del periodo sin que lo confirmes.",
+    invoiceAutoDispatchNoSchemeTitle: "Sin frecuencia de envío",
     invoiceAutoDispatchNoSchemeText:
-      "Asigna un esquema para que el envío automático tenga efecto. Sin esquema el cliente no entra a envíos programados.",
+      "Sin frecuencia el automático no tiene efecto: el cliente no entra a los envíos del periodo. Sí puedes mandarle facturas sueltas desde Finanzas → Envíos → Pendientes.",
+  },
+  /** Card/sección separada de Identificación (D1). */
+  invoiceDispatch: {
+    title: "Envío de facturas",
+    description: "Cada cuánto y si el correo del periodo sale solo.",
   },
   notes: {
     title: "Notas",

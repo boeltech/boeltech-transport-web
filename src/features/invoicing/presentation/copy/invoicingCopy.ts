@@ -55,8 +55,9 @@ export const invoicingCopy = {
   empty: {
     title: "Facturar desde un viaje",
     body:
-      "La factura se genera desde un viaje con facturación disponible. Abre el viaje y usa «Generar factura», o elige uno en la cola «Por facturar» de Finanzas.",
+      "La factura se genera desde un viaje con facturación disponible. Abre el viaje y usa «Facturar», o elige uno en la cola «Por facturar» de Facturación.",
     backToFinance: "Ir a Facturas",
+    backToTrips: "Volver a viajes",
   },
   blocked: {
     title: "Este viaje ya está facturado",
@@ -316,8 +317,8 @@ export const invoicingCopy = {
     },
     autoDispatchFailedTitle: "Falló el envío automático",
     autoDispatchFailedBody:
-      "El envío automático no pudo entregar esta factura. Reintenta con «Enviar» / «Reenviar» o abre la corrida para ver el detalle.",
-    autoDispatchFailedLink: "Ver corrida",
+      "El envío automático no pudo entregar esta factura. Reintenta con «Enviar» / «Reenviar» o abre este lote para ver el detalle.",
+    autoDispatchFailedLink: "Ver este lote",
   },
   detail: {
     section: {
@@ -466,9 +467,14 @@ export const invoicingCopy = {
       noLinkedTrips: "Esta factura no tiene viajes vinculados.",
       conceptsSummary: (count: number, subtotal: string) =>
         `${count} partida${count === 1 ? "" : "s"} · Subtotal: ${subtotal}`,
+      /** Portal cliente: Borrador = escala, no timbrar (D13). */
+      clientDraftTitle: "Esta factura aún no está emitida",
+      clientDraftBody:
+        "Borrador no es Facturado. Pide a tu oficina que la emita. No puedes timbrar desde el portal.",
       filesAlertTitle: "Archivos listos para descargar",
       filesAlertDescription:
         "Puedes descargar el PDF (representación impresa) y el XML (archivo fiscal). Si el viaje incluye Carta Porte, el PDF muestra un resumen de transporte.",
+      filesAlertDismiss: "Entendido",
       xmlMissingTitle: "Archivo fiscal no disponible",
       xmlMissingDescription:
         "Actualiza la página para volver a cargar el archivo desde el servidor.",
@@ -498,7 +504,24 @@ export const invoicingCopy = {
         "Hubo cambios operativos en el viaje después de facturar. Si la flota no es asignable (docs vencidos), reasigna en Operación del viaje; luego sustituye esta factura al cerrar o antes de cobrar el ajuste.",
       /** Link textual en el banner (CTA elevado vive en el header). */
       fiscalAttentionLink: "Sustituir",
+      fiscalAttentionAskManagerBody:
+        "Hubo cambios en el viaje después de facturar. Pide a un gerente cancelar o sustituir esta factura.",
+      fiscalAttentionAskManagerLink: "Pide a un gerente",
       fiscalAttentionChip: "Atención fiscal",
+      satHoleTitle: "Trámite SAT: pide a un gerente",
+      satHoleBody:
+        "Cancelar o sustituir esta factura lo hace un gerente. Tú puedes enviar el XML/PDF y registrar el cobro.",
+      followThroughTitle: "Siguiente paso",
+      followThroughSend:
+        "Envía el XML y el PDF al cliente. No es la entrada del patio.",
+      followThroughSendManager:
+        "Si el XML y el PDF aún no salieron, envíalos. Facturación sigue el resto.",
+      followThroughSendLink: "Ir a Envíos",
+      followThroughCollect:
+        "Hay saldo a crédito. Registra el cobro; el comprobante de pago se sella en segundo plano.",
+      followThroughCollectLink: "Ir a Cobros",
+      followThroughPue:
+        "PUE: el cobro se registra aparte. No hay complemento de pagos.",
       /** Viaje en falso con flete vigente (ADR-0079 / web #34) — cancelar, no sustituir. */
       falseTripCancelCfdiTitle: "Cancela la factura de flete",
       falseTripCancelCfdiBody:
@@ -705,6 +728,8 @@ export const invoicingCopy = {
     forbidden: {
       title: "Acceso denegado",
       description: "No tienes permiso para ver esta factura.",
+      descriptionClient:
+        "Esta factura no es tuya o tu usuario no está vinculado a un cliente. Pide el vínculo a administración.",
     },
     serverError: {
       title: "No se pudo cargar la factura",
@@ -757,6 +782,11 @@ export const invoicingCopy = {
     header: {
       title: "Factura",
       backLabel: "Volver",
+      backToCobros: "Volver a cobros",
+      backToDispatch: "Volver a envíos",
+      backToDispatchPeriod: "Volver a envíos del periodo",
+      backToDispatchRun: "Volver al envío",
+      backToClientInvoices: "Volver a Mis facturas",
       pdf: "Descargar PDF",
       pdfGenerating: "Generando...",
       xml: "Descargar XML",
@@ -771,6 +801,14 @@ export const invoicingCopy = {
       uuidCopyLabel: "Copiar folio fiscal",
       receiverSubtitle: (name: string, rfc: string) => `${name} · ${rfc}`,
       issuerLine: (issuerName: string) => `Factura de ${issuerName}`,
+    },
+    /** Portal cliente: Borrador / En proceso / Facturado (D13). */
+    statusLabelsClient: {
+      draft: "Borrador",
+      stamping: "En proceso",
+      stamped: "Facturado",
+      cancellation_pending: "Cancelación en proceso",
+      cancelled: "Cancelada",
     },
   },
   concepts: {

@@ -6,7 +6,7 @@
  * - useTripCargos: Obtiene cargas del viaje via endpoint separado
  * - useTripExpenses: Obtiene gastos del viaje via endpoint separado
  * - useTripExpensesSummary: Obtiene resumen de gastos
- * - Tabs: Operación, Ruta, Seguimiento, Cargas, Dinero del viaje (historial bajo Operación)
+ * - Tabs: Operación, Ruta, Seguimiento, Cargas, Costos (historial bajo Operación)
 
  *
  * Clean Architecture: Page compone componentes de Presentation + hooks de Application
@@ -39,6 +39,7 @@ import {
   Loader2,
   AlertTriangle,
   ChevronDown,
+  Play,
 } from "lucide-react";
 
 // ── Hooks de Application Layer ─────────────────────────────────────────────
@@ -64,7 +65,11 @@ import {
   getOrderedStops,
 } from "@features/trips/domain";
 
-import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
+import {
+  isClientPortalRole,
+  isDriverPortalRole,
+  ROLES,
+} from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import {
   TripActions,
@@ -85,6 +90,10 @@ import { TripInvoicingConsole } from "../components/TripInvoicingConsole";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripLiquidacionChip } from "../components/TripLiquidacionChip";
 import { canEditTripLiquidacionIntent } from "../utils/tripLiquidacionMutability";
+import {
+  resolveTripAccessDeniedCopy,
+  resolveTripWayfindingBackLabel,
+} from "../utils/tripWayfinding";
 import { TripDetailOperationTab } from "../components/trip-operation";
 import { TripDetailRouteTab } from "../components/trip-route";
 import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfirmReserveButton";
@@ -110,7 +119,10 @@ import {
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
 import { buildPostCancelFiscalAlertLines } from "../helpers/buildPostCancelFiscalAlertLines";
 import { resolveFiscalAttentionBannerMode } from "../helpers/resolveFiscalAttentionBannerMode";
-import { resolveFiscalAttentionCta } from "../helpers/resolveFiscalAttentionCta";
+import {
+  canShowFiscalSubstituteCta,
+  resolveFiscalAttentionCta,
+} from "../helpers/resolveFiscalAttentionCta";
 
 const shell = tripDetailCopy.shell;
 
@@ -140,6 +152,7 @@ export function TripDetailPage() {
     location.state?.from as string | undefined,
     "/trips",
   );
+  const backLabel = resolveTripWayfindingBackLabel(backHref);
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isClientPortal = isClientPortalRole(role);
@@ -153,6 +166,12 @@ export function TripDetailPage() {
   const canDeleteExpense = hasPermission("expenses", "delete");
   const canApproveTripExpenses = hasPermission("finance_approvals", "update");
   const canReadInvoices = hasPermission("invoices", "read");
+  const canSubstituteFiscal = canShowFiscalSubstituteCta({
+    canAdminManagerFiscal:
+      role === ROLES.ADMIN || role === ROLES.MANAGER,
+  });
+  const isDispatcher = role === ROLES.DISPATCHER;
+  const isManager = role === ROLES.MANAGER;
   const canFetchExpenses = !isLeanTripPortal && canReadExpenses;
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -193,14 +212,10 @@ export function TripDetailPage() {
         routeReady: isTripRouteReadyForStartUi(trip.stops ?? []),
         cargoCount:
           trip.status === TripStatus.DRAFT ? undefined : trip.cargos?.length,
-        hasPendingCobro:
-          trip.invoicing.canGenerateInvoice ||
-          trip.invoicing.canGenerateFalseTripInvoice ||
-          trip.requiresFiscalAttention,
-        canShowCosts: canFetchExpenses,
+        isClientPortal,
       })
     : "overview";
-  const bootstrapActiveTab = urlTab ?? bootstrapDefaultTab;
+  const bootstrapActiveTab = urlTab ?? bootstrapDefaultTab ?? "overview";
   const resolvedBootstrapTab =
     !canFetchExpenses && bootstrapActiveTab === "costs"
       ? "overview"
@@ -240,18 +255,16 @@ export function TripDetailPage() {
       })
     : undefined;
 
-  const defaultTab = trip
+  const resolvedDefaultTab = trip
     ? resolveDefaultTripDetailTab({
         status: trip.status,
         routeReady: isTripRouteReadyForStartUi(trip.stops ?? []),
         cargoCount: cargoCountForDefault,
-        hasPendingCobro:
-          trip.invoicing.canGenerateInvoice ||
-          trip.invoicing.canGenerateFalseTripInvoice ||
-          trip.requiresFiscalAttention,
-        canShowCosts: canFetchExpenses,
+        isClientPortal,
       })
     : "overview";
+  const isWaitingDefaultTab = resolvedDefaultTab === null && !urlTab;
+  const defaultTab = resolvedDefaultTab ?? "overview";
   const activeTab = urlTab ?? defaultTab;
   const resolvedActiveTab =
     !canFetchExpenses && activeTab === "costs"
@@ -358,6 +371,15 @@ export function TripDetailPage() {
     );
   }, [trip, cargos.length, satConfigAutotransporteCode]);
 
+  /**
+   * D1: when the invoicing console (preStats) already shows the fiscal context,
+   * suppress the duplicate fiscal-attention alert to avoid redundant messaging.
+   */
+  const invoicingConsoleVisible =
+    !isLeanTripPortal &&
+    trip != null &&
+    shouldShowTripInvoicingConsole(trip, Boolean(postCancelFiscal));
+
   const tripAlerts = useMemo(() => {
     if (!trip) return undefined;
 
@@ -434,8 +456,9 @@ export function TripDetailPage() {
           </DetailAlertCard>,
         );
       } else if (
-        fiscalBannerMode === "postCancel" ||
-        fiscalBannerMode === "midTrip"
+        (fiscalBannerMode === "postCancel" ||
+        fiscalBannerMode === "midTrip") &&
+        !invoicingConsoleVisible
       ) {
         const isPostCancel = fiscalBannerMode === "postCancel";
         const fiscalCta = resolveFiscalAttentionCta({
@@ -450,13 +473,72 @@ export function TripDetailPage() {
           ? shell.alert.postCancelFiscalAttentionNoInvoiceBody
           : shell.alert.fiscalAttentionNoInvoiceBody;
         let cta: ReactElement | null = null;
+        const escalateMidTrip =
+          !isPostCancel && !canSubstituteFiscal && isDispatcher;
+        const askManagerSat =
+          !isPostCancel && !canSubstituteFiscal && !isDispatcher;
 
-        if (fiscalCta.kind === "primary") {
+        if (escalateMidTrip) {
+          body = shell.alert.fiscalAttentionEscalateBody;
+        } else if (askManagerSat) {
+          body = shell.alert.fiscalAttentionAskManagerBody;
+          if (fiscalCta.kind === "primary" && fiscalCta.invoiceId) {
+            cta = (
+              <Link
+                to={`/invoices/${fiscalCta.invoiceId}`}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {shell.alert.fiscalAttentionOpenInvoiceCta}
+              </Link>
+            );
+          } else if (
+            fiscalCta.kind === "split" &&
+            fiscalCta.bodyKey === "withInvoices"
+          ) {
+            const legs = fiscalCta.invoicedLegs;
+            if (legs.length === 1) {
+              cta = (
+                <Link
+                  to={`/invoices/${legs[0].invoiceId}`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {shell.alert.fiscalAttentionOpenInvoiceCta}
+                </Link>
+              );
+            } else if (legs.length > 1) {
+              cta = (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      {shell.alert.fiscalAttentionSplitMenuCta}
+                      <ChevronDown className="ml-0.5 h-3.5 w-3.5 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64">
+                    {legs.map((leg) => (
+                      <DropdownMenuItem key={leg.invoiceId} asChild>
+                        <Link to={`/invoices/${leg.invoiceId}`}>
+                          {shell.alert.fiscalAttentionSplitLegCta(leg.label)}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+          }
+        } else if (fiscalCta.kind === "primary") {
           body =
             fiscalCta.bodyKey === "withInvoice"
               ? isPostCancel
                 ? shell.alert.postCancelFiscalAttentionBody
-                : shell.alert.fiscalAttentionBody
+                : isManager
+                  ? shell.alert.fiscalAttentionManagerBody
+                  : shell.alert.fiscalAttentionBody
               : isPostCancel
                 ? shell.alert.postCancelFiscalAttentionNoInvoiceBody
                 : shell.alert.fiscalAttentionNoInvoiceBody;
@@ -480,7 +562,9 @@ export function TripDetailPage() {
           } else {
             body = isPostCancel
               ? shell.alert.postCancelFiscalAttentionSplitBody
-              : shell.alert.fiscalAttentionSplitBody;
+              : isManager
+                ? shell.alert.fiscalAttentionSplitManagerBody
+                : shell.alert.fiscalAttentionSplitBody;
           }
           if (fiscalCta.bodyKey === "withInvoices") {
             const legs = fiscalCta.invoicedLegs;
@@ -681,6 +765,7 @@ export function TripDetailPage() {
     tripReadiness,
     setSearchParams,
     isLeanTripPortal,
+    invoicingConsoleVisible,
     revenueSplitForFiscalCta,
     revenueSplitForFiscalCtaFetched,
   ]);
@@ -689,12 +774,13 @@ export function TripDetailPage() {
   // LOADING STATE
   // ══════════════════════════════════════════════════════════════════════════
 
-  if (isLoadingTrip && !trip) {
+  if ((isLoadingTrip && !trip) || isWaitingDefaultTab) {
     return (
       <DetailPageShell
         isLoading
         header={{
           backHref,
+          backLabel,
           icon: <Truck className="h-6 w-6" />,
           title: shell.title.fallback,
         }}
@@ -703,19 +789,24 @@ export function TripDetailPage() {
   }
 
   if (tripQueryState === "forbidden") {
+    const accessDenied = resolveTripAccessDeniedCopy(
+      isDriverPortal,
+      isClientPortal,
+    );
     return (
       <DetailPageShell
         isLoading={false}
         notFound
         notFoundConfig={{
           icon: <AlertCircle />,
-          title: shell.state.accessDeniedTitle,
-          description: shell.state.accessDeniedDescription,
+          title: accessDenied.title,
+          description: accessDenied.description,
           backHref: "/trips",
-          backLabel: shell.state.backToList,
+          backLabel: accessDenied.backLabel,
         }}
         header={{
           backHref,
+          backLabel,
           icon: <Truck className="h-6 w-6" />,
           title: shell.title.fallback,
         }}
@@ -737,6 +828,7 @@ export function TripDetailPage() {
         }}
         header={{
           backHref,
+          backLabel,
           icon: <Truck className="h-6 w-6" />,
           title: shell.title.fallback,
         }}
@@ -754,6 +846,7 @@ export function TripDetailPage() {
         isLoading={false}
         header={{
           backHref,
+          backLabel,
           icon: <Truck className="h-6 w-6" />,
           title: shell.title.fallback,
         }}
@@ -795,6 +888,7 @@ export function TripDetailPage() {
         }}
         header={{
           backHref,
+          backLabel,
           icon: <Truck className="h-6 w-6" />,
           title: shell.title.fallback,
         }}
@@ -857,6 +951,7 @@ export function TripDetailPage() {
       isLoading={false}
       header={{
         backHref,
+        backLabel,
         icon: <Truck className="h-6 w-6" />,
         iconVariant:
           resolvedDisplayStatus === TripStatus.CANCELLED ? "muted" : "primary",
@@ -964,6 +1059,49 @@ export function TripDetailPage() {
                     }
                   }}
                 />
+                {/* D2: Phase CTA — navigate to tracking tab for scheduled/in_progress */}
+                {resolvedDisplayStatus === TripStatus.SCHEDULED &&
+                resolvedActiveTab !== "tracking" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchParams(
+                        (prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set("tab", "tracking");
+                          return next;
+                        },
+                        { replace: true },
+                      );
+                    }}
+                  >
+                    <Play className="mr-1.5 h-4 w-4" />
+                    {shell.action.startTrip}
+                  </Button>
+                ) : null}
+                {resolvedDisplayStatus === TripStatus.IN_PROGRESS &&
+                resolvedActiveTab !== "tracking" ? (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      setSearchParams(
+                        (prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set("tab", "tracking");
+                          return next;
+                        },
+                        { replace: true },
+                      );
+                    }}
+                  >
+                    <Navigation className="mr-1.5 h-4 w-4" />
+                    {shell.action.goToTracking}
+                  </Button>
+                ) : null}
                 <TripInvoiceActions
                   trip={trip}
                   presentation="headerMenu"

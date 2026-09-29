@@ -48,3 +48,14 @@ export function tripStartRouteBlockReason(
   );
   return routeError?.message ?? null;
 }
+
+/** D10: copy de dominio + escala a patio. No enseña asignar/Confirmar. */
+export function withPatioStartEscalation(
+  reason: string | null,
+  escalate: boolean,
+  suffix: string,
+): string | null {
+  if (!reason) return null;
+  if (!escalate) return reason;
+  return `${reason} ${suffix}`;
+}

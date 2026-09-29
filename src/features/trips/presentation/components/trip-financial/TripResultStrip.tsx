@@ -1,5 +1,5 @@
 /**
- * Franja compacta del resultado estimado del viaje (paso Dinero del viaje).
+ * Franja compacta del resultado estimado del viaje (paso Costos).
  *
  * Muestra utilidad y margen con tono normal / atención / bajo. Sustituye a la
  * alerta inferior de margen crítico: la señal vive aquí.

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 import { Eye, MoreHorizontal, Pencil, Power, PowerOff } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import {
@@ -27,6 +28,7 @@ interface UserActionsProps {
   userName: string;
   status: UserStatusType;
   variant?: "dropdown" | "buttons";
+  fromState?: { from: string };
   onStatusChange?: (id: string, status: UserStatusType) => void;
 }
 
@@ -35,9 +37,12 @@ export function UserActions({
   userName,
   status,
   variant = "dropdown",
+  fromState: fromStateProp,
   onStatusChange,
 }: UserActionsProps) {
   const navigate = useNavigate();
+  const listFromState = useMasterActionFrom("/users");
+  const fromState = fromStateProp ?? listFromState;
   const { hasPermission } = usePermissions();
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
 
@@ -68,7 +73,7 @@ export function UserActions({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/users/${userId}/edit`);
+                navigate(`/users/${userId}/edit`, { state: fromState });
               }}
             >
               <Pencil className="mr-2 h-4 w-4" />
@@ -132,12 +137,20 @@ export function UserActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => navigate(`/users/${userId}`)}>
+          <DropdownMenuItem
+            onClick={() =>
+              navigate(`/users/${userId}`, { state: fromState })
+            }
+          >
             <Eye className="mr-2 h-4 w-4" />
             Ver detalle
           </DropdownMenuItem>
           {canUpdate ? (
-            <DropdownMenuItem onClick={() => navigate(`/users/${userId}/edit`)}>
+            <DropdownMenuItem
+              onClick={() =>
+                navigate(`/users/${userId}/edit`, { state: fromState })
+              }
+            >
               <Pencil className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>

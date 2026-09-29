@@ -74,10 +74,12 @@ function formatTripTypeLabel(intent: Trip["cfdiDocumentIntent"]): string {
 }
 
 function ClientContractCard({
+  tripId,
   client,
   cfdiDocumentIntent,
   showClientLink,
 }: {
+  tripId: string;
   client?: ClientRef;
   cfdiDocumentIntent: Trip["cfdiDocumentIntent"];
   showClientLink: boolean;
@@ -97,7 +99,10 @@ function ClientContractCard({
           </div>
           {showClientLink && client ? (
             <Button type="button" size="sm" variant="outline" className="shrink-0" asChild>
-              <Link to={`/clients/${client.id}`}>
+              <Link
+                to={`/clients/${client.id}`}
+                state={{ from: `/trips/${tripId}` }}
+              >
                 {copy.action.viewClient}
                 <ExternalLink className="ml-2 h-3.5 w-3.5" />
               </Link>
@@ -165,6 +170,7 @@ export function TripDetailOperationTab({
   return (
     <div className="space-y-6">
       <ClientContractCard
+        tripId={trip.id}
         client={trip.client}
         cfdiDocumentIntent={trip.cfdiDocumentIntent}
         showClientLink={showClientLink}
@@ -175,9 +181,7 @@ export function TripDetailOperationTab({
           "grid grid-cols-1 gap-6",
           isClientPortalView
             ? "lg:grid-cols-1"
-            : showMileage
-              ? "lg:grid-cols-3"
-              : "lg:grid-cols-2",
+            : "lg:grid-cols-2",
         )}
       >
         <Card>
@@ -293,19 +297,25 @@ export function TripDetailOperationTab({
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+        ) : null}
 
-            <Separator className="my-3" />
-
+        {!isClientPortalView ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 shrink-0 text-primary" />
+              {copy.hint.staffSection}
+              {trip.internalStaff && trip.internalStaff.length > 0 ? (
+                <Badge variant="secondary" className="ml-1 text-[10px] font-normal">
+                  {trip.internalStaff.length}
+                </Badge>
+              ) : null}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
             <div className="space-y-2">
-              <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-                {copy.hint.staffSection}
-                {trip.internalStaff && trip.internalStaff.length > 0 ? (
-                  <Badge variant="secondary" className="ml-1 text-[10px] font-normal">
-                    {trip.internalStaff.length}
-                  </Badge>
-                ) : null}
-              </div>
               {trip.internalStaff && trip.internalStaff.length > 0 ? (
                 trip.internalStaff.map((member) => (
                   <div

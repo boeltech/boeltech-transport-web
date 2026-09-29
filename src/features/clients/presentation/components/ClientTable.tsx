@@ -8,6 +8,7 @@
  */
 
 import { useNavigate } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import {
   Table,
   TableBody,
@@ -54,10 +55,11 @@ export function ClientTable({
   sortOrder,
 }: ClientTableProps) {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
 
   // Handler para clic en fila
   const handleRowClick = (clientId: string) => {
-    navigate(`/clients/${clientId}`);
+    navigate(`/clients/${clientId}`, { state: fromState });
   };
 
   // Handler para ordenamiento

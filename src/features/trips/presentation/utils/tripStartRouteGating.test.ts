@@ -5,6 +5,7 @@ import { StopType, TripStatus } from "@features/trips/domain";
 import {
   isTripRouteReadyForStartUi,
   tripStartRouteBlockReason,
+  withPatioStartEscalation,
 } from "./tripStartRouteGating";
 
 describe("tripStartRouteGating", () => {
@@ -34,5 +35,18 @@ describe("tripStartRouteGating", () => {
         { stopType: [StopType.DESTINATION] },
       ]),
     ).toBeNull();
+  });
+
+  it("D10: copy existente + escala a patio, sin asignar/Confirmar", () => {
+    const base = tripStartRouteBlockReason(TripStatus.SCHEDULED, []);
+    expect(base).toMatch(/origen y destino/i);
+    expect(
+      withPatioStartEscalation(base, true, "Avisa a patio."),
+    ).toBe(`${base} Avisa a patio.`);
+    expect(withPatioStartEscalation(base, false, "Avisa a patio.")).toBe(base);
+    expect(withPatioStartEscalation(null, true, "Avisa a patio.")).toBeNull();
+    expect(
+      withPatioStartEscalation(base, true, "Avisa a patio."),
+    ).not.toMatch(/asignar|Confirmar/i);
   });
 });

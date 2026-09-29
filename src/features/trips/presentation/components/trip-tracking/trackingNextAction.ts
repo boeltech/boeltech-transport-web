@@ -57,6 +57,7 @@ export function resolveTrackingPrimaryAction(
   tripStatus: TripStatusType,
   stops: readonly TripStop[],
   cargos?: readonly TripCargo[],
+  options?: { canMutateCargo?: boolean },
 ): TrackingPrimaryAction {
   const ordered = [...stops];
 
@@ -94,10 +95,15 @@ export function resolveTrackingPrimaryAction(
       ? getCargoBlockAtStop(stop, cargos ?? [], ordered)
       : { blocked: true, pendingCount: 0, descriptions: [] };
     const stopLabel = formatStopLabel(stop, displayOrder);
+    const canMutateCargo = options?.canMutateCargo !== false;
     return {
       kind: "cargo_blocked",
-      title: trackingCopy.hint.cargoBlockedTitle(stopLabel),
-      transitionText: trackingCopy.hint.cargoBlockedBody(block.pendingCount),
+      title: canMutateCargo
+        ? trackingCopy.hint.cargoBlockedTitle(stopLabel)
+        : trackingCopy.hint.cargoBlockedTitleDriver(stopLabel),
+      transitionText: canMutateCargo
+        ? trackingCopy.hint.cargoBlockedBody(block.pendingCount)
+        : trackingCopy.hint.cargoBlockedBodyDriver,
       stop,
       displayOrder,
     };

@@ -229,4 +229,14 @@ export const billingSettingsCopy = {
     emitterError: "No se pudo completar el alta",
     emitterErrorDescription: "Vuelve a intentarlo en unos minutos.",
   },
+
+  /** Alert L1b — sello + numeración. Visible solo admin. Key propia. */
+  adminOrientation: {
+    title: "Sello y numeración",
+    body: "Carga el sello digital —solo tú puedes— y define la serie y el folio. Así la oficina puede timbrar.",
+    identityMissing:
+      "Falta el RFC, la razón social, el régimen o el CP.",
+    identityLink: "Ir a General",
+    dismiss: "Entendido",
+  },
 } as const;

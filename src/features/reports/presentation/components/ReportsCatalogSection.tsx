@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
+import { REPORTS_HUB_PATH } from "@shared/utils/reportsWayfinding";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import type { ReportsCatalogItemDefinition } from "../config/reportsHubCatalog";
-import { reportsCopy } from "../copy/reportsCopy";
 
 interface ReportsCatalogSectionProps {
   title: string;
@@ -52,8 +52,8 @@ export function ReportsCatalogSection({
                   {item.description}
                 </p>
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={item.href}>
-                    {reportsCopy.catalog.viewAnalysisCta}
+                  <Link to={item.href} state={{ from: REPORTS_HUB_PATH }}>
+                    {item.cta}
                     <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
                   </Link>
                 </Button>

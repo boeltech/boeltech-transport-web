@@ -41,6 +41,10 @@ import { useToast } from "@shared/hooks";
 import { useCreateUser } from "../../application";
 import { usersCopy } from "../copy/usersCopy";
 import {
+  filterInviteRoleOptions,
+  resolvePortalLinkDescription,
+} from "../utils/userInviteRoles";
+import {
   createUserFormSchemaWithRoleAllowlist,
   userFormToCreateDTO,
   type UserFormData,
@@ -59,8 +63,7 @@ const inviteUserSchema = z
     if (data.role === ROLES.CLIENT || data.role === ROLES.DRIVER) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message:
-          "Usa «Registrar» con vínculo a cliente o conductor; la invitación no admite estos roles.",
+        message: usersCopy.addUser.invitePortalBlocked,
         path: ["role"],
       });
     }
@@ -98,10 +101,7 @@ export function AddUserSheet({
 
   /** Invite cannot carry client/driver ownership links — exclude those roles. */
   const inviteRoleOptions = useMemo(
-    () =>
-      allRoleOptions.filter(
-        (o) => o.value !== ROLES.CLIENT && o.value !== ROLES.DRIVER,
-      ),
+    () => filterInviteRoleOptions(allRoleOptions),
     [allRoleOptions],
   );
 
@@ -570,9 +570,15 @@ export function AddUserSheet({
               <RHFSelectField
                 control={registerForm.control}
                 name="clientId"
-                label="Cliente vinculado"
+                label={copy.link.clientLabel}
                 required
-                placeholder="Selecciona un cliente"
+                placeholder={copy.link.clientPlaceholder}
+                description={resolvePortalLinkDescription({
+                  loaded: activeClients !== undefined,
+                  isEmpty: clientOptions.length === 0,
+                  emptyCopy: copy.link.clientEmpty,
+                  filledCopy: copy.link.clientDescription,
+                })}
                 options={clientOptions}
               />
             ) : null}
@@ -581,9 +587,15 @@ export function AddUserSheet({
               <RHFSelectField
                 control={registerForm.control}
                 name="employeeId"
-                label="Empleado conductor"
+                label={copy.link.driverLabel}
                 required
-                placeholder="Selecciona un conductor"
+                placeholder={copy.link.driverPlaceholder}
+                description={resolvePortalLinkDescription({
+                  loaded: driversPage !== undefined,
+                  isEmpty: employeeOptions.length === 0,
+                  emptyCopy: copy.link.driverEmpty,
+                  filledCopy: copy.link.driverDescription,
+                })}
                 options={employeeOptions}
               />
             ) : null}

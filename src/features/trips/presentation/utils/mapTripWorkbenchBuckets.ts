@@ -60,6 +60,14 @@ export interface MapTripWorkbenchBucketsParams {
   /** Filtro `?fiscalAttention=1` activo en la misma lista. */
   fiscalAttentionOnly: boolean;
   onFiscalAttentionChange: (attentionOnly: boolean) => void;
+  /** Portal lean (cliente/conductor): no opera la cola fiscal. */
+  showFiscalAttention?: boolean;
+  /** Override copy del bucket fiscal (dispatcher = escala, no sustituir). */
+  fiscalAttentionDescription?: string;
+  /** Override copy de buckets de etapa (portal cliente = estados del envío). */
+  bucketDescriptionOverrides?: Partial<
+    Record<TripWorkbenchBucket, string>
+  >;
 }
 
 export function mapTripWorkbenchBuckets({
@@ -69,13 +77,17 @@ export function mapTripWorkbenchBuckets({
   onBucketChange,
   fiscalAttentionOnly,
   onFiscalAttentionChange,
+  showFiscalAttention = true,
+  fiscalAttentionDescription,
+  bucketDescriptionOverrides,
 }: MapTripWorkbenchBucketsParams): WorkbenchBucket[] {
   const buckets: WorkbenchBucket[] = visibleBuckets.map((bucket) => {
     const count = countForBucket(bucket, summary);
     return {
       id: bucket,
       label: copy.buckets[bucket],
-      description: copy.bucketDescriptions[bucket],
+      description:
+        bucketDescriptionOverrides?.[bucket] ?? copy.bucketDescriptions[bucket],
       count,
       isActive: !fiscalAttentionOnly && activeBucket === bucket,
       onClick: () => onBucketChange(bucket),
@@ -84,11 +96,15 @@ export function mapTripWorkbenchBuckets({
   });
 
   // Cola ops ADR-0093: misma lista filtrada (no escape a «Viajes por facturar»)
-  if (summary.fiscalAttention > 0 || fiscalAttentionOnly) {
+  if (
+    showFiscalAttention &&
+    (summary.fiscalAttention > 0 || fiscalAttentionOnly)
+  ) {
     buckets.push({
       id: "fiscal_attention",
       label: copy.buckets.fiscalAttention,
-      description: copy.bucketDescriptions.fiscalAttention,
+      description:
+        fiscalAttentionDescription ?? copy.bucketDescriptions.fiscalAttention,
       count: summary.fiscalAttention,
       isActive: fiscalAttentionOnly,
       onClick: () => onFiscalAttentionChange(!fiscalAttentionOnly),

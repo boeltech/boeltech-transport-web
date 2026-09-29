@@ -14,7 +14,6 @@ import {
   MapPin,
   CreditCard,
   FileUp,
-  CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
@@ -54,15 +53,6 @@ export const settingsNavItems: SettingsNavItem[] = [
     path: "/settings/billing",
     icon: FileText,
     permission: { module: "settings", action: "read" },
-  },
-  {
-    id: SettingsSection.BILLING_SCHEMES,
-    label: "Esquemas de facturación",
-    description:
-      "Cuándo agrupar el envío por correo; independiente del sello digital",
-    path: "/settings/billing-schemes",
-    icon: CalendarClock,
-    permission: { module: "invoices", action: "read" },
   },
   {
     id: SettingsSection.SUBSCRIPTION,
@@ -109,7 +99,7 @@ export const settingsNavItems: SettingsNavItem[] = [
   },
   {
     id: SettingsSection.DASHBOARD_LAYOUTS,
-    label: "Dashboard",
+    label: "Inicio",
     description: "Orden y visibilidad de widgets por rol",
     path: "/settings/dashboard-layouts",
     icon: LayoutDashboard,

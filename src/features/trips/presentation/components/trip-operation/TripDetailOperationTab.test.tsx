@@ -160,6 +160,10 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     expect(screen.getByText("ABC-12-34 · 1")).toBeInTheDocument();
     expect(screen.getByText(copy.format.tripType("ingreso"))).toBeInTheDocument();
     expect(screen.getByText(copy.state.noSupportStaff)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: copy.action.viewClient })).toHaveAttribute(
+      "href",
+      `/clients/${CLIENT_ID}`,
+    );
   });
 
   it("muestra equipo de apoyo con rol y vacío explícito cuando no hay integrantes", () => {

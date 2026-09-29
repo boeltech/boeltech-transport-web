@@ -43,11 +43,11 @@ export type TripFinancialSummaryCopy = {
 export interface TripWizardFinancialSummaryProps {
   snapshot: TripWizardFinancialSnapshot;
   className?: string;
-  /** Envuelve en Card con encabezado (panel sticky del paso Dinero del viaje). */
+  /** Envuelve en Card con encabezado (panel sticky del paso Costos). */
   showCard?: boolean;
   /**
    * `lines` (default): lista cada concepto — resumen del wizard.
-   * `totals`: solo totales y margen — paso Dinero del viaje y detalle viaje.
+   * `totals`: solo totales y margen — paso Costos y detalle viaje.
    */
   variant?: "lines" | "totals";
   /** Override del título del card (detalle viaje). */

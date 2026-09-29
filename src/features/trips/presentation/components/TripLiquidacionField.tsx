@@ -231,7 +231,10 @@ export function TripLiquidacionField({
             <AlertDialogCancel>Cerrar</AlertDialogCancel>
             {clientId ? (
               <Button asChild>
-                <Link to={`/clients/${clientId}`} onClick={() => setBlockEmitirOpen(false)}>
+                <Link
+                  to={`/clients/${clientId}`}
+                  onClick={() => setBlockEmitirOpen(false)}
+                >
                   {copy.blockEmitir.goToClient}
                 </Link>
               </Button>

@@ -13,7 +13,7 @@ export const navigationCopy = {
     admin: "Administración",
   },
   item: {
-    dashboard: "Dashboard",
+    dashboard: "Inicio",
     trips: "Viajes",
     branches: "Sucursales",
     vehicles: "Vehículos",
@@ -21,8 +21,8 @@ export const navigationCopy = {
     drivers: "Conductores",
     employees: "Empleados",
     clientsList: "Clientes",
-    /** Entrada al hub Finanzas (landing Panorama). Grupo = Finanzas; ítem ≠ mismo label. */
-    financeHub: "Panorama",
+    /** Entrada al hub Finanzas (landing Cartera). Grupo = Finanzas; ítem ≠ mismo label. */
+    financeHub: "Cartera",
     /** Viajes entregados sin factura: cola de trabajo del contador. */
     financeInvoiceable: "Por facturar",
     /** Facturas a crédito con saldo: cola de trabajo de cobranza (mismo hub). */

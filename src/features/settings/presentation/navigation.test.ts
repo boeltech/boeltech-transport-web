@@ -19,11 +19,6 @@ const EXPECTED_NAV_ORDER = [
     label: "Datos para facturar",
   },
   {
-    id: SettingsSection.BILLING_SCHEMES,
-    path: "/settings/billing-schemes",
-    label: "Esquemas de facturación",
-  },
-  {
     id: SettingsSection.SUBSCRIPTION,
     path: "/settings/subscription",
     label: "Tu plan",
@@ -51,7 +46,7 @@ const EXPECTED_NAV_ORDER = [
   {
     id: SettingsSection.DASHBOARD_LAYOUTS,
     path: "/settings/dashboard-layouts",
-    label: "Dashboard",
+    label: "Inicio",
   },
 ] as const;
 
@@ -74,12 +69,12 @@ describe("settingsNavItems", () => {
     ).toBe(false);
   });
 
-  it("keeps billing and billing-schemes adjacent after general", () => {
+  it("places billing immediately after general, without billing-schemes in nav", () => {
     const ids = settingsNavItems.map((item) => item.id);
     const billingIdx = ids.indexOf(SettingsSection.BILLING);
-    const schemesIdx = ids.indexOf(SettingsSection.BILLING_SCHEMES);
-    expect(schemesIdx).toBe(billingIdx + 1);
     expect(billingIdx).toBe(1);
+    expect(ids).not.toContain(SettingsSection.BILLING_SCHEMES);
+    expect(ids[billingIdx + 1]).toBe(SettingsSection.SUBSCRIPTION);
   });
 });
 
@@ -97,5 +92,8 @@ describe("getSettingsNavItem / getActiveSettingsNavItem", () => {
     expect(
       getActiveSettingsNavItem("/settings/catalogs/clave_prod_serv")?.id,
     ).toBe(SettingsSection.CATALOGS);
+    expect(
+      getActiveSettingsNavItem("/settings/billing/service-concepts")?.id,
+    ).toBe(SettingsSection.BILLING);
   });
 });

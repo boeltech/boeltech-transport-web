@@ -1,5 +1,9 @@
 export { InvoiceStatusBadge } from "./InvoiceStatusBadge";
 export { InvoiceEmailDispatchBadge } from "./InvoiceEmailDispatchBadge";
+export {
+  InvoiceFilesReadyAlert,
+  getInvoiceFilesReadyStorageKey,
+} from "./InvoiceFilesReadyAlert";
 export { InvoiceTable } from "./InvoiceTable";
 export { InvoiceCard } from "./InvoiceCard";
 export { InvoiceCardSkeleton } from "./InvoiceCardSkeleton";

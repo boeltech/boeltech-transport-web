@@ -6,7 +6,7 @@
  * Soporta dos modos de uso:
  *
  * 1. Con objeto trip (para TripTable):
- *    <TripActions trip={trip} onView={...} onEdit={...} />
+ *    <TripActions trip={trip} onView={...} onCancel={...} />
  *
  * 2. Con props individuales (para TripDetailPage):
  *    <TripActions tripId={id} tripCode={code} status={status} variant="detailMenu" />
@@ -64,7 +64,6 @@ import { showTripDetailErrorToast } from "../helpers/toastTripDetailError";
 import {
   MoreHorizontal,
   Eye,
-  Pencil,
   Trash2,
   XCircle,
   Loader2,
@@ -106,8 +105,6 @@ interface CommonProps {
   hasDeliveredCargo?: boolean;
   /** Callback para ver detalles (solo en modo dropdown desde tabla) */
   onView?: (id: string) => void;
-  /** Callback para editar (solo en modo dropdown desde tabla) */
-  onEdit?: (id: string) => void;
   /** Callback para eliminar (solo en modo dropdown desde tabla) */
   onDelete?: (id: string) => void;
   /** Callback para programar (solo en modo dropdown desde tabla) */
@@ -132,11 +129,6 @@ const VALID_TRANSITIONS: Record<TripStatusType, string[]> = {
   [TripStatus.CANCELLED]: [],
 };
 
-const EDITABLE_STATUSES: TripStatusType[] = [
-  TripStatus.DRAFT,
-  TripStatus.SCHEDULED,
-];
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -145,7 +137,6 @@ export function TripActions(props: TripActionsProps) {
   const {
     variant = "dropdown",
     onView,
-    onEdit,
     onDelete,
     onCancel,
     onActionComplete,
@@ -232,7 +223,6 @@ export function TripActions(props: TripActionsProps) {
     currentStatus === TripStatus.IN_PROGRESS &&
     hasRealArrival &&
     !hasDeliveredCargo;
-  const canEditTrip = EDITABLE_STATUSES.includes(currentStatus) && canUpdate;
   const canDeleteTrip = validTransitions.includes("delete") && canDelete;
 
   // ---------------------------------------------------------------------------
@@ -254,8 +244,7 @@ export function TripActions(props: TripActionsProps) {
     setCancelDialog({ open: false, reason: "" });
   };
 
-  const hasNoActions =
-    !canCancelTrip && !canEditTrip && !canDeleteTrip;
+  const hasNoActions = !canCancelTrip && !canDeleteTrip;
 
   const tripActionDialogs = (
     <>
@@ -372,7 +361,6 @@ export function TripActions(props: TripActionsProps) {
 
   if (variant === "dropdown") {
     const hasMutationMenuItems =
-      (canEditTrip && Boolean(onEdit)) ||
       (canCancelTrip && Boolean(onCancel)) ||
       (canDeleteTrip && Boolean(onDelete));
 
@@ -396,13 +384,6 @@ export function TripActions(props: TripActionsProps) {
             <DropdownMenuItem onClick={() => onView(id)}>
               <Eye className="mr-2 h-4 w-4" />
               Ver detalles
-            </DropdownMenuItem>
-          )}
-
-          {canEditTrip && onEdit && (
-            <DropdownMenuItem onClick={() => onEdit(id)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Editar
             </DropdownMenuItem>
           )}
 
@@ -510,19 +491,6 @@ export function TripActions(props: TripActionsProps) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {/* Editar */}
-        {canEditTrip && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/trips/${id}/edit`)}
-            disabled={isLoading}
-          >
-            <Pencil className="mr-2 h-4 w-4" />
-            Editar
-          </Button>
-        )}
-
         {/* Cancelar viaje */}
         {canCancelTrip && (
           <Button

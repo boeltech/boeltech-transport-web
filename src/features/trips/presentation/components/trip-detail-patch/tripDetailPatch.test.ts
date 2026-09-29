@@ -173,6 +173,25 @@ describe("tripDetailPatch", () => {
     expect(validateUpdateTripApiPayload(payload)).toEqual({ ok: true });
   });
 
+  it("omits scheduledArrival when the estimated arrival is empty", () => {
+    const values = mapTripToScheduleFormValues(baseTrip);
+    const payload = buildScheduleUpdateInput(baseTrip, {
+      ...values,
+      scheduledArrival: "",
+    });
+    expect(payload.scheduledDeparture).toContain("2026-05-14");
+    expect(payload).not.toHaveProperty("scheduledArrival");
+    expect(validateUpdateTripApiPayload(payload)).toEqual({ ok: true });
+  });
+
+  it("rejects explicit null scheduledArrival against the shared schema", () => {
+    const result = validateUpdateTripApiPayload({
+      scheduledDeparture: "2026-05-14T12:00:00.000Z",
+      scheduledArrival: null,
+    });
+    expect(result.ok).toBe(false);
+  });
+
   it("builds replace-stops payload without snapshot addressId for destination ETA", () => {
     const values = mapTripToScheduleFormValues(baseTrip);
     const stops = buildScheduleDestinationEtaReplaceStops(baseTrip, values);

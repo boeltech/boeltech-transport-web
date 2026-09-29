@@ -247,10 +247,10 @@ export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
   [SettingsSection.LOCATIONS]: "Bodegas",
   [SettingsSection.IMPORTS]: "Importar padrón",
   [SettingsSection.BILLING]: "Datos para facturar",
-  [SettingsSection.BILLING_SCHEMES]: "Esquemas de facturación",
+  [SettingsSection.BILLING_SCHEMES]: "Frecuencias de envío",
   [SettingsSection.SUBSCRIPTION]: "Tu plan",
   [SettingsSection.NOTIFICATIONS]: "Avisos de la empresa",
-  [SettingsSection.DASHBOARD_LAYOUTS]: "Dashboard",
+  [SettingsSection.DASHBOARD_LAYOUTS]: "Inicio",
   [SettingsSection.SECURITY]: "Seguridad",
   [SettingsSection.INTEGRATIONS]: "Integraciones",
 };

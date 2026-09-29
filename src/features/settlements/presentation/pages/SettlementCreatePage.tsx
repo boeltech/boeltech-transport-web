@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import {
   Calculator,
   Check,
@@ -53,11 +53,14 @@ import {
   useSettlementSettings,
 } from "../../application/hooks";
 import {
-  SETTLEMENTS_LIST_PATH,
   settlementDetailPath,
   settlementsAgreementsPath,
 } from "../../application/settlementsRoutes";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import {
+  resolveSettlementBackHref,
+  resolveSettlementWayfindingBackLabel,
+} from "../utils/settlementWayfinding";
 import { shouldShowSupportParticipationBadge } from "../utils/settlementParticipationHelpers";
 import { resolveSettlementCompensationReadiness } from "../utils/settlementTemplateReadiness";
 import { useTemplateAssignments } from "@features/compensation/application/hooks";
@@ -97,6 +100,10 @@ function deductableAdvanceBalance(adv: {
 
 export function SettlementCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromState = location.state?.from as string | undefined;
+  const backHref = resolveSettlementBackHref(fromState);
+  const backLabel = resolveSettlementWayfindingBackLabel(backHref);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const createMutation = useCreateSettlement();
@@ -395,7 +402,7 @@ export function SettlementCreatePage() {
         variant: degradedToDraft ? "default" : "success",
       });
       setConfirmDialogOpen(false);
-      navigate(settlementDetailPath(result.id));
+      navigate(settlementDetailPath(result.id), { state: { from: backHref } });
     } catch (error) {
       toast({
         title: createCopy.toasts.createError,
@@ -409,8 +416,8 @@ export function SettlementCreatePage() {
     <FormPageShell
       isLoading={false}
       header={{
-        backHref: SETTLEMENTS_LIST_PATH,
-        backLabel: copy.actions.backToList,
+        backHref,
+        backLabel,
         icon: <Banknote className="h-5 w-5" />,
         title: createCopy.header.title,
         subtitle: createCopy.header.subtitle,
@@ -1065,7 +1072,7 @@ export function SettlementCreatePage() {
                     <Button
                       variant="ghost"
                       className="w-full text-muted-foreground"
-                      onClick={() => navigate(SETTLEMENTS_LIST_PATH)}
+                      onClick={() => navigate(backHref)}
                     >
                       {createCopy.summary.cancelBtn}
                     </Button>

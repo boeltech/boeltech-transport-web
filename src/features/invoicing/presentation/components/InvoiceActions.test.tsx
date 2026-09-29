@@ -607,6 +607,52 @@ describe("InvoiceActions RBAC execute/delete", () => {
     expect(
       screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: actionsCopy.sendByEmail }),
+    ).toBeInTheDocument();
+  });
+
+  it("accountant with fiscal attention does not get elevated Sustituir", () => {
+    mockUseRole.mockReturnValue("accountant");
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+        status: "in_progress",
+      },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides Sustituir on stamped freight CFDI when the trip is false_trip", async () => {

@@ -47,8 +47,16 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
   const persisted = tripToScheduleFormValues(trip);
   const { toast } = useToast();
   const [draft, setDraft] = useState<TripScheduleFormValues>(persisted);
-  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [departureError, setDepartureError] = useState<string | null>(null);
+  const [arrivalError, setArrivalError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const scheduleFieldProps = tripScheduleDateTimeFieldProps(operationCopy.preset);
+
+  const clearErrors = () => {
+    setDepartureError(null);
+    setArrivalError(null);
+    setFormError(null);
+  };
 
   const updateTrip = useUpdateTrip({
     onError: (error) => {
@@ -87,16 +95,24 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
   ]);
 
   const handleSave = async () => {
-    setFieldError(null);
+    clearErrors();
     if (!draft.scheduledDeparture.trim()) {
-      setFieldError(operationCopy.error.departureRequired);
+      setDepartureError(operationCopy.error.departureRequired);
       return;
     }
 
     const payload = buildScheduleUpdateInput(trip, draft);
     const validation = validateUpdateTripApiPayload(payload);
     if (!validation.ok) {
-      setFieldError(formatTripApiValidationForUser(validation.fieldErrors, 2));
+      const message = formatTripApiValidationForUser(validation.fieldErrors, 2);
+      const paths = Object.keys(validation.fieldErrors);
+      if (paths.some((path) => /^scheduled_arrival/i.test(path))) {
+        setArrivalError(message);
+      } else if (paths.some((path) => /^scheduled_departure/i.test(path))) {
+        setDepartureError(message);
+      } else {
+        setFormError(message);
+      }
       return;
     }
 
@@ -116,7 +132,7 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
 
   const handleCancel = () => {
     setDraft(persisted);
-    setFieldError(null);
+    clearErrors();
   };
 
   return (
@@ -125,7 +141,7 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
         fieldId="trip-schedule-departure"
         label={operationCopy.label.scheduledDeparture}
         required
-        errorMessage={fieldError ?? undefined}
+        errorMessage={departureError ?? undefined}
       >
         <DateTimeField
           id="trip-schedule-departure"
@@ -134,14 +150,18 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
             setDraft((prev) => ({ ...prev, scheduledDeparture }))
           }
           disabled={isPending}
-          error={Boolean(fieldError)}
+          error={Boolean(departureError)}
           {...scheduleFieldProps}
-          {...getFieldErrorAriaProps("trip-schedule-departure", fieldError ?? undefined)}
+          {...getFieldErrorAriaProps(
+            "trip-schedule-departure",
+            departureError ?? undefined,
+          )}
         />
       </FormFieldShell>
       <FormFieldShell
         fieldId="trip-schedule-arrival"
         label={operationCopy.label.scheduledArrival}
+        errorMessage={arrivalError ?? undefined}
       >
         <DateTimeField
           id="trip-schedule-arrival"
@@ -150,11 +170,16 @@ function TripScheduleInlineEditorEditable({ trip }: { trip: Trip }) {
             setDraft((prev) => ({ ...prev, scheduledArrival }))
           }
           disabled={isPending}
+          error={Boolean(arrivalError)}
           {...scheduleFieldProps}
+          {...getFieldErrorAriaProps(
+            "trip-schedule-arrival",
+            arrivalError ?? undefined,
+          )}
         />
       </FormFieldShell>
-      {fieldError ? (
-        <FieldInlineError fieldId="trip-schedule-form" message={fieldError} />
+      {formError ? (
+        <FieldInlineError fieldId="trip-schedule-form" message={formError} />
       ) : null}
       {isDirty ? (
         <div className="flex flex-wrap gap-2">

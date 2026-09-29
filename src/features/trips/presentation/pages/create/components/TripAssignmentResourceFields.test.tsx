@@ -15,6 +15,9 @@ vi.mock("@features/auth", () => ({
     user: { role: ROLES.ADMIN },
   }),
 }));
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({ hasPermission: () => true }),
+}));
 vi.mock("@features/trailers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@features/trailers")>();
   return {

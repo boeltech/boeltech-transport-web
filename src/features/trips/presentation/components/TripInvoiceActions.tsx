@@ -64,12 +64,16 @@ export function TripInvoiceActions({
   onOpenRevenueSplit,
 }: TripInvoiceActionsProps) {
   const navigate = useNavigate();
+  const goToInvoice = (href: string) =>
+    navigate(href, { state: { from: `/trips/${trip.id}` } });
   const { hasPermission } = usePermissions();
 
   const canCreateInvoices = hasPermission("invoices", "create");
   const canReadInvoices = hasPermission("invoices", "read");
   const canUpdateTrip = hasPermission("trips", "update");
+  const canExecuteTrip = hasPermission("trips", "execute");
   const canReadTrip = hasPermission("trips", "read");
+  const canOperatePatio = canUpdateTrip || canExecuteTrip;
 
   const canViewLinkedInvoice =
     (canReadInvoices || canCreateInvoices) && !!trip.invoicing.invoiceId;
@@ -147,6 +151,14 @@ export function TripInvoiceActions({
       !hasDraftSplit &&
       !upsertEligibility.allowed);
 
+  const canShowPendingAccountantHint =
+    !canCreateInvoices &&
+    !isSinCfdiEfectivo &&
+    !isTripCancelled &&
+    (trip.invoicing.canGenerateInvoice ||
+      trip.invoicing.canGenerateFalseTripInvoice ||
+      trip.invoicing.canGenerateSplitShareInvoice);
+
   const canShowAccessoryInvoiceAction =
     !isSinCfdiEfectivo &&
     !isTripCancelled &&
@@ -184,7 +196,8 @@ export function TripInvoiceActions({
     !canShowLinkedInvoiceState &&
     !canShowAccessoryInvoiceAction &&
     !canShowSplitShareInvoiceAction &&
-    !canShowRevenueSplitEntry
+    !canShowRevenueSplitEntry &&
+    !canShowPendingAccountantHint
   ) {
     return null;
   }
@@ -199,8 +212,11 @@ export function TripInvoiceActions({
     cfdiEmissionIntent: trip.cfdiEmissionIntent,
   });
 
+  const showPatioEscalateHint = !canOperatePatio && hasDraftSplit;
+
   const revenueSplitMenuItem =
-    canShowRevenueSplitEntry && (canUpdateTrip || trip.invoicing.hasActiveSplit) ? (
+    canShowRevenueSplitEntry &&
+    (canOperatePatio || trip.invoicing.hasActiveSplit) ? (
       <>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -230,7 +246,7 @@ export function TripInvoiceActions({
         ? invoicedSplitLegs.map((leg) => (
             <DropdownMenuItem
               key={`view-${leg.id}`}
-              onSelect={() => navigate(`/invoices/${leg.invoiceId}`)}
+              onSelect={() => goToInvoice(`/invoices/${leg.invoiceId}`)}
             >
               <FileText className="mr-2 h-4 w-4" />
               {copy.viewSplitShare(legLabel(leg))}
@@ -246,7 +262,7 @@ export function TripInvoiceActions({
               <DropdownMenuItem
                 key={`create-${leg.id}`}
                 onSelect={() =>
-                  navigate(splitInvoiceHref(trip.id, leg.id, attach))
+                  goToInvoice(splitInvoiceHref(trip.id, leg.id, attach))
                 }
               >
                 <Receipt className="mr-2 h-4 w-4" />
@@ -273,14 +289,14 @@ export function TripInvoiceActions({
         {accessoryInvoices.map((inv) => (
           <DropdownMenuItem
             key={inv.id}
-            onSelect={() => navigate(`/invoices/${inv.id}`)}
+            onSelect={() => goToInvoice(`/invoices/${inv.id}`)}
           >
             <FileText className="mr-2 h-4 w-4" />
             {copy.viewAccessory(inv.folio)}
           </DropdownMenuItem>
         ))}
         {canShowAccessoryInvoiceAction ? (
-          <DropdownMenuItem onSelect={() => navigate(createAccessoryHref)}>
+          <DropdownMenuItem onSelect={() => goToInvoice(createAccessoryHref)}>
             <Receipt className="mr-2 h-4 w-4" />
             {copy.generateAccessory}
           </DropdownMenuItem>
@@ -288,16 +304,41 @@ export function TripInvoiceActions({
       </>
     ) : null;
 
+  const pendingAccountantBadge = canShowPendingAccountantHint ? (
+    <Badge
+      variant="warning"
+      tone="soft"
+      title={copy.pendingAccountantHint}
+    >
+      {copy.pendingAccountant}
+    </Badge>
+  ) : null;
+
   if (presentation === "headerMenu") {
+    const hasHeaderMenuWork =
+      canShowCreateInvoiceAction ||
+      canShowFalseTripInvoiceAction ||
+      canShowLinkedInvoiceState ||
+      canShowAccessoryInvoiceAction ||
+      canShowSplitMenuGroup ||
+      canShowRevenueSplitEntry;
+
+    if (pendingAccountantBadge && !hasHeaderMenuWork) {
+      return (
+        <span className={className}>{pendingAccountantBadge}</span>
+      );
+    }
+
     const showMenuHeader =
       trip.invoicing.hasActiveSplit ||
       canShowLinkedInvoiceState ||
       canShowSplitMenuGroup ||
       canShowAccessoryInvoiceAction ||
       canShowCreateInvoiceAction ||
-      canShowFalseTripInvoiceAction;
+      canShowFalseTripInvoiceAction ||
+      canShowPendingAccountantHint;
 
-    return (
+    const menu = (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className={className}>
@@ -331,10 +372,21 @@ export function TripInvoiceActions({
             </DropdownMenuLabel>
           ) : null}
 
-          {canShowCreateInvoiceAction ? (
+          {showPatioEscalateHint ? (
             <>
               {showMenuHeader ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuItem onSelect={() => navigate(createPrimaryHref)}>
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground whitespace-normal">
+                {copy.patioEscalateHint}
+              </DropdownMenuLabel>
+            </>
+          ) : null}
+
+          {canShowCreateInvoiceAction ? (
+            <>
+              {showMenuHeader || showPatioEscalateHint ? (
+                <DropdownMenuSeparator />
+              ) : null}
+              <DropdownMenuItem onSelect={() => goToInvoice(createPrimaryHref)}>
                 <Receipt className="mr-2 h-4 w-4" />
                 {copy.generatePrimary}
               </DropdownMenuItem>
@@ -344,7 +396,7 @@ export function TripInvoiceActions({
           {canShowFalseTripInvoiceAction && !canShowCreateInvoiceAction ? (
             <>
               {showMenuHeader ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuItem onSelect={() => navigate(createFalseTripHref)}>
+              <DropdownMenuItem onSelect={() => goToInvoice(createFalseTripHref)}>
                 <Receipt className="mr-2 h-4 w-4" />
                 {copy.generateFalseTrip}
               </DropdownMenuItem>
@@ -357,7 +409,7 @@ export function TripInvoiceActions({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onSelect={() => navigate(`/invoices/${trip.invoicing.invoiceId}`)}
+                onSelect={() => goToInvoice(`/invoices/${trip.invoicing.invoiceId}`)}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 {copy.viewPrimary}
@@ -370,6 +422,15 @@ export function TripInvoiceActions({
         </DropdownMenuContent>
       </DropdownMenu>
     );
+
+    if (!pendingAccountantBadge) return menu;
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {pendingAccountantBadge}
+        {menu}
+      </div>
+    );
   }
 
   if (canShowCreateInvoiceAction || canShowFalseTripInvoiceAction) {
@@ -378,17 +439,22 @@ export function TripInvoiceActions({
       : createPrimaryHref;
     return (
       <div className={`flex flex-wrap items-center gap-2 ${className ?? ""}`}>
-        <Button variant="outline" onClick={() => navigate(createHref)}>
+        <Button variant="outline" onClick={() => goToInvoice(createHref)}>
           <Receipt className="h-4 w-4 mr-2" />
           {canShowFalseTripInvoiceAction
             ? copy.generateFalseTrip
             : copy.generatePrimary}
         </Button>
-        {canShowRevenueSplitEntry && onOpenRevenueSplit ? (
+        {canShowRevenueSplitEntry && onOpenRevenueSplit && canOperatePatio ? (
           <Button variant="outline" onClick={onOpenRevenueSplit}>
             <Users className="h-4 w-4 mr-2" />
             {revenueSplitMenuLabel}
           </Button>
+        ) : null}
+        {showPatioEscalateHint ? (
+          <p className="text-xs text-muted-foreground max-w-xs">
+            {copy.patioEscalateHint}
+          </p>
         ) : null}
       </div>
     );
@@ -399,9 +465,19 @@ export function TripInvoiceActions({
       <div className="flex items-center gap-2 flex-wrap">
         <div className="rounded-md border px-3 py-2">
           <div className="flex items-center gap-2">
-            <Badge variant={tripInvoicingConfig.variant}>
-              {tripInvoicingConfig.label}
-            </Badge>
+            {canShowPendingAccountantHint ? (
+              <Badge
+                variant="warning"
+                tone="soft"
+                title={copy.pendingAccountantHint}
+              >
+                {copy.pendingAccountant}
+              </Badge>
+            ) : (
+              <Badge variant={tripInvoicingConfig.variant}>
+                {tripInvoicingConfig.label}
+              </Badge>
+            )}
             {trip.invoicing.invoiceFolio ? (
               <span className="text-xs text-muted-foreground">
                 {trip.invoicing.invoiceFolio}
@@ -412,7 +488,7 @@ export function TripInvoiceActions({
         {canViewLinkedInvoice ? (
           <Button
             variant="outline"
-            onClick={() => navigate(`/invoices/${trip.invoicing.invoiceId}`)}
+            onClick={() => goToInvoice(`/invoices/${trip.invoicing.invoiceId}`)}
           >
             <FileText className="h-4 w-4 mr-2" />
             {copy.viewPrimary}
@@ -428,7 +504,7 @@ export function TripInvoiceActions({
                   key={leg.id}
                   variant="outline"
                   onClick={() =>
-                    navigate(splitInvoiceHref(trip.id, leg.id, attach))
+                    goToInvoice(splitInvoiceHref(trip.id, leg.id, attach))
                   }
                 >
                   <Receipt className="h-4 w-4 mr-2" />
@@ -438,7 +514,7 @@ export function TripInvoiceActions({
             })
           : null}
         {canShowAccessoryInvoiceAction ? (
-          <Button variant="outline" onClick={() => navigate(createAccessoryHref)}>
+          <Button variant="outline" onClick={() => goToInvoice(createAccessoryHref)}>
             <Receipt className="h-4 w-4 mr-2" />
             {copy.generateAccessory}
           </Button>

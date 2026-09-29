@@ -143,6 +143,7 @@ export function TripLiquidacionChip({
               <Button asChild>
                 <Link
                   to={`/clients/${trip.clientId}`}
+                  state={{ from: `/trips/${trip.id}` }}
                   onClick={() => setBlockEmitirOpen(false)}
                 >
                   {copy.blockEmitir.goToClient}

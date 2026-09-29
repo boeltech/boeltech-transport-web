@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Invoice } from "@features/invoicing/domain";
 import { ApiError } from "@shared/api/interceptors/error-handler";
+import { invoicingCopy } from "../copy/invoicingCopy";
 import { InvoiceDetailPage } from "./InvoiceDetailPage";
 
 const useInvoiceMock = vi.fn();
@@ -107,6 +108,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     qrCode: null,
     pdfUrl: null,
     stampedAt: "2026-06-01T12:05:00.000Z",
+    dispatchSentAt: null,
     cancelledAt: null,
     cancellationReason: null,
     cancellationCode: null,
@@ -298,7 +300,39 @@ describe("InvoiceDetailPage", () => {
     expect(screen.getByText("Factura no encontrada")).toBeInTheDocument();
   });
 
-  it("shows fiscal attention banner with textual Sustituir link (no duplicate button CTA)", () => {
+  it("shows PUE follow-through without promising REP", () => {
+    renderPage();
+
+    expect(screen.getByText("Siguiente paso")).toBeInTheDocument();
+    expect(
+      screen.getByText(/No hay complemento de pagos/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Ir a Envíos/i }),
+    ).toHaveAttribute("href", "/finance/dispatch");
+    expect(screen.queryByRole("link", { name: /Ir a Cobros/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Cartera/i)).not.toBeInTheDocument();
+  });
+
+  it("manager follow-through conserva Enviar y no enseña Por facturar ni emitir", () => {
+    mockUseRole.mockReturnValue("manager");
+    renderPage();
+
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.followThroughSendManager),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Ir a Envíos/i }),
+    ).toHaveAttribute("href", "/finance/dispatch");
+    expect(screen.queryByText(/Por facturar/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/emitir/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(invoicingCopy.detail.hint.followThroughSend),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows fiscal attention banner with textual Sustituir link for manager", () => {
+    mockUseRole.mockReturnValue("manager");
     useTripMock.mockReturnValue({
       data: {
         requiresFiscalAttention: true,
@@ -342,6 +376,52 @@ describe("InvoiceDetailPage", () => {
       screen.queryByRole("button", { name: /^Sustituir factura$/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Atención fiscal")).toBeInTheDocument();
+  });
+
+  it("accountant with fiscal attention does not see Sustituir; asks a manager", () => {
+    mockUseRole.mockReturnValue("accountant");
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+        status: "in_progress",
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        canSubstituteInvoice: true,
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-260904-0004",
+            clientName: "XENON",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText("Revisión de facturación pendiente"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Sustituir$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Pide a un gerente cancelar o sustituir/i),
+    ).toBeInTheDocument();
   });
 
   it("hides fiscal attention Sustituir banner for false_trip and shows cancel CFDI banner instead", () => {
@@ -392,10 +472,13 @@ describe("InvoiceDetailPage", () => {
       screen.queryByRole("button", { name: /^Sustituir$/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("Cancela la factura de flete"),
+      screen.getByText("Trámite SAT: pide a un gerente"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /^Cancelar$/i }),
+      screen.queryByRole("button", { name: /^Cancelar$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Cancelar o sustituir esta factura lo hace un gerente/i),
     ).toBeInTheDocument();
     expect(screen.getByText("Atención fiscal")).toBeInTheDocument();
   });
@@ -532,9 +615,12 @@ describe("InvoiceDetailPage", () => {
 
     renderPage();
 
-    expect(screen.getByText("Cancela la factura")).toBeInTheDocument();
+    expect(screen.getByText("Trámite SAT: pide a un gerente")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /^Cancelar$/i }),
+      screen.queryByRole("button", { name: /^Cancelar$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Cancelar o sustituir esta factura lo hace un gerente/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /^Sustituir$/i }),
@@ -542,6 +628,72 @@ describe("InvoiceDetailPage", () => {
     expect(
       screen.queryByText("Revisión de facturación pendiente"),
     ).not.toBeInTheDocument();
+  });
+
+  it("cliente: labels Facturado y oculta badge de envío", () => {
+    mockUseRole.mockReturnValue("client");
+    renderPage();
+
+    expect(screen.getByText("Facturado")).toBeInTheDocument();
+    expect(screen.queryByText("Timbrada")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enviada")).not.toBeInTheDocument();
+    expect(screen.queryByText("No enviada")).not.toBeInTheDocument();
+  });
+
+  it("cliente: Borrador muestra alerta de escala", () => {
+    mockUseRole.mockReturnValue("client");
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "draft",
+        cfdiUuid: null,
+        hasStampedXml: false,
+        stampedAt: null,
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Borrador")).toBeInTheDocument();
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.clientDraftTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.clientDraftBody),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Timbrar$/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("cliente 403: no es tuya o pide vínculo; back a Mis facturas", () => {
+    mockUseRole.mockReturnValue("client");
+    useInvoiceMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: {
+        isAxiosError: true,
+        response: { status: 403 },
+        message: "Request failed with status code 403",
+      },
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Acceso denegado")).toBeInTheDocument();
+    expect(
+      screen.getByText(invoicingCopy.detail.forbidden.descriptionClient),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: invoicingCopy.detail.header.backToClientInvoices,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("retries load on server error", async () => {

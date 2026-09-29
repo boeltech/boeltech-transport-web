@@ -104,7 +104,7 @@ import { mapTripToWizardFormValues } from "./tripFormMappers";
 import { shouldHydrateTripWizard } from "./tripWizardHydration";
 import { parseTripWizardStepParam } from "./wizardStepFromSearchParams";
 import {
-  summarizeTripApiPayloadErrors,
+  formatTripApiValidationForUser,
   validateCreateTripApiPayload,
   validateUpdateTripApiPayload,
 } from "./validateTripApiPayload";
@@ -858,7 +858,7 @@ export function TripFormPage() {
       if (!updateApiCheck.ok) {
         toast({
           title: shell.toast.serverValidationTitle,
-          description: summarizeTripApiPayloadErrors(updateApiCheck.fieldErrors),
+          description: formatTripApiValidationForUser(updateApiCheck.fieldErrors),
           variant: "error",
         });
         return;
@@ -883,7 +883,7 @@ export function TripFormPage() {
     if (!createApiCheck.ok) {
       toast({
         title: shell.toast.serverValidationTitle,
-        description: summarizeTripApiPayloadErrors(createApiCheck.fieldErrors),
+        description: formatTripApiValidationForUser(createApiCheck.fieldErrors),
         variant: "error",
       });
       return;

@@ -79,6 +79,8 @@ export type StartTripSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (trip: Trip) => void;
+  /** Conductor: Iniciar bloqueado escala a patio (D10). */
+  isDriverPortal?: boolean;
 };
 
 type StartTripSheetBodyProps = Omit<StartTripSheetProps, "open">;
@@ -94,6 +96,7 @@ function StartTripSheetBody({
   cargos = [],
   onOpenChange,
   onSuccess,
+  isDriverPortal = false,
 }: StartTripSheetBodyProps) {
   const { toast } = useToast();
   const [occurredAt, setOccurredAt] = useState(defaultOccurredAtLocal);
@@ -136,8 +139,11 @@ function StartTripSheetBody({
       return { canStart: true as const, message: null };
     }
 
-    return { canStart: false as const, message: issues.join(" ") };
-  }, [driver, isLoadingDriver, isLoadingVehicle, vehicle]);
+    const message = isDriverPortal
+      ? `${issues.join(" ")} ${copy.hint.startBlockedEscalatePatio}`
+      : issues.join(" ");
+    return { canStart: false as const, message };
+  }, [driver, isDriverPortal, isLoadingDriver, isLoadingVehicle, vehicle]);
 
   const suggestedMileage = resolveSuggestedStartMileage(
     vehicle?.currentMileage,
@@ -370,6 +376,7 @@ export function StartTripSheet({
   open,
   onOpenChange,
   onSuccess,
+  isDriverPortal = false,
 }: StartTripSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -395,6 +402,7 @@ export function StartTripSheet({
             cargos={cargos}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
+            isDriverPortal={isDriverPortal}
           />
         ) : null}
       </SheetContent>

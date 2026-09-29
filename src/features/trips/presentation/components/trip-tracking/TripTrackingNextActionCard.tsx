@@ -25,6 +25,10 @@ export type TripTrackingNextActionCardProps = {
   stops: readonly TripStop[];
   cargos?: readonly TripCargo[];
   /**
+   * `trips.update` para mutar cargas. Sin él, cargo_blocked escala a patio (D11).
+   */
+  canMutateCargo?: boolean;
+  /**
    * Lleva el foco al hub «Paradas y cargas» (p. ej. cargas pendientes).
    * El padre asigna el nonce de `TrackingOperationalFocusRequest`.
    */
@@ -77,10 +81,13 @@ export function TripTrackingNextActionCard({
   tripStatus,
   stops,
   cargos,
+  canMutateCargo = true,
   onNavigateToOperationalHub,
   className,
 }: TripTrackingNextActionCardProps) {
-  const primary = resolveTrackingPrimaryAction(tripStatus, stops, cargos);
+  const primary = resolveTrackingPrimaryAction(tripStatus, stops, cargos, {
+    canMutateCargo,
+  });
   const Icon = ACTION_ICONS[primary.kind];
   const terminal = isTerminalTripStatus(tripStatus);
   const isReadOnlyGuide =

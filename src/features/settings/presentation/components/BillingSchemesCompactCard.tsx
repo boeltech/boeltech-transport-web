@@ -1,12 +1,20 @@
-/**
- * Catálogo de esquemas de facturación (ADR-0082).
- * Master-detail Settings — consulta en panel + edición en Sheet.
+﻿/**
+ * Card compacta de frecuencias de envio (ADR-0082).
+ * Lista + Sheet de alta/edicion. Vive en Envios del periodo, no en Settings.
  */
 
 import { useMemo, useState } from "react";
-import { CalendarClock, ChevronDown, Loader2, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CalendarClock, Loader2, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@shared/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,11 +26,6 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { Checkbox } from "@shared/ui/checkbox";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { FormFieldShell } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
@@ -43,8 +46,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
-import { cn } from "@shared/lib/utils/cn";
-import { formatDateTime } from "@shared/utils/dateUtils";
 import { usePermissions } from "@shared/permissions";
 import {
   BILLING_CADENCE_KINDS,
@@ -62,8 +63,6 @@ import {
   buildBillingSchemePreviewParams,
   formatBillingSchemeCadenceSummary,
   formatBillingSchemeNaturalDescription,
-  formatBillingSchemePeriodExample,
-  formatBillingSchemePeriodRuleBullets,
 } from "../utils/formatBillingSchemeCadence";
 import {
   SETTINGS_SHEET_BODY_CLASS,
@@ -193,123 +192,45 @@ function validateForm(form: FormState): FieldErrors {
 
 interface SchemeListRowProps {
   scheme: BillingScheme;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function SchemeListRow({ scheme, selected, onClick }: SchemeListRowProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "w-full rounded-md border px-3 py-2 text-left text-sm transition-colors",
-        selected
-          ? "border-primary bg-primary/5"
-          : "border-border hover:bg-muted/50",
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{scheme.name}</span>
-        {scheme.isDefault ? (
-          <Badge variant="secondary" className="text-xs">
-            {copy.list.defaultBadge}
-          </Badge>
-        ) : null}
-        {!scheme.isActive ? (
-          <Badge variant="outline" className="text-xs">
-            {copy.list.inactiveBadge}
-          </Badge>
-        ) : null}
-      </div>
-      <div className="text-xs text-muted-foreground">
-        {formatBillingSchemeCadenceSummary(scheme)}
-      </div>
-    </button>
-  );
-}
-
-interface BillingSchemeDetailViewProps {
-  scheme: BillingScheme;
   canMutate: boolean;
   onEdit: () => void;
   onDeactivate: () => void;
 }
 
-function BillingSchemeDetailView({
+function SchemeListRow({
   scheme,
   canMutate,
   onEdit,
   onDeactivate,
-}: BillingSchemeDetailViewProps) {
-  const periodBullets = formatBillingSchemePeriodRuleBullets(scheme);
-  const periodExample = formatBillingSchemePeriodExample(scheme);
-
+}: SchemeListRowProps) {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold">{scheme.name}</h3>
-          <div className="flex flex-wrap gap-2">
-            {scheme.isDefault ? (
-              <Badge variant="secondary">{copy.list.defaultBadge}</Badge>
-            ) : null}
-            {!scheme.isActive ? (
-              <Badge variant="outline">{copy.list.inactiveBadge}</Badge>
-            ) : null}
-          </div>
+    <div className="flex items-start justify-between gap-3 rounded-md border px-3 py-2">
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{scheme.name}</span>
+          {scheme.isDefault ? (
+            <Badge variant="secondary" className="text-xs">
+              {copy.list.defaultBadge}
+            </Badge>
+          ) : null}
+          {!scheme.isActive ? (
+            <Badge variant="outline" className="text-xs">
+              {copy.list.inactiveBadge}
+            </Badge>
+          ) : null}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {formatBillingSchemeCadenceSummary(scheme)}
         </div>
       </div>
-
-      <section className="space-y-2">
-        <h4 className="text-sm font-medium">{copy.detail.summaryTitle}</h4>
-        <p className="text-sm text-muted-foreground">
-          {formatBillingSchemeNaturalDescription(scheme)}
-        </p>
-      </section>
-
-      <section className="space-y-2 rounded-md border bg-muted/20 p-3">
-        <div className="flex items-start gap-2">
-          <CalendarClock
-            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-          <div className="space-y-1">
-            <h4 className="text-sm font-medium">
-              {copy.detail.periodExampleTitle}
-            </h4>
-            <p className="text-sm text-muted-foreground">{periodExample}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <h4 className="text-sm font-medium">{copy.detail.periodRuleTitle}</h4>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          {periodBullets.map((bullet) => (
-            <li key={bullet}>{bullet}</li>
-          ))}
-        </ul>
-      </section>
-
-      <Collapsible>
-        <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/50">
-          {copy.detail.detailsTitle}
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-1 px-1 pt-2 text-xs text-muted-foreground">
-          <p>{copy.detail.createdAt(formatDateTime(scheme.createdAt))}</p>
-          <p>{copy.detail.updatedAt(formatDateTime(scheme.updatedAt))}</p>
-        </CollapsibleContent>
-      </Collapsible>
-
       {canMutate ? (
-        <div className="flex flex-wrap gap-2 border-t pt-4">
-          <Button type="button" onClick={onEdit}>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          <Button type="button" size="sm" variant="ghost" onClick={onEdit}>
             {copy.detail.edit}
           </Button>
           <Button
             type="button"
+            size="sm"
             variant="ghost"
             className="text-destructive"
             onClick={onDeactivate}
@@ -664,7 +585,7 @@ function BillingSchemeFormSheet({
   );
 }
 
-export function BillingSchemesMasterDetail() {
+export function BillingSchemesCompactCard() {
   const { hasPermission } = usePermissions();
   const canMutate = hasPermission("invoices", "update");
   const { data: schemes = [], isLoading, isError } = useBillingSchemes();
@@ -673,30 +594,15 @@ export function BillingSchemesMasterDetail() {
   const deleteMutation = useDeleteBillingScheme();
 
   const sorted = useMemo(() => sortSchemes(schemes), [schemes]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingScheme, setEditingScheme] = useState<BillingScheme | null>(
+    null,
+  );
   const [sheetMode, setSheetMode] = useState<SheetMode | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BillingScheme | null>(null);
 
   const isEmpty = sorted.length === 0;
   const sheetOpen = sheetMode != null;
-
-  const preferredId = useMemo(() => {
-    const preferred =
-      sorted.find((s) => s.isDefault && s.isActive) ??
-      sorted.find((s) => s.isDefault) ??
-      sorted[0];
-    return preferred?.id ?? null;
-  }, [sorted]);
-
-  const displaySelectedId =
-    selectedId && sorted.some((s) => s.id === selectedId)
-      ? selectedId
-      : preferredId;
-
-  const selected =
-    displaySelectedId != null
-      ? (sorted.find((s) => s.id === displaySelectedId) ?? null)
-      : null;
+  const sheetScheme = sheetMode === "edit" ? editingScheme : null;
 
   const isPending =
     createMutation.isPending ||
@@ -704,19 +610,20 @@ export function BillingSchemesMasterDetail() {
     deleteMutation.isPending;
 
   const handleOpenCreate = () => {
+    setEditingScheme(null);
     setSheetMode("create");
   };
 
-  const handleOpenEdit = () => {
+  const handleOpenEdit = (scheme: BillingScheme) => {
+    setEditingScheme(scheme);
     setSheetMode("edit");
   };
 
-  const handleSelect = (scheme: BillingScheme) => {
-    setSelectedId(scheme.id);
-  };
-
   const handleSheetOpenChange = (open: boolean) => {
-    if (!open) setSheetMode(null);
+    if (!open) {
+      setSheetMode(null);
+      setEditingScheme(null);
+    }
   };
 
   const handleSave = async (form: FormState) => {
@@ -727,44 +634,51 @@ export function BillingSchemesMasterDetail() {
       isDefault: form.isDefault,
     };
 
-    if (sheetMode === "edit" && selected) {
-      await updateMutation.mutateAsync({ id: selected.id, payload });
+    if (sheetMode === "edit" && editingScheme) {
+      await updateMutation.mutateAsync({ id: editingScheme.id, payload });
       setSheetMode(null);
+      setEditingScheme(null);
       return;
     }
 
-    const created = await createMutation.mutateAsync(payload);
-    setSelectedId(created.id);
+    await createMutation.mutateAsync(payload);
     setSheetMode(null);
+    setEditingScheme(null);
   };
 
   const confirmDeactivate = async () => {
     if (!deleteTarget) return;
     await deleteMutation.mutateAsync(deleteTarget.id);
     setDeleteTarget(null);
-    if (selectedId === deleteTarget.id) {
-      setSelectedId(null);
+    if (editingScheme?.id === deleteTarget.id) {
+      setEditingScheme(null);
+      setSheetMode(null);
     }
   };
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">
-          {copy.list.title} ({sorted.length})
-        </h2>
-        {canMutate ? (
-          <Button type="button" size="sm" onClick={handleOpenCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            {copy.list.add}
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="mt-4 grid min-h-[420px] grid-cols-1 gap-4 lg:grid-cols-[minmax(240px,320px)_1fr]">
-        <div className="space-y-2 rounded-lg border bg-muted/20 p-2">
+      <Card>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle>{copy.page.title}</CardTitle>
+            <CardDescription>
+              {copy.page.assignmentTip}{" "}
+              <Button type="button" variant="link" className="h-auto p-0" asChild>
+                <Link to="/clients">{copy.page.clientsCta}</Link>
+              </Button>
+            </CardDescription>
+          </div>
+          {canMutate ? (
+            <Button type="button" size="sm" onClick={handleOpenCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              {copy.list.add}
+            </Button>
+          ) : null}
+        </CardHeader>
+        <CardContent className="space-y-2">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+            <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin" />
               {copy.list.loading}
             </div>
@@ -793,33 +707,19 @@ export function BillingSchemesMasterDetail() {
               <SchemeListRow
                 key={scheme.id}
                 scheme={scheme}
-                selected={scheme.id === displaySelectedId}
-                onClick={() => handleSelect(scheme)}
+                canMutate={canMutate}
+                onEdit={() => handleOpenEdit(scheme)}
+                onDeactivate={() => setDeleteTarget(scheme)}
               />
             ))
           )}
-        </div>
-
-        <div className="rounded-lg border bg-card p-4">
-          {selected ? (
-            <BillingSchemeDetailView
-              scheme={selected}
-              canMutate={canMutate}
-              onEdit={handleOpenEdit}
-              onDeactivate={() => setDeleteTarget(selected)}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {copy.list.selectPrompt}
-            </p>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <BillingSchemeFormSheet
         open={sheetOpen}
         mode={sheetMode}
-        scheme={selected}
+        scheme={sheetScheme}
         isPending={isPending}
         canMutate={canMutate}
         onOpenChange={handleSheetOpenChange}

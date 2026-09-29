@@ -42,6 +42,29 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.action.more).toBe("Más");
   });
 
+  it("accountant: abrir factura y pide gerente, sin CTA Sustituir", () => {
+    expect(shellCopy.alert.fiscalAttentionOpenInvoiceCta).toBe("Abrir factura");
+    expect(shellCopy.alert.fiscalAttentionAskManagerBody).toMatch(/gerente/i);
+    expect(shellCopy.alert.fiscalAttentionAskManagerBody).not.toMatch(
+      /Sustituir factura/i,
+    );
+    expect(shellCopy.alert.fiscalAttentionEscalateBody).toMatch(
+      /Avisa a facturación/i,
+    );
+  });
+
+  it("manager mid-trip: trámite en la factura, sin Operación como paso 1", () => {
+    expect(shellCopy.alert.fiscalAttentionManagerBody).toMatch(/sustituye/i);
+    expect(shellCopy.alert.fiscalAttentionManagerBody).not.toMatch(/Operación/i);
+    expect(shellCopy.alert.fiscalAttentionCta).toBe("Sustituir factura");
+    expect(shellCopy.alert.fiscalAttentionSplitManagerBody).toMatch(
+      /cada porción/i,
+    );
+    expect(shellCopy.alert.fiscalAttentionSplitManagerBody).not.toMatch(
+      /Operación/i,
+    );
+  });
+
   it("orienta atención fiscal al camino Operación → sustituir (T4-041)", () => {
     expect(shellCopy.alert.fiscalAttentionBody).toMatch(/Operación/i);
     expect(shellCopy.alert.fiscalAttentionBody).toMatch(/docs vencidos|reasigna/i);
@@ -119,5 +142,31 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.alert.openIncidentBody).not.toMatch(/sin cerrar/i);
     expect(shellCopy.alert.openIncidentBody).not.toMatch(/pendiente de atención/i);
     expect(shellCopy.tab.trackingIncident).not.toMatch(/sin cerrar/i);
+  });
+
+  it("cliente 403: no es tuyo o pide vínculo; back a Mis envíos (D9)", () => {
+    expect(shellCopy.state.accessDeniedDescriptionClient).toMatch(
+      /no es tuyo|vinculado/i,
+    );
+    expect(shellCopy.state.accessDeniedDescriptionClient).toMatch(
+      /administración/i,
+    );
+    expect(shellCopy.state.backToListClient).toBe("Volver a Mis envíos");
+    expect(shellCopy.state.accessDeniedDescriptionClient).not.toBe(
+      shellCopy.state.accessDeniedDescriptionDriver,
+    );
+  });
+
+  it("conductor 403: no es tuyo o pide vínculo; back a Mis viajes (D9)", () => {
+    expect(shellCopy.state.accessDeniedDescriptionDriver).toMatch(
+      /no es tuyo|vinculado/i,
+    );
+    expect(shellCopy.state.accessDeniedDescriptionDriver).toMatch(
+      /administración/i,
+    );
+    expect(shellCopy.state.backToListDriver).toBe("Volver a Mis viajes");
+    expect(shellCopy.state.accessDeniedDescription).not.toBe(
+      shellCopy.state.accessDeniedDescriptionDriver,
+    );
   });
 });

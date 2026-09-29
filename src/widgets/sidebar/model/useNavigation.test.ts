@@ -11,7 +11,7 @@ import { COMPENSATION_HUB_PATH } from "@features/compensation/application/compen
 
 const hub: NavItem = {
   id: "finance-hub",
-  label: "Panorama",
+  label: "Cartera",
   path: "/finance",
   icon: Circle,
   exactPath: true,
@@ -26,6 +26,12 @@ const cobros: NavItem = {
   id: "finance-cobros",
   label: "Cobros",
   path: "/finance/cobros",
+  icon: Circle,
+};
+const dispatch: NavItem = {
+  id: "finance-dispatch",
+  label: "Envíos",
+  path: "/finance/dispatch",
   icon: Circle,
 };
 const approvals: NavItem = {
@@ -60,13 +66,44 @@ describe("findActiveNavItem", () => {
     );
   });
 
+  it("activa Facturas en /invoices/new y /invoices/:id", () => {
+    const invoices: NavItem = {
+      id: "finance-invoices",
+      label: "Facturas",
+      path: "/finance/invoices",
+      icon: Circle,
+      activePathPrefixes: ["/invoices"],
+    };
+    expect(findActiveNavItem("/invoices/new", [hub, invoices], "")?.id).toBe(
+      "finance-invoices",
+    );
+    expect(
+      findActiveNavItem("/invoices/inv-1", [hub, invoices], "")?.id,
+    ).toBe("finance-invoices");
+    expect(findActiveNavItem("/finance/invoices", [hub, invoices], "")?.id).toBe(
+      "finance-invoices",
+    );
+  });
+
   it("prefers the longest matching pathname", () => {
     expect(
       findActiveNavItem("/finance/approvals", [hub, approvals], "?status=pending")?.id,
     ).toBe("finance-approvals");
   });
 
-  it("does not mark Panorama active on nested finance routes", () => {
+  it("keeps Envíos active on period list and run detail", () => {
+    expect(
+      findActiveNavItem("/finance/dispatch", [hub, dispatch], "")?.id,
+    ).toBe("finance-dispatch");
+    expect(
+      findActiveNavItem("/finance/dispatch/period", [hub, dispatch], "")?.id,
+    ).toBe("finance-dispatch");
+    expect(
+      findActiveNavItem("/finance/dispatch/run-1", [hub, dispatch], "")?.id,
+    ).toBe("finance-dispatch");
+  });
+
+  it("does not mark Cartera active on nested finance routes", () => {
     expect(findActiveNavItem("/finance/cobros", [hub, cobros], "")?.id).toBe(
       "finance-cobros",
     );
@@ -106,10 +143,7 @@ describe("filterNavigation", () => {
     expect(reportsGroup?.items.map((i) => i.id)).toEqual(["reports-list"]);
 
     const billingGroup = filtered.find((g) => g.id === "billing");
-    expect(billingGroup?.items.map((i) => i.id)).toEqual([
-      "finance-invoices",
-      "finance-dispatch",
-    ]);
+    expect(billingGroup?.items.map((i) => i.id)).toEqual(["finance-invoices"]);
   });
 
   it("allows accountant to see billing, finance and reports groups", () => {

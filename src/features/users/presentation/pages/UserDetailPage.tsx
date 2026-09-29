@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useUserDetailWayfinding } from "../utils/userWayfinding";
 import { AlertCircle, Clock, KeyRound, Shield, User, UserRound } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -19,6 +20,7 @@ const DETAIL_SHELL_CLASS = "w-full p-4 sm:p-6";
 export function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const userId = id ?? "";
+  const { backHref, backLabel, fromState } = useUserDetailWayfinding();
   const { toast } = useToast();
 
   const { data: user, isLoading, isError } = useUser(userId);
@@ -52,8 +54,8 @@ export function UserDetailPage() {
         className={DETAIL_SHELL_CLASS}
         isLoading
         header={{
-          backHref: "/users",
-          backLabel: "Volver al listado",
+          backHref,
+          backLabel,
           icon: <User className="h-6 w-6" />,
           iconShape: "circle",
           title: "Usuario",
@@ -76,7 +78,8 @@ export function UserDetailPage() {
           backLabel: "Volver al listado",
         }}
         header={{
-          backHref: "/users",
+          backHref,
+          backLabel,
           icon: <User className="h-6 w-6" />,
           iconShape: "circle",
           title: "Usuario",
@@ -120,8 +123,8 @@ export function UserDetailPage() {
       className={DETAIL_SHELL_CLASS}
       isLoading={false}
       header={{
-        backHref: "/users",
-        backLabel: "Volver al listado",
+        backHref,
+        backLabel,
         icon: <User className="h-6 w-6" />,
         iconVariant: isInactive ? "muted" : "primary",
         iconShape: "circle",
@@ -145,6 +148,7 @@ export function UserDetailPage() {
             userName={fullName}
             status={user.status}
             variant="buttons"
+            fromState={fromState}
             onStatusChange={handleStatusChange}
           />
         ),

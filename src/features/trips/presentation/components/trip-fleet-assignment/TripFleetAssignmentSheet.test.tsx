@@ -43,6 +43,10 @@ vi.mock("@features/auth", () => ({
   }),
 }));
 
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({ hasPermission: () => true }),
+}));
+
 vi.mock("@features/trips/application", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@features/trips/application")>();

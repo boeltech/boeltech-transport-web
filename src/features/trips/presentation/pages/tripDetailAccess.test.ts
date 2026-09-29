@@ -68,14 +68,40 @@ describe("getTripDetailAccess", () => {
     expect(access.canEditStructural).toBe(false);
   });
 
+  it("hides pre-close Eliminar for operator with trips.update and without expenses.delete (D9)", () => {
+    const access = getTripDetailAccess("in_progress", {
+      canUpdateTrip: true,
+      canCreateExpense: true,
+      canUpdateExpense: true,
+      canDeleteExpense: false,
+      role: "operator",
+    });
+    expect(access.canCreateExpenses).toBe(true);
+    expect(access.canUpdatePendingExpenses).toBe(true);
+    expect(access.canDeletePendingExpenses).toBe(false);
+  });
+
+  it("keeps pre-close Eliminar for admin with expenses.delete (D9)", () => {
+    const access = getTripDetailAccess("in_progress", {
+      canUpdateTrip: true,
+      canCreateExpense: true,
+      canUpdateExpense: true,
+      canDeleteExpense: true,
+      role: "admin",
+    });
+    expect(access.canDeletePendingExpenses).toBe(true);
+  });
+
   it("keeps pre-close expenses gated by trips.update even with expenses.create", () => {
     const access = getTripDetailAccess("in_progress", {
       canUpdateTrip: false,
       canCreateExpense: true,
       canUpdateExpense: true,
-      canDeleteExpense: true,
+      canDeleteExpense: false,
     });
     expect(access.canCreateExpenses).toBe(false);
+    expect(access.canUpdatePendingExpenses).toBe(false);
+    expect(access.canDeletePendingExpenses).toBe(false);
     expect(access.canManageExpenses).toBe(false);
   });
 

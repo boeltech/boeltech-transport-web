@@ -115,5 +115,8 @@ describe("TripActions", () => {
     expect(
       screen.queryByRole("menuitem", { name: /Confirmar reserva/i }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /^Editar$/i }),
+    ).not.toBeInTheDocument();
   });
 });

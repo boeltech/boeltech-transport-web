@@ -86,6 +86,19 @@ export const settlementsCopy = {
       backToWorkbench: "Volver a pagos pendientes",
       includeContractors: "Incluir contratistas",
     },
+    filter: {
+      searchPending: "Operador",
+      searchPipeline: "Operador, folio o viaje",
+      showFilters: "Filtros",
+      branchLabel: "Sucursal",
+      branchAll: "Todas las sucursales",
+      branchPlaceholder: "Sucursal",
+    },
+    chip: {
+      branch: (label: string) => `Sucursal: ${label}`,
+      branchUnknown: "Sucursal",
+      includeContractors: "Incluye contratistas",
+    },
     backlog: {
       tableAriaLabel: "Operadores pendientes de liquidar",
       periodTooltips: {
@@ -168,6 +181,11 @@ export const settlementsCopy = {
     cancel: "Cancelar",
     confirm: "Confirmar",
     backToList: "Volver a liquidaciones",
+    backToWorkbench: "Volver a por pagar",
+    backToPendingApproval: "Volver a por autorizar",
+    backToRegistry: "Volver al historial",
+    backToAdvances: "Volver a anticipos",
+    backToApprovals: "Volver a aprobaciones",
     viewDetail: "Ver detalle",
     viewDetails: "Ver detalles",
     exportCsv: "Exportar CSV",

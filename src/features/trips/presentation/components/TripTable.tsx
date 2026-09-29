@@ -28,7 +28,6 @@ interface TripTableProps {
   trips: TripListItem[];
   isLoading: boolean;
   onView: (id: string) => void;
-  onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onSchedule?: (id: string) => void;
   onCancel?: (id: string) => void;
@@ -119,7 +118,6 @@ export function TripTable({
   trips,
   isLoading,
   onView,
-  onEdit,
   onDelete,
   onSchedule,
   onCancel,
@@ -234,7 +232,6 @@ export function TripTable({
                   <TripActions
                     trip={trip}
                     onView={onView}
-                    onEdit={onEdit}
                     onDelete={onDelete}
                     onSchedule={onSchedule}
                     onCancel={onCancel}

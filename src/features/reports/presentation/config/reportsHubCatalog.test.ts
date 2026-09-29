@@ -58,5 +58,11 @@ describe("reportsHubCatalog", () => {
     );
     expect(items.find((item) => item.id === "operations")?.href).toBe("/dashboard");
     expect(items.find((item) => item.id === "branches")?.href).toBe("/dashboard");
+    expect(items.find((item) => item.id === "receivables")?.cta).toBe(
+      "Ver cartera",
+    );
+    expect(items.find((item) => item.id === "operations")?.cta).toBe(
+      "Ver dashboard",
+    );
   });
 });

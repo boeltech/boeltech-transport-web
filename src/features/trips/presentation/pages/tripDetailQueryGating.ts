@@ -28,14 +28,10 @@ export interface DefaultTripDetailTabInput {
   status: TripStatusType;
   routeReady: boolean;
   cargoCount: number | undefined;
-  hasPendingCobro: boolean;
-  canShowCosts: boolean;
+  /** Portal cliente: siempre Resumen (D10). Staff/driver intactos. */
+  isClientPortal?: boolean;
 }
 
-/**
- * Tab inicial cuando no hay `?tab=` (Capa 1 D2).
- * `cargoCount` undefined = aún no sabemos; no saltar a Cargas.
- */
 /** Conteo de cargas para tab default: live en DRAFT/SCHEDULED, embebido en otros estados. */
 export function resolveCargoCountForDefaultTab(input: {
   status: TripStatusType;
@@ -50,28 +46,25 @@ export function resolveCargoCountForDefaultTab(input: {
   return input.liveCargoCount;
 }
 
+/**
+ * Tab inicial cuando no hay `?tab=`: hogar de fase, no cola de pendientes.
+ * `null` = DRAFT con ruta lista y conteo de cargas aún desconocido; no pintar otro tab.
+ */
 export function resolveDefaultTripDetailTab(
   input: DefaultTripDetailTabInput,
-): TripDetailTabValue {
-  const { status, routeReady, cargoCount, hasPendingCobro, canShowCosts } =
-    input;
+): TripDetailTabValue | null {
+  if (input.isClientPortal) return "overview";
+  const { status, routeReady, cargoCount } = input;
 
   if (status === TripStatus.DRAFT) {
     if (!routeReady) return "route";
+    if (cargoCount === undefined) return null;
     if (cargoCount === 0) return "cargo";
     return "overview";
   }
 
   if (status === TripStatus.SCHEDULED || status === TripStatus.IN_PROGRESS) {
     return "tracking";
-  }
-
-  if (
-    (status === TripStatus.COMPLETED || status === TripStatus.CANCELLED) &&
-    hasPendingCobro &&
-    canShowCosts
-  ) {
-    return "costs";
   }
 
   return "overview";
@@ -102,7 +95,7 @@ export function shouldFetchTripCargos(
   return false;
 }
 
-/** Lista pesada de gastos: solo tab Dinero del viaje (y si el rol puede ver costos). */
+/** Lista pesada de gastos: solo tab Costos (y si el rol puede ver costos). */
 export function shouldFetchTripExpenses(
   activeTab: TripDetailTabValue,
   tripId: string,

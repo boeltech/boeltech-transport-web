@@ -13,6 +13,8 @@
 
 import { useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { AlertCircle, Building2 } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { useToast } from "@shared/hooks";
@@ -32,6 +34,7 @@ import {
 export function ClientEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const formRef = useRef<ClientFormRef>(null);
   const clientId = id ?? "";
@@ -44,7 +47,7 @@ export function ClientEditPage() {
         title: "Cliente actualizado",
         description: "Los cambios han sido guardados exitosamente.",
       });
-      navigate(`/clients/${clientId}`);
+      navigatePreservingFrom(navigate, `/clients/${clientId}`, incomingFrom);
     },
     onError: (error) => {
       if (isApiError(error) && error.hasValidationErrors()) {
@@ -91,8 +94,8 @@ export function ClientEditPage() {
   );
 
   const handleCancel = useCallback(() => {
-    navigate(`/clients/${clientId}`);
-  }, [navigate, clientId]);
+    navigatePreservingFrom(navigate, `/clients/${clientId}`, incomingFrom);
+  }, [navigate, clientId, incomingFrom]);
 
   return (
     <FormPageShell

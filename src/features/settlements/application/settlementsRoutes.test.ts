@@ -98,6 +98,9 @@ describe("settlementsRoutes", () => {
     expect(resolveOperatorPaymentsHubTab("/finance/settlements")).toBe(
       "por-pagar",
     );
+    expect(resolveOperatorPaymentsHubTab("/finance/settlements/registry")).toBe(
+      "por-pagar",
+    );
     expect(
       resolveOperatorPaymentsHubTab("/finance/settlements/pending-approval"),
     ).toBe("por-autorizar");

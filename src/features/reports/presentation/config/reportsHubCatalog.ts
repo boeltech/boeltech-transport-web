@@ -23,6 +23,7 @@ export interface ReportsCatalogItemDefinition {
   title: string;
   description: string;
   href: string;
+  cta: string;
   icon: LucideIcon;
   isVisible: (ctx: ReportsHubAccessContext) => boolean;
 }
@@ -36,6 +37,7 @@ export const REPORTS_CATALOG_ITEMS: readonly ReportsCatalogItemDefinition[] = [
     title: copy.margin.title,
     description: copy.margin.description,
     href: "/finance/analysis?view=margin",
+    cta: reportsCopy.catalog.viewAnalysisCta,
     icon: TrendingUp,
     isVisible: (ctx) => ctx.canFinanceAnalytics,
   },
@@ -45,6 +47,7 @@ export const REPORTS_CATALOG_ITEMS: readonly ReportsCatalogItemDefinition[] = [
     title: copy.receivables.title,
     description: copy.receivables.description,
     href: "/finance",
+    cta: reportsCopy.catalog.viewCarteraCta,
     icon: Wallet,
     isVisible: (ctx) => ctx.canFinanceAnalytics,
   },
@@ -54,6 +57,7 @@ export const REPORTS_CATALOG_ITEMS: readonly ReportsCatalogItemDefinition[] = [
     title: copy.expenses.title,
     description: copy.expenses.description,
     href: "/finance/analysis?view=expenses",
+    cta: reportsCopy.catalog.viewAnalysisCta,
     icon: CircleDollarSign,
     isVisible: (ctx) => ctx.canFinanceAnalytics,
   },
@@ -63,6 +67,7 @@ export const REPORTS_CATALOG_ITEMS: readonly ReportsCatalogItemDefinition[] = [
     title: copy.operations.title,
     description: copy.operations.description,
     href: "/dashboard",
+    cta: reportsCopy.catalog.viewDashboardCta,
     icon: LayoutDashboard,
     isVisible: (ctx) => ctx.canReadTrips,
   },
@@ -72,6 +77,7 @@ export const REPORTS_CATALOG_ITEMS: readonly ReportsCatalogItemDefinition[] = [
     title: copy.branches.title,
     description: copy.branches.description,
     href: "/dashboard",
+    cta: reportsCopy.catalog.viewBranchKpisCta,
     icon: GitBranch,
     isVisible: (ctx) => ctx.canReadTrips && ctx.canReadBranches,
   },

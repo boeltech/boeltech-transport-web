@@ -1,15 +1,18 @@
 /**
- * Copy — módulo Inteligencia de negocio (/reports)
+ * Copy — hub Reportes (/reports)
  */
 
 export const reportsCopy = {
   page: {
-    title: "Inteligencia de negocio",
+    title: "Reportes",
     description:
       "Encuentra respuestas sobre rentabilidad, cartera, gastos y operación. Exporta datos en CSV.",
   },
   catalog: {
     viewAnalysisCta: "Ver análisis",
+    viewCarteraCta: "Ver cartera",
+    viewDashboardCta: "Ver dashboard",
+    viewBranchKpisCta: "Ver comparativa en el dashboard",
     groups: {
       financial: {
         title: "Financiero",

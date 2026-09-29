@@ -54,7 +54,7 @@ import {
 import { buildAssignableDriversForTripWizard } from "./tripAssignmentDrivers";
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import {
-  summarizeTripApiPayloadErrors,
+  formatTripApiValidationForUser,
   validateCreateTripApiPayload,
 } from "./validateTripApiPayload";
 
@@ -201,7 +201,7 @@ export function TripCanvasPage() {
     if (!createApiCheck.ok) {
       toast({
         title: shell.toast.serverValidationTitle,
-        description: summarizeTripApiPayloadErrors(createApiCheck.fieldErrors),
+        description: formatTripApiValidationForUser(createApiCheck.fieldErrors),
         variant: "error",
       });
       return;

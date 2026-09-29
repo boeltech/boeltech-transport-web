@@ -14,7 +14,7 @@ export const shellCopy = {
     route: "Ruta",
     tracking: "Seguimiento",
     cargo: "Cargas",
-    costs: "Dinero del viaje",
+    costs: "Costos",
     history: "Historial",
     trackingLive: "En vivo",
     trackingIncident: "Incidente",
@@ -43,13 +43,25 @@ export const shellCopy = {
     fiscalAttentionTitle: "Revisión de facturación pendiente",
     fiscalAttentionBody:
       "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Operación; luego sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+    /** Gerente: verbo = trámite, no Operación como paso 1 (D16). */
+    fiscalAttentionManagerBody:
+      "Hubo cambios después de facturar. Sustituye o cancela la factura. No bloquea el viaje.",
     fiscalAttentionCta: "Sustituir factura",
+    /** Contador u otro rol sin escritura SAT: abrir + pide gerente (D9). */
+    fiscalAttentionOpenInvoiceCta: "Abrir factura",
+    fiscalAttentionAskManagerBody:
+      "Hubo cambios después de facturar. Abre la factura y pide a un gerente cancelar o sustituir. No bloquea la operación del viaje.",
+    /** Sin escritura SAT y sin job fiscal (dispatcher) (D10). */
+    fiscalAttentionEscalateBody:
+      "Avisa a facturación. Hubo cambios que deben revisar en la factura. No bloquea la operación del viaje.",
     fiscalAttentionChip: "Atención fiscal",
     fiscalAttentionNoInvoiceBody:
       "Hay un pendiente de facturación en este viaje. Revísalo en Facturación cuando corresponda.",
     /** ADR-0081: prorrateo — no pretender un solo documento de flete. */
     fiscalAttentionSplitBody:
       "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Operación; luego sustituye cada porción facturada pendiente al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+    fiscalAttentionSplitManagerBody:
+      "Hubo cambios después de facturar. Sustituye cada porción facturada pendiente. No bloquea el viaje.",
     fiscalAttentionSplitCta: "Abrir factura de porción",
     fiscalAttentionSplitMenuCta: "Abrir factura de porción…",
     fiscalAttentionSplitLegCta: (label: string) => `Porción · ${label}`,
@@ -75,7 +87,7 @@ export const shellCopy = {
     draftCompleteRouteCta: "Completar ruta",
     draftCompleteCargoCta: "Completar cargas",
     draftConfirmHint:
-      "El viaje pasará a «Programado» y se reservará la unidad y el conductor. Pide tarifa y llegada estimada; no exige domicilio fiscal ni mercancías.",
+      "El viaje pasará a «Programado». Quedarán asignados la unidad y el conductor. Pide tarifa y llegada estimada; no exige domicilio fiscal ni mercancías.",
     draftConfirmMileageLabel: "Kilometraje inicial",
     draftConfirmMileageHint:
       "Odómetro al salir. Si la unidad tiene 0 km, confirma o corrige la lectura.",
@@ -125,11 +137,23 @@ export const shellCopy = {
     accessDeniedTitle: "Sin acceso a este viaje",
     accessDeniedDescription:
       "No tienes permiso para ver este viaje o no está disponible para tu cuenta.",
+    /** Conductor 403: no es suyo o falta vínculo user→conductor (D9). */
+    accessDeniedDescriptionDriver:
+      "Este viaje no es tuyo o tu usuario no está vinculado a un conductor. Pide el vínculo a administración.",
+    /** Cliente 403: no es suyo o falta vínculo user→cliente (D9). */
+    accessDeniedDescriptionClient:
+      "Este envío no es tuyo o tu usuario no está vinculado a un cliente. Pide el vínculo a administración.",
     loadErrorTitle: "No se pudo cargar el viaje",
     loadErrorDescription:
       "Ocurrió un error al obtener los datos. Intenta de nuevo.",
     retryLoad: "Reintentar",
     backToList: "Volver a Viajes",
+    backToListDriver: "Volver a Mis viajes",
+    backToListClient: "Volver a Mis envíos",
+    backToApprovals: "Volver a aprobaciones",
+    backToDispatch: "Volver a envíos",
+    backToDispatchPeriod: "Volver a envíos del periodo",
+    backToDispatchRun: "Volver al envío",
   },
   format: {
     routeTab: (stopCount: number) =>
@@ -142,6 +166,10 @@ export const shellCopy = {
     confirm: "Confirmar",
     cancel: "Cancelar",
     more: "Más",
+    /** D2: CTA de fase en header — navegación directa a tracking. */
+    goToTracking: "Ir a Seguimiento",
+    startTrip: "Iniciar viaje",
+    closeTrip: "Cerrar viaje",
   },
   toast: {
     scheduledTitle: "Viaje programado",

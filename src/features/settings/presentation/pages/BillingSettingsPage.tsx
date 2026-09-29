@@ -22,6 +22,7 @@ import { usePermissions } from "@shared/permissions";
 import { ROLES } from "@shared/constants/roles";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
+import { AdminBillingOrientationAlert } from "../components/AdminBillingOrientationAlert";
 import { SettingsLayout } from "../components/SettingsLayout";
 import { BillingCertificateCard } from "../components/BillingCertificateCard";
 import { BillingDefaultsCard } from "../components/BillingDefaultsCard";
@@ -31,6 +32,7 @@ import { BillingServiceConceptsCard } from "../components/BillingServiceConcepts
 import { BillingStampingCard } from "../components/BillingStampingCard";
 import {
   useBillingSettings,
+  useCompanySettings,
   useUpdateBillingSettings,
   useTestPacConnection,
   useRegisterPacEmitter,
@@ -48,6 +50,7 @@ import {
   resolveNumberingReadiness,
   type BillingRequirementStatus,
 } from "../utils/billingReadiness";
+import { isCompanyIdentityReady } from "../utils/companyIdentityReadiness";
 import {
   billingSettingsSchema,
   mapSettingsToForm,
@@ -63,6 +66,8 @@ const copy = billingSettingsCopy;
 export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const { hasPermission, hasRole } = usePermissions();
   const { data: settings, isLoading, isError, refetch } = useBillingSettings();
+  const { data: companySettings, isSuccess: companyReady } =
+    useCompanySettings();
   const updateMutation = useUpdateBillingSettings();
   const testConnectionMutation = useTestPacConnection();
   const registerEmitterMutation = useRegisterPacEmitter();
@@ -205,6 +210,16 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
             <AlertDescription>{copy.state.readOnlyDescription}</AlertDescription>
           </Alert>
         )}
+
+        {canUploadCertificate ? (
+          <AdminBillingOrientationAlert
+            identityMissing={
+              companyReady &&
+              companySettings !== undefined &&
+              !isCompanyIdentityReady(companySettings)
+            }
+          />
+        ) : null}
 
         <BillingReadinessCard
           certificate={certificateReadiness}

@@ -231,6 +231,40 @@ describe("trackingNextAction", () => {
     );
     expect(action.kind).toBe("cargo_blocked");
     expect(action.stop?.id).toBe("s1");
+    expect(action.title).toMatch(/Completa las cargas/i);
+  });
+
+  it("cargo_blocked sin trips.update escala a patio (D11)", () => {
+    const originArrived = {
+      ...origin,
+      actualArrival: new Date("2026-01-01T09:00:00Z"),
+      status: "in_progress" as const,
+    };
+    const pendingCargo = cargo({
+      id: "c1",
+      movements: [
+        {
+          id: "m1",
+          movementType: "pickup",
+          stopId: "s1",
+          stopIndex: 1,
+          completedAt: null,
+          weight: null,
+          units: null,
+          notes: null,
+        },
+      ],
+    });
+    const action = resolveTrackingPrimaryAction(
+      TripStatus.IN_PROGRESS,
+      [originArrived, waypoint, destination],
+      [pendingCargo],
+      { canMutateCargo: false },
+    );
+    expect(action.kind).toBe("cargo_blocked");
+    expect(action.title).toMatch(/Patio marca el pickup/i);
+    expect(action.title).not.toMatch(/Completa las cargas/i);
+    expect(action.transitionText).toMatch(/Avísales/i);
   });
 });
 
@@ -453,6 +487,36 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(onDeclareFalseTrip).toHaveBeenCalledOnce();
   });
 
+  it("driver: CTA falso sin facturar ni Costos (D12)", () => {
+    const originArrived = {
+      ...origin,
+      actualArrival: new Date("2026-01-01T09:00:00Z"),
+      status: "in_progress" as const,
+    };
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[originArrived, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        canOperateTracking
+        isDriverPortal
+        onDepartOrigin={vi.fn()}
+        onDeclareFalseTrip={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(STOP_TRANSITION_COPY.declareFalseTripDriver),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(STOP_TRANSITION_COPY.declareFalseTrip),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/facturar/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dinero del viaje|\bCostos\b/i)).not.toBeInTheDocument();
+  });
+
   it("con prorrateo activo oculta CTA de viaje en falso y muestra hint (T4-043)", () => {
     const onDeclareFalseTrip = vi.fn();
     const originArrived = {
@@ -513,6 +577,74 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     ).not.toBeInTheDocument();
     await user.click(startButton);
     expect(onStartTrip).not.toHaveBeenCalled();
+  });
+
+  it("driver: Iniciar bloqueado conserva copy de ruta y escala a patio (D10)", async () => {
+    const user = userEvent.setup();
+    const onStartTrip = vi.fn();
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        canOperateTracking
+        isDriverPortal
+        onStartTrip={onStartTrip}
+      />,
+    );
+
+    const startButton = screen.getByRole("button", {
+      name: /Iniciar viaje/i,
+    });
+    expect(startButton).toBeDisabled();
+    expect(
+      screen.getByText(
+        /Se requieren paradas de origen y destino para iniciar el viaje\. Avisa a patio\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/asignar|Confirmar la reserva/i)).not.toBeInTheDocument();
+    await user.click(startButton);
+    expect(onStartTrip).not.toHaveBeenCalled();
+  });
+
+  it("cliente: hub narra estado y no muestra Iniciar/Registrar/Completar/falso", () => {
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        canOperateTracking
+        isClientPortal
+        onStartTrip={vi.fn()}
+        onDeclareFalseTrip={vi.fn()}
+        onQuickCloseTrip={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(trackingCopy.section.statusClient),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(trackingCopy.hint.clientScheduledTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(trackingCopy.hint.clientScheduledBody),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(trackingCopy.section.objective)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Iniciar viaje/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Completar viaje/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: trackingCopy.action.clientCancelledCargo,
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Iniciar viaje/i)).not.toBeInTheDocument();
   });
 
   it("en programado no oculta Iniciar por ausencia de cargas", async () => {
@@ -648,6 +780,47 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(
       screen.getAllByText(trackingCopy.section.cargosAtStop).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("cargo_blocked driver no dice Completa las cargas; avisa a patio (D11)", () => {
+    const originArrived = {
+      ...origin,
+      actualArrival: new Date("2026-01-01T09:00:00Z"),
+      status: "in_progress" as const,
+    };
+    const pendingCargo = cargo({
+      id: "c1",
+      status: CargoStatus.PENDING,
+      movements: [
+        {
+          id: "m1",
+          movementType: "pickup",
+          stopId: "s1",
+          stopIndex: 1,
+          completedAt: null,
+          weight: null,
+          units: null,
+          notes: null,
+        },
+      ],
+    });
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[originArrived, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[pendingCargo]}
+        canMutateCargo={false}
+        isDriverPortal
+      />,
+    );
+
+    expect(screen.getAllByText(/Patio marca el pickup/i).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.queryByText(/Completa las cargas/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Avísales/i).length).toBeGreaterThan(0);
   });
 
   it("leyendas colapsadas por defecto con disparador de ayuda", () => {

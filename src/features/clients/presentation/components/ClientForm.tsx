@@ -42,6 +42,7 @@ import {
   FileText,
   Landmark,
   Loader2,
+  Mail,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { useToast } from "@shared/hooks";
@@ -73,6 +74,7 @@ import { clientDetailCopy } from "../copy/clientDetailCopy";
 import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
 
 const idCopy = clientDetailCopy.identification;
+const dispatchCopy = clientDetailCopy.invoiceDispatch;
 const profileCopy = cfdiReceptorProfileCopy;
 
 const COMPLIANCE_SESSION_KEY = "adr0096.compliance.dismissed";
@@ -569,79 +571,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           />
           <FieldInlineError fieldId="taxRegime" message={errors.taxRegime?.message} />
         </div>
-        {mode === "edit" && !isComercialOnly ? (
-          <>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="billingEmail">Correo de Facturación</Label>
-              <Input
-                id="billingEmail"
-                type="email"
-                disabled={disabled}
-                error={Boolean(errors.billingEmail)}
-                {...register("billingEmail")}
-                {...getFieldErrorAriaProps(
-                  "billingEmail",
-                  errors.billingEmail?.message,
-                )}
-              />
-              <FieldInlineError
-                fieldId="billingEmail"
-                message={errors.billingEmail?.message}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="billingSchemeId">{idCopy.billingScheme}</Label>
-              <RHFSelect
-                control={control}
-                name="billingSchemeId"
-                triggerId="billingSchemeId"
-                options={billingSchemeOptions}
-                allowNone
-                noneLabel={idCopy.billingSchemeNone}
-                placeholder={idCopy.billingSchemePlaceholder}
-              />
-              <p className="text-xs text-muted-foreground">
-                {idCopy.billingSchemeHint}
-              </p>
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <div className="flex items-center gap-2">
-                <Controller
-                  name="invoiceAutoDispatchEnabled"
-                  control={control}
-                  render={({ field }) => (
-                    <Switch
-                      id="invoiceAutoDispatchEnabled"
-                      checked={Boolean(field.value)}
-                      onCheckedChange={field.onChange}
-                      disabled={disabled}
-                    />
-                  )}
-                />
-                <Label
-                  htmlFor="invoiceAutoDispatchEnabled"
-                  className="cursor-pointer"
-                >
-                  {idCopy.invoiceAutoDispatch}
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {idCopy.invoiceAutoDispatchHint}
-              </p>
-              {Boolean(formValues?.invoiceAutoDispatchEnabled) &&
-              !formValues?.billingSchemeId ? (
-                <Alert variant="warning">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>{idCopy.invoiceAutoDispatchNoSchemeTitle}</AlertTitle>
-                  <AlertDescription>
-                    {idCopy.invoiceAutoDispatchNoSchemeText}
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
-          </>
-        ) : null}
-        {mode === "edit" && isComercialOnly ? (
+        {mode === "edit" ? (
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="billingEmail">Correo de Facturación</Label>
             <Input
@@ -662,6 +592,66 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           </div>
         ) : null}
       </FormSectionCard>
+
+      {mode === "edit" && !isComercialOnly ? (
+        <FormSectionCard
+          title={dispatchCopy.title}
+          description={dispatchCopy.description}
+          icon={<Mail className="h-4 w-4" />}
+          contentClassName="grid gap-4 sm:grid-cols-2"
+        >
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="billingSchemeId">{idCopy.billingScheme}</Label>
+            <RHFSelect
+              control={control}
+              name="billingSchemeId"
+              triggerId="billingSchemeId"
+              options={billingSchemeOptions}
+              allowNone
+              noneLabel={idCopy.billingSchemeNone}
+              placeholder={idCopy.billingSchemePlaceholder}
+            />
+            <p className="text-xs text-muted-foreground">
+              {idCopy.billingSchemeHint}
+            </p>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <div className="flex items-center gap-2">
+              <Controller
+                name="invoiceAutoDispatchEnabled"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    id="invoiceAutoDispatchEnabled"
+                    checked={Boolean(field.value)}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                )}
+              />
+              <Label
+                htmlFor="invoiceAutoDispatchEnabled"
+                className="cursor-pointer"
+              >
+                {idCopy.invoiceAutoDispatch}
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {idCopy.invoiceAutoDispatchHint}
+            </p>
+            {Boolean(formValues?.invoiceAutoDispatchEnabled) &&
+            !formValues?.billingSchemeId ? (
+              <Alert variant="warning">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{idCopy.invoiceAutoDispatchNoSchemeTitle}</AlertTitle>
+                <AlertDescription>
+                  {idCopy.invoiceAutoDispatchNoSchemeText}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+        </FormSectionCard>
+      ) : null}
       {mode !== "edit" ? (
       <FormSectionCard
         title="Contacto Principal"

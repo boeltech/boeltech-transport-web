@@ -146,7 +146,7 @@ export const importsCopy = {
       back: "Anterior",
       cancel: "Cancelar",
       vehiclesBillingNotice:
-        "Las unidades de tracción (tracto, tórton, rabón) se cobran este mes completo, aunque las registres a mitad de mes.",
+        "Las unidades de tracción (tracto, tórton, rabón, camioneta) se cobran este mes completo, aunque las registres a mitad de mes.",
       subscriptionLink: "Ver suscripción",
       subscriptionHref: "/settings/subscription",
     },

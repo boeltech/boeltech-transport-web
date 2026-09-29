@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettlementDetailPage } from "./SettlementDetailPage";
 import type { DriverSettlement } from "../../domain/entities";
@@ -125,6 +126,45 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     });
 
     expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
+  });
+
+  it("vuelve a por autorizar cuando viene con state.from", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    function QueueProbe() {
+      const location = useLocation();
+      return <div>{location.pathname}</div>;
+    }
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: "/finance/settlements/set-detail-1",
+              state: { from: "/finance/settlements/pending-approval" },
+            },
+          ]}
+        >
+          <Routes>
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route
+              path="/finance/settlements/pending-approval"
+              element={<QueueProbe />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Volver a por autorizar" }),
+    );
+    expect(screen.getByText("/finance/settlements/pending-approval")).toBeInTheDocument();
   });
 
   it("no muestra Autorizar cuando submittedBy === user.id", async () => {

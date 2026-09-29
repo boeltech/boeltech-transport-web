@@ -112,7 +112,7 @@ export interface TripDetailAccess {
 
   canUpdatePendingExpenses: boolean;
 
-  /** Eliminar gastos pendientes (post-cierre) o según permiso (pre-cierre). */
+  /** Eliminar gastos pendientes: `expenses.delete` (pre- y post-cierre). */
 
   canDeletePendingExpenses: boolean;
 
@@ -298,7 +298,7 @@ export function getTripDetailAccess(
 
   if (canManageTripExpenses(status)) {
 
-    // Pre-cierre: conservar gate actual (trips.update).
+    // Pre-cierre: alta/edición = trips.update; eliminar = expenses.delete (D9).
 
     const openGate = perms.canUpdateTrip;
 
@@ -306,7 +306,7 @@ export function getTripDetailAccess(
 
     canUpdatePendingExpenses = openGate;
 
-    canDeletePendingExpenses = openGate;
+    canDeletePendingExpenses = perms.canDeleteExpense;
 
   } else if (isCompleted) {
 

@@ -21,7 +21,7 @@ export const cfdiEmissionIntentCopy = {
   overrideConfirm: {
     title: "¿Liquidar sin CFDI?",
     description:
-      "Este viaje no aparecerá en Por facturar. El cobro se registra en Dinero del viaje.",
+      "Este viaje no aparecerá en Por facturar. El cobro se registra en Costos.",
     confirm: "Usar Sin CFDI · efectivo",
     cancel: "Cancelar",
   },
@@ -32,7 +32,7 @@ export const cfdiEmissionIntentCopy = {
     goToClient: "Completar datos del cliente",
   },
   banner:
-    "Este viaje no se factura. Registra el cobro en Dinero del viaje.",
+    "Este viaje no se factura. Registra el cobro en Costos.",
   /** Tooltip opcional si quedara un CTA fiscal deshabilitado. */
   fiscalCtaDisabledTooltip: "Este viaje se liquida sin CFDI",
   /**

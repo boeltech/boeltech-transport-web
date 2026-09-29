@@ -8,7 +8,7 @@ import {
   Receipt,
 } from "lucide-react";
 
-import { RejectExpenseSheet } from "@features/approvals";
+import { RejectExpenseSheet, buildApprovalsInboxPath } from "@features/approvals";
 import {
   useAddExpense,
   useApproveExpense,
@@ -26,8 +26,9 @@ import {
   type TripStop,
 } from "@features/trips/domain";
 import { useVehicle } from "@features/vehicles/application";
+import { ROLES } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
+import { usePermissions, useRole } from "@shared/permissions";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -63,6 +64,7 @@ import {
 import { tripExpenseToRejectApprovableItem } from "./tripExpenseRejectApprovableItem";
 import { tripDetailCopy } from "../../copy";
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
+import { pickCostsStatusBannerCopy } from "../../utils/pickCostsStatusBannerCopy";
 
 const copy = tripDetailCopy.costs;
 
@@ -168,6 +170,7 @@ type CostsStatusBanner = {
  * pendientes > ventana abierta > ventana cerrada > en curso > margen bajo.
  */
 function resolveCostsStatusBanner(input: {
+  isOperator: boolean;
   pendingExpenseCount: number;
   canApproveExpenses: boolean;
   canViewApprovalsHub: boolean;
@@ -192,17 +195,25 @@ function resolveCostsStatusBanner(input: {
     marginCritical,
   } = input;
 
-  if (pendingExpenseCount > 0) {
+  const picked = pickCostsStatusBannerCopy({
+    isOperator: input.isOperator,
+    pendingExpenseCount,
+    canApproveExpenses,
+    expenseWindowOpen,
+    expenseWindowClosed,
+    tripStatus,
+    manageHint,
+    marginCritical,
+  });
+  if (!picked) return null;
+
+  if (picked.kind === "pending") {
     return {
       severity: "warning",
       icon: <Receipt className="h-4 w-4" />,
-      title: copy.alert.pendingApprovalTitle,
+      title: picked.title,
       items: [
-        {
-          text: canApproveExpenses
-            ? copy.alert.pendingApprovalBodyCanApprove
-            : copy.alert.pendingApprovalBody,
-        },
+        { text: picked.body },
         ...(canViewApprovalsHub
           ? [
               {
@@ -221,57 +232,26 @@ function resolveCostsStatusBanner(input: {
     };
   }
 
-  if (expenseWindowOpen) {
-    return {
-      severity: "info",
-      icon: <CircleDollarSign className="h-4 w-4" />,
-      title: copy.alert.postCloseWindowTitle,
-      items: [
-        {
-          text: formatWindowHint(
-            copy.hint.postCloseWindow,
-            expenseWindowClosesAt,
-          ),
-        },
-      ],
-    };
-  }
+  const needsDeadline =
+    picked.kind === "postCloseOpen" || picked.kind === "postCloseClosed";
 
-  if (expenseWindowClosed) {
-    return {
-      severity: "info",
-      icon: <CircleDollarSign className="h-4 w-4" />,
-      title: copy.alert.postCloseWindowClosedTitle,
-      items: [
-        {
-          text: formatWindowHint(
-            copy.hint.postCloseWindowClosed,
-            expenseWindowClosesAt,
-          ),
-        },
-      ],
-    };
-  }
-
-  if (tripStatus === TripStatus.IN_PROGRESS && manageHint) {
-    return {
-      severity: "info",
-      icon: <CircleDollarSign className="h-4 w-4" />,
-      title: copy.alert.inProgressTitle,
-      items: [{ text: copy.hint.inProgress }],
-    };
-  }
-
-  if (marginCritical) {
-    return {
-      severity: "critical",
-      icon: <AlertCircle className="h-4 w-4" />,
-      title: copy.alert.marginCriticalTitle,
-      items: [{ text: copy.alert.marginCriticalBody }],
-    };
-  }
-
-  return null;
+  return {
+    severity: picked.kind === "marginCritical" ? "critical" : "info",
+    icon:
+      picked.kind === "marginCritical" ? (
+        <AlertCircle className="h-4 w-4" />
+      ) : (
+        <CircleDollarSign className="h-4 w-4" />
+      ),
+    title: picked.title,
+    items: [
+      {
+        text: needsDeadline
+          ? formatWindowHint(picked.body, expenseWindowClosesAt)
+          : picked.body,
+      },
+    ],
+  };
 }
 
 export function TripDetailCostsTab({
@@ -309,24 +289,24 @@ export function TripDetailCostsTab({
 }: TripDetailCostsTabProps) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const role = useRole();
+  const isOperator = role === ROLES.OPERATOR;
   const canViewApprovalsHub = hasPermission("finance_approvals", "read");
   const canRegisterOperationalCash = hasPermission("trips", "update");
   const isSinCfdiEfectivo = cfdiEmissionIntent === "sin_cfdi_efectivo";
   const cashCollected = operationalCashCollectedAt != null;
   const cashCopy = cfdiEmissionIntentCopy.cash;
   const [cashSheetOpen, setCashSheetOpen] = useState(false);
-  const approvalsHubPath = useMemo(() => {
-    const params = new URLSearchParams({
-      tab: "approvals",
-      status: "pending",
-      type: "trip_expense",
-      tripId,
-    });
-    if (tripCode) {
-      params.set("tripCode", tripCode);
-    }
-    return `/finance?${params.toString()}`;
-  }, [tripCode, tripId]);
+  const approvalsHubPath = useMemo(
+    () =>
+      buildApprovalsInboxPath({
+        type: "trip_expense",
+        status: "pending",
+        tripId,
+        tripCode: tripCode || undefined,
+      }),
+    [tripCode, tripId],
+  );
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetKind, setSheetKind] = useState<TripExpenseSheetKind>("cost");
@@ -572,6 +552,7 @@ export function TripDetailCostsTab({
     (canCreateExpenses || canUpdatePendingExpenses || canDeletePendingExpenses);
   const marginCritical = financial.health === "critical" && baseRate > 0;
   const statusBanner = resolveCostsStatusBanner({
+    isOperator,
     pendingExpenseCount,
     canApproveExpenses,
     canViewApprovalsHub,

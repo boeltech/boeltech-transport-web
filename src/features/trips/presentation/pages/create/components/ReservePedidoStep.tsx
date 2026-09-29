@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
+import { usePermissions } from "@shared/permissions";
 
 import type { TripWizardFormValues } from "./validation";
 import { wizardCopy } from "../../../copy";
@@ -41,6 +42,8 @@ export function ReservePedidoStep({
   afterClient,
 }: ReservePedidoStepProps) {
   const { control } = form;
+  const { hasPermission } = usePermissions();
+  const canCreateClient = hasPermission("clients", "create");
   const scheduleFieldProps = tripScheduleDateTimeFieldProps(basic.preset);
 
   return (
@@ -99,16 +102,22 @@ export function ReservePedidoStep({
             )}
           />
           <p className="text-xs text-muted-foreground">
-            {reserve.hint.newClient}{" "}
-            <Link
-              to="/clients/new"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
-            >
-              {reserve.action.newClient}
-              <ExternalLink className="h-3 w-3" aria-hidden />
-            </Link>
+            {canCreateClient ? (
+              <>
+                {reserve.hint.newClient}{" "}
+                <Link
+                  to="/clients/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {reserve.action.newClient}
+                  <ExternalLink className="h-3 w-3" aria-hidden />
+                </Link>
+              </>
+            ) : (
+              reserve.hint.newClientEscalate
+            )}
           </p>
         </div>
         {afterClient}

@@ -73,7 +73,7 @@ export function pickPreferredConflict(
 /**
  * Canonical occupancy badge for assignment selects.
  * Maps trip status ↔ fleet commit status to the same label so unidad,
- * conductor and remolque never diverge (e.g. "En Curso" vs "En viaje").
+ * conductor and remolque never diverge (e.g. "En Ruta" vs "En viaje").
  */
 export const FLEET_OCCUPANCY_BADGE = {
   ON_TRIP: "En Viaje",

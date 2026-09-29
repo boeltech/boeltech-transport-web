@@ -51,6 +51,17 @@ export function collectInvoicedSplitLegs(
     }));
 }
 
+/**
+ * CTA «Sustituir factura» solo con escritura SAT real (admin|manager).
+ * El accountant tiene invoices.execute y trips_fiscal_edit, pero API/InvoiceActions
+ * niegan cancelar/sustituir — no usar esos permisos como gate (D9 / HB-T3).
+ */
+export function canShowFiscalSubstituteCta(input: {
+  canAdminManagerFiscal: boolean;
+}): boolean {
+  return input.canAdminManagerFiscal;
+}
+
 export function resolveFiscalAttentionCta(input: {
   requiresFiscalAttention: boolean;
   hasActiveSplit: boolean;

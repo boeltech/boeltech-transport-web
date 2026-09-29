@@ -42,15 +42,22 @@ describe("ReportsPage", () => {
     renderWithTheme(<ReportsPage />, { route: ["/reports"] });
 
     expect(
-      screen.getByRole("heading", { name: "Inteligencia de negocio" }),
+      screen.getByRole("heading", { name: "Reportes" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Rentabilidad y margen")).toBeInTheDocument();
     expect(screen.getByText("Cartera y cobranza")).toBeInTheDocument();
     expect(screen.getByText("Gastos por unidad, operador o ruta")).toBeInTheDocument();
     expect(screen.getByText("Operación y volumen de viajes")).toBeInTheDocument();
     expect(screen.getByText("Comparativa por sucursal")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Ver análisis/i }).length).toBeGreaterThanOrEqual(
-      5,
+    expect(screen.getAllByRole("link", { name: /Ver análisis/i })).toHaveLength(2);
+    expect(screen.getByRole("link", { name: /Ver cartera/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ver dashboard/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Ver comparativa en el dashboard/i }),
+    ).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: /Ver cartera/i })).toHaveAttribute(
+      "href",
+      "/finance",
     );
   });
 

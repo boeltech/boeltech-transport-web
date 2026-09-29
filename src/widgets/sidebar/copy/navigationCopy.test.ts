@@ -25,12 +25,22 @@ describe("navigationCopy", () => {
       group.items.map((item) => item.label),
     );
 
+    expect(labels).toContain("Inicio");
     expect(labels).toContain("Vehículos");
     expect(labels).toContain("Historial de usuarios");
     expect(labels).toContain("Configuración");
     expect(labels).toContain("Por facturar");
     expect(labels).toContain("Cobros");
     expect(labels).toContain("Envíos");
+  });
+
+  it("staff dashboard item is Inicio (same path /dashboard)", () => {
+    expect(navigationCopy.item.dashboard).toBe("Inicio");
+    const dashboard = navigationConfig
+      .flatMap((group) => group.items)
+      .find((item) => item.id === "dashboard");
+    expect(dashboard?.label).toBe("Inicio");
+    expect(dashboard?.path).toBe("/dashboard");
   });
 
   it("exposes portal labels without staff finance/fleet jargon", () => {
@@ -105,7 +115,7 @@ describe("navigationConfig", () => {
       "finance-analysis",
     ]);
     expect(finance?.items.map((item) => item.label)).toEqual([
-      "Panorama",
+      "Cartera",
       "Aprobaciones",
       "Liquidaciones",
       "Esquemas de compensación",

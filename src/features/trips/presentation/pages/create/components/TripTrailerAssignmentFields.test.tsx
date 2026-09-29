@@ -1,7 +1,7 @@
 /**
  * Remolques reserved/on_trip no se ofrecen como libres al armar otra reserva.
  */
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -19,6 +19,9 @@ import {
 import { TripTrailerAssignmentFields } from "./TripTrailerAssignmentFields";
 
 const copy = wizardCopy.basicInfo;
+const { mockHasPermission } = vi.hoisted(() => ({
+  mockHasPermission: vi.fn(() => true),
+}));
 const AVAILABLE_ID = "trl-available";
 const RESERVED_ID = "trl-reserved";
 const VEHICLE_SR_ID = "veh-sr";
@@ -56,6 +59,10 @@ const assignableTrailers: AssignableTrailerItem[] = [
     blockReason: TRAILER_STATUS_LABELS[TrailerStatus.RESERVED],
   },
 ];
+
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({ hasPermission: mockHasPermission }),
+}));
 
 vi.mock("@features/trailers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@features/trailers")>();
@@ -145,6 +152,10 @@ function LoadingThenReadyHarness({
 }
 
 describe("TripTrailerAssignmentFields", () => {
+  beforeEach(() => {
+    mockHasPermission.mockImplementation(() => true);
+  });
+
   it("lists reserved trailers as not assignable on a new reserve", async () => {
     const user = userEvent.setup();
     render(<Harness />);
@@ -211,5 +222,27 @@ describe("TripTrailerAssignmentFields", () => {
     expect(screen.getByTestId("trailers-json").textContent).toBe(
       JSON.stringify(assigned),
     );
+  });
+
+  it("muestra Alta rápida si trailers.create", () => {
+    render(<Harness />);
+    expect(
+      screen.getByRole("button", { name: copy.action.quickCreateTrailer }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.hint.trailerEscalate),
+    ).not.toBeInTheDocument();
+  });
+
+  it("oculta Alta rápida y muestra hint de escala si !trailers.create", () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        !(module === "trailers" && action === "create"),
+    );
+    render(<Harness />);
+    expect(
+      screen.queryByRole("button", { name: copy.action.quickCreateTrailer }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(copy.hint.trailerEscalate)).toBeInTheDocument();
   });
 });

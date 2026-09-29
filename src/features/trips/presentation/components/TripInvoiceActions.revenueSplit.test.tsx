@@ -16,6 +16,9 @@ import { TripRevenueSplitSummaryLine } from "./TripRevenueSplitSummaryLine";
 
 const mockNavigate = vi.fn();
 const mockOpenSheet = vi.fn();
+const mockHasPermission = vi.fn(
+  (_module: string, _action: string) => true,
+);
 
 let mockRevenueSplitData: TripRevenueSplit | null | undefined = undefined;
 
@@ -29,7 +32,8 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
-    hasPermission: () => true,
+    hasPermission: (module: string, action: string) =>
+      mockHasPermission(module, action),
     isLoading: false,
     isAuthenticated: true,
     role: "admin",
@@ -84,6 +88,7 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     mockOpenSheet.mockReset();
+    mockHasPermission.mockImplementation(() => true);
     mockRevenueSplitData = undefined;
   });
 
@@ -151,6 +156,47 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
       screen.getByText(
         tripFiscalCopy.invoiceActions.splitProgress(1, 2),
       ),
+    ).toBeInTheDocument();
+  });
+
+  it("sin trips.update/execute no ofrece Repartir y muestra escala a patio", async () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        (module === "invoices" && (action === "create" || action === "read")) ||
+        (module === "trips" && action === "read"),
+    );
+    mockRevenueSplitData = {
+      id: "split-draft",
+      tripId: "trip-ready-1",
+      status: "draft",
+      basisAmount: 1000,
+      currency: "MXN",
+      notes: null,
+      createdAt: "2026-08-22T10:00:00.000Z",
+      updatedAt: "2026-08-22T10:00:00.000Z",
+      legs: [],
+    };
+    const user = userEvent.setup();
+    renderHeaderMenu(makeTrip());
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
+
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.openRevenueSplit,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.continueRevenueSplit,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(tripFiscalCopy.invoiceActions.patioEscalateHint),
     ).toBeInTheDocument();
   });
 });

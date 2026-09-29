@@ -2,9 +2,26 @@ import { describe, expect, it } from "vitest";
 
 import { trackingCopy } from "./trackingCopy";
 
+describe("trackingCopy — portal cliente (D11)", () => {
+  it("narra estado del envío sin Iniciar/Registrar/Completar/falso", () => {
+    expect(trackingCopy.section.statusClient).toBe("Estado del envío");
+    expect(trackingCopy.hint.clientScheduledBody).toMatch(/aún no sale/i);
+    expect(trackingCopy.hint.clientInProgressBody).toMatch(/en camino/i);
+    const hub = [
+      trackingCopy.hint.clientScheduledTitle,
+      trackingCopy.hint.clientScheduledBody,
+      trackingCopy.hint.clientInProgressTitle,
+      trackingCopy.hint.clientInProgressBody,
+      trackingCopy.hint.clientCompletedTitle,
+      trackingCopy.hint.clientCompletedBody,
+    ].join("\n");
+    expect(hub).not.toMatch(/Iniciar|Registrar|Completar|falso/i);
+  });
+});
+
 describe("trackingCopy — StartTripSheet (Capa 1 lean)", () => {
   it("usa descripción de arranque sin itinerario futuro", () => {
-    expect(trackingCopy.sheet.startDescription).toMatch(/En curso/i);
+    expect(trackingCopy.sheet.startDescription).toMatch(/En Ruta/i);
     expect(trackingCopy.sheet.startDescription).not.toMatch(
       /origen|carga|salida de origen|mercanc/i,
     );
@@ -16,7 +33,7 @@ describe("trackingCopy — StartTripSheet (Capa 1 lean)", () => {
     expect(trackingCopy.label.occurredAtDeparture).toBe("¿A qué hora salió?");
     expect(trackingCopy.toast.tripStarted).toBe("Viaje iniciado");
     expect(trackingCopy.toast.tripStartedDescription("V-1")).toBe(
-      "V-1 está en curso",
+      "V-1 está En Ruta",
     );
     expect(trackingCopy.toast.startMileageRequiredDescription).not.toMatch(
       /od[oó]metro/i,
@@ -37,6 +54,24 @@ describe("trackingCopy — Paradas y cargas (Capa 1 lean)", () => {
     expect(trackingCopy.hint.cargoBlockedBody(2)).not.toMatch(/mercanc/i);
     expect(trackingCopy.action.goToCargos).toMatch(/cargas/i);
   });
+
+  it("conductor: cargo_blocked escala a patio, no «Completa las cargas» (D11)", () => {
+    expect(trackingCopy.hint.cargoBlockedTitleDriver("Origen")).toMatch(/Patio/i);
+    expect(trackingCopy.hint.cargoBlockedTitleDriver("Origen")).not.toMatch(
+      /Completa las cargas/i,
+    );
+    expect(trackingCopy.hint.cargoBlockedBodyDriver).toMatch(/Avísales/i);
+    expect(trackingCopy.hint.cargoBlockedBodyDriver).not.toMatch(
+      /Completa las cargas/i,
+    );
+    expect(trackingCopy.hint.cargoBlockedBeforeDepartureDriver).toMatch(
+      /Avísales/i,
+    );
+    expect(trackingCopy.hint.startBlockedEscalatePatio).toMatch(/patio/i);
+    expect(trackingCopy.hint.startBlockedEscalatePatio).not.toMatch(
+      /asignar|Confirmar/i,
+    );
+  });
 });
 
 describe("trackingCopy — Registrar llegada/salida (Capa 1 lean)", () => {
@@ -56,7 +91,7 @@ describe("trackingCopy — Registrar llegada/salida (Capa 1 lean)", () => {
 
 describe("trackingCopy — Salida de origen (Capa 1 lean)", () => {
   it("describe el resultado operativo sin léxico fiscal", () => {
-    expect(trackingCopy.sheet.departOriginDescription).toMatch(/tránsito/i);
+    expect(trackingCopy.sheet.departOriginDescription).toMatch(/En Ruta/i);
     expect(trackingCopy.sheet.departOriginDescription).not.toMatch(/fiscal/i);
     expect(trackingCopy.sheet.departOriginDescription).not.toMatch(
       /iniciar el tránsito/i,
@@ -112,6 +147,18 @@ describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {
     expect(trackingCopy.action.declareFalseTrip).toBe("Declarar viaje en falso");
   });
 
+  it("conductor: declara sin facturar ni Costos (D12)", () => {
+    expect(trackingCopy.sheet.declareFalseTripDescriptionDriver).not.toMatch(
+      /facturar|Dinero del viaje|\bCostos\b|\?tab=costs/i,
+    );
+    expect(trackingCopy.toast.falseTripDeclaredDescriptionDriver("V-1")).toBe(
+      "V-1 quedó completado.",
+    );
+    expect(trackingCopy.toast.falseTripDeclaredDescriptionDriver("V-1")).not.toMatch(
+      /facturar/i,
+    );
+  });
+
   it("nudge de gastos invita a capturar ahora sin afirmar bloqueo post-cierre", () => {
     expect(trackingCopy.sheet.declareFalseTripExpensesTitle).toBe(
       "Conviene capturar los gastos ahora",
@@ -123,7 +170,7 @@ describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {
       /en terminal ya no|ya no se editan|no se pueden/i,
     );
     expect(trackingCopy.sheet.declareFalseTripExpensesCta).toBe(
-      "Ir a dinero del viaje",
+      "Ir a Costos",
     );
   });
 });

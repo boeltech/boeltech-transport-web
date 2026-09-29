@@ -25,3 +25,4 @@ export { CompanyLogoMark } from "./CompanyLogoMark";
 export { resolveCompanyLogoSrc } from "./companyLogoSrc";
 export { NotificationSettingsForm } from "./NotificationSettingsForm";
 export { TotpSetupQr } from "./TotpSetupQr";
+export { BillingSchemesCompactCard } from "./BillingSchemesCompactCard";

@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Receipt, AlertCircle, FileText } from "lucide-react";
+import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailAlertCard } from "@shared/ui/data-display";
@@ -8,7 +9,7 @@ import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { NotFoundState } from "@shared/ui/feedback-states";
 import { useToast } from "@shared/hooks";
 import { usePermissions, useRole } from "@shared/permissions";
-import { isClientPortalRole } from "@shared/constants/roles";
+import { isClientPortalRole, ROLES } from "@shared/constants/roles";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
@@ -34,6 +35,11 @@ import {
 import { InvoiceDetailConceptsCard } from "../components/InvoiceDetailConceptsCard";
 import { InvoiceDetailPaymentTermsCard } from "../components/InvoiceDetailFiscalLabels";
 import { InvoiceDetailFiscalDossier } from "../components/InvoiceDetailFiscalDossier";
+import {
+  getInvoiceFilesReadyStorageKey,
+  InvoiceFilesReadyAlert,
+  readInvoiceFilesReadyCollapsed,
+} from "../components/InvoiceFilesReadyAlert";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import {
   hasRepFiscalDeadlineAlert,
@@ -41,6 +47,12 @@ import {
   formatRepFiscalDeadlineLabel,
   getRepFiscalDeadlineForPayment,
 } from "../helpers/repFiscalDeadlineUx";
+import { resolveInvoiceFollowThrough } from "../helpers/resolveInvoiceFollowThrough";
+import { resolveInvoicePortalStatusLabel } from "../utils/invoicePortalStatus";
+import {
+  resolveInvoiceAccessDeniedCopy,
+  resolveInvoiceWayfindingBackLabel,
+} from "../utils/invoiceWayfinding";
 
 const copy = invoicingCopy.detail;
 /** Sin max-w propio: mismo techo que el listado (`LayoutShell` max-w-7xl). */
@@ -63,6 +75,9 @@ export function InvoiceDetailPage() {
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isClientPortal = isClientPortalRole(role);
+  const isManager = role === ROLES.MANAGER;
+  const canAdminManagerFiscal =
+    role === ROLES.ADMIN || role === ROLES.MANAGER;
   // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
   const canExportFiles = hasPermission("invoices", "read");
   const canRetryRep = hasPermission("invoices", "execute");
@@ -73,6 +88,16 @@ export function InvoiceDetailPage() {
   const [interactionBusy, setInteractionBusy] = useState(false);
   const [openSubstituteRequestKey, setOpenSubstituteRequestKey] = useState(0);
   const [openCancelRequestKey, setOpenCancelRequestKey] = useState(0);
+
+  const filesReadyStorageKey = getInvoiceFilesReadyStorageKey(id ?? "");
+  const [filesReadyCollapsed, setFilesReadyCollapsed] = useState(() =>
+    readInvoiceFilesReadyCollapsed(filesReadyStorageKey),
+  );
+  useEffect(() => {
+    setFilesReadyCollapsed(
+      readInvoiceFilesReadyCollapsed(filesReadyStorageKey),
+    );
+  }, [filesReadyStorageKey]);
 
   const {
     data: invoice,
@@ -255,14 +280,17 @@ export function InvoiceDetailPage() {
   }
 
   if (errorState !== "ready" || !invoice || !displayAmounts) {
+    const accessDenied = resolveInvoiceAccessDeniedCopy(isClientPortal);
     const notFoundConfig =
       errorState === "forbidden"
         ? {
             icon: <AlertCircle />,
-            title: copy.forbidden.title,
-            description: copy.forbidden.description,
-            onBackClick: handleBack,
-            backLabel: copy.notFound.backLabel,
+            title: accessDenied.title,
+            description: accessDenied.description,
+            onBackClick: isClientPortal
+              ? () => navigate(accessDenied.backHref)
+              : handleBack,
+            backLabel: accessDenied.backLabel,
           }
         : errorState === "missingId"
           ? {
@@ -300,20 +328,49 @@ export function InvoiceDetailPage() {
 
   const backHref = resolveInvoiceBackHref(fromState, invoice);
 
+  /** Misma regla que InvoiceEmailDispatchBadge: fallo auto solo si aún no hay envío exitoso. */
   const autoDispatchFailed =
+    !invoice.dispatchSentAt &&
     invoice.autoDispatch?.lastItemStatus === "failed";
 
-  const hasAlerts =
+  const showFilesReadyAlert =
+    isStampedLike && Boolean(invoice.hasStampedXml) && !filesReadyCollapsed;
+  const showXmlMissingAlert = isStampedLike && !invoice.hasStampedXml;
+
+  const followThrough = resolveInvoiceFollowThrough({
+    status: invoice.status,
+    dispatchSentAt: invoice.dispatchSentAt,
+    paymentMethod: invoice.paymentMethod,
+    balanceDue: invoice.balanceDue,
+  });
+  const showFollowThrough =
     !isClientPortal &&
-    (isActiveSubstitute ||
-      isStampedLike ||
-      showRepFiscalAlert ||
-      autoDispatchFailed ||
-      showTripFiscalAttention ||
-      showFalseTripCancelCfdi ||
-      showPostCancelFiscalAttention);
+    (followThrough.showSend ||
+      followThrough.showCollect ||
+      followThrough.showPueNoRep);
+
+  const showClientDraftAlert =
+    isClientPortal && invoice.status === "draft";
+
+  const hasAlerts =
+    showClientDraftAlert ||
+    (!isClientPortal &&
+      (isActiveSubstitute ||
+        showFilesReadyAlert ||
+        showXmlMissingAlert ||
+        showRepFiscalAlert ||
+        autoDispatchFailed ||
+        showTripFiscalAttention ||
+        showFalseTripCancelCfdi ||
+        showPostCancelFiscalAttention ||
+        showFollowThrough));
   const alerts = hasAlerts ? (
     <div className="space-y-3">
+      {showClientDraftAlert ? (
+        <AlertWithIcon variant="warning" title={copy.hint.clientDraftTitle}>
+          <p>{copy.hint.clientDraftBody}</p>
+        </AlertWithIcon>
+      ) : null}
       {showFalseTripCancelCfdi ? (
         <DetailAlertCard
           severity="critical"
@@ -321,7 +378,9 @@ export function InvoiceDetailPage() {
           title={
             falseTripCancelBlockedByPayments
               ? copy.hint.falseTripCancelCfdiBlockedTitle
-              : copy.hint.falseTripCancelCfdiTitle
+              : canAdminManagerFiscal
+                ? copy.hint.falseTripCancelCfdiTitle
+                : copy.hint.satHoleTitle
           }
         >
           {falseTripCancelBlockedByPayments ? (
@@ -339,7 +398,7 @@ export function InvoiceDetailPage() {
                 {copy.hint.falseTripCancelCfdiBlockedLink}
               </button>
             </p>
-          ) : (
+          ) : canAdminManagerFiscal ? (
             <p>
               {copy.hint.falseTripCancelCfdiBody}{" "}
               <button
@@ -350,6 +409,8 @@ export function InvoiceDetailPage() {
                 {copy.hint.falseTripCancelCfdiLink}
               </button>
             </p>
+          ) : (
+            <p>{copy.hint.satHoleBody}</p>
           )}
         </DetailAlertCard>
       ) : null}
@@ -360,7 +421,9 @@ export function InvoiceDetailPage() {
           title={
             postCancelCancelBlockedByPayments
               ? copy.hint.postCancelCancelCfdiBlockedTitle
-              : copy.hint.postCancelCancelCfdiTitle
+              : canAdminManagerFiscal
+                ? copy.hint.postCancelCancelCfdiTitle
+                : copy.hint.satHoleTitle
           }
         >
           {postCancelCancelBlockedByPayments ? (
@@ -378,7 +441,7 @@ export function InvoiceDetailPage() {
                 {copy.hint.postCancelCancelCfdiBlockedLink}
               </button>
             </p>
-          ) : (
+          ) : canAdminManagerFiscal ? (
             <p>
               {copy.hint.postCancelCancelCfdiBody}{" "}
               <button
@@ -389,6 +452,8 @@ export function InvoiceDetailPage() {
                 {copy.hint.postCancelCancelCfdiLink}
               </button>
             </p>
+          ) : (
+            <p>{copy.hint.satHoleBody}</p>
           )}
         </DetailAlertCard>
       ) : null}
@@ -398,17 +463,52 @@ export function InvoiceDetailPage() {
           icon={<Receipt className="h-5 w-5" />}
           title={copy.hint.fiscalAttentionTitle}
         >
-          <p>
-            {copy.hint.fiscalAttentionBody}{" "}
-            <button
-              type="button"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-              onClick={() => setOpenSubstituteRequestKey((key) => key + 1)}
-            >
-              {copy.hint.fiscalAttentionLink}
-            </button>
-          </p>
+          {canAdminManagerFiscal ? (
+            <p>
+              {copy.hint.fiscalAttentionBody}{" "}
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => setOpenSubstituteRequestKey((key) => key + 1)}
+              >
+                {copy.hint.fiscalAttentionLink}
+              </button>
+            </p>
+          ) : (
+            <p>{copy.hint.fiscalAttentionAskManagerBody}</p>
+          )}
         </DetailAlertCard>
+      ) : null}
+      {showFollowThrough ? (
+        <AlertWithIcon variant="info" title={copy.hint.followThroughTitle}>
+          {followThrough.showSend ? (
+            <p>
+              {isManager
+                ? copy.hint.followThroughSendManager
+                : copy.hint.followThroughSend}{" "}
+              <Link
+                to="/finance/dispatch"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {copy.hint.followThroughSendLink}
+              </Link>
+            </p>
+          ) : null}
+          {followThrough.showCollect ? (
+            <p>
+              {copy.hint.followThroughCollect}{" "}
+              <Link
+                to="/finance/cobros"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {copy.hint.followThroughCollectLink}
+              </Link>
+            </p>
+          ) : null}
+          {followThrough.showPueNoRep ? (
+            <p>{copy.hint.followThroughPue}</p>
+          ) : null}
+        </AlertWithIcon>
       ) : null}
       {autoDispatchFailed ? (
         <AlertWithIcon
@@ -421,6 +521,7 @@ export function InvoiceDetailPage() {
           {invoice.autoDispatch?.lastScheduledRunId ? (
             <Link
               to={`/finance/dispatch/${invoice.autoDispatch.lastScheduledRunId}`}
+              state={{ from: `${location.pathname}${location.search}` }}
               className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline"
             >
               {invoicingCopy.send.autoDispatchFailedLink}
@@ -448,18 +549,19 @@ export function InvoiceDetailPage() {
           {copy.hint.substitutionSuffix}
         </AlertWithIcon>
       ) : null}
-      {isStampedLike ? (
+      {showFilesReadyAlert ? (
+        <InvoiceFilesReadyAlert
+          invoiceId={invoice.id}
+          storageKey={filesReadyStorageKey}
+          onDismissed={() => setFilesReadyCollapsed(true)}
+        />
+      ) : null}
+      {showXmlMissingAlert ? (
         <AlertWithIcon
-          variant={invoice.hasStampedXml ? "info" : "warning"}
-          title={
-            invoice.hasStampedXml
-              ? copy.hint.filesAlertTitle
-              : copy.hint.xmlMissingTitle
-          }
+          variant="warning"
+          title={copy.hint.xmlMissingTitle}
         >
-          {invoice.hasStampedXml
-            ? copy.hint.filesAlertDescription
-            : copy.hint.xmlMissingDescription}
+          {copy.hint.xmlMissingDescription}
         </AlertWithIcon>
       ) : null}
     </div>
@@ -471,23 +573,33 @@ export function InvoiceDetailPage() {
       className={DETAIL_SHELL_CLASS}
       header={{
         backHref,
-        backLabel: copy.header.backLabel,
+        backLabel: resolveInvoiceWayfindingBackLabel(backHref, {
+          isClientPortal,
+        }),
         icon: <Receipt className="h-6 w-6" />,
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span className="shrink-0">{`${invoice.serie}-${invoice.folio}`}</span>
-            <InvoiceStatusBadge status={invoice.status} showIcon size="sm" />
+            {isClientPortal ? (
+              <Badge variant="secondary" className="text-xs font-normal">
+                {resolveInvoicePortalStatusLabel(invoice.status)}
+              </Badge>
+            ) : (
+              <InvoiceStatusBadge status={invoice.status} showIcon size="sm" />
+            )}
             <InvoiceBillingScopeBadge
               scope={resolveInvoiceBillingScope(invoice.trips)}
             />
-            <InvoiceEmailDispatchBadge
-              status={invoice.status}
-              dispatchSentAt={invoice.dispatchSentAt}
-              autoDispatchLastItemStatus={
-                invoice.autoDispatch?.lastItemStatus
-              }
-              mode="withDate"
-            />
+            {isClientPortal ? null : (
+              <InvoiceEmailDispatchBadge
+                status={invoice.status}
+                dispatchSentAt={invoice.dispatchSentAt}
+                autoDispatchLastItemStatus={
+                  invoice.autoDispatch?.lastItemStatus
+                }
+                mode="withDate"
+              />
+            )}
           </span>
         ),
         subtitle: (

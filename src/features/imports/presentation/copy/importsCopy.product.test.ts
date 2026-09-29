@@ -48,6 +48,9 @@ describe("importsCopy product handoff (Capa 1 → 3)", () => {
       /tracción/i,
     );
     expect(importsCopy.wizard.options.vehiclesBillingNotice).toMatch(
+      /camioneta/i,
+    );
+    expect(importsCopy.wizard.options.vehiclesBillingNotice).toMatch(
       /mes completo/i,
     );
     expect(importsCopy.wizard.options.vehiclesBillingNotice).not.toMatch(

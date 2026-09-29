@@ -23,14 +23,12 @@ describe("tripDetailQueryGating", () => {
     expect(parseTripDetailTab("tracking")).toBe("tracking");
   });
 
-  it("picks default tab from status and completeness (D2)", () => {
+  it("picks default tab from trip phase, not pending cobro", () => {
     expect(
       resolveDefaultTripDetailTab({
         status: TripStatus.DRAFT,
         routeReady: false,
         cargoCount: 0,
-        hasPendingCobro: false,
-        canShowCosts: true,
       }),
     ).toBe("route");
     expect(
@@ -38,8 +36,6 @@ describe("tripDetailQueryGating", () => {
         status: TripStatus.DRAFT,
         routeReady: true,
         cargoCount: 0,
-        hasPendingCobro: false,
-        canShowCosts: true,
       }),
     ).toBe("cargo");
     expect(
@@ -47,8 +43,13 @@ describe("tripDetailQueryGating", () => {
         status: TripStatus.DRAFT,
         routeReady: true,
         cargoCount: undefined,
-        hasPendingCobro: false,
-        canShowCosts: true,
+      }),
+    ).toBeNull();
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.DRAFT,
+        routeReady: true,
+        cargoCount: 1,
       }),
     ).toBe("overview");
     expect(
@@ -56,8 +57,6 @@ describe("tripDetailQueryGating", () => {
         status: TripStatus.SCHEDULED,
         routeReady: true,
         cargoCount: 1,
-        hasPendingCobro: false,
-        canShowCosts: true,
       }),
     ).toBe("tracking");
     expect(
@@ -65,8 +64,6 @@ describe("tripDetailQueryGating", () => {
         status: TripStatus.IN_PROGRESS,
         routeReady: true,
         cargoCount: 1,
-        hasPendingCobro: false,
-        canShowCosts: true,
       }),
     ).toBe("tracking");
     expect(
@@ -74,17 +71,29 @@ describe("tripDetailQueryGating", () => {
         status: TripStatus.COMPLETED,
         routeReady: true,
         cargoCount: 1,
-        hasPendingCobro: true,
-        canShowCosts: true,
       }),
-    ).toBe("costs");
+    ).toBe("overview");
     expect(
       resolveDefaultTripDetailTab({
-        status: TripStatus.COMPLETED,
+        status: TripStatus.CANCELLED,
         routeReady: true,
         cargoCount: 1,
-        hasPendingCobro: true,
-        canShowCosts: false,
+      }),
+    ).toBe("overview");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.SCHEDULED,
+        routeReady: true,
+        cargoCount: 1,
+        isClientPortal: true,
+      }),
+    ).toBe("overview");
+    expect(
+      resolveDefaultTripDetailTab({
+        status: TripStatus.IN_PROGRESS,
+        routeReady: true,
+        cargoCount: 1,
+        isClientPortal: true,
       }),
     ).toBe("overview");
   });

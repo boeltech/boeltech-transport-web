@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Banknote,
   Route,
@@ -32,10 +32,7 @@ import { escapeHtml } from "@shared/utils/escapeHtml";
 import { usePrintIframe } from "@shared/hooks";
 
 import { useSettlementDetail } from "../../application/hooks";
-import {
-  SETTLEMENTS_LIST_PATH,
-  settlementCreatePath,
-} from "../../application/settlementsRoutes";
+import { settlementCreatePath } from "../../application/settlementsRoutes";
 import { useAuth } from "@features/auth";
 import { useCompanySettings } from "@features/settings";
 import {
@@ -45,6 +42,10 @@ import {
   SettlementActions,
 } from "../components";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import {
+  resolveSettlementBackHref,
+  resolveSettlementWayfindingBackLabel,
+} from "../utils/settlementWayfinding";
 import {
   COMPENSATION_CALCULATION_TYPE_LABELS,
   COMPENSATION_SALARY_PERIOD_LABELS,
@@ -60,6 +61,10 @@ const copy = settlementsCopy;
 export function SettlementDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromState = location.state?.from as string | undefined;
+  const backHref = resolveSettlementBackHref(fromState);
+  const backLabel = resolveSettlementWayfindingBackLabel(backHref);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const { triggerPrint, isPrinting } = usePrintIframe(printRef);
@@ -123,12 +128,12 @@ export function SettlementDetailPage() {
           icon: <Banknote className="h-8 w-8 text-muted-foreground" />,
           title: "Liquidación no encontrada",
           description: "No se encontró la liquidación solicitada o no tienes permisos para consultarla.",
-          backHref: SETTLEMENTS_LIST_PATH,
-          backLabel: copy.actions.backToList,
+          backHref,
+          backLabel,
         }}
         header={{
-          backHref: SETTLEMENTS_LIST_PATH,
-          backLabel: copy.actions.backToList,
+          backHref,
+          backLabel,
           icon: <Banknote className="h-6 w-6" />,
           title: settlement ? (
             <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">

@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { usePermissions } from "@shared/permissions";
 import { wizardCopy } from "../../../copy";
 import { applySoftBusyToTrailers } from "../tripAssignmentBusyResources";
 
@@ -165,6 +166,8 @@ export function TripTrailerAssignmentFields({
   idPrefix = "",
   softBusySelectable = false,
 }: TripTrailerAssignmentFieldsProps) {
+  const { hasPermission } = usePermissions();
+  const canCreateTrailer = hasPermission("trailers", "create");
   const { control, watch, setValue, getValues } =
     form as UseFormReturn<TripTrailerAssignmentHostFormValues>;
   const selectedVehicleId = watch("vehicleId");
@@ -306,19 +309,24 @@ export function TripTrailerAssignmentFields({
     <div className="space-y-4 rounded-lg border border-dashed p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">Remolques (Config S/R)</p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setSheetTargetPosition(showSecondSelect && firstTrailerId ? 2 : 1);
-            setSheetOpen(true);
-          }}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          Alta rápida
-        </Button>
+        {canCreateTrailer ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSheetTargetPosition(showSecondSelect && firstTrailerId ? 2 : 1);
+              setSheetOpen(true);
+            }}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            {copy.action.quickCreateTrailer}
+          </Button>
+        ) : null}
       </div>
+      {!canCreateTrailer ? (
+        <p className="text-xs text-muted-foreground">{copy.hint.trailerEscalate}</p>
+      ) : null}
 
       <Controller
         control={control}
@@ -399,14 +407,16 @@ export function TripTrailerAssignmentFields({
         </Link>
       </p>
 
-      <CreateTrailerSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onCreated={(created) => {
-          setTrailerAt(sheetTargetPosition, created.id);
-          if (sheetTargetPosition === 2) setShowSecondSelect(true);
-        }}
-      />
+      {canCreateTrailer ? (
+        <CreateTrailerSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          onCreated={(created) => {
+            setTrailerAt(sheetTargetPosition, created.id);
+            if (sheetTargetPosition === 2) setShowSecondSelect(true);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

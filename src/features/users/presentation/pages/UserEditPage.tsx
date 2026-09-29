@@ -1,4 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
+import { usersCopy } from "../copy/usersCopy";
 import { UserRound } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { useToast } from "@shared/hooks";
@@ -9,6 +12,7 @@ import { userFormToUpdateDTO, type UserFormData } from "../validation/userSchema
 export function UserEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
 
   const { data: user, isLoading } = useUser(id ?? "");
@@ -20,7 +24,7 @@ export function UserEditPage() {
         description: "Los cambios se guardaron correctamente",
         variant: "success",
       });
-      navigate(`/users/${id}`);
+      navigatePreservingFrom(navigate, `/users/${id}`, incomingFrom);
     },
     onError: (error) => {
       toast({
@@ -48,7 +52,7 @@ export function UserEditPage() {
         title: "Usuario no encontrado",
         description: "No existe el usuario que intentas editar.",
         backHref: "/users",
-        backLabel: "Volver a usuarios",
+        backLabel: usersCopy.detail.backToList,
       }}
       header={{
         backHref: `/users/${id}`,
