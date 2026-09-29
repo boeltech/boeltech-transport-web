@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
 import { FinanceCobrosConfirmSheet } from "./FinanceCobrosConfirmSheet";
 
@@ -10,6 +11,15 @@ vi.mock("@features/catalogs", () => ({
     isError: false,
   }),
 }));
+
+vi.mock("@boeltech/cfdi-domain", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@boeltech/cfdi-domain")>();
+  return {
+    ...actual,
+    getTodayMexicoDateString: () => "2026-09-29",
+  };
+});
 
 const invoice: FinanceInvoiceListItem = {
   id: "inv-1",
@@ -27,23 +37,30 @@ const invoice: FinanceInvoiceListItem = {
   dispatchSentAt: null,
 };
 
-describe("FinanceCobrosConfirmSheet", () => {
-  it("shows read-only payment facts and no amount or form editors", () => {
-    render(
-      <FinanceCobrosConfirmSheet
-        open
-        onOpenChange={vi.fn()}
-        invoices={[invoice]}
-        total={1160}
-        receiverRfc="XAXX010101000"
-        paymentDate="2026-08-17"
-        reference=""
-        onReferenceChange={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
-    );
+const baseProps = {
+  open: true,
+  onOpenChange: vi.fn(),
+  invoices: [invoice],
+  total: 1160,
+  receiverRfc: "XAXX010101000",
+  paymentDate: "2026-08-17",
+  onPaymentDateChange: vi.fn(),
+  paymentTime: "12:00",
+  onPaymentTimeChange: vi.fn(),
+  reference: "",
+  onReferenceChange: vi.fn(),
+  onConfirm: vi.fn(),
+};
 
-    expect(screen.getByText("12:00")).toBeInTheDocument();
+describe("FinanceCobrosConfirmSheet", () => {
+  it("shows editable date/time, read-only form, and no amount spinbutton", () => {
+    render(<FinanceCobrosConfirmSheet {...baseProps} />);
+
+    expect(screen.getByLabelText("Fecha del cobro")).toBeInTheDocument();
+    expect(screen.getByLabelText("Hora")).toHaveAttribute("type", "time");
+    expect(
+      screen.getByText("Si no indicas hora, se usa mediodía (12:00)."),
+    ).toBeInTheDocument();
     expect(screen.getByText("03 - Transferencia")).toBeInTheDocument();
     expect(screen.getByText("Saldo completo")).toBeInTheDocument();
     expect(
@@ -56,5 +73,47 @@ describe("FinanceCobrosConfirmSheet", () => {
       "[data-slot='cobros-confirm-body']",
     );
     expect(scrollBody).toHaveClass("overflow-y-auto");
+  });
+
+  it("calls onPaymentDateChange when the operator picks another date", async () => {
+    const user = userEvent.setup();
+    const onPaymentDateChange = vi.fn();
+    render(
+      <FinanceCobrosConfirmSheet
+        {...baseProps}
+        onPaymentDateChange={onPaymentDateChange}
+      />,
+    );
+
+    await user.click(screen.getByLabelText("Fecha del cobro"));
+    await user.click(screen.getByRole("button", { name: "20" }));
+
+    expect(onPaymentDateChange).toHaveBeenCalledWith("2026-08-20");
+  });
+
+  it("shows late REP registration hint when payment date is overdue", () => {
+    render(
+      <FinanceCobrosConfirmSheet
+        {...baseProps}
+        paymentDate="2026-07-10"
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        /La fecha del cobro ya superó el 5\.º día del mes siguiente/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("disables confirm when payment date is invalid", () => {
+    render(
+      <FinanceCobrosConfirmSheet {...baseProps} paymentDate="" />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Registrar cobro de $1,160.00" }),
+    ).toBeDisabled();
+    expect(screen.getByText("Indica la fecha del cobro.")).toBeInTheDocument();
   });
 });

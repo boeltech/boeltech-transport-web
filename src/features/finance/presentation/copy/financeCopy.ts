@@ -59,8 +59,11 @@ const cobrosCopy = {
   sheetTotal: "Total a cobrar",
   sheetClient: "Cliente",
   sheetPaymentDate: "Fecha del cobro",
+  sheetPaymentDateRequired: "Indica la fecha del cobro.",
   sheetPaymentTime: "Hora",
-  sheetPaymentTimeValue: "12:00",
+  sheetPaymentTimeHint: "Si no indicas hora, se usa mediodía (12:00).",
+  sheetPaymentLateRegistrationHint:
+    "La fecha del cobro ya superó el 5.º día del mes siguiente. Puedes registrar el pago; sella el comprobante de pago cuanto antes.",
   sheetPaymentForm: "Forma de pago",
   sheetInvoicesTitle: "Facturas incluidas",
   sheetBalanceFull: "Saldo completo",
@@ -198,9 +201,9 @@ export const financeCopy = {
         "Quién te debe, antigüedad de saldos y estado de cuenta por cliente.",
       orientation:
         "El ciclo del dinero está arriba. Abajo están antigüedad y estado de cuenta.",
-      /** Contador: Cartera es contexto de saldos, no la recepción del patio (D13). */
+      /** Contador: Cartera es contexto de saldos; viajes a facturar van a Por facturar (D13). */
       orientationAccountant:
-        "Aquí ves saldos y antigüedad. La escala del patio no entra por Cartera: usa Por facturar o Atención fiscal.",
+        "Aquí ves saldos y antigüedad. Los viajes pendientes de factura no entran por Cartera: usa Por facturar o Atención fiscal.",
       /** Gerente: Cartera = saldos; SAT/altas no entran (D15). */
       orientationManager:
         "Aquí ves saldos y antigüedad. El trámite SAT y las altas no entran por Cartera.",
@@ -451,9 +454,9 @@ export const financeCopy = {
     title: "Viajes por facturar",
     description:
       "Candidatos fiscales sin factura pendiente de emitir. «Facturar» aparece cuando la operación y los datos SAT lo permiten; si falta ruta, cargas o el flete está prorrateado, abre el viaje.",
-    /** Contador: receptor del primer CFDI (D6). */
+    /** Contador: receptor de la primera factura del viaje (D6). */
     descriptionAccountant:
-      "Esta cola es el primer CFDI: el aviso «Pendiente de facturar» del patio. Factura cuando el viaje está listo. Si te avisaron una revisión de factura ya emitida, no es esta cola: ve a Viajes → Atención fiscal.",
+      "Esta cola es la primera factura del viaje: el aviso «Pendiente de facturar» de operación. Factura cuando el viaje está listo. Si te pidieron revisar una factura ya emitida, no es esta cola: ve a Viajes → Atención fiscal.",
     searchPlaceholder: "Buscar por folio de viaje, cliente o ruta…",
     entityLabelPlural: "viajes por facturar",
     invoiceAction: "Facturar",
@@ -504,7 +507,7 @@ export const financeCopy = {
           "Porciones de prorrateo listas para facturar en el viaje",
         blocked:
           "Completa ruta, cargas o datos SAT (incluye prorrateo aún no listo)",
-        /** Contador: escala a patio, no «completa ruta» (D7). */
+        /** Contador: escala a operación, no «completa ruta» (D7). */
         blockedAccountant:
           "Pide a operación completar ruta, cargas o datos SAT. Tú no los completas desde aquí.",
       },

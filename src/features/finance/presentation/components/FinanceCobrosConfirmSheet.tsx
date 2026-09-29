@@ -1,8 +1,18 @@
+import { useMemo } from "react";
+import {
+  computeRepFiscalDeadline,
+  getTodayMexicoDateString,
+} from "@boeltech/cfdi-domain";
 import { useFormaPagoLabel } from "@features/catalogs";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { InfoRow } from "@shared/ui/data-display";
+import {
+  DateField,
+  FieldInlineError,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import {
@@ -13,12 +23,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
-import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { COBROS_PAYMENT_FORM } from "../config/financeCobrosConfig";
 import { financeCopy } from "../copy";
 
 const copy = financeCopy.cobros;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 interface FinanceCobrosConfirmSheetProps {
   open: boolean;
@@ -27,6 +37,9 @@ interface FinanceCobrosConfirmSheetProps {
   total: number;
   receiverRfc: string;
   paymentDate: string;
+  onPaymentDateChange: (value: string) => void;
+  paymentTime: string;
+  onPaymentTimeChange: (value: string) => void;
   reference: string;
   onReferenceChange: (value: string) => void;
   isPending?: boolean;
@@ -40,6 +53,9 @@ export function FinanceCobrosConfirmSheet({
   total,
   receiverRfc,
   paymentDate,
+  onPaymentDateChange,
+  paymentTime,
+  onPaymentTimeChange,
   reference,
   onReferenceChange,
   isPending = false,
@@ -50,6 +66,26 @@ export function FinanceCobrosConfirmSheet({
   const { label: paymentFormLabel } = useFormaPagoLabel(COBROS_PAYMENT_FORM, {
     enabled: open,
   });
+
+  const paymentDateInvalid = !ISO_DATE.test(paymentDate);
+  const paymentDateError = paymentDateInvalid
+    ? copy.sheetPaymentDateRequired
+    : undefined;
+  const paymentDateAria = getFieldErrorAriaProps(
+    "cobros-payment-date",
+    paymentDateError,
+  );
+
+  const lateRegistrationHint = useMemo(() => {
+    if (!ISO_DATE.test(paymentDate)) return null;
+    const { status } = computeRepFiscalDeadline({
+      paymentDate,
+      repStatus: "pending",
+      todayInMexico: getTodayMexicoDateString(),
+    });
+    if (status !== "overdue") return null;
+    return copy.sheetPaymentLateRegistrationHint;
+  }, [paymentDate]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -85,20 +121,45 @@ export function FinanceCobrosConfirmSheet({
             />
             <InfoRow
               variant="inline"
-              label={copy.sheetPaymentDate}
-              value={formatDate(paymentDate)}
-            />
-            <InfoRow
-              variant="inline"
-              label={copy.sheetPaymentTime}
-              value={copy.sheetPaymentTimeValue}
-            />
-            <InfoRow
-              variant="inline"
               label={copy.sheetPaymentForm}
               value={paymentFormLabel ?? COBROS_PAYMENT_FORM}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="cobros-payment-date">
+                {copy.sheetPaymentDate}
+              </Label>
+              <DateField
+                id="cobros-payment-date"
+                value={paymentDate}
+                onChange={onPaymentDateChange}
+                error={Boolean(paymentDateError)}
+                {...paymentDateAria}
+              />
+              <FieldInlineError
+                fieldId="cobros-payment-date"
+                message={paymentDateError}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cobros-payment-time">{copy.sheetPaymentTime}</Label>
+              <Input
+                id="cobros-payment-time"
+                type="time"
+                value={paymentTime}
+                onChange={(event) => onPaymentTimeChange(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {copy.sheetPaymentTimeHint}
+              </p>
+            </div>
+          </div>
+
+          {lateRegistrationHint ? (
+            <p className="text-xs text-warning">{lateRegistrationHint}</p>
+          ) : null}
 
           <div className="space-y-2">
             <p className="font-medium">{copy.sheetInvoicesTitle}</p>
@@ -148,7 +209,7 @@ export function FinanceCobrosConfirmSheet({
           <Button
             type="button"
             onClick={onConfirm}
-            disabled={isPending || total <= 0}
+            disabled={isPending || total <= 0 || paymentDateInvalid}
           >
             {isPending ? copy.submitting : copy.confirm(formattedTotal)}
           </Button>

@@ -31,7 +31,8 @@ import { FinanceCobrosInvoiceTable } from "../components/FinanceCobrosInvoiceTab
 import { FinanceRepExceptionsSection } from "../components/FinanceRepExceptionsSection";
 import {
   COBROS_PAYMENT_FORM,
-  COBROS_PAYMENT_TIME,
+  COBROS_PAYMENT_TIME_DEFAULT,
+  normalizeCobrosPaymentTime,
 } from "../config/financeCobrosConfig";
 import {
   DEFAULT_COBROS_BUCKET,
@@ -289,6 +290,8 @@ function FinanceCobrosWorkbench({
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [paymentDate, setPaymentDate] = useState(getTodayMexicoDateString);
+  const [paymentTime, setPaymentTime] = useState(COBROS_PAYMENT_TIME_DEFAULT);
   const [reference, setReference] = useState("");
   const [chainRepairOpen, setChainRepairOpen] = useState(false);
   const [chainRepairLabels, setChainRepairLabels] = useState<string[]>([]);
@@ -356,8 +359,19 @@ function FinanceCobrosWorkbench({
   );
 
   const formattedSelectedTotal = formatMxCurrency(selectedTotal);
-  const paymentDate = getTodayMexicoDateString();
   const paymentReceiverRfc = selectionAnchorRfc;
+
+  const resetPaymentFields = useCallback(() => {
+    setPaymentDate(getTodayMexicoDateString());
+    setPaymentTime(COBROS_PAYMENT_TIME_DEFAULT);
+    setReference("");
+  }, []);
+
+  const openConfirmSheet = useCallback(() => {
+    resetPaymentFields();
+    setSheetOpen(true);
+  }, [resetPaymentFields]);
+
   const showRegisterBar =
     canRegisterPayment &&
     selectedInvoices.length > 0 &&
@@ -381,7 +395,7 @@ function FinanceCobrosWorkbench({
       setChainRepairError(null);
       setPendingPayload(null);
       setSelected({});
-      setReference("");
+      resetPaymentFields();
     },
   });
 
@@ -438,7 +452,7 @@ function FinanceCobrosWorkbench({
       currency: "MXN",
       exchangeRate: 1,
       paymentDate,
-      paymentTime: COBROS_PAYMENT_TIME,
+      paymentTime: normalizeCobrosPaymentTime(paymentTime),
       paymentForm: COBROS_PAYMENT_FORM,
       reference: reference.trim() || undefined,
       allocations,
@@ -616,7 +630,7 @@ function FinanceCobrosWorkbench({
                     <CobrosRegisterBar
                       count={selectedInvoices.length}
                       total={formattedSelectedTotal}
-                      onRegister={() => setSheetOpen(true)}
+                      onRegister={openConfirmSheet}
                     />
                   </CardContent>
                 </Card>
@@ -650,6 +664,9 @@ function FinanceCobrosWorkbench({
           total={selectedTotal}
           receiverRfc={paymentReceiverRfc ?? ""}
           paymentDate={paymentDate}
+          onPaymentDateChange={setPaymentDate}
+          paymentTime={paymentTime}
+          onPaymentTimeChange={setPaymentTime}
           reference={reference}
           onReferenceChange={setReference}
           isPending={isPending || chainRepairOpen}

@@ -74,6 +74,15 @@ vi.mock("@features/catalogs", () => ({
   }),
 }));
 
+vi.mock("@boeltech/cfdi-domain", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@boeltech/cfdi-domain")>();
+  return {
+    ...actual,
+    getTodayMexicoDateString: () => "2026-09-29",
+  };
+});
+
 vi.mock("@features/finance/application", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@features/finance/application")>();
@@ -121,6 +130,7 @@ describe("FinanceCobrosPage", () => {
     };
     openPpdSummary.isLoading = false;
     registerPayment.isPending = false;
+    registerPayment.mutate = vi.fn();
     repExceptions.data = undefined;
     repExceptions.isLoading = false;
     repExceptions.isFetched = true;
@@ -211,6 +221,56 @@ describe("FinanceCobrosPage", () => {
       name: /No seleccionable: factura A-11/,
     })[0]!;
     expect(otherRfc).toBeDisabled();
+  });
+
+  it("submits the confirm sheet with the chosen payment date and default midday time", async () => {
+    const user = userEvent.setup();
+    openPpd.data = {
+      data: [buildInvoice()],
+      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+    };
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("button", { name: /Registrar cobro · 1 factura/ })[0]!,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Confirmar cobro" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Fecha del cobro")).toHaveTextContent(
+      /29 sep 2026/i,
+    );
+
+    await user.click(screen.getByLabelText("Fecha del cobro"));
+    await user.click(screen.getByRole("button", { name: "15" }));
+
+    await user.clear(screen.getByLabelText("Hora"));
+    await user.click(
+      screen.getByRole("button", { name: "Registrar cobro de $1,160.00" }),
+    );
+
+    expect(registerPayment.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentDate: "2026-09-15",
+        paymentTime: "12:00:00",
+        paymentForm: "03",
+        amount: 1160,
+        allocations: [
+          expect.objectContaining({
+            ingressInvoiceId: "inv-1",
+            amount: 1160,
+          }),
+        ],
+      }),
+      expect.anything(),
+    );
   });
 
   it("keeps the last cobro lote visible after leaving open-ppd", () => {
