@@ -75,7 +75,6 @@ export function InvoiceDetailPage() {
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isClientPortal = isClientPortalRole(role);
-  const isManager = role === ROLES.MANAGER;
   const canAdminManagerFiscal =
     role === ROLES.ADMIN || role === ROLES.MANAGER;
   // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
@@ -340,14 +339,11 @@ export function InvoiceDetailPage() {
   const followThrough = resolveInvoiceFollowThrough({
     status: invoice.status,
     dispatchSentAt: invoice.dispatchSentAt,
-    paymentMethod: invoice.paymentMethod,
     balanceDue: invoice.balanceDue,
   });
   const showFollowThrough =
     !isClientPortal &&
-    (followThrough.showSend ||
-      followThrough.showCollect ||
-      followThrough.showPueNoRep);
+    (followThrough.showSend || followThrough.showCollect);
 
   const showClientDraftAlert =
     isClientPortal && invoice.status === "draft";
@@ -483,30 +479,17 @@ export function InvoiceDetailPage() {
         <AlertWithIcon variant="info" title={copy.hint.followThroughTitle}>
           {followThrough.showSend ? (
             <p>
-              {isManager
-                ? copy.hint.followThroughSendManager
-                : copy.hint.followThroughSend}{" "}
-              <Link
-                to="/finance/dispatch"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                {copy.hint.followThroughSendLink}
-              </Link>
+              {followThrough.showCollect
+                ? copy.hint.followThroughSendBoth
+                : copy.hint.followThroughSend}
             </p>
           ) : null}
           {followThrough.showCollect ? (
             <p>
-              {copy.hint.followThroughCollect}{" "}
-              <Link
-                to="/finance/cobros"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                {copy.hint.followThroughCollectLink}
-              </Link>
+              {followThrough.showSend
+                ? copy.hint.followThroughCollectBoth
+                : copy.hint.followThroughCollect}
             </p>
-          ) : null}
-          {followThrough.showPueNoRep ? (
-            <p>{copy.hint.followThroughPue}</p>
           ) : null}
         </AlertWithIcon>
       ) : null}

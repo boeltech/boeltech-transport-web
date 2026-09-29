@@ -512,16 +512,15 @@ export const invoicingCopy = {
       satHoleBody:
         "Cancelar o sustituir esta factura lo hace un gerente. Tú puedes enviar el XML/PDF y registrar el cobro.",
       followThroughTitle: "Siguiente paso",
+      /** Solo falta enviar (acción Enviar en el header). */
       followThroughSend:
-        "Envía el XML y el PDF al cliente. No es la entrada del patio.",
-      followThroughSendManager:
-        "Si el XML y el PDF aún no salieron, envíalos. Facturación sigue el resto.",
-      followThroughSendLink: "Ir a Envíos",
+        "Mándale la factura al cliente por correo. Usa Enviar arriba.",
+      /** Solo falta cobrar (acción Registrar pago en el header). */
       followThroughCollect:
-        "Hay saldo a crédito. Registra el cobro; el comprobante de pago se sella en segundo plano.",
-      followThroughCollectLink: "Ir a Cobros",
-      followThroughPue:
-        "PUE: el cobro se registra aparte. No hay complemento de pagos.",
+        "Aún te deben. Anota el pago cuando te lo depositen o te lo entreguen. Usa Registrar pago arriba.",
+      /** Ambos pendientes: checklist numerada (envío primero). */
+      followThroughSendBoth: "1. Mándale la factura al cliente.",
+      followThroughCollectBoth: "2. Cuando paguen, anota el cobro aquí.",
       /** Viaje en falso con flete vigente (ADR-0079 / web #34) — cancelar, no sustituir. */
       falseTripCancelCfdiTitle: "Cancela la factura de flete",
       falseTripCancelCfdiBody:

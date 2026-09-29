@@ -300,35 +300,59 @@ describe("InvoiceDetailPage", () => {
     expect(screen.getByText("Factura no encontrada")).toBeInTheDocument();
   });
 
-  it("shows PUE follow-through without promising REP", () => {
+  it("shows send follow-through without module links", () => {
     renderPage();
 
     expect(screen.getByText("Siguiente paso")).toBeInTheDocument();
     expect(
-      screen.getByText(/No hay complemento de pagos/i),
+      screen.getByText(invoicingCopy.detail.hint.followThroughSend),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Ir a Envíos/i }),
-    ).toHaveAttribute("href", "/finance/dispatch");
+    expect(screen.queryByRole("link", { name: /Ir a Envíos/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ir a Cobros/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/complemento de pagos/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Cartera/i)).not.toBeInTheDocument();
   });
 
-  it("manager follow-through conserva Enviar y no enseña Por facturar ni emitir", () => {
+  it("manager follow-through usa el mismo copy llano de envío", () => {
     mockUseRole.mockReturnValue("manager");
     renderPage();
 
     expect(
-      screen.getByText(invoicingCopy.detail.hint.followThroughSendManager),
+      screen.getByText(invoicingCopy.detail.hint.followThroughSend),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Ir a Envíos/i }),
-    ).toHaveAttribute("href", "/finance/dispatch");
+    expect(screen.queryByRole("link", { name: /Ir a Envíos/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Por facturar/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/emitir/i)).not.toBeInTheDocument();
+  });
+
+  it("shows numbered checklist when send and collect are both pending", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        paymentMethod: "PPD",
+        totalPaid: 0,
+        balanceDue: 1160,
+        dispatchSentAt: null,
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Siguiente paso")).toBeInTheDocument();
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.followThroughSendBoth),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.followThroughCollectBoth),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(invoicingCopy.detail.hint.followThroughSend),
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ir a Envíos/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ir a Cobros/i })).not.toBeInTheDocument();
   });
 
   it("shows fiscal attention banner with textual Sustituir link for manager", () => {
