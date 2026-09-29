@@ -1,5 +1,6 @@
 import { Input } from "@shared/ui/input";
 import { Search } from "lucide-react";
+import { cn } from "@shared/lib/utils/cn";
 
 interface ListingSearchInputProps {
   value: string;
@@ -15,7 +16,7 @@ export function ListingSearchInput({
   className,
 }: ListingSearchInputProps) {
   return (
-    <div className={`relative w-full sm:w-64 ${className ?? ""}`}>
+    <div className={cn("relative w-full sm:w-64", className)}>
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         placeholder={placeholder}

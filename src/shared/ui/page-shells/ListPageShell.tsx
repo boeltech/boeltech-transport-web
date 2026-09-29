@@ -66,6 +66,8 @@ export interface ListPageShellToolbar {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    /** Clases extra del input (p. ej. para que el lookup crezca en el riel). */
+    className?: string;
   };
   /** Slot para los `<Select>` de filtros. */
   filters?: ReactNode;
@@ -225,6 +227,7 @@ function ListPageShellInner<TItem>({
                 value={toolbar.search.value}
                 onChange={toolbar.search.onChange}
                 placeholder={toolbar.search.placeholder ?? "Buscar..."}
+                className={toolbar.search.className}
               />
             ) : null}
 

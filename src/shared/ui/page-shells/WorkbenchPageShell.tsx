@@ -9,7 +9,7 @@
  */
 
 import { memo, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowUpRight, RefreshCw } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import {
@@ -21,7 +21,9 @@ import {
   ActiveFilterChips,
   ListingPagination,
   ListingSearchInput,
+  ViewModeToggle,
   type ActiveFilterChip,
+  type ListingViewMode,
 } from "@shared/ui/listing";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Skeleton } from "@shared/ui/skeleton";
@@ -68,6 +70,7 @@ export interface WorkbenchPageShellToolbar {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    className?: string;
   };
   filters?: ReactNode;
   extraActions?: ReactNode;
@@ -76,6 +79,11 @@ export interface WorkbenchPageShellToolbar {
   activeFilterChips?: ActiveFilterChip[];
   onClearFilters?: () => void;
   hasFilters?: boolean;
+  /** Si está, se renderiza el ViewModeToggle al final del riel (mismo orden que ListPageShell). */
+  viewMode?: {
+    value: ListingViewMode;
+    onChange: (mode: ListingViewMode) => void;
+  };
 }
 
 export interface WorkbenchPageShellPagination {
@@ -206,6 +214,9 @@ function WorkbenchAwarenessStrip({
   title?: string;
   description?: string;
 }) {
+  const { pathname, search } = useLocation();
+  const from = `${pathname}${search}`;
+
   return (
     <section
       className="overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm"
@@ -277,6 +288,7 @@ function WorkbenchAwarenessStrip({
               <Link
                 key={bucket.id}
                 to={bucket.crossLink.href}
+                state={{ from }}
                 className={cellClass}
                 aria-label={bucket.crossLink.label}
               >
@@ -373,52 +385,58 @@ function WorkbenchPageShellInner({
 
       {afterAwareness}
 
-      {/* Toolbar */}
+      {/* Toolbar — una sola fila wrap, igual que ListPageShell.
+          El panel de «Filtros» (`Collapsible className="contents"` + `order-last`)
+          ocupa la siguiente fila completa; no un segundo riel a la derecha. */}
       {toolbar ? (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-1 flex-wrap items-center gap-3">
-              {toolbar.search ? (
-                <ListingSearchInput
-                  value={toolbar.search.value}
-                  onChange={toolbar.search.onChange}
-                  placeholder={toolbar.search.placeholder ?? "Buscar..."}
+          <div className="flex flex-wrap items-center gap-3">
+            {toolbar.search ? (
+              <ListingSearchInput
+                value={toolbar.search.value}
+                onChange={toolbar.search.onChange}
+                placeholder={toolbar.search.placeholder ?? "Buscar..."}
+                className={toolbar.search.className}
+              />
+            ) : null}
+
+            {toolbar.filters}
+
+            {toolbar.extraActions}
+
+            {toolbar.hasFilters && toolbar.onClearFilters ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toolbar.onClearFilters}
+              >
+                Limpiar filtros
+              </Button>
+            ) : null}
+
+            {toolbar.onRefresh ? (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toolbar.onRefresh}
+                disabled={toolbar.isRefreshing}
+                aria-label="Actualizar"
+              >
+                <RefreshCw
+                  className={cn(
+                    "h-4 w-4",
+                    toolbar.isRefreshing && "animate-spin",
+                  )}
                 />
-              ) : null}
+              </Button>
+            ) : null}
 
-              {toolbar.filters}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-              {toolbar.extraActions}
-
-              {toolbar.hasFilters && toolbar.onClearFilters ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toolbar.onClearFilters}
-                >
-                  Limpiar filtros
-                </Button>
-              ) : null}
-
-              {toolbar.onRefresh ? (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toolbar.onRefresh}
-                  disabled={toolbar.isRefreshing}
-                  aria-label="Actualizar"
-                >
-                  <RefreshCw
-                    className={cn(
-                      "h-4 w-4",
-                      toolbar.isRefreshing && "animate-spin",
-                    )}
-                  />
-                </Button>
-              ) : null}
-            </div>
+            {toolbar.viewMode ? (
+              <ViewModeToggle
+                value={toolbar.viewMode.value}
+                onChange={toolbar.viewMode.onChange}
+              />
+            ) : null}
           </div>
 
           {toolbar.activeFilterChips &&

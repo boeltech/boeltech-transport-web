@@ -173,6 +173,29 @@ describe("WorkbenchPageShell", () => {
     expect(screen.getByText("Scorecard Anticipos")).toBeInTheDocument();
   });
 
+  it("pone filtros, acciones y refresh en el mismo riel (como ListPageShell)", () => {
+    renderShell({
+      toolbar: {
+        search: {
+          value: "",
+          onChange: vi.fn(),
+          placeholder: "Buscar operador",
+        },
+        filters: <button type="button">Filtros</button>,
+        extraActions: <button type="button">Historial</button>,
+        onRefresh: vi.fn(),
+        viewMode: { value: "table", onChange: vi.fn() },
+      },
+    });
+
+    const filters = screen.getByRole("button", { name: "Filtros" });
+    const historial = screen.getByRole("button", { name: "Historial" });
+    const refresh = screen.getByRole("button", { name: "Actualizar" });
+
+    expect(filters.parentElement).toBe(historial.parentElement);
+    expect(filters.parentElement).toBe(refresh.parentElement);
+  });
+
   it("muestra description opcional en la celda del bucket", () => {
     renderShell({
       buckets: [
