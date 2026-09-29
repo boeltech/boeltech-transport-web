@@ -7,26 +7,36 @@ export function handleAlertClick(
 ) {
   switch (alert.type) {
     case "overdue_trip":
-      navigate(`/trips/${alert.entity_id}`);
+      navigate(`/trips/${alert.entity_id}`, { state: { from: "/dashboard" } });
       break;
     case "license_expiring":
     case "medical_certificate_expiring":
-      navigate(`/drivers/${alert.entity_id}?tab=documents`);
+      navigate(`/drivers/${alert.entity_id}?tab=documents`, {
+        state: { from: "/dashboard" },
+      });
       break;
     case "insurance_expiring":
     case "sct_permit_expiring":
-      navigate(`/vehicles/${alert.entity_id}?tab=documents`);
+      navigate(`/vehicles/${alert.entity_id}?tab=documents`, {
+        state: { from: "/dashboard" },
+      });
       break;
     default:
       if (
         alert.entity_code?.startsWith("VH-") ||
         alert.entity_code?.startsWith("U-")
       ) {
-        navigate(`/vehicles/${alert.entity_id}`);
+        navigate(`/vehicles/${alert.entity_id}`, {
+          state: { from: "/dashboard" },
+        });
       } else if (alert.entity_code?.startsWith("EMP")) {
-        navigate(`/drivers/${alert.entity_id}`);
+        navigate(`/drivers/${alert.entity_id}`, {
+          state: { from: "/dashboard" },
+        });
       } else {
-        navigate(`/trips/${alert.entity_id}`);
+        navigate(`/trips/${alert.entity_id}`, {
+          state: { from: "/dashboard" },
+        });
       }
   }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyRbac,
+  buildRoleDefaultLayout,
   buildSystemDefaultLayout,
   getVisibleWidgetsInOrder,
   mergeWithDefaults,
@@ -54,15 +55,15 @@ describe("dashboard layout", () => {
     expect(filtered.widgets.some((w) => w.id === "metric_trends")).toBe(
       false,
     );
-    expect(filtered.widgets[0]?.id).toBe("operations_snapshot");
+    expect(filtered.widgets[0]?.id).toBe("alerts");
   });
 
   it("system default matches compact finance+ops baseline order and visibility", () => {
     const layout = buildSystemDefaultLayout();
     expect(layout.widgets.map((w) => w.id)).toEqual([
-      "metric_trends",
-      "operations_snapshot",
       "alerts",
+      "operations_snapshot",
+      "metric_trends",
       "vehicle_expense_ranking",
       "financial_comparison",
       "recent_trips",
@@ -74,11 +75,12 @@ describe("dashboard layout", () => {
     expect(
       layout.widgets.filter((w) => w.visible).map((w) => w.id),
     ).toEqual([
-      "metric_trends",
-      "operations_snapshot",
       "alerts",
+      "operations_snapshot",
+      "metric_trends",
       "vehicle_expense_ranking",
       "financial_comparison",
+      "recent_trips",
     ]);
 
     const withFinance = applyRbac(layout, {
@@ -93,12 +95,32 @@ describe("dashboard layout", () => {
         canReadBranches: true,
       }).map((w) => w.id),
     ).toEqual([
-      "metric_trends",
-      "operations_snapshot",
       "alerts",
+      "operations_snapshot",
+      "metric_trends",
       "vehicle_expense_ranking",
       "financial_comparison",
+      "recent_trips",
     ]);
+  });
+
+  it("portal default shows recent_trips without ops widgets", () => {
+    const layout = buildSystemDefaultLayout();
+    const clientVisible = getVisibleWidgetsInOrder(layout, {
+      canReadTrips: true,
+      showFinance: false,
+      canReadBranches: false,
+      isClientPortal: true,
+    }).map((w) => w.id);
+    expect(clientVisible).toEqual(["recent_trips"]);
+
+    const driverVisible = getVisibleWidgetsInOrder(layout, {
+      canReadTrips: true,
+      showFinance: false,
+      canReadBranches: false,
+      isDriverPortal: true,
+    }).map((w) => w.id);
+    expect(driverVisible).toEqual(["recent_trips"]);
   });
 
   it("setWidgetVisibility and reorderWidgets update prefs", () => {
@@ -154,6 +176,88 @@ describe("dashboard layout", () => {
     );
     expect(filtered.widgets.some((w) => w.id === "trips_by_day")).toBe(
       true,
+    );
+  });
+
+  it("role product defaults: visible order after RBAC", () => {
+    const financeStaff = {
+      canReadTrips: true,
+      showFinance: true,
+      canReadBranches: true,
+    };
+    const opsStaff = {
+      canReadTrips: true,
+      showFinance: false,
+      canReadBranches: true,
+    };
+
+    expect(
+      getVisibleWidgetsInOrder(
+        buildRoleDefaultLayout("admin"),
+        financeStaff,
+      ).map((w) => w.id),
+    ).toEqual([
+      "metric_trends",
+      "alerts",
+      "vehicle_expense_ranking",
+      "financial_comparison",
+    ]);
+
+    expect(
+      getVisibleWidgetsInOrder(
+        buildRoleDefaultLayout("manager"),
+        financeStaff,
+      ).map((w) => w.id),
+    ).toEqual([
+      "metric_trends",
+      "alerts",
+      "fleet_drivers",
+      "operations_snapshot",
+    ]);
+
+    expect(
+      getVisibleWidgetsInOrder(
+        buildRoleDefaultLayout("accountant"),
+        financeStaff,
+      ).map((w) => w.id),
+    ).toEqual(["metric_trends", "financial_comparison"]);
+
+    expect(
+      getVisibleWidgetsInOrder(
+        buildRoleDefaultLayout("dispatcher"),
+        opsStaff,
+      ).map((w) => w.id),
+    ).toEqual(["alerts", "fleet_drivers", "operations_snapshot"]);
+
+    expect(
+      getVisibleWidgetsInOrder(
+        buildRoleDefaultLayout("operator"),
+        opsStaff,
+      ).map((w) => w.id),
+    ).toEqual(["operations_snapshot"]);
+
+    expect(
+      getVisibleWidgetsInOrder(buildRoleDefaultLayout("driver"), {
+        canReadTrips: true,
+        showFinance: false,
+        canReadBranches: false,
+        isDriverPortal: true,
+      }).map((w) => w.id),
+    ).toEqual(["recent_trips"]);
+
+    expect(
+      getVisibleWidgetsInOrder(buildRoleDefaultLayout("client"), {
+        canReadTrips: true,
+        showFinance: false,
+        canReadBranches: false,
+        isClientPortal: true,
+      }).map((w) => w.id),
+    ).toEqual(["recent_trips"]);
+  });
+
+  it("buildRoleDefaultLayout falls back to catalog when role is missing", () => {
+    expect(buildRoleDefaultLayout(undefined)).toEqual(
+      buildSystemDefaultLayout(),
     );
   });
 });

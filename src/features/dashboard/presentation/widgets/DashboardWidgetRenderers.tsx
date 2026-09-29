@@ -97,7 +97,9 @@ export function renderVehicleExpenseRanking(ctx: DashboardWidgetContext) {
       onViewAnalysis={() =>
         ctx.navigate("/finance/analysis?view=expenses")
       }
-      onViewVehicle={(vehicleId) => ctx.navigate(`/vehicles/${vehicleId}`)}
+      onViewVehicle={(vehicleId) =>
+        ctx.navigate(`/vehicles/${vehicleId}`, { state: { from: "/dashboard" } })
+      }
     />
   );
 }

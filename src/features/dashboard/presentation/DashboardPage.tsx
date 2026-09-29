@@ -13,9 +13,13 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
-import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
+import {
+  isClientPortalRole,
+  isDriverPortalRole,
+} from "@shared/constants/roles";
 import { useAuth } from "@/features/auth";
 import { getGreeting } from "@/shared/lib/userHelpers";
+import { formatDashboardTodayLabel } from "./utils/dashboardChartHelpers";
 import { useDashboard } from "../application/hooks/useDashboard";
 import { useTripsByDay } from "../application/hooks/useTripsByDay";
 import { useFinancialTrend } from "../application/hooks/useFinancialTrend";
@@ -28,6 +32,7 @@ import {
 } from "@features/finance";
 import type { FinancialTrendMonths } from "./components";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
+import { DashboardOrientationAlert } from "./components/DashboardOrientationAlert";
 import { getWidgetRegistryEntry } from "./widgets/registry";
 import type { DashboardWidgetContext, TripsDayRange } from "./widgets/types";
 import { dashboardCopy } from "./copy/dashboardCopy";
@@ -38,6 +43,7 @@ import {
   AlertTitle,
 } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
+import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -154,15 +160,12 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <ReportsReturnLink />
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">{getGreeting(user)}</h1>
           <p className="text-sm text-muted-foreground">
-            {isClientPortal
-              ? dashboardCopy.page.subtitleClient
-              : isDriverPortal
-                ? dashboardCopy.page.subtitleDriver
-                : dashboardCopy.page.subtitle}
+            {formatDashboardTodayLabel()}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -192,6 +195,11 @@ function DashboardPage() {
         </div>
       </div>
 
+      <DashboardOrientationAlert
+        role={user?.role}
+        canReadTrips={canReadTrips}
+      />
+
       {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -217,7 +225,7 @@ function DashboardPage() {
             return (
               <div
                 key={pref.id}
-                className={getSpanClass(pref.id)}
+                className={`${getSpanClass(pref.id)} h-full min-h-0`}
               >
                 {entry.render(widgetCtx)}
               </div>

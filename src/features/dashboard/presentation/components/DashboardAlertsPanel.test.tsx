@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { DashboardAlert } from "../../domain/types";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import {
+  DASHBOARD_ALERTS_LIST_VIEWPORT_CLASS,
   DASHBOARD_ALERTS_VISIBLE_LIMIT,
   DashboardAlertsPanel,
 } from "./DashboardAlertsPanel";
@@ -178,11 +179,17 @@ describe("DashboardAlertsPanel", () => {
       />,
     );
 
-    expect(
-      container.querySelector("[data-radix-scroll-area-viewport]"),
-    ).toBeInTheDocument();
+    const viewport = container.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    expect(viewport).toBeInTheDocument();
+    expect(viewport?.parentElement).toHaveClass(
+      ...DASHBOARD_ALERTS_LIST_VIEWPORT_CLASS.split(" "),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /Viaje vencido/i }));
-    expect(navigate).toHaveBeenCalledWith(`/trips/${errorAlert.entity_id}`);
+    expect(navigate).toHaveBeenCalledWith(`/trips/${errorAlert.entity_id}`, {
+      state: { from: "/dashboard" },
+    });
   });
 });

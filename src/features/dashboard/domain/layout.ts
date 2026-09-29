@@ -1,9 +1,10 @@
 /**
  * Dashboard layout preferences — widget visibility and order.
  *
- * System default: compact finance+ops baseline (scorecard, operación, atención,
- * ranking de gasto, plan vs real). Charts/listas secundarias arrancan ocultas.
- * Roles sin showFinance ven ops-first tras RBAC (sin scorecard/financieros).
+ * Catálogo: `SYSTEM_DEFAULT_WIDGET_DEFS` (ids, span, gate, título).
+ * Default de producto: `buildRoleDefaultLayout(role)` — Inicio distinto por rol.
+ * Cascada: Personalizar (usuario) → layout de rol del tenant → default de producto.
+ * Roles sin showFinance pierden widgets financieros tras RBAC; portal no ve ops/flota.
  */
 
 import type { UserRole } from "@shared/constants/roles";
@@ -75,12 +76,13 @@ export interface DashboardWidgetDefinition {
 export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
   [
     {
-      id: "metric_trends",
-      title: "Scorecard del mes",
-      span: "full",
+      id: "alerts",
+      title: "Requiere atención",
+      span: "half",
       defaultVisible: true,
       defaultOrder: 0,
-      gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
+      gate: ({ canReadTrips, isClientPortal, isDriverPortal }) =>
+        canReadTrips && !isClientPortal && !isDriverPortal,
     },
     {
       id: "operations_snapshot",
@@ -92,13 +94,12 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
         canReadTrips && !isClientPortal && !isDriverPortal,
     },
     {
-      id: "alerts",
-      title: "Requiere atención",
-      span: "half",
+      id: "metric_trends",
+      title: "Scorecard del mes",
+      span: "full",
       defaultVisible: true,
       defaultOrder: 2,
-      gate: ({ canReadTrips, isClientPortal, isDriverPortal }) =>
-        canReadTrips && !isClientPortal && !isDriverPortal,
+      gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
     },
     {
       id: "vehicle_expense_ranking",
@@ -120,7 +121,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       id: "recent_trips",
       title: "Viajes recientes",
       span: "half",
-      defaultVisible: false,
+      defaultVisible: true,
       defaultOrder: 5,
       gate: ({ canReadTrips }) => canReadTrips,
     },
@@ -170,6 +171,61 @@ export function buildSystemDefaultLayout(): DashboardLayout {
   };
 }
 
+const ROLE_DEFAULT_VISIBLE: Record<UserRole, readonly WidgetId[]> = {
+  admin: [
+    "metric_trends",
+    "alerts",
+    "vehicle_expense_ranking",
+    "financial_comparison",
+  ],
+  manager: [
+    "metric_trends",
+    "alerts",
+    "fleet_drivers",
+    "operations_snapshot",
+  ],
+  accountant: ["metric_trends", "financial_comparison"],
+  dispatcher: ["alerts", "fleet_drivers", "operations_snapshot"],
+  operator: ["operations_snapshot"],
+  driver: ["recent_trips"],
+  client: ["recent_trips"],
+};
+
+function layoutFromVisibleOrder(
+  visibleOrdered: readonly WidgetId[],
+): DashboardLayout {
+  const seen = new Set(visibleOrdered);
+  const widgets: DashboardWidgetPref[] = visibleOrdered.map((id, order) => ({
+    id,
+    visible: true,
+    order,
+  }));
+
+  for (const def of SYSTEM_DEFAULT_WIDGET_DEFS) {
+    if (seen.has(def.id)) continue;
+    widgets.push({
+      id: def.id,
+      visible: false,
+      order: widgets.length,
+    });
+  }
+
+  return normalizeLayout({ widgets });
+}
+
+/**
+ * Default de producto para `/dashboard` según el rol.
+ * Widgets no listados quedan en Personalizar (si el gate los permite).
+ */
+export function buildRoleDefaultLayout(
+  role: UserRole | null | undefined,
+): DashboardLayout {
+  if (!role || !Object.prototype.hasOwnProperty.call(ROLE_DEFAULT_VISIBLE, role)) {
+    return buildSystemDefaultLayout();
+  }
+  return layoutFromVisibleOrder(ROLE_DEFAULT_VISIBLE[role]);
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -204,7 +260,7 @@ export function normalizeLayout(layout: DashboardLayout): DashboardLayout {
 }
 
 /**
- * Merges a stored layout with system defaults (adds missing widgets, keeps prefs).
+ * Merges a stored layout with a catalog/product base (adds missing widgets, keeps prefs).
  */
 export function mergeWithDefaults(
   stored: DashboardLayout | null | undefined,

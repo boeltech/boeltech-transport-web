@@ -38,6 +38,13 @@ import { handleAlertClick } from "../utils/alertNavigation";
 /** Max alerts shown before "Ver las N restantes" expand CTA (P1b). */
 export const DASHBOARD_ALERTS_VISIBLE_LIMIT = 8;
 
+/**
+ * List viewport: fill the card body, then cap so a tall sibling does not
+ * stretch the list without a defined height (Radix only scrolls then).
+ */
+export const DASHBOARD_ALERTS_LIST_VIEWPORT_CLASS =
+  "h-full min-h-0 max-h-[420px]";
+
 const ALERT_ICON_MAP: Record<AlertType, React.ElementType> = {
   overdue_trip: Clock,
   license_expiring: IdCard,
@@ -155,8 +162,8 @@ export function DashboardAlertsPanel({
   })();
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="pb-3">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardHeader className="shrink-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <AlertTriangle className="h-4 w-4 text-warning" />
           {dashboardCopy.alerts.title}
@@ -176,7 +183,7 @@ export function DashboardAlertsPanel({
           </div>
         ) : null}
       </CardHeader>
-      <CardContent className="flex-1">
+      <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
@@ -204,8 +211,11 @@ export function DashboardAlertsPanel({
             <p className="text-xs">{dashboardCopy.alerts.emptyDescription}</p>
           </div>
         ) : (
-          <ScrollArea className="max-h-[420px]">
-            <div className="space-y-2 pr-0.5">
+          <ScrollArea
+            type="scroll"
+            className={DASHBOARD_ALERTS_LIST_VIEWPORT_CLASS}
+          >
+            <div className="space-y-2 pr-3">
               {visibleAlerts.map((alert, i) => (
                 <AlertItem
                   key={`${alert.type}-${alert.entity_id}-${i}`}

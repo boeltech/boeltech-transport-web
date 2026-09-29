@@ -10,12 +10,13 @@ export function formatDashboardDayLabel(day: string): string {
   return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
-export function formatDashboardTodayLabel(): string {
-  return new Date().toLocaleDateString("es-MX", {
+export function formatDashboardTodayLabel(now: Date = new Date()): string {
+  return now.toLocaleDateString("es-MX", {
     weekday: "long",
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "America/Mexico_City",
   });
 }
 

@@ -8,7 +8,7 @@ import {
   canAccessFinanceSummaryRoute,
 } from "@shared/permissions";
 import {
-  buildSystemDefaultLayout,
+  buildRoleDefaultLayout,
   mergeWithDefaults,
   getVisibleWidgetsInOrder,
   getCustomizableWidgets,
@@ -42,22 +42,23 @@ function resolveStoredLayout(
   userRole: UserRole | undefined,
   roleForEdit: UserRole | undefined,
 ): DashboardLayout {
-  const system = buildSystemDefaultLayout();
+  const productRole = persistMode === "role" ? roleForEdit : userRole;
+  const product = buildRoleDefaultLayout(productRole);
 
   if (persistMode === "role") {
     const role = roleForEdit;
-    if (!tenantId || !role) return system;
+    if (!tenantId || !role) return product;
     const roleLayout = dashboardLayoutStore.getRoleLayout(tenantId, role);
-    return mergeWithDefaults(roleLayout, system);
+    return mergeWithDefaults(roleLayout, product);
   }
 
-  if (!userId || !tenantId || !userRole) return system;
+  if (!userId || !tenantId || !userRole) return product;
 
   const userLayout = dashboardLayoutStore.getUserLayout(userId);
-  if (userLayout) return mergeWithDefaults(userLayout, system);
+  if (userLayout) return mergeWithDefaults(userLayout, product);
 
   const roleLayout = dashboardLayoutStore.getRoleLayout(tenantId, userRole);
-  return mergeWithDefaults(roleLayout, system);
+  return mergeWithDefaults(roleLayout, product);
 }
 
 export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
@@ -157,37 +158,37 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
     if (persistMode === "role") {
       if (tenantId && roleForEdit) {
         dashboardLayoutStore.clearRoleLayout(tenantId, roleForEdit);
-        setLayout(buildSystemDefaultLayout());
+        setLayout(buildRoleDefaultLayout(roleForEdit));
       }
       return;
     }
     if (userId) {
       dashboardLayoutStore.clearUserLayout(userId);
-      const system = buildSystemDefaultLayout();
-      const role = userRole;
-      if (tenantId && role) {
-        const roleLayout = dashboardLayoutStore.getRoleLayout(tenantId, role);
-        setLayout(mergeWithDefaults(roleLayout, system));
+      const product = buildRoleDefaultLayout(userRole);
+      if (tenantId && userRole) {
+        const roleLayout = dashboardLayoutStore.getRoleLayout(tenantId, userRole);
+        setLayout(mergeWithDefaults(roleLayout, product));
       } else {
-        setLayout(system);
+        setLayout(product);
       }
     }
   }, [persistMode, tenantId, roleForEdit, userId, userRole]);
 
   const resetToSystemDefault = useCallback(() => {
-    const system = buildSystemDefaultLayout();
+    const productRole = persistMode === "role" ? roleForEdit : userRole;
+    const product = buildRoleDefaultLayout(productRole);
     if (persistMode === "role") {
       if (tenantId && roleForEdit) {
-        dashboardLayoutStore.setRoleLayout(tenantId, roleForEdit, system);
+        dashboardLayoutStore.setRoleLayout(tenantId, roleForEdit, product);
       }
-      setLayout(system);
+      setLayout(product);
       return;
     }
     if (userId) {
-      dashboardLayoutStore.setUserLayout(userId, system);
-      setLayout(system);
+      dashboardLayoutStore.setUserLayout(userId, product);
+      setLayout(product);
     }
-  }, [persistMode, tenantId, roleForEdit, userId]);
+  }, [persistMode, tenantId, roleForEdit, userId, userRole]);
 
   const getSpanClass = useCallback((id: WidgetId) => {
     const entry = getWidgetRegistryEntry(id);

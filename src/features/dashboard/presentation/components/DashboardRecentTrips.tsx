@@ -116,7 +116,9 @@ export function DashboardRecentTrips({
             <RecentTripItem
               key={trip.id}
               trip={trip}
-              onClick={() => navigate(`/trips/${trip.id}`)}
+              onClick={() =>
+                navigate(`/trips/${trip.id}`, { state: { from: "/dashboard" } })
+              }
             />
           ))
         )}

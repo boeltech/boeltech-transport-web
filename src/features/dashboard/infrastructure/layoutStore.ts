@@ -17,11 +17,7 @@
  */
 
 import type { UserRole } from "@shared/constants/roles";
-import {
-  buildSystemDefaultLayout,
-  normalizeLayout,
-  type DashboardLayout,
-} from "../domain/layout";
+import { normalizeLayout, type DashboardLayout } from "../domain/layout";
 
 // ============================================================================
 // Store interface
@@ -132,4 +128,4 @@ export const localDashboardLayoutStore: DashboardLayoutStore = {
 export const dashboardLayoutStore: DashboardLayoutStore =
   localDashboardLayoutStore;
 
-export { buildSystemDefaultLayout };
+export { buildRoleDefaultLayout, buildSystemDefaultLayout } from "../domain/layout";

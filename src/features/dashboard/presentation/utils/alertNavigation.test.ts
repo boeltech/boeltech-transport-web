@@ -16,7 +16,9 @@ describe("handleAlertClick", () => {
 
     handleAlertClick(alert, navigate);
 
-    expect(navigate).toHaveBeenCalledWith("/trips/trip-42");
+    expect(navigate).toHaveBeenCalledWith("/trips/trip-42", {
+      state: { from: "/dashboard" },
+    });
   });
 
   it("navigates license_expiring to driver documents tab", () => {
@@ -31,7 +33,9 @@ describe("handleAlertClick", () => {
 
     handleAlertClick(alert, navigate);
 
-    expect(navigate).toHaveBeenCalledWith("/drivers/driver-9?tab=documents");
+    expect(navigate).toHaveBeenCalledWith("/drivers/driver-9?tab=documents", {
+      state: { from: "/dashboard" },
+    });
   });
 
   it("navigates insurance_expiring to vehicle documents tab", () => {
@@ -46,6 +50,8 @@ describe("handleAlertClick", () => {
 
     handleAlertClick(alert, navigate);
 
-    expect(navigate).toHaveBeenCalledWith("/vehicles/vehicle-3?tab=documents");
+    expect(navigate).toHaveBeenCalledWith("/vehicles/vehicle-3?tab=documents", {
+      state: { from: "/dashboard" },
+    });
   });
 });
