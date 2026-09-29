@@ -44,7 +44,7 @@ import {
   mapTripResponse,
 } from "../api/mappers";
 import {
-  summarizeTripApiPayloadErrors,
+  formatTripApiValidationForUser,
   validateTripQueryApiPayload,
   validateUpdateTripStatusApiPayload,
 } from "@features/trips/presentation/pages/create/validateTripApiPayload";
@@ -79,7 +79,7 @@ export class TripRepository implements ITripRepository {
     const queryValidation = validateTripQueryApiPayload(queryParams);
     if (!queryValidation.ok) {
       throw new Error(
-        summarizeTripApiPayloadErrors(queryValidation.fieldErrors, 2),
+        formatTripApiValidationForUser(queryValidation.fieldErrors, 2),
       );
     }
 
@@ -156,7 +156,7 @@ export class TripRepository implements ITripRepository {
     const statusValidation = validateUpdateTripStatusApiPayload(input);
     if (!statusValidation.ok) {
       throw new Error(
-        summarizeTripApiPayloadErrors(statusValidation.fieldErrors, 2),
+        formatTripApiValidationForUser(statusValidation.fieldErrors, 2),
       );
     }
 

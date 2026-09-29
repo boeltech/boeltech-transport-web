@@ -64,10 +64,10 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
   // ===== VIAJES =====
   TRIP_NOT_FOUND: "El viaje no existe",
   INVALID_TRIP_REFERENCES: "El viaje tiene referencias inválidas",
-  TRIP_NOT_IN_PROGRESS: "El viaje no está en curso",
-  TRIP_NOT_DELETABLE: "Solo se pueden eliminar viajes en estado borrador",
+  TRIP_NOT_IN_PROGRESS: "El viaje no está En Ruta",
+  TRIP_NOT_DELETABLE: "Solo se pueden eliminar viajes en estado Reserva",
   TRIP_NOT_EDITABLE:
-    "Solo se pueden editar viajes en estado borrador o programado",
+    "Solo se pueden editar viajes en estado Reserva o Programado",
   INVALID_END_MILEAGE: "El kilometraje final no puede ser menor al inicial",
   INVALID_STATUS_TRANSITION: "No se puede cambiar a este estado",
   VEHICLE_ALREADY_ASSIGNED:

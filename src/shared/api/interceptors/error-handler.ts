@@ -250,7 +250,7 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
     "El vehículo no está disponible para iniciar o reservar el viaje.",
   DRIVER_NOT_AVAILABLE:
     "El conductor no está disponible para iniciar o reservar el viaje.",
-  TRIP_NOT_SCHEDULED: "Solo se puede iniciar un viaje en estado programado.",
+  TRIP_NOT_SCHEDULED: "Solo se puede iniciar un viaje en estado Programado.",
   V1_CARGO_PLACEHOLDER_CLIENT_MISSING:
     "No se pudo completar la mercancía del viaje. Intenta de nuevo o contacta a soporte.",
 

@@ -47,7 +47,7 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
           success: false,
           error: {
             code: "CANNOT_EDIT_TRIP",
-            message: "Solo se pueden editar viajes en borrador o programados",
+            message: "Solo se pueden editar viajes en Reserva o Programados",
           },
         };
       }

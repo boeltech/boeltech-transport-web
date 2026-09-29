@@ -151,9 +151,15 @@ export function summarizeTripApiPayloadErrors(
   return lines.slice(0, maxLines).join(" · ");
 }
 
+function isTechnicalValidationMessage(message: string): boolean {
+  return /invalid input|expected [\w|/]+, received|too (small|big)|invalid (option|type|enum|literal|uuid|date|string|number)|required|iso 8601/i.test(
+    message,
+  );
+}
+
 /**
  * Mensajes de validación API en lenguaje no técnico (edición contextual y toasts).
- * Si no reconoce rutas concretas, delega en `summarizeTripApiPayloadErrors`.
+ * Nunca expone paths snake_case ni mensajes internos de Zod.
  */
 export function formatTripApiValidationForUser(
   fieldErrors: Record<string, string>,
@@ -168,6 +174,7 @@ export function formatTripApiValidationForUser(
   };
 
   for (const path of keys) {
+    const msg = fieldErrors[path] ?? "";
     if (/internal_staff\.\d+\.internal_role/i.test(path)) {
       add(
         "El personal de apoyo tiene un rol que no coincide con el formato actual. Corrígelo en edición completa.",
@@ -180,11 +187,20 @@ export function formatTripApiValidationForUser(
       );
     } else if (/^stops\.\d+\./i.test(path)) {
       add("Hay datos de una parada que no cumplen el formato. Revisa la ruta en edición completa.");
+    } else if (/^scheduled_arrival$/i.test(path)) {
+      add(
+        /after departure|posterior/i.test(msg)
+          ? "La llegada estimada debe ser igual o posterior a la salida programada."
+          : "Completa la fecha y hora de llegada estimada, o déjala vacía si aún no la tienes.",
+      );
+    } else if (/^scheduled_departure$/i.test(path)) {
+      add("La salida programada debe tener fecha y hora válidas.");
+    } else if (msg && !isTechnicalValidationMessage(msg)) {
+      add(msg);
+    } else {
+      add("Hay un dato que no se puede guardar. Revisa los campos e inténtalo de nuevo.");
     }
   }
 
-  if (bullets.length === 0) {
-    return `No se puede guardar: ${summarizeTripApiPayloadErrors(fieldErrors, maxLines)}`;
-  }
   return bullets.slice(0, maxLines).join(" ");
 }

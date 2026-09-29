@@ -39,7 +39,7 @@ export type TripOperationalOutcomeType =
 export const TRIP_STATUS_LABELS: Record<TripStatusType, string> = {
   [TripStatus.DRAFT]: "Reserva",
   [TripStatus.SCHEDULED]: "Programado",
-  [TripStatus.IN_PROGRESS]: "En Curso",
+  [TripStatus.IN_PROGRESS]: "En Ruta",
   [TripStatus.COMPLETED]: "Completado",
   [TripStatus.CANCELLED]: "Cancelado",
 };

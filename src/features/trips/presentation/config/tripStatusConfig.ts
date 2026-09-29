@@ -36,7 +36,7 @@ export const TRIP_STATUS_CONFIG: Record<TripStatusType, StatusConfig> = {
   [TripStatus.IN_PROGRESS]: createStatusConfig("purple", {
     label: "En Ruta",
     icon: Truck,
-    description: "Viaje actualmente en progreso",
+    description: "Viaje actualmente en ruta",
   }),
 
   [TripStatus.COMPLETED]: createStatusConfig("success", {

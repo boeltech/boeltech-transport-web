@@ -37,7 +37,7 @@ export class DeleteTripUseCase implements IDeleteTripUseCase {
           success: false,
           error: {
             code: "CANNOT_DELETE_TRIP",
-            message: "Solo se pueden eliminar viajes en borrador",
+            message: "Solo se pueden eliminar viajes en Reserva",
           },
         };
       }

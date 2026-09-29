@@ -103,6 +103,19 @@ describe("formatTripApiValidationForUser", () => {
     expect(msg).toContain("ciudad");
     expect(msg).not.toContain("internal_staff.0");
   });
+
+  it("no expone mensajes internos de Zod en scheduled_arrival", () => {
+    const msg = formatTripApiValidationForUser(
+      {
+        scheduled_arrival: "Invalid input: expected string, received null",
+      },
+      2,
+    );
+    expect(msg).toContain("llegada estimada");
+    expect(msg).not.toContain("scheduled_arrival");
+    expect(msg).not.toContain("Invalid input");
+    expect(msg).not.toContain("expected string");
+  });
 });
 
 describe("validateUpdateTripApiPayload", () => {
