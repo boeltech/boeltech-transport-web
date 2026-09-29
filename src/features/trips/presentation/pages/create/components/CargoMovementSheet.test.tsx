@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { wizardCopy } from "../../../copy";
@@ -313,5 +313,91 @@ describe("CargoMovementSheet", () => {
       ).toBeGreaterThanOrEqual(1);
     });
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows short satUnitCode beside Cantidad even when satUnitName is long (XPB)", async () => {
+    const user = userEvent.setup();
+    const longUnitName =
+      "Botella, protegida o no, de vidrio, de cualquier capacidad, con tapa de rosca o tapón a presión";
+    const cargoWithLongUnitName: TripCargoFormValues = {
+      ...validCargo,
+      satUnitCode: "XPB",
+      satUnitName: longUnitName,
+    };
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={cargoWithLongUnitName}
+        editingIndex={null}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    const unitsSuffix = screen.getByTestId("cargo-units-suffix");
+    expect(unitsSuffix).toHaveTextContent("XPB");
+    expect(unitsSuffix).not.toHaveTextContent(longUnitName);
+    expect(screen.queryByText(longUnitName)).not.toBeInTheDocument();
+
+    const weightSpacer = screen.getByTestId("cargo-weight-suffix-spacer");
+    expect(weightSpacer).toHaveTextContent("XPB");
+    expect(weightSpacer).not.toHaveTextContent(longUnitName);
+
+    const unitsInput = screen.getByRole("spinbutton", {
+      name: (_content, element) => element.id === "cargo-units",
+    });
+    const weightInput = screen.getByRole("spinbutton", {
+      name: (_content, element) => element.id === "cargo-weight-kg",
+    });
+    expect(unitsInput).toHaveClass("min-w-[4.5rem]");
+    expect(weightInput).toHaveClass("min-w-[4.5rem]");
+
+    fireEvent.change(unitsInput, { target: { value: "12" } });
+    fireEvent.change(weightInput, { target: { value: "250" } });
+    expect(unitsInput).toHaveValue(12);
+    expect(weightInput).toHaveValue(250);
+
+    await user.click(screen.getByRole("button", { name: sheet.action.add }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+    const submitted = onSubmit.mock.calls[0][0] as TripCargoFormValues;
+    expect(submitted.satUnitCode).toBe("XPB");
+    expect(submitted.satUnitName).toBe(longUnitName);
+  });
+  it("falls back to unidades when satUnitCode is empty", () => {
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          satUnitCode: "",
+          satUnitName: "",
+        }}
+        editingIndex={null}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("cargo-units-suffix")).toHaveTextContent(
+      "unidades",
+    );
+    expect(screen.getByTestId("cargo-weight-suffix-spacer")).toHaveTextContent(
+      "unidades",
+    );
   });
 });

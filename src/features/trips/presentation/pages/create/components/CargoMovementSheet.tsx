@@ -338,7 +338,8 @@ function CargoMovementSheetSession({
   // ============================================================================
 
   const satProductCode = useWatch({ control, name: "satProductCode" });
-  const satUnitName = useWatch({ control, name: "satUnitName" }) || "unidades";
+  /** Sufijo de Cantidad: clave corta (c_ClaveUnidad), no el nombre largo del catálogo. */
+  const satUnitCode = useWatch({ control, name: "satUnitCode" }) ?? "";
   const isInsured = useWatch({ control, name: "isInsured" });
   const insurerName = useWatch({ control, name: "aseguraCarga" });
   const notesValue = useWatch({ control, name: "notes" });
@@ -771,7 +772,7 @@ function CargoMovementSheetSession({
 
           <CargoMovementSheetQuantityWeightSection
             control={control}
-            satUnitName={satUnitName}
+            satUnitCode={satUnitCode}
             wouldExceedCapacity={wouldExceedCapacity}
             isNearCapacityProjection={isNearCapacityProjection}
             vehicleCapacityKg={vehicleCapacityKg ?? undefined}

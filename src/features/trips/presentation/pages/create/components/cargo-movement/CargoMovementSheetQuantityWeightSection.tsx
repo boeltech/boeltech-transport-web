@@ -11,9 +11,13 @@ import type { TripCargoFormValues } from "../validation";
 
 const sheet = wizardCopy.cargo.sheet;
 
+/** Sufijo corto junto a Cantidad; nunca la descripción larga del catálogo SAT. */
+const UNITS_SUFFIX_FALLBACK = "unidades";
+
 export interface CargoMovementSheetQuantityWeightSectionProps {
   control: Control<TripCargoFormValues>;
-  satUnitName: string;
+  /** c_ClaveUnidad (corta). Fallback visual: `unidades`. */
+  satUnitCode: string;
   wouldExceedCapacity: boolean;
   isNearCapacityProjection: boolean;
   vehicleCapacityKg?: number;
@@ -25,7 +29,7 @@ export interface CargoMovementSheetQuantityWeightSectionProps {
 
 export function CargoMovementSheetQuantityWeightSection({
   control,
-  satUnitName,
+  satUnitCode,
   wouldExceedCapacity,
   isNearCapacityProjection,
   vehicleCapacityKg,
@@ -33,6 +37,8 @@ export function CargoMovementSheetQuantityWeightSection({
   availableKg,
   formatWeight,
 }: CargoMovementSheetQuantityWeightSectionProps) {
+  const unitsSuffix = satUnitCode.trim() || UNITS_SUFFIX_FALLBACK;
+
   const availabilityHint =
     availableKg == null
       ? undefined
@@ -59,7 +65,7 @@ export function CargoMovementSheetQuantityWeightSection({
                 required
                 errorMessage={errorMessage}
               >
-                <div className="flex gap-2">
+                <div className="flex min-w-0 gap-2">
                   <Input
                     id="cargo-units"
                     type="number"
@@ -72,12 +78,15 @@ export function CargoMovementSheetQuantityWeightSection({
                       )
                     }
                     onBlur={field.onBlur}
-                    className="flex-1"
+                    className="min-w-[4.5rem] flex-1"
                     error={Boolean(fieldState.error)}
                     {...getFieldErrorAriaProps("cargo-units", errorMessage)}
                   />
-                  <span className="flex min-w-[60px] items-center text-sm text-muted-foreground">
-                    {satUnitName}
+                  <span
+                    data-testid="cargo-units-suffix"
+                    className="flex shrink-0 items-center text-sm text-muted-foreground tabular-nums"
+                  >
+                    {unitsSuffix}
                   </span>
                 </div>
               </FormFieldShell>
@@ -98,7 +107,7 @@ export function CargoMovementSheetQuantityWeightSection({
                 description={availabilityHint}
                 errorMessage={errorMessage}
               >
-                <div className="flex gap-2">
+                <div className="flex min-w-0 gap-2">
                   <Input
                     id="cargo-weight-kg"
                     type="number"
@@ -112,15 +121,17 @@ export function CargoMovementSheetQuantityWeightSection({
                       )
                     }
                     onBlur={field.onBlur}
-                    className="flex-1"
+                    className="min-w-[4.5rem] flex-1"
                     error={Boolean(fieldState.error)}
                     {...getFieldErrorAriaProps("cargo-weight-kg", errorMessage)}
                   />
+                  {/* Spacer corto (misma clave) para alinear columnas; no la descripción SAT. */}
                   <span
-                    className="flex min-w-[60px] items-center text-sm invisible select-none"
+                    data-testid="cargo-weight-suffix-spacer"
+                    className="flex shrink-0 items-center text-sm invisible select-none tabular-nums"
                     aria-hidden
                   >
-                    {satUnitName}
+                    {unitsSuffix}
                   </span>
                 </div>
               </FormFieldShell>
