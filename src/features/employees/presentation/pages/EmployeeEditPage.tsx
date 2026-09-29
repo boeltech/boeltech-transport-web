@@ -4,6 +4,8 @@
  */
 
 import { useParams, useNavigate } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { User, UserCog } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { useToast } from "@shared/hooks";
@@ -18,6 +20,7 @@ const copy = employeesCopy.form;
 export function EmployeeEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const employeeId = id ?? "";
 
@@ -28,7 +31,7 @@ export function EmployeeEditPage() {
   const employee = response?.data;
 
   const handleCancel = () => {
-    navigate(`/employees/${employeeId}`);
+    navigatePreservingFrom(navigate, `/employees/${employeeId}`, incomingFrom);
   };
 
   return (
@@ -72,7 +75,11 @@ export function EmployeeEditPage() {
               description: copy.edit.toast.successDescription,
               variant: "success",
             });
-            navigate(`/employees/${employeeId}`);
+            navigatePreservingFrom(
+              navigate,
+              `/employees/${employeeId}`,
+              incomingFrom,
+            );
           }}
         />
       ) : null}

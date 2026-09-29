@@ -1,5 +1,6 @@
 import { useMemo, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
 import {
   AlertTriangle,
   Building2,
@@ -137,6 +138,10 @@ function BranchAddressBlock({
 export function BranchDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { backHref, backLabel, fromState } = useMasterDetailWayfinding(
+    "/branches",
+    copy.header.backLabel,
+  );
   const { activeTab, setActiveTab } = useTabParam(
     BRANCH_DETAIL_TABS,
     "summary",
@@ -161,7 +166,7 @@ export function BranchDetailPage() {
         title: copy.toasts.deleteSuccess,
         variant: "success",
       });
-      navigate("/branches");
+      navigate(backHref);
     },
     onError: (error) => {
       const known = getBranchMutationErrorToast(error);
@@ -292,8 +297,8 @@ export function BranchDetailPage() {
         backLabel: copy.notFound.backLabel,
       }}
       header={{
-        backHref: "/branches",
-        backLabel: copy.header.backLabel,
+        backHref,
+        backLabel,
         icon: <Building2 className="h-6 w-6" />,
         iconVariant:
           branch && (!branch.isActive || branch.status === BranchStatus.INACTIVE)
@@ -323,6 +328,7 @@ export function BranchDetailPage() {
               isActive={branch.isActive}
               isMain={branch.isMain}
               variant="buttons"
+              fromState={fromState}
               onDelete={handleDelete}
               isDeleting={deleteMutation.isPending}
             />

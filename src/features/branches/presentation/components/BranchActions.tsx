@@ -33,6 +33,7 @@ interface BranchActionsProps {
   isActive?: boolean;
   isMain?: boolean;
   variant?: "dropdown" | "buttons";
+  fromState?: { from: string };
   onDelete?: (id: string) => void;
   onRestore?: (id: string) => void;
   isDeleting?: boolean;
@@ -45,6 +46,7 @@ export function BranchActions({
   isActive = true,
   isMain = false,
   variant = "dropdown",
+  fromState,
   onDelete,
   onRestore,
   isDeleting = false,
@@ -151,7 +153,11 @@ export function BranchActions({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/branches/${branchId}/edit`)}
+              onClick={() =>
+                navigate(`/branches/${branchId}/edit`, {
+                  state: fromState,
+                })
+              }
             >
               <Pencil className="mr-2 h-4 w-4" />
               {branchesCopy.actions.edit}
@@ -188,12 +194,20 @@ export function BranchActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => navigate(`/branches/${branchId}`)}>
+          <DropdownMenuItem
+            onClick={() =>
+              navigate(`/branches/${branchId}`, { state: fromState })
+            }
+          >
             <Eye className="mr-2 h-4 w-4" />
             {branchesCopy.actions.viewDetail}
           </DropdownMenuItem>
           {canUpdate && isActive ? (
-            <DropdownMenuItem onClick={() => navigate(`/branches/${branchId}/edit`)}>
+            <DropdownMenuItem
+              onClick={() =>
+                navigate(`/branches/${branchId}/edit`, { state: fromState })
+              }
+            >
               <Pencil className="mr-2 h-4 w-4" />
               {branchesCopy.actions.edit}
             </DropdownMenuItem>

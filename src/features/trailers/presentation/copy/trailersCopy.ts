@@ -6,20 +6,33 @@ export const trailersCopy = {
     title: "Remolques",
     description:
       "Remolques de la flota: placa, tipo y si están libres, reservados o en viaje.",
-    empty: "Aún no hay remolques",
-    emptyHint: "Da de alta el primero para asignarlo a un viaje.",
-    emptyFiltered: "No hay remolques con esos criterios",
-    emptyFilteredHint: "Intenta ajustar la búsqueda o el estado.",
-    clearFilters: "Limpiar filtros",
-    searchPlaceholder: "Buscar por placa…",
+    descriptionManager:
+      "Si patio no halló el remolque, dalo de alta aquí.",
     create: "Nuevo remolque",
     toast: {
       refreshed: "Lista actualizada",
     },
-    filters: {
-      status: "Estado",
-      allStatuses: "Todos los estados",
-      chipStatus: (label: string) => `Estado: ${label}`,
+    actions: {
+      clearFilters: "Limpiar filtros",
+    },
+    filter: {
+      showFilters: "Filtros",
+      searchPlaceholder: "Placa",
+      statusLabel: "Estado",
+      statusAll: "Todos",
+    },
+    chip: {
+      status: (label: string) => `Estado: ${label}`,
+    },
+    empty: {
+      title: "No se encontraron remolques",
+      descriptionClear: "Comienza registrando el primer remolque",
+      descriptionClearManager:
+        "Patio no halló el remolque. Dalo de alta aquí.",
+      descriptionReadonly:
+        "Aún no hay remolques. Pide el alta a administración.",
+      descriptionFiltered:
+        "Nada coincide. Prueba otra placa, o limpia los recortes.",
     },
     table: {
       plate: "Placa",

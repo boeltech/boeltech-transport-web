@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import {
   Table,
   TableBody,
@@ -42,10 +43,11 @@ export function BranchTable({
   onSort,
 }: BranchTableProps) {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
   const columns = branchesCopy.list.columns;
 
   const handleRowClick = (branchId: string) => {
-    navigate(`/branches/${branchId}`);
+    navigate(`/branches/${branchId}`, { state: fromState });
   };
 
   const handleSort = (field: string) => {
@@ -150,6 +152,7 @@ export function BranchTable({
                 <BranchActions
                   branchId={branch.id}
                   branchName={branch.name}
+                  fromState={fromState}
                   isActive={!showDeleted && branch.isActive}
                   isMain={branch.isMain}
                   onDelete={onDelete}

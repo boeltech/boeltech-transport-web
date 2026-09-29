@@ -1,25 +1,15 @@
 /**
- * DriversListPage
- * Clean Architecture - Presentation Layer (Pages)
+ * DriversListPage — padrón de conductores (`ListPageShell`).
  *
- * Página principal de listado de conductores.
- * Sin selección múltiple (checkboxes).
- *
- * Ubicación: src/features/drivers/presentation/pages/DriversListPage.tsx
+ * Dictamen toolbar: search = lookup; licencias por vencer = toggle del riel;
+ * estado / sucursal en «Filtros (n)»; default = todos los estados (incluye Baja).
  */
-
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { cn } from "@shared/lib/utils/cn";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,34 +21,38 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { usePermissions } from "@shared/permissions";
+import { ROLES } from "@shared/constants/roles";
+import { usePermissions, useRole } from "@shared/permissions";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { BranchStatus, useBranches } from "@features/branches";
-import { MasterImportWizard, importsCopy } from "@features/imports";
+import { MasterImportWizard } from "@features/imports";
 import { Plus, Search, AlertTriangle, FileUp, Loader2 } from "lucide-react";
 
 import { useDrivers, useDeleteDriver } from "../../application";
 import {
-  DriverStatus,
   type DriverListItem,
   type DriverStatusType,
-  DRIVER_STATUS_LABELS,
   getDriverPrimaryLicenseNumber,
 } from "../../domain";
-import { DriverTable, DriverCard, DriverCardSkeleton } from "../components";
+import {
+  DriverTable,
+  DriverCard,
+  DriverCardSkeleton,
+  DriverListFilters,
+} from "../components";
 import { driversCopy } from "../copy/driversCopy";
 import { DRIVER_STATUS_CONFIG } from "../index";
+import { countDriverPanelFilters } from "../utils/driverListFilters";
 
-const listFilterCopy = driversCopy.list.filters;
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const copy = driversCopy.list;
 
 export function DriversListPage() {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const role = useRole();
+  const isManager = role === ROLES.MANAGER;
 
   const { data: branchesResult } = useBranches({
     page: 1,
@@ -94,10 +88,12 @@ export function DriversListPage() {
     },
     chipLabels: {
       status: (value) =>
-        `Estado: ${DRIVER_STATUS_CONFIG[value as DriverStatusType]?.label || value}`,
-      licenseExpiring: () => "Licencias por vencer",
+        copy.chip.status(
+          DRIVER_STATUS_CONFIG[value as DriverStatusType]?.label || value,
+        ),
+      licenseExpiring: () => copy.chip.licenseExpiring,
       branchId: (value) =>
-        listFilterCopy.chipBranch(
+        copy.filters.chipBranch(
           branchLabelById.get(value) ?? value.slice(0, 8),
         ),
     },
@@ -105,6 +101,11 @@ export function DriversListPage() {
   const statusFilter = filters.filters.status as DriverStatusType | "";
   const licenseExpiring = filters.filters.licenseExpiring === "true";
   const branchIdFilter = filters.filters.branchId || "";
+  const activePanelFilterCount = countDriverPanelFilters({
+    status: statusFilter,
+    branchId: branchIdFilter,
+  });
+  const hasPanelFilters = activePanelFilterCount > 0;
 
   const { data, isLoading, isFetching, refetch } = useDrivers({
     page: filters.page,
@@ -147,13 +148,13 @@ export function DriversListPage() {
   const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const handleView = useCallback(
-    (id: string) => navigate(`/drivers/${id}`),
-    [navigate],
+    (id: string) => navigate(`/drivers/${id}`, { state: fromState }),
+    [fromState, navigate],
   );
 
   const handleEdit = useCallback(
-    (id: string) => navigate(`/drivers/${id}/edit`),
-    [navigate],
+    (id: string) => navigate(`/drivers/${id}/edit`, { state: fromState }),
+    [fromState, navigate],
   );
 
   const handleDelete = useCallback(
@@ -177,16 +178,20 @@ export function DriversListPage() {
   }, [navigate]);
   const handleRefresh = useCallback(async () => {
     await refetch();
-    toast({ title: "Lista actualizada", variant: "success" });
+    toast({ title: copy.page.refreshSuccess, variant: "success" });
   }, [refetch, toast]);
 
   return (
     <>
       <ListPageShell
-        title="Conductores"
-        description="Gestiona los conductores de la flota"
+        title={copy.page.title}
+        description={
+          isManager && canCreate
+            ? copy.page.descriptionManager
+            : copy.page.description
+        }
         primaryAction={{
-          label: "Nuevo Conductor",
+          label: copy.actions.create,
           icon: <Plus className="h-4 w-4" />,
           onClick: handleCreate,
           visible: canCreate,
@@ -194,58 +199,34 @@ export function DriversListPage() {
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: "Buscar conductor...",
+            placeholder: copy.filter.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           filters: (
             <>
-              <Select
-                value={statusFilter || "all"}
-                onValueChange={(value) => filters.setFilter("status", value)}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  {Object.values(DriverStatus).map((statusValue) => (
-                    <SelectItem key={statusValue} value={statusValue}>
-                      {DRIVER_STATUS_LABELS[statusValue]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={branchIdFilter || "all"}
-                onValueChange={(value) => filters.setFilter("branchId", value)}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder={listFilterCopy.branch} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {listFilterCopy.allBranches}
-                  </SelectItem>
-                  {branchOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
               <Button
+                type="button"
                 variant={licenseExpiring ? "secondary" : "outline"}
                 size="sm"
                 onClick={handleLicenseExpiringToggle}
+                aria-pressed={licenseExpiring}
                 className={cn(
                   licenseExpiring &&
                     "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
                 )}
               >
                 <AlertTriangle className="mr-2 h-4 w-4" />
-                Licencias por vencer
+                {copy.filter.licenseExpiring}
               </Button>
+              <DriverListFilters
+                key={hasPanelFilters ? "filters-active" : "filters-idle"}
+                status={statusFilter}
+                branchId={branchIdFilter}
+                branchOptions={branchOptions}
+                activePanelFilterCount={activePanelFilterCount}
+                onStatusChange={(value) => filters.setFilter("status", value)}
+                onBranchChange={(value) => filters.setFilter("branchId", value)}
+              />
             </>
           ),
           extraActions: canImport ? (
@@ -255,8 +236,9 @@ export function DriversListPage() {
               size="sm"
               onClick={() => setImportWizardOpen(true)}
               leftIcon={<FileUp className="h-4 w-4" />}
+              aria-label={copy.actions.importAria}
             >
-              {importsCopy.cta.importCsv}
+              {copy.actions.import}
             </Button>
           ) : null,
           onRefresh: handleRefresh,
@@ -303,20 +285,24 @@ export function DriversListPage() {
         renderCardSkeleton={() => <DriverCardSkeleton />}
         emptyState={{
           icon: <Search className="h-10 w-10 text-muted-foreground" />,
-          title: "No se encontraron conductores",
+          title: copy.empty.title,
           description: filters.hasFilters
-            ? "Intenta ajustar los filtros de búsqueda"
-            : "Comienza agregando tu primer conductor",
+            ? copy.empty.descriptionFiltered
+            : canCreate
+              ? isManager
+                ? copy.empty.descriptionClearManager
+                : copy.empty.descriptionClear
+              : copy.empty.descriptionReadonly,
           cta: canCreate
             ? {
-                label: "Nuevo Conductor",
+                label: copy.actions.create,
                 icon: <Plus className="h-4 w-4" />,
                 onClick: handleCreate,
               }
             : undefined,
           secondaryCta: filters.hasFilters
             ? {
-                label: "Limpiar filtros",
+                label: copy.actions.clearFilters,
                 onClick: filters.clearAll,
                 variant: "outline",
               }

@@ -5,10 +5,24 @@ export const tripsListCopy = {
     titleClient: "Mis envíos",
     titleDriver: "Mis viajes",
     description: "Consulta y administra los viajes de tu flota",
+    /** Despachador: job del día (D7), no «administra tu flota». */
+    descriptionDispatcher:
+      "Reserva, completa ruta y cargas, confirma e inicia. Aquí está el trabajo del día.",
+    /** Contador: lectura para facturar (D8). */
+    descriptionAccountant:
+      "Lee el viaje para facturar. El primer CFDI está en Por facturar. Aquí, Atención fiscal es la cola de revisión de facturas ya emitidas.",
+    /** Gerente: receptor del trámite SAT (D6). No flota, no 4 pasos. */
+    descriptionManager:
+      "Cuando facturación te pide cancelar o sustituir, entra por Atención fiscal. Tú ejecutas el trámite en la factura.",
+    /** Operador: gastos en el detalle (D6). No flota, no patio, no fiscal. */
+    descriptionOperator:
+      "Los gastos del viaje se cargan en el detalle, en el tab Costos.",
     /** Portal cliente: consulta de envíos propios (sin chrome de flota). */
-    descriptionClient: "Consulta el estado de tus envíos y su facturación",
-    /** Portal conductor: sus viajes asignados + seguimiento. */
-    descriptionDriver: "Consulta y actualiza el estado de tus viajes asignados",
+    descriptionClient:
+      "Consulta el estado de tus envíos. Las facturas están en Mis facturas.",
+    /** Portal conductor: ciclo operativo de *sus* viajes (D6). No flota. */
+    descriptionDriver:
+      "Inicia, registra las paradas y completa tus viajes asignados.",
   },
 
   actions: {
@@ -40,8 +54,8 @@ export const tripsListCopy = {
   filter: {
     overdue: "Con retraso",
     panelTitle: "Filtros",
-    showFilters: "Mostrar filtros",
-    hideFilters: "Ocultar filtros",
+    showFilters: "Filtros",
+    hideFilters: "Filtros",
     statusLabel: "Estado",
     statusAll: "Todos los estados",
     fiscalLabel: "Atención de factura",
@@ -52,11 +66,15 @@ export const tripsListCopy = {
     invoiceAll: "Todas las facturas",
     invoicePlaceholder: "Estado de factura",
     dateLabel: "Fecha de salida",
-    searchPlaceholder: "Buscar por código, cliente, origen, destino…",
-    searchPlaceholderClient: "Buscar por código, origen o destino…",
-    searchPlaceholderDriver: "Buscar por código, origen o destino…",
+    searchPlaceholder: "Código, cliente o ruta",
+    searchPlaceholderClient: "Código, origen o destino",
+    searchPlaceholderDriver: "Código, origen o destino",
     dateHeading: "Filtrar por fecha de salida",
     datePlaceholder: "Filtrar por fecha",
+    originBranchLabel: "Sucursal origen",
+    originBranchAll: "Todas",
+    originBranchUnassigned: "Sin sucursal",
+    originBranchPlaceholder: "Sucursal origen",
   },
 
   chip: {
@@ -66,6 +84,7 @@ export const tripsListCopy = {
     date: (range: string) => `Fecha: ${range}`,
     originBranch: (label: string) => `Sucursal origen: ${label}`,
     originBranchUnassigned: "Sucursal origen: Sin sucursal",
+    originBranchUnknown: "Sucursal origen",
   },
 
   invoiceStatus: {
@@ -94,7 +113,7 @@ export const tripsListCopy = {
   banner: {
     title: "Viajes con retraso",
     body: (count: number) =>
-      `${count} viaje${count === 1 ? "" : "s"} en curso con la llegada programada vencida. Revísalos o márcalos como finalizados.`,
+      `${count} viaje${count === 1 ? "" : "s"} En Ruta con la llegada programada vencida. Revísalos o márcalos como finalizados.`,
     action: "Ver con retraso",
   },
 
@@ -122,19 +141,73 @@ export const tripsListCopy = {
     },
   },
 
+  /** Strip L1 — 4 pasos del job (D4). Visible solo dispatcher. */
+  orientation: {
+    title: "El trabajo del día",
+    steps: [
+      "Reservar el viaje",
+      "Completar ruta y cargas en el detalle",
+      "Confirmar la reserva",
+      "Iniciar en Seguimiento",
+    ],
+    dismiss: "Entendido",
+  },
+
+  /** Alert L1b — dos colas. Visible solo accountant. */
+  accountantOrientation: {
+    title: "Dos colas distintas",
+    body: "El primer CFDI está en Por facturar. Atención fiscal es otra cola: viajes ya facturados que operación pidió revisar. No sustituyes tú la factura.",
+    invoiceableLink: "Ir a Por facturar",
+    dismiss: "Entendido",
+  },
+
+  /** Alert L1a — recepción SAT. Visible solo manager. No reutilizar accountant. */
+  managerOrientation: {
+    title: "Cuando te piden cancelar o sustituir",
+    body: "Facturación te deja el viaje en Atención fiscal. Abre la factura: tú sustituyes o cancelas. No es Por facturar.",
+    dismiss: "Entendido",
+  },
+
+  /** Alert L1 — 2 tiempos. Visible solo operator. Key propia, no reutilizar hermanos. */
+  operatorOrientation: {
+    title: "Dónde cargar los gastos",
+    body: "Abre el viaje y entra a Costos. Ahí usa Agregar de ruta o Agregar del operador.",
+    dismiss: "Entendido",
+  },
+
+  /** Alert L1 — 3 tiempos. Visible solo driver. Falso fuera del Alert (D4). */
+  driverOrientation: {
+    title: "Tus viajes, en tres tiempos",
+    body: "Abre un viaje Programado. En Seguimiento: Iniciar, registrar paradas y Completar.",
+    dismiss: "Entendido",
+  },
+
+  /** Alert L1a — 2 tiempos. Visible solo client. Key propia, no reutilizar hermanos. */
+  clientOrientation: {
+    title: "Tus envíos y tus facturas",
+    body: "Aquí ves el estado de tus envíos. Las facturas emitidas están en Mis facturas.",
+    dismiss: "Entendido",
+  },
+
   empty: {
     title: "No se encontraron viajes",
     titleClient: "No se encontraron envíos",
     titleDriver: "No se encontraron viajes",
     filteredDescription: "Prueba ajustando los filtros de búsqueda",
     noDataDescription: "Empieza reservando tu primer viaje",
+    jobLead: "Así sale un viaje:",
     noDataDescriptionClient:
-      "Cuando tengas envíos registrados, aparecerán aquí.",
+      "Cuando te asignen envíos, aparecerán aquí.",
     noDataDescriptionDriver:
       "Cuando te asignen viajes, aparecerán aquí.",
+    noDataDescriptionOperator:
+      "Aún no hay viajes. Cuando exista uno, ábrelo y entra a Costos.",
     overdueTitle: "No hay viajes con retraso",
     overdueDescription:
-      "No hay viajes en curso con la llegada programada vencida en este momento.",
+      "No hay viajes En Ruta con la llegada programada vencida en este momento.",
+    fiscalAttentionManagerTitle: "Nada en Atención fiscal",
+    fiscalAttentionManagerDescription:
+      "No hay trámites pendientes. Si facturación no te pidió cancelar o sustituir, la cola vacía es correcta.",
     table: "No se encontraron viajes.",
     tableClient: "No se encontraron envíos.",
     tableDriver: "No se encontraron viajes asignados.",
@@ -186,11 +259,24 @@ export const tripsListCopy = {
     bucketDescriptions: {
       draft: "Pedidos anotados pendientes de programar",
       scheduled: "Viajes programados listos para iniciar",
-      in_progress: "Viajes actualmente en tránsito",
+      in_progress: "Viajes actualmente en ruta",
       completed: "Viajes finalizados exitosamente",
+      /** Portal cliente: estados del envío, no patio (D7). */
+      scheduledClient: "Envíos programados. Aún no salen.",
+      inProgressClient: "Envíos en camino.",
+      completedClient: "Envíos que ya llegaron.",
       cancelled: "Viajes cancelados",
       fiscalAttention:
-        "Revisión o sustitución de factura pendiente (también si ya están facturados)",
+        "Revisión o sustitución de factura. No es la cola Por facturar (primer CFDI).",
+      /** Dispatcher: escala (D13), no sustituir. */
+      fiscalAttentionEscalate:
+        "Hay que avisar a facturación. No sustituyas tú la factura.",
+      /** Contador: receptor de la escala, no patio (D8). */
+      fiscalAttentionAccountant:
+        "Ya hay CFDI. Abre la factura; no es Por facturar. El trámite SAT lo pide un gerente.",
+      /** Gerente: tú ejecutas el trámite (D7). */
+      fiscalAttentionManager:
+        "Tú sustituyes o cancelas la factura. Abre el viaje y ejecuta el trámite. No es Por facturar.",
     },
     degradedMessage:
       "No se pudieron cargar los conteos del centro de trabajo. Puedes seguir usando la lista con filtros.",

@@ -1,56 +1,42 @@
 /**
- * ClientsListPage
- * Clean Architecture - Presentation Layer
+ * ClientsListPage — catálogo de clientes (`ListPageShell`).
  *
- * Página principal del módulo de clientes.
- * Muestra la lista de clientes con filtros y paginación.
- *
- * Ubicación: src/features/clients/presentation/pages/ClientsListPage.tsx
+ * Dictamen toolbar: search = lookup; tipo / pago / estado en «Filtros (n)»;
+ * default = todos (activos e inactivos); importar no es recorte.
  */
-
 import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useListingFilters, useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
+import { ROLES } from "@shared/constants/roles";
+import { usePermissions, useRole } from "@shared/permissions";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import {
-  Plus,
-  Users,
-  Building2,
-  User,
-  FileUp,
-} from "lucide-react";
+import { Plus, Users, FileUp } from "lucide-react";
 
-import { MasterImportWizard, importsCopy } from "@features/imports";
+import { MasterImportWizard } from "@features/imports";
 import { useClients } from "../../application";
 import type { ClientFilters, ClientType, PaymentTerms } from "../../domain";
-import { ClientTable, ClientCard, ClientCardSkeleton } from "../components";
 import {
-  CLIENT_TYPE_OPTIONS,
-  PAYMENT_TERMS_OPTIONS,
-  STATUS_OPTIONS,
-  CLIENT_TYPE_CONFIG,
-  CLIENT_STATUS_CONFIG,
-  PAYMENT_TERMS_CONFIG,
-  DEFAULT_PAGE_SIZE,
-} from "../config/clientConfig";
+  ClientTable,
+  ClientCard,
+  ClientCardSkeleton,
+  ClientListFilters,
+} from "../components";
+import { clientsCopy } from "../copy/clientsCopy";
+import { DEFAULT_PAGE_SIZE } from "../config/clientConfig";
+import {
+  countClientPanelFilters,
+  resolveClientListIsActive,
+} from "../utils/clientListFilters";
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const copy = clientsCopy;
 
 export function ClientsListPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const role = useRole();
+  const isManager = role === ROLES.MANAGER;
   const [searchParams, setSearchParams] = useSearchParams();
   const listing = useListingFilters<"type" | "paymentTerms" | "status">({
     filters: {
@@ -60,11 +46,11 @@ export function ClientsListPage() {
     },
     chipLabels: {
       type: (value) =>
-        `Tipo: ${CLIENT_TYPE_CONFIG[value as ClientType]?.label || value}`,
+        value === "individual" ? copy.chip.typeIndividual : copy.chip.typeMoral,
       paymentTerms: (value) =>
-        `Pago: ${PAYMENT_TERMS_CONFIG[value as PaymentTerms]?.label || value}`,
+        value === "cash" ? copy.chip.paymentCash : copy.chip.paymentCredit,
       status: (value) =>
-        `Estado: ${CLIENT_STATUS_CONFIG[value === "true" ? "active" : "inactive"]?.label}`,
+        value === "inactive" ? copy.chip.statusInactive : copy.chip.statusActive,
     },
   });
   const typeFilter = listing.filters.type as ClientType | "";
@@ -72,16 +58,20 @@ export function ClientsListPage() {
   const statusFilter = listing.filters.status;
   const sortBy = searchParams.get("sortBy") || "legal_name";
   const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
+  const activePanelFilterCount = countClientPanelFilters({
+    type: typeFilter,
+    paymentTerms: paymentTermsFilter,
+    status: statusFilter,
+  });
+  const hasPanelFilters = activePanelFilterCount > 0;
 
-  // Build filters
   const clientFilters: ClientFilters = {
     search: listing.search || undefined,
     type: typeFilter || undefined,
     paymentTerms: paymentTermsFilter || undefined,
-    isActive: statusFilter ? statusFilter === "true" : undefined,
+    isActive: resolveClientListIsActive(statusFilter),
   };
 
-  // Query
   const { data, isLoading, isFetching, refetch } = useClients(clientFilters, {
     page: listing.page,
     limit: DEFAULT_PAGE_SIZE,
@@ -91,7 +81,6 @@ export function ClientsListPage() {
 
   const clients = data?.data ?? [];
 
-  // Permisos
   const canCreate = hasPermission("clients", "create");
   const canImport =
     hasPermission("imports", "execute") && hasPermission("clients", "create");
@@ -121,157 +110,122 @@ export function ClientsListPage() {
 
   const handleRefresh = useCallback(async () => {
     await refetch();
-    toast({ title: "Lista actualizada", variant: "success" });
+    toast({ title: copy.page.refreshSuccess, variant: "success" });
   }, [refetch, toast]);
 
   return (
     <>
-    <ListPageShell
-      title="Clientes"
-      description="Gestiona tus clientes y sus direcciones"
-      primaryAction={{
-        label: "Nuevo Cliente",
-        icon: <Plus className="h-4 w-4" />,
-        onClick: handleCreate,
-        visible: canCreate,
-      }}
-      toolbar={{
-        search: {
-          ...listing.searchProps,
-          placeholder: "Buscar por nombre, RFC...",
-        },
-        filters: (
-          <>
-            <Select
-              value={typeFilter || "all"}
-              onValueChange={(value) => listing.setFilter("type", value)}
+      <ListPageShell
+        title={copy.page.title}
+        description={
+          isManager && canCreate
+            ? copy.page.descriptionManager
+            : copy.page.description
+        }
+        primaryAction={{
+          label: copy.actions.create,
+          icon: <Plus className="h-4 w-4" />,
+          onClick: handleCreate,
+          visible: canCreate,
+        }}
+        toolbar={{
+          search: {
+            ...listing.searchProps,
+            placeholder: copy.filter.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
+          },
+          filters: (
+            <ClientListFilters
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
+              type={typeFilter}
+              paymentTerms={paymentTermsFilter}
+              status={statusFilter}
+              activePanelFilterCount={activePanelFilterCount}
+              onTypeChange={(value) => listing.setFilter("type", value)}
+              onPaymentTermsChange={(value) =>
+                listing.setFilter("paymentTerms", value)
+              }
+              onStatusChange={(value) => listing.setFilter("status", value)}
+            />
+          ),
+          extraActions: canImport ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setImportWizardOpen(true)}
+              leftIcon={<FileUp className="h-4 w-4" />}
+              aria-label={copy.actions.importAria}
             >
-            <SelectTrigger className="w-44">
-              <div className="flex items-center gap-2">
-                {typeFilter === "company" ? (
-                  <Building2 className="h-4 w-4" />
-                ) : typeFilter === "individual" ? (
-                  <User className="h-4 w-4" />
-                ) : null}
-                <SelectValue placeholder="Tipo de cliente" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los tipos</SelectItem>
-              {CLIENT_TYPE_OPTIONS.filter((o) => o.value !== "all").map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-            </Select>
-
-            <Select
-              value={paymentTermsFilter || "all"}
-              onValueChange={(value) => listing.setFilter("paymentTerms", value)}
-            >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Términos de pago" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {PAYMENT_TERMS_OPTIONS.filter((o) => o.value !== "all").map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-            </Select>
-
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(value) => listing.setFilter("status", value)}
-            >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
-              {STATUS_OPTIONS.filter((o) => o.value !== "all").map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-            </Select>
-          </>
-        ),
-        extraActions: canImport ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setImportWizardOpen(true)}
-            leftIcon={<FileUp className="h-4 w-4" />}
-          >
-            {importsCopy.cta.importCsv}
-          </Button>
-        ) : null,
-        onRefresh: handleRefresh,
-        isRefreshing: isFetching,
-        activeFilterChips: listing.activeChips,
-        onClearFilters: listing.clearAll,
-        hasFilters: listing.hasFilters,
-        viewMode: listing.viewModeProps,
-      }}
-      isLoading={isLoading}
-      items={clients}
-      pagination={
-        data?.pagination
-          ? {
-              page: listing.page,
-              totalPages: data.pagination.totalPages,
-              total: data.pagination.total,
-              limit: data.pagination.limit,
-            }
-          : undefined
-      }
-      onPageChange={listing.setPage}
-      entityLabelPlural="clientes"
-      renderTable={() => (
-        <ClientTable
-          clients={clients}
-          isLoading={isLoading}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSort={handleSortChange}
-        />
-      )}
-      renderCards={() => clients.map((client) => <ClientCard key={client.id} client={client} />)}
-      renderCardSkeleton={() => <ClientCardSkeleton />}
-      emptyState={{
-        icon: <Users className="h-10 w-10 text-muted-foreground" />,
-        title: "No se encontraron clientes",
-        description: listing.hasFilters
-          ? "Intenta ajustar los filtros de búsqueda"
-          : "Comienza agregando tu primer cliente",
-        cta: canCreate
-          ? {
-              label: "Nuevo Cliente",
-              icon: <Plus className="h-4 w-4" />,
-              onClick: handleCreate,
-            }
-          : undefined,
-        secondaryCta: listing.hasFilters
-          ? {
-              label: "Limpiar filtros",
-              onClick: listing.clearAll,
-              variant: "outline",
-            }
-          : undefined,
-      }}
-    />
-    <MasterImportWizard
-      open={importWizardOpen}
-      onOpenChange={setImportWizardOpen}
-      entityType="clients"
-      lockEntityType
-    />
+              {copy.actions.import}
+            </Button>
+          ) : null,
+          onRefresh: handleRefresh,
+          isRefreshing: isFetching,
+          activeFilterChips: listing.activeChips,
+          onClearFilters: listing.clearAll,
+          hasFilters: listing.hasFilters,
+          viewMode: listing.viewModeProps,
+        }}
+        isLoading={isLoading}
+        items={clients}
+        pagination={
+          data?.pagination
+            ? {
+                page: listing.page,
+                totalPages: data.pagination.totalPages,
+                total: data.pagination.total,
+                limit: data.pagination.limit,
+              }
+            : undefined
+        }
+        onPageChange={listing.setPage}
+        entityLabelPlural="clientes"
+        renderTable={() => (
+          <ClientTable
+            clients={clients}
+            isLoading={isLoading}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSortChange}
+          />
+        )}
+        renderCards={() =>
+          clients.map((client) => <ClientCard key={client.id} client={client} />)
+        }
+        renderCardSkeleton={() => <ClientCardSkeleton />}
+        emptyState={{
+          icon: <Users className="h-10 w-10 text-muted-foreground" />,
+          title: copy.empty.title,
+          description: listing.hasFilters
+            ? copy.empty.descriptionFiltered
+            : canCreate
+              ? isManager
+                ? copy.empty.descriptionClearManager
+                : copy.empty.descriptionClear
+              : copy.empty.descriptionReadonly,
+          cta: canCreate
+            ? {
+                label: copy.actions.create,
+                icon: <Plus className="h-4 w-4" />,
+                onClick: handleCreate,
+              }
+            : undefined,
+          secondaryCta: listing.hasFilters
+            ? {
+                label: copy.actions.clearFilters,
+                onClick: listing.clearAll,
+                variant: "outline",
+              }
+            : undefined,
+        }}
+      />
+      <MasterImportWizard
+        open={importWizardOpen}
+        onOpenChange={setImportWizardOpen}
+        entityType="clients"
+        lockEntityType
+      />
     </>
   );
 }

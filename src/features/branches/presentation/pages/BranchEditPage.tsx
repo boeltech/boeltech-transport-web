@@ -1,4 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { Building2 } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
@@ -17,6 +19,7 @@ import { getBranchMutationErrorToast } from "../utils/branchMutationErrors";
 export function BranchEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const branchId = id ?? "";
 
@@ -29,7 +32,7 @@ export function BranchEditPage() {
         description: branchesCopy.edit.toasts.successDescription,
         variant: "success",
       });
-      navigate(`/branches/${branchId}`);
+      navigatePreservingFrom(navigate, `/branches/${branchId}`, incomingFrom);
     },
     onError: (error) => {
       const known = getBranchMutationErrorToast(error);
@@ -61,7 +64,7 @@ export function BranchEditPage() {
   };
 
   const handleCancel = () => {
-    navigate(`/branches/${branchId}`);
+    navigatePreservingFrom(navigate, `/branches/${branchId}`, incomingFrom);
   };
 
   return (

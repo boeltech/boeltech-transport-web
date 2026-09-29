@@ -1,22 +1,16 @@
+/**
+ * UserManagementActivityPage — bitácora de usuarios (`ListPageShell`).
+ *
+ * El periodo es la lente (riel). Tipo / persona / actor son recortes del
+ * panel «Filtros (n)». No hay «Limpiar filtros» en el riel: quitar recortes
+ * no escribe `period=all`.
+ */
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { History, SlidersHorizontal } from "lucide-react";
+import { History } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { Button } from "@shared/ui/button";
-import { Label } from "@shared/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
-  formatListingDateRangeLabel,
   ListingDateRangeFilter,
   LISTING_DATE_RANGE_QUICK_PRESETS,
   type ActiveFilterChip,
@@ -24,15 +18,18 @@ import {
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { useUserDirectory, useUserManagementActivity } from "../../application";
 import type { UserManagementActivityFilters } from "../../domain";
-import { UserActivityFeed, UserActivityFeedSkeleton } from "../components";
+import { UserActivityFeed, UserActivityFeedSkeleton } from "../components/UserActivityFeed";
+import { UserActivityFilters } from "../components/UserActivityFilters";
 import {
   findUserActivityActionLabel,
-  USER_ACTIVITY_ACTION_GROUPS,
   userActivityPageCopy,
 } from "../copy/userActivityPageCopy";
+import {
+  countUserActivityPanelFilters,
+  resolveUserActivityEmptyKind,
+} from "../utils/userActivityFilters";
 
 const PAGE_SIZE = 25;
-const ALL_OPTION = "__all__";
 /** Marca «todo el historial»: distingue quitar el periodo de no haberlo tocado nunca. */
 const PERIOD_ALL = "all";
 
@@ -133,11 +130,13 @@ export function UserManagementActivityPage() {
     });
   }, [updateParams]);
 
-  const clearAllFilters = useCallback(() => {
-    setSearchParams(new URLSearchParams({ period: PERIOD_ALL }), {
-      replace: true,
+  const clearRecortes = useCallback(() => {
+    updateParams((next) => {
+      next.delete("action");
+      next.delete("subjectUserId");
+      next.delete("actorUserId");
     });
-  }, [setSearchParams]);
+  }, [updateParams]);
 
   const personLabel = useCallback(
     (id: string) =>
@@ -145,25 +144,29 @@ export function UserManagementActivityPage() {
     [namesById],
   );
 
-  const hasFilters =
-    !!action || !!subjectUserId || !!actorUserId || !!range.fromDate || !!range.toDate;
+  const hasRecortes = !!action || !!subjectUserId || !!actorUserId;
+  const isEntireHistory =
+    searchParams.get("period") === PERIOD_ALL &&
+    !createdFromParam &&
+    !createdToParam;
+  const emptyKind = resolveUserActivityEmptyKind({
+    hasRecortes,
+    isEntireHistory,
+  });
+  const activePanelFilterCount = countUserActivityPanelFilters({
+    action,
+    subjectUserId,
+    actorUserId,
+  });
+
+  const directoryOptions = useMemo(
+    () => directory.map((entry) => ({ value: entry.id, label: entry.label })),
+    [directory],
+  );
 
   const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
     const chips: ActiveFilterChip[] = [];
 
-    if (range.fromDate || range.toDate) {
-      chips.push({
-        id: "period",
-        label: copy.filters.chip.period(
-          formatListingDateRangeLabel(
-            range.fromDate,
-            range.toDate,
-            copy.filters.periodPlaceholder,
-          ),
-        ),
-        onRemove: clearRange,
-      });
-    }
     if (action) {
       chips.push({
         id: "action",
@@ -187,17 +190,43 @@ export function UserManagementActivityPage() {
     }
 
     return chips;
-  }, [
-    action,
-    actorUserId,
-    clearRange,
-    copy.filters,
-    personLabel,
-    range.fromDate,
-    range.toDate,
-    setParam,
-    subjectUserId,
-  ]);
+  }, [action, actorUserId, copy.filters, personLabel, setParam, subjectUserId]);
+
+  const emptyCopy =
+    emptyKind === "virgin"
+      ? {
+          title: copy.empty.virginTitle,
+          description: copy.empty.virginDescription,
+        }
+      : emptyKind === "window"
+        ? {
+            title: copy.empty.windowTitle,
+            description: copy.empty.windowDescription,
+          }
+        : {
+            title: copy.empty.recorteTitle,
+            description: copy.empty.recorteDescription,
+          };
+
+  const emptyCta = isError
+    ? {
+        label: copy.page.retry,
+        onClick: () => void refetch(),
+        variant: "outline" as const,
+      }
+    : emptyKind === "window"
+      ? {
+          label: copy.filters.viewAllHistory,
+          onClick: clearRange,
+          variant: "outline" as const,
+        }
+      : emptyKind === "recorte"
+        ? {
+            label: copy.filters.clearRecortes,
+            onClick: clearRecortes,
+            variant: "outline" as const,
+          }
+        : undefined;
 
   return (
     <ListPageShell
@@ -223,97 +252,22 @@ export function UserManagementActivityPage() {
               placeholder={copy.filters.periodPlaceholder}
               idPrefix="user-activity-date"
             />
-
-            <Select
-              value={action || ALL_OPTION}
-              onValueChange={(value) =>
-                setParam("action", value === ALL_OPTION ? "" : value)
-              }
-            >
-              <SelectTrigger className="w-[240px]">
-                <SelectValue placeholder={copy.filters.actionPlaceholder} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_OPTION}>
-                  {copy.filters.actionAll}
-                </SelectItem>
-                {USER_ACTIVITY_ACTION_GROUPS.map((group) => (
-                  <SelectGroup key={group.label}>
-                    <SelectLabel>{group.label}</SelectLabel>
-                    {group.options.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={subjectUserId || ALL_OPTION}
-              onValueChange={(value) =>
-                setParam("subjectUserId", value === ALL_OPTION ? "" : value)
-              }
-            >
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder={copy.filters.personPlaceholder} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_OPTION}>
-                  {copy.filters.personAll}
-                </SelectItem>
-                {directory.map((entry) => (
-                  <SelectItem key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button type="button" variant={actorUserId ? "secondary" : "outline"}>
-                  <SlidersHorizontal className="mr-2 h-4 w-4" />
-                  {copy.filters.more}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 space-y-3 p-4" align="start">
-                <p className="text-sm font-medium">{copy.filters.moreHeading}</p>
-                <div className="space-y-1.5">
-                  <Label htmlFor="user-activity-actor">
-                    {copy.filters.actorLabel}
-                  </Label>
-                  <Select
-                    value={actorUserId || ALL_OPTION}
-                    onValueChange={(value) =>
-                      setParam("actorUserId", value === ALL_OPTION ? "" : value)
-                    }
-                  >
-                    <SelectTrigger id="user-activity-actor">
-                      <SelectValue placeholder={copy.filters.actorAll} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ALL_OPTION}>
-                        {copy.filters.actorAll}
-                      </SelectItem>
-                      {directory.map((entry) => (
-                        <SelectItem key={entry.id} value={entry.id}>
-                          {entry.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <UserActivityFilters
+              key={hasRecortes ? "filters-active" : "filters-idle"}
+              action={action}
+              subjectUserId={subjectUserId}
+              actorUserId={actorUserId}
+              directory={directoryOptions}
+              activePanelFilterCount={activePanelFilterCount}
+              onActionChange={(value) => setParam("action", value)}
+              onSubjectChange={(value) => setParam("subjectUserId", value)}
+              onActorChange={(value) => setParam("actorUserId", value)}
+            />
           </>
         ),
         onRefresh: () => refetch().then(() => undefined),
         isRefreshing: isFetching,
         activeFilterChips,
-        hasFilters,
-        onClearFilters: clearAllFilters,
       }}
       isLoading={isLoading}
       items={events}
@@ -331,29 +285,11 @@ export function UserManagementActivityPage() {
       onPageChange={handlePageChange}
       emptyState={{
         icon: <History />,
-        title: isError
-          ? copy.page.errorTitle
-          : hasFilters
-            ? copy.empty.filteredTitle
-            : copy.empty.title,
+        title: isError ? copy.page.errorTitle : emptyCopy.title,
         description: isError
           ? errorMessage || copy.page.error
-          : hasFilters
-            ? copy.empty.filteredDescription
-            : copy.empty.description,
-        cta: isError
-          ? {
-              label: copy.page.retry,
-              onClick: () => void refetch(),
-              variant: "outline",
-            }
-          : hasFilters
-            ? {
-                label: copy.filters.clearAll,
-                onClick: clearAllFilters,
-                variant: "outline",
-              }
-            : undefined,
+          : emptyCopy.description,
+        cta: emptyCta,
       }}
       renderTable={() =>
         isLoading ? (

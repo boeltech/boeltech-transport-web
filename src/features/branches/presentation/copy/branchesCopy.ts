@@ -77,13 +77,32 @@ export const branchesCopy = {
     },
   },
   list: {
-    title: "Sucursales",
-    description:
-      "Dónde opera tu empresa y cuántas plazas de sucursal quedan en tu plan.",
+    page: {
+      title: "Sucursales",
+      description:
+        "Dónde opera tu empresa y cuántas plazas de sucursal quedan en tu plan.",
+      refreshSuccess: "Lista actualizada",
+    },
     entityLabelPlural: "sucursales",
-    primaryAction: "Nueva sucursal",
-    searchPlaceholder: "Buscar por código, nombre o ciudad…",
-    refreshSuccess: "Lista actualizada",
+    actions: {
+      create: "Nueva sucursal",
+      export: "Exportar",
+      exportAria: "Exportar sucursales a CSV",
+      clearFilters: "Limpiar filtros",
+    },
+    filter: {
+      showFilters: "Filtros",
+      searchPlaceholder: "Código, nombre o ciudad",
+      statusLabel: "Estado",
+      statusAll: "Todos",
+      typeLabel: "Tipo",
+      typeAll: "Todos",
+      typeMain: "Matriz",
+      typeSecondary: "Secundaria",
+      createdHeading: "Fecha de alta",
+      from: "Desde",
+      to: "Hasta",
+    },
     capacity: {
       limited: (active: number, max: number) =>
         `${active} de ${max} sucursales activas`,
@@ -93,7 +112,8 @@ export const branchesCopy = {
         `${active} activas · tu plan incluye ${max}`,
     },
     export: {
-      label: "Exportar CSV",
+      label: "Exportar",
+      aria: "Exportar sucursales a CSV",
       exporting: "Exportando…",
       toast: {
         success: "Exportación completada",
@@ -103,7 +123,8 @@ export const branchesCopy = {
       filePrefix: "sucursales",
     },
     showDeleted: {
-      label: "Mostrar eliminadas",
+      label: "Eliminadas",
+      aria: "Mostrar sucursales eliminadas",
       chip: "Vista: eliminadas",
     },
     columns: {
@@ -113,36 +134,22 @@ export const branchesCopy = {
       contact: "Contacto",
       status: "Estado",
     },
-    filters: {
-      status: "Estado",
-      statusAll: "Todos los estados",
-      type: "Tipo",
-      typeAll: "Todos los tipos",
-      typeMain: "Matriz",
-      typeSecondary: "Secundaria",
-      more: "Más filtros",
-      moreHeading: "Filtros por fecha",
-      createdHeading: "Fecha de alta",
-      from: "Desde",
-      to: "Hasta",
-      apply: "Aplicar",
-      cancel: "Cancelar",
-      clearDates: "Limpiar fechas",
-      statusChip: (label: string) => `Estado: ${label}`,
-      typeChip: (isMain: boolean) =>
+    chip: {
+      status: (label: string) => `Estado: ${label}`,
+      type: (isMain: boolean) =>
         `Tipo: ${isMain ? "Matriz" : "Secundaria"}`,
-      chipDates: (label: string) => `Fechas: ${label}`,
+      dates: (range: string) => `Alta: ${range}`,
+    },
+    filters: {
       rangeBoth: (from: string, to: string) => `${from} - ${to}`,
       rangeFrom: (from: string) => `Desde ${from}`,
       rangeTo: (to: string) => `Hasta ${to}`,
-      createdPrefix: (range: string) => `Alta: ${range}`,
     },
     empty: {
-      title: "No hay sucursales",
-      filteredTitle: "No se encontraron sucursales",
-      descriptionFiltered: "Prueba ajustando los filtros de búsqueda.",
-      descriptionDefault: "Registra la primera sucursal de tu empresa.",
-      clearFilters: "Quitar filtros",
+      title: "No se encontraron sucursales",
+      descriptionClear: "Registra la primera sucursal de tu empresa.",
+      descriptionFiltered:
+        "Nada coincide. Prueba otro código, nombre o ciudad, o limpia los recortes.",
     },
     toasts: {
       deleteSuccess: "Sucursal eliminada",
@@ -171,7 +178,7 @@ export const branchesCopy = {
     stats: {
       margin: "Margen",
       trips: "Viajes",
-      inProgress: "En curso",
+      inProgress: "En Ruta",
       completed: "Completados",
     },
     cards: {
@@ -242,7 +249,7 @@ export const branchesCopy = {
       viewTrips: "Ver viajes",
       metrics: {
         tripsMonth: "Viajes",
-        inProgress: "En curso",
+        inProgress: "En Ruta",
         completed: "Completados",
         vehicles: "Vehículos asignados",
         drivers: "Conductores",

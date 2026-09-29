@@ -7,6 +7,8 @@
 
 import { useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UserCog, User } from "lucide-react";
 import { useToast } from "@shared/hooks";
@@ -36,6 +38,7 @@ const copy = driversCopy.form;
 export function DriverEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const formRef = useRef<DriverFormRef>(null);
   const driverId = id || "";
@@ -49,7 +52,7 @@ export function DriverEditPage() {
         description: copy.edit.toast.successDescription,
         variant: "success",
       });
-      navigate(`/drivers/${driverId}`);
+      navigatePreservingFrom(navigate, `/drivers/${driverId}`, incomingFrom);
     },
     onError: (error) => {
       if (isApiError(error) && error.hasValidationErrors()) {
@@ -94,8 +97,8 @@ export function DriverEditPage() {
   );
 
   const handleCancel = useCallback(() => {
-    navigate(`/drivers/${driverId}`);
-  }, [navigate, driverId]);
+    navigatePreservingFrom(navigate, `/drivers/${driverId}`, incomingFrom);
+  }, [navigate, driverId, incomingFrom]);
 
   const fullName = driver?.employee
     ? formatDriverName(driver.employee)

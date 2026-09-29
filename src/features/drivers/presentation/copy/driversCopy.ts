@@ -218,6 +218,26 @@ export const driversCopy = {
     },
   },
   list: {
+    page: {
+      title: "Conductores",
+      description: "Gestiona los conductores de la flota",
+      descriptionManager:
+        "Si patio no halló al conductor, dalo de alta aquí.",
+      refreshSuccess: "Lista actualizada",
+    },
+    actions: {
+      create: "Nuevo Conductor",
+      import: "Importar",
+      importAria: "Importar conductores desde archivo",
+      clearFilters: "Limpiar filtros",
+    },
+    filter: {
+      showFilters: "Filtros",
+      searchPlaceholder: "Nombre, número o licencia",
+      statusLabel: "Estado",
+      statusAll: "Todos",
+      licenseExpiring: "Licencias por vencer",
+    },
     table: {
       branch: "Sucursal",
     },
@@ -225,6 +245,20 @@ export const driversCopy = {
       branch: "Sucursal",
       allBranches: "Todas las sucursales",
       chipBranch: (label: string) => `Sucursal: ${label}`,
+    },
+    chip: {
+      status: (label: string) => `Estado: ${label}`,
+      licenseExpiring: "Licencias por vencer",
+    },
+    empty: {
+      title: "No se encontraron conductores",
+      descriptionClear: "Comienza agregando tu primer conductor",
+      descriptionClearManager:
+        "Patio no halló al conductor. Dalo de alta aquí.",
+      descriptionReadonly:
+        "Aún no hay conductores. Pide el alta a administración.",
+      descriptionFiltered:
+        "Nada coincide. Prueba otro nombre, número o licencia, o limpia los recortes.",
     },
     jurisdiction: {
       federal: "Federal",

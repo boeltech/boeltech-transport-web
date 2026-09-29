@@ -1,3 +1,10 @@
+/**
+ * ApprovalInboxPage — bandeja de VoBo (WorkbenchPageShell ADR-0090).
+ *
+ * Dictamen toolbar: el scorecard es dueño del TIPO; pending es la cola
+ * implícita (sin chip); estado ≠ pending, categoría y fecha van en «Filtros»;
+ * el search es lookup; deep-links muestran nombre, no UUID.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ClipboardCheck, Info } from "lucide-react";
@@ -49,8 +56,11 @@ import {
   APPROVAL_STATUS_ALL,
   buildApprovalContextChips,
   buildApprovalEmptyState,
+  countApprovalPanelFilters,
   hasApprovalUserFilters,
+  resolveDriverFilterLabel,
   resolveTripFilterLabel,
+  resolveVehicleFilterLabel,
   type ApprovalContextFilterParams,
 } from "../utils/approvalInboxFilters";
 import {
@@ -128,7 +138,9 @@ export function ApprovalInboxPage({
     chipLabels: {
       status: (value) =>
         copy.filters.statusChip(
-          APPROVAL_STATUS_LABELS[value as ApprovalStatus] ?? value,
+          value === APPROVAL_STATUS_ALL
+            ? copy.filters.statusAll
+            : (APPROVAL_STATUS_LABELS[value as ApprovalStatus] ?? value),
         ),
       category: (value) =>
         copy.filters.categoryChip(
@@ -143,6 +155,7 @@ export function ApprovalInboxPage({
 
   const approvalType =
     (searchParams.get("type") as ApprovableType) || DEFAULT_APPROVAL_TYPE;
+  const showCategoryFilter = approvalType === "trip_expense";
 
   const contextFilters = useMemo<ApprovalContextFilterParams>(
     () => ({
@@ -196,6 +209,22 @@ export function ApprovalInboxPage({
       ),
     [contextFilters.tripCode, contextFilters.tripId, items],
   );
+  const driverFilterLabel = useMemo(
+    () => resolveDriverFilterLabel(contextFilters.driverId, items),
+    [contextFilters.driverId, items],
+  );
+  const vehicleFilterLabel = useMemo(
+    () => resolveVehicleFilterLabel(contextFilters.vehicleId, items),
+    [contextFilters.vehicleId, items],
+  );
+  const activePanelFilterCount = countApprovalPanelFilters({
+    status: filters.filters.status,
+    category: filters.filters.category,
+    fromDate: filters.filters.fromDate,
+    toDate: filters.filters.toDate,
+    showCategory: showCategoryFilter,
+  });
+  const hasPanelFilters = activePanelFilterCount > 0;
 
   const hasUserFilters = useMemo(
     () =>
@@ -231,13 +260,16 @@ export function ApprovalInboxPage({
   );
 
   const activeFilterChips = useMemo(() => {
-    const baseChips = filters.activeChips.filter(
-      (chip) =>
-        (chip.id !== "status" ||
-          filters.filters.status !== APPROVAL_STATUS_ALL) &&
-        chip.id !== "fromDate" &&
-        chip.id !== "toDate",
-    );
+    const statusValue = filters.filters.status;
+    const baseChips = filters.activeChips.filter((chip) => {
+      if (chip.id === "fromDate" || chip.id === "toDate") return false;
+      if (chip.id === "status") {
+        return statusValue === APPROVAL_STATUS_ALL ||
+          (Boolean(statusValue) && statusValue !== "pending");
+      }
+      if (chip.id === "category" && !showCategoryFilter) return false;
+      return true;
+    });
 
     const dateFilterText = formatListingDateRangeLabel(
       fromDate,
@@ -259,18 +291,25 @@ export function ApprovalInboxPage({
         : []),
       ...buildApprovalContextChips(
         contextFilters,
-        tripFilterLabel,
+        {
+          trip: tripFilterLabel,
+          driver: driverFilterLabel,
+          vehicle: vehicleFilterLabel,
+        },
         removeContextFilter,
       ),
     ];
   }, [
     contextFilters,
+    driverFilterLabel,
     filters,
     fromDate,
     hasDateFilter,
     removeContextFilter,
+    showCategoryFilter,
     toDate,
     tripFilterLabel,
+    vehicleFilterLabel,
   ]);
 
   const handleApplyDateRange = useCallback(
@@ -304,11 +343,11 @@ export function ApprovalInboxPage({
     filters.setSearchInput("");
     setSearchParams(() => {
       const params = new URLSearchParams();
-      params.set("type", DEFAULT_APPROVAL_TYPE);
+      params.set("type", approvalType);
       params.set("status", "pending");
       return params;
     });
-  }, [filters, setSearchParams]);
+  }, [approvalType, filters, setSearchParams]);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [approveTarget, setApproveTarget] = useState<ApprovableItem | null>(
@@ -572,10 +611,11 @@ export function ApprovalInboxPage({
           search: {
             ...filters.searchProps,
             placeholder: copy.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           filters: (
             <ApprovalFilters
-              type={approvalType}
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
               status={
                 filters.filters.status as
                   | ApprovalStatus
@@ -585,7 +625,8 @@ export function ApprovalInboxPage({
               category={filters.filters.category}
               fromDate={filters.filters.fromDate}
               toDate={filters.filters.toDate}
-              onTypeChange={handleTypeChange}
+              showCategory={showCategoryFilter}
+              activePanelFilterCount={activePanelFilterCount}
               onStatusChange={handleStatusFilterChange}
               onCategoryChange={(value) =>
                 filters.setFilter("category", value === "all" ? "" : value)

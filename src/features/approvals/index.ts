@@ -31,7 +31,10 @@ export { approvalsApi } from "./infrastructure";
 
 export {
   ApprovalInboxPage,
+  APPROVALS_INBOX_PATH,
   approvalsCopy,
+  buildApprovalsInboxPath,
+  isApprovalsInboxHref,
   ApprovalFilters,
   ApprovalInbox,
   ApprovalRow,

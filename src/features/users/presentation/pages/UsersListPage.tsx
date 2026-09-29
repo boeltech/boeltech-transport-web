@@ -1,26 +1,21 @@
+/**
+ * UsersListPage — padrón de usuarios (`ListPageShell`).
+ *
+ * Dictamen toolbar: search = lookup; estado / rol / alta / último acceso
+ * en «Filtros (n)». Cupo e invitaciones se quedan encima del riel.
+ */
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Filter, Search, SlidersHorizontal, UserPlus, X } from "lucide-react";
-import { ROLE_OPTIONS, ROLE_LABELS, type UserRole } from "@shared/constants/roles";
-import { Button } from "@shared/ui/button";
+import { Search, UserPlus } from "lucide-react";
+import { ROLE_LABELS, type UserRole } from "@shared/constants/roles";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import type { ActiveFilterChip } from "@shared/ui/listing";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
-import { Label } from "@shared/ui/label";
-import { DateField, preventCloseIfDateCalendar } from "@shared/ui/form";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
-  UserStatus,
   USER_STATUS_LABELS,
   type UserSortOptions,
   type UserStatusType,
@@ -32,34 +27,25 @@ import {
   UserCapacityBanner,
   UserCard,
   UserCardSkeleton,
+  UserListFilters,
   UserPlanLimitNotice,
   UserTable,
   invitationsPendingQueryKey,
   type UserSortableColumn,
 } from "../components";
+import { AdminUsersOrientationAlert } from "../components/AdminUsersOrientationAlert";
 import { usersCopy } from "../copy/usersCopy";
 import { capacityFromUserListMeta } from "../helpers/userPlanCapacity";
+import { countUserPanelFilters } from "../utils/userListFilters";
 
-type DateDraftState = {
-  createdFrom: string;
-  createdTo: string;
-  lastLoginFrom: string;
-  lastLoginTo: string;
-};
-
-const EMPTY_DATE_DRAFT: DateDraftState = {
-  createdFrom: "",
-  createdTo: "",
-  lastLoginFrom: "",
-  lastLoginTo: "",
-};
+const copy = usersCopy.list;
 
 export function UsersListPage() {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
-  const copy = usersCopy.list;
 
   const filters = useListingFilters<
     "status" | "role" | "createdFrom" | "createdTo" | "lastLoginFrom" | "lastLoginTo"
@@ -74,11 +60,9 @@ export function UsersListPage() {
     },
     chipLabels: {
       status: (value) =>
-        copy.filters.chipStatus(
-          USER_STATUS_LABELS[value as UserStatusType] ?? value,
-        ),
+        copy.chip.status(USER_STATUS_LABELS[value as UserStatusType] ?? value),
       role: (value) =>
-        copy.filters.chipRole(ROLE_LABELS[value as UserRole] ?? value),
+        copy.chip.role(ROLE_LABELS[value as UserRole] ?? value),
     },
   });
 
@@ -88,56 +72,22 @@ export function UsersListPage() {
   const createdTo = filters.filters.createdTo;
   const lastLoginFrom = filters.filters.lastLoginFrom;
   const lastLoginTo = filters.filters.lastLoginTo;
-  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
-  const [dateDraft, setDateDraft] = useState<DateDraftState>(EMPTY_DATE_DRAFT);
-
-  const syncDateDraftFromUrl = useCallback(() => {
-    setDateDraft({
-      createdFrom,
-      createdTo,
-      lastLoginFrom,
-      lastLoginTo,
-    });
-  }, [createdFrom, createdTo, lastLoginFrom, lastLoginTo]);
-
-  const handleDatePopoverOpenChange = useCallback(
-    (open: boolean) => {
-      setIsDateFilterOpen(open);
-      if (open) {
-        syncDateDraftFromUrl();
-      }
-    },
-    [syncDateDraftFromUrl],
-  );
-
-  const dateDraftMatchesApplied = useMemo(
-    () =>
-      dateDraft.createdFrom === createdFrom &&
-      dateDraft.createdTo === createdTo &&
-      dateDraft.lastLoginFrom === lastLoginFrom &&
-      dateDraft.lastLoginTo === lastLoginTo,
-    [dateDraft, createdFrom, createdTo, lastLoginFrom, lastLoginTo],
-  );
-
-  const handleApplyDateFilters = useCallback(() => {
-    filters.setFilters({
-      createdFrom: dateDraft.createdFrom,
-      createdTo: dateDraft.createdTo,
-      lastLoginFrom: dateDraft.lastLoginFrom,
-      lastLoginTo: dateDraft.lastLoginTo,
-    });
-    setIsDateFilterOpen(false);
-  }, [filters, dateDraft]);
-
-  const handleCancelDatePopover = useCallback(() => {
-    setIsDateFilterOpen(false);
-  }, []);
+  const activePanelFilterCount = countUserPanelFilters({
+    status: statusFilter,
+    role: roleFilter,
+    createdFrom,
+    createdTo,
+    lastLoginFrom,
+    lastLoginTo,
+  });
+  const hasPanelFilters = activePanelFilterCount > 0;
+  const hasCreatedDateFilter = Boolean(createdFrom || createdTo);
+  const hasLastLoginDateFilter = Boolean(lastLoginFrom || lastLoginTo);
 
   const [sort, setSort] = useState<UserSortOptions>({
     field: "created_at",
     direction: "desc",
   });
-
   const [addUserSheetOpen, setAddUserSheetOpen] = useState(false);
 
   const handleSortChange = useCallback(
@@ -169,7 +119,6 @@ export function UsersListPage() {
   });
 
   const canCreate = hasPermission("users", "create");
-
   const capacity = capacityFromUserListMeta(data?.meta);
   const userLimitReached = !capacity.canAdd;
 
@@ -195,9 +144,9 @@ export function UsersListPage() {
 
   const handleView = useCallback(
     (id: string) => {
-      navigate(`/users/${id}`);
+      navigate(`/users/${id}`, { state: fromState });
     },
-    [navigate],
+    [fromState, navigate],
   );
 
   const handleRefresh = useCallback(async () => {
@@ -206,7 +155,7 @@ export function UsersListPage() {
       title: copy.refreshSuccess,
       variant: "success",
     });
-  }, [refetch, toast, copy.refreshSuccess]);
+  }, [refetch, toast]);
 
   const handleStatusChange = useCallback(
     (id: string, status: UserStatusType) => {
@@ -219,58 +168,58 @@ export function UsersListPage() {
     [canUpdateStatus, updateStatusMutation],
   );
 
-  const hasCreatedDateFilter = Boolean(createdFrom || createdTo);
-  const hasLastLoginDateFilter = Boolean(lastLoginFrom || lastLoginTo);
-  const hasDateFilter = hasCreatedDateFilter || hasLastLoginDateFilter;
+  const formatRange = useCallback((from: string, to: string) => {
+    if (from && to) {
+      return copy.filters.rangeBoth(formatDate(from), formatDate(to));
+    }
+    if (from) return copy.filters.rangeFrom(formatDate(from));
+    if (to) return copy.filters.rangeTo(formatDate(to));
+    return "";
+  }, []);
 
-  const formatRange = useCallback(
-    (from: string, to: string) => {
-      if (from && to) {
-        return copy.filters.rangeBoth(formatDate(from), formatDate(to));
-      }
-      if (from) return copy.filters.rangeFrom(formatDate(from));
-      if (to) return copy.filters.rangeTo(formatDate(to));
-      return "";
-    },
-    [copy.filters],
-  );
-
-  const dateFilterText = hasDateFilter
-    ? [
-        hasCreatedDateFilter
-          ? copy.filters.createdPrefix(formatRange(createdFrom, createdTo))
-          : null,
-        hasLastLoginDateFilter
-          ? copy.filters.accessPrefix(formatRange(lastLoginFrom, lastLoginTo))
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : copy.filters.dateButton;
-
-  const handleClearDateFilter = useCallback(() => {
+  const handleClearCreatedFilter = useCallback(() => {
     filters.setFilters({
       createdFrom: "",
       createdTo: "",
+    });
+  }, [filters]);
+
+  const handleClearLastLoginFilter = useCallback(() => {
+    filters.setFilters({
       lastLoginFrom: "",
       lastLoginTo: "",
     });
-    setDateDraft({ ...EMPTY_DATE_DRAFT });
-    setIsDateFilterOpen(false);
   }, [filters]);
 
-  const activeFilterChips: ActiveFilterChip[] = [
-    ...filters.activeChips,
-    ...(hasDateFilter
-      ? [
-          {
-            id: "date",
-            label: copy.filters.chipDates(dateFilterText),
-            onRemove: handleClearDateFilter,
-          },
-        ]
-      : []),
-  ];
+  const activeFilterChips: ActiveFilterChip[] = useMemo(() => {
+    const chips = [...filters.activeChips];
+    if (hasCreatedDateFilter) {
+      chips.push({
+        id: "created",
+        label: copy.chip.created(formatRange(createdFrom, createdTo)),
+        onRemove: handleClearCreatedFilter,
+      });
+    }
+    if (hasLastLoginDateFilter) {
+      chips.push({
+        id: "last-login",
+        label: copy.chip.lastLogin(formatRange(lastLoginFrom, lastLoginTo)),
+        onRemove: handleClearLastLoginFilter,
+      });
+    }
+    return chips;
+  }, [
+    createdFrom,
+    createdTo,
+    filters.activeChips,
+    formatRange,
+    handleClearCreatedFilter,
+    handleClearLastLoginFilter,
+    hasCreatedDateFilter,
+    hasLastLoginDateFilter,
+    lastLoginFrom,
+    lastLoginTo,
+  ]);
 
   return (
     <>
@@ -278,18 +227,18 @@ export function UsersListPage() {
         title={copy.title}
         description={copy.description}
         primaryAction={{
-          label: copy.primaryAction,
+          label: copy.actions.create,
           icon: <UserPlus className="h-4 w-4" />,
           onClick: () => setAddUserSheetOpen(true),
           visible: canCreate,
           disabled: userLimitReached,
-          disabledTitle:
-            userLimitReached
-              ? usersCopy.limitReached.inviteDisabled
-              : undefined,
+          disabledTitle: userLimitReached
+            ? usersCopy.limitReached.inviteDisabled
+            : undefined,
         }}
         beforeToolbar={
           <div className="space-y-4">
+            <AdminUsersOrientationAlert />
             <UserCapacityBanner capacity={capacity} />
             <UserPlanLimitNotice capacity={capacity} />
             <PendingInvitationsPanel />
@@ -298,204 +247,40 @@ export function UsersListPage() {
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: copy.searchPlaceholder,
+            placeholder: copy.filter.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           filters: (
-            <>
-              <Select
-                value={statusFilter || "all"}
-                onValueChange={(value) => filters.setFilter("status", value)}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder={copy.filters.statusPlaceholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.statusAll}</SelectItem>
-                  <SelectItem value={UserStatus.ACTIVE}>
-                    {USER_STATUS_LABELS[UserStatus.ACTIVE]}
-                  </SelectItem>
-                  <SelectItem value={UserStatus.INACTIVE}>
-                    {USER_STATUS_LABELS[UserStatus.INACTIVE]}
-                  </SelectItem>
-                  <SelectItem value={UserStatus.SUSPENDED}>
-                    {USER_STATUS_LABELS[UserStatus.SUSPENDED]}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={roleFilter || "all"}
-                onValueChange={(value) => filters.setFilter("role", value)}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder={copy.filters.rolePlaceholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.roleAll}</SelectItem>
-                  {ROLE_OPTIONS.map((roleOption) => (
-                    <SelectItem key={roleOption.value} value={roleOption.value}>
-                      {roleOption.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Popover
-                open={isDateFilterOpen}
-                onOpenChange={handleDatePopoverOpenChange}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant={hasDateFilter ? "secondary" : "outline"}
-                  >
-                    <SlidersHorizontal className="mr-2 h-4 w-4" />
-                    {copy.filters.more}
-                    {hasDateFilter ? (
-                      <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">
-                        ·
-                      </span>
-                    ) : null}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-[24rem] p-4"
-                  align="start"
-                  onPointerDownOutside={preventCloseIfDateCalendar}
-                  onFocusOutside={preventCloseIfDateCalendar}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Filter className="h-4 w-4" />
-                      {copy.filters.moreHeading}
-                    </div>
-
-                    <div className="space-y-2 border-b pb-3">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {copy.filters.createdHeading}
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="users-created-from">
-                            {copy.filters.from}
-                          </Label>
-                          <DateField
-                            id="users-created-from"
-                            value={dateDraft.createdFrom}
-                            max={dateDraft.createdTo || undefined}
-                            onChange={(createdFrom) =>
-                              setDateDraft((d) => ({
-                                ...d,
-                                createdFrom,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="users-created-to">
-                            {copy.filters.to}
-                          </Label>
-                          <DateField
-                            id="users-created-to"
-                            value={dateDraft.createdTo}
-                            min={dateDraft.createdFrom || undefined}
-                            onChange={(createdTo) =>
-                              setDateDraft((d) => ({
-                                ...d,
-                                createdTo,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {copy.filters.lastLoginHeading}
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="users-login-from">
-                            {copy.filters.from}
-                          </Label>
-                          <DateField
-                            id="users-login-from"
-                            value={dateDraft.lastLoginFrom}
-                            max={dateDraft.lastLoginTo || undefined}
-                            onChange={(lastLoginFrom) =>
-                              setDateDraft((d) => ({
-                                ...d,
-                                lastLoginFrom,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="users-login-to">
-                            {copy.filters.to}
-                          </Label>
-                          <DateField
-                            id="users-login-to"
-                            value={dateDraft.lastLoginTo}
-                            min={dateDraft.lastLoginFrom || undefined}
-                            onChange={(lastLoginTo) =>
-                              setDateDraft((d) => ({
-                                ...d,
-                                lastLoginTo,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-                      {hasDateFilter ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="justify-start text-muted-foreground sm:order-1"
-                          onClick={handleClearDateFilter}
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          {copy.filters.clearDates}
-                        </Button>
-                      ) : (
-                        <span className="hidden sm:order-1 sm:block" />
-                      )}
-                      <div className="flex w-full gap-2 sm:order-2 sm:w-auto sm:justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 sm:flex-none"
-                          onClick={handleCancelDatePopover}
-                        >
-                          {copy.filters.cancel}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="flex-1 sm:flex-none"
-                          disabled={dateDraftMatchesApplied}
-                          onClick={handleApplyDateFilters}
-                        >
-                          {copy.filters.apply}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </>
+            <UserListFilters
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
+              status={statusFilter}
+              role={roleFilter}
+              createdFrom={createdFrom}
+              createdTo={createdTo}
+              lastLoginFrom={lastLoginFrom}
+              lastLoginTo={lastLoginTo}
+              activePanelFilterCount={activePanelFilterCount}
+              onStatusChange={(value) => filters.setFilter("status", value)}
+              onRoleChange={(value) => filters.setFilter("role", value)}
+              onCreatedFromChange={(value) =>
+                filters.setFilter("createdFrom", value)
+              }
+              onCreatedToChange={(value) =>
+                filters.setFilter("createdTo", value)
+              }
+              onLastLoginFromChange={(value) =>
+                filters.setFilter("lastLoginFrom", value)
+              }
+              onLastLoginToChange={(value) =>
+                filters.setFilter("lastLoginTo", value)
+              }
+            />
           ),
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
-          activeFilterChips: activeFilterChips,
+          activeFilterChips,
           onClearFilters: filters.clearAll,
-          hasFilters: filters.hasFilters || hasDateFilter,
+          hasFilters: filters.hasFilters,
           viewMode: filters.viewModeProps,
         }}
         isLoading={isLoading}
@@ -536,33 +321,28 @@ export function UsersListPage() {
         renderCardSkeleton={() => <UserCardSkeleton />}
         emptyState={{
           icon: <Search className="h-10 w-10 text-muted-foreground" />,
-          title:
-            filters.hasFilters || hasDateFilter
-              ? copy.empty.filteredTitle
-              : copy.empty.title,
-          description:
-            filters.hasFilters || hasDateFilter
-              ? copy.empty.filteredDescription
-              : copy.empty.description,
+          title: copy.empty.title,
+          description: filters.hasFilters
+            ? copy.empty.descriptionFiltered
+            : copy.empty.descriptionClear,
           cta: canCreate
             ? {
                 label: userLimitReached
                   ? usersCopy.limitReached.inviteDisabled
-                  : copy.primaryAction,
+                  : copy.actions.create,
                 icon: <UserPlus className="h-4 w-4" />,
                 onClick: userLimitReached
                   ? () => undefined
                   : () => setAddUserSheetOpen(true),
               }
             : undefined,
-          secondaryCta:
-            filters.hasFilters || hasDateFilter
-              ? {
-                  label: copy.empty.clearFilters,
-                  onClick: filters.clearAll,
-                  variant: "outline",
-                }
-              : undefined,
+          secondaryCta: filters.hasFilters
+            ? {
+                label: copy.actions.clearFilters,
+                onClick: filters.clearAll,
+                variant: "outline",
+              }
+            : undefined,
         }}
       />
       <AddUserSheet

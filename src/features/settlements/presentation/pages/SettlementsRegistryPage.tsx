@@ -20,6 +20,7 @@ import {
   settlementCreatePath,
   settlementDetailPath,
 } from "../../application/settlementsRoutes";
+import { useSettlementQueueFromState } from "../utils/settlementWayfinding";
 import {
   SettlementsTable,
   SettlementCard,
@@ -41,6 +42,7 @@ const workbenchCopy = settlementsCopy.workbench;
  */
 export function SettlementsRegistryPage() {
   const navigate = useNavigate();
+  const fromState = useSettlementQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
@@ -103,8 +105,8 @@ export function SettlementsRegistryPage() {
   }, [filteredSettlements, toast]);
 
   const handleViewSettlement = useCallback(
-    (id: string) => navigate(settlementDetailPath(id)),
-    [navigate],
+    (id: string) => navigate(settlementDetailPath(id), { state: fromState }),
+    [fromState, navigate],
   );
 
   const pagination = settlementsData?.pagination
@@ -126,7 +128,8 @@ export function SettlementsRegistryPage() {
             ? {
                 label: copy.actions.createSettlement,
                 icon: <Plus className="h-4 w-4" />,
-                onClick: () => navigate(settlementCreatePath()),
+                onClick: () =>
+                  navigate(settlementCreatePath(), { state: fromState }),
               }
             : undefined
         }
@@ -144,7 +147,8 @@ export function SettlementsRegistryPage() {
           cta: canCreate
             ? {
                 label: copy.actions.createSettlement,
-                onClick: () => navigate(settlementCreatePath()),
+                onClick: () =>
+                  navigate(settlementCreatePath(), { state: fromState }),
               }
             : undefined,
           secondaryCta: filters.hasFilters

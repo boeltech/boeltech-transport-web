@@ -2,11 +2,26 @@ export const usersCopy = {
   list: {
     title: "Usuarios",
     description:
-      "Quién tiene acceso a tu empresa y cuántas plazas quedan en tu plan.",
+      "Quién tiene acceso a tu empresa y a qué cliente o conductor se vincula.",
     entityLabelPlural: "usuarios",
-    searchPlaceholder: "Buscar por nombre o correo…",
     refreshSuccess: "Lista actualizada",
     primaryAction: "Sumar persona",
+    actions: {
+      create: "Sumar persona",
+      clearFilters: "Limpiar filtros",
+    },
+    filter: {
+      showFilters: "Filtros",
+      searchPlaceholder: "Nombre o correo",
+      statusLabel: "Estado",
+      statusAll: "Todos",
+      roleLabel: "Rol",
+      roleAll: "Todos",
+      createdHeading: "Fecha de alta",
+      lastLoginHeading: "Último acceso",
+      from: "Desde",
+      to: "Hasta",
+    },
     columns: {
       name: "Nombre",
       email: "Correo",
@@ -16,35 +31,22 @@ export const usersCopy = {
       createdAt: "Alta",
     },
     empty: {
-      title: "No hay usuarios",
-      filteredTitle: "No se encontraron usuarios",
-      filteredDescription: "Prueba ajustando los filtros de búsqueda.",
-      description: "Suma a la primera persona de tu equipo.",
-      clearFilters: "Quitar filtros",
+      title: "No se encontraron usuarios",
+      descriptionClear:
+        "Suma a la primera persona de tu equipo. Si es un portal de cliente o conductor, usa Dar acceso ya.",
+      descriptionFiltered:
+        "Nada coincide. Prueba otro nombre o correo, o limpia los recortes.",
+    },
+    chip: {
+      status: (label: string) => `Estado: ${label}`,
+      role: (label: string) => `Rol: ${label}`,
+      created: (range: string) => `Alta: ${range}`,
+      lastLogin: (range: string) => `Acceso: ${range}`,
     },
     filters: {
-      statusPlaceholder: "Estado",
-      statusAll: "Todos los estados",
-      rolePlaceholder: "Rol",
-      roleAll: "Todos los roles",
-      more: "Más filtros",
-      moreHeading: "Filtros por fecha",
-      createdHeading: "Fecha de alta",
-      lastLoginHeading: "Último acceso",
-      from: "Desde",
-      to: "Hasta",
-      apply: "Aplicar",
-      cancel: "Cancelar",
-      clearDates: "Limpiar fechas",
-      dateButton: "Filtrar por fecha",
-      chipStatus: (label: string) => `Estado: ${label}`,
-      chipRole: (label: string) => `Rol: ${label}`,
-      chipDates: (label: string) => `Fechas: ${label}`,
       rangeBoth: (from: string, to: string) => `${from} - ${to}`,
       rangeFrom: (from: string) => `Desde ${from}`,
       rangeTo: (to: string) => `Hasta ${to}`,
-      createdPrefix: (range: string) => `Alta: ${range}`,
-      accessPrefix: (range: string) => `Acceso: ${range}`,
     },
     capacity: {
       limited: (active: number, max: number) =>
@@ -75,9 +77,24 @@ export const usersCopy = {
       register: "Dar acceso ya",
     },
     inviteDescription:
-      "Le enviamos un correo para que active su acceso y elija su contraseña.",
+      "Le enviamos un correo para que active su acceso y elija su contraseña. Para staff.",
     registerDescription:
-      "Creas el acceso ahora con una contraseña. Podrá entrar de inmediato.",
+      "Creas el acceso ahora con una contraseña. Úsalo para portales de cliente o conductor: hay que vincularlos.",
+    invitePortalBlocked:
+      "Usa «Dar acceso ya» con vínculo a cliente o conductor; la invitación no admite estos roles.",
+    link: {
+      clientLabel: "Cliente vinculado",
+      clientPlaceholder: "Selecciona un cliente",
+      clientDescription: "Solo verá los viajes de este cliente",
+      clientEmpty:
+        "No hay clientes. Pide al gerente que dé de alta el cliente.",
+      driverLabel: "Empleado conductor",
+      driverPlaceholder: "Selecciona un conductor",
+      driverDescription:
+        "Solo podrá operar los viajes asignados a este conductor",
+      driverEmpty:
+        "No hay conductores. Pide al gerente que dé de alta el perfil de conductor.",
+    },
     optionalSection: "Opcional",
     roleHint: "Elige qué podrá hacer en tu empresa.",
     fields: {
@@ -179,6 +196,8 @@ export const usersCopy = {
   },
   detail: {
     email: "Correo",
+    backToList: "Volver a usuarios",
+    backToActivity: "Volver al historial de usuarios",
     toasts: {
       statusSuccess: "Usuario actualizado",
       statusError: "Error al actualizar usuario",
@@ -192,5 +211,11 @@ export const usersCopy = {
   status: {
     updateSuccess: "Usuario actualizado",
     updateError: "Error al actualizar usuario",
+  },
+  /** Alert L1a — 3 tiempos. Visible solo admin en /users. Key propia. */
+  adminOrientation: {
+    title: "Cómo sumar a alguien",
+    body: "Staff: Invitar o Dar acceso ya. Portal de cliente: Dar acceso ya y vincular el cliente. Portal de conductor: Dar acceso ya y vincular el empleado-conductor.",
+    dismiss: "Entendido",
   },
 } as const;

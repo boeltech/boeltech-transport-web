@@ -108,11 +108,18 @@ describe("ApprovalInboxPage embebida en Finanzas", () => {
     expect(
       screen.getByText(approvalsCopy.inbox.description),
     ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(approvalsCopy.inbox.searchPlaceholder),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Filtros/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Estado: Pendiente/)).not.toBeInTheDocument();
   });
 
-  it("mantiene la ruta al limpiar filtros", async () => {
+  it("mantiene la ruta y el tipo al limpiar filtros", async () => {
     const user = userEvent.setup();
-    renderEmbedded("/finance/approvals?type=trip_expense&category=fuel");
+    renderEmbedded(
+      "/finance/approvals?type=internal_staff_compensation&status=approved",
+    );
 
     await user.click(
       await screen.findByRole("button", { name: /limpiar filtros/i }),
@@ -121,7 +128,9 @@ describe("ApprovalInboxPage embebida en Finanzas", () => {
     await waitFor(() => {
       const location = screen.getByTestId("location").textContent ?? "";
       expect(location).toContain("/finance/approvals");
-      expect(location).not.toContain("category=fuel");
+      expect(location).toContain("type=internal_staff_compensation");
+      expect(location).toContain("status=pending");
+      expect(location).not.toContain("status=approved");
       expect(location).not.toContain("tab=");
     });
   });

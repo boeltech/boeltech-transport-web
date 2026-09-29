@@ -1,26 +1,18 @@
 /**
- * TrailerListPage
- * Clean Architecture - Presentation Layer (Pages)
+ * TrailerListPage — padrón de remolques (`ListPageShell`).
  *
- * Catálogo plano: listado + Sheet de alta/edición. Sin hop a detalle (Capa 1 D1').
+ * Dictamen toolbar: search = lookup de placa; estado en «Filtros (n)».
+ * `isActive: true` es invariante de consulta. Alta/edición siguen en sheet.
  */
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Container, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import { useListingFilters, useToast } from "@shared/hooks";
-import { usePermissions } from "@shared/permissions";
+import { ROLES } from "@shared/constants/roles";
+import { usePermissions, useRole } from "@shared/permissions";
 import {
   TRAILER_STATUS_LABELS,
-  TrailerStatus,
   type Trailer,
   type TrailerStatusType,
 } from "../../domain";
@@ -29,6 +21,7 @@ import {
   TrailerCard,
   TrailerCardSkeleton,
   TrailerCatalogSheet,
+  TrailerListFilters,
   TrailerTable,
 } from "../components";
 import { trailersCopy } from "../copy/trailersCopy";
@@ -38,6 +31,7 @@ import {
   TRAILER_CATALOG_EDIT_PARAM,
   readTrailerCatalogEditId,
 } from "../trailerCatalogSheetParams";
+import { countTrailerPanelFilters } from "../utils/trailerListFilters";
 
 const copy = trailersCopy.list;
 
@@ -45,6 +39,8 @@ export function TrailerListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const role = useRole();
+  const isManager = role === ROLES.MANAGER;
   const canCreate = hasPermission("trailers", "create");
   const canEdit = hasPermission("trailers", "update");
   const typeLabels = useTrailerTypeLabels();
@@ -55,7 +51,7 @@ export function TrailerListPage() {
     },
     chipLabels: {
       status: (value) =>
-        copy.filters.chipStatus(
+        copy.chip.status(
           TRAILER_STATUS_LABELS[value as TrailerStatusType] ?? value,
         ),
     },
@@ -65,21 +61,22 @@ export function TrailerListPage() {
     ],
   });
   const statusFilter = filters.filters.status as TrailerStatusType | "";
+  const activePanelFilterCount = countTrailerPanelFilters({
+    status: statusFilter,
+  });
+  const hasPanelFilters = activePanelFilterCount > 0;
 
-  // ── Sheet state (local) — URL as deep-link only ────────────────────────────
   const [sheetMode, setSheetMode] = useState<"closed" | "create" | "edit">(
     "closed",
   );
   const [editingTrailer, setEditingTrailer] = useState<Trailer | undefined>();
 
-  // Read deep-link params on mount only
   const deepLinkConsumed = useRef(false);
   const deepLinkCreateParam = searchParams.get(TRAILER_CATALOG_CREATE_PARAM);
   const deepLinkEditParam = readTrailerCatalogEditId(
     searchParams.get(TRAILER_CATALOG_EDIT_PARAM),
   );
 
-  // ── Query ──────────────────────────────────────────────────────────────────
   const queryParams = useMemo(
     () => ({
       page: filters.page,
@@ -100,7 +97,6 @@ export function TrailerListPage() {
   const { data, isLoading, isFetching, refetch } = useTrailers(queryParams);
   const trailers = data?.data ?? [];
 
-  // Fetch trailer for deep-link edit (might not be in current page)
   const { data: deepLinkTrailer } = useTrailer(deepLinkEditParam, {
     enabled:
       Boolean(deepLinkEditParam) &&
@@ -108,7 +104,6 @@ export function TrailerListPage() {
       sheetMode === "closed",
   });
 
-  // Consume deep-link once data is available
   useEffect(() => {
     if (deepLinkConsumed.current) return;
     if (deepLinkCreateParam === "true" && canCreate) {
@@ -134,7 +129,6 @@ export function TrailerListPage() {
     deepLinkTrailer,
   ]);
 
-  // ── Sheet handlers ─────────────────────────────────────────────────────────
   const handleCreate = useCallback(() => {
     setEditingTrailer(undefined);
     setSheetMode("create");
@@ -156,7 +150,6 @@ export function TrailerListPage() {
       if (!open) {
         setSheetMode("closed");
         setEditingTrailer(undefined);
-        // Clean URL params when closing
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev);
@@ -182,7 +175,11 @@ export function TrailerListPage() {
     <>
       <ListPageShell
         title={copy.title}
-        description={copy.description}
+        description={
+          isManager && canCreate
+            ? copy.descriptionManager
+            : copy.description
+        }
         primaryAction={{
           label: copy.create,
           icon: <Plus className="h-4 w-4" />,
@@ -192,25 +189,16 @@ export function TrailerListPage() {
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: copy.searchPlaceholder,
+            placeholder: copy.filter.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           filters: (
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(value) => filters.setFilter("status", value)}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder={copy.filters.status} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{copy.filters.allStatuses}</SelectItem>
-                {Object.values(TrailerStatus).map((statusValue) => (
-                  <SelectItem key={statusValue} value={statusValue}>
-                    {TRAILER_STATUS_LABELS[statusValue]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <TrailerListFilters
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
+              status={statusFilter}
+              activePanelFilterCount={activePanelFilterCount}
+              onStatusChange={(value) => filters.setFilter("status", value)}
+            />
           ),
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
@@ -258,10 +246,14 @@ export function TrailerListPage() {
         renderCardSkeleton={() => <TrailerCardSkeleton />}
         emptyState={{
           icon: <Container className="h-10 w-10 text-muted-foreground" />,
-          title: filters.hasFilters ? copy.emptyFiltered : copy.empty,
+          title: copy.empty.title,
           description: filters.hasFilters
-            ? copy.emptyFilteredHint
-            : copy.emptyHint,
+            ? copy.empty.descriptionFiltered
+            : canCreate
+              ? isManager
+                ? copy.empty.descriptionClearManager
+                : copy.empty.descriptionClear
+              : copy.empty.descriptionReadonly,
           cta: canCreate
             ? {
                 label: copy.create,
@@ -271,7 +263,7 @@ export function TrailerListPage() {
             : undefined,
           secondaryCta: filters.hasFilters
             ? {
-                label: copy.clearFilters,
+                label: copy.actions.clearFilters,
                 onClick: filters.clearAll,
                 variant: "outline",
               }

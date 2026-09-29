@@ -55,6 +55,7 @@ export function BranchAssignedEmployeesCard({
                 </div>
                 <Link
                   to={`/employees/${employee.id}`}
+                  state={{ from: `/branches/${branchId}` }}
                   className="shrink-0 text-primary underline-offset-4 hover:underline"
                 >
                   {copy.viewEmployee}

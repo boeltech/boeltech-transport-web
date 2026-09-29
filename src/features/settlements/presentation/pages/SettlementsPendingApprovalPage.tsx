@@ -8,6 +8,7 @@ import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { useSettlements, useSettlementSettings } from "../../application/hooks";
 import { settlementDetailPath } from "../../application/settlementsRoutes";
+import { useSettlementQueueFromState } from "../utils/settlementWayfinding";
 import {
   SettlementCard,
   SettlementCardSkeleton,
@@ -20,6 +21,7 @@ const hubCopy = settlementsCopy.hub;
 
 export function SettlementsPendingApprovalPage() {
   const navigate = useNavigate();
+  const fromState = useSettlementQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
@@ -54,8 +56,8 @@ export function SettlementsPendingApprovalPage() {
   }, [refetch, toast]);
 
   const handleView = useCallback(
-    (id: string) => navigate(settlementDetailPath(id)),
-    [navigate],
+    (id: string) => navigate(settlementDetailPath(id), { state: fromState }),
+    [fromState, navigate],
   );
 
   const pagination = useMemo(() => {

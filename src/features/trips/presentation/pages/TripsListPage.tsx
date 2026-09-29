@@ -4,13 +4,15 @@
  * Centro operativo de viajes: awareness strip con buckets por estado,
  * toolbar con filtros ortogonales, tabla/cards como work surface.
  *
- * Decisiones de producto (Capa 1):
+ * Decisiones de producto (Capa 1 + dictamen toolbar):
  *   D1 — overdue = toggle en toolbar, no bucket.
  *   D2 — Select de status eliminado de TripListFilters (el strip lo reemplaza).
  *   D3 — Workaround v0.5: N queries limit=1 para obtener counts.
- *   D4 — Buckets condicionados por rol.
+ *   D4 — Buckets condicionados por rol; lean no ve cola fiscal.
  *   D5 — Bucket activo sincroniza con ?status= en query params.
  *   D6 — Default sin bucket activo = todos los viajes.
+ *   Toolbar — un recorte, un dueño: cola en scorecard; lookup en search;
+ *   retraso en toggle; factura/fecha/sucursal en «Filtros».
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -23,7 +25,7 @@ import {
 } from "@shared/ui/page-shells";
 import { useListingFilters, useToast } from "@shared/hooks";
 import type { ActiveFilterChip } from "@shared/ui/listing";
-import { formatListingDateRangeLabel, ViewModeToggle } from "@shared/ui/listing";
+import { formatListingDateRangeLabel } from "@shared/ui/listing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,8 +48,11 @@ import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import {
   isClientPortalRole,
   isDriverPortalRole,
+  ROLES,
 } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
+import { BranchStatus, useBranches } from "@features/branches";
+import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 
@@ -66,6 +71,12 @@ import {
   parseTripInvoiceStatusFilter,
   getTripInvoiceStatusLabel,
 } from "../components";
+import { AccountantTripsQueuesAlert } from "../components/AccountantTripsQueuesAlert";
+import { DispatcherOrientationStrip } from "../components/DispatcherOrientationStrip";
+import { ManagerSatReceptionAlert } from "../components/ManagerSatReceptionAlert";
+import { OperatorCostsOrientationAlert } from "../components/OperatorCostsOrientationAlert";
+import { ClientPortalOrientationAlert } from "../components/ClientPortalOrientationAlert";
+import { DriverPortalOrientationAlert } from "../components/DriverPortalOrientationAlert";
 import { tripsListCopy } from "../copy/listCopy";
 import {
   type TripWorkbenchBucket,
@@ -74,6 +85,12 @@ import {
   isTripWorkbenchBucket,
 } from "../config/tripWorkbenchConfig";
 import { mapTripWorkbenchBuckets } from "../utils/mapTripWorkbenchBuckets";
+import {
+  resolveTripsListEmptyDescription,
+  resolveTripsListPageDescription,
+  shouldShowTripsJobEmpty,
+} from "../utils/tripsListOrientation";
+import { tripsListHref } from "../utils/tripsListHref";
 
 const copy = tripsListCopy;
 const workbenchCopy = tripsListCopy.workbench;
@@ -93,6 +110,10 @@ export function TripsListPage() {
   const isClientPortal = isClientPortalRole(role);
   const isDriverPortal = isDriverPortalRole(role);
   const isLeanTripPortal = isClientPortal || isDriverPortal;
+  const isDispatcher = role === ROLES.DISPATCHER;
+  const isAccountant = role === ROLES.ACCOUNTANT;
+  const isManager = role === ROLES.MANAGER;
+  const isOperator = role === ROLES.OPERATOR;
 
   // ── Workbench summary (D3 workaround v0.5) ──────────────────────
   const {
@@ -161,28 +182,70 @@ export function TripsListPage() {
         onBucketChange: handleBucketChange,
         fiscalAttentionOnly,
         onFiscalAttentionChange: handleFiscalAttentionBucketChange,
+        showFiscalAttention: !isLeanTripPortal,
+        fiscalAttentionDescription: isDispatcher
+          ? workbenchCopy.bucketDescriptions.fiscalAttentionEscalate
+          : isAccountant
+            ? workbenchCopy.bucketDescriptions.fiscalAttentionAccountant
+            : isManager
+              ? workbenchCopy.bucketDescriptions.fiscalAttentionManager
+              : undefined,
+        bucketDescriptionOverrides: isClientPortal
+          ? {
+              scheduled: workbenchCopy.bucketDescriptions.scheduledClient,
+              in_progress: workbenchCopy.bucketDescriptions.inProgressClient,
+              completed: workbenchCopy.bucketDescriptions.completedClient,
+            }
+          : undefined,
       }),
     [
       activeBucket,
       fiscalAttentionOnly,
       handleBucketChange,
       handleFiscalAttentionBucketChange,
+      isAccountant,
+      isClientPortal,
+      isDispatcher,
+      isManager,
+      isLeanTripPortal,
       visibleBuckets,
       workbenchSummary,
     ],
   );
 
   // ── Filters (shared with toolbar) ──────────────────────────────
-  const filters = useListingFilters<"status">({
-    filters: { status: {} },
-    chipLabels: {
-      status: (value) => {
-        const label =
-          workbenchCopy.buckets[value as TripWorkbenchBucket] ?? value;
-        return `Estado: ${label}`;
+  const filters = useListingFilters({
+    preserveParamsOnClear: ["status", "fiscalAttention"],
+  });
+
+  const { data: branchesResult } = useBranches(
+    {
+      page: 1,
+      limit: 100,
+      filters: {
+        isActive: true,
+        status: BranchStatus.ACTIVE,
+      },
+      sort: {
+        field: "name",
+        direction: "asc",
       },
     },
-  });
+    { enabled: !isLeanTripPortal },
+  );
+
+  const originBranchOptions = useMemo(
+    () => buildBranchSelectOptions(branchesResult?.data ?? []),
+    [branchesResult?.data],
+  );
+
+  const originBranchLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of originBranchOptions) {
+      map.set(option.value, option.label);
+    }
+    return map;
+  }, [originBranchOptions]);
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
@@ -225,7 +288,7 @@ export function TripsListPage() {
     },
     {
       staleTime: 60_000,
-      enabled: !overdueOnly,
+      enabled: !isLeanTripPortal && !overdueOnly,
     },
   );
 
@@ -265,17 +328,21 @@ export function TripsListPage() {
   const trips = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.pagination;
   const hasDateFilter = !!dateFrom || !!dateTo;
-  const hasFiscalFilter = fiscalAttentionOnly || !!invoiceStatusFilter;
+  const hasInvoiceFilter = !!invoiceStatusFilter;
   const hasOverdueFilter = overdueOnly;
   const hasOriginBranchFilter = Boolean(originBranchFilter);
+  const hasPanelFilters =
+    hasDateFilter || hasInvoiceFilter || hasOriginBranchFilter;
+  const activePanelFilterCount =
+    Number(hasDateFilter) +
+    Number(hasInvoiceFilter) +
+    Number(hasOriginBranchFilter);
   const hasFilters =
-    filters.hasFilters ||
+    Boolean(filters.search.trim()) ||
     hasDateFilter ||
-    hasFiscalFilter ||
+    hasInvoiceFilter ||
     hasOverdueFilter ||
     hasOriginBranchFilter;
-
-  const hasPanelFilters = hasDateFilter || hasFiscalFilter || hasOriginBranchFilter;
 
   const canCreate = hasPermission("trips", "create");
   const canEdit = hasPermission("trips", "update");
@@ -287,13 +354,11 @@ export function TripsListPage() {
 
   // ── Callbacks ──────────────────────────────────────────────────
   const handleView = useCallback(
-    (id: string) => navigate(`/trips/${id}`),
-    [navigate],
-  );
-
-  const handleEdit = useCallback(
-    (id: string) => navigate(`/trips/${id}/edit`),
-    [navigate],
+    (id: string) =>
+      navigate(`/trips/${id}`, {
+        state: { from: tripsListHref(searchParams) },
+      }),
+    [navigate, searchParams],
   );
 
   const handleDelete = useCallback((id: string) => {
@@ -346,13 +411,6 @@ export function TripsListPage() {
     });
   }, [setSearchParams]);
 
-  const handleFiscalAttentionChange = useCallback(
-    (attentionOnly: boolean) => {
-      handleFiscalAttentionBucketChange(attentionOnly);
-    },
-    [handleFiscalAttentionBucketChange],
-  );
-
   const handleInvoiceStatusChange = useCallback(
     (value: string) => {
       setSearchParams((prev) => {
@@ -376,10 +434,22 @@ export function TripsListPage() {
     });
   }, [overdueOnly, setSearchParams]);
 
+  const handleOriginBranchChange = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (!value || value === "all") params.delete("originBranchId");
+        else params.set("originBranchId", value);
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
   const clearAllTripsFilters = useCallback(() => {
-    filters.setSearchInput("");
-    setSearchParams(new URLSearchParams());
-  }, [filters, setSearchParams]);
+    filters.clearAll();
+  }, [filters]);
 
   const goCreateReserve = useCallback(() => {
     navigate("/trips/new");
@@ -393,15 +463,6 @@ export function TripsListPage() {
 
   // ── Active filter chips ────────────────────────────────────────
   const activeFilterChips: ActiveFilterChip[] = [
-    ...(fiscalAttentionOnly
-      ? [
-          {
-            id: "fiscal",
-            label: copy.chip.fiscalAttention,
-            onRemove: () => handleFiscalAttentionChange(false),
-          },
-        ]
-      : []),
     ...(invoiceStatusFilter
       ? [
           {
@@ -436,15 +497,12 @@ export function TripsListPage() {
             label:
               originBranchFilter === "unassigned"
                 ? copy.chip.originBranchUnassigned
-                : copy.chip.originBranch(originBranchIdParam),
-            onRemove: () => {
-              setSearchParams((prev) => {
-                const params = new URLSearchParams(prev);
-                params.delete("originBranchId");
-                params.set("page", "1");
-                return params;
-              });
-            },
+                : originBranchLabelById.get(originBranchIdParam)
+                  ? copy.chip.originBranch(
+                      originBranchLabelById.get(originBranchIdParam)!,
+                    )
+                  : copy.chip.originBranchUnknown,
+            onRemove: () => handleOriginBranchChange("all"),
           },
         ]
       : []),
@@ -466,19 +524,75 @@ export function TripsListPage() {
       ? copy.empty.titleClient
       : isDriverPortal
         ? copy.empty.titleDriver
-        : activeBucket
-          ? `No hay viajes ${workbenchCopy.buckets[activeBucket].toLowerCase()}`
-          : copy.empty.title;
+        : isManager && fiscalAttentionOnly && !hasFilters
+          ? copy.empty.fiscalAttentionManagerTitle
+          : activeBucket
+            ? `No hay viajes ${workbenchCopy.buckets[activeBucket].toLowerCase()}`
+            : copy.empty.title;
 
-  const emptyDescription = hasOverdueFilter
-    ? copy.empty.overdueDescription
-    : hasFilters
-      ? copy.empty.filteredDescription
-      : isClientPortal
-        ? copy.empty.noDataDescriptionClient
-        : isDriverPortal
-          ? copy.empty.noDataDescriptionDriver
-          : copy.empty.noDataDescription;
+  const showJobEmpty = shouldShowTripsJobEmpty({
+    isLeanTripPortal,
+    hasFilters,
+    hasActiveBucket: Boolean(activeBucket),
+    fiscalAttentionOnly,
+    hasOverdueFilter,
+    isManager,
+    isOperator,
+  });
+
+  const emptyDescription = resolveTripsListEmptyDescription({
+    hasOverdueFilter,
+    hasFilters,
+    isClientPortal,
+    isDriverPortal,
+    isManager,
+    isOperator,
+    fiscalAttentionOnly,
+    showJobEmpty,
+  });
+
+  const overdueBanner =
+    !isLeanTripPortal && !overdueOnly && overdueTripCount > 0 ? (
+      <Alert variant="warning">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>{copy.banner.title}</AlertTitle>
+        <AlertDescription>{copy.banner.body(overdueTripCount)}</AlertDescription>
+      </Alert>
+    ) : null;
+
+  const orientationStrip = isDispatcher ? <DispatcherOrientationStrip /> : null;
+  const accountantQueuesAlert = isAccountant ? (
+    <AccountantTripsQueuesAlert />
+  ) : null;
+  const managerSatAlert = isManager ? <ManagerSatReceptionAlert /> : null;
+  const operatorCostsAlert = isOperator ? (
+    <OperatorCostsOrientationAlert />
+  ) : null;
+  const driverPortalAlert = isDriverPortal ? (
+    <DriverPortalOrientationAlert />
+  ) : null;
+  const clientPortalAlert = isClientPortal ? (
+    <ClientPortalOrientationAlert />
+  ) : null;
+
+  const beforeAwareness =
+    orientationStrip ||
+    accountantQueuesAlert ||
+    managerSatAlert ||
+    operatorCostsAlert ||
+    driverPortalAlert ||
+    clientPortalAlert ||
+    overdueBanner ? (
+      <div className="space-y-3">
+        {orientationStrip}
+        {accountantQueuesAlert}
+        {managerSatAlert}
+        {operatorCostsAlert}
+        {driverPortalAlert}
+        {clientPortalAlert}
+        {overdueBanner}
+      </div>
+    ) : undefined;
 
   return (
     <>
@@ -490,33 +604,15 @@ export function TripsListPage() {
               ? copy.page.titleDriver
               : copy.page.title
         }
-        description={
-          isClientPortal
-            ? copy.page.descriptionClient
-            : isDriverPortal
-              ? copy.page.descriptionDriver
-              : copy.page.description
-        }
-        beforeAwareness={
-          !isLeanTripPortal && !overdueOnly && overdueTripCount > 0 ? (
-            <Alert variant="warning">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>{copy.banner.title}</AlertTitle>
-              <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span>{copy.banner.body(overdueTripCount)}</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 border-warning/40 bg-background"
-                  onClick={handleOverdueToggle}
-                >
-                  {copy.banner.action}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : undefined
-        }
+        description={resolveTripsListPageDescription({
+          isClientPortal,
+          isDriverPortal,
+          isDispatcher,
+          isAccountant,
+          isManager,
+          isOperator,
+        })}
+        beforeAwareness={beforeAwareness}
         primaryAction={{
           label: copy.actions.create,
           icon: <CalendarPlus className="h-4 w-4" />,
@@ -536,52 +632,46 @@ export function TripsListPage() {
               : isDriverPortal
                 ? copy.filter.searchPlaceholderDriver
                 : copy.filter.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           filters: (
-            <TripListFilters
-              key={hasPanelFilters ? "filters-active" : "filters-idle"}
-              fiscalAttentionOnly={fiscalAttentionOnly}
-              invoiceStatusFilter={invoiceStatusFilter}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              hasActiveFilters={hasPanelFilters}
-              onFiscalAttentionChange={handleFiscalAttentionChange}
-              onInvoiceStatusChange={handleInvoiceStatusChange}
-              onApplyDateRange={handleApplyDateRange}
-              onClearDateRange={handleClearDateRange}
-              hideInvoiceFilters={isLeanTripPortal}
-            />
-          ),
-          extraActions: (
             <>
               {!isLeanTripPortal ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleBucketChange("draft")}
-                  >
-                    {copy.actions.viewDrafts}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={overdueOnly ? "secondary" : "outline"}
-                    size="sm"
-                    className={cn(
-                      overdueOnly &&
-                        "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
-                    )}
-                    onClick={handleOverdueToggle}
-                  >
-                    <Clock className="mr-2 h-4 w-4" />
-                    {copy.filter.overdue}
-                  </Button>
-                </>
+                <Button
+                  type="button"
+                  variant={overdueOnly ? "secondary" : "outline"}
+                  size="sm"
+                  className={cn(
+                    overdueOnly &&
+                      "border-warning/30 bg-warning-soft text-warning-soft-foreground hover:bg-warning-soft/80",
+                  )}
+                  onClick={handleOverdueToggle}
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  {copy.filter.overdue}
+                </Button>
               ) : null}
-              <ViewModeToggle {...filters.viewModeProps} />
+              <TripListFilters
+                key={hasPanelFilters ? "filters-active" : "filters-idle"}
+                variant={isLeanTripPortal ? "lean" : "fleet"}
+                invoiceStatusFilter={invoiceStatusFilter}
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                originBranchId={
+                  originBranchFilter === "unassigned"
+                    ? "unassigned"
+                    : originBranchIdParam
+                }
+                originBranchOptions={originBranchOptions}
+                activePanelFilterCount={activePanelFilterCount}
+                onInvoiceStatusChange={handleInvoiceStatusChange}
+                onApplyDateRange={handleApplyDateRange}
+                onClearDateRange={handleClearDateRange}
+                onOriginBranchChange={handleOriginBranchChange}
+              />
             </>
           ),
+          viewMode: filters.viewModeProps,
           onRefresh: handleRefresh,
           isRefreshing: isFetching || summaryFetching,
           activeFilterChips,
@@ -605,9 +695,20 @@ export function TripsListPage() {
                 <Search className="h-10 w-10 text-muted-foreground" />
                 <div className="space-y-1.5">
                   <p className="text-lg font-semibold">{emptyTitle}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {emptyDescription}
-                  </p>
+                  {showJobEmpty ? (
+                    <div className="text-sm text-muted-foreground">
+                      <p>{copy.empty.jobLead}</p>
+                      <ol className="mx-auto mt-1.5 max-w-sm list-decimal space-y-0.5 pl-5 text-left">
+                        {copy.orientation.steps.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  ) : emptyDescription ? (
+                    <p className="text-sm text-muted-foreground">
+                      {emptyDescription}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {canCreate ? (
@@ -633,7 +734,6 @@ export function TripsListPage() {
                     key={trip.id}
                     trip={trip}
                     onView={handleView}
-                    onEdit={canEdit ? handleEdit : undefined}
                     onDelete={canDelete ? handleDelete : undefined}
                     onCancel={canEdit ? handleCancel : undefined}
                     hideClient={isLeanTripPortal}
@@ -648,7 +748,6 @@ export function TripsListPage() {
               trips={trips}
               isLoading={isLoading}
               onView={handleView}
-              onEdit={canEdit ? handleEdit : undefined}
               onDelete={canDelete ? handleDelete : undefined}
               onCancel={canEdit ? handleCancel : undefined}
               hideClientColumn={isLeanTripPortal}

@@ -11,6 +11,7 @@
 export { ClientTable } from "./ClientTable";
 export { ClientCard } from "./ClientCard";
 export { ClientCardSkeleton } from "./ClientCardSkeleton";
+export { ClientListFilters } from "./ClientListFilters";
 export { ClientForm } from "./ClientForm";
 export { ClientActions } from "./ClientActions";
 export { ClientDetailDataTab } from "./ClientDetailDataTab";

@@ -9,6 +9,7 @@
 
 // Table Components
 export { DriverTable } from "./DriverTable";
+export { DriverListFilters } from "./DriverListFilters";
 
 // Card Components
 export { DriverCard } from "./DriverCard";

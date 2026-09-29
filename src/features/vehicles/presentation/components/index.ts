@@ -9,6 +9,7 @@
 
 // Table Components
 export { VehicleTable } from "./VehicleTable";
+export { VehicleListFilters } from "./VehicleListFilters";
 
 // Card Components
 export { VehicleCard } from "./VehicleCard";

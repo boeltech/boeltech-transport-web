@@ -3,6 +3,7 @@ export { BranchAssignedVehiclesCard } from "./BranchAssignedVehiclesCard";
 export { BranchActions } from "./BranchActions";
 export { BranchActivitySection } from "./BranchActivitySection";
 export { BranchCapacityBanner } from "./BranchCapacityBanner";
+export { BranchListFilters } from "./BranchListFilters";
 export { BranchCard } from "./BranchCard";
 export { BranchCardSkeleton } from "./BranchCardSkeleton";
 export { BranchDetailLocationMap } from "./BranchDetailLocationMap";

@@ -65,20 +65,18 @@ export const userActivityPageCopy = {
     retry: "Reintentar",
   },
   filters: {
+    showFilters: "Filtros",
     periodPlaceholder: "Periodo",
-    periodHeading: "Filtrar por fecha",
-    actionPlaceholder: "Tipo de cambio",
+    periodHeading: "Periodo del historial",
+    actionLabel: "Tipo de cambio",
     actionAll: "Todos los cambios",
-    personPlaceholder: "Persona",
-    personAll: "Todas las personas",
     personLabel: "Persona afectada",
+    personAll: "Todas las personas",
     actorLabel: "Quién hizo el cambio",
     actorAll: "Cualquiera",
-    more: "Más filtros",
-    moreHeading: "Filtros adicionales",
-    clearAll: "Quitar filtros",
+    clearRecortes: "Limpiar filtros",
+    viewAllHistory: "Ver todo el historial",
     chip: {
-      period: (range: string) => `Periodo: ${range}`,
       action: (label: string) => `Cambio: ${label}`,
       person: (name: string) => `Persona: ${name}`,
       actor: (name: string) => `Hecho por: ${name}`,
@@ -93,12 +91,15 @@ export const userActivityPageCopy = {
       `${total} movimiento${total === 1 ? "" : "s"}`,
   },
   empty: {
-    title: "Todavía no hay movimientos",
-    description:
+    virginTitle: "Todavía no hay movimientos",
+    virginDescription:
       "Aquí verás las altas, los cambios de rol, las invitaciones y las bajas de las cuentas de tu equipo.",
-    filteredTitle: "Ningún movimiento con estos filtros",
-    filteredDescription:
-      "Prueba con otro periodo o quita los filtros para ver todo el historial.",
+    windowTitle: "No hay movimientos en este periodo",
+    windowDescription:
+      "Prueba con otro periodo o quítalo para ver todo el historial.",
+    recorteTitle: "Ningún movimiento con estos filtros",
+    recorteDescription:
+      "Quita los filtros o prueba con otro tipo de cambio, persona o periodo.",
   },
   card: {
     title: "Historial de esta cuenta",

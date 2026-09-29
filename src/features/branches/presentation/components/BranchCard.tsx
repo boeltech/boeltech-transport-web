@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { Building2, Eye, MapPin, Phone } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
@@ -27,9 +28,11 @@ export function BranchCard({
   isRestoring,
 }: BranchCardProps) {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
   const hasActions = Boolean(onDelete || onRestore);
 
-  const handleView = () => navigate(`/branches/${branch.id}`);
+  const handleView = () =>
+    navigate(`/branches/${branch.id}`, { state: fromState });
 
   return (
     <Card
@@ -63,6 +66,7 @@ export function BranchCard({
               <BranchActions
                 branchId={branch.id}
                 branchName={branch.name}
+                fromState={fromState}
                 isActive={!showDeleted && branch.isActive}
                 isMain={branch.isMain}
                 onDelete={onDelete}

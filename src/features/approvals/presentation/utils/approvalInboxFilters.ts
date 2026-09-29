@@ -29,7 +29,48 @@ export function resolveTripFilterLabel(
   if (match?.context.approvableType === "trip_expense") {
     return match.context.tripCode;
   }
-  return tripId;
+  return copy.filters.tripUnknown;
+}
+
+export function resolveDriverFilterLabel(
+  driverId: string | null,
+  items: ApprovableItem[],
+): string | null {
+  if (!driverId) return null;
+  for (const item of items) {
+    if (
+      item.context.approvableType === "trip_expense" &&
+      item.context.driverId === driverId &&
+      item.context.driverFullName
+    ) {
+      return item.context.driverFullName;
+    }
+    if (
+      item.context.approvableType === "driver_advance_request" &&
+      item.context.employeeId === driverId &&
+      item.context.employeeFullName
+    ) {
+      return item.context.employeeFullName;
+    }
+  }
+  return copy.filters.driverUnknown;
+}
+
+export function resolveVehicleFilterLabel(
+  vehicleId: string | null,
+  items: ApprovableItem[],
+): string | null {
+  if (!vehicleId) return null;
+  for (const item of items) {
+    if (
+      item.context.approvableType === "trip_expense" &&
+      item.context.vehicleId === vehicleId &&
+      item.context.vehicleUnitNumber
+    ) {
+      return item.context.vehicleUnitNumber;
+    }
+  }
+  return copy.filters.vehicleUnknown;
 }
 
 export function hasApprovalUserFilters(input: {
@@ -49,33 +90,54 @@ export function hasApprovalUserFilters(input: {
   return false;
 }
 
+/** Recortes del panel «Filtros». No cuenta search, pending ni deep-links. */
+export function countApprovalPanelFilters(input: {
+  status: string;
+  category: string;
+  fromDate: string;
+  toDate: string;
+  showCategory: boolean;
+}): number {
+  let count = 0;
+  if (input.status === APPROVAL_STATUS_ALL || (input.status && input.status !== "pending")) {
+    count += 1;
+  }
+  if (input.showCategory && input.category) count += 1;
+  if (input.fromDate || input.toDate) count += 1;
+  return count;
+}
+
 export function buildApprovalContextChips(
   context: ApprovalContextFilterParams,
-  tripLabel: string | null,
+  labels: {
+    trip: string | null;
+    driver: string | null;
+    vehicle: string | null;
+  },
   onRemove: (param: keyof ApprovalContextFilterParams) => void,
 ): ActiveFilterChip[] {
   const chips: ActiveFilterChip[] = [];
 
-  if (context.tripId && tripLabel) {
+  if (context.tripId && labels.trip) {
     chips.push({
       id: "tripId",
-      label: copy.filters.tripChip(tripLabel),
+      label: copy.filters.tripChip(labels.trip),
       onRemove: () => onRemove("tripId"),
     });
   }
 
-  if (context.driverId) {
+  if (context.driverId && labels.driver) {
     chips.push({
       id: "driverId",
-      label: copy.filters.driverChip(context.driverId),
+      label: copy.filters.driverChip(labels.driver),
       onRemove: () => onRemove("driverId"),
     });
   }
 
-  if (context.vehicleId) {
+  if (context.vehicleId && labels.vehicle) {
     chips.push({
       id: "vehicleId",
-      label: copy.filters.vehicleChip(context.vehicleId),
+      label: copy.filters.vehicleChip(labels.vehicle),
       onRemove: () => onRemove("vehicleId"),
     });
   }

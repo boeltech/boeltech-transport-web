@@ -1,8 +1,44 @@
 /**
- * Namespace: employees.copy.detail.*
- * Copy del detalle de empleado (header, KPIs, tabs, alertas).
+ * Namespace: employees.copy.*
+ * `list` = catálogo. `detail` / `form` no se reescriben en este pedido.
  */
 export const employeesCopy = {
+  list: {
+    page: {
+      title: "Empleados",
+      description: "Gestiona el personal de la empresa",
+      descriptionManager:
+        "Si el conductor no tiene empleado, primero dalo de alta aquí.",
+      refreshSuccess: "Lista actualizada",
+    },
+    actions: {
+      create: "Nuevo Empleado",
+      import: "Importar",
+      importAria: "Importar empleados desde archivo",
+      clearFilters: "Limpiar filtros",
+    },
+    filter: {
+      showFilters: "Filtros",
+      searchPlaceholder: "Nombre, RFC, CURP o número",
+      statusLabel: "Estado",
+      statusAll: "Todos",
+      typeLabel: "Contrato",
+      typeAll: "Todos",
+      positionLabel: "Puesto",
+      positionAll: "Todos",
+    },
+    chip: {
+      status: (label: string) => `Estado: ${label}`,
+      type: (label: string) => `Contrato: ${label}`,
+      position: (label: string) => `Puesto: ${label}`,
+    },
+    empty: {
+      title: "No se encontraron empleados",
+      descriptionClear: "Comienza registrando el primer empleado",
+      descriptionFiltered:
+        "Nada coincide. Prueba otro nombre, RFC o número, o limpia los recortes.",
+    },
+  },
   detail: {
     title: {
       fallback: "Empleado",
@@ -77,7 +113,7 @@ export const employeesCopy = {
         ) =>
           `Tiene ${count} viaje${count === 1 ? "" : "s"} activo${count === 1 ? "" : "s"} como conductor${codesSuffix}.`,
         blockOnTrip:
-          "No podrá darse de baja como empleado hasta finalizar o cancelar el viaje en curso, o actualizar el estado en Conductores.",
+          "No podrá darse de baja como empleado hasta finalizar o cancelar el viaje En Ruta, o actualizar el estado en Conductores.",
         blockActiveTrips:
           "No podrá darse de baja como empleado hasta completar o cancelar esos viajes.",
         autoDeactivate:

@@ -12,6 +12,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 import { Button } from "@shared/ui/button";
 import {
   AlertDialog,
@@ -86,6 +87,7 @@ export function EmployeeActions({
 }: EmployeeActionsProps) {
   const { id, fullName, status } = employee;
   const navigate = useNavigate();
+  const fromState = useMasterActionFrom("/employees");
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
@@ -192,7 +194,9 @@ export function EmployeeActions({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/employees/${id}/edit`)}
+            onClick={() =>
+              navigate(`/employees/${id}/edit`, { state: fromState })
+            }
             disabled={terminateMutation.isPending}
           >
             <Pencil className="mr-2 h-4 w-4" />

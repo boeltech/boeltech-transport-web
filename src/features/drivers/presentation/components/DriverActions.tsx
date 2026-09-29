@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 import { Button } from "@shared/ui/button";
 import {
   AlertDialog,
@@ -180,6 +181,7 @@ export function DriverActions(props: DriverActionsProps) {
   const currentStatus = props.driver?.status ?? props.status!;
 
   const navigate = useNavigate();
+  const fromState = useMasterActionFrom("/drivers");
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
@@ -368,7 +370,9 @@ export function DriverActions(props: DriverActionsProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/drivers/${id}/edit`)}
+            onClick={() =>
+              navigate(`/drivers/${id}/edit`, { state: fromState })
+            }
             disabled={isLoading}
           >
             <Pencil className="mr-2 h-4 w-4" />

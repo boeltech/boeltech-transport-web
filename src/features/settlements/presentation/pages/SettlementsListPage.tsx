@@ -6,13 +6,6 @@ import {
   type WorkbenchBucket,
 } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Label } from "@shared/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
@@ -22,10 +15,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@shared/ui/tooltip";
-import { ViewModeToggle } from "@shared/ui/listing";
+import { type ActiveFilterChip } from "@shared/ui/listing";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
-import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { useBranches } from "@features/branches";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
 import { settlementsCopy } from "../copy/settlementsCopy";
@@ -42,6 +34,7 @@ import {
   settlementsAdvancesPath,
   settlementsRegistryPath,
 } from "../../application/settlementsRoutes";
+import { useSettlementQueueFromState } from "../utils/settlementWayfinding";
 import {
   BUCKET_PIPELINE_STATUSES,
   resolveDefaultWorkbenchBucket,
@@ -53,8 +46,10 @@ import {
   DriverAdvanceCreateDialog,
   SettlementBacklogTable,
   SettlementPipelineQueue,
+  SettlementListFilters,
   SettlementsSetupChecklist,
 } from "../components";
+import { filterSettlementBacklog } from "../utils/filterSettlementBacklog";
 import { mapSettlementWorkbenchBuckets } from "../utils/mapSettlementWorkbenchBuckets";
 import type { DriverSettlement } from "../../domain/entities";
 
@@ -77,6 +72,7 @@ function isWorkbenchBucket(
 export function SettlementsListPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const fromState = useSettlementQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
@@ -96,41 +92,31 @@ export function SettlementsListPage() {
     return map;
   }, [branches]);
 
-  const filters = useListingFilters<
-    "employeeId" | "bucket" | "branchId" | "includeContractors"
-  >({
-    filters: {
-      employeeId: {},
-      bucket: {},
-      branchId: {},
-      includeContractors: {},
+  const filters = useListingFilters<"bucket" | "branchId" | "includeContractors">(
+    {
+      filters: {
+        bucket: {},
+        branchId: {},
+        includeContractors: {},
+      },
+      preserveParamsOnClear: ["bucket"],
     },
-    chipLabels: {
-      employeeId: (value) => `Operador: ${value.slice(0, 8)}`,
-      branchId: (value) =>
-        `Sucursal: ${branchLabelById.get(value) ?? value.slice(0, 8)}`,
-      bucket: (value) =>
-        `Etapa: ${workbenchCopy.buckets[value as SettlementWorkbenchNavBucket] ?? value}`,
-      includeContractors: () => "Incluye contratistas",
-    },
-  });
+  );
 
   const activeBucket: SettlementWorkbenchNavBucket = isWorkbenchBucket(
     filters.filters.bucket,
   )
     ? filters.filters.bucket
     : "pending";
-  const employeeIdFilter = filters.filters.employeeId || "";
   const branchIdFilter = filters.filters.branchId || "";
   const includeContractors = filters.filters.includeContractors === "true";
 
   const workbenchParams = useMemo(
     () => ({
-      employeeId: employeeIdFilter || undefined,
       branchId: branchIdFilter || undefined,
       includeContractors,
     }),
-    [branchIdFilter, employeeIdFilter, includeContractors],
+    [branchIdFilter, includeContractors],
   );
 
   const {
@@ -155,6 +141,12 @@ export function SettlementsListPage() {
       filters.setFilter("bucket", "pending");
     }
   }, [filters]);
+
+  useEffect(() => {
+    if (activeBucket !== "pending" && includeContractors) {
+      filters.setFilter("includeContractors", "");
+    }
+  }, [activeBucket, filters, includeContractors]);
 
   useEffect(() => {
     if (defaultsAppliedRef.current) return;
@@ -184,7 +176,6 @@ export function SettlementsListPage() {
     refetch: refetchPipelinePrimary,
   } = useSettlements({
     status: pipelineStatus,
-    employeeId: employeeIdFilter || undefined,
     search: filters.search.trim() || undefined,
     page: filters.page,
     pageSize: 20,
@@ -198,7 +189,6 @@ export function SettlementsListPage() {
     refetch: refetchRejectedPipeline,
   } = useSettlements({
     status: "rejected",
-    employeeId: employeeIdFilter || undefined,
     search: filters.search.trim() || undefined,
     page: filters.page,
     pageSize: 20,
@@ -242,7 +232,8 @@ export function SettlementsListPage() {
     (bucket: SettlementWorkbenchNavBucket) => {
       // Una sola llamada a setSearchParams: setFilters ya resetea page=1.
       // Un setPage() seguido sobrescribe la URL (RR no encadena updaters).
-      filters.setFilters({ bucket });
+      // Contratistas solo aplican a Por liquidar: no dejar el opt-in pegado.
+      filters.setFilters({ bucket, includeContractors: "" });
     },
     [filters],
   );
@@ -307,8 +298,8 @@ export function SettlementsListPage() {
   ]);
 
   const handleViewSettlement = useCallback(
-    (id: string) => navigate(settlementDetailPath(id)),
-    [navigate],
+    (id: string) => navigate(settlementDetailPath(id), { state: fromState }),
+    [fromState, navigate],
   );
 
   const isRefreshing =
@@ -326,6 +317,36 @@ export function SettlementsListPage() {
   } = useSettlementsReadiness();
 
   const backlogRows = workbenchData?.backlog ?? [];
+  const visibleBacklogRows = useMemo(
+    () => filterSettlementBacklog(backlogRows, filters.search),
+    [backlogRows, filters.search],
+  );
+  const hasBranchFilter = Boolean(branchIdFilter);
+  const hasContractorFilter = includeContractors && activeBucket === "pending";
+  const hasToolbarFilters =
+    Boolean(filters.search.trim()) || hasBranchFilter || hasContractorFilter;
+  const activeFilterChips: ActiveFilterChip[] = [
+    ...(hasBranchFilter
+      ? [
+          {
+            id: "branch",
+            label: branchLabelById.get(branchIdFilter)
+              ? workbenchCopy.chip.branch(branchLabelById.get(branchIdFilter)!)
+              : workbenchCopy.chip.branchUnknown,
+            onRemove: () => filters.setFilter("branchId", ""),
+          },
+        ]
+      : []),
+    ...(hasContractorFilter
+      ? [
+          {
+            id: "include-contractors",
+            label: workbenchCopy.chip.includeContractors,
+            onRemove: () => filters.setFilter("includeContractors", ""),
+          },
+        ]
+      : []),
+  ];
   const showChecklist = !readinessLoading && !isSettlementsReady;
   const showSchemesBridge =
     !readinessLoading &&
@@ -348,7 +369,8 @@ export function SettlementsListPage() {
             ? {
                 label: copy.actions.createSettlement,
                 icon: <Plus className="h-4 w-4" />,
-                onClick: () => navigate(settlementCreatePath()),
+                onClick: () =>
+                  navigate(settlementCreatePath(), { state: fromState }),
               }
             : undefined
         }
@@ -398,85 +420,52 @@ export function SettlementsListPage() {
         degradedLinkLabel={workbenchCopy.actions.viewFullHistory}
         degradedMessage={workbenchCopy.empty.backlogApiPendingDescription}
         afterAwareness={
-          <div className="space-y-1">
-            <Link
-              to={settlementsAdvancesPath()}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-            >
-              {workbenchCountsLoading
-                ? workbenchCopy.buckets.openAdvances
-                : workbenchCopy.openAdvancesBridge.linkLabel(
-                    workbenchSummary.openAdvances,
-                  )}
-              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-            </Link>
-            <p className="text-xs text-muted-foreground">
-              {workbenchCopy.openAdvancesBridge.description}
-            </p>
-          </div>
+          !workbenchCountsLoading && workbenchSummary.openAdvances > 0 ? (
+            <div className="space-y-1">
+              <Link
+                to={settlementsAdvancesPath()}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              >
+                {workbenchCopy.openAdvancesBridge.linkLabel(
+                  workbenchSummary.openAdvances,
+                )}
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+              <p className="text-xs text-muted-foreground">
+                {workbenchCopy.openAdvancesBridge.description}
+              </p>
+            </div>
+          ) : undefined
         }
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: copy.fields.searchPlaceholder,
+            placeholder:
+              activeBucket === "pending"
+                ? workbenchCopy.filter.searchPending
+                : workbenchCopy.filter.searchPipeline,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           onRefresh: handleRefresh,
           isRefreshing,
-          activeFilterChips: filters.activeChips,
+          activeFilterChips,
           onClearFilters: filters.clearAll,
-          hasFilters: filters.hasFilters,
+          hasFilters: hasToolbarFilters,
           extraActions: (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(settlementsRegistryPath())}
-                className="gap-2"
-              >
-                <History className="h-4 w-4" />
-                {workbenchCopy.actions.viewFullHistory}
-              </Button>
-              <ViewModeToggle {...filters.viewModeProps} />
-            </>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(settlementsRegistryPath())}
+              className="gap-2"
+            >
+              <History className="h-4 w-4" />
+              {workbenchCopy.actions.viewFullHistory}
+            </Button>
           ),
+          viewMode: filters.viewModeProps,
           filters: (
             <>
-              <EmployeeAsyncCombobox
-                id="settlements-workbench-employee-filter"
-                className="w-48"
-                value={employeeIdFilter}
-                onChange={(employeeId) =>
-                  filters.setFilter("employeeId", employeeId)
-                }
-                placeholder="Todos los operadores"
-                allowClear
-              />
-
-              {branches.length > 0 ? (
-                <Select
-                  value={branchIdFilter || "all"}
-                  onValueChange={(val) =>
-                    filters.setFilter("branchId", val === "all" ? "" : val)
-                  }
-                >
-                  <SelectTrigger
-                    className="w-48"
-                    aria-label="Filtrar por sucursal"
-                  >
-                    <SelectValue placeholder="Todas las sucursales" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las sucursales</SelectItem>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : null}
-
               {activeBucket === "pending" ? (
                 <div className="flex items-center gap-2 px-1">
                   <Checkbox
@@ -497,6 +486,14 @@ export function SettlementsListPage() {
                   </Label>
                 </div>
               ) : null}
+              <SettlementListFilters
+                branchId={branchIdFilter}
+                branches={branches}
+                activePanelFilterCount={Number(hasBranchFilter)}
+                onBranchChange={(value) =>
+                  filters.setFilter("branchId", value === "all" ? "" : value)
+                }
+              />
             </>
           ),
         }}
@@ -518,11 +515,13 @@ export function SettlementsListPage() {
             </Tooltip>
             {activeBucket === "pending" ? (
               <SettlementBacklogTable
-                rows={backlogRows}
+                rows={visibleBacklogRows}
                 isLoading={workbenchLoading}
                 apiUnavailable={!isWorkbenchAvailable}
                 viewMode={filters.viewMode}
-                onNavigateCreate={navigate}
+                onNavigateCreate={(path) =>
+                  navigate(path, { state: fromState })
+                }
               />
             ) : (
               <SettlementPipelineQueue

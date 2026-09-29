@@ -1,29 +1,16 @@
+/**
+ * BranchesListPage — padrón de sucursales (`ListPageShell`).
+ *
+ * Dictamen toolbar: search = lookup; estado / tipo / fecha de alta en
+ * «Filtros (n)»; Eliminadas = toggle de vista (no badge); Exportar = acción.
+ */
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  Building2,
-  Download,
-  Filter,
-  Plus,
-  Search,
-  SlidersHorizontal,
-  X,
-} from "lucide-react";
+import { Building2, Download, Plus, Search } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
-import { Checkbox } from "@shared/ui/checkbox";
-import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import type { ActiveFilterChip } from "@shared/ui/listing";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
@@ -31,7 +18,6 @@ import {
   isApiError,
 } from "@shared/api/interceptors/error-handler";
 import {
-  BranchStatus,
   BRANCH_STATUS_LABELS,
   type BranchQueryParams,
   type BranchSortOptions,
@@ -47,6 +33,7 @@ import {
   BranchCapacityBanner,
   BranchCard,
   BranchCardSkeleton,
+  BranchListFilters,
   BranchOverQuotaBanner,
   BranchPlanLimitNotice,
   BranchReconcilePlanSheet,
@@ -54,18 +41,10 @@ import {
 } from "../components";
 import { branchesCopy } from "../copy/branchesCopy";
 import { getBranchMutationErrorToast } from "../utils/branchMutationErrors";
+import { countBranchPanelFilters } from "../utils/branchListFilters";
 
 const DEFAULT_SORT_FIELD: BranchSortOptions["field"] = "name";
-
-type DateDraftState = {
-  createdFrom: string;
-  createdTo: string;
-};
-
-const EMPTY_DATE_DRAFT: DateDraftState = {
-  createdFrom: "",
-  createdTo: "",
-};
+const copy = branchesCopy.list;
 
 export function BranchesListPage() {
   const navigate = useNavigate();
@@ -74,8 +53,6 @@ export function BranchesListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showDeleted, setShowDeleted] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
-  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
-  const [dateDraft, setDateDraft] = useState<DateDraftState>(EMPTY_DATE_DRAFT);
 
   const filters = useListingFilters<"status" | "main" | "createdFrom" | "createdTo">({
     filters: {
@@ -86,10 +63,8 @@ export function BranchesListPage() {
     },
     chipLabels: {
       status: (value) =>
-        branchesCopy.list.filters.statusChip(
-          BRANCH_STATUS_LABELS[value as BranchStatusType] ?? value,
-        ),
-      main: (value) => branchesCopy.list.filters.typeChip(value === "true"),
+        copy.chip.status(BRANCH_STATUS_LABELS[value as BranchStatusType] ?? value),
+      main: (value) => copy.chip.type(value === "true"),
     },
   });
 
@@ -101,47 +76,14 @@ export function BranchesListPage() {
     (searchParams.get("sortBy") as BranchSortOptions["field"] | null) ??
     DEFAULT_SORT_FIELD;
   const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
-
-  const syncDateDraftFromUrl = useCallback(() => {
-    setDateDraft({
-      createdFrom,
-      createdTo,
-    });
-  }, [createdFrom, createdTo]);
-
-  const handleDatePopoverOpenChange = useCallback(
-    (open: boolean) => {
-      setIsDateFilterOpen(open);
-      if (open) {
-        syncDateDraftFromUrl();
-      }
-    },
-    [syncDateDraftFromUrl],
-  );
-
-  const dateDraftMatchesApplied = useMemo(
-    () =>
-      dateDraft.createdFrom === createdFrom &&
-      dateDraft.createdTo === createdTo,
-    [dateDraft, createdFrom, createdTo],
-  );
-
-  const handleApplyDateFilters = useCallback(() => {
-    filters.setFilters({
-      createdFrom: dateDraft.createdFrom,
-      createdTo: dateDraft.createdTo,
-    });
-    setIsDateFilterOpen(false);
-  }, [filters, dateDraft]);
-
-  const handleClearDateFilter = useCallback(() => {
-    filters.setFilters({
-      createdFrom: "",
-      createdTo: "",
-    });
-    setDateDraft({ ...EMPTY_DATE_DRAFT });
-    setIsDateFilterOpen(false);
-  }, [filters]);
+  const activePanelFilterCount = countBranchPanelFilters({
+    status: statusFilter,
+    isMain: mainFilter,
+    createdFrom,
+    createdTo,
+  });
+  const hasPanelFilters = activePanelFilterCount > 0;
+  const hasDateFilter = Boolean(createdFrom || createdTo);
 
   const listParams = useMemo<BranchQueryParams>(
     () => ({
@@ -202,26 +144,26 @@ export function BranchesListPage() {
   const deleteMutation = useDeleteBranch({
     onSuccess: () => {
       toast({
-        title: branchesCopy.list.toasts.deleteSuccess,
+        title: copy.toasts.deleteSuccess,
         variant: "success",
       });
       void refetch();
     },
     onError: (error) => {
-      showBranchErrorToast(error, branchesCopy.list.toasts.deleteError);
+      showBranchErrorToast(error, copy.toasts.deleteError);
     },
   });
 
   const restoreMutation = useRestoreBranch({
     onSuccess: () => {
       toast({
-        title: branchesCopy.list.toasts.restoreSuccess,
+        title: copy.toasts.restoreSuccess,
         variant: "success",
       });
       void refetch();
     },
     onError: (error) => {
-      showBranchErrorToast(error, branchesCopy.list.toasts.restoreError);
+      showBranchErrorToast(error, copy.toasts.restoreError);
     },
   });
 
@@ -231,35 +173,23 @@ export function BranchesListPage() {
   const canExport = hasPermission("branches", "export");
   const canRestore = hasPermission("branches", "update");
   const branchLimitReached = !showDeleted && (data?.meta?.limitReached ?? false);
-  const hasDateFilter = Boolean(createdFrom || createdTo);
-  const hasListFilters = filters.hasFilters || showDeleted || hasDateFilter;
+  const hasListFilters = filters.hasFilters || showDeleted;
 
-  const formatRange = useCallback(
-    (from: string, to: string) => {
-      if (from && to) {
-        return branchesCopy.list.filters.rangeBoth(formatDate(from), formatDate(to));
-      }
-      if (from) return branchesCopy.list.filters.rangeFrom(formatDate(from));
-      if (to) return branchesCopy.list.filters.rangeTo(formatDate(to));
-      return "";
-    },
-    [],
-  );
-
-  const dateFilterChipLabel = hasDateFilter
-    ? branchesCopy.list.filters.chipDates(
-        branchesCopy.list.filters.createdPrefix(
-          formatRange(createdFrom, createdTo),
-        ),
-      )
-    : "";
+  const formatRange = useCallback((from: string, to: string) => {
+    if (from && to) {
+      return copy.filters.rangeBoth(formatDate(from), formatDate(to));
+    }
+    if (from) return copy.filters.rangeFrom(formatDate(from));
+    if (to) return copy.filters.rangeTo(formatDate(to));
+    return "";
+  }, []);
 
   const handleCreate = useCallback(() => navigate("/branches/new"), [navigate]);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
     toast({
-      title: branchesCopy.list.refreshSuccess,
+      title: copy.page.refreshSuccess,
       variant: "success",
     });
   }, [refetch, toast]);
@@ -284,6 +214,11 @@ export function BranchesListPage() {
     void exportBranches(listParams);
   }, [exportBranches, listParams]);
 
+  const handleShowDeletedToggle = useCallback(() => {
+    setShowDeleted((current) => !current);
+    filters.setPage(1);
+  }, [filters]);
+
   const handleSortChange = useCallback(
     (field: string) => {
       setSearchParams((prev) => {
@@ -306,7 +241,13 @@ export function BranchesListPage() {
   const handleClearAllFilters = useCallback(() => {
     filters.clearAll();
     setShowDeleted(false);
-    setDateDraft({ ...EMPTY_DATE_DRAFT });
+  }, [filters]);
+
+  const handleClearDateFilter = useCallback(() => {
+    filters.setFilters({
+      createdFrom: "",
+      createdTo: "",
+    });
   }, [filters]);
 
   const activeFilterChips: ActiveFilterChip[] = useMemo(() => {
@@ -314,21 +255,23 @@ export function BranchesListPage() {
     if (showDeleted) {
       chips.push({
         id: "deleted-view",
-        label: branchesCopy.list.showDeleted.chip,
+        label: copy.showDeleted.chip,
         onRemove: () => setShowDeleted(false),
       });
     }
     if (hasDateFilter) {
       chips.push({
         id: "date",
-        label: dateFilterChipLabel,
+        label: copy.chip.dates(formatRange(createdFrom, createdTo)),
         onRemove: handleClearDateFilter,
       });
     }
     return chips;
   }, [
-    dateFilterChipLabel,
+    createdFrom,
+    createdTo,
     filters.activeChips,
+    formatRange,
     handleClearDateFilter,
     hasDateFilter,
     showDeleted,
@@ -343,8 +286,8 @@ export function BranchesListPage() {
   return (
     <>
       <ListPageShell
-        title={branchesCopy.list.title}
-        description={branchesCopy.list.description}
+        title={copy.page.title}
+        description={copy.page.description}
         beforeToolbar={
           <div className="space-y-4">
             <BranchCapacityBanner meta={data?.meta} />
@@ -357,7 +300,7 @@ export function BranchesListPage() {
           </div>
         }
         primaryAction={{
-          label: branchesCopy.list.primaryAction,
+          label: copy.actions.create,
           icon: <Plus className="h-4 w-4" />,
           onClick: handleCreate,
           visible: canCreate && !showDeleted,
@@ -367,174 +310,39 @@ export function BranchesListPage() {
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: branchesCopy.list.searchPlaceholder,
+            placeholder: copy.filter.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           filters: (
             <>
-              <Select
-                value={statusFilter || "all"}
-                onValueChange={(value) => filters.setFilter("status", value)}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder={branchesCopy.list.filters.status} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {branchesCopy.list.filters.statusAll}
-                  </SelectItem>
-                  <SelectItem value={BranchStatus.ACTIVE}>
-                    {BRANCH_STATUS_LABELS[BranchStatus.ACTIVE]}
-                  </SelectItem>
-                  <SelectItem value={BranchStatus.INACTIVE}>
-                    {BRANCH_STATUS_LABELS[BranchStatus.INACTIVE]}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={mainFilter || "all"}
-                onValueChange={(value) => filters.setFilter("main", value)}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder={branchesCopy.list.filters.type} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {branchesCopy.list.filters.typeAll}
-                  </SelectItem>
-                  <SelectItem value="true">
-                    {branchesCopy.list.filters.typeMain}
-                  </SelectItem>
-                  <SelectItem value="false">
-                    {branchesCopy.list.filters.typeSecondary}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Popover
-                open={isDateFilterOpen}
-                onOpenChange={handleDatePopoverOpenChange}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant={hasDateFilter ? "secondary" : "outline"}
-                  >
-                    <SlidersHorizontal className="mr-2 h-4 w-4" />
-                    {branchesCopy.list.filters.more}
-                    {hasDateFilter ? (
-                      <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">
-                        ·
-                      </span>
-                    ) : null}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[22rem] p-4" align="start">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Filter className="h-4 w-4" />
-                      {branchesCopy.list.filters.moreHeading}
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {branchesCopy.list.filters.createdHeading}
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="branches-created-from">
-                            {branchesCopy.list.filters.from}
-                          </Label>
-                          <Input
-                            id="branches-created-from"
-                            type="date"
-                            value={dateDraft.createdFrom}
-                            max={dateDraft.createdTo || undefined}
-                            onChange={(e) =>
-                              setDateDraft((d) => ({
-                                ...d,
-                                createdFrom: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="branches-created-to">
-                            {branchesCopy.list.filters.to}
-                          </Label>
-                          <Input
-                            id="branches-created-to"
-                            type="date"
-                            value={dateDraft.createdTo}
-                            min={dateDraft.createdFrom || undefined}
-                            onChange={(e) =>
-                              setDateDraft((d) => ({
-                                ...d,
-                                createdTo: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-                      {hasDateFilter ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="justify-start text-muted-foreground sm:order-1"
-                          onClick={handleClearDateFilter}
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          {branchesCopy.list.filters.clearDates}
-                        </Button>
-                      ) : (
-                        <span className="hidden sm:order-1 sm:block" />
-                      )}
-                      <div className="flex w-full gap-2 sm:order-2 sm:w-auto sm:justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 sm:flex-none"
-                          onClick={() => setIsDateFilterOpen(false)}
-                        >
-                          {branchesCopy.list.filters.cancel}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="flex-1 sm:flex-none"
-                          disabled={dateDraftMatchesApplied}
-                          onClick={handleApplyDateFilters}
-                        >
-                          {branchesCopy.list.filters.apply}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-
               {canDelete ? (
-                <div className="flex items-center gap-2 rounded-md border px-3 py-2">
-                  <Checkbox
-                    id="show-deleted-branches"
-                    checked={showDeleted}
-                    onCheckedChange={(checked) => {
-                      setShowDeleted(checked === true);
-                      filters.setPage(1);
-                    }}
-                  />
-                  <Label
-                    htmlFor="show-deleted-branches"
-                    className="cursor-pointer text-sm font-normal"
-                  >
-                    {branchesCopy.list.showDeleted.label}
-                  </Label>
-                </div>
+                <Button
+                  type="button"
+                  variant={showDeleted ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={handleShowDeletedToggle}
+                  aria-pressed={showDeleted}
+                  aria-label={copy.showDeleted.aria}
+                >
+                  {copy.showDeleted.label}
+                </Button>
               ) : null}
+              <BranchListFilters
+                key={hasPanelFilters ? "filters-active" : "filters-idle"}
+                status={statusFilter}
+                isMain={mainFilter}
+                createdFrom={createdFrom}
+                createdTo={createdTo}
+                activePanelFilterCount={activePanelFilterCount}
+                onStatusChange={(value) => filters.setFilter("status", value)}
+                onTypeChange={(value) => filters.setFilter("main", value)}
+                onCreatedFromChange={(value) =>
+                  filters.setFilter("createdFrom", value)
+                }
+                onCreatedToChange={(value) =>
+                  filters.setFilter("createdTo", value)
+                }
+              />
             </>
           ),
           extraActions: canExport ? (
@@ -544,11 +352,10 @@ export function BranchesListPage() {
               size="sm"
               disabled={isExporting}
               onClick={handleExport}
+              leftIcon={<Download className="h-4 w-4" />}
+              aria-label={copy.export.aria}
             >
-              <Download className="mr-2 h-4 w-4" />
-              {isExporting
-                ? branchesCopy.list.export.exporting
-                : branchesCopy.list.export.label}
+              {isExporting ? copy.export.exporting : copy.export.label}
             </Button>
           ) : null,
           onRefresh: handleRefresh,
@@ -571,7 +378,7 @@ export function BranchesListPage() {
             : undefined
         }
         onPageChange={filters.setPage}
-        entityLabelPlural={branchesCopy.list.entityLabelPlural}
+        entityLabelPlural={copy.entityLabelPlural}
         renderTable={() => (
           <BranchTable
             branches={branches}
@@ -602,25 +409,23 @@ export function BranchesListPage() {
         renderCardSkeleton={() => <BranchCardSkeleton />}
         emptyState={{
           icon: <Search className="h-10 w-10 text-muted-foreground" />,
-          title: hasListFilters
-            ? branchesCopy.list.empty.filteredTitle
-            : branchesCopy.list.empty.title,
+          title: copy.empty.title,
           description: hasListFilters
-            ? branchesCopy.list.empty.descriptionFiltered
-            : branchesCopy.list.empty.descriptionDefault,
+            ? copy.empty.descriptionFiltered
+            : copy.empty.descriptionClear,
           cta:
             canCreate && !showDeleted
               ? {
                   label: branchLimitReached
                     ? branchesCopy.limitReached.createDisabled
-                    : branchesCopy.list.primaryAction,
+                    : copy.actions.create,
                   icon: <Building2 className="h-4 w-4" />,
                   onClick: branchLimitReached ? () => undefined : handleCreate,
                 }
               : undefined,
           secondaryCta: hasListFilters
             ? {
-                label: branchesCopy.list.empty.clearFilters,
+                label: copy.actions.clearFilters,
                 onClick: handleClearAllFilters,
                 variant: "outline",
               }

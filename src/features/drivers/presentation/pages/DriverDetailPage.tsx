@@ -7,6 +7,7 @@
 
 import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
 import type { InfiniteData } from "@tanstack/react-query";
 import { cn } from "@shared/lib/utils/cn";
 import { useTabParam } from "@shared/hooks";
@@ -73,6 +74,10 @@ function documentsTabHref(driverId: string): string {
 export function DriverDetailPage() {
   const { id } = useParams<{ id: string }>();
   const driverId = id || "";
+  const { backHref, backLabel } = useMasterDetailWayfinding(
+    "/drivers",
+    copy.state.backToList,
+  );
   const { activeTab, setActiveTab } = useTabParam(DRIVER_DETAIL_TABS, "driver");
 
   const {
@@ -98,7 +103,8 @@ export function DriverDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref: "/drivers",
+          backHref,
+          backLabel,
           icon: <User className="h-6 w-6" />,
           iconShape: "circle",
           title: copy.title.fallback,
@@ -132,7 +138,8 @@ export function DriverDetailPage() {
           backLabel: copy.state.backToList,
         }}
         header={{
-          backHref: "/drivers",
+          backHref,
+          backLabel,
           icon: <User className="h-6 w-6" />,
           iconShape: "circle",
           title: copy.title.fallback,
@@ -306,7 +313,8 @@ export function DriverDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref: "/drivers",
+        backHref,
+        backLabel,
         icon: <User className="h-6 w-6" />,
         iconShape: "circle",
         title: (

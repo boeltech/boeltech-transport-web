@@ -5,6 +5,7 @@ import {
   type ReactElement,
 } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
 import {
   User,
   AlertTriangle,
@@ -56,6 +57,10 @@ const EMPLOYEE_DETAIL_TABS = [
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const employeeId = id ?? "";
+  const { backHref, backLabel } = useMasterDetailWayfinding(
+    "/employees",
+    copy.state.backToList,
+  );
   const { activeTab, setActiveTab } = useTabParam(
     EMPLOYEE_DETAIL_TABS,
     "personal",
@@ -243,7 +248,8 @@ export function EmployeeDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref: "/employees",
+          backHref,
+          backLabel,
           icon: <User className="h-6 w-6" />,
           title: copy.title.fallback,
         }}
@@ -264,7 +270,8 @@ export function EmployeeDetailPage() {
           backLabel: copy.state.backToList,
         }}
         header={{
-          backHref: "/employees",
+          backHref,
+          backLabel,
           icon: <User className="h-6 w-6" />,
           title: copy.title.fallback,
         }}
@@ -278,7 +285,8 @@ export function EmployeeDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref: "/employees",
+        backHref,
+        backLabel,
         icon: <User className="h-6 w-6" />,
         iconVariant: isTerminated ? "muted" : "primary",
         title: (

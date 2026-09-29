@@ -9,13 +9,19 @@ import type { VehicleListItem } from "../../domain";
 
 const BRANCH_ID = "11111111-1111-4111-8111-111111111111";
 
-const { mockUseVehicles, mockUseDeleteVehicle, mockUseBranches } = vi.hoisted(
-  () => ({
-    mockUseVehicles: vi.fn(),
-    mockUseDeleteVehicle: vi.fn(),
-    mockUseBranches: vi.fn(),
-  }),
-);
+const {
+  mockUseVehicles,
+  mockUseDeleteVehicle,
+  mockUseBranches,
+  mockHasPermission,
+  mockUseRole,
+} = vi.hoisted(() => ({
+  mockUseVehicles: vi.fn(),
+  mockUseDeleteVehicle: vi.fn(),
+  mockUseBranches: vi.fn(),
+  mockHasPermission: vi.fn(() => true),
+  mockUseRole: vi.fn(() => "admin"),
+}));
 
 vi.mock("../../application", () => ({
   useVehicles: (...args: unknown[]) => mockUseVehicles(...args),
@@ -30,8 +36,9 @@ vi.mock("@features/branches", () => ({
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
-    hasPermission: () => true,
+    hasPermission: mockHasPermission,
   }),
+  useRole: () => mockUseRole(),
 }));
 
 vi.mock("@shared/hooks", async (importOriginal) => {
@@ -55,7 +62,9 @@ function renderPage(initialUrl = "/vehicles") {
   );
 }
 
-describe("VehicleListPage branch filter", () => {
+const copy = vehiclesCopy.list;
+
+describe("VehicleListPage toolbar", () => {
   beforeEach(() => {
     mockUseBranches.mockReturnValue({
       data: {
@@ -83,34 +92,76 @@ describe("VehicleListPage branch filter", () => {
       mutate: vi.fn(),
       isPending: false,
     });
+    mockHasPermission.mockImplementation(() => true);
+    mockUseRole.mockReturnValue("admin");
   });
 
-  it("pasa branchId a useVehicles desde la URL", () => {
+  it("pasa branchId a useVehicles desde la URL y muestra el chip", () => {
     renderPage(`/vehicles?branchId=${BRANCH_ID}`);
 
     expect(mockUseVehicles).toHaveBeenCalledWith(
       expect.objectContaining({
-        filters: expect.objectContaining({ branchId: BRANCH_ID }),
+        filters: expect.objectContaining({
+          branchId: BRANCH_ID,
+          isActive: true,
+        }),
       }),
     );
     expect(
-      screen.getByText(vehiclesCopy.list.filters.chipBranch("SUC-N — Norte")),
+      screen.getByText(copy.filters.chipBranch("SUC-N — Norte")),
     ).toBeInTheDocument();
+    expect(screen.getByText(copy.empty.descriptionFiltered)).toBeInTheDocument();
   });
 
-  it("sin branchId en URL no filtra por sucursal", () => {
+  it("sin recortes no filtra y no pone estado, tipo ni sucursal en el riel", () => {
     renderPage();
 
     expect(mockUseVehicles).toHaveBeenCalledWith(
       expect.objectContaining({
         filters: expect.objectContaining({
           branchId: undefined,
+          status: undefined,
+          type: undefined,
+          isActive: true,
         }),
       }),
     );
+    expect(screen.getByRole("button", { name: /^Filtros$/ })).toBeInTheDocument();
     expect(
-      screen.getByText(vehiclesCopy.list.filters.allBranches),
+      screen.getByPlaceholderText(copy.filter.searchPlaceholder),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: copy.actions.importAria })).toBeInTheDocument();
+    expect(screen.queryByText(copy.filters.allBranches)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.filter.statusLabel)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.filter.typeLabel)).not.toBeInTheDocument();
+    expect(screen.getByText(copy.empty.descriptionClear)).toBeInTheDocument();
+  });
+
+  it("manager canCreate usa empty de recepción de patio", () => {
+    mockUseRole.mockReturnValue("manager");
+    renderPage();
+    expect(
+      screen.getByText(copy.empty.descriptionClearManager),
+    ).toBeInTheDocument();
+    expect(screen.getByText(copy.page.descriptionManager)).toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.empty.descriptionClear),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.empty.descriptionReadonly),
+    ).not.toBeInTheDocument();
+  });
+
+  it("empty RO pide el alta a administración si !vehicles.create", () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        !(module === "vehicles" && action === "create"),
+    );
+    renderPage();
+    expect(screen.getByText(copy.empty.descriptionReadonly)).toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.empty.descriptionClear),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -152,6 +203,8 @@ describe("VehicleListPage billing policy (F1)", () => {
       mutate: vi.fn(),
       isPending: false,
     });
+    mockHasPermission.mockImplementation(() => true);
+    mockUseRole.mockReturnValue("admin");
   });
 
   it("el listado no muestra copy de cobro ni suscripción", () => {
@@ -196,7 +249,7 @@ describe("VehicleListPage billing policy (F1)", () => {
     ).toBeInTheDocument();
   });
 
-  it("eliminar un pickup no muestra la frase de crédito", async () => {
+  it("eliminar un pickup cobrable muestra la frase de baja", async () => {
     const user = userEvent.setup();
     mockUseVehicles.mockReturnValue({
       data: {
@@ -213,8 +266,30 @@ describe("VehicleListPage billing policy (F1)", () => {
     await user.click(screen.getByRole("button", { name: /abrir menú/i }));
     await user.click(screen.getByRole("menuitem", { name: /eliminar/i }));
 
+    expect(
+      screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("eliminar un utility no muestra la frase de crédito", async () => {
+    const user = userEvent.setup();
+    mockUseVehicles.mockReturnValue({
+      data: {
+        data: [buildListItem({ type: "utility", unitNumber: "U-U1" })],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 10 },
+      },
+      isLoading: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /abrir menú/i }));
+    await user.click(screen.getByRole("menuitem", { name: /eliminar/i }));
+
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog).toHaveTextContent("U-P1");
+    expect(dialog).toHaveTextContent("U-U1");
     expect(dialog).not.toHaveTextContent(vehiclesCopy.billingPolicy.remove);
     expect(dialog).not.toHaveTextContent(/crédito/i);
   });

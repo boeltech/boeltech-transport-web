@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cn } from "@shared/lib/utils/cn";
+import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import {
@@ -30,40 +31,75 @@ const TRIP_INVOICE_STATUS_FILTER_VALUES: TripInvoiceStatus[] = [
   "cancelled",
 ];
 
+export interface TripListOriginBranchOption {
+  value: string;
+  label: string;
+}
+
 export interface TripListFiltersProps {
-  fiscalAttentionOnly: boolean;
   invoiceStatusFilter: TripInvoiceStatus | undefined;
   dateFrom: string;
   dateTo: string;
-  /** Abre el panel cuando hay filtros activos en la URL. */
-  hasActiveFilters: boolean;
-  onFiscalAttentionChange: (attentionOnly: boolean) => void;
+  originBranchId: string;
+  originBranchOptions: TripListOriginBranchOption[];
+  /** Recortes del panel (factura / fecha / sucursal). No incluye search ni overdue. */
+  activePanelFilterCount: number;
   onInvoiceStatusChange: (value: string) => void;
   onApplyDateRange: (fromDate: string, toDate: string) => void;
   onClearDateRange: () => void;
-  /** Portal cliente: oculta filtros de atención/estado de factura. */
-  hideInvoiceFilters?: boolean;
+  onOriginBranchChange: (value: string) => void;
+  /** Portal cliente/conductor: solo fecha, always-on. */
+  variant?: "fleet" | "lean";
+}
+
+function DateFilterField({
+  dateFrom,
+  dateTo,
+  onApplyDateRange,
+  onClearDateRange,
+  showLabel = true,
+}: Pick<
+  TripListFiltersProps,
+  "dateFrom" | "dateTo" | "onApplyDateRange" | "onClearDateRange"
+> & { showLabel?: boolean }) {
+  return (
+    <div className={showLabel ? "space-y-1.5" : undefined}>
+      {showLabel ? <Label>{copy.dateLabel}</Label> : null}
+      <ListingDateRangeFilter
+        fromDate={dateFrom}
+        toDate={dateTo}
+        onApply={onApplyDateRange}
+        onClear={onClearDateRange}
+        heading={copy.dateHeading}
+        placeholder={copy.datePlaceholder}
+        idPrefix="trips-date"
+        triggerClassName="w-full"
+      />
+    </div>
+  );
 }
 
 /**
- * Panel de filtros del listado de viajes (colapsable).
- * Cerrado por defecto; abierto si hay filtros activos (salvo que el usuario lo cierre).
+ * Recortes de listado (factura / fecha / sucursal).
+ * La cola (Reservas, Atención fiscal) vive en el scorecard; el retraso es un toggle aparte.
  */
 export function TripListFilters({
-  fiscalAttentionOnly,
   invoiceStatusFilter,
   dateFrom,
   dateTo,
-  hasActiveFilters,
-  onFiscalAttentionChange,
+  originBranchId,
+  originBranchOptions,
+  activePanelFilterCount,
   onInvoiceStatusChange,
   onApplyDateRange,
   onClearDateRange,
-  hideInvoiceFilters = false,
+  onOriginBranchChange,
+  variant = "fleet",
 }: TripListFiltersProps) {
   const [userCollapsedWhileActive, setUserCollapsedWhileActive] = useState(false);
   const [userExpandedWhileIdle, setUserExpandedWhileIdle] = useState(false);
 
+  const hasActiveFilters = activePanelFilterCount > 0;
   const open = hasActiveFilters
     ? !userCollapsedWhileActive
     : userExpandedWhileIdle;
@@ -76,121 +112,110 @@ export function TripListFilters({
     setUserExpandedWhileIdle(next);
   };
 
+  if (variant === "lean") {
+    return (
+      <div className="w-full min-w-[12rem] sm:w-auto sm:min-w-[16rem]">
+        <DateFilterField
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onApplyDateRange={onApplyDateRange}
+          onClearDateRange={onClearDateRange}
+          showLabel={false}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="order-last w-full basis-full">
-      <Collapsible open={open} onOpenChange={handleOpenChange}>
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <CollapsibleTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              aria-expanded={open}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {open ? copy.hideFilters : copy.showFilters}
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 transition-transform",
-                  open && "rotate-180",
-                )}
-              />
-            </Button>
-          </CollapsibleTrigger>
-        </div>
+    <Collapsible
+      open={open}
+      onOpenChange={handleOpenChange}
+      className="contents"
+    >
+      <CollapsibleTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          aria-expanded={open}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          {copy.showFilters}
+          {activePanelFilterCount > 0 ? (
+            <Badge variant="secondary" className="h-5 min-w-5 px-1.5 tabular-nums">
+              {activePanelFilterCount}
+            </Badge>
+          ) : null}
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </Button>
+      </CollapsibleTrigger>
 
-        <CollapsibleContent>
-          <Card className="bg-muted/30">
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <SlidersHorizontal className="h-4 w-4" />
-                {copy.panelTitle}
-              </div>
-
-              <div
-                className={cn(
-                  "grid gap-3 sm:grid-cols-2",
-                  hideInvoiceFilters ? "lg:grid-cols-1" : "lg:grid-cols-3",
-                )}
+      <CollapsibleContent className="order-last w-full basis-full">
+        <Card className="bg-muted/30">
+          <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="trips-filter-invoice">{copy.invoiceLabel}</Label>
+              <Select
+                value={invoiceStatusFilter ?? "all"}
+                onValueChange={onInvoiceStatusChange}
               >
-                {!hideInvoiceFilters ? (
-                  <>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="trips-filter-fiscal">
-                        {copy.fiscalLabel}
-                      </Label>
-                      <Select
-                        value={fiscalAttentionOnly ? "yes" : "all"}
-                        onValueChange={(value) =>
-                          onFiscalAttentionChange(value === "yes")
-                        }
-                      >
-                        <SelectTrigger
-                          id="trips-filter-fiscal"
-                          className="w-full"
-                        >
-                          <SelectValue placeholder={copy.fiscalPlaceholder} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{copy.fiscalAll}</SelectItem>
-                          <SelectItem value="yes">
-                            {copy.fiscalAttention}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <SelectTrigger id="trips-filter-invoice" className="w-full">
+                  <SelectValue placeholder={copy.invoicePlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.invoiceAll}</SelectItem>
+                  {TRIP_INVOICE_STATUS_FILTER_VALUES.map((invoiceStatus) => (
+                    <SelectItem key={invoiceStatus} value={invoiceStatus}>
+                      {tripsListCopy.invoiceStatus[invoiceStatus]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="trips-filter-invoice">
-                        {copy.invoiceLabel}
-                      </Label>
-                      <Select
-                        value={invoiceStatusFilter ?? "all"}
-                        onValueChange={onInvoiceStatusChange}
-                      >
-                        <SelectTrigger
-                          id="trips-filter-invoice"
-                          className="w-full"
-                        >
-                          <SelectValue placeholder={copy.invoicePlaceholder} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{copy.invoiceAll}</SelectItem>
-                          {TRIP_INVOICE_STATUS_FILTER_VALUES.map(
-                            (invoiceStatus) => (
-                              <SelectItem
-                                key={invoiceStatus}
-                                value={invoiceStatus}
-                              >
-                                {tripsListCopy.invoiceStatus[invoiceStatus]}
-                              </SelectItem>
-                            ),
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                ) : null}
+            <DateFilterField
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onApplyDateRange={onApplyDateRange}
+              onClearDateRange={onClearDateRange}
+            />
 
-                <div className="space-y-1.5">
-                  <Label>{copy.dateLabel}</Label>
-                  <ListingDateRangeFilter
-                    fromDate={dateFrom}
-                    toDate={dateTo}
-                    onApply={onApplyDateRange}
-                    onClear={onClearDateRange}
-                    heading={copy.dateHeading}
-                    placeholder={copy.datePlaceholder}
-                    idPrefix="trips-date"
-                    triggerClassName="w-full"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="trips-filter-origin-branch">
+                {copy.originBranchLabel}
+              </Label>
+              <Select
+                value={originBranchId || "all"}
+                onValueChange={onOriginBranchChange}
+              >
+                <SelectTrigger
+                  id="trips-filter-origin-branch"
+                  className="w-full"
+                >
+                  <SelectValue placeholder={copy.originBranchPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{copy.originBranchAll}</SelectItem>
+                  <SelectItem value="unassigned">
+                    {copy.originBranchUnassigned}
+                  </SelectItem>
+                  {originBranchOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

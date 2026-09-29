@@ -1,22 +1,12 @@
 /**
- * VehicleListPage
- * Clean Architecture - Presentation Layer (Pages)
+ * VehicleListPage — padrón de vehículos (`ListPageShell`).
  *
- * Página principal de listado de vehículos.
- * Homologado con TripsListPage y DriversListPage.
- *
- * Ubicación: src/features/vehicles/presentation/pages/VehicleListPage.tsx
+ * Dictamen toolbar: search = lookup; estado / tipo / sucursal en «Filtros (n)».
+ * `isActive: true` es invariante de consulta, no un control del riel.
  */
-
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,31 +19,30 @@ import {
 } from "@shared/ui/alert-dialog";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { usePermissions } from "@shared/permissions";
+import { ROLES } from "@shared/constants/roles";
+import { usePermissions, useRole } from "@shared/permissions";
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { BranchStatus, useBranches } from "@features/branches";
-import { MasterImportWizard, importsCopy } from "@features/imports";
+import { MasterImportWizard } from "@features/imports";
 import { Button } from "@shared/ui/button";
 import { FileUp, Loader2, Plus, Search } from "lucide-react";
 
 import { useVehicles, useDeleteVehicle } from "../../application";
 import {
-  VehicleStatus,
-  VehicleType,
   isBillableMotrizNow,
   type VehicleListItem,
   type VehicleStatusType,
   type VehicleTypeValue,
-  VEHICLE_STATUS_LABELS,
   VEHICLE_TYPE_LABELS,
 } from "../../domain";
-import { VehicleTable, VehicleCard, VehicleCardSkeleton } from "../components";
+import { VehicleTable, VehicleCard, VehicleCardSkeleton, VehicleListFilters } from "../components";
 import { VehicleBillingPolicyNote } from "../components/VehicleBillingPolicyNote";
 import { vehiclesCopy } from "../copy/vehiclesCopy";
 import { VEHICLE_STATUS_CONFIG } from "../index";
+import { countVehiclePanelFilters } from "../utils/vehicleListFilters";
 
-const listFilterCopy = vehiclesCopy.list.filters;
+const copy = vehiclesCopy.list;
 
 function deleteVehicleErrorDescription(error: unknown): string {
   const message =
@@ -66,12 +55,9 @@ function deleteVehicleErrorDescription(error: unknown): string {
   return message;
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export function VehicleListPage() {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
@@ -109,11 +95,13 @@ export function VehicleListPage() {
     },
     chipLabels: {
       status: (value) =>
-        `Estado: ${VEHICLE_STATUS_CONFIG[value as VehicleStatusType]?.label || value}`,
+        copy.chip.status(
+          VEHICLE_STATUS_CONFIG[value as VehicleStatusType]?.label || value,
+        ),
       type: (value) =>
-        `Tipo: ${VEHICLE_TYPE_LABELS[value as VehicleTypeValue] || value}`,
+        copy.chip.type(VEHICLE_TYPE_LABELS[value as VehicleTypeValue] || value),
       branchId: (value) =>
-        listFilterCopy.chipBranch(
+        copy.filters.chipBranch(
           branchLabelById.get(value) ?? value.slice(0, 8),
         ),
     },
@@ -121,6 +109,12 @@ export function VehicleListPage() {
   const statusFilter = filters.filters.status as VehicleStatusType | "";
   const typeFilter = filters.filters.type as VehicleTypeValue | "";
   const branchIdFilter = filters.filters.branchId || "";
+  const activePanelFilterCount = countVehiclePanelFilters({
+    status: statusFilter,
+    type: typeFilter,
+    branchId: branchIdFilter,
+  });
+  const hasPanelFilters = activePanelFilterCount > 0;
 
   const { data, isLoading, isFetching, refetch } = useVehicles({
     page: filters.page,
@@ -155,6 +149,8 @@ export function VehicleListPage() {
     },
   });
 
+  const role = useRole();
+  const isManager = role === ROLES.MANAGER;
   const canCreate = hasPermission("vehicles", "create");
   const canEdit = hasPermission("vehicles", "update");
   const canDelete = hasPermission("vehicles", "delete");
@@ -163,13 +159,13 @@ export function VehicleListPage() {
   const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const handleView = useCallback(
-    (id: string) => navigate(`/vehicles/${id}`),
-    [navigate],
+    (id: string) => navigate(`/vehicles/${id}`, { state: fromState }),
+    [fromState, navigate],
   );
 
   const handleEdit = useCallback(
-    (id: string) => navigate(`/vehicles/${id}/edit`),
-    [navigate],
+    (id: string) => navigate(`/vehicles/${id}/edit`, { state: fromState }),
+    [fromState, navigate],
   );
 
   const handleDelete = useCallback(
@@ -189,16 +185,20 @@ export function VehicleListPage() {
   }, [navigate]);
   const handleRefresh = useCallback(async () => {
     await refetch();
-    toast({ title: "Lista actualizada", variant: "success" });
+    toast({ title: copy.page.refreshSuccess, variant: "success" });
   }, [refetch, toast]);
 
   return (
     <>
       <ListPageShell
-        title="Vehículos"
-        description="Gestión de la flota vehicular"
+        title={copy.page.title}
+        description={
+          isManager && canCreate
+            ? copy.page.descriptionManager
+            : copy.page.description
+        }
         primaryAction={{
-          label: "Nuevo Vehículo",
+          label: copy.actions.create,
           icon: <Plus className="h-4 w-4" />,
           onClick: handleCreate,
           visible: canCreate,
@@ -206,63 +206,21 @@ export function VehicleListPage() {
         toolbar={{
           search: {
             ...filters.searchProps,
-            placeholder: "Buscar vehículo...",
+            placeholder: copy.filter.searchPlaceholder,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           filters: (
-            <>
-              <Select
-                value={statusFilter || "all"}
-                onValueChange={(value) => filters.setFilter("status", value)}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  {Object.values(VehicleStatus).map((statusValue) => (
-                    <SelectItem key={statusValue} value={statusValue}>
-                      {VEHICLE_STATUS_LABELS[statusValue]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={typeFilter || "all"}
-                onValueChange={(value) => filters.setFilter("type", value)}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los tipos</SelectItem>
-                  {Object.values(VehicleType).map((typeValue) => (
-                    <SelectItem key={typeValue} value={typeValue}>
-                      {VEHICLE_TYPE_LABELS[typeValue]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={branchIdFilter || "all"}
-                onValueChange={(value) => filters.setFilter("branchId", value)}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder={listFilterCopy.branch} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {listFilterCopy.allBranches}
-                  </SelectItem>
-                  {branchOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
+            <VehicleListFilters
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
+              status={statusFilter}
+              type={typeFilter}
+              branchId={branchIdFilter}
+              branchOptions={branchOptions}
+              activePanelFilterCount={activePanelFilterCount}
+              onStatusChange={(value) => filters.setFilter("status", value)}
+              onTypeChange={(value) => filters.setFilter("type", value)}
+              onBranchChange={(value) => filters.setFilter("branchId", value)}
+            />
           ),
           extraActions: canImport ? (
             <Button
@@ -271,8 +229,9 @@ export function VehicleListPage() {
               size="sm"
               onClick={() => setImportWizardOpen(true)}
               leftIcon={<FileUp className="h-4 w-4" />}
+              aria-label={copy.actions.importAria}
             >
-              {importsCopy.cta.importCsv}
+              {copy.actions.import}
             </Button>
           ) : null,
           onRefresh: handleRefresh,
@@ -319,20 +278,24 @@ export function VehicleListPage() {
         renderCardSkeleton={() => <VehicleCardSkeleton />}
         emptyState={{
           icon: <Search className="h-10 w-10 text-muted-foreground" />,
-          title: "No se encontraron vehículos",
+          title: copy.empty.title,
           description: filters.hasFilters
-            ? "Intenta ajustar los filtros de búsqueda"
-            : "Comienza agregando tu primer vehículo",
+            ? copy.empty.descriptionFiltered
+            : canCreate
+              ? isManager
+                ? copy.empty.descriptionClearManager
+                : copy.empty.descriptionClear
+              : copy.empty.descriptionReadonly,
           cta: canCreate
             ? {
-                label: "Nuevo Vehículo",
+                label: copy.actions.create,
                 icon: <Plus className="h-4 w-4" />,
                 onClick: handleCreate,
               }
             : undefined,
           secondaryCta: filters.hasFilters
             ? {
-                label: "Limpiar filtros",
+                label: copy.actions.clearFilters,
                 onClick: filters.clearAll,
                 variant: "outline",
               }
