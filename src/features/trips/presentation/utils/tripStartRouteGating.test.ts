@@ -37,16 +37,20 @@ describe("tripStartRouteGating", () => {
     ).toBeNull();
   });
 
-  it("D10: copy existente + escala a patio, sin asignar/Confirmar", () => {
+  it("D10: copy existente + escala a operación, sin asignar/Confirmar", () => {
     const base = tripStartRouteBlockReason(TripStatus.SCHEDULED, []);
     expect(base).toMatch(/origen y destino/i);
     expect(
-      withPatioStartEscalation(base, true, "Avisa a patio."),
-    ).toBe(`${base} Avisa a patio.`);
-    expect(withPatioStartEscalation(base, false, "Avisa a patio.")).toBe(base);
-    expect(withPatioStartEscalation(null, true, "Avisa a patio.")).toBeNull();
+      withPatioStartEscalation(base, true, "Avisa a operación."),
+    ).toBe(`${base} Avisa a operación.`);
+    expect(withPatioStartEscalation(base, false, "Avisa a operación.")).toBe(
+      base,
+    );
     expect(
-      withPatioStartEscalation(base, true, "Avisa a patio."),
+      withPatioStartEscalation(null, true, "Avisa a operación."),
+    ).toBeNull();
+    expect(
+      withPatioStartEscalation(base, true, "Avisa a operación."),
     ).not.toMatch(/asignar|Confirmar/i);
   });
 });

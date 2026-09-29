@@ -103,7 +103,7 @@ describe("countTripsByBucket", () => {
 });
 
 describe("mapInvoiceableWorkbenchBuckets", () => {
-  it("usa copy de escala a patio en Bloqueados cuando hay override accountant", () => {
+  it("usa copy de escala a operación en Bloqueados cuando hay override accountant", () => {
     const buckets = mapInvoiceableWorkbenchBuckets({
       counts: { ready: 0, proration_pending: 0, blocked: 2 },
       activeBucket: "blocked",

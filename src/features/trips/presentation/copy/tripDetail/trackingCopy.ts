@@ -251,19 +251,19 @@ export const trackingCopy = {
       count === 1
         ? "1 carga pendiente en esta parada antes de continuar."
         : `${count} cargas pendientes en esta parada antes de continuar.`,
-    /** Conductor / sin trips.update: pickup lo marca patio (D11). */
+    /** Conductor / sin trips.update: operación registra la carga (D11). */
     cargoBlockedTitleDriver: (stopLabel: string) =>
-      `Patio marca el pickup en ${stopLabel}`,
+      `Operación registra la carga en ${stopLabel}`,
     cargoBlockedBodyDriver:
-      "Patio marca el pickup. Avísales para continuar.",
+      "Operación registra la carga. Avísales para continuar.",
     cargoActionRequiresArrival:
       "Registra la llegada a esta parada para operar las cargas.",
     cargoBlockedBeforeDeparture:
       "Completa las cargas de esta parada antes de registrar salida o cierre.",
     cargoBlockedBeforeDepartureDriver:
-      "Patio marca las cargas. Avísales para continuar.",
+      "Operación registra las cargas. Avísales para continuar.",
     /** Iniciar bloqueado: copy de dominio + escala (D10). Sin asignar/Confirmar. */
-    startBlockedEscalatePatio: "Avisa a patio.",
+    startBlockedEscalatePatio: "Avisa a operación.",
     legendHelp: "¿Qué significan los estados?",
     timelineLocationSaved: "Ubicación registrada",
     timelineCause: (cause: string) => `Causa: ${cause}`,

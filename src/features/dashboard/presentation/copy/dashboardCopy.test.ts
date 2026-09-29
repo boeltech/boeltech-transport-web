@@ -21,6 +21,7 @@ describe("dashboardCopy.page", () => {
       dashboardCopy.page.subtitle,
     );
     expect(dashboardCopy.page.invoiceableBridge).toMatch(/Por facturar/i);
+    expect(dashboardCopy.page.invoiceableBridge).not.toMatch(/patio/i);
     expect(dashboardCopy.page.invoiceableBridgeLink).toBe("Ir a Por facturar");
     expect(dashboardCopy.page.subtitle).toMatch(/operación/i);
   });
@@ -51,6 +52,8 @@ describe("dashboardCopy.page", () => {
   it("manager: subtitle SAT+altas y un link a Atención fiscal, sin tripsBridge", () => {
     expect(dashboardCopy.page.subtitleManager).toMatch(/SAT/i);
     expect(dashboardCopy.page.subtitleManager).toMatch(/altas/i);
+    expect(dashboardCopy.page.subtitleManager).toMatch(/operación/i);
+    expect(dashboardCopy.page.subtitleManager).not.toMatch(/patio/i);
     expect(dashboardCopy.page.subtitleManager).not.toBe(
       dashboardCopy.page.subtitle,
     );

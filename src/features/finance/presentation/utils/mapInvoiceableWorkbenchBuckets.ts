@@ -104,7 +104,7 @@ export interface MapInvoiceableWorkbenchBucketsParams {
   counts: InvoiceableBucketCounts;
   activeBucket: InvoiceableBucketId;
   onBucketChange: (bucket: InvoiceableBucketId) => void;
-  /** Override copy del bucket Bloqueados (contador = escala a patio). */
+  /** Override copy del bucket Bloqueados (contador = escala a operación). */
   blockedDescription?: string;
 }
 

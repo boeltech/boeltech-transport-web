@@ -55,19 +55,25 @@ describe("trackingCopy — Paradas y cargas (Capa 1 lean)", () => {
     expect(trackingCopy.action.goToCargos).toMatch(/cargas/i);
   });
 
-  it("conductor: cargo_blocked escala a patio, no «Completa las cargas» (D11)", () => {
-    expect(trackingCopy.hint.cargoBlockedTitleDriver("Origen")).toMatch(/Patio/i);
+  it("conductor: cargo_blocked escala a operación, no «Completa las cargas» (D11)", () => {
+    expect(trackingCopy.hint.cargoBlockedTitleDriver("Origen")).toMatch(
+      /Operación registra la carga/i,
+    );
     expect(trackingCopy.hint.cargoBlockedTitleDriver("Origen")).not.toMatch(
-      /Completa las cargas/i,
+      /Patio|Completa las cargas/i,
     );
     expect(trackingCopy.hint.cargoBlockedBodyDriver).toMatch(/Avísales/i);
     expect(trackingCopy.hint.cargoBlockedBodyDriver).not.toMatch(
-      /Completa las cargas/i,
+      /Patio|Completa las cargas/i,
     );
     expect(trackingCopy.hint.cargoBlockedBeforeDepartureDriver).toMatch(
       /Avísales/i,
     );
-    expect(trackingCopy.hint.startBlockedEscalatePatio).toMatch(/patio/i);
+    expect(trackingCopy.hint.cargoBlockedBeforeDepartureDriver).not.toMatch(
+      /patio/i,
+    );
+    expect(trackingCopy.hint.startBlockedEscalatePatio).toMatch(/operación/i);
+    expect(trackingCopy.hint.startBlockedEscalatePatio).not.toMatch(/patio/i);
     expect(trackingCopy.hint.startBlockedEscalatePatio).not.toMatch(
       /asignar|Confirmar/i,
     );

@@ -159,7 +159,7 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
     ).toBeInTheDocument();
   });
 
-  it("sin trips.update/execute no ofrece Repartir y muestra escala a patio", async () => {
+  it("sin trips.update/execute no ofrece Repartir y muestra escala a operación", async () => {
     mockHasPermission.mockImplementation(
       (module: string, action: string) =>
         (module === "invoices" && (action === "create" || action === "read")) ||

@@ -262,7 +262,7 @@ describe("trackingNextAction", () => {
       { canMutateCargo: false },
     );
     expect(action.kind).toBe("cargo_blocked");
-    expect(action.title).toMatch(/Patio marca el pickup/i);
+    expect(action.title).toMatch(/Operación registra la carga/i);
     expect(action.title).not.toMatch(/Completa las cargas/i);
     expect(action.transitionText).toMatch(/Avísales/i);
   });
@@ -600,7 +600,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(startButton).toBeDisabled();
     expect(
       screen.getByText(
-        /Se requieren paradas de origen y destino para iniciar el viaje\. Avisa a patio\./,
+        /Se requieren paradas de origen y destino para iniciar el viaje\. Avisa a operación\./,
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/asignar|Confirmar la reserva/i)).not.toBeInTheDocument();
@@ -816,7 +816,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
       />,
     );
 
-    expect(screen.getAllByText(/Patio marca el pickup/i).length).toBeGreaterThan(
+    expect(screen.getAllByText(/Operación registra la carga/i).length).toBeGreaterThan(
       0,
     );
     expect(screen.queryByText(/Completa las cargas/i)).not.toBeInTheDocument();

@@ -3,8 +3,12 @@ import { describe, expect, it } from "vitest";
 import { financeCopy } from "./financeCopy";
 
 describe("financeCopy — orientación accountant", () => {
-  it("Por facturar: receptor del primer CFDI y bloqueados = patio", () => {
-    expect(financeCopy.invoiceable.descriptionAccountant).toMatch(/primer CFDI/i);
+  it("Por facturar: primera factura del viaje y bloqueados = operación", () => {
+    expect(financeCopy.invoiceable.descriptionAccountant).toMatch(
+      /primera factura/i,
+    );
+    expect(financeCopy.invoiceable.descriptionAccountant).toMatch(/operación/i);
+    expect(financeCopy.invoiceable.descriptionAccountant).not.toMatch(/patio/i);
     expect(financeCopy.invoiceable.descriptionAccountant).toMatch(
       /Atención fiscal/i,
     );
@@ -25,6 +29,7 @@ describe("financeCopy — orientación accountant", () => {
   it("Cartera accountant no enseña Aprobar ni liquidaciones como siguiente", () => {
     expect(financeCopy.page.hub.orientationAccountant).toMatch(/saldos/i);
     expect(financeCopy.page.hub.orientationAccountant).toMatch(/Por facturar/i);
+    expect(financeCopy.page.hub.orientationAccountant).not.toMatch(/patio/i);
     expect(financeCopy.page.hub.orientationAccountant).not.toMatch(
       /Aprobar|Liquidaciones|nómina|SaaS/i,
     );

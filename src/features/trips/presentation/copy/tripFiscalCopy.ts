@@ -152,7 +152,7 @@ export const tripFiscalCopy = {
     pendingAccountantHint:
       "El viaje está listo. Lo timbra quien tenga permiso de facturar. No tienes que hacer nada más.",
     patioEscalateHint:
-      "Pide a patio activar el reparto o declarar el viaje en falso. Tú no lo armas desde aquí.",
+      "Pide a operación activar el reparto o declarar el viaje en falso. Tú no lo armas desde aquí.",
   },
   invoicesSection: {
     title: "Facturas del viaje",

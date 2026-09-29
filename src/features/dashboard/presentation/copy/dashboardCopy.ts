@@ -9,10 +9,10 @@ export const dashboardCopy = {
       "Encuéntralos en Viajes; se cargan en Costos.",
     tripsBridgeOperatorLink: "Ir a Viajes",
     subtitleAccountant: "Facturación y cobro del día: primer CFDI y atención fiscal",
-    invoiceableBridge: "La escala del patio entra por Por facturar.",
+    invoiceableBridge: "Los viajes listos para factura están en Por facturar.",
     invoiceableBridgeLink: "Ir a Por facturar",
     subtitleManager:
-      "Trámite SAT que te piden y altas que patio no pudo crear",
+      "Trámite SAT que te piden y altas que operación no pudo crear",
     fiscalAttentionBridge:
       "La escala de facturación entra por Atención fiscal.",
     fiscalAttentionBridgeLink: "Ir a Atención fiscal",
