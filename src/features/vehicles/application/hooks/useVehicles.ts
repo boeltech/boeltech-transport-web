@@ -25,6 +25,7 @@ import { vehiclesApi } from "../../infrastructure";
 import {
   vehicleQueryKeys,
   VEHICLE_STATUS_LABELS,
+  isTripAssignableVehicleType,
   type VehicleQueryParams,
   type VehicleStatusType,
   type VehicleListItem,
@@ -34,6 +35,9 @@ import {
   type UpdateVehiclePayload,
 } from "@features/vehicles/domain";
 import { isExpired } from "@shared/utils/dateUtils";
+
+const UTILITY_NOT_ASSIGNABLE_REASON =
+  "El utilitario no se asigna a viajes; úsalo solo como apoyo.";
 
 // ============================================================================
 // MUTATION CALLBACKS
@@ -219,6 +223,14 @@ function isFleetCommitVehicleStatus(status: string): boolean {
 export function classifyVehicleForAssignment(
   vehicle: VehicleListItem,
 ): AssignableVehicleItem {
+  if (!isTripAssignableVehicleType(vehicle.type)) {
+    return {
+      ...vehicle,
+      canBeAssigned: false,
+      blockReason: UTILITY_NOT_ASSIGNABLE_REASON,
+    };
+  }
+
   if (!isVehicleStartableStatus(vehicle.status)) {
     // reserved/on_trip: evaluate docs before status-only block so soft-busy cannot
     // promote expired/hard-doc units without allowExpiredDocs (parity with drivers).

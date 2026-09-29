@@ -297,7 +297,9 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     const selectedType = watch("type");
     const typeBillingHint = isBillableMotrizType(selectedType)
       ? vehiclesCopy.billingPolicy.create
-      : undefined;
+      : selectedType === VehicleType.UTILITY
+        ? vehiclesCopy.billingPolicy.utilityNotAssignable
+        : undefined;
     const validationMessages = collectFieldErrorMessages(errors);
 
     const { data: branchesResult } = useBranches({

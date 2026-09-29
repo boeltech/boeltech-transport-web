@@ -5,6 +5,8 @@
  */
 
 import { useNavigate, useParams } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { Truck } from "lucide-react";
 import { useToast } from "@shared/hooks";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
@@ -28,6 +30,7 @@ const copy = vehiclesCopy.form;
 export function EditVehiclePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const vehicleId = id ?? "";
 
@@ -40,7 +43,7 @@ export function EditVehiclePage() {
         description: copy.edit.toast.successDescription,
         variant: "success",
       });
-      navigate(`/vehicles/${vehicleId}`);
+      navigatePreservingFrom(navigate, `/vehicles/${vehicleId}`, incomingFrom);
     },
     onError: (error) => {
       if (isApiError(error)) {
@@ -75,7 +78,7 @@ export function EditVehiclePage() {
   };
 
   const handleCancel = () => {
-    navigate(`/vehicles/${vehicleId}`);
+    navigatePreservingFrom(navigate, `/vehicles/${vehicleId}`, incomingFrom);
   };
 
   const typeLabel = vehicle

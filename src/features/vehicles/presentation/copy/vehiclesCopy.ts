@@ -121,6 +121,27 @@ export const vehiclesCopy = {
     },
   },
   list: {
+    page: {
+      title: "Vehículos",
+      description: "Gestión de la flota vehicular",
+      descriptionManager:
+        "Si patio no halló la unidad, dala de alta aquí.",
+      refreshSuccess: "Lista actualizada",
+    },
+    actions: {
+      create: "Nuevo Vehículo",
+      import: "Importar",
+      importAria: "Importar vehículos desde archivo",
+      clearFilters: "Limpiar filtros",
+    },
+    filter: {
+      showFilters: "Filtros",
+      searchPlaceholder: "Unidad, placa, marca o VIN",
+      statusLabel: "Estado",
+      statusAll: "Todos",
+      typeLabel: "Tipo",
+      typeAll: "Todos",
+    },
     table: {
       branch: "Sucursal",
     },
@@ -128,6 +149,20 @@ export const vehiclesCopy = {
       branch: "Sucursal",
       allBranches: "Todas las sucursales",
       chipBranch: (label: string) => `Sucursal: ${label}`,
+    },
+    chip: {
+      status: (label: string) => `Estado: ${label}`,
+      type: (label: string) => `Tipo: ${label}`,
+    },
+    empty: {
+      title: "No se encontraron vehículos",
+      descriptionClear: "Comienza agregando tu primer vehículo",
+      descriptionClearManager:
+        "Patio no halló la unidad. Dala de alta aquí.",
+      descriptionReadonly:
+        "Aún no hay vehículos. Pide el alta a administración.",
+      descriptionFiltered:
+        "Nada coincide. Prueba otra unidad, placa o VIN, o limpia los recortes.",
     },
   },
   form: {
@@ -289,11 +324,13 @@ export const vehiclesCopy = {
    */
   billingPolicy: {
     create:
-      "Las unidades de tracción (tracto, tórton, rabón) se cobran este mes completo, aunque las registres a mitad de mes.",
+      "Las unidades de tracción (tracto, tórton, rabón, camioneta) se cobran este mes completo, aunque las registres a mitad de mes.",
     remove:
       "Deja de contar el 1.º del mes siguiente. Este mes no hay crédito.",
     link: "Ver suscripción",
     subscriptionHref: "/settings/subscription",
+    utilityNotAssignable:
+      "El utilitario no se asigna a viajes; úsalo solo como apoyo.",
   },
 } as const;
 

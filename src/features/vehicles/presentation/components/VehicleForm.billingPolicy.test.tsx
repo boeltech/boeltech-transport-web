@@ -54,7 +54,7 @@ describe("VehicleForm billing policy (F1)", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("tipo pickup oculta el hint de cobro", () => {
+  it("tipo pickup muestra el hint de cobro", () => {
     function PickupHintHarness() {
       const form = useForm<{ type: VehicleTypeValue }>({
         defaultValues: { type: VehicleType.PICKUP },
@@ -83,8 +83,41 @@ describe("VehicleForm billing policy (F1)", () => {
     render(<PickupHintHarness />);
     expect(screen.getByText("Camioneta")).toBeInTheDocument();
     expect(
-      screen.queryByText(vehiclesCopy.billingPolicy.create),
-    ).not.toBeInTheDocument();
+      screen.getByText(vehiclesCopy.billingPolicy.create),
+    ).toBeInTheDocument();
+  });
+
+  it("tipo utility muestra el aviso de no asignable", () => {
+    function UtilityHintHarness() {
+      const form = useForm<{ type: VehicleTypeValue }>({
+        defaultValues: { type: VehicleType.UTILITY },
+      });
+      const type = form.watch("type");
+      return (
+        <VehicleGridSelect
+          control={form.control}
+          name="type"
+          label="Tipo de vehículo"
+          hint={
+            type === VehicleType.UTILITY
+              ? vehiclesCopy.billingPolicy.utilityNotAssignable
+              : undefined
+          }
+          options={(Object.values(VehicleType) as VehicleTypeValue[]).map(
+            (value) => ({
+              value,
+              label: VEHICLE_TYPE_LABELS[value],
+            }),
+          )}
+        />
+      );
+    }
+
+    render(<UtilityHintHarness />);
+    expect(screen.getByText("Utilitario")).toBeInTheDocument();
+    expect(
+      screen.getByText(vehiclesCopy.billingPolicy.utilityNotAssignable),
+    ).toBeInTheDocument();
   });
 
   it("revisión de tracto muestra Alert info y no bloquea el alta", () => {

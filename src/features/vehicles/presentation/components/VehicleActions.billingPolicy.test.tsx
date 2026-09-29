@@ -88,9 +88,20 @@ describe("VehicleActions billing policy (F1)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("eliminar pickup no muestra la frase de crédito", async () => {
+  it("eliminar pickup cobrable muestra la frase de crédito", async () => {
     const user = userEvent.setup();
     renderActions(buildVehicle({ type: "pickup" }));
+
+    await user.click(screen.getByRole("button", { name: /eliminar/i }));
+
+    expect(
+      screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("eliminar utility no muestra la frase de crédito", async () => {
+    const user = userEvent.setup();
+    renderActions(buildVehicle({ type: "utility" }));
 
     await user.click(screen.getByRole("button", { name: /eliminar/i }));
 

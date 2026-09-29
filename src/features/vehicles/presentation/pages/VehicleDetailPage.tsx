@@ -6,6 +6,7 @@
  */
 
 import { useParams } from "react-router-dom";
+import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
 import { cn } from "@shared/lib/utils/cn";
 import { useTabParam } from "@shared/hooks";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
@@ -88,6 +89,10 @@ function buildDocumentAlerts(vehicle: Vehicle) {
 export function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const vehicleId = id || "";
+  const { backHref, backLabel } = useMasterDetailWayfinding(
+    "/vehicles",
+    copy.state.backToList,
+  );
   const { activeTab, setActiveTab } = useTabParam(VEHICLE_DETAIL_TABS, "unit");
 
   const {
@@ -101,7 +106,8 @@ export function VehicleDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref: "/vehicles",
+          backHref,
+          backLabel,
           icon: <Truck className="h-6 w-6" />,
           title: copy.title.fallback,
         }}
@@ -122,7 +128,8 @@ export function VehicleDetailPage() {
           backLabel: copy.state.backToList,
         }}
         header={{
-          backHref: "/vehicles",
+          backHref,
+          backLabel,
           icon: <Truck className="h-6 w-6" />,
           title: copy.title.fallback,
         }}
@@ -144,7 +151,8 @@ export function VehicleDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref: "/vehicles",
+        backHref,
+        backLabel,
         icon: <Truck className="h-6 w-6" />,
         iconVariant:
           !vehicle.isActive || vehicle.status === VehicleStatus.OUT_OF_SERVICE

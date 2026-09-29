@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 import { Button } from "@shared/ui/button";
 import {
   AlertDialog,
@@ -206,6 +207,7 @@ export function VehicleActions(props: VehicleActionsProps) {
   });
 
   const navigate = useNavigate();
+  const fromState = useMasterActionFrom("/vehicles");
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
@@ -416,7 +418,9 @@ export function VehicleActions(props: VehicleActionsProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/vehicles/${id}/edit`)}
+            onClick={() =>
+              navigate(`/vehicles/${id}/edit`, { state: fromState })
+            }
             disabled={isLoading}
           >
             <Pencil className="mr-2 h-4 w-4" />

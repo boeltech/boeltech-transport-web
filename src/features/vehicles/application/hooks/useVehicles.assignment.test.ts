@@ -219,6 +219,21 @@ describe("classifyVehicleForAssignment", () => {
     expect(result.canBeAssigned).toBe(true);
   });
 
+  it("allows pickup when stamp-ready and docs OK", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({ id: "veh-pickup", type: "pickup" }),
+    );
+    expect(result.canBeAssigned).toBe(true);
+  });
+
+  it("blocks utility regardless of docs", () => {
+    const result = classifyVehicleForAssignment(
+      vehicle({ id: "veh-utility", type: "utility" }),
+    );
+    expect(result.canBeAssigned).toBe(false);
+    expect(result.blockReason).toMatch(/utilitario/i);
+  });
+
   it("blocks incomplete Autotransporte (missing config)", () => {
     const result = classifyVehicleForAssignment(
       vehicle({ id: "veh-5", satConfigAutotransporteCode: null }),

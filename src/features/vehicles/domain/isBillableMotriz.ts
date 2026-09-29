@@ -5,11 +5,12 @@ import {
   type VehicleTypeValue,
 } from "./entities";
 
-/** Tipos de tracción que cuentan para cobro motriz (ADR-0094 §2). */
+/** Tipos de tracción que cuentan para cobro motriz (ADR-0094 §2; pickup desde cutover). */
 export const BILLABLE_MOTRIZ_TYPES = [
   VehicleType.TRUCK,
   VehicleType.TORTON,
   VehicleType.RABON,
+  VehicleType.PICKUP,
 ] as const;
 
 export type BillableMotrizType = (typeof BILLABLE_MOTRIZ_TYPES)[number];
@@ -20,7 +21,8 @@ export function isBillableMotrizType(
   return (
     type === VehicleType.TRUCK ||
     type === VehicleType.TORTON ||
-    type === VehicleType.RABON
+    type === VehicleType.RABON ||
+    type === VehicleType.PICKUP
   );
 }
 
@@ -32,7 +34,7 @@ export type BillableMotrizNowInput = {
 
 /**
  * Cobrable ahora: tipo de tracción ∧ activa ∧ no fuera de servicio.
- * `in_maintenance` sí cuenta. Pickup / utility no.
+ * `in_maintenance` sí cuenta. Utility no.
  */
 export function isBillableMotrizNow({
   type,

@@ -25,8 +25,9 @@ function collectStrings(value: unknown, acc: string[] = []): string[] {
 }
 
 describe("vehiclesCopy.billingPolicy", () => {
-  it("ancla la frase de alta (mes completo, tracción)", () => {
+  it("ancla la frase de alta (mes completo, tracción, camioneta)", () => {
     expect(vehiclesCopy.billingPolicy.create).toMatch(/tracción/i);
+    expect(vehiclesCopy.billingPolicy.create).toMatch(/camioneta/i);
     expect(vehiclesCopy.billingPolicy.create).toMatch(/mes completo/i);
     expect(vehiclesCopy.billingPolicy.create).toMatch(/mitad de mes/i);
   });

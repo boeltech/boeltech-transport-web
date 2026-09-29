@@ -64,6 +64,7 @@ export function BranchAssignedVehiclesCard({
                 </div>
                 <Link
                   to={`/vehicles/${vehicle.id}`}
+                  state={{ from: `/branches/${branchId}` }}
                   className="shrink-0 text-primary underline-offset-4 hover:underline"
                 >
                   {copy.viewVehicle}

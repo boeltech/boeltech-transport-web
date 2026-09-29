@@ -6,4 +6,5 @@
 
 export * from "./entities";
 export * from "./isBillableMotriz";
+export * from "./isTripAssignableVehicleType";
 
