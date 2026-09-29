@@ -2,7 +2,7 @@
  * Copy de la landing pública (`/welcome`).
  * Namespace: landing.copy.*
  * Alineado a SoT comercial v5 motriz (bandas Micro/Pequeña/Mediana/Grande).
- * Handoff Capa 1 (D1–D7): embudo outcome → prueba → precio.
+ * Handoff Capa 1 (D1–D12): embudo outcome → prueba → precio.
  */
 import { BRAND } from "@shared/ui/brand";
 
@@ -10,6 +10,7 @@ export const landingCopy = {
   brand: BRAND.productName,
   brandByline: BRAND.productByline,
   brandTagline: "Operación y facturación para transporte en México",
+  skipLink: "Saltar al contenido",
 
   nav: {
     product: "Qué incluye",
@@ -21,18 +22,18 @@ export const landingCopy = {
   },
 
   hero: {
-    /** Solo cuando self-serve está abierto. */
+    /** @deprecated No renderizar: la prueba vive en `trialHint`. */
     badgeOpen: "Prueba 14 días · sin tarjeta",
     /** Cuando el registro público está cerrado. */
     badgeClosed: "Alta con acompañamiento comercial",
-    title: "Opera y factura tu flota desde el día uno",
+    title: "Opera tu flota desde el primer día",
     subtitle:
-      "Viajes, flota y clientes en un solo lugar — con timbrado fiscal listo para México.",
-    ctaPrimaryOpen: "Comenzar prueba gratis",
+      "Viajes, flota y clientes en un solo lugar. Factura en México cuando cargues tu sello (CSD).",
+    ctaPrimaryOpen: "Probar gratis",
     ctaPrimaryClosed: "Contactar ventas",
     ctaLogin: "Ya tengo cuenta",
     trialHint:
-      "14 días · 15 timbres de prueba · sin tarjeta · cualquier plan Operación",
+      "14 días · 15 timbres de prueba · sin tarjeta · empiezas en Operación Micro",
   },
 
   preview: {
@@ -81,11 +82,11 @@ export const landingCopy = {
   },
 
   trust: {
-    ariaLabel: "Cumplimiento fiscal mexicano",
+    ariaLabel: "Facturación fiscal mexicana",
     items: [
-      { label: "CFDI 4.0", hint: "Timbrado fiscal" },
-      { label: "Carta Porte 3.1", hint: "Complemento SAT" },
-      { label: "REP", hint: "Complementos de pago" },
+      { label: "CFDI 4.0", hint: "Timbrado CFDI" },
+      { label: "Carta Porte 3.1", hint: "Complemento de traslado" },
+      { label: "REP", hint: "Complemento de pagos" },
     ],
   },
 
@@ -111,9 +112,10 @@ export const landingCopy = {
         description:
           "Programación, paradas, carga y seguimiento operativo sin depender de un add-on de GPS.",
         bullets: [
-          "Wizard de alta",
+          "Alta de viaje por pasos",
           "Seguimiento de paradas",
           "Gastos de viaje y aprobaciones",
+          "Equipo de apoyo y su compensación",
         ],
       },
       {
@@ -123,7 +125,7 @@ export const landingCopy = {
         bullets: [
           "Clientes y contactos",
           "Conductores y licencias",
-          "7 roles con acceso por permiso",
+          "Roles y permisos para oficina, patio y finanzas",
         ],
       },
       {
@@ -132,7 +134,7 @@ export const landingCopy = {
           "Ciclo fiscal mexicano ligado a la operación: timbrar, cobrar y aprobar.",
         bullets: [
           "CFDI 4.0, Carta Porte 3.1 y REP",
-          "Hub de aprobaciones",
+          "Aprobaciones de gastos y operación",
           "Exposición de crédito (sin bloqueo)",
         ],
       },
@@ -143,54 +145,52 @@ export const landingCopy = {
     id: "opcionales",
     title: "Opcionales",
     subtitle:
-      "Módulos de rentabilidad à la carte. Se activan sobre cualquier plan Operación; no forman parte del núcleo incluido.",
-    badge: "Opcional",
+      "Módulos que se contratan aparte, sobre cualquier plan Operación. Aún no están en disponibilidad general.",
+    badge: "En preparación",
     items: [
       {
         title: "Combustible",
-        description: "Cargas, rendimientos y anomalías (módulo de rentabilidad).",
+        description:
+          "Controla cargas, rendimientos y anomalías. Aún no se contrata.",
       },
       {
         title: "Mantenimiento",
-        description: "Programa preventivo y correctivo como add-on de flota.",
+        description:
+          "Programa el preventivo y el correctivo de tus unidades. Aún no se contrata.",
       },
       {
         title: "Seguimiento GPS",
         description:
-          "Tracking móvil avanzado; distinto del seguimiento operativo incluido.",
-      },
-      {
-        title: "Equipo de apoyo en viajes",
-        description:
-          "Asignación y compensación de personal de apoyo (paywall hasta contratarlo).",
+          "Rastreo móvil avanzado, aparte del seguimiento de paradas ya incluido. Aún no se contrata.",
       },
     ],
     footnote:
-      "Los precios y disponibilidad de opcionales viven en el catálogo comercial. En la app puedes consultar tu plan en Configuración → Tu plan.",
+      "Los opcionales se contratan aparte, sobre cualquier plan Operación. Cuando estén disponibles, el detalle de tu cuenta estará en Configuración → Tu plan.",
   },
 
   pricing: {
     id: "pricing",
     title: "Planes Operación",
     subtitle:
-      "Pagás por motriz. Cada banda incluye cupo de usuarios, sucursales e historial consultable — sin fee de cuenta.",
+      "Pagas por motriz. Cada banda incluye cupo de usuarios, sucursales e historial consultable — sin cargo fijo de cuenta.",
     /** Footnote suave: sin promesa de descuento anual como SoT. */
     annualNote: "¿Facturación anual? Consulta con ventas.",
     optionalsNote:
       "Opcionales y packs se contratan aparte y no incluyen capacidad extra del plan.",
+    optionalsLink: "Ver opcionales",
     priceHint:
-      "Precios MXN por motriz · mes · sin IVA · sin fee de cuenta · prueba 14 días sin tarjeta",
+      "Precios MXN por motriz · mes · sin IVA · sin cargo fijo de cuenta · prueba 14 días sin tarjeta",
     priceHintClosed:
-      "Precios MXN por motriz · mes · sin IVA · sin fee de cuenta · alta con ventas",
+      "Precios MXN por motriz · mes · sin IVA · sin cargo fijo de cuenta · alta con ventas",
     familyLabel: "Operación",
-    cta: "Empezar prueba gratis",
+    cta: "Probar gratis",
     /** Grande / cotización: no vender «prueba» como si hubiera P de lista. */
     ctaQuote: "Solicitar cotización",
     ctaSecondary: "Hablar con ventas",
     popularBadge: "Más elegido",
     popularCode: "operacion_pequena",
     featureLabels: {
-      fleet: "Flota orientativa",
+      fleet: "Motrices (rango de la banda)",
       users: "Usuarios",
       branches: "Sucursales",
       stamps: "Timbres / motriz",
@@ -199,13 +199,10 @@ export const landingCopy = {
     },
     audiences: {
       operacion_micro:
-        "Para flotas compactas que digitalizan operación y facturan en regla.",
-      operacion_pequena:
-        "Para PyMEs en expansión que necesitan más cupo de usuarios, sucursales e historial.",
-      operacion_mediana:
-        "Para operación multi-sucursal con mayor volumen de flota y equipo.",
-      operacion_grande:
-        "Para redes grandes: capacidad a medida y acompañamiento comercial.",
+        "1 a 5 motrices: digitalizas viajes y facturas sin un cargo fijo extra.",
+      operacion_pequena: "6 a 30 motrices: más usuarios, sucursales e historial.",
+      operacion_mediana: "31 a 100 motrices: varias sucursales y más equipo.",
+      operacion_grande: "Más de 100 motrices: precio y cupos a medida.",
     } as Record<string, string>,
   },
 
@@ -213,12 +210,12 @@ export const landingCopy = {
     title: `Prueba ${BRAND.productName} en tu operación`,
     subtitle:
       "Crea tu empresa, opera con el núcleo incluido y factura con reglas fiscales mexicanas. Sin tarjeta para iniciar la prueba.",
-    primary: "Crear cuenta y empezar",
+    primary: "Crear cuenta — es gratis",
     secondary: "Hablar con ventas",
     trialHint: "14 días · 15 timbres · sin tarjeta",
     closedTitle: `¿Listo para operar con ${BRAND.productName}?`,
     closedSubtitle:
-      "El registro público está cerrado por ahora. Contáctanos para alta de empresa o inicia sesión si ya tienes cuenta.",
+      "El alta de empresa la hace el equipo comercial. Si ya tienes cuenta, inicia sesión.",
     closedPrimary: "Hablar con ventas",
   },
 
@@ -230,7 +227,6 @@ export const landingCopy = {
     privacy: "Política de privacidad",
     support: "Soporte",
     tagline: "Operación y facturación para transporte en México",
-    nameOrigin: `${BRAND.productName} es un producto de ${BRAND.companyName} para operación y facturación de transporte en México.`,
     copyright: (year: number) =>
       `© ${year} ${BRAND.companyName}. Todos los derechos reservados.`,
   },

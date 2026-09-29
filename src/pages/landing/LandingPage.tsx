@@ -8,10 +8,11 @@ import { usePublicOperationalPlans } from "@shared/commercial/usePublicOperation
 import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
 import { LandingReveal } from "./LandingReveal";
 import { LandingHeroVisual } from "./LandingHeroVisual";
+import { LandingProductPreview } from "./LandingProductPreview";
 import "./landing.css";
 
 /**
- * Landing pública (`/welcome`): embudo D1–D7 (Capa 1).
+ * Landing pública (`/welcome`): embudo D1–D12 (Capa 1).
  * Look: «Industrial confiable / blueprint elevado» (landing-visual-polish).
  * Banding: primary(+trust) → surface → secondary → surface → secondary(+primary CTA).
  * Ver `.landing-band-*` en landing.css (par background / secondary).
@@ -25,12 +26,18 @@ const LandingPage = () => {
         aria-hidden
       />
 
+      <a href="#contenido" className="landing-skip sr-only focus:not-sr-only">
+        {landingCopy.skipLink}
+      </a>
+
       <Header />
-      <HeroSection />
-      <ProductSection />
-      <PricingSection />
-      <OptionalsSection />
-      <CTASection />
+      <main id="contenido">
+        <HeroSection />
+        <ProductSection />
+        <PricingSection />
+        <OptionalsSection />
+        <CTASection />
+      </main>
       <Footer />
     </div>
   );
@@ -78,23 +85,24 @@ const Header = () => {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <a
+            href={`#${landingCopy.pricing.id}`}
+            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors md:hidden"
+          >
+            {nav.pricing}
+          </a>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/login">{nav.login}</Link>
           </Button>
           {registrationOpen ? (
-            <Button asChild size="sm" className="hidden sm:inline-flex">
+            <Button asChild size="sm">
               <Link to="/register">
-                <UserPlus className="mr-2 h-4 w-4" />
+                <UserPlus className="mr-2 hidden h-4 w-4 sm:inline" />
                 {nav.register}
               </Link>
             </Button>
           ) : (
-            <Button
-              asChild
-              size="sm"
-              className="hidden sm:inline-flex"
-              variant="outline"
-            >
+            <Button asChild size="sm" variant="outline">
               <a href="mailto:ventas@boeltech.com">{nav.contactSales}</a>
             </Button>
           )}
@@ -116,18 +124,6 @@ const HeroSection = () => {
           <div className="grid items-center gap-8 md:gap-10 lg:grid-cols-2 lg:gap-10 xl:gap-14">
             <div className="landing-hero-copy relative z-10 mx-auto w-full max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
               <LandingReveal delayMs={0}>
-                <div className="mb-5 flex flex-col items-center lg:mb-7 lg:items-start">
-                  <BrandLockup
-                    variant="onBrand"
-                    decorative
-                    markSize={40}
-                    wordmarkClassName="text-2xl tracking-tight sm:text-3xl lg:text-[2rem]"
-                  />
-                  <span className="landing-hero-brand-rule" aria-hidden />
-                </div>
-              </LandingReveal>
-
-              <LandingReveal delayMs={90}>
                 <h1 className="landing-display text-primary-foreground">
                   {hero.title}
                 </h1>
@@ -136,7 +132,7 @@ const HeroSection = () => {
                 </p>
               </LandingReveal>
 
-              <LandingReveal delayMs={180}>
+              <LandingReveal delayMs={90}>
                 <div className="mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5 lg:justify-start">
                   {registrationOpen ? (
                     <Button
@@ -165,7 +161,7 @@ const HeroSection = () => {
                   )}
                   <Link
                     to="/login"
-                    className="text-primary-foreground/85 hover:text-primary-foreground text-sm font-medium underline-offset-4 transition-colors hover:underline"
+                    className="landing-link-onbrand text-primary-foreground/85 hover:text-primary-foreground text-sm font-medium underline-offset-4 transition-colors hover:underline"
                   >
                     {hero.ctaLogin}
                   </Link>
@@ -236,7 +232,7 @@ const ProductSection = () => {
   return (
     <section
       id={product.id}
-      className="landing-band landing-band-surface py-16 md:py-20"
+      className="landing-band landing-band-surface scroll-mt-20 py-16 md:py-20"
     >
       <div className="landing-shell">
         <LandingReveal className="mx-auto max-w-2xl text-center">
@@ -289,10 +285,23 @@ const ProductSection = () => {
             })}
           </div>
         </div>
+
+        <LandingReveal className="mt-12">
+          <LandingProductPreview />
+        </LandingReveal>
       </div>
     </section>
   );
 };
+
+function planCardBorderClass(index: number): string {
+  return cn(
+    index > 0 && "border-t",
+    index === 1 && "md:border-t-0 md:border-l",
+    index === 2 && "xl:border-t-0 xl:border-l",
+    index === 3 && "md:border-l xl:border-t-0",
+  );
+}
 
 const PricingSection = () => {
   const { pricing, brand } = landingCopy;
@@ -302,7 +311,7 @@ const PricingSection = () => {
   return (
     <section
       id={pricing.id}
-      className="landing-band landing-band-muted py-16 md:py-24"
+      className="landing-band landing-band-muted scroll-mt-20 py-16 md:py-24"
     >
       <div className="landing-shell">
         <LandingReveal className="mx-auto max-w-2xl text-center">
@@ -317,7 +326,7 @@ const PricingSection = () => {
           </p>
         </LandingReveal>
 
-        <div className="landing-panel landing-reveal-stagger border-border/60 mt-14 overflow-hidden rounded-2xl border xl:grid xl:grid-cols-4">
+        <div className="landing-panel landing-reveal-stagger border-border/60 mt-14 grid overflow-hidden rounded-2xl border md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan, index) => {
             const isPopular = plan.code === pricing.popularCode;
             const audience = pricing.audiences[plan.code] ?? plan.unitsLabel;
@@ -332,7 +341,7 @@ const PricingSection = () => {
                 <article
                   className={cn(
                     "landing-plan relative flex h-full flex-col border-border/50 p-6 md:p-7",
-                    index > 0 && "border-t xl:border-t-0 xl:border-l",
+                    planCardBorderClass(index),
                     isPopular &&
                       "landing-plan-popular bg-primary/[0.04] ring-primary/25 xl:z-[1] xl:ring-2",
                   )}
@@ -455,7 +464,7 @@ const PricingSection = () => {
                         </a>
                       )}
                     </Button>
-                    {!isQuote ? (
+                    {registrationOpen && !isQuote ? (
                       <Button
                         className="w-full"
                         size="sm"
@@ -486,7 +495,7 @@ const PricingSection = () => {
               href={`#${landingCopy.optionals.id}`}
               className="text-primary font-medium hover:underline"
             >
-              Ver opcionales
+              {pricing.optionalsLink}
             </a>
           </p>
         </LandingReveal>
@@ -495,12 +504,20 @@ const PricingSection = () => {
   );
 };
 
+function optionalCardBorderClass(index: number): string {
+  return cn(
+    index > 0 && "border-t",
+    index === 1 && "md:border-t-0 md:border-l",
+    index === 2 && "lg:border-t-0 lg:border-l",
+  );
+}
+
 const OptionalsSection = () => {
   const { optionals } = landingCopy;
   return (
     <section
       id={optionals.id}
-      className="landing-band landing-band-surface py-16 md:py-20"
+      className="landing-band landing-band-surface scroll-mt-20 py-16 md:py-20"
     >
       <div className="landing-shell">
         <LandingReveal className="mx-auto max-w-2xl text-center">
@@ -512,7 +529,7 @@ const OptionalsSection = () => {
 
         <LandingReveal className="mt-12">
           <div className="landing-panel border-border/60 overflow-hidden rounded-2xl border">
-            <div className="landing-reveal-stagger grid md:grid-cols-2 lg:grid-cols-4">
+            <div className="landing-reveal-stagger grid md:grid-cols-2 lg:grid-cols-3">
               {optionals.items.map((item, index) => {
                 const n = String(index + 1).padStart(2, "0");
                 return (
@@ -520,9 +537,7 @@ const OptionalsSection = () => {
                     key={item.title}
                     className={cn(
                       "border-border/50 p-6",
-                      index % 2 === 1 && "md:border-l",
-                      index >= 2 && "border-t lg:border-t-0",
-                      index >= 1 && "lg:border-l",
+                      optionalCardBorderClass(index),
                     )}
                   >
                     <div className="mb-3 flex items-baseline justify-between gap-2">
@@ -555,6 +570,9 @@ const OptionalsSection = () => {
     </section>
   );
 };
+
+const CTA_OUTLINE_ON_BRAND =
+  "border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground";
 
 const CTASection = () => {
   const { cta } = landingCopy;
@@ -605,7 +623,7 @@ const CTASection = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-primary-foreground/25 text-primary-foreground hover:bg-primary-foreground/10"
+                  className={CTA_OUTLINE_ON_BRAND}
                   asChild
                 >
                   {registrationOpen ? (
@@ -637,9 +655,6 @@ const Footer = () => {
               </div>
               <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
                 {footer.tagline}
-              </p>
-              <p className="text-muted-foreground/80 mt-2 text-xs leading-relaxed">
-                {footer.nameOrigin}
               </p>
             </div>
 
@@ -716,24 +731,10 @@ const Footer = () => {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t pt-6 text-center sm:flex-row sm:text-left">
+          <div className="mt-6 border-t pt-6 text-center sm:text-left">
             <p className="text-muted-foreground text-xs sm:text-sm">
               {footer.copyright(new Date().getFullYear())}
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link
-                to="/terms"
-                className="text-muted-foreground hover:text-foreground text-xs sm:text-sm"
-              >
-                {footer.terms}
-              </Link>
-              <Link
-                to="/privacy"
-                className="text-muted-foreground hover:text-foreground text-xs sm:text-sm"
-              >
-                {footer.privacy}
-              </Link>
-            </div>
           </div>
         </LandingReveal>
       </div>
