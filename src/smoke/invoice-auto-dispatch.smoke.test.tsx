@@ -1,7 +1,7 @@
 /**
  * Smoke ADR-0083 — envío automático de facturas (F2 UI + contrato visible).
  * Mock de hooks; no requiere backend, worker ni SMTP.
- * Cubre: toggle cliente + warning sin esquema, badge origen, alerta failed en factura.
+ * Cubre: toggle cliente + warning sin frecuencia, badge origen, alerta failed en factura.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -239,7 +239,7 @@ describe("invoice auto-dispatch workflow smoke (ADR-0083)", () => {
     vi.clearAllMocks();
   });
 
-  it("edición de cliente: toggle auto sin esquema muestra warning", async () => {
+  it("edición de cliente: toggle auto sin frecuencia muestra warning", async () => {
     const user = userEvent.setup();
     render(
       <TestProviders>
@@ -285,47 +285,43 @@ describe("invoice auto-dispatch workflow smoke (ADR-0083)", () => {
     expect(screen.getByText(idCopy.invoiceAutoDispatchOn)).toBeInTheDocument();
   });
 
-  it("listado de corridas distingue Manual vs Automática", () => {
+  it("listado de lotes distingue Manual vs Automático", () => {
     const runs: BillingDispatchRunListItem[] = [
       {
         id: "run-manual",
-        tenantId: "t1",
         billingSchemeId: "scheme-1",
         periodStart: "2026-08-01T06:00:00.000Z",
         periodEnd: "2026-08-08T06:00:00.000Z",
-        anchorKind: "trip_completed",
         origin: "manual",
         status: "completed",
         previewedAt: null,
         sendConfirmedAt: null,
-        sendConfirmedBy: null,
         completedAt: "2026-08-08T14:00:00.000Z",
-        failedAt: null,
-        errorSummary: null,
-        createdBy: "user-1",
         createdAt: "2026-08-08T12:00:00.000Z",
-        updatedAt: "2026-08-08T14:00:00.000Z",
-        summary: null,
+        windowKind: "calendar_cut",
+        cadenceKind: "periodic_weekly",
+        inclusiveStart: "2026-08-01",
+        inclusiveEnd: "2026-08-07",
+        cutDate: "2026-08-08",
+        windowHours: null,
       },
       {
         id: "run-scheduled",
-        tenantId: "t1",
         billingSchemeId: "scheme-1",
         periodStart: "2026-08-08T06:00:00.000Z",
         periodEnd: "2026-08-15T06:00:00.000Z",
-        anchorKind: "trip_completed",
         origin: "scheduled",
         status: "completed",
         previewedAt: null,
         sendConfirmedAt: null,
-        sendConfirmedBy: null,
         completedAt: "2026-08-15T14:00:00.000Z",
-        failedAt: null,
-        errorSummary: null,
-        createdBy: null,
         createdAt: "2026-08-15T12:00:00.000Z",
-        updatedAt: "2026-08-15T14:00:00.000Z",
-        summary: null,
+        windowKind: "calendar_cut",
+        cadenceKind: "periodic_weekly",
+        inclusiveStart: "2026-08-08",
+        inclusiveEnd: "2026-08-14",
+        cutDate: "2026-08-15",
+        windowHours: null,
       },
     ];
 
@@ -368,6 +364,24 @@ describe("invoice auto-dispatch workflow smoke (ADR-0083)", () => {
       name: invoicingCopy.send.autoDispatchFailedLink,
     });
     expect(link).toHaveAttribute("href", "/finance/dispatch/run-auto-1");
+  });
+
+  it("oculta alerta de auto-fail cuando la factura ya tiene envío exitoso", () => {
+    renderInvoiceDetail(
+      buildInvoice({
+        dispatchSentAt: "2026-09-28T20:00:00.000Z",
+        autoDispatch: {
+          enabledForClient: true,
+          lastScheduledRunId: "run-auto-1",
+          lastItemStatus: "failed",
+          lastError: "SMTP timeout",
+        },
+      }),
+    );
+
+    expect(
+      screen.queryByText(invoicingCopy.send.autoDispatchFailedTitle),
+    ).not.toBeInTheDocument();
   });
 
   it("inbox tipa billing_dispatch y tipos de envío automático", () => {

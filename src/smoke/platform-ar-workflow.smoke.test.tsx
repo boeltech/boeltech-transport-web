@@ -204,6 +204,7 @@ function baseInvoice(
     notes: null,
     daysOverdue: 0,
     origin: "manual",
+    lastPayment: null,
     createdAt: "2026-08-01T16:00:00.000Z",
     updatedAt: "2026-08-01T16:00:00.000Z",
     tenantName: "AR Demo",

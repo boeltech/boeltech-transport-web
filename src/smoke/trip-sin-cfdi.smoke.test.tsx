@@ -3,7 +3,7 @@
  * Mock de API; no requiere backend.
  *
  * Flujo UI: intent sin_cfdi → oculta CTAs Facturar/false_trip/split →
- * Dinero del viaje muestra Pendiente de cobro + Registrar cobro en efectivo →
+ * Costos muestra Pendiente de cobro + Registrar cobro en efectivo →
  * scorecard «Cobrado en efectivo» (no «Cobrado del viaje»).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -41,6 +41,7 @@ vi.mock("@shared/permissions", () => ({
     isAuthenticated: true,
     role: "admin",
   }),
+  useRole: () => "admin",
 }));
 
 vi.mock("@features/trips/infrastructure/api/tripsApi", () => ({
@@ -57,6 +58,7 @@ vi.mock("@features/vehicles/application", () => ({
 
 vi.mock("@features/approvals", () => ({
   RejectExpenseSheet: () => null,
+  buildApprovalsInboxPath: () => "/finance/approvals",
 }));
 
 const TRIP_ID = "550e8400-e29b-41d4-a716-446655440099";
@@ -131,7 +133,7 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("en Dinero del viaje muestra Pendiente y registra cobro en efectivo", async () => {
+  it("en Costos muestra Pendiente y registra cobro en efectivo", async () => {
     const user = userEvent.setup();
     render(
       <TestProviders>

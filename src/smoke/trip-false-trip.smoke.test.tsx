@@ -130,6 +130,7 @@ describe("smoke ADR-0079 trip false-trip", () => {
     await user.click(cta);
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}&scope=false_trip`,
+      { state: { from: `/trips/${TRIP_ID}` } },
     );
   });
 
@@ -201,7 +202,9 @@ describe("smoke ADR-0079 trip false-trip", () => {
         name: tripFiscalCopy.invoiceActions.viewPrimary,
       }),
     );
-    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1");
+    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1", {
+      state: { from: `/trips/${TRIP_ID}` },
+    });
   });
 
   it("editor false_trip vacío: sin flete y CTA agregar concepto", () => {

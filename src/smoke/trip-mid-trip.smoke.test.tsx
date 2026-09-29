@@ -21,7 +21,10 @@ import { getTripDetailAccess } from "@features/trips/presentation/pages/tripDeta
 import { TripDetailRouteTab } from "@features/trips/presentation/components/trip-route/TripDetailRouteTab";
 import { tripDetailCopy } from "@features/trips/presentation/copy";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";
-import { resolveFiscalAttentionCta } from "@features/trips/presentation/helpers/resolveFiscalAttentionCta";
+import {
+  canShowFiscalSubstituteCta,
+  resolveFiscalAttentionCta,
+} from "@features/trips/presentation/helpers/resolveFiscalAttentionCta";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 
 vi.mock("@shared/hooks", async (importOriginal) => {
@@ -149,6 +152,22 @@ describe("smoke ADR-0093 trip mid-trip flexibility", () => {
     expect(tripDetailCopy.shell.alert.fiscalAttentionCta).toBe(
       "Sustituir factura",
     );
+    expect(tripDetailCopy.shell.alert.fiscalAttentionEscalateBody).toMatch(
+      /Avisa a facturación/i,
+    );
+    expect(tripDetailCopy.shell.alert.fiscalAttentionEscalateBody).not.toMatch(
+      /Sustituir factura/i,
+    );
+    expect(
+      canShowFiscalSubstituteCta({
+        canAdminManagerFiscal: false,
+      }),
+    ).toBe(false);
+    expect(
+      canShowFiscalSubstituteCta({
+        canAdminManagerFiscal: true,
+      }),
+    ).toBe(true);
     expect(tripDetailCopy.shell.alert.fiscalAttentionChip).toBe(
       "Atención fiscal",
     );

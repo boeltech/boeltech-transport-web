@@ -250,7 +250,9 @@ describe("smoke ADR-0081 trip revenue split", () => {
     ).not.toBeInTheDocument();
 
     await user.click(ctaA);
-    expect(mockNavigate).toHaveBeenCalledWith(expectedSplitHref(LEG_A, true));
+    expect(mockNavigate).toHaveBeenCalledWith(expectedSplitHref(LEG_A, true), {
+      state: { from: `/trips/${TRIP_ID}` },
+    });
 
     mockNavigate.mockReset();
     await user.click(
@@ -263,7 +265,9 @@ describe("smoke ADR-0081 trip revenue split", () => {
         name: tripFiscalCopy.invoiceActions.generateSplitShare(CLIENT_B),
       }),
     );
-    expect(mockNavigate).toHaveBeenCalledWith(expectedSplitHref(LEG_B, false));
+    expect(mockNavigate).toHaveBeenCalledWith(expectedSplitHref(LEG_B, false), {
+      state: { from: `/trips/${TRIP_ID}` },
+    });
   });
 
   it("sheet reparto: lista clientes read-only sin CTAs de facturar en banda", () => {

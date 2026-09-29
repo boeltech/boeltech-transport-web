@@ -60,6 +60,7 @@ vi.mock("@features/billing/infrastructure/billingApi", () => ({
     setDefaultPaymentMethod: vi.fn(),
     deletePaymentMethod: vi.fn(),
     paySaasInvoice: vi.fn(),
+    listSaasInvoices: vi.fn().mockResolvedValue([]),
   },
 }));
 

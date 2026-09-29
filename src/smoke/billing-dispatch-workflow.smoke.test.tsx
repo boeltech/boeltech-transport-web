@@ -14,6 +14,7 @@ import { DispatchRunDetailPage } from "@features/finance/presentation/pages/Disp
 import { dispatchRunsCopy } from "@features/finance/presentation/copy/dispatchRunsCopy";
 import { billingSchemesCopy } from "@features/settings/presentation/copy/billingSchemesCopy";
 import type { BillingDispatchRun } from "@features/finance/domain/billingDispatchRun.types";
+import { formatDate } from "@shared/utils/dateUtils";
 
 const mocks = vi.hoisted(() => ({
   confirmMutateAsync: vi.fn(),
@@ -75,6 +76,12 @@ const previewedRun: BillingDispatchRun = {
   createdBy: "user-1",
   createdAt: "2026-08-08T12:00:00.000Z",
   updatedAt: "2026-08-08T12:00:00.000Z",
+  windowKind: "calendar_cut",
+  cadenceKind: "periodic_weekly",
+  inclusiveStart: "2026-08-01",
+  inclusiveEnd: "2026-08-07",
+  cutDate: "2026-08-08",
+  windowHours: null,
   summary: {
     pendingStampCount: 1,
     readyToSendCount: 2,
@@ -313,8 +320,26 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     renderDetail();
 
     expect(
-      screen.getByText(dispatchRunsCopy.detail.title),
+      screen.getByText(
+        dispatchRunsCopy.detail.titleCalendar(
+          formatDate("2026-08-01"),
+          formatDate("2026-08-07"),
+        ),
+      ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.subtitleClosedCut("Corte semanal")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        `${dispatchRunsCopy.detail.periodCalendar(
+          formatDate("2026-08-01"),
+          formatDate("2026-08-07"),
+          formatDate("2026-08-08"),
+        )} ${dispatchRunsCopy.detail.datesFixedNote}`,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Viajes cerrados entre/)).not.toBeInTheDocument();
     expect(
       screen.getByText(
         dispatchRunsCopy.detail.decisionSummary(2, 1, 1),
@@ -356,6 +381,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(
       within(dialog).getByText(dispatchRunsCopy.detail.confirm.emailNote),
     ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/adjuntos/i)).not.toBeInTheDocument();
     expect(
       within(dialog).getByText(
         `${dispatchRunsCopy.detail.confirm.summaryClients(1)} · ${dispatchRunsCopy.detail.confirm.summaryInvoices(2)} · ${dispatchRunsCopy.detail.confirm.summaryRecipients(2)}`,
@@ -400,6 +426,11 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
 
     await user.click(
       screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.moreActions,
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
         name: dispatchRunsCopy.detail.resendCta,
       }),
     );
@@ -501,7 +532,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
   });
 
   it("catálogo de esquemas expone copy de cadencia", () => {
-    expect(billingSchemesCopy.page.title).toMatch(/Esquemas de facturación/i);
+    expect(billingSchemesCopy.page.title).toMatch(/Frecuencias de envío/i);
     expect(billingSchemesCopy.cadence.periodic_weekly).toBe("Semanal");
   });
 
@@ -680,10 +711,23 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dispatchRunsCopy.detail.result.byClientTitle),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Cliente Demo")).toBeInTheDocument();
-    expect(screen.getByText("Cliente Fallido")).toBeInTheDocument();
+      screen.queryByText(dispatchRunsCopy.detail.result.byClientTitle),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(dispatchRunsCopy.detail.buckets.readyTitle).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(
+      dispatchRunsCopy.detail.buckets.clientGroup("Cliente Demo", 1),
+    )).toBeInTheDocument();
+    expect(screen.getByText(
+      dispatchRunsCopy.detail.buckets.clientGroup("Cliente Fallido", 1),
+    )).toBeInTheDocument();
+    expect(screen.getByText(
+      dispatchRunsCopy.detail.buckets.invoiceLabel("A-100"),
+    )).toBeInTheDocument();
+    expect(screen.getByText(
+      dispatchRunsCopy.detail.buckets.invoiceLabel("A-101"),
+    )).toBeInTheDocument();
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.result.statusFailed).length,
     ).toBeGreaterThan(0);
@@ -718,5 +762,45 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
         dispatchRunsCopy.detail.decisionSummary(2, 2, 0),
       ),
     ).toBeInTheDocument();
+  });
+
+  it("pide confirmación al cancelar y pone Enviar facturas en el header", async () => {
+    const user = userEvent.setup();
+    renderDetail();
+
+    expect(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.sendCta,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(dispatchRunsCopy.detail.buckets.readyTitle).length,
+    ).toBeGreaterThan(0);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.moreActions,
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: dispatchRunsCopy.detail.cancelRun,
+      }),
+    );
+
+    const dialog = screen.getByRole("alertdialog", {
+      name: dispatchRunsCopy.tab.cancelDialog.title,
+    });
+    expect(
+      within(dialog).getByText(dispatchRunsCopy.tab.cancelDialog.body),
+    ).toBeInTheDocument();
+    expect(mocks.cancelMutateAsync).not.toHaveBeenCalled();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: dispatchRunsCopy.tab.cancelDialog.confirm,
+      }),
+    );
+    expect(mocks.cancelMutateAsync).toHaveBeenCalledWith("run-1");
   });
 });

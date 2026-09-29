@@ -23,6 +23,7 @@ const mockGetSubscription = vi.fn();
 const mockGetUsage = vi.fn();
 const mockGetEntitlements = vi.fn();
 const mockGetArrears = vi.fn();
+const mockListSaasInvoices = vi.fn();
 
 vi.mock("@features/billing/infrastructure/billingApi", () => ({
   billingApi: {
@@ -31,6 +32,7 @@ vi.mock("@features/billing/infrastructure/billingApi", () => ({
     getUsage: (...args: unknown[]) => mockGetUsage(...args),
     getEntitlements: (...args: unknown[]) => mockGetEntitlements(...args),
     getArrears: (...args: unknown[]) => mockGetArrears(...args),
+    listSaasInvoices: (...args: unknown[]) => mockListSaasInvoices(...args),
   },
 }));
 
@@ -199,6 +201,7 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
     mockGetUsage.mockResolvedValue(MOCK_USAGE);
     mockGetEntitlements.mockResolvedValue(MOCK_ENTITLEMENTS);
     mockGetArrears.mockResolvedValue(EMPTY_ARREARS);
+    mockListSaasInvoices.mockResolvedValue([]);
   });
 
   it("S2: shows July open balance while August is current and status active", async () => {
@@ -222,6 +225,15 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
     expect(screen.getAllByText(/\$2,154\.24/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/jul 2026/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(billingCopy.costs.title)).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.saasInvoiceHistory.title),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.saasInvoiceHistory.emptyTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(billingCopy.saasInvoiceHistory.status.paid),
+    ).not.toBeInTheDocument();
   });
 
   it("S4: after mark paid (empty arrears) saldo pendiente disappears", async () => {
@@ -243,5 +255,47 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
     // Card title only appears in notice/card — should not be present as Saldo pendiente card
     const saldoTitles = screen.queryAllByText(billingCopy.arrears.title);
     expect(saldoTitles).toHaveLength(0);
+  });
+
+  it("S5: paid history row appears from GET saas-invoices, not arrears", async () => {
+    mockGetArrears.mockResolvedValue(EMPTY_ARREARS);
+    mockListSaasInvoices.mockResolvedValue([
+      {
+        id: "inv-july-paid",
+        periodKey: "2026-07",
+        status: "paid",
+        totalCents: 215424,
+        amountDueCents: 0,
+        issuedAt: "2026-08-01T16:00:00.000Z",
+        dueDate: "2026-08-15T05:59:59.999Z",
+        paidAt: "2026-08-03T18:00:00.000Z",
+        origin: "auto_period_issue",
+        lastPayment: {
+          paidAt: "2026-08-03T18:00:00.000Z",
+          method: "stripe",
+        },
+      },
+    ]);
+
+    render(
+      <TestProviders>
+        <BillingSubscriptionPage />
+      </TestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(billingCopy.saasInvoiceHistory.status.paid),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(billingCopy.saasInvoiceHistory.title),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.saasInvoiceHistory.methods.stripe),
+    ).toBeInTheDocument();
+    expect(screen.queryAllByText(billingCopy.arrears.title)).toHaveLength(0);
+    expect(screen.queryByText(billingCopy.arrears.payNow)).not.toBeInTheDocument();
   });
 });

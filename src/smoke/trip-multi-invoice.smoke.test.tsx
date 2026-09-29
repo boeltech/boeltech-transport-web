@@ -136,6 +136,7 @@ describe("smoke ADR-0068 trip multi-invoice", () => {
     await user.click(cta);
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}&scope=accessory`,
+      { state: { from: `/trips/${TRIP_ID}` } },
     );
   });
 

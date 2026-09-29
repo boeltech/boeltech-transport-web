@@ -358,7 +358,7 @@ describe("branches workflow smoke", () => {
 
     const user = userEvent.setup();
     await user.click(
-      screen.getByRole("button", { name: branchesCopy.list.export.label }),
+      screen.getByRole("button", { name: branchesCopy.list.export.aria }),
     );
 
     await waitFor(() => {
@@ -489,7 +489,7 @@ describe("branches workflow smoke", () => {
     });
 
     const user = userEvent.setup();
-    await user.click(screen.getByLabelText(branchesCopy.list.showDeleted.label));
+    await user.click(screen.getByLabelText(branchesCopy.list.showDeleted.aria));
 
     await waitFor(() => {
       expect(screen.getByText("Sucursal Eliminada")).toBeInTheDocument();

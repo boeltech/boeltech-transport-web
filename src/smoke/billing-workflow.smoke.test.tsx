@@ -39,6 +39,7 @@ vi.mock("@features/billing/infrastructure/billingApi", () => ({
     getUsage: (...args: unknown[]) => mockGetUsage(...args),
     getEntitlements: (...args: unknown[]) => mockGetEntitlements(...args),
     getArrears: (...args: unknown[]) => mockGetArrears(...args),
+    listSaasInvoices: vi.fn().mockResolvedValue([]),
   },
 }));
 

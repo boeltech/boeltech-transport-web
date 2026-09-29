@@ -67,6 +67,10 @@ vi.mock("@features/auth", () => ({
   }),
 }));
 
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({ hasPermission: () => true }),
+}));
+
 vi.mock("@features/drivers/application", () => ({
   useDrivers: () => ({ data: { data: [] }, isLoading: false }),
 }));

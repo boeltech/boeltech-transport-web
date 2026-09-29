@@ -1,7 +1,8 @@
 /**
  * Smoke F5 — workbench unificado Envío de facturas (/finance/dispatch).
  * Mock de hooks; no requiere backend ni SMTP.
- * Cubre: Pendientes (tabla/empty), tabs Enviadas + Historial, redirects legacy,
+ * Cubre: Pendientes (tabla/empty), tab Enviadas, crossLink Por periodo,
+ * CTA Armar envío, redirects legacy, sidebar un solo Envíos.
  * sidebar un solo Envíos, copy sin send-invoices, link auto-fail.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -14,6 +15,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   FINANCE_DISPATCH_HISTORY_HREF,
   FINANCE_DISPATCH_PENDING_HREF,
+  FINANCE_DISPATCH_PERIOD_PATH,
   resolveLegacyFinanceLocation,
 } from "@features/finance/application/financeRoutes";
 import { FinanceDispatchPage } from "@features/finance/presentation/pages/FinanceDispatchPage";
@@ -194,6 +196,10 @@ function TestProviders({
         <Routes>
           <Route path="/finance/dispatch" element={children} />
           <Route
+            path="/finance/dispatch/period"
+            element={<div data-testid="period-page">period</div>}
+          />
+          <Route
             path="/finance/send-invoices"
             element={<FinanceSendInvoicesLegacyRedirect />}
           />
@@ -286,7 +292,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     ).toBeInTheDocument();
   });
 
-  it("cambia a Enviadas e Historial", async () => {
+  it("cambia a Enviadas y enlaza Por periodo", async () => {
     const user = userEvent.setup();
     render(
       <TestProviders>
@@ -301,54 +307,31 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     );
     expect(screen.getAllByText("A-99").length).toBeGreaterThan(0);
 
-    await user.click(
-      screen.getByRole("tab", {
-        name: new RegExp(dispatchRunsCopy.workbench.buckets.history),
+    const periodLink = screen.getByRole("link", {
+      name: dispatchRunsCopy.workbench.periodLinkAria,
+    });
+    expect(periodLink).toHaveAttribute("href", FINANCE_DISPATCH_PERIOD_PATH);
+    expect(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.workbench.armPeriodCta,
       }),
-    );
-    expect(
-      screen.getAllByRole("button", {
-        name: dispatchRunsCopy.tab.executeCta,
-      }).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getByText(dispatchRunsCopy.tab.empty.onboardingTitle),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: /Historial/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("onboarding del Historial apunta a pendientes del workbench (no send-invoices)", () => {
-    mockUseInvoices.mockImplementation(() =>
-      invoicesQueryResult(emptyList()),
-    );
-
+  it("?tab=history redirige a envíos del periodo", () => {
     render(
       <TestProviders initialEntry="/finance/dispatch?tab=history">
         <FinanceDispatchPage />
       </TestProviders>,
     );
 
-    expect(
-      screen.getByText(dispatchRunsCopy.tab.empty.onboardingTitle),
-    ).toBeInTheDocument();
-
-    const pendingLink = screen.getByRole("link", {
-      name: dispatchRunsCopy.tab.empty.onboardingSteps[2]!.linkLabel,
-    });
-    expect(pendingLink).toHaveAttribute(
-      "href",
-      "/finance/dispatch?tab=pending",
-    );
-    expect(pendingLink.getAttribute("href")).not.toContain("send-invoices");
-    expect(pendingLink.getAttribute("href")).not.toContain("dispatch-runs");
-
-    expect(dispatchRunsCopy.tab.sendWizardHref).toBe(
-      "/finance/dispatch?tab=pending",
-    );
-    expect(dispatchRunsCopy.workbench.title).toBe("Envío de facturas");
-    expect(navigationCopy.item.financeDispatch).toBe("Envíos");
+    expect(screen.getByTestId("period-page")).toBeInTheDocument();
   });
 
-  it("legacy redirects llevan al workbench (Pendientes / Historial)", () => {
+  it("legacy redirects llevan al workbench o al periodo", () => {
     const { unmount } = render(
       <TestProviders initialEntry="/finance/send-invoices">
         <FinanceDispatchPage />
@@ -366,21 +349,17 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
         <FinanceDispatchPage />
       </TestProviders>,
     );
-    expect(
-      screen.getAllByRole("button", {
-        name: dispatchRunsCopy.tab.executeCta,
-      }).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getByTestId("period-page")).toBeInTheDocument();
 
     expect(FINANCE_DISPATCH_PENDING_HREF).toBe(
       "/finance/dispatch?tab=pending",
     );
-    expect(FINANCE_DISPATCH_HISTORY_HREF).toBe(
-      "/finance/dispatch?tab=history",
-    );
+    expect(FINANCE_DISPATCH_HISTORY_HREF).toBe(FINANCE_DISPATCH_PERIOD_PATH);
     expect(resolveLegacyFinanceLocation("?tab=dispatch-runs")).toBe(
-      "/finance/dispatch?tab=history",
+      FINANCE_DISPATCH_PERIOD_PATH,
     );
+    expect(dispatchRunsCopy.workbench.title).toBe("Envío de facturas");
+    expect(navigationCopy.item.financeDispatch).toBe("Envíos");
   });
 
   it("sidebar Facturación tiene un solo ítem Envíos", () => {
@@ -397,7 +376,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
   });
 
   it("alerta auto-fail en detalle apunta a /finance/dispatch/:runId (copy coherente)", () => {
-    expect(invoicingCopy.send.autoDispatchFailedLink).toBe("Ver corrida");
+    expect(invoicingCopy.send.autoDispatchFailedLink).toBe("Ver este lote");
     const runId = "run-auto-1";
     expect(`/finance/dispatch/${runId}`).toMatch(
       /^\/finance\/dispatch\/[\w-]+$/,
