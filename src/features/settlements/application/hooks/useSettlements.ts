@@ -1,8 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invalidateApprovalsRelatedQueries } from "@features/approvals";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  invalidateApprovalsRelatedQueries,
+  type ApprovalGuards,
+  type ApprovalReturnReasonCode,
+} from "@features/approvals";
 import {
   settlementsApi,
   type ListSettlementsParams,
+  type UpdateSettlementPayload,
 } from "../../infrastructure/settlementsApi";
 import { settlementsQueryKeys } from "../settlementsQueryKeys";
 import type {
@@ -58,22 +63,77 @@ export function useSubmitSettlement() {
   });
 }
 
+/** Liquidaciones, detalle, anticipos y bandeja (guardas ADR-0099: recargar, no reintentar). */
+export function invalidateSettlementQueries(queryClient: QueryClient, id?: string) {
+  if (id) {
+    queryClient.invalidateQueries({
+      queryKey: settlementsQueryKeys.settlementDetail(id),
+    });
+  }
+  queryClient.invalidateQueries({
+    queryKey: settlementsQueryKeys.settlements(),
+  });
+  queryClient.invalidateQueries({
+    queryKey: settlementsQueryKeys.advances(),
+  });
+  invalidateApprovalsRelatedQueries(queryClient);
+}
+
+type SettlementDecisionVariables = string | { id: string; guards?: ApprovalGuards };
+
+function decisionTarget(variables: SettlementDecisionVariables): {
+  id: string;
+  guards?: ApprovalGuards;
+} {
+  return typeof variables === "string" ? { id: variables } : variables;
+}
+
 export function useApproveSettlement() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => settlementsApi.approveSettlement(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({
-        queryKey: settlementsQueryKeys.settlementDetail(id),
-      });
-      queryClient.invalidateQueries({
-        queryKey: settlementsQueryKeys.settlements(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: settlementsQueryKeys.advances(),
-      });
-      invalidateApprovalsRelatedQueries(queryClient);
+    mutationFn: (variables: SettlementDecisionVariables) => {
+      const { id, guards } = decisionTarget(variables);
+      return guards
+        ? settlementsApi.approveSettlement(id, guards)
+        : settlementsApi.approveSettlement(id);
+    },
+    onSuccess: (_, variables) => {
+      invalidateSettlementQueries(queryClient, decisionTarget(variables).id);
+    },
+  });
+}
+
+export function useReturnSettlement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      reason,
+      reasonCode,
+      guards,
+    }: {
+      id: string;
+      reason: string;
+      reasonCode: ApprovalReturnReasonCode;
+      guards?: ApprovalGuards;
+    }) => settlementsApi.returnSettlement(id, { reason, reasonCode, guards }),
+    onSuccess: (_, { id }) => {
+      invalidateSettlementQueries(queryClient, id);
+    },
+  });
+}
+
+/** E10: tras guardar se vuelve a pedir el detalle antes de decidir o dispersar. */
+export function useUpdateSettlement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateSettlementPayload }) =>
+      settlementsApi.updateSettlement(id, payload),
+    onSuccess: (_, { id }) => {
+      invalidateSettlementQueries(queryClient, id);
     },
   });
 }
@@ -82,8 +142,10 @@ export function useRejectSettlement() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      settlementsApi.rejectSettlement(id, reason),
+    mutationFn: ({ id, reason, guards }: { id: string; reason: string; guards?: ApprovalGuards }) =>
+      guards
+        ? settlementsApi.rejectSettlement(id, reason, guards)
+        : settlementsApi.rejectSettlement(id, reason),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.settlementDetail(id),
@@ -126,10 +188,16 @@ export function useDisburseSettlement() {
     mutationFn: ({
       id,
       data,
+      expectedRevision,
     }: {
       id: string;
       data: DisburseSettlementFormData;
-    }) => settlementsApi.disburseSettlement(id, data),
+      /** D27: `approval_revision` que vio quien registra el pago. */
+      expectedRevision?: string | null;
+    }) =>
+      expectedRevision
+        ? settlementsApi.disburseSettlement(id, data, expectedRevision)
+        : settlementsApi.disburseSettlement(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.settlementDetail(id),

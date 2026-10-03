@@ -29,6 +29,8 @@ import type { CompensationCalculationType } from "../../domain/enums";
 interface SettlementItemsTableProps {
   items: readonly SettlementItem[];
   agreementCalculationType?: CompensationCalculationType | string | null;
+  /** Origen para el chevron del detalle de viaje (p. ej. detalle del pago). */
+  tripLinkFrom?: string;
 }
 
 export function formatItemTitleAndSubtitle(item: SettlementItem, copy: typeof settlementsCopy.detailPage.items) {
@@ -119,6 +121,7 @@ export function formatItemTitleAndSubtitle(item: SettlementItem, copy: typeof se
 export function SettlementItemsTable({
   items,
   agreementCalculationType,
+  tripLinkFrom,
 }: SettlementItemsTableProps) {
   const copy = settlementsCopy.detailPage.items;
   const participationBadgeLabel =
@@ -230,6 +233,7 @@ export function SettlementItemsTable({
                         {item.tripId ? (
                           <Link
                             to={`/trips/${item.tripId}`}
+                            state={tripLinkFrom ? { from: tripLinkFrom } : undefined}
                             className="font-medium text-primary hover:underline font-mono text-xs"
                           >
                             {item.tripCode ?? copy.viewTripFallback}

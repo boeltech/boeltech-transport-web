@@ -10,6 +10,7 @@
  * Ubicación: src/features/trips/domain/entities.ts
  */
 
+import type { ApprovalBlock, ApprovalDecisionOutcome } from "@features/approvals";
 import type {
   TripStatusType,
   StopTypeValue,
@@ -399,6 +400,18 @@ export interface TripExpense {
   readonly approvedBy: string | null;
   readonly approvedAt: Date | null;
   readonly rejectionReason: string | null;
+  /** ADR-0098: autorizado por quien lo registró (único autorizador activo). */
+  readonly selfSegregatedApproval?: boolean;
+  readonly approverCountAtApprove?: number | null;
+  /** ADR-0099: token de concurrencia que viaja como `expected_revision`. */
+  readonly approvalRevision?: string | null;
+  /**
+   * ADR-0099 F6-0: flujo visto por quien consulta. `undefined` = el API no lo
+   * informa; `null` = gasto sin flujo (decidido antes del motor).
+   */
+  readonly approval?: ApprovalBlock | null;
+  /** Solo en respuestas de decisión (aprobar/rechazar/devolver). */
+  readonly approvalOutcome?: ApprovalDecisionOutcome;
 
   // Notas
   readonly notes: string | null;

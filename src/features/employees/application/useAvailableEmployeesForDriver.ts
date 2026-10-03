@@ -87,6 +87,7 @@ export function useEmployeeBasic(employeeId: string, enabled: boolean = true) {
         department: apiResponse.department,
         position: apiResponse.position,
         hireDate: apiResponse.hire_date,
+        salaryType: apiResponse.salary_type ?? null,
       };
     },
     enabled: enabled && !!employeeId,

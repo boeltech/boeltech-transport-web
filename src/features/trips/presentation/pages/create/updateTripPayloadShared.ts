@@ -16,6 +16,7 @@ export function buildUpdateTripInputFromCreateInput(
     originBranchId: base.originBranchId,
     cfdiDocumentIntent: base.cfdiDocumentIntent,
     cfdiEmissionIntent: base.cfdiEmissionIntent,
+    routeType: base.routeType,
     scheduledDeparture: base.scheduledDeparture,
     scheduledArrival: base.scheduledArrival,
     startMileage: base.startMileage,

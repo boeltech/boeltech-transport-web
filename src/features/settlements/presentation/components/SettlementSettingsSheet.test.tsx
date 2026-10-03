@@ -58,7 +58,7 @@ describe("SettlementSettingsSheet", () => {
     });
   });
 
-  it("renderiza el umbral de VoBo con el valor del tenant", () => {
+  it("renderiza el monto de autorización con el valor del tenant", () => {
     renderSheet();
 
     // MoneyInput alterna entre formato de moneda y edición según el foco:
@@ -66,7 +66,7 @@ describe("SettlementSettingsSheet", () => {
     const threshold = screen.getByLabelText(copy.thresholdLabel) as HTMLInputElement;
     expect(Number(threshold.value.replace(/,/g, ""))).toBe(1500);
     expect(screen.getByText(copy.thresholdHint)).toBeInTheDocument();
-    expect(copy.thresholdHint).toMatch(/umbral 0/i);
+    expect(copy.thresholdHint).toMatch(/\$0/i);
   });
 
   it("no ofrece toggle ni controles de feature flag retirado", () => {

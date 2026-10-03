@@ -72,21 +72,22 @@ export function settlementCreatePath(params?: Record<string, string>): string {
 
 
 export function settlementsAgreementsPath(params?: {
-
   employeeId?: string;
-
+  periodStart?: string;
+  periodEnd?: string;
 }): string {
-
-  if (!params?.employeeId) {
-
+  if (!params?.employeeId && !params?.periodStart && !params?.periodEnd) {
     return COMPENSATION_TEMPLATES_PATH;
-
   }
 
-  const qs = new URLSearchParams({ employeeId: params.employeeId });
-
-  return `${COMPENSATION_TEMPLATES_PATH}?${qs.toString()}`;
-
+  const qs = new URLSearchParams();
+  if (params.employeeId) qs.set("employeeId", params.employeeId);
+  if (params.periodStart) qs.set("periodStart", params.periodStart);
+  if (params.periodEnd) qs.set("periodEnd", params.periodEnd);
+  const query = qs.toString();
+  return query
+    ? `${COMPENSATION_TEMPLATES_PATH}?${query}`
+    : COMPENSATION_TEMPLATES_PATH;
 }
 
 

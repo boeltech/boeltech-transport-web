@@ -146,11 +146,14 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
     originBranchId: trip.originBranchId ?? "",
     cfdiDocumentIntent: trip.cfdiDocumentIntent ?? "ingreso",
     cfdiEmissionIntent: trip.cfdiEmissionIntent ?? "emitir_cfdi",
+    routeType: trip.routeType ?? "long_haul",
     scheduledDeparture: utcIsoToLocalInput(trip.scheduledDeparture.toISOString()),
     scheduledArrival: trip.scheduledArrival
       ? utcIsoToLocalInput(trip.scheduledArrival.toISOString())
       : "",
     startMileage: trip.mileage.start ?? undefined,
+    originCity: trip.originCity ?? "",
+    destinationCity: trip.destinationCity ?? "",
     stops: mappedStops,
     cargos: mappedCargos,
     expenses: mappedExpenses,

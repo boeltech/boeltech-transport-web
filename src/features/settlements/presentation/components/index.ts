@@ -13,6 +13,8 @@ export * from "./CompensationAgreementSheet";
 export * from "./DisburseSettlementDialog";
 export * from "./SettlementItemsTable";
 export * from "./SettlementReceiptPrintView";
+export * from "./SettlementCorrectionSheet";
+export * from "./ManualItemsEditor";
 export * from "./SettlementWorkbenchKpiStrip";
 export * from "./SettlementBacklogTable";
 export * from "./SettlementListFilters";

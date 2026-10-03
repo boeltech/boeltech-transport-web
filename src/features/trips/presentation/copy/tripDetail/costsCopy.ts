@@ -31,6 +31,9 @@ export const costsCopy = {
     baseRateIngresoOptional: "Opcional si el viaje no tiene cliente contratante.",
     breakdownToggleShow: "Ver desglose por tipo",
     breakdownToggleHide: "Ocultar desglose",
+    /** F1 tres bolsillos: orientación del canal «Del operador» (gasto del viaje). */
+    indirectChannels:
+      "Comprobante sin adelanto → aquí. Efectivo adelantado → Anticipos. Pago fijo de tarifa → en Tarifas.",
   },
   alert: {
     loadErrorTitle: "No se pudieron cargar los costos",
@@ -53,6 +56,13 @@ export const costsCopy = {
     pendingApprovalBodyCanApprove:
       "Apruebe los registros en revisión aquí o desde la bandeja de aprobaciones para incluirlos en reportes de Finanzas.",
     approvalsHubLink: "Ver en bandeja de aprobaciones",
+    /** ADR-0099 D15: gana a «pendientes» para quien corrige sin decidir. */
+    returnedTitle: (count: number) =>
+      count === 1
+        ? "1 gasto devuelto para corregir"
+        : `${count} gastos devueltos para corregir`,
+    returnedBody:
+      "Quien lo autoriza pidió una corrección. Ábrelo con «Corregir y reenviar»; al guardar vuelve a autorización.",
   },
   action: {
     retry: "Reintentar",
@@ -66,6 +76,8 @@ export const costsCopy = {
     approve: "Aprobar",
     reject: "Rechazar",
     reviewGroup: "Revisión",
+    more: "Más acciones",
+    saveAndResubmit: "Guardar y reenviar",
   },
   label: {
     baseRate: "Tarifa base",
@@ -77,10 +89,10 @@ export const costsCopy = {
       'Use "Agregar de ruta" para combustible, casetas y otros costos de la unidad.',
     emptyOperationalReadOnly: "No hay registros de ruta y unidad en este viaje.",
     emptyAfterFalseTrip: "Los gastos se capturan antes de declarar.",
-    emptyIndirectTitle: "Sin registros del operador",
+    emptyIndirectTitle: "Sin gastos del viaje del operador",
     emptyIndirectEditable:
-      'Use "Agregar del operador" para viáticos, hospedaje y otros extras.',
-    emptyIndirectReadOnly: "No hay registros del operador en este viaje.",
+      "Comprobante sin adelanto (hospedaje, comida, etc.) → regístrelo aquí como gasto del viaje (reembolso). Efectivo adelantado → Anticipos. Pago fijo de tarifa → en Tarifas, no aquí. No duplique el mismo desembolso en dos canales.",
+    emptyIndirectReadOnly: "No hay gastos del viaje del operador en este viaje.",
     estimated: "Estimado",
     receipt: "Comprobante",
     noCategory: "Sin categoría",
@@ -89,6 +101,9 @@ export const costsCopy = {
     inReviewHint: "Aún no cuenta en Finanzas",
     documented: "Documentado",
     documentedHint: "Aún no cuenta en Finanzas",
+    /** TEC-5: solo gastos no devueltos; el devuelto se corrige sin ventana. */
+    windowClosedRow: (date: string) =>
+      `La ventana para corregir gastos de este viaje cerró el ${date}.`,
   },
   toast: {
     updated: "Registro actualizado",
@@ -96,10 +111,15 @@ export const costsCopy = {
     saveError: "No se pudo guardar",
     removed: "Registro eliminado",
     removeError: "No se pudo eliminar",
+    expenseNotMutableEdit:
+      "Este gasto ya fue autorizado o rechazado y no se puede editar. La lista ya muestra su estado actual.",
+    expenseNotMutableRemove:
+      "Este gasto ya fue autorizado o rechazado y no se puede eliminar. La lista ya muestra su estado actual.",
     approved: "Gasto aprobado",
     approveError: "No se pudo aprobar",
     rejected: "Gasto rechazado",
     rejectError: "No se pudo rechazar",
+    resubmitted: "Gasto corregido y reenviado a autorización",
     baseRateUpdated: "Tarifa base actualizada",
     baseRateSaveError: "No se pudo guardar la tarifa",
     baseRateSavedWithWarning: "Tarifa guardada con advertencia",

@@ -42,6 +42,9 @@ export {
   TripOperationalOutcome,
   type TripOperationalOutcomeType,
   TRIP_STATUS_LABELS,
+  TripRouteType,
+  type TripRouteTypeValue,
+  TRIP_ROUTE_TYPE_LABELS,
   VALID_STATUS_TRANSITIONS,
 
   // Stop Type
@@ -243,6 +246,7 @@ export type {
   ITripRepository,
   ICargoRepository,
   IExpenseRepository,
+  ReturnExpenseInput,
 } from "./repositories";
 
 // ============================================================================
@@ -322,3 +326,4 @@ export {
   validateMileageRange,
   validateStatusTransition,
 } from "./rules";
+export { EXPENSE_NOT_MUTABLE_CODE, isExpenseNotMutableError } from "./expenseErrors";

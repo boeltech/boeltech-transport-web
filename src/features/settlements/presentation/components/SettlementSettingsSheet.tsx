@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Info, ShieldCheck } from "lucide-react";
+import { approvalPoliciesPath } from "@features/approval-policies/application/approvalPoliciesRoutes";
 import {
   Sheet,
   SheetContent,
@@ -11,7 +13,7 @@ import {
   SheetTitle,
 } from "@shared/ui/sheet";
 import { Button } from "@shared/ui/button";
-import { Alert, AlertDescription } from "@shared/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   FieldInlineError,
   MoneyInput,
@@ -19,8 +21,7 @@ import {
 } from "@shared/ui/form";
 import { Label } from "@shared/ui/label";
 import { useToast } from "@shared/hooks";
-import { getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { DEFAULT_VOBO_THRESHOLD_MXN } from "../../domain/enums";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";import { DEFAULT_VOBO_THRESHOLD_MXN } from "../../domain/enums";
 import {
   useSettlementSettings,
   useUpdateSettlementSettings,
@@ -67,6 +68,7 @@ export function SettlementSettingsSheet({
   }, [open, reset, settings]);
 
   const threshold = watch("voboThresholdMxn");
+  const managedByPolicy = settings?.managedByPolicy === true;
   const apiError = updateMutation.error
     ? getErrorMessage(updateMutation.error)
     : null;
@@ -95,6 +97,38 @@ export function SettlementSettingsSheet({
           <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
 
+        {managedByPolicy ? (
+          <div className="mt-6 space-y-5" data-testid="settlement-settings-managed">
+            <Alert variant="info">
+              <Info className="h-4 w-4" />
+              <AlertTitle>{copy.managedTitle}</AlertTitle>
+              <AlertDescription>{copy.managedDescription}</AlertDescription>
+            </Alert>
+            <div className="space-y-1.5">
+              <Label htmlFor="vobo-threshold">{copy.thresholdLabel}</Label>
+              <MoneyInput
+                id="vobo-threshold"
+                name="voboThresholdMxn"
+                value={settings?.voboThresholdMxn}
+                currencyCode="MXN"
+                decimals={2}
+                disabled
+                readOnly
+              />
+            </div>
+            <SheetFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                {copy.close}
+              </Button>
+              <Button asChild>
+                <Link to={approvalPoliciesPath("settlement")} onClick={() => onOpenChange(false)}>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  {copy.managedLink}
+                </Link>
+              </Button>
+            </SheetFooter>
+          </div>
+        ) : (
         <form onSubmit={onSubmit} className="mt-6 space-y-5">
           {apiError ? (
             <Alert variant="destructive">
@@ -133,6 +167,7 @@ export function SettlementSettingsSheet({
             </Button>
           </SheetFooter>
         </form>
+        )}
       </SheetContent>
     </Sheet>
   );

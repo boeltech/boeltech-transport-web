@@ -41,10 +41,11 @@ vi.mock("@features/employees/infrastructure/employeeRepository", () => ({
   fetchEmployees: (...args: unknown[]) => mockFetchEmployees(...args),
   getEmployeeBasic: vi.fn().mockResolvedValue({
     id: "emp-1",
-    employeeNumber: "001",
-    firstName: "Pedro",
-    lastName: "Infante",
-    fullName: "Pedro Infante",
+    employee_number: "001",
+    first_name: "Pedro",
+    last_name: "Infante",
+    full_name: "Pedro Infante",
+    salary_type: "weekly",
   }),
 }));
 
@@ -112,6 +113,10 @@ const mockPreview = {
       freightRevenue: 30000,
       calculatedCommission: 4500,
       approvedReimbursableExpenses: 300,
+      operationalOutcome: "standard",
+      hasRevenueSplit: true,
+      distanceBasis: "odometer",
+      requiresZeroKmAck: false,
     },
     {
       tripId: "trip-2",
@@ -126,6 +131,10 @@ const mockPreview = {
       calculatedCommission: 0,
       approvedReimbursableExpenses: 0,
       appliedRule: "Cubierto por sueldo base",
+      operationalOutcome: "false_trip",
+      hasRevenueSplit: false,
+      distanceBasis: "unavailable",
+      requiresZeroKmAck: false,
     },
   ],
   openAdvances: [
@@ -191,17 +200,26 @@ describe("SettlementCreatePage Component", () => {
     });
 
     // Validar encabezado y resumen de acuerdo activo
-    expect(screen.getByText("Nueva liquidación a operador")).toBeInTheDocument();
-    expect(screen.getByText(/Acuerdo de pago activo:/i)).toBeInTheDocument();
+    expect(screen.getByText("Nuevo pago a operador")).toBeInTheDocument();
+    expect(screen.getByText(/Tarifa de pago activa:/i)).toBeInTheDocument();
     expect(screen.getByText(/Sueldo base semanal de \$3,500\.00/i)).toBeInTheDocument();
     expect(screen.getByText(/15% de comisión sobre flete/i)).toBeInTheDocument();
 
     // Validar tabla de viajes (columnas compactas por defecto)
     expect(screen.getByText("Monterrey → CDMX")).toBeInTheDocument();
     expect(screen.getByText("Monterrey → Apodaca")).toBeInTheDocument();
+    expect(screen.getByText("Foráneo")).toBeInTheDocument();
+    expect(screen.getByText("Local")).toBeInTheDocument();
+    expect(screen.getByText("Prorrateo")).toBeInTheDocument();
+    expect(screen.getByText("Viaje en falso")).toBeInTheDocument();
+    expect(screen.queryByText("Movimiento local")).not.toBeInTheDocument();
     expect(screen.getAllByText("$4,500.00").length).toBeGreaterThanOrEqual(1);
 
+    const tripLink = screen.getByRole("link", { name: "VIA-100" });
+    expect(tripLink).toHaveAttribute("href", "/trips/trip-1");
+
     await user.click(screen.getByRole("button", { name: /Ver detalle de cálculo/i }));
+    // Viaje Local matchea regla Local (cubierto por sueldo, comisión 0)
     expect(screen.getByText("Cubierto por sueldo base")).toBeInTheDocument();
 
     // Validar anticipos y acciones rápidas
@@ -218,11 +236,17 @@ describe("SettlementCreatePage Component", () => {
     expect(screen.getAllByText("-$3,000.00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("$5,300.00").length).toBeGreaterThanOrEqual(1);
 
+    // F1 tres bolsillos: franja de teaching bajo el resumen
+    const channelsTeaching = screen.getByLabelText(/Tres canales del pago a operadores/i);
+    expect(channelsTeaching).toHaveTextContent(/Gasto del viaje/i);
+    expect(channelsTeaching).toHaveTextContent(/Anticipo/i);
+    expect(channelsTeaching).toHaveTextContent(/Pago fijo de tarifa/i);
+
     // Abrir diálogo mínimo de confirmación
-    const submitBtn = screen.getByRole("button", { name: /Pedir VoBo/i });
+    const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
     await user.click(submitBtn);
 
-    expect(screen.getByRole("heading", { name: /¿Pedir VoBo\?/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /¿Enviar a autorización?/i })).toBeInTheDocument();
     expect(screen.getAllByText(/^A pagar$/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Percepciones brutas:/i)).not.toBeInTheDocument();
 
@@ -243,7 +267,7 @@ describe("SettlementCreatePage Component", () => {
     );
   });
 
-  it("limpia las deducciones de anticipos seleccionadas al cambiar el periodo", async () => {
+  it("limpia las deducciones de anticipos seleccionadas al cambiar el periodo (stepper)", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
 
@@ -263,13 +287,10 @@ describe("SettlementCreatePage Component", () => {
     await user.click(screen.getByRole("button", { name: /Descontar todo/i }));
     expect(screen.getAllByText("-$3,000.00").length).toBeGreaterThanOrEqual(1);
 
-    // Cambiar la fecha de fin de periodo seleccionando un día en el calendario de DateField
-    const periodEndBtn = document.getElementById("create-end");
-    expect(periodEndBtn).toBeInTheDocument();
-    await user.click(periodEndBtn!);
-
-    // Seleccionar día 20 en el Popover de DateField
-    await user.click(screen.getByRole("button", { name: "20" }));
+    // Navegar al período siguiente vía PeriodStepper
+    const nextBtn = screen.getByRole("button", { name: /Período siguiente/i });
+    expect(nextBtn).toBeInTheDocument();
+    await user.click(nextBtn);
 
     // Las deducciones deben haberse limpiado
     expect(screen.getAllByText("$0.00").length).toBeGreaterThanOrEqual(1);
@@ -315,17 +336,120 @@ describe("SettlementCreatePage Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Sin esquema de compensación/i)).toBeInTheDocument();
+      expect(screen.getByText(/Sin tarifa asignada/i)).toBeInTheDocument();
     });
 
-    expect(screen.queryByText(/Acuerdo de pago activo:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tarifa de pago activa:/i)).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Ir a esquemas de compensación/i }),
+      screen.getByRole("link", { name: /Ir a Tarifas/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Configurar sueldo en empleado/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Abrir ficha del empleado/i }),
+    ).not.toBeInTheDocument();
 
-    const submitBtn = screen.getByRole("button", { name: /Pedir VoBo/i });
+    const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
     expect(submitBtn).toBeDisabled();
     expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeDisabled();
+  });
+
+  it("en tarifa incompleta muestra Completar tarifa y sueldo en empleado", async () => {
+    mockPreviewSettlement.mockResolvedValue({
+      ...mockPreview,
+      agreement: {
+        ...mockPreview.agreement,
+        hasFixedSalary: false,
+        fixedSalaryAmount: 0,
+        fixedSalaryPeriod: "none",
+        calculationType: "salary_only",
+        rules: [],
+      },
+      summary: {
+        ...mockPreview.summary,
+        totalCommissions: 0,
+        totalBaseSalary: 0,
+        totalFixedAllowances: 0,
+        grossAmount: 0,
+        netAmount: 0,
+      },
+      fixedAllowances: [],
+      eligibleTrips: [],
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Tarifa incompleta/i)).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole("link", { name: /Completar tarifa/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Configurar sueldo en empleado/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Abrir ficha del empleado/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("bloquea Enviar a autorización si hay viajes por km sin distancia hasta ack", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue({
+      ...mockPreview,
+      eligibleTrips: [
+        {
+          ...mockPreview.eligibleTrips[0],
+          tripCode: "TRP-ZERO",
+          distanceKm: 0,
+          calculatedCommission: 0,
+          distanceBasis: "unavailable",
+          requiresZeroKmAck: true,
+          operationalOutcome: "false_trip",
+          hasRevenueSplit: false,
+          appliedRule: "Tarifa por km ($3/km)",
+        },
+      ],
+      summary: {
+        ...mockPreview.summary,
+        totalCommissions: 0,
+        grossAmount: 3800,
+        netAmount: 800,
+      },
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Viajes sin distancia usable/i)).toBeInTheDocument();
+    });
+
+    const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
+    expect(submitBtn).toBeDisabled();
+    expect(
+      screen.getByText(/No se puede enviar: hay viajes por km sin distancia/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /Confirmo pago en \$0 en 1 viaje/i }),
+    );
+    expect(submitBtn).toBeEnabled();
   });
 
   it("muestra alerta de ambigüedad cuando hay varias asignaciones elegibles en la fecha fin", async () => {
@@ -376,7 +500,7 @@ describe("SettlementCreatePage Component", () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("link", { name: /Revisar esquemas de compensación/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Revisar tarifas/i })).toBeInTheDocument();
   });
 
   it("muestra plantilla activa y badge de corredor en viajes (ADR-0089)", async () => {
@@ -417,15 +541,53 @@ describe("SettlementCreatePage Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Esquema Operador foráneo/i)).toBeInTheDocument();
+      expect(screen.getByText(/Tarifa Operador foráneo/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Corredor: MTY-CDMX/i)).toBeInTheDocument();
-    expect(screen.getByText(/Prestaciones fijas/i)).toBeInTheDocument();
+    const corridorBadge = screen.getByText("Corredor");
+    expect(corridorBadge).toBeInTheDocument();
+    expect(corridorBadge).toHaveAttribute("title", expect.stringContaining("MTY-CDMX"));
+    expect(corridorBadge).toHaveAttribute("title", expect.stringContaining("$4,500.00"));
+    expect(screen.getByText(/Prestaciones fijas \(semanal\)/i)).toBeInTheDocument();
     expect(screen.getAllByText("$1,200.00").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("con neto sobre umbral muestra Pedir VoBo (no Registrar pago)", async () => {
+  it("muestra badge Varios operadores cuando participantCount > 1 y no el % del total", async () => {
+    mockPreviewSettlement.mockResolvedValue({
+      ...mockPreview,
+      eligibleTrips: [
+        {
+          ...mockPreview.eligibleTrips[0],
+          participantCount: 2,
+          midTripShareRatio: 0.4,
+        },
+        mockPreview.eligibleTrips[1],
+      ],
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("VIA-100")).toBeInTheDocument();
+    });
+
+    const multiOpsBadge = screen.getByText("Varios operadores");
+    expect(multiOpsBadge).toBeInTheDocument();
+    expect(multiOpsBadge).toHaveAttribute(
+      "title",
+      "Participaron varios operadores. Cada uno recibe el 100 % de la comisión según su regla.",
+    );
+    expect(screen.queryByText(/% del total/i)).not.toBeInTheDocument();
+  });
+
+  it("con neto sobre umbral muestra Enviar a autorización (no Registrar pago)", async () => {
     mockGetSettings.mockResolvedValue({
       voboThresholdMxn: 5000,
       activeApproverCount: 2,
@@ -444,7 +606,7 @@ describe("SettlementCreatePage Component", () => {
       expect(screen.getByText("VIA-100")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /Pedir VoBo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Enviar a autorización/i })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Enviar para autorización/i }),
     ).not.toBeInTheDocument();
@@ -491,10 +653,90 @@ describe("SettlementCreatePage Component", () => {
       expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: /Pedir VoBo/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Enviar a autorización/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Registrar pago/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/se guarda en borrador/i)).toBeInTheDocument();
+  });
+
+  it("criterio 4 (D24): un bono manual en el alta suma al neto y manda a autorización", async () => {
+    const user = userEvent.setup();
+    mockGetSettings.mockResolvedValue({
+      voboThresholdMxn: 5000,
+      activeApproverCount: 2,
+      activeExecutorCount: 2,
+    });
+    mockPreviewSettlement.mockResolvedValue({
+      ...mockPreview,
+      eligibleTrips: [
+        {
+          ...mockPreview.eligibleTrips[1],
+          calculatedCommission: 0,
+          approvedReimbursableExpenses: 0,
+        },
+      ],
+      openAdvances: [],
+      summary: {
+        totalCommissions: 0,
+        totalBaseSalary: 800,
+        totalReimbursements: 0,
+        suggestedAdvanceDeduction: 0,
+        grossAmount: 800,
+        netAmount: 800,
+      },
+    });
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Enviar a autorización/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Agregar partida/i }));
+
+    // Con una partida manual siempre pide autorización (aunque el neto quede bajo el umbral).
+    const submitBtn = await screen.findByRole("button", { name: /Enviar a autorización/i });
+    expect(screen.getByTestId("create-manual-items-hint")).toHaveTextContent(
+      "Las correcciones manuales siempre piden autorización.",
+    );
+
+    // Validación al enviar: sin descripción ni monto no abre la confirmación.
+    await user.click(submitBtn);
+    expect(screen.getByText("Revisa los campos marcados")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /¿Enviar a autorización?/i })).not.toBeInTheDocument();
+
+    await user.type(
+      document.getElementById("settlement-create-item-0-description") as HTMLElement,
+      "Bono de puntualidad",
+    );
+    await user.type(
+      document.getElementById("settlement-create-item-0-amount") as HTMLElement,
+      "500",
+    );
+
+    expect(screen.getByTestId("create-manual-additions")).toHaveTextContent("$500.00");
+    expect(screen.getAllByText("$1,300.00").length).toBeGreaterThanOrEqual(1);
+
+    await user.click(screen.getByRole("button", { name: /Enviar a autorización/i }));
+    expect(screen.getByRole("heading", { name: /¿Enviar a autorización?/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Confirmar y enviar/i }));
+
+    await waitFor(() => expect(mockCreateSettlement).toHaveBeenCalledTimes(1));
+    expect(mockCreateSettlement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submitForApproval: true,
+        customItems: [
+          { itemType: "bonus", description: "Bono de puntualidad", amount: 500 },
+        ],
+      }),
+    );
   });
 });

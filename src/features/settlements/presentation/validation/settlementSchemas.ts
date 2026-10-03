@@ -6,6 +6,10 @@
  */
 
 import { z } from "zod";
+import {
+  MANUAL_SETTLEMENT_ITEM_TYPES,
+  manualItemNeedsDirection,
+} from "../../domain/settlementTotals";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -171,6 +175,22 @@ export const driverAdvanceFormSchema = z.object({
 export type DriverAdvanceFormValues = z.infer<typeof driverAdvanceFormSchema>;
 export type DriverAdvanceFormData = DriverAdvanceFormValues;
 
+/** ADR-0099 D17: mismos campos que el alta; operador solo editable en borrador. */
+export const driverAdvanceEditSchema = driverAdvanceFormSchema.pick({
+  employeeId: true,
+  amount: true,
+  category: true,
+  paymentMethod: true,
+  bankReference: true,
+  notes: true,
+});
+
+export type DriverAdvanceEditValues = z.infer<typeof driverAdvanceEditSchema>;
+
+export const ADVANCE_NOTE_MAX_LENGTH = 500;
+export const ADVANCE_CANCEL_REASON_MIN = 5;
+export const ADVANCE_CANCEL_REASON_MAX = 500;
+
 // ============================================================================
 // 3. PREVIEW & CREACIÓN DE LIQUIDACIÓN SCHEMAS
 // ============================================================================
@@ -197,21 +217,53 @@ export const appliedAdvanceInputSchema = z.object({
   amountToDeduct: positiveDeductAmountField,
 });
 
-export const customSettlementItemInputSchema = z.object({
-  itemType: z.enum([
-    "trip_commission",
-    "base_salary",
-    "approved_expense_reimbursement",
-    "advance_deduction",
-    "bonus",
-    "penalty_deduction",
-    "tax_deduction",
-    "adjustment",
-  ]),
-  description: z.string().min(1, "Descripción requerida").max(255),
-  amount: positiveAmountField,
-  isDeduction: z.boolean().default(false),
+export const MANUAL_ITEM_DESCRIPTION_MAX = 255;
+
+/**
+ * ADR-0085 E10.6: solo tipos manuales; el signo se deriva del tipo y solo el
+ * Ajuste declara su sentido (`isDeduction`).
+ */
+export const customSettlementItemInputSchema = z
+  .object({
+    itemType: z.enum(MANUAL_SETTLEMENT_ITEM_TYPES, { error: "Elige el tipo de partida" }),
+    description: z
+      .string()
+      .trim()
+      .min(1, "Escribe la descripción de la partida")
+      .max(MANUAL_ITEM_DESCRIPTION_MAX, "Máximo 255 caracteres"),
+    amount: positiveAmountField,
+    isDeduction: z.boolean().optional(),
+    tripId: z.string().uuid("Viaje inválido").nullable().optional(),
+  })
+  .superRefine((item, ctx) => {
+    if (manualItemNeedsDirection(item.itemType) && item.isDeduction === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["isDeduction"],
+        message: "Indica si el ajuste suma o resta al pago",
+      });
+    }
+  });
+
+export type CustomSettlementItemFormValues = z.infer<typeof customSettlementItemInputSchema>;
+
+export const SETTLEMENT_NOTES_MAX_LENGTH = 1000;
+
+/**
+ * Sheet «Corregir liquidación» (D22): partidas manuales, anticipos (solo
+ * borrador) y notas. Operador, periodo y viajes no forman parte del formulario.
+ */
+export const settlementCorrectionFormSchema = z.object({
+  customItems: z.array(customSettlementItemInputSchema).default([]),
+  advancesToApply: z.array(appliedAdvanceInputSchema).default([]),
+  notes: z
+    .string()
+    .max(SETTLEMENT_NOTES_MAX_LENGTH, "Máximo 1000 caracteres")
+    .optional()
+    .or(z.literal("")),
 });
+
+export type SettlementCorrectionFormValues = z.infer<typeof settlementCorrectionFormSchema>;
 
 export const createSettlementFormSchema = z
   .object({
@@ -220,12 +272,10 @@ export const createSettlementFormSchema = z
     periodEnd: z.string().regex(dateRegex, "Fecha de fin inválida (AAAA-MM-DD)"),
     tripIds: z.array(z.string().uuid()).default([]),
     advancesToApply: z.array(appliedAdvanceInputSchema).default([]),
-    customItems: z
-      .array(customSettlementItemInputSchema)
-      .max(0, "Los ajustes manuales no están habilitados en esta versión")
-      .default([]),
+    customItems: z.array(customSettlementItemInputSchema).default([]),
     notes: z.string().max(1000, "Máximo 1000 caracteres").optional().or(z.literal("")),
     submitForApproval: z.boolean().default(false),
+    acknowledgeZeroKmTrips: z.boolean().default(false),
   })
   .refine((data) => data.periodStart <= data.periodEnd, {
     message: "El inicio del periodo debe ser menor o igual al fin del periodo",
@@ -273,6 +323,24 @@ export type DisburseSettlementFormValues = z.infer<
   typeof disburseSettlementFormSchema
 >;
 export type DisburseSettlementFormData = DisburseSettlementFormValues;
+
+/** Misma regla que el API: la referencia es obligatoria salvo en efectivo. */
+export const disburseAdvanceFormSchema = z
+  .object({
+    paymentMethod: z.enum(["bank_transfer", "check", "cash", "electronic_wallet"]),
+    bankReference: z.string().trim().max(100, "Máximo 100 caracteres"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentMethod !== "cash" && !data.bankReference) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bankReference"],
+        message: "La referencia es obligatoria salvo en pagos en efectivo",
+      });
+    }
+  });
+
+export type DisburseAdvanceFormData = z.infer<typeof disburseAdvanceFormSchema>;
 
 export const settlementSettingsFormSchema = z.object({
   voboThresholdMxn: z

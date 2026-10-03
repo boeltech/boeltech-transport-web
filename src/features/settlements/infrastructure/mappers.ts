@@ -1,5 +1,6 @@
 import { deepToCamel } from "@shared/api";
 import type { MappedPaginatedResult } from "@shared/api";
+import { mapApprovalBlock, type ApiApprovalBlockRaw } from "@features/approvals";
 import type {
   CompensationAgreement,
   CompensationAgreementRule,
@@ -72,6 +73,7 @@ export interface ApiDriverAdvanceRaw {
   status: string;
   disbursed_at: string | null;
   payment_method: string;
+  authorized_payment_method?: string | null;
   bank_reference: string | null;
   submitted_at?: string | null;
   submitted_by?: string | null;
@@ -81,6 +83,14 @@ export interface ApiDriverAdvanceRaw {
   rejected_by?: string | null;
   rejection_reason?: string | null;
   notes: string | null;
+  created_by?: string | null;
+  disbursed_by?: string | null;
+  self_segregated_approval?: boolean | null;
+  approver_count_at_approve?: number | null;
+  self_segregated_disbursement?: boolean | null;
+  executor_count_at_disburse?: number | null;
+  approval_revision?: string | null;
+  approval?: ApiApprovalBlockRaw | null;
   created_at: string;
   updated_at: string;
 }
@@ -146,6 +156,9 @@ export interface ApiDriverSettlementRaw {
   approver_count_at_approve?: number | null;
   self_segregated_disbursement?: boolean;
   executor_count_at_disburse?: number | null;
+  advances_deducted_at_create?: boolean;
+  approval_revision?: string | null;
+  approval?: ApiApprovalBlockRaw | null;
   created_by?: string | null;
   created_by_name?: string | null;
 }
@@ -171,6 +184,13 @@ export interface ApiSettlementPreviewRaw {
     amount: number;
     suspended: boolean;
   }>;
+  deductions?: Array<{
+    id: string;
+    deduction_type: string;
+    label: string;
+    amount: number;
+    is_mandatory: boolean;
+  }>;
   eligible_trips: Array<{
     trip_id: string;
     trip_code: string;
@@ -192,6 +212,11 @@ export interface ApiSettlementPreviewRaw {
     };
     freight_base?: "commercial_at_complete" | "live_base_rate";
     mid_trip_share_ratio?: number;
+    participant_count?: number;
+    operational_outcome?: "standard" | "false_trip";
+    has_revenue_split?: boolean;
+    distance_basis?: "executed_stops" | "odometer" | "unavailable";
+    requires_zero_km_ack?: boolean;
   }>;
   open_advances: Array<{
     advance_id: string;
@@ -208,6 +233,7 @@ export interface ApiSettlementPreviewRaw {
     total_base_salary: number;
     total_fixed_allowances?: number;
     total_reimbursements: number;
+    total_deductions?: number;
     suggested_advance_deduction: number;
     gross_amount: number;
     net_amount: number;
@@ -218,6 +244,7 @@ export interface ApiTenantSettlementSettingsRaw {
   vobo_threshold_mxn: number;
   active_approver_count: number;
   active_executor_count: number;
+  managed_by_policy?: boolean;
 }
 
 export interface ApiPaginationRaw {
@@ -319,6 +346,9 @@ export function mapAdvance(raw: ApiDriverAdvanceRaw): DriverAdvance {
     status: raw.status as DriverAdvance["status"],
     disbursedAt: raw.disbursed_at,
     paymentMethod: raw.payment_method as DriverAdvance["paymentMethod"],
+    authorizedPaymentMethod: raw.authorized_payment_method
+      ? (raw.authorized_payment_method as DriverAdvance["paymentMethod"])
+      : undefined,
     bankReference: raw.bank_reference,
     submittedAt: raw.submitted_at ?? null,
     submittedBy: raw.submitted_by ?? null,
@@ -328,6 +358,24 @@ export function mapAdvance(raw: ApiDriverAdvanceRaw): DriverAdvance {
     rejectedBy: raw.rejected_by ?? null,
     rejectionReason: raw.rejection_reason ?? null,
     notes: raw.notes ?? null,
+    createdBy: raw.created_by ?? null,
+    disbursedBy: raw.disbursed_by ?? null,
+    selfSegregatedApproval: Boolean(raw.self_segregated_approval),
+    approverCountAtApprove:
+      raw.approver_count_at_approve === undefined || raw.approver_count_at_approve === null
+        ? null
+        : Number(raw.approver_count_at_approve),
+    selfSegregatedDisbursement: Boolean(raw.self_segregated_disbursement),
+    executorCountAtDisburse:
+      raw.executor_count_at_disburse === undefined || raw.executor_count_at_disburse === null
+        ? null
+        : Number(raw.executor_count_at_disburse),
+    ...(raw.approval_revision !== undefined
+      ? { approvalRevision: raw.approval_revision }
+      : {}),
+    ...(raw.approval !== undefined
+      ? { approval: raw.approval ? mapApprovalBlock(raw.approval) : null }
+      : {}),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -404,6 +452,13 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
       raw.executor_count_at_disburse === undefined || raw.executor_count_at_disburse === null
         ? null
         : Number(raw.executor_count_at_disburse),
+    advancesDeductedAtCreate: Boolean(raw.advances_deducted_at_create),
+    ...(raw.approval_revision !== undefined
+      ? { approvalRevision: raw.approval_revision }
+      : {}),
+    ...(raw.approval !== undefined
+      ? { approval: raw.approval ? mapApprovalBlock(raw.approval) : null }
+      : {}),
     createdBy: raw.created_by ?? null,
     createdByName: raw.created_by_name ?? null,
     createdAt: raw.created_at,
@@ -437,6 +492,13 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
       amount: Number(line.amount),
       suspended: Boolean(line.suspended),
     })),
+    deductions: raw.deductions?.map((line) => ({
+      id: line.id,
+      deductionType: line.deduction_type,
+      label: line.label,
+      amount: Number(line.amount),
+      isMandatory: Boolean(line.is_mandatory),
+    })),
     eligibleTrips: (raw.eligible_trips ?? []).map((trip) => ({
       tripId: trip.trip_id,
       tripCode: trip.trip_code,
@@ -463,6 +525,15 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
         trip.mid_trip_share_ratio !== undefined
           ? Number(trip.mid_trip_share_ratio)
           : undefined,
+      participantCount:
+        trip.participant_count !== undefined
+          ? Number(trip.participant_count)
+          : undefined,
+      operationalOutcome:
+        trip.operational_outcome === "false_trip" ? "false_trip" : "standard",
+      hasRevenueSplit: Boolean(trip.has_revenue_split),
+      distanceBasis: trip.distance_basis,
+      requiresZeroKmAck: Boolean(trip.requires_zero_km_ack),
     })),
     openAdvances: (raw.open_advances ?? []).map((adv) => ({
       advanceId: adv.advance_id,
@@ -484,6 +555,10 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
           ? Number(raw.summary.total_fixed_allowances)
           : undefined,
       totalReimbursements: Number(raw.summary.total_reimbursements),
+      totalDeductions:
+        raw.summary.total_deductions !== undefined
+          ? Number(raw.summary.total_deductions)
+          : undefined,
       suggestedAdvanceDeduction: Number(raw.summary.suggested_advance_deduction),
       grossAmount: Number(raw.summary.gross_amount),
       netAmount: Number(raw.summary.net_amount),
@@ -583,5 +658,6 @@ export function mapSettlementSettings(
         : DEFAULT_VOBO_THRESHOLD_MXN,
     activeApproverCount: Number(raw.active_approver_count) || 0,
     activeExecutorCount: Number(raw.active_executor_count) || 0,
+    managedByPolicy: raw.managed_by_policy === true,
   };
 }

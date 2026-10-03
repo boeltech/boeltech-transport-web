@@ -9,6 +9,7 @@ function pathOnly(href: string): string {
  * Label del chevron al salir del detalle de viaje.
  * Bandeja de aprobaciones → Volver a aprobaciones;
  * envío de facturas → Volver al envío / a envíos;
+ * pago a operador → Volver al pago;
  * resto → Volver a Viajes.
  */
 export function resolveTripWayfindingBackLabel(href: string): string {
@@ -24,6 +25,17 @@ export function resolveTripWayfindingBackLabel(href: string): string {
   }
   if (path.startsWith("/finance/dispatch/")) {
     return shellCopy.state.backToDispatchRun;
+  }
+  if (path === "/finance/settlements/new") {
+    return shellCopy.state.backToSettlementPayment;
+  }
+  if (
+    path.startsWith("/finance/settlements/") &&
+    path !== "/finance/settlements/pending-approval" &&
+    path !== "/finance/settlements/registry" &&
+    path !== "/finance/settlements/advances"
+  ) {
+    return shellCopy.state.backToSettlementPayment;
   }
   return shellCopy.state.backToList;
 }

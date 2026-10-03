@@ -135,6 +135,71 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.status).toBe("pending_approval");
     expect(mapped.submittedAt).toBe("2026-08-01T10:00:00Z");
     expect(mapped.submittedBy).toBe("user-creator");
+    expect(mapped.createdBy).toBeNull();
+    expect(mapped.selfSegregatedApproval).toBe(false);
+    expect(mapped.approverCountAtApprove).toBeNull();
+  });
+
+  it("ADR-0098: mapea creador, ejecutor y evidencia de autoacción del anticipo", () => {
+    const mapped = mapAdvance({
+      id: "adv-2",
+      tenant_id: "tenant-1",
+      folio: "ANT-202610-0002",
+      employee_id: "emp-1",
+      trip_id: null,
+      amount: 1000,
+      balance_remaining: 1000,
+      currency: "MXN",
+      category: "travel_advance",
+      status: "disbursed",
+      disbursed_at: "2026-10-01T12:00:00Z",
+      payment_method: "cash",
+      bank_reference: null,
+      notes: null,
+      created_by: "admin-solo",
+      disbursed_by: "admin-solo",
+      self_segregated_approval: true,
+      approver_count_at_approve: 1,
+      self_segregated_disbursement: true,
+      executor_count_at_disburse: 1,
+      created_at: "2026-10-01T10:00:00Z",
+      updated_at: "2026-10-01T12:00:00Z",
+    });
+
+    expect(mapped.createdBy).toBe("admin-solo");
+    expect(mapped.disbursedBy).toBe("admin-solo");
+    expect(mapped.selfSegregatedApproval).toBe(true);
+    expect(mapped.approverCountAtApprove).toBe(1);
+    expect(mapped.selfSegregatedDisbursement).toBe(true);
+    expect(mapped.executorCountAtDisburse).toBe(1);
+  });
+
+  it("F4-bis: mapea el método autorizado del anticipo y lo omite si el API no lo envía", () => {
+    const base: ApiDriverAdvanceRaw = {
+      id: "adv-3",
+      tenant_id: "tenant-1",
+      folio: "ANT-202610-0003",
+      employee_id: "emp-1",
+      trip_id: null,
+      amount: 800,
+      balance_remaining: 800,
+      currency: "MXN",
+      category: "travel_advance",
+      status: "disbursed",
+      disbursed_at: "2026-10-02T12:00:00Z",
+      payment_method: "cash",
+      bank_reference: null,
+      notes: null,
+      created_at: "2026-10-02T10:00:00Z",
+      updated_at: "2026-10-02T12:00:00Z",
+    };
+
+    const withAuthorized = mapAdvance({ ...base, authorized_payment_method: "bank_transfer" });
+    expect(withAuthorized.paymentMethod).toBe("cash");
+    expect(withAuthorized.authorizedPaymentMethod).toBe("bank_transfer");
+
+    expect(mapAdvance(base).authorizedPaymentMethod).toBeUndefined();
+    expect(mapAdvance({ ...base, authorized_payment_method: null }).authorizedPaymentMethod).toBeUndefined();
   });
 
   it("mapea liquidación con partidas desglosadas y trazabilidad de envío", () => {
@@ -331,6 +396,11 @@ describe("Settlements Infrastructure Mappers", () => {
           approved_reimbursable_expenses: 500,
           freight_base: "commercial_at_complete",
           mid_trip_share_ratio: 0.4,
+          participant_count: 2,
+          operational_outcome: "false_trip",
+          has_revenue_split: true,
+          distance_basis: "unavailable",
+          requires_zero_km_ack: true,
         },
       ],
       open_advances: [
@@ -343,13 +413,23 @@ describe("Settlements Infrastructure Mappers", () => {
           disbursed_at: "2026-08-01T10:00:00Z",
         },
       ],
+      deductions: [
+        {
+          id: "ded-1",
+          deduction_type: "savings_fund",
+          label: "Fondo de ahorro",
+          amount: 200,
+          is_mandatory: true,
+        },
+      ],
       summary: {
         total_commissions: 3150,
         total_base_salary: 3000,
         total_reimbursements: 500,
+        total_deductions: 200,
         suggested_advance_deduction: 1000,
         gross_amount: 6650,
-        net_amount: 5650,
+        net_amount: 5450,
       },
     };
 
@@ -361,9 +441,17 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.eligibleTrips[0].appliedRule).toBe("Tarifa foránea $3.5/km");
     expect(mapped.eligibleTrips[0].freightBase).toBe("commercial_at_complete");
     expect(mapped.eligibleTrips[0].midTripShareRatio).toBe(0.4);
+    expect(mapped.eligibleTrips[0].participantCount).toBe(2);
+    expect(mapped.eligibleTrips[0].operationalOutcome).toBe("false_trip");
+    expect(mapped.eligibleTrips[0].hasRevenueSplit).toBe(true);
+    expect(mapped.eligibleTrips[0].distanceBasis).toBe("unavailable");
+    expect(mapped.eligibleTrips[0].requiresZeroKmAck).toBe(true);
     expect(mapped.openAdvances).toHaveLength(1);
+    expect(mapped.deductions).toHaveLength(1);
+    expect(mapped.deductions?.[0]?.deductionType).toBe("savings_fund");
     expect(mapped.summary.totalBaseSalary).toBe(3000);
-    expect(mapped.summary.netAmount).toBe(5650);
+    expect(mapped.summary.totalDeductions).toBe(200);
+    expect(mapped.summary.netAmount).toBe(5450);
   });
 
   it("mapea respuesta paginada de liquidaciones extrayendo limit y totalPages adecuadamente", () => {

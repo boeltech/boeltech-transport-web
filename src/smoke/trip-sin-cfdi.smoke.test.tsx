@@ -56,9 +56,16 @@ vi.mock("@features/vehicles/application", () => ({
   useVehicle: () => ({ data: undefined, isLoading: false }),
 }));
 
-vi.mock("@features/approvals", () => ({
-  RejectExpenseSheet: () => null,
+vi.mock("@features/approvals", async () => ({
+  ...(await import("@features/approvals/testing/selfApprovalTestModule")),
+  SelfApprovalConfirmDialog: () => null,
+  OwnRequestChip: () => null,
+  SelfApprovedBadge: () => null,
+  showsSelfApprovedBadge: () => false,
   buildApprovalsInboxPath: () => "/finance/approvals",
+  invalidateApprovalsRelatedQueries: vi.fn(),
+  useSelfActionForbiddenHandler: () => () => null,
+  useSelfActionResolver: () => () => "normal",
 }));
 
 const TRIP_ID = "550e8400-e29b-41d4-a716-446655440099";

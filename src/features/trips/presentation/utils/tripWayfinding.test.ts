@@ -31,6 +31,22 @@ describe("resolveTripWayfindingBackLabel", () => {
       resolveTripWayfindingBackLabel("/finance/dispatch/period"),
     ).toBe(shellCopy.state.backToDispatchPeriod);
   });
+
+  it("label Volver al pago desde liquidaciones", () => {
+    expect(
+      resolveTripWayfindingBackLabel(
+        "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+      ),
+    ).toBe(shellCopy.state.backToSettlementPayment);
+    expect(
+      resolveTripWayfindingBackLabel(
+        "/finance/settlements/11111111-1111-4111-8111-111111111111",
+      ),
+    ).toBe(shellCopy.state.backToSettlementPayment);
+    expect(
+      resolveTripWayfindingBackLabel("/finance/settlements/pending-approval"),
+    ).toBe(shellCopy.state.backToList);
+  });
 });
 
 describe("resolveTripAccessDeniedCopy", () => {

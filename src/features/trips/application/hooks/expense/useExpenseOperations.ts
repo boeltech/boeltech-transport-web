@@ -16,11 +16,16 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import { invalidateApprovalsRelatedQueries } from "@features/approvals";
 import {
+  invalidateApprovalsRelatedQueries,
+  type ApprovalGuards,
+} from "@features/approvals";
+import {
+  isExpenseNotMutableError,
   tripQueryKeys,
   type CreateExpenseInput,
   type ExpensesSummary,
+  type ReturnExpenseInput,
   type TripExpense,
   type UpdateExpenseInput,
 } from "@features/trips/domain";
@@ -33,6 +38,7 @@ import {
   createDeleteExpenseUseCase,
   createApproveExpenseUseCase,
   createRejectExpenseUseCase,
+  createReturnExpenseUseCase,
 } from "../../useCases/expense/ExpenseUseCases";
 
 // ============================================================================
@@ -61,6 +67,18 @@ function splitMutationOptions<TData, TError, TVariables, TContext = unknown>(
     ...rest
   } = options ?? {};
   return { userOnSuccess, userOnError, userOnSettled, rest };
+}
+
+/** Otro usuario decidió el gasto: refrescar para que la fila muestre su estado actual. */
+function refreshAfterNotMutable(
+  queryClient: ReturnType<typeof useQueryClient>,
+  tripId: string,
+  error: unknown,
+) {
+  if (!isExpenseNotMutableError(error)) return;
+  void queryClient.invalidateQueries({ queryKey: tripQueryKeys.expenses(tripId) });
+  void queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+  invalidateApprovalsRelatedQueries(queryClient);
 }
 
 // ============================================================================
@@ -225,6 +243,7 @@ export function useUpdateExpense(
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
+      refreshAfterNotMutable(queryClient, tripId, error);
       userOnError?.(error, variables, onMutateResult, context);
     },
     onSettled: (data, error, variables, onMutateResult, context) => {
@@ -269,6 +288,7 @@ export function useDeleteExpense(
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
+      refreshAfterNotMutable(queryClient, tripId, error);
       userOnError?.(error, variables, onMutateResult, context);
     },
     onSettled: (data, error, variables, onMutateResult, context) => {
@@ -280,9 +300,13 @@ export function useDeleteExpense(
 /**
  * Hook para aprobar un gasto
  */
+export type ApproveExpenseVariables =
+  | string
+  | { expenseId: string; guards?: ApprovalGuards };
+
 export function useApproveExpense(
   tripId: string,
-  options?: UseMutationOptions<TripExpense, ExpenseError, string>,
+  options?: UseMutationOptions<TripExpense, ExpenseError, ApproveExpenseVariables>,
 ) {
   const queryClient = useQueryClient();
   const approveExpenseUseCase = createApproveExpenseUseCase(expenseRepository);
@@ -291,8 +315,10 @@ export function useApproveExpense(
 
   return useMutation({
     ...rest,
-    mutationFn: async (expenseId: string) => {
-      const result = await approveExpenseUseCase.execute(tripId, expenseId);
+    mutationFn: async (variables: ApproveExpenseVariables) => {
+      const { expenseId, guards } =
+        typeof variables === "string" ? { expenseId: variables, guards: undefined } : variables;
+      const result = await approveExpenseUseCase.execute(tripId, expenseId, guards);
 
       if (!result.success) {
         throw new ExpenseError(
@@ -331,7 +357,7 @@ export function useRejectExpense(
   options?: UseMutationOptions<
     TripExpense,
     ExpenseError,
-    { expenseId: string; reason: string }
+    { expenseId: string; reason: string; guards?: ApprovalGuards }
   >,
 ) {
   const queryClient = useQueryClient();
@@ -344,14 +370,17 @@ export function useRejectExpense(
     mutationFn: async ({
       expenseId,
       reason,
+      guards,
     }: {
       expenseId: string;
       reason: string;
+      guards?: ApprovalGuards;
     }) => {
       const result = await rejectExpenseUseCase.execute(
         tripId,
         expenseId,
         reason,
+        guards,
       );
 
       if (!result.success) {
@@ -362,6 +391,54 @@ export function useRejectExpense(
         );
       }
 
+      return result.data;
+    },
+    onSuccess: async (data, variables, onMutateResult, context) => {
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.expenses(tripId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      invalidateApprovalsRelatedQueries(queryClient);
+      await userOnSuccess?.(data, variables, onMutateResult, context);
+    },
+    onError: (error, variables, onMutateResult, context) => {
+      userOnError?.(error, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, variables, onMutateResult, context) => {
+      userOnSettled?.(data, error, variables, onMutateResult, context);
+    },
+  });
+}
+
+/**
+ * Hook para devolver un gasto para corregir (ADR-0099)
+ */
+export function useReturnExpense(
+  tripId: string,
+  options?: UseMutationOptions<
+    TripExpense,
+    ExpenseError,
+    { expenseId: string } & ReturnExpenseInput
+  >,
+) {
+  const queryClient = useQueryClient();
+  const returnExpenseUseCase = createReturnExpenseUseCase(expenseRepository);
+  const { userOnSuccess, userOnError, userOnSettled, rest } =
+    splitMutationOptions(options);
+
+  return useMutation({
+    ...rest,
+    mutationFn: async ({ expenseId, ...input }: { expenseId: string } & ReturnExpenseInput) => {
+      const result = await returnExpenseUseCase.execute(tripId, expenseId, input);
+      if (!result.success) {
+        throw new ExpenseError(
+          result.error.code,
+          result.error.message,
+          result.error.originalMessage,
+        );
+      }
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {

@@ -82,6 +82,12 @@ export interface TripDetailAccess {
 
   canEditBaseRate: boolean;
 
+  /**
+   * Clase de ruta (`route_type`): editable con trips.update hasta paid_lock (CEO-1).
+   * El API responde 409 si ya hay liquidación pagada.
+   */
+  canEditRouteType: boolean;
+
   canAppendCargo: boolean;
 
   /**
@@ -108,13 +114,24 @@ export interface TripDetailAccess {
 
   canCreateExpenses: boolean;
 
-  /** Editar gastos pendientes (post-cierre) o cualquier gasto mutable (pre-cierre). */
+  /**
+   * Gate de página para editar gastos (RBAC + estado/ventana del viaje).
+   * La UI reevalúa cada gasto con su estado (`canMutatePendingTripExpense`).
+   */
 
   canUpdatePendingExpenses: boolean;
 
   /** Eliminar gastos pendientes: `expenses.delete` (pre- y post-cierre). */
 
   canDeletePendingExpenses: boolean;
+
+  /**
+   * ADR-0099 TEC-5: gate para corregir un gasto devuelto (sin ventana
+   * post-cierre). La fila lo reevalúa con `returnedForCorrection`.
+   */
+  canUpdateReturnedExpenses: boolean;
+
+  canDeleteReturnedExpenses: boolean;
 
   /**
 
@@ -202,6 +219,8 @@ export function getTripDetailAccess(
 
     canEditBaseRate: false,
 
+    canEditRouteType: false,
+
     canAppendCargo: false,
 
     canReplanPendingStops: false,
@@ -215,6 +234,10 @@ export function getTripDetailAccess(
     canUpdatePendingExpenses: false,
 
     canDeletePendingExpenses: false,
+
+    canUpdateReturnedExpenses: false,
+
+    canDeleteReturnedExpenses: false,
 
     canManageExpenses: false,
 
@@ -274,6 +297,9 @@ export function getTripDetailAccess(
 
   const canEditBaseRate = perms.canUpdateTrip && canMutateTripBaseRate(status);
 
+  /** Hasta paid_lock (gate en API); UI muestra editor y maneja 409. */
+  const canEditRouteType = perms.canUpdateTrip;
+
   const canAppendCargo = perms.canUpdateTrip && canAppendTripCargo(status);
 
   const canReplanPendingStops =
@@ -294,6 +320,10 @@ export function getTripDetailAccess(
 
   let canDeletePendingExpenses = false;
 
+  let canUpdateReturnedExpenses = false;
+
+  let canDeleteReturnedExpenses = false;
+
 
 
   if (canManageTripExpenses(status)) {
@@ -308,6 +338,10 @@ export function getTripDetailAccess(
 
     canDeletePendingExpenses = perms.canDeleteExpense;
 
+    canUpdateReturnedExpenses = canUpdatePendingExpenses;
+
+    canDeleteReturnedExpenses = canDeletePendingExpenses;
+
   } else if (isCompleted) {
 
     const domainCreate = canCreateTripExpense({
@@ -320,6 +354,7 @@ export function getTripDetailAccess(
 
     });
 
+    // Gate de página en el mejor caso (`pending`); cada fila se reevalúa con su estado real.
     const domainMutatePending = canMutatePendingTripExpense({
 
       status,
@@ -344,6 +379,18 @@ export function getTripDetailAccess(
 
     canDeletePendingExpenses = perms.canDeleteExpense && domainMutatePending;
 
+    const domainMutateReturned = canMutatePendingTripExpense({
+      status,
+      expenseStatus: "pending",
+      closedAt,
+      now,
+      returnedForCorrection: true,
+    });
+
+    canUpdateReturnedExpenses = perms.canUpdateExpense && domainMutateReturned;
+
+    canDeleteReturnedExpenses = perms.canDeleteExpense && domainMutateReturned;
+
   }
 
 
@@ -360,6 +407,8 @@ export function getTripDetailAccess(
 
     canEditBaseRate,
 
+    canEditRouteType,
+
     canAppendCargo,
 
     canReplanPendingStops,
@@ -373,6 +422,10 @@ export function getTripDetailAccess(
     canUpdatePendingExpenses,
 
     canDeletePendingExpenses,
+
+    canUpdateReturnedExpenses,
+
+    canDeleteReturnedExpenses,
 
     canManageExpenses,
 

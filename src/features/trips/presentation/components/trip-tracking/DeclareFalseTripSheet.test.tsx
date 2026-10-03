@@ -18,7 +18,10 @@ vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-function renderSheet(isDriverPortal: boolean) {
+function renderSheet(
+  isDriverPortal: boolean,
+  tripStartMileage?: number | null,
+) {
   return render(
     <MemoryRouter>
       <DeclareFalseTripSheet
@@ -27,6 +30,7 @@ function renderSheet(isDriverPortal: boolean) {
         open
         onOpenChange={vi.fn()}
         isDriverPortal={isDriverPortal}
+        tripStartMileage={tripStartMileage}
       />
     </MemoryRouter>,
   );
@@ -53,6 +57,9 @@ describe("DeclareFalseTripSheet", () => {
     expect(
       screen.getByText(STOP_TRANSITION_COPY.declareFalseTrip),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(trackingCopy.sheet.declareFalseTripMileagePaymentHint),
+    ).toBeInTheDocument();
   });
 
   it("driver declara sin facturar ni link a Costos (D12)", () => {
@@ -75,5 +82,38 @@ describe("DeclareFalseTripSheet", () => {
     expect(
       screen.getAllByText(STOP_TRANSITION_COPY.declareFalseTripDriver).length,
     ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(trackingCopy.sheet.declareFalseTripMileagePaymentHintDriver),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(trackingCopy.sheet.declareFalseTripMileagePaymentHint),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra Alert de km sin recorrido cuando end === start", () => {
+    renderSheet(false, 150_000);
+
+    expect(
+      screen.getByText(trackingCopy.sheet.declareFalseTripZeroKmTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(trackingCopy.sheet.declareFalseTripZeroKmBody),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: trackingCopy.action.declareFalseTrip,
+      }),
+    ).toBeEnabled();
+  });
+
+  it("sin tripStartMileage no muestra Alert de delta 0", () => {
+    renderSheet(false, null);
+
+    expect(
+      screen.queryByText(trackingCopy.sheet.declareFalseTripZeroKmTitle),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(trackingCopy.sheet.declareFalseTripMileagePaymentHint),
+    ).toBeInTheDocument();
   });
 });

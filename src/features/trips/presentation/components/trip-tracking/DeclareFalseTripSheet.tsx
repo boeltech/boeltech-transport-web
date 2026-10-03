@@ -24,6 +24,7 @@ import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils"
 
 import {
   resolveSuggestedStartMileage,
+  parseStartMileageInput,
   useSuggestedMileageField,
 } from "../startTripMileage";
 import { trackingCopy } from "../../copy";
@@ -92,6 +93,13 @@ function DeclareFalseTripSheetBody({
     tripStartMileage,
   );
   const mileageField = useSuggestedMileageField(suggestedMileage);
+
+  const parsedMileage = parseStartMileageInput(mileageField.value);
+  const showZeroKmAlert =
+    tripStartMileage != null &&
+    Number.isFinite(tripStartMileage) &&
+    parsedMileage !== null &&
+    parsedMileage === tripStartMileage;
 
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
@@ -223,6 +231,11 @@ function DeclareFalseTripSheetBody({
             {...getFieldErrorAriaProps(mileageId, mileageError ?? undefined)}
           />
           <FieldInlineError fieldId={mileageId} message={mileageError ?? undefined} />
+          <p className="text-xs text-muted-foreground">
+            {isDriverPortal
+              ? copy.sheet.declareFalseTripMileagePaymentHintDriver
+              : copy.sheet.declareFalseTripMileagePaymentHint}
+          </p>
           {isLoadingVehicle ? (
             <p className="text-xs text-muted-foreground">{copy.sheet.loadingVehicle}</p>
           ) : suggestedMileage != null ? (
@@ -231,6 +244,22 @@ function DeclareFalseTripSheetBody({
                 suggestedMileage.toLocaleString("es-MX"),
               )}
             </p>
+          ) : null}
+          {showZeroKmAlert ? (
+            <AlertWithIcon
+              variant="warning"
+              title={
+                isDriverPortal
+                  ? copy.sheet.declareFalseTripZeroKmTitleDriver
+                  : copy.sheet.declareFalseTripZeroKmTitle
+              }
+            >
+              <p>
+                {isDriverPortal
+                  ? copy.sheet.declareFalseTripZeroKmBodyDriver
+                  : copy.sheet.declareFalseTripZeroKmBody}
+              </p>
+            </AlertWithIcon>
           ) : null}
         </div>
 

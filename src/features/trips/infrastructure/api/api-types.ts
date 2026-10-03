@@ -20,6 +20,7 @@ import type {
   CargoStatusType,
   CargoMovementTypeValue,
 } from "@features/trips/domain";
+import type { ApiApprovalBlockRaw } from "@features/approvals";
 
 // ============================================================================
 // REFERENCE RESPONSES
@@ -281,6 +282,11 @@ export interface ApiExpenseResponse {
   approved_by: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
+  self_segregated_approval?: boolean | null;
+  approver_count_at_approve?: number | null;
+  approval_revision?: string | null;
+  approval?: ApiApprovalBlockRaw | null;
+  approval_outcome?: string | null;
 
   // Notas
   notes: string | null;
@@ -452,6 +458,8 @@ export interface ApiTripResponse {
 
   // Estado
   status: TripStatusType;
+  /** ADR-0086 — clase de ruta operativa */
+  route_type?: "local" | "long_haul" | "transfer";
   operational_outcome?: "standard" | "false_trip";
   false_trip_declared_at?: string | null;
   false_trip_declared_by?: string | null;
@@ -518,6 +526,8 @@ export interface ApiTripListItemResponse {
   scheduled_departure: string;
   scheduled_arrival: string | null;
   status: TripStatusType;
+  /** ADR-0086 — clase de ruta operativa */
+  route_type?: "local" | "long_haul" | "transfer";
   operational_outcome?: "standard" | "false_trip";
   /** ADR-0096 — listado debe proyectarlo para prestamp / badge Factura. */
   cfdi_emission_intent?: "emitir_cfdi" | "sin_cfdi_efectivo";

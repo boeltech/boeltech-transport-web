@@ -11,6 +11,7 @@ import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
 
 const mockMutateAsync = vi.fn();
 const mockToast = vi.fn();
+const mockInvalidate = vi.fn();
 
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: mockToast }),
@@ -21,6 +22,7 @@ vi.mock("../../application/hooks/useSettlements", () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,
   }),
+  invalidateSettlementQueries: (...args: unknown[]) => mockInvalidate(...args),
 }));
 
 const sampleSettlement: DriverSettlement = {
@@ -47,7 +49,12 @@ const sampleSettlement: DriverSettlement = {
   updatedAt: "2026-08-30T18:00:00.000Z",
 };
 
-function renderDialog(open = true) {
+function renderDialog(
+  open = true,
+  settlement: DriverSettlement = sampleSettlement,
+  onOpenChange = vi.fn(),
+  onSuccess = vi.fn(),
+) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
@@ -59,8 +66,9 @@ function renderDialog(open = true) {
     <QueryClientProvider client={queryClient}>
       <DisburseSettlementDialog
         open={open}
-        onOpenChange={vi.fn()}
-        settlement={sampleSettlement}
+        onOpenChange={onOpenChange}
+        settlement={settlement}
+        onSuccess={onSuccess}
       />
     </QueryClientProvider>,
   );
@@ -117,5 +125,35 @@ describe("DisburseSettlementDialog", () => {
         localInputToUtcIso(`${localMatch[1]}T${timeInput.value}`),
       );
     }
+  });
+
+  it("D27: envía expected_revision y, si otra persona corrigió, avisa sin registrar", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    const onSuccess = vi.fn();
+    mockMutateAsync.mockRejectedValueOnce(
+      Object.assign(new Error("revision"), { code: "APPROVAL_REVISION_CHANGED" }),
+    );
+    renderDialog(true, { ...sampleSettlement, approvalRevision: "rev-1" }, onOpenChange, onSuccess);
+
+    await user.type(screen.getByLabelText(/referencia bancaria/i), "SPEI-1");
+    await user.click(screen.getByRole("button", { name: /confirmar pago realizado/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("La liquidación cambió")).toBeInTheDocument();
+    });
+    const payload = mockMutateAsync.mock.calls[0]?.[0] as { expectedRevision?: string };
+    expect(payload.expectedRevision).toBe("rev-1");
+    expect(
+      screen.getByText(/Revisa el neto antes de registrar el pago/i),
+    ).toBeInTheDocument();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /confirmar pago realizado/i })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /^Recargar$/i }));
+    expect(mockInvalidate).toHaveBeenCalledWith(expect.anything(), "settlement-1");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

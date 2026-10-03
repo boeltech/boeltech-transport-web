@@ -926,12 +926,15 @@ export function TripDetailPage() {
   const {
     canEditStructural,
     canEditBaseRate,
+    canEditRouteType,
     canAppendCargo,
     canReplanPendingStops,
     canReassignFleet,
     canCreateExpenses,
     canUpdatePendingExpenses,
     canDeletePendingExpenses,
+    canUpdateReturnedExpenses,
+    canDeleteReturnedExpenses,
     canManageExpenses: canManageExpensesOnTrip,
     expenseWindowOpen,
     expenseWindowClosed,
@@ -1221,6 +1224,7 @@ export function TripDetailPage() {
               <TripDetailOperationTab
                 trip={trip}
                 canEditStructural={canEditStructural}
+                canEditRouteType={canEditRouteType}
                 canReassignFleet={canReassignFleet}
                 showClientLink={!isLeanTripPortal}
                 showMileage={!isClientPortal}
@@ -1362,6 +1366,9 @@ export function TripDetailPage() {
                         canCreateExpenses={canCreateExpenses}
                         canUpdatePendingExpenses={canUpdatePendingExpenses}
                         canDeletePendingExpenses={canDeletePendingExpenses}
+                        canUpdateReturnedExpenses={canUpdateReturnedExpenses}
+                        canDeleteReturnedExpenses={canDeleteReturnedExpenses}
+                        tripClosedAt={trip.actualArrival}
                         canManageExpenses={canManageExpensesOnTrip}
                         expenseWindowOpen={expenseWindowOpen}
                         expenseWindowClosed={expenseWindowClosed}

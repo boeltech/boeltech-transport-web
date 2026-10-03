@@ -58,6 +58,7 @@ export function buildCreateTripInputFromWizardValues(
       originBranchId: data.originBranchId?.trim() || undefined,
       cfdiDocumentIntent: data.cfdiDocumentIntent ?? "ingreso",
       cfdiEmissionIntent: data.cfdiEmissionIntent,
+      routeType: data.routeType ?? "long_haul",
       scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
       scheduledArrival: data.scheduledArrival
         ? localInputToUtcIso(data.scheduledArrival)
@@ -90,6 +91,7 @@ export function buildCreateTripInputFromWizardValues(
     originBranchId: data.originBranchId?.trim() || undefined,
     cfdiDocumentIntent: data.cfdiDocumentIntent ?? "ingreso",
     cfdiEmissionIntent: data.cfdiEmissionIntent,
+    routeType: data.routeType ?? "long_haul",
     scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
     scheduledArrival: data.scheduledArrival
       ? localInputToUtcIso(data.scheduledArrival)

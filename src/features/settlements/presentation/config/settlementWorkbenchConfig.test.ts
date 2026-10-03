@@ -28,7 +28,7 @@ describe("settlementWorkbenchConfig", () => {
     );
   });
 
-  it("defaults all roles to pending (Por liquidar)", () => {
+  it("defaults all roles to pending (Pendientes)", () => {
     expect(resolveDefaultWorkbenchBucket()).toBe("pending");
   });
 });

@@ -6,18 +6,40 @@ import {
   CircleDollarSign,
   Plus,
   Receipt,
+  Undo2,
 } from "lucide-react";
 
-import { RejectExpenseSheet, buildApprovalsInboxPath } from "@features/approvals";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  ApprovalHistorySheet,
+  DecisionReasonSheet,
+  ReturnedAlert,
+  SelfApprovalConfirmDialog,
+  approvalGuardsFor,
+  approvalsCopy,
+  buildApprovalsInboxPath,
+  formatNextStepLabel,
+  getApprovalGuardCode,
+  guardErrorMessage,
+  invalidateApprovalsRelatedQueries,
+  isIntermediateStep,
+  useSelfActionForbiddenHandler,
+  useSelfActionResolver,
+  type DecisionReasonInput,
+  type DecisionReasonMode,
+} from "@features/approvals";
 import {
   useAddExpense,
   useApproveExpense,
   useDeleteExpense,
   useRejectExpense,
+  useReturnExpense,
   useUpdateExpense,
 } from "@features/trips/application/hooks/expense/useExpenseOperations";
 import {
   TripStatus,
+  tripQueryKeys,
+  isExpenseNotMutableError,
   type CfdiEmissionIntent,
   type ExpensesSummary,
   type TripExpense,
@@ -29,6 +51,15 @@ import { useVehicle } from "@features/vehicles/application";
 import { ROLES } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
 import { usePermissions, useRole } from "@shared/permissions";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@shared/ui/alert-dialog";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -36,7 +67,7 @@ import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
 import { TripBaseRateCard } from "./TripBaseRateCard";
 import { RegisterOperationalCashSheet } from "./RegisterOperationalCashSheet";
 import { Skeleton } from "@shared/ui/skeleton";
-import { formatDateTime } from "@shared/utils/dateUtils";
+import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
 
 import {
   getSheetKindForCategory,
@@ -50,10 +81,7 @@ import {
 } from "../trip-financial";
 import type { TripExpenseFormValues } from "../../pages/create/components/validation";
 import { TripCostsCategoryBreakdown } from "./TripCostsCategoryBreakdown";
-import {
-  TripExpenseEditableList,
-  type TripExpenseListItem,
-} from "./TripExpenseEditableList";
+import { TripExpenseEditableList, type TripExpenseListItem } from "./TripExpenseEditableList";
 import {
   formValuesToCreateExpenseInput,
   formValuesToUpdateExpenseInput,
@@ -62,6 +90,11 @@ import {
   tripExpensesToWizardLines,
 } from "./tripExpenseFormBridge";
 import { tripExpenseToRejectApprovableItem } from "./tripExpenseRejectApprovableItem";
+import {
+  canMutateTripExpenseRow,
+  describeExpenseMutationError,
+  isReturnedExpense,
+} from "./tripExpenseMutability";
 import { tripDetailCopy } from "../../copy";
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { pickCostsStatusBannerCopy } from "../../utils/pickCostsStatusBannerCopy";
@@ -94,10 +127,16 @@ export interface TripDetailCostsTabProps {
   canEditBaseRate: boolean;
   /** Alta de gastos (pre-cierre o post-cierre en ventana). */
   canCreateExpenses: boolean;
-  /** Editar gastos (en completed solo pending). */
+  /** Gate de página para editar gastos; cada fila se evalúa además con su estado. */
   canUpdatePendingExpenses: boolean;
-  /** Eliminar gastos (en completed solo pending). */
+  /** Gate de página para eliminar gastos; cada fila se evalúa además con su estado. */
   canDeletePendingExpenses: boolean;
+  /** TEC-5: corregir un gasto devuelto (sin ventana post-cierre). Default = pendientes. */
+  canUpdateReturnedExpenses?: boolean;
+  /** TEC-5: eliminar un gasto devuelto (sin ventana post-cierre). Default = pendientes. */
+  canDeleteReturnedExpenses?: boolean;
+  /** Instantánea de cierre (`trip.actualArrival`) para la ventana post-cierre por gasto. */
+  tripClosedAt?: Date | string | null;
   /**
    * Compat / banners: alguna mutación habilitada.
    * @deprecated Prefer canCreateExpenses / canUpdatePendingExpenses.
@@ -181,6 +220,8 @@ function resolveCostsStatusBanner(input: {
   tripStatus: string;
   manageHint: boolean;
   marginCritical: boolean;
+  returnedExpenseCount: number;
+  canCorrectReturned: boolean;
 }): CostsStatusBanner | null {
   const {
     pendingExpenseCount,
@@ -204,8 +245,19 @@ function resolveCostsStatusBanner(input: {
     tripStatus,
     manageHint,
     marginCritical,
+    returnedExpenseCount: input.returnedExpenseCount,
+    canCorrectReturned: input.canCorrectReturned,
   });
   if (!picked) return null;
+
+  if (picked.kind === "returned") {
+    return {
+      severity: "warning",
+      icon: <Undo2 className="h-4 w-4" />,
+      title: picked.title,
+      items: [{ text: picked.body }],
+    };
+  }
 
   if (picked.kind === "pending") {
     return {
@@ -277,6 +329,9 @@ export function TripDetailCostsTab({
   canCreateExpenses,
   canUpdatePendingExpenses,
   canDeletePendingExpenses,
+  canUpdateReturnedExpenses = canUpdatePendingExpenses,
+  canDeleteReturnedExpenses = canDeletePendingExpenses,
+  tripClosedAt = null,
   canManageExpenses,
   expenseWindowOpen = false,
   expenseWindowClosed = false,
@@ -314,8 +369,28 @@ export function TripDetailCostsTab({
   const [initialExpense, setInitialExpense] = useState<TripExpenseFormValues | null>(
     null,
   );
-  const [rejectSheetOpen, setRejectSheetOpen] = useState(false);
-  const [expenseToReject, setExpenseToReject] = useState<TripExpense | null>(null);
+  const queryClient = useQueryClient();
+  const [reasonSheet, setReasonSheet] = useState<{
+    mode: DecisionReasonMode;
+    expense: TripExpense;
+  } | null>(null);
+  const [reasonSheetOpen, setReasonSheetOpen] = useState(false);
+  const [historyExpense, setHistoryExpense] = useState<TripExpense | null>(null);
+  const [stepConfirmExpenseId, setStepConfirmExpenseId] = useState<string | null>(null);
+  const [selfApproveExpenseId, setSelfApproveExpenseId] = useState<string | null>(
+    null,
+  );
+  const resolveExpenseSelfActionUi = useSelfActionResolver("tripExpenseApprove");
+  const handleSelfActionForbidden = useSelfActionForbiddenHandler();
+  const getExpenseSelfActionUi = (item: TripExpenseListItem) =>
+    resolveExpenseSelfActionUi([item.createdBy]);
+  const describeExpenseActionError = (error: unknown): string | undefined => {
+    const forbidden = handleSelfActionForbidden(error);
+    if (forbidden) {
+      return forbidden.message ?? approvalsCopy.selfApproval.serverRejected;
+    }
+    return error instanceof Error ? error.message : undefined;
+  };
 
   const { data: vehicle } = useVehicle(vehicleId ?? "");
   const expectedFuelEfficiency =
@@ -335,13 +410,15 @@ export function TripDetailCostsTab({
   const deleteExpense = useDeleteExpense(tripId);
   const approveExpense = useApproveExpense(tripId);
   const rejectExpense = useRejectExpense(tripId);
+  const returnExpense = useReturnExpense(tripId);
 
+  const isDeciding = rejectExpense.isPending || returnExpense.isPending;
   const isExpenseMutating =
     addExpense.isPending ||
     updateExpense.isPending ||
     deleteExpense.isPending ||
     approveExpense.isPending ||
-    rejectExpense.isPending;
+    isDeciding;
 
   const expenseLines = useMemo(() => tripExpensesToWizardLines(expenses), [expenses]);
 
@@ -405,9 +482,13 @@ export function TripDetailCostsTab({
   }, [expensesSummary]);
 
   const showAddButtons = canCreateExpenses;
-  const showExpenseSheet = canCreateExpenses || canUpdatePendingExpenses;
+  const showExpenseSheet = canCreateExpenses || canUpdatePendingExpenses || canUpdateReturnedExpenses;
   const listReadOnly =
-    !canUpdatePendingExpenses && !canDeletePendingExpenses && !canCreateExpenses;
+    !canUpdatePendingExpenses &&
+    !canDeletePendingExpenses &&
+    !canUpdateReturnedExpenses &&
+    !canDeleteReturnedExpenses &&
+    !canCreateExpenses;
   const emptyEditable = canCreateExpenses;
   const emptyReadOnlyDescription =
     operationalOutcome === "false_trip"
@@ -417,62 +498,167 @@ export function TripDetailCostsTab({
         : undefined;
   const baseRateReadOnly = !canEditBaseRate;
 
-  const canEditItem = (item: TripExpenseListItem) => {
-    if (!canUpdatePendingExpenses) return false;
-    if (!isCompleted) return true;
-    return item.status === "pending";
+  const rowGates = (item: Pick<TripExpenseListItem, "approval">) =>
+    isReturnedExpense(item)
+      ? { update: canUpdateReturnedExpenses, remove: canDeleteReturnedExpenses }
+      : { update: canUpdatePendingExpenses, remove: canDeletePendingExpenses };
+  const canEditItem = (item: Pick<TripExpenseListItem, "status" | "approval">) =>
+    canMutateTripExpenseRow({
+      gate: rowGates(item).update,
+      tripStatus,
+      expenseStatus: item.status,
+      closedAt: tripClosedAt,
+      returnedForCorrection: isReturnedExpense(item),
+    });
+  const canRemoveItem = (item: Pick<TripExpenseListItem, "status" | "approval">) =>
+    canMutateTripExpenseRow({
+      gate: rowGates(item).remove,
+      tripStatus,
+      expenseStatus: item.status,
+      closedAt: tripClosedAt,
+      returnedForCorrection: isReturnedExpense(item),
+    });
+  const canEditAnyExpense = canUpdatePendingExpenses || canUpdateReturnedExpenses;
+  const canDeleteAnyExpense = canDeletePendingExpenses || canDeleteReturnedExpenses;
+  const windowClosedDate = expenseWindowClosesAt
+    ? formatDate(expenseWindowClosesAt.toISOString())
+    : null;
+  /** TEC-5: la pista de ventana cerrada solo aplica a gastos sin decidir y no devueltos. */
+  const getRowHint = (item: TripExpenseListItem): string | null => {
+    if (!expenseWindowClosed || !windowClosedDate || !canUpdateReturnedExpenses) return null;
+    if (isReturnedExpense(item)) return null;
+    if (item.status !== "pending" && item.status !== "documented") return null;
+    return copy.state.windowClosedRow(windowClosedDate);
   };
-  const canRemoveItem = (item: TripExpenseListItem) => {
-    if (!canDeletePendingExpenses) return false;
-    if (!isCompleted) return true;
-    return item.status === "pending";
+
+  const editingExpense = editingExpenseId
+    ? (expenses.find((item) => item.id === editingExpenseId) ?? null)
+    : null;
+  const isCorrectingReturned = editingExpense != null && isReturnedExpense(editingExpense);
+
+  const closeExpenseSheet = () => {
+    setSheetOpen(false);
+    setEditingExpenseId(null);
+    setInitialExpense(null);
+  };
+
+  /** Handoff F6 §6: una guarda avisa y recarga; nunca se reintenta. */
+  const handleGuardError = (error: unknown, close: () => void): boolean => {
+    const guard = getApprovalGuardCode(error);
+    if (!guard) return false;
+    close();
+    void queryClient.invalidateQueries({ queryKey: tripQueryKeys.expenses(tripId) });
+    void queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+    invalidateApprovalsRelatedQueries(queryClient);
+    toast({ title: guardErrorMessage(guard), variant: "warning" });
+    return true;
+  };
+
+  const runApproveExpense = async (expenseId: string) => {
+    const expense = expenses.find((item) => item.id === expenseId);
+    const step =
+      expense && isIntermediateStep(expense.approval)
+        ? {
+            current: expense.approval.stepCurrent,
+            total: expense.approval.stepsTotal,
+            nextRole: formatNextStepLabel(expense.approval),
+          }
+        : null;
+    try {
+      const result = await approveExpense.mutateAsync({
+        expenseId,
+        guards: expense ? approvalGuardsFor(expense) : undefined,
+      });
+      const title =
+        result?.approvalOutcome === "step_signed" && step
+          ? approvalsCopy.flow.stepSignedToast(step.current, step.total, step.nextRole)
+          : copy.toast.approved;
+      toast({ title, variant: "success" });
+    } catch (error) {
+      if (handleGuardError(error, () => setStepConfirmExpenseId(null))) return;
+      toast({
+        title: copy.toast.approveError,
+        description: describeExpenseActionError(error),
+        variant: "error",
+      });
+    }
+  };
+
+  const openReasonSheet = (mode: DecisionReasonMode, expenseId: string) => {
+    const expense = expenses.find((item) => item.id === expenseId);
+    if (!expense) return;
+    setReasonSheet({ mode, expense });
+    setReasonSheetOpen(true);
   };
 
   const approveHandlers = canApproveExpenses
     ? {
         onApprove: async (expenseId: string) => {
-          try {
-            await approveExpense.mutateAsync(expenseId);
-            toast({ title: copy.toast.approved, variant: "success" });
-          } catch (error) {
-            toast({
-              title: copy.toast.approveError,
-              description: error instanceof Error ? error.message : undefined,
-              variant: "error",
-            });
+          const listItem = [...operationalListItems, ...indirectListItems].find(
+            (item) => item.id === expenseId,
+          );
+          if (listItem && getExpenseSelfActionUi(listItem) === "self_confirm") {
+            setSelfApproveExpenseId(expenseId);
+            return;
           }
+          if (listItem && isIntermediateStep(listItem.approval)) {
+            setStepConfirmExpenseId(expenseId);
+            return;
+          }
+          await runApproveExpense(expenseId);
         },
-        onReject: (expenseId: string) => {
-          const expense = expenses.find((item) => item.id === expenseId);
-          if (!expense) return;
-          setExpenseToReject(expense);
-          setRejectSheetOpen(true);
-        },
+        onReject: (expenseId: string) => openReasonSheet("reject", expenseId),
+        onReturn: (expenseId: string) => openReasonSheet("return", expenseId),
       }
-    : { onApprove: undefined, onReject: undefined };
+    : { onApprove: undefined, onReject: undefined, onReturn: undefined };
 
-  const rejectApprovableItem = useMemo(
+  const handleHistory = canViewApprovalsHub
+    ? (expenseId: string) => {
+        const expense = expenses.find((item) => item.id === expenseId);
+        if (expense) setHistoryExpense(expense);
+      }
+    : undefined;
+
+  const reasonApprovableItem = useMemo(
     () =>
-      expenseToReject
-        ? tripExpenseToRejectApprovableItem(expenseToReject, tripId, tripCode)
+      reasonSheet
+        ? tripExpenseToRejectApprovableItem(reasonSheet.expense, tripId, tripCode)
         : null,
-    [expenseToReject, tripCode, tripId],
+    [reasonSheet, tripCode, tripId],
   );
 
-  const handleRejectSubmit = async (reason: string) => {
-    if (!expenseToReject) return;
+  const closeReasonSheet = () => {
+    setReasonSheetOpen(false);
+    setReasonSheet(null);
+  };
+
+  const handleReasonSubmit = async (input: DecisionReasonInput) => {
+    if (!reasonSheet) return;
+    const { mode, expense } = reasonSheet;
+    const guards = approvalGuardsFor(expense);
     try {
-      await rejectExpense.mutateAsync({
-        expenseId: expenseToReject.id,
-        reason,
-      });
-      toast({ title: copy.toast.rejected, variant: "success" });
-      setRejectSheetOpen(false);
-      setExpenseToReject(null);
+      if (mode === "return") {
+        await returnExpense.mutateAsync({
+          expenseId: expense.id,
+          reason: input.reason,
+          reasonCode: input.reasonCode ?? "other",
+          guards,
+        });
+        toast({ title: approvalsCopy.flow.returnSuccess("trip_expense"), variant: "success" });
+      } else {
+        await rejectExpense.mutateAsync({
+          expenseId: expense.id,
+          reason: input.reason,
+          guards,
+        });
+        toast({ title: copy.toast.rejected, variant: "success" });
+      }
+      closeReasonSheet();
     } catch (error) {
+      if (handleGuardError(error, closeReasonSheet)) return;
       toast({
-        title: copy.toast.rejectError,
-        description: error instanceof Error ? error.message : undefined,
+        title: mode === "return" ? approvalsCopy.flow.returnError : copy.toast.rejectError,
+        description: describeExpenseActionError(error),
         variant: "error",
       });
     }
@@ -487,8 +673,7 @@ export function TripDetailCostsTab({
 
   const handleOpenEdit = (expenseId: string) => {
     const expense = expenses.find((item) => item.id === expenseId);
-    if (!expense) return;
-    if (isCompleted && expense.status !== "pending") return;
+    if (!expense || !canEditItem(expense)) return;
     setSheetKind(getSheetKindForCategory(expense.category));
     setEditingExpenseId(expenseId);
     setInitialExpense(tripExpenseToFormValues(expense));
@@ -496,13 +681,15 @@ export function TripDetailCostsTab({
   };
 
   const handleRemove = async (expenseId: string) => {
+    const expense = expenses.find((item) => item.id === expenseId);
+    if (!expense || !canRemoveItem(expense)) return;
     try {
       await deleteExpense.mutateAsync(expenseId);
       toast({ title: copy.toast.removed, variant: "success" });
     } catch (error) {
       toast({
         title: copy.toast.removeError,
-        description: error instanceof Error ? error.message : undefined,
+        description: describeExpenseMutationError(error, "remove"),
         variant: "error",
       });
     }
@@ -519,22 +706,26 @@ export function TripDetailCostsTab({
           expenseId: editingExpenseId,
           data: formValuesToUpdateExpenseInput(values),
         });
-        toast({ title: copy.toast.updated, variant: "success" });
+        toast({
+          title: isCorrectingReturned ? copy.toast.resubmitted : copy.toast.updated,
+          variant: "success",
+        });
       } else {
         await addExpense.mutateAsync(formValuesToCreateExpenseInput(values));
         toast({ title: copy.toast.created, variant: "success" });
       }
       if (!options?.keepOpen) {
-        setSheetOpen(false);
-        setEditingExpenseId(null);
-        setInitialExpense(null);
+        closeExpenseSheet();
       }
     } catch (error) {
+      if (editingExpenseId != null && handleGuardError(error, closeExpenseSheet)) return;
+      const notMutable = editingExpenseId != null && isExpenseNotMutableError(error);
       toast({
         title: copy.toast.saveError,
-        description: error instanceof Error ? error.message : undefined,
+        description: describeExpenseMutationError(error, "edit"),
         variant: "error",
       });
+      if (notMutable) closeExpenseSheet();
     }
   };
 
@@ -563,7 +754,25 @@ export function TripDetailCostsTab({
     tripStatus,
     manageHint,
     marginCritical,
+    returnedExpenseCount: expenses.filter(isReturnedExpense).length,
+    canCorrectReturned: canUpdateReturnedExpenses,
   });
+
+  const listActionProps = {
+    canEditItem,
+    canRemoveItem,
+    canCorrectItem: canEditItem,
+    getRowHint,
+    onEdit: canEditAnyExpense ? handleOpenEdit : undefined,
+    onRemove: canDeleteAnyExpense ? handleRemove : undefined,
+    onCorrectReturned: canUpdateReturnedExpenses ? handleOpenEdit : undefined,
+    onApprove: approveHandlers.onApprove,
+    onReject: approveHandlers.onReject,
+    onReturn: approveHandlers.onReturn,
+    onHistory: handleHistory,
+    getSelfActionUi: getExpenseSelfActionUi,
+    actionsDisabled: isExpenseMutating,
+  };
 
   return (
     <div className="space-y-6">
@@ -678,23 +887,20 @@ export function TripDetailCostsTab({
                     : (emptyReadOnlyDescription ??
                       copy.state.emptyOperationalReadOnly)
                 }
-                canEditItem={canEditItem}
-                canRemoveItem={canRemoveItem}
-                onEdit={canUpdatePendingExpenses ? handleOpenEdit : undefined}
-                onRemove={canDeletePendingExpenses ? handleRemove : undefined}
-                onApprove={approveHandlers.onApprove}
-                onReject={approveHandlers.onReject}
-                actionsDisabled={isExpenseMutating}
+                {...listActionProps}
               />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Receipt className="h-5 w-5 shrink-0" />
-                {copy.section.indirect}
-              </CardTitle>
+              <div className="min-w-0 space-y-1">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Receipt className="h-5 w-5 shrink-0" />
+                  {copy.section.indirect}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">{copy.hint.indirectChannels}</p>
+              </div>
               {showAddButtons ? (
                 <Button
                   type="button"
@@ -720,13 +926,7 @@ export function TripDetailCostsTab({
                     : (emptyReadOnlyDescription ??
                       copy.state.emptyIndirectReadOnly)
                 }
-                canEditItem={canEditItem}
-                canRemoveItem={canRemoveItem}
-                onEdit={canUpdatePendingExpenses ? handleOpenEdit : undefined}
-                onRemove={canDeletePendingExpenses ? handleRemove : undefined}
-                onApprove={approveHandlers.onApprove}
-                onReject={approveHandlers.onReject}
-                actionsDisabled={isExpenseMutating}
+                {...listActionProps}
               />
             </CardContent>
           </Card>
@@ -775,20 +975,103 @@ export function TripDetailCostsTab({
           expectedFuelEfficiency={expectedFuelEfficiency}
           isSubmitting={isExpenseMutating}
           onSubmit={handleSubmitFromSheet}
+          notice={
+            isCorrectingReturned ? <ReturnedAlert approval={editingExpense?.approval} /> : null
+          }
+          submitLabel={isCorrectingReturned ? copy.action.saveAndResubmit : undefined}
         />
       ) : null}
 
       {canApproveExpenses ? (
-        <RejectExpenseSheet
-          open={rejectSheetOpen}
+        <DecisionReasonSheet
+          mode={reasonSheet?.mode ?? "reject"}
+          open={reasonSheetOpen}
           onOpenChange={(open) => {
-            setRejectSheetOpen(open);
-            if (!open) setExpenseToReject(null);
+            if (!open && isDeciding) return;
+            if (!open) closeReasonSheet();
+            else setReasonSheetOpen(true);
           }}
-          item={rejectApprovableItem}
-          isSubmitting={rejectExpense.isPending}
-          onSubmit={(reason) => {
-            void handleRejectSubmit(reason);
+          item={reasonApprovableItem}
+          isSubmitting={isDeciding}
+          type="trip_expense"
+          onSubmit={(input) => {
+            void handleReasonSubmit(input);
+          }}
+        />
+      ) : null}
+
+      {canApproveExpenses ? (
+        <AlertDialog
+          open={stepConfirmExpenseId != null}
+          onOpenChange={(open) => {
+            if (!open && !approveExpense.isPending) setStepConfirmExpenseId(null);
+          }}
+        >
+          <AlertDialogContent>
+            {(() => {
+              const target = expenses.find((item) => item.id === stepConfirmExpenseId);
+              const approval = target?.approval;
+              const current = approval?.stepCurrent ?? 1;
+              const total = approval?.stepsTotal ?? 2;
+              return (
+                <>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {approvalsCopy.flow.stepConfirmTitle(current, total)}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {approvalsCopy.flow.stepConfirmBody(current, total)}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={approveExpense.isPending}>
+                      {copy.action.cancel}
+                    </AlertDialogCancel>
+                    <Button
+                      type="button"
+                      disabled={approveExpense.isPending}
+                      onClick={() => {
+                        const expenseId = stepConfirmExpenseId;
+                        if (!expenseId) return;
+                        void runApproveExpense(expenseId).finally(() =>
+                          setStepConfirmExpenseId(null),
+                        );
+                      }}
+                    >
+                      {approvalsCopy.flow.stepConfirmAction}
+                    </Button>
+                  </AlertDialogFooter>
+                </>
+              );
+            })()}
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
+
+      {canViewApprovalsHub ? (
+        <ApprovalHistorySheet
+          open={historyExpense != null}
+          onOpenChange={(open) => {
+            if (!open) setHistoryExpense(null);
+          }}
+          type="trip_expense"
+          id={historyExpense?.id ?? null}
+          subtitle={historyExpense?.description}
+        />
+      ) : null}
+
+      {canApproveExpenses ? (
+        <SelfApprovalConfirmDialog
+          open={selfApproveExpenseId != null}
+          onOpenChange={(open) => {
+            if (!open) setSelfApproveExpenseId(null);
+          }}
+          subject="expense"
+          isPending={approveExpense.isPending}
+          onConfirm={() => {
+            const expenseId = selfApproveExpenseId;
+            setSelfApproveExpenseId(null);
+            if (expenseId) void runApproveExpense(expenseId);
           }}
         />
       ) : null}

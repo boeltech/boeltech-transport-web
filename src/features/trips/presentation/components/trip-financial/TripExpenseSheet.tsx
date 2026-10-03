@@ -4,7 +4,7 @@
  * proveedor y notas colapsados. Estimación de diésel como ayuda del monto.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   useForm,
   useWatch,
@@ -72,6 +72,10 @@ export interface TripExpenseSheetProps {
     editingIndex: number | null,
     options?: { keepOpen?: boolean },
   ) => void | Promise<void>;
+  /** Aviso al inicio del cuerpo (p. ej. motivo de devolución, ADR-0099 D15). */
+  notice?: ReactNode;
+  /** Sustituye el texto del primario en edición (p. ej. «Guardar y reenviar»). */
+  submitLabel?: string;
 }
 
 function buildEmptyExpense(
@@ -128,6 +132,8 @@ function TripExpenseSheetSession({
   expectedFuelEfficiency,
   isSubmitting = false,
   onSubmit,
+  notice,
+  submitLabel,
 }: Omit<TripExpenseSheetProps, "open">) {
   const { success: showSuccessToast } = useToast();
   const [dieselPricePerLiter, setDieselPricePerLiter] =
@@ -288,6 +294,7 @@ function TripExpenseSheetSession({
       </SheetHeader>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
+        {notice}
         <FormSectionCard
           title={copy.section.concept}
           icon={<Receipt className="h-4 w-4" />}
@@ -475,7 +482,7 @@ function TripExpenseSheetSession({
           onClick={() => void submitSheet()}
           disabled={isSubmitting}
         >
-          {isEdit ? copy.action.saveChanges : copy.action.addConcept}
+          {isEdit ? (submitLabel ?? copy.action.saveChanges) : copy.action.addConcept}
         </Button>
       </SheetFooter>
     </SheetContent>

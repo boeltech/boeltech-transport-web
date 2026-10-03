@@ -3,6 +3,7 @@ import { TripStatus } from "@features/trips/domain";
 import { costsCopy } from "../copy/tripDetail/costsCopy";
 
 export type CostsStatusBannerKind =
+  | "returned"
   | "pending"
   | "postCloseOpen"
   | "postCloseClosed"
@@ -16,7 +17,8 @@ export type CostsStatusBannerCopy = {
 };
 
 /**
- * Texto del banner del tab Costos (prioridad D5).
+ * Texto del banner del tab Costos (prioridad D5 + ADR-0099 D15).
+ * Devueltos > pendientes para quien corrige sin decidir; si no, pendientes ganan.
  * Operator usa copy de escala; admin/manager/accountant conservan el actual.
  */
 export function pickCostsStatusBannerCopy(input: {
@@ -28,6 +30,10 @@ export function pickCostsStatusBannerCopy(input: {
   tripStatus: string;
   manageHint: boolean;
   marginCritical: boolean;
+  /** Gastos con flujo devuelto para corregir. */
+  returnedExpenseCount?: number;
+  /** `expenses.update` (puede corregir y reenviar). */
+  canCorrectReturned?: boolean;
 }): CostsStatusBannerCopy | null {
   const {
     isOperator,
@@ -38,7 +44,19 @@ export function pickCostsStatusBannerCopy(input: {
     tripStatus,
     manageHint,
     marginCritical,
+    returnedExpenseCount = 0,
+    canCorrectReturned = false,
   } = input;
+
+  const returnedBanner: CostsStatusBannerCopy = {
+    kind: "returned",
+    title: costsCopy.alert.returnedTitle(returnedExpenseCount),
+    body: costsCopy.alert.returnedBody,
+  };
+
+  if (returnedExpenseCount > 0 && canCorrectReturned && !canApproveExpenses) {
+    return returnedBanner;
+  }
 
   if (pendingExpenseCount > 0) {
     return {
@@ -50,6 +68,10 @@ export function pickCostsStatusBannerCopy(input: {
           ? costsCopy.alert.pendingApprovalBodyOperator
           : costsCopy.alert.pendingApprovalBody,
     };
+  }
+
+  if (returnedExpenseCount > 0 && canCorrectReturned) {
+    return returnedBanner;
   }
 
   if (expenseWindowOpen) {

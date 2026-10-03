@@ -17,6 +17,7 @@ import type {
   SettlementStatus,
   TripRouteType,
 } from "./enums";
+import type { ApprovalBlock } from "@features/approvals";
 
 // ============================================================================
 // 1. ACUERDO DE COMPENSACIÓN (Compensation Agreement)
@@ -80,6 +81,8 @@ export interface DriverAdvance {
   readonly status: AdvanceStatus;
   readonly disbursedAt: string | null;
   readonly paymentMethod: DisbursementMethod;
+  /** Método con el que se autorizó; difiere de `paymentMethod` si se entregó por otro medio. */
+  readonly authorizedPaymentMethod?: DisbursementMethod;
   readonly bankReference: string | null;
   readonly submittedAt?: string | null;
   readonly submittedBy?: string | null;
@@ -92,8 +95,29 @@ export interface DriverAdvance {
   readonly rejectedByName?: string | null;
   readonly rejectionReason?: string | null;
   readonly notes: string | null;
+  readonly createdBy?: string | null;
+  readonly disbursedBy?: string | null;
+  /** ADR-0098: autorizado por quien lo creó/envió (único autorizador activo). */
+  readonly selfSegregatedApproval?: boolean;
+  readonly approverCountAtApprove?: number | null;
+  /** ADR-0098: entregado por quien lo creó/envió (único ejecutor activo). */
+  readonly selfSegregatedDisbursement?: boolean;
+  readonly executorCountAtDisburse?: number | null;
+  /** ADR-0099: guarda `expected_revision`. */
+  readonly approvalRevision?: string | null;
+  /** ADR-0099: `undefined` = API sin bloque; `null` = registro previo al motor. */
+  readonly approval?: ApprovalBlock | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/** ADR-0099 D17: efecto de editar un anticipo sobre su autorización. */
+export type AdvanceApprovalEffect = "none" | "flow_restarted" | "reapproval_required";
+
+export interface UpdateDriverAdvanceResult {
+  readonly advance: DriverAdvance;
+  readonly approvalEffect: AdvanceApprovalEffect;
+  readonly changes: string[];
 }
 
 // ============================================================================
@@ -116,6 +140,8 @@ export interface SettlementItemCalculationDetails {
   readonly receiptFolio?: string | null;
   readonly originalAdvanceAmount?: number;
   readonly advanceFolio?: string | null;
+  /** E10: `manual` (o ausente) = partida capturada; `fixed_allowance` / `template_deduction` = de la tarifa. */
+  readonly source?: string | null;
 }
 
 export interface SettlementItem {
@@ -202,8 +228,23 @@ export interface DriverSettlement {
   /** D3′: true si se registró el pago con un solo ejecutor activo. */
   readonly selfSegregatedDisbursement?: boolean;
   readonly executorCountAtDisburse?: number | null;
+  /** E10: los anticipos se descontaron al crear (no se cambian al corregir). */
+  readonly advancesDeductedAtCreate?: boolean;
+  /** ADR-0099: guarda `expected_revision` (decidir y dispersar). */
+  readonly approvalRevision?: string | null;
+  /** ADR-0099: `undefined` = API sin bloque; `null` = registro previo al motor. */
+  readonly approval?: ApprovalBlock | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/** ADR-0085 E10: efecto de corregir una liquidación sobre su autorización. */
+export type SettlementApprovalEffect = "none" | "flow_restarted" | "reapproval_required";
+
+export interface UpdateSettlementResult {
+  readonly settlement: DriverSettlement;
+  readonly approvalEffect: SettlementApprovalEffect;
+  readonly changes: string[];
 }
 
 // ============================================================================
@@ -231,6 +272,14 @@ export interface EligibleTripPreview {
   };
   readonly freightBase?: "commercial_at_complete" | "live_base_rate";
   readonly midTripShareRatio?: number;
+  /** Operadores que participaron en el viaje (badge «Varios operadores» si > 1). */
+  readonly participantCount?: number;
+  /** ADR-0079 — badge «Viaje en falso» en preview. */
+  readonly operationalOutcome?: "standard" | "false_trip";
+  /** ADR-0081 — badge «Prorrateo» (hubo reparto multi-RFC). */
+  readonly hasRevenueSplit?: boolean;
+  readonly distanceBasis?: "executed_stops" | "odometer" | "unavailable";
+  readonly requiresZeroKmAck?: boolean;
 }
 
 export interface OpenAdvancePreview {
@@ -249,9 +298,19 @@ export interface SettlementPreviewSummary {
   readonly totalBaseSalary: number;
   readonly totalFixedAllowances?: number;
   readonly totalReimbursements: number;
+  /** Deducciones de plantilla (fondo de ahorro, retenciones, etc.). */
+  readonly totalDeductions?: number;
   readonly suggestedAdvanceDeduction: number;
   readonly grossAmount: number;
   readonly netAmount: number;
+}
+
+export interface TemplateDeductionPreviewLine {
+  readonly id: string;
+  readonly deductionType: string;
+  readonly label: string;
+  readonly amount: number;
+  readonly isMandatory: boolean;
 }
 
 export interface CompensationTemplatePreviewRef {
@@ -279,6 +338,7 @@ export interface SettlementPreview {
     readonly salaryType: string | null;
   };
   readonly fixedAllowances?: readonly FixedAllowancePreviewLine[];
+  readonly deductions?: readonly TemplateDeductionPreviewLine[];
   readonly eligibleTrips: readonly EligibleTripPreview[];
   readonly openAdvances: readonly OpenAdvancePreview[];
   readonly summary: SettlementPreviewSummary;
@@ -333,4 +393,9 @@ export interface TenantSettlementSettings {
   readonly activeApproverCount: number;
   /** Usuarios activos con settlements.execute (live; F17a). */
   readonly activeExecutorCount: number;
+  /**
+   * ADR-0099 §3.10: el umbral se deriva de la regla de autorización de
+   * liquidaciones y no se edita aquí (PATCH → 409 `APPROVAL_POLICY_MANAGED`).
+   */
+  readonly managedByPolicy?: boolean;
 }

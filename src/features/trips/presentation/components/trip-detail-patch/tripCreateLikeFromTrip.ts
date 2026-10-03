@@ -14,6 +14,7 @@ export function buildCreateLikeFromTrip(
     driverId: trip.driverId,
     clientId: trip.clientId ?? undefined,
     cfdiDocumentIntent: trip.cfdiDocumentIntent,
+    routeType: trip.routeType ?? "long_haul",
     scheduledDeparture: scheduleOverride
       ? localInputToUtcIso(scheduleOverride.scheduledDeparture)
       : trip.scheduledDeparture.toISOString(),

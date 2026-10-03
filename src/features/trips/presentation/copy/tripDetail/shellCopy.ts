@@ -154,6 +154,8 @@ export const shellCopy = {
     backToDispatch: "Volver a envíos",
     backToDispatchPeriod: "Volver a envíos del periodo",
     backToDispatchRun: "Volver al envío",
+    /** Desde detalle viaje abierto desde liquidaciones (create/detalle). */
+    backToSettlementPayment: "Volver al pago",
   },
   format: {
     routeTab: (stopCount: number) =>

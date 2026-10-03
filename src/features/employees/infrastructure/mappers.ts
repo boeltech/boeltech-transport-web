@@ -163,6 +163,7 @@ export function mapApiToEmployeeForSelection(
     department: raw.department,
     position: raw.position,
     hireDate: raw.hire_date,
+    salaryType: raw.salary_type ?? null,
   };
 }
 

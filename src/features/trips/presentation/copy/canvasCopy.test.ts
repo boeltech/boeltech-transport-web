@@ -22,6 +22,7 @@ describe("canvasCopy", () => {
   it("explica que el corredor clona paradas y no copia flota", () => {
     expect(canvasCopy.corridor.hint).toMatch(/paradas/i);
     expect(canvasCopy.corridor.hint).toMatch(/no copia flota/i);
+    expect(canvasCopy.corridor.hint).toMatch(/no es tarifa de pago/i);
     expect(canvasCopy.corridor.empty).toMatch(/ciudades/i);
   });
 });

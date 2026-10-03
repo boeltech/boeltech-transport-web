@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { formatDate } from "@shared/utils/dateUtils";
+import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { DriverSettlement } from "../../domain/entities";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../../domain/enums";
 import { formatItemTitleAndSubtitle } from "./SettlementItemsTable";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { isReceiptSignable } from "../utils/settlementEditing";
 
 interface SettlementReceiptPrintViewProps {
   settlement: DriverSettlement;
@@ -36,12 +37,25 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
     const isPaid = settlement.status === "disbursed" || Boolean(settlement.disbursedAt);
     const isApprovedPendingPay =
       settlement.status === "approved" && !isPaid;
+    // D28: solo lo autorizado o pagado se firma; lo demás es documento de revisión.
+    const isSignable = isReceiptSignable(settlement.status) || isPaid;
 
     return (
       <div
         ref={ref}
-        className="p-6 text-black bg-white max-w-4xl mx-auto print:p-2 print:max-w-none text-xs font-sans leading-tight"
+        className="relative p-6 text-black bg-white max-w-4xl mx-auto print:p-2 print:max-w-none text-xs font-sans leading-tight"
       >
+        {!isSignable ? (
+          <div
+            aria-hidden="true"
+            data-testid="receipt-review-watermark"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+          >
+            <span className="-rotate-[24deg] select-none whitespace-nowrap border-4 border-black/20 px-6 py-2 text-4xl font-black tracking-widest text-black/15">
+              {receiptCopy.reviewWatermark}
+            </span>
+          </div>
+        ) : null}
         {/* CABECERA DE LA EMPRESA Y COMPROBANTE */}
         <div className="flex justify-between items-start border-b-2 border-black pb-3 mb-3">
           <div>
@@ -71,6 +85,11 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             <p className="text-[10px] text-muted-foreground">
               {receiptCopy.issueDateLabel} {formatDate(settlement.createdAt || new Date().toISOString())}
             </p>
+            {settlement.updatedAt ? (
+              <p className="text-[10px] text-muted-foreground">
+                {receiptCopy.lastModified(formatDateTime(settlement.updatedAt))}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -260,6 +279,16 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
         )}
 
         {/* FIRMAS DE CONFORMIDAD */}
+        {!isSignable ? (
+          <div
+            data-testid="receipt-review-notice"
+            className="pt-4 mt-4 border-t border-border text-center break-inside-avoid print:pt-3 print:mt-2"
+          >
+            <p className="inline-block border-2 border-dashed border-black px-3 py-1.5 text-[11px] font-bold">
+              {receiptCopy.reviewSignaturesNotice}
+            </p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-8 pt-4 mt-4 border-t border-border text-center break-inside-avoid print:pt-3 print:mt-2">
           <div>
             <div className="border-b border-black w-3/4 mx-auto mb-1"></div>
@@ -282,6 +311,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             </p>
           </div>
         </div>
+        )}
       </div>
     );
   },

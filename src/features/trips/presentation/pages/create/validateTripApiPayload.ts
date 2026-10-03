@@ -17,6 +17,7 @@
  * |----------------------------|----------------------|
  * | `vehicleId`, `driverId`, `clientId` | Paso 1 — `TripWizardFormValues` |
  * | `cfdiDocumentIntent` | Paso 1 — default `ingreso` si falta |
+ * | `routeType` | Canvas Pedido / wizard — default `long_haul` (Clase de ruta) |
  * | `scheduledDeparture`, `scheduledArrival` | Paso 1 — `localInputToUtcIso` |
  * | `startMileage` | Paso 1 |
  * | `originCity`, `originState` | Derivado de la parada **origen**: `buildTripEndpointSummary` en `wizardStopPayload.ts` |

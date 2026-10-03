@@ -28,9 +28,9 @@ export const costsCopy = {
     emptyOperationalTitle: "Todavía no hay conceptos de ruta",
     emptyOperationalDescription:
       "Combustible, casetas, maniobras, mantenimiento, seguros y permisos.",
-    emptyIndirectTitle: "Todavía no hay conceptos del operador",
+    emptyIndirectTitle: "Todavía no hay gastos del viaje del operador",
     emptyIndirectDescription:
-      "Viáticos, hospedaje, estacionamiento y otros extras del viaje.",
+      "Comprobante sin adelanto → aquí (gasto del viaje). Efectivo adelantado → Anticipos. Pago fijo de tarifa → en Tarifas, no aquí.",
   },
   result: {
     title: "Lo que deja el viaje",

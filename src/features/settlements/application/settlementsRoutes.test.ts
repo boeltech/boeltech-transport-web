@@ -57,6 +57,15 @@ describe("settlementsRoutes", () => {
     expect(settlementsAgreementsPath({ employeeId: "emp-1" })).toBe(
       "/finance/compensation/templates?employeeId=emp-1",
     );
+    expect(
+      settlementsAgreementsPath({
+        employeeId: "emp-1",
+        periodStart: "2026-09-09",
+        periodEnd: "2026-09-26",
+      }),
+    ).toBe(
+      "/finance/compensation/templates?employeeId=emp-1&periodStart=2026-09-09&periodEnd=2026-09-26",
+    );
     expect(settlementsAgreementsTabPath({ employeeId: "emp-1" })).toBe(
       "/finance/compensation/templates?employeeId=emp-1",
     );

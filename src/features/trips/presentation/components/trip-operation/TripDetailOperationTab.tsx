@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 
-import type { ClientRef, Trip, TripStatusHistory } from "@features/trips/domain";
+import type { Trip, TripStatusHistory } from "@features/trips/domain";
 import { TripStatus } from "@features/trips/domain";
 import { formatMileage } from "@features/trips";
 import { useDrivers } from "@features/drivers/application";
@@ -29,6 +29,7 @@ import { InfoRow } from "@shared/ui/data-display";
 import { Separator } from "@shared/ui/separator";
 
 import { TripScheduleInlineEditor } from "./TripScheduleInlineEditor";
+import { TripRouteTypeInlineEditor } from "./TripRouteTypeInlineEditor";
 import { TripDetailStatusHistory } from "./TripDetailStatusHistory";
 import { TripFleetAssignmentSheet } from "../trip-fleet-assignment";
 import { tripDetailCopy } from "../../copy";
@@ -58,6 +59,8 @@ export interface TripDetailOperationTabProps {
   /** Viaje completo (programación sincroniza `scheduledArrival` con parada destino). */
   trip: Trip;
   canEditStructural: boolean;
+  /** Editable hasta liquidación pagada (CEO-1 / F0 patch route_type). */
+  canEditRouteType?: boolean;
   /** ADR-0093 — reasignar flota mid-trip (independiente de structural). */
   canReassignFleet?: boolean;
   /** Portal cliente: sin enlace al módulo Clientes. */
@@ -74,16 +77,15 @@ function formatTripTypeLabel(intent: Trip["cfdiDocumentIntent"]): string {
 }
 
 function ClientContractCard({
-  tripId,
-  client,
-  cfdiDocumentIntent,
+  trip,
   showClientLink,
+  canEditRouteType,
 }: {
-  tripId: string;
-  client?: ClientRef;
-  cfdiDocumentIntent: Trip["cfdiDocumentIntent"];
+  trip: Trip;
   showClientLink: boolean;
+  canEditRouteType: boolean;
 }) {
+  const { id: tripId, client, cfdiDocumentIntent } = trip;
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -110,7 +112,7 @@ function ClientContractCard({
           ) : null}
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 space-y-1">
         {client ? (
           <InfoRow variant="inline" label={copy.label.legalName} value={client.legalName} />
         ) : (
@@ -123,6 +125,12 @@ function ClientContractCard({
           label={copy.label.tripType}
           value={formatTripTypeLabel(cfdiDocumentIntent)}
         />
+        <div className="pt-2">
+          <TripRouteTypeInlineEditor
+            trip={trip}
+            readOnly={!canEditRouteType}
+          />
+        </div>
       </CardContent>
     </Card>
   );
@@ -131,6 +139,7 @@ function ClientContractCard({
 export function TripDetailOperationTab({
   trip,
   canEditStructural,
+  canEditRouteType = false,
   canReassignFleet = false,
   showClientLink = true,
   showMileage = true,
@@ -170,10 +179,9 @@ export function TripDetailOperationTab({
   return (
     <div className="space-y-6">
       <ClientContractCard
-        tripId={trip.id}
-        client={trip.client}
-        cfdiDocumentIntent={trip.cfdiDocumentIntent}
+        trip={trip}
         showClientLink={showClientLink}
+        canEditRouteType={canEditRouteType && !isClientPortalView}
       />
 
       <div

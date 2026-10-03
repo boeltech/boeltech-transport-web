@@ -5,7 +5,9 @@ import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton/skeleton";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { ReturnedChip } from "@features/approvals";
 import type { DriverSettlement } from "../../domain/entities";
+import { isSettlementReturned } from "../utils/settlementEditing";
 import { SettlementStatusBadge } from "./SettlementStatusBadge";
 import { SettlementActions } from "./SettlementActions";
 import { settlementsCopy } from "../copy/settlementsCopy";
@@ -51,6 +53,9 @@ export function SettlementCard({
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col items-end gap-1">
             <SettlementStatusBadge status={settlement.status} showIcon size="sm" />
+            {isSettlementReturned(settlement) ? (
+              <ReturnedChip approval={settlement.approval} />
+            ) : null}
             {showRejectedCorrection && settlement.status === "rejected" ? (
               <Badge variant="destructive" tone="soft" className="text-xs">
                 {settlementsCopy.workbench.backlog.correctBadge}

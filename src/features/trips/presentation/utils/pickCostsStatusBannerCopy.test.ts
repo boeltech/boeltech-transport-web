@@ -75,6 +75,34 @@ describe("pickCostsStatusBannerCopy", () => {
     expect(margin?.body).not.toMatch(/tarifa|efectivo|Facturado/i);
   });
 
+  it("ADR-0099 D15: devueltos con permiso de corregir muestran el aviso de devuelto", () => {
+    const operator = pickCostsStatusBannerCopy({
+      ...operatorBanners,
+      pendingExpenseCount: 1,
+      returnedExpenseCount: 2,
+      canCorrectReturned: true,
+    });
+    expect(operator?.kind).toBe("returned");
+    expect(operator?.title).toBe(costsCopy.alert.returnedTitle(2));
+    expect(operator?.body).toBe(costsCopy.alert.returnedBody);
+
+    const approver = pickCostsStatusBannerCopy({
+      ...staffBanners,
+      canApproveExpenses: true,
+      pendingExpenseCount: 1,
+      returnedExpenseCount: 1,
+      canCorrectReturned: true,
+    });
+    expect(approver?.kind).toBe("pending");
+
+    const readOnly = pickCostsStatusBannerCopy({
+      ...operatorBanners,
+      returnedExpenseCount: 1,
+      canCorrectReturned: false,
+    });
+    expect(readOnly?.kind).not.toBe("returned");
+  });
+
   it("admin/manager/accountant conservan copy actual de post-cierre y en curso", () => {
     const open = pickCostsStatusBannerCopy({
       ...staffBanners,

@@ -138,6 +138,20 @@ export const trackingCopy = {
     declareFalseTripExpensesBody:
       "Tras cerrar aún puedes registrarlos unos días; si faltan casetas o combustible, hazlo ya desde Costos.",
     declareFalseTripExpensesCta: "Ir a Costos",
+    /** Soft guard: hint permanente bajo km final (oficina). */
+    declareFalseTripMileagePaymentHint:
+      "Este kilometraje alimenta el pago por km en la liquidación. Si la unidad sí se movió, ajusta el km final al odómetro real.",
+    /** Soft guard: hint permanente (conductor). */
+    declareFalseTripMileagePaymentHintDriver:
+      "Captura el odómetro al cerrar. Si la unidad sí se movió, no dejes el mismo kilometraje del inicio.",
+    /** Soft guard: Alert cuando end === start (oficina). */
+    declareFalseTripZeroKmTitle: "Kilometraje sin recorrido",
+    declareFalseTripZeroKmBody:
+      "El km final es igual al de salida (0 km recorridos). Si hubo desplazamiento, súbelo al odómetro real; si no, el pago por km puede quedar en $0.",
+    /** Soft guard: Alert cuando end === start (conductor). */
+    declareFalseTripZeroKmTitleDriver: "Mismo kilometraje de salida",
+    declareFalseTripZeroKmBodyDriver:
+      "Quedará registrado sin kilómetros recorridos. Si la unidad sí se movió, corrige el km final antes de declarar.",
     notesOptional: "Notas (opcional)",
     notesPlaceholder: "Observaciones operativas…",
     closeNotesPlaceholder: "Observaciones al finalizar…",

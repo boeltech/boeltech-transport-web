@@ -18,7 +18,9 @@ import type {
   TripExpense,
   CreateExpenseInput,
   UpdateExpenseInput,
+  ReturnExpenseInput,
 } from "@features/trips/domain";
+import type { ApprovalGuards } from "@features/approvals";
 import type {
   ApiExpenseResponse,
   ApiExpensesSummaryResponse,
@@ -34,6 +36,14 @@ import {
 // ============================================================================
 
 const TRIPS_ENDPOINT = "/trips";
+
+/** Guardas ADR-0099 (handoff F6 §6); se omiten si no hay bloque de flujo. */
+function toGuardsBody(guards?: ApprovalGuards): Record<string, string | number> {
+  const body: Record<string, string | number> = {};
+  if (guards?.expectedStep !== undefined) body.expected_step = guards.expectedStep;
+  if (guards?.expectedRevision) body.expected_revision = guards.expectedRevision;
+  return body;
+}
 
 // ============================================================================
 // EXPENSE REPOSITORY
@@ -138,10 +148,14 @@ export class ExpenseRepository implements IExpenseRepository {
   async approve(
     tripId: string,
     expenseId: string,
+    guards?: ApprovalGuards,
   ): Promise<MappedSingleResult<TripExpense>> {
     const response = await apiClient.patch<
       ApiSingleResponse<ApiExpenseResponse>
-    >(`${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}/approve`, {});
+    >(
+      `${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}/approve`,
+      toGuardsBody(guards),
+    );
 
     return mapExpenseResponse(response);
   }
@@ -153,10 +167,33 @@ export class ExpenseRepository implements IExpenseRepository {
     tripId: string,
     expenseId: string,
     reason: string,
+    guards?: ApprovalGuards,
   ): Promise<MappedSingleResult<TripExpense>> {
     const response = await apiClient.patch<
       ApiSingleResponse<ApiExpenseResponse>
-    >(`${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}/reject`, { reason });
+    >(`${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}/reject`, {
+      reason,
+      ...toGuardsBody(guards),
+    });
+
+    return mapExpenseResponse(response);
+  }
+
+  /**
+   * Devuelve un gasto para corregir (ADR-0099)
+   */
+  async returnForCorrection(
+    tripId: string,
+    expenseId: string,
+    input: ReturnExpenseInput,
+  ): Promise<MappedSingleResult<TripExpense>> {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiExpenseResponse>
+    >(`${TRIPS_ENDPOINT}/${tripId}/expenses/${expenseId}/return`, {
+      reason: input.reason,
+      reason_code: input.reasonCode,
+      ...toGuardsBody(input.guards),
+    });
 
     return mapExpenseResponse(response);
   }

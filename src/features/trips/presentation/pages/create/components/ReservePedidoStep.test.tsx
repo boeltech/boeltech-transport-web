@@ -67,4 +67,13 @@ describe("ReservePedidoStep client scale", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText(reserve.hint.newClientEscalate)).toBeInTheDocument();
   });
+
+  it("renderiza select Clase de ruta con default Foráneo", () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Harness />);
+
+    expect(screen.getByText(reserve.label.routeType)).toBeInTheDocument();
+    expect(document.getElementById("routeType")).toBeInTheDocument();
+    expect(screen.getByText("Foráneo")).toBeInTheDocument();
+  });
 });

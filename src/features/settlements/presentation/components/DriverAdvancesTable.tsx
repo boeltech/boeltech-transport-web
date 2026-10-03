@@ -24,6 +24,11 @@ import {
   ADVANCE_CATEGORY_LABELS,
   type AdvanceCategory,
 } from "../../domain/enums";
+import {
+  ApprovalFlowLines,
+  SelfApprovedBadge,
+  showsSelfApprovedBadge,
+} from "@features/approvals";
 import { AdvanceStatusBadge } from "./SettlementStatusBadge";
 import { AdvanceActions } from "./AdvanceActions";
 import { settlementsCopy } from "../copy/settlementsCopy";
@@ -214,7 +219,17 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
 
                 {/* Estado */}
                 <TableCell className="whitespace-nowrap">
-                  <AdvanceStatusBadge status={adv.status} showIcon size="sm" />
+                  <div className="flex items-center gap-1">
+                    <AdvanceStatusBadge status={adv.status} showIcon size="sm" />
+                    {showsSelfApprovedBadge({
+                      kind: "advance",
+                      status: adv.status,
+                      selfSegregatedApproval: adv.selfSegregatedApproval,
+                    }) ? (
+                      <SelfApprovedBadge />
+                    ) : null}
+                  </div>
+                  <ApprovalFlowLines approval={adv.approval} />
                 </TableCell>
 
                 {/* Acciones */}

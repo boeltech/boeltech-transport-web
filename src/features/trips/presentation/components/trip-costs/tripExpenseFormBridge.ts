@@ -55,6 +55,12 @@ export function tripExpensesToListItems(expenses: TripExpense[]): TripExpenseLis
     isEstimated: expense.isEstimated,
     expenseDate: expense.expenseDate,
     hasReceipt: expense.hasReceipt,
+    createdBy: expense.createdBy,
+    selfSegregatedApproval: expense.selfSegregatedApproval,
+    ...(expense.approval !== undefined ? { approval: expense.approval } : {}),
+    ...(expense.approvalRevision !== undefined
+      ? { approvalRevision: expense.approvalRevision }
+      : {}),
   }));
 }
 

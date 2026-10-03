@@ -13,7 +13,7 @@ describe("resolveBacklogPeriodTooltip", () => {
     const text = resolveBacklogPeriodTooltip("salary_close");
     expect(text).toBe(settlementsCopy.workbench.backlog.periodTooltips.salary_close);
     expect(text).not.toMatch(/fecha de salida del viaje/i);
-    expect(text).toMatch(/corte de sueldo/i);
+    expect(text).toMatch(/sueldo pendiente/i);
   });
 
   it("returns mixed copy", () => {

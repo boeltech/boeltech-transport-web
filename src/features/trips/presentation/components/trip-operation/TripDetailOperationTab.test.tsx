@@ -150,7 +150,7 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     );
   });
 
-  it("muestra cliente, unidad, conductor, placa de remolque y tipo de viaje", () => {
+  it("muestra cliente, unidad, conductor, placa de remolque y facturación del viaje", () => {
     renderTab();
 
     expect(screen.getByText("Transportes Alfa")).toBeInTheDocument();
@@ -158,7 +158,10 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     expect(screen.getByText("U-12")).toBeInTheDocument();
     expect(screen.getByText("Ana Lopez")).toBeInTheDocument();
     expect(screen.getByText("ABC-12-34 · 1")).toBeInTheDocument();
+    expect(screen.getByText(copy.label.tripType)).toBeInTheDocument();
     expect(screen.getByText(copy.format.tripType("ingreso"))).toBeInTheDocument();
+    expect(screen.getByText(copy.label.routeType)).toBeInTheDocument();
+    expect(screen.getByText("Foráneo")).toBeInTheDocument();
     expect(screen.getByText(copy.state.noSupportStaff)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: copy.action.viewClient })).toHaveAttribute(
       "href",

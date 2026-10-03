@@ -8,6 +8,7 @@ import type { DriverSettlement } from "../../domain/entities";
 
 const mockUseAuth = vi.fn();
 const mockGetSettlementById = vi.fn();
+const mockSubmitSettlement = vi.fn();
 
 vi.mock("@features/auth", () => ({
   useAuth: () => mockUseAuth(),
@@ -37,6 +38,7 @@ vi.mock("@shared/hooks", async (importOriginal) => {
 vi.mock("../../infrastructure/settlementsApi", () => ({
   settlementsApi: {
     getSettlementById: (...args: unknown[]) => mockGetSettlementById(...args),
+    submitSettlement: (...args: unknown[]) => mockSubmitSettlement(...args),
     approveSettlement: vi.fn(),
     rejectSettlement: vi.fn(),
     disburseSettlement: vi.fn(),
@@ -48,8 +50,18 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
   },
 }));
 
-vi.mock("@features/approvals", () => ({
+vi.mock("@features/approvals", async () => ({
+  ...(await import("@features/approvals/testing/selfApprovalTestModule")),
   invalidateApprovalsRelatedQueries: vi.fn(),
+  useSelfApprovalPolicy: () => ({
+    data: {
+      advanceApprove: { allowed: false, activeCounterpartCount: 1 },
+      advanceDisburse: { allowed: false, activeCounterpartCount: 1 },
+      settlementApprove: { allowed: false, activeCounterpartCount: 1 },
+      settlementDisburse: { allowed: false, activeCounterpartCount: 1 },
+      tripExpenseApprove: { allowed: false, activeCounterpartCount: 1 },
+    },
+  }),
 }));
 
 function createTestQueryClient() {
@@ -192,7 +204,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
       expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Auto-aprobación no permitida")).toBeInTheDocument();
+    expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Autorizar/i })).not.toBeInTheDocument();
   });
 
@@ -281,6 +293,158 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     expect(
       screen.getByText(/Pago registrado en modo un solo responsable/i),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Auto-aprobación no permitida/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Autoaprobado")).toBeInTheDocument();
+    expect(screen.queryByText("Enviada por ti")).not.toBeInTheDocument();
+  });
+
+  it("P2-2: una liquidación autorrechazada no muestra «Autoaprobado»", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "rejected",
+      rejectionReason: "Montos incorrectos",
+      selfSegregatedApproval: true,
+      approverCountAtApprove: 1,
+    });
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+          <Routes>
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Autoaprobado")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Autorizado en modo un solo responsable/i),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
+  function CreateProbe() {
+    const location = useLocation();
+    return <div data-testid="create-probe">{`${location.pathname}${location.search}`}</div>;
+  }
+
+  function renderDetail() {
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+          <Routes>
+            <Route path="/finance/settlements/new" element={<CreateProbe />} />
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-approver-999", fullName: "Auditor", tenant: { name: "Tenant" } },
+      isAuthenticated: true,
+    });
+    mockSubmitSettlement.mockResolvedValue({ ...pendingSettlement });
+  });
+
+  it("D25: pendiente ofrece Corregir · Devolver para corregir · Autorizar · ⋯ y «Vista previa del recibo»", async () => {
+    mockGetSettlementById.mockResolvedValue(pendingSettlement);
+    renderDetail();
+
+    await waitFor(() => {
+      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Corregir" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Devolver para corregir/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Más acciones/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Rechazar$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Vista previa del recibo/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Imprimir recibo/i })).not.toBeInTheDocument();
+  });
+
+  it("criterio 6: rechazada ofrece «Crear liquidación nueva con este periodo»", async () => {
+    const user = userEvent.setup();
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "rejected",
+      rejectionReason: "Montos incorrectos",
+    });
+    renderDetail();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Crear liquidación nueva con este periodo/i }),
+    );
+
+    const target = screen.getByTestId("create-probe").textContent ?? "";
+    expect(target).toContain("/finance/settlements/new?");
+    expect(target).toContain("employeeId=emp-1");
+    expect(target).toContain("periodStart=2026-09-01");
+    expect(target).toContain("periodEnd=2026-09-15");
+    expect(screen.queryByRole("button", { name: "Corregir" })).not.toBeInTheDocument();
+  });
+
+  it("criterio 1: devuelta muestra el motivo, abre el Sheet y permite reenviar sin cambios", async () => {
+    const user = userEvent.setup();
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-creator-123", fullName: "Creador", tenant: { name: "Tenant" } },
+      isAuthenticated: true,
+    });
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "draft",
+      advancesReserved: true,
+      approval: {
+        flowStatus: "returned",
+        stepCurrent: null,
+        stepsTotal: 1,
+        pendingFor: { roles: [], users: [] },
+        signedSteps: [],
+        routedBy: {
+          tierIndex: null,
+          minAmount: null,
+          matchedConditions: [],
+          policyVersion: null,
+          lazy: false,
+        },
+        canAct: false,
+        cannotActReason: null,
+        escalated: false,
+        reapproval: null,
+        returned: {
+          reason: "Falta el bono de puntualidad",
+          reasonCode: "other",
+          returnedBy: "user-approver-999",
+          returnedByName: "Ana",
+          returnedAt: "2026-09-16T11:00:00Z",
+        },
+      },
+    });
+    renderDetail();
+
+    expect(await screen.findByText(/Falta el bono de puntualidad/)).toBeInTheDocument();
+    // D15: el reenvío vive en la alerta, no se duplica en el header.
+    expect(screen.queryByRole("button", { name: /Enviar a autorización/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Corregir y reenviar" }));
+    expect(
+      await screen.findByText("Corregir liquidación LIQ-202609-0001"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar y reenviar" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    await user.click(screen.getByRole("button", { name: "Reenviar sin cambios" }));
+    await waitFor(() => expect(mockSubmitSettlement).toHaveBeenCalledWith("set-detail-1"));
   });
 });

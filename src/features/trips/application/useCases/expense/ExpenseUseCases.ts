@@ -12,7 +12,9 @@ import type {
   TripExpense,
   CreateExpenseInput,
   UpdateExpenseInput,
+  ReturnExpenseInput,
 } from "@features/trips/domain";
+import type { ApprovalGuards } from "@features/approvals";
 import {
   mapBackendError,
   type MappedError,
@@ -264,6 +266,7 @@ export interface IApproveExpenseUseCase {
   execute(
     tripId: string,
     expenseId: string,
+    guards?: ApprovalGuards,
   ): Promise<UseCaseResult<TripExpense>>;
 }
 
@@ -277,9 +280,10 @@ export class ApproveExpenseUseCase implements IApproveExpenseUseCase {
   async execute(
     tripId: string,
     expenseId: string,
+    guards?: ApprovalGuards,
   ): Promise<UseCaseResult<TripExpense>> {
     try {
-      const result = await this.repository.approve(tripId, expenseId);
+      const result = await this.repository.approve(tripId, expenseId, guards);
 
       return {
         success: true,
@@ -303,6 +307,7 @@ export interface IRejectExpenseUseCase {
     tripId: string,
     expenseId: string,
     reason: string,
+    guards?: ApprovalGuards,
   ): Promise<UseCaseResult<TripExpense>>;
 }
 
@@ -317,9 +322,10 @@ export class RejectExpenseUseCase implements IRejectExpenseUseCase {
     tripId: string,
     expenseId: string,
     reason: string,
+    guards?: ApprovalGuards,
   ): Promise<UseCaseResult<TripExpense>> {
     try {
-      const result = await this.repository.reject(tripId, expenseId, reason);
+      const result = await this.repository.reject(tripId, expenseId, reason, guards);
 
       return {
         success: true,
@@ -330,6 +336,39 @@ export class RejectExpenseUseCase implements IRejectExpenseUseCase {
         success: false,
         error: mapBackendError(error),
       };
+    }
+  }
+}
+
+// ============================================================================
+// RETURN EXPENSE USE CASE (ADR-0099)
+// ============================================================================
+
+export interface IReturnExpenseUseCase {
+  execute(
+    tripId: string,
+    expenseId: string,
+    input: ReturnExpenseInput,
+  ): Promise<UseCaseResult<TripExpense>>;
+}
+
+export class ReturnExpenseUseCase implements IReturnExpenseUseCase {
+  private readonly repository: IExpenseRepository;
+
+  constructor(repository: IExpenseRepository) {
+    this.repository = repository;
+  }
+
+  async execute(
+    tripId: string,
+    expenseId: string,
+    input: ReturnExpenseInput,
+  ): Promise<UseCaseResult<TripExpense>> {
+    try {
+      const result = await this.repository.returnForCorrection(tripId, expenseId, input);
+      return { success: true, data: result.data };
+    } catch (error) {
+      return { success: false, error: mapBackendError(error) };
     }
   }
 }
@@ -378,4 +417,10 @@ export function createRejectExpenseUseCase(
   repository: IExpenseRepository,
 ): IRejectExpenseUseCase {
   return new RejectExpenseUseCase(repository);
+}
+
+export function createReturnExpenseUseCase(
+  repository: IExpenseRepository,
+): IReturnExpenseUseCase {
+  return new ReturnExpenseUseCase(repository);
 }

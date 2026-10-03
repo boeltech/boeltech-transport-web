@@ -1,10 +1,34 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AdvanceActions } from "./AdvanceActions";
 import type { DriverAdvance } from "../../domain/entities";
+import type { ApprovalBlock, SelfApprovalPolicy } from "@features/approvals";
+
+function makeApproval(overrides: Partial<ApprovalBlock> = {}): ApprovalBlock {
+  return {
+    flowStatus: "in_progress",
+    stepCurrent: 1,
+    stepsTotal: 1,
+    pendingFor: { roles: ["manager"], users: [] },
+    signedSteps: [],
+    routedBy: {
+      tierIndex: null,
+      minAmount: null,
+      matchedConditions: [],
+      policyVersion: null,
+      lazy: false,
+    },
+    canAct: true,
+    cannotActReason: null,
+    escalated: false,
+    reapproval: null,
+    returned: null,
+    ...overrides,
+  };
+}
 
 const mockUsePermissions = vi.fn();
 const mockUseAuth = vi.fn();
@@ -13,6 +37,9 @@ const mockSubmitAdvance = vi.fn();
 const mockApproveAdvance = vi.fn();
 const mockRejectAdvance = vi.fn();
 const mockDisburseAdvance = vi.fn();
+const mockReturnAdvance = vi.fn();
+const mockUpdateAdvance = vi.fn();
+const mockCancelAdvance = vi.fn();
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => mockUsePermissions(),
@@ -32,12 +59,35 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
     approveAdvance: (...args: unknown[]) => mockApproveAdvance(...args),
     rejectAdvance: (...args: unknown[]) => mockRejectAdvance(...args),
     disburseAdvance: (...args: unknown[]) => mockDisburseAdvance(...args),
+    returnAdvance: (...args: unknown[]) => mockReturnAdvance(...args),
+    updateAdvance: (...args: unknown[]) => mockUpdateAdvance(...args),
+    cancelAdvance: (...args: unknown[]) => mockCancelAdvance(...args),
   },
 }));
 
-vi.mock("@features/approvals", () => ({
+const mockSelfApprovalPolicy = vi.fn<() => SelfApprovalPolicy | undefined>();
+
+vi.mock("@features/approvals", async () => ({
+  ...(await import("@features/approvals/testing/selfApprovalTestModule")),
   invalidateApprovalsRelatedQueries: vi.fn(),
+  useSelfApprovalPolicy: () => ({ data: mockSelfApprovalPolicy() }),
 }));
+
+function makePolicy(
+  overrides: Partial<Record<keyof SelfApprovalPolicy, boolean>> = {},
+): SelfApprovalPolicy {
+  const entry = (allowed = false) => ({
+    allowed,
+    activeCounterpartCount: allowed ? 0 : 1,
+  });
+  return {
+    advanceApprove: entry(overrides.advanceApprove),
+    advanceDisburse: entry(overrides.advanceDisburse),
+    settlementApprove: entry(overrides.settlementApprove),
+    settlementDisburse: entry(overrides.settlementDisburse),
+    tripExpenseApprove: entry(overrides.tripExpenseApprove),
+  };
+}
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -83,6 +133,7 @@ describe("AdvanceActions", () => {
     mockUseAuth.mockReturnValue({
       user: { id: "user-approver-999", name: "Auditor Finanzas", email: "auditor@boeltech.com" },
     });
+    mockSelfApprovalPolicy.mockReturnValue(makePolicy());
   });
 
   it("1. Renderiza opciones de autorizar y rechazar cuando el usuario revisor es distinto del solicitante", async () => {
@@ -102,10 +153,10 @@ describe("AdvanceActions", () => {
 
     expect(screen.getByText("Autorizar anticipo")).toBeInTheDocument();
     expect(screen.getByText("Rechazar anticipo")).toBeInTheDocument();
-    expect(screen.queryByText("Auto-aprobación no permitida")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enviada por ti")).not.toBeInTheDocument();
   });
 
-  it("2. Bloquea y muestra aviso Maker-Checker si el usuario logueado es el solicitante del anticipo", async () => {
+  it("2. ADR-0098 blocked_own: el solicitante ve «Enviada por ti» deshabilitado con la pista", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
 
@@ -124,15 +175,97 @@ describe("AdvanceActions", () => {
     const triggerBtn = screen.getByRole("button", { name: /abrir menú de acciones/i });
     await user.click(triggerBtn);
 
-    expect(screen.getByText("Auto-aprobación no permitida")).toBeInTheDocument();
+    const ownRow = screen.getByRole("menuitem", { name: /Enviada por ti/i });
+    expect(ownRow).toHaveAttribute("aria-disabled", "true");
+    expect(ownRow).toHaveTextContent(/Debe autorizarla otra persona/i);
     expect(screen.queryByText("Autorizar anticipo")).not.toBeInTheDocument();
     expect(screen.queryByText("Rechazar anticipo")).not.toBeInTheDocument();
+  });
+
+  it("2b. ADR-0098 blocked_own: el creador (no solo quien envió) también queda bloqueado", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockUseAuth.mockReturnValue({ user: { id: "user-maker-777", name: "Capturista" } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={{ ...sampleAdvance, createdBy: "user-maker-777" }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    expect(screen.getByRole("menuitem", { name: /Enviada por ti/i })).toBeInTheDocument();
+    expect(screen.queryByText("Autorizar anticipo")).not.toBeInTheDocument();
+  });
+
+  it("2c. ADR-0098 self_confirm: el admin único confirma antes de autorizar lo propio", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockSelfApprovalPolicy.mockReturnValue(makePolicy({ advanceApprove: true }));
+    mockUseAuth.mockReturnValue({ user: { id: "user-creator-123", name: "Admin" } });
+    mockApproveAdvance.mockResolvedValueOnce({ ...sampleAdvance, status: "pending_disbursement" });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={sampleAdvance} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Autorizar anticipo"));
+
+    expect(await screen.findByText("¿Autorizar tu propia solicitud?")).toBeInTheDocument();
+    expect(screen.getByText(/Tú enviaste este anticipo/i)).toBeInTheDocument();
+    expect(mockApproveAdvance).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Sí, autorizar" }));
+    await waitFor(() => {
+      expect(mockApproveAdvance).toHaveBeenCalledWith("adv-1", {});
+    });
+  });
+
+  it("2d. ADR-0098: un 403 de autoacción muestra el mensaje del API como respaldo", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockApproveAdvance.mockRejectedValueOnce(
+      Object.assign(new Error("Hay otro autorizador activo."), {
+        code: "SELF_APPROVAL_FORBIDDEN",
+        details: { reason: "counterpart_available" },
+      }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={sampleAdvance} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Autorizar anticipo"));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: "Hay otro autorizador activo.",
+          variant: "destructive",
+        }),
+      );
+    });
   });
 
   it("3. Ejecuta la aprobación al hacer click en Autorizar anticipo", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
-    mockApproveAdvance.mockResolvedValueOnce({ ...sampleAdvance, status: "pending_disbursement" });
+    mockApproveAdvance.mockResolvedValueOnce({
+      advance: { ...sampleAdvance, status: "pending_disbursement" },
+      outcome: "approved",
+    });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -149,14 +282,14 @@ describe("AdvanceActions", () => {
     await user.click(approveItem);
 
     await waitFor(() => {
-      expect(mockApproveAdvance).toHaveBeenCalledWith("adv-1");
+      expect(mockApproveAdvance).toHaveBeenCalledWith("adv-1", {});
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Anticipo autorizado correctamente", variant: "success" }),
       );
     });
   });
 
-  it("4. Abre diálogo de rechazo y envía motivo al confirmar", async () => {
+  it("4. Abre el Sheet de rechazo y envía motivo al confirmar", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
     mockRejectAdvance.mockResolvedValueOnce({ ...sampleAdvance, status: "rejected" });
@@ -175,20 +308,134 @@ describe("AdvanceActions", () => {
     const rejectItem = screen.getByText("Rechazar anticipo");
     await user.click(rejectItem);
 
-    expect(screen.getByRole("heading", { name: /rechazar anticipo/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /rechazar anticipo/i }),
+    ).toBeInTheDocument();
 
-    const textarea = screen.getByLabelText(/motivo de rechazo/i);
+    const textarea = screen.getByLabelText(/razón del rechazo/i);
     await user.type(textarea, "Monto excede el límite permitido para esta ruta");
 
-    const confirmBtn = screen.getByRole("button", { name: /confirmar rechazo/i });
+    const confirmBtn = screen.getByRole("button", { name: "Rechazar" });
     await user.click(confirmBtn);
 
     await waitFor(() => {
       expect(mockRejectAdvance).toHaveBeenCalledWith(
         "adv-1",
         "Monto excede el límite permitido para esta ruta",
+        {},
       );
     });
+  });
+
+  it("4b. ADR-0099: «Devolver para corregir» envía motivo rápido y guardas", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockReturnAdvance.mockResolvedValueOnce({ ...sampleAdvance, status: "draft" });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions
+            advance={{ ...sampleAdvance, approvalRevision: 3, approval: makeApproval() }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Devolver para corregir"));
+
+    expect(
+      await screen.findByRole("heading", { name: /devolver anticipo para corregir/i }),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/^motivo$/i), "Falta el comprobante de casetas");
+    await user.click(screen.getByRole("button", { name: "Devolver" }));
+
+    await waitFor(() => {
+      expect(mockReturnAdvance).toHaveBeenCalledWith(
+        "adv-1",
+        expect.objectContaining({
+          reason: "Falta el comprobante de casetas",
+          guards: { expectedStep: 1, expectedRevision: 3 },
+        }),
+      );
+    });
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Anticipo devuelto para corregir" }),
+    );
+  });
+
+  it("4c. ADR-0099: paso intermedio pide confirmación y el toast nombra el siguiente rol", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockApproveAdvance.mockResolvedValueOnce({ advance: sampleAdvance, outcome: "step_signed" });
+    const approval = makeApproval({
+      stepsTotal: 2,
+      nextStep: { stepNo: 2, roles: ["accountant"], users: [] },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={{ ...sampleAdvance, approval }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Autorizar anticipo"));
+
+    expect(mockApproveAdvance).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: /firmar/i }));
+
+    await waitFor(() => {
+      expect(mockApproveAdvance).toHaveBeenCalledWith("adv-1", { expectedStep: 1 });
+    });
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.stringMatching(/paso 2.*Contador/i) }),
+    );
+  });
+
+  it("4d. ADR-0099: una guarda (409) avisa sin reintentar", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockApproveAdvance.mockRejectedValueOnce(
+      Object.assign(new Error("stale"), { code: "APPROVAL_STEP_CHANGED" }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={sampleAdvance} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Autorizar anticipo"));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "warning" }));
+    });
+    expect(mockApproveAdvance).toHaveBeenCalledTimes(1);
+  });
+
+  it("4e. pendiente de autorización ofrece editar y cancelar", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={sampleAdvance} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    expect(screen.getByText("Editar anticipo…")).toBeInTheDocument();
+    expect(screen.getByText("Cancelar anticipo…")).toBeInTheDocument();
   });
 
   it("5. Muestra opción de registrar entrega/pago para anticipos en pending_disbursement", async () => {
@@ -211,5 +458,105 @@ describe("AdvanceActions", () => {
     await user.click(triggerBtn);
 
     expect(screen.getByText("Registrar entrega / pago")).toBeInTheDocument();
+  });
+
+  it("6. ADR-0098 blocked_own: el maker no puede registrar la entrega de su propio anticipo", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockUseAuth.mockReturnValue({ user: { id: "user-creator-123", name: "Creador" } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={{ ...sampleAdvance, status: "pending_disbursement" }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    expect(screen.queryByText("Registrar entrega / pago")).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Enviada por ti/i })).toHaveTextContent(
+      /Debe registrar el pago otra persona/i,
+    );
+  });
+
+  it("7. ADR-0098 self_confirm: la entrega propia muestra el aviso de autoacción", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockSelfApprovalPolicy.mockReturnValue(makePolicy({ advanceDisburse: true }));
+    mockUseAuth.mockReturnValue({ user: { id: "user-creator-123", name: "Admin" } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={{ ...sampleAdvance, status: "pending_disbursement" }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Registrar entrega / pago"));
+
+    expect(
+      await screen.findByText("¿Registrar el pago de tu propia solicitud?"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Tú registraste este anticipo/i)).toBeInTheDocument();
+  });
+
+  it("8. ADR-0099 D15: borrador devuelto ofrece corregir y reenviar", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions
+            advance={{
+              ...sampleAdvance,
+              status: "draft",
+              approval: makeApproval({
+                flowStatus: "returned",
+                stepCurrent: null,
+                canAct: false,
+                returned: {
+                  reason: "Falta comprobante",
+                  reasonCode: "missing_receipt",
+                  returnedBy: "user-approver-999",
+                  returnedByName: "Ana",
+                  returnedAt: "2026-10-02T10:00:00Z",
+                },
+              }),
+            }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    expect(screen.getByText("Corregir y reenviar")).toBeInTheDocument();
+    expect(screen.getByText("Reenviar sin cambios")).toBeInTheDocument();
+    expect(screen.getByText("Cancelar anticipo…")).toBeInTheDocument();
+    expect(screen.queryByText("Enviar a autorización")).not.toBeInTheDocument();
+    expect(screen.queryByText("Editar anticipo…")).not.toBeInTheDocument();
+  });
+
+  it("9. ADR-0099 D18: entregado solo permite «Agregar nota…»", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={{ ...sampleAdvance, status: "disbursed" }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    expect(screen.getByText("Agregar nota…")).toBeInTheDocument();
+    expect(screen.queryByText("Editar anticipo…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cancelar anticipo…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Autorizar anticipo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Registrar entrega / pago")).not.toBeInTheDocument();
   });
 });

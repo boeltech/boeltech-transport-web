@@ -121,6 +121,16 @@ describe("mapTripToWizardFormValues", () => {
     expect(result.scheduledDeparture).not.toBe("");
     expect(result.scheduledArrival).not.toBe("");
     expect(result.startMileage).toBe(1000);
+    expect(result.routeType).toBe("long_haul");
+  });
+
+  it("hydrates routeType from trip when present", () => {
+    const result = mapTripToWizardFormValues({
+      ...baseTrip,
+      routeType: "local",
+    } as Trip);
+
+    expect(result.routeType).toBe("local");
   });
 
   it("maps stop arrays and preserves sequence metadata", () => {

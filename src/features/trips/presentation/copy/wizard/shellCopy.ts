@@ -93,6 +93,7 @@ export const shellCopy = {
       client: "Cliente",
       originCity: "Ciudad de origen",
       destinationCity: "Ciudad de destino",
+      routeType: "Clase de ruta",
       notes: "Notas del pedido",
       baseRate: "Tarifa acordada (opcional)",
       fleetOptions: "Opciones de flota",
@@ -101,6 +102,7 @@ export const shellCopy = {
       originCity: "Ej. CDMX",
       destinationCity: "Ej. Monterrey",
       notes: "Ej. Llamada · WhatsApp · Pedido verbal",
+      routeType: "Seleccionar clase de ruta",
     },
     hint: {
       notes: "Cómo lo pidieron y cualquier detalle útil para la operación.",
@@ -112,6 +114,8 @@ export const shellCopy = {
         "Si no está en la lista, pide el alta a administración.",
       arrival: "Opcional; puedes completarla al confirmar.",
       client: "Quién solicita el viaje.",
+      routeType:
+        "Define cómo se paga al operador: entrega urbana (Local), trayecto foráneo, o maniobra patio↔patio (Transfer / Patio). No es el CFDI.",
     },
     action: {
       newClient: "regístralo aquí",

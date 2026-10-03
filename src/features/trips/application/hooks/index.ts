@@ -20,6 +20,7 @@ export {
   useDeleteExpense,
   useApproveExpense,
   useRejectExpense,
+  useReturnExpense,
   useAddMultipleExpenses,
 } from "./expense/useExpenseOperations";
 

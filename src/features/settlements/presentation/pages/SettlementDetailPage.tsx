@@ -9,6 +9,10 @@ import {
   Check,
   X,
   ChevronDown,
+  Eye,
+  History,
+  Pencil,
+  Send,
 } from "lucide-react";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { Button } from "@shared/ui/button";
@@ -29,19 +33,36 @@ import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { escapeHtml } from "@shared/utils/escapeHtml";
-import { usePrintIframe } from "@shared/hooks";
+import { usePrintIframe, useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 
 import { useSettlementDetail } from "../../application/hooks";
-import { settlementCreatePath } from "../../application/settlementsRoutes";
+import { useSubmitSettlement } from "../../application/hooks/useSettlements";
+import { settlementCreatePath, settlementDetailPath } from "../../application/settlementsRoutes";
 import { useAuth } from "@features/auth";
+import {
+  ApprovalFlowLines,
+  ApprovalHistorySheet,
+  ReturnedAlert,
+  SelfApprovedBadge,
+  showsSelfApprovedBadge,
+} from "@features/approvals";
 import { useCompanySettings } from "@features/settings";
 import {
   SettlementStatusBadge,
   SettlementItemsTable,
   SettlementReceiptPrintView,
   SettlementActions,
+  SettlementCorrectionSheet,
 } from "../components";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import {
+  isReceiptSignable,
+  isSettlementCorrectable,
+  isSettlementReturned,
+} from "../utils/settlementEditing";
+import { isSettlementMaker } from "../utils/settlementCta";
 import {
   resolveSettlementBackHref,
   resolveSettlementWayfindingBackLabel,
@@ -84,6 +105,35 @@ export function SettlementDetailPage() {
 
   const { user } = useAuth();
   const { data: companySettings } = useCompanySettings();
+  const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canUpdate = hasPermission("settlements", "update");
+  const canReadApprovals = hasPermission("finance_approvals", "read");
+  const submitMutation = useSubmitSettlement();
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const isReturned = settlement ? isSettlementReturned(settlement) : false;
+  const canCorrect = Boolean(
+    settlement && canUpdate && isSettlementCorrectable(settlement.status),
+  );
+  const receiptSignable = settlement ? isReceiptSignable(settlement.status) : false;
+  const flowCopy = copy.settlementFlow;
+
+  const handleResubmitUnchanged = async () => {
+    if (!settlement) return;
+    try {
+      await submitMutation.mutateAsync(settlement.id);
+      toast({ title: flowCopy.toasts.resubmitted, variant: "success" });
+      void refetch();
+    } catch (error) {
+      toast({
+        title: copy.toasts.submitSettlementError,
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
 
   const companyDisplayName =
     companySettings?.legalName ||
@@ -166,12 +216,21 @@ export function SettlementDetailPage() {
                 onClick={() => setPrintDialogOpen(true)}
                 className="gap-1.5"
               >
-                <Printer className="h-4 w-4" />
-                <span>Imprimir recibo</span>
+                {receiptSignable ? (
+                  <Printer className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+                <span>
+                  {receiptSignable
+                    ? flowCopy.header.printReceipt
+                    : flowCopy.header.previewReceipt}
+                </span>
               </Button>
               <SettlementActions
                 variant="buttons"
                 settlement={settlement}
+                onCorrect={() => setCorrectionOpen(true)}
                 onActionComplete={() => {
                   void refetch();
                 }}
@@ -182,6 +241,33 @@ export function SettlementDetailPage() {
       >
         {settlement && (
           <div className="space-y-6">
+            {isReturned ? (
+              <ReturnedAlert
+                approval={settlement.approval}
+                actions={
+                  canUpdate ? (
+                    <>
+                      {canCorrect ? (
+                        <Button size="sm" onClick={() => setCorrectionOpen(true)}>
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                          {flowCopy.returnedAlert.correctAndResubmit}
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={submitMutation.isPending}
+                        onClick={() => void handleResubmitUnchanged()}
+                      >
+                        <Send className="mr-1.5 h-3.5 w-3.5" />
+                        {flowCopy.returnedAlert.resubmitUnchanged}
+                      </Button>
+                    </>
+                  ) : undefined
+                }
+              />
+            ) : null}
+
             {/* D2: strip 3 celdas — grossAmount ya incluye reembolsos */}
             <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
               <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
@@ -290,6 +376,7 @@ export function SettlementDetailPage() {
                         <SettlementItemsTable
                           items={settlement.items ?? []}
                           agreementCalculationType={settlement.agreementSnapshot.calculationType}
+                          tripLinkFrom={settlementDetailPath(settlement.id)}
                         />
                       </CardContent>
                     </CollapsibleContent>
@@ -373,14 +460,23 @@ export function SettlementDetailPage() {
                             ? formatDate(settlement.approvedAt)
                             : dCopy.workflow.notApproved}
                         </p>
-                        {settlement.selfSegregatedApproval ? (
-                          <p className="text-[10px] text-muted-foreground italic mt-0.5">
-                            {settlement.approverCountAtApprove != null
-                              ? dCopy.workflow.selfSegregatedApprovalCount(
-                                  settlement.approverCountAtApprove,
-                                )
-                              : dCopy.workflow.selfSegregatedApproval}
-                          </p>
+                        {showsSelfApprovedBadge({
+                          kind: "settlement",
+                          status: settlement.status,
+                          selfSegregatedApproval: settlement.selfSegregatedApproval,
+                        }) ? (
+                          <>
+                            <div className="mt-1">
+                              <SelfApprovedBadge />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground italic mt-0.5">
+                              {settlement.approverCountAtApprove != null
+                                ? dCopy.workflow.selfSegregatedApprovalCount(
+                                    settlement.approverCountAtApprove,
+                                  )
+                                : dCopy.workflow.selfSegregatedApproval}
+                            </p>
+                          </>
                         ) : null}
                       </li>
 
@@ -439,6 +535,22 @@ export function SettlementDetailPage() {
                         )}
                       </li>
                     </ol>
+                    {settlement.approval && !isReturned ? (
+                      <div className="pt-3">
+                        <ApprovalFlowLines approval={settlement.approval} />
+                      </div>
+                    ) : null}
+                    {canReadApprovals && settlement.approval ? (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="mt-2 h-auto gap-1.5 px-0 text-xs"
+                        onClick={() => setHistoryOpen(true)}
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        {flowCopy.header.history}
+                      </Button>
+                    ) : null}
                   </CardContent>
                 </Card>
 
@@ -571,7 +683,9 @@ export function SettlementDetailPage() {
               <div>
                 <DialogTitle>Recibo de liquidación</DialogTitle>
                 <DialogDescription>
-                  Vista previa para impresión y firma del operador.
+                  {receiptSignable
+                    ? "Vista previa para impresión y firma del operador."
+                    : dCopy.receipt.previewDialogDescription}
                 </DialogDescription>
               </div>
               <Button onClick={handlePrint} disabled={isPrinting} className="gap-1.5">
@@ -592,6 +706,28 @@ export function SettlementDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {settlement && canCorrect ? (
+        <SettlementCorrectionSheet
+          open={correctionOpen}
+          onOpenChange={setCorrectionOpen}
+          settlement={settlement}
+          showAuthorizerHint={!isSettlementMaker(settlement, user?.id)}
+          onSaved={() => {
+            void refetch();
+          }}
+        />
+      ) : null}
+
+      {settlement?.approval && canReadApprovals ? (
+        <ApprovalHistorySheet
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          type="internal_staff_compensation"
+          id={settlement.id}
+          subtitle={settlement.settlementNumber}
+        />
+      ) : null}
     </>
   );
 }

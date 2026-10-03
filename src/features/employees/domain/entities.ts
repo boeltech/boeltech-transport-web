@@ -137,6 +137,8 @@ export interface ApiEmployeeForDriverSelection {
   department: string | null;
   position: string | null;
   hire_date: string;
+  /** Returned by GET /employees/:id/basic; absent in list endpoint. */
+  salary_type?: SalaryType | null;
 }
 
 // ============================================================================
@@ -249,6 +251,7 @@ export interface EmployeeForSelection {
   department: string | null;
   position: string | null;
   hireDate: string;
+  salaryType?: SalaryType | null;
 }
 
 // ============================================================================

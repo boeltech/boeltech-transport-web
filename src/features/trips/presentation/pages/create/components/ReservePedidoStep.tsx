@@ -6,6 +6,10 @@ import { Link } from "react-router-dom";
 import { Controller, type UseFormReturn } from "react-hook-form";
 import { Building2, ExternalLink, Loader2 } from "lucide-react";
 
+import {
+  TRIP_ROUTE_TYPE_LABELS,
+  TripRouteType,
+} from "@features/trips/domain";
 import { FormFieldShell, DateTimeField, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import {
@@ -25,6 +29,12 @@ import { tripScheduleDateTimeFieldProps } from "../../../scheduleDateTimeField";
 const shell = wizardCopy.shell;
 const basic = wizardCopy.basicInfo;
 const reserve = shell.reserve;
+
+const ROUTE_TYPE_OPTIONS = [
+  TripRouteType.LONG_HAUL,
+  TripRouteType.LOCAL,
+  TripRouteType.TRANSFER,
+] as const;
 
 interface ReservePedidoStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,6 +192,47 @@ export function ReservePedidoStep({
             )}
           />
         </div>
+        <Controller
+          control={control}
+          name="routeType"
+          render={({ field, fieldState }) => (
+            <FormFieldShell
+              fieldId="routeType"
+              label={
+                <SectionHeadingWithHint
+                  noTitleWrap
+                  title={reserve.label.routeType}
+                  hintLabel={reserve.label.routeType}
+                  hint={<>{reserve.hint.routeType}</>}
+                />
+              }
+              errorMessage={fieldState.error?.message}
+            >
+              <Select
+                onValueChange={(value) => value && field.onChange(value)}
+                value={field.value ?? TripRouteType.LONG_HAUL}
+              >
+                <SelectTrigger
+                  id="routeType"
+                  error={Boolean(fieldState.error)}
+                  {...getFieldErrorAriaProps(
+                    "routeType",
+                    fieldState.error?.message,
+                  )}
+                >
+                  <SelectValue placeholder={reserve.placeholder.routeType} />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROUTE_TYPE_OPTIONS.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {TRIP_ROUTE_TYPE_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormFieldShell>
+          )}
+        />
       </section>
 
       <section className="space-y-4" aria-labelledby="reserve-schedule-heading">

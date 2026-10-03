@@ -21,6 +21,8 @@ export const operationCopy = {
     staffSection: "Equipo de apoyo",
     paymentResponsible: "Responsable de pago",
     trailersSection: "Remolques",
+    routeType:
+      "Define cómo se paga al operador: entrega urbana (Local), trayecto foráneo, o maniobra patio↔patio (Transfer / Patio). No es la facturación del viaje.",
   },
   action: {
     viewClient: "Ver cliente",
@@ -29,13 +31,16 @@ export const operationCopy = {
     cancelSchedule: "Cancelar",
     reassignFleet: "Reasignar flota",
     assignFleet: "Asignar flota",
-    liquidateEmployee: "Liquidar período",
+    liquidateEmployee: "Armar pago",
     liquidateEmployeeHint:
-      "Abre una liquidación del período para este operador (incluye otros viajes del rango).",
-    viewTripSettlements: "Ver liquidaciones del viaje",
+      "Abre el pago del período para este operador (incluye otros viajes del rango).",
+    viewTripSettlements: "Ver pagos del viaje",
+    saveRouteType: "Guardar",
+    savingRouteType: "Guardando…",
+    cancel: "Cancelar",
   },
   settlement: {
-    sectionTitle: "Liquidaciones",
+    sectionTitle: "Pagos a operadores",
   },
   fleetAssignment: {
     sheetTitle: "Flota y tripulación",
@@ -172,6 +177,10 @@ export const operationCopy = {
   toast: {
     scheduleUpdated: "Programación actualizada",
     scheduleUpdateError: "No se pudo guardar la programación",
+    routeTypeUpdated: "Clase de ruta actualizada",
+    routeTypeUpdateError: "No se pudo guardar la clase de ruta",
+    routeTypeLockedBySettlement:
+      "No se puede cambiar la clase de ruta: el viaje ya está en una liquidación pagada",
   },
   error: {
     departureRequired: "La salida programada es obligatoria.",
@@ -182,7 +191,8 @@ export const operationCopy = {
   },
   label: {
     legalName: "Razón social",
-    tripType: "Tipo de viaje",
+    tripType: "Facturación del viaje",
+    routeType: "Clase de ruta",
     scheduledDeparture: "Salida programada",
     scheduledArrival: "Llegada estimada",
     scheduledDepartureReadOnly: "Salida",

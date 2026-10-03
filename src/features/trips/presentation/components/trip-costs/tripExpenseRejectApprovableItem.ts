@@ -1,7 +1,10 @@
 import type { ApprovableItem } from "@features/approvals";
 import type { TripExpense } from "@features/trips/domain";
 
-/** Stub mínimo para `RejectExpenseSheet` (solo valida targets; no muestra detalle). */
+/**
+ * Stub mínimo para `DecisionReasonSheet` / `approvalGuardsFor`: valida targets y
+ * lleva `approval` + `approvalRevision` para las guardas ADR-0099.
+ */
 export function tripExpenseToRejectApprovableItem(
   expense: TripExpense,
   tripId: string,
@@ -32,5 +35,9 @@ export function tripExpenseToRejectApprovableItem(
       description: expense.description,
       occurredAt: expense.expenseDate.toISOString(),
     },
+    ...(expense.approval !== undefined ? { approval: expense.approval } : {}),
+    ...(expense.approvalRevision !== undefined
+      ? { approvalRevision: expense.approvalRevision }
+      : {}),
   };
 }

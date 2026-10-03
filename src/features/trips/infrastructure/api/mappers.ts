@@ -13,6 +13,7 @@
  */
 
 import type { ApiPaginatedResponse, MappedSingleResult } from "@shared/api";
+import { mapApprovalBlock, type ApprovalDecisionOutcome } from "@features/approvals";
 import type {
   Trip,
   TripListItem,
@@ -29,6 +30,7 @@ import type {
   TripRevenueSplitLeg,
   //   TripStatusType,
   CurrencyType,
+  TripRouteTypeValue,
 } from "@features/trips/domain";
 import type {
   ApiTripResponse,
@@ -51,6 +53,16 @@ import type {
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
+
+/** ADR-0086 — default API/BD `long_haul` si el payload omite o es inválido. */
+function mapRouteType(
+  value: string | null | undefined,
+): TripRouteTypeValue {
+  if (value === "local" || value === "transfer" || value === "long_haul") {
+    return value;
+  }
+  return "long_haul";
+}
 
 /**
  * Convierte un valor que puede venir como string a number
@@ -361,6 +373,20 @@ export function mapApiCargo(api: ApiCargoResponse): TripCargo {
 // EXPENSE MAPPER
 // ============================================================================
 
+const APPROVAL_DECISION_OUTCOMES: readonly ApprovalDecisionOutcome[] = [
+  "approved",
+  "rejected",
+  "step_signed",
+  "returned",
+];
+
+function isApprovalDecisionOutcome(value: unknown): value is ApprovalDecisionOutcome {
+  return (
+    typeof value === "string" &&
+    (APPROVAL_DECISION_OUTCOMES as readonly string[]).includes(value)
+  );
+}
+
 /**
  * Mapea gasto de API a dominio
  */
@@ -414,6 +440,21 @@ export function mapApiExpense(api: ApiExpenseResponse): TripExpense {
     approvedBy: api.approved_by,
     approvedAt: toDateOrNull(api.approved_at),
     rejectionReason: api.rejection_reason,
+    selfSegregatedApproval: api.self_segregated_approval === true,
+    approverCountAtApprove:
+      api.approver_count_at_approve === undefined ||
+      api.approver_count_at_approve === null
+        ? null
+        : Number(api.approver_count_at_approve),
+    ...(api.approval_revision === undefined
+      ? {}
+      : { approvalRevision: api.approval_revision }),
+    ...(api.approval === undefined
+      ? {}
+      : { approval: api.approval ? mapApprovalBlock(api.approval) : null }),
+    ...(isApprovalDecisionOutcome(api.approval_outcome)
+      ? { approvalOutcome: api.approval_outcome }
+      : {}),
 
     // Notas
     notes: api.notes,
@@ -603,6 +644,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
 
     // Estado
     status: api.status,
+    routeType: mapRouteType(api.route_type),
     operationalOutcome:
       api.operational_outcome === "false_trip" ? "false_trip" : "standard",
     falseTripDeclaredAt: toDateOrNull(api.false_trip_declared_at),
@@ -714,6 +756,7 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     scheduledDeparture: toDate(api.scheduled_departure),
     scheduledArrival: toDateOrNull(api.scheduled_arrival),
     status: api.status,
+    routeType: mapRouteType(api.route_type),
     operationalOutcome:
       api.operational_outcome === "false_trip" ? "false_trip" : "standard",
     cfdiEmissionIntent:

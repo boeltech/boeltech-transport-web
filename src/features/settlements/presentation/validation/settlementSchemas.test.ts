@@ -271,22 +271,60 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
       }
     });
 
-    it("rechaza customItems no vac?os (H4)", () => {
-      const invalidData = {
+    it("rechaza partidas de tipo calculado en customItems", () => {
+      // CEO-2 (ADR-0099 F6c, D24): el alta ya admite partidas manuales; solo tipos manuales.
+      const calculatedType = {
         employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
         periodStart: "2026-08-01",
         periodEnd: "2026-08-15",
         customItems: [
           {
-            itemType: "bonus" as const,
-            description: "Bono no permitido",
+            itemType: "trip_commission",
+            description: "Comisión capturada a mano",
             amount: 500,
           },
         ],
       };
 
-      const result = createSettlementFormSchema.safeParse(invalidData);
-      expect(result.success).toBe(false);
+      expect(createSettlementFormSchema.safeParse(calculatedType).success).toBe(false);
+    });
+
+    it("D24: acepta un bono manual en el alta", () => {
+      const result = createSettlementFormSchema.safeParse({
+        employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-15",
+        customItems: [{ itemType: "bonus", description: "Bono de puntualidad", amount: 500 }],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("E10.6: el ajuste exige sentido; descripción y monto obligatorios", () => {
+      const base = {
+        employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-15",
+      };
+      const noDirection = createSettlementFormSchema.safeParse({
+        ...base,
+        customItems: [{ itemType: "adjustment", description: "Ajuste", amount: 50 }],
+      });
+      expect(noDirection.success).toBe(false);
+      if (!noDirection.success) {
+        expect(noDirection.error.issues[0]?.path).toEqual(["customItems", 0, "isDeduction"]);
+      }
+
+      const empty = createSettlementFormSchema.safeParse({
+        ...base,
+        customItems: [{ itemType: "penalty_deduction", description: "", amount: 0 }],
+      });
+      expect(empty.success).toBe(false);
+
+      const withDirection = createSettlementFormSchema.safeParse({
+        ...base,
+        customItems: [{ itemType: "adjustment", description: "Ajuste", amount: 50, isDeduction: true }],
+      });
+      expect(withDirection.success).toBe(true);
     });
   });
 

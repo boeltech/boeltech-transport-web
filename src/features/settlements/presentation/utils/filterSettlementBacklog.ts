@@ -1,6 +1,6 @@
 import type { SettlementBacklogRow } from "../../domain/entities";
 
-/** Recorta el backlog de Por liquidar por el texto del search (nombre o sucursal). */
+/** Recorta el backlog de Pendientes por el texto del search (nombre o sucursal). */
 export function filterSettlementBacklog(
   rows: readonly SettlementBacklogRow[],
   search: string,

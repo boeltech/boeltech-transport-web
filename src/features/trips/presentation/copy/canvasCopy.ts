@@ -17,7 +17,7 @@ export const canvasCopy = {
   },
   corridor: {
     label: "Corredor frecuente",
-    hint: "Clona las paradas. No copia flota, fecha, mercancía ni tarifa.",
+    hint: "Trayecto frecuente del cliente: clona las paradas. No es tarifa de pago a operadores. No copia flota, fecha, mercancía ni tarifa.",
     empty: "Sin corredores previos; captura ciudades.",
     loading: "Cargando corredores…",
     stopCount: (count: number) =>

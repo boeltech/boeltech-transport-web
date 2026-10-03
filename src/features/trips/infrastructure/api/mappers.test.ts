@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { mapApiTripListItem, mapApiTripRevenueSplit } from "./mappers";
-import type { ApiTripListItemResponse } from "./api-types";
+import {
+  mapApiExpense,
+  mapApiTrip,
+  mapApiTripListItem,
+  mapApiTripRevenueSplit,
+} from "./mappers";
+import type {
+  ApiExpenseResponse,
+  ApiTripListItemResponse,
+  ApiTripResponse,
+} from "./api-types";
 
 function baseListItem(
   invoicing: ApiTripListItemResponse["invoicing"],
@@ -262,5 +271,109 @@ describe("mapApiTripRevenueSplit (ADR-0081)", () => {
         invoiceId: "inv-b",
       },
     ]);
+  });
+});
+
+describe("mapApiTrip / mapApiTripListItem route_type (ADR-0086)", () => {
+  it("maps route_type on list item and defaults to long_haul when omitted", () => {
+    const withLocal = mapApiTripListItem({
+      ...baseListItem(undefined),
+      route_type: "local",
+    });
+    expect(withLocal.routeType).toBe("local");
+
+    const omitted = mapApiTripListItem(baseListItem(undefined));
+    expect(omitted.routeType).toBe("long_haul");
+
+    const transfer = mapApiTripListItem({
+      ...baseListItem(undefined),
+      route_type: "transfer",
+    });
+    expect(transfer.routeType).toBe("transfer");
+  });
+
+  it("maps route_type on detail trip", () => {
+    const api = {
+      id: "trip-1",
+      tenant_id: "t-1",
+      trip_code: "V-1",
+      vehicle_id: "veh-1",
+      driver_id: "drv-1",
+      client_id: null,
+      scheduled_departure: "2026-07-01T10:00:00.000Z",
+      scheduled_arrival: null,
+      actual_departure: null,
+      actual_arrival: null,
+      start_mileage: null,
+      end_mileage: null,
+      origin_city: "QRO",
+      origin_state: null,
+      destination_city: "CDMX",
+      destination_state: null,
+      cargo_description: null,
+      cargo_weight: null,
+      cargo_volume: null,
+      cargo_units: null,
+      cargo_value: null,
+      base_rate: 0,
+      fuel_cost: 0,
+      toll_cost: 0,
+      other_costs: 0,
+      total_cost: 0,
+      status: "draft",
+      route_type: "transfer",
+      notes: null,
+      cancellation_reason: null,
+      total_dist_rec: null,
+      id_ccp: null,
+      created_at: "2026-07-01T09:00:00.000Z",
+      updated_at: "2026-07-01T09:00:00.000Z",
+      created_by: null,
+      updated_by: null,
+    } as ApiTripResponse;
+
+    expect(mapApiTrip(api).routeType).toBe("transfer");
+    expect(mapApiTrip({ ...api, route_type: undefined }).routeType).toBe(
+      "long_haul",
+    );
+  });
+});
+
+describe("mapApiExpense self-approval evidence (ADR-0098)", () => {
+  const baseExpense = {
+    id: "exp-1",
+    tenant_id: "tenant-1",
+    trip_id: "trip-1",
+    category: "fuel",
+    description: "Diésel",
+    amount: 1500,
+    currency: "MXN",
+    expense_date: "2026-10-01T10:00:00.000Z",
+    status: "approved",
+    is_estimated: false,
+    approved_by: "admin-solo",
+    approved_at: "2026-10-01T12:00:00.000Z",
+    rejection_reason: null,
+    created_at: "2026-10-01T10:00:00.000Z",
+    updated_at: "2026-10-01T12:00:00.000Z",
+    created_by: "admin-solo",
+    updated_by: null,
+  } as unknown as ApiExpenseResponse;
+
+  it("mapea self_segregated_approval y approver_count_at_approve", () => {
+    const mapped = mapApiExpense({
+      ...baseExpense,
+      self_segregated_approval: true,
+      approver_count_at_approve: 1,
+    });
+    expect(mapped.selfSegregatedApproval).toBe(true);
+    expect(mapped.approverCountAtApprove).toBe(1);
+    expect(mapped.createdBy).toBe("admin-solo");
+  });
+
+  it("sin campos del API queda sin evidencia de autoaprobación", () => {
+    const mapped = mapApiExpense(baseExpense);
+    expect(mapped.selfSegregatedApproval).toBe(false);
+    expect(mapped.approverCountAtApprove).toBeNull();
   });
 });

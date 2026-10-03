@@ -179,6 +179,22 @@ describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {
       "Ir a Costos",
     );
   });
+
+  it("soft guard de km intenta pago por liquidación sin hard-block", () => {
+    expect(trackingCopy.sheet.declareFalseTripMileagePaymentHint).toMatch(
+      /pago por km|liquidación/i,
+    );
+    expect(trackingCopy.sheet.declareFalseTripMileagePaymentHintDriver).not.toMatch(
+      /liquidación|pago al operador/i,
+    );
+    expect(trackingCopy.sheet.declareFalseTripZeroKmTitle).toBe(
+      "Kilometraje sin recorrido",
+    );
+    expect(trackingCopy.sheet.declareFalseTripZeroKmBody).toMatch(/\$0/);
+    expect(trackingCopy.sheet.declareFalseTripZeroKmBodyDriver).not.toMatch(
+      /\$0|liquidación/i,
+    );
+  });
 });
 
 function flattenCopy(value: unknown): string {

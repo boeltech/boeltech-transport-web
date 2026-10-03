@@ -102,7 +102,7 @@ describe("SettlementReceiptPrintView", () => {
     expect(screen.getByText(/Transportes Tlama/i)).toBeInTheDocument();
     expect(screen.getByText(/RFC:\s*TTL200101XYZ/i)).toBeInTheDocument();
     expect(screen.getByText(/FOLIO:\s*LIQ-2026-0088/i)).toBeInTheDocument();
-    expect(screen.getByText("Liquidación de Viajes y Pago a Operador")).toBeInTheDocument();
+    expect(screen.getByText("Pago a operador — Período")).toBeInTheDocument();
 
     // D1: No raw UUID slices
     expect(screen.queryByText(/emp-uuid/i)).not.toBeInTheDocument();
@@ -165,6 +165,80 @@ describe("SettlementReceiptPrintView", () => {
 
     expect(screen.getByText("PENDIENTE DE PAGO")).toBeInTheDocument();
     expect(screen.queryByText("Recibo de pago")).not.toBeInTheDocument();
+  });
+
+  it.each(["draft", "pending_approval"] as const)(
+    "D28: en %s muestra «NO VÁLIDO PARA FIRMA» y no imprime firmas",
+    (status) => {
+      render(
+        <SettlementReceiptPrintView
+          settlement={{
+            ...mockSettlement,
+            status,
+            approvedAt: null,
+            approvedBy: null,
+            approvedByName: null,
+            disbursedAt: null,
+            disbursedBy: null,
+            disbursedByName: null,
+            disbursementMethod: null,
+            disbursementReference: null,
+          }}
+        />,
+      );
+
+      expect(screen.getByTestId("receipt-review-watermark")).toHaveTextContent(
+        "NO VÁLIDO PARA FIRMA",
+      );
+      expect(screen.getByTestId("receipt-review-notice")).toHaveTextContent(
+        /Documento de revisión\. No firmar/,
+      );
+      expect(screen.queryByText("Firma de Conformidad del Operador")).not.toBeInTheDocument();
+      expect(screen.queryByText("Revisado y Autorizado / Empresa")).not.toBeInTheDocument();
+      expect(screen.getByText(/Última modificación:/)).toBeInTheDocument();
+    },
+  );
+
+  it("D28: autorizada y dispersada muestran «Última modificación» sin marca de agua", () => {
+    render(<SettlementReceiptPrintView settlement={mockSettlement} />);
+
+    expect(screen.queryByTestId("receipt-review-watermark")).not.toBeInTheDocument();
+    expect(screen.getByText(/Última modificación:/)).toBeInTheDocument();
+  });
+
+  it("criterio 3: una penalización manual aparece en deducciones", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={{
+          ...mockSettlement,
+          totalOtherDeductions: 300,
+          netAmount: 7350,
+          items: [
+            ...(mockSettlement.items ?? []),
+            {
+              id: "item-4",
+              settlementId: "settlement-uuid-1234",
+              itemType: "penalty_deduction",
+              tripId: null,
+              tripExpenseId: null,
+              advanceId: null,
+              description: "Penalización por retraso",
+              quantity: 1,
+              unitRate: 300,
+              amount: 300,
+              isDeduction: true,
+              createdAt: "2026-08-15T12:00:00Z",
+            },
+          ],
+        }}
+      />,
+    );
+
+    const deductionsTable = screen
+      .getByText(/2\. Descuentos y Anticipos de Viaje/i)
+      .parentElement?.querySelector("table");
+    expect(deductionsTable?.textContent).toContain("-$300.00");
+    expect(deductionsTable?.textContent).toContain("-$1,800.00");
   });
 
   it("escapes malicious HTML payloads in companyName, notes, and employee name (XSS prevention)", () => {

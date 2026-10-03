@@ -15,12 +15,12 @@
 
 import type {
   TripStatusType,
+  TripRouteTypeValue,
   StopTypeValue,
   ExpenseCategoryType,
   CargoStatusType,
   CargoMovementTypeValue,
   CurrencyType,
-  ExpenseStatusType,
 } from "./enums";
 
 export interface CargoSectorRequirementsInput {
@@ -324,8 +324,7 @@ export interface UpdateExpenseInput {
   vendorName?: string | null;
   vendorRfc?: string | null;
 
-  // Estado
-  status?: ExpenseStatusType;
+  // Estado (`status` solo cambia por aprobar/rechazar, no por edición)
   isEstimated?: boolean;
 
   // Notas
@@ -517,6 +516,11 @@ export interface CreateTripInput {
    */
   cfdiEmissionIntent?: "emitir_cfdi" | "sin_cfdi_efectivo";
 
+  /**
+   * ADR-0086 — clase de ruta operativa (compensa al operador). Default API: `long_haul`.
+   */
+  routeType?: TripRouteTypeValue;
+
   // Fechas programadas
   scheduledDeparture: string; // ISO 8601
   scheduledArrival?: string;
@@ -597,6 +601,12 @@ export interface UpdateTripInput {
 
   /** ADR-0096 */
   cfdiEmissionIntent?: "emitir_cfdi" | "sin_cfdi_efectivo";
+
+  /**
+   * ADR-0086 — clase de ruta. Editable hasta liquidación pagada (`paid_lock`).
+   * PUT solo con este campo habilitado fuera de draft|scheduled.
+   */
+  routeType?: TripRouteTypeValue;
 
   // Fechas programadas
   scheduledDeparture?: string;

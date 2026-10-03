@@ -13,6 +13,7 @@ describe("getTripDetailAccess", () => {
     const access = getTripDetailAccess("scheduled", false);
     expect(access.canEditStructural).toBe(false);
     expect(access.canEditBaseRate).toBe(false);
+    expect(access.canEditRouteType).toBe(false);
     expect(access.canManageExpenses).toBe(false);
     expect(access.canCreateExpenses).toBe(false);
   });
@@ -21,6 +22,7 @@ describe("getTripDetailAccess", () => {
     const access = getTripDetailAccess("draft", openPerms);
     expect(access.canEditStructural).toBe(true);
     expect(access.canEditBaseRate).toBe(true);
+    expect(access.canEditRouteType).toBe(true);
     expect(access.canManageExpenses).toBe(true);
     expect(access.canCreateExpenses).toBe(true);
   });
@@ -29,6 +31,7 @@ describe("getTripDetailAccess", () => {
     const access = getTripDetailAccess("in_progress", openPerms);
     expect(access.canEditStructural).toBe(false);
     expect(access.canEditBaseRate).toBe(true);
+    expect(access.canEditRouteType).toBe(true);
     expect(access.canAppendCargo).toBe(true);
     expect(access.canReplanPendingStops).toBe(true);
     expect(access.canAppendStops).toBe(true);

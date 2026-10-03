@@ -44,12 +44,15 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
     expect(payload.clientId).toBe(
       "33333333-3333-4333-8333-333333333333",
     );
+    expect(payload.routeType).toBe("long_haul");
     expect(payload.trailers).toBeUndefined();
 
     const snake = deepToSnake(payload) as {
       options?: { create_intent?: string };
+      route_type?: string;
     };
     expect(snake.options?.create_intent).toBe("reserve");
+    expect(snake.route_type).toBe("long_haul");
 
     const apiCheck = validateCreateTripApiPayload(payload);
     expect(apiCheck.ok).toBe(true);

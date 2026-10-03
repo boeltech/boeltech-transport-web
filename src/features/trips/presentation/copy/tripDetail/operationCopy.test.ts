@@ -37,7 +37,9 @@ describe("operationCopy — léxico operativo (Capa 1 D8 / D11)", () => {
     expect(operationCopy.state.clientUnavailable).not.toMatch(/ID:/);
   });
 
-  it("nombra tipo de viaje en léxico operativo", () => {
+  it("nombra facturación del viaje en léxico operativo", () => {
+    expect(operationCopy.label.tripType).toBe("Facturación del viaje");
+    expect(operationCopy.label.routeType).toBe("Clase de ruta");
     expect(operationCopy.format.tripType("ingreso")).toBe("Servicio con factura");
     expect(operationCopy.format.tripType("traslado")).toBe("Solo traslado");
   });

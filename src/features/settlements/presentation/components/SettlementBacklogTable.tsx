@@ -56,12 +56,16 @@ function RowTypeBadge({ row }: { row: SettlementBacklogRow }) {
   );
 }
 
+/** UI ignores no_client_invoice (D5/D8): payload may still include the code. */
+const IGNORED_BACKLOG_WARNINGS = new Set(["no_client_invoice"]);
+
 function PeriodWarnings({ warnings }: { warnings: readonly string[] }) {
-  if (warnings.length === 0) return null;
+  const visible = warnings.filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w));
+  if (visible.length === 0) return null;
 
   return (
-    <ul className="flex flex-wrap gap-1.5">
-      {warnings.map((warning) => {
+    <ul className="flex flex-wrap items-center gap-1.5">
+      {visible.map((warning) => {
         const label =
           copy.warnings[warning as keyof typeof copy.warnings] ?? warning;
         return (
@@ -184,14 +188,9 @@ export function SettlementBacklogTable({
             >
               <CardHeader className="pb-2 space-y-2">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {row.employeeFullName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.buckets.pending}
-                    </p>
-                  </div>
+                  <p className="min-w-0 text-sm font-semibold text-foreground truncate">
+                    {row.employeeFullName}
+                  </p>
                   <RowTypeBadge row={row} />
                 </div>
               </CardHeader>
@@ -309,54 +308,34 @@ export function SettlementBacklogTable({
                 className="hover:bg-muted/40"
               >
                 <TableCell className="min-w-[220px] py-3">
-                  <div className="space-y-1">
-                    <p className="font-semibold text-foreground whitespace-nowrap">
-                      {row.employeeFullName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {copy.buckets.pending}
-                    </p>
-                  </div>
+                  <p className="font-semibold text-foreground whitespace-nowrap">
+                    {row.employeeFullName}
+                  </p>
                 </TableCell>
                 <TableCell className="min-w-[140px] py-3 text-right">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {fieldsCopy.estimatedAmount}
-                    </p>
-                    <p className="tabular-nums text-base font-bold text-primary whitespace-nowrap">
-                      {row.estimatedNetAmount != null
-                        ? formatMxCurrency(row.estimatedNetAmount)
-                        : copy.backlog.estimatedAmountMissing}
-                    </p>
-                  </div>
+                  <p className="tabular-nums text-base font-bold text-primary whitespace-nowrap">
+                    {row.estimatedNetAmount != null
+                      ? formatMxCurrency(row.estimatedNetAmount)
+                      : copy.backlog.estimatedAmountMissing}
+                  </p>
                 </TableCell>
                 <TableCell className="min-w-[220px] py-3">
-                  <div className="space-y-2">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {fieldsCopy.period}
-                      </p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex cursor-help whitespace-nowrap border-b border-dotted border-muted-foreground/50 text-sm text-foreground">
-                            {formatDate(row.periodStart)} – {formatDate(row.periodEnd)}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs text-xs">
-                          {resolveBacklogPeriodTooltip(row.rowType)}
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
+                  <div className="space-y-1.5">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex cursor-help whitespace-nowrap border-b border-dotted border-muted-foreground/50 text-sm text-foreground">
+                          {formatDate(row.periodStart)} – {formatDate(row.periodEnd)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        {resolveBacklogPeriodTooltip(row.rowType)}
+                      </TooltipContent>
+                    </Tooltip>
                     <PeriodWarnings warnings={row.warnings} />
                   </div>
                 </TableCell>
                 <TableCell className="min-w-[170px] py-3">
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {fieldsCopy.pendingConcept}
-                    </p>
-                    <RowTypeBadge row={row} />
-                  </div>
+                  <RowTypeBadge row={row} />
                 </TableCell>
                 <TableCell className="min-w-[150px] py-3 text-right">
                   {canCreate ? (

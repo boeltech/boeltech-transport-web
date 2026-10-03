@@ -1,13 +1,22 @@
 import { apiClient } from "@shared/api";
 import type { ApiSingleResponse, MappedPaginatedResult } from "@shared/api";
 import type {
+  ApprovalDecisionOutcome,
+  ApprovalGuards,
+  ApprovalReturnReasonCode,
+} from "@features/approvals";
+import type {
   CompensationAgreement,
   DriverAdvance,
   DriverSettlement,
   SettlementPreview,
   SettlementWorkbenchData,
   TenantSettlementSettings,
+  UpdateDriverAdvanceResult,
+  UpdateSettlementResult,
 } from "../domain/entities";
+import type { AdvanceStatus, SettlementStatus } from "../domain/enums";
+import type { ManualSettlementItemInput } from "../domain/settlementTotals";
 import {
   mapAgreement,
   mapAdvance,
@@ -33,6 +42,55 @@ import type {
 } from "../presentation/validation/settlementSchemas";
 
 const BASE_ENDPOINT = "/settlements";
+
+function toGuardsBody(guards?: ApprovalGuards): Record<string, string | number> {
+  const body: Record<string, string | number> = {};
+  if (guards?.expectedStep !== undefined) body.expected_step = guards.expectedStep;
+  if (guards?.expectedRevision) body.expected_revision = guards.expectedRevision;
+  return body;
+}
+
+export interface ApproveAdvanceResult {
+  advance: DriverAdvance;
+  outcome?: Extract<ApprovalDecisionOutcome, "approved" | "step_signed">;
+}
+
+export interface UpdateDriverAdvancePayload {
+  /** Solo en borrador (D17). */
+  employeeId?: string;
+  amount?: number;
+  category?: string;
+  paymentMethod?: string;
+  tripId?: string | null;
+  bankReference?: string | null;
+  notes?: string | null;
+  expectedStatus: AdvanceStatus;
+}
+
+export interface ApproveSettlementResult {
+  settlement: DriverSettlement;
+  outcome?: Extract<ApprovalDecisionOutcome, "approved" | "step_signed">;
+}
+
+/** ADR-0085 E10: cada lista reemplaza su conjunto; `expected_status` es la guarda. */
+export interface UpdateSettlementPayload {
+  notes?: string | null;
+  customItems?: ManualSettlementItemInput[];
+  /** Solo en borrador sin anticipos reservados. */
+  advancesToApply?: { advanceId: string; amountToDeduct: number }[];
+  expectedStatus: SettlementStatus;
+}
+
+/** Cuerpo estricto del API: `is_deduction` solo cuando el tipo no lo deriva. */
+function toManualItemBody(item: ManualSettlementItemInput) {
+  return {
+    item_type: item.itemType,
+    description: item.description.trim(),
+    amount: item.amount,
+    ...(item.itemType === "adjustment" ? { is_deduction: item.isDeduction === true } : {}),
+    ...(item.tripId ? { trip_id: item.tripId } : {}),
+  };
+}
 
 export interface ListSettlementsParams {
   employeeId?: string;
@@ -176,17 +234,76 @@ export const settlementsApi = {
     return mapAdvance(response.data);
   },
 
-  approveAdvance: async (id: string): Promise<DriverAdvance> => {
+  approveAdvance: async (
+    id: string,
+    guards?: ApprovalGuards,
+  ): Promise<ApproveAdvanceResult> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiDriverAdvanceRaw & { approval_outcome?: string | null }>
+    >(`${BASE_ENDPOINT}/advances/${id}/approve`, toGuardsBody(guards));
+    const outcome = response.data.approval_outcome;
+    return {
+      advance: mapAdvance(response.data),
+      outcome:
+        outcome === "approved" || outcome === "step_signed" ? outcome : undefined,
+    };
+  },
+
+  rejectAdvance: async (
+    id: string,
+    reason: string,
+    guards?: ApprovalGuards,
+  ): Promise<DriverAdvance> => {
     const response = await apiClient.post<ApiSingleResponse<ApiDriverAdvanceRaw>>(
-      `${BASE_ENDPOINT}/advances/${id}/approve`,
+      `${BASE_ENDPOINT}/advances/${id}/reject`,
+      { reason, ...toGuardsBody(guards) },
     );
     return mapAdvance(response.data);
   },
 
-  rejectAdvance: async (id: string, reason: string): Promise<DriverAdvance> => {
+  returnAdvance: async (
+    id: string,
+    input: { reason: string; reasonCode: ApprovalReturnReasonCode; guards?: ApprovalGuards },
+  ): Promise<DriverAdvance> => {
     const response = await apiClient.post<ApiSingleResponse<ApiDriverAdvanceRaw>>(
-      `${BASE_ENDPOINT}/advances/${id}/reject`,
-      { reason },
+      `${BASE_ENDPOINT}/advances/${id}/return`,
+      { reason: input.reason, reason_code: input.reasonCode, ...toGuardsBody(input.guards) },
+    );
+    return mapAdvance(response.data);
+  },
+
+  /** ADR-0099 D17: `expected_status` es la guarda; el API decide el efecto en la autorización. */
+  updateAdvance: async (
+    id: string,
+    payload: UpdateDriverAdvancePayload,
+  ): Promise<UpdateDriverAdvanceResult> => {
+    const response = await apiClient.patch<{
+      data: ApiDriverAdvanceRaw;
+      message?: string;
+      meta?: { approval_effect?: string; changes?: string[] };
+    }>(`${BASE_ENDPOINT}/advances/${id}`, {
+      ...(payload.employeeId !== undefined ? { employee_id: payload.employeeId } : {}),
+      ...(payload.amount !== undefined ? { amount: payload.amount } : {}),
+      ...(payload.category !== undefined ? { category: payload.category } : {}),
+      ...(payload.paymentMethod !== undefined ? { payment_method: payload.paymentMethod } : {}),
+      ...(payload.tripId !== undefined ? { trip_id: payload.tripId } : {}),
+      ...(payload.bankReference !== undefined ? { bank_reference: payload.bankReference } : {}),
+      ...(payload.notes !== undefined ? { notes: payload.notes } : {}),
+      expected_status: payload.expectedStatus,
+    });
+    const effect = response.meta?.approval_effect;
+    return {
+      advance: mapAdvance(response.data),
+      approvalEffect:
+        effect === "flow_restarted" || effect === "reapproval_required" ? effect : "none",
+      changes: response.meta?.changes ?? [],
+    };
+  },
+
+  cancelAdvance: async (id: string, reason?: string): Promise<DriverAdvance> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiDriverAdvanceRaw>>(
+      `${BASE_ENDPOINT}/advances/${id}/cancel`,
+      reason ? { reason } : {},
     );
     return mapAdvance(response.data);
   },
@@ -274,6 +391,7 @@ export const settlementsApi = {
   ): Promise<DriverSettlement> => {
     const cleanedPayload = {
       ...payload,
+      customItems: (payload.customItems ?? []).map(toManualItemBody),
       notes: payload.notes?.trim() ? payload.notes.trim() : undefined,
     };
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
@@ -283,6 +401,39 @@ export const settlementsApi = {
     return mapSettlement(response.data);
   },
 
+  /** ADR-0085 E10: corregir partidas manuales, anticipos (borrador) y notas. */
+  updateSettlement: async (
+    id: string,
+    payload: UpdateSettlementPayload,
+  ): Promise<UpdateSettlementResult> => {
+    const response = await apiClient.patch<{
+      data: ApiDriverSettlementRaw;
+      message?: string;
+      meta?: { approval_effect?: string; changes?: string[] };
+    }>(`${BASE_ENDPOINT}/${id}`, {
+      ...(payload.notes !== undefined ? { notes: payload.notes } : {}),
+      ...(payload.customItems !== undefined
+        ? { custom_items: payload.customItems.map(toManualItemBody) }
+        : {}),
+      ...(payload.advancesToApply !== undefined
+        ? {
+            advances_to_apply: payload.advancesToApply.map((advance) => ({
+              advance_id: advance.advanceId,
+              amount_to_deduct: advance.amountToDeduct,
+            })),
+          }
+        : {}),
+      expected_status: payload.expectedStatus,
+    });
+    const effect = response.meta?.approval_effect;
+    return {
+      settlement: mapSettlement(response.data),
+      approvalEffect:
+        effect === "flow_restarted" || effect === "reapproval_required" ? effect : "none",
+      changes: response.meta?.changes ?? [],
+    };
+  },
+
   submitSettlement: async (id: string): Promise<DriverSettlement> => {
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
       `${BASE_ENDPOINT}/${id}/submit`,
@@ -290,20 +441,40 @@ export const settlementsApi = {
     return mapSettlement(response.data);
   },
 
-  approveSettlement: async (id: string): Promise<DriverSettlement> => {
-    const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
-      `${BASE_ENDPOINT}/${id}/approve`,
-    );
-    return mapSettlement(response.data);
+  approveSettlement: async (
+    id: string,
+    guards?: ApprovalGuards,
+  ): Promise<ApproveSettlementResult> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiDriverSettlementRaw & { approval_outcome?: string | null }>
+    >(`${BASE_ENDPOINT}/${id}/approve`, guards ? toGuardsBody(guards) : undefined);
+    const outcome = response.data.approval_outcome;
+    return {
+      settlement: mapSettlement(response.data),
+      outcome:
+        outcome === "approved" || outcome === "step_signed" ? outcome : undefined,
+    };
   },
 
   rejectSettlement: async (
     id: string,
     reason: string,
+    guards?: ApprovalGuards,
   ): Promise<DriverSettlement> => {
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
       `${BASE_ENDPOINT}/${id}/reject`,
-      { reason },
+      { reason, ...toGuardsBody(guards) },
+    );
+    return mapSettlement(response.data);
+  },
+
+  returnSettlement: async (
+    id: string,
+    input: { reason: string; reasonCode: ApprovalReturnReasonCode; guards?: ApprovalGuards },
+  ): Promise<DriverSettlement> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
+      `${BASE_ENDPOINT}/${id}/return`,
+      { reason: input.reason, reason_code: input.reasonCode, ...toGuardsBody(input.guards) },
     );
     return mapSettlement(response.data);
   },
@@ -318,10 +489,12 @@ export const settlementsApi = {
   disburseSettlement: async (
     id: string,
     payload: DisburseSettlementFormData,
+    expectedRevision?: string | null,
   ): Promise<DriverSettlement> => {
     const cleanedPayload = {
       ...payload,
       notes: payload.notes?.trim() ? payload.notes.trim() : undefined,
+      ...(expectedRevision ? { expected_revision: expectedRevision } : {}),
     };
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
       `${BASE_ENDPOINT}/${id}/disburse`,

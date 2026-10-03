@@ -15,6 +15,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { Badge } from "@shared/ui/badge";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { ApprovalFlowLines } from "@features/approvals";
 import type { DriverSettlement } from "../../domain/entities";
 import { SettlementStatusBadge } from "./SettlementStatusBadge";
 import { SettlementActions } from "./SettlementActions";
@@ -118,14 +119,17 @@ function SettlementStatusCell({
   status,
   rejectionReason,
   showRejectedCorrection,
+  approval,
 }: {
   status: DriverSettlement["status"];
   rejectionReason?: string | null;
   showRejectedCorrection: boolean;
+  approval?: DriverSettlement["approval"];
 }) {
   return (
     <div className="flex flex-col gap-1 items-start">
       <SettlementStatusBadge status={status} showIcon size="sm" />
+      <ApprovalFlowLines approval={approval} />
       {showRejectedCorrection && status === "rejected" ? (
         <Badge variant="destructive" tone="soft" className="text-xs">
           {settlementsCopy.workbench.backlog.correctBadge}
@@ -238,6 +242,7 @@ export function SettlementsTable({
                   status={st.status}
                   rejectionReason={st.rejectionReason}
                   showRejectedCorrection={showRejectedCorrection}
+                  approval={st.approval}
                 />
               </TableCell>
 

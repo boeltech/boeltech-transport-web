@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, ShieldCheck } from "lucide-react";
 import { HubPageShell } from "@shared/ui/page-shells";
 import { usePermissions } from "@shared/permissions";
 import { ROLES } from "@shared/constants/roles";
@@ -13,6 +13,7 @@ import type {
   CompensationHubCreateAction,
   CompensationHubOutletContext,
 } from "@features/compensation/presentation/hooks/useRegisterCompensationHubCreateAction";
+import { approvalPoliciesPath } from "@features/approval-policies/application/approvalPoliciesRoutes";
 import {
   SETTLEMENTS_ADVANCES_PATH,
   SETTLEMENTS_LIST_PATH,
@@ -36,6 +37,7 @@ export function OperatorPaymentsHubLayout() {
   // no para todo el que puede editar liquidaciones.
   const canEditSettings =
     hasPermission("settlements", "update") && user?.role === ROLES.ADMIN;
+  const canReadApprovalPolicies = hasPermission("approval_policies", "read");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createAction, setCreateAction] =
     useState<CompensationHubCreateAction | null>(null);
@@ -84,15 +86,30 @@ export function OperatorPaymentsHubLayout() {
               : undefined
         }
         secondaryActions={
-          canEditSettings
+          canReadApprovalPolicies || canEditSettings
             ? [
-                {
-                  id: "settings",
-                  label: copy.settingsAction,
-                  onClick: () => setSettingsOpen(true),
-                  variant: "outline" as const,
-                  icon: <Settings className="mr-2 h-4 w-4" />,
-                },
+                ...(canReadApprovalPolicies
+                  ? [
+                      {
+                        id: "approval-policies",
+                        label: copy.approvalPoliciesAction,
+                        onClick: () => navigate(approvalPoliciesPath("settlement")),
+                        variant: "outline" as const,
+                        icon: <ShieldCheck className="mr-2 h-4 w-4" />,
+                      },
+                    ]
+                  : []),
+                ...(canEditSettings
+                  ? [
+                      {
+                        id: "settings",
+                        label: copy.settingsAction,
+                        onClick: () => setSettingsOpen(true),
+                        variant: "outline" as const,
+                        icon: <Settings className="mr-2 h-4 w-4" />,
+                      },
+                    ]
+                  : []),
               ]
             : undefined
         }

@@ -26,7 +26,17 @@ import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { useDisburseSettlement } from "../../application/hooks/useSettlements";
+import {
+  approvalsCopy,
+  useSelfActionForbiddenHandler,
+} from "@features/approvals";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  invalidateSettlementQueries,
+  useDisburseSettlement,
+} from "../../application/hooks/useSettlements";
+import { settlementsCopy } from "../copy/settlementsCopy";
+import { isSettlementRevisionChangedError } from "../utils/settlementEditing";
 import {
   disburseSettlementFormSchema,
   type DisburseSettlementFormData,
@@ -42,6 +52,8 @@ interface DisburseSettlementDialogProps {
   onOpenChange: (open: boolean) => void;
   settlement: DriverSettlement | null;
   onSuccess?: () => void;
+  /** ADR-0098: quien armó el pago lo registra (único usuario que puede). */
+  selfConfirm?: boolean;
 }
 
 function defaultDisbursedAtLocal(): string {
@@ -53,10 +65,14 @@ export function DisburseSettlementDialog({
   onOpenChange,
   settlement,
   onSuccess,
+  selfConfirm = false,
 }: DisburseSettlementDialogProps) {
   const { toast } = useToast();
   const disburseMutation = useDisburseSettlement();
+  const handleSelfActionForbidden = useSelfActionForbiddenHandler();
+  const queryClient = useQueryClient();
   const [apiError, setApiError] = useState<string | null>(null);
+  const [revisionChanged, setRevisionChanged] = useState(false);
 
   const {
     register,
@@ -81,6 +97,7 @@ export function DisburseSettlementDialog({
   useEffect(() => {
     if (open) {
       setApiError(null);
+      setRevisionChanged(false);
       reset({
         disbursementMethod: "bank_transfer",
         disbursementReference: "",
@@ -103,6 +120,9 @@ export function DisburseSettlementDialog({
           ...data,
           disbursedAt: localInputToUtcIso(data.disbursedAt),
         },
+        ...(settlement.approvalRevision
+          ? { expectedRevision: settlement.approvalRevision }
+          : {}),
       });
       toast({
         title: "Liquidación dispersada correctamente",
@@ -112,7 +132,15 @@ export function DisburseSettlementDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      const errorMsg = getErrorMessage(error);
+      // D27: otra persona corrigió la liquidación; no se registra ni se reintenta.
+      if (isSettlementRevisionChangedError(error)) {
+        setRevisionChanged(true);
+        return;
+      }
+      const forbidden = handleSelfActionForbidden(error);
+      const errorMsg = forbidden
+        ? (forbidden.message ?? settlementsCopy.toasts.selfDisburseRejected)
+        : getErrorMessage(error);
       setApiError(errorMsg);
       toast({
         title: "Error al dispersar liquidación",
@@ -141,7 +169,11 @@ export function DisburseSettlementDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>Registrar pago al operador</DialogTitle>
+          <DialogTitle>
+            {selfConfirm
+              ? approvalsCopy.selfApproval.confirmDisburseTitle
+              : "Registrar pago al operador"}
+          </DialogTitle>
           <DialogDescription>
             Captura la referencia bancaria o folio de la transferencia efectuada para liquidar el folio{" "}
             <span className="font-semibold text-foreground">
@@ -151,9 +183,36 @@ export function DisburseSettlementDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {selfConfirm && (
+          <AlertWithIcon variant="warning">
+            {approvalsCopy.selfApproval.confirmDisburseBody("settlement")}
+          </AlertWithIcon>
+        )}
+
         {apiError && (
           <AlertWithIcon variant="destructive" title="No se pudo registrar el pago">
             {apiError}
+          </AlertWithIcon>
+        )}
+
+        {revisionChanged && (
+          <AlertWithIcon
+            variant="warning"
+            title={settlementsCopy.settlementFlow.disburse.revisionChangedTitle}
+          >
+            <p>{settlementsCopy.settlementFlow.disburse.revisionChanged}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-2"
+              onClick={() => {
+                invalidateSettlementQueries(queryClient, settlement.id);
+                onOpenChange(false);
+              }}
+            >
+              {settlementsCopy.settlementFlow.disburse.reload}
+            </Button>
           </AlertWithIcon>
         )}
 
@@ -239,7 +298,7 @@ export function DisburseSettlementDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || revisionChanged}>
               {disburseMutation.isPending ? "Registrando..." : "Confirmar pago realizado"}
             </Button>
           </DialogFooter>

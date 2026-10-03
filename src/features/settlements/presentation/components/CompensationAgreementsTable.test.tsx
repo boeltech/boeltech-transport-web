@@ -103,7 +103,7 @@ describe("CompensationAgreementsTable", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/Ningún operador tiene un esquema de compensación asignado/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ningún operador tiene una tarifa asignada/i)).toBeInTheDocument();
   });
 
   it("renderiza correctamente un esquema compuesto con sueldo semanal y reglas", () => {

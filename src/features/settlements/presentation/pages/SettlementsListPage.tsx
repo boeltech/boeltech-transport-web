@@ -9,12 +9,7 @@ import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Label } from "@shared/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@shared/ui/tooltip";
+import { TooltipProvider } from "@shared/ui/tooltip";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
@@ -232,7 +227,7 @@ export function SettlementsListPage() {
     (bucket: SettlementWorkbenchNavBucket) => {
       // Una sola llamada a setSearchParams: setFilters ya resetea page=1.
       // Un setPage() seguido sobrescribe la URL (RR no encadena updaters).
-      // Contratistas solo aplican a Por liquidar: no dejar el opt-in pegado.
+      // Contratistas solo aplican a Pendientes: no dejar el opt-in pegado.
       filters.setFilters({ bucket, includeContractors: "" });
     },
     [filters],
@@ -497,49 +492,33 @@ export function SettlementsListPage() {
             </>
           ),
         }}
-        renderContent={() => (
-          <div className="space-y-4">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground cursor-help w-fit border-b border-dotted border-muted-foreground/40">
-                  {workbenchCopy.buckets[activeBucket]}
-                  <span className="sr-only">
-                    {". "}
-                    {workbenchCopy.bucketDescriptions[activeBucket]}
-                  </span>
-                </p>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs text-xs">
-                {workbenchCopy.bucketDescriptions[activeBucket]}
-              </TooltipContent>
-            </Tooltip>
-            {activeBucket === "pending" ? (
-              <SettlementBacklogTable
-                rows={visibleBacklogRows}
-                isLoading={workbenchLoading}
-                apiUnavailable={!isWorkbenchAvailable}
-                viewMode={filters.viewMode}
-                onNavigateCreate={(path) =>
-                  navigate(path, { state: fromState })
-                }
-              />
-            ) : (
-              <SettlementPipelineQueue
-                bucket={activeBucket}
-                settlements={pipelineSettlements}
-                isLoading={activeLoading}
-                viewMode={filters.viewMode}
-                onView={handleViewSettlement}
-                onDisburse={setDisburseSettlement}
-                onActionComplete={() => {
-                  void refetchPipelinePrimary();
-                  if (activeBucket === "draft") void refetchRejectedPipeline();
-                  void refetchWorkbenchCounts();
-                }}
-              />
-            )}
-          </div>
-        )}
+        renderContent={() =>
+          activeBucket === "pending" ? (
+            <SettlementBacklogTable
+              rows={visibleBacklogRows}
+              isLoading={workbenchLoading}
+              apiUnavailable={!isWorkbenchAvailable}
+              viewMode={filters.viewMode}
+              onNavigateCreate={(path) =>
+                navigate(path, { state: fromState })
+              }
+            />
+          ) : (
+            <SettlementPipelineQueue
+              bucket={activeBucket}
+              settlements={pipelineSettlements}
+              isLoading={activeLoading}
+              viewMode={filters.viewMode}
+              onView={handleViewSettlement}
+              onDisburse={setDisburseSettlement}
+              onActionComplete={() => {
+                void refetchPipelinePrimary();
+                if (activeBucket === "draft") void refetchRejectedPipeline();
+                void refetchWorkbenchCounts();
+              }}
+            />
+          )
+        }
         pagination={activePagination}
         onPageChange={filters.setPage}
       />

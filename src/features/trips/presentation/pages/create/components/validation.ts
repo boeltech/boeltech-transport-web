@@ -809,6 +809,10 @@ export const tripWizardSchema = z.object({
   cfdiEmissionIntent: z
     .enum(["emitir_cfdi", "sin_cfdi_efectivo"])
     .default("emitir_cfdi"),
+  /**
+   * ADR-0086 — clase de ruta operativa (compensa al operador). Default Foráneo.
+   */
+  routeType: z.enum(["local", "long_haul", "transfer"]).default("long_haul"),
   scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
   // Derivado del estimatedArrival de la parada de destino (Paso 2)
   scheduledArrival: z.string().optional(),
@@ -936,6 +940,7 @@ export const WIZARD_STEPS_RESERVE = [
       "clientId",
       "originCity",
       "destinationCity",
+      "routeType",
       "scheduledDeparture",
       "scheduledArrival",
       "notes",
@@ -974,6 +979,7 @@ export const tripReserveWizardSchema = z
     cfdiEmissionIntent: z
       .enum(["emitir_cfdi", "sin_cfdi_efectivo"])
       .default("emitir_cfdi"),
+    routeType: z.enum(["local", "long_haul", "transfer"]).default("long_haul"),
     scheduledDeparture: z.string().min(1, "Fecha de salida requerida"),
     scheduledArrival: z.string().optional(),
     startMileage: startMileageFieldSchema,
@@ -1024,6 +1030,7 @@ export const defaultWizardFormValues: Partial<TripWizardFormValues> = {
   originBranchId: "",
   cfdiDocumentIntent: "ingreso",
   cfdiEmissionIntent: "emitir_cfdi",
+  routeType: "long_haul",
   scheduledDeparture: "",
   scheduledArrival: "",
   startMileage: undefined,

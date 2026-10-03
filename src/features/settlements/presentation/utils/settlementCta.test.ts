@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SelfApprovalPolicy } from "@features/approvals";
 import {
   canApproveSettlement,
   canDisburse,
@@ -8,6 +9,8 @@ import {
   isVoboRequiredForPreview,
   resolveCreateSettlementFeedback,
   resolveCreateCta,
+  resolveSettlementApproveUi,
+  resolveSettlementDisburseUi,
 } from "./settlementCta";
 
 describe("settlementCta", () => {
@@ -59,94 +62,125 @@ describe("settlementCta", () => {
     );
   });
 
-  it("no permite ejecutar al maker ni sin permiso execute (multi-user)", () => {
-    const draftBypass = {
-      status: "draft" as const,
-      voboRequired: false,
-      createdBy: "maker",
-      submittedBy: null,
-    };
-    expect(
-      canDisburse({
-        settlement: draftBypass,
-        userId: "maker",
-        canExecute: true,
-        activeExecutorCount: 2,
-      }),
-    ).toBe(false);
-    expect(
-      canDisburse({
-        settlement: draftBypass,
-        userId: "executor",
-        canExecute: true,
-        activeExecutorCount: 2,
-      }),
-    ).toBe(true);
-    expect(
-      canDisburse({
-        settlement: { ...draftBypass, status: "approved" },
-        userId: "executor",
-        canExecute: false,
-        activeExecutorCount: 2,
-      }),
-    ).toBe(false);
-  });
+  describe("ADR-0098: autoacción decidida por la política del API", () => {
+    const policy = (
+      overrides: Partial<Record<"settlementApprove" | "settlementDisburse", boolean>>,
+    ): SelfApprovalPolicy => ({
+      advanceApprove: { allowed: false, activeCounterpartCount: 1 },
+      advanceDisburse: { allowed: false, activeCounterpartCount: 1 },
+      settlementApprove: {
+        allowed: overrides.settlementApprove ?? false,
+        activeCounterpartCount: overrides.settlementApprove ? 0 : 1,
+      },
+      settlementDisburse: {
+        allowed: overrides.settlementDisburse ?? false,
+        activeCounterpartCount: overrides.settlementDisburse ? 0 : 1,
+      },
+      tripExpenseApprove: { allowed: false, activeCounterpartCount: 1 },
+    });
+    const maker = { createdBy: "maker", submittedBy: "maker" };
 
-  it("D3′: maker puede autorizar/rechazar si activeApproverCount === 1", () => {
-    const pending = {
-      status: "pending_approval" as const,
-      createdBy: "maker",
-      submittedBy: "maker",
-    };
-    expect(
-      canApproveSettlement({
-        settlement: pending,
-        userId: "maker",
-        canUpdate: true,
-        activeApproverCount: 1,
-      }),
-    ).toBe(true);
-    expect(
-      canRejectSettlement({
-        settlement: pending,
-        userId: "maker",
-        canUpdate: true,
-        activeApproverCount: 1,
-      }),
-    ).toBe(true);
-    expect(
-      canApproveSettlement({
-        settlement: pending,
-        userId: "maker",
-        canUpdate: true,
-        activeApproverCount: 2,
-      }),
-    ).toBe(false);
-  });
+    it("quien no armó el corte siempre ve la acción normal", () => {
+      expect(resolveSettlementApproveUi(maker, "checker", policy({}))).toBe(
+        "normal",
+      );
+      expect(resolveSettlementDisburseUi(maker, "checker", undefined)).toBe(
+        "normal",
+      );
+    });
 
-  it("D3′: maker puede registrar pago si activeExecutorCount === 1", () => {
-    const approved = {
-      status: "approved" as const,
-      voboRequired: true,
-      createdBy: "maker",
-      submittedBy: "maker",
-    };
-    expect(
-      canDisburse({
-        settlement: approved,
-        userId: "maker",
-        canExecute: true,
-        activeExecutorCount: 1,
-      }),
-    ).toBe(true);
-    expect(
-      canDisburse({
-        settlement: approved,
-        userId: "maker",
-        canExecute: true,
-        activeExecutorCount: 2,
-      }),
-    ).toBe(false);
+    it("maker: self_confirm solo si el API lo permite; si no, blocked_own", () => {
+      expect(
+        resolveSettlementApproveUi(maker, "maker", policy({ settlementApprove: true })),
+      ).toBe("self_confirm");
+      expect(resolveSettlementApproveUi(maker, "maker", policy({}))).toBe(
+        "blocked_own",
+      );
+      expect(
+        resolveSettlementDisburseUi(
+          maker,
+          "maker",
+          policy({ settlementDisburse: true }),
+        ),
+      ).toBe("self_confirm");
+      expect(
+        resolveSettlementDisburseUi(
+          maker,
+          "maker",
+          policy({ settlementApprove: true }),
+        ),
+      ).toBe("blocked_own");
+    });
+
+    it("fail-closed: sin política cargada el maker queda bloqueado", () => {
+      expect(resolveSettlementApproveUi(maker, "maker", undefined)).toBe(
+        "blocked_own",
+      );
+    });
+
+    it("autorizar/rechazar: pending_approval + permiso + no blocked_own", () => {
+      const pending = { status: "pending_approval" as const };
+      expect(
+        canApproveSettlement({
+          settlement: pending,
+          canUpdate: true,
+          selfActionUi: "self_confirm",
+        }),
+      ).toBe(true);
+      expect(
+        canRejectSettlement({
+          settlement: pending,
+          canUpdate: true,
+          selfActionUi: "normal",
+        }),
+      ).toBe(true);
+      expect(
+        canApproveSettlement({
+          settlement: pending,
+          canUpdate: true,
+          selfActionUi: "blocked_own",
+        }),
+      ).toBe(false);
+      expect(
+        canApproveSettlement({
+          settlement: { status: "approved" },
+          canUpdate: true,
+          selfActionUi: "normal",
+        }),
+      ).toBe(false);
+    });
+
+    it("registrar pago: estado pagable + execute + no blocked_own", () => {
+      const draftBypass = { status: "draft" as const, voboRequired: false };
+      expect(
+        canDisburse({
+          settlement: draftBypass,
+          canExecute: true,
+          selfActionUi: "normal",
+        }),
+      ).toBe(true);
+      expect(
+        canDisburse({
+          settlement: draftBypass,
+          canExecute: true,
+          selfActionUi: "blocked_own",
+        }),
+      ).toBe(false);
+      expect(
+        canDisburse({
+          settlement: { status: "approved", voboRequired: true },
+          canExecute: true,
+          selfActionUi: "self_confirm",
+        }),
+      ).toBe(true);
+      expect(
+        canDisburse({
+          settlement: { status: "approved", voboRequired: true },
+          canExecute: false,
+          selfActionUi: "normal",
+        }),
+      ).toBe(false);
+    });
   });
 
   it("Pedir VoBo solo en borrador que lo requiere", () => {

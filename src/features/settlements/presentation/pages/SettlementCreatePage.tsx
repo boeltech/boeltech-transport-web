@@ -21,7 +21,10 @@ import { Label } from "@shared/ui/label";
 import { Badge } from "@shared/ui/badge";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@shared/ui/card";
-import { DateField } from "@shared/ui/form";
+import { DateField, FormValidationSummary } from "@shared/ui/form";
+import { PeriodStepper } from "../components/PeriodStepper";
+import { buildSuggestedSettlementPeriod } from "../utils/buildSuggestedSettlementPeriod";
+import type { SalaryPeriodKind } from "../utils/buildSuggestedSettlementPeriod";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +49,7 @@ import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import { useEmployeeBasic } from "@features/employees";
+import { resolveSelfActionUi, useSelfApprovalPolicy } from "@features/approvals";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import {
   useSettlementPreview,
@@ -53,6 +57,7 @@ import {
   useSettlementSettings,
 } from "../../application/hooks";
 import {
+  settlementCreatePath,
   settlementDetailPath,
   settlementsAgreementsPath,
 } from "../../application/settlementsRoutes";
@@ -68,7 +73,23 @@ import {
   findEligibleAssignmentsForEmployeeOnDate,
   pickAssignmentBySettlementTiebreak,
 } from "@features/compensation/presentation/utils/templateAssignmentOverlap";
-import type { CreateSettlementFormData } from "../validation/settlementSchemas";
+import {
+  customSettlementItemInputSchema,
+  type CreateSettlementFormData,
+} from "../validation/settlementSchemas";
+import { ManualItemsEditor } from "../components/ManualItemsEditor";
+import {
+  manualItemErrorsFromIssues,
+  type ManualItemRow,
+  type ManualItemRowErrors,
+} from "../utils/manualItemRows";
+import {
+  computeSettlementTotals,
+  normalizeManualItems,
+  sumManualItems,
+  type ManualSettlementItemInput,
+} from "../../domain/settlementTotals";
+import { liveManualItems } from "../utils/settlementEditing";
 import {
   resolveCreateSettlementFeedback,
   resolveCreateCta,
@@ -112,8 +133,18 @@ export function SettlementCreatePage() {
     isError: settingsError,
   } = useSettlementSettings();
   const thresholdMxn = settings?.voboThresholdMxn ?? DEFAULT_VOBO_THRESHOLD_MXN;
-  const activeApproverCount = settings?.activeApproverCount;
-  const activeExecutorCount = settings?.activeExecutorCount;
+  // Quien arma el corte es su maker: la política dice si podrá autoactuar.
+  const { data: selfApprovalPolicy } = useSelfApprovalPolicy();
+  const canSelfApproveOwnCut =
+    resolveSelfActionUi({
+      isOwn: true,
+      policy: selfApprovalPolicy?.settlementApprove,
+    }) === "self_confirm";
+  const canSelfDisburseOwnCut =
+    resolveSelfActionUi({
+      isOwn: true,
+      policy: selfApprovalPolicy?.settlementDisburse,
+    }) === "self_confirm";
 
   // Filter state for live preview (initialize with searchParams if present)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(
@@ -132,11 +163,16 @@ export function SettlementCreatePage() {
   // Selected advances deduction state: map of advanceId -> amount
   const [advanceDeductions, setAdvanceDeductions] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<string>("");
+  // CEO-2 / D24: partidas manuales desde el alta.
+  const [manualItems, setManualItems] = useState<ManualItemRow[]>([]);
+  const [manualItemErrors, setManualItemErrors] = useState<ManualItemRowErrors[]>([]);
+  const [manualItemsSummary, setManualItemsSummary] = useState<string[]>([]);
 
   // Confirmation dialog pre-submit
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [reimbursementsOnlyOptIn, setReimbursementsOnlyOptIn] = useState(false);
   const [showTripCalcDetail, setShowTripCalcDetail] = useState(false);
+  const [acknowledgeZeroKmTrips, setAcknowledgeZeroKmTrips] = useState(false);
 
   const urlEmployeeId = searchParams.get("employeeId") || "";
   const urlPeriodStart = searchParams.get("periodStart") || "";
@@ -160,6 +196,7 @@ export function SettlementCreatePage() {
     if (empChanged || startChanged || endChanged) {
       setAdvanceDeductions({});
       setReimbursementsOnlyOptIn(false);
+      setAcknowledgeZeroKmTrips(false);
     }
 
     prevUrlFiltersRef.current = {
@@ -246,7 +283,8 @@ export function SettlementCreatePage() {
   const totalBaseSalary = preview?.summary.totalBaseSalary ?? 0;
   const totalFixedAllowances = preview?.summary.totalFixedAllowances ?? 0;
   const totalReimbursements = preview?.summary.totalReimbursements ?? 0;
-  const grossAmount =
+  const totalTemplateDeductions = preview?.summary.totalDeductions ?? 0;
+  const calculatedGross =
     totalCommissions + totalBaseSalary + totalFixedAllowances + totalReimbursements;
 
   const totalAdvancesDeducted = Object.values(advanceDeductions).reduce(
@@ -257,12 +295,66 @@ export function SettlementCreatePage() {
     (k) => (advanceDeductions[k] ?? 0) > 0,
   ).length;
 
-  const netAmount = Math.max(0, grossAmount - totalAdvancesDeducted);
+  // TEC-6: mismos totales que el API (paridad en settlementTotals.test).
+  const liveManual = normalizeManualItems(liveManualItems(manualItems));
+  const manualSums = sumManualItems(liveManual);
+  const { grossAmount, netAmount } = computeSettlementTotals(
+    {
+      calculatedGross,
+      templateDeductions: totalTemplateDeductions,
+      advancesDeducted: totalAdvancesDeducted,
+    },
+    liveManual,
+  );
+  const hasManualAdjustments = manualItems.length > 0;
   const createCta = resolveCreateCta({
     netAmount,
-    hasManualAdjustments: false,
+    hasManualAdjustments,
     thresholdMxn,
   });
+
+  const handleManualItemsChange = (rows: ManualItemRow[]) => {
+    setManualItems(rows);
+    if (manualItemErrors.length > 0 || manualItemsSummary.length > 0) {
+      setManualItemErrors([]);
+      setManualItemsSummary([]);
+    }
+  };
+
+  /** Valida las partidas manuales al guardar/enviar; null = hay errores visibles. */
+  const validateManualItems = (): ManualSettlementItemInput[] | null => {
+    const result = customSettlementItemInputSchema.array().safeParse(manualItems);
+    if (result.success) {
+      setManualItemErrors([]);
+      setManualItemsSummary([]);
+      // Un viaje elegido antes de cambiar operador/periodo ya no pertenece al corte.
+      const eligibleTripIds = new Set((preview?.eligibleTrips ?? []).map((t) => t.tripId));
+      return result.data.map((item) => ({
+        itemType: item.itemType,
+        description: item.description,
+        amount: item.amount,
+        ...(item.isDeduction !== undefined ? { isDeduction: item.isDeduction } : {}),
+        ...(item.tripId && eligibleTripIds.has(item.tripId) ? { tripId: item.tripId } : {}),
+      }));
+    }
+    setManualItemErrors(manualItemErrorsFromIssues(result.error.issues));
+    setManualItemsSummary(
+      Array.from(
+        new Set(
+          result.error.issues.map((issue) => {
+            const index = typeof issue.path[0] === "number" ? issue.path[0] : 0;
+            return `${copy.settlementFlow.manualItems.rowLabel(index + 1)}: ${issue.message}`;
+          }),
+        ),
+      ),
+    );
+    return null;
+  };
+
+  const requestSubmitForApproval = () => {
+    if (!validateManualItems()) return;
+    setConfirmDialogOpen(true);
+  };
 
   const agreement = preview?.agreement as Record<string, unknown> | undefined;
   const readiness = useMemo(
@@ -291,6 +383,33 @@ export function SettlementCreatePage() {
   const fixedSalaryAmount = Number(agreement?.fixed_salary_amount ?? agreement?.fixedSalaryAmount ?? 0);
   const fixedSalaryPeriod = String(agreement?.fixed_salary_period ?? agreement?.fixedSalaryPeriod ?? "weekly");
 
+  const salaryPeriod: SalaryPeriodKind | null = (() => {
+    // Source of truth = employee.salary_type (independent of compensation template / preview).
+    const raw = selectedEmployeeBasic?.salaryType ?? null;
+    if (raw === "weekly" || raw === "biweekly" || raw === "monthly") return raw;
+    return null;
+  })();
+
+  const prevEmployeeIdRef = useRef(selectedEmployeeId);
+  useEffect(() => {
+    if (
+      selectedEmployeeId &&
+      selectedEmployeeId !== prevEmployeeIdRef.current &&
+      selectedEmployeeBasic?.salaryType &&
+      ["weekly", "biweekly", "monthly"].includes(selectedEmployeeBasic.salaryType)
+    ) {
+      const period = buildSuggestedSettlementPeriod({
+        salaryPeriod: selectedEmployeeBasic.salaryType as SalaryPeriodKind,
+      });
+      setPeriodStart(period.periodStart);
+      setPeriodEnd(period.periodEnd);
+      setAdvanceDeductions({});
+      setReimbursementsOnlyOptIn(false);
+      setAcknowledgeZeroKmTrips(false);
+    }
+    prevEmployeeIdRef.current = selectedEmployeeId;
+  }, [selectedEmployeeId, selectedEmployeeBasic?.salaryType]);
+
   const hasReimbursementOrAdvanceWork =
     totalReimbursements > 0 || selectedAdvancesCount > 0;
   const canProceedWithSave =
@@ -300,6 +419,27 @@ export function SettlementCreatePage() {
     totalBaseSalary > 0 ||
     totalFixedAllowances > 0 ||
     totalReimbursements > 0;
+  const zeroKmTrips = useMemo(
+    () => (preview?.eligibleTrips ?? []).filter((trip) => trip.requiresZeroKmAck),
+    [preview?.eligibleTrips],
+  );
+  const hasZeroKmGaps = zeroKmTrips.length > 0;
+  const canSubmitForApproval =
+    canProceedWithSave && (!hasZeroKmGaps || acknowledgeZeroKmTrips);
+
+  const tripDetailReturnHref = useMemo(
+    () =>
+      settlementCreatePath({
+        ...(selectedEmployeeId ? { employeeId: selectedEmployeeId } : {}),
+        ...(periodStart ? { periodStart } : {}),
+        ...(periodEnd ? { periodEnd } : {}),
+      }),
+    [selectedEmployeeId, periodStart, periodEnd],
+  );
+
+  useEffect(() => {
+    setAcknowledgeZeroKmTrips(false);
+  }, [preview?.employeeId, preview?.periodStart, preview?.periodEnd, zeroKmTrips.length]);
 
   // Format agreement description in human-friendly terms (solo útil cuando ready)
   const agreementSummaryText = useMemo(() => {
@@ -352,6 +492,12 @@ export function SettlementCreatePage() {
       return;
     }
 
+    const customItems = validateManualItems();
+    if (!customItems) {
+      setConfirmDialogOpen(false);
+      return;
+    }
+
     try {
       const openAdvancesMap = new Map(
         (preview?.openAdvances ?? []).map((adv) => [adv.advanceId, adv.balanceRemaining]),
@@ -376,9 +522,11 @@ export function SettlementCreatePage() {
         periodEnd,
         tripIds: preview?.eligibleTrips.map((t) => t.tripId) ?? [],
         advancesToApply,
-        customItems: [],
+        customItems,
         notes: notes || undefined,
         submitForApproval,
+        acknowledgeZeroKmTrips:
+          submitForApproval && hasZeroKmGaps ? acknowledgeZeroKmTrips : false,
       };
 
       const result = await createMutation.mutateAsync(payload);
@@ -435,7 +583,7 @@ export function SettlementCreatePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <EmployeeAsyncCombobox
                   id="create-emp"
@@ -451,29 +599,41 @@ export function SettlementCreatePage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="create-start">{copy.fields.periodStart} *</Label>
-                <DateField
-                  id="create-start"
-                  value={periodStart}
-                  onChange={(val) => {
-                    setPeriodStart(val);
-                    setAdvanceDeductions({});
-                    setReimbursementsOnlyOptIn(false);
-                  }}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="create-end">{copy.fields.periodEnd} *</Label>
-                <DateField
-                  id="create-end"
-                  value={periodEnd}
-                  onChange={(val) => {
-                    setPeriodEnd(val);
-                    setAdvanceDeductions({});
-                    setReimbursementsOnlyOptIn(false);
-                  }}
-                />
+                <Label>{settlementsCopy.periodStepper.label} *</Label>
+                {salaryPeriod ? (
+                  <PeriodStepper
+                    salaryPeriod={salaryPeriod}
+                    periodStart={periodStart}
+                    periodEnd={periodEnd}
+                    onChange={(start, end) => {
+                      setPeriodStart(start);
+                      setPeriodEnd(end);
+                      setAdvanceDeductions({});
+                      setReimbursementsOnlyOptIn(false);
+                    }}
+                  />
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <DateField
+                      id="create-start"
+                      value={periodStart}
+                      onChange={(val) => {
+                        setPeriodStart(val);
+                        setAdvanceDeductions({});
+                        setReimbursementsOnlyOptIn(false);
+                      }}
+                    />
+                    <DateField
+                      id="create-end"
+                      value={periodEnd}
+                      onChange={(val) => {
+                        setPeriodEnd(val);
+                        setAdvanceDeductions({});
+                        setReimbursementsOnlyOptIn(false);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -514,6 +674,8 @@ export function SettlementCreatePage() {
                       <Link
                         to={settlementsAgreementsPath({
                           employeeId: selectedEmployeeId,
+                          periodStart,
+                          periodEnd,
                         })}
                       >
                         {governanceCopy.reviewAgreementsAction}
@@ -536,31 +698,21 @@ export function SettlementCreatePage() {
                       ? createCopy.empty.incompleteAgreementDescription
                       : createCopy.empty.missingSchemeDescription}
                   </p>
-                  {selectedEmployeeId ? (
-                    <p className="text-xs opacity-90">
-                      <Link
-                        to={`/employees/${selectedEmployeeId}/edit`}
-                        className="font-medium text-foreground underline underline-offset-4"
-                      >
-                        {createCopy.sections.agreementProfileSalaryHintLink}
-                      </Link>
-                    </p>
-                  ) : (
-                    <p className="text-xs opacity-90">
-                      {createCopy.sections.agreementProfileSalaryHint}
-                    </p>
-                  )}
                   <div className="flex flex-wrap gap-2 mt-1">
                     <Button type="button" size="sm" asChild>
                       <Link
                         to={settlementsAgreementsPath({
                           employeeId: selectedEmployeeId,
+                          periodStart,
+                          periodEnd,
                         })}
                       >
-                        {createCopy.empty.configureCompensationAction}
+                        {readiness === "incomplete"
+                          ? createCopy.empty.configureIncompleteCompensationAction
+                          : createCopy.empty.configureCompensationAction}
                       </Link>
                     </Button>
-                    {selectedEmployeeId ? (
+                    {readiness === "incomplete" && selectedEmployeeId ? (
                       <Button type="button" size="sm" variant="outline" asChild>
                         <Link to={`/employees/${selectedEmployeeId}/edit`}>
                           {createCopy.empty.configureEmployeeSalaryAction}
@@ -640,7 +792,7 @@ export function SettlementCreatePage() {
                                 <TableHead className="text-right">{createCopy.trips.opsDetailCol}</TableHead>
                               </>
                             ) : null}
-                            <TableHead className="text-right">{createCopy.trips.payCol}</TableHead>
+                            <TableHead className="min-w-[7.5rem] text-right">{createCopy.trips.payCol}</TableHead>
                             <TableHead className="text-right">{createCopy.trips.reimbursementsCol}</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -657,7 +809,13 @@ export function SettlementCreatePage() {
                               <TableRow key={trip.tripId}>
                                 <TableCell className="font-semibold text-primary font-mono text-xs">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span>{trip.tripCode}</span>
+                                    <Link
+                                      to={`/trips/${trip.tripId}`}
+                                      state={{ from: tripDetailReturnHref }}
+                                      className="font-semibold text-primary hover:underline font-mono text-xs"
+                                    >
+                                      {trip.tripCode}
+                                    </Link>
                                     {shouldShowSupportParticipationBadge(
                                       trip.appliedRule,
                                       preview.agreement
@@ -676,14 +834,9 @@ export function SettlementCreatePage() {
                                         variant="warning"
                                         tone="soft"
                                         className="text-[10px] py-0 px-1.5 h-4 font-normal"
-                                        title={
-                                          trip.corridorMatch.replacesKmCommission
-                                            ? "Sustituye comisión por km"
-                                            : undefined
-                                        }
+                                        title={`${trip.corridorMatch.name} — ${formatMxCurrency(trip.corridorMatch.fixedAmount)}${trip.corridorMatch.replacesKmCommission ? " · Sustituye comisión por km" : ""}`}
                                       >
-                                        {createCopy.trips.corridorBadgePrefix}:{" "}
-                                        {trip.corridorMatch.name}
+                                        {createCopy.trips.corridorBadgeLabel}
                                       </Badge>
                                     ) : null}
                                   </div>
@@ -692,20 +845,41 @@ export function SettlementCreatePage() {
                                   <div className="font-medium text-foreground text-xs">
                                     {trip.originCity} → {trip.destinationCity}
                                   </div>
-                                  <Badge
-                                    variant={
-                                      routeType === "long_haul"
-                                        ? "info"
-                                        : routeType === "transfer"
-                                          ? "warning"
-                                          : "neutral"
-                                    }
-                                    tone="soft"
-                                    className="text-[10px] mt-0.5"
-                                  >
-                                    <Route className="mr-1 h-2.5 w-2.5" />
-                                    {routeTypeLabel}
-                                  </Badge>
+                                  <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                                    <Badge
+                                      variant={
+                                        routeType === "long_haul"
+                                          ? "info"
+                                          : routeType === "transfer"
+                                            ? "warning"
+                                            : "neutral"
+                                      }
+                                      tone="soft"
+                                      className="text-[10px]"
+                                    >
+                                      <Route className="mr-1 h-2.5 w-2.5" />
+                                      {routeTypeLabel}
+                                    </Badge>
+                                    {trip.operationalOutcome === "false_trip" ? (
+                                      <Badge
+                                        variant="warning"
+                                        tone="soft"
+                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                      >
+                                        {createCopy.trips.falseTripBadge}
+                                      </Badge>
+                                    ) : null}
+                                    {trip.hasRevenueSplit ? (
+                                      <Badge
+                                        variant="info"
+                                        tone="soft"
+                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                        title={createCopy.trips.revenueSplitBadgeTitle}
+                                      >
+                                        {createCopy.trips.revenueSplitBadge}
+                                      </Badge>
+                                    ) : null}
+                                  </div>
                                 </TableCell>
                                 {showTripCalcDetail ? (
                                   <>
@@ -720,7 +894,19 @@ export function SettlementCreatePage() {
                                       )}
                                     </TableCell>
                                     <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
-                                      <span>{trip.distanceKm} km</span>
+                                      {trip.requiresZeroKmAck ||
+                                      trip.distanceBasis === "unavailable" ? (
+                                        <span className="text-warning font-medium">
+                                          {createCopy.trips.distanceUnavailableLabel}
+                                        </span>
+                                      ) : (
+                                        <span>
+                                          {trip.distanceKm} km
+                                          {trip.distanceBasis === "odometer"
+                                            ? ` ${createCopy.trips.distanceOdometerSuffix}`
+                                            : ""}
+                                        </span>
+                                      )}
                                       <span className="mx-1.5 opacity-40">·</span>
                                       <span>Flete {formatMxCurrency(trip.freightRevenue)}</span>
                                       {trip.freightBase === "commercial_at_complete" ? (
@@ -728,16 +914,40 @@ export function SettlementCreatePage() {
                                           al completar
                                         </span>
                                       ) : null}
+                                      {trip.requiresZeroKmAck ? (
+                                        <span className="block text-[10px] text-warning mt-0.5">
+                                          {createCopy.trips.distanceGapHint}
+                                        </span>
+                                      ) : null}
                                     </TableCell>
                                   </>
                                 ) : null}
-                                <TableCell className="text-right tabular-nums font-bold text-foreground">
+                                <TableCell
+                                  className={`min-w-[7.5rem] text-right tabular-nums font-bold ${
+                                    trip.requiresZeroKmAck
+                                      ? "text-warning"
+                                      : "text-foreground"
+                                  }`}
+                                >
                                   {isLocalCovered ? (
                                     <span className="text-xs font-normal text-muted-foreground">
                                       $0.00
                                     </span>
                                   ) : (
-                                    formatMxCurrency(trip.calculatedCommission)
+                                    <div className="flex flex-col items-end">
+                                      {formatMxCurrency(trip.calculatedCommission)}
+                                      {typeof trip.participantCount === "number" &&
+                                      trip.participantCount > 1 ? (
+                                        <Badge
+                                          variant="neutral"
+                                          tone="soft"
+                                          className="mt-0.5 h-auto shrink-0 whitespace-nowrap text-[10px] font-normal leading-4 px-1.5 py-0"
+                                          title={createCopy.trips.multipleOperatorsBadgeTitle}
+                                        >
+                                          {createCopy.trips.multipleOperatorsBadge}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right tabular-nums text-xs text-muted-foreground">
@@ -944,17 +1154,30 @@ export function SettlementCreatePage() {
                     {(totalBaseSalary > 0 ||
                       totalFixedAllowances > 0 ||
                       totalCommissions > 0 ||
-                      totalReimbursements > 0) && (
+                      totalReimbursements > 0 ||
+                      manualSums.additions > 0) && (
                       <div className="pl-2 space-y-1 border-l border-border/60 text-muted-foreground">
                         {totalBaseSalary > 0 && (
                           <div className="flex justify-between gap-2">
-                            <span>{createCopy.summary.fixedSalaryLabel}</span>
+                            <span>
+                              {fixedSalaryPeriod && fixedSalaryPeriod !== "none"
+                                ? createCopy.summary.fixedSalaryLabelWithPeriod(
+                                    COMPENSATION_SALARY_PERIOD_LABELS[fixedSalaryPeriod as CompensationSalaryPeriod] ?? fixedSalaryPeriod,
+                                  )
+                                : createCopy.summary.fixedSalaryLabel}
+                            </span>
                             <span className="tabular-nums">{formatMxCurrency(totalBaseSalary)}</span>
                           </div>
                         )}
                         {totalFixedAllowances > 0 && (
                           <div className="flex justify-between gap-2">
-                            <span>{createCopy.summary.fixedAllowancesLabel}</span>
+                            <span>
+                              {fixedSalaryPeriod && fixedSalaryPeriod !== "none"
+                                ? createCopy.summary.fixedAllowancesLabelWithPeriod(
+                                    COMPENSATION_SALARY_PERIOD_LABELS[fixedSalaryPeriod as CompensationSalaryPeriod] ?? fixedSalaryPeriod,
+                                  )
+                                : createCopy.summary.fixedAllowancesLabel}
+                            </span>
                             <span className="tabular-nums">
                               {formatMxCurrency(totalFixedAllowances)}
                             </span>
@@ -974,8 +1197,32 @@ export function SettlementCreatePage() {
                             </span>
                           </div>
                         )}
+                        {manualSums.additions > 0 && (
+                          <div className="flex justify-between gap-2">
+                            <span>{copy.settlementFlow.create.manualAdditionsLabel}</span>
+                            <span className="tabular-nums" data-testid="create-manual-additions">
+                              {formatMxCurrency(manualSums.additions)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
+                    {manualSums.deductions > 0 ? (
+                      <div className="flex justify-between items-center text-destructive pt-1 border-t border-dashed">
+                        <span>{copy.settlementFlow.create.manualDeductionsLabel}</span>
+                        <span className="tabular-nums font-semibold" data-testid="create-manual-deductions">
+                          -{formatMxCurrency(manualSums.deductions)}
+                        </span>
+                      </div>
+                    ) : null}
+                    {totalTemplateDeductions > 0 ? (
+                      <div className="flex justify-between items-center text-destructive pt-1 border-t border-dashed">
+                        <span>{createCopy.summary.deductionsLabel}</span>
+                        <span className="tabular-nums font-semibold">
+                          -{formatMxCurrency(totalTemplateDeductions)}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="flex justify-between items-center text-destructive pt-1 border-t border-dashed">
                       <span>
                         {createCopy.summary.advancesLabel}
@@ -987,6 +1234,45 @@ export function SettlementCreatePage() {
                           : formatMxCurrency(0)}
                       </span>
                     </div>
+                  </div>
+
+                  <div className="space-y-2 border-t pt-3">
+                    <ManualItemsEditor
+                      idPrefix="settlement-create-item"
+                      value={manualItems}
+                      onChange={handleManualItemsChange}
+                      errors={manualItemErrors}
+                      tripOptions={(preview?.eligibleTrips ?? []).map((trip) => ({
+                        tripId: trip.tripId,
+                        tripCode: trip.tripCode,
+                      }))}
+                      disabled={createMutation.isPending}
+                      stacked
+                    />
+                    {hasManualAdjustments ? (
+                      <p className="text-[11px] text-muted-foreground" data-testid="create-manual-items-hint">
+                        {copy.settlementFlow.create.manualItemsHint}
+                      </p>
+                    ) : null}
+                    <FormValidationSummary
+                      messages={manualItemsSummary}
+                      title={copy.settlementFlow.sheet.validationTitle}
+                      className="mb-0"
+                    />
+                  </div>
+
+                  <div
+                    className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 space-y-1"
+                    aria-label={createCopy.summary.channelsTeachingAriaLabel}
+                  >
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      {createCopy.summary.channelsTeachingIntro}
+                    </p>
+                    <ul className="text-[11px] text-muted-foreground space-y-0.5 list-none">
+                      <li>{createCopy.summary.channelsTeachingExpense}</li>
+                      <li>{createCopy.summary.channelsTeachingAdvance}</li>
+                      <li>{createCopy.summary.channelsTeachingFixed}</li>
+                    </ul>
                   </div>
 
                   <div className="space-y-2 pt-1">
@@ -1015,25 +1301,58 @@ export function SettlementCreatePage() {
                     )}
                     {hasSettlementContent ? (
                       <>
+                        {hasZeroKmGaps ? (
+                          <div className="rounded-lg border border-warning/30 bg-warning-soft/40 p-3 space-y-2">
+                            <p className="text-xs font-medium text-foreground">
+                              {createCopy.zeroKmGate.alertTitle}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground leading-snug">
+                              {createCopy.zeroKmGate.alertDescription(zeroKmTrips.length)}
+                            </p>
+                            <div className="flex items-start gap-2 pt-1">
+                              <Checkbox
+                                id="acknowledge-zero-km"
+                                checked={acknowledgeZeroKmTrips}
+                                onCheckedChange={(checked) =>
+                                  setAcknowledgeZeroKmTrips(checked === true)
+                                }
+                              />
+                              <Label
+                                htmlFor="acknowledge-zero-km"
+                                className="text-xs font-normal leading-snug cursor-pointer"
+                              >
+                                {createCopy.zeroKmGate.ackLabel(zeroKmTrips.length)}
+                              </Label>
+                            </div>
+                          </div>
+                        ) : null}
                         {createCta !== "guardar_borrador" ? (
                           <>
                             <Button
                               className="w-full"
-                              disabled={createMutation.isPending || !canProceedWithSave}
-                              onClick={() => setConfirmDialogOpen(true)}
+                              disabled={
+                                createMutation.isPending || !canSubmitForApproval
+                              }
+                              onClick={requestSubmitForApproval}
                             >
                               <Send className="mr-2 h-4 w-4" />
-                              {createCopy.summary.pedirVoboBtn}
+                              {createCopy.summary.submitApprovalBtn}
                             </Button>
-                            <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                              {activeApproverCount === 1
-                                ? createCopy.summary.submitApprovalSegregationHintSingle
-                                : createCopy.summary.submitApprovalSegregationHint}
-                            </p>
+                            {hasZeroKmGaps && !acknowledgeZeroKmTrips ? (
+                              <p className="text-[11px] text-center text-warning leading-snug px-1">
+                                {createCopy.zeroKmGate.submitBlockedHint}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
+                                {canSelfApproveOwnCut
+                                  ? createCopy.summary.submitApprovalSegregationHintSingle
+                                  : createCopy.summary.submitApprovalSegregationHint}
+                              </p>
+                            )}
                           </>
                         ) : (
                           <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                            {activeExecutorCount === 1
+                            {canSelfDisburseOwnCut
                               ? createCopy.summary.bypassDraftHintSingle
                               : createCopy.summary.bypassDraftHint}
                           </p>
@@ -1092,6 +1411,8 @@ export function SettlementCreatePage() {
                 navigate(
                   settlementsAgreementsPath({
                     employeeId: selectedEmployeeId,
+                    periodStart,
+                    periodEnd,
                   }),
                 ),
             }}
@@ -1138,6 +1459,18 @@ export function SettlementCreatePage() {
                 {formatDate(periodStart)} – {formatDate(periodEnd)}
               </span>
             </div>
+            {hasManualAdjustments ? (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">
+                  {copy.settlementFlow.create.manualItemsLabel}
+                </span>
+                <span className="text-xs font-medium text-foreground tabular-nums">
+                  {manualSums.additions > 0 ? `+${formatMxCurrency(manualSums.additions)}` : ""}
+                  {manualSums.additions > 0 && manualSums.deductions > 0 ? " · " : ""}
+                  {manualSums.deductions > 0 ? `−${formatMxCurrency(manualSums.deductions)}` : ""}
+                </span>
+              </div>
+            ) : null}
             <div className="border-t pt-2.5 flex justify-between items-center font-bold text-primary text-base">
               <span>{createCopy.dialog.netLabel}</span>
               <span className="tabular-nums font-mono text-lg">{formatMxCurrency(netAmount)}</span>

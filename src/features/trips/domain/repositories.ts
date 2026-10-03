@@ -9,6 +9,7 @@
  */
 
 import type { MappedActionResult, MappedSingleResult } from "@shared/api";
+import type { ApprovalGuards, ApprovalReturnReasonCode } from "@features/approvals";
 import type {
   Trip,
   TripListItem,
@@ -236,6 +237,7 @@ export interface IExpenseRepository {
   approve(
     tripId: string,
     expenseId: string,
+    guards?: ApprovalGuards,
   ): Promise<MappedSingleResult<TripExpense>>;
 
   /**
@@ -245,5 +247,21 @@ export interface IExpenseRepository {
     tripId: string,
     expenseId: string,
     reason: string,
+    guards?: ApprovalGuards,
   ): Promise<MappedSingleResult<TripExpense>>;
+
+  /**
+   * Devuelve un gasto para corregir (ADR-0099); quien lo capturó lo reenvía al guardar.
+   */
+  returnForCorrection(
+    tripId: string,
+    expenseId: string,
+    input: ReturnExpenseInput,
+  ): Promise<MappedSingleResult<TripExpense>>;
+}
+
+export interface ReturnExpenseInput {
+  reason: string;
+  reasonCode: ApprovalReturnReasonCode;
+  guards?: ApprovalGuards;
 }
