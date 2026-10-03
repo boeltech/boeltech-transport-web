@@ -30,6 +30,15 @@ const sampleTemplate: CompensationTemplate = {
       isMandatory: true,
     },
   ],
+  deductions: [
+    {
+      deductionType: "savings_fund",
+      label: "Fondo de ahorro",
+      amount: 200,
+      period: "weekly",
+      isMandatory: true,
+    },
+  ],
   corridorIds: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
   corridors: [],
   activeAssignmentsCount: 0,
@@ -60,6 +69,15 @@ describe("templateToForm", () => {
           isMandatory: true,
         },
       ],
+      deductions: [
+        {
+          deductionType: "savings_fund",
+          label: "Fondo de ahorro",
+          amount: 200,
+          period: "weekly",
+          isMandatory: true,
+        },
+      ],
       corridorIds: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
     });
   });
@@ -76,13 +94,13 @@ describe("templateToForm", () => {
   it("exposes shared default form values for create flows", () => {
     expect(DEFAULT_TEMPLATE_FORM_VALUES.rules).toHaveLength(1);
     expect(DEFAULT_TEMPLATE_FORM_VALUES.isActive).toBe(true);
+    expect(DEFAULT_TEMPLATE_FORM_VALUES.deductions).toEqual([]);
   });
 
   it("builds duplicate payload with suffix and cloned configuration", () => {
     expect(buildDuplicateTemplatePayload(sampleTemplate, "(copia)")).toEqual({
       name: "Esquema foráneo (copia)",
       description: "Notas",
-      isActive: false,
       midTripPayoutPolicy: "split_by_assigned_km",
       rules: [
         {
@@ -94,6 +112,7 @@ describe("templateToForm", () => {
         },
       ],
       fixedAllowances: sampleTemplate.fixedAllowances,
+      deductions: sampleTemplate.deductions,
       corridorIds: sampleTemplate.corridorIds,
     });
   });

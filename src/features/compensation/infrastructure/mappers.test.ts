@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { mapCorridor, mapCorridorFromApi, mapTemplate, mapTemplateFromApi } from "./mappers";
+import {
+  mapCorridor,
+  mapCorridorFromApi,
+  mapFrequentCityPair,
+  mapFrequentCityPairFromApi,
+  mapTemplate,
+  mapTemplateFromApi,
+} from "./mappers";
 
 describe("compensation mappers", () => {
   it("mapTemplate convierte snake_case a camelCase", () => {
@@ -28,6 +35,24 @@ describe("compensation mappers", () => {
           period: "weekly",
           is_mandatory: true,
         },
+        {
+          id: "allow-2",
+          allowance_type: "employer_contribution",
+          label: "Aportación patronal",
+          amount: 150,
+          period: "monthly",
+          is_mandatory: false,
+        },
+      ],
+      deductions: [
+        {
+          id: "ded-1",
+          deduction_type: "savings_fund",
+          label: "Fondo de ahorro",
+          amount: 200,
+          period: "weekly",
+          is_mandatory: true,
+        },
       ],
       corridor_ids: ["corridor-1"],
       corridors: [
@@ -50,13 +75,20 @@ describe("compensation mappers", () => {
 
     expect(mapped.name).toBe("Operador foráneo");
     expect(mapped.midTripPayoutPolicy).toBe("split_by_assigned_km");
+    expect(mapped.status).toBe("active");
+    expect(mapped.version).toBe(1);
+    expect(mapped.familyId).toBe("tpl-1");
+    expect(mapped.lockedForEdit).toBe(false);
     expect(mapped.rules[0]?.routeType).toBe("long_haul");
     expect(mapped.fixedAllowances[0]?.amount).toBe(500);
+    expect(mapped.fixedAllowances[1]?.allowanceType).toBe("employer_contribution");
+    expect(mapped.deductions).toHaveLength(1);
+    expect(mapped.deductions[0]?.deductionType).toBe("savings_fund");
     expect(mapped.corridorIds).toEqual(["corridor-1"]);
     expect(mapped.activeAssignmentsCount).toBe(3);
   });
 
-  it("mapTemplate usa 0 cuando falta active_assignments_count", () => {
+  it("mapTemplate usa 0 cuando falta active_assignments_count y deductions vacías", () => {
     const mapped = mapTemplate({
       id: "tpl-empty",
       name: "Vacío",
@@ -69,6 +101,7 @@ describe("compensation mappers", () => {
     });
 
     expect(mapped.activeAssignmentsCount).toBe(0);
+    expect(mapped.deductions).toEqual([]);
   });
 
   it("mapTemplateFromApi convierte camelCase post-mapSingleResponse", () => {
@@ -77,6 +110,11 @@ describe("compensation mappers", () => {
       name: "Operador foráneo",
       description: null,
       isActive: true,
+      status: "active",
+      version: 2,
+      familyId: "fam-1",
+      supersedesTemplateId: "tpl-0",
+      lockedForEdit: true,
       rules: [
         {
           id: "rule-1",
@@ -95,6 +133,16 @@ describe("compensation mappers", () => {
           label: "Comidas",
           amount: 500,
           period: "weekly",
+          isMandatory: true,
+        },
+      ],
+      deductions: [
+        {
+          id: "ded-1",
+          deductionType: "union_dues",
+          label: "Cuota sindical",
+          amount: 50,
+          period: "biweekly",
           isMandatory: true,
         },
       ],
@@ -118,8 +166,14 @@ describe("compensation mappers", () => {
     });
 
     expect(mapped.isActive).toBe(true);
+    expect(mapped.status).toBe("active");
+    expect(mapped.version).toBe(2);
+    expect(mapped.familyId).toBe("fam-1");
+    expect(mapped.supersedesTemplateId).toBe("tpl-0");
+    expect(mapped.lockedForEdit).toBe(true);
     expect(mapped.rules[0]?.routeType).toBe("long_haul");
     expect(mapped.fixedAllowances[0]?.isMandatory).toBe(true);
+    expect(mapped.deductions[0]?.deductionType).toBe("union_dues");
     expect(mapped.corridorIds).toEqual(["corridor-1"]);
     expect(mapped.activeAssignmentsCount).toBe(3);
   });
@@ -137,6 +191,7 @@ describe("compensation mappers", () => {
     });
 
     expect(mapped.activeAssignmentsCount).toBe(0);
+    expect(mapped.deductions).toEqual([]);
   });
 
   it("mapCorridor convierte refs y monto", () => {
@@ -176,5 +231,41 @@ describe("compensation mappers", () => {
     expect(mapped.destinationRefValue).toBe("Monterrey");
     expect(mapped.fixedAmount).toBe(1500);
     expect(mapped.isActive).toBe(true);
+  });
+
+  it("mapFrequentCityPair convierte snake_case a camelCase", () => {
+    const mapped = mapFrequentCityPair({
+      origin_city: "Guadalajara",
+      destination_city: "Tijuana",
+      origin_state: "Jalisco",
+      destination_state: "Baja California",
+      trip_count: 12,
+      last_used_at: "2026-09-15T18:00:00.000Z",
+    });
+
+    expect(mapped.originCity).toBe("Guadalajara");
+    expect(mapped.destinationCity).toBe("Tijuana");
+    expect(mapped.originState).toBe("Jalisco");
+    expect(mapped.destinationState).toBe("Baja California");
+    expect(mapped.tripCount).toBe(12);
+    expect(mapped.lastUsedAt).toBe("2026-09-15T18:00:00.000Z");
+  });
+
+  it("mapFrequentCityPairFromApi conserva camelCase post-mapSingleResponse", () => {
+    const mapped = mapFrequentCityPairFromApi({
+      originCity: "CDMX",
+      destinationCity: "Monterrey",
+      originState: null,
+      destinationState: "Nuevo León",
+      tripCount: 3,
+      lastUsedAt: "2026-09-20T12:00:00.000Z",
+    });
+
+    expect(mapped.originCity).toBe("CDMX");
+    expect(mapped.destinationCity).toBe("Monterrey");
+    expect(mapped.originState).toBeNull();
+    expect(mapped.destinationState).toBe("Nuevo León");
+    expect(mapped.tripCount).toBe(3);
+    expect(mapped.lastUsedAt).toBe("2026-09-20T12:00:00.000Z");
   });
 });

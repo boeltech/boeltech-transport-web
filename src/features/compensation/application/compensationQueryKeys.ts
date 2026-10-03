@@ -5,6 +5,10 @@ export const compensationQueryKeys = {
     [...compensationQueryKeys.templates(), "list", params] as const,
   templateDetail: (id: string) =>
     [...compensationQueryKeys.templates(), "detail", id] as const,
+  templateVersions: (id: string) =>
+    [...compensationQueryKeys.templates(), "versions", id] as const,
+  templateActivity: (id: string, params?: Record<string, unknown>) =>
+    [...compensationQueryKeys.templates(), "activity", id, params] as const,
   corridors: () => [...compensationQueryKeys.all, "corridors"] as const,
   corridorsList: (params?: Record<string, unknown>) =>
     [...compensationQueryKeys.corridors(), "list", params] as const,
@@ -12,6 +16,8 @@ export const compensationQueryKeys = {
     [...compensationQueryKeys.corridors(), "duplicate-catalog"] as const,
   corridorDetail: (id: string) =>
     [...compensationQueryKeys.corridors(), "detail", id] as const,
+  frequentCityPairs: (params?: Record<string, unknown>) =>
+    [...compensationQueryKeys.all, "frequent-city-pairs", params] as const,
   assignments: () => [...compensationQueryKeys.all, "assignments"] as const,
   assignmentsList: (params?: Record<string, unknown>) =>
     [...compensationQueryKeys.assignments(), "list", params] as const,

@@ -27,6 +27,7 @@ export const DEFAULT_TEMPLATE_FORM_VALUES: CompensationTemplateFormData = {
   midTripPayoutPolicy: "split_by_assigned_km",
   rules: DEFAULT_TEMPLATE_RULES,
   fixedAllowances: [],
+  deductions: [],
   corridorIds: [],
 };
 
@@ -52,6 +53,13 @@ export function templateToForm(
       period: allowance.period,
       isMandatory: allowance.isMandatory,
     })),
+    deductions: (template.deductions ?? []).map((deduction) => ({
+      deductionType: deduction.deductionType,
+      label: deduction.label,
+      amount: deduction.amount,
+      period: deduction.period,
+      isMandatory: deduction.isMandatory,
+    })),
     corridorIds: [...template.corridorIds],
   };
 }
@@ -65,7 +73,6 @@ export function buildDuplicateTemplatePayload(
   return {
     name,
     description: template.description ?? null,
-    isActive: template.isActive,
     midTripPayoutPolicy: template.midTripPayoutPolicy,
     rules: template.rules.map((rule) => ({
       routeType: rule.routeType,
@@ -80,6 +87,13 @@ export function buildDuplicateTemplatePayload(
       amount: allowance.amount,
       period: allowance.period,
       isMandatory: allowance.isMandatory,
+    })),
+    deductions: (template.deductions ?? []).map((deduction) => ({
+      deductionType: deduction.deductionType,
+      label: deduction.label,
+      amount: deduction.amount,
+      period: deduction.period,
+      isMandatory: deduction.isMandatory,
     })),
     corridorIds: [...template.corridorIds],
   };

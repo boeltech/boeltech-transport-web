@@ -10,6 +10,18 @@ vi.mock("../../application/hooks", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useActivateCompensationTemplate: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeactivateCompensationTemplate: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useCreateCompensationTemplateVersion: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock("@shared/permissions", () => ({
@@ -27,6 +39,11 @@ const baseTemplate: CompensationTemplate = {
   name: "Operador foráneo",
   description: "Esquema estándar para rutas largas",
   isActive: true,
+  status: "active",
+  version: 1,
+  familyId: "tpl-1",
+  supersedesTemplateId: null,
+  lockedForEdit: false,
   rules: [
     {
       routeType: "long_haul",
@@ -36,6 +53,7 @@ const baseTemplate: CompensationTemplate = {
     },
   ],
   fixedAllowances: [],
+  deductions: [],
   corridorIds: [],
   corridors: [],
   activeAssignmentsCount: 0,
@@ -84,7 +102,7 @@ describe("TemplateCompositionCard", () => {
     const { onToggleExpand } = renderCard(baseTemplate, { isExpanded: false });
 
     const toggle = screen.getByRole("button", {
-      name: /Expandir esquema Operador foráneo/i,
+      name: /Expandir tarifa Operador foráneo/i,
     });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
 
@@ -96,12 +114,12 @@ describe("TemplateCompositionCard", () => {
     renderCard(baseTemplate, { isExpanded: true });
 
     const toggle = screen.getByRole("button", {
-      name: /Contraer esquema Operador foráneo/i,
+      name: /Contraer tarifa Operador foráneo/i,
     });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(
       screen.getByRole("region", {
-        name: /Composición del esquema Operador foráneo/i,
+        name: /Composición de la tarifa Operador foráneo/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("Composición")).toBeInTheDocument();

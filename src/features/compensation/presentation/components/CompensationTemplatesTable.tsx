@@ -13,7 +13,10 @@ import {
 } from "@shared/ui/table";
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationTemplateBuildPath } from "../../application/compensationRoutes";
-import { CompensationUsageStatusBadge } from "../config/compensationStatusConfig";
+import {
+  CompensationTemplateStatusBadge,
+  CompensationUsageStatusBadge,
+} from "../config/compensationStatusConfig";
 import { compensationCopy } from "../copy/compensationCopy";
 import { buildTemplateSummary } from "../utils/buildTemplateSummary";
 import { getTemplateUsageStatus } from "../utils/getTemplateCompleteness";
@@ -47,7 +50,8 @@ function RowActions({
   onDeleted?: () => void;
 }) {
   const usage = getTemplateUsageStatus(template);
-  const canAssignPending = Boolean(pendingEmployeeId) && canUpdate && usage === "ready";
+  const canAssignPending =
+    Boolean(pendingEmployeeId) && canUpdate && usage === "ready";
   const buildHref = compensationTemplateBuildPath(template.id);
 
   return (
@@ -63,12 +67,12 @@ function RowActions({
         </Button>
       ) : null}
       {canUpdate ? (
-        usage === "needs_payment" ? (
+        usage === "needs_payment" || usage === "ready_to_activate" ? (
           <>
             <Button type="button" size="sm" asChild>
               <Link to={buildHref} className="inline-flex items-center gap-2">
                 <Settings2 className="h-3.5 w-3.5" aria-hidden />
-                {copy.completePayment}
+                {usage === "needs_payment" ? copy.completePayment : copy.edit}
               </Link>
             </Button>
             <Button
@@ -95,7 +99,7 @@ function RowActions({
             <Button type="button" size="sm" variant="outline" asChild>
               <Link to={buildHref} className="inline-flex items-center gap-2">
                 <Settings2 className="h-3.5 w-3.5" aria-hidden />
-                {copy.edit}
+                {template.lockedForEdit ? copy.createVersion : copy.edit}
               </Link>
             </Button>
           </>
@@ -126,8 +130,16 @@ function TemplateCatalogCard({
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 space-y-1">
-            <p className="truncate font-medium text-foreground">{template.name}</p>
-            <CompensationUsageStatusBadge template={template} />
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate font-medium text-foreground">{template.name}</p>
+              <span className="text-xs text-muted-foreground">
+                {copy.versionLabel(template.version)}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <CompensationTemplateStatusBadge status={template.status} />
+              <CompensationUsageStatusBadge template={template} />
+            </div>
           </div>
           <span
             className="shrink-0 tabular-nums text-sm font-medium text-foreground"
@@ -202,6 +214,7 @@ export function CompensationTemplatesTable({
         <TableHeader>
           <TableRow>
             <TableHead>{copy.columns.name}</TableHead>
+            <TableHead>{copy.columns.status}</TableHead>
             <TableHead>{copy.columns.usage}</TableHead>
             <TableHead>{copy.columns.summary}</TableHead>
             <TableHead className="text-right">{copy.columns.operators}</TableHead>
@@ -214,7 +227,15 @@ export function CompensationTemplatesTable({
             return (
               <TableRow key={template.id}>
                 <TableCell>
-                  <span className="font-medium">{template.name}</span>
+                  <div className="min-w-0">
+                    <span className="font-medium">{template.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {copy.versionLabel(template.version)}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <CompensationTemplateStatusBadge status={template.status} />
                 </TableCell>
                 <TableCell>
                   <CompensationUsageStatusBadge template={template} />

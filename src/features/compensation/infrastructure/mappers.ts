@@ -6,20 +6,26 @@ import type {
 } from "@features/settlements";
 import { DEFAULT_MID_TRIP_PAYOUT_POLICY } from "@features/settlements/domain/enums";
 import type {
+  CorridorRefType,
+  CompensationTemplateEventAction,
+  CompensationTemplateStatus,
+  FixedAllowancePeriod,
+  FixedAllowanceType,
+  TemplateDeductionType,
+} from "../domain/enums";
+import type {
   BatchAssignmentConflict,
   BatchAssignmentResult,
   CompensationTemplate,
+  CompensationTemplateEvent,
   CompensationTemplateRule,
   FixedAllowanceOverride,
+  FrequentCityPair,
   RouteCorridorTariff,
   TemplateAssignment,
+  TemplateDeduction,
   TemplateFixedAllowance,
 } from "../domain/entities";
-import type {
-  CorridorRefType,
-  FixedAllowancePeriod,
-  FixedAllowanceType,
-} from "../domain/enums";
 
 export interface ApiCompensationTemplateRuleRaw {
   id?: string;
@@ -40,6 +46,15 @@ export interface ApiTemplateFixedAllowanceRaw {
   is_mandatory: boolean;
 }
 
+export interface ApiTemplateDeductionRaw {
+  id?: string;
+  deduction_type: string;
+  label: string;
+  amount: number;
+  period: string;
+  is_mandatory: boolean;
+}
+
 export interface ApiRouteCorridorTariffRaw {
   id: string;
   name: string;
@@ -54,15 +69,30 @@ export interface ApiRouteCorridorTariffRaw {
   updated_at?: string;
 }
 
+export interface ApiFrequentCityPairRaw {
+  origin_city: string;
+  destination_city: string;
+  origin_state: string | null;
+  destination_state: string | null;
+  trip_count: number;
+  last_used_at: string;
+}
+
 export interface ApiCompensationTemplateRaw {
   id: string;
   tenant_id?: string;
   name: string;
   description: string | null;
   is_active: boolean;
+  status?: string;
+  version?: number;
+  family_id?: string;
+  supersedes_template_id?: string | null;
+  locked_for_edit?: boolean;
   mid_trip_payout_policy?: string;
   rules: ApiCompensationTemplateRuleRaw[];
   fixed_allowances: ApiTemplateFixedAllowanceRaw[];
+  deductions?: ApiTemplateDeductionRaw[];
   corridor_ids: string[];
   corridors: ApiRouteCorridorTariffRaw[];
   active_assignments_count?: number;
@@ -123,6 +153,17 @@ export function mapFixedAllowance(raw: ApiTemplateFixedAllowanceRaw): TemplateFi
   };
 }
 
+export function mapDeduction(raw: ApiTemplateDeductionRaw): TemplateDeduction {
+  return {
+    id: raw.id,
+    deductionType: raw.deduction_type as TemplateDeductionType,
+    label: raw.label,
+    amount: raw.amount,
+    period: raw.period as FixedAllowancePeriod,
+    isMandatory: raw.is_mandatory,
+  };
+}
+
 export function mapCorridor(raw: ApiRouteCorridorTariffRaw): RouteCorridorTariff {
   return {
     id: raw.id,
@@ -139,17 +180,45 @@ export function mapCorridor(raw: ApiRouteCorridorTariffRaw): RouteCorridorTariff
   };
 }
 
+export function mapFrequentCityPair(raw: ApiFrequentCityPairRaw): FrequentCityPair {
+  return {
+    originCity: raw.origin_city,
+    destinationCity: raw.destination_city,
+    originState: raw.origin_state ?? null,
+    destinationState: raw.destination_state ?? null,
+    tripCount: raw.trip_count,
+    lastUsedAt: raw.last_used_at,
+  };
+}
+
+function resolveTemplateStatus(
+  status: string | undefined,
+  isActive: boolean,
+): CompensationTemplateStatus {
+  if (status === "draft" || status === "active" || status === "inactive") {
+    return status;
+  }
+  return isActive ? "active" : "inactive";
+}
+
 export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTemplate {
+  const status = resolveTemplateStatus(raw.status, raw.is_active);
   return {
     id: raw.id,
     name: raw.name,
     description: raw.description,
-    isActive: raw.is_active,
+    isActive: status === "active",
+    status,
+    version: Number(raw.version ?? 1),
+    familyId: raw.family_id ?? raw.id,
+    supersedesTemplateId: raw.supersedes_template_id ?? null,
+    lockedForEdit: Boolean(raw.locked_for_edit),
     midTripPayoutPolicy:
       (raw.mid_trip_payout_policy as MidTripPayoutPolicy | undefined) ??
       DEFAULT_MID_TRIP_PAYOUT_POLICY,
     rules: (raw.rules ?? []).map(mapTemplateRule),
     fixedAllowances: (raw.fixed_allowances ?? []).map(mapFixedAllowance),
+    deductions: (raw.deductions ?? []).map(mapDeduction),
     corridorIds: raw.corridor_ids ?? [],
     corridors: (raw.corridors ?? []).map(mapCorridor),
     activeAssignmentsCount: raw.active_assignments_count ?? 0,
@@ -239,6 +308,15 @@ export interface ApiTemplateFixedAllowanceCamel {
   isMandatory: boolean;
 }
 
+export interface ApiTemplateDeductionCamel {
+  id?: string;
+  deductionType: string;
+  label: string;
+  amount: number;
+  period: string;
+  isMandatory: boolean;
+}
+
 export interface ApiRouteCorridorTariffCamel {
   id: string;
   name: string;
@@ -253,20 +331,49 @@ export interface ApiRouteCorridorTariffCamel {
   updatedAt?: string;
 }
 
+export interface ApiFrequentCityPairCamel {
+  originCity: string;
+  destinationCity: string;
+  originState: string | null;
+  destinationState: string | null;
+  tripCount: number;
+  lastUsedAt: string;
+}
+
 export interface ApiCompensationTemplateCamel {
   id: string;
   tenantId?: string;
   name: string;
   description: string | null;
   isActive: boolean;
+  status?: CompensationTemplateStatus | string;
+  version?: number;
+  familyId?: string;
+  supersedesTemplateId?: string | null;
+  lockedForEdit?: boolean;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules: ApiCompensationTemplateRuleCamel[];
   fixedAllowances: ApiTemplateFixedAllowanceCamel[];
+  deductions?: ApiTemplateDeductionCamel[];
   corridorIds: string[];
   corridors: ApiRouteCorridorTariffCamel[];
   activeAssignmentsCount?: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ApiCompensationTemplateEventCamel {
+  id: string;
+  tenantId?: string;
+  templateId: string;
+  familyId: string;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  actorFirstName?: string | null;
+  actorLastName?: string | null;
+  action: string;
+  payload?: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface ApiTemplateAssignmentCamel {
@@ -337,6 +444,17 @@ export function mapFixedAllowanceFromApi(
   };
 }
 
+export function mapDeductionFromApi(raw: ApiTemplateDeductionCamel): TemplateDeduction {
+  return {
+    id: raw.id,
+    deductionType: raw.deductionType as TemplateDeductionType,
+    label: raw.label,
+    amount: raw.amount,
+    period: raw.period as FixedAllowancePeriod,
+    isMandatory: raw.isMandatory,
+  };
+}
+
 export function mapCorridorFromApi(raw: ApiRouteCorridorTariffCamel): RouteCorridorTariff {
   return {
     id: raw.id,
@@ -353,21 +471,61 @@ export function mapCorridorFromApi(raw: ApiRouteCorridorTariffCamel): RouteCorri
   };
 }
 
+export function mapFrequentCityPairFromApi(
+  raw: ApiFrequentCityPairCamel,
+): FrequentCityPair {
+  return {
+    originCity: raw.originCity,
+    destinationCity: raw.destinationCity,
+    originState: raw.originState ?? null,
+    destinationState: raw.destinationState ?? null,
+    tripCount: raw.tripCount,
+    lastUsedAt: raw.lastUsedAt,
+  };
+}
+
 export function mapTemplateFromApi(raw: ApiCompensationTemplateCamel): CompensationTemplate {
+  const status = resolveTemplateStatus(
+    typeof raw.status === "string" ? raw.status : undefined,
+    raw.isActive,
+  );
   return {
     id: raw.id,
     name: raw.name,
     description: raw.description,
-    isActive: raw.isActive,
+    isActive: status === "active",
+    status,
+    version: Number(raw.version ?? 1),
+    familyId: raw.familyId ?? raw.id,
+    supersedesTemplateId: raw.supersedesTemplateId ?? null,
+    lockedForEdit: Boolean(raw.lockedForEdit),
     midTripPayoutPolicy:
       raw.midTripPayoutPolicy ?? DEFAULT_MID_TRIP_PAYOUT_POLICY,
     rules: (raw.rules ?? []).map(mapTemplateRuleFromApi),
     fixedAllowances: (raw.fixedAllowances ?? []).map(mapFixedAllowanceFromApi),
+    deductions: (raw.deductions ?? []).map(mapDeductionFromApi),
     corridorIds: raw.corridorIds ?? [],
     corridors: (raw.corridors ?? []).map(mapCorridorFromApi),
     activeAssignmentsCount: raw.activeAssignmentsCount ?? 0,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
+  };
+}
+
+export function mapTemplateEventFromApi(
+  raw: ApiCompensationTemplateEventCamel,
+): CompensationTemplateEvent {
+  return {
+    id: raw.id,
+    templateId: raw.templateId,
+    familyId: raw.familyId,
+    actorUserId: raw.actorUserId ?? null,
+    actorEmail: raw.actorEmail ?? null,
+    actorFirstName: raw.actorFirstName ?? null,
+    actorLastName: raw.actorLastName ?? null,
+    action: raw.action as CompensationTemplateEventAction,
+    payload: raw.payload ?? {},
+    createdAt: raw.createdAt,
   };
 }
 

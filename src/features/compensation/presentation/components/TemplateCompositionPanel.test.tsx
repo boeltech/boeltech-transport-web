@@ -11,6 +11,7 @@ const incompleteTemplate: CompensationTemplate = {
   isActive: false,
   rules: [],
   fixedAllowances: [],
+  deductions: [],
   corridorIds: [],
   corridors: [],
   activeAssignmentsCount: 0,

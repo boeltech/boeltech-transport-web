@@ -12,6 +12,7 @@ const baseTemplate: CompensationTemplate = {
   isActive: true,
   rules: [],
   fixedAllowances: [],
+  deductions: [],
   corridorIds: [],
   corridors: [],
   activeAssignmentsCount: 0,
@@ -25,8 +26,8 @@ describe("getTemplateCompleteness", () => {
     expect(result.sectionStatuses.payment).toBe("empty");
     expect(result.sectionStatuses.corridors).toBe("empty");
     expect(result.sectionStatuses.allowances).toBe("empty");
-    expect(result.sectionStatuses).not.toHaveProperty("identity");
     expect(result.sectionStatuses).not.toHaveProperty("review");
+    expect(result.sectionStatuses).not.toHaveProperty("identity");
   });
 
   it("is complete with only route rules", () => {
@@ -71,10 +72,22 @@ describe("getTemplateUsageStatus", () => {
     ).toBe("ready");
   });
 
+  it("returns ready_to_activate when draft and complete", () => {
+    expect(
+      getTemplateUsageStatus({
+        ...baseTemplate,
+        status: "draft",
+        isActive: false,
+        corridorIds: ["c-1"],
+      }),
+    ).toBe("ready_to_activate");
+  });
+
   it("returns paused when inactive even if complete", () => {
     expect(
       getTemplateUsageStatus({
         ...baseTemplate,
+        status: "inactive",
         isActive: false,
         rules: [
           {

@@ -18,7 +18,7 @@ import { FixedAllowanceOverridePanel } from "./FixedAllowanceOverridePanel";
 import { TemplateAssignmentActions } from "./TemplateAssignmentActions";
 
 const copy = compensationCopy.assignments;
-const TABLE_ARIA_LABEL = "Operadores asignados al esquema de compensación";
+const TABLE_ARIA_LABEL = "Operadores asignados a la tarifa de pago";
 
 interface TemplateAssignmentsTableProps {
   assignments: TemplateAssignment[];

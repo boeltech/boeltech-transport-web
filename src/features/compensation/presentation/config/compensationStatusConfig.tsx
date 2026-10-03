@@ -1,4 +1,10 @@
-import { AlertTriangle, CheckCircle2, MinusCircle, PauseCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileEdit,
+  MinusCircle,
+  PauseCircle,
+} from "lucide-react";
 import {
   type StatusConfig,
   createStatusConfig,
@@ -8,6 +14,7 @@ import { compensationCopy } from "../copy/compensationCopy";
 import type { TemplateUsageStatus } from "../utils/templateCompositionTypes";
 import { getTemplateUsageStatus } from "../utils/getTemplateCompleteness";
 import type { CompensationTemplate } from "../../domain/entities";
+import type { CompensationTemplateStatus } from "../../domain/enums";
 
 const copy = compensationCopy.templates;
 
@@ -47,6 +54,42 @@ export function CompensationActiveStatusBadge({
   );
 }
 
+export const COMPENSATION_TEMPLATE_STATUS_CONFIG: Record<
+  CompensationTemplateStatus,
+  StatusConfig
+> = {
+  draft: createStatusConfig("warning", {
+    label: copy.status.draft,
+    icon: FileEdit,
+    description: "Borrador — aún no se usa al liquidar",
+    tone: "soft",
+  }),
+  active: createStatusConfig("success", {
+    label: copy.status.active,
+    icon: CheckCircle2,
+    description: "Activa para liquidar",
+    tone: "soft",
+  }),
+  inactive: createStatusConfig("neutral", {
+    label: copy.status.inactive,
+    icon: PauseCircle,
+    description: "Desactivada",
+    tone: "soft",
+  }),
+};
+
+const CompensationTemplateStatusBadgeBase = createStatusBadgeComponent(
+  COMPENSATION_TEMPLATE_STATUS_CONFIG,
+);
+
+export function CompensationTemplateStatusBadge({
+  status,
+}: {
+  status: CompensationTemplateStatus;
+}) {
+  return <CompensationTemplateStatusBadgeBase status={status} />;
+}
+
 export const COMPENSATION_USAGE_STATUS_CONFIG: Record<
   TemplateUsageStatus,
   StatusConfig
@@ -55,6 +98,12 @@ export const COMPENSATION_USAGE_STATUS_CONFIG: Record<
     label: copy.usage.ready,
     icon: CheckCircle2,
     description: "Se puede usar al liquidar",
+    tone: "soft",
+  }),
+  ready_to_activate: createStatusConfig("info", {
+    label: copy.usage.readyToActivate,
+    icon: CheckCircle2,
+    description: "Configurada; falta activar",
     tone: "soft",
   }),
   needs_payment: createStatusConfig("warning", {
@@ -78,7 +127,10 @@ const CompensationUsageStatusBadgeBase = createStatusBadgeComponent(
 export function CompensationUsageStatusBadge({
   template,
 }: {
-  template: Pick<CompensationTemplate, "isActive" | "rules" | "corridorIds">;
+  template: Pick<
+    CompensationTemplate,
+    "status" | "isActive" | "rules" | "corridorIds"
+  >;
 }) {
   return (
     <CompensationUsageStatusBadgeBase status={getTemplateUsageStatus(template)} />

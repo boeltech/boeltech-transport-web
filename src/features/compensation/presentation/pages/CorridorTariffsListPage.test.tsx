@@ -56,13 +56,13 @@ vi.mock("@shared/hooks", async (importOriginal) => {
   };
 });
 
-function renderPage() {
+function renderPage(initialEntry = "/finance/compensation/corridors") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <CorridorTariffsListPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -137,5 +137,13 @@ describe("CorridorTariffsListPage", () => {
     renderPage();
 
     expect(screen.queryByText("Acciones")).not.toBeInTheDocument();
+  });
+
+  it("abre Sheet de alta con ?create=1", async () => {
+    renderPage("/finance/compensation/corridors?create=1");
+
+    expect(
+      await screen.findByRole("heading", { name: /Nueva ruta con tarifa fija/i }),
+    ).toBeInTheDocument();
   });
 });

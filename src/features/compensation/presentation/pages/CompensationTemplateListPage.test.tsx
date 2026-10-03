@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CompensationTemplateListPage } from "./CompensationTemplateListPage";
 
 const mockNavigate = vi.fn();
+const mockBatchMutate = vi.fn();
+const mockRefetchTemplates = vi.fn();
 
 const { mockUseCompensationTemplates, mockUseCompensationTemplate } = vi.hoisted(() => ({
   mockUseCompensationTemplates: vi.fn(),
@@ -31,7 +33,7 @@ vi.mock("../../application/hooks", async (importOriginal) => {
       isPending: false,
     }),
     useBatchCreateTemplateAssignments: () => ({
-      mutateAsync: vi.fn(),
+      mutateAsync: mockBatchMutate,
       isPending: false,
     }),
     useDeleteCompensationTemplate: () => ({
@@ -102,6 +104,9 @@ function renderPage(initialPath = "/finance/compensation/templates") {
 describe("CompensationTemplateListPage", () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockBatchMutate.mockReset();
+    mockBatchMutate.mockResolvedValue({ createdCount: 1, skippedCount: 0 });
+    mockRefetchTemplates.mockReset();
     mockUseCompensationTemplate.mockReturnValue({ data: undefined });
     mockUseCompensationTemplates.mockReturnValue({
       data: {
@@ -111,8 +116,13 @@ describe("CompensationTemplateListPage", () => {
             name: "Operador foráneo",
             description: null,
             isActive: true,
+            status: "active",
+            version: 1,
+            familyId: "tpl-1",
+            lockedForEdit: false,
             rules: [],
             fixedAllowances: [],
+            deductions: [],
             corridorIds: [],
             corridors: [],
             activeAssignmentsCount: 2,
@@ -122,6 +132,10 @@ describe("CompensationTemplateListPage", () => {
             name: "Esquema local",
             description: null,
             isActive: true,
+            status: "active",
+            version: 1,
+            familyId: "tpl-2",
+            lockedForEdit: false,
             rules: [
               {
                 routeType: "local",
@@ -131,6 +145,7 @@ describe("CompensationTemplateListPage", () => {
               },
             ],
             fixedAllowances: [],
+            deductions: [],
             corridorIds: [],
             corridors: [],
             activeAssignmentsCount: 0,
@@ -140,7 +155,7 @@ describe("CompensationTemplateListPage", () => {
       },
       isLoading: false,
       isFetching: false,
-      refetch: vi.fn(),
+      refetch: mockRefetchTemplates,
     });
   });
 
@@ -169,17 +184,17 @@ describe("CompensationTemplateListPage", () => {
     renderPage("/finance/compensation/templates?employeeId=emp-1");
 
     expect(
-      screen.getByText(/Este operador aún no tiene esquema de pago/i),
+      screen.getByText(/Este operador aún no tiene tarifa de pago/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Juan Pérez no tiene un esquema de pago vigente/i),
+      screen.getByText(/Juan Pérez no tiene una tarifa de pago vigente/i),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByRole("button", { name: /Asignar a este esquema/i })).toHaveLength(
+    expect(screen.getAllByRole("button", { name: /Asignar a esta tarifa/i })).toHaveLength(
       1,
     );
 
-    await user.click(screen.getByRole("button", { name: /Asignar a este esquema/i }));
+    await user.click(screen.getByRole("button", { name: /Asignar a esta tarifa/i }));
 
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(
@@ -215,5 +230,40 @@ describe("CompensationTemplateListPage", () => {
       expect(screen.getByRole("heading", { name: /Operadores — Esquema local/i })).toBeInTheDocument();
     });
     expect(screen.getByRole("heading", { name: /Asignación masiva/i })).toBeInTheDocument();
+  });
+
+  it("tras confirmar asignación cierra sheets y limpia banner employeeId", async () => {
+    const user = userEvent.setup();
+    const employeeId = "11111111-1111-4111-8111-111111111111";
+    renderPage(`/finance/compensation/templates?employeeId=${employeeId}`);
+
+    expect(
+      screen.getByText(/Este operador aún no tiene tarifa de pago/i),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Asignar a esta tarifa/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Asignación masiva/i }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Confirmar asignación/i }));
+
+    await waitFor(() => {
+      expect(mockBatchMutate).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/Este operador aún no tiene tarifa de pago/i),
+      ).not.toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("heading", { name: /Asignación masiva/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /Operadores —/i }),
+    ).not.toBeInTheDocument();
+    expect(mockRefetchTemplates).toHaveBeenCalled();
   });
 });

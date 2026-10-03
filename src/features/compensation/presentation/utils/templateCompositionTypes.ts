@@ -29,10 +29,16 @@ export interface TemplateCompleteness {
   sectionStatuses: Record<BuilderSectionId, BuilderSectionStatus>;
 }
 
-/** Estado de uso en catálogo: activo+completo | activo+incompleto | inactivo. */
-export type TemplateUsageStatus = "ready" | "needs_payment" | "paused";
+/** Estado de uso en catálogo. */
+export type TemplateUsageStatus =
+  | "ready"
+  | "ready_to_activate"
+  | "needs_payment"
+  | "paused";
 
 export interface TemplateSummaryLine {
   id: string;
   text: string;
+  /** Hint-style line (muted in inspector); omitted from compact card summary. */
+  variant?: "default" | "hint";
 }

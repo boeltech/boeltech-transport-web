@@ -20,7 +20,10 @@ interface TemplateOperatorsSheetProps {
   canUpdate?: boolean;
   compositionEditing?: boolean;
   batchInitialEmployeeIds?: string[];
+  paymentPeriodStart?: string;
+  paymentPeriodEnd?: string;
   onAssignmentsChange?: () => void;
+  onBatchSuccess?: () => void;
 }
 
 export function TemplateOperatorsSheet({
@@ -30,7 +33,10 @@ export function TemplateOperatorsSheet({
   canUpdate = false,
   compositionEditing = false,
   batchInitialEmployeeIds,
+  paymentPeriodStart,
+  paymentPeriodEnd,
   onAssignmentsChange,
+  onBatchSuccess,
 }: TemplateOperatorsSheetProps) {
   const [batchOpen, setBatchOpen] = useState(false);
 
@@ -68,7 +74,10 @@ export function TemplateOperatorsSheet({
             batchOpen={batchOpen}
             onBatchOpenChange={setBatchOpen}
             batchInitialEmployeeIds={batchInitialEmployeeIds}
+            paymentPeriodStart={paymentPeriodStart}
+            paymentPeriodEnd={paymentPeriodEnd}
             onAssignmentsChange={onAssignmentsChange}
+            onBatchSuccess={onBatchSuccess}
           />
         </div>
       </SheetContent>

@@ -130,6 +130,9 @@ function TemplateCompositionPanelEdit({
     allowanceFields,
     appendAllowance,
     removeAllowance,
+    deductionFields,
+    appendDeduction,
+    removeDeduction,
     watchedRules,
     validationMessages,
     apiError,
@@ -159,6 +162,9 @@ function TemplateCompositionPanelEdit({
           allowanceFields={allowanceFields}
           appendAllowance={appendAllowance}
           removeAllowance={removeAllowance}
+          deductionFields={deductionFields}
+          appendDeduction={appendDeduction}
+          removeDeduction={removeDeduction}
           watchedRules={watchedRules}
           validationMessages={validationMessages}
         />

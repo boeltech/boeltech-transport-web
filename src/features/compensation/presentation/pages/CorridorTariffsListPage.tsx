@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { AlertWithIcon } from "@shared/ui/alert";
@@ -12,6 +13,10 @@ import {
 import { BranchStatus, useBranches } from "@features/branches";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
+import {
+  COMPENSATION_CORRIDORS_CREATE_QUERY,
+  isCompensationCorridorsCreateQuery,
+} from "../../application/compensationRoutes";
 import {
   useCorridorBranchNameMap,
   useCorridorDuplicateCatalog,
@@ -34,6 +39,7 @@ function parseActiveFilter(raw: string): boolean | undefined {
 
 export function CorridorTariffsListPage() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "update");
   const canManageCorridors =
@@ -102,6 +108,22 @@ export function CorridorTariffsListPage() {
     setEditingCorridor(null);
     setSheetOpen(true);
   }, []);
+
+  const createQuery = searchParams.get(COMPENSATION_CORRIDORS_CREATE_QUERY);
+  useEffect(() => {
+    if (!isCompensationCorridorsCreateQuery(createQuery)) return;
+    if (canCreate) {
+      openCreate();
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(COMPENSATION_CORRIDORS_CREATE_QUERY);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [canCreate, createQuery, openCreate, setSearchParams]);
 
   const hubCreateAction = useMemo(
     () =>

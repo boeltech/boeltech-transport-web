@@ -30,6 +30,19 @@ vi.mock("../../application/hooks", async (importOriginal) => {
       mutateAsync: mockMutateAsync,
       isPending: false,
     }),
+    useActivateCompensationTemplate: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+    useCreateCompensationTemplateVersion: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+    useTemplateVersions: () => ({ data: [], isLoading: false }),
+    useTemplateActivity: () => ({
+      data: { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
+      isLoading: false,
+    }),
     useCorridorTariffs: (...args: unknown[]) => mockUseCorridorTariffs(...args),
     useTemplateAssignments: () => ({
       data: {
@@ -73,6 +86,11 @@ const template: CompensationTemplate = {
   name: "Operador foráneo",
   description: "Esquema demo",
   isActive: true,
+  status: "active",
+  version: 1,
+  familyId: "tpl-1",
+  supersedesTemplateId: null,
+  lockedForEdit: false,
   rules: [
     {
       routeType: "long_haul",
@@ -90,6 +108,7 @@ const template: CompensationTemplate = {
       isMandatory: true,
     },
   ],
+  deductions: [],
   corridorIds: [],
   corridors: [],
   activeAssignmentsCount: 0,
@@ -143,7 +162,7 @@ describe("CompensationSchemeBuilderPage", () => {
       screen.getByRole("heading", { level: 1, name: "Operador foráneo" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Define cuánto se le paga a este operador/i),
+      screen.getByText(/Define cuánto se paga a los operadores/i),
     ).toBeInTheDocument();
 
     const desktopNav = screen.getByTestId("builder-section-nav-desktop");
@@ -151,25 +170,29 @@ describe("CompensationSchemeBuilderPage", () => {
       within(desktopNav).queryByRole("tab", { name: /Identidad/i }),
     ).not.toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Pago por tipo de viaje/i }),
+      within(desktopNav).getByRole("tab", { name: /Pago por viaje/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Pagos fijos adicionales/i }),
+      within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Rutas con precio fijo/i }),
+      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText("Nombre")).toHaveValue("Operador foráneo");
-    expect(screen.getByLabelText("Esquema activo")).toBeInTheDocument();
+    expect(screen.getAllByText("Activa").length).toBeGreaterThan(0);
+    expect(screen.getByText("v1")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Tarifa activa")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Esquema demo")).toBeInTheDocument();
 
     const inspector = screen.getByTestId("builder-inspector-desktop");
     expect(within(inspector).queryByText(/Resumen en vivo/i)).not.toBeInTheDocument();
     expect(within(inspector).queryByText(/Completitud/i)).not.toBeInTheDocument();
-    expect(within(inspector).getByText(/Lo que se está armando/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/Resumen en tiempo real/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/Cada extra fijo se suma una vez/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/no divide el monto/i)).toBeInTheDocument();
     expect(within(inspector).getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/Listo para liquidar/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/Tarifa lista para usar/i)).toBeInTheDocument();
     expect(
       within(inspector).queryByRole("link", { name: /Vista previa/i }),
     ).not.toBeInTheDocument();
@@ -179,14 +202,14 @@ describe("CompensationSchemeBuilderPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("arranca en Pago por tipo de viaje", () => {
+  it("arranca en Pago por viaje", () => {
     renderPage();
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Pago por tipo de viaje" }),
+      screen.getByRole("heading", { level: 2, name: "Pago por viaje" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Elige un tipo de viaje y cuánto se paga/i),
+      screen.getByText(/Cada clase de ruta puede tener su propia regla de pago/i),
     ).toBeInTheDocument();
   });
 
@@ -196,11 +219,22 @@ describe("CompensationSchemeBuilderPage", () => {
 
     const desktopNav = screen.getByTestId("builder-section-nav-desktop");
     await user.click(
-      within(desktopNav).getByRole("tab", { name: /Rutas con precio fijo/i }),
+      within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
     );
 
     expect(
-      screen.getByText(/Si el viaje va por una de estas rutas/i),
+      screen.getByText(/Montos fijos que se suman al pago del operador/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Descuentos al operador/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
+    );
+
+    expect(
+      screen.getByText(/Si el viaje coincide con una de estas rutas/i),
     ).toBeInTheDocument();
   });
 
@@ -222,7 +256,7 @@ describe("CompensationSchemeBuilderPage", () => {
     const inspector = screen.getByTestId("builder-inspector-desktop");
     expect(
       within(inspector).getByText(
-        /Para poder liquidar con este esquema, agrega al menos un tipo de viaje/i,
+        /Para usar esta tarifa, agrega al menos una regla de pago/i,
       ),
     ).toBeInTheDocument();
   });
@@ -239,6 +273,10 @@ describe("CompensationSchemeBuilderPage", () => {
     expect(mockMutateAsync.mock.calls[0]?.[0]).toMatchObject({
       id: "tpl-1",
       name: "Esquema actualizado",
+      deductions: [],
+      fixedAllowances: expect.arrayContaining([
+        expect.objectContaining({ allowanceType: "meals", label: "Comidas" }),
+      ]),
     });
   });
 
@@ -260,6 +298,6 @@ describe("CompensationSchemeBuilderPage", () => {
 
     renderPage();
 
-    expect(screen.getByText("Esquema no encontrado")).toBeInTheDocument();
+    expect(screen.getByText("Tarifa no encontrada")).toBeInTheDocument();
   });
 });

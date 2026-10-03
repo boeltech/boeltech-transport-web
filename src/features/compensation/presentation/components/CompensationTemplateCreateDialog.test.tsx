@@ -29,6 +29,7 @@ const createdTemplate: CompensationTemplate = {
   isActive: true,
   rules: [],
   fixedAllowances: [],
+  deductions: [],
   corridorIds: [],
   corridors: [],
   activeAssignmentsCount: 0,
@@ -80,9 +81,9 @@ describe("CompensationTemplateCreateDialog", () => {
     expect(mockCreateMutate).toHaveBeenCalledWith({
       name: "Esquema local",
       description: null,
-      isActive: true,
       rules: [],
       fixedAllowances: [],
+      deductions: [],
       corridorIds: [],
     });
     expect(mockOnCreated).toHaveBeenCalledWith(createdTemplate);

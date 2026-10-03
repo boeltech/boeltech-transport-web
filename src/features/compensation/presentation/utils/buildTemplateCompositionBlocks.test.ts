@@ -8,6 +8,7 @@ const baseTemplate: CompensationTemplate = {
   isActive: true,
   rules: [],
   fixedAllowances: [],
+  deductions: [],
   corridorIds: [],
   corridors: [],
   activeAssignmentsCount: 0,
@@ -47,6 +48,7 @@ describe("buildTemplateCompositionBlocks", () => {
           isMandatory: true,
         },
       ],
+      deductions: [],
       corridorIds: ["c-1"],
       corridors: [
         {

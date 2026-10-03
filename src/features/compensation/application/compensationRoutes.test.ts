@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   COMPENSATION_CORRIDORS_PATH,
   COMPENSATION_TEMPLATES_PATH,
+  compensationCorridorsCreatePath,
   compensationTemplateAssignPath,
   compensationTemplateBuildPath,
   compensationTemplateDetailPath,
   compensationTemplateOperatorsPath,
+  isCompensationCorridorsCreateQuery,
   isCompensationHubPath,
   isCompensationTemplateDetailPath,
   resolveCompensationHubTab,
@@ -17,6 +19,9 @@ describe("compensationRoutes", () => {
   it("expone rutas canónicas del hub", () => {
     expect(COMPENSATION_TEMPLATES_PATH).toBe("/finance/compensation/templates");
     expect(COMPENSATION_CORRIDORS_PATH).toBe("/finance/compensation/corridors");
+    expect(compensationCorridorsCreatePath()).toBe(
+      "/finance/compensation/corridors?create=1",
+    );
     expect(compensationTemplateOperatorsPath("tpl-1")).toBe(
       "/finance/compensation/templates?operators=tpl-1",
     );
@@ -29,6 +34,14 @@ describe("compensationRoutes", () => {
     expect(compensationTemplateBuildPath("tpl-1")).toBe(
       "/finance/compensation/templates/tpl-1/build",
     );
+  });
+
+  it("detecta query create de corredores", () => {
+    expect(isCompensationCorridorsCreateQuery("1")).toBe(true);
+    expect(isCompensationCorridorsCreateQuery("true")).toBe(true);
+    expect(isCompensationCorridorsCreateQuery("TRUE")).toBe(true);
+    expect(isCompensationCorridorsCreateQuery("0")).toBe(false);
+    expect(isCompensationCorridorsCreateQuery(null)).toBe(false);
   });
 
   it("resuelve redirect legacy agreements", () => {

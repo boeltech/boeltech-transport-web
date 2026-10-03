@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { Controller } from "react-hook-form";
-import { Checkbox } from "@shared/ui/checkbox";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
@@ -21,19 +19,20 @@ type BuilderIdentitySectionProps = Pick<
   "form" | "validationMessages"
 > & {
   showValidation?: boolean;
+  readOnly?: boolean;
 };
 
 /**
  * Bloque compacto de identidad (fuera del nav de secciones del Builder).
- * Nombre + toggle activo + nota opcional colapsable.
+ * Nombre + nota opcional. El estado lifecycle se controla con Activar/Desactivar.
  */
 export function BuilderIdentitySection({
   form,
   validationMessages,
   showValidation = false,
+  readOnly = false,
 }: BuilderIdentitySectionProps) {
   const {
-    control,
     register,
     watch,
     formState: { errors },
@@ -50,36 +49,21 @@ export function BuilderIdentitySection({
       className="rounded-lg border bg-card p-4 shadow-sm space-y-3"
       aria-label={copy.identityBlockAriaLabel}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <Label htmlFor="builder-template-name">{sheetCopy.fields.name}</Label>
-          <Input
-            id="builder-template-name"
-            {...register("name")}
-            {...getRegisterFieldErrorProps(
-              "builder-template-name",
-              errors.name?.message,
-            )}
-          />
-          <FieldInlineError
-            fieldId="builder-template-name"
-            message={errors.name?.message}
-          />
-        </div>
-        <div className="flex items-center gap-2 sm:pt-7">
-          <Controller
-            control={control}
-            name="isActive"
-            render={({ field }) => (
-              <Checkbox
-                id="builder-template-active"
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(checked === true)}
-              />
-            )}
-          />
-          <Label htmlFor="builder-template-active">{copy.toggleActiveLabel}</Label>
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="builder-template-name">{sheetCopy.fields.name}</Label>
+        <Input
+          id="builder-template-name"
+          disabled={readOnly}
+          {...register("name")}
+          {...getRegisterFieldErrorProps(
+            "builder-template-name",
+            errors.name?.message,
+          )}
+        />
+        <FieldInlineError
+          fieldId="builder-template-name"
+          message={errors.name?.message}
+        />
       </div>
 
       {showDescription ? (
@@ -93,6 +77,7 @@ export function BuilderIdentitySection({
               variant="link"
               size="sm"
               className="h-auto px-0"
+              disabled={readOnly}
               onClick={() => setDescriptionOpen(false)}
             >
               {copy.hideDescription}
@@ -101,6 +86,7 @@ export function BuilderIdentitySection({
           <Textarea
             id="builder-template-description"
             rows={2}
+            disabled={readOnly}
             {...register("description")}
           />
         </div>
@@ -110,6 +96,7 @@ export function BuilderIdentitySection({
           variant="link"
           size="sm"
           className="h-auto px-0"
+          disabled={readOnly}
           onClick={() => setDescriptionOpen(true)}
         >
           {copy.addDescription}

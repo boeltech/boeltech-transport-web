@@ -7,6 +7,10 @@ import type {
   UpsertFixedAllowanceOverridePayload,
 } from "../../domain/entities";
 
+/** Prefijos de React Query en settlements (evitar import circular del barrel). */
+const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+
 export function useTemplateAssignments(params?: {
   templateId?: string;
   employeeId?: string;
@@ -35,6 +39,8 @@ export function useBatchCreateTemplateAssignments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: compensationQueryKeys.assignments() });
       queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
     },
   });
 }

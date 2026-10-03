@@ -49,22 +49,48 @@ function formatRuleProse(
   return base;
 }
 
+function buildCorridorLine(
+  corridorIds: string[],
+  corridors: CompensationTemplate["corridors"],
+): TemplateSummaryLine | null {
+  const corridorCount = corridorIds.length;
+  if (corridorCount === 1) {
+    const name = corridors[0]?.name;
+    return {
+      id: "corridors",
+      text: name ? `1 ruta con tarifa fija: ${name}` : "1 ruta con tarifa fija",
+    };
+  }
+  if (corridorCount > 1) {
+    return {
+      id: "corridors",
+      text: `${corridorCount} rutas con tarifa fija`,
+    };
+  }
+  return null;
+}
+
 /**
  * Resumen estructurado en prosa operativa para el inspector del Builder (ADR-0091 · D5.1).
  * Tolera valores parciales de useWatch mientras el form aún hidrata.
+ *
+ * Orden cuando coexisten reglas y corredores (ADR-0089 D3):
+ * precedencia → rutas fijas → pago por viaje → extras → descuentos.
  */
 export function buildTemplateStructuredSummary(
   template: Pick<
     CompensationTemplate,
-    "rules" | "fixedAllowances" | "corridorIds" | "corridors"
+    "rules" | "fixedAllowances" | "deductions" | "corridorIds" | "corridors"
   >,
 ): TemplateSummaryLine[] {
   const lines: TemplateSummaryLine[] = [];
   const rules = template.rules ?? [];
   const allowances = template.fixedAllowances ?? [];
+  const deductions = template.deductions ?? [];
   const corridorIds = template.corridorIds ?? [];
   const corridors = template.corridors ?? [];
 
+  const ruleLines: TemplateSummaryLine[] = [];
   for (const [index, rule] of rules.entries()) {
     if (!rule) continue;
     const text = formatRuleProse(
@@ -74,11 +100,29 @@ export function buildTemplateStructuredSummary(
       rule.minimumGuaranteedAmount,
     );
     if (!text) continue;
-    lines.push({
+    ruleLines.push({
       id: `rule-${rule.routeType ?? index}`,
       text,
     });
   }
+
+  const corridorLine = buildCorridorLine(corridorIds, corridors);
+  const hasRules = ruleLines.length > 0;
+  const hasCorridors = corridorLine !== null;
+
+  if (hasRules && hasCorridors) {
+    lines.push({
+      id: "precedence",
+      text: compensationCopy.builder.inspectorPrecedenceHint,
+      variant: "hint",
+    });
+  }
+
+  if (corridorLine) {
+    lines.push(corridorLine);
+  }
+
+  lines.push(...ruleLines);
 
   for (const [index, allowance] of allowances.entries()) {
     if (!allowance) continue;
@@ -92,27 +136,31 @@ export function buildTemplateStructuredSummary(
         ? allowance.amount
         : 0;
     const periodSuffix = periodLabel
-      ? ` (${String(periodLabel).toLowerCase()})`
+      ? ` · ritmo ${String(periodLabel).toLowerCase()}`
       : "";
     lines.push({
       id: `allowance-${label}-${index}`,
-      text: `Pago fijo ${label}: ${formatMxCurrency(amount)}${periodSuffix}`,
+      text: `Pago fijo de tarifa ${label}: ${formatMxCurrency(amount)} · 1× por pago${periodSuffix}`,
     });
   }
 
-  const corridorCount = corridorIds.length;
-  if (corridorCount === 1) {
-    const name = corridors[0]?.name;
+  for (const [index, deduction] of deductions.entries()) {
+    if (!deduction) continue;
+    const label = deduction.label?.trim() || "Deducción";
+    const periodLabel =
+      (deduction.period ? FIXED_ALLOWANCE_PERIOD_LABELS[deduction.period] : undefined) ??
+      deduction.period ??
+      "";
+    const amount =
+      typeof deduction.amount === "number" && Number.isFinite(deduction.amount)
+        ? deduction.amount
+        : 0;
+    const periodSuffix = periodLabel
+      ? ` · ritmo ${String(periodLabel).toLowerCase()}`
+      : "";
     lines.push({
-      id: "corridors",
-      text: name
-        ? `1 ruta con precio fijo: ${name}`
-        : "1 ruta con precio fijo",
-    });
-  } else if (corridorCount > 1) {
-    lines.push({
-      id: "corridors",
-      text: `${corridorCount} rutas con precio fijo`,
+      id: `deduction-${label}-${index}`,
+      text: `Deducción ${label}: −${formatMxCurrency(amount)} del neto${periodSuffix}`,
     });
   }
 
@@ -121,7 +169,9 @@ export function buildTemplateStructuredSummary(
 
 /** Resumen compacto (lista / cards). Usa prosa operativa. */
 export function buildTemplateSummary(template: CompensationTemplate): string {
-  const lines = buildTemplateStructuredSummary(template);
+  const lines = buildTemplateStructuredSummary(template).filter(
+    (line) => line.variant !== "hint",
+  );
   if (lines.length === 0) {
     return compensationCopy.templates.summaryEmpty;
   }

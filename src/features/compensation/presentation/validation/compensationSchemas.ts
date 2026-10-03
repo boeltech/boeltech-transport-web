@@ -16,29 +16,80 @@ export const compensationTemplateRuleSchema = z.object({
 });
 
 export const templateFixedAllowanceSchema = z.object({
-  allowanceType: z.enum(["meals", "transport", "other"]),
+  allowanceType: z.enum([
+    "meals",
+    "transport",
+    "per_diem",
+    "lodging",
+    "fuel_allowance",
+    "tolls_allowance",
+    "employer_contribution",
+    "other",
+  ]),
   label: z.string().min(1).max(80),
   amount: z.coerce.number().positive("El monto debe ser mayor a 0"),
   period: z.enum(["weekly", "biweekly", "monthly"]),
   isMandatory: z.boolean().default(true),
 });
 
-export const compensationTemplateFormSchema = z.object({
-  name: z.string().min(1, "El nombre es obligatorio").max(120),
-  description: z.string().max(2000).optional().nullable(),
-  isActive: z.boolean().default(true),
-  midTripPayoutPolicy: z
-    .enum([
-      "split_by_assigned_km",
-      "equal_parts",
-      "pay_only_closer",
-      "pay_only_dispatcher",
-    ])
-    .default("split_by_assigned_km"),
-  rules: z.array(compensationTemplateRuleSchema).default([]),
-  fixedAllowances: z.array(templateFixedAllowanceSchema).default([]),
-  corridorIds: z.array(z.string().uuid()).default([]),
+export const templateDeductionSchema = z.object({
+  deductionType: z.enum([
+    "savings_fund",
+    "tax_withholding",
+    "union_dues",
+    "equipment_rental",
+    "other_deduction",
+  ]),
+  label: z.string().min(1).max(80),
+  amount: z.coerce.number().positive("El monto debe ser mayor a 0"),
+  period: z.enum(["weekly", "biweekly", "monthly"]),
+  isMandatory: z.boolean().default(true),
 });
+
+const DUPLICATE_ROUTE_TYPE_MESSAGE =
+  "Ya hay una regla para esta clase de ruta. Solo se permite una por clase (Local, Foráneo o Transfer / Patio).";
+
+function addUniqueRouteTypeIssues(
+  rules: Array<{ routeType: string }>,
+  ctx: z.RefinementCtx,
+  pathPrefix: (string | number)[] = ["rules"],
+): void {
+  const seen = new Map<string, number>();
+  rules.forEach((rule, index) => {
+    const previous = seen.get(rule.routeType);
+    if (previous !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: DUPLICATE_ROUTE_TYPE_MESSAGE,
+        path: [...pathPrefix, index, "routeType"],
+      });
+      return;
+    }
+    seen.set(rule.routeType, index);
+  });
+}
+
+export const compensationTemplateFormSchema = z
+  .object({
+    name: z.string().min(1, "El nombre es obligatorio").max(120),
+    description: z.string().max(2000).optional().nullable(),
+    isActive: z.boolean().default(true),
+    midTripPayoutPolicy: z
+      .enum([
+        "split_by_assigned_km",
+        "equal_parts",
+        "pay_only_closer",
+        "pay_only_dispatcher",
+      ])
+      .default("split_by_assigned_km"),
+    rules: z.array(compensationTemplateRuleSchema).default([]),
+    fixedAllowances: z.array(templateFixedAllowanceSchema).default([]),
+    deductions: z.array(templateDeductionSchema).default([]),
+    corridorIds: z.array(z.string().uuid()).default([]),
+  })
+  .superRefine((data, ctx) => {
+    addUniqueRouteTypeIssues(data.rules, ctx);
+  });
 
 export type CompensationTemplateFormData = z.infer<typeof compensationTemplateFormSchema>;
 
@@ -52,91 +103,56 @@ export type CompensationTemplateCreateFormData = z.infer<
   typeof compensationTemplateCreateFormSchema
 >;
 
-type CorridorRefType = "branch" | "city_label" | "postal_code";
+const corridorTariffCommonFields = {
+  name: z.string().min(1, "El nombre es obligatorio").max(120),
+  fixedAmount: z.coerce
+    .number({ error: "Indica la tarifa fija" })
+    .positive("La tarifa debe ser mayor a 0"),
+  notes: z.string().max(2000).optional().nullable(),
+  isActive: z.boolean().default(true),
+};
 
-const POSTAL_CODE_PATTERN = /^\d{5}$/;
-
-function addBranchRefValueIssues(
-  ctx: z.RefinementCtx,
-  refType: CorridorRefType,
-  refValue: string,
-  valuePath: "originRefValue" | "destinationRefValue",
-): void {
-  if (refType !== "branch") return;
-
-  if (!z.string().uuid().safeParse(refValue).success) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message:
-        valuePath === "originRefValue"
-          ? "Selecciona una sucursal válida para el origen"
-          : "Selecciona una sucursal válida para el destino",
-      path: [valuePath],
-    });
-  }
-}
-
-function addPostalCodeRefValueIssues(
-  ctx: z.RefinementCtx,
-  refType: CorridorRefType,
-  refValue: string,
-  valuePath: "originRefValue" | "destinationRefValue",
-): void {
-  if (refType !== "postal_code") return;
-
-  const trimmed = refValue.trim();
-  if (!POSTAL_CODE_PATTERN.test(trimmed)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message:
-        valuePath === "originRefValue"
-          ? "El código postal de origen debe tener 5 dígitos"
-          : "El código postal de destino debe tener 5 dígitos",
-      path: [valuePath],
-    });
-  }
-}
-
-export const corridorTariffFormSchema = z
+/**
+ * Create + edit city↔city + conversión a ciudad.
+ * Refs literales `city_label` (POST/PATCH conversión).
+ */
+export const corridorTariffCreateFormSchema = z
   .object({
-    name: z.string().min(1, "El nombre es obligatorio").max(120),
-    originRefType: z.enum(["branch", "city_label", "postal_code"]),
-    originRefValue: z.string().min(1, "Indica el origen").max(120),
-    destinationRefType: z.enum(["branch", "city_label", "postal_code"]),
-    destinationRefValue: z.string().min(1, "Indica el destino").max(120),
-    fixedAmount: z.coerce
-      .number({ error: "Indica la tarifa fija" })
-      .positive("La tarifa debe ser mayor a 0"),
-    notes: z.string().max(2000).optional().nullable(),
-    isActive: z.boolean().default(true),
-  })
-  .superRefine((data, ctx) => {
-    addBranchRefValueIssues(ctx, data.originRefType, data.originRefValue, "originRefValue");
-    addBranchRefValueIssues(
-      ctx,
-      data.destinationRefType,
-      data.destinationRefValue,
-      "destinationRefValue",
-    );
-    addPostalCodeRefValueIssues(ctx, data.originRefType, data.originRefValue, "originRefValue");
-    addPostalCodeRefValueIssues(
-      ctx,
-      data.destinationRefType,
-      data.destinationRefValue,
-      "destinationRefValue",
-    );
+    ...corridorTariffCommonFields,
+    originRefType: z.literal("city_label"),
+    originRefValue: z.string().min(1, "Indica la ciudad de origen").max(120),
+    destinationRefType: z.literal("city_label"),
+    destinationRefValue: z.string().min(1, "Indica la ciudad de destino").max(120),
   })
   .transform((data) => ({
     ...data,
-    originRefValue: normalizeCorridorRefValue(data.originRefType, data.originRefValue),
-    destinationRefValue: normalizeCorridorRefValue(
-      data.destinationRefType,
-      data.destinationRefValue,
-    ),
+    originRefValue: normalizeCorridorRefValue("city_label", data.originRefValue),
+    destinationRefValue: normalizeCorridorRefValue("city_label", data.destinationRefValue),
   }));
 
-export type CorridorTariffFormData = z.output<typeof corridorTariffFormSchema>;
-export type CorridorTariffFormInput = z.input<typeof corridorTariffFormSchema>;
+/**
+ * Soft edit de fila legacy (branch/CP): no exige ciudad;
+ * el submit omite refs (API conserva la definición).
+ */
+export const corridorTariffLegacySoftFormSchema = z.object({
+  ...corridorTariffCommonFields,
+  originRefType: z.enum(["branch", "city_label", "postal_code"]),
+  originRefValue: z.string(),
+  destinationRefType: z.enum(["branch", "city_label", "postal_code"]),
+  destinationRefValue: z.string(),
+});
+
+/** Alias histórico → schema create estrecho (solo ciudad). */
+export const corridorTariffFormSchema = corridorTariffCreateFormSchema;
+
+export type CorridorTariffFormData = z.output<typeof corridorTariffCreateFormSchema>;
+export type CorridorTariffFormInput = z.input<typeof corridorTariffCreateFormSchema>;
+export type CorridorTariffLegacySoftFormData = z.output<
+  typeof corridorTariffLegacySoftFormSchema
+>;
+export type CorridorTariffLegacySoftFormInput = z.input<
+  typeof corridorTariffLegacySoftFormSchema
+>;
 
 export const batchAssignmentFormSchema = z
   .object({

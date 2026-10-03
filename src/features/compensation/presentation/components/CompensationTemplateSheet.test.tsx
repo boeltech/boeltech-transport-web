@@ -22,6 +22,14 @@ vi.mock("../../application/hooks", () => ({
     mutateAsync: mockUpdateMutate,
     isPending: false,
   }),
+  useCreateCorridorTariff: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useUpdateCorridorTariff: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock("../../application/hooks/useCorridors", () => ({
@@ -51,6 +59,7 @@ const sampleTemplate: CompensationTemplate = {
       isMandatory: true,
     },
   ],
+  deductions: [],
   corridorIds: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
   corridors: [],
   activeAssignmentsCount: 0,
@@ -99,15 +108,16 @@ describe("CompensationTemplateSheet", () => {
       expect.objectContaining({
         id: "tpl-edit-1",
         name: "Esquema foráneo",
-        isActive: true,
         rules: expect.arrayContaining([
           expect.objectContaining({ routeType: "long_haul", rateValue: 3 }),
         ]),
         fixedAllowances: expect.arrayContaining([
           expect.objectContaining({ label: "Comidas", amount: 500 }),
         ]),
+        deductions: [],
         corridorIds: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
       }),
     );
+    expect(mockUpdateMutate.mock.calls[0]?.[0]).not.toHaveProperty("isActive");
   });
 });

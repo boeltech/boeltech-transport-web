@@ -15,6 +15,7 @@ import {
 } from "@shared/ui/page-shells/BuilderPageShell";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,20 +28,28 @@ import {
 } from "@shared/ui/alert-dialog";
 import { LoadingPageState, NotFoundState } from "@shared/ui/feedback-states";
 import { usePermissions } from "@shared/permissions";
+import { useToast } from "@shared/hooks";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { settlementCreatePath } from "@features/settlements/application/settlementsRoutes";
 import {
   COMPENSATION_TEMPLATES_PATH,
+  compensationTemplateBuildPath,
   compensationTemplateOperatorsPath,
 } from "../../application/compensationRoutes";
 import {
+  useActivateCompensationTemplate,
   useCompensationTemplate,
+  useCreateCompensationTemplateVersion,
   useTemplateAssignments,
 } from "../../application/hooks";
 import { useCompensationTemplateForm } from "../hooks/useCompensationTemplateForm";
 import { compensationCopy } from "../copy/compensationCopy";
 import type { CompensationTemplateFormData } from "../validation/compensationSchemas";
 import { getTemplateSectionStatuses } from "../utils/getTemplateCompleteness";
+import { getCompensationLifecycleErrorMessage } from "../utils/compensationLifecycleErrors";
 import type { BuilderSectionId } from "../utils/templateCompositionTypes";
+import { COMPENSATION_TEMPLATE_STATUS_LABELS } from "../../domain/enums";
+import { CompensationTemplateStatusBadge } from "../config/compensationStatusConfig";
 import { BuilderIdentitySection } from "../components/BuilderIdentitySection";
 import { BuilderPaymentRulesSection } from "../components/BuilderPaymentRulesSection";
 import { BuilderAllowancesSection } from "../components/BuilderAllowancesSection";
@@ -48,8 +57,13 @@ import { BuilderCorridorsSection } from "../components/BuilderCorridorsSection";
 import { BuilderInspectorPanel } from "../components/BuilderInspectorPanel";
 
 const copy = compensationCopy.builder;
+const actionsCopy = compensationCopy.templateActions;
 
-const SECTION_IDS: BuilderSectionId[] = ["payment", "allowances", "corridors"];
+const SECTION_IDS: BuilderSectionId[] = [
+  "payment",
+  "allowances",
+  "corridors",
+];
 
 const SECTION_ICONS: Record<BuilderSectionId, ReactNode> = {
   payment: <Banknote className="h-4 w-4" />,
@@ -60,11 +74,13 @@ const SECTION_ICONS: Record<BuilderSectionId, ReactNode> = {
 export function CompensationSchemeBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
 
   const [activeSectionId, setActiveSectionId] = useState<BuilderSectionId>("payment");
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [activateOpen, setActivateOpen] = useState(false);
 
   const {
     data: template,
@@ -73,6 +89,7 @@ export function CompensationSchemeBuilderPage() {
   } = useCompensationTemplate(id);
 
   const backHref = COMPENSATION_TEMPLATES_PATH;
+  const locked = Boolean(template?.lockedForEdit);
 
   const formApi = useCompensationTemplateForm({
     template,
@@ -91,6 +108,9 @@ export function CompensationSchemeBuilderPage() {
     allowanceFields,
     appendAllowance,
     removeAllowance,
+    deductionFields,
+    appendDeduction,
+    removeDeduction,
     watchedRules,
     validationMessages,
     apiError,
@@ -100,6 +120,9 @@ export function CompensationSchemeBuilderPage() {
 
   const watchedValues = useWatch({ control: form.control });
   const isDirty = form.formState.isDirty;
+
+  const activateMutation = useActivateCompensationTemplate();
+  const createVersionMutation = useCreateCompensationTemplateVersion();
 
   const { data: assignmentsData } = useTemplateAssignments({
     templateId: id ?? "",
@@ -155,11 +178,54 @@ export function CompensationSchemeBuilderPage() {
     navigateBack();
   }, [isDirty, navigateBack]);
 
+  const handleCreateVersion = useCallback(async () => {
+    if (!template) return;
+    try {
+      const created = await createVersionMutation.mutateAsync(template.id);
+      toast({
+        title: compensationCopy.toasts.templateVersionCreated,
+        variant: "success",
+      });
+      navigate(compensationTemplateBuildPath(created.id));
+    } catch (error) {
+      toast({
+        title: actionsCopy.toasts.createVersionError,
+        description:
+          getCompensationLifecycleErrorMessage(error) ?? getErrorMessage(error),
+        variant: "error",
+      });
+    }
+  }, [createVersionMutation, navigate, template, toast]);
+
+  const handleActivate = useCallback(async () => {
+    if (!template) return;
+    try {
+      await activateMutation.mutateAsync({ id: template.id });
+      toast({
+        title: compensationCopy.toasts.templateActivated,
+        variant: "success",
+      });
+      setActivateOpen(false);
+      navigate(COMPENSATION_TEMPLATES_PATH);
+    } catch (error) {
+      toast({
+        title: actionsCopy.toasts.activateError,
+        description:
+          getCompensationLifecycleErrorMessage(error) ?? getErrorMessage(error),
+        variant: "error",
+      });
+    }
+  }, [activateMutation, navigate, template, toast]);
+
   const displayTitle =
     ((watchedValues.name as string | undefined) ?? template?.name ?? "").trim() ||
     copy.sections.payment;
 
-  const isActive = Boolean(watchedValues.isActive ?? template?.isActive);
+  const isComplete =
+    ((watchedValues.rules as CompensationTemplateFormData["rules"] | undefined)?.length ??
+      0) > 0 ||
+    ((watchedValues.corridorIds as CompensationTemplateFormData["corridorIds"] | undefined)
+      ?.length ?? 0) > 0;
 
   const footerActions: BuilderFooterAction[] = useMemo(() => {
     const actions: BuilderFooterAction[] = [
@@ -172,31 +238,67 @@ export function CompensationSchemeBuilderPage() {
       },
     ];
 
-    if (previewHref) {
-      actions.push({
-        id: "preview",
-        // Label corto: el panel derecho ya no lleva este CTA (overflow con nombres largos).
-        label: copy.trySchemeTitle,
-        variant: "outline",
-        onClick: () => {
-          navigate(previewHref);
-        },
-        disabled: isSaving,
-      });
-    }
-
     actions.push({
-      id: "save",
-      label: copy.save,
+      id: "preview",
+      label: copy.trySchemeTitle,
+      variant: "outline",
       onClick: () => {
-        void onSubmit();
+        if (previewHref) navigate(previewHref);
       },
-      disabled: isSaving || !canUpdate,
-      loading: isSaving,
+      disabled: isSaving || !previewHref,
     });
 
+    if (locked) {
+      actions.push({
+        id: "create-version",
+        label: copy.lockedBannerAction,
+        onClick: () => {
+          void handleCreateVersion();
+        },
+        disabled: createVersionMutation.isPending || !canUpdate,
+        loading: createVersionMutation.isPending,
+      });
+    } else {
+      actions.push({
+        id: "save",
+        label: copy.save,
+        onClick: () => {
+          void onSubmit();
+        },
+        disabled: isSaving || !canUpdate,
+        loading: isSaving,
+      });
+
+      const showActivate =
+        canUpdate &&
+        (template?.status === "draft" || template?.status === "inactive");
+      if (showActivate) {
+        actions.push({
+          id: "activate",
+          label: actionsCopy.activate,
+          onClick: () => setActivateOpen(true),
+          disabled: isDirty || !isComplete || activateMutation.isPending,
+          loading: activateMutation.isPending,
+        });
+      }
+    }
+
     return actions;
-  }, [canUpdate, handleDiscardClick, isSaving, navigate, onSubmit, previewHref]);
+  }, [
+    activateMutation.isPending,
+    canUpdate,
+    createVersionMutation.isPending,
+    handleCreateVersion,
+    handleDiscardClick,
+    isComplete,
+    isDirty,
+    isSaving,
+    locked,
+    navigate,
+    onSubmit,
+    previewHref,
+    template?.status,
+  ]);
 
   if (!canUpdate) {
     return (
@@ -230,13 +332,17 @@ export function CompensationSchemeBuilderPage() {
     );
   }
 
+  const statusLabel =
+    COMPENSATION_TEMPLATE_STATUS_LABELS[template.status] ??
+    (template.isActive ? copy.statusActive : copy.statusInactive);
+
   return (
     <>
       <form
         id={formApi.formId}
         onSubmit={(event) => {
           event.preventDefault();
-          void onSubmit();
+          if (!locked) void onSubmit();
         }}
       >
         <BuilderPageShell
@@ -245,12 +351,34 @@ export function CompensationSchemeBuilderPage() {
           backHref={backHref}
           backLabel={copy.backLabel}
           statusBadge={
-            <Badge variant={isActive ? "success" : "secondary"} tone="soft">
-              {isActive ? copy.statusActive : copy.statusInactive}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <CompensationTemplateStatusBadge status={template.status} />
+              <Badge variant="secondary" tone="soft">
+                {copy.versionBadge(template.version)}
+              </Badge>
+              <span className="sr-only">{statusLabel}</span>
+            </div>
           }
           banner={
             <div className="space-y-3">
+              {locked ? (
+                <Alert variant="warning">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{copy.lockedBannerTitle}</AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <p>{copy.lockedBannerDescription}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={createVersionMutation.isPending}
+                      isLoading={createVersionMutation.isPending}
+                      onClick={() => void handleCreateVersion()}
+                    >
+                      {copy.lockedBannerAction}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               {apiError ? (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -262,6 +390,7 @@ export function CompensationSchemeBuilderPage() {
                 form={form}
                 validationMessages={validationMessages}
                 showValidation
+                readOnly={locked}
               />
             </div>
           }
@@ -274,31 +403,49 @@ export function CompensationSchemeBuilderPage() {
           collapseInspectorLabel={copy.collapseInspectorLabel}
           statusLabels={copy.statusLabels}
           renderCanvas={(sectionId) => {
-            switch (sectionId as BuilderSectionId) {
-              case "payment":
-                return (
-                  <BuilderPaymentRulesSection
-                    form={form}
-                    ruleFields={ruleFields}
-                    appendRule={appendRule}
-                    removeRule={removeRule}
-                    watchedRules={watchedRules}
-                  />
-                );
-              case "allowances":
-                return (
-                  <BuilderAllowancesSection
-                    form={form}
-                    allowanceFields={allowanceFields}
-                    appendAllowance={appendAllowance}
-                    removeAllowance={removeAllowance}
-                  />
-                );
-              case "corridors":
-                return <BuilderCorridorsSection form={form} />;
-              default:
-                return null;
+            const section = (() => {
+              switch (sectionId as BuilderSectionId) {
+                case "payment":
+                  return (
+                    <BuilderPaymentRulesSection
+                      form={form}
+                      ruleFields={ruleFields}
+                      appendRule={appendRule}
+                      removeRule={removeRule}
+                      watchedRules={watchedRules}
+                    />
+                  );
+                case "allowances":
+                  return (
+                    <BuilderAllowancesSection
+                      form={form}
+                      allowanceFields={allowanceFields}
+                      appendAllowance={appendAllowance}
+                      removeAllowance={removeAllowance}
+                      deductionFields={deductionFields}
+                      appendDeduction={appendDeduction}
+                      removeDeduction={removeDeduction}
+                    />
+                  );
+                case "corridors":
+                  return <BuilderCorridorsSection form={form} />;
+                default:
+                  return null;
+              }
+            })();
+
+            if (!section) return null;
+            if (locked) {
+              return (
+                <div
+                  className="pointer-events-none select-none opacity-60"
+                  aria-disabled="true"
+                >
+                  {section}
+                </div>
+              );
             }
+            return section;
           }}
           renderInspector={() => (
             <BuilderInspectorPanel control={form.control} template={template} />
@@ -319,6 +466,38 @@ export function CompensationSchemeBuilderPage() {
             <AlertDialogCancel>{copy.discardKeepEditing}</AlertDialogCancel>
             <AlertDialogAction onClick={navigateBack}>
               {copy.discardConfirmAction}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={activateOpen} onOpenChange={setActivateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{actionsCopy.activateDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {actionsCopy.activateDialog.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {template.version > 1 ? (
+            <Alert variant="warning">
+              <AlertDescription>
+                {actionsCopy.activateDialog.reassignWarning}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel>{actionsCopy.activateDialog.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={activateMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleActivate();
+              }}
+            >
+              {activateMutation.isPending
+                ? actionsCopy.activateDialog.pending
+                : actionsCopy.activateDialog.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

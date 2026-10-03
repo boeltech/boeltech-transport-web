@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ComponentProps, ReactNode } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { CorridorTariffSheet } from "./CorridorTariffSheet";
-import type { RouteCorridorTariff } from "../../domain/entities";
+import type { FrequentCityPair, RouteCorridorTariff } from "../../domain/entities";
+import { compensationCopy } from "../copy/compensationCopy";
 
 const branchUuid = "11111111-1111-4111-8111-111111111111";
 
@@ -13,59 +14,12 @@ const mockCreateMutate = vi.fn();
 const mockUpdateMutate = vi.fn();
 let mockCreatePending = false;
 let mockUpdatePending = false;
+let mockFrequentPairs: FrequentCityPair[] = [];
+let mockFrequentLoading = false;
 
 vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
-}));
-
-vi.mock("@shared/ui/select", () => ({
-  Select: ({
-    value,
-    onValueChange,
-    children,
-  }: {
-    value: string;
-    onValueChange: (value: string) => void;
-    children: ReactNode;
-  }) => (
-    <select
-      aria-label="match-type-select"
-      value={value}
-      onChange={(event) => onValueChange(event.target.value)}
-    >
-      {children}
-    </select>
-  ),
-  SelectTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  SelectValue: () => null,
-  SelectContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  SelectItem: ({ value, children }: { value: string; children: ReactNode }) => (
-    <option value={value}>{children}</option>
-  ),
-}));
-
-vi.mock("@shared/ui/branch-async-combobox/BranchAsyncCombobox", () => ({
-  BranchAsyncCombobox: ({
-    id,
-    value,
-    onChange,
-    placeholder,
-  }: {
-    id?: string;
-    value: string;
-    onChange: (branchId: string) => void;
-    placeholder?: string;
-  }) => (
-    <button
-      type="button"
-      id={id}
-      data-testid={id}
-      data-value={value}
-      onClick={() => onChange(branchUuid)}
-    >
-      {value ? `branch:${value}` : (placeholder ?? "Selecciona sucursal")}
-    </button>
-  ),
+  useDebounce: <T,>(value: T) => value,
 }));
 
 vi.mock("../../application/hooks", () => ({
@@ -76,6 +30,11 @@ vi.mock("../../application/hooks", () => ({
   useUpdateCorridorTariff: () => ({
     mutateAsync: mockUpdateMutate,
     isPending: mockUpdatePending,
+  }),
+  useFrequentCityPairs: () => ({
+    data: mockFrequentPairs,
+    isLoading: mockFrequentLoading,
+    isFetching: mockFrequentLoading,
   }),
 }));
 
@@ -116,6 +75,15 @@ const existingCorridor: RouteCorridorTariff = {
   isActive: true,
 };
 
+const frequentPair: FrequentCityPair = {
+  originCity: "Guadalajara",
+  destinationCity: "Tijuana",
+  originState: "Jalisco",
+  destinationState: "Baja California",
+  tripCount: 8,
+  lastUsedAt: "2026-09-20T12:00:00.000Z",
+};
+
 async function fillFixedAmount(user: ReturnType<typeof userEvent.setup>, amount: string) {
   const amountField = screen.getByLabelText("Tarifa fija");
   await user.clear(amountField);
@@ -124,9 +92,32 @@ async function fillFixedAmount(user: ReturnType<typeof userEvent.setup>, amount:
 
 async function fillCreateForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Nombre"), "Nueva ruta");
-  await user.type(document.getElementById("origin-ref")!, "Guadalajara");
-  await user.type(document.getElementById("destination-ref")!, "Tijuana");
+  await user.type(screen.getByLabelText("Ciudad de origen"), "Guadalajara");
+  await user.type(screen.getByLabelText("Ciudad de destino"), "Tijuana");
   await fillFixedAmount(user, "1500");
+}
+
+async function openFrequentPicker(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("combobox", {
+      name: compensationCopy.sheet.frequentBlock.triggerAria,
+    }),
+  );
+}
+
+async function selectFrequentPair(
+  user: ReturnType<typeof userEvent.setup>,
+  pair: FrequentCityPair,
+) {
+  await openFrequentPicker(user);
+  await user.click(
+    await screen.findByRole("option", {
+      name: compensationCopy.sheet.frequentBlock.applyAria(
+        pair.originCity,
+        pair.destinationCity,
+      ),
+    }),
+  );
 }
 
 describe("CorridorTariffSheet", () => {
@@ -134,11 +125,13 @@ describe("CorridorTariffSheet", () => {
     vi.clearAllMocks();
     mockCreatePending = false;
     mockUpdatePending = false;
+    mockFrequentPairs = [];
+    mockFrequentLoading = false;
     mockCreateMutate.mockResolvedValue(existingCorridor);
     mockUpdateMutate.mockResolvedValue(existingCorridor);
   });
 
-  it("create: envía payload normalizado al guardar", async () => {
+  it("create: envía payload city_label×2 normalizado", async () => {
     const user = userEvent.setup();
     renderSheet();
 
@@ -162,13 +155,57 @@ describe("CorridorTariffSheet", () => {
     );
   });
 
+  it("create: onSuccess recibe el id del corredor creado", async () => {
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+    mockCreateMutate.mockResolvedValueOnce({
+      ...existingCorridor,
+      id: "cor-created-99",
+    });
+    renderSheet({ onSuccess });
+
+    await fillCreateForm(user);
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith("cor-created-99");
+    });
+  });
+
+  it("create: form plano solo ciudad — sin Definir por / branch / capturas", () => {
+    renderSheet();
+
+    expect(screen.getByText(compensationCopy.sheet.trayectoSection)).toBeInTheDocument();
+    expect(screen.getByText(compensationCopy.sheet.frequentBlock.title)).toBeInTheDocument();
+    expect(screen.getByLabelText("Ciudad de origen")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ciudad de destino")).toBeInTheDocument();
+    expect(screen.queryByText("Definir por")).not.toBeInTheDocument();
+    expect(screen.queryByText("Captura manual")).not.toBeInTheDocument();
+    expect(screen.queryByText("Origen")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("match-type-select")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(compensationCopy.sheet.corridorHelp),
+    ).toBeInTheDocument();
+    expect(compensationCopy.sheet.corridorHelp).not.toMatch(/sucursal/i);
+  });
+
+  it("muestra hint de Ruta activa", () => {
+    renderSheet();
+
+    expect(
+      screen.getByText(
+        "Si la desactivas, esta ruta no se aplicará en liquidaciones futuras. Puedes reactivarla después.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("create: rechaza tarifa fija en 0 sin mutar", async () => {
     const user = userEvent.setup();
     renderSheet();
 
     await user.type(screen.getByLabelText("Nombre"), "Ruta cero");
-    await user.type(document.getElementById("origin-ref")!, "CDMX");
-    await user.type(document.getElementById("destination-ref")!, "MTY");
+    await user.type(screen.getByLabelText("Ciudad de origen"), "CDMX");
+    await user.type(screen.getByLabelText("Ciudad de destino"), "MTY");
     await fillFixedAmount(user, "0");
 
     await user.click(screen.getByRole("button", { name: "Guardar" }));
@@ -179,21 +216,213 @@ describe("CorridorTariffSheet", () => {
     );
   });
 
-  it("reset refType: al cambiar origen a sucursal limpia el valor previo", async () => {
+  it("create: picker muestra opciones al abrir", async () => {
+    mockFrequentPairs = [frequentPair];
     const user = userEvent.setup();
     renderSheet();
 
-    await user.type(document.getElementById("origin-ref")!, "Guadalajara");
+    expect(
+      screen.queryByRole("option", {
+        name: compensationCopy.sheet.frequentBlock.applyAria(
+          frequentPair.originCity,
+          frequentPair.destinationCity,
+        ),
+      }),
+    ).not.toBeInTheDocument();
 
-    const originSection = screen.getByText("Origen").closest("section");
-    expect(originSection).not.toBeNull();
+    await openFrequentPicker(user);
 
-    const originSelect = within(originSection!).getByLabelText("match-type-select");
-    await user.selectOptions(originSelect, "branch");
+    expect(
+      await screen.findByRole("option", {
+        name: compensationCopy.sheet.frequentBlock.applyAria(
+          frequentPair.originCity,
+          frequentPair.destinationCity,
+        ),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(compensationCopy.sheet.frequentBlock.tripCount(frequentPair.tripCount)),
+    ).toBeInTheDocument();
+  });
 
-    const branchField = screen.getByTestId("origin-ref");
-    expect(branchField).toHaveAttribute("data-value", "");
-    expect(branchField).toHaveTextContent("Selecciona sucursal");
+  it("create: picker muestra loading dentro del popover", async () => {
+    mockFrequentLoading = true;
+    mockFrequentPairs = [];
+    const user = userEvent.setup();
+    renderSheet();
+
+    await openFrequentPicker(user);
+
+    expect(
+      await screen.findByText(compensationCopy.sheet.frequentBlock.loading),
+    ).toBeInTheDocument();
+  });
+
+  it("create: aplica trayecto frecuente sin tocar monto ni notas", async () => {
+    mockFrequentPairs = [frequentPair];
+    const user = userEvent.setup();
+    renderSheet();
+
+    await fillFixedAmount(user, "2200");
+    await user.type(screen.getByLabelText("Notas (opcional)"), "nota previa");
+
+    await selectFrequentPair(user, frequentPair);
+
+    expect(screen.getByLabelText("Nombre")).toHaveValue("Guadalajara → Tijuana");
+    expect(screen.getByLabelText("Ciudad de origen")).toHaveValue("Guadalajara");
+    expect(screen.getByLabelText("Ciudad de destino")).toHaveValue("Tijuana");
+    expect(screen.getByLabelText("Tarifa fija")).toHaveValue("2,200.00");
+    expect(screen.getByLabelText("Notas (opcional)")).toHaveValue("nota previa");
+    expect(
+      screen.getByRole("combobox", {
+        name: compensationCopy.sheet.frequentBlock.triggerAria,
+      }),
+    ).toHaveTextContent("Guadalajara → Tijuana");
+  });
+
+  it("create: no sobrescribe nombre dirty al aplicar frecuente", async () => {
+    mockFrequentPairs = [frequentPair];
+    const user = userEvent.setup();
+    renderSheet();
+
+    await user.type(screen.getByLabelText("Nombre"), "Mi nombre");
+    await selectFrequentPair(user, frequentPair);
+
+    expect(screen.getByLabelText("Nombre")).toHaveValue("Mi nombre");
+    expect(screen.getByLabelText("Ciudad de origen")).toHaveValue("Guadalajara");
+    expect(screen.getByLabelText("Ciudad de destino")).toHaveValue("Tijuana");
+  });
+
+  it("create: muestra empty copy cuando no hay trayectos frecuentes", async () => {
+    mockFrequentPairs = [];
+    const user = userEvent.setup();
+    renderSheet();
+
+    await openFrequentPicker(user);
+
+    expect(
+      await screen.findByText(compensationCopy.sheet.frequentBlock.empty),
+    ).toBeInTheDocument();
+  });
+
+  it("edit city: no muestra bloque de frecuentes", () => {
+    renderSheet({ corridor: existingCorridor });
+
+    expect(
+      screen.queryByText(compensationCopy.sheet.frequentBlock.title),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ciudad de origen")).toBeInTheDocument();
+  });
+
+  it("edit: soft patch legacy origin-branch omite refs y usa alert operativo", async () => {
+    const user = userEvent.setup();
+    renderSheet({
+      corridor: {
+        ...existingCorridor,
+        originRefType: "branch",
+        originRefValue: branchUuid,
+        destinationRefType: "city_label",
+        destinationRefValue: "Monterrey",
+      },
+    });
+
+    expect(
+      screen.getByText(compensationCopy.sheet.fields.legacyAlertOriginBranch),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("legacy-match-definition")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Ciudad de origen")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: compensationCopy.sheet.fields.convertToCity }),
+    ).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Nombre"));
+    await user.type(screen.getByLabelText("Nombre"), "Nombre soft");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(mockUpdateMutate).toHaveBeenCalledTimes(1);
+    });
+
+    const call = mockUpdateMutate.mock.calls[0][0] as {
+      id: string;
+      payload: Record<string, unknown>;
+    };
+    expect(call.id).toBe("cor-existing");
+    expect(call.payload).toEqual(
+      expect.objectContaining({
+        name: "Nombre soft",
+        fixedAmount: 1500,
+        isActive: true,
+      }),
+    );
+    expect(call.payload).not.toHaveProperty("originRefType");
+    expect(call.payload).not.toHaveProperty("destinationRefType");
+    expect(call.payload).not.toHaveProperty("originRefValue");
+    expect(call.payload).not.toHaveProperty("destinationRefValue");
+  });
+
+  it("edit: alert dead-match para CP / dest-branch", () => {
+    renderSheet({
+      corridor: {
+        ...existingCorridor,
+        originRefType: "postal_code",
+        originRefValue: "64000",
+        destinationRefType: "branch",
+        destinationRefValue: branchUuid,
+      },
+    });
+
+    expect(
+      screen.getByText(compensationCopy.sheet.fields.legacyAlertDeadMatch),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(compensationCopy.sheet.fields.legacyAlertOriginBranch),
+    ).not.toBeInTheDocument();
+  });
+
+  it("edit: convertir a ciudad envía PATCH con city_label×2", async () => {
+    const user = userEvent.setup();
+    renderSheet({
+      corridor: {
+        ...existingCorridor,
+        originRefType: "postal_code",
+        originRefValue: "64000",
+        destinationRefType: "city_label",
+        destinationRefValue: "Monterrey",
+      },
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: compensationCopy.sheet.fields.convertToCity }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: compensationCopy.sheet.fields.convertToCityConfirmAction,
+      }),
+    );
+
+    expect(await screen.findByLabelText("Ciudad de origen")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ciudad de destino")).toHaveValue("Monterrey");
+
+    await user.type(screen.getByLabelText("Ciudad de origen"), "Guadalajara");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(mockUpdateMutate).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "cor-existing",
+        payload: expect.objectContaining({
+          originRefType: "city_label",
+          originRefValue: "guadalajara",
+          destinationRefType: "city_label",
+          destinationRefValue: "monterrey",
+          fixedAmount: 1500,
+        }),
+      }),
+    );
   });
 
   it("duplicado: muestra confirmación y guarda al confirmar", async () => {
@@ -203,9 +432,8 @@ describe("CorridorTariffSheet", () => {
     });
 
     await user.type(screen.getByLabelText("Nombre"), "Duplicada");
-    await user.type(document.getElementById("origin-ref")!, "Ciudad de México");
-    await user.clear(document.getElementById("destination-ref")!);
-    await user.type(document.getElementById("destination-ref")!, "Monterrey");
+    await user.type(screen.getByLabelText("Ciudad de origen"), "Ciudad de México");
+    await user.type(screen.getByLabelText("Ciudad de destino"), "Monterrey");
     await fillFixedAmount(user, "1500");
 
     await user.click(screen.getByRole("button", { name: "Guardar" }));
@@ -229,9 +457,8 @@ describe("CorridorTariffSheet", () => {
     });
 
     await user.type(screen.getByLabelText("Nombre"), "Duplicada");
-    await user.type(document.getElementById("origin-ref")!, "Ciudad de México");
-    await user.clear(document.getElementById("destination-ref")!);
-    await user.type(document.getElementById("destination-ref")!, "Monterrey");
+    await user.type(screen.getByLabelText("Ciudad de origen"), "Ciudad de México");
+    await user.type(screen.getByLabelText("Ciudad de destino"), "Monterrey");
     await fillFixedAmount(user, "1500");
 
     await user.click(screen.getByRole("button", { name: "Guardar" }));
@@ -262,7 +489,7 @@ describe("CorridorTariffSheet", () => {
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
   });
 
-  it("edit: hidrata y envía update", async () => {
+  it("edit city↔city: hidrata y envía update con refs ciudad", async () => {
     const user = userEvent.setup();
     renderSheet({ corridor: existingCorridor });
 

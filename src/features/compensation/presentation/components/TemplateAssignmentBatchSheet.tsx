@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -19,7 +19,7 @@ import { Textarea } from "@shared/ui/text-area/textarea";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
-import { getTodayString } from "@shared/utils/dateUtils";
+import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import {
   useBatchCreateTemplateAssignments,
@@ -40,6 +40,10 @@ interface TemplateAssignmentBatchSheetProps {
   onOpenChange: (open: boolean) => void;
   templateId: string;
   initialEmployeeIds?: string[];
+  /** Inicio del período del pago (YYYY-MM-DD) — default de vigencia. */
+  paymentPeriodStart?: string;
+  /** Fin del período del pago (YYYY-MM-DD) — para validar cobertura. */
+  paymentPeriodEnd?: string;
   onSuccess?: () => void;
 }
 
@@ -48,11 +52,14 @@ export function TemplateAssignmentBatchSheet({
   onOpenChange,
   templateId,
   initialEmployeeIds,
+  paymentPeriodStart,
+  paymentPeriodEnd,
   onSuccess,
 }: TemplateAssignmentBatchSheetProps) {
   const { toast } = useToast();
   const batchMutation = useBatchCreateTemplateAssignments();
   const today = useMemo(() => getTodayString(), []);
+  const suggestedEffectiveFrom = paymentPeriodStart?.trim() || today;
   const { data: assignmentsData } = useTemplateAssignments({
     activeOn: today,
     pageSize: 200,
@@ -63,7 +70,7 @@ export function TemplateAssignmentBatchSheet({
     resolver: zodResolver(batchAssignmentFormSchema) as Resolver<BatchAssignmentFormData>,
     defaultValues: {
       employeeIds: [],
-      effectiveFrom: today,
+      effectiveFrom: suggestedEffectiveFrom,
       effectiveTo: "",
       closePreviousAssignment: true,
       reason: "",
@@ -82,15 +89,16 @@ export function TemplateAssignmentBatchSheet({
     if (!open) return;
     reset({
       employeeIds: initialEmployeeIds ?? [],
-      effectiveFrom: today,
+      effectiveFrom: suggestedEffectiveFrom,
       effectiveTo: "",
       closePreviousAssignment: true,
       reason: "",
     });
-  }, [open, initialEmployeeIds, reset, today]);
+  }, [open, initialEmployeeIds, reset, suggestedEffectiveFrom]);
 
   const employeeIds = useWatch({ control, name: "employeeIds" }) ?? [];
-  const effectiveFrom = useWatch({ control, name: "effectiveFrom" }) ?? today;
+  const effectiveFrom =
+    useWatch({ control, name: "effectiveFrom" }) ?? suggestedEffectiveFrom;
   const effectiveTo = useWatch({ control, name: "effectiveTo" });
 
   const conflictPreview = useMemo(
@@ -102,6 +110,12 @@ export function TemplateAssignmentBatchSheet({
         effectiveTo?.trim() ? effectiveTo.trim() : null,
       ),
     [allAssignments, employeeIds, effectiveFrom, effectiveTo],
+  );
+
+  const periodEnd = paymentPeriodEnd?.trim() || "";
+  const periodStart = paymentPeriodStart?.trim() || "";
+  const coverageMissesPaymentPeriod = Boolean(
+    periodEnd && effectiveFrom && effectiveFrom > periodEnd,
   );
 
   const validationMessages = collectFieldErrorMessages(errors);
@@ -178,6 +192,12 @@ export function TemplateAssignmentBatchSheet({
             />
             <FieldInlineError fieldId="batch-employees" message={errors.employeeIds?.message} />
 
+            {periodStart && periodEnd ? (
+              <p className="text-xs text-muted-foreground">
+                {copy.coverageHint(formatDate(periodStart), formatDate(periodEnd))}
+              </p>
+            ) : null}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="batch-from">{copy.fields.effectiveFrom}</Label>
@@ -212,6 +232,19 @@ export function TemplateAssignmentBatchSheet({
               </div>
             </div>
             <FieldInlineError fieldId="batch-to" message={errors.effectiveTo?.message} />
+
+            {coverageMissesPaymentPeriod && periodStart && periodEnd ? (
+              <Alert variant="warning">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>{copy.coverageWarningTitle}</AlertTitle>
+                <AlertDescription>
+                  {copy.coverageWarningDescription(
+                    formatDate(periodStart),
+                    formatDate(periodEnd),
+                  )}
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
             <div className="flex items-center gap-2">
               <Controller

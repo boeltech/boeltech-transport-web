@@ -6,8 +6,25 @@ export const COMPENSATION_HUB_PATH = "/finance/compensation";
 export const COMPENSATION_TEMPLATES_PATH = "/finance/compensation/templates";
 export const COMPENSATION_CORRIDORS_PATH = "/finance/compensation/corridors";
 
+/** Query flag: abre Sheet de alta de ruta con tarifa fija en el tab de corredores. */
+export const COMPENSATION_CORRIDORS_CREATE_QUERY = "create";
+export const COMPENSATION_CORRIDORS_CREATE_VALUE = "1";
+
 /** Legacy agreements → hub plantillas. */
 export const LEGACY_AGREEMENTS_PATH = "/finance/agreements";
+
+/** Deep link: tab Tarifas por corredor con Sheet de alta abierto. */
+export function compensationCorridorsCreatePath(): string {
+  return `${COMPENSATION_CORRIDORS_PATH}?${COMPENSATION_CORRIDORS_CREATE_QUERY}=${COMPENSATION_CORRIDORS_CREATE_VALUE}`;
+}
+
+export function isCompensationCorridorsCreateQuery(
+  value: string | null | undefined,
+): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === COMPENSATION_CORRIDORS_CREATE_VALUE || normalized === "true";
+}
 
 function buildTemplatesListSearch(params: Record<string, string | undefined>): string {
   const search = new URLSearchParams();

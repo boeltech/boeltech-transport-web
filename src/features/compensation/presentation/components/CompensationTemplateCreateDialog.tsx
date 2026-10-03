@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useForm, Controller, type Resolver } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle } from "lucide-react";
 import {
@@ -14,7 +14,6 @@ import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import { Checkbox } from "@shared/ui/checkbox";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import {
   FieldInlineError,
@@ -56,12 +55,11 @@ export function CompensationTemplateCreateDialog({
     defaultValues: {
       name: "",
       description: "",
-      isActive: true,
+      isActive: false,
     },
   });
 
   const {
-    control,
     register,
     handleSubmit,
     reset,
@@ -76,7 +74,7 @@ export function CompensationTemplateCreateDialog({
     reset({
       name: "",
       description: "",
-      isActive: true,
+      isActive: false,
     });
   }, [open, reset]);
 
@@ -86,9 +84,9 @@ export function CompensationTemplateCreateDialog({
       const created = await createMutation.mutateAsync({
         name: values.name,
         description: values.description?.trim() ? values.description.trim() : null,
-        isActive: values.isActive,
         rules: [],
         fixedAllowances: [],
+        deductions: [],
         corridorIds: [],
       });
       toast({ title: compensationCopy.toasts.templateCreated, variant: "success" });
@@ -131,21 +129,6 @@ export function CompensationTemplateCreateDialog({
           <div className="space-y-1.5">
             <Label htmlFor="template-create-description">{copy.fields.description}</Label>
             <Textarea id="template-create-description" rows={2} {...register("description")} />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Controller
-              control={control}
-              name="isActive"
-              render={({ field }) => (
-                <Checkbox
-                  id="template-create-active"
-                  checked={field.value}
-                  onCheckedChange={(checked) => field.onChange(checked === true)}
-                />
-              )}
-            />
-            <Label htmlFor="template-create-active">{copy.fields.templateActive}</Label>
           </div>
 
           {validationMessages.length > 0 ? (

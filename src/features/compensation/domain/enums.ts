@@ -1,8 +1,21 @@
-export type FixedAllowanceType = "meals" | "transport" | "other";
+export type FixedAllowanceType =
+  | "meals"
+  | "transport"
+  | "per_diem"
+  | "lodging"
+  | "fuel_allowance"
+  | "tolls_allowance"
+  | "employer_contribution"
+  | "other";
 
 export const FIXED_ALLOWANCE_TYPE_LABELS: Record<FixedAllowanceType, string> = {
   meals: "Comidas",
   transport: "Transporte",
+  per_diem: "Viáticos",
+  lodging: "Hospedaje",
+  fuel_allowance: "Combustible",
+  tolls_allowance: "Casetas",
+  employer_contribution: "Aportación patronal",
   other: "Otro pago fijo",
 };
 
@@ -14,6 +27,21 @@ export const FIXED_ALLOWANCE_PERIOD_LABELS: Record<FixedAllowancePeriod, string>
   monthly: "Mensual",
 };
 
+export type TemplateDeductionType =
+  | "savings_fund"
+  | "tax_withholding"
+  | "union_dues"
+  | "equipment_rental"
+  | "other_deduction";
+
+export const TEMPLATE_DEDUCTION_TYPE_LABELS: Record<TemplateDeductionType, string> = {
+  savings_fund: "Fondo de ahorro",
+  tax_withholding: "Retención de impuestos",
+  union_dues: "Cuota sindical",
+  equipment_rental: "Renta de equipo",
+  other_deduction: "Otra deducción",
+};
+
 export type CorridorRefType = "branch" | "city_label" | "postal_code";
 
 export const CORRIDOR_REF_TYPE_LABELS: Record<CorridorRefType, string> = {
@@ -21,3 +49,42 @@ export const CORRIDOR_REF_TYPE_LABELS: Record<CorridorRefType, string> = {
   city_label: "Ciudad",
   postal_code: "Código postal",
 };
+
+/** Lifecycle de tarifa de pago (ADR versionado). */
+export type CompensationTemplateStatus = "draft" | "active" | "inactive";
+
+export const COMPENSATION_TEMPLATE_STATUS_LABELS: Record<
+  CompensationTemplateStatus,
+  string
+> = {
+  draft: "Borrador",
+  active: "Activa",
+  inactive: "Inactiva",
+};
+
+export type CompensationTemplateEventAction =
+  | "created"
+  | "activated"
+  | "deactivated"
+  | "version_created"
+  | "config_updated"
+  | "metadata_updated";
+
+export const COMPENSATION_TEMPLATE_EVENT_ACTION_LABELS: Record<
+  CompensationTemplateEventAction,
+  string
+> = {
+  created: "Tarifa creada",
+  activated: "Tarifa activada",
+  deactivated: "Tarifa desactivada",
+  version_created: "Nueva versión creada",
+  config_updated: "Configuración actualizada",
+  metadata_updated: "Datos actualizados",
+};
+
+export const COMPENSATION_ERROR_CODES = {
+  TEMPLATE_CONFIG_LOCKED: "TEMPLATE_CONFIG_LOCKED",
+  TEMPLATE_INVALID_STATUS_TRANSITION: "TEMPLATE_INVALID_STATUS_TRANSITION",
+  TEMPLATE_NOT_ACTIVATABLE: "TEMPLATE_NOT_ACTIVATABLE",
+  TEMPLATE_IN_USE: "TEMPLATE_IN_USE",
+} as const;

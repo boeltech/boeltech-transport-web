@@ -3,9 +3,12 @@ import type {
   TripRouteType,
 } from "@features/settlements";
 import type {
+  CompensationTemplateEventAction,
+  CompensationTemplateStatus,
   CorridorRefType,
   FixedAllowancePeriod,
   FixedAllowanceType,
+  TemplateDeductionType,
 } from "./enums";
 import type { MidTripPayoutPolicy } from "@features/settlements/domain/enums";
 
@@ -28,6 +31,15 @@ export interface TemplateFixedAllowance {
   isMandatory: boolean;
 }
 
+export interface TemplateDeduction {
+  id?: string;
+  deductionType: TemplateDeductionType;
+  label: string;
+  amount: number;
+  period: FixedAllowancePeriod;
+  isMandatory: boolean;
+}
+
 export interface RouteCorridorTariff {
   id: string;
   name: string;
@@ -42,20 +54,51 @@ export interface RouteCorridorTariff {
   updatedAt?: string;
 }
 
+/** Pares ciudad origen→destino frecuentes en viajes del tenant (sugerencia de alta). */
+export interface FrequentCityPair {
+  originCity: string;
+  destinationCity: string;
+  originState: string | null;
+  destinationState: string | null;
+  tripCount: number;
+  lastUsedAt: string;
+}
+
 export interface CompensationTemplate {
   id: string;
   name: string;
   description?: string | null;
+  /** Derivado de status === "active" (compat listados legacy). */
   isActive: boolean;
+  status: CompensationTemplateStatus;
+  version: number;
+  familyId: string;
+  supersedesTemplateId?: string | null;
+  /** true si ya hay liquidaciones que referencian esta versión. */
+  lockedForEdit: boolean;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules: CompensationTemplateRule[];
   fixedAllowances: TemplateFixedAllowance[];
+  deductions: TemplateDeduction[];
   corridorIds: string[];
   corridors: RouteCorridorTariff[];
   /** Asignaciones vigentes hoy (isActive + ventana de fechas). */
   activeAssignmentsCount: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CompensationTemplateEvent {
+  id: string;
+  templateId: string;
+  familyId: string;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  actorFirstName?: string | null;
+  actorLastName?: string | null;
+  action: CompensationTemplateEventAction;
+  payload: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface TemplateAssignment {
@@ -90,17 +133,36 @@ export interface BatchAssignmentResult {
 export interface CreateCompensationTemplatePayload {
   name: string;
   description?: string | null;
+  /** Ignorado por API (siempre nace draft). Conservado por compat de callers. */
   isActive?: boolean;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules?: CompensationTemplateRule[];
   fixedAllowances?: TemplateFixedAllowance[];
+  deductions?: TemplateDeduction[];
   corridorIds?: string[];
+}
+
+export interface ActivateCompensationTemplatePayload {
+  deactivateSiblings?: boolean;
 }
 
 export interface ReplaceTemplateConfigurationPayload {
   rules: CompensationTemplateRule[];
   fixedAllowances: TemplateFixedAllowance[];
+  deductions: TemplateDeduction[];
   corridorIds: string[];
+}
+
+export interface UpdateCompensationTemplatePayload {
+  name?: string;
+  description?: string | null;
+  isActive?: boolean;
+  midTripPayoutPolicy?: MidTripPayoutPolicy;
+  rules?: CompensationTemplateRule[];
+  fixedAllowances?: TemplateFixedAllowance[];
+  /** Si se omite, el API preserva las deducciones existentes. */
+  deductions?: TemplateDeduction[];
+  corridorIds?: string[];
 }
 
 export interface CreateCorridorTariffPayload {

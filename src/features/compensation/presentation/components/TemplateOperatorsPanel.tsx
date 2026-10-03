@@ -18,7 +18,11 @@ interface TemplateOperatorsPanelProps {
   batchOpen?: boolean;
   onBatchOpenChange?: (open: boolean) => void;
   batchInitialEmployeeIds?: string[];
+  paymentPeriodStart?: string;
+  paymentPeriodEnd?: string;
   onAssignmentsChange?: () => void;
+  /** Tras batch exitoso: cierre en cascada / limpieza de deep-link (lista Tarifas). */
+  onBatchSuccess?: () => void;
   className?: string;
 }
 
@@ -29,7 +33,10 @@ export function TemplateOperatorsPanel({
   batchOpen: batchOpenProp,
   onBatchOpenChange,
   batchInitialEmployeeIds,
+  paymentPeriodStart,
+  paymentPeriodEnd,
   onAssignmentsChange,
+  onBatchSuccess,
   className,
 }: TemplateOperatorsPanelProps) {
   const [internalBatchOpen, setInternalBatchOpen] = useState(false);
@@ -60,6 +67,12 @@ export function TemplateOperatorsPanel({
     },
     [setBatchOpen],
   );
+
+  const handleBatchSuccess = useCallback(() => {
+    void refetchAssignments();
+    onAssignmentsChange?.();
+    onBatchSuccess?.();
+  }, [onAssignmentsChange, onBatchSuccess, refetchAssignments]);
 
   return (
     <div className={className}>
@@ -96,10 +109,9 @@ export function TemplateOperatorsPanel({
         onOpenChange={handleBatchOpenChange}
         templateId={template.id}
         initialEmployeeIds={batchInitialEmployeeIds ?? internalInitialIds}
-        onSuccess={() => {
-          void refetchAssignments();
-          onAssignmentsChange?.();
-        }}
+        paymentPeriodStart={paymentPeriodStart}
+        paymentPeriodEnd={paymentPeriodEnd}
+        onSuccess={handleBatchSuccess}
       />
     </div>
   );

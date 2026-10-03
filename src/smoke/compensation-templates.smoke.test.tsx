@@ -60,6 +60,14 @@ vi.mock("@features/compensation/infrastructure/compensationApi", () => ({
     updateTemplate: (...args: unknown[]) => mockUpdateTemplate(...args),
     replaceTemplateConfiguration: vi.fn(),
     deleteTemplate: vi.fn(),
+    activateTemplate: vi.fn(),
+    deactivateTemplate: vi.fn(),
+    createTemplateVersion: vi.fn(),
+    listTemplateVersions: vi.fn().mockResolvedValue([]),
+    listTemplateActivity: vi.fn().mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    }),
     listCorridors: (...args: unknown[]) => mockListCorridors(...args),
     getCorridorById: vi.fn(),
     createCorridor: vi.fn(),
@@ -170,6 +178,11 @@ const mockTemplate = {
   name: "Operador foráneo",
   description: "Plantilla piloto ADR-0089",
   isActive: true,
+  status: "active" as const,
+  version: 1,
+  familyId: "tpl-1",
+  supersedesTemplateId: null,
+  lockedForEdit: false,
   rules: [
     {
       routeType: "long_haul" as const,
@@ -182,13 +195,20 @@ const mockTemplate = {
   ],
   fixedAllowances: [
     {
-      allowanceType: "meal" as const,
+      allowanceType: "meals" as const,
       label: "Comidas",
       amount: 500,
       period: "weekly" as const,
       isMandatory: true,
     },
   ],
+  deductions: [] as Array<{
+    deductionType: "savings_fund";
+    label: string;
+    amount: number;
+    period: "weekly";
+    isMandatory: boolean;
+  }>,
   corridorIds: ["cor-1"],
   corridors: [mockCorridor],
   activeAssignmentsCount: 1,
@@ -198,9 +218,15 @@ const mockCreatedTemplate = {
   id: "tpl-new",
   name: "Esquema nuevo smoke",
   description: "Alta desde hub",
-  isActive: true,
+  isActive: false,
+  status: "draft" as const,
+  version: 1,
+  familyId: "tpl-new",
+  supersedesTemplateId: null,
+  lockedForEdit: false,
   rules: [] as typeof mockTemplate.rules,
   fixedAllowances: [] as typeof mockTemplate.fixedAllowances,
+  deductions: [] as typeof mockTemplate.deductions,
   corridorIds: [] as string[],
   corridors: [] as typeof mockTemplate.corridors,
   activeAssignmentsCount: 0,
@@ -344,7 +370,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     expect(screen.getByRole("heading", { name: /Pagos a operadores/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Cómo te pago/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Tarifas$/i })).toBeInTheDocument();
   });
 
   it("1b. Lista plantillas muestra paginación cuando hay más de una página", async () => {
@@ -382,16 +408,17 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(screen.getAllByText("Operador foráneo").length).toBeGreaterThan(0);
     });
 
-    await user.click(screen.getByRole("button", { name: /Nuevo esquema/i }));
+    await user.click(screen.getByRole("button", { name: /Nueva tarifa/i }));
 
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Nuevo esquema/i }),
+      screen.getByRole("heading", { name: /Nueva tarifa de pago/i }),
     ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Desde cero/i }));
 
     const nameInput = await screen.findByLabelText("Nombre");
     await user.type(nameInput, "Esquema nuevo smoke");
-    await user.click(screen.getByRole("button", { name: /Guardar/i }));
+    await user.click(screen.getByRole("button", { name: /Crear y configurar/i }));
 
     await waitFor(() => {
       expect(mockCreateTemplate).toHaveBeenCalledTimes(1);
@@ -400,13 +427,9 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     expect(mockCreateTemplate).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Esquema nuevo smoke",
-        description: null,
-        isActive: true,
-        rules: [],
-        fixedAllowances: [],
-        corridorIds: [],
       }),
     );
+    expect(mockCreateTemplate.mock.calls[0]?.[0]).not.toHaveProperty("isActive");
 
     await waitFor(() => {
       expect(
@@ -419,9 +442,10 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       screen.queryByRole("tab", { name: /Identidad/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole("tab", { name: /Pago por tipo de viaje/i }).length,
+      screen.getAllByRole("tab", { name: /Pago por viaje/i }).length,
     ).toBeGreaterThan(0);
     expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
+    expect(screen.getAllByText("Borrador").length).toBeGreaterThan(0);
   });
 
   it("1d. Abre Builder desde Editar y muestra resumen en prosa", async () => {
@@ -457,7 +481,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       <Routes>{compensationRoutes}</Routes>,
     );
 
-    await user.click(screen.getByRole("tab", { name: /Tabla de rutas/i }));
+    await user.click(screen.getByRole("tab", { name: /Tarifas por corredor/i }));
 
     await waitFor(() => {
       expect(screen.getByText("México → MTY")).toBeInTheDocument();
@@ -491,7 +515,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     expect(
-      screen.getByRole("table", { name: /Operadores asignados al esquema de compensación/i }),
+      screen.getByRole("table", { name: /Operadores asignados a la tarifa de pago/i }),
     ).toBeInTheDocument();
   });
 
@@ -519,7 +543,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     expect(screen.getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pago fijo Comidas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pago fijo de tarifa Comidas/i)).toBeInTheDocument();
   });
 
   it("5. Abre sheet de asignación masiva desde CTA Operadores", async () => {
@@ -557,7 +581,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(screen.getByText("VIA-200")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Esquema Operador foráneo/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tarifa Operador foráneo/i)).toBeInTheDocument();
     expect(screen.getByText(/Corredor: México → MTY/i)).toBeInTheDocument();
     expect(screen.getByText(/Prestaciones fijas/i)).toBeInTheDocument();
     expect(screen.getAllByText("$1,500.00").length).toBeGreaterThanOrEqual(1);
@@ -597,7 +621,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Acuerdo de pago activo/i)).toBeInTheDocument();
+      expect(screen.getByText(/Tarifa de pago activa/i)).toBeInTheDocument();
     });
 
     expect(screen.queryByText(/Prestaciones fijas/i)).not.toBeInTheDocument();

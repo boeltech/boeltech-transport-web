@@ -17,10 +17,14 @@ export function getTemplateSectionStatuses(
     "name" | "rules" | "fixedAllowances" | "corridorIds"
   >,
 ): Record<BuilderSectionId, BuilderSectionStatus> {
+  const payment = statusFromCount(template.rules.length);
+  const allowances = statusFromCount(template.fixedAllowances.length);
+  const corridors = statusFromCount(template.corridorIds.length);
+
   return {
-    payment: statusFromCount(template.rules.length),
-    allowances: statusFromCount(template.fixedAllowances.length),
-    corridors: statusFromCount(template.corridorIds.length),
+    payment,
+    allowances,
+    corridors,
   };
 }
 
@@ -50,15 +54,24 @@ export function getTemplateCompleteness(
 
 /** Uso al liquidar (listado). Misma regla de completeness: rules OR corridors. */
 export function getTemplateUsageStatus(
-  template: Pick<CompensationTemplate, "isActive" | "rules" | "corridorIds">,
+  template: Pick<
+    CompensationTemplate,
+    "status" | "isActive" | "rules" | "corridorIds"
+  >,
 ): TemplateUsageStatus {
-  if (!template.isActive) {
-    return "paused";
-  }
+  const status =
+    template.status ?? (template.isActive ? "active" : "inactive");
   const isComplete =
     template.rules.length > 0 || template.corridorIds.length > 0;
+
+  if (status === "inactive") {
+    return "paused";
+  }
   if (!isComplete) {
     return "needs_payment";
+  }
+  if (status === "draft") {
+    return "ready_to_activate";
   }
   return "ready";
 }

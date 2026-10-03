@@ -41,6 +41,9 @@ export function CompensationTemplateSheet({
     allowanceFields,
     appendAllowance,
     removeAllowance,
+    deductionFields,
+    appendDeduction,
+    removeDeduction,
     watchedRules,
     validationMessages,
     apiError,
@@ -89,6 +92,9 @@ export function CompensationTemplateSheet({
               allowanceFields={allowanceFields}
               appendAllowance={appendAllowance}
               removeAllowance={removeAllowance}
+              deductionFields={deductionFields}
+              appendDeduction={appendDeduction}
+              removeDeduction={removeDeduction}
               watchedRules={watchedRules}
               validationMessages={validationMessages}
             />

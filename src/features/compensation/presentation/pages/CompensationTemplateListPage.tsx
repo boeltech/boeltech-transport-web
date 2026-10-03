@@ -14,6 +14,7 @@ import {
 import { useEmployee } from "@features/employees";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useMediaQuery, useToast } from "@shared/hooks";
+import { formatDate } from "@shared/utils/dateUtils";
 import {
   useCompensationTemplate,
   useCompensationTemplates,
@@ -21,10 +22,10 @@ import {
 import { compensationTemplateBuildPath } from "../../application/compensationRoutes";
 import { compensationCopy } from "../copy/compensationCopy";
 import {
-  CompensationTemplateCreateDialog,
   CompensationTemplatesTable,
   TemplateOperatorsSheet,
 } from "../components";
+import { TariffPresetSelector } from "../components/TariffPresetSelector";
 import { useRegisterCompensationHubCreateAction } from "../hooks/useRegisterCompensationHubCreateAction";
 
 const copy = compensationCopy.templates;
@@ -32,9 +33,10 @@ const hubCopy = compensationCopy.hub;
 
 const LIST_PAGE_SIZE = 20;
 
-function parseActiveFilter(raw: string): boolean | undefined {
-  if (raw === "active") return true;
-  if (raw === "inactive") return false;
+function parseStatusFilter(
+  raw: string,
+): "draft" | "active" | "inactive" | undefined {
+  if (raw === "draft" || raw === "active" || raw === "inactive") return raw;
   return undefined;
 }
 
@@ -44,6 +46,8 @@ export function CompensationTemplateListPage() {
   const pendingEmployeeId = searchParams.get("employeeId")?.trim() ?? "";
   const operatorsTemplateId = searchParams.get("operators")?.trim() || null;
   const assignEmployeeId = searchParams.get("assign")?.trim() || null;
+  const paymentPeriodStart = searchParams.get("periodStart")?.trim() || undefined;
+  const paymentPeriodEnd = searchParams.get("periodEnd")?.trim() || undefined;
   const isDesktop = !useMediaQuery("(max-width: 1023px)");
 
   const { toast } = useToast();
@@ -64,21 +68,23 @@ export function CompensationTemplateListPage() {
     chipLabels: {
       status: (value) =>
         copy.filters.chipLabel(
-          value === "active"
-            ? copy.filters.active
-            : value === "inactive"
-              ? copy.filters.inactive
-              : value,
+          value === "draft"
+            ? copy.filters.draft
+            : value === "active"
+              ? copy.filters.active
+              : value === "inactive"
+                ? copy.filters.inactive
+                : value,
         ),
     },
   });
 
   const statusFilter = filters.filters.status;
-  const isActive = parseActiveFilter(statusFilter);
+  const status = parseStatusFilter(statusFilter);
 
   const { data, isLoading, isFetching, refetch } = useCompensationTemplates({
     search: filters.search.trim() || undefined,
-    isActive,
+    status,
     page: filters.page,
     pageSize: LIST_PAGE_SIZE,
   });
@@ -105,6 +111,8 @@ export function CompensationTemplateListPage() {
       (prev) => {
         const next = new URLSearchParams(prev);
         next.delete("employeeId");
+        next.delete("periodStart");
+        next.delete("periodEnd");
         return next;
       },
       { replace: true },
@@ -175,6 +183,23 @@ export function CompensationTemplateListPage() {
     void refetch();
   }, [closeOperators, operatorsTemplateId, refetch]);
 
+  /** Tras batch exitoso: cierra ambos sheets y limpia banner employeeId + período. */
+  const handleBatchSuccess = useCallback(() => {
+    void refetch();
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("employeeId");
+        next.delete("operators");
+        next.delete("assign");
+        next.delete("periodStart");
+        next.delete("periodEnd");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [refetch, setSearchParams]);
+
   const assignBannerDescription = employeeName
     ? hubCopy.employeeAssignBanner.descriptionNamed.replace(
         "{{name}}",
@@ -190,6 +215,14 @@ export function CompensationTemplateListPage() {
           <AlertTitle>{hubCopy.employeeAssignBanner.title}</AlertTitle>
           <AlertDescription className="space-y-3">
             <p>{assignBannerDescription}</p>
+            {paymentPeriodStart && paymentPeriodEnd ? (
+              <p className="text-xs opacity-90">
+                {hubCopy.employeeAssignBanner.periodContextHint(
+                  formatDate(paymentPeriodStart),
+                  formatDate(paymentPeriodEnd),
+                )}
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               {templates.length === 0 && canCreate ? (
                 <Button type="button" size="sm" onClick={openCreate}>
@@ -215,7 +248,7 @@ export function CompensationTemplateListPage() {
         description={copy.description}
         items={templates}
         isLoading={isLoading}
-        entityLabelPlural="esquemas de compensación"
+        entityLabelPlural="tarifas"
         pagination={
           data?.pagination
             ? {
@@ -255,6 +288,7 @@ export function CompensationTemplateListPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{copy.filters.all}</SelectItem>
+                <SelectItem value="draft">{copy.filters.draft}</SelectItem>
                 <SelectItem value="active">{copy.filters.active}</SelectItem>
                 <SelectItem value="inactive">{copy.filters.inactive}</SelectItem>
               </SelectContent>
@@ -291,10 +325,13 @@ export function CompensationTemplateListPage() {
               ? [pendingEmployeeId]
               : undefined
         }
+        paymentPeriodStart={paymentPeriodStart}
+        paymentPeriodEnd={paymentPeriodEnd}
         onAssignmentsChange={() => void refetch()}
+        onBatchSuccess={handleBatchSuccess}
       />
 
-      <CompensationTemplateCreateDialog
+      <TariffPresetSelector
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onCreated={handleTemplateCreated}

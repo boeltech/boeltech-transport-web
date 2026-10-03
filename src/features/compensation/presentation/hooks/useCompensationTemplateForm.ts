@@ -13,6 +13,7 @@ import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useUpdateCompensationTemplate } from "../../application/hooks";
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
+import { getCompensationLifecycleErrorMessage } from "../utils/compensationLifecycleErrors";
 import {
   DEFAULT_TEMPLATE_FORM_VALUES,
   TEMPLATE_FORM_ID,
@@ -46,6 +47,15 @@ export interface UseCompensationTemplateFormResult {
   >["append"];
   removeAllowance: ReturnType<
     typeof useFieldArray<CompensationTemplateFormData, "fixedAllowances">
+  >["remove"];
+  deductionFields: ReturnType<
+    typeof useFieldArray<CompensationTemplateFormData, "deductions">
+  >["fields"];
+  appendDeduction: ReturnType<
+    typeof useFieldArray<CompensationTemplateFormData, "deductions">
+  >["append"];
+  removeDeduction: ReturnType<
+    typeof useFieldArray<CompensationTemplateFormData, "deductions">
   >["remove"];
   watchedRules: CompensationTemplateFormData["rules"] | undefined;
   validationMessages: string[];
@@ -92,6 +102,15 @@ export function useCompensationTemplateForm({
     name: "fixedAllowances",
   });
 
+  const {
+    fields: deductionFields,
+    append: appendDeduction,
+    remove: removeDeduction,
+  } = useFieldArray({
+    control,
+    name: "deductions",
+  });
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -119,16 +138,17 @@ export function useCompensationTemplateForm({
             id: template.id,
             name: values.name,
             description: values.description?.trim() ? values.description.trim() : null,
-            isActive: values.isActive,
             midTripPayoutPolicy: values.midTripPayoutPolicy,
             rules: values.rules,
             fixedAllowances: values.fixedAllowances,
+            deductions: values.deductions,
             corridorIds: values.corridorIds,
           });
           toast({ title: compensationCopy.toasts.templateUpdated, variant: "success" });
           onSuccess?.();
         } catch (error) {
-          setApiError(getErrorMessage(error));
+          const lockedMessage = getCompensationLifecycleErrorMessage(error);
+          setApiError(lockedMessage ?? getErrorMessage(error));
         }
       })(),
     [handleSubmit, onSuccess, template?.id, toast, updateMutation],
@@ -143,6 +163,9 @@ export function useCompensationTemplateForm({
     allowanceFields,
     appendAllowance,
     removeAllowance,
+    deductionFields,
+    appendDeduction,
+    removeDeduction,
     watchedRules,
     validationMessages,
     apiError,

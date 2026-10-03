@@ -1,5 +1,6 @@
 import {
   Controller,
+  useWatch,
   type Control,
   type UseFieldArrayAppend,
   type UseFieldArrayRemove,
@@ -24,6 +25,7 @@ import {
   type FixedAllowanceType,
 } from "../../domain/enums";
 import { compensationCopy } from "../copy/compensationCopy";
+import { describeAllowanceProse } from "../utils/simulateCompensation";
 import type { CompensationTemplateFormData } from "../validation/compensationSchemas";
 
 const sheetCopy = compensationCopy.sheet;
@@ -56,6 +58,7 @@ export function TemplateAllowancesSection({
   stepPrefix = "2.",
   operationalLexicon = true,
 }: TemplateAllowancesSectionProps) {
+  const watchedAllowances = useWatch({ control, name: "fixedAllowances" });
   const typeLabels = builderCopy.allowanceTypeLabels;
   const sectionTitle = operationalLexicon
     ? builderCopy.allowancesSectionTitle
@@ -227,8 +230,26 @@ export function TemplateAllowancesSection({
                     </Select>
                   )}
                 />
+                <p className="text-xs text-muted-foreground">
+                  {sheetCopy.allowancePeriodHint}
+                </p>
               </div>
             </div>
+
+            {(() => {
+              const watched = watchedAllowances?.[index];
+              const prose = describeAllowanceProse(
+                watched?.label,
+                watched?.amount,
+                watched?.period,
+              );
+              if (!prose) return null;
+              return (
+                <p className="text-xs text-muted-foreground leading-relaxed bg-primary/5 p-2.5 rounded-md border border-primary/10">
+                  {prose}
+                </p>
+              );
+            })()}
 
             <div className="flex justify-end">
               <Button

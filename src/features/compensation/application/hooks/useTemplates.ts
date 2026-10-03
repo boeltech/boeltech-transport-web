@@ -2,14 +2,32 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { compensationApi } from "../../infrastructure/compensationApi";
 import { compensationQueryKeys } from "../compensationQueryKeys";
 import type {
-  CompensationTemplateRule,
+  ActivateCompensationTemplatePayload,
   CreateCompensationTemplatePayload,
   ReplaceTemplateConfigurationPayload,
-  TemplateFixedAllowance,
+  UpdateCompensationTemplatePayload,
 } from "../../domain/entities";
+import type { CompensationTemplateStatus } from "../../domain/enums";
+
+function invalidateTemplateFamily(
+  queryClient: ReturnType<typeof useQueryClient>,
+  templateId: string,
+) {
+  queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
+  queryClient.invalidateQueries({
+    queryKey: compensationQueryKeys.templateDetail(templateId),
+  });
+  queryClient.invalidateQueries({
+    queryKey: compensationQueryKeys.templateVersions(templateId),
+  });
+  queryClient.invalidateQueries({
+    queryKey: [...compensationQueryKeys.templates(), "activity", templateId],
+  });
+}
 
 export function useCompensationTemplates(params?: {
   search?: string;
+  status?: CompensationTemplateStatus;
   isActive?: boolean;
   page?: number;
   pageSize?: number;
@@ -25,6 +43,26 @@ export function useCompensationTemplate(id: string | undefined) {
     queryKey: compensationQueryKeys.templateDetail(id ?? ""),
     queryFn: () => compensationApi.getTemplateById(id!),
     enabled: Boolean(id),
+  });
+}
+
+export function useTemplateVersions(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: compensationQueryKeys.templateVersions(id ?? ""),
+    queryFn: () => compensationApi.listTemplateVersions(id!),
+    enabled: Boolean(id) && enabled,
+  });
+}
+
+export function useTemplateActivity(
+  id: string | undefined,
+  params?: { page?: number; pageSize?: number },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: compensationQueryKeys.templateActivity(id ?? "", params),
+    queryFn: () => compensationApi.listTemplateActivity(id!, params),
+    enabled: Boolean(id) && enabled,
   });
 }
 
@@ -45,21 +83,10 @@ export function useUpdateCompensationTemplate() {
     mutationFn: ({
       id,
       ...payload
-    }: {
-      id: string;
-      name?: string;
-      description?: string | null;
-      isActive?: boolean;
-      midTripPayoutPolicy?: string;
-      rules?: CompensationTemplateRule[];
-      fixedAllowances?: TemplateFixedAllowance[];
-      corridorIds?: string[];
-    }) => compensationApi.updateTemplate(id, payload),
+    }: UpdateCompensationTemplatePayload & { id: string }) =>
+      compensationApi.updateTemplate(id, payload),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
-      queryClient.invalidateQueries({
-        queryKey: compensationQueryKeys.templateDetail(variables.id),
-      });
+      invalidateTemplateFamily(queryClient, variables.id);
     },
   });
 }
@@ -75,10 +102,45 @@ export function useReplaceTemplateConfiguration() {
       payload: ReplaceTemplateConfigurationPayload;
     }) => compensationApi.replaceTemplateConfiguration(id, payload),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
-      queryClient.invalidateQueries({
-        queryKey: compensationQueryKeys.templateDetail(variables.id),
-      });
+      invalidateTemplateFamily(queryClient, variables.id);
+    },
+  });
+}
+
+export function useActivateCompensationTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...payload
+    }: ActivateCompensationTemplatePayload & { id: string }) =>
+      compensationApi.activateTemplate(id, payload),
+    onSuccess: (template) => {
+      invalidateTemplateFamily(queryClient, template.id);
+      if (template.familyId !== template.id) {
+        invalidateTemplateFamily(queryClient, template.familyId);
+      }
+    },
+  });
+}
+
+export function useDeactivateCompensationTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => compensationApi.deactivateTemplate(id),
+    onSuccess: (template) => {
+      invalidateTemplateFamily(queryClient, template.id);
+    },
+  });
+}
+
+export function useCreateCompensationTemplateVersion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => compensationApi.createTemplateVersion(id),
+    onSuccess: (template, sourceId) => {
+      invalidateTemplateFamily(queryClient, sourceId);
+      invalidateTemplateFamily(queryClient, template.id);
     },
   });
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { formatDate } from "@shared/utils/dateUtils";
 import { TemplateAssignmentBatchSheet } from "./TemplateAssignmentBatchSheet";
 import type { TemplateAssignment } from "../../domain/entities";
 
@@ -90,5 +91,33 @@ describe("TemplateAssignmentBatchSheet", () => {
 
     expect(screen.getByText("Conflictos detectados")).toBeInTheDocument();
     expect(screen.getByText(/22222222/)).toBeInTheDocument();
+  });
+
+  it("usa periodStart del pago como vigencia por defecto y avisa si no cubre el período", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TemplateAssignmentBatchSheet
+          open
+          onOpenChange={vi.fn()}
+          templateId={templateId}
+          paymentPeriodStart="2026-09-09"
+          paymentPeriodEnd="2026-09-26"
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(/Para cubrir el pago del/i)).toBeInTheDocument();
+    const fromField = screen.getByRole("button", { name: /Vigente desde/i });
+    expect(fromField).toHaveTextContent(formatDate("2026-09-09"));
+
+    await user.click(fromField);
+    await user.click(screen.getByRole("button", { name: "29" }));
+
+    expect(
+      await screen.findByText(/Esta vigencia no cubre el período del pago/i),
+    ).toBeInTheDocument();
   });
 });

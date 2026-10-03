@@ -7,29 +7,37 @@ import {
   type Pagination,
 } from "@shared/api";
 import type {
+  ActivateCompensationTemplatePayload,
   BatchAssignmentResult,
   BatchTemplateAssignmentPayload,
   CompensationTemplate,
-  CompensationTemplateRule,
+  CompensationTemplateEvent,
   CreateCompensationTemplatePayload,
   CreateCorridorTariffPayload,
   FixedAllowanceOverride,
+  FrequentCityPair,
   ReplaceTemplateConfigurationPayload,
   RouteCorridorTariff,
   TemplateAssignment,
-  TemplateFixedAllowance,
+  TemplateDeduction,
+  UpdateCompensationTemplatePayload,
   UpdateTemplateAssignmentPayload,
   UpsertFixedAllowanceOverridePayload,
 } from "../domain/entities";
+import type { CompensationTemplateStatus } from "../domain/enums";
 import {
   mapAssignmentFromApi,
   mapBatchResultFromApi,
   mapCorridorFromApi,
   mapFixedAllowanceOverrideFromApi,
+  mapFrequentCityPairFromApi,
+  mapTemplateEventFromApi,
   mapTemplateFromApi,
   type ApiBatchAssignmentResultCamel,
   type ApiCompensationTemplateCamel,
+  type ApiCompensationTemplateEventCamel,
   type ApiFixedAllowanceOverrideCamel,
+  type ApiFrequentCityPairCamel,
   type ApiRouteCorridorTariffCamel,
   type ApiRouteCorridorTariffRaw,
   type ApiTemplateAssignmentCamel,
@@ -39,16 +47,23 @@ const BASE = "/compensation";
 
 export interface ListTemplatesParams {
   search?: string;
+  /** Preferir `status` (draft|active|inactive). */
+  status?: CompensationTemplateStatus;
+  /** Compat: active → status=active; inactive → status≠active. */
   isActive?: boolean;
   page?: number;
   pageSize?: number;
 }
-
 export interface ListCorridorsParams {
   search?: string;
   isActive?: boolean;
   page?: number;
   pageSize?: number;
+}
+
+export interface ListFrequentCityPairsParams {
+  limit?: number;
+  q?: string;
 }
 
 export interface ListAssignmentsParams {
@@ -59,11 +74,20 @@ export interface ListAssignmentsParams {
   pageSize?: number;
 }
 
+function mapDeductionToWire(deduction: TemplateDeduction) {
+  return {
+    deductionType: deduction.deductionType,
+    label: deduction.label,
+    amount: deduction.amount,
+    period: deduction.period,
+    isMandatory: deduction.isMandatory,
+  };
+}
+
 function toTemplatePayload(payload: CreateCompensationTemplatePayload) {
   return {
     name: payload.name,
     description: payload.description ?? null,
-    isActive: payload.isActive ?? true,
     midTripPayoutPolicy: payload.midTripPayoutPolicy,
     rules: (payload.rules ?? []).map((rule) => ({
       routeType: rule.routeType,
@@ -80,6 +104,7 @@ function toTemplatePayload(payload: CreateCompensationTemplatePayload) {
       period: allowance.period,
       isMandatory: allowance.isMandatory,
     })),
+    deductions: (payload.deductions ?? []).map(mapDeductionToWire),
     corridorIds: payload.corridorIds ?? [],
   };
 }
@@ -107,24 +132,17 @@ function toConfigurationPayload(payload: ReplaceTemplateConfigurationPayload) {
       period: allowance.period,
       isMandatory: allowance.isMandatory,
     })),
+    deductions: payload.deductions.map(mapDeductionToWire),
     corridorIds: payload.corridorIds,
   };
 }
 
-function toPatchTemplatePayload(payload: {
-  name?: string;
-  description?: string | null;
-  isActive?: boolean;
-  midTripPayoutPolicy?: string;
-  rules?: CompensationTemplateRule[];
-  fixedAllowances?: TemplateFixedAllowance[];
-  corridorIds?: string[];
-}) {
+function toPatchTemplatePayload(payload: UpdateCompensationTemplatePayload) {
   const body: Record<string, unknown> = {};
 
   if (payload.name !== undefined) body.name = payload.name;
   if (payload.description !== undefined) body.description = payload.description;
-  if (payload.isActive !== undefined) body.isActive = payload.isActive;
+  // Status transitions: usar activate/deactivate. No enviar isActive desde el form.
   if (payload.midTripPayoutPolicy !== undefined) {
     body.midTripPayoutPolicy = payload.midTripPayoutPolicy;
   }
@@ -148,6 +166,10 @@ function toPatchTemplatePayload(payload: {
       period: allowance.period,
       isMandatory: allowance.isMandatory,
     }));
+  }
+
+  if (payload.deductions !== undefined) {
+    body.deductions = payload.deductions.map(mapDeductionToWire);
   }
 
   if (payload.corridorIds !== undefined) {
@@ -176,7 +198,8 @@ export const compensationApi = {
       {
         params: {
           search: params.search,
-          is_active: params.isActive,
+          status: params.status,
+          is_active: params.status ? undefined : params.isActive,
           page: params.page ?? 1,
           page_size: params.pageSize ?? 50,
         },
@@ -210,15 +233,7 @@ export const compensationApi = {
 
   updateTemplate: async (
     id: string,
-    payload: {
-      name?: string;
-      description?: string | null;
-      isActive?: boolean;
-      midTripPayoutPolicy?: string;
-      rules?: CompensationTemplateRule[];
-      fixedAllowances?: TemplateFixedAllowance[];
-      corridorIds?: string[];
-    },
+    payload: UpdateCompensationTemplatePayload,
   ): Promise<CompensationTemplate> => {
     const response = await apiClient.patch<ApiSingleResponse<ApiCompensationTemplateCamel>>(
       `${BASE}/templates/${id}`,
@@ -242,6 +257,64 @@ export const compensationApi = {
 
   deleteTemplate: async (id: string): Promise<void> => {
     await apiClient.delete(`${BASE}/templates/${id}`);
+  },
+
+  activateTemplate: async (
+    id: string,
+    payload: ActivateCompensationTemplatePayload = {},
+  ): Promise<CompensationTemplate> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiCompensationTemplateCamel>>(
+      `${BASE}/templates/${id}/activate`,
+      {
+        deactivateSiblings: payload.deactivateSiblings ?? true,
+      },
+    );
+    const { data } = mapSingleResponse(response);
+    return mapTemplateFromApi(data);
+  },
+
+  deactivateTemplate: async (id: string): Promise<CompensationTemplate> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiCompensationTemplateCamel>>(
+      `${BASE}/templates/${id}/deactivate`,
+    );
+    const { data } = mapSingleResponse(response);
+    return mapTemplateFromApi(data);
+  },
+
+  createTemplateVersion: async (id: string): Promise<CompensationTemplate> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiCompensationTemplateCamel>>(
+      `${BASE}/templates/${id}/versions`,
+    );
+    const { data } = mapSingleResponse(response);
+    return mapTemplateFromApi(data);
+  },
+
+  listTemplateVersions: async (id: string): Promise<CompensationTemplate[]> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiCompensationTemplateCamel[]>>(
+      `${BASE}/templates/${id}/versions`,
+    );
+    const { data } = mapSingleResponse(response);
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map((row) => mapTemplateFromApi(row));
+  },
+
+  listTemplateActivity: async (
+    id: string,
+    params: { page?: number; pageSize?: number } = {},
+  ): Promise<{ data: CompensationTemplateEvent[]; pagination: Pagination }> => {
+    const response = await apiClient.get<
+      ApiPaginatedResponse<ApiCompensationTemplateEventCamel>
+    >(`${BASE}/templates/${id}/activity`, {
+      params: {
+        page: params.page ?? 1,
+        page_size: params.pageSize ?? 20,
+      },
+    });
+    const mapped = mapPaginatedResponse(response);
+    return {
+      data: mapped.data.map((row) => mapTemplateEventFromApi(row)),
+      pagination: mapped.pagination,
+    };
   },
 
   listCorridors: async (
@@ -305,6 +378,23 @@ export const compensationApi = {
 
   deleteCorridor: async (id: string): Promise<void> => {
     await apiClient.delete(`${BASE}/corridors/${id}`);
+  },
+
+  listFrequentCityPairs: async (
+    params: ListFrequentCityPairsParams = {},
+  ): Promise<FrequentCityPair[]> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiFrequentCityPairCamel[]>>(
+      `${BASE}/frequent-city-pairs`,
+      {
+        params: {
+          limit: params.limit ?? 20,
+          q: params.q?.trim() || undefined,
+        },
+      },
+    );
+    const { data } = mapSingleResponse(response);
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map((row) => mapFrequentCityPairFromApi(row));
   },
 
   listAssignments: async (

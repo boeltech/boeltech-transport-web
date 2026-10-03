@@ -3,6 +3,7 @@ import type { UseCompensationTemplateFormResult } from "../hooks/useCompensation
 import { compensationCopy } from "../copy/compensationCopy";
 import { TemplateAllowancesSection } from "./TemplateAllowancesSection";
 import { TemplateCorridorsSection } from "./TemplateCorridorsSection";
+import { TemplateDeductionsSection } from "./TemplateDeductionsSection";
 import { TemplateMetadataFields } from "./TemplateMetadataFields";
 import { TemplateRulesSection } from "./TemplateRulesSection";
 
@@ -17,6 +18,9 @@ type CompensationTemplateFormFieldsProps = Pick<
   | "allowanceFields"
   | "appendAllowance"
   | "removeAllowance"
+  | "deductionFields"
+  | "appendDeduction"
+  | "removeDeduction"
   | "watchedRules"
   | "validationMessages"
 >;
@@ -29,6 +33,9 @@ export function CompensationTemplateFormFields({
   allowanceFields,
   appendAllowance,
   removeAllowance,
+  deductionFields,
+  appendDeduction,
+  removeDeduction,
   watchedRules,
   validationMessages,
 }: CompensationTemplateFormFieldsProps) {
@@ -50,6 +57,14 @@ export function CompensationTemplateFormFields({
         allowanceFields={allowanceFields}
         appendAllowance={appendAllowance}
         removeAllowance={removeAllowance}
+      />
+      <TemplateDeductionsSection
+        control={control}
+        register={register}
+        setValue={form.setValue}
+        deductionFields={deductionFields}
+        appendDeduction={appendDeduction}
+        removeDeduction={removeDeduction}
       />
       <TemplateCorridorsSection control={control} />
       <TemplateMetadataFields control={control} register={register} errors={errors} />

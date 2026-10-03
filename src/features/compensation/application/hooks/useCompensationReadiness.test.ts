@@ -17,6 +17,7 @@ function makeTemplate(
     isActive: true,
     rules: [],
     fixedAllowances: [],
+    deductions: [],
     corridorIds: [],
     corridors: [],
     activeAssignmentsCount: 0,
