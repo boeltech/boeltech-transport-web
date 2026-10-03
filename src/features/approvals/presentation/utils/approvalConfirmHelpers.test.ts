@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { ApprovableItem } from "../../domain";
 import {
-  blocksSelfSubmittedApproval,
-  formatApprovableApproveConfirmDescription,
-  isSelfSubmittedApproval,
-} from "./approvalConfirmHelpers";
+  resolveApprovableSelfActionUi,
+  type ApprovableItem,
+  type SelfApprovalConcept,
+  type SelfApprovalPolicy,
+} from "../../domain";
+import { formatApprovableApproveConfirmDescription } from "./approvalConfirmHelpers";
 
 const tripExpenseItem: ApprovableItem = {
   approvableType: "trip_expense",
@@ -80,28 +81,7 @@ describe("formatApprovableApproveConfirmDescription", () => {
   });
 });
 
-describe("isSelfSubmittedApproval", () => {
-  it("detecta self-submit cuando submittedBy coincide", () => {
-    expect(
-      isSelfSubmittedApproval(
-        { ...advanceItem, submittedBy: "user-1" },
-        "user-1",
-      ),
-    ).toBe(true);
-  });
-
-  it("permite cuando submittedBy es null o distinto", () => {
-    expect(isSelfSubmittedApproval(advanceItem, "user-1")).toBe(false);
-    expect(
-      isSelfSubmittedApproval(
-        { ...advanceItem, submittedBy: "user-2" },
-        "user-1",
-      ),
-    ).toBe(false);
-  });
-});
-
-describe("blocksSelfSubmittedApproval", () => {
+describe("resolveApprovableSelfActionUi (ADR-0098)", () => {
   const compensationItem: ApprovableItem = {
     ...advanceItem,
     approvableType: "internal_staff_compensation",
@@ -115,29 +95,76 @@ describe("blocksSelfSubmittedApproval", () => {
     },
   };
 
-  it("bloquea self-submit de liquidación cuando hay ≥2 autorizadores", () => {
-    expect(
-      blocksSelfSubmittedApproval(compensationItem, "user-1", {
-        activeApproverCount: 2,
-      }),
-    ).toBe(true);
-  });
+  const policy = (allowed: Partial<Record<SelfApprovalConcept, boolean>>) =>
+    ({
+      advanceApprove: { allowed: allowed.advanceApprove ?? false, activeCounterpartCount: 0 },
+      advanceDisburse: { allowed: allowed.advanceDisburse ?? false, activeCounterpartCount: 0 },
+      settlementApprove: { allowed: allowed.settlementApprove ?? false, activeCounterpartCount: 0 },
+      settlementDisburse: { allowed: allowed.settlementDisburse ?? false, activeCounterpartCount: 0 },
+      tripExpenseApprove: { allowed: allowed.tripExpenseApprove ?? false, activeCounterpartCount: 0 },
+    }) satisfies SelfApprovalPolicy;
 
-  it("D3′: no bloquea self-submit de liquidación cuando activeApproverCount === 1", () => {
+  it("normal cuando el ítem no es propio (submittedBy null o distinto)", () => {
+    expect(resolveApprovableSelfActionUi(advanceItem, "user-1", policy({}))).toBe(
+      "normal",
+    );
     expect(
-      blocksSelfSubmittedApproval(compensationItem, "user-1", {
-        activeApproverCount: 1,
-      }),
-    ).toBe(false);
-  });
-
-  it("sigue bloqueando anticipos aunque activeApproverCount === 1", () => {
-    expect(
-      blocksSelfSubmittedApproval(
-        { ...advanceItem, submittedBy: "user-1" },
+      resolveApprovableSelfActionUi(
+        { ...advanceItem, submittedBy: "user-2" },
         "user-1",
-        { activeApproverCount: 1 },
+        policy({}),
       ),
-    ).toBe(true);
+    ).toBe("normal");
+  });
+
+  it("blocked_own en liquidación propia cuando el API no lo permite", () => {
+    expect(
+      resolveApprovableSelfActionUi(compensationItem, "user-1", policy({})),
+    ).toBe("blocked_own");
+  });
+
+  it("self_confirm en liquidación propia con settlementApprove.allowed", () => {
+    expect(
+      resolveApprovableSelfActionUi(
+        compensationItem,
+        "user-1",
+        policy({ settlementApprove: true }),
+      ),
+    ).toBe("self_confirm");
+  });
+
+  it("usa el concepto del tipo: anticipo propio depende de advanceApprove", () => {
+    const ownAdvance = { ...advanceItem, submittedBy: "user-1" };
+    expect(
+      resolveApprovableSelfActionUi(
+        ownAdvance,
+        "user-1",
+        policy({ settlementApprove: true }),
+      ),
+    ).toBe("blocked_own");
+    expect(
+      resolveApprovableSelfActionUi(
+        ownAdvance,
+        "user-1",
+        policy({ advanceApprove: true }),
+      ),
+    ).toBe("self_confirm");
+  });
+
+  it("gasto propio depende de tripExpenseApprove", () => {
+    const ownExpense = { ...tripExpenseItem, submittedBy: "user-1" };
+    expect(
+      resolveApprovableSelfActionUi(
+        ownExpense,
+        "user-1",
+        policy({ tripExpenseApprove: true }),
+      ),
+    ).toBe("self_confirm");
+  });
+
+  it("fail-closed: sin política cargada el ítem propio queda bloqueado", () => {
+    expect(
+      resolveApprovableSelfActionUi(compensationItem, "user-1", undefined),
+    ).toBe("blocked_own");
   });
 });

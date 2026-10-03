@@ -134,8 +134,10 @@ export const toApiCreateUser = (data: CreateUserDTO): ApiUserPayload => ({
   ...(data.employeeId !== undefined ? { employee_id: data.employeeId } : {}),
 });
 
-export const toApiUpdateUser = (data: UpdateUserDTO): Partial<ApiUserPayload> => {
-  const payload: Partial<ApiUserPayload> = {};
+export const toApiUpdateUser = (
+  data: UpdateUserDTO,
+): Partial<ApiUserPayload> & { confirm_policy_orphan?: true } => {
+  const payload: Partial<ApiUserPayload> & { confirm_policy_orphan?: true } = {};
 
   if (data.email !== undefined) payload.email = data.email;
   if (data.firstName !== undefined) payload.first_name = data.firstName;
@@ -143,6 +145,7 @@ export const toApiUpdateUser = (data: UpdateUserDTO): Partial<ApiUserPayload> =>
   if (data.role !== undefined) payload.role = data.role;
   if (data.clientId !== undefined) payload.client_id = data.clientId;
   if (data.employeeId !== undefined) payload.employee_id = data.employeeId;
+  if (data.confirmPolicyOrphan === true) payload.confirm_policy_orphan = true;
 
   return payload;
 };

@@ -1,2 +1,9 @@
-export { approvalsApi } from "./approvalsApi";
-export { mapApprovableItem, mapListApprovalsResponse } from "./mappers";
+export { approvalsApi, type PendingCountsByType } from "./approvalsApi";
+export {
+  mapApprovableItem,
+  mapApprovalBlock,
+  mapApprovalHistory,
+  mapListApprovalsResponse,
+  mapSelfApprovalPolicy,
+  type ApiApprovalBlockRaw,
+} from "./mappers";

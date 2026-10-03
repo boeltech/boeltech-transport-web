@@ -1,7 +1,10 @@
+import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import type { ApprovableItem } from "../../domain";
+import type { ApprovableItem, ApprovalBlock } from "../../domain";
+import { approvalsCopy } from "../copy/approvalsCopy";
 import { ApprovalRow } from "./ApprovalRow";
 
 const tripExpenseItem: ApprovableItem = {
@@ -192,5 +195,271 @@ describe("ApprovalRow", () => {
     );
 
     expect(screen.getByText(/Tipo no soportado/i)).toBeInTheDocument();
+  });
+
+  it("ADR-0098 blocked_own: muestra «Enviada por ti» en lugar de aprobar/rechazar", () => {
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={advanceItem}
+              selected={false}
+              selectable={false}
+              canUpdate
+              selfActionUi="blocked_own"
+              onSelectChange={vi.fn()}
+              onApprove={vi.fn()}
+              onReject={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprobar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rechazar" })).not.toBeInTheDocument();
+  });
+
+  it("ADR-0098 self_confirm: conserva los botones de acción", () => {
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={tripExpenseItem}
+              selected={false}
+              selectable
+              canUpdate
+              selfActionUi="self_confirm"
+              onSelectChange={vi.fn()}
+              onApprove={vi.fn()}
+              onReject={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "Aprobar" })).toBeInTheDocument();
+    expect(screen.queryByText("Enviada por ti")).not.toBeInTheDocument();
+  });
+
+  it("ADR-0098: badge «Autoaprobado» cuando el API marca self_approved", () => {
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={{
+                ...tripExpenseItem,
+                status: "approved",
+                approvedAt: "2026-06-02T10:00:00.000Z",
+                approvedBy: "user-1",
+                selfApproved: true,
+              }}
+              selected={false}
+              selectable={false}
+              canUpdate
+              onSelectChange={vi.fn()}
+              onApprove={vi.fn()}
+              onReject={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Autoaprobado")).toBeInTheDocument();
+  });
+
+  it("P2-2: sin badge «Autoaprobado» en un autorrechazo", () => {
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={{
+                ...advanceItem,
+                status: "rejected",
+                rejectedAt: "2026-08-11T10:00:00.000Z",
+                rejectionReason: "Duplicado",
+                selfApproved: true,
+              }}
+              selected={false}
+              selectable={false}
+              canUpdate
+              onSelectChange={vi.fn()}
+              onApprove={vi.fn()}
+              onReject={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Autoaprobado")).not.toBeInTheDocument();
+  });
+});
+
+describe("ApprovalRow · ADR-0099 F6a", () => {
+  const flowCopy = approvalsCopy.flow;
+
+  function makeApproval(overrides: Partial<ApprovalBlock> = {}): ApprovalBlock {
+    return {
+      flowStatus: "in_progress",
+      stepCurrent: 2,
+      stepsTotal: 2,
+      pendingFor: { roles: ["accountant"], users: [] },
+      signedSteps: [
+        {
+          stepNo: 1,
+          userId: "user-ana",
+          fullName: "Ana López",
+          role: "manager",
+          decidedAt: "2026-10-01T18:00:00.000Z",
+        },
+      ],
+      routedBy: {
+        tierIndex: 1,
+        minAmount: 5000,
+        matchedConditions: [],
+        policyVersion: 3,
+        lazy: false,
+      },
+      canAct: true,
+      cannotActReason: null,
+      escalated: false,
+      reapproval: null,
+      returned: null,
+      ...overrides,
+    };
+  }
+
+  function renderRow(
+    item: ApprovableItem,
+    extra: Partial<ComponentProps<typeof ApprovalRow>> = {},
+  ) {
+    const handlers = {
+      onApprove: vi.fn(),
+      onReject: vi.fn(),
+      onReturn: vi.fn(),
+      onHistory: vi.fn(),
+    };
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={item}
+              selected={false}
+              selectable
+              canUpdate
+              onSelectChange={vi.fn()}
+              {...handlers}
+              {...extra}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+    return handlers;
+  }
+
+  it("dos pasos: «Paso 2 de 2 · Falta: Contador» y quién firmó el paso 1", () => {
+    renderRow({ ...tripExpenseItem, approval: makeApproval() });
+    expect(screen.getByText(flowCopy.stepLine(2, 2, "Contador"))).toBeInTheDocument();
+    expect(screen.getByText(/^Firmó Ana López \(Gerente\) · /)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: flowCopy.whyHint })).toBeInTheDocument();
+  });
+
+  it("UX5: un paso con regla estándar no agrega chips ni líneas", () => {
+    renderRow({
+      ...tripExpenseItem,
+      approval: makeApproval({
+        stepCurrent: 1,
+        stepsTotal: 1,
+        signedSteps: [],
+        escalated: true,
+        reapproval: { invalidatedAt: null, previousInstanceId: null, changes: [] },
+        routedBy: {
+          tierIndex: null,
+          minAmount: null,
+          matchedConditions: [],
+          policyVersion: null,
+          lazy: true,
+        },
+      }),
+    });
+    expect(screen.queryByText(/Paso \d de \d/)).not.toBeInTheDocument();
+    expect(screen.queryByText(flowCopy.escalatedChip)).not.toBeInTheDocument();
+    expect(screen.queryByText(flowCopy.reapprovalChip)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: flowCopy.whyHint })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aprobar" })).toBeInTheDocument();
+  });
+
+  it("«Ya firmaste el paso 1» sustituye las acciones", () => {
+    renderRow(
+      {
+        ...tripExpenseItem,
+        approval: makeApproval({ canAct: false, cannotActReason: "already_signed" }),
+      },
+      { selectable: false },
+    );
+    expect(screen.getByText(flowCopy.alreadySignedChip(1))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprobar" })).not.toBeInTheDocument();
+  });
+
+  it("«Espera a Contador» cuando no le toca", () => {
+    renderRow(
+      {
+        ...tripExpenseItem,
+        approval: makeApproval({ canAct: false, cannotActReason: "not_eligible" }),
+      },
+      { selectable: false },
+    );
+    expect(screen.getByText(flowCopy.waitingChip("Contador"))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprobar" })).not.toBeInTheDocument();
+  });
+
+  it("CEO-4: Aprobar a un clic; Devolver, Rechazar e historial en el menú ⋯", async () => {
+    const user = userEvent.setup();
+    const handlers = renderRow({ ...tripExpenseItem, approval: makeApproval() });
+
+    expect(screen.queryByRole("button", { name: "Rechazar" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aprobar" }));
+    expect(handlers.onApprove).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: flowCopy.menu.more }));
+    expect(
+      await screen.findByRole("menuitem", { name: flowCopy.menu.return }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: flowCopy.menu.reject })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: flowCopy.menu.history }));
+    expect(handlers.onHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("«Devuelta» en Estado y sin acciones de decisión", () => {
+    renderRow(
+      {
+        ...tripExpenseItem,
+        approval: makeApproval({
+          flowStatus: "returned",
+          canAct: false,
+          cannotActReason: "returned",
+          returned: {
+            reason: "Falta ticket",
+            reasonCode: "missing_receipt",
+            returnedBy: "user-ana",
+            returnedByName: "Ana López",
+            returnedAt: "2026-10-01T19:00:00.000Z",
+          },
+        }),
+      },
+      { selectable: false },
+    );
+    expect(screen.getByText(flowCopy.returnedChip)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprobar" })).not.toBeInTheDocument();
   });
 });

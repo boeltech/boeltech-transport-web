@@ -7,6 +7,10 @@ import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { InfoRow, type StatCardProps } from "@shared/ui/data-display";
 import { ROLE_LABELS } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
+import {
+  PolicyOrphanConfirmDialog,
+  usePolicyOrphanConfirmation,
+} from "@features/approval-policies";
 import { useUpdateUserStatus, useUser } from "../../application";
 import { UserActions, UserActivitySection } from "../components";
 import { UserStatusBadge } from "../config/userStatusConfig";
@@ -25,6 +29,7 @@ export function UserDetailPage() {
 
   const { data: user, isLoading, isError } = useUser(userId);
 
+  const orphanGuard = usePolicyOrphanConfirmation();
   const statusMutation = useUpdateUserStatus({
     onSuccess: () => {
       toast({
@@ -32,7 +37,13 @@ export function UserDetailPage() {
         variant: "success",
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      const retry = () =>
+        statusMutation.mutate({
+          ...variables,
+          data: { ...variables.data, confirmPolicyOrphan: true },
+        });
+      if (orphanGuard.intercept(error, retry)) return;
       toast({
         title: usersCopy.detail.toasts.statusError,
         description: error.message,
@@ -207,6 +218,10 @@ export function UserDetailPage() {
 
         <UserActivitySection userId={user.id} />
       </div>
+      <PolicyOrphanConfirmDialog
+        {...orphanGuard.dialog}
+        pending={statusMutation.isPending}
+      />
     </DetailPageShell>
   );
 }

@@ -7,10 +7,13 @@ import type {
 } from "../../domain";
 import { usersApi } from "../../infrastructure";
 
-interface MutationCallbacks<TData = unknown, TError = Error> {
+interface MutationCallbacks<TData = unknown, TError = Error, TVariables = unknown> {
   onSuccess?: (data: TData) => void;
-  onError?: (error: TError) => void;
+  onError?: (error: TError, variables: TVariables) => void;
 }
+
+type UpdateUserVariables = { id: string; data: UpdateUserDTO };
+type UpdateUserStatusVariables = { id: string; data: UpdateUserStatusDTO };
 
 export const useUsers = (
   params?: UserQueryParams,
@@ -52,36 +55,38 @@ export const useCreateUser = (
         fullName: `${result.data.firstName} ${result.data.lastName}`.trim(),
       });
     },
-    onError: (error: Error) => callbacks?.onError?.(error),
+    onError: (error: Error, variables) => callbacks?.onError?.(error, variables),
   });
 };
 
-export const useUpdateUser = (callbacks?: MutationCallbacks) => {
+export const useUpdateUser = (
+  callbacks?: MutationCallbacks<unknown, Error, UpdateUserVariables>,
+) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateUserDTO }) =>
-      usersApi.update(id, data),
+    mutationFn: ({ id, data }: UpdateUserVariables) => usersApi.update(id, data),
     onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: userQueryKeys.detail(result.data.id) });
       void queryClient.invalidateQueries({ queryKey: userQueryKeys.activityRoot(variables.id) });
       callbacks?.onSuccess?.(result);
     },
-    onError: (error: Error) => callbacks?.onError?.(error),
+    onError: (error: Error, variables) => callbacks?.onError?.(error, variables),
   });
 };
 
-export const useUpdateUserStatus = (callbacks?: MutationCallbacks) => {
+export const useUpdateUserStatus = (
+  callbacks?: MutationCallbacks<unknown, Error, UpdateUserStatusVariables>,
+) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateUserStatusDTO }) =>
-      usersApi.updateStatus(id, data),
+    mutationFn: ({ id, data }: UpdateUserStatusVariables) => usersApi.updateStatus(id, data),
     onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: userQueryKeys.detail(result.data.id) });
       void queryClient.invalidateQueries({ queryKey: userQueryKeys.activityRoot(variables.id) });
       callbacks?.onSuccess?.(result);
     },
-    onError: (error: Error) => callbacks?.onError?.(error),
+    onError: (error: Error, variables) => callbacks?.onError?.(error, variables),
   });
 };

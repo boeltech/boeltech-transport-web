@@ -170,6 +170,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "settlements.create",
       "settlements.update",
       "settlements.delete",
+
+      // Reglas de autorización (ADR-0099) — lockstep API; update solo admin
+      "approval_policies.read",
     ],
   },
 
@@ -265,6 +268,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "settlements.create",
       "settlements.update",
       "settlements.execute",
+
+      // Reglas de autorización (ADR-0099) — lockstep API; update solo admin
+      "approval_policies.read",
 
       // Reportes - Financieros
       "reports.read",

@@ -1,18 +1,16 @@
 import { TableCell, TableRow } from "@shared/ui/table";
 import type { ApprovableItem } from "../../domain";
 import { approvalsCopy } from "../copy/approvalsCopy";
+import type { ApprovalRowDecisionProps } from "./ApprovalRowCells";
 import { ApprovalRowTripExpense } from "./ApprovalRowTripExpense";
 import { ApprovalRowCompensation } from "./ApprovalRowCompensation";
 import { ApprovalRowAdvance } from "./ApprovalRowAdvance";
 
-export interface ApprovalRowProps {
+export interface ApprovalRowProps extends ApprovalRowDecisionProps {
   item: ApprovableItem;
   selected: boolean;
   selectable: boolean;
-  canUpdate: boolean;
   onSelectChange: (checked: boolean) => void;
-  onApprove: () => void;
-  onReject: () => void;
 }
 
 export function ApprovalRow(props: ApprovalRowProps) {

@@ -5,6 +5,10 @@ import { usersCopy } from "../copy/usersCopy";
 import { UserRound } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { useToast } from "@shared/hooks";
+import {
+  PolicyOrphanConfirmDialog,
+  usePolicyOrphanConfirmation,
+} from "@features/approval-policies";
 import { useUpdateUser, useUser } from "../../application";
 import { UserForm } from "../components";
 import { userFormToUpdateDTO, type UserFormData } from "../validation/userSchema";
@@ -17,6 +21,7 @@ export function UserEditPage() {
 
   const { data: user, isLoading } = useUser(id ?? "");
 
+  const orphanGuard = usePolicyOrphanConfirmation();
   const updateMutation = useUpdateUser({
     onSuccess: () => {
       toast({
@@ -26,7 +31,13 @@ export function UserEditPage() {
       });
       navigatePreservingFrom(navigate, `/users/${id}`, incomingFrom);
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      const retry = () =>
+        updateMutation.mutate({
+          ...variables,
+          data: { ...variables.data, confirmPolicyOrphan: true },
+        });
+      if (orphanGuard.intercept(error, retry)) return;
       toast({
         title: "Error al actualizar usuario",
         description: error.message,
@@ -70,6 +81,10 @@ export function UserEditPage() {
           isSubmitting={updateMutation.isPending}
         />
       ) : null}
+      <PolicyOrphanConfirmDialog
+        {...orphanGuard.dialog}
+        pending={updateMutation.isPending}
+      />
     </FormPageShell>
   );
 }

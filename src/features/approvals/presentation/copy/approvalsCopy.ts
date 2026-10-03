@@ -1,6 +1,74 @@
-import type { ApprovableType } from "../../domain";
+import type {
+  ApprovableType,
+  ApprovalGuardCode,
+  ApprovalReturnReasonCode,
+} from "../../domain";
+
+type ApprovableNounKey = "expense" | "advance" | "settlement";
+
+const APPROVABLE_NOUN: Record<ApprovableNounKey, { singular: string; plural: string }> = {
+  expense: { singular: "gasto", plural: "gastos" },
+  advance: { singular: "anticipo", plural: "anticipos" },
+  settlement: { singular: "liquidación", plural: "liquidaciones" },
+};
+
+function nounKey(type?: ApprovableType): ApprovableNounKey {
+  switch (type) {
+    case "driver_advance_request":
+      return "advance";
+    case "internal_staff_compensation":
+      return "settlement";
+    default:
+      return "expense";
+  }
+}
+
+/** Sustantivo del concepto en el copy de autoacción (ADR-0098 §4.4). */
+export type SelfApprovalSubject = "advance" | "settlement" | "expense";
+
+const SELF_APPROVAL_SUBJECT_NOUN: Record<SelfApprovalSubject, string> = {
+  advance: "anticipo",
+  settlement: "pago",
+  expense: "gasto",
+};
+
+export function selfApprovalSubjectForType(
+  type: ApprovableType,
+): SelfApprovalSubject {
+  switch (type) {
+    case "driver_advance_request":
+      return "advance";
+    case "internal_staff_compensation":
+      return "settlement";
+    default:
+      return "expense";
+  }
+}
 
 export const approvalsCopy = {
+  selfApproval: {
+    badge: "Autoaprobado",
+    badgeTooltip:
+      "Lo autorizó la misma persona que lo envió, porque en ese momento era el único autorizador de la empresa.",
+    confirmTitle: "¿Autorizar tu propia solicitud?",
+    confirmBody: (subject: SelfApprovalSubject) =>
+      `Tú enviaste este ${SELF_APPROVAL_SUBJECT_NOUN[subject]}. Como eres el único autorizador activo, puedes autorizarlo tú mismo. Quedará marcado como autoaprobado en el historial.`,
+    confirmAction: "Sí, autorizar",
+    cancel: "Cancelar",
+    confirmDisburseTitle: "¿Registrar el pago de tu propia solicitud?",
+    confirmDisburseBody: (subject: Exclude<SelfApprovalSubject, "expense">) =>
+      `Tú registraste este ${SELF_APPROVAL_SUBJECT_NOUN[subject]}. Como eres el único usuario que puede registrar pagos, puedes hacerlo tú mismo. Quedará marcado en el historial.`,
+    bulkWarning: (count: number) =>
+      `Incluye ${count} solicitud(es) enviadas por ti; quedarán marcadas como autoaprobadas.`,
+    ownChip: "Enviada por ti",
+    ownTooltip:
+      "Debe autorizarla otra persona. Pídeselo a un gerente, contador o administrador.",
+    ownDisburseTooltip:
+      "Debe registrar el pago otra persona. Pídeselo a un contador o administrador.",
+    serverRejected:
+      "No puedes autorizar esta solicitud: la enviaste tú y hay otro autorizador activo en la empresa.",
+    filterChip: "Autoaprobadas",
+  },
   inbox: {
     title: "Aprobaciones",
     description:
@@ -118,8 +186,6 @@ export const approvalsCopy = {
         }
       },
       cancel: "Cancelar",
-      selfApprovalNotAllowed:
-        "No puedes autorizar o rechazar una solicitud que tú mismo enviaste",
     },
     toasts: {
       approveSuccess: (type?: ApprovableType) => {
@@ -253,6 +319,232 @@ export const approvalsCopy = {
     cancel: "Cancelar",
     submit: "Rechazar",
     reasonTooShort: "La razón debe tener al menos 5 caracteres",
+    reasonTooLong: "La razón no puede pasar de 500 caracteres",
     counter: (current: number, max: number) => `${current}/${max}`,
+    terminalWarning: "No procede y no se puede reenviar.",
   },
+  /** ADR-0099 «Devolver para corregir» (handoff F6 D9). */
+  returnSheet: {
+    title: (type?: ApprovableType) =>
+      `Devolver ${APPROVABLE_NOUN[nounKey(type)].singular} para corregir`,
+    titleBulk: (count: number, type?: ApprovableType) =>
+      `Devolver ${count} ${APPROVABLE_NOUN[nounKey(type)].plural} para corregir`,
+    description:
+      "Regresa a quien la capturó; puede corregir y reenviar. Empezará de nuevo en el paso 1.",
+    reasonCodeLabel: "Motivo rápido",
+    reasonLabel: "Motivo",
+    reasonPlaceholder: "Explica qué hay que corregir…",
+    submit: "Devolver",
+    cancel: "Cancelar",
+    reasonTooShort: "El motivo debe tener al menos 5 caracteres",
+    reasonTooLong: "El motivo no puede pasar de 500 caracteres",
+    reasonCodes: {
+      missing_receipt: "Falta comprobante",
+      wrong_amount: "Monto incorrecto",
+      wrong_operator: "Operador incorrecto",
+      other: "Otro",
+    } satisfies Record<ApprovalReturnReasonCode, string>,
+  },
+  /** ADR-0099: flujo de autorización por pasos en la bandeja. */
+  flow: {
+    queue: {
+      label: "Cola de la bandeja",
+      mine: "Me toca",
+      all: "Todas",
+    },
+    stepLine: (current: number, total: number, pendingFor: string) =>
+      pendingFor
+        ? `Paso ${current} de ${total} · Falta: ${pendingFor}`
+        : `Paso ${current} de ${total}`,
+    signedLine: (name: string, role: string | null, date: string) =>
+      `Firmó ${name}${role ? ` (${role})` : ""} · ${date}`,
+    signedUnknown: "Otra persona",
+    whyHint: "¿Por qué te toca?",
+    whyTooltip: (input: {
+      minAmount: string | null;
+      condition: string | null;
+      policyVersion: number | null;
+      stepsTotal: number;
+    }) => {
+      const tier = input.minAmount ? `el tramo desde ${input.minAmount}` : "el tramo";
+      const condition = input.condition ? `, ${input.condition}` : "";
+      const rule =
+        input.policyVersion !== null
+          ? `de la regla v${input.policyVersion}`
+          : "de la regla estándar";
+      return `Entró por ${tier}${condition} ${rule}. Requiere ${input.stepsTotal} firmas.`;
+    },
+    conditions: {
+      category: "por categoría",
+      missing_cfdi: "sin CFDI",
+      manual_adjustments: "con ajustes manuales",
+    } as Record<string, string>,
+    returnedChip: "Devuelta",
+    /** Handoff F6 D15: alerta en el registro devuelto. */
+    returnedAlertTitle: "Devuelta para corregir",
+    returnedSummary: (input: {
+      reasonLabel: string | null;
+      reason: string | null;
+      by: string | null;
+      date: string | null;
+    }) => {
+      const quoted = input.reason ? `"${input.reason}"` : null;
+      const reasonPart =
+        input.reasonLabel && quoted
+          ? `${input.reasonLabel}: ${quoted}`
+          : (input.reasonLabel ?? quoted);
+      return [reasonPart, input.by, input.date].filter(Boolean).join(" · ");
+    },
+    correctAndResubmit: "Corregir y reenviar",
+    resubmitUnchanged: "Reenviar sin cambios",
+    returnedTooltip: (input: { reason: string | null; by: string | null; date: string | null }) =>
+      [input.reason ? `"${input.reason}"` : null, input.by, input.date]
+        .filter(Boolean)
+        .join(" · ") || "Devuelta para corregir.",
+    alreadySignedChip: (step: number) => `Ya firmaste el paso ${step}`,
+    alreadySignedTooltip: "El siguiente paso lo firma otra persona.",
+    waitingChip: (who: string) => (who ? `Espera a ${who}` : "Espera a otra persona"),
+    noActiveChip: "Sin autorizador activo",
+    noActiveTooltip:
+      "Nadie activo puede firmar este paso. Un administrador debe revisar las reglas de autorización.",
+    escalatedChip: "Escalada a administración",
+    escalatedTooltip:
+      "Nadie del paso estaba activo; la regla sumó a los administradores.",
+    reapprovalChip: "Reautorización",
+    reapprovalTooltip: (changes: string) =>
+      changes
+        ? `Cambió desde la autorización anterior: ${changes}`
+        : "Cambió desde la autorización anterior.",
+    pendingForJoin: " o ",
+    pendingForMore: (first: string, rest: number) => `${first} +${rest}`,
+    fieldChanged: "cambió",
+    fields: {
+      amount: "Monto",
+      net_amount: "Neto",
+      category: "Categoría",
+      currency: "Moneda",
+      payment_method: "Método de pago",
+      disbursement_method: "Método de pago",
+      trip_id: "Viaje",
+      employee_id: "Operador",
+      period_start: "Inicio del periodo",
+      period_end: "Fin del periodo",
+      items: "Partidas",
+    } as Record<string, string>,
+    menu: {
+      more: "Más acciones",
+      return: "Devolver para corregir",
+      reject: "Rechazar",
+      history: "Ver historial",
+    },
+    stepConfirmTitle: (current: number, total: number) =>
+      `¿Firmar el paso ${current} de ${total}?`,
+    stepConfirmBody: (current: number, total: number) =>
+      `Tu firma completa el paso ${current}. Faltará el paso ${total} para que quede autorizada.`,
+    stepConfirmAction: "Firmar paso",
+    stepSignedToast: (current: number, total: number, nextRole?: string | null) =>
+      `Firmaste el paso ${current}. Falta el paso ${total}${nextRole ? ` · ${nextRole}` : ""}.`,
+    returnSuccess: (type?: ApprovableType) => {
+      switch (type) {
+        case "driver_advance_request":
+          return "Anticipo devuelto para corregir";
+        case "internal_staff_compensation":
+          return "Liquidación devuelta para corregir";
+        case "trip_expense":
+        default:
+          return "Gasto devuelto para corregir";
+      }
+    },
+    returnError: "No se pudo devolver la solicitud",
+    emptyMine: {
+      title: "Nada te toca por ahora",
+      description: (count: number) =>
+        `Hay ${count} solicitudes pendientes que esperan a otra persona.`,
+      cta: "Ver todas las pendientes",
+    },
+  },
+  bulkFlow: {
+    returnSelected: "Devolver seleccionados",
+    prediction: (input: {
+      total: number;
+      approve: number;
+      advance: number;
+      nextStep: number | null;
+      nextRole?: string | null;
+    }) =>
+      input.advance > 0
+        ? `${input.total} seleccionadas: ${input.approve} quedan autorizadas y ${input.advance} pasan al paso ${input.nextStep ?? 2}${input.nextRole ? ` · ${input.nextRole}` : ""}.`
+        : null,
+    successSummary: (counts: {
+      approved: number;
+      stepSigned: number;
+      returned: number;
+      rejected: number;
+      nextStep?: number | null;
+      nextRole?: string | null;
+    }) =>
+      [
+        counts.approved > 0 ? `${counts.approved} autorizadas` : null,
+        counts.stepSigned > 0
+          ? `${counts.stepSigned} pasaron al paso ${counts.nextStep ?? 2}${counts.nextRole ? ` · ${counts.nextRole}` : ""}`
+          : null,
+        counts.returned > 0 ? `${counts.returned} devueltas para corregir` : null,
+        counts.rejected > 0 ? `${counts.rejected} rechazadas` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    resultTitle: "Resultado de la operación",
+    failuresTitle: (failed: number, total: number) =>
+      `${failed} de ${total} no se procesaron`,
+    reload: "Recargar bandeja",
+    close: "Cerrar",
+    unknownFolio: "Solicitud",
+  },
+  history: {
+    title: "Historial de autorización",
+    description: (label: string) => label,
+    open: "Ver historial",
+    empty: "Todavía no hay eventos de autorización.",
+    loadError: "No se pudo cargar el historial",
+    retry: "Reintentar",
+    close: "Cerrar",
+    step: (n: number) => `Paso ${n}`,
+    policyVersion: (n: number) => `Regla v${n}`,
+    policyStandard: "Regla estándar",
+    actorUnknown: "Sistema",
+    events: {
+      submitted: () => "Enviada",
+      step_approved: (step: number | null) =>
+        step ? `Firmó el paso ${step}` : "Firmó un paso",
+      approved: () => "Autorizada",
+      rejected: () => "Rechazada",
+      returned: () => "Devuelta para corregir",
+      resubmitted: () => "Reenviada",
+      escalated_no_eligible: () => "Escalada a administración",
+      disbursed: () => "Pago registrado",
+      edited: () => "Corrección registrada",
+      note_added: () => "Nota agregada",
+    } as Record<string, (step: number | null) => string>,
+    invalidated: {
+      material_change: "Autorización anulada por cambio",
+      subject_cancelled: "Cancelada",
+      subject_deleted: "Eliminada",
+    } as Record<string, string>,
+    invalidatedDefault: "Autorización anulada por cambio",
+    unknownEvent: "Evento de autorización",
+  },
+  /** Handoff F6 §6: avisar y recargar; nunca reintentar. */
+  guardErrors: {
+    APPROVAL_STEP_CHANGED:
+      "Otra persona firmó este paso mientras lo revisabas. Actualizamos la solicitud; revísala de nuevo.",
+    APPROVAL_REVISION_CHANGED:
+      "La solicitud cambió desde que la abriste. Revisa la versión nueva antes de decidir.",
+    APPROVAL_REQUEST_RETURNED:
+      "Esta solicitud ya se devolvió para corregir. Podrás decidir cuando la reenvíen.",
+    APPROVAL_STEP_NOT_ELIGIBLE: "La regla de autorización no te incluye en este paso.",
+    APPROVAL_STEP_ALREADY_SIGNED:
+      "Ya firmaste un paso de esta solicitud; el siguiente lo firma otra persona.",
+    APPROVAL_MATERIAL_EDIT_LOCKED:
+      "Ya se registró el pago: los datos que cambian el monto no se pueden modificar.",
+  } satisfies Record<ApprovalGuardCode, string>,
 } as const;

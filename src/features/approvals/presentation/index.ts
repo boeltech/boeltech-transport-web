@@ -1,15 +1,54 @@
-export { ApprovalInboxPage } from "./pages/ApprovalInboxPage";
-export { approvalsCopy } from "./copy/approvalsCopy";
+export { ApprovalInboxPage, type ApprovalInboxPageProps } from "./pages/ApprovalInboxPage";
+export {
+  approvalsCopy,
+  selfApprovalSubjectForType,
+  type SelfApprovalSubject,
+} from "./copy/approvalsCopy";
 export {
   APPROVALS_INBOX_PATH,
   buildApprovalsInboxPath,
   isApprovalsInboxHref,
 } from "./utils/approvalsInboxPath";
 export {
+  approvableFolio,
+  approvalActionStateLabel,
+  approvalGuardsFor,
+  commonNextStepLabel,
+  describeBulkFailureMessage,
+  formatApprovalRole,
+  formatFieldChanges,
+  formatNextStepLabel,
+  formatPendingFor,
+  formatReturnedSummary,
+  formatSignedLine,
+  formatHistoryEventLabel,
+  formatWhyTooltip,
+  guardErrorMessage,
+} from "./utils/approvalFlowFormat";
+export { deriveApprovalActionUi, isApprovableSelectable } from "./utils/approvalRowActions";
+export {
+  ApprovalActionStateChip,
+  ApprovalActionsCell,
   ApprovalFilters,
+  ApprovalFlowLines,
+  ApprovalHistorySheet,
   ApprovalInbox,
+  ApprovalQueueToggle,
   ApprovalRow,
   ApprovalRowTripExpense,
+  ApprovalStatusCell,
   BulkActionsBar,
+  BulkDecisionResultPanel,
+  DecisionReasonSheet,
+  OwnRequestChip,
+  OwnRequestMenuItem,
   RejectExpenseSheet,
+  ReturnedAlert,
+  ReturnedChip,
+  SelfApprovalConfirmDialog,
+  SelfApprovedBadge,
+  type ApprovalHistorySheetProps,
+  type DecisionReasonInput,
+  type DecisionReasonMode,
+  type DecisionReasonSheetProps,
 } from "./components";

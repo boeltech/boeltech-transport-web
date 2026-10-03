@@ -253,6 +253,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   TRIP_NOT_SCHEDULED: "Solo se puede iniciar un viaje en estado Programado.",
   V1_CARGO_PLACEHOLDER_CLIENT_MISSING:
     "No se pudo completar la mercancía del viaje. Intenta de nuevo o contacta a soporte.",
+  TRIP_ROUTE_TYPE_LOCKED_BY_SETTLEMENT:
+    "No se puede cambiar la clase de ruta: el viaje ya está en una liquidación pagada",
 
   // ── Clientes ───────────────────────────────────────────────────────────────
   CLIENT_NOT_FOUND: "Cliente no encontrado",

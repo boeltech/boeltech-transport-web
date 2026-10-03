@@ -55,6 +55,14 @@ const BillingSubscriptionPage = lazyWithRetry(() =>
   ),
 );
 
+const ApprovalPoliciesPage = lazyWithRetry(() =>
+  import("@features/approval-policies/presentation/pages/ApprovalPoliciesPage").then(
+    (m) => ({
+      default: m.ApprovalPoliciesPage,
+    }),
+  ),
+);
+
 const NotificationsSettingsPage = lazyWithRetry(() =>
   import("./pages/NotificationsSettingsPage").then((m) => ({
     default: m.NotificationsSettingsPage,
@@ -129,6 +137,7 @@ function SettingsIndexRedirect() {
  * /settings/catalogs     → Catálogos SAT e internos
  * /settings/catalogs/:typeCode → Detalle de catálogo
  * /settings/billing      → Facturación electrónica
+ * /settings/approvals  → Reglas de autorización (ADR-0099)
  * /settings/notifications → Avisos de la empresa (documentos por vencer)
  * /settings/security     → Redirect a /account/security
  * /settings/integrations → Integraciones (próximamente)
@@ -237,6 +246,20 @@ export function SettingsRoutes() {
 
         {/* SaaS subscription (también ruta top-level sin RBAC billing para paywall) */}
         <Route path="subscription" element={<BillingSubscriptionPage />} />
+
+        {/* Reglas de autorización (ADR-0099) */}
+        <Route
+          path="approvals"
+          element={
+            <PermissionGuard
+              module="approval_policies"
+              action="read"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <ApprovalPoliciesPage />
+            </PermissionGuard>
+          }
+        />
 
         {/* Notification Settings */}
         <Route

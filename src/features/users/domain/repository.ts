@@ -18,8 +18,11 @@ export interface UpdateUserDTO {
   readonly role?: UserRole;
   readonly clientId?: string | null;
   readonly employeeId?: string | null;
+  /** Reenvío tras el 409 `APPROVAL_POLICY_ORPHAN_GUARD` (ADR-0099 D12). */
+  readonly confirmPolicyOrphan?: boolean;
 }
 
 export interface UpdateUserStatusDTO {
   readonly status: UserStatusType;
+  readonly confirmPolicyOrphan?: boolean;
 }

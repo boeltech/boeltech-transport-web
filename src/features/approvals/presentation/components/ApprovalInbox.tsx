@@ -8,10 +8,14 @@ import {
 } from "@shared/ui/table";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Skeleton } from "@shared/ui/skeleton";
-import type { ApprovableItem } from "../../domain";
-import { isApprovableActionable } from "../../domain";
+import {
+  resolveApprovableActionUi,
+  resolveApprovableSelfActionUi,
+  type ApprovableItem,
+  type SelfApprovalPolicy,
+} from "../../domain";
 import { approvalsCopy } from "../copy/approvalsCopy";
-import { blocksSelfSubmittedApproval } from "../utils/approvalConfirmHelpers";
+import { isApprovableSelectable } from "../utils/approvalRowActions";
 import { ApprovalRow } from "./ApprovalRow";
 
 const copy = approvalsCopy.inbox.table;
@@ -33,31 +37,19 @@ export interface ApprovalInboxProps {
   isLoading: boolean;
   selectedIds: Set<string>;
   canUpdate: boolean;
-  /** Usuario actual — excluye self-approval del checkbox y acciones. */
+  /** Usuario actual — detecta solicitudes propias y pasos ya firmados. */
   currentUserId?: string | null;
-  /**
-   * Conteos live de autorizadores (settlements settings). Permite D3′ en
-   * `internal_staff_compensation` cuando === 1.
-   */
-  activeApproverCount?: number | null;
+  /** Capacidades de autoacción del API (ADR-0098); sin cargar = fail-closed. */
+  selfApprovalPolicy?: SelfApprovalPolicy | null;
   onToggleItem: (item: ApprovableItem, checked: boolean) => void;
   onToggleAll: (checked: boolean) => void;
   onApprove: (item: ApprovableItem) => void;
   onReject: (item: ApprovableItem) => void;
+  /** ADR-0099 «Devolver para corregir». */
+  onReturn?: (item: ApprovableItem) => void;
+  /** ADR-0099 «Ver historial». */
+  onHistory?: (item: ApprovableItem) => void;
   maxSelection?: number;
-}
-
-function canActOnItem(
-  item: ApprovableItem,
-  canUpdate: boolean,
-  currentUserId?: string | null,
-  activeApproverCount?: number | null,
-): boolean {
-  return (
-    canUpdate &&
-    isApprovableActionable(item) &&
-    !blocksSelfSubmittedApproval(item, currentUserId, { activeApproverCount })
-  );
 }
 
 export function ApprovalInbox({
@@ -66,16 +58,18 @@ export function ApprovalInbox({
   selectedIds,
   canUpdate,
   currentUserId,
-  activeApproverCount,
+  selfApprovalPolicy,
   onToggleItem,
   onToggleAll,
   onApprove,
   onReject,
+  onReturn,
+  onHistory,
   maxSelection = 50,
 }: ApprovalInboxProps) {
-  const selectableItems = items.filter((item) =>
-    canActOnItem(item, canUpdate, currentUserId, activeApproverCount),
-  );
+  const canSelectItem = (item: ApprovableItem) =>
+    isApprovableSelectable(item, canUpdate, currentUserId, selfApprovalPolicy);
+  const selectableItems = items.filter(canSelectItem);
   const allSelected =
     selectableItems.length > 0 &&
     selectableItems.every((item) => selectedIds.has(item.id));
@@ -132,14 +126,19 @@ export function ApprovalInbox({
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const actionable = canActOnItem(
+            const selfActionUi = resolveApprovableSelfActionUi(
               item,
-              canUpdate,
               currentUserId,
-              activeApproverCount,
+              selfApprovalPolicy,
+            );
+            const actionUi = resolveApprovableActionUi(
+              item,
+              currentUserId,
+              selfApprovalPolicy,
+              canUpdate,
             );
             const selectable =
-              actionable &&
+              canSelectItem(item) &&
               (selectedIds.has(item.id) || selectedIds.size < maxSelection);
 
             return (
@@ -148,10 +147,14 @@ export function ApprovalInbox({
                 item={item}
                 selected={selectedIds.has(item.id)}
                 selectable={selectable}
-                canUpdate={actionable}
+                canUpdate={canUpdate}
+                selfActionUi={selfActionUi}
+                actionUi={actionUi}
                 onSelectChange={(checked) => onToggleItem(item, checked)}
                 onApprove={() => onApprove(item)}
                 onReject={() => onReject(item)}
+                onReturn={onReturn ? () => onReturn(item) : undefined}
+                onHistory={onHistory ? () => onHistory(item) : undefined}
               />
             );
           })}

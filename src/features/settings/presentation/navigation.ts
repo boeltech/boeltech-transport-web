@@ -14,6 +14,7 @@ import {
   MapPin,
   CreditCard,
   FileUp,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { SettingsSection, type SettingsSectionValue } from "../domain";
@@ -88,6 +89,15 @@ export const settingsNavItems: SettingsNavItem[] = [
     path: "/settings/locations",
     icon: MapPin,
     permission: { module: "settings", action: "update" },
+  },
+  {
+    id: SettingsSection.APPROVALS,
+    label: "Reglas de autorización",
+    description:
+      "Quién autoriza anticipos, gastos, liquidaciones y dispersión",
+    path: "/settings/approvals",
+    icon: ShieldCheck,
+    permission: { module: "approval_policies", action: "read" },
   },
   {
     id: SettingsSection.NOTIFICATIONS,

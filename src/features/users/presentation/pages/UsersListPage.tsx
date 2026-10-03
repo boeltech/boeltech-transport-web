@@ -13,6 +13,10 @@ import { ROLE_LABELS, type UserRole } from "@shared/constants/roles";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
+import {
+  PolicyOrphanConfirmDialog,
+  usePolicyOrphanConfirmation,
+} from "@features/approval-policies";
 import type { ActiveFilterChip } from "@shared/ui/listing";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
@@ -122,6 +126,7 @@ export function UsersListPage() {
   const capacity = capacityFromUserListMeta(data?.meta);
   const userLimitReached = !capacity.canAdd;
 
+  const orphanGuard = usePolicyOrphanConfirmation();
   const updateStatusMutation = useUpdateUserStatus({
     onSuccess: () => {
       toast({
@@ -130,7 +135,13 @@ export function UsersListPage() {
       });
       void refetch();
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      const retry = () =>
+        updateStatusMutation.mutate({
+          ...variables,
+          data: { ...variables.data, confirmPolicyOrphan: true },
+        });
+      if (orphanGuard.intercept(error, retry)) return;
       toast({
         title: usersCopy.status.updateError,
         description: error.message,
@@ -354,6 +365,10 @@ export function UsersListPage() {
             queryKey: invitationsPendingQueryKey,
           });
         }}
+      />
+      <PolicyOrphanConfirmDialog
+        {...orphanGuard.dialog}
+        pending={updateStatusMutation.isPending}
       />
     </>
   );

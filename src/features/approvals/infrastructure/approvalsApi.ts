@@ -1,17 +1,28 @@
 import { apiClient } from "@shared/api";
 import type { ApiSingleResponse } from "@shared/api";
-import type {
-  ApprovableItem,
-  ApprovableType,
-  BulkOperation,
-  ListApprovalsFilters,
+import {
+  queueListFilters,
+  type ApprovableItem,
+  type ApprovableType,
+  type ApprovalGuards,
+  type ApprovalQueue,
+  type BulkOperation,
+  type ListApprovalsFilters,
+  type ReturnApprovableInput,
+  type SelfApprovalPolicy,
 } from "../domain";
 import {
+  mapApprovalDecisionResponse,
+  mapApprovalHistory,
   mapBulkResultResponse,
   mapListApprovalsResponse,
-  mapSingleApprovableResponse,
+  mapSelfApprovalPolicy,
+  type ApiApprovalDecisionRaw,
+  type ApiApprovalHistoryEntryRaw,
   type ApiApprovableItemRaw,
+  type ApiBulkResultRaw,
   type ApiListApprovalsPaginationRaw,
+  type ApiSelfApprovalPolicyRaw,
 } from "./mappers";
 
 const APPROVALS_ENDPOINT = "/finance/approvals";
@@ -31,8 +42,28 @@ function buildListParams(filters: ListApprovalsFilters): Record<string, string> 
   if (filters.fromDate) params.from_date = filters.fromDate;
   if (filters.toDate) params.to_date = filters.toDate;
   if (filters.search) params.search = filters.search;
+  if (filters.selfApproved !== undefined) {
+    params.self_approved = String(filters.selfApproved);
+  }
+  if (filters.assignedToMe) params.assigned_to_me = "true";
+  if (filters.includeReturned) params.include_returned = "true";
 
   return params;
+}
+
+/** Solo las guardas presentes; el cliente HTTP convierte a snake_case. */
+function guardsBody(guards: ApprovalGuards | undefined): ApprovalGuards {
+  const body: ApprovalGuards = {};
+  if (guards?.expectedStep !== undefined) body.expectedStep = guards.expectedStep;
+  if (guards?.expectedRevision) body.expectedRevision = guards.expectedRevision;
+  return body;
+}
+
+export interface PendingCountsByType {
+  trip_expense: number;
+  driver_advance_request: number;
+  internal_staff_compensation: number;
+  total: number;
 }
 
 export const approvalsApi = {
@@ -45,35 +76,49 @@ export const approvalsApi = {
     return mapListApprovalsResponse(response);
   },
 
-  approve: async (type: ApprovableType, id: string) => {
-    const response = await apiClient.post<ApiSingleResponse<ApiApprovableItemRaw>>(
+  approve: async (type: ApprovableType, id: string, guards?: ApprovalGuards) => {
+    const response = await apiClient.post<ApiSingleResponse<ApiApprovalDecisionRaw>>(
       `${APPROVALS_ENDPOINT}/${type}/${id}/approve`,
+      guardsBody(guards),
     );
-    return mapSingleApprovableResponse(response);
+    return mapApprovalDecisionResponse(response);
   },
 
-  reject: async (type: ApprovableType, id: string, reason: string) => {
-    const response = await apiClient.post<ApiSingleResponse<ApiApprovableItemRaw>>(
+  reject: async (
+    type: ApprovableType,
+    id: string,
+    reason: string,
+    guards?: ApprovalGuards,
+  ) => {
+    const response = await apiClient.post<ApiSingleResponse<ApiApprovalDecisionRaw>>(
       `${APPROVALS_ENDPOINT}/${type}/${id}/reject`,
-      { reason },
+      { reason, ...guardsBody(guards) },
     );
-    return mapSingleApprovableResponse(response);
+    return mapApprovalDecisionResponse(response);
+  },
+
+  returnForCorrection: async (
+    type: ApprovableType,
+    id: string,
+    input: ReturnApprovableInput,
+  ) => {
+    const response = await apiClient.post<ApiSingleResponse<ApiApprovalDecisionRaw>>(
+      `${APPROVALS_ENDPOINT}/${type}/${id}/return`,
+      { reason: input.reason, reasonCode: input.reasonCode, ...guardsBody(input) },
+    );
+    return mapApprovalDecisionResponse(response);
+  },
+
+  history: async (type: ApprovableType, id: string) => {
+    const response = await apiClient.get<{ data: ApiApprovalHistoryEntryRaw[] }>(
+      `${APPROVALS_ENDPOINT}/${type}/${id}/history`,
+    );
+    return mapApprovalHistory(response.data ?? []);
   },
 
   bulk: async (operations: BulkOperation[]) => {
     const response = await apiClient.post<{
-      data: {
-        successes: Array<{
-          type: string;
-          id: string;
-          item: ApiApprovableItemRaw;
-        }>;
-        failures: Array<{
-          type: string;
-          id: string;
-          error: { code: string; message: string };
-        }>;
-      };
+      data: ApiBulkResultRaw;
       message: string;
     }>(`${APPROVALS_ENDPOINT}/bulk`, { operations });
 
@@ -83,31 +128,40 @@ export const approvalsApi = {
     };
   },
 
-  getPendingCount: async (type?: ApprovableType): Promise<number> => {
+  getSelfApprovalPolicy: async (): Promise<SelfApprovalPolicy> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiSelfApprovalPolicyRaw>
+    >(`${APPROVALS_ENDPOINT}/self-approval-policy`);
+    return mapSelfApprovalPolicy(response.data);
+  },
+
+  /** CEO-3: sin cola explícita cuenta «Me toca». */
+  getPendingCount: async (
+    type?: ApprovableType,
+    queue: ApprovalQueue = "mine",
+  ): Promise<number> => {
     if (!type) {
-      const allCounts = await approvalsApi.getAllPendingCounts();
+      const allCounts = await approvalsApi.getAllPendingCounts(queue);
       return allCounts.total;
     }
 
     const result = await approvalsApi.list({
       type,
       status: "pending",
+      ...queueListFilters(queue),
       page: 1,
       pageSize: 1,
     });
     return result.pagination.total;
   },
 
-  getAllPendingCounts: async (): Promise<{
-    trip_expense: number;
-    driver_advance_request: number;
-    internal_staff_compensation: number;
-    total: number;
-  }> => {
+  getAllPendingCounts: async (
+    queue: ApprovalQueue = "mine",
+  ): Promise<PendingCountsByType> => {
     const [expenses, advances, settlements] = await Promise.all([
-      approvalsApi.getPendingCount("trip_expense").catch(() => 0),
-      approvalsApi.getPendingCount("driver_advance_request").catch(() => 0),
-      approvalsApi.getPendingCount("internal_staff_compensation").catch(() => 0),
+      approvalsApi.getPendingCount("trip_expense", queue).catch(() => 0),
+      approvalsApi.getPendingCount("driver_advance_request", queue).catch(() => 0),
+      approvalsApi.getPendingCount("internal_staff_compensation", queue).catch(() => 0),
     ]);
 
     return {

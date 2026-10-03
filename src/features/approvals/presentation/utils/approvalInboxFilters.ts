@@ -46,7 +46,8 @@ export function resolveDriverFilterLabel(
       return item.context.driverFullName;
     }
     if (
-      item.context.approvableType === "driver_advance_request" &&
+      (item.context.approvableType === "driver_advance_request" ||
+        item.context.approvableType === "internal_staff_compensation") &&
       item.context.employeeId === driverId &&
       item.context.employeeFullName
     ) {
@@ -79,11 +80,12 @@ export function hasApprovalUserFilters(input: {
   category: string;
   fromDate: string;
   toDate: string;
+  selfApproved?: boolean;
   context: ApprovalContextFilterParams;
 }): boolean {
   const { search, status, category, fromDate, toDate, context } = input;
   if (search.trim()) return true;
-  if (category || fromDate || toDate) return true;
+  if (category || fromDate || toDate || input.selfApproved) return true;
   if (context.tripId || context.driverId || context.vehicleId) return true;
   if (status === APPROVAL_STATUS_ALL) return true;
   if (status && status !== "pending") return true;
@@ -97,6 +99,7 @@ export function countApprovalPanelFilters(input: {
   fromDate: string;
   toDate: string;
   showCategory: boolean;
+  selfApproved?: boolean;
 }): number {
   let count = 0;
   if (input.status === APPROVAL_STATUS_ALL || (input.status && input.status !== "pending")) {
@@ -104,6 +107,7 @@ export function countApprovalPanelFilters(input: {
   }
   if (input.showCategory && input.category) count += 1;
   if (input.fromDate || input.toDate) count += 1;
+  if (input.selfApproved) count += 1;
   return count;
 }
 

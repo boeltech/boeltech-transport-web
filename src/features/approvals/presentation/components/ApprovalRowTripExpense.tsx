@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import { Check, X, FileCheck, Receipt as ReceiptIcon, FileText } from "lucide-react";
+import { FileCheck, Receipt as ReceiptIcon, FileText } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { TableCell, TableRow } from "@shared/ui/table";
 import {
@@ -13,30 +12,29 @@ import {
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { ApprovableItem } from "../../domain";
-import { isApprovableActionable } from "../../domain";
 import { approvalTypeConfig } from "../config/approvalTypeConfig";
 import { approvalsCopy } from "../copy/approvalsCopy";
+import {
+  ApprovalActionsCell,
+  ApprovalStatusCell,
+  type ApprovalRowDecisionProps,
+} from "./ApprovalRowCells";
 
 const copy = approvalsCopy.inbox;
 
-export interface ApprovalRowTripExpenseProps {
+export interface ApprovalRowTripExpenseProps extends ApprovalRowDecisionProps {
   item: ApprovableItem;
   selected: boolean;
   selectable: boolean;
-  canUpdate: boolean;
   onSelectChange: (checked: boolean) => void;
-  onApprove: () => void;
-  onReject: () => void;
 }
 
 export function ApprovalRowTripExpense({
   item,
   selected,
   selectable,
-  canUpdate,
   onSelectChange,
-  onApprove,
-  onReject,
+  ...decision
 }: ApprovalRowTripExpenseProps) {
   const location = useLocation();
   /** Devuelve a la bandeja con los filtros con los que se abrió el viaje. */
@@ -54,7 +52,6 @@ export function ApprovalRowTripExpense({
     item.category;
   const statusLabel =
     EXPENSE_STATUS_LABELS[item.status as ExpenseStatusType] ?? item.status;
-  const actionable = canUpdate && isApprovableActionable(item);
 
   // Micro-señal de soporte documental (D3)
   const isCfdi = ctx.hasInvoice || ctx.receiptType === "cfdi";
@@ -127,35 +124,8 @@ export function ApprovalRowTripExpense({
         {formatMxCurrency(item.amount)}
       </TableCell>
       <TableCell>{formatDate(ctx.occurredAt)}</TableCell>
-      <TableCell>
-        <Badge variant="secondary">{statusLabel}</Badge>
-      </TableCell>
-      <TableCell className="text-right">
-        {actionable ? (
-          <div className="flex justify-end gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onApprove}
-              aria-label={copy.actions.approve}
-              title={copy.actions.approve}
-            >
-              <Check className="h-4 w-4 text-success" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onReject}
-              aria-label={copy.actions.reject}
-              title={copy.actions.reject}
-            >
-              <X className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
-        ) : null}
-      </TableCell>
+      <ApprovalStatusCell statusLabel={statusLabel} item={item} />
+      <ApprovalActionsCell item={item} {...decision} />
     </TableRow>
   );
 }

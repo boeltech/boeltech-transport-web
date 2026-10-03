@@ -3,6 +3,7 @@ import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
+import { Checkbox } from "@shared/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
@@ -41,6 +42,9 @@ export interface ApprovalFiltersProps {
   onCategoryChange: (value: string) => void;
   onApplyDateRange: (fromDate: string, toDate: string) => void;
   onClearDateRange: () => void;
+  /** ADR-0098 UX5: solo registros autoaprobados (`self_approved=true`). */
+  selfApproved?: boolean;
+  onSelfApprovedChange?: (value: boolean) => void;
 }
 
 /**
@@ -58,6 +62,8 @@ export function ApprovalFilters({
   onCategoryChange,
   onApplyDateRange,
   onClearDateRange,
+  selfApproved = false,
+  onSelfApprovedChange,
 }: ApprovalFiltersProps) {
   const [userCollapsedWhileActive, setUserCollapsedWhileActive] = useState(false);
   const [userExpandedWhileIdle, setUserExpandedWhileIdle] = useState(false);
@@ -176,6 +182,21 @@ export function ApprovalFilters({
                 triggerClassName="w-full"
               />
             </div>
+
+            {onSelfApprovedChange ? (
+              <div className="flex items-center gap-2 self-end pb-2">
+                <Checkbox
+                  id="approvals-filter-self-approved"
+                  checked={selfApproved}
+                  onCheckedChange={(checked) =>
+                    onSelfApprovedChange(checked === true)
+                  }
+                />
+                <Label htmlFor="approvals-filter-self-approved">
+                  {approvalsCopy.selfApproval.filterChip}
+                </Label>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </CollapsibleContent>

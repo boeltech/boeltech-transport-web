@@ -147,7 +147,10 @@ export const usersApi = {
   ): Promise<MappedSingleResult<User>> => {
     const response = await apiClient.patch<ApiSingleResponse<ApiUserResponse>>(
       `${USERS_ENDPOINT}/${id}/status`,
-      data,
+      {
+        status: data.status,
+        ...(data.confirmPolicyOrphan === true ? { confirm_policy_orphan: true } : {}),
+      },
     );
     return mapSingleUser(response);
   },

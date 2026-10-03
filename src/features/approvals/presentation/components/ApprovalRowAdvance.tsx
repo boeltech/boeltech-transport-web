@@ -1,40 +1,35 @@
 import { Link, useLocation } from "react-router-dom";
-import { Check, X, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { TableCell, TableRow } from "@shared/ui/table";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { ApprovableItem } from "../../domain";
-import {
-  APPROVAL_STATUS_LABELS,
-  isApprovableActionable,
-  type ApprovalStatus,
-} from "../../domain";
+import { APPROVAL_STATUS_LABELS, type ApprovalStatus } from "../../domain";
 import { approvalTypeConfig } from "../config/approvalTypeConfig";
 import { approvalsCopy } from "../copy/approvalsCopy";
+import {
+  ApprovalActionsCell,
+  ApprovalStatusCell,
+  type ApprovalRowDecisionProps,
+} from "./ApprovalRowCells";
 
 const copy = approvalsCopy.inbox;
 
-export interface ApprovalRowAdvanceProps {
+export interface ApprovalRowAdvanceProps extends ApprovalRowDecisionProps {
   item: ApprovableItem;
   selected: boolean;
   selectable: boolean;
-  canUpdate: boolean;
   onSelectChange: (checked: boolean) => void;
-  onApprove: () => void;
-  onReject: () => void;
 }
 
 export function ApprovalRowAdvance({
   item,
   selected,
   selectable,
-  canUpdate,
   onSelectChange,
-  onApprove,
-  onReject,
+  ...decision
 }: ApprovalRowAdvanceProps) {
   const location = useLocation();
   const inboxHref = `${location.pathname}${location.search}`;
@@ -48,7 +43,6 @@ export function ApprovalRowAdvance({
   const TypeIcon = typeConfig.icon;
   const statusLabel =
     APPROVAL_STATUS_LABELS[item.status as ApprovalStatus] ?? item.status;
-  const actionable = canUpdate && isApprovableActionable(item);
 
   const openBalance = ctx.openAdvancesBalance;
   const hasOpenDebt = typeof openBalance === "number" && openBalance > 0;
@@ -133,35 +127,8 @@ export function ApprovalRowAdvance({
         {formatMxCurrency(item.amount)}
       </TableCell>
       <TableCell>{formatDate(item.submittedAt)}</TableCell>
-      <TableCell>
-        <Badge variant="secondary">{statusLabel}</Badge>
-      </TableCell>
-      <TableCell className="text-right">
-        {actionable ? (
-          <div className="flex justify-end gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onApprove}
-              aria-label={copy.actions.approve}
-              title={copy.actions.approve}
-            >
-              <Check className="h-4 w-4 text-success" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onReject}
-              aria-label={copy.actions.reject}
-              title={copy.actions.reject}
-            >
-              <X className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
-        ) : null}
-      </TableCell>
+      <ApprovalStatusCell statusLabel={statusLabel} item={item} />
+      <ApprovalActionsCell item={item} {...decision} />
     </TableRow>
   );
 }

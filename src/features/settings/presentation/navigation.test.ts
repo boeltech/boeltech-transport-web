@@ -39,6 +39,11 @@ const EXPECTED_NAV_ORDER = [
     label: "Bodegas",
   },
   {
+    id: SettingsSection.APPROVALS,
+    path: "/settings/approvals",
+    label: "Reglas de autorización",
+  },
+  {
     id: SettingsSection.NOTIFICATIONS,
     path: "/settings/notifications",
     label: "Avisos de la empresa",

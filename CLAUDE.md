@@ -12,6 +12,7 @@ npm run test       # Vitest (max 2 workers en local)
 npm run test:serial # Vitest 1 worker — máquinas 8 GB
 npm run test:watch # cerrar al terminar (proceso persistente)
 npm run test:smoke:approvals   # smoke WS-F bandeja + badge dashboard
+npm run test:smoke:approval-policies # smoke ADR-0099 reglas de autorización (plantillas, 422/409/403, simulador, historial, permisos, guardia de huérfanos)
 npm run test:smoke:notifications # smoke inbox campana + /notifications
 npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbrar
 npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
@@ -42,6 +43,8 @@ npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
 
 **Liquidaciones y compensación a operadores (ADR-0085 / ADR-0086 / ADR-0087 + greenfield-base F8–F16):** hub **Pagos a operadores** siempre (`/finance/settlements`, tabs + sidebar); umbral VoBo default **0** (todo corte exige autorización hasta que el tenant lo suba); 7 categorías de anticipo; cálculo reactivo (`/finance/settlements/new`); detalle inmutable con balance strip y evidencia D3′; maker-checker; recibo de firma. Smoke `npm run test:smoke:settlements`. Guía: `D:\cowork\boeltech\erp-transport\docs\finanzas\liquidaciones-operadores-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\adr\0086-esquemas-compuestos-compensacion-operadores.md` · gobernanza: `D:\cowork\boeltech\erp-transport\design\adr\0087-gobernanza-tarifas-compensacion-operadores.md` · addendum base: `…/design/adr/0085-addendum-greenfield-como-base.md`.
 
+**Reglas de autorización por tenant (ADR-0099):** `@features/approval-policies` en **`/settings/approvals`** («Reglas de autorización»: tarjetas por concepto, plantillas Un autorizador / Por monto / Doble firma, tramos y pasos, simulador, historial de versiones, restablecer estándar; solo lectura si `edit_enabled: false`). Bandeja con **«Me toca» / «Todas»**, chips de paso («Paso x de y · Falta: …»), Devolver para corregir (`DecisionReasonSheet`), historial (`ApprovalHistorySheet`) y guardas 409 de paso/revisión; alerta «Devuelta para corregir» + «Corregir y reenviar» en gastos de viaje (Costos), anticipos y liquidaciones; umbral VoBo gestionado desde la regla. Smoke `npm run test:smoke:approval-policies`. Guías: `D:\cowork\boeltech\erp-transport\docs\finanzas\reglas-autorizacion-usuario.md` · `…\docs\finanzas\aprobaciones-centralizadas-usuario.md` · `…\docs\viajes\gastos-viaje-aprobacion-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\adr\0099-motor-politicas-aprobacion-por-tenant.md` · SDD `design/sdd/approval-policies/`.
+
 **Crédito L0 (ADR-0049):** semáforo en detalle cliente + wizard Costos (`GET /clients/:id/credit-summary`) · sin bloqueo. Guía usuario: `D:\cowork\boeltech\erp-transport\docs\finanzas\credito-disponible-semaforo-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\sdd\credit-exposure\sdd.md`.
 
 **Plataforma (ADR-0062):** consola en `/platform/*` (panel, empresas, catálogos globales, **auditoría** `/platform/audit`) · login `/platform/login` · API `POST /api/v1/platform/auth/login` · requiere backend Fase 3+ y migr. **106** (`platform_owner` en enum) + `npm run seed:platform-owner` en API. **Activación admin al alta (ADR-0073):** email activate + gate login; UI card/resend/rotate + `/activate-tenant`; smoke `npm run test:smoke:platform-tenant-activate`; guía `docs/plataforma/panel-tenant0-usuario.md` §3.2/3.3.
@@ -68,6 +71,8 @@ npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
 
 Guía usuario plataforma: `D:\cowork\boeltech\erp-transport\docs\plataforma\panel-tenant0-usuario.md`  
 Guía usuario aprobaciones: `D:\cowork\boeltech\erp-transport\docs\finanzas\aprobaciones-centralizadas-usuario.md`  
+Guía usuario reglas de autorización: `D:\cowork\boeltech\erp-transport\docs\finanzas\reglas-autorizacion-usuario.md`  
+Guía usuario gastos de viaje (devolución y corrección): `D:\cowork\boeltech\erp-transport\docs\viajes\gastos-viaje-aprobacion-usuario.md`  
 Guía usuario corrección fiscal: `D:\cowork\boeltech\erp-transport\docs\viajes\corregir-datos-fiscales-viaje-usuario.md`
 
 Env: `env/.env.example` · config: `src/shared/config/env.ts` · API: **`VITE_API_URL`** (default `http://localhost:3000/api/v1`). Dev RAM: `VITE_DISABLE_DEV_POLLING` · runbook `docs/ci-build/dev-memory-runbook.md`. **Sentry:** `D:\cowork\boeltech\erp-transport\docs\operacion\sentry-integracion.md` · vars `VITE_SENTRY_DSN`, `VITE_ENVIRONMENT`, `VITE_GIT_SHA`.

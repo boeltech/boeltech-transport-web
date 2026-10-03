@@ -52,7 +52,28 @@ describe("usePendingApprovalsCount", () => {
     });
 
     expect(result.current.data).toBe(2);
-    expect(approvalsApi.getAllPendingCounts).toHaveBeenCalled();
+    expect(approvalsApi.getAllPendingCounts).toHaveBeenCalledWith("mine");
+  });
+
+  it("counts every pending item when queue is all", async () => {
+    vi.spyOn(approvalsApi, "getAllPendingCounts").mockResolvedValue({
+      trip_expense: 3,
+      driver_advance_request: 0,
+      internal_staff_compensation: 1,
+      total: 4,
+    });
+
+    const { result } = renderHook(
+      () => usePendingApprovalsCount(undefined, { queue: "all" }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(result.current.data).toBe(4);
+    expect(approvalsApi.getAllPendingCounts).toHaveBeenCalledWith("all");
   });
 
   it("fetches specific type count when type is provided", async () => {
@@ -81,6 +102,7 @@ describe("usePendingApprovalsCount", () => {
     expect(approvalsApi.list).toHaveBeenCalledWith({
       type: "driver_advance_request",
       status: "pending",
+      assignedToMe: true,
       page: 1,
       pageSize: 1,
     });

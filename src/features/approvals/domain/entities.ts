@@ -85,6 +85,108 @@ export type ApprovableContext =
   | VehicleDocRenewalContext
   | OverheadExpenseContext;
 
+/** ADR-0099: `not_started` = pendiente sin instancia escrita (se decide con la regla vigente). */
+export type ApprovalFlowStatus =
+  | "not_started"
+  | "in_progress"
+  | "approved"
+  | "rejected"
+  | "returned"
+  | "superseded"
+  | "cancelled";
+
+export type ApprovalCannotActReason =
+  | "no_permission"
+  | "not_eligible"
+  | "already_signed"
+  | "self_action"
+  | "no_active_eligible"
+  | "returned"
+  | "closed";
+
+export type ApprovalReturnReasonCode =
+  | "missing_receipt"
+  | "wrong_amount"
+  | "wrong_operator"
+  | "other";
+
+export const APPROVAL_RETURN_REASON_CODES: readonly ApprovalReturnReasonCode[] = [
+  "missing_receipt",
+  "wrong_amount",
+  "wrong_operator",
+  "other",
+];
+
+export interface ApprovalBlockUser {
+  userId: string;
+  fullName: string | null;
+}
+
+export interface ApprovalSignedStep {
+  stepNo: number;
+  userId: string | null;
+  fullName: string | null;
+  role: string | null;
+  decidedAt: string | null;
+}
+
+/** Campo material que cambió (evento `invalidated` / reautorización). */
+export interface ApprovalFieldChange {
+  field: string;
+  from: unknown;
+  to: unknown;
+}
+
+/** ADR-0099 §3.9: estado del flujo visto por el usuario que consulta. */
+export interface ApprovalBlock {
+  flowStatus: ApprovalFlowStatus;
+  /** `null` si el flujo ya no espera firma. */
+  stepCurrent: number | null;
+  stepsTotal: number;
+  pendingFor: { roles: string[]; users: ApprovalBlockUser[] };
+  /**
+   * Paso siguiente al actual. `undefined` = el API no lo informa (fallback al
+   * copy sin rol); `null` = no hay paso siguiente.
+   */
+  nextStep?: { stepNo: number; roles: string[]; users: ApprovalBlockUser[] } | null;
+  signedSteps: ApprovalSignedStep[];
+  routedBy: {
+    tierIndex: number | null;
+    minAmount: number | null;
+    matchedConditions: string[];
+    /** `null` = regla estándar (tenant sin política propia). */
+    policyVersion: number | null;
+    lazy: boolean;
+  };
+  canAct: boolean;
+  cannotActReason: ApprovalCannotActReason | null;
+  escalated: boolean;
+  reapproval: {
+    invalidatedAt: string | null;
+    previousInstanceId: string | null;
+    changes: ApprovalFieldChange[];
+  } | null;
+  returned: {
+    reason: string | null;
+    reasonCode: string | null;
+    returnedBy: string | null;
+    returnedByName: string | null;
+    returnedAt: string | null;
+  } | null;
+}
+
+export type ApprovalDecisionOutcome =
+  | "approved"
+  | "rejected"
+  | "step_signed"
+  | "returned";
+
+/** Guardas de concurrencia (handoff F6 §6); nunca se reintenta solo. */
+export interface ApprovalGuards {
+  expectedStep?: number;
+  expectedRevision?: string;
+}
+
 export interface ApprovableItem {
   approvableType: ApprovableType;
   id: string;
@@ -98,8 +200,20 @@ export interface ApprovableItem {
   approvedBy: string | null;
   rejectedAt: string | null;
   rejectionReason: string | null;
+  /** ADR-0098: autorizado por quien lo envió (único autorizador activo). */
+  selfApproved?: boolean;
   context: ApprovableContext;
+  /** ADR-0099: versión material que se reenvía como `expected_revision`. */
+  approvalRevision?: string | null;
+  /**
+   * ADR-0099: bloque del flujo. `undefined` = la respuesta no lo trae;
+   * `null` = decidido antes del motor (comportamiento previo).
+   */
+  approval?: ApprovalBlock | null;
 }
+
+/** Cola de la bandeja: «Me toca» (`assigned_to_me`) o «Todas» (`include_returned`). */
+export type ApprovalQueue = "mine" | "all";
 
 export interface ListApprovalsFilters {
   type: ApprovableType;
@@ -111,6 +225,11 @@ export interface ListApprovalsFilters {
   fromDate?: string;
   toDate?: string;
   search?: string;
+  selfApproved?: boolean;
+  /** ADR-0099 «Me toca». */
+  assignedToMe?: boolean;
+  /** ADR-0099: suma los devueltos para corregir a los pendientes. */
+  includeReturned?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -120,17 +239,21 @@ export interface PaginatedApprovals {
   pagination: Pagination;
 }
 
-export interface BulkOperation {
+export type BulkAction = "approve" | "reject" | "return";
+
+export interface BulkOperation extends ApprovalGuards {
   type: ApprovableType;
   id: string;
-  action: "approve" | "reject";
+  action: BulkAction;
   reason?: string;
+  reasonCode?: ApprovalReturnReasonCode;
 }
 
 export interface BulkSuccess {
   type: ApprovableType;
   id: string;
   item: ApprovableItem;
+  outcome?: ApprovalDecisionOutcome;
 }
 
 export interface BulkFailure {
@@ -139,7 +262,36 @@ export interface BulkFailure {
   error: {
     code: string;
     message: string;
+    details?: unknown;
   };
+}
+
+export interface ApprovalDecisionResult {
+  data: ApprovableItem;
+  /** `null` si el API no reporta el resultado (respuesta previa a ADR-0099). */
+  outcome: ApprovalDecisionOutcome | null;
+  message?: string;
+}
+
+export interface ReturnApprovableInput extends ApprovalGuards {
+  reason: string;
+  reasonCode: ApprovalReturnReasonCode;
+}
+
+export interface ApprovalHistoryEntry {
+  id: string;
+  instanceId: string | null;
+  stepNo: number | null;
+  eventType: string;
+  actorId: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  reason: string | null;
+  reasonCode: string | null;
+  changes: ApprovalFieldChange[];
+  policyVersionId: string | null;
+  policyVersion: number | null;
+  createdAt: string;
 }
 
 export interface BulkResult {
@@ -152,6 +304,6 @@ export const APPROVABLE_ACTIONABLE_STATUSES: readonly ApprovalStatus[] = [
   "documented",
 ];
 
-export function isApprovableActionable(item: ApprovableItem): boolean {
+export function isApprovableActionable(item: Pick<ApprovableItem, "status">): boolean {
   return APPROVABLE_ACTIONABLE_STATUSES.includes(item.status);
 }

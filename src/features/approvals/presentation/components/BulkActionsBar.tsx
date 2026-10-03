@@ -9,6 +9,8 @@ interface BulkActionsBarProps {
   canUpdate: boolean;
   onApproveSelected: () => void;
   onRejectSelected: () => void;
+  /** ADR-0099: devolver en masa con el mismo motivo. */
+  onReturnSelected?: () => void;
   onClearSelection: () => void;
 }
 
@@ -18,6 +20,7 @@ export function BulkActionsBar({
   canUpdate,
   onApproveSelected,
   onRejectSelected,
+  onReturnSelected,
   onClearSelection,
 }: BulkActionsBarProps) {
   if (!canUpdate || selectedCount === 0) {
@@ -39,6 +42,11 @@ export function BulkActionsBar({
         <Button type="button" variant="secondary" size="sm" onClick={onApproveSelected}>
           {copy.approve}
         </Button>
+        {onReturnSelected ? (
+          <Button type="button" variant="outline" size="sm" onClick={onReturnSelected}>
+            {approvalsCopy.bulkFlow.returnSelected}
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="destructive"
