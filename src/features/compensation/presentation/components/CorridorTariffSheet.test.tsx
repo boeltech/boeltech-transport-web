@@ -194,7 +194,7 @@ describe("CorridorTariffSheet", () => {
 
     expect(
       screen.getByText(
-        "Si la desactivas, esta ruta no se aplicará en liquidaciones futuras. Puedes reactivarla después.",
+        "Si la desactivas, esta ruta no se aplicará en pagos futuros. Puedes reactivarla después.",
       ),
     ).toBeInTheDocument();
   });

@@ -30,6 +30,8 @@ export const settlementsQueryKeys = {
   // Preview
   preview: (params: PreviewSettlementQueryParams) =>
     [...settlementsQueryKeys.all, "preview", params] as const,
+  reimbursementPreview: (employeeId: string) =>
+    [...settlementsQueryKeys.all, "preview", "reimbursement_only", employeeId] as const,
 
   workbench: () => [...settlementsQueryKeys.all, "workbench"] as const,
   workbenchList: (params: ListWorkbenchParams) =>

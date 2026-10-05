@@ -22,9 +22,12 @@ describe("settlementWorkbenchConfig", () => {
     expect(BUCKET_PIPELINE_STATUSES.closed).toEqual(["disbursed"]);
   });
 
-  it("builds compensation approvals deep link", () => {
+  it("builds Por autorizar hub deep link for compensation payments", () => {
     expect(settlementsCompensationApprovalsPath()).toBe(
-      "/finance/approvals?type=internal_staff_compensation&status=pending",
+      "/finance/settlements/pending-approval",
+    );
+    expect(settlementsCompensationApprovalsPath({ driverId: "emp-9" })).toBe(
+      "/finance/settlements/pending-approval?driverId=emp-9",
     );
   });
 

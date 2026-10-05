@@ -9,6 +9,9 @@ export function resolveBacklogPeriodTooltip(
   if (!rowType) {
     return backlogCopy.periodTooltipFallback;
   }
+  if (rowType === "reimbursement_only") {
+    return settlementsCopy.reimbursements.backlog.periodTooltip;
+  }
 
   return backlogCopy.periodTooltips[rowType] ?? backlogCopy.periodTooltipFallback;
 }

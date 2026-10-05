@@ -1,13 +1,180 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyTemplateDeductionsByPriority,
+  assessDeductionCapacity,
   calculatedBaseFromStored,
   computeSettlementTotals,
   deriveManualItemIsDeduction,
   isManualSettlementItem,
   normalizeManualItems,
+  uncoveredDeductionsAmount,
   type CalculatedSettlementBase,
   type ManualSettlementItemInput,
 } from "./settlementTotals";
+
+/**
+ * TEC-6: mismos casos que `settlementTotals.test.ts` del API (bloque «tope de
+ * descuentos contra el bruto»). Si cambia la aritmética del API, cambian igual.
+ */
+describe("settlementTotals web ↔ API — tope de descuentos contra el bruto (R1–R3)", () => {
+  const base = (
+    calculatedGross: number,
+    advancesDeducted = 0,
+    templateDeductions = 0,
+  ): CalculatedSettlementBase => ({ calculatedGross, templateDeductions, advancesDeducted });
+
+  describe("applyTemplateDeductionsByPriority (R2)", () => {
+    const line = (deductionType: string, amount: number, id = deductionType) => ({
+      id,
+      deductionType,
+      amount,
+    });
+
+    it("todo cabe: aplicado = solicitado, sin omitido", () => {
+      expect(applyTemplateDeductionsByPriority(2000, [line("savings_fund", 300)])).toEqual([
+        {
+          id: "savings_fund",
+          deductionType: "savings_fund",
+          amount: 300,
+          requestedAmount: 300,
+          appliedAmount: 300,
+          omittedAmount: 0,
+        },
+      ]);
+    });
+
+    it("bruto 1,000: retención 200 completa, fondo 900 → 800 aplicado / 100 omitido", () => {
+      const result = applyTemplateDeductionsByPriority(1000, [
+        line("savings_fund", 900),
+        line("tax_withholding", 200),
+      ]);
+      expect(result.map(({ appliedAmount, omittedAmount }) => ({ appliedAmount, omittedAmount }))).toEqual([
+        { appliedAmount: 800, omittedAmount: 100 },
+        { appliedAmount: 200, omittedAmount: 0 },
+      ]);
+    });
+
+    it("bruto 0 con fondo 300: nada se aplica y todo queda omitido (no lanza)", () => {
+      const [fund] = applyTemplateDeductionsByPriority(0, [line("savings_fund", 300)]);
+      expect(fund).toMatchObject({ requestedAmount: 300, appliedAmount: 0, omittedAmount: 300 });
+    });
+
+    it("prioridad: retención → cuota sindical → fondo → renta de equipo → otra; estable dentro del tipo", () => {
+      const result = applyTemplateDeductionsByPriority(350, [
+        line("other_deduction", 100, "o"),
+        line("equipment_rental", 100, "e"),
+        line("savings_fund", 100, "s1"),
+        line("savings_fund", 100, "s2"),
+        line("union_dues", 100, "u"),
+        line("tax_withholding", 100, "t"),
+      ]);
+      const applied = Object.fromEntries(result.map((item) => [item.id, item.appliedAmount]));
+      expect(applied).toEqual({ t: 100, u: 100, s1: 100, s2: 50, e: 0, o: 0 });
+      expect(result.map((item) => item.id)).toEqual(["o", "e", "s1", "s2", "u", "t"]);
+    });
+
+    it("tipo desconocido va al final", () => {
+      const result = applyTemplateDeductionsByPriority(100, [
+        line("legacy_type", 100),
+        line("other_deduction", 100),
+      ]);
+      expect(result.map((item) => item.appliedAmount)).toEqual([0, 100]);
+    });
+
+    it("trabaja en centavos: sin residuos de punto flotante", () => {
+      const result = applyTemplateDeductionsByPriority(0.3, [
+        line("tax_withholding", 0.1),
+        line("union_dues", 0.2),
+        line("savings_fund", 0.05),
+      ]);
+      expect(result.map((item) => item.appliedAmount)).toEqual([0.1, 0.2, 0]);
+      expect(result[2]!.omittedAmount).toBe(0.05);
+    });
+  });
+
+  describe("assessDeductionCapacity (R1/R3)", () => {
+    it("tope exacto: anticipo = bruto cabe", () => {
+      expect(assessDeductionCapacity(base(2000, 2000), [])).toEqual({
+        maxAdvanceDeductible: 2000,
+        excessAmount: 0,
+        excessSource: null,
+      });
+    });
+
+    it("un centavo de más → excedente de anticipos", () => {
+      expect(assessDeductionCapacity(base(2000, 2000.01), [])).toEqual({
+        maxAdvanceDeductible: 2000,
+        excessAmount: 0.01,
+        excessSource: "advances",
+      });
+    });
+
+    it("anticipo 2,500 sobre bruto 2,000 → excedente 500, máximo 2,000", () => {
+      expect(assessDeductionCapacity(base(2000, 2500), [])).toMatchObject({
+        maxAdvanceDeductible: 2000,
+        excessAmount: 500,
+        excessSource: "advances",
+      });
+    });
+
+    it("deducciones de plantilla aplicadas reducen el máximo de anticipo (2,000 − 300 = 1,700)", () => {
+      expect(assessDeductionCapacity(base(2000, 1700, 300), [])).toMatchObject({
+        maxAdvanceDeductible: 1700,
+        excessSource: null,
+      });
+      expect(assessDeductionCapacity(base(2000, 1800, 300), [])).toMatchObject({
+        excessAmount: 100,
+        excessSource: "advances",
+      });
+    });
+
+    it("plantilla sola mayor que el bruto (histórico sin tope) no genera excedente", () => {
+      expect(assessDeductionCapacity(base(1000, 0, 1500), [])).toEqual({
+        maxAdvanceDeductible: 0,
+        excessAmount: 0,
+        excessSource: null,
+      });
+    });
+
+    it("manuales en contra por sí solas exceden → manual_deductions, máximo de anticipo 0", () => {
+      const manual = normalizeManualItems([
+        { itemType: "penalty_deduction", description: "Multa", amount: 900 },
+      ]);
+      expect(assessDeductionCapacity(base(1000, 200, 200), manual)).toEqual({
+        maxAdvanceDeductible: 0,
+        excessAmount: 300,
+        excessSource: "manual_deductions",
+      });
+    });
+
+    it("bonos manuales amplían el bruto disponible", () => {
+      const manual = normalizeManualItems([{ itemType: "bonus", description: "Bono", amount: 500 }]);
+      expect(assessDeductionCapacity(base(2000, 2500), manual).excessSource).toBeNull();
+    });
+
+    it("varios anticipos se evalúan por su suma", () => {
+      expect(assessDeductionCapacity(base(1000, 400 + 350 + 250.01), [])).toMatchObject({
+        excessAmount: 0.01,
+        excessSource: "advances",
+      });
+    });
+
+    it("redondea a centavos (0.1 + 0.2 sobre 0.3 cabe)", () => {
+      expect(assessDeductionCapacity(base(0.3, 0.1 + 0.2), []).excessSource).toBeNull();
+    });
+  });
+
+  describe("uncoveredDeductionsAmount", () => {
+    it("0 cuando el neto cubre; excedente redondeado en históricos", () => {
+      expect(
+        uncoveredDeductionsAmount({ grossAmount: 2000, totalAdvancesDeducted: 1700, totalOtherDeductions: 300 }),
+      ).toBe(0);
+      expect(
+        uncoveredDeductionsAmount({ grossAmount: 2000, totalAdvancesDeducted: 2500, totalOtherDeductions: 0.1 }),
+      ).toBe(500.1);
+    });
+  });
+});
 
 /**
  * TEC-6: mismos casos que `boeltech-transport-api/src/modules/settlements/policy/settlementTotals.test.ts`.

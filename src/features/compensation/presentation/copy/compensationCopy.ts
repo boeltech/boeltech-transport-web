@@ -1,13 +1,13 @@
 export const compensationCopy = {
   hub: {
     title: "Tarifas de pago",
-    description: "Define cómo se paga a cada operador antes de liquidar.",
-    settlementsBridge: "Al liquidar se usa la tarifa asignada al operador.",
-    settlementsLink: "Ir a liquidaciones",
+    description: "Define cómo se paga a cada operador antes de armar el pago.",
+    settlementsBridge: "Al armar el pago se usa la tarifa asignada al operador.",
+    settlementsLink: "Ir a Pagos a operadores",
     guideTitle: "Cómo dejar listo el pago a operadores",
     tabs: {
       templates: "Tarifas",
-      corridors: "Rutas con tarifa fija",
+      corridors: "Tarifas por corredor",
     },
     steps: [
       "Crea una tarifa",
@@ -18,15 +18,15 @@ export const compensationCopy = {
       ariaLabel: "Estado de configuración del módulo",
       templatesActiveLabel: "tarifas activas",
       templatesIncompleteLabel: "sin pago definido",
-      corridorsActiveLabel: "rutas con tarifa fija",
+      corridorsActiveLabel: "tarifas por corredor",
       assignmentsActiveLabel: "operadores con tarifa",
     },
     employeeAssignBanner: {
       title: "Este operador aún no tiene tarifa de pago",
       description:
-        "Llegó desde liquidaciones sin una tarifa vigente. Elige abajo una tarifa lista para liquidar y asígnala, o crea una nueva.",
+        "Llegó desde Pagos a operadores sin una tarifa vigente. Elige abajo una tarifa lista para armar el pago y asígnala, o crea una nueva.",
       descriptionNamed:
-        "{{name}} no tiene una tarifa de pago vigente. Elige abajo una tarifa lista para liquidar y asígnala, o crea una nueva.",
+        "{{name}} no tiene una tarifa de pago vigente. Elige abajo una tarifa lista para armar el pago y asígnala, o crea una nueva.",
       assignAction: "Asignar a esta tarifa",
       createAction: "Crear tarifa primero",
       periodContextHint: (periodStart: string, periodEnd: string) =>
@@ -59,7 +59,7 @@ export const compensationCopy = {
       actions: "Acciones",
     },
     usage: {
-      ready: "Listo para liquidar",
+      ready: "Listo para usar en pagos",
       readyToActivate: "Lista para activar",
       needsPayment: "Falta definir el pago",
       paused: "Pausada",
@@ -86,13 +86,13 @@ export const compensationCopy = {
     blocks: {
       rules: "Reglas por ruta",
       allowances: "Prestaciones fijas (opcional)",
-      corridors: "Rutas con tarifa fija",
+      corridors: "Tarifas por corredor",
     },
     emptyBlock: "Sin configurar",
     incompleteBadge: "Falta reglas o rutas",
     editingBadge: "Editando",
     incompleteTitle:
-      "Para liquidar, agrega reglas por ruta o vincula una ruta con tarifa fija",
+      "Para armar el pago, agrega reglas por ruta o vincula una tarifa por corredor",
     missingSteps: {
       rules: "Agrega al menos una regla por tipo de ruta (opción A)",
       corridors: "Vincula al menos una ruta con tarifa fija (opción B)",
@@ -149,11 +149,11 @@ export const compensationCopy = {
     notFoundDescription: "La tarifa no existe o no tienes acceso.",
     loadingLabel: "Cargando tarifa…",
     noPermissionTitle: "Sin permiso para editar",
-    noPermissionDescription: "Necesitas permiso de actualización en liquidaciones.",
+    noPermissionDescription: "Necesitas permiso de actualización en pagos a operadores.",
     sections: {
       payment: "Pago por viaje",
       allowances: "Extras fijos",
-      corridors: "Rutas con tarifa fija",
+      corridors: "Tarifas por corredor",
     },
     paymentDescription:
       "Cada clase de ruta puede tener su propia regla de pago. Debe coincidir con la clase elegida al despachar el viaje. Ejemplo: Foráneo a $3.00 por km. Solo una regla por clase.",
@@ -164,7 +164,7 @@ export const compensationCopy = {
     midTripPolicyHint:
       "Si un viaje lo completan dos operadores, el pago se divide según los kilómetros que hizo cada uno.",
     allowancesDescription:
-      "Montos fijos que se suman al pago del operador en cada liquidación: comidas, viáticos, casetas u otros.",
+      "Montos fijos que se suman al pago del operador en cada pago: comidas, viáticos, casetas u otros.",
     advancedSectionTitle: "Descuentos al operador",
     advancedSectionHint:
       "Montos que se descuentan del pago del operador: fondo de ahorro, retenciones u otros.",
@@ -175,7 +175,7 @@ export const compensationCopy = {
     reviewEmpty: "Sin configuración todavía.",
     inspectorLiveLabel: "Resumen en tiempo real",
     inspectorAllowancesHint:
-      "Cada extra fijo se suma una vez por liquidación. El periodo indica cada cuánto aplica el acuerdo, no divide el monto.",
+      "Cada extra fijo se suma una vez por pago. El periodo indica cada cuánto aplica el acuerdo, no divide el monto.",
     inspectorDeductionsHint:
       "Los descuentos se restan del total antes de pagar al operador.",
     inspectorPrecedenceHint:
@@ -187,7 +187,7 @@ export const compensationCopy = {
     versionBadge: (version: number) => `v${version}`,
     toggleActiveLabel: "Tarifa activa",
     saveErrorTitle: "No se pudo guardar",
-    lockedBannerTitle: "Esta tarifa ya fue utilizada en liquidaciones",
+    lockedBannerTitle: "Esta tarifa ya fue utilizada en pagos",
     lockedBannerDescription:
       "La configuración está bloqueada. Crea una nueva versión para cambiar el pago.",
     lockedBannerAction: "Crear nueva versión",
@@ -203,7 +203,7 @@ export const compensationCopy = {
     historyEmptyActivity: "Sin actividad registrada.",
     historyOpenVersion: "Abrir",
     historyCurrentBadge: "Actual",
-    trySchemeTitle: "Vista previa de liquidación",
+    trySchemeTitle: "Vista previa del pago",
     trySchemeWithOperator: "Vista previa con {{name}}",
     trySchemeAssignFirst: "Asigna un operador a esta tarifa para ver la vista previa.",
     trySchemeAssignLink: "Asignar operadores",
@@ -248,11 +248,11 @@ export const compensationCopy = {
       none: "Monto",
     },
     localNoExtraPayNote:
-      "Esta clase de ruta no suma un pago extra (el sueldo y los pagos fijos se liquidan aparte).",
+      "Esta clase de ruta no suma un pago extra (el sueldo y los pagos fijos se calculan aparte).",
     paymentSectionTitle: "Pago por viaje",
     allowancesSectionTitle: "Extras fijos",
     deductionsSectionTitle: "Descuentos",
-    corridorsSectionTitle: "Rutas con tarifa fija",
+    corridorsSectionTitle: "Tarifas por corredor",
     noPaymentRules: "Sin pagos por clase de ruta",
     noAllowances: "Sin pagos fijos",
     noDeductions: "Sin deducciones",
@@ -273,7 +273,7 @@ export const compensationCopy = {
     rulesTitle: "Pago por clase de ruta",
     allowancesTitle: "Pagos fijos adicionales",
     deductionsTitle: "Deducciones",
-    corridorsTitle: "Rutas con tarifa fija",
+    corridorsTitle: "Tarifas por corredor",
     noRules: "Sin pagos por clase de ruta",
     noAllowances: "Sin pagos fijos",
     noDeductions: "Sin deducciones",
@@ -287,16 +287,16 @@ export const compensationCopy = {
     configureEmptyCta: "Configurar tarifa",
     readOnlyTitle: "Modo solo lectura",
     readOnlyDescription:
-      "Puedes consultar la configuración; para editar necesitas permiso de actualización en liquidaciones.",
+      "Puedes consultar la configuración; para editar necesitas permiso de actualización en pagos a operadores.",
   },
   corridors: {
-    title: "Rutas con tarifa fija",
+    title: "Tarifas por corredor",
     description:
       "Catálogo de tarifas por origen y destino. Vincúlalas al editar una tarifa.",
-    create: "Nueva ruta con tarifa fija",
-    emptyTitle: "Sin rutas con tarifa fija",
+    create: "Nueva tarifa por corredor",
+    emptyTitle: "Sin tarifas por corredor",
     emptyDescription:
-      "Registra rutas cuando ciertos trayectos no usan comisión por kilómetro.",
+      "Registra trayectos origen–destino cuando no usan comisión por kilómetro.",
     searchPlaceholder: "Buscar ruta…",
     filters: {
       statusPlaceholder: "Estado",
@@ -314,7 +314,7 @@ export const compensationCopy = {
     },
     duplicateBadge: "Duplicado",
     duplicateBanner:
-      "Hay rutas con el mismo origen y destino. Solo una se aplicará en liquidación (la más reciente).",
+      "Hay rutas con el mismo origen y destino. Solo una se aplicará en el pago (la más reciente).",
   },
   corridorActions: {
     openMenuSr: "Abrir menú de acciones de ruta",
@@ -342,7 +342,7 @@ export const compensationCopy = {
     activateDialog: {
       title: "¿Activar esta tarifa?",
       description:
-        "Pasará a usarse en liquidaciones. Si hay otra versión activa de la misma tarifa, se desactivará.",
+        "Pasará a usarse en pagos. Si hay otra versión activa de la misma tarifa, se desactivará.",
       reassignWarning:
         "Los operadores asignados a una versión anterior no se mueven solos: reasígnarlos cuando quieras que cobren con esta.",
       confirm: "Activar",
@@ -352,7 +352,7 @@ export const compensationCopy = {
     deactivateDialog: {
       title: "¿Desactivar esta tarifa?",
       description:
-        "Dejará de estar disponible para nuevas liquidaciones. No afecta liquidaciones ya hechas.",
+        "Dejará de estar disponible para pagos nuevos. No afecta pagos ya registrados.",
       confirm: "Desactivar",
       pending: "Desactivando…",
       cancel: "Cancelar",
@@ -368,7 +368,7 @@ export const compensationCopy = {
     deleteDialog: {
       title: "¿Eliminar tarifa de pago?",
       description:
-        "Solo elimina tarifas sin operadores asignados ni liquidaciones que la referencien. Si está en uso, cierra o quita las asignaciones primero.",
+        "Solo elimina tarifas sin operadores asignados ni pagos que la referencien. Si está en uso, cierra o quita las asignaciones primero.",
       confirm: "Eliminar",
       pending: "Eliminando…",
       cancel: "Cancelar",
@@ -383,14 +383,14 @@ export const compensationCopy = {
       deleteSuccess: "Tarifa eliminada",
       deleteError: "No se pudo eliminar la tarifa",
       configLocked:
-        "Esta tarifa ya fue utilizada en liquidaciones. Crea una nueva versión para editarla.",
+        "Esta tarifa ya fue utilizada en pagos. Crea una nueva versión para editarla.",
       notActivatable:
         "Define el pago (reglas o rutas fijas) antes de activar la tarifa.",
       invalidTransition: "Esa transición de estado no está permitida.",
     },
     errors: {
       TEMPLATE_CONFIG_LOCKED:
-        "Esta tarifa ya fue utilizada en liquidaciones. Crea una nueva versión para editarla.",
+        "Esta tarifa ya fue utilizada en pagos. Crea una nueva versión para editarla.",
       TEMPLATE_NOT_ACTIVATABLE:
         "Define el pago (reglas o rutas fijas) antes de activar la tarifa.",
       TEMPLATE_INVALID_STATUS_TRANSITION:
@@ -408,7 +408,7 @@ export const compensationCopy = {
     corridorsSectionHelp:
       "Selecciona rutas del tabulador. Si el viaje coincide, se paga la tarifa fija en lugar del pago por viaje (la regla genérica no se aplica).",
     localNoCommissionNote:
-      "Esta clase de ruta no suma comisión adicional a la tarifa (el sueldo y prestaciones se liquidan aparte).",
+      "Esta clase de ruta no suma comisión adicional a la tarifa (el sueldo y prestaciones se calculan aparte).",
     addRule: "Regla",
     addAllowance: "Prestación",
     addFixedPayment: "Pago fijo",
@@ -418,7 +418,7 @@ export const compensationCopy = {
     allowanceAmount: "Monto",
     allowancePeriod: "Periodo",
     allowancePeriodHint:
-      "Periodo = ritmo del acuerdo (cada cuánto aplica). El monto entra 1× por corte; no se divide por días.",
+      "Periodo = ritmo del acuerdo (cada cuánto aplica). El monto entra 1× por pago; no se divide por días.",
     deductionType: "Tipo",
     deductionLabel: "Etiqueta",
     deductionAmount: "Monto",
@@ -469,9 +469,9 @@ export const compensationCopy = {
       legacyOriginLabel: "Origen",
       legacyDestinationLabel: "Destino",
       legacyAlertOriginBranch:
-        "Definida por sucursal de origen; sigue pudiendo coincidir en liquidación. En v1 solo editamos rutas por ciudad — convierte o ajusta monto/nombre/notas.",
+        "Definida por sucursal de origen; sigue pudiendo coincidir en el pago. En v1 solo editamos rutas por ciudad — convierte o ajusta monto/nombre/notas.",
       legacyAlertDeadMatch:
-        "Esta definición no coincide en liquidación hoy. Puedes convertirla a ciudad o solo ajustar monto, nombre y notas.",
+        "Esta definición no coincide en el pago hoy. Puedes convertirla a ciudad o solo ajustar monto, nombre y notas.",
       convertToCity: "Convertir a ciudad",
       convertToCityConfirmTitle: "¿Convertir a coincidencia por ciudad?",
       convertToCityConfirmDescription:
@@ -480,7 +480,7 @@ export const compensationCopy = {
       fixedAmount: "Tarifa fija",
       notes: "Notas (opcional)",
       corridorActiveHint:
-        "Si la desactivas, esta ruta no se aplicará en liquidaciones futuras. Puedes reactivarla después.",
+        "Si la desactivas, esta ruta no se aplicará en pagos futuros. Puedes reactivarla después.",
       effectiveFrom: "Vigente desde",
       effectiveTo: "Vigente hasta (opcional)",
       closePrevious: "Cerrar asignación anterior al iniciar la nueva",
@@ -510,7 +510,7 @@ export const compensationCopy = {
     manageCorridorsLink: "Ver catálogo de rutas",
     duplicateConfirmTitle: "¿Guardar ruta duplicada?",
     duplicateConfirmDescription:
-      "Ya existe otra ruta con el mismo origen y destino. En liquidación solo se aplicará una (la más reciente).",
+      "Ya existe otra ruta con el mismo origen y destino. en el pago solo se aplicará una (la más reciente).",
     duplicateConfirmAction: "Guardar de todos modos",
     saveForbidden: "No tienes permiso para guardar rutas con tarifa fija.",
   },
@@ -537,7 +537,7 @@ export const compensationCopy = {
     deactivateDialog: {
       title: "¿Desactivar asignación?",
       description:
-        "La asignación dejará de aplicarse en liquidaciones futuras. No afecta liquidaciones ya creadas.",
+        "La asignación dejará de aplicarse en pagos futuros. No afecta pagos ya creados.",
       confirm: "Desactivar",
       pending: "Desactivando…",
       cancel: "Cancelar",
@@ -553,7 +553,7 @@ export const compensationCopy = {
     deleteDialog: {
       title: "¿Eliminar asignación?",
       description:
-        "Solo elimina asignaciones que no hayan sido usadas en liquidaciones. Si ya se liquidó, cierra la vigencia en su lugar.",
+        "Solo elimina asignaciones que no hayan sido usadas en pagos. Si ya se usó en un pago, cierra la vigencia en su lugar.",
       confirm: "Eliminar",
       pending: "Eliminando…",
       cancel: "Cancelar",
@@ -570,7 +570,7 @@ export const compensationCopy = {
   allowanceOverrides: {
     title: "Suspensión de prestaciones por período",
     description:
-      "Suspende una prestación fija para este operador en el rango indicado. La liquidación del período omitirá el monto suspendido.",
+      "Suspende una prestación fija para este operador en el rango indicado. El pago del período omitirá el monto suspendido.",
     periodStart: "Inicio del período",
     periodEnd: "Fin del período",
     suspendedLabel: "Suspendida",

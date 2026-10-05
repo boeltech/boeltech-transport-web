@@ -55,7 +55,10 @@ import {
   SettlementReceiptPrintView,
   SettlementActions,
   SettlementCorrectionSheet,
+  SettlementKindBadge,
+  LateReimbursementsAlert,
 } from "../components";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
   isReceiptSignable,
@@ -76,6 +79,8 @@ import {
   type TripRouteType,
 } from "../../domain/enums";
 import type { AgreementSnapshot } from "../../domain/entities";
+import { roundCents, uncoveredDeductionsAmount } from "../../domain/settlementTotals";
+import { isDeductionsExceedGrossError } from "../utils/settlementDeductionCapacity";
 
 const copy = settlementsCopy;
 
@@ -108,6 +113,7 @@ export function SettlementDetailPage() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
+  const canCreate = hasPermission("settlements", "create");
   const canReadApprovals = hasPermission("finance_approvals", "read");
   const submitMutation = useSubmitSettlement();
   const [correctionOpen, setCorrectionOpen] = useState(false);
@@ -127,10 +133,13 @@ export function SettlementDetailPage() {
       toast({ title: flowCopy.toasts.resubmitted, variant: "success" });
       void refetch();
     } catch (error) {
+      const exceedsGross = isDeductionsExceedGrossError(error);
       toast({
-        title: copy.toasts.submitSettlementError,
+        title: exceedsGross
+          ? flowCopy.deductionsCap.actionErrorTitle
+          : copy.toasts.submitSettlementError,
         description: getErrorMessage(error),
-        variant: "destructive",
+        variant: exceedsGross ? "error" : "destructive",
       });
     }
   };
@@ -144,7 +153,7 @@ export function SettlementDetailPage() {
   const companyRfc = companySettings?.rfc || undefined;
 
   const handlePrint = () => {
-    const title = `${escapeHtml(companyDisplayName)} - ${escapeHtml(settlement?.settlementNumber || "Liquidación")}`;
+    const title = `${escapeHtml(companyDisplayName)} - ${escapeHtml(settlement?.settlementNumber || "Pago")}`;
     triggerPrint(title);
   };
 
@@ -162,12 +171,50 @@ export function SettlementDetailPage() {
       : "Sin acuerdo";
 
   const dCopy = copy.detailPage;
+  const isReimbursementOnly = settlement?.settlementKind === "reimbursement_only";
+  /** Rearmar tras rechazo o cancelación: mismo operador y, en pagos normales, mismas fechas. */
+  const rebuildPath = settlement
+    ? isReimbursementOnly
+      ? settlementCreatePath({
+          kind: "reimbursements",
+          employeeId: settlement.employeeId,
+          from: settlement.id,
+        })
+      : settlementCreatePath({
+          employeeId: settlement.employeeId,
+          periodStart: settlement.periodStart,
+          periodEnd: settlement.periodEnd,
+          from: settlement.id,
+        })
+    : "";
   const expandItemsByDefault =
     settlement?.status === "draft" || settlement?.status === "rejected";
   const isDisbursed = settlement?.status === "disbursed";
 
   const tripsCount =
     settlement?.items?.filter((it) => it.itemType === "trip_commission").length ?? 0;
+
+  const advancesDeducted = settlement?.totalAdvancesDeducted ?? 0;
+  const otherDeductions = settlement?.totalOtherDeductions ?? 0;
+  const totalDiscounts = roundCents(advancesDeducted + otherDeductions);
+  const discountsSubtext =
+    advancesDeducted > 0 && otherDeductions > 0
+      ? dCopy.balanceStrip.discountsBreakdown(
+          formatMxCurrency(advancesDeducted),
+          formatMxCurrency(otherDeductions),
+        )
+      : advancesDeducted > 0
+        ? dCopy.balanceStrip.discountsAdvancesOnly
+        : otherDeductions > 0
+          ? dCopy.balanceStrip.discountsOtherOnly
+          : dCopy.balanceStrip.discountsNone;
+  const uncoveredDeductions = settlement
+    ? (settlement.uncoveredDeductionsAmount ?? uncoveredDeductionsAmount(settlement))
+    : 0;
+  const netSubtext =
+    uncoveredDeductions > 0
+      ? dCopy.balanceStrip.netShortfall(formatMxCurrency(uncoveredDeductions), formatMxCurrency(0))
+      : dCopy.balanceStrip.netSubtext;
 
   return (
     <>
@@ -176,8 +223,8 @@ export function SettlementDetailPage() {
         notFound={!settlement}
         notFoundConfig={{
           icon: <Banknote className="h-8 w-8 text-muted-foreground" />,
-          title: "Liquidación no encontrada",
-          description: "No se encontró la liquidación solicitada o no tienes permisos para consultarla.",
+          title: "Pago no encontrado",
+          description: "No se encontró el pago solicitado o no tienes permisos para consultarlo.",
           backHref,
           backLabel,
         }}
@@ -193,9 +240,10 @@ export function SettlementDetailPage() {
                 showIcon
                 size="sm"
               />
+              <SettlementKindBadge kind={settlement.settlementKind} />
             </span>
           ) : (
-            "Liquidación"
+            "Pago"
           ),
           subtitle: settlement ? (
             <div className="space-y-0.5">
@@ -203,13 +251,19 @@ export function SettlementDetailPage() {
                 {settlement.employeeFullName ?? "—"}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {formatDate(settlement.periodStart)} –{" "}
-                {formatDate(settlement.periodEnd)}
+                {isReimbursementOnly ? (
+                  copy.reimbursements.detail.subtitle(formatDate(settlement.createdAt))
+                ) : (
+                  <>
+                    {formatDate(settlement.periodStart)} –{" "}
+                    {formatDate(settlement.periodEnd)}
+                  </>
+                )}
               </p>
             </div>
           ) : undefined,
           actions: settlement ? (
-            <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
+            <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -268,6 +322,31 @@ export function SettlementDetailPage() {
               />
             ) : null}
 
+            <LateReimbursementsAlert settlement={settlement} canCreate={canCreate} />
+
+            {settlement.status === "cancelled" ? (
+              <Alert variant="info" data-testid="settlement-cancelled-alert">
+                <AlertCircle />
+                <AlertTitle>{copy.reimbursements.cancelled.title}</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>{copy.reimbursements.cancelled.body}</p>
+                  {canCreate ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(rebuildPath)}
+                    >
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                      {isReimbursementOnly
+                        ? copy.reimbursements.createAction
+                        : copy.reimbursements.cancelled.rebuildAction}
+                    </Button>
+                  ) : null}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             {/* D2: strip 3 celdas — grossAmount ya incluye reembolsos */}
             <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
               <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
@@ -280,24 +359,28 @@ export function SettlementDetailPage() {
                       {formatMxCurrency(settlement.grossAmount)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {dCopy.balanceStrip.grossEarningsSubtext}
-                      {tripsCount > 0 ? ` · ${tripsCount} viajes` : ""}
+                      {isReimbursementOnly
+                        ? copy.reimbursements.detail.grossSubtext
+                        : dCopy.balanceStrip.grossEarningsSubtext}
+                      {!isReimbursementOnly && tripsCount > 0
+                        ? ` · ${dCopy.balanceStrip.tripsCount(tripsCount)}`
+                        : ""}
                     </p>
                   </div>
                 </div>
 
                 <div className="p-4 sm:p-5 flex flex-col justify-between bg-destructive/5">
                   <span className="text-xs font-semibold uppercase tracking-wider text-destructive">
-                    {dCopy.balanceStrip.advancesDeducted}
+                    {dCopy.balanceStrip.discounts}
                   </span>
                   <div className="mt-2">
                     <p className="text-2xl font-bold tabular-nums text-destructive">
-                      {settlement.totalAdvancesDeducted > 0
-                        ? `-${formatMxCurrency(settlement.totalAdvancesDeducted)}`
+                      {totalDiscounts > 0
+                        ? `-${formatMxCurrency(totalDiscounts)}`
                         : formatMxCurrency(0)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {dCopy.balanceStrip.advancesSubtext}
+                      {discountsSubtext}
                     </p>
                   </div>
                 </div>
@@ -311,7 +394,7 @@ export function SettlementDetailPage() {
                       {formatMxCurrency(settlement.netAmount)}
                     </p>
                     <p className="text-xs font-medium text-foreground mt-0.5">
-                      {dCopy.balanceStrip.netSubtext}
+                      {netSubtext}
                     </p>
                   </div>
                 </div>
@@ -335,16 +418,7 @@ export function SettlementDetailPage() {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() =>
-                        navigate(
-                          settlementCreatePath({
-                            employeeId: settlement.employeeId,
-                            periodStart: settlement.periodStart,
-                            periodEnd: settlement.periodEnd,
-                            from: settlement.id,
-                          }),
-                        )
-                      }
+                      onClick={() => navigate(rebuildPath)}
                       className="shrink-0 gap-1.5"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
@@ -377,6 +451,7 @@ export function SettlementDetailPage() {
                           items={settlement.items ?? []}
                           agreementCalculationType={settlement.agreementSnapshot.calculationType}
                           tripLinkFrom={settlementDetailPath(settlement.id)}
+                          totals={settlement}
                         />
                       </CardContent>
                     </CollapsibleContent>
@@ -554,7 +629,8 @@ export function SettlementDetailPage() {
                   </CardContent>
                 </Card>
 
-                {/* D4: acuerdo terciario colapsado */}
+                {/* D4: acuerdo terciario colapsado (un pago de reembolsos no tiene tarifa) */}
+                {isReimbursementOnly ? null : (
                 <Collapsible defaultOpen={false} className="group">
                   <Card className="bg-muted/15 border-dashed">
                     <CardHeader className="pb-2">
@@ -670,6 +746,7 @@ export function SettlementDetailPage() {
                     </CollapsibleContent>
                   </Card>
                 </Collapsible>
+                )}
               </div>
             </div>
           </div>
@@ -681,7 +758,7 @@ export function SettlementDetailPage() {
           <DialogHeader className="p-4 border-b print:hidden">
             <div className="flex justify-between items-center pr-6">
               <div>
-                <DialogTitle>Recibo de liquidación</DialogTitle>
+                <DialogTitle>Recibo de pago</DialogTitle>
                 <DialogDescription>
                   {receiptSignable
                     ? "Vista previa para impresión y firma del operador."

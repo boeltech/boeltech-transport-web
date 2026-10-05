@@ -7,7 +7,6 @@ export const settlementsCopy = {
     description:
       "Arma el pago, pide autorización cuando aplique y regístralo al operador.",
     navAriaLabel: "Secciones de pagos a operadores",
-    settingsAction: "Configuración",
     approvalPoliciesAction: "Reglas de autorización",
     tabs: {
       porPagar: "Por pagar",
@@ -23,46 +22,34 @@ export const settlementsCopy = {
       "Cuando un pago requiera autorización, aparecerá aquí para que lo autorice alguien distinto de quien lo armó.",
     pendingApprovalEmptyDescriptionSingle:
       "Cuando un pago requiera autorización, aparecerá aquí. Como eres el único autorizador activo, podrás autorizarlo tú mismo; quedará marcado como autoaprobado.",
-    settings: {
-      title: "Configuración de pagos a operadores",
-      description:
-        "Configura el monto a partir del cual se requiere autorización para pagar.",
-      thresholdLabel: "Monto mínimo para pedir autorización (MXN)",
-      thresholdHint:
-        "Con $0 (valor por defecto) casi todo pago necesita autorización antes de registrarse. Súbelo si solo quieres autorización en montos altos. Las correcciones manuales siempre piden autorización.",
-      save: "Guardar",
-      saving: "Guardando…",
-      success: "Configuración actualizada",
-      error: "No se pudo guardar la configuración",
-      managedTitle: "Gestionado en Reglas de autorización",
-      managedDescription:
-        "Este monto sale de la regla de autorización de liquidaciones. Para cambiarlo, edita esa regla.",
-      managedLink: "Gestionado en Reglas de autorización",
-      close: "Cerrar",
-    },
   },
   tabs: {
     settlements: "Por pagar",
     advances: "Anticipos pendientes",
     agreements: "Tarifas",
   },
+  advancesList: {
+    description:
+      "Anticipos en gestión: en Aprobaciones, por entregar o con saldo pendiente de descontar.",
+    deductInPayment: "Descontar en pago",
+  },
   workbench: {
     buckets: {
       pending: "Pendientes",
       draft: "En revisión",
       approval: "En autorización",
-      payable: "Listas para pago",
-      closed: "Pagadas",
+      payable: "Listos para pago",
+      closed: "Pagados",
       openAdvances: "Anticipos abiertos",
     },
     bucketDescriptions: {
-      pending: "Operadores con viajes o sueldo por pagar.",
+      pending: "Operadores con viajes, sueldo o reembolsos por pagar.",
       draft: "Borradores, devueltas para corregir y rechazadas.",
       approval:
-        "Enviadas a la bandeja de autorizaciones de Finanzas.",
+        "Pendientes de autorización en Por autorizar.",
       payable:
-        "Autorizadas: falta registrar el pago al operador.",
-      closed: "Ya pagadas al operador.",
+        "Autorizados: falta registrar el pago al operador.",
+      closed: "Ya pagados al operador.",
       openAdvances:
         "Anticipos entregados con saldo pendiente de descontar en un pago.",
     },
@@ -87,7 +74,7 @@ export const settlementsCopy = {
       count === 1 ? "1 en autorización →" : `${count} en autorización →`,
     actions: {
       settlePeriod: "Armar pago",
-      reviewInApprovals: "Revisar en aprobaciones",
+      reviewInApprovals: "Revisar en Por autorizar",
       viewFullHistory: "Historial",
       backToWorkbench: "Volver a por pagar",
       includeContractors: "Incluir contratistas",
@@ -128,8 +115,34 @@ export const settlementsCopy = {
       correctBadge: "Corregir",
     },
     warnings: {
-      period_overlap: "Solapamiento de períodos",
+      /** Fallback F1 cuando no hay enrich `periodOverlap`. */
+      period_overlap: "Ya hay un pago en este período",
+      period_overlap_in_progress: "Ya hay un pago en curso en este período",
+      period_overlap_disbursed: "Ya hay un pago registrado en este período",
+      /** Fallback F1 cuando no hay enrich `periodOverlap`. */
+      period_overlap_tooltip:
+        "El período sugerido se cruza con un pago ya registrado o en curso del mismo operador.",
+      period_overlap_tooltip_in_progress:
+        "El período sugerido se cruza con un pago ya registrado o en curso de este operador.",
+      period_overlap_tooltip_disbursed:
+        "El período sugerido se cruza con un pago ya registrado de este operador.",
+      period_overlap_cta: "Ver en historial",
       open_advance: "Anticipo por descontar",
+    },
+    /** ADR-0085 E11 — conflicto primario con folio («LIQ-… · Borrador · creado hace 3 días»). */
+    periodOverlapFolio: {
+      label: (folio: string, statusLabel: string, age: string | null) =>
+        age ? `${folio} · ${statusLabel} · ${age}` : `${folio} · ${statusLabel}`,
+      age: (days: number) =>
+        days <= 0
+          ? "creado hoy"
+          : days === 1
+            ? "creado hace 1 día"
+            : `creado hace ${days} días`,
+      tooltipContained: (folio: string) =>
+        `El sueldo de este período ya está en ${folio}. El pago nuevo llevará solo viajes, reembolsos y anticipos.`,
+      tooltipPartial: (folio: string, date: string) =>
+        `Se cruza con ${folio}. Armar pago empezará el ${date}.`,
     },
     empty: {
       backlogTitle: "Sin operadores pendientes de pago",
@@ -141,10 +154,6 @@ export const settlementsCopy = {
       pipelineTitle: "Sin pagos en esta etapa",
       pipelineDescription:
         "No hay pagos en esta etapa. Prueba otra o consulta el historial.",
-      approvalCtaTitle: "Pagos por autorizar",
-      approvalCtaDescription:
-        "Los pagos que necesitan autorización se revisan aquí o en la bandeja de Finanzas.",
-      goToApprovals: "Ir a aprobaciones",
       schemesBridgeTitle: "¿Listo para armar un pago?",
       schemesBridgeDescription:
         "Si aún no hay operadores por pagar, verifica que tengan tarifa asignada y sueldo configurado en Empleados.",
@@ -170,7 +179,7 @@ export const settlementsCopy = {
     },
   },
   actions: {
-    createSettlement: "Nuevo pago a operador",
+    createSettlement: "Armar pago",
     createAdvance: "Registrar anticipo",
     createAgreement: "Nueva tarifa",
     manageAgreements: "Tarifas",
@@ -178,12 +187,14 @@ export const settlementsCopy = {
     approve: "Autorizar",
     reject: "Rechazar",
     disburse: "Registrar pago al operador",
+    awaitingTreasuryDisburse:
+      "Autorizado: falta que tesorería registre el pago.",
     saveDraft: "Guardar como borrador",
     submitApproval: "Enviar a autorización",
     pedirVobo: "Enviar a autorización",
     makerExecuteForbidden:
       "Quien armó el pago no puede registrarlo; pide a otro usuario con permiso de tesorería que lo registre.",
-    cancelSettlement: "Cancelar pago",
+    cancelSettlement: "Cancelar pago…",
     cancel: "Cancelar",
     confirm: "Confirmar",
     backToList: "Volver a por pagar",
@@ -206,16 +217,19 @@ export const settlementsCopy = {
   status: {
     draft: "Borrador",
     pending_approval: "Por autorizar",
-    approved: "Autorizada",
-    disbursed: "Pagada",
-    rejected: "Rechazada",
-    cancelled: "Cancelada",
+    approved: "Autorizado",
+    disbursed: "Pagado",
+    rejected: "Rechazado",
+    cancelled: "Cancelado",
   },
   advanceStatus: {
-    pending_disbursement: "Pendiente",
-    disbursed: "Entregado (por descontar)",
+    draft: "Borrador",
+    pending_approval: "Por autorizar",
+    pending_disbursement: "Autorizado (pendiente entrega)",
+    disbursed: "Entregado (abierto)",
     partially_applied: "Parcialmente descontado",
     fully_applied: "Descontado al 100%",
+    rejected: "Rechazado",
     cancelled: "Cancelado",
   },
   fields: {
@@ -231,7 +245,7 @@ export const settlementsCopy = {
     totalDeductions: "Deducciones totales",
     totalCommissions: "Pago por viajes realizados",
     totalReimbursements: "Gastos y casetas por reembolsar",
-    totalAdvances: "Anticipos descontados",
+    totalDiscounts: "Descuentos",
     totalBonuses: "Bonos e incentivos",
     tripsCount: "Viajes realizados",
     calculationType: "Regla de pago",
@@ -272,9 +286,9 @@ export const settlementsCopy = {
   },
   toasts: {
     dataRefreshed: "Datos actualizados",
-    exportSettlementsSuccess: "Archivo CSV de liquidaciones generado",
+    exportSettlementsSuccess: "Archivo CSV de pagos generado",
     exportAdvancesSuccess: "Archivo CSV de anticipos generado",
-    noSettlementsToExport: "No hay liquidaciones para exportar",
+    noSettlementsToExport: "No hay pagos para exportar",
     noAdvancesToExport: "No hay anticipos para exportar",
     approveSettlementSuccess: "Pago autorizado correctamente",
     approveSettlementError: "Error al autorizar el pago",
@@ -295,7 +309,7 @@ export const settlementsCopy = {
     disburseAdvanceSuccess: "Anticipo entregado correctamente",
     disburseAdvanceError: "Error al registrar entrega de anticipo",
     settingsUnavailable:
-      "No se pudo leer la configuración de pagos a operadores; recarga la página antes de mover dinero",
+      "No pudimos leer la regla de autorización de liquidaciones; recarga la página antes de mover dinero.",
     selfDisburseRejected:
       "No puedes registrar este pago: lo registraste tú y hay otro usuario activo que puede hacerlo.",
   },
@@ -312,10 +326,23 @@ export const settlementsCopy = {
       cancel: "Cancelar",
     },
     cancelSettlement: {
-      title: "¿Cancelar pago?",
-      descriptionPart1: "Se cancelará el folio",
-      descriptionPart2:
-        "en borrador. Los anticipos descontados (si los hay) se restaurarán. Esta acción no se puede deshacer.",
+      draftTitle: "¿Cancelar pago?",
+      draftBody: (folio: string) =>
+        `Se cancelará el folio ${folio} en borrador. Los anticipos descontados (si los hay) se restaurarán. Esta acción no se puede deshacer.`,
+      title: (folio: string) => `Cancelar pago ${folio}`,
+      body: "Indica el motivo (mínimo 5 caracteres). Quedará en el historial de autorización.",
+      /** ADR-0085 E11 punto 10 (literal). */
+      approvedWarningTitle: "Si ya entregaste el efectivo, no canceles.",
+      approvedWarning:
+        "Se anula la autorización y los anticipos descontados vuelven a quedar por descontar. Para pagarle al operador tendrás que armar un pago nuevo, que pedirá autorización otra vez.",
+      approvedConfirmLabel:
+        "Confirmo que este pago no se ha entregado al operador, ni en efectivo ni por transferencia, y que el operador no ha firmado el recibo.",
+      pendingWarning:
+        "Se cierra la solicitud de autorización en curso y los anticipos descontados vuelven a quedar por descontar.",
+      reasonLabel: "Motivo",
+      reasonPlaceholder: "Ej. Período equivocado; se arma de nuevo con las fechas correctas",
+      reasonTooShort: "El motivo debe tener al menos 5 caracteres",
+      reasonTooLong: "El motivo no puede pasar de 500 caracteres",
       confirm: "Sí, cancelar pago",
       pending: "Cancelando...",
       cancel: "Volver",
@@ -333,7 +360,7 @@ export const settlementsCopy = {
       title: "Rechazar anticipo",
       descriptionPrefix: "Especifica el motivo por el cual no se autoriza el anticipo",
       reasonLabel: "Motivo de rechazo *",
-      reasonPlaceholder: "Ej. Excede el tope semanal de viáticos o viaje cancelado...",
+      reasonPlaceholder: "Ej. Excede el tope semanal de dieta o viaje cancelado...",
       confirm: "Confirmar rechazo",
       pending: "Rechazando...",
       cancel: "Cancelar",
@@ -362,7 +389,7 @@ export const settlementsCopy = {
     deactivateAgreement: {
       title: "¿Desactivar tarifa?",
       description:
-        "La tarifa dejará de aplicarse en liquidaciones futuras. El pago ya registrado no cambia.",
+        "La tarifa dejará de aplicarse en pagos futuros. El pago ya registrado no cambia.",
       confirm: "Desactivar tarifa",
       pending: "Desactivando...",
       cancel: "Cancelar",
@@ -370,7 +397,7 @@ export const settlementsCopy = {
     closeAgreementValidity: {
       title: "Cerrar vigencia de tarifa",
       description:
-        "Define la fecha fin de vigencia. A partir del día siguiente dejará de ser elegible para liquidaciones nuevas.",
+        "Define la fecha fin de vigencia. A partir del día siguiente dejará de ser elegible para pagos nuevos.",
       dateLabel: "Fin de vigencia *",
       confirm: "Cerrar vigencia",
       pending: "Guardando...",
@@ -379,7 +406,7 @@ export const settlementsCopy = {
     deleteAgreement: {
       title: "¿Eliminar tarifa?",
       description:
-        "Esta acción es permanente. Solo elimina tarifas que no hayan sido usadas en liquidaciones. Si ya se liquidó con esta tarifa, desactívala o cierra su vigencia.",
+        "Esta acción es permanente. Solo elimina tarifas que no hayan sido usadas en pagos. Si ya se pagó con esta tarifa, desactívala o cierra su vigencia.",
       confirm: "Eliminar tarifa",
       pending: "Eliminando...",
       cancel: "Cancelar",
@@ -388,14 +415,14 @@ export const settlementsCopy = {
   agreementGovernance: {
     overlapCreateTitle: "Hay otra tarifa activa con vigencia traslapada",
     overlapCreateDescription:
-      "Este operador ya tiene tarifa(s) activa(s) que cubren parte del rango que estás creando. Para evitar ambigüedad en liquidación, cierra la anterior o desactívala después de guardar.",
+      "Este operador ya tiene tarifa(s) activa(s) que cubren parte del rango que estás creando. Para evitar ambigüedad al armar el pago, cierra la anterior o desactívala después de guardar.",
     overlapCreateClosePreviousLabel:
       "Cerrar la(s) tarifa(s) anterior(es) al día previo del inicio de esta",
     settlementAmbiguityTitle: "Varias asignaciones vigentes en la fecha fin del período",
     settlementAmbiguityDescriptionPrefix:
       "El cálculo del pago aplica la asignación más reciente por vigencia (desde",
     settlementAmbiguityDescriptionSuffix:
-      "). Revisa las asignaciones del operador en Esquemas de compensación.",
+      "). Revisa las asignaciones del operador en Tarifas.",
     reviewAgreementsAction: "Revisar tarifas",
     actions: {
       deactivate: "Desactivar tarifa",
@@ -414,8 +441,13 @@ export const settlementsCopy = {
   },
   confirmSubmitDialog: {
     title: "¿Enviar pago para autorización?",
-    description: "Revisa el monto a pagar antes de enviar a la bandeja de autorizaciones.",
+    description: "Revisa el monto a pagar antes de enviarlo a Por autorizar.",
     confirmAction: "Confirmar y enviar",
+  },
+  registry: {
+    title: "Historial",
+    description: "Pagos registrados de operadores.",
+    entityLabelPlural: "pagos",
   },
   empty: {
     settlements: "No hay pagos registrados en este período.",
@@ -426,7 +458,7 @@ export const settlementsCopy = {
     trips: "No se encontraron viajes completados pendientes de pago para este operador en las fechas seleccionadas.",
     selectOperatorPrompt: "Selecciona un operador y un rango de fechas para calcular el pago automáticamente.",
     settlementsTitle: "No hay pagos registrados",
-    advancesTitle: "Sin anticipos por recuperar",
+    advancesTitle: "Sin anticipos abiertos",
     agreementsTitle: "Sin asignaciones de tarifa",
   },
   agreementsPage: {
@@ -437,11 +469,18 @@ export const settlementsCopy = {
   detailPage: {
     balanceStrip: {
       grossEarnings: "Lo ganado",
-      grossEarningsSubtext: "Sueldo, viajes y reembolsos del período",
-      advancesDeducted: "Anticipos",
-      advancesSubtext: "Descontados en este pago",
+      grossEarningsSubtext: "Sueldo, viajes, prestaciones y reembolsos",
+      tripsCount: (count: number) => (count === 1 ? "1 viaje" : `${count} viajes`),
+      discounts: "Descuentos",
+      discountsBreakdown: (advances: string, otherDeductions: string) =>
+        `Anticipos ${advances} · Otros descuentos ${otherDeductions}`,
+      discountsAdvancesOnly: "Anticipos descontados en este pago",
+      discountsOtherOnly: "Deducciones y ajustes en contra",
+      discountsNone: "Sin descuentos en este pago",
       netToPay: "A pagar",
       netSubtext: "Lo que recibe el operador",
+      netShortfall: (excess: string, zero: string) =>
+        `Los descuentos superan lo ganado por ${excess}; a pagar queda en ${zero}.`,
     },
     workflow: {
       title: "Progreso del pago",
@@ -467,11 +506,11 @@ export const settlementsCopy = {
     },
     tariff: {
       title: "Cómo se calculó este pago",
-      subtitle: "Acuerdo aplicado al momento del cálculo.",
-      expandLabel: "Ver acuerdo aplicado",
-      collapseLabel: "Ocultar acuerdo",
+      subtitle: "Tarifa aplicada al momento del cálculo.",
+      expandLabel: "Ver tarifa aplicada",
+      collapseLabel: "Ocultar tarifa",
       disclaimer: "Registrado al calcular este pago; no cambia si editas tarifas después.",
-      scheme: "Acuerdo:",
+      scheme: "Tarifa:",
       fixedSalary: "Sueldo base:",
       routesTitle: "Pago por tipo de ruta:",
       ratePerKm: "Tarifa por kilómetro:",
@@ -482,23 +521,25 @@ export const settlementsCopy = {
     },
     items: {
       title: "Desglose",
-      subtitle: "Conceptos de lo ganado y anticipos descontados.",
+      subtitle: "Conceptos de lo ganado y descuentos aplicados.",
       expandLabel: "Ver desglose",
       collapseLabel: "Ocultar desglose",
       earningsTitle: "1. Ingresos del período (+)",
-      earningsSubtitle: "Sueldo base, viajes y gastos reembolsables.",
-      deductionsTitle: "2. Anticipos descontados (−)",
-      deductionsSubtitle: "Anticipos descontados en este corte.",
+      earningsSubtitle: "Sueldo base, viajes, prestaciones, bonos y reembolsos.",
+      deductionsTitle: "2. Descuentos (−)",
+      deductionsSubtitle: "Anticipos y otras deducciones que se restan de lo ganado.",
       subtotalEarnings: "Subtotal ingresos:",
+      subtotalAdvances: "Anticipos:",
+      subtotalOtherDeductions: "Otros descuentos:",
       subtotalDeductions: "Subtotal descuentos:",
-      emptyEarnings: "No hay ingresos desglosados en esta liquidación.",
-      emptyDeductions: "No se descontaron anticipos en esta liquidación.",
+      emptyEarnings: "No hay ingresos desglosados en este pago.",
+      emptyDeductions: "No hay descuentos en este pago.",
       earningsTableAriaLabel: "Desglose de ingresos",
-      deductionsTableAriaLabel: "Desglose de anticipos descontados",
+      deductionsTableAriaLabel: "Desglose de descuentos",
       headerConcept: "Concepto",
       headerCategory: "Categoría",
       headerTripReference: "Viaje / Referencia",
-      headerAdvanceReference: "Referencia / Anticipo",
+      headerReference: "Referencia",
       headerQuantity: "Cantidad",
       headerUnitRate: "Tarifa unit.",
       headerAmount: "Importe",
@@ -514,11 +555,14 @@ export const settlementsCopy = {
       reimbursementPrefix: "Reembolso",
       advanceDeductionTitle: "Descuento de anticipo",
       receiptPrefix: "Comprobante",
+      templateDeductionCategory: "Deducción de tarifa",
+      templateDeductionSubtitle: "De la tarifa del operador",
+      fixedAllowanceCategory: "Prestación fija",
     },
     rejection: {
       title: "Pago rechazado por gerencia",
       reasonLabel: "Motivo:",
-      reopenDraftBtn: "Crear liquidación nueva con este periodo",
+      reopenDraftBtn: "Armar pago nuevo con este periodo",
     },
     notes: {
       title: "Observaciones y notas de patio",
@@ -531,7 +575,7 @@ export const settlementsCopy = {
       statusLabel: "Estado:",
       issueDateLabel: "Emisión:",
       driverLabel: "Operador / Conductor:",
-      settledPeriodLabel: "Período Liquidado:",
+      settledPeriodLabel: "Período pagado:",
       paymentMethodLabel: "Método de pago:",
       bankRefLabel: "Ref. de pago:",
       earningsTitle: "1. Ingresos del Período (Sueldo, Viajes y Reembolsos) (+)",
@@ -545,7 +589,20 @@ export const settlementsCopy = {
         empty: "Sin ingresos ni viajes registrados en este período",
         subtotal: "Subtotal Ingresos (+):",
       },
-      deductionsTitle: "2. Descuentos y Anticipos de Viaje (−)",
+      /** ADR-0085 E11 — viajes cerrados en este pago sin comisión. */
+      zeroTripsTitle: "Viajes incluidos sin comisión",
+      zeroTripsHint: "Estos viajes quedan cerrados en este pago con $0 y no se pagarán en otro.",
+      zeroTripsTable: {
+        trip: "Viaje",
+        reason: "Motivo",
+      },
+      zeroTripsReasons: {
+        scheme: "La tarifa no paga comisión en este viaje",
+        zero_km: "Pago por km sin distancia registrada",
+        no_rule: "La tarifa no tiene regla para este tipo de ruta",
+      },
+      zeroTripsReasonFallback: "Sin comisión",
+      deductionsTitle: "2. Descuentos (−)",
       deductionsTable: {
         concept: "Concepto",
         type: "Tipo",
@@ -559,7 +616,7 @@ export const settlementsCopy = {
         totalDeductionsLabel: "(−) Total Descuentos",
         netToPayLabel: "(=) NETO A PAGAR AL OPERADOR",
       },
-      notesTitle: "Observaciones / Acuerdos de liquidación:",
+      notesTitle: "Observaciones / Acuerdos del pago:",
       signatures: {
         driverTitle: "Firma de Conformidad del Operador",
         driverDisclaimer:
@@ -582,7 +639,7 @@ export const settlementsCopy = {
   },
   createPage: {
     header: {
-      title: "Nuevo pago a operador",
+      title: "Armar pago",
       subtitle: "Calcula lo ganado por viajes y descuenta anticipos entregados.",
     },
     sections: {
@@ -623,39 +680,42 @@ export const settlementsCopy = {
       submitApprovalBtn: "Enviar a autorización",
       pedirVoboBtn: "Enviar a autorización",
       submitApprovalSegregationHint:
-        "Otro usuario con permiso de autorizar en Finanzas debe revisar este pago.",
+        "Otro usuario con permiso debe autorizarlo en Por autorizar (también puedes verlo en Aprobaciones).",
       submitApprovalSegregationHintSingle:
         "Como eres el único autorizador activo, podrás autorizar este pago tú mismo; quedará marcado como autoaprobado.",
-      bypassDraftHint:
-        "El neto está bajo el umbral y no hay ajustes: se guarda en borrador. Debe registrar el pago otra persona. Pídeselo a un contador o administrador.",
-      bypassDraftHintSingle:
-        "El neto está bajo el umbral y no hay ajustes: se guarda en borrador. Como eres el único usuario que puede registrar pagos, podrás hacerlo tú mismo; quedará marcado en el historial.",
+      bypassDraftHint: (thresholdLabel: string) =>
+        `El neto es menor a ${thresholdLabel} (monto mínimo para pedir autorización) y no hay correcciones manuales: se guarda en borrador. Debe registrar el pago otra persona; pídeselo a un contador o administrador.`,
+      bypassDraftHintSingle: (thresholdLabel: string) =>
+        `El neto es menor a ${thresholdLabel} (monto mínimo para pedir autorización) y no hay correcciones manuales: se guarda en borrador. Como eres el único usuario que puede registrar pagos, podrás hacerlo tú mismo; quedará marcado en el historial.`,
+      bypassDraftHintNoAmount:
+        "La regla no pide autorización por monto y no hay correcciones manuales: se guarda en borrador. Debe registrar el pago otra persona; pídeselo a un contador o administrador.",
+      bypassDraftHintNoAmountSingle:
+        "La regla no pide autorización por monto y no hay correcciones manuales: se guarda en borrador. Como eres el único usuario que puede registrar pagos, podrás hacerlo tú mismo; quedará marcado en el historial.",
       commercialFreightHint:
-        "El % sobre flete usa el monto comercial al completar el viaje, no el CFDI timbrado.",
+        "El % sobre flete usa el monto comercial al completar el viaje, no el monto de la factura timbrada.",
       reservedAdvanceHint: "Reservado en un pago pendiente; se aplica al registrar el pago.",
+      reservedElsewhereHint: (folio: string) =>
+        `Reservado en ${folio}. Se libera cuando ese pago se pague o se cancele.`,
       saveDraftBtn: "Guardar borrador",
       cancelBtn: "Cancelar",
       noItemsToSettle: "No hay viajes ni sueldo base para pagar en este período.",
       actionsBlockedUntilReady:
-        "Configura una tarifa válida para guardar o enviar, o confirma el registro solo de reembolsos.",
-      reimbursementsOnlyLabel:
-        "Registrar solo reembolsos y anticipos (pago de sueldo pendiente de tarifa)",
-      reimbursementsOnlyHint:
-        "El pago no incluirá sueldo base ni pago por viajes hasta que exista una tarifa completa.",
-      /** F1 tres bolsillos: franja corta bajo el resumen (sin cambiar tabs/pasos). */
-      channelsTeachingAriaLabel: "Tres canales del pago a operadores",
-      channelsTeachingIntro: "Tres bolsillos — no mezclar el mismo desembolso:",
-      channelsTeachingExpense: "Gasto del viaje → reembolso (+)",
+        "Configura una tarifa válida para guardar o enviar. Para pagar solo reembolsos, arma un pago de reembolsos.",
+      /** F1 tres bolsillos: franja corta bajo el neto (sin cambiar tabs/pasos). */
+      channelsTeachingAriaLabel: "Tres bolsillos del pago a operadores",
+      channelsTeachingIntro: "Tres bolsillos — no registres el mismo dinero dos veces:",
+      channelsTeachingExpense:
+        "Gasto del viaje en Costos → reembolso aquí (+); no lo registres otra vez como anticipo",
       channelsTeachingAdvance: "Anticipo → descuento (−)",
-      channelsTeachingFixed: "Pago fijo de tarifa → bruto (+ 1× por corte)",
+      channelsTeachingFixed: "Pago fijo de tarifa → bruto (+ 1× por período)",
       periodMismatchAlertTitle: "El rango excede un período de pago",
       periodMismatchAlertDescription: (periodLabel: string, amount: string) =>
-        `El sueldo base y las prestaciones fijas cubren 1 período ${periodLabel.toLowerCase()} (${amount}). Si necesitas pagar varias ${periodLabel === "Semanal" ? "semanas" : periodLabel === "Quincenal" ? "quincenas" : "meses"}, arma un corte por ${periodLabel === "Semanal" ? "semana" : periodLabel === "Quincenal" ? "quincena" : "mes"}.`,
+        `El sueldo base y las prestaciones fijas cubren 1 período ${periodLabel.toLowerCase()} (${amount}). Si necesitas pagar varias ${periodLabel === "Semanal" ? "semanas" : periodLabel === "Quincenal" ? "quincenas" : "meses"}, arma un pago por ${periodLabel === "Semanal" ? "semana" : periodLabel === "Quincenal" ? "quincena" : "mes"}.`,
     },
     advances: {
       selectAll: "Descontar todo",
       clearAll: "Quitar descuentos",
-      remainingNote: "Quedará saldo pendiente:",
+      amountAriaLabel: "Monto a descontar del anticipo",
       emptyAdvances: "El operador no tiene anticipos pendientes de descontar.",
     },
     trips: {
@@ -689,6 +749,49 @@ export const settlementsCopy = {
         `Confirmo pago en $0 en ${count} viaje(s) sin km`,
       submitBlockedHint: "No se puede enviar: hay viajes por km sin distancia",
     },
+    /** ADR-0085 E11 — por qué un viaje entra en $0. */
+    zeroReason: {
+      scheme: "$0 por tarifa",
+      zero_km: "Sin km",
+      no_rule: "Sin regla de pago",
+      schemeTitle: "La regla de la tarifa da $0 en este viaje. Entra a este pago sin comisión.",
+      noRuleTitle:
+        "La tarifa no tiene regla para este tipo de ruta. Si lo incluyes, entra en $0 y no se vuelve a pagar.",
+    },
+    /** ADR-0085 E11 — viajes sin regla de pago: se confirman antes de guardar o enviar. */
+    noRuleGate: {
+      dialogTitle: "¿Incluir viajes sin regla de pago?",
+      dialogDescription: (count: number) =>
+        count === 1
+          ? "La tarifa del operador no tiene regla para 1 viaje. Si lo incluyes, entra a este pago en $0 y ya no aparecerá en Por pagar."
+          : `La tarifa del operador no tiene regla para ${count} viajes. Si los incluyes, entran a este pago en $0 y ya no aparecerán en Por pagar.`,
+      fixHint:
+        "Si deben pagarse, regresa y agrega la regla en Tarifas. Después de guardar, solo se corrige cancelando el pago.",
+      confirmAction: "Incluir en $0",
+      cancelAction: "Regresar",
+    },
+    /** ADR-0085 E11 — sueldo, prestaciones y deducciones van una vez por período. */
+    periodicBlock: {
+      containedTitle: "El sueldo de este período ya está en otro pago",
+      containedDescription: (folio: string, status: string, period: string) =>
+        `${folio} (${status}, ${period}) ya trae el sueldo base, las prestaciones fijas y las deducciones de la tarifa, así que aquí no se vuelven a sumar. Este pago lleva solo viajes, reembolsos y anticipos.`,
+      partialTitle: "El período se cruza con otro pago",
+      partialDescription: (folio: string, status: string, period: string) =>
+        `${folio} (${status}) ya cubre ${period}. El sueldo se paga por período completo y no se divide por días: mueve el inicio de este pago al día siguiente para no pagarlo dos veces.`,
+      partialDescriptionNoSuggestion: (folio: string, status: string, period: string) =>
+        `${folio} (${status}) ya cubre ${period}. Ajusta las fechas para que este pago no incluya esos días.`,
+      startOnAction: (date: string) => `Mover inicio al ${date}`,
+      viewSettlementAction: (folio: string) => `Ver ${folio}`,
+      submitBlockedHint: "Para guardar, mueve la fecha de inicio.",
+      submitBlockedHintNoSuggestion: "Para guardar, ajusta las fechas.",
+    },
+    conflicts: {
+      tripInActiveSettlementTitle: "Algunos viajes ya están en otro pago",
+      tripInActiveSettlementLinePrefix: (tripCode: string) => `${tripCode} está en `,
+      tripInActiveSettlementLineStatus: (status: string) => ` (${status})`,
+      tripInActiveSettlementHint:
+        "Se recalculó el pago sin esos viajes. Revisa el total y vuelve a guardar.",
+    },
     dialog: {
       title: "¿Confirmar y enviar?",
       voboTitle: "¿Enviar a autorización?",
@@ -715,7 +818,7 @@ export const settlementsCopy = {
         "Este operador no tiene una tarifa vigente para el período. Crea o asígnale una en Tarifas para poder calcular sueldo, pago por viajes y prestaciones.",
       incompleteAgreementTitle: "Tarifa incompleta",
       incompleteAgreementDescription:
-        "Hay una tarifa asignada, pero no genera montos pagables en este período. Completa reglas o prestaciones en Tarifas. Si el esquema usa sueldo base, configúralo en la ficha del empleado.",
+        "Hay una tarifa asignada, pero no genera montos pagables en este período. Completa reglas o prestaciones en Tarifas. Si la tarifa usa sueldo base, configúralo en la ficha del empleado.",
       configureAgreementAction: "Ir a Tarifas",
       configureCompensationAction: "Ir a Tarifas",
       configureIncompleteCompensationAction: "Completar tarifa",
@@ -727,9 +830,129 @@ export const settlementsCopy = {
       draftSuccess: "Pago guardado como borrador",
       submitDegradedToDraft: "Pago guardado como borrador",
       submitDegradedToDraftHint:
-        "El neto quedó bajo el umbral vigente, así que no requiere autorización: quedó listo para que otro usuario registre el pago.",
+        "El neto quedó debajo del monto mínimo para pedir autorización, así que no la requiere: quedó listo para que otro usuario registre el pago.",
       createError: "Error al generar el pago",
-      agreementRequired: "Asigna una tarifa o confirma el registro solo de reembolsos",
+      agreementRequired: "Asigna una tarifa para armar el pago",
+    },
+  },
+  /** ADR-0085 E11-F3 — reembolsos de gastos que pagó el operador (handoff PRD 04 §B). */
+  reimbursements: {
+    kindLabel: "Pago de reembolsos",
+    createAction: "Armar pago de reembolsos",
+    tripLineSettledIn: (tripCode: string, folio: string) =>
+      `Viaje ${tripCode} · comisión en ${folio}`,
+    tripLineNotSettled: (tripCode: string) =>
+      `Viaje ${tripCode} · sin comisión en pagos de este operador`,
+    manualPayeeLine: "Asignado a este operador por cambio de conductor",
+    table: {
+      trip: "Viaje",
+      concept: "Concepto",
+      reason: "Motivo",
+      approvedAt: "Aprobado el",
+      amount: "Monto",
+      total: "Total",
+      driverReassigned: "Cambio de conductor",
+    },
+    /** E11 punto 10: el texto de `approved` es literal del ADR más la frase que aprobó el CEO. */
+    lateAlert: {
+      title: "Hay reembolsos nuevos para este operador",
+      approvedBody: (amount: string) =>
+        `Después de autorizar este pago se aprobaron gastos pagados por el operador por ${amount}. No forman parte de este pago. Puedes registrarlo tal como está y pagar los reembolsos en un pago aparte. Si no armas un pago aparte, se sumarán al siguiente pago del operador.`,
+      draftBody: (amount: string) =>
+        `Después de armar este pago se aprobaron gastos pagados por el operador por ${amount}. No forman parte de este pago y no se agregan a él. Puedes pagarlos en un pago aparte o dejarlos para el siguiente pago del operador.`,
+      viewExpenses: "Ver gastos",
+    },
+    lateSheet: {
+      title: "Reembolsos nuevos",
+      description: "Gastos pagados por el operador que se aprobaron después de este pago.",
+      empty: "Estos gastos ya se incluyeron en otro pago.",
+    },
+    cancelled: {
+      title: "Pago cancelado",
+      body: "Sus viajes, sueldo y reembolsos quedaron libres para armar un pago nuevo.",
+      rebuildAction: "Armar pago nuevo con este período",
+    },
+    detail: {
+      subtitle: (date: string) => `Pago de reembolsos · creado el ${date}`,
+      grossSubtext: "Reembolsos y partidas manuales",
+    },
+    lateSection: {
+      title: (count: number) => `Reembolsos de viajes ya incluidos en otro pago (${count})`,
+      description: "Gastos aprobados después de que su viaje entró en otro pago. Se pagan en este.",
+    },
+    payeeSection: {
+      title: (count: number) => `Requiere definir a quién se reembolsa (${count})`,
+      description: (operator: string) =>
+        `Al viaje le cambiaron de conductor. Marca solo los gastos que pagó ${operator}; los que no marques quedan pendientes para el conductor que corresponda.`,
+      checkboxLabel: (operator: string, amount: string, tripCode: string) =>
+        `Reembolsar a ${operator} el gasto de ${amount} del viaje ${tripCode}`,
+      footer: "Lo que marques queda registrado con tu nombre y la fecha.",
+      operatorFallback: "este operador",
+    },
+    createPage: {
+      title: "Pago de reembolsos",
+      subtitle: "Paga al operador los gastos de viaje que cubrió con su dinero. No lleva viajes ni sueldo.",
+      operatorLabel: "Operador",
+      readyTitle: (count: number) => `1. Reembolsos a pagar (${count})`,
+      readyDescription:
+        "Gastos aprobados que pagó el operador. Entran completos; si alguno está mal, corrígelo en Costos del viaje.",
+      readyEmpty: "Sin reembolsos listos. Revisa los gastos por definir abajo.",
+      payeePrefix: "2.",
+      advancesTitle: (count: number) => `3. Anticipos por descontar (${count})`,
+      notesTitle: "4. Observaciones",
+      backToFolio: (folio: string) => `Volver a ${folio}`,
+      backToFolioFallback: "Volver al pago",
+      backToPending: "Volver a por pagar",
+      noEmployeeTitle: "Elige al operador desde Por pagar",
+      noEmployeeAction: "Ir a Por pagar",
+      loadingTitle: "Buscando reembolsos pendientes…",
+      emptyTitle: "Este operador no tiene reembolsos pendientes",
+      emptyDescription: "Aparecen aquí cuando se aprueba en Costos un gasto que pagó el operador.",
+      emptyAction: "Volver",
+      requiresExpensesError:
+        "Marca al menos un gasto. Un pago de reembolsos necesita al menos un reembolso.",
+      dialogKindLabel: "Tipo",
+    },
+    errors: {
+      requiresExpensesTitle: "No hay reembolsos para pagar",
+      requiresExpensesBody: "Otro usuario pudo haberlos incluido en otro pago. Se actualizó la lista.",
+      payeeNotDriverTitle: (tripCode: string) => `Este operador no manejó el viaje ${tripCode}`,
+      payeeNotDriverTitleFallback: "Este operador no manejó el viaje",
+      payeeNotDriverBody:
+        "Solo se puede reembolsar a un conductor que haya tenido asignado ese viaje. Se quitó la marca de ese gasto.",
+      payeeNotDriverRow: "Este operador no tuvo asignado el viaje.",
+      notEligibleTitle: "Un gasto ya no se puede reembolsar aquí",
+      notEligibleBody: (tripCode: string) =>
+        `El gasto del viaje ${tripCode} cambió o ya está en otro pago. Se actualizó la lista.`,
+      notEligibleBodyFallback: "Un gasto cambió o ya está en otro pago. Se actualizó la lista.",
+      notEligibleRow: "Este gasto ya no se puede reembolsar aquí.",
+      inActiveSettlementTitle: "Algunos reembolsos ya están en otro pago",
+      inActiveSettlementLinePrefix: (tripCode: string, amount: string | null) =>
+        amount ? `Viaje ${tripCode} · ${amount} está en ` : `Viaje ${tripCode} está en `,
+      inActiveSettlementLineStatus: (status: string) => ` (${status})`,
+      inActiveSettlementFallback: "Otro pago tomó estos reembolsos mientras armabas este.",
+      inActiveSettlementHint: "Se recalculó el pago sin ellos. Revisa el total y vuelve a guardar.",
+      alreadyPaidTitle: "No se pudo registrar el pago",
+      alreadyPaidBody: (folio: string) =>
+        `Un reembolso de este pago ya se pagó en ${folio}. Para no pagarlo dos veces, cancela este pago y ármalo de nuevo sin ese gasto.`,
+      alreadyPaidBodyNoFolio:
+        "Un reembolso de este pago ya se pagó en otro pago. Para no pagarlo dos veces, cancela este pago y ármalo de nuevo sin ese gasto.",
+    },
+    backlog: {
+      rowType: "Solo reembolsos",
+      periodNotApplicable: "No aplica",
+      periodTooltip: "Un pago de reembolsos no lleva período.",
+      payeeRequiredBadge: (count: number) => `Requiere definir a quién se reembolsa · ${count}`,
+      payeeRequiredTooltip:
+        "Al viaje le cambiaron de conductor. Al armar el pago, marca los gastos que pagó este operador.",
+    },
+    receipt: {
+      documentTitle: "Pago de reembolsos a operador",
+      documentSubtitle: "Comprobante operativo de reembolso de gastos de viaje",
+      dateLabel: "Fecha:",
+      earningsTitle: "1. Reembolsos de gastos de viaje (+)",
+      driverDisclaimer:
+        "Recibí a mi entera satisfacción la cantidad neta indicada por concepto de reembolso de gastos de viaje que pagué.",
     },
   },
   agreementsDialog: {
@@ -777,6 +1000,10 @@ export const settlementsCopy = {
     categoryPlaceholder: "Categoría",
     paymentMethodLabel: "Método de entrega *",
     paymentMethodPlaceholder: "Método",
+    tripLabel: "Viaje (opcional)",
+    tripNone: "Sin viaje (cuenta del operador)",
+    tripNoDriver:
+      "Este empleado no tiene rol de operador; no se puede etiquetar un viaje.",
     bankReferenceLabel: "Referencia bancaria / Folio",
     bankReferencePlaceholder: "Ej. SPEI 889922",
     notesLabel: "Notas / Justificación",
@@ -805,7 +1032,7 @@ export const settlementsCopy = {
       materialHintSigned: (field: string, name: string, role: string | null, date: string) =>
         `Cambiar ${field} anula la autorización de ${name}${role ? ` (${role})` : ""} del ${date}.`,
       materialHintRestart: (field: string) => `Cambiar ${field} reinicia la autorización.`,
-      materialFields: "monto, categoría o método",
+      materialFields: "monto, categoría, método o viaje",
       save: "Guardar cambios",
       saveAndResubmit: "Guardar y reenviar",
       saving: "Guardando…",
@@ -835,6 +1062,7 @@ export const settlementsCopy = {
       amount: "Monto",
       category: "Categoría",
       paymentMethod: "Método de pago",
+      tripId: "Viaje",
     } as Record<string, string>,
     toasts: {
       updated: "Anticipo actualizado",
@@ -890,13 +1118,15 @@ export const settlementsCopy = {
       correctAndResubmit: "Corregir y reenviar",
       resubmitUnchanged: "Reenviar sin cambios",
     },
-    returnedChip: "Devuelta",
+    returnedChip: "Devuelto",
+    returnVsRejectHint:
+      "Si solo hay un error corregible, devuelve el pago; rechazar lo cierra.",
     sheet: {
-      title: (folio: string) => `Corregir liquidación ${folio}`,
+      title: (folio: string) => `Corregir pago ${folio}`,
       description: "Los cambios quedan en el historial de autorización.",
       calculatedTitle: "Lo calcula el sistema",
       calculatedHint:
-        "Se calculó con la tarifa guardada al crearla. Para cambiar viajes, periodo u operador hay que cancelar esta liquidación y crear otra.",
+        "Se calculó con la tarifa guardada al crearla. Para cambiar viajes, periodo u operador hay que cancelar este pago y crear otro.",
       operatorLabel: "Operador",
       periodLabel: "Periodo",
       tripsLabel: "Viajes",
@@ -905,11 +1135,11 @@ export const settlementsCopy = {
       advancesTitle: "Anticipos aplicados",
       advancesDraftHint: "Elige qué anticipos descontar y ajusta el monto si hace falta.",
       advancesLockedHint:
-        "Los anticipos solo se cambian en borrador. Si hay un error, devuélvela para corregir.",
+        "Los anticipos solo se cambian en borrador. Si hay un error, devuélvelo para corregir.",
       advancesDeductedAtCreate:
-        "Estos anticipos se descontaron al crear la liquidación y no se cambian aquí.",
+        "Estos anticipos se descontaron al crear el pago y no se cambian aquí.",
       advancesReserved:
-        "Estos anticipos ya están reservados para esta liquidación y no se cambian aquí.",
+        "Estos anticipos ya están reservados para este pago y no se cambian aquí.",
       advancesLoading: "Cargando anticipos del operador…",
       advancesLoadError: "No se pudieron cargar los anticipos del operador.",
       advancesEmpty: "Sin anticipos aplicados.",
@@ -918,7 +1148,7 @@ export const settlementsCopy = {
       notesTitle: "Notas",
       notesPlaceholder: "Instrucciones para tesorería o acuerdos especiales…",
       authorizerHint:
-        "¿Prefieres que quien la capturó la corrija? Usa Devolver para corregir.",
+        "¿Prefieres que quien lo capturó lo corrija? Usa Devolver para corregir.",
       footerTotals: (a: string, a2: string, b: string, b2: string, c: string, c2: string) =>
         `Percepciones ${a} → ${a2} · Deducciones ${b} → ${b2} · Neto ${c} → ${c2}`,
       perceptionsLabel: "Percepciones",
@@ -929,7 +1159,7 @@ export const settlementsCopy = {
         pending_approval:
           "La autorización empieza de nuevo con la regla vigente. Quedarás como solicitante.",
         approved:
-          "Pierde la autorización vigente y vuelve a autorización, aunque el neto quede bajo el umbral. Quedarás como solicitante.",
+          "Pierde la autorización vigente y vuelve a autorización aunque el neto quede debajo del monto mínimo. Quedarás como solicitante.",
       },
       save: "Guardar",
       saveCorrection: "Guardar corrección",
@@ -986,24 +1216,42 @@ export const settlementsCopy = {
       action: "Cerrar y recargar",
     },
     disburse: {
-      revisionChangedTitle: "La liquidación cambió",
+      revisionChangedTitle: "El pago cambió",
       revisionChanged:
-        "La liquidación cambió desde que la abriste. Revisa el neto antes de registrar el pago.",
+        "El pago cambió desde que lo abriste. Revisa el neto antes de registrar el pago.",
       reload: "Recargar",
+      successTitle: "Pago registrado correctamente",
+      dialogDescriptionPrefix:
+        "Captura la referencia bancaria o folio de la transferencia efectuada para registrar el folio",
     },
     toasts: {
-      updated: "Liquidación actualizada",
-      flowRestarted: "Liquidación actualizada; la autorización empezó de nuevo",
-      reapprovalRequired: "Liquidación corregida; vuelve a autorización",
-      resubmitted: "Liquidación reenviada a autorización",
-      returned: "Liquidación devuelta para corregir",
-      returnError: "No se pudo devolver la liquidación",
+      updated: "Pago actualizado",
+      flowRestarted: "Pago actualizado; la autorización empezó de nuevo",
+      reapprovalRequired: "Pago corregido; vuelve a autorización",
+      resubmitted: "Pago reenviado a autorización",
+      returned: "Pago devuelto para corregir",
+      returnError: "No se pudo devolver el pago",
     },
     create: {
       manualItemsHint: "Las correcciones manuales siempre piden autorización.",
       manualItemsLabel: "Partidas manuales",
       manualAdditionsLabel: "Bonos y ajustes a favor",
       manualDeductionsLabel: "Penalizaciones y ajustes en contra",
+    },
+    /** Tope de descuentos: bruto → tarifa → manuales en contra → anticipos. */
+    deductionsCap: {
+      advancesExceed: (max: string) =>
+        `Los anticipos superan lo que cabe en este pago (máximo ${max}). El resto queda pendiente en el anticipo para el siguiente corte.`,
+      manualExceed: "Los descuentos manuales superan lo que ganó el operador en este corte.",
+      fitMaxAction: "Descontar el máximo posible",
+      maxDeductibleHint: (max: string) => `Máximo a descontar en este pago: ${max}`,
+      pendingNextCut: (amount: string) => `Quedan ${amount} pendientes para el siguiente corte.`,
+      templateOmitted: (amount: string) => `No aplicado ${amount} por ingreso insuficiente`,
+      templateOmittedLine: (label: string, amount: string) =>
+        `${label}: no aplicado ${amount} por ingreso insuficiente`,
+      uncoveredLabel: "Descuento no cubierto",
+      uncoveredHint: "Descuentos que superaron lo ganado; no se cobran en este pago.",
+      actionErrorTitle: "Los descuentos superan lo ganado",
     },
   },
   periodStepper: {

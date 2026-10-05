@@ -127,6 +127,101 @@ export function computeSettlementTotals(
   };
 }
 
+export const SETTLEMENT_DEDUCTIONS_EXCEED_GROSS = "SETTLEMENT_DEDUCTIONS_EXCEED_GROSS";
+
+const toCents = (value: number): number => Math.round((Number(value) || 0) * 100);
+const fromCents = (cents: number): number => cents / 100;
+
+/** Orden en que la tarifa consume el bruto; un tipo desconocido va al final. */
+export const TEMPLATE_DEDUCTION_PRIORITY: readonly string[] = [
+  "tax_withholding",
+  "union_dues",
+  "savings_fund",
+  "equipment_rental",
+  "other_deduction",
+];
+
+export interface TemplateDeductionAllocation {
+  requestedAmount: number;
+  appliedAmount: number;
+  omittedAmount: number;
+}
+
+/**
+ * Deducciones de tarifa: nunca bloquean. Consumen el bruto por prioridad
+ * (estable dentro de cada tipo) y lo que no cabe se omite. Conserva el orden
+ * de entrada.
+ */
+export function applyTemplateDeductionsByPriority<T extends { deductionType: string; amount: number }>(
+  grossAmount: number,
+  deductions: readonly T[],
+): Array<T & TemplateDeductionAllocation> {
+  const rank = (type: string): number => {
+    const index = TEMPLATE_DEDUCTION_PRIORITY.indexOf(type);
+    return index === -1 ? TEMPLATE_DEDUCTION_PRIORITY.length : index;
+  };
+  const requested = deductions.map((deduction) => Math.max(0, toCents(deduction.amount)));
+  const applied = deductions.map(() => 0);
+  const order = deductions
+    .map((deduction, index) => ({ index, rank: rank(deduction.deductionType) }))
+    .sort((left, right) => left.rank - right.rank || left.index - right.index);
+  let remaining = Math.max(0, toCents(grossAmount));
+  for (const { index } of order) {
+    const take = Math.min(requested[index]!, remaining);
+    applied[index] = take;
+    remaining -= take;
+  }
+  return deductions.map((deduction, index) => ({
+    ...deduction,
+    requestedAmount: fromCents(requested[index]!),
+    appliedAmount: fromCents(applied[index]!),
+    omittedAmount: fromCents(requested[index]! - applied[index]!),
+  }));
+}
+
+export interface DeductionCapacity {
+  maxAdvanceDeductible: number;
+  excessAmount: number;
+  excessSource: "advances" | "manual_deductions" | null;
+}
+
+/**
+ * Lo que cabe tras bruto → deducciones de plantilla → manuales en contra →
+ * anticipos. Las de plantilla nunca generan excedente (en históricos sin tope
+ * solo dejan la capacidad en 0); sí lo generan manuales y anticipos.
+ */
+export function assessDeductionCapacity(
+  base: CalculatedSettlementBase,
+  manualItems: readonly ManualSettlementItem[],
+): DeductionCapacity {
+  const manual = sumManualItems(manualItems);
+  const gross = toCents(base.calculatedGross + manual.additions);
+  const afterTemplate = Math.max(0, gross - toCents(base.templateDeductions));
+  const manualDeductions = toCents(manual.deductions);
+  const advances = toCents(base.advancesDeducted);
+  const excess = Math.max(0, manualDeductions + advances - afterTemplate);
+  const excessSource =
+    excess === 0 ? null : manualDeductions > afterTemplate ? "manual_deductions" : "advances";
+  return {
+    maxAdvanceDeductible: fromCents(Math.max(0, afterTemplate - manualDeductions)),
+    excessAmount: fromCents(excess),
+    excessSource,
+  };
+}
+
+/** Descuentos guardados que el neto no cubrió (> 0 solo en históricos). */
+export function uncoveredDeductionsAmount(settlement: {
+  grossAmount: number;
+  totalAdvancesDeducted: number;
+  totalOtherDeductions: number;
+}): number {
+  const uncovered =
+    toCents(settlement.totalAdvancesDeducted) +
+    toCents(settlement.totalOtherDeductions) -
+    toCents(settlement.grossAmount);
+  return fromCents(Math.max(0, uncovered));
+}
+
 /**
  * Base calculada de una liquidación ya guardada. Las columnas mezclan motor y
  * manuales; se separan restando las manuales vigentes con la misma regla de

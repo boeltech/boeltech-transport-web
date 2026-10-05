@@ -27,6 +27,8 @@ export function settlementToApprovableItem(settlement: DriverSettlement): Approv
       employeeFullName: settlement.employeeFullName,
       periodStart: settlement.periodStart,
       periodEnd: settlement.periodEnd,
+      settlementKind: settlement.settlementKind,
+      createdAt: settlement.createdAt,
       tripsCount: settlement.tripsCount,
       grossAmount: settlement.grossAmount,
       totalDeductions: settlement.totalAdvancesDeducted + settlement.totalOtherDeductions,

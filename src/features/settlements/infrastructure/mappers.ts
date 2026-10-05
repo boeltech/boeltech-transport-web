@@ -7,13 +7,20 @@ import type {
   DriverAdvance,
   DriverSettlement,
   EligibleTripPreview,
+  LateReimbursementsSummary,
   OpenAdvancePreview,
+  PeriodicBlockPreview,
+  ReimbursementPreviewLine,
+  ReimbursementRequiringPayeeLine,
   SettlementItem,
   SettlementPreview,
   SettlementBacklogRow,
+  SettlementPeriodOverlap,
+  SettlementPeriodOverlapStatus,
   SettlementWorkbenchData,
   SettlementWorkbenchSummary,
   TenantSettlementSettings,
+  ZeroCommissionReason,
 } from "../domain/entities";
 import {
   DEFAULT_MID_TRIP_PAYOUT_POLICY,
@@ -130,6 +137,7 @@ export interface ApiDriverSettlementRaw {
   total_other_deductions: number;
   gross_amount: number;
   net_amount: number;
+  uncovered_deductions_amount?: number;
   currency: string;
   disbursed_at: string | null;
   disbursed_by: string | null;
@@ -161,11 +169,62 @@ export interface ApiDriverSettlementRaw {
   approval?: ApiApprovalBlockRaw | null;
   created_by?: string | null;
   created_by_name?: string | null;
+  settlement_kind?: string;
+  late_reimbursements?: ApiLateReimbursementsRaw | null;
+}
+
+export interface ApiTripSettledInRaw {
+  settlement_id: string;
+  settlement_number: string;
+}
+
+export interface ApiLateReimbursementsRaw {
+  count: number;
+  amount: number;
+  trip_expense_ids?: string[];
+  trip_ids?: string[];
+  reference: string;
+  items?: Array<{
+    trip_expense_id: string;
+    trip_id: string;
+    trip_code: string;
+    description: string;
+    amount: number;
+    approved_at: string | null;
+  }>;
+}
+
+export interface ApiReimbursementPreviewLineRaw {
+  trip_expense_id: string;
+  trip_id: string;
+  trip_code: string;
+  category: string;
+  description: string;
+  amount: number;
+  receipt_number?: string | null;
+  approved_at: string | null;
+  is_late?: boolean;
+  trip_settled_in?: ApiTripSettledInRaw | null;
+}
+
+export interface ApiReimbursementRequiringPayeeLineRaw {
+  trip_expense_id: string;
+  trip_id: string;
+  trip_code: string;
+  category: string;
+  description: string;
+  amount: number;
+  approved_at: string | null;
+  reason?: string;
+  trip_settled_in?: ApiTripSettledInRaw | null;
 }
 
 export interface ApiSettlementPreviewRaw {
   employee_id: string;
   employee_name: string;
+  settlement_kind?: string;
+  reimbursements?: ApiReimbursementPreviewLineRaw[];
+  reimbursements_requiring_payee?: ApiReimbursementRequiringPayeeLineRaw[];
   period_start: string;
   period_end: string;
   agreement: Record<string, unknown>;
@@ -190,6 +249,9 @@ export interface ApiSettlementPreviewRaw {
     label: string;
     amount: number;
     is_mandatory: boolean;
+    requested_amount?: number;
+    applied_amount?: number;
+    omitted_amount?: number;
   }>;
   eligible_trips: Array<{
     trip_id: string;
@@ -217,7 +279,19 @@ export interface ApiSettlementPreviewRaw {
     has_revenue_split?: boolean;
     distance_basis?: "executed_stops" | "odometer" | "unavailable";
     requires_zero_km_ack?: boolean;
+    zero_commission_reason?: ZeroCommissionReason | null;
   }>;
+  periodic_block?: {
+    status: PeriodicBlockPreview["status"];
+    settlement: {
+      settlement_id: string;
+      settlement_number: string;
+      status: string;
+      period_start: string;
+      period_end: string;
+    } | null;
+    suggested_period_start: string | null;
+  };
   open_advances: Array<{
     advance_id: string;
     folio: string;
@@ -225,6 +299,7 @@ export interface ApiSettlementPreviewRaw {
     balance_remaining: number;
     reserved_amount?: number;
     available_balance?: number;
+    reserved_by_settlement_number?: string | null;
     category: string;
     disbursed_at: string | null;
   }>;
@@ -234,6 +309,7 @@ export interface ApiSettlementPreviewRaw {
     total_fixed_allowances?: number;
     total_reimbursements: number;
     total_deductions?: number;
+    total_deductions_omitted?: number;
     suggested_advance_deduction: number;
     gross_amount: number;
     net_amount: number;
@@ -241,10 +317,9 @@ export interface ApiSettlementPreviewRaw {
 }
 
 export interface ApiTenantSettlementSettingsRaw {
-  vobo_threshold_mxn: number;
+  vobo_threshold_mxn: number | null;
   active_approver_count: number;
   active_executor_count: number;
-  managed_by_policy?: boolean;
 }
 
 export interface ApiPaginationRaw {
@@ -381,6 +456,22 @@ export function mapAdvance(raw: ApiDriverAdvanceRaw): DriverAdvance {
   };
 }
 
+const optionalNumber = (value: unknown): number | undefined =>
+  value === undefined || value === null ? undefined : Number(value);
+
+function mapCalculationDetails(
+  raw: Record<string, unknown>,
+): SettlementItem["calculationDetails"] {
+  const details = deepToCamel(raw) as Record<string, unknown>;
+  const requestedAmount = optionalNumber(raw.requested_amount);
+  const omittedAmount = optionalNumber(raw.omitted_amount);
+  return {
+    ...details,
+    ...(requestedAmount !== undefined ? { requestedAmount } : {}),
+    ...(omittedAmount !== undefined ? { omittedAmount } : {}),
+  } as SettlementItem["calculationDetails"];
+}
+
 export function mapSettlementItem(raw: ApiSettlementItemRaw): SettlementItem {
   return {
     id: raw.id,
@@ -396,9 +487,72 @@ export function mapSettlementItem(raw: ApiSettlementItemRaw): SettlementItem {
     amount: Number(raw.amount),
     isDeduction: Boolean(raw.is_deduction),
     calculationDetails: raw.calculation_details
-      ? (deepToCamel(raw.calculation_details) as SettlementItem["calculationDetails"])
+      ? mapCalculationDetails(raw.calculation_details)
       : null,
     createdAt: raw.created_at,
+  };
+}
+
+function mapSettlementKind(raw: string | undefined): DriverSettlement["settlementKind"] {
+  return raw === "reimbursement_only" ? "reimbursement_only" : "regular";
+}
+
+function mapTripSettledIn(
+  raw: ApiTripSettledInRaw | null | undefined,
+): ReimbursementPreviewLine["tripSettledIn"] {
+  if (!raw?.settlement_id) return null;
+  return { settlementId: raw.settlement_id, settlementNumber: raw.settlement_number ?? "" };
+}
+
+export function mapLateReimbursements(
+  raw: ApiLateReimbursementsRaw | null | undefined,
+): LateReimbursementsSummary | null {
+  if (!raw) return null;
+  return {
+    count: Number(raw.count) || 0,
+    amount: Number(raw.amount) || 0,
+    tripExpenseIds: raw.trip_expense_ids ?? [],
+    tripIds: raw.trip_ids ?? [],
+    reference: raw.reference === "approved" ? "approved" : "created",
+    items: (raw.items ?? []).map((item) => ({
+      tripExpenseId: item.trip_expense_id,
+      tripId: item.trip_id,
+      tripCode: item.trip_code,
+      description: item.description,
+      amount: Number(item.amount),
+      approvedAt: item.approved_at,
+    })),
+  };
+}
+
+export function mapReimbursementLine(raw: ApiReimbursementPreviewLineRaw): ReimbursementPreviewLine {
+  return {
+    tripExpenseId: raw.trip_expense_id,
+    tripId: raw.trip_id,
+    tripCode: raw.trip_code,
+    category: raw.category,
+    description: raw.description,
+    amount: Number(raw.amount),
+    receiptNumber: raw.receipt_number ?? null,
+    approvedAt: raw.approved_at,
+    isLate: Boolean(raw.is_late),
+    tripSettledIn: mapTripSettledIn(raw.trip_settled_in),
+  };
+}
+
+export function mapReimbursementRequiringPayeeLine(
+  raw: ApiReimbursementRequiringPayeeLineRaw,
+): ReimbursementRequiringPayeeLine {
+  return {
+    tripExpenseId: raw.trip_expense_id,
+    tripId: raw.trip_id,
+    tripCode: raw.trip_code,
+    category: raw.category,
+    description: raw.description,
+    amount: Number(raw.amount),
+    approvedAt: raw.approved_at,
+    reason: "driver_reassigned",
+    tripSettledIn: mapTripSettledIn(raw.trip_settled_in),
   };
 }
 
@@ -408,6 +562,7 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
     id: raw.id,
     tenantId: raw.tenant_id,
     settlementNumber: raw.settlement_number,
+    settlementKind: mapSettlementKind(raw.settlement_kind),
     employeeId: raw.employee_id,
     employeeFullName: raw.employee_full_name ?? "",
     agreementSnapshot: snapshot,
@@ -422,6 +577,7 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
     totalOtherDeductions: Number(raw.total_other_deductions),
     grossAmount: Number(raw.gross_amount),
     netAmount: Number(raw.net_amount),
+    uncoveredDeductionsAmount: optionalNumber(raw.uncovered_deductions_amount),
     tripsCount: raw.trips_count !== undefined ? Number(raw.trips_count) : undefined,
     currency: raw.currency,
     submittedAt: raw.submitted_at ?? null,
@@ -461,6 +617,9 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
       : {}),
     createdBy: raw.created_by ?? null,
     createdByName: raw.created_by_name ?? null,
+    ...(raw.late_reimbursements !== undefined
+      ? { lateReimbursements: mapLateReimbursements(raw.late_reimbursements) }
+      : {}),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -470,6 +629,19 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
   return {
     employeeId: raw.employee_id,
     employeeName: raw.employee_name,
+    ...(raw.settlement_kind !== undefined
+      ? { settlementKind: mapSettlementKind(raw.settlement_kind) }
+      : {}),
+    ...(raw.reimbursements !== undefined
+      ? { reimbursements: raw.reimbursements.map(mapReimbursementLine) }
+      : {}),
+    ...(raw.reimbursements_requiring_payee !== undefined
+      ? {
+          reimbursementsRequiringPayee: raw.reimbursements_requiring_payee.map(
+            mapReimbursementRequiringPayeeLine,
+          ),
+        }
+      : {}),
     periodStart: raw.period_start,
     periodEnd: raw.period_end,
     agreement: deepToCamel(raw.agreement) as unknown as SettlementPreview["agreement"],
@@ -498,6 +670,9 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
       label: line.label,
       amount: Number(line.amount),
       isMandatory: Boolean(line.is_mandatory),
+      requestedAmount: optionalNumber(line.requested_amount),
+      appliedAmount: optionalNumber(line.applied_amount),
+      omittedAmount: optionalNumber(line.omitted_amount),
     })),
     eligibleTrips: (raw.eligible_trips ?? []).map((trip) => ({
       tripId: trip.trip_id,
@@ -534,6 +709,7 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
       hasRevenueSplit: Boolean(trip.has_revenue_split),
       distanceBasis: trip.distance_basis,
       requiresZeroKmAck: Boolean(trip.requires_zero_km_ack),
+      zeroCommissionReason: trip.zero_commission_reason ?? null,
     })),
     openAdvances: (raw.open_advances ?? []).map((adv) => ({
       advanceId: adv.advance_id,
@@ -544,6 +720,7 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
         adv.reserved_amount !== undefined ? Number(adv.reserved_amount) : undefined,
       availableBalance:
         adv.available_balance !== undefined ? Number(adv.available_balance) : undefined,
+      reservedBySettlementNumber: adv.reserved_by_settlement_number ?? null,
       category: adv.category as OpenAdvancePreview["category"],
       disbursedAt: adv.disbursed_at,
     })),
@@ -559,10 +736,26 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
         raw.summary.total_deductions !== undefined
           ? Number(raw.summary.total_deductions)
           : undefined,
+      totalDeductionsOmitted: optionalNumber(raw.summary.total_deductions_omitted),
       suggestedAdvanceDeduction: Number(raw.summary.suggested_advance_deduction),
       grossAmount: Number(raw.summary.gross_amount),
       netAmount: Number(raw.summary.net_amount),
     },
+    periodicBlock: raw.periodic_block
+      ? {
+          status: raw.periodic_block.status,
+          settlement: raw.periodic_block.settlement
+            ? {
+                settlementId: raw.periodic_block.settlement.settlement_id,
+                settlementNumber: raw.periodic_block.settlement.settlement_number,
+                status: raw.periodic_block.settlement.status as SettlementPeriodOverlapStatus,
+                periodStart: raw.periodic_block.settlement.period_start,
+                periodEnd: raw.periodic_block.settlement.period_end,
+              }
+            : null,
+          suggestedPeriodStart: raw.periodic_block.suggested_period_start ?? null,
+        }
+      : undefined,
   };
 }
 
@@ -586,6 +779,17 @@ export function mapListAdvancesResponse(response: {
   };
 }
 
+export interface ApiSettlementPeriodOverlapRaw {
+  settlement_id: string;
+  status: string;
+  settlement_number: string;
+  conflicts_count: number;
+  period_start?: string;
+  period_end?: string;
+  created_at?: string;
+  overlap_kind?: "contained" | "partial";
+}
+
 export interface ApiSettlementBacklogRowRaw {
   employee_id: string;
   employee_full_name: string;
@@ -599,6 +803,13 @@ export interface ApiSettlementBacklogRowRaw {
   row_type: string;
   warnings?: string[];
   employment_type?: string;
+  /** Ausente o null = sin solape / API pre-F2 (compat soft CTA F1). */
+  period_overlap?: ApiSettlementPeriodOverlapRaw | null;
+  suggested_period_start?: string | null;
+  pending_reimbursements_count?: number;
+  pending_reimbursements_amount?: number;
+  late_reimbursements_count?: number;
+  reimbursements_requiring_payee_count?: number;
 }
 
 export interface ApiSettlementWorkbenchRaw {
@@ -611,6 +822,22 @@ export interface ApiSettlementWorkbenchRaw {
     open_advances?: number;
   };
   backlog?: ApiSettlementBacklogRowRaw[];
+}
+
+function mapPeriodOverlap(
+  raw: ApiSettlementPeriodOverlapRaw | null | undefined,
+): SettlementPeriodOverlap | null {
+  if (!raw?.settlement_id) return null;
+  return {
+    settlementId: raw.settlement_id,
+    status: raw.status as SettlementPeriodOverlapStatus,
+    settlementNumber: raw.settlement_number ?? "",
+    conflictsCount: Number(raw.conflicts_count ?? 0),
+    periodStart: raw.period_start,
+    periodEnd: raw.period_end,
+    createdAt: raw.created_at,
+    overlapKind: raw.overlap_kind,
+  };
 }
 
 export function mapBacklogRow(raw: ApiSettlementBacklogRowRaw): SettlementBacklogRow {
@@ -629,7 +856,13 @@ export function mapBacklogRow(raw: ApiSettlementBacklogRowRaw): SettlementBacklo
         : null,
     rowType: (raw.row_type as SettlementBacklogRow["rowType"]) || "trips_pending",
     warnings: (raw.warnings ?? []) as SettlementBacklogRow["warnings"],
+    periodOverlap: mapPeriodOverlap(raw.period_overlap),
+    suggestedPeriodStart: raw.suggested_period_start ?? null,
     employmentType: raw.employment_type,
+    pendingReimbursementsCount: Number(raw.pending_reimbursements_count ?? 0),
+    pendingReimbursementsAmount: Number(raw.pending_reimbursements_amount ?? 0),
+    lateReimbursementsCount: Number(raw.late_reimbursements_count ?? 0),
+    reimbursementsRequiringPayeeCount: Number(raw.reimbursements_requiring_payee_count ?? 0),
   };
 }
 
@@ -653,11 +886,12 @@ export function mapSettlementSettings(
 ): TenantSettlementSettings {
   return {
     voboThresholdMxn:
-      raw.vobo_threshold_mxn !== undefined && raw.vobo_threshold_mxn !== null
-        ? Number(raw.vobo_threshold_mxn)
-        : DEFAULT_VOBO_THRESHOLD_MXN,
+      raw.vobo_threshold_mxn === undefined
+        ? DEFAULT_VOBO_THRESHOLD_MXN
+        : raw.vobo_threshold_mxn === null
+          ? null
+          : Number(raw.vobo_threshold_mxn),
     activeApproverCount: Number(raw.active_approver_count) || 0,
     activeExecutorCount: Number(raw.active_executor_count) || 0,
-    managedByPolicy: raw.managed_by_policy === true,
   };
 }

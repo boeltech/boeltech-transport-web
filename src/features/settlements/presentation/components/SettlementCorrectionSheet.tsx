@@ -29,6 +29,7 @@ import {
   FieldInlineError,
   FormValidationSummary,
   MoneyInput,
+  getFieldErrorAriaProps,
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
@@ -43,13 +44,17 @@ import {
   useSubmitSettlement,
   useUpdateSettlement,
 } from "../../application/hooks/useSettlements";
-import { useSettlementPreview } from "../../application/hooks/useSettlementPreview";
+import {
+  useReimbursementSettlementPreview,
+  useSettlementPreview,
+} from "../../application/hooks/useSettlementPreview";
 import {
   settlementCorrectionFormSchema,
   type SettlementCorrectionFormValues,
 } from "../validation/settlementSchemas";
 import {
   appliedAdvancesFromSettlement,
+  assessCorrectionCapacity,
   canEditSettlementAdvances,
   computeCorrectionTotals,
   diffSettlementCorrection,
@@ -65,10 +70,21 @@ import {
   type ManualItemRow,
   type ManualItemRowErrors,
 } from "../utils/manualItemRows";
+import {
+  allocateAdvancesFifo,
+  deductionCapacityErrors,
+  deductionsExceedErrorsFromServer,
+  parseDeductionsExceedGrossError,
+  remainingAdvanceRoom,
+  type DeductionCapacityErrors,
+} from "../utils/settlementDeductionCapacity";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
 const copy = settlementsCopy.settlementFlow;
 const sheetCopy = copy.sheet;
+const capCopy = copy.deductionsCap;
+const ADVANCES_FIELD_ID = "settlement-correction-advances";
+const MANUAL_ITEMS_FIELD_ID = "settlement-correction-manual-items";
 
 type SaveIntent = "save" | "resubmit";
 
@@ -92,6 +108,9 @@ interface AdvanceOption {
   folio: string;
   /** Tope a descontar: saldo disponible o lo ya aplicado. */
   max: number;
+  disbursedAt: string | null;
+  /** Folio de otro pago que lo tiene reservado; no se puede descontar aquí. */
+  reservedElsewhereBy: string | null;
 }
 
 function collectMessages(value: unknown, seen = new Set<string>()): string[] {
@@ -134,6 +153,11 @@ function SettlementCorrectionSheetSession({
   const [apiError, setApiError] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [pendingDiff, setPendingDiff] = useState<SettlementCorrectionDiff | null>(null);
+  // 422 de tope de descuentos: vigente hasta que se editen anticipos o partidas.
+  const [serverCapacityErrors, setServerCapacityErrors] = useState<{
+    key: string;
+    errors: DeductionCapacityErrors;
+  } | null>(null);
 
   const isReturned = isSettlementReturned(settlement);
   const advancesEditable = canEditSettlementAdvances(settlement);
@@ -142,8 +166,9 @@ function SettlementCorrectionSheetSession({
   const tripOptions = useMemo(() => settlementTripOptions(settlement), [settlement]);
   const calculatedBase = useMemo(() => calculatedBaseFromStored(settlement), [settlement]);
 
-  const preview = useSettlementPreview(
-    advancesEditable
+  const isReimbursementOnly = settlement.settlementKind === "reimbursement_only";
+  const regularPreview = useSettlementPreview(
+    advancesEditable && !isReimbursementOnly
       ? {
           employeeId: settlement.employeeId,
           periodStart: settlement.periodStart,
@@ -151,6 +176,11 @@ function SettlementCorrectionSheetSession({
         }
       : null,
   );
+  // Un pago de reembolsos puede ser de un operador sin tarifa: su vista previa no lleva período.
+  const reimbursementPreview = useReimbursementSettlementPreview(
+    advancesEditable && isReimbursementOnly ? settlement.employeeId : null,
+  );
+  const preview = isReimbursementOnly ? reimbursementPreview : regularPreview;
 
   const advanceOptions = useMemo<AdvanceOption[]>(() => {
     const options = new Map<string, AdvanceOption>();
@@ -160,20 +190,27 @@ function SettlementCorrectionSheetSession({
           advanceId: item.advanceId,
           folio: item.calculationDetails?.advanceFolio ?? item.description,
           max: item.amount,
+          disbursedAt: null,
+          reservedElsewhereBy: null,
         });
       }
     }
     for (const open of preview.data?.openAdvances ?? []) {
       const available = open.availableBalance ?? open.balanceRemaining;
       const current = options.get(open.advanceId);
+      // El preview no conoce este pago: su propia reserva también llega con folio.
+      const reservedBy = open.reservedBySettlementNumber ?? null;
       options.set(open.advanceId, {
         advanceId: open.advanceId,
         folio: open.folio,
         max: Math.max(available, current?.max ?? 0),
+        disbursedAt: open.disbursedAt ?? null,
+        reservedElsewhereBy:
+          !current && reservedBy && reservedBy !== settlement.settlementNumber ? reservedBy : null,
       });
     }
     return Array.from(options.values());
-  }, [preview.data?.openAdvances, settlement.items]);
+  }, [preview.data?.openAdvances, settlement.items, settlement.settlementNumber]);
 
   const form = useForm<CorrectionFormState>({
     resolver: zodResolver(settlementCorrectionFormSchema) as unknown as Resolver<CorrectionFormState>,
@@ -193,6 +230,25 @@ function SettlementCorrectionSheetSession({
     settlement,
     { customItems, advancesToApply },
     { advancesEditable },
+  );
+  const capacity = assessCorrectionCapacity(
+    settlement,
+    { customItems, advancesToApply },
+    { advancesEditable },
+  );
+  // Un histórico con descuento no cubierto no se marca hasta que se toquen partidas o anticipos.
+  const materialDirty = Boolean(
+    formState.dirtyFields.customItems || formState.dirtyFields.advancesToApply,
+  );
+  const capacityInputsKey = JSON.stringify([customItems, advancesToApply]);
+  const capacityErrors: DeductionCapacityErrors =
+    serverCapacityErrors && serverCapacityErrors.key === capacityInputsKey
+      ? serverCapacityErrors.errors
+      : capacity && materialDirty
+        ? deductionCapacityErrors(capacity, { advancesEditable })
+        : {};
+  const capacityMessages = [capacityErrors.advances, capacityErrors.manualItems].filter(
+    (message): message is string => Boolean(message),
   );
   const summaryMessages = useMemo(() => collectMessages(errors), [errors]);
   const consequence =
@@ -245,6 +301,16 @@ function SettlementCorrectionSheetSession({
         setStale(true);
         return;
       }
+      const exceedsGross = parseDeductionsExceedGrossError(error);
+      if (exceedsGross) {
+        setServerCapacityErrors({
+          key: capacityInputsKey,
+          errors: deductionsExceedErrorsFromServer(exceedsGross, {
+            useServerMessage: settlement.status !== "draft",
+          }),
+        });
+        return;
+      }
       setApiError(getErrorMessage(error));
     }
   };
@@ -260,6 +326,7 @@ function SettlementCorrectionSheetSession({
       close();
       return;
     }
+    if (diff.material && capacityMessages.length > 0) return;
     if (diff.requiresConfirmation) {
       setPendingDiff(diff);
       return;
@@ -270,12 +337,44 @@ function SettlementCorrectionSheetSession({
   const submitWith = (intent: SaveIntent) =>
     handleSubmit(onValid(intent), () => setShowSummary(true));
 
+  const maxAdvanceDeductible = capacity?.maxAdvanceDeductible ?? Number.POSITIVE_INFINITY;
+
   const toggleAdvance = (option: AdvanceOption, checked: boolean) => {
     const current = form.getValues("advancesToApply");
+    const otherAdvancesTotal = current.reduce((sum, advance) => sum + advance.amountToDeduct, 0);
+    const amountToDeduct = Number.isFinite(maxAdvanceDeductible)
+      ? remainingAdvanceRoom({
+          available: option.max,
+          maxDeductible: maxAdvanceDeductible,
+          otherAdvancesTotal,
+        })
+      : option.max;
     const next = checked
-      ? [...current, { advanceId: option.advanceId, amountToDeduct: option.max }]
+      ? [...current, { advanceId: option.advanceId, amountToDeduct }]
       : current.filter((advance) => advance.advanceId !== option.advanceId);
     form.setValue("advancesToApply", next, { shouldDirty: true });
+  };
+
+  const fitAdvancesToMax = () => {
+    const selected = new Set(form.getValues("advancesToApply").map((advance) => advance.advanceId));
+    const allocation = allocateAdvancesFifo(
+      advanceOptions
+        .filter((option) => selected.has(option.advanceId))
+        .map((option) => ({
+          advanceId: option.advanceId,
+          available: option.max,
+          disbursedAt: option.disbursedAt,
+        })),
+      maxAdvanceDeductible,
+    );
+    form.setValue(
+      "advancesToApply",
+      Object.entries(allocation).map(([advanceId, amountToDeduct]) => ({
+        advanceId,
+        amountToDeduct,
+      })),
+      { shouldDirty: true },
+    );
   };
 
   const changeAdvanceAmount = (option: AdvanceOption, amount: number | undefined) => {
@@ -369,10 +468,21 @@ function SettlementCorrectionSheetSession({
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted-foreground">{sheetCopy.operatorLabel}</dt>
               <dd className="font-medium">{settlement.employeeFullName || "—"}</dd>
-              <dt className="text-muted-foreground">{sheetCopy.periodLabel}</dt>
-              <dd>
-                {formatDate(settlement.periodStart)} – {formatDate(settlement.periodEnd)}
-              </dd>
+              {isReimbursementOnly ? (
+                <>
+                  <dt className="text-muted-foreground">
+                    {settlementsCopy.reimbursements.createPage.dialogKindLabel}
+                  </dt>
+                  <dd>{settlementsCopy.reimbursements.kindLabel}</dd>
+                </>
+              ) : (
+                <>
+                  <dt className="text-muted-foreground">{sheetCopy.periodLabel}</dt>
+                  <dd>
+                    {formatDate(settlement.periodStart)} – {formatDate(settlement.periodEnd)}
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">{sheetCopy.tripsLabel}</dt>
               <dd>{sheetCopy.tripsCount(settlement.tripsCount ?? tripOptions.length)}</dd>
               <dt className="text-muted-foreground">{sheetCopy.calculatedSubtotalLabel}</dt>
@@ -404,6 +514,7 @@ function SettlementCorrectionSheetSession({
                 />
               )}
             />
+            <FieldInlineError fieldId={MANUAL_ITEMS_FIELD_ID} message={capacityErrors.manualItems} />
           </section>
 
           <section className="space-y-2" aria-labelledby="settlement-correction-advances">
@@ -433,12 +544,12 @@ function SettlementCorrectionSheetSession({
                         key={option.advanceId}
                         className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Checkbox
                             id={checkboxId}
                             checked={Boolean(applied)}
                             onCheckedChange={(checked) => toggleAdvance(option, checked === true)}
-                            disabled={isSaving || stale}
+                            disabled={isSaving || stale || (!applied && option.reservedElsewhereBy !== null)}
                           />
                           <Label htmlFor={checkboxId} className="text-sm font-mono">
                             {option.folio}
@@ -446,6 +557,16 @@ function SettlementCorrectionSheetSession({
                           <span className="text-xs text-muted-foreground">
                             {sheetCopy.advanceBalance(formatMxCurrency(option.max))}
                           </span>
+                          {option.reservedElsewhereBy ? (
+                            <span
+                              className="basis-full text-[11px] text-muted-foreground"
+                              data-testid={`correction-advance-reserved-elsewhere-${option.advanceId}`}
+                            >
+                              {settlementsCopy.createPage.summary.reservedElsewhereHint(
+                                option.reservedElsewhereBy,
+                              )}
+                            </span>
+                          ) : null}
                         </div>
                         {applied ? (
                           <MoneyInput
@@ -456,12 +577,22 @@ function SettlementCorrectionSheetSession({
                             currencyCode="MXN"
                             decimals={2}
                             disabled={isSaving || stale}
+                            error={Boolean(capacityErrors.advances)}
+                            {...getFieldErrorAriaProps(ADVANCES_FIELD_ID, capacityErrors.advances)}
                           />
                         ) : null}
                       </li>
                     );
                   })}
                 </ul>
+                {capacity && advanceOptions.length > 0 ? (
+                  <p
+                    className="text-xs text-muted-foreground tabular-nums"
+                    data-testid="settlement-correction-max-hint"
+                  >
+                    {capCopy.maxDeductibleHint(formatMxCurrency(capacity.maxAdvanceDeductible))}
+                  </p>
+                ) : null}
               </>
             ) : (
               <>
@@ -486,6 +617,7 @@ function SettlementCorrectionSheetSession({
                 </p>
               </>
             )}
+            <FieldInlineError fieldId={ADVANCES_FIELD_ID} message={capacityErrors.advances} />
           </section>
 
           <section className="space-y-1">
@@ -507,8 +639,14 @@ function SettlementCorrectionSheetSession({
             />
           </section>
 
-          {showSummary && summaryMessages.length > 0 ? (
-            <FormValidationSummary title={sheetCopy.validationTitle} messages={summaryMessages} />
+          <FormValidationSummary
+            title={sheetCopy.validationTitle}
+            messages={[...(showSummary ? summaryMessages : []), ...capacityMessages]}
+          />
+          {capacityErrors.advances && advancesEditable ? (
+            <Button type="button" size="sm" variant="outline" onClick={fitAdvancesToMax}>
+              {capCopy.fitMaxAction}
+            </Button>
           ) : null}
         </div>
 

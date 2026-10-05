@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettlementCreatePage } from "./SettlementCreatePage";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 
 const {
   mockPreviewSettlement,
@@ -11,12 +12,14 @@ const {
   mockFetchEmployees,
   mockListAssignments,
   mockGetSettings,
+  mockToast,
 } = vi.hoisted(() => ({
   mockPreviewSettlement: vi.fn(),
   mockCreateSettlement: vi.fn(),
   mockFetchEmployees: vi.fn(),
   mockListAssignments: vi.fn(),
   mockGetSettings: vi.fn(),
+  mockToast: vi.fn(),
 }));
 
 vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
@@ -27,7 +30,6 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     updateAgreement: vi.fn(),
     createAgreement: vi.fn(),
     getSettings: (...args: unknown[]) => mockGetSettings(...args),
-    updateSettings: vi.fn(),
   },
 }));
 
@@ -59,7 +61,7 @@ vi.mock("@shared/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/hooks")>();
   return {
     ...actual,
-    useToast: () => ({ toast: vi.fn() }),
+    useToast: () => ({ toast: mockToast }),
   };
 });
 
@@ -200,7 +202,7 @@ describe("SettlementCreatePage Component", () => {
     });
 
     // Validar encabezado y resumen de acuerdo activo
-    expect(screen.getByText("Nuevo pago a operador")).toBeInTheDocument();
+    expect(screen.getByText("Armar pago")).toBeInTheDocument();
     expect(screen.getByText(/Tarifa de pago activa:/i)).toBeInTheDocument();
     expect(screen.getByText(/Sueldo base semanal de \$3,500\.00/i)).toBeInTheDocument();
     expect(screen.getByText(/15% de comisión sobre flete/i)).toBeInTheDocument();
@@ -237,8 +239,9 @@ describe("SettlementCreatePage Component", () => {
     expect(screen.getAllByText("$5,300.00").length).toBeGreaterThanOrEqual(1);
 
     // F1 tres bolsillos: franja de teaching bajo el resumen
-    const channelsTeaching = screen.getByLabelText(/Tres canales del pago a operadores/i);
+    const channelsTeaching = screen.getByLabelText(/Tres bolsillos del pago a operadores/i);
     expect(channelsTeaching).toHaveTextContent(/Gasto del viaje/i);
+    expect(channelsTeaching).toHaveTextContent(/Costos/i);
     expect(channelsTeaching).toHaveTextContent(/Anticipo/i);
     expect(channelsTeaching).toHaveTextContent(/Pago fijo de tarifa/i);
 
@@ -264,6 +267,65 @@ describe("SettlementCreatePage Component", () => {
           { advanceId: "adv-2", amountToDeduct: 1000 },
         ]),
       }),
+    );
+  });
+
+  it("E11-F3: muestra reembolsos tardíos y por definir; el marcado viaja como confirmado y no hay opt-in", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue({
+      ...mockPreview,
+      reimbursements: [
+        {
+          tripExpenseId: "exp-late",
+          tripId: "trip-old",
+          tripCode: "VIA-090",
+          category: "tolls",
+          description: "Caseta",
+          amount: 180,
+          receiptNumber: null,
+          approvedAt: "2026-08-10T10:00:00Z",
+          isLate: true,
+          tripSettledIn: { settlementId: "stl-prev", settlementNumber: "LIQ-202607-0009" },
+        },
+      ],
+      reimbursementsRequiringPayee: [
+        {
+          tripExpenseId: "exp-payee",
+          tripId: "trip-swap",
+          tripCode: "VIA-095",
+          category: "fuel",
+          description: "Diésel",
+          amount: 250,
+          approvedAt: "2026-08-11T10:00:00Z",
+          reason: "driver_reassigned",
+          tripSettledIn: null,
+        },
+      ],
+    });
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const lateCard = await screen.findByTestId("late-reimbursements-card");
+    expect(within(lateCard).getByText("VIA-090")).toBeInTheDocument();
+    expect(within(lateCard).getByText("Viaje VIA-090 · comisión en LIQ-202607-0009")).toBeInTheDocument();
+    const payeeCard = screen.getByTestId("reimbursements-payee-card");
+    expect(within(payeeCard).getByText("VIA-095")).toBeInTheDocument();
+    expect(screen.queryByText(/Registrar solo reembolsos y anticipos/i)).not.toBeInTheDocument();
+
+    await user.click(within(payeeCard).getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Enviar a autorización/i }));
+    await user.click(screen.getByRole("button", { name: /Confirmar y enviar/i }));
+
+    await waitFor(() =>
+      expect(mockCreateSettlement).toHaveBeenCalledWith(
+        expect.objectContaining({ confirmedReimbursementExpenseIds: ["exp-payee"] }),
+      ),
     );
   });
 
@@ -658,6 +720,58 @@ describe("SettlementCreatePage Component", () => {
       screen.queryByRole("button", { name: /Registrar pago/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/se guarda en borrador/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/El neto es menor a \$5,000\.00 \(monto mínimo para pedir autorización\)/),
+    ).toBeInTheDocument();
+  });
+
+  it("rev. 0.2: con umbral null (sin autorización por monto) guarda en borrador aunque el neto sea alto; una partida manual manda a autorización", async () => {
+    const user = userEvent.setup();
+    mockGetSettings.mockResolvedValue({
+      voboThresholdMxn: null,
+      activeApproverCount: 2,
+      activeExecutorCount: 2,
+    });
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Enviar a autorización/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /^La regla no pide autorización por monto y no hay correcciones manuales: se guarda en borrador\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/El neto es menor a \$0\.00/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Agregar partida/i }));
+    expect(await screen.findByRole("button", { name: /Enviar a autorización/i })).toBeInTheDocument();
+  });
+
+  it("si falla la lectura del umbral avisa con la regla de autorización de liquidaciones", async () => {
+    mockGetSettings.mockRejectedValue(new Error("network"));
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText(
+        "No pudimos leer la regla de autorización de liquidaciones; recarga la página antes de mover dinero.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("criterio 4 (D24): un bono manual en el alta suma al neto y manda a autorización", async () => {
@@ -737,6 +851,505 @@ describe("SettlementCreatePage Component", () => {
           { itemType: "bonus", description: "Bono de puntualidad", amount: 500 },
         ],
       }),
+    );
+  });
+
+  describe("ADR-0085 E11 — bloque de período y viajes en $0", () => {
+    const blockingSettlement = {
+      settlementId: "stl-prev",
+      settlementNumber: "LIQ-202608-0003",
+      status: "draft" as const,
+      periodStart: "2026-07-30",
+      periodEnd: "2026-08-07",
+    };
+
+    function renderPage() {
+      const queryClient = createTestQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+            <SettlementCreatePage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    it("solape parcial bloquea; «Mover inicio al …» mueve el inicio, recalcula y deja guardar", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockImplementation(async (params: { periodStart: string }) =>
+        params.periodStart === "2026-08-01"
+          ? {
+              ...mockPreview,
+              periodicBlock: {
+                status: "partial_overlap",
+                settlement: blockingSettlement,
+                suggestedPeriodStart: "2026-08-08",
+              },
+            }
+          : {
+              ...mockPreview,
+              periodStart: params.periodStart,
+              periodicBlock: { status: "included", settlement: null, suggestedPeriodStart: null },
+            },
+      );
+      renderPage();
+
+      expect(await screen.findByText("El período se cruza con otro pago")).toBeInTheDocument();
+      expect(screen.getByText(/LIQ-202608-0003 \(Borrador\)/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeDisabled();
+      expect(screen.getByText("Para guardar, mueve la fecha de inicio.")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /Mover inicio al/i }));
+
+      await waitFor(() =>
+        expect(mockPreviewSettlement).toHaveBeenCalledWith(
+          expect.objectContaining({ periodStart: "2026-08-08", periodEnd: "2026-08-15" }),
+        ),
+      );
+      await waitFor(() =>
+        expect(screen.queryByText("El período se cruza con otro pago")).not.toBeInTheDocument(),
+      );
+
+      await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+      await waitFor(() => expect(mockCreateSettlement).toHaveBeenCalledTimes(1));
+      expect(mockCreateSettlement).toHaveBeenCalledWith(
+        expect.objectContaining({ periodStart: "2026-08-08", submitForApproval: false }),
+      );
+    });
+
+    it("409 PERIOD_PARTIAL_OVERLAP del alta muestra la misma alerta bloqueante", async () => {
+      const user = userEvent.setup();
+      mockCreateSettlement.mockRejectedValueOnce(
+        new ApiError("El período se cruza", 409, "PERIOD_PARTIAL_OVERLAP", {
+          settlement_id: "stl-prev",
+          settlement_number: "LIQ-202608-0003",
+          status: "approved",
+          period_start: "2026-07-30",
+          period_end: "2026-08-07",
+          suggested_period_start: "2026-08-08",
+        }),
+      );
+      renderPage();
+
+      await user.click(await screen.findByRole("button", { name: /Guardar borrador/i }));
+
+      expect(await screen.findByText("El período se cruza con otro pago")).toBeInTheDocument();
+      expect(screen.getByText(/LIQ-202608-0003 \(Autorizado\)/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeDisabled();
+    });
+
+    it("solape parcial sin fecha sugerida dentro del período: sin botón de mover y pide ajustar fechas", async () => {
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        periodicBlock: {
+          status: "partial_overlap",
+          settlement: blockingSettlement,
+          suggestedPeriodStart: "2026-08-20",
+        },
+      });
+      renderPage();
+
+      expect(await screen.findByText("El período se cruza con otro pago")).toBeInTheDocument();
+      expect(screen.getByText(/Ajusta las fechas para que este pago no incluya esos días/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Mover inicio al/i })).not.toBeInTheDocument();
+      expect(screen.getByText("Para guardar, ajusta las fechas.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeDisabled();
+    });
+
+    it("409 TRIP_IN_ACTIVE_SETTLEMENT deja un aviso fijo con enlace al folio, sin toast", async () => {
+      const user = userEvent.setup();
+      mockCreateSettlement.mockRejectedValueOnce(
+        new ApiError("Viaje en otro pago", 409, "TRIP_IN_ACTIVE_SETTLEMENT", {
+          conflicts: [
+            {
+              trip_id: "trip-1",
+              trip_code: "TRP-001",
+              settlement_id: "stl-prev",
+              settlement_number: "LIQ-202608-0003",
+              status: "approved",
+            },
+          ],
+        }),
+      );
+      renderPage();
+
+      await user.click(await screen.findByRole("button", { name: /Guardar borrador/i }));
+
+      const alert = await screen.findByTestId("trip-in-active-settlement-alert");
+      expect(alert).toHaveTextContent("Algunos viajes ya están en otro pago");
+      expect(alert).toHaveTextContent("TRP-001 está en LIQ-202608-0003 (Autorizado)");
+      expect(within(alert).getByRole("link", { name: "LIQ-202608-0003" })).toHaveAttribute(
+        "href",
+        expect.stringContaining("stl-prev"),
+      );
+      expect(mockToast).not.toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Algunos viajes ya están en otro pago" }),
+      );
+    });
+    it("período contenido avisa con el folio que ya trae el sueldo", async () => {
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        periodicBlock: {
+          status: "excluded_contained",
+          settlement: blockingSettlement,
+          suggestedPeriodStart: null,
+        },
+      });
+      renderPage();
+
+      expect(
+        await screen.findByText("El sueldo de este período ya está en otro pago"),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Ver LIQ-202608-0003" })).toHaveAttribute(
+        "href",
+        expect.stringContaining("stl-prev"),
+      );
+      expect(screen.getByRole("button", { name: /Guardar borrador/i })).toBeEnabled();
+    });
+
+    it("viajes sin regla de pago piden confirmación y mandan acknowledgeNoRuleTrips", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          {
+            ...mockPreview.eligibleTrips[0],
+            calculatedCommission: 0,
+            zeroCommissionReason: "no_rule",
+          },
+        ],
+      });
+      renderPage();
+
+      expect(await screen.findByText("Sin regla de pago")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+
+      expect(
+        await screen.findByRole("heading", { name: /¿Incluir viajes sin regla de pago\?/i }),
+      ).toBeInTheDocument();
+      expect(mockCreateSettlement).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "Incluir en $0" }));
+
+      await waitFor(() => expect(mockCreateSettlement).toHaveBeenCalledTimes(1));
+      expect(mockCreateSettlement).toHaveBeenCalledWith(
+        expect.objectContaining({ acknowledgeNoRuleTrips: true, submitForApproval: false }),
+      );
+    });
+  });
+});
+
+describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
+  const advance = (
+    advanceId: string,
+    folio: string,
+    availableBalance: number,
+    disbursedAt: string,
+  ) => ({
+    advanceId,
+    folio,
+    amount: availableBalance,
+    balanceRemaining: availableBalance,
+    availableBalance,
+    category: "travel_advance",
+    disbursedAt,
+  });
+
+  const fund = (amount: number) => ({
+    id: "d-fund",
+    deductionType: "savings_fund",
+    label: "Fondo de ahorro",
+    amount,
+    isMandatory: true,
+  });
+
+  function previewWithGross(
+    gross: number,
+    overrides: Record<string, unknown> = {},
+  ) {
+    return {
+      ...mockPreview,
+      eligibleTrips: [
+        {
+          ...mockPreview.eligibleTrips[0],
+          calculatedCommission: gross,
+          approvedReimbursableExpenses: 0,
+        },
+      ],
+      openAdvances: [advance("adv-1", "ANT-10", 2500, "2026-08-01T10:00:00Z")],
+      summary: {
+        totalCommissions: gross,
+        totalBaseSalary: 0,
+        totalReimbursements: 0,
+        suggestedAdvanceDeduction: gross,
+        grossAmount: gross,
+        netAmount: 0,
+      },
+      ...overrides,
+    };
+  }
+
+  function renderPage() {
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  const amountInput = (folio: string) =>
+    screen.getByRole("spinbutton", { name: `Monto a descontar del anticipo ${folio}` });
+
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    vi.clearAllMocks();
+    mockFetchEmployees.mockResolvedValue({
+      data: [mockEmployee],
+      pagination: { total: 1, page: 1, limit: 100, totalPages: 1 },
+    });
+    mockCreateSettlement.mockResolvedValue({ id: "settlement-new-1", status: "draft" });
+    mockListAssignments.mockResolvedValue({ data: [], pagination: { total: 0, page: 1, pageSize: 100, totalPages: 0 } });
+    mockGetSettings.mockResolvedValue({
+      voboThresholdMxn: 0,
+      activeApproverCount: 2,
+      activeExecutorCount: 2,
+    });
+  });
+
+  it("bruto 2,000 + anticipo libre 2,500: precarga 2,000, avisa $500 pendientes y neto 0", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue(previewWithGross(2000));
+    renderPage();
+    await waitFor(() => expect(screen.getByText("ANT-10")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("checkbox"));
+
+    expect(amountInput("ANT-10")).toHaveValue(2000);
+    expect(screen.getByTestId("create-advance-pending-adv-1")).toHaveTextContent(
+      "Quedan $500.00 pendientes para el siguiente corte.",
+    );
+    expect(screen.getByTestId("create-advances-max-hint")).toHaveTextContent(
+      "Máximo a descontar en este pago: $2,000.00",
+    );
+    expect(screen.queryByText(/superan lo que cabe/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText("-$2,000.00").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("capturar 2,500 marca error inline + resumen; «Descontar el máximo posible» deja 2,000", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue(previewWithGross(2000));
+    renderPage();
+    await waitFor(() => expect(screen.getByText("ANT-10")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("checkbox"));
+    await user.clear(amountInput("ANT-10"));
+    await user.type(amountInput("ANT-10"), "2500");
+
+    const message =
+      "Los anticipos superan lo que cabe en este pago (máximo $2,000.00). El resto queda pendiente en el anticipo para el siguiente corte.";
+    expect(document.getElementById("settlement-create-advances-error")).toHaveTextContent(message);
+    expect(amountInput("ANT-10")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Revisa los campos marcados")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+    expect(mockCreateSettlement).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Descontar el máximo posible" }));
+    expect(amountInput("ANT-10")).toHaveValue(2000);
+    expect(document.getElementById("settlement-create-advances-error")).not.toBeInTheDocument();
+  });
+
+  it("bruto 2,000 + fondo 300 + anticipo 2,500: precarga 1,700", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue(
+      previewWithGross(2000, {
+        deductions: [fund(300)],
+        summary: {
+          totalCommissions: 2000,
+          totalBaseSalary: 0,
+          totalReimbursements: 0,
+          totalDeductions: 300,
+          suggestedAdvanceDeduction: 1700,
+          grossAmount: 2000,
+          netAmount: 1700,
+        },
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByText("ANT-10")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("checkbox"));
+    expect(amountInput("ANT-10")).toHaveValue(1700);
+    expect(screen.queryByTestId("create-template-omitted")).not.toBeInTheDocument();
+  });
+
+  it("anticipo reservado en otro pago: muestra el folio, no se preselecciona ni se captura", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue(
+      previewWithGross(2000, {
+        openAdvances: [
+          {
+            ...advance("adv-busy", "ANT-20", 0, "2026-07-30T10:00:00Z"),
+            balanceRemaining: 900,
+            reservedAmount: 900,
+            reservedBySettlementNumber: "LIQ-202608-0005",
+          },
+          advance("adv-1", "ANT-10", 2500, "2026-08-01T10:00:00Z"),
+        ],
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByText("ANT-20")).toBeInTheDocument());
+
+    expect(screen.getByTestId("create-advance-reserved-elsewhere-adv-busy")).toHaveTextContent(
+      "Reservado en LIQ-202608-0005. Se libera cuando ese pago se pague o se cancele.",
+    );
+    const [busyCheckbox] = screen.getAllByRole("checkbox");
+    expect(busyCheckbox).toBeDisabled();
+    expect(amountInput("ANT-20")).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /Descontar todo/i }));
+    expect(amountInput("ANT-20")).toHaveValue(null);
+    expect(amountInput("ANT-10")).toHaveValue(2000);
+  });
+
+  it("E11 punto 6: comisión 1,000 + reembolso 500 + fondo 1,200 → fondo 1,000 (200 omitido), anticipo máx. 500, neto 500", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue(
+      previewWithGross(1000, {
+        deductions: [fund(1200)],
+        summary: {
+          totalCommissions: 1000,
+          totalBaseSalary: 0,
+          totalReimbursements: 500,
+          totalDeductions: 1000,
+          totalDeductionsOmitted: 200,
+          suggestedAdvanceDeduction: 500,
+          grossAmount: 1500,
+          netAmount: 500,
+        },
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("create-template-omitted")).toBeInTheDocument());
+
+    expect(screen.getByTestId("create-template-omitted")).toHaveTextContent(
+      "Fondo de ahorro: no aplicado $200.00 por ingreso insuficiente",
+    );
+    expect(screen.getByTestId("create-advances-max-hint")).toHaveTextContent(
+      "Máximo a descontar en este pago: $500.00",
+    );
+
+    await user.click(screen.getByRole("checkbox"));
+    expect(amountInput("ANT-10")).toHaveValue(500);
+  });
+
+  it("bruto 0 + fondo 300: deja crear y muestra el fondo no aplicado", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue(
+      previewWithGross(0, {
+        agreement: { ...mockPreview.agreement, rules: [{ routeType: "local" }] },
+        openAdvances: [],
+        deductions: [fund(300)],
+        summary: {
+          totalCommissions: 0,
+          totalBaseSalary: 0,
+          totalReimbursements: 0,
+          totalDeductions: 0,
+          totalDeductionsOmitted: 300,
+          suggestedAdvanceDeduction: 0,
+          grossAmount: 0,
+          netAmount: 0,
+        },
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("create-template-omitted")).toBeInTheDocument());
+
+    expect(screen.getByTestId("create-template-omitted")).toHaveTextContent(
+      "Fondo de ahorro: no aplicado $300.00 por ingreso insuficiente",
+    );
+
+    await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+    await waitFor(() => expect(mockCreateSettlement).toHaveBeenCalledTimes(1));
+  });
+
+  it("«Descontar todo» reparte el máximo FIFO por entrega: 1,500 / 500", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue(
+      previewWithGross(2000, {
+        openAdvances: [
+          advance("adv-late", "ANT-12", 1000, "2026-08-05T10:00:00Z"),
+          advance("adv-early", "ANT-11", 1500, "2026-08-01T10:00:00Z"),
+        ],
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByText("ANT-11")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /Descontar todo/i }));
+    expect(amountInput("ANT-11")).toHaveValue(1500);
+    expect(amountInput("ANT-12")).toHaveValue(500);
+
+    await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+    await waitFor(() => expect(mockCreateSettlement).toHaveBeenCalledTimes(1));
+    expect(mockCreateSettlement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        advancesToApply: expect.arrayContaining([
+          { advanceId: "adv-early", amountToDeduct: 1500 },
+          { advanceId: "adv-late", amountToDeduct: 500 },
+        ]),
+      }),
+    );
+  });
+
+  it("422 con path custom_items marca el bloque de partidas manuales (sin toast genérico)", async () => {
+    const user = userEvent.setup();
+    const { ApiError } = await import("@shared/api/interceptors/error-handler");
+    mockPreviewSettlement.mockResolvedValue(previewWithGross(2000, { openAdvances: [] }));
+    mockCreateSettlement.mockRejectedValue(
+      new ApiError("Los descuentos superan el bruto.", 422, "SETTLEMENT_DEDUCTIONS_EXCEED_GROSS", {
+        max_advance_deductible: 0,
+        excess_source: "manual_deductions",
+        path: ["custom_items"],
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByText("VIA-100")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+
+    await waitFor(() =>
+      expect(document.getElementById("settlement-create-manual-items-error")).toHaveTextContent(
+        "Los descuentos manuales superan lo que ganó el operador en este corte.",
+      ),
+    );
+    expect(document.getElementById("settlement-create-advances-error")).not.toBeInTheDocument();
+  });
+
+  it("422 con path advances_to_apply marca el bloque de anticipos con el máximo del API", async () => {
+    const user = userEvent.setup();
+    const { ApiError } = await import("@shared/api/interceptors/error-handler");
+    mockPreviewSettlement.mockResolvedValue(previewWithGross(2000));
+    mockCreateSettlement.mockRejectedValue(
+      new ApiError("Los descuentos superan el bruto.", 422, "SETTLEMENT_DEDUCTIONS_EXCEED_GROSS", {
+        max_advance_deductible: 1800,
+        excess_source: "advances",
+        path: ["advances_to_apply"],
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByText("ANT-10")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+
+    await waitFor(() =>
+      expect(document.getElementById("settlement-create-advances-error")).toHaveTextContent(
+        "máximo $1,800.00",
+      ),
     );
   });
 });

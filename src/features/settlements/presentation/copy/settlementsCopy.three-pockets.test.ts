@@ -18,22 +18,29 @@ describe("settlementsCopy — F1 tres bolsillos", () => {
     expect(description).toMatch(/Costos/i);
     expect(description).toMatch(/gasto del viaje/i);
     expect(description).not.toMatch(/\bviáticos\b/i);
+    expect(settlementsCopy.advancesDialog.tripLabel).toBe("Viaje (opcional)");
+    expect(settlementsCopy.advancesDialog.tripNone).toMatch(/cuenta del operador/i);
+    expect(settlementsCopy.advanceFlow.fieldLabels.tripId).toBe("Viaje");
+    expect(settlementsCopy.advanceFlow.editSheet.materialFields).toMatch(/viaje/i);
   });
 
-  it("create settlement franja enseña los 3 canales", () => {
+  it("create settlement franja enseña los 3 canales y anti-Costos", () => {
     const { summary } = settlementsCopy.createPage;
     expect(summary.channelsTeachingExpense).toMatch(/Gasto del viaje/i);
+    expect(summary.channelsTeachingExpense).toMatch(/Costos/i);
     expect(summary.channelsTeachingExpense).toMatch(/reembolso/i);
     expect(summary.channelsTeachingAdvance).toMatch(/Anticipo/i);
     expect(summary.channelsTeachingAdvance).toMatch(/descuento/i);
     expect(summary.channelsTeachingFixed).toMatch(/Pago fijo de tarifa/i);
     expect(summary.channelsTeachingFixed).toMatch(/1×/i);
+    expect(summary.channelsTeachingFixed).not.toMatch(/corte/i);
+    expect(summary.commercialFreightHint).not.toMatch(/CFDI/i);
+    expect(summary.channelsTeachingIntro).toMatch(/no registres el mismo dinero/i);
   });
 
   it("detalle: deducciones no igualan viáticos con anticipos", () => {
-    expect(settlementsCopy.detailPage.items.deductionsSubtitle).toMatch(
-      /Anticipos descontados/i,
-    );
+    expect(settlementsCopy.detailPage.items.deductionsSubtitle).toMatch(/Anticipos/i);
+    expect(settlementsCopy.detailPage.items.deductionsSubtitle).toMatch(/deducciones/i);
     expect(settlementsCopy.detailPage.items.deductionsSubtitle).not.toMatch(
       /\bviáticos\b/i,
     );
@@ -75,6 +82,26 @@ describe("settlementsCopy — banner sin tarifa / incompleta", () => {
     expect(empty.incompleteAgreementDescription).toMatch(/reglas o prestaciones/i);
     expect(empty.incompleteAgreementDescription).toMatch(/sueldo base/i);
     expect(empty.configureIncompleteCompensationAction).toBe("Completar tarifa");
+  });
+});
+
+describe("settlementsCopy — period_overlap status variants (F3)", () => {
+  it("exposes fallback, in-progress and disbursed badge/tooltip strings", () => {
+    const { warnings } = settlementsCopy.workbench;
+    expect(warnings.period_overlap).toBe("Ya hay un pago en este período");
+    expect(warnings.period_overlap_in_progress).toBe(
+      "Ya hay un pago en curso en este período",
+    );
+    expect(warnings.period_overlap_disbursed).toBe(
+      "Ya hay un pago registrado en este período",
+    );
+    expect(warnings.period_overlap_tooltip).toMatch(/registrado o en curso/i);
+    expect(warnings.period_overlap_tooltip_in_progress).toMatch(
+      /registrado o en curso/i,
+    );
+    expect(warnings.period_overlap_tooltip_disbursed).toMatch(/registrado/i);
+    expect(warnings.period_overlap_tooltip_disbursed).not.toMatch(/liquidado/i);
+    expect(warnings.period_overlap_tooltip_disbursed).not.toMatch(/en curso/i);
   });
 });
 

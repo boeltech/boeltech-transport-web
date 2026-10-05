@@ -3,14 +3,16 @@ import { Card, CardContent, CardHeader } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton/skeleton";
-import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { ReturnedChip } from "@features/approvals";
 import type { DriverSettlement } from "../../domain/entities";
+import { roundCents } from "../../domain/settlementTotals";
 import { isSettlementReturned } from "../utils/settlementEditing";
 import { SettlementStatusBadge } from "./SettlementStatusBadge";
 import { SettlementActions } from "./SettlementActions";
+import { SettlementKindBadge } from "./SettlementKindBadge";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { settlementPeriodLabel } from "../utils/reimbursementLines";
 
 const copy = settlementsCopy;
 
@@ -35,6 +37,9 @@ export function SettlementCard({
     settlement.tripsCount !== undefined && settlement.tripsCount !== null
       ? settlement.tripsCount
       : (settlement.items ? new Set(settlement.items.filter((it) => it.tripId).map((it) => it.tripId)).size : 0);
+  const totalDiscounts = roundCents(
+    settlement.totalAdvancesDeducted + settlement.totalOtherDeductions,
+  );
 
   return (
     <Card
@@ -46,8 +51,11 @@ export function SettlementCard({
           <p className="text-sm font-semibold text-foreground truncate">
             {settlement.employeeFullName ?? "—"}
           </p>
-          <span className="font-mono text-xs text-muted-foreground">
-            {settlement.settlementNumber}
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-mono text-xs text-muted-foreground">
+              {settlement.settlementNumber}
+            </span>
+            <SettlementKindBadge kind={settlement.settlementKind} className="text-[10px]" />
           </span>
         </div>
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -82,9 +90,7 @@ export function SettlementCard({
 
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Calendar className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            {formatDate(settlement.periodStart)} – {formatDate(settlement.periodEnd)}
-          </span>
+          <span>{settlementPeriodLabel(settlement)}</span>
         </div>
 
         <div className="flex items-center justify-between gap-2 text-muted-foreground">
@@ -92,9 +98,9 @@ export function SettlementCard({
             <Route className="h-3.5 w-3.5" />
             {tripsCount} viajes
           </span>
-          {settlement.totalAdvancesDeducted > 0 ? (
+          {totalDiscounts > 0 ? (
             <span className="tabular-nums text-destructive">
-              -{formatMxCurrency(settlement.totalAdvancesDeducted)} anticipos
+              -{formatMxCurrency(totalDiscounts)} descuentos
             </span>
           ) : null}
         </div>

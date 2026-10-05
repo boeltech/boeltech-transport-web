@@ -91,7 +91,6 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
       activeApproverCount: 1,
       activeExecutorCount: 1,
     }),
-    updateSettings: vi.fn(),
   },
 }));
 

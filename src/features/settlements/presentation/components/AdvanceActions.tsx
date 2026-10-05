@@ -13,7 +13,7 @@ import {
   StickyNote,
   History,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@shared/ui/button";
 import {
@@ -43,11 +43,13 @@ import {
   approvalGuardsFor,
   approvalsCopy,
   formatNextStepLabel,
+  formatReapprovalConfirmLine,
   getApprovalGuardCode,
   guardErrorMessage,
   isIntermediateStep,
   isOwnRecord,
   OwnRequestMenuItem,
+  ReapprovalConfirmNote,
   resolveApprovalActionUi,
   resolveSelfActionUi,
   SelfApprovalConfirmDialog,
@@ -65,6 +67,7 @@ import {
   useReturnDriverAdvance,
 } from "../../application/hooks/useAdvances";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { settlementCreatePath } from "../../application/settlementsRoutes";
 import { DisburseAdvanceDialog } from "./DisburseAdvanceDialog";
 import { AdvanceEditSheet, type AdvanceEditMode } from "./AdvanceEditSheet";
 import { AdvanceAddNoteDialog } from "./AdvanceAddNoteDialog";
@@ -86,6 +89,7 @@ interface AdvanceActionsProps {
 
 export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
@@ -97,6 +101,7 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
   const [disburseDialogOpen, setDisburseDialogOpen] = useState(false);
   const [selfApproveDialogOpen, setSelfApproveDialogOpen] = useState(false);
   const [stepConfirmOpen, setStepConfirmOpen] = useState(false);
+  const [reapprovalConfirmOpen, setReapprovalConfirmOpen] = useState(false);
   const [editMode, setEditMode] = useState<AdvanceEditMode | null>(null);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -141,6 +146,13 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
       }
     : null;
   const canOpenHistory = canReadApprovals && advance.approval != null;
+  const openBalance =
+    advance.availableBalance ?? advance.balanceRemaining ?? 0;
+  const canDeductInPayment =
+    canUpdate &&
+    isDisbursed &&
+    openBalance > 0 &&
+    Boolean(advance.employeeId);
 
   const describeActionError = (error: unknown) => {
     const forbidden = handleSelfActionForbidden(error);
@@ -180,6 +192,7 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
     const closeAll = () => {
       setSelfApproveDialogOpen(false);
       setStepConfirmOpen(false);
+      setReapprovalConfirmOpen(false);
     };
     try {
       const result = await approveMutation.mutateAsync({
@@ -212,6 +225,11 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
     }
     if (step) {
       setStepConfirmOpen(true);
+      return;
+    }
+    // Handoff 12 D5: sin diálogo salvo que se haya anulado una autorización vigente.
+    if (formatReapprovalConfirmLine(advance.approval, "driver_advance_request")) {
+      setReapprovalConfirmOpen(true);
       return;
     }
     void handleApprove();
@@ -341,6 +359,19 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
             )
           ) : null}
 
+          {canDeductInPayment ? (
+            <DropdownMenuItem
+              onClick={() =>
+                navigate(
+                  settlementCreatePath({ employeeId: advance.employeeId }),
+                )
+              }
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {copy.advancesList.deductInPayment}
+            </DropdownMenuItem>
+          ) : null}
+
           {canEdit && !isReturned ? (
             <DropdownMenuItem onClick={() => setEditMode("edit")}>
               <Pencil className="mr-2 h-4 w-4" />
@@ -420,6 +451,7 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
             </AlertDialogTitle>
             <AlertDialogDescription>
               {approvalsCopy.flow.stepConfirmBody(step?.current ?? 1, step?.total ?? 2)}
+              <ReapprovalConfirmNote approval={advance.approval} type="driver_advance_request" />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -432,6 +464,37 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
               onClick={() => void handleApprove()}
             >
               {approvalsCopy.flow.stepConfirmAction}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={reapprovalConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open && !approveMutation.isPending) setReapprovalConfirmOpen(false);
+        }}
+      >
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {approvalsCopy.inbox.actions.approveConfirmTitle("driver_advance_request")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {approvalsCopy.inbox.actions.approveConfirmDescription("driver_advance_request")}
+              <ReapprovalConfirmNote approval={advance.approval} type="driver_advance_request" />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approveMutation.isPending}>
+              {copy.actions.cancel}
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              disabled={approveMutation.isPending}
+              onClick={() => void handleApprove()}
+            >
+              {approvalsCopy.inbox.actions.approveConfirmAction("driver_advance_request")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -451,6 +514,7 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
         subject="advance"
         onConfirm={() => void handleApprove()}
         isPending={approveMutation.isPending}
+        note={<ReapprovalConfirmNote approval={advance.approval} type="driver_advance_request" />}
       />
 
       <AdvanceEditSheet

@@ -27,7 +27,7 @@ export const COMPENSATION_ACTIVE_STATUS_CONFIG: Record<
   active: createStatusConfig("success", {
     label: copy.active,
     icon: CheckCircle2,
-    description: "Vigente en liquidaciones",
+    description: "Vigente en pagos",
     tone: "soft",
   }),
   inactive: createStatusConfig("neutral", {
@@ -61,13 +61,13 @@ export const COMPENSATION_TEMPLATE_STATUS_CONFIG: Record<
   draft: createStatusConfig("warning", {
     label: copy.status.draft,
     icon: FileEdit,
-    description: "Borrador — aún no se usa al liquidar",
+    description: "Borrador — aún no se usa al armar pagos",
     tone: "soft",
   }),
   active: createStatusConfig("success", {
     label: copy.status.active,
     icon: CheckCircle2,
-    description: "Activa para liquidar",
+    description: "Activa para armar pagos",
     tone: "soft",
   }),
   inactive: createStatusConfig("neutral", {
@@ -97,7 +97,7 @@ export const COMPENSATION_USAGE_STATUS_CONFIG: Record<
   ready: createStatusConfig("success", {
     label: copy.usage.ready,
     icon: CheckCircle2,
-    description: "Se puede usar al liquidar",
+    description: "Se puede usar al armar el pago",
     tone: "soft",
   }),
   ready_to_activate: createStatusConfig("info", {
@@ -109,13 +109,13 @@ export const COMPENSATION_USAGE_STATUS_CONFIG: Record<
   needs_payment: createStatusConfig("warning", {
     label: copy.usage.needsPayment,
     icon: AlertTriangle,
-    description: "Faltan reglas de pago o rutas con tarifa fija",
+    description: "Faltan reglas de pago o tarifas por corredor",
     tone: "soft",
   }),
   paused: createStatusConfig("neutral", {
     label: copy.usage.paused,
     icon: PauseCircle,
-    description: "No se usa al liquidar",
+    description: "No se usa al armar el pago",
     tone: "soft",
   }),
 };

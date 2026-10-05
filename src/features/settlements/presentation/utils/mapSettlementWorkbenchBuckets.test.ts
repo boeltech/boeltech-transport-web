@@ -49,7 +49,7 @@ describe("mapSettlementWorkbenchBuckets", () => {
     expect(buckets.find((b) => b.id === "openAdvances")).toBeUndefined();
   });
 
-  it("adds approval as crossLink when count > 0", () => {
+  it("adds approval as crossLink to hub Por autorizar when count > 0", () => {
     const buckets = mapSettlementWorkbenchBuckets({
       summary,
       activeBucket: "pending",
@@ -57,9 +57,11 @@ describe("mapSettlementWorkbenchBuckets", () => {
     });
 
     const approval = buckets.find((b) => b.id === "approval");
-    expect(approval?.crossLink?.href).toContain("/finance/approvals");
+    expect(approval?.crossLink?.href).toBe(
+      "/finance/settlements/pending-approval",
+    );
     expect(approval?.count).toBe(2);
-    expect(approval?.description).toBeTruthy();
+    expect(approval?.description).toMatch(/Por autorizar/i);
   });
 
   it("omits approval crossLink when count is 0", () => {

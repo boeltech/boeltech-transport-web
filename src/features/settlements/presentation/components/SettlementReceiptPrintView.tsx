@@ -4,14 +4,23 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { DriverSettlement } from "../../domain/entities";
 import {
   SETTLEMENT_STATUS_LABELS,
-  SETTLEMENT_ITEM_TYPE_LABELS,
   DISBURSEMENT_METHOD_LABELS,
-  type SettlementItemType,
   type DisbursementMethod,
 } from "../../domain/enums";
+import { uncoveredDeductionsAmount } from "../../domain/settlementTotals";
 import { formatItemTitleAndSubtitle } from "./SettlementItemsTable";
 import { settlementsCopy } from "../copy/settlementsCopy";
+
+const capCopy = settlementsCopy.settlementFlow.deductionsCap;
 import { isReceiptSignable } from "../utils/settlementEditing";
+import {
+  getSettlementItemCategoryLabel,
+  orderSettlementDeductions,
+} from "../utils/settlementItemOrigin";
+import {
+  isManualPayeeReimbursement,
+  reimbursementItemTripLine,
+} from "../utils/reimbursementLines";
 
 interface SettlementReceiptPrintViewProps {
   settlement: DriverSettlement;
@@ -26,10 +35,20 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
   ) {
     const copy = settlementsCopy.detailPage.items;
     const receiptCopy = settlementsCopy.detailPage.receipt;
+    const zeroReasonCopy = receiptCopy.zeroTripsReasons;
+    const reimbursementCopy = settlementsCopy.reimbursements;
+    const isReimbursementOnly = settlement.settlementKind === "reimbursement_only";
     const items = settlement.items ?? [];
-    const earnings = items.filter((it) => !it.isDeduction);
-    const deductions = items.filter((it) => it.isDeduction);
+    // ADR-0085 E11: los viajes en $0 se listan aparte para que el operador vea que ya se cerraron.
+    const isZeroTrip = (it: (typeof items)[number]) =>
+      !it.isDeduction && it.itemType === "trip_commission" && it.amount === 0;
+    const zeroTrips = items.filter(isZeroTrip);
+    const earnings = items.filter((it) => !it.isDeduction && !isZeroTrip(it));
+    const deductions = orderSettlementDeductions(items.filter((it) => it.isDeduction));
     const totalDeductions = settlement.totalAdvancesDeducted + settlement.totalOtherDeductions;
+    // Percepciones − deducciones + no cubierto = neto (históricos con descuentos mayores al bruto).
+    const uncoveredDeductions =
+      settlement.uncoveredDeductionsAmount ?? uncoveredDeductionsAmount(settlement);
 
     const paymentMethodLabel = settlement.disbursementMethod
       ? DISBURSEMENT_METHOD_LABELS[settlement.disbursementMethod as DisbursementMethod] ?? settlement.disbursementMethod
@@ -61,7 +80,16 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
           <div>
             <h1 className="text-lg font-bold tracking-tight uppercase">{companyName}</h1>
             {rfc && <p className="text-[11px] text-muted-foreground">RFC: {rfc}</p>}
-            <p className="text-[11px] font-semibold text-foreground">{receiptCopy.documentTitle}</p>
+            <p className="text-[11px] font-semibold text-foreground">
+              {isReimbursementOnly
+                ? reimbursementCopy.receipt.documentTitle
+                : receiptCopy.documentTitle}
+            </p>
+            {isReimbursementOnly ? (
+              <p className="text-[10px] text-muted-foreground">
+                {reimbursementCopy.receipt.documentSubtitle}
+              </p>
+            ) : null}
           </div>
           <div className="text-right">
             <div className="inline-block border-2 border-black px-2.5 py-0.5 text-sm font-bold font-mono bg-muted print:bg-transparent">
@@ -108,9 +136,15 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             )}
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase text-muted-foreground font-semibold">{receiptCopy.settledPeriodLabel}</p>
+            <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+              {isReimbursementOnly
+                ? reimbursementCopy.receipt.dateLabel
+                : receiptCopy.settledPeriodLabel}
+            </p>
             <p className="text-sm font-bold text-black">
-              {formatDate(settlement.periodStart)} al {formatDate(settlement.periodEnd)}
+              {isReimbursementOnly
+                ? formatDate(settlement.createdAt)
+                : `${formatDate(settlement.periodStart)} al ${formatDate(settlement.periodEnd)}`}
             </p>
             {settlement.disbursedAt && (
               <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -123,7 +157,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
         {/* TABLA DE INGRESOS Y VIAJES DEL PERÍODO */}
         <div className="mb-3">
           <h2 className="text-[11px] font-bold uppercase tracking-wider bg-muted px-2 py-1 mb-1 border border-border">
-            {receiptCopy.earningsTitle}
+            {isReimbursementOnly ? reimbursementCopy.receipt.earningsTitle : receiptCopy.earningsTitle}
           </h2>
           <table className="w-full border-collapse border border-border text-left">
             <thead>
@@ -146,6 +180,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
               ) : (
                 earnings.map((it, idx) => {
                   const { title, subtitle, badgeTag } = formatItemTitleAndSubtitle(it, copy);
+                  const tripLine = reimbursementItemTripLine(it);
                   return (
                     <tr key={it.id ?? idx} className="text-[11px]">
                       <td className="border border-border p-1.5">
@@ -153,9 +188,22 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                           {title} {badgeTag ? <span className="font-normal text-[10px] text-muted-foreground">[{badgeTag}]</span> : ""}
                         </div>
                         {subtitle && <div className="text-[10px] text-muted-foreground leading-tight">{subtitle}</div>}
+                        {tripLine ? (
+                          <div
+                            className="text-[10px] text-muted-foreground leading-tight"
+                            data-testid="receipt-reimbursement-trip-line"
+                          >
+                            {tripLine}
+                          </div>
+                        ) : null}
+                        {isManualPayeeReimbursement(it) ? (
+                          <div className="text-[10px] text-muted-foreground leading-tight">
+                            {reimbursementCopy.manualPayeeLine}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="border border-border p-1.5 text-[10px] text-muted-foreground">
-                        {SETTLEMENT_ITEM_TYPE_LABELS[it.itemType as SettlementItemType] ?? it.itemType}
+                        {getSettlementItemCategoryLabel(it)}
                       </td>
                       <td className="border border-border p-1.5 font-mono text-[11px]">{it.tripCode ?? "—"}</td>
                       <td className="border border-border p-1.5 text-right tabular-nums">{it.quantity}</td>
@@ -182,6 +230,36 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             </tfoot>
           </table>
         </div>
+
+        {zeroTrips.length > 0 ? (
+          <div className="mb-3 break-inside-avoid" data-testid="receipt-zero-trips">
+            <h2 className="text-[11px] font-bold uppercase tracking-wider bg-muted px-2 py-1 mb-1 border border-border">
+              {receiptCopy.zeroTripsTitle}
+            </h2>
+            <p className="text-[10px] text-muted-foreground mb-1">{receiptCopy.zeroTripsHint}</p>
+            <table className="w-full border-collapse border border-border text-left">
+              <thead>
+                <tr className="bg-muted text-[10px] uppercase text-muted-foreground">
+                  <th className="border border-border p-1.5">{receiptCopy.zeroTripsTable.trip}</th>
+                  <th className="border border-border p-1.5">{receiptCopy.zeroTripsTable.reason}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zeroTrips.map((it, idx) => {
+                  const reason = it.calculationDetails?.zeroReason;
+                  return (
+                    <tr key={it.id ?? idx} className="text-[11px]">
+                      <td className="border border-border p-1.5 font-mono">{it.tripCode ?? "—"}</td>
+                      <td className="border border-border p-1.5">
+                        {reason ? zeroReasonCopy[reason] : receiptCopy.zeroTripsReasonFallback}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
 
         {/* TABLA DE DEDUCCIONES Y ANTICIPOS */}
         <div className="mb-3">
@@ -214,13 +292,14 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                         {subtitle && <div className="text-[10px] text-muted-foreground leading-tight">{subtitle}</div>}
                       </td>
                       <td className="border border-border p-1.5 text-[10px] text-muted-foreground">
-                        {SETTLEMENT_ITEM_TYPE_LABELS[it.itemType as SettlementItemType] ?? it.itemType}
+                        {getSettlementItemCategoryLabel(it)}
                       </td>
                       <td className="border border-border p-1.5 font-mono text-[10px] text-muted-foreground">
                         {it.calculationDetails?.advanceFolio ?? (it.advanceId ? "Anticipo vinculado" : "—")}
                       </td>
                       <td className="border border-border p-1.5 text-right tabular-nums font-semibold text-black">
-                        -{formatMxCurrency(it.amount)}
+                        {it.amount > 0 ? "-" : ""}
+                        {formatMxCurrency(it.amount)}
                       </td>
                     </tr>
                   );
@@ -236,6 +315,19 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                   -{formatMxCurrency(totalDeductions)}
                 </td>
               </tr>
+              {uncoveredDeductions > 0 ? (
+                <tr className="text-[11px]" data-testid="receipt-uncovered-deductions">
+                  <td colSpan={3} className="border border-border p-1.5 text-right">
+                    <span className="font-bold uppercase">{capCopy.uncoveredLabel}</span>
+                    <span className="block text-[10px] font-normal text-muted-foreground">
+                      {capCopy.uncoveredHint}
+                    </span>
+                  </td>
+                  <td className="border border-border p-1.5 text-right tabular-nums font-bold text-black">
+                    +{formatMxCurrency(uncoveredDeductions)}
+                  </td>
+                </tr>
+              ) : null}
             </tfoot>
           </table>
         </div>
@@ -258,6 +350,11 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
               <span className="text-sm font-bold tabular-nums text-black block">
                 -{formatMxCurrency(totalDeductions)}
               </span>
+              {uncoveredDeductions > 0 ? (
+                <span className="text-[10px] tabular-nums text-muted-foreground block">
+                  {capCopy.uncoveredLabel} +{formatMxCurrency(uncoveredDeductions)}
+                </span>
+              ) : null}
             </div>
             <div className="bg-muted/80 py-1 px-2 rounded-sm border border-border print:bg-muted">
               <span className="text-[10px] uppercase font-black tracking-tight text-black block">
@@ -294,7 +391,11 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             <div className="border-b border-black w-3/4 mx-auto mb-1"></div>
             <p className="font-bold text-xs text-black">{settlement.employeeFullName ?? "Operador / Conductor"}</p>
             <p className="text-[10px] font-semibold text-muted-foreground">{receiptCopy.signatures.driverTitle}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{receiptCopy.signatures.driverDisclaimer}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
+              {isReimbursementOnly
+                ? reimbursementCopy.receipt.driverDisclaimer
+                : receiptCopy.signatures.driverDisclaimer}
+            </p>
           </div>
           <div>
             <div className="border-b border-black w-3/4 mx-auto mb-1"></div>

@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ApprovalBlock } from "@features/approvals";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 import type { DriverSettlement } from "../../domain/entities";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { SettlementCorrectionSheet } from "./SettlementCorrectionSheet";
@@ -258,6 +259,41 @@ describe("SettlementCorrectionSheet", () => {
     });
   });
 
+  it("borrador: un anticipo reservado en otro pago muestra el folio y no se puede elegir; la reserva propia sí", async () => {
+    mockPreviewSettlement.mockResolvedValue({
+      openAdvances: [
+        {
+          advanceId: "adv-busy",
+          folio: "ANT-202610-0010",
+          amount: 400,
+          balanceRemaining: 400,
+          availableBalance: 0,
+          reservedBySettlementNumber: "LIQ-202610-0007",
+        },
+        {
+          advanceId: "adv-own",
+          folio: "ANT-202610-0011",
+          amount: 300,
+          balanceRemaining: 300,
+          availableBalance: 0,
+          reservedBySettlementNumber: "LIQ-202610-0001",
+        },
+      ],
+    });
+    renderSheet({ ...baseSettlement, status: "draft", approvedAt: null, approvedBy: null });
+
+    expect(await screen.findByRole("checkbox", { name: "ANT-202610-0010" })).toBeDisabled();
+    expect(
+      screen.getByTestId("correction-advance-reserved-elsewhere-adv-busy"),
+    ).toHaveTextContent(
+      "Reservado en LIQ-202610-0007. Se libera cuando ese pago se pague o se cancele.",
+    );
+    expect(screen.getByRole("checkbox", { name: "ANT-202610-0011" })).toBeEnabled();
+    expect(
+      screen.queryByTestId("correction-advance-reserved-elsewhere-adv-own"),
+    ).not.toBeInTheDocument();
+  });
+
   it("criterio 1: devuelta muestra el motivo y «Guardar y reenviar» corrige y reenvía en un paso", async () => {
     const user = userEvent.setup();
     renderSheet({
@@ -302,5 +338,91 @@ describe("SettlementCorrectionSheet", () => {
 
     await user.click(screen.getByRole("button", { name: new RegExp(flowCopy.staleAlert.action, "i") }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("SettlementCorrectionSheet — tope de descuentos contra el bruto", () => {
+  const capCopy = flowCopy.deductionsCap;
+  const draft = { ...baseSettlement, status: "draft" as const, approvedAt: null, approvedBy: null };
+
+  function exceedError(message: string, path: string[]) {
+    return new ApiError(message, 422, "SETTLEMENT_DEDUCTIONS_EXCEED_GROSS", {
+      max_advance_deductible: 0,
+      path,
+    });
+  }
+
+  it("borrador: precarga solo lo que cabe; capturar de más marca error y «Descontar el máximo posible» lo ajusta", async () => {
+    const user = userEvent.setup();
+    mockPreviewSettlement.mockResolvedValue({
+      openAdvances: [
+        {
+          advanceId: "adv-9",
+          folio: "ANT-202610-0009",
+          amount: 1500,
+          balanceRemaining: 1500,
+          availableBalance: 1500,
+          disbursedAt: "2026-10-01T10:00:00Z",
+        },
+      ],
+    });
+    renderSheet(draft);
+
+    await user.click(await screen.findByRole("checkbox", { name: "ANT-202610-0009" }));
+    const amount = screen.getByLabelText(flowCopy.sheet.advanceAmountLabel("ANT-202610-0009"));
+    expect(screen.getByTestId("settlement-correction-totals")).toHaveTextContent(
+      "Neto $1,000.00 → $0.00",
+    );
+    expect(screen.getByTestId("settlement-correction-max-hint")).toHaveTextContent("$1,000.00");
+
+    await user.clear(amount);
+    await user.type(amount, "1200");
+    await user.tab();
+
+    expect(document.getElementById("settlement-correction-advances-error")).toHaveTextContent(
+      capCopy.advancesExceed("$1,000.00"),
+    );
+    await user.click(screen.getByRole("button", { name: flowCopy.sheet.save }));
+    expect(mockUpdateSettlement).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: capCopy.fitMaxAction }));
+    expect(document.getElementById("settlement-correction-advances-error")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: flowCopy.sheet.save }));
+    await waitFor(() => expect(mockUpdateSettlement).toHaveBeenCalledTimes(1));
+    const [, payload] = mockUpdateSettlement.mock.calls[0] as [string, Record<string, unknown>];
+    expect(payload.advancesToApply).toEqual([{ advanceId: "adv-9", amountToDeduct: 1000 }]);
+  });
+
+  it("autorizada: una penalización mayor que lo ganado marca las partidas y no abre la confirmación", async () => {
+    const user = userEvent.setup();
+    renderSheet(baseSettlement);
+
+    await addPenalty(user, "1500");
+
+    expect(document.getElementById("settlement-correction-manual-items-error")).toHaveTextContent(
+      capCopy.manualExceed,
+    );
+    await user.click(screen.getByRole("button", { name: flowCopy.sheet.saveCorrection }));
+    expect(screen.queryByText(flowCopy.confirm.title)).not.toBeInTheDocument();
+    expect(mockUpdateSettlement).not.toHaveBeenCalled();
+  });
+
+  it("autorizada: el 422 muestra el texto del API en el bloque de partidas (sin alerta genérica)", async () => {
+    const user = userEvent.setup();
+    const apiMessage =
+      "Los descuentos superan lo que el operador ganó en este corte. Devuelve la liquidación a borrador para ajustar los anticipos.";
+    mockUpdateSettlement.mockRejectedValueOnce(exceedError(apiMessage, ["custom_items"]));
+    renderSheet(baseSettlement);
+
+    await addPenalty(user, "300");
+    await user.click(screen.getByRole("button", { name: flowCopy.sheet.saveCorrection }));
+    await user.click(await screen.findByRole("button", { name: flowCopy.confirm.confirm }));
+
+    await waitFor(() =>
+      expect(document.getElementById("settlement-correction-manual-items-error")).toHaveTextContent(
+        apiMessage,
+      ),
+    );
+    expect(screen.queryByText(flowCopy.sheet.saveErrorTitle)).not.toBeInTheDocument();
   });
 });

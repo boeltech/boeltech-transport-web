@@ -169,7 +169,7 @@ describe("CompensationTemplateListPage", () => {
     expect(screen.getByRole("columnheader", { name: "Operadores" })).toBeInTheDocument();
     expect(screen.getByTitle("2 operadores")).toBeInTheDocument();
     expect(screen.getByText("Falta definir el pago")).toBeInTheDocument();
-    expect(screen.getByText("Listo para liquidar")).toBeInTheDocument();
+    expect(screen.getByText("Listo para usar en pagos")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Completar pago/i }),
     ).toHaveAttribute("href", "/finance/compensation/templates/tpl-1/build");

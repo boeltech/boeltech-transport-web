@@ -11,13 +11,13 @@ describe("compensationCopy — F1 tres bolsillos (pago fijo de tarifa)", () => {
       /se suman al pago/i,
     );
     expect(compensationCopy.builder.inspectorAllowancesHint).toMatch(
-      /una vez por liquidación/i,
+      /una vez por pago/i,
     );
     expect(compensationCopy.builder.inspectorAllowancesHint).toMatch(
       /no divide el monto/i,
     );
     expect(compensationCopy.sheet.allowancePeriodHint).toMatch(/ritmo del acuerdo/i);
-    expect(compensationCopy.sheet.allowancePeriodHint).toMatch(/1× por corte/i);
+    expect(compensationCopy.sheet.allowancePeriodHint).toMatch(/1× por pago/i);
     expect(compensationCopy.sheet.allowancePeriodHint).toMatch(
       /no se divide por días/i,
     );

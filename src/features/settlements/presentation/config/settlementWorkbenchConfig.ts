@@ -1,11 +1,11 @@
 /**
- * Configuración del workbench de liquidaciones (Capa 1 handoff 2026-09-01).
+ * Configuración del workbench de pagos a operadores (Capa 1 handoff 2026-09-01).
  * Layout KPI chips: deprecado — usar mapSettlementWorkbenchBuckets + WorkbenchPageShell (ADR-0090).
  */
 
 import type { SettlementStatus } from "../../domain/enums";
 
-/** Cubetas navegables en el KPI strip (sin autorización — va a bandeja central). */
+/** Cubetas navegables en el KPI strip (autorización → tab Por autorizar del hub). */
 export type SettlementWorkbenchNavBucket =
   | "pending"
   | "draft"
@@ -42,10 +42,18 @@ export const OPEN_ADVANCE_STATUSES = [
   "partially_applied",
 ] as const;
 
-export function settlementsCompensationApprovalsPath(): string {
-  return "/finance/approvals?type=internal_staff_compensation&status=pending";
+const PENDING_APPROVAL_PATH = "/finance/settlements/pending-approval";
+
+/** Deep-link de pagos por autorizar → tab hub (D-A). */
+export function settlementsCompensationApprovalsPath(params?: {
+  driverId?: string;
+}): string {
+  if (!params?.driverId) return PENDING_APPROVAL_PATH;
+  const qs = new URLSearchParams({ driverId: params.driverId });
+  return `${PENDING_APPROVAL_PATH}?${qs.toString()}`;
 }
 
+/** Anticipos siguen en la bandeja global de Aprobaciones. */
 export function settlementsDriverAdvanceApprovalsPath(): string {
   return "/finance/approvals?type=driver_advance_request&status=pending";
 }

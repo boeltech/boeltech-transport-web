@@ -13,13 +13,15 @@ import {
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
 import { Badge } from "@shared/ui/badge";
-import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { ApprovalFlowLines } from "@features/approvals";
 import type { DriverSettlement } from "../../domain/entities";
+import { roundCents } from "../../domain/settlementTotals";
 import { SettlementStatusBadge } from "./SettlementStatusBadge";
 import { SettlementActions } from "./SettlementActions";
+import { SettlementKindBadge } from "./SettlementKindBadge";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { settlementPeriodLabel } from "../utils/reimbursementLines";
 
 const copy = settlementsCopy;
 
@@ -49,7 +51,7 @@ const REGISTRY_HEADERS: TableHeaderConfig[] = [
   { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
   { key: "trips", label: copy.fields.tripsCount, className: "text-center min-w-[90px]" },
   { key: "grossAmount", label: copy.fields.grossAmount, className: "text-right min-w-[120px]" },
-  { key: "totalAdvances", label: copy.fields.totalAdvances, className: "text-right min-w-[130px]" },
+  { key: "totalDiscounts", label: copy.fields.totalDiscounts, className: "text-right min-w-[130px]" },
   { key: "netAmount", label: copy.fields.netAmount, className: "text-right min-w-[130px] font-semibold text-foreground" },
   { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
   { key: "actions", label: "", className: "w-12 text-right" },
@@ -154,6 +156,10 @@ function getTripsCount(st: DriverSettlement): number | string {
   return "—";
 }
 
+function getTotalDiscounts(st: DriverSettlement): number {
+  return roundCents(st.totalAdvancesDeducted + st.totalOtherDeductions);
+}
+
 export function SettlementsTable({
   settlements,
   isLoading,
@@ -171,7 +177,7 @@ export function SettlementsTable({
   if (isLoading) {
     return (
       <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de liquidaciones">
+        <Table aria-label="Listado de pagos">
           <TableHeaderRow headers={headers} />
           <LoadingSkeleton colCount={colCount} />
         </Table>
@@ -182,7 +188,7 @@ export function SettlementsTable({
   if (settlements.length === 0) {
     return (
       <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de liquidaciones">
+        <Table aria-label="Listado de pagos">
           <TableHeaderRow headers={headers} />
           <EmptyState message={emptyMessage} colSpan={colCount} />
         </Table>
@@ -192,7 +198,7 @@ export function SettlementsTable({
 
   return (
     <div className="rounded-md border bg-card overflow-x-auto">
-      <Table aria-label="Listado de liquidaciones">
+      <Table aria-label="Listado de pagos">
         <TableHeaderRow headers={headers} />
         <TableBody>
           {settlements.map((st) => (
@@ -202,7 +208,10 @@ export function SettlementsTable({
               onClick={() => onView(st.id)}
             >
               <TableCell className="font-semibold text-primary font-mono whitespace-nowrap">
-                {st.settlementNumber}
+                <span className="inline-flex items-center gap-1.5">
+                  {st.settlementNumber}
+                  <SettlementKindBadge kind={st.settlementKind} className="font-sans text-[10px]" />
+                </span>
               </TableCell>
 
               <TableCell className="font-medium whitespace-nowrap">
@@ -210,7 +219,7 @@ export function SettlementsTable({
               </TableCell>
 
               <TableCell className="text-muted-foreground text-xs sm:text-sm whitespace-nowrap">
-                {formatDate(st.periodStart)} – {formatDate(st.periodEnd)}
+                {settlementPeriodLabel(st)}
               </TableCell>
 
               {columnMode === "registry" ? (
@@ -224,8 +233,8 @@ export function SettlementsTable({
                   </TableCell>
 
                   <TableCell className="text-right tabular-nums text-destructive font-medium whitespace-nowrap">
-                    {st.totalAdvancesDeducted > 0 ? (
-                      `-${formatMxCurrency(st.totalAdvancesDeducted)}`
+                    {getTotalDiscounts(st) > 0 ? (
+                      `-${formatMxCurrency(getTotalDiscounts(st))}`
                     ) : (
                       <span className="text-muted-foreground font-normal">—</span>
                     )}

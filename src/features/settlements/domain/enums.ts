@@ -84,10 +84,10 @@ export const ADVANCE_CATEGORY_LABELS: Record<AdvanceCategory, string> = {
   travel_advance: "Anticipo de viaje",
   fuel: "Combustible",
   tolls: "Casetas / Peajes",
-  per_diem: "Viáticos",
-  cash_advance: "Efectivo / Préstamo",
+  per_diem: "Dieta (anticipo)",
+  cash_advance: "Efectivo",
   emergency: "Emergencia en ruta",
-  loan: "Préstamo",
+  loan: "Préstamo a descontar",
 };
 
 export type MidTripPayoutPolicy =
@@ -158,10 +158,10 @@ export type SettlementStatus =
 export const SETTLEMENT_STATUS_LABELS: Record<SettlementStatus, string> = {
   draft: "Borrador",
   pending_approval: "Por autorizar",
-  approved: "Autorizada",
-  disbursed: "Pagada",
-  rejected: "Rechazada",
-  cancelled: "Cancelada",
+  approved: "Autorizado",
+  disbursed: "Pagado",
+  rejected: "Rechazado",
+  cancelled: "Cancelado",
 };
 
 // ============================================================================

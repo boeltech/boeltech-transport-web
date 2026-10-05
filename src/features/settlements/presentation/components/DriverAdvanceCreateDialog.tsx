@@ -44,11 +44,14 @@ import {
   type DisbursementMethod,
 } from "../../domain/enums";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { AdvanceTripSelect } from "./AdvanceTripSelect";
 
 interface DriverAdvanceCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultEmployeeId?: string;
+  /** Etiqueta opcional de viaje precargada (p. ej. desde contexto de viaje). */
+  defaultTripId?: string;
   onSuccess?: () => void;
 }
 
@@ -58,6 +61,7 @@ export function DriverAdvanceCreateDialog({
   open,
   onOpenChange,
   defaultEmployeeId,
+  defaultTripId,
   onSuccess,
 }: DriverAdvanceCreateDialogProps) {
   const copy = settlementsCopy.advancesDialog;
@@ -77,6 +81,7 @@ export function DriverAdvanceCreateDialog({
     resolver: zodResolver(driverAdvanceFormSchema) as never,
     defaultValues: {
       employeeId: defaultEmployeeId ?? "",
+      tripId: defaultTripId ?? "",
       amount: undefined,
       currency: "MXN",
       category: "travel_advance",
@@ -89,12 +94,15 @@ export function DriverAdvanceCreateDialog({
 
   const selectedCategory = watch("category");
   const selectedPaymentMethod = watch("paymentMethod");
+  const selectedEmployeeId = watch("employeeId");
+  const selectedTripId = watch("tripId") ?? "";
 
   useEffect(() => {
     if (open) {
       setApiError(null);
       reset({
         employeeId: defaultEmployeeId ?? "",
+        tripId: defaultTripId ?? "",
         amount: undefined,
         currency: "MXN",
         category: "travel_advance",
@@ -102,10 +110,9 @@ export function DriverAdvanceCreateDialog({
         bankReference: "",
         submitForApproval: true,
         notes: "",
-        tripId: "",
       } as unknown as DriverAdvanceFormData);
     }
-  }, [open, defaultEmployeeId, reset]);
+  }, [open, defaultEmployeeId, defaultTripId, reset]);
 
   const onSubmit = async (data: DriverAdvanceFormData) => {
     try {
@@ -148,10 +155,27 @@ export function DriverAdvanceCreateDialog({
                 id="adv-employee"
                 label={copy.employeeLabel}
                 value={field.value}
-                onChange={(employeeId) =>
-                  setValue("employeeId", employeeId, { shouldValidate: true })
-                }
+                onChange={(employeeId) => {
+                  setValue("employeeId", employeeId, { shouldValidate: true });
+                  setValue("tripId", "", { shouldValidate: true });
+                }}
                 placeholder={copy.employeePlaceholder}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="tripId"
+            render={({ fieldState }) => (
+              <AdvanceTripSelect
+                id="adv-trip"
+                employeeId={selectedEmployeeId}
+                value={selectedTripId}
+                onChange={(tripId) =>
+                  setValue("tripId", tripId, { shouldValidate: true })
+                }
                 error={fieldState.error?.message}
               />
             )}
@@ -181,7 +205,10 @@ export function DriverAdvanceCreateDialog({
                   />
                 )}
               />
-              <FieldInlineError fieldId="adv-amount" message={errors.amount?.message as string | undefined} />
+              <FieldInlineError
+                fieldId="adv-amount"
+                message={errors.amount?.message as string | undefined}
+              />
             </div>
 
             <div className="space-y-1">
@@ -223,21 +250,27 @@ export function DriverAdvanceCreateDialog({
               >
                 <SelectTrigger
                   id="adv-payment-method"
-                  {...getFieldErrorAriaProps("adv-payment-method", errors.paymentMethod?.message)}
+                  {...getFieldErrorAriaProps(
+                    "adv-payment-method",
+                    errors.paymentMethod?.message,
+                  )}
                 >
                   <SelectValue placeholder={copy.paymentMethodPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {(
-                    Object.keys(DISBURSEMENT_METHOD_LABELS) as DisbursementMethod[]
-                  ).map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {DISBURSEMENT_METHOD_LABELS[m]}
-                    </SelectItem>
-                  ))}
+                  {(Object.keys(DISBURSEMENT_METHOD_LABELS) as DisbursementMethod[]).map(
+                    (m) => (
+                      <SelectItem key={m} value={m}>
+                        {DISBURSEMENT_METHOD_LABELS[m]}
+                      </SelectItem>
+                    ),
+                  )}
                 </SelectContent>
               </Select>
-              <FieldInlineError fieldId="adv-payment-method" message={errors.paymentMethod?.message} />
+              <FieldInlineError
+                fieldId="adv-payment-method"
+                message={errors.paymentMethod?.message}
+              />
             </div>
 
             <div className="space-y-1">
@@ -254,11 +287,14 @@ export function DriverAdvanceCreateDialog({
 
           <div className="rounded-md border bg-muted/20 p-3 flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="adv-submit-for-approval" className="text-xs font-semibold cursor-pointer">
+              <Label
+                htmlFor="adv-submit-for-approval"
+                className="text-xs font-semibold cursor-pointer"
+              >
                 Enviar a autorización inmediatamente
               </Label>
               <p className="text-[11px] text-muted-foreground">
-                Si está activo, entra directamente a la bandeja de pendientes por autorizar.
+                Si está activo, entra directamente a Aprobaciones (Anticipos a operadores).
               </p>
             </div>
             <Controller
@@ -287,17 +323,10 @@ export function DriverAdvanceCreateDialog({
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {settlementsCopy.actions.cancel}
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || createMutation.isPending}
-            >
+            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
               {createMutation.isPending ? copy.saving : copy.save}
             </Button>
           </DialogFooter>

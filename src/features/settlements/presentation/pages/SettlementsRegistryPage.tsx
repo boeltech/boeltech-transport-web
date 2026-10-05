@@ -38,7 +38,7 @@ const copy = settlementsCopy;
 const workbenchCopy = settlementsCopy.workbench;
 
 /**
- * Registry histórico de liquidaciones — ListPageShell puro (ADR-0090 Fase 2).
+ * Registry histórico de pagos — ListPageShell bajo el hub (sin segundo H1).
  */
 export function SettlementsRegistryPage() {
   const navigate = useNavigate();
@@ -121,23 +121,14 @@ export function SettlementsRegistryPage() {
   return (
     <>
       <ListPageShell
-        title={copy.title}
-        description="Historial completo de liquidaciones registradas."
-        primaryAction={
-          canCreate
-            ? {
-                label: copy.actions.createSettlement,
-                icon: <Plus className="h-4 w-4" />,
-                onClick: () =>
-                  navigate(settlementCreatePath(), { state: fromState }),
-              }
-            : undefined
-        }
+        title={copy.registry.title}
+        description={copy.registry.description}
+        showHeader={false}
         items={filteredSettlements}
         isLoading={isLoading}
         pagination={pagination}
         onPageChange={filters.setPage}
-        entityLabelPlural="liquidaciones"
+        entityLabelPlural={copy.registry.entityLabelPlural}
         emptyState={{
           icon: <Plus className="h-8 w-8 text-muted-foreground" />,
           title: copy.empty.settlementsTitle,

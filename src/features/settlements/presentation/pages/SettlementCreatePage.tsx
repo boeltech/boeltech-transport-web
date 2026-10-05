@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import {
   Calculator,
@@ -21,7 +21,12 @@ import { Label } from "@shared/ui/label";
 import { Badge } from "@shared/ui/badge";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@shared/ui/card";
-import { DateField, FormValidationSummary } from "@shared/ui/form";
+import {
+  DateField,
+  FieldInlineError,
+  FormValidationSummary,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
 import { PeriodStepper } from "../components/PeriodStepper";
 import { buildSuggestedSettlementPeriod } from "../utils/buildSuggestedSettlementPeriod";
 import type { SalaryPeriodKind } from "../utils/buildSuggestedSettlementPeriod";
@@ -53,6 +58,7 @@ import { resolveSelfActionUi, useSelfApprovalPolicy } from "@features/approvals"
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import {
   useSettlementPreview,
+  useReimbursementSettlementPreview,
   useCreateSettlement,
   useSettlementSettings,
 } from "../../application/hooks";
@@ -84,21 +90,46 @@ import {
   type ManualItemRowErrors,
 } from "../utils/manualItemRows";
 import {
+  applyTemplateDeductionsByPriority,
+  assessDeductionCapacity,
   computeSettlementTotals,
   normalizeManualItems,
+  roundCents,
   sumManualItems,
   type ManualSettlementItemInput,
 } from "../../domain/settlementTotals";
 import { liveManualItems } from "../utils/settlementEditing";
 import {
+  allocateAdvancesFifo,
+  deductableAdvanceBalance,
+  deductionCapacityErrors,
+  deductionsExceedErrorsFromServer,
+  parseDeductionsExceedGrossError,
+  remainingAdvanceRoom,
+  type DeductionCapacityErrors,
+} from "../utils/settlementDeductionCapacity";
+import {
   resolveCreateSettlementFeedback,
   resolveCreateCta,
 } from "../utils/settlementCta";
+import {
+  parseNoRuleAckRequiredError,
+  parsePeriodPartialOverlapError,
+  parseReimbursementCreateError,
+  parseTripInActiveSettlementError,
+  type PeriodPartialOverlapConflict,
+  type ReimbursementCreateError,
+  type TripConsumptionConflict,
+} from "../utils/settlementCreateConflicts";
+import { ReimbursementErrorAlert } from "../components/ReimbursementErrorAlert";
+import { ReimbursementLinesTable } from "../components/ReimbursementLinesTable";
+import { ReimbursementsPayeeCard } from "../components/ReimbursementsPayeeCard";
 import {
   COMPENSATION_SALARY_PERIOD_LABELS,
   TRIP_ROUTE_TYPE_LABELS,
   ADVANCE_CATEGORY_LABELS,
   DEFAULT_VOBO_THRESHOLD_MXN,
+  SETTLEMENT_STATUS_LABELS,
   type CompensationCalculationType,
   type CompensationSalaryPeriod,
   type TripRouteType,
@@ -108,16 +139,9 @@ import {
 const copy = settlementsCopy;
 const createCopy = settlementsCopy.createPage;
 const governanceCopy = settlementsCopy.agreementGovernance;
-
-function deductableAdvanceBalance(adv: {
-  balanceRemaining: number;
-  availableBalance?: number;
-}): number {
-  if (typeof adv.availableBalance === "number") {
-    return Math.max(0, adv.availableBalance);
-  }
-  return adv.balanceRemaining;
-}
+const capCopy = settlementsCopy.settlementFlow.deductionsCap;
+const ADVANCES_FIELD_ID = "settlement-create-advances";
+const MANUAL_ITEMS_FIELD_ID = "settlement-create-manual-items";
 
 export function SettlementCreatePage() {
   const navigate = useNavigate();
@@ -132,7 +156,8 @@ export function SettlementCreatePage() {
     data: settings,
     isError: settingsError,
   } = useSettlementSettings();
-  const thresholdMxn = settings?.voboThresholdMxn ?? DEFAULT_VOBO_THRESHOLD_MXN;
+  // `null` (sin autorización por monto) no debe caer al default: `??` lo convertiría en $0.
+  const thresholdMxn = settings ? settings.voboThresholdMxn : DEFAULT_VOBO_THRESHOLD_MXN;
   // Quien arma el corte es su maker: la política dice si podrá autoactuar.
   const { data: selfApprovalPolicy } = useSelfApprovalPolicy();
   const canSelfApproveOwnCut =
@@ -167,50 +192,83 @@ export function SettlementCreatePage() {
   const [manualItems, setManualItems] = useState<ManualItemRow[]>([]);
   const [manualItemErrors, setManualItemErrors] = useState<ManualItemRowErrors[]>([]);
   const [manualItemsSummary, setManualItemsSummary] = useState<string[]>([]);
+  // 422 de tope de descuentos: vigente hasta que se editen anticipos o partidas.
+  const [serverCapacityErrors, setServerCapacityErrors] = useState<{
+    key: string;
+    errors: DeductionCapacityErrors;
+  } | null>(null);
 
   // Confirmation dialog pre-submit
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [reimbursementsOnlyOptIn, setReimbursementsOnlyOptIn] = useState(false);
   const [showTripCalcDetail, setShowTripCalcDetail] = useState(false);
   const [acknowledgeZeroKmTrips, setAcknowledgeZeroKmTrips] = useState(false);
+  // ADR-0085 E11: viajes sin regla entran en $0 solo con confirmación explícita.
+  const [acknowledgeNoRuleTrips, setAcknowledgeNoRuleTrips] = useState(false);
+  const [noRuleDialog, setNoRuleDialog] = useState<{
+    submit: boolean;
+    tripCodes: readonly string[];
+  } | null>(null);
+  // 409 del alta: vigente mientras no cambien operador ni fechas.
+  const [serverPeriodConflict, setServerPeriodConflict] = useState<{
+    key: string;
+    conflict: PeriodPartialOverlapConflict;
+  } | null>(null);
+  const [tripConflictAlert, setTripConflictAlert] = useState<{
+    key: string;
+    conflicts: readonly TripConsumptionConflict[];
+  } | null>(null);
+  // E11 punto 8: gastos con cambio de conductor que el usuario asigna; se reinician con operador/fechas.
+  const [confirmedPayee, setConfirmedPayee] = useState<{
+    key: string;
+    ids: ReadonlySet<string>;
+  }>({ key: "", ids: new Set() });
+  const [reimbursementErrorState, setReimbursementErrorState] = useState<{
+    key: string;
+    error: ReimbursementCreateError;
+  } | null>(null);
 
   const urlEmployeeId = searchParams.get("employeeId") || "";
   const urlPeriodStart = searchParams.get("periodStart") || "";
   const urlPeriodEnd = searchParams.get("periodEnd") || "";
-  const prevUrlFiltersRef = useRef({
+  const urlFiltersKey = `${urlEmployeeId}|${urlPeriodStart}|${urlPeriodEnd}`;
+  const [prevUrlFilters, setPrevUrlFilters] = useState({
+    key: urlFiltersKey,
     employeeId: urlEmployeeId,
     periodStart: urlPeriodStart,
     periodEnd: urlPeriodEnd,
   });
 
-  // Sync filters from URL when querystring values change
-  useEffect(() => {
-    const prev = prevUrlFiltersRef.current;
-    const empChanged = Boolean(urlEmployeeId) && urlEmployeeId !== prev.employeeId;
-    const startChanged = Boolean(urlPeriodStart) && urlPeriodStart !== prev.periodStart;
-    const endChanged = Boolean(urlPeriodEnd) && urlPeriodEnd !== prev.periodEnd;
+  // Sync filters from URL when querystring values change (adjust state during
+  // render — evita react-hooks/set-state-in-effect).
+  if (urlFiltersKey !== prevUrlFilters.key) {
+    const empChanged =
+      Boolean(urlEmployeeId) && urlEmployeeId !== prevUrlFilters.employeeId;
+    const startChanged =
+      Boolean(urlPeriodStart) && urlPeriodStart !== prevUrlFilters.periodStart;
+    const endChanged =
+      Boolean(urlPeriodEnd) && urlPeriodEnd !== prevUrlFilters.periodEnd;
 
+    setPrevUrlFilters({
+      key: urlFiltersKey,
+      employeeId: urlEmployeeId,
+      periodStart: urlPeriodStart,
+      periodEnd: urlPeriodEnd,
+    });
     if (empChanged) setSelectedEmployeeId(urlEmployeeId);
     if (startChanged) setPeriodStart(urlPeriodStart);
     if (endChanged) setPeriodEnd(urlPeriodEnd);
     if (empChanged || startChanged || endChanged) {
       setAdvanceDeductions({});
-      setReimbursementsOnlyOptIn(false);
       setAcknowledgeZeroKmTrips(false);
     }
-
-    prevUrlFiltersRef.current = {
-      employeeId: urlEmployeeId,
-      periodStart: urlPeriodStart,
-      periodEnd: urlPeriodEnd,
-    };
-  }, [urlEmployeeId, urlPeriodStart, urlPeriodEnd]);
+  }
 
   const {
     data: preview,
     isLoading: isPreviewLoading,
     isError: isPreviewError,
     error: previewError,
+    refetch: refetchPreview,
   } = useSettlementPreview(
     selectedEmployeeId && periodStart && periodEnd
       ? {
@@ -246,16 +304,115 @@ export function SettlementCreatePage() {
     isApiError(previewError) &&
     previewError.code === "MISSING_COMPENSATION_SCHEME";
 
-  const handleAdvanceToggle = (advanceId: string, maxAmount: number, checked: boolean) => {
-    setAdvanceDeductions((prev) => {
-      const next = { ...prev };
-      if (checked) {
-        next[advanceId] = maxAmount;
-      } else {
-        delete next[advanceId];
-      }
-      return next;
-    });
+  const totalCommissions = preview?.summary.totalCommissions ?? 0;
+  const totalBaseSalary = preview?.summary.totalBaseSalary ?? 0;
+  const totalFixedAllowances = preview?.summary.totalFixedAllowances ?? 0;
+  const selectionKey = `${selectedEmployeeId}|${periodStart}|${periodEnd}`;
+  const eligibleTripIdSet = new Set((preview?.eligibleTrips ?? []).map((trip) => trip.tripId));
+  // E11 punto 7(b): tardíos de viajes que ya están en otro pago (no salen en la tabla de viajes).
+  const lateReimbursementLines = (preview?.reimbursements ?? []).filter(
+    (line) => line.isLate && !eligibleTripIdSet.has(line.tripId),
+  );
+  const payeeLines = preview?.reimbursementsRequiringPayee ?? [];
+  const confirmedPayeeIds =
+    confirmedPayee.key === selectionKey ? confirmedPayee.ids : new Set<string>();
+  const confirmedPayeeLines = payeeLines.filter((line) =>
+    confirmedPayeeIds.has(line.tripExpenseId),
+  );
+  const confirmedReimbursementsTotal = roundCents(
+    confirmedPayeeLines.reduce((sum, line) => sum + line.amount, 0),
+  );
+  const totalReimbursements = roundCents(
+    (preview?.summary.totalReimbursements ?? 0) + confirmedReimbursementsTotal,
+  );
+  const reimbursementError =
+    reimbursementErrorState?.key === selectionKey ? reimbursementErrorState.error : null;
+  const reimbursementRowErrors: Record<string, string> = {};
+  if (reimbursementError?.kind === "payee_not_trip_driver") {
+    reimbursementRowErrors[reimbursementError.tripExpenseId] =
+      copy.reimbursements.errors.payeeNotDriverRow;
+  } else if (reimbursementError?.kind === "not_eligible") {
+    reimbursementRowErrors[reimbursementError.tripExpenseId] =
+      copy.reimbursements.errors.notEligibleRow;
+  }
+  const findReimbursementExpense = (tripExpenseId: string) =>
+    [...(preview?.reimbursements ?? []), ...payeeLines].find(
+      (line) => line.tripExpenseId === tripExpenseId,
+    );
+  const handleTogglePayee = (tripExpenseId: string, checked: boolean) => {
+    const next = new Set(confirmedPayeeIds);
+    if (checked) next.add(tripExpenseId);
+    else next.delete(tripExpenseId);
+    setConfirmedPayee({ key: selectionKey, ids: next });
+  };
+  const calculatedGross =
+    totalCommissions + totalBaseSalary + totalFixedAllowances + totalReimbursements;
+
+  const totalAdvancesDeducted = roundCents(
+    Object.values(advanceDeductions).reduce((acc, val) => acc + val, 0),
+  );
+  const selectedAdvancesCount = Object.keys(advanceDeductions).filter(
+    (k) => (advanceDeductions[k] ?? 0) > 0,
+  ).length;
+
+  // TEC-6: mismos totales que el API (paridad en settlementTotals.test).
+  const liveManual = normalizeManualItems(liveManualItems(manualItems));
+  const manualSums = sumManualItems(liveManual);
+  // La tarifa consume lo ganado (con bonos manuales) por prioridad; lo que no cabe se omite.
+  // E11 punto 6: los reembolsos no son base de las deducciones de tarifa (igual que el API).
+  const templateLines = preview?.deductions ?? [];
+  const appliedTemplateLines = applyTemplateDeductionsByPriority(
+    totalCommissions + totalBaseSalary + totalFixedAllowances + manualSums.additions,
+    templateLines,
+  );
+  const totalTemplateDeductions =
+    templateLines.length > 0
+      ? roundCents(appliedTemplateLines.reduce((sum, line) => sum + line.appliedAmount, 0))
+      : (preview?.summary.totalDeductions ?? 0);
+  const omittedTemplateLines = appliedTemplateLines.filter((line) => line.omittedAmount > 0);
+  const calculatedBase = {
+    calculatedGross,
+    templateDeductions: totalTemplateDeductions,
+    advancesDeducted: totalAdvancesDeducted,
+  };
+  const { grossAmount, netAmount } = computeSettlementTotals(calculatedBase, liveManual);
+  const capacity = assessDeductionCapacity(calculatedBase, liveManual);
+  const maxAdvanceDeductible = capacity.maxAdvanceDeductible;
+  const capacityInputsKey = JSON.stringify([advanceDeductions, manualItems]);
+  const capacityErrors: DeductionCapacityErrors =
+    serverCapacityErrors && serverCapacityErrors.key === capacityInputsKey
+      ? serverCapacityErrors.errors
+      : deductionCapacityErrors(capacity);
+  const capacityMessages = [capacityErrors.advances, capacityErrors.manualItems].filter(
+    (message): message is string => Boolean(message),
+  );
+  const hasCapacityError = capacityMessages.length > 0;
+
+  const advancesForAllocation = (advanceIds?: ReadonlySet<string>) =>
+    (preview?.openAdvances ?? [])
+      .filter((adv) => !advanceIds || advanceIds.has(adv.advanceId))
+      .map((adv) => ({
+        advanceId: adv.advanceId,
+        available: deductableAdvanceBalance(adv),
+        disbursedAt: adv.disbursedAt,
+      }));
+
+  // Al marcar uno se precarga lo que cabe sin mover los ya capturados.
+  const handleAdvanceToggle = (advanceId: string, available: number, checked: boolean) => {
+    const next = { ...advanceDeductions };
+    if (checked) {
+      const otherAdvancesTotal = Object.entries(advanceDeductions)
+        .filter(([id]) => id !== advanceId)
+        .reduce((sum, [, amount]) => sum + amount, 0);
+      next[advanceId] = remainingAdvanceRoom({
+        available,
+        maxDeductible: maxAdvanceDeductible,
+        otherAdvancesTotal,
+      });
+    } else {
+      delete next[advanceId];
+    }
+    setAdvanceDeductions(next);
   };
 
   const handleAdvanceAmountChange = (advanceId: string, maxAmount: number, amount: number) => {
@@ -266,46 +423,25 @@ export function SettlementCreatePage() {
     }));
   };
 
+  // FIFO por fecha de entrega; los que no alcanzan nada quedan desmarcados.
   const handleSelectAllAdvances = () => {
     if (!preview?.openAdvances) return;
-    const allDeductions: Record<string, number> = {};
-    for (const adv of preview.openAdvances) {
-      allDeductions[adv.advanceId] = adv.balanceRemaining;
-    }
-    setAdvanceDeductions(allDeductions);
+    setAdvanceDeductions(allocateAdvancesFifo(advancesForAllocation(), maxAdvanceDeductible));
+  };
+
+  const handleFitAdvancesToMax = () => {
+    const selected = new Set(Object.keys(advanceDeductions));
+    setAdvanceDeductions(
+      allocateAdvancesFifo(advancesForAllocation(selected), maxAdvanceDeductible),
+    );
   };
 
   const handleClearAllAdvances = () => {
     setAdvanceDeductions({});
   };
 
-  const totalCommissions = preview?.summary.totalCommissions ?? 0;
-  const totalBaseSalary = preview?.summary.totalBaseSalary ?? 0;
-  const totalFixedAllowances = preview?.summary.totalFixedAllowances ?? 0;
-  const totalReimbursements = preview?.summary.totalReimbursements ?? 0;
-  const totalTemplateDeductions = preview?.summary.totalDeductions ?? 0;
-  const calculatedGross =
-    totalCommissions + totalBaseSalary + totalFixedAllowances + totalReimbursements;
-
-  const totalAdvancesDeducted = Object.values(advanceDeductions).reduce(
-    (acc, val) => acc + val,
-    0,
-  );
-  const selectedAdvancesCount = Object.keys(advanceDeductions).filter(
-    (k) => (advanceDeductions[k] ?? 0) > 0,
-  ).length;
-
-  // TEC-6: mismos totales que el API (paridad en settlementTotals.test).
-  const liveManual = normalizeManualItems(liveManualItems(manualItems));
-  const manualSums = sumManualItems(liveManual);
-  const { grossAmount, netAmount } = computeSettlementTotals(
-    {
-      calculatedGross,
-      templateDeductions: totalTemplateDeductions,
-      advancesDeducted: totalAdvancesDeducted,
-    },
-    liveManual,
-  );
+  /** Los descuentos que no caben bloquean guardar/enviar (el error ya está visible). */
+  const ensureDeductionsFit = (): boolean => !hasCapacityError;
   const hasManualAdjustments = manualItems.length > 0;
   const createCta = resolveCreateCta({
     netAmount,
@@ -352,8 +488,25 @@ export function SettlementCreatePage() {
   };
 
   const requestSubmitForApproval = () => {
-    if (!validateManualItems()) return;
+    const manualItemsValid = validateManualItems() !== null;
+    if (!ensureDeductionsFit() || !manualItemsValid) return;
+    if (noRuleTrips.length > 0 && !acknowledgeNoRuleTrips) {
+      setNoRuleDialog({ submit: true, tripCodes: noRuleTrips.map((trip) => trip.tripCode) });
+      return;
+    }
     setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmNoRuleTrips = () => {
+    if (!noRuleDialog) return;
+    const { submit } = noRuleDialog;
+    setAcknowledgeNoRuleTrips(true);
+    setNoRuleDialog(null);
+    if (submit) {
+      setConfirmDialogOpen(true);
+    } else {
+      void handleSave(false, { acknowledgeNoRuleTrips: true });
+    }
   };
 
   const agreement = preview?.agreement as Record<string, unknown> | undefined;
@@ -362,6 +515,16 @@ export function SettlementCreatePage() {
     [preview, previewError],
   );
   const isAgreementReady = readiness === "ready";
+  // D9: sin tarifa válida, los reembolsos pendientes se pagan en un pago de reembolsos.
+  const { data: reimbursementOnlyPreview } = useReimbursementSettlementPreview(
+    selectedEmployeeId && (isMissingCompensationScheme || (preview && !isAgreementReady))
+      ? selectedEmployeeId
+      : null,
+  );
+  const canOfferReimbursementSettlement =
+    (reimbursementOnlyPreview?.reimbursements?.length ?? 0) +
+      (reimbursementOnlyPreview?.reimbursementsRequiringPayee?.length ?? 0) >
+    0;
   const assignmentAmbiguity = useMemo(() => {
     if (!selectedEmployeeId || !periodEnd) {
       return { hasAmbiguity: false, appliedAssignment: null, eligibleCount: 0 };
@@ -390,11 +553,13 @@ export function SettlementCreatePage() {
     return null;
   })();
 
-  const prevEmployeeIdRef = useRef(selectedEmployeeId);
-  useEffect(() => {
+  // Al cambiar de operador, sugerir periodo según salary_type (adjust state
+  // during render — evita react-hooks/set-state-in-effect).
+  const [prevEmployeeId, setPrevEmployeeId] = useState(selectedEmployeeId);
+  if (selectedEmployeeId !== prevEmployeeId) {
+    setPrevEmployeeId(selectedEmployeeId);
     if (
       selectedEmployeeId &&
-      selectedEmployeeId !== prevEmployeeIdRef.current &&
       selectedEmployeeBasic?.salaryType &&
       ["weekly", "biweekly", "monthly"].includes(selectedEmployeeBasic.salaryType)
     ) {
@@ -404,16 +569,12 @@ export function SettlementCreatePage() {
       setPeriodStart(period.periodStart);
       setPeriodEnd(period.periodEnd);
       setAdvanceDeductions({});
-      setReimbursementsOnlyOptIn(false);
       setAcknowledgeZeroKmTrips(false);
     }
-    prevEmployeeIdRef.current = selectedEmployeeId;
-  }, [selectedEmployeeId, selectedEmployeeBasic?.salaryType]);
+  }
 
-  const hasReimbursementOrAdvanceWork =
-    totalReimbursements > 0 || selectedAdvancesCount > 0;
-  const canProceedWithSave =
-    isAgreementReady || (reimbursementsOnlyOptIn && hasReimbursementOrAdvanceWork);
+  // E11-F3 (O-1): sin tarifa no hay pago regular; los reembolsos van en un pago de reembolsos.
+  const canProceedWithSave = isAgreementReady;
   const hasSettlementContent =
     (preview?.eligibleTrips.length ?? 0) > 0 ||
     totalBaseSalary > 0 ||
@@ -424,8 +585,37 @@ export function SettlementCreatePage() {
     [preview?.eligibleTrips],
   );
   const hasZeroKmGaps = zeroKmTrips.length > 0;
+  const noRuleTrips = (preview?.eligibleTrips ?? []).filter(
+    (trip) => trip.zeroCommissionReason === "no_rule",
+  );
+  const periodicBlock = preview?.periodicBlock;
+  const periodConflictKey = `${selectedEmployeeId}|${periodStart}|${periodEnd}`;
+  const partialOverlap: PeriodPartialOverlapConflict | null =
+    periodicBlock?.status === "partial_overlap" &&
+    periodicBlock.settlement &&
+    periodicBlock.suggestedPeriodStart
+      ? { ...periodicBlock.settlement, suggestedPeriodStart: periodicBlock.suggestedPeriodStart }
+      : serverPeriodConflict?.key === periodConflictKey
+        ? serverPeriodConflict.conflict
+        : null;
+  const isPeriodBlocked = partialOverlap !== null;
+  const hasUsableSuggestedStart =
+    partialOverlap !== null &&
+    Boolean(partialOverlap.suggestedPeriodStart) &&
+    partialOverlap.suggestedPeriodStart <= periodEnd;
+  const tripConflicts =
+    tripConflictAlert?.key === periodConflictKey ? tripConflictAlert.conflicts : null;
+  const containedBlockSettlement =
+    periodicBlock?.status === "excluded_contained" ? periodicBlock.settlement : null;
+  const showCommercialFreightHint = useMemo(
+    () =>
+      (preview?.eligibleTrips ?? []).some(
+        (trip) => trip.freightBase === "commercial_at_complete",
+      ),
+    [preview?.eligibleTrips],
+  );
   const canSubmitForApproval =
-    canProceedWithSave && (!hasZeroKmGaps || acknowledgeZeroKmTrips);
+    canProceedWithSave && !isPeriodBlocked && (!hasZeroKmGaps || acknowledgeZeroKmTrips);
 
   const tripDetailReturnHref = useMemo(
     () =>
@@ -437,9 +627,24 @@ export function SettlementCreatePage() {
     [selectedEmployeeId, periodStart, periodEnd],
   );
 
-  useEffect(() => {
+  // Reset ack de km=0 al cambiar preview / gaps (adjust state during render —
+  // evita react-hooks/set-state-in-effect).
+  const zeroKmAckSyncKey = `${preview?.employeeId ?? ""}|${preview?.periodStart ?? ""}|${preview?.periodEnd ?? ""}|${zeroKmTrips.length}|${noRuleTrips.length}`;
+  const [prevZeroKmAckSyncKey, setPrevZeroKmAckSyncKey] = useState(zeroKmAckSyncKey);
+  if (zeroKmAckSyncKey !== prevZeroKmAckSyncKey) {
+    setPrevZeroKmAckSyncKey(zeroKmAckSyncKey);
     setAcknowledgeZeroKmTrips(false);
-  }, [preview?.employeeId, preview?.periodStart, preview?.periodEnd, zeroKmTrips.length]);
+    setAcknowledgeNoRuleTrips(false);
+  }
+
+  const handleStartOnSuggested = (date: string) => {
+    setPeriodStart(date);
+    setAdvanceDeductions({});
+    setServerPeriodConflict(null);
+  };
+
+  const describePeriod = (start: string, end: string) =>
+    `${formatDate(start)} – ${formatDate(end)}`;
 
   // Format agreement description in human-friendly terms (solo útil cuando ready)
   const agreementSummaryText = useMemo(() => {
@@ -475,7 +680,10 @@ export function SettlementCreatePage() {
     return parts.length > 0 ? parts.join(" + ") : null;
   }, [agreement, hasFixedSalary, fixedSalaryAmount, fixedSalaryPeriod, isAgreementReady]);
 
-  const handleSave = async (submitForApproval: boolean) => {
+  const handleSave = async (
+    submitForApproval: boolean,
+    options: { acknowledgeNoRuleTrips?: boolean } = {},
+  ) => {
     if (!selectedEmployeeId || !periodStart || !periodEnd) {
       toast({
         title: createCopy.toasts.missingRequiredParams,
@@ -492,15 +700,30 @@ export function SettlementCreatePage() {
       return;
     }
 
-    const customItems = validateManualItems();
-    if (!customItems) {
+    if (isPeriodBlocked) {
       setConfirmDialogOpen(false);
+      return;
+    }
+
+    const customItems = validateManualItems();
+    if (!ensureDeductionsFit() || !customItems) {
+      setConfirmDialogOpen(false);
+      return;
+    }
+
+    const noRuleAcknowledged = options.acknowledgeNoRuleTrips ?? acknowledgeNoRuleTrips;
+    if (noRuleTrips.length > 0 && !noRuleAcknowledged) {
+      setConfirmDialogOpen(false);
+      setNoRuleDialog({
+        submit: submitForApproval,
+        tripCodes: noRuleTrips.map((trip) => trip.tripCode),
+      });
       return;
     }
 
     try {
       const openAdvancesMap = new Map(
-        (preview?.openAdvances ?? []).map((adv) => [adv.advanceId, adv.balanceRemaining]),
+        (preview?.openAdvances ?? []).map((adv) => [adv.advanceId, deductableAdvanceBalance(adv)]),
       );
 
       const advancesToApply = Object.entries(advanceDeductions)
@@ -521,12 +744,14 @@ export function SettlementCreatePage() {
         periodStart,
         periodEnd,
         tripIds: preview?.eligibleTrips.map((t) => t.tripId) ?? [],
+        confirmedReimbursementExpenseIds: confirmedPayeeLines.map((line) => line.tripExpenseId),
         advancesToApply,
         customItems,
         notes: notes || undefined,
         submitForApproval,
         acknowledgeZeroKmTrips:
           submitForApproval && hasZeroKmGaps ? acknowledgeZeroKmTrips : false,
+        acknowledgeNoRuleTrips: noRuleAcknowledged,
       };
 
       const result = await createMutation.mutateAsync(payload);
@@ -552,6 +777,47 @@ export function SettlementCreatePage() {
       setConfirmDialogOpen(false);
       navigate(settlementDetailPath(result.id), { state: { from: backHref } });
     } catch (error) {
+      const exceedsGross = parseDeductionsExceedGrossError(error);
+      if (exceedsGross) {
+        setServerCapacityErrors({
+          key: capacityInputsKey,
+          errors: deductionsExceedErrorsFromServer(exceedsGross, { useServerMessage: false }),
+        });
+        setConfirmDialogOpen(false);
+        return;
+      }
+      const periodConflict = parsePeriodPartialOverlapError(error);
+      if (periodConflict) {
+        setServerPeriodConflict({ key: periodConflictKey, conflict: periodConflict });
+        setConfirmDialogOpen(false);
+        void refetchPreview();
+        return;
+      }
+      const missingNoRuleAck = parseNoRuleAckRequiredError(error);
+      if (missingNoRuleAck) {
+        setConfirmDialogOpen(false);
+        setAcknowledgeNoRuleTrips(false);
+        setNoRuleDialog({ submit: submitForApproval, tripCodes: missingNoRuleAck });
+        void refetchPreview();
+        return;
+      }
+      const consumedTrips = parseTripInActiveSettlementError(error);
+      if (consumedTrips) {
+        setConfirmDialogOpen(false);
+        setTripConflictAlert({ key: periodConflictKey, conflicts: consumedTrips });
+        void refetchPreview();
+        return;
+      }
+      const reimbursementFailure = parseReimbursementCreateError(error);
+      if (reimbursementFailure) {
+        setConfirmDialogOpen(false);
+        setReimbursementErrorState({ key: selectionKey, error: reimbursementFailure });
+        if (reimbursementFailure.kind === "payee_not_trip_driver") {
+          handleTogglePayee(reimbursementFailure.tripExpenseId, false);
+        }
+        void refetchPreview();
+        return;
+      }
       toast({
         title: createCopy.toasts.createError,
         description: getErrorMessage(error),
@@ -592,7 +858,6 @@ export function SettlementCreatePage() {
                   onChange={(employeeId) => {
                     setSelectedEmployeeId(employeeId);
                     setAdvanceDeductions({});
-                    setReimbursementsOnlyOptIn(false);
                   }}
                   placeholder="Seleccionar chofer u operador..."
                 />
@@ -609,7 +874,6 @@ export function SettlementCreatePage() {
                       setPeriodStart(start);
                       setPeriodEnd(end);
                       setAdvanceDeductions({});
-                      setReimbursementsOnlyOptIn(false);
                     }}
                   />
                 ) : (
@@ -620,7 +884,6 @@ export function SettlementCreatePage() {
                       onChange={(val) => {
                         setPeriodStart(val);
                         setAdvanceDeductions({});
-                        setReimbursementsOnlyOptIn(false);
                       }}
                     />
                     <DateField
@@ -629,7 +892,6 @@ export function SettlementCreatePage() {
                       onChange={(val) => {
                         setPeriodEnd(val);
                         setAdvanceDeductions({});
-                        setReimbursementsOnlyOptIn(false);
                       }}
                     />
                   </div>
@@ -719,10 +981,87 @@ export function SettlementCreatePage() {
                         </Link>
                       </Button>
                     ) : null}
+                    {canOfferReimbursementSettlement ? (
+                      <Button type="button" size="sm" variant="outline" asChild>
+                        <Link
+                          to={settlementCreatePath({
+                            kind: "reimbursements",
+                            employeeId: selectedEmployeeId,
+                          })}
+                          state={{ from: backHref }}
+                        >
+                          {copy.reimbursements.createAction}
+                        </Link>
+                      </Button>
+                    ) : null}
                   </div>
                 </AlertDescription>
               </Alert>
             )}
+            {partialOverlap ? (
+              <Alert variant="warning">
+                <AlertTriangle />
+                <AlertTitle>{createCopy.periodicBlock.partialTitle}</AlertTitle>
+                <AlertDescription className="space-y-3">
+                  <p>
+                    {(hasUsableSuggestedStart
+                      ? createCopy.periodicBlock.partialDescription
+                      : createCopy.periodicBlock.partialDescriptionNoSuggestion)(
+                      partialOverlap.settlementNumber,
+                      SETTLEMENT_STATUS_LABELS[partialOverlap.status] ?? partialOverlap.status,
+                      describePeriod(partialOverlap.periodStart, partialOverlap.periodEnd),
+                    )}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {hasUsableSuggestedStart ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleStartOnSuggested(partialOverlap.suggestedPeriodStart)}
+                      >
+                        {createCopy.periodicBlock.startOnAction(
+                          formatDate(partialOverlap.suggestedPeriodStart),
+                        )}
+                      </Button>
+                    ) : null}
+                    {partialOverlap.settlementId ? (
+                      <Button type="button" size="sm" variant="outline" asChild>
+                        <Link to={settlementDetailPath(partialOverlap.settlementId)}>
+                          {createCopy.periodicBlock.viewSettlementAction(
+                            partialOverlap.settlementNumber,
+                          )}
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : containedBlockSettlement ? (
+              <Alert variant="info">
+                <Info />
+                <AlertTitle>{createCopy.periodicBlock.containedTitle}</AlertTitle>
+                <AlertDescription className="space-y-3">
+                  <p>
+                    {createCopy.periodicBlock.containedDescription(
+                      containedBlockSettlement.settlementNumber,
+                      SETTLEMENT_STATUS_LABELS[containedBlockSettlement.status] ??
+                        containedBlockSettlement.status,
+                      describePeriod(
+                        containedBlockSettlement.periodStart,
+                        containedBlockSettlement.periodEnd,
+                      ),
+                    )}
+                  </p>
+                  <Button type="button" size="sm" variant="outline" asChild>
+                    <Link to={settlementDetailPath(containedBlockSettlement.settlementId)}>
+                      {createCopy.periodicBlock.viewSettlementAction(
+                        containedBlockSettlement.settlementNumber,
+                      )}
+                    </Link>
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -837,6 +1176,26 @@ export function SettlementCreatePage() {
                                         title={`${trip.corridorMatch.name} — ${formatMxCurrency(trip.corridorMatch.fixedAmount)}${trip.corridorMatch.replacesKmCommission ? " · Sustituye comisión por km" : ""}`}
                                       >
                                         {createCopy.trips.corridorBadgeLabel}
+                                      </Badge>
+                                    ) : null}
+                                    {!isLocalCovered &&
+                                    (trip.zeroCommissionReason === "no_rule" ||
+                                      trip.zeroCommissionReason === "scheme") ? (
+                                      <Badge
+                                        variant={
+                                          trip.zeroCommissionReason === "no_rule"
+                                            ? "warning"
+                                            : "neutral"
+                                        }
+                                        tone="soft"
+                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                        title={
+                                          trip.zeroCommissionReason === "no_rule"
+                                            ? createCopy.zeroReason.noRuleTitle
+                                            : createCopy.zeroReason.schemeTitle
+                                        }
+                                      >
+                                        {createCopy.zeroReason[trip.zeroCommissionReason]}
                                       </Badge>
                                     ) : null}
                                   </div>
@@ -965,6 +1324,37 @@ export function SettlementCreatePage() {
                 </CardContent>
               </Card>
 
+              {lateReimbursementLines.length > 0 ? (
+                <Card className="border-border shadow-xs" data-testid="late-reimbursements-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">
+                      {copy.reimbursements.lateSection.title(lateReimbursementLines.length)}
+                    </CardTitle>
+                    <CardDescription>{copy.reimbursements.lateSection.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ReimbursementLinesTable
+                      lines={lateReimbursementLines}
+                      ariaLabel={copy.reimbursements.lateSection.title(lateReimbursementLines.length)}
+                      showTotal
+                      tripLinkFrom={tripDetailReturnHref}
+                    />
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              {payeeLines.length > 0 ? (
+                <ReimbursementsPayeeCard
+                  lines={payeeLines}
+                  operatorName={selectedEmployeeLabel}
+                  selectedIds={confirmedPayeeIds}
+                  onToggle={handleTogglePayee}
+                  rowErrors={reimbursementRowErrors}
+                  disabled={createMutation.isPending}
+                  tripLinkFrom={tripDetailReturnHref}
+                />
+              ) : null}
+
               {/* TABLA DE ANTICIPOS ABIERTOS */}
               <Card className="border-border shadow-xs">
                 <CardHeader className="pb-3">
@@ -1058,7 +1448,14 @@ export function SettlementCreatePage() {
                                 </TableCell>
                                 <TableCell className="text-right tabular-nums font-medium text-foreground text-xs">
                                   {formatMxCurrency(maxDeduct)}
-                                  {reservedAmount > 0 ? (
+                                  {adv.reservedBySettlementNumber ? (
+                                    <span
+                                      className="block text-[10px] font-normal text-muted-foreground mt-0.5"
+                                      data-testid={`create-advance-reserved-elsewhere-${adv.advanceId}`}
+                                    >
+                                      {createCopy.summary.reservedElsewhereHint(adv.reservedBySettlementNumber)}
+                                    </span>
+                                  ) : reservedAmount > 0 ? (
                                     <span className="block text-[10px] font-normal text-muted-foreground mt-0.5">
                                       {createCopy.summary.reservedAdvanceHint}
                                     </span>
@@ -1080,11 +1477,19 @@ export function SettlementCreatePage() {
                                           parseFloat(e.target.value) || 0,
                                         )
                                       }
+                                      aria-label={`${createCopy.advances.amountAriaLabel} ${adv.folio}`}
+                                      error={isSelected && Boolean(capacityErrors.advances)}
+                                      {...(isSelected
+                                        ? getFieldErrorAriaProps(ADVANCES_FIELD_ID, capacityErrors.advances)
+                                        : {})}
                                       className="h-8 text-right tabular-nums text-xs"
                                     />
                                     {isSelected && remainingAfterDeduction > 0 && (
-                                      <p className="text-[10px] text-muted-foreground text-right tabular-nums">
-                                        {createCopy.advances.remainingNote} {formatMxCurrency(remainingAfterDeduction)}
+                                      <p
+                                        className="text-[10px] text-muted-foreground text-right tabular-nums"
+                                        data-testid={`create-advance-pending-${adv.advanceId}`}
+                                      >
+                                        {capCopy.pendingNextCut(formatMxCurrency(remainingAfterDeduction))}
                                       </p>
                                     )}
                                   </div>
@@ -1094,6 +1499,20 @@ export function SettlementCreatePage() {
                           })}
                         </TableBody>
                       </Table>
+                    </div>
+                  )}
+                  {preview.openAdvances.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p
+                        className="text-xs text-muted-foreground tabular-nums"
+                        data-testid="create-advances-max-hint"
+                      >
+                        {capCopy.maxDeductibleHint(formatMxCurrency(maxAdvanceDeductible))}
+                      </p>
+                      <FieldInlineError
+                        fieldId={ADVANCES_FIELD_ID}
+                        message={capacityErrors.advances}
+                      />
                     </div>
                   )}
                 </CardContent>
@@ -1142,6 +1561,20 @@ export function SettlementCreatePage() {
                         {formatMxCurrency(netAmount)}
                       </span>
                     </div>
+                  </div>
+
+                  <div
+                    className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 space-y-1"
+                    aria-label={createCopy.summary.channelsTeachingAriaLabel}
+                  >
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      {createCopy.summary.channelsTeachingIntro}
+                    </p>
+                    <ul className="text-[11px] text-muted-foreground space-y-0.5 list-none">
+                      <li>{createCopy.summary.channelsTeachingExpense}</li>
+                      <li>{createCopy.summary.channelsTeachingAdvance}</li>
+                      <li>{createCopy.summary.channelsTeachingFixed}</li>
+                    </ul>
                   </div>
 
                   <div className="space-y-2 text-xs">
@@ -1215,12 +1648,31 @@ export function SettlementCreatePage() {
                         </span>
                       </div>
                     ) : null}
-                    {totalTemplateDeductions > 0 ? (
-                      <div className="flex justify-between items-center text-destructive pt-1 border-t border-dashed">
-                        <span>{createCopy.summary.deductionsLabel}</span>
-                        <span className="tabular-nums font-semibold">
-                          -{formatMxCurrency(totalTemplateDeductions)}
-                        </span>
+                    {totalTemplateDeductions > 0 || omittedTemplateLines.length > 0 ? (
+                      <div className="pt-1 border-t border-dashed space-y-1">
+                        <div className="flex justify-between items-center text-destructive">
+                          <span>{createCopy.summary.deductionsLabel}</span>
+                          <span className="tabular-nums font-semibold">
+                            {totalTemplateDeductions > 0
+                              ? `-${formatMxCurrency(totalTemplateDeductions)}`
+                              : formatMxCurrency(0)}
+                          </span>
+                        </div>
+                        {omittedTemplateLines.length > 0 ? (
+                          <ul
+                            className="pl-2 space-y-0.5 border-l border-warning/50 text-[11px] text-muted-foreground"
+                            data-testid="create-template-omitted"
+                          >
+                            {omittedTemplateLines.map((line) => (
+                              <li key={line.id}>
+                                {capCopy.templateOmittedLine(
+                                  line.label,
+                                  formatMxCurrency(line.omittedAmount),
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
                     ) : null}
                     <div className="flex justify-between items-center text-destructive pt-1 border-t border-dashed">
@@ -1254,53 +1706,68 @@ export function SettlementCreatePage() {
                         {copy.settlementFlow.create.manualItemsHint}
                       </p>
                     ) : null}
+                    <FieldInlineError
+                      fieldId={MANUAL_ITEMS_FIELD_ID}
+                      message={capacityErrors.manualItems}
+                    />
                     <FormValidationSummary
-                      messages={manualItemsSummary}
+                      messages={[...manualItemsSummary, ...capacityMessages]}
                       title={copy.settlementFlow.sheet.validationTitle}
                       className="mb-0"
                     />
-                  </div>
-
-                  <div
-                    className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 space-y-1"
-                    aria-label={createCopy.summary.channelsTeachingAriaLabel}
-                  >
-                    <p className="text-[11px] font-medium text-muted-foreground">
-                      {createCopy.summary.channelsTeachingIntro}
-                    </p>
-                    <ul className="text-[11px] text-muted-foreground space-y-0.5 list-none">
-                      <li>{createCopy.summary.channelsTeachingExpense}</li>
-                      <li>{createCopy.summary.channelsTeachingAdvance}</li>
-                      <li>{createCopy.summary.channelsTeachingFixed}</li>
-                    </ul>
+                    {capacityErrors.advances ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFitAdvancesToMax}
+                        className="h-7 w-full text-xs"
+                      >
+                        {capCopy.fitMaxAction}
+                      </Button>
+                    ) : null}
                   </div>
 
                   <div className="space-y-2 pt-1">
-                    {!isAgreementReady && hasSettlementContent && (
-                      <div className="rounded-lg border border-warning/30 bg-warning-soft/40 p-3 space-y-2">
-                        <div className="flex items-start gap-2">
-                          <Checkbox
-                            id="reimbursements-only-opt-in"
-                            checked={reimbursementsOnlyOptIn}
-                            onCheckedChange={(checked) =>
-                              setReimbursementsOnlyOptIn(checked === true)
-                            }
-                            disabled={!hasReimbursementOrAdvanceWork}
-                          />
-                          <Label
-                            htmlFor="reimbursements-only-opt-in"
-                            className="text-xs font-normal leading-snug cursor-pointer"
-                          >
-                            {createCopy.summary.reimbursementsOnlyLabel}
-                          </Label>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground pl-6">
-                          {createCopy.summary.reimbursementsOnlyHint}
-                        </p>
-                      </div>
-                    )}
                     {hasSettlementContent ? (
                       <>
+                        {reimbursementError ? (
+                          <ReimbursementErrorAlert
+                            error={reimbursementError}
+                            findExpense={findReimbursementExpense}
+                          />
+                        ) : null}
+                        {tripConflicts ? (
+                          <Alert variant="warning" data-testid="trip-in-active-settlement-alert">
+                            <AlertTriangle />
+                            <AlertTitle>{createCopy.conflicts.tripInActiveSettlementTitle}</AlertTitle>
+                            <AlertDescription className="space-y-2">
+                              <ul className="space-y-1">
+                                {tripConflicts.map((conflict) => (
+                                  <li key={`${conflict.tripId}-${conflict.settlementId}`}>
+                                    {createCopy.conflicts.tripInActiveSettlementLinePrefix(
+                                      conflict.tripCode,
+                                    )}
+                                    {conflict.settlementId ? (
+                                      <Link
+                                        to={settlementDetailPath(conflict.settlementId)}
+                                        className="font-medium underline underline-offset-2"
+                                      >
+                                        {conflict.settlementNumber}
+                                      </Link>
+                                    ) : (
+                                      conflict.settlementNumber
+                                    )}
+                                    {createCopy.conflicts.tripInActiveSettlementLineStatus(
+                                      SETTLEMENT_STATUS_LABELS[conflict.status] ?? conflict.status,
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                              <p>{createCopy.conflicts.tripInActiveSettlementHint}</p>
+                            </AlertDescription>
+                          </Alert>
+                        ) : null}
                         {hasZeroKmGaps ? (
                           <div className="rounded-lg border border-warning/30 bg-warning-soft/40 p-3 space-y-2">
                             <p className="text-xs font-medium text-foreground">
@@ -1352,9 +1819,17 @@ export function SettlementCreatePage() {
                           </>
                         ) : (
                           <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                            {canSelfDisburseOwnCut
-                              ? createCopy.summary.bypassDraftHintSingle
-                              : createCopy.summary.bypassDraftHint}
+                            {thresholdMxn === null
+                              ? canSelfDisburseOwnCut
+                                ? createCopy.summary.bypassDraftHintNoAmountSingle
+                                : createCopy.summary.bypassDraftHintNoAmount
+                              : canSelfDisburseOwnCut
+                                ? createCopy.summary.bypassDraftHintSingle(
+                                    formatMxCurrency(thresholdMxn),
+                                  )
+                                : createCopy.summary.bypassDraftHint(
+                                    formatMxCurrency(thresholdMxn),
+                                  )}
                           </p>
                         )}
                         <Button
@@ -1364,14 +1839,25 @@ export function SettlementCreatePage() {
                               : "secondary"
                           }
                           className="w-full"
-                          disabled={createMutation.isPending || !canProceedWithSave}
+                          disabled={
+                            createMutation.isPending || !canProceedWithSave || isPeriodBlocked
+                          }
                           onClick={() => handleSave(false)}
                         >
                           {createCopy.summary.saveDraftBtn}
                         </Button>
-                        <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                          {createCopy.summary.commercialFreightHint}
-                        </p>
+                        {isPeriodBlocked ? (
+                          <p className="text-[11px] text-center text-warning leading-snug px-1">
+                            {hasUsableSuggestedStart
+                              ? createCopy.periodicBlock.submitBlockedHint
+                              : createCopy.periodicBlock.submitBlockedHintNoSuggestion}
+                          </p>
+                        ) : null}
+                        {showCommercialFreightHint ? (
+                          <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
+                            {createCopy.summary.commercialFreightHint}
+                          </p>
+                        ) : null}
                         {settingsError && (
                           <p className="text-[11px] text-center text-destructive py-0.5">
                             {copy.toasts.settingsUnavailable}
@@ -1425,6 +1911,43 @@ export function SettlementCreatePage() {
           />
         ) : null}
       </div>
+
+      <Dialog
+        open={noRuleDialog !== null}
+        onOpenChange={(open) => {
+          if (!open && !createMutation.isPending) setNoRuleDialog(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              {createCopy.noRuleGate.dialogTitle}
+            </DialogTitle>
+            <DialogDescription>
+              {createCopy.noRuleGate.dialogDescription(noRuleDialog?.tripCodes.length ?? 0)}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="rounded-lg border bg-muted/30 p-3 text-xs font-mono space-y-1">
+            {(noRuleDialog?.tripCodes ?? []).map((tripCode) => (
+              <li key={tripCode}>{tripCode}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">{createCopy.noRuleGate.fixHint}</p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              disabled={createMutation.isPending}
+              onClick={() => setNoRuleDialog(null)}
+            >
+              {createCopy.noRuleGate.cancelAction}
+            </Button>
+            <Button disabled={createMutation.isPending} onClick={handleConfirmNoRuleTrips}>
+              {createCopy.noRuleGate.confirmAction}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog mínimo: operador · período · neto (D6) */}
       <Dialog

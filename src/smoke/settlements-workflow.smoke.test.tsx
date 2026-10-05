@@ -104,7 +104,6 @@ vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
     deleteAgreement: (...args: unknown[]) => mockDeleteAgreement(...args),
     getWorkbench: (...args: unknown[]) => mockGetWorkbench(...args),
     getSettings: vi.fn().mockResolvedValue({ voboThresholdMxn: 0 }),
-    updateSettings: vi.fn(),
     updateSettlement: (...args: unknown[]) => mockUpdateSettlement(...args),
     submitSettlement: (...args: unknown[]) => mockSubmitSettlement(...args),
     updateAdvance: (...args: unknown[]) => mockUpdateAdvance(...args),
@@ -432,7 +431,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     });
 
     expect(screen.getByText("Lo ganado")).toBeInTheDocument();
-expect(screen.getByText("Anticipos")).toBeInTheDocument();
+    expect(screen.getByText("Descuentos")).toBeInTheDocument();
     expect(screen.getByText("A pagar")).toBeInTheDocument();
     expect(screen.getAllByText(formatMxCurrency(4000)).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(`-${formatMxCurrency(1000)}`).length).toBeGreaterThanOrEqual(1);
@@ -491,7 +490,7 @@ expect(screen.getByText("Anticipos")).toBeInTheDocument();
 
     // Verificar que el diálogo de vista previa está abierto y la clase activa está en body
     expect(
-      screen.getByRole("heading", { name: /Recibo de liquidación/i }),
+      screen.getByRole("heading", { name: /Recibo de pago/i }),
     ).toBeInTheDocument();
     expect(document.body.classList.contains("print-receipt-active")).toBe(true);
 
@@ -567,7 +566,7 @@ expect(screen.getByText("Anticipos")).toBeInTheDocument();
     expect(screen.getByText(/Roberto González/)).toBeInTheDocument();
     expect(screen.getByText(/1 viajes/)).toBeInTheDocument();
     expect(screen.getByText(/Viajes/)).toBeInTheDocument();
-    expect(screen.getByText(/Anticipos -/)).toBeInTheDocument();
+    expect(screen.getByText(/Descuentos -/)).toBeInTheDocument();
     expect(screen.getByText("$3,000.00")).toBeInTheDocument();
   });
 
@@ -684,7 +683,7 @@ expect(screen.getByText("Anticipos")).toBeInTheDocument();
 
     expect(mockDownloadCsv).toHaveBeenCalledTimes(1);
     const [filename, headers, rows] = mockDownloadCsv.mock.calls[0]!;
-    expect(filename).toMatch(/^liquidaciones-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(filename).toMatch(/^pagos-\d{4}-\d{2}-\d{2}\.csv$/);
     expect(headers).toContain("Folio");
     expect(headers).toContain("Operador");
     expect(headers).toContain("Monto Neto");
@@ -770,7 +769,7 @@ expect(screen.getByText("Anticipos")).toBeInTheDocument();
 
     await user.click(printBtn);
 
-    expect(screen.getByRole("heading", { name: /Recibo de liquidación/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Recibo de pago/i })).toBeInTheDocument();
     expect(screen.getByText("Pago a operador — Período")).toBeInTheDocument();
     expect(screen.getByText("NO VÁLIDO PARA FIRMA")).toBeInTheDocument();
     expect(screen.getByText(/Última modificación:/)).toBeInTheDocument();
@@ -1398,7 +1397,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
     await user.click(screen.getByRole("button", { name: flowCopy.header.printReceipt }));
 
     const deductionsTable = screen
-      .getByText(/2\. Descuentos y Anticipos de Viaje/i)
+      .getByText(/2\. Descuentos \(−\)/i)
       .parentElement?.querySelector("table");
     expect(deductionsTable?.textContent).toContain(`-${formatMxCurrency(300)}`);
     expect(screen.getAllByText(formatMxCurrency(2700)).length).toBeGreaterThanOrEqual(1);

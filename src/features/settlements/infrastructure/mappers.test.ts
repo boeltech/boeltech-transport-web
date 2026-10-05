@@ -336,6 +336,15 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.activeExecutorCount).toBe(2);
   });
 
+  it("rev. 0.2: umbral null = sin autorización por monto; campo ausente cae al default $0", () => {
+    const counts = { active_approver_count: 1, active_executor_count: 1 };
+    expect(mapSettlementSettings({ ...counts, vobo_threshold_mxn: null }).voboThresholdMxn).toBeNull();
+    expect(mapSettlementSettings({ ...counts, vobo_threshold_mxn: 0 }).voboThresholdMxn).toBe(0);
+    expect(
+      mapSettlementSettings(counts as Parameters<typeof mapSettlementSettings>[0]).voboThresholdMxn,
+    ).toBe(0);
+  });
+
   it("H4: sin nombres en la respuesta, la traza queda en null y no en undefined", () => {
     const raw = {
       id: "st-2",
@@ -401,8 +410,20 @@ describe("Settlements Infrastructure Mappers", () => {
           has_revenue_split: true,
           distance_basis: "unavailable",
           requires_zero_km_ack: true,
+          zero_commission_reason: "zero_km",
         },
       ],
+      periodic_block: {
+        status: "excluded_contained",
+        settlement: {
+          settlement_id: "stl-1",
+          settlement_number: "LIQ-202608-0001",
+          status: "approved",
+          period_start: "2026-08-01",
+          period_end: "2026-08-15",
+        },
+        suggested_period_start: null,
+      },
       open_advances: [
         {
           advance_id: "adv-1",
@@ -411,6 +432,17 @@ describe("Settlements Infrastructure Mappers", () => {
           balance_remaining: 1000,
           category: "travel_advance",
           disbursed_at: "2026-08-01T10:00:00Z",
+        },
+        {
+          advance_id: "adv-2",
+          folio: "ANT-002",
+          amount: 800,
+          balance_remaining: 800,
+          reserved_amount: 800,
+          available_balance: 0,
+          reserved_by_settlement_number: "LIQ-202608-0002",
+          category: "toll_expense",
+          disbursed_at: "2026-08-02T10:00:00Z",
         },
       ],
       deductions: [
@@ -446,12 +478,169 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.eligibleTrips[0].hasRevenueSplit).toBe(true);
     expect(mapped.eligibleTrips[0].distanceBasis).toBe("unavailable");
     expect(mapped.eligibleTrips[0].requiresZeroKmAck).toBe(true);
-    expect(mapped.openAdvances).toHaveLength(1);
+    expect(mapped.eligibleTrips[0].zeroCommissionReason).toBe("zero_km");
+    expect(mapped.periodicBlock).toEqual({
+      status: "excluded_contained",
+      settlement: {
+        settlementId: "stl-1",
+        settlementNumber: "LIQ-202608-0001",
+        status: "approved",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-15",
+      },
+      suggestedPeriodStart: null,
+    });
+    expect(mapped.openAdvances).toHaveLength(2);
+    expect(mapped.openAdvances[0]?.reservedBySettlementNumber).toBeNull();
+    expect(mapped.openAdvances[1]).toMatchObject({
+      availableBalance: 0,
+      reservedBySettlementNumber: "LIQ-202608-0002",
+    });
     expect(mapped.deductions).toHaveLength(1);
     expect(mapped.deductions?.[0]?.deductionType).toBe("savings_fund");
     expect(mapped.summary.totalBaseSalary).toBe(3000);
     expect(mapped.summary.totalDeductions).toBe(200);
     expect(mapped.summary.netAmount).toBe(5450);
+  });
+
+  describe("tope de descuentos contra el bruto", () => {
+    const settlementBase = {
+      id: "st-cap",
+      tenant_id: "tenant-1",
+      settlement_number: "LIQ-202610-0100",
+      employee_id: "emp-1",
+      agreement_snapshot: {},
+      period_start: "2026-10-01",
+      period_end: "2026-10-07",
+      status: "disbursed",
+      total_trips_commission: 2000,
+      total_base_salary: 0,
+      total_reimbursable_expenses: 0,
+      total_bonuses: 0,
+      total_advances_deducted: 2500,
+      total_other_deductions: 0,
+      gross_amount: 2000,
+      net_amount: 0,
+      currency: "MXN",
+      disbursed_at: null,
+      disbursed_by: null,
+      disbursement_method: null,
+      disbursement_reference: null,
+      approved_at: null,
+      approved_by: null,
+      rejection_reason: null,
+      notes: null,
+      created_at: "2026-10-07T18:00:00Z",
+      updated_at: "2026-10-07T18:00:00Z",
+    } satisfies ApiDriverSettlementRaw;
+
+    it("liquidación: uncovered_deductions_amount → uncoveredDeductionsAmount; ausente = undefined", () => {
+      expect(mapSettlement({ ...settlementBase, uncovered_deductions_amount: 500 }).uncoveredDeductionsAmount).toBe(
+        500,
+      );
+      expect(mapSettlement(settlementBase).uncoveredDeductionsAmount).toBeUndefined();
+    });
+
+    it("partida de plantilla que no cupo: requestedAmount / omittedAmount en calculationDetails", () => {
+      const mapped = mapSettlement({
+        ...settlementBase,
+        items: [
+          {
+            id: "item-fund",
+            settlement_id: "st-cap",
+            item_type: "adjustment",
+            trip_id: null,
+            trip_expense_id: null,
+            advance_id: null,
+            description: "Deducción de plantilla: Fondo de ahorro",
+            quantity: 1,
+            unit_rate: 0,
+            amount: 0,
+            is_deduction: true,
+            calculation_details: {
+              source: "template_deduction",
+              deduction_type: "savings_fund",
+              requested_amount: 300,
+              omitted_amount: 300,
+            },
+            created_at: "2026-10-07T18:00:00Z",
+          },
+        ],
+      });
+      expect(mapped.items?.[0]?.amount).toBe(0);
+      expect(mapped.items?.[0]?.calculationDetails).toMatchObject({
+        source: "template_deduction",
+        requestedAmount: 300,
+        omittedAmount: 300,
+      });
+    });
+
+    it("preview: requested/applied/omitted por línea y totalDeductionsOmitted en summary", () => {
+      const mapped = mapSettlementPreview({
+        employee_id: "emp-1",
+        employee_name: "Pedro Infante",
+        period_start: "2026-10-01",
+        period_end: "2026-10-07",
+        agreement: {},
+        eligible_trips: [],
+        open_advances: [],
+        deductions: [
+          {
+            id: "ded-1",
+            deduction_type: "savings_fund",
+            label: "Fondo de ahorro",
+            amount: 300,
+            is_mandatory: true,
+            requested_amount: 300,
+            applied_amount: 0,
+            omitted_amount: 300,
+          },
+        ],
+        summary: {
+          total_commissions: 0,
+          total_base_salary: 0,
+          total_reimbursements: 0,
+          total_deductions: 0,
+          total_deductions_omitted: 300,
+          suggested_advance_deduction: 0,
+          gross_amount: 0,
+          net_amount: 0,
+        },
+      });
+      expect(mapped.deductions?.[0]).toMatchObject({
+        amount: 300,
+        requestedAmount: 300,
+        appliedAmount: 0,
+        omittedAmount: 300,
+      });
+      expect(mapped.summary.totalDeductions).toBe(0);
+      expect(mapped.summary.totalDeductionsOmitted).toBe(300);
+    });
+
+    it("preview previo al tope: campos nuevos quedan undefined", () => {
+      const mapped = mapSettlementPreview({
+        employee_id: "emp-1",
+        employee_name: "Pedro Infante",
+        period_start: "2026-10-01",
+        period_end: "2026-10-07",
+        agreement: {},
+        eligible_trips: [],
+        open_advances: [],
+        deductions: [
+          { id: "ded-1", deduction_type: "savings_fund", label: "Fondo", amount: 300, is_mandatory: true },
+        ],
+        summary: {
+          total_commissions: 0,
+          total_base_salary: 0,
+          total_reimbursements: 0,
+          suggested_advance_deduction: 0,
+          gross_amount: 0,
+          net_amount: 0,
+        },
+      });
+      expect(mapped.deductions?.[0]?.appliedAmount).toBeUndefined();
+      expect(mapped.summary.totalDeductionsOmitted).toBeUndefined();
+    });
   });
 
   it("mapea respuesta paginada de liquidaciones extrayendo limit y totalPages adecuadamente", () => {

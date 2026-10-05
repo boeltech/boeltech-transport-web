@@ -105,21 +105,12 @@ export function SettlementsAdvancesPage() {
       <ListPageShell
         showHeader={false}
         title={copy.tabs.advances}
-        description="Anticipos en gestión: por autorizar, por entregar o con saldo pendiente de descontar."
-        primaryAction={
-          canCreate
-            ? {
-                label: copy.actions.createAdvance,
-                icon: <Plus className="h-4 w-4" />,
-                onClick: () => setAdvanceDialogOpen(true),
-              }
-            : undefined
-        }
+        description={copy.advancesList.description}
         items={filteredAdvances}
         isLoading={isLoading}
         pagination={pagination}
         onPageChange={filters.setPage}
-        entityLabelPlural="anticipos pendientes"
+        entityLabelPlural="anticipos"
         emptyState={{
           icon: <Plus className="h-8 w-8 text-muted-foreground" />,
           title: copy.empty.advancesTitle,

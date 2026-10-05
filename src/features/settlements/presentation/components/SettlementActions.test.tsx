@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettlementActions } from "./SettlementActions";
 import type { DriverSettlement } from "../../domain/entities";
 import type { ApprovalBlock, SelfApprovalPolicy } from "@features/approvals";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.setPointerCapture ??= () => undefined;
@@ -352,8 +353,109 @@ describe("SettlementActions", () => {
 
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
     expect(screen.getByText("Enviar a autorización")).toBeInTheDocument();
-    expect(screen.getByText("Cancelar pago")).toBeInTheDocument();
+    expect(screen.getByText("Cancelar pago…")).toBeInTheDocument();
     expect(screen.queryByText("Rechazar")).not.toBeInTheDocument();
+  });
+
+  describe("cancelar pago sin dispersar", () => {
+    const approvedSettlement: DriverSettlement = {
+      ...sampleSettlement,
+      status: "approved",
+      approval: null,
+    };
+
+    const renderActions = (settlement: DriverSettlement) => {
+      const onActionComplete = vi.fn();
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter>
+            <SettlementActions
+              settlement={settlement}
+              onView={vi.fn()}
+              onActionComplete={onActionComplete}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+      return { onActionComplete };
+    };
+
+    it("autorizado: exige motivo y lo envía con el estado esperado", async () => {
+      const user = userEvent.setup();
+      mockCancelSettlement.mockResolvedValue({ ...approvedSettlement, status: "cancelled" });
+      const { onActionComplete } = renderActions(approvedSettlement);
+
+      await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+      await user.click(screen.getByText("Cancelar pago…"));
+
+      expect(screen.getByText("Si ya entregaste el efectivo, no canceles.")).toBeInTheDocument();
+      expect(screen.getByText(/Se anula la autorización y los anticipos/)).toBeInTheDocument();
+
+      const confirmButton = screen.getByRole("button", { name: "Sí, cancelar pago" });
+      expect(confirmButton).toBeDisabled();
+      await user.click(screen.getByRole("checkbox", { name: /Confirmo que este pago no se ha entregado/ }));
+      expect(confirmButton).toBeEnabled();
+
+      await user.click(confirmButton);
+      expect(screen.getByText("El motivo debe tener al menos 5 caracteres")).toBeInTheDocument();
+      expect(mockCancelSettlement).not.toHaveBeenCalled();
+
+      await user.type(screen.getByLabelText("Motivo"), "Incluir reembolso aprobado tarde");
+      await user.click(confirmButton);
+
+      await waitFor(() =>
+        expect(mockCancelSettlement).toHaveBeenCalledWith("set-1", {
+          reason: "Incluir reembolso aprobado tarde",
+          expectedStatus: "approved",
+        }),
+      );
+      await waitFor(() => expect(onActionComplete).toHaveBeenCalled());
+    });
+
+    it("borrador: confirma sin motivo", async () => {
+      const user = userEvent.setup();
+      mockCancelSettlement.mockResolvedValue({ ...draftSettlement, status: "cancelled" });
+      renderActions(draftSettlement);
+
+      await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+      await user.click(screen.getByText("Cancelar pago…"));
+      expect(screen.queryByLabelText("Motivo")).not.toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+      expect(screen.queryByText("Si ya entregaste el efectivo, no canceles.")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Sí, cancelar pago" }));
+
+      await waitFor(() =>
+        expect(mockCancelSettlement).toHaveBeenCalledWith("set-1", {
+          reason: undefined,
+          expectedStatus: "draft",
+        }),
+      );
+    });
+
+    it("error del API se muestra dentro del diálogo", async () => {
+      const user = userEvent.setup();
+      mockCancelSettlement.mockRejectedValue(
+        new ApiError("La liquidación cambió de estado", 409, "SETTLEMENT_NOT_MUTABLE"),
+      );
+      renderActions(approvedSettlement);
+
+      await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+      await user.click(screen.getByText("Cancelar pago…"));
+      await user.click(screen.getByRole("checkbox", { name: /Confirmo que este pago no se ha entregado/ }));
+      await user.type(screen.getByLabelText("Motivo"), "Incluir reembolso aprobado tarde");
+      await user.click(screen.getByRole("button", { name: "Sí, cancelar pago" }));
+
+      expect(await screen.findByText("La liquidación cambió de estado")).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("dispersado: no ofrece Cancelar pago", async () => {
+      const user = userEvent.setup();
+      renderActions({ ...approvedSettlement, status: "disbursed" });
+
+      await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+      expect(screen.queryByText("Cancelar pago…")).not.toBeInTheDocument();
+    });
   });
 
   it("oculta Registrar pago al maker en bypass (borrador sin VoBo)", () => {
@@ -457,7 +559,7 @@ describe("SettlementActions", () => {
 
     expect(screen.getByRole("button", { name: /Registrar pago/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/No se pudo leer la configuración de pagos a operadores/i),
+      screen.getByText(/No pudimos leer la regla de autorización de liquidaciones/i),
     ).toBeInTheDocument();
   });
 
@@ -494,7 +596,7 @@ describe("SettlementActions", () => {
         );
       });
       expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Liquidación devuelta para corregir" }),
+        expect.objectContaining({ title: "Pago devuelto para corregir" }),
       );
     });
 
@@ -553,6 +655,63 @@ describe("SettlementActions", () => {
         expectedStep: 1,
         expectedRevision: "rev-7",
       });
+    });
+
+    it("tope de descuentos: el 422 al autorizar cierra y avisa con el texto del API", async () => {
+      const user = userEvent.setup();
+      const apiMessage =
+        "Los descuentos superan lo que el operador ganó en este corte. Devuelve la liquidación a borrador para ajustar los anticipos.";
+      mockApproveSettlement.mockRejectedValueOnce(
+        new ApiError(apiMessage, 422, "SETTLEMENT_DEDUCTIONS_EXCEED_GROSS", {
+          path: ["advances_to_apply"],
+        }),
+      );
+      const queryClient = createTestQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <SettlementActions variant="buttons" settlement={withApproval()} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Autorizar/i }));
+      await user.click(await screen.findByRole("button", { name: /Sí, autorizar pago/i }));
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith({
+          title: "Los descuentos superan lo ganado",
+          description: apiMessage,
+          variant: "error",
+        });
+      });
+    });
+
+    it("D5: la confirmación de autorizar dice «Ya estaba autorizado» (diff vacío: sin lista)", async () => {
+      const user = userEvent.setup();
+      const queryClient = createTestQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <SettlementActions
+              variant="buttons"
+              settlement={withApproval({
+                reapproval: {
+                  invalidatedAt: "2026-10-02T20:10:00.000Z",
+                  previousInstanceId: "inst-0",
+                  previousStatus: "approved",
+                  changes: [],
+                },
+              })}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Autorizar/i }));
+      expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+        "Ya estaba autorizado; se corrigió y requiere nueva firma.",
+      );
     });
 
     it("«Corregir» aparece solo con onCorrect y en estados corregibles", async () => {

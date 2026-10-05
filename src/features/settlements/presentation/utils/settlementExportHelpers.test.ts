@@ -113,11 +113,51 @@ describe("settlementExportHelpers", () => {
       expect(mockDownloadCsv).toHaveBeenCalledTimes(1);
       const [filename, headers, rows] = mockDownloadCsv.mock.calls[0]!;
 
-      expect(filename).toMatch(/^liquidaciones-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(filename).toMatch(/^pagos-\d{4}-\d{2}-\d{2}\.csv$/);
       expect(headers).toContain("Folio");
       expect(headers).toContain("Monto Neto");
       expect(rows[0][0]).toBe("LIQ-202608-0001");
       expect(rows[0][7]).toBe(4000); // netAmount
+      expect(headers.at(-1)).toBe("Descuento no cubierto");
+      expect(rows[0].at(-1)).toBe(0);
+    });
+
+    it("última columna: descuento no cubierto del API o, si falta, derivado de los totales", () => {
+      const base = {
+        tenantId: "tenant-1",
+        employeeId: "emp-1",
+        agreementSnapshot: { currency: "MXN" },
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-15",
+        status: "disbursed",
+        totalTripsCommission: 2000,
+        totalBaseSalary: 0,
+        totalReimbursableExpenses: 0,
+        totalBonuses: 0,
+        totalAdvancesDeducted: 2500,
+        totalOtherDeductions: 0,
+        grossAmount: 2000,
+        netAmount: 0,
+        currency: "MXN",
+        disbursedAt: null,
+        disbursementMethod: null,
+        disbursementReference: null,
+        approvedAt: null,
+        approvedBy: null,
+        rejectionReason: null,
+        notes: null,
+        createdAt: "2026-08-15T18:00:00Z",
+        updatedAt: "2026-08-16T10:00:00Z",
+      } as const;
+      const settlements = [
+        { ...base, id: "st-api", settlementNumber: "LIQ-1", uncoveredDeductionsAmount: 500 },
+        { ...base, id: "st-legacy", settlementNumber: "LIQ-2" },
+      ] as unknown as DriverSettlement[];
+
+      exportSettlementsCsv(settlements);
+
+      const [, , rows] = mockDownloadCsv.mock.calls[0]!;
+      expect(rows.map((row: unknown[]) => row.at(-1))).toEqual([500, 500]);
     });
   });
 });

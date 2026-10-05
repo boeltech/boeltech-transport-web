@@ -180,6 +180,28 @@ export function settlementsRegistryPath(
 
 
 
+/** Bandeja Por autorizar; `driverId` filtra por operador (ApprovalInboxPage). */
+
+export function settlementsPendingApprovalPath(
+
+  params?: { driverId?: string },
+
+): string {
+
+  if (!params?.driverId) {
+
+    return SETTLEMENTS_PENDING_APPROVAL_PATH;
+
+  }
+
+  const qs = new URLSearchParams({ driverId: params.driverId });
+
+  return `${SETTLEMENTS_PENDING_APPROVAL_PATH}?${qs.toString()}`;
+
+}
+
+
+
 export function settlementsWorkbenchBucketPath(
 
   bucket: string,

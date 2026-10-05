@@ -228,6 +228,67 @@ describe("AdvanceActions", () => {
     });
   });
 
+  it("2e. ADR-0099 D5: la confirmación de autorizar dice qué cambió desde la autorización anulada", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockSelfApprovalPolicy.mockReturnValue(makePolicy({ advanceApprove: true }));
+    mockUseAuth.mockReturnValue({ user: { id: "user-creator-123", name: "Admin" } });
+    const approval = makeApproval({
+      reapproval: {
+        invalidatedAt: "2026-10-02T20:10:00.000Z",
+        previousInstanceId: "inst-0",
+        previousStatus: "approved",
+        changes: [{ field: "amount", from: "8000.00", to: "12000.00" }],
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={{ ...sampleAdvance, amount: 12000, approval }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Autorizar anticipo"));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent(/Tú enviaste este anticipo/i);
+    expect(dialog).toHaveTextContent(
+      "Ya estaba autorizado. Cambió: Monto: $8,000.00 → $12,000.00.",
+    );
+  });
+
+  it("2f. ADR-0099 D5: corrección antes de autorizar (in_progress) no agrega la línea", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    mockSelfApprovalPolicy.mockReturnValue(makePolicy({ advanceApprove: true }));
+    mockUseAuth.mockReturnValue({ user: { id: "user-creator-123", name: "Admin" } });
+    const approval = makeApproval({
+      reapproval: {
+        invalidatedAt: "2026-10-02T20:10:00.000Z",
+        previousInstanceId: "inst-0",
+        previousStatus: "in_progress",
+        changes: [{ field: "amount", from: "8000.00", to: "12000.00" }],
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions advance={{ ...sampleAdvance, approval }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    await user.click(screen.getByText("Autorizar anticipo"));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).not.toHaveTextContent(/Ya estaba autorizado/);
+  });
+
   it("2d. ADR-0098: un 403 de autoacción muestra el mensaje del API como respaldo", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
@@ -286,6 +347,84 @@ describe("AdvanceActions", () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Anticipo autorizado correctamente", variant: "success" }),
       );
+    });
+  });
+
+  describe("3b. ADR-0099 D5: un paso, revisor distinto del solicitante", () => {
+    const reapprovedAdvance = (previousStatus: "approved" | null): DriverAdvance => ({
+      ...sampleAdvance,
+      amount: 12000,
+      approvalRevision: 3,
+      approval: makeApproval({
+        reapproval: previousStatus
+          ? {
+              invalidatedAt: "2026-10-02T20:10:00.000Z",
+              previousInstanceId: "inst-0",
+              previousStatus,
+              changes: [{ field: "amount", from: "8000.00", to: "12000.00" }],
+            }
+          : null,
+      }),
+    });
+
+    function renderAdvance(advance: DriverAdvance) {
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter>
+            <AdvanceActions advance={advance} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    it("autorización anulada → confirma con lo que cambió y aprueba con guardas", async () => {
+      const user = userEvent.setup();
+      mockApproveAdvance.mockResolvedValueOnce({
+        advance: { ...sampleAdvance, status: "pending_disbursement" },
+        outcome: "approved",
+      });
+      renderAdvance(reapprovedAdvance("approved"));
+
+      await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+      await user.click(screen.getByText("Autorizar anticipo"));
+
+      expect(mockApproveAdvance).not.toHaveBeenCalled();
+      const dialog = await screen.findByRole("alertdialog");
+      expect(dialog).toHaveTextContent("¿Aprobar este anticipo?");
+      expect(dialog).toHaveTextContent(
+        "Ya estaba autorizado. Cambió: Monto: $8,000.00 → $12,000.00.",
+      );
+      await user.click(within(dialog).getByRole("button", { name: "Aprobar anticipo" }));
+
+      await waitFor(() => {
+        expect(mockApproveAdvance).toHaveBeenCalledWith("adv-1", {
+          expectedStep: 1,
+          expectedRevision: 3,
+        });
+      });
+      await waitFor(() => {
+        expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("sin reautorización → aprueba directo, sin diálogo", async () => {
+      const user = userEvent.setup();
+      mockApproveAdvance.mockResolvedValueOnce({
+        advance: { ...sampleAdvance, status: "pending_disbursement" },
+        outcome: "approved",
+      });
+      renderAdvance(reapprovedAdvance(null));
+
+      await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+      await user.click(screen.getByText("Autorizar anticipo"));
+
+      await waitFor(() => {
+        expect(mockApproveAdvance).toHaveBeenCalledWith("adv-1", {
+          expectedStep: 1,
+          expectedRevision: 3,
+        });
+      });
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
   });
 

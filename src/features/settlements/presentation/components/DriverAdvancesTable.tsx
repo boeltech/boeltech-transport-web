@@ -2,7 +2,7 @@
  * DriverAdvancesTable
  * Clean Architecture - Presentation Layer (Components)
  *
- * Componente de tabla para listar anticipos y viáticos entregados a choferes.
+ * Componente de tabla para listar anticipos entregados a operadores.
  * Homologado con DriverTable.
  *
  * Ubicación: src/features/settlements/presentation/components/DriverAdvancesTable.tsx
@@ -139,7 +139,7 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
   if (isLoading) {
     return (
       <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de anticipos y viáticos">
+        <Table aria-label="Listado de anticipos">
           <TableHeaderRow />
           <LoadingSkeleton />
         </Table>
@@ -150,7 +150,7 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
   if (advances.length === 0) {
     return (
       <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de anticipos y viáticos">
+        <Table aria-label="Listado de anticipos">
           <TableHeaderRow />
           <EmptyState />
         </Table>
@@ -160,7 +160,7 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
 
   return (
     <div className="rounded-md border bg-card overflow-x-auto">
-      <Table aria-label="Listado de anticipos y viáticos">
+      <Table aria-label="Listado de anticipos">
         <TableHeaderRow />
         <TableBody>
           {advances.map((adv) => {

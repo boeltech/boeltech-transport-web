@@ -3,6 +3,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { DriverSettlement } from "../../domain/entities";
 import type { SettlementStatus } from "../../domain/enums";
 import {
+  assessDeductionCapacity,
   calculatedBaseFromStored,
   computeSettlementTotals,
   deriveManualItemIsDeduction,
@@ -10,6 +11,9 @@ import {
   isManualSettlementItemType,
   normalizeManualItems,
   roundCents,
+  type CalculatedSettlementBase,
+  type DeductionCapacity,
+  type ManualSettlementItem,
   type ManualSettlementItemInput,
 } from "../../domain/settlementTotals";
 import type { UpdateSettlementPayload } from "../../infrastructure/settlementsApi";
@@ -149,16 +153,18 @@ export interface CorrectionTotals {
   after: SettlementTotalsView;
 }
 
-/** D22.5 / D23: totales antes (lo guardado) y después (réplica de `settlementTotals`). */
-export function computeCorrectionTotals(
+interface CorrectionValues {
+  customItems: ReadonlyArray<Partial<CustomSettlementItemFormValues>>;
+  advancesToApply?: ReadonlyArray<{ amountToDeduct?: unknown }>;
+}
+
+/** Base guardada con los anticipos del Sheet (si son editables) y las partidas en vivo. */
+function correctionInputs(
   settlement: DriverSettlement,
-  values: {
-    customItems: ReadonlyArray<Partial<CustomSettlementItemFormValues>>;
-    advancesToApply?: ReadonlyArray<{ amountToDeduct?: unknown }>;
-  },
+  values: CorrectionValues,
   options: { advancesEditable: boolean },
-): CorrectionTotals {
-  const base = calculatedBaseFromStored(settlement);
+): { base: CalculatedSettlementBase; manualItems: ManualSettlementItem[] } {
+  const stored = calculatedBaseFromStored(settlement);
   const advancesDeducted = options.advancesEditable
     ? roundCents(
         (values.advancesToApply ?? []).reduce(
@@ -166,11 +172,35 @@ export function computeCorrectionTotals(
           0,
         ),
       )
-    : base.advancesDeducted;
-  const totals = computeSettlementTotals(
-    { ...base, advancesDeducted },
-    normalizeManualItems(liveManualItems(values.customItems)),
-  );
+    : stored.advancesDeducted;
+  return {
+    base: { ...stored, advancesDeducted },
+    manualItems: normalizeManualItems(liveManualItems(values.customItems)),
+  };
+}
+
+/**
+ * Tope de descuentos del Sheet (paridad con el PATCH). `null` en liquidaciones
+ * legadas con anticipos descontados al crear: el API no las valida.
+ */
+export function assessCorrectionCapacity(
+  settlement: DriverSettlement,
+  values: CorrectionValues,
+  options: { advancesEditable: boolean },
+): DeductionCapacity | null {
+  if (settlement.advancesDeductedAtCreate) return null;
+  const { base, manualItems } = correctionInputs(settlement, values, options);
+  return assessDeductionCapacity(base, manualItems);
+}
+
+/** D22.5 / D23: totales antes (lo guardado) y después (réplica de `settlementTotals`). */
+export function computeCorrectionTotals(
+  settlement: DriverSettlement,
+  values: CorrectionValues,
+  options: { advancesEditable: boolean },
+): CorrectionTotals {
+  const { base, manualItems } = correctionInputs(settlement, values, options);
+  const totals = computeSettlementTotals(base, manualItems);
   return {
     before: {
       perceptions: settlement.grossAmount,

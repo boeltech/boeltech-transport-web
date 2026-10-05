@@ -25,6 +25,28 @@ vi.mock("@shared/ui/employee-async-combobox", () => ({
   EmployeeAsyncCombobox: ({ label }: { label: string }) => <div>{label}</div>,
 }));
 
+vi.mock("@features/employees", () => ({
+  useEmployee: () => ({
+    data: {
+      data: {
+        driverRole: { driverId: "drv-1" },
+      },
+    },
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@features/trips", () => ({
+  useTrips: () => ({
+    data: {
+      data: [
+        { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11", tripCode: "V-2026-001" },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
+
 vi.mock("../../infrastructure/settlementsApi", () => ({
   settlementsApi: {
     updateAdvance: (...args: unknown[]) => mockUpdateAdvance(...args),
@@ -140,6 +162,44 @@ describe("AdvanceEditSheet", () => {
     expect(mockToast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Anticipo actualizado" }),
     );
+  });
+
+  it("D18: cambiar viaje opcional confirma y manda tripId", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    const tripId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+    mockUpdateAdvance.mockResolvedValueOnce({
+      advance: {
+        ...authorizedAdvance,
+        tripId,
+        tripCode: "V-2026-001",
+      },
+      approvalEffect: "reapproval_required",
+      changes: ["trip_id"],
+    });
+    renderWithClient(
+      <AdvanceEditSheet open onOpenChange={onOpenChange} advance={authorizedAdvance} />,
+    );
+
+    expect(screen.getByTestId("advance-material-hint")).toHaveTextContent(/viaje/i);
+
+    await user.click(screen.getByRole("combobox", { name: /viaje \(opcional\)/i }));
+    await user.click(await screen.findByRole("option", { name: "V-2026-001" }));
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText(/Viaje:/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/V-2026-001/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Guardar y volver a autorización" }));
+
+    await waitFor(() => {
+      expect(mockUpdateAdvance).toHaveBeenCalledWith("adv-1", {
+        expectedStatus: "pending_disbursement",
+        tripId,
+      });
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("criterio 7: un 409 ADVANCE_NOT_MUTABLE muestra «Cerrar y recargar» y no cierra el Sheet", async () => {

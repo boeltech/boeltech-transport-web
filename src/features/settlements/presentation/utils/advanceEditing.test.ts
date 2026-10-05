@@ -35,6 +35,7 @@ const advance: DriverAdvance = {
 
 const values = (overrides: Partial<DriverAdvanceEditValues> = {}): DriverAdvanceEditValues => ({
   employeeId: "emp-1",
+  tripId: "",
   amount: 8000,
   category: "travel_advance",
   paymentMethod: "bank_transfer",
@@ -68,6 +69,49 @@ describe("advanceEditing", () => {
     expect(`${diff.changes[0].from} → ${diff.changes[0].to}`).toMatch(/8,000.*→.*12,000/);
   });
 
+  it("D18: asignar viaje es material y manda tripId en el payload", () => {
+    const tripId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+    const diff = diffAdvanceEdit(advance, values({ tripId }), {
+      trip: { from: "Sin viaje (cuenta del operador)", to: "V-2026-001" },
+    });
+
+    expect(diff.material).toBe(true);
+    expect(diff.requiresConfirmation).toBe(true);
+    expect(diff.payload).toEqual({
+      expectedStatus: "pending_disbursement",
+      tripId,
+    });
+    expect(diff.changes).toEqual([
+      {
+        field: "tripId",
+        label: "Viaje",
+        from: "Sin viaje (cuenta del operador)",
+        to: "V-2026-001",
+      },
+    ]);
+  });
+
+  it("D18: quitar viaje manda tripId null y es material", () => {
+    const withTrip: DriverAdvance = {
+      ...advance,
+      tripId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+      tripCode: "V-2026-001",
+    };
+    const diff = diffAdvanceEdit(withTrip, values({ tripId: "" }));
+
+    expect(diff.material).toBe(true);
+    expect(diff.requiresConfirmation).toBe(true);
+    expect(diff.payload).toEqual({
+      expectedStatus: "pending_disbursement",
+      tripId: null,
+    });
+    expect(diff.changes[0]).toMatchObject({
+      field: "tripId",
+      from: "V-2026-001",
+      to: "Sin viaje (cuenta del operador)",
+    });
+  });
+
   it("solo nota: sin confirmación y payload solo con notas", () => {
     const diff = diffAdvanceEdit(advance, values({ notes: "Casetas y comida" }));
 
@@ -90,8 +134,7 @@ describe("advanceEditing", () => {
   it("en borrador un cambio material no pide confirmación; el operador solo cambia en borrador", () => {
     const draft = { ...advance, status: "draft" as const };
     const diff = diffAdvanceEdit(draft, values({ employeeId: "emp-2", amount: 9000 }), {
-      from: "Pedro Infante",
-      to: "Juan Pérez",
+      employee: { from: "Pedro Infante", to: "Juan Pérez" },
     });
     expect(diff.requiresConfirmation).toBe(false);
     expect(diff.payload).toMatchObject({ employeeId: "emp-2", amount: 9000 });

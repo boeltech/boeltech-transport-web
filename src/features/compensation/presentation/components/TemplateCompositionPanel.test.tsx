@@ -31,7 +31,7 @@ describe("TemplateCompositionPanel", () => {
     );
 
     expect(
-      screen.getByText(/Para liquidar, agrega reglas por ruta o vincula una ruta con tarifa fija/i),
+      screen.getByText(/Para armar el pago, agrega reglas por ruta o vincula una tarifa por corredor/i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Agrega al menos una regla por tipo de ruta \(opción A\)/i),

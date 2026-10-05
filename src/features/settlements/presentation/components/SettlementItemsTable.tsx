@@ -12,25 +12,40 @@ import { Badge } from "@shared/ui/badge";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { SettlementItem } from "../../domain/entities";
 import {
-  SETTLEMENT_ITEM_TYPE_LABELS,
   EXPENSE_CATEGORY_LABELS,
   TRIP_ROUTE_TYPE_LABELS,
   COMPENSATION_SALARY_PERIOD_LABELS,
   ADVANCE_CATEGORY_LABELS,
-  type SettlementItemType,
   type TripRouteType,
   type CompensationSalaryPeriod,
   type AdvanceCategory,
 } from "../../domain/enums";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { shouldShowSupportParticipationBadge } from "../utils/settlementParticipationHelpers";
+import {
+  getSettlementItemCategoryLabel,
+  getSettlementItemOriginTitle,
+  orderSettlementDeductions,
+} from "../utils/settlementItemOrigin";
+import {
+  isManualPayeeReimbursement,
+  reimbursementItemTripLine,
+} from "../utils/reimbursementLines";
 import type { CompensationCalculationType } from "../../domain/enums";
+
+export interface SettlementItemsTableTotals {
+  grossAmount: number;
+  totalAdvancesDeducted: number;
+  totalOtherDeductions: number;
+}
 
 interface SettlementItemsTableProps {
   items: readonly SettlementItem[];
   agreementCalculationType?: CompensationCalculationType | string | null;
   /** Origen para el chevron del detalle de viaje (p. ej. detalle del pago). */
   tripLinkFrom?: string;
+  /** Totales del encabezado del pago; sin ellos los subtotales suman las partidas. */
+  totals?: SettlementItemsTableTotals;
 }
 
 export function formatItemTitleAndSubtitle(item: SettlementItem, copy: typeof settlementsCopy.detailPage.items) {
@@ -111,6 +126,11 @@ export function formatItemTitleAndSubtitle(item: SettlementItem, copy: typeof se
     };
   }
 
+  const origin = getSettlementItemOriginTitle(item);
+  if (origin) {
+    return { ...origin, badgeTag: null };
+  }
+
   return {
     title: item.description,
     subtitle: null,
@@ -122,6 +142,7 @@ export function SettlementItemsTable({
   items,
   agreementCalculationType,
   tripLinkFrom,
+  totals,
 }: SettlementItemsTableProps) {
   const copy = settlementsCopy.detailPage.items;
   const participationBadgeLabel =
@@ -136,10 +157,19 @@ export function SettlementItemsTable({
   }
 
   const earnings = items.filter((it) => !it.isDeduction);
-  const deductions = items.filter((it) => it.isDeduction);
+  const deductions = orderSettlementDeductions(items.filter((it) => it.isDeduction));
 
-  const totalEarnings = earnings.reduce((sum, it) => sum + (it.amount || 0), 0);
-  const totalDeductions = deductions.reduce((sum, it) => sum + (it.amount || 0), 0);
+  const sumAmounts = (list: readonly SettlementItem[]) =>
+    list.reduce((sum, it) => sum + (it.amount || 0), 0);
+  const totalEarnings = totals?.grossAmount ?? sumAmounts(earnings);
+  const totalAdvances =
+    totals?.totalAdvancesDeducted ??
+    sumAmounts(deductions.filter((it) => it.itemType === "advance_deduction"));
+  const totalOtherDeductions =
+    totals?.totalOtherDeductions ??
+    sumAmounts(deductions.filter((it) => it.itemType !== "advance_deduction"));
+  const totalDeductions = totalAdvances + totalOtherDeductions;
+  const showDeductionsBreakdown = totalAdvances > 0 && totalOtherDeductions > 0;
 
   return (
     <div className="space-y-6">
@@ -183,10 +213,10 @@ export function SettlementItemsTable({
                 </TableRow>
               ) : (
                 earnings.map((item, index) => {
-                  const itemTypeLabel =
-                    SETTLEMENT_ITEM_TYPE_LABELS[item.itemType as SettlementItemType] ??
-                    item.itemType;
+                  const itemTypeLabel = getSettlementItemCategoryLabel(item);
                   const { title, subtitle, badgeTag } = formatItemTitleAndSubtitle(item, copy);
+                  const tripLine = reimbursementItemTripLine(item);
+                  const manualPayee = isManualPayeeReimbursement(item);
                   const showSupportBadge =
                     item.itemType === "trip_commission" &&
                     shouldShowSupportParticipationBadge(
@@ -222,6 +252,19 @@ export function SettlementItemsTable({
                               {subtitle}
                             </span>
                           )}
+                          {tripLine ? (
+                            <span
+                              className="text-xs text-muted-foreground leading-snug"
+                              data-testid="reimbursement-trip-line"
+                            >
+                              {tripLine}
+                            </span>
+                          ) : null}
+                          {manualPayee ? (
+                            <span className="text-xs text-warning leading-snug">
+                              {settlementsCopy.reimbursements.manualPayeeLine}
+                            </span>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -298,7 +341,7 @@ export function SettlementItemsTable({
               <TableRow>
                 <TableHead>{copy.headerConcept}</TableHead>
                 <TableHead>{copy.headerCategory}</TableHead>
-                <TableHead>{copy.headerAdvanceReference}</TableHead>
+                <TableHead>{copy.headerReference}</TableHead>
                 <TableHead className="text-right">{copy.headerDeductedAmount}</TableHead>
               </TableRow>
             </TableHeader>
@@ -314,9 +357,7 @@ export function SettlementItemsTable({
                 </TableRow>
               ) : (
                 deductions.map((item, index) => {
-                  const itemTypeLabel =
-                    SETTLEMENT_ITEM_TYPE_LABELS[item.itemType as SettlementItemType] ??
-                    item.itemType;
+                  const itemTypeLabel = getSettlementItemCategoryLabel(item);
                   const { title, subtitle } = formatItemTitleAndSubtitle(item, copy);
 
                   return (
@@ -348,7 +389,8 @@ export function SettlementItemsTable({
                         )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-semibold text-destructive">
-                        -{formatMxCurrency(item.amount)}
+                        {item.amount > 0 ? "-" : ""}
+                        {formatMxCurrency(item.amount)}
                       </TableCell>
                     </TableRow>
                   );
@@ -357,6 +399,26 @@ export function SettlementItemsTable({
             </TableBody>
             {deductions.length > 0 && (
               <TableFooter className="bg-muted/50 border-t font-semibold">
+                {showDeductionsBreakdown ? (
+                  <>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right text-xs text-muted-foreground font-medium">
+                        {copy.subtotalAdvances}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-destructive font-medium">
+                        -{formatMxCurrency(totalAdvances)}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right text-xs text-muted-foreground font-medium">
+                        {copy.subtotalOtherDeductions}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-destructive font-medium">
+                        -{formatMxCurrency(totalOtherDeductions)}
+                      </TableCell>
+                    </TableRow>
+                  </>
+                ) : null}
                 <TableRow>
                   <TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
                     {copy.subtotalDeductions}

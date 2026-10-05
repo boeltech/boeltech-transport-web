@@ -43,7 +43,7 @@ export interface MapSettlementWorkbenchBucketsParams {
 
 /**
  * Maps workbench summary → WorkbenchPageShell buckets (ADR-0090).
- * Solo etapas de liquidación (+ crossLink de autorización).
+ * Solo etapas de pago (+ crossLink de autorización al tab Por autorizar).
  * Anticipos se enlazan debajo del scorecard (openAdvancesBridge), no como bucket.
  */
 export function mapSettlementWorkbenchBuckets({

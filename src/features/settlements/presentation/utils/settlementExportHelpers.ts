@@ -1,6 +1,7 @@
 import type { DriverSettlement, DriverAdvance } from "../../domain/entities";
 import { downloadCsv } from "@shared/utils/exportCsv";
 import { SETTLEMENT_STATUS_LABELS, ADVANCE_STATUS_LABELS, ADVANCE_CATEGORY_LABELS } from "../../domain/enums";
+import { uncoveredDeductionsAmount } from "../../domain/settlementTotals";
 
 function nowDateKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -18,6 +19,7 @@ export function exportSettlementsCsv(settlements: readonly DriverSettlement[]): 
     "Monto Neto",
     "Estado",
     "Fecha Creación",
+    "Descuento no cubierto",
   ];
 
   const rows = settlements.map((st) => [
@@ -31,9 +33,10 @@ export function exportSettlementsCsv(settlements: readonly DriverSettlement[]): 
     st.netAmount,
     SETTLEMENT_STATUS_LABELS[st.status] ?? st.status,
     st.createdAt ? st.createdAt.slice(0, 10) : "",
+    st.uncoveredDeductionsAmount ?? uncoveredDeductionsAmount(st),
   ]);
 
-  downloadCsv(`liquidaciones-${nowDateKey()}.csv`, headers, rows);
+  downloadCsv(`pagos-${nowDateKey()}.csv`, headers, rows);
 }
 
 export function exportDriverAdvancesCsv(advances: readonly DriverAdvance[]): void {

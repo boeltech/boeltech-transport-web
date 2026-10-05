@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -15,16 +16,26 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@shared/ui/tooltip";
+import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { usePermissions } from "@shared/permissions";
+import { useHelpEmptySupport } from "@features/help-center";
 import type { SettlementBacklogRow } from "../../domain/entities";
-import { settlementCreatePath } from "../../application/settlementsRoutes";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { resolveBacklogPeriodTooltip } from "../utils/backlogPeriodTooltip";
+import {
+  formatPeriodOverlapFolioLabel,
+  resolveBacklogCreatePath,
+  resolvePeriodOverlapCtaPath,
+  resolvePeriodOverlapTooltip,
+  resolvePeriodOverlapWarningCopy,
+} from "../utils/backlogPeriodOverlap";
 
 const copy = settlementsCopy.workbench;
 const fieldsCopy = settlementsCopy.fields;
+const reimbursementCopy = settlementsCopy.reimbursements;
+const SETTLEMENTS_PATH = "/finance/settlements";
 
 interface SettlementBacklogTableProps {
   rows: readonly SettlementBacklogRow[];
@@ -35,6 +46,13 @@ interface SettlementBacklogTableProps {
 }
 
 function RowTypeBadge({ row }: { row: SettlementBacklogRow }) {
+  if (row.rowType === "reimbursement_only") {
+    return (
+      <Badge variant="info" tone="soft" className="text-xs">
+        {reimbursementCopy.backlog.rowType}
+      </Badge>
+    );
+  }
   if (row.rowType === "salary_close") {
     return (
       <Badge variant="info" tone="soft" className="text-xs">
@@ -56,16 +74,119 @@ function RowTypeBadge({ row }: { row: SettlementBacklogRow }) {
   );
 }
 
-/** UI ignores no_client_invoice (D5/D8): payload may still include the code. */
-const IGNORED_BACKLOG_WARNINGS = new Set(["no_client_invoice"]);
+/** D10: un pago de reembolsos no lleva período. */
+function BacklogPeriod({ row }: { row: SettlementBacklogRow }) {
+  const notApplicable = row.rowType === "reimbursement_only";
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn(
+            "inline-flex cursor-help whitespace-nowrap border-b border-dotted border-muted-foreground/50 text-sm",
+            notApplicable ? "text-muted-foreground" : "text-foreground",
+          )}
+        >
+          {notApplicable
+            ? reimbursementCopy.backlog.periodNotApplicable
+            : `${formatDate(row.periodStart)} – ${formatDate(row.periodEnd)}`}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs">
+        {resolveBacklogPeriodTooltip(row.rowType)}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
-function PeriodWarnings({ warnings }: { warnings: readonly string[] }) {
-  const visible = warnings.filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w));
+function backlogCtaLabel(row: SettlementBacklogRow): string {
+  return row.rowType === "reimbursement_only"
+    ? reimbursementCopy.createAction
+    : copy.actions.settlePeriod;
+}
+
+/**
+ * UI ignores no_client_invoice (D5/D8): payload may still include the code.
+ * Los tardíos entran solos al siguiente pago (E11-F3 B.4): sin insignia propia.
+ */
+const IGNORED_BACKLOG_WARNINGS = new Set(["no_client_invoice", "late_reimbursement"]);
+
+/** D10: folio de solape → gasto por definir → anticipo; el resto después. */
+const WARNING_ORDER = ["period_overlap", "reimbursement_payee_required", "open_advance"];
+
+function warningRank(warning: string): number {
+  const index = WARNING_ORDER.indexOf(warning);
+  return index === -1 ? WARNING_ORDER.length : index;
+}
+
+function PeriodWarnings({ row }: { row: SettlementBacklogRow }) {
+  const { warnings, employeeId, periodOverlap } = row;
+  const visible = warnings
+    .filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w))
+    .sort((a, b) => warningRank(a) - warningRank(b));
   if (visible.length === 0) return null;
 
   return (
     <ul className="flex flex-wrap items-center gap-1.5">
       {visible.map((warning) => {
+        if (warning === "reimbursement_payee_required") {
+          return (
+            <li key={warning}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex cursor-help rounded-md">
+                    <Badge
+                      variant="warning"
+                      tone="soft"
+                      className="text-xs font-medium"
+                      data-testid="backlog-payee-required-badge"
+                    >
+                      {reimbursementCopy.backlog.payeeRequiredBadge(
+                        row.reimbursementsRequiringPayeeCount ?? 0,
+                      )}
+                    </Badge>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  {reimbursementCopy.backlog.payeeRequiredTooltip}
+                </TooltipContent>
+              </Tooltip>
+            </li>
+          );
+        }
+        if (warning === "period_overlap") {
+          const overlapHref = resolvePeriodOverlapCtaPath(
+            employeeId,
+            periodOverlap,
+          );
+          const overlapCopy = resolvePeriodOverlapWarningCopy(
+            periodOverlap?.status,
+          );
+          return (
+            <li key={warning} className="flex flex-wrap items-center gap-1.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    to={overlapHref}
+                    className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={copy.warnings.period_overlap_cta}
+                  >
+                    <Badge
+                      variant="warning"
+                      tone="soft"
+                      className="text-xs font-medium"
+                    >
+                      {formatPeriodOverlapFolioLabel(periodOverlap) ?? overlapCopy.badge}
+                    </Badge>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  {resolvePeriodOverlapTooltip(row)}
+                </TooltipContent>
+              </Tooltip>
+            </li>
+          );
+        }
+
         const label =
           copy.warnings[warning as keyof typeof copy.warnings] ?? warning;
         return (
@@ -124,6 +245,31 @@ function LoadingSkeleton() {
   );
 }
 
+function BacklogEmpty({ apiUnavailable }: { apiUnavailable: boolean }) {
+  const helpEmpty = useHelpEmptySupport(SETTLEMENTS_PATH, !apiUnavailable);
+  return (
+    <div className="rounded-md border bg-card p-8 text-center space-y-3">
+      <p className="text-base font-semibold text-foreground">
+        {apiUnavailable
+          ? copy.empty.backlogApiPendingTitle
+          : copy.empty.backlogTitle}
+      </p>
+      <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+        {!apiUnavailable && helpEmpty
+          ? helpEmpty.phrase
+          : apiUnavailable
+            ? copy.empty.backlogApiPendingDescription
+            : copy.empty.backlogDescription}
+      </p>
+      {helpEmpty ? (
+        <Button variant="outline" onClick={helpEmpty.viewHelpCta.onClick}>
+          {helpEmpty.viewHelpCta.label}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function SettlementBacklogTable({
   rows,
   isLoading,
@@ -156,30 +302,13 @@ export function SettlementBacklogTable({
     }
 
     if (rows.length === 0) {
-      return (
-        <div className="rounded-md border bg-card p-8 text-center space-y-3">
-          <p className="text-base font-semibold text-foreground">
-            {apiUnavailable
-              ? copy.empty.backlogApiPendingTitle
-              : copy.empty.backlogTitle}
-          </p>
-          <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-            {apiUnavailable
-              ? copy.empty.backlogApiPendingDescription
-              : copy.empty.backlogDescription}
-          </p>
-        </div>
-      );
+      return <BacklogEmpty apiUnavailable={apiUnavailable} />;
     }
 
     return (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {rows.map((row) => {
-          const createPath = settlementCreatePath({
-            employeeId: row.employeeId,
-            periodStart: row.periodStart,
-            periodEnd: row.periodEnd,
-          });
+          const createPath = resolveBacklogCreatePath(row);
 
           return (
             <Card
@@ -208,17 +337,8 @@ export function SettlementBacklogTable({
                 </div>
 
                 <div className="space-y-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex cursor-help whitespace-nowrap border-b border-dotted border-muted-foreground/50 text-sm text-foreground">
-                        {formatDate(row.periodStart)} – {formatDate(row.periodEnd)}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs text-xs">
-                      {resolveBacklogPeriodTooltip(row.rowType)}
-                    </TooltipContent>
-                  </Tooltip>
-                  <PeriodWarnings warnings={row.warnings} />
+                  <BacklogPeriod row={row} />
+                  <PeriodWarnings row={row} />
                 </div>
 
                 <div className="pt-1">
@@ -229,8 +349,9 @@ export function SettlementBacklogTable({
                       size="sm"
                       className="w-full"
                       onClick={() => onNavigateCreate(createPath)}
+                      data-help-anchor="stl-liquidar-periodo"
                     >
-                      {copy.actions.settlePeriod}
+                      {backlogCtaLabel(row)}
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">
@@ -266,20 +387,7 @@ export function SettlementBacklogTable({
   }
 
   if (rows.length === 0) {
-    return (
-      <div className="rounded-md border bg-card p-8 text-center space-y-3">
-        <p className="text-base font-semibold text-foreground">
-          {apiUnavailable
-            ? copy.empty.backlogApiPendingTitle
-            : copy.empty.backlogTitle}
-        </p>
-        <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-          {apiUnavailable
-            ? copy.empty.backlogApiPendingDescription
-            : copy.empty.backlogDescription}
-        </p>
-      </div>
-    );
+    return <BacklogEmpty apiUnavailable={apiUnavailable} />;
   }
 
   return (
@@ -296,11 +404,7 @@ export function SettlementBacklogTable({
         </TableHeader>
         <TableBody>
           {rows.map((row) => {
-            const createPath = settlementCreatePath({
-              employeeId: row.employeeId,
-              periodStart: row.periodStart,
-              periodEnd: row.periodEnd,
-            });
+            const createPath = resolveBacklogCreatePath(row);
 
             return (
               <TableRow
@@ -321,17 +425,8 @@ export function SettlementBacklogTable({
                 </TableCell>
                 <TableCell className="min-w-[220px] py-3">
                   <div className="space-y-1.5">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex cursor-help whitespace-nowrap border-b border-dotted border-muted-foreground/50 text-sm text-foreground">
-                          {formatDate(row.periodStart)} – {formatDate(row.periodEnd)}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs text-xs">
-                        {resolveBacklogPeriodTooltip(row.rowType)}
-                      </TooltipContent>
-                    </Tooltip>
-                    <PeriodWarnings warnings={row.warnings} />
+                    <BacklogPeriod row={row} />
+                    <PeriodWarnings row={row} />
                   </div>
                 </TableCell>
                 <TableCell className="min-w-[170px] py-3">
@@ -344,8 +439,9 @@ export function SettlementBacklogTable({
                       variant="outline"
                       size="sm"
                       onClick={() => onNavigateCreate(createPath)}
+                      data-help-anchor="stl-liquidar-periodo"
                     >
-                      {copy.actions.settlePeriod}
+                      {backlogCtaLabel(row)}
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">Solo lectura</span>

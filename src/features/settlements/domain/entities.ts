@@ -142,6 +142,22 @@ export interface SettlementItemCalculationDetails {
   readonly advanceFolio?: string | null;
   /** E10: `manual` (o ausente) = partida capturada; `fixed_allowance` / `template_deduction` = de la tarifa. */
   readonly source?: string | null;
+  /** Deducción de tarifa que no cupo en el bruto: lo configurado y lo omitido (`amount` = aplicado). */
+  readonly requestedAmount?: number;
+  readonly omittedAmount?: number;
+  /** ADR-0085 E11 — comisión de viaje en $0: por qué quedó así. */
+  readonly zeroReason?: ZeroCommissionReason | null;
+  /** ADR-0085 E11 punto 7(b): el viaje del reembolso ya estaba en otro pago del operador. */
+  readonly isLate?: boolean;
+  /**
+   * ADR-0085 E11 punto 9: pago que trae la comisión del viaje del reembolso.
+   * `null` = sin comisión en pagos del operador; ausente = el viaje va en este pago.
+   */
+  readonly tripSettledIn?: TripSettledInRef | null;
+  /** ADR-0085 E11 punto 8: `manual` = asignado a este operador por cambio de conductor. */
+  readonly payeeResolution?: "manual" | null;
+  readonly confirmedBy?: string | null;
+  readonly confirmedAt?: string | null;
 }
 
 export interface SettlementItem {
@@ -182,10 +198,40 @@ export interface AgreementSnapshot {
   readonly currency: string;
 }
 
+/** ADR-0085 E11 punto 9: `reimbursement_only` = «Pago de reembolsos» (sin viajes ni período). */
+export type SettlementKind = "regular" | "reimbursement_only";
+
+/** Pago del operador que trae la comisión de un viaje. */
+export interface TripSettledInRef {
+  readonly settlementId: string;
+  readonly settlementNumber: string;
+}
+
+export interface LateReimbursementItem {
+  readonly tripExpenseId: string;
+  readonly tripId: string;
+  readonly tripCode: string;
+  readonly description: string;
+  readonly amount: number;
+  readonly approvedAt: string | null;
+}
+
+/** ADR-0085 E11 punto 10: gastos aprobados después de armar o autorizar el pago. */
+export interface LateReimbursementsSummary {
+  readonly count: number;
+  readonly amount: number;
+  readonly tripExpenseIds: readonly string[];
+  readonly tripIds: readonly string[];
+  /** `approved`: posteriores a la autorización; `created`: posteriores al alta. */
+  readonly reference: "approved" | "created";
+  readonly items: readonly LateReimbursementItem[];
+}
+
 export interface DriverSettlement {
   readonly id: string;
   readonly tenantId: string;
   readonly settlementNumber: string;
+  readonly settlementKind: SettlementKind;
   readonly employeeId: string;
   readonly employeeFullName: string;
   readonly agreementSnapshot: AgreementSnapshot;
@@ -200,6 +246,8 @@ export interface DriverSettlement {
   readonly totalOtherDeductions: number;
   readonly grossAmount: number;
   readonly netAmount: number;
+  /** Descuentos que el neto no cubrió (> 0 solo en históricos); `undefined` = API previo. */
+  readonly uncoveredDeductionsAmount?: number;
   readonly tripsCount?: number;
   readonly currency: string;
   readonly createdBy?: string | null;
@@ -234,6 +282,8 @@ export interface DriverSettlement {
   readonly approvalRevision?: string | null;
   /** ADR-0099: `undefined` = API sin bloque; `null` = registro previo al motor. */
   readonly approval?: ApprovalBlock | null;
+  /** Solo en el detalle de `draft` / `pending_approval` / `approved`. */
+  readonly lateReimbursements?: LateReimbursementsSummary | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -280,6 +330,30 @@ export interface EligibleTripPreview {
   readonly hasRevenueSplit?: boolean;
   readonly distanceBasis?: "executed_stops" | "odometer" | "unavailable";
   readonly requiresZeroKmAck?: boolean;
+  /** ADR-0085 E11 — por qué el viaje entra en $0; null si paga comisión. */
+  readonly zeroCommissionReason?: ZeroCommissionReason | null;
+}
+
+/** ADR-0085 E11 — esquema en $0, sin km o sin regla para el tipo de ruta. */
+export type ZeroCommissionReason = "scheme" | "zero_km" | "no_rule";
+
+/** Pago vivo que ya cubre (total o parcialmente) el bloque de periodo. */
+export interface PeriodicBlockSettlementRef {
+  readonly settlementId: string;
+  readonly settlementNumber: string;
+  readonly status: SettlementPeriodOverlapStatus;
+  readonly periodStart: string;
+  readonly periodEnd: string;
+}
+
+/**
+ * ADR-0085 E11 — sueldo, fijos y deducciones de plantilla van una vez por periodo.
+ * `excluded_contained`: otro pago vivo ya lo cubre; `partial_overlap`: bloquea el alta.
+ */
+export interface PeriodicBlockPreview {
+  readonly status: "included" | "excluded_contained" | "partial_overlap" | "not_applicable";
+  readonly settlement: PeriodicBlockSettlementRef | null;
+  readonly suggestedPeriodStart: string | null;
 }
 
 export interface OpenAdvancePreview {
@@ -288,7 +362,10 @@ export interface OpenAdvancePreview {
   readonly amount: number;
   readonly balanceRemaining: number;
   readonly reservedAmount?: number;
+  /** 0 si otro pago lo tiene reservado (una sola reserva por anticipo). */
   readonly availableBalance?: number;
+  /** Folio del otro pago que lo reserva; `null` si está libre. */
+  readonly reservedBySettlementNumber?: string | null;
   readonly category: AdvanceCategory;
   readonly disbursedAt: string | null;
 }
@@ -298,8 +375,10 @@ export interface SettlementPreviewSummary {
   readonly totalBaseSalary: number;
   readonly totalFixedAllowances?: number;
   readonly totalReimbursements: number;
-  /** Deducciones de plantilla (fondo de ahorro, retenciones, etc.). */
+  /** Deducciones de plantilla aplicadas (fondo de ahorro, retenciones, etc.). */
   readonly totalDeductions?: number;
+  /** Deducciones de plantilla que no cupieron en el bruto (no se arrastran). */
+  readonly totalDeductionsOmitted?: number;
   readonly suggestedAdvanceDeduction: number;
   readonly grossAmount: number;
   readonly netAmount: number;
@@ -309,8 +388,12 @@ export interface TemplateDeductionPreviewLine {
   readonly id: string;
   readonly deductionType: string;
   readonly label: string;
+  /** Monto configurado en la plantilla. */
   readonly amount: number;
   readonly isMandatory: boolean;
+  readonly requestedAmount?: number;
+  readonly appliedAmount?: number;
+  readonly omittedAmount?: number;
 }
 
 export interface CompensationTemplatePreviewRef {
@@ -326,8 +409,37 @@ export interface FixedAllowancePreviewLine {
   readonly suspended: boolean;
 }
 
+/** ADR-0085 E11 punto 7: gasto pagado por el operador que se le reembolsa. */
+export interface ReimbursementPreviewLine {
+  readonly tripExpenseId: string;
+  readonly tripId: string;
+  readonly tripCode: string;
+  readonly category: string;
+  readonly description: string;
+  readonly amount: number;
+  readonly receiptNumber: string | null;
+  readonly approvedAt: string | null;
+  /** 7(b): el viaje ya está en otro pago del operador. */
+  readonly isLate: boolean;
+  readonly tripSettledIn: TripSettledInRef | null;
+}
+
+/** ADR-0085 E11 punto 8: gasto de un viaje con cambio de conductor; solo entra si se marca. */
+export interface ReimbursementRequiringPayeeLine {
+  readonly tripExpenseId: string;
+  readonly tripId: string;
+  readonly tripCode: string;
+  readonly category: string;
+  readonly description: string;
+  readonly amount: number;
+  readonly approvedAt: string | null;
+  readonly reason: "driver_reassigned";
+  readonly tripSettledIn: TripSettledInRef | null;
+}
+
 export interface SettlementPreview {
   readonly employeeId: string;
+  readonly settlementKind?: SettlementKind;
   readonly employeeName: string;
   readonly periodStart: string;
   readonly periodEnd: string;
@@ -342,6 +454,11 @@ export interface SettlementPreview {
   readonly eligibleTrips: readonly EligibleTripPreview[];
   readonly openAdvances: readonly OpenAdvancePreview[];
   readonly summary: SettlementPreviewSummary;
+  readonly periodicBlock?: PeriodicBlockPreview;
+  /** E11 punto 7: (a) viajes del alta + (b) tardíos; en `reimbursement_only` también (c). */
+  readonly reimbursements?: readonly ReimbursementPreviewLine[];
+  /** E11 punto 8: no suman al total hasta que el usuario los marca. */
+  readonly reimbursementsRequiringPayee?: readonly ReimbursementRequiringPayeeLine[];
 }
 
 // ============================================================================
@@ -351,12 +468,36 @@ export interface SettlementPreview {
 export type SettlementBacklogRowType =
   | "trips_pending"
   | "salary_close"
-  | "mixed";
+  | "mixed"
+  /** ADR-0085 E11 punto 9: solo reembolsos (sin viajes por pagar, dado de baja o sin tarifa). */
+  | "reimbursement_only";
 
 export type SettlementBacklogWarning =
   | "no_client_invoice"
   | "period_overlap"
-  | "open_advance";
+  | "open_advance"
+  | "late_reimbursement"
+  | "reimbursement_payee_required";
+
+/** Status activos de solape de período (excluye cancelled/rejected). */
+export type SettlementPeriodOverlapStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "disbursed";
+
+/** Enrich F2 del backlog: conflicto primario cuando hay `period_overlap`. */
+export interface SettlementPeriodOverlap {
+  readonly settlementId: string;
+  readonly status: SettlementPeriodOverlapStatus;
+  readonly settlementNumber: string;
+  readonly conflictsCount: number;
+  readonly periodStart?: string;
+  readonly periodEnd?: string;
+  readonly createdAt?: string;
+  /** ADR-0085 E11 — `contained`: el periodo ya está cubierto; `partial`: hay que mover la fecha. */
+  readonly overlapKind?: "contained" | "partial";
+}
 
 export interface SettlementBacklogRow {
   readonly employeeId: string;
@@ -370,7 +511,17 @@ export interface SettlementBacklogRow {
   readonly estimatedNetAmount: number | null;
   readonly rowType: SettlementBacklogRowType;
   readonly warnings: readonly SettlementBacklogWarning[];
+  /** Null si no hay solape o el API aún no envía el enrich (compat F1). */
+  readonly periodOverlap: SettlementPeriodOverlap | null;
+  /** ADR-0085 E11 — día siguiente al último periodo cubierto cuando el solape es parcial. */
+  readonly suggestedPeriodStart?: string | null;
   readonly employmentType?: string;
+  /** E11 punto 7 (b)+(c), sin los gastos de viajes ya contados en la fila. */
+  readonly pendingReimbursementsCount?: number;
+  readonly pendingReimbursementsAmount?: number;
+  readonly lateReimbursementsCount?: number;
+  /** E11 punto 8. */
+  readonly reimbursementsRequiringPayeeCount?: number;
 }
 
 export interface SettlementWorkbenchSummary {
@@ -388,14 +539,13 @@ export interface SettlementWorkbenchData {
 }
 
 export interface TenantSettlementSettings {
-  readonly voboThresholdMxn: number;
+  /**
+   * Umbral de la regla de autorización vigente; se edita solo en esa regla.
+   * `null` = la regla no pide autorización por monto (solo las correcciones manuales la piden).
+   */
+  readonly voboThresholdMxn: number | null;
   /** Usuarios activos con settlements.update (live; F17a). */
   readonly activeApproverCount: number;
   /** Usuarios activos con settlements.execute (live; F17a). */
   readonly activeExecutorCount: number;
-  /**
-   * ADR-0099 §3.10: el umbral se deriva de la regla de autorización de
-   * liquidaciones y no se edita aquí (PATCH → 409 `APPROVAL_POLICY_MANAGED`).
-   */
-  readonly managedByPolicy?: boolean;
 }

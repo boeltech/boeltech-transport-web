@@ -37,6 +37,8 @@ import {
 } from "../../application/hooks/useSettlements";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { isSettlementRevisionChangedError } from "../utils/settlementEditing";
+import { isDeductionsExceedGrossError } from "../utils/settlementDeductionCapacity";
+import { parseExpenseAlreadyPaidError } from "../utils/settlementCreateConflicts";
 import {
   disburseSettlementFormSchema,
   type DisburseSettlementFormData,
@@ -71,7 +73,7 @@ export function DisburseSettlementDialog({
   const disburseMutation = useDisburseSettlement();
   const handleSelfActionForbidden = useSelfActionForbiddenHandler();
   const queryClient = useQueryClient();
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<{ title: string; message: string } | null>(null);
   const [revisionChanged, setRevisionChanged] = useState(false);
 
   const {
@@ -113,6 +115,12 @@ export function DisburseSettlementDialog({
 
   const onSubmit = async (data: DisburseSettlementFormData) => {
     setApiError(null);
+    const expectedRevision = settlement.approvalRevision;
+    // D27: sin la revisión que vio el usuario no se registra; hay que recargar.
+    if (!expectedRevision) {
+      setRevisionChanged(true);
+      return;
+    }
     try {
       await disburseMutation.mutateAsync({
         id: settlement.id,
@@ -120,30 +128,46 @@ export function DisburseSettlementDialog({
           ...data,
           disbursedAt: localInputToUtcIso(data.disbursedAt),
         },
-        ...(settlement.approvalRevision
-          ? { expectedRevision: settlement.approvalRevision }
-          : {}),
+        expectedRevision,
       });
       toast({
-        title: "Liquidación dispersada correctamente",
+        title: settlementsCopy.settlementFlow.disburse.successTitle,
         variant: "success",
       });
       reset();
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      // D27: otra persona corrigió la liquidación; no se registra ni se reintenta.
+      // D27: otra persona corrigió el pago; no se registra ni se reintenta.
       if (isSettlementRevisionChangedError(error)) {
         setRevisionChanged(true);
+        return;
+      }
+      if (isDeductionsExceedGrossError(error)) {
+        setApiError({
+          title: settlementsCopy.settlementFlow.deductionsCap.actionErrorTitle,
+          message: getErrorMessage(error),
+        });
+        return;
+      }
+      const alreadyPaid = parseExpenseAlreadyPaidError(error);
+      if (alreadyPaid) {
+        const paidCopy = settlementsCopy.reimbursements.errors;
+        setApiError({
+          title: paidCopy.alreadyPaidTitle,
+          message: alreadyPaid.settlementNumber
+            ? paidCopy.alreadyPaidBody(alreadyPaid.settlementNumber)
+            : paidCopy.alreadyPaidBodyNoFolio,
+        });
         return;
       }
       const forbidden = handleSelfActionForbidden(error);
       const errorMsg = forbidden
         ? (forbidden.message ?? settlementsCopy.toasts.selfDisburseRejected)
         : getErrorMessage(error);
-      setApiError(errorMsg);
+      setApiError({ title: "No se pudo registrar el pago", message: errorMsg });
       toast({
-        title: "Error al dispersar liquidación",
+        title: "Error al registrar el pago",
         description: errorMsg,
         variant: "destructive",
       });
@@ -175,7 +199,7 @@ export function DisburseSettlementDialog({
               : "Registrar pago al operador"}
           </DialogTitle>
           <DialogDescription>
-            Captura la referencia bancaria o folio de la transferencia efectuada para liquidar el folio{" "}
+            {settlementsCopy.settlementFlow.disburse.dialogDescriptionPrefix}{" "}
             <span className="font-semibold text-foreground">
               {settlement.settlementNumber}
             </span>
@@ -190,8 +214,8 @@ export function DisburseSettlementDialog({
         )}
 
         {apiError && (
-          <AlertWithIcon variant="destructive" title="No se pudo registrar el pago">
-            {apiError}
+          <AlertWithIcon variant="destructive" title={apiError.title}>
+            {apiError.message}
           </AlertWithIcon>
         )}
 

@@ -67,6 +67,11 @@ import {
   type AdvanceEditDiff,
 } from "../utils/advanceEditing";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import {
+  AdvanceTripSelect,
+  resolveAdvanceTripLabel,
+  type AdvanceTripOption,
+} from "./AdvanceTripSelect";
 
 const copy = settlementsCopy.advanceFlow;
 const dialogCopy = settlementsCopy.advancesDialog;
@@ -88,6 +93,7 @@ const METHOD_OPTIONS = Object.keys(DISBURSEMENT_METHOD_LABELS) as DisbursementMe
 function buildDefaults(advance: DriverAdvance): DriverAdvanceEditValues {
   return {
     employeeId: advance.employeeId,
+    tripId: advance.tripId ?? "",
     amount: advance.amount,
     category: advance.category,
     paymentMethod: advance.paymentMethod,
@@ -133,7 +139,19 @@ function AdvanceEditSheetSession({
   const { control, handleSubmit, register, setValue, formState } = form;
   const category = useWatch({ control, name: "category" });
   const paymentMethod = useWatch({ control, name: "paymentMethod" });
+  const employeeId = useWatch({ control, name: "employeeId" });
+  const tripId = useWatch({ control, name: "tripId" }) ?? "";
   const errors = formState.errors;
+  const currentTripOption = useMemo<AdvanceTripOption | null>(() => {
+    if (!advance.tripId) return null;
+    return {
+      tripId: advance.tripId,
+      tripCode: advance.tripCode ?? advance.tripId.slice(0, 8),
+    };
+  }, [advance.tripId, advance.tripCode]);
+  const [selectedTripCode, setSelectedTripCode] = useState<string | null>(
+    advance.tripCode ?? null,
+  );
   const summaryMessages = useMemo(
     () => collectMessages(errors as Record<string, { message?: unknown } | undefined>),
     [errors],
@@ -196,7 +214,17 @@ function AdvanceEditSheetSession({
 
   const onValid = (values: DriverAdvanceEditValues) => {
     setShowSummary(false);
-    const diff = diffAdvanceEdit(advance, values);
+    const labelOptions: AdvanceTripOption[] = [];
+    if (currentTripOption) labelOptions.push(currentTripOption);
+    if (values.tripId?.trim() && selectedTripCode) {
+      labelOptions.push({ tripId: values.tripId.trim(), tripCode: selectedTripCode });
+    }
+    const diff = diffAdvanceEdit(advance, values, {
+      trip: {
+        from: resolveAdvanceTripLabel(advance.tripId, labelOptions, advance.tripCode),
+        to: resolveAdvanceTripLabel(values.tripId, labelOptions, selectedTripCode),
+      },
+    });
     if (!diff.payload && !isCorrect) {
       close();
       return;
@@ -287,9 +315,11 @@ function AdvanceEditSheetSession({
                   id="adv-edit-employee"
                   label={dialogCopy.employeeLabel}
                   value={field.value}
-                  onChange={(employeeId) =>
-                    setValue("employeeId", employeeId, { shouldValidate: true })
-                  }
+                  onChange={(nextEmployeeId) => {
+                    setValue("employeeId", nextEmployeeId, { shouldValidate: true });
+                    setValue("tripId", "", { shouldValidate: true });
+                    setSelectedTripCode(null);
+                  }}
                   placeholder={dialogCopy.employeePlaceholder}
                   error={fieldState.error?.message}
                 />
@@ -310,6 +340,25 @@ function AdvanceEditSheetSession({
               </p>
             </div>
           )}
+
+          <Controller
+            control={control}
+            name="tripId"
+            render={({ fieldState }) => (
+              <AdvanceTripSelect
+                id="adv-edit-trip"
+                employeeId={employeeId}
+                value={tripId}
+                onChange={(nextTripId, meta) => {
+                  setValue("tripId", nextTripId, { shouldValidate: true });
+                  setSelectedTripCode(meta?.tripCode ?? null);
+                }}
+                disabled={isSaving}
+                error={fieldState.error?.message}
+                currentOption={currentTripOption}
+              />
+            )}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">

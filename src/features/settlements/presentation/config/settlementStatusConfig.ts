@@ -35,7 +35,7 @@ export const SETTLEMENT_STATUS_CONFIG: Record<SettlementStatus, StatusConfig> = 
   draft: createStatusConfig("neutral", {
     label: SETTLEMENT_STATUS_LABELS.draft,
     icon: FileText,
-    description: "Liquidación en borrador editable",
+    description: "Pago en borrador editable",
   }),
 
   pending_approval: createStatusConfig("warning", {
@@ -47,7 +47,7 @@ export const SETTLEMENT_STATUS_CONFIG: Record<SettlementStatus, StatusConfig> = 
   approved: createStatusConfig("info", {
     label: SETTLEMENT_STATUS_LABELS.approved,
     icon: CheckCircle2,
-    description: "Autorizada, pendiente de registrar el pago",
+    description: "Autorizado, pendiente de registrar el pago",
   }),
 
   disbursed: createStatusConfig("success", {
@@ -59,13 +59,13 @@ export const SETTLEMENT_STATUS_CONFIG: Record<SettlementStatus, StatusConfig> = 
   rejected: createStatusConfig("destructive", {
     label: SETTLEMENT_STATUS_LABELS.rejected,
     icon: XCircle,
-    description: "Rechazada por el aprobador",
+    description: "Rechazado por el aprobador",
   }),
 
   cancelled: createStatusConfig("destructive", {
     label: SETTLEMENT_STATUS_LABELS.cancelled,
     icon: XCircle,
-    description: "Liquidación cancelada",
+    description: "Pago cancelado",
   }),
 };
 
@@ -103,7 +103,7 @@ export const ADVANCE_STATUS_CONFIG: Record<AdvanceStatus, StatusConfig> = {
   partially_applied: createStatusConfig("info", {
     label: ADVANCE_STATUS_LABELS.partially_applied,
     icon: Clock,
-    description: "Descontado parcialmente en liquidaciones",
+    description: "Descontado parcialmente en pagos",
   }),
 
   fully_applied: createStatusConfig("success", {

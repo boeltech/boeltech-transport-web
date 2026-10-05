@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Banknote, History, Plus, ArrowUpRight } from "lucide-react";
+import { History, ArrowUpRight } from "lucide-react";
 import {
   WorkbenchPageShell,
   type WorkbenchBucket,
@@ -11,7 +11,6 @@ import { Label } from "@shared/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { type ActiveFilterChip } from "@shared/ui/listing";
-import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { useBranches } from "@features/branches";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
@@ -24,7 +23,6 @@ import {
 } from "../../application/hooks";
 import {
   resolveSettlementsListRedirect,
-  settlementCreatePath,
   settlementDetailPath,
   settlementsAdvancesPath,
   settlementsRegistryPath,
@@ -38,7 +36,6 @@ import {
 } from "../config/settlementWorkbenchConfig";
 import {
   DisburseSettlementDialog,
-  DriverAdvanceCreateDialog,
   SettlementBacklogTable,
   SettlementPipelineQueue,
   SettlementListFilters,
@@ -69,8 +66,6 @@ export function SettlementsListPage() {
   const location = useLocation();
   const fromState = useSettlementQueueFromState();
   const { toast } = useToast();
-  const { hasPermission } = usePermissions();
-  const canCreate = hasPermission("settlements", "create");
   const defaultsAppliedRef = useRef(false);
 
   const { data: branchesData } = useBranches({
@@ -157,7 +152,6 @@ export function SettlementsListPage() {
 
   const [disburseSettlement, setDisburseSettlement] =
     useState<DriverSettlement | null>(null);
-  const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
 
   const pipelineStatus =
     activeBucket !== "pending"
@@ -343,8 +337,10 @@ export function SettlementsListPage() {
       : []),
   ];
   const showChecklist = !readinessLoading && !isSettlementsReady;
+  // F4: una sola franja — checklist de setup XOR bridge vacío (no ambos).
   const showSchemesBridge =
     !readinessLoading &&
+    !showChecklist &&
     activeBucket === "pending" &&
     backlogRows.length === 0;
   const showBeforeAwareness = showChecklist || showSchemesBridge;
@@ -359,27 +355,6 @@ export function SettlementsListPage() {
         title={hubCopy.title}
         description={hubCopy.description}
         showHeader={false}
-        primaryAction={
-          canCreate
-            ? {
-                label: copy.actions.createSettlement,
-                icon: <Plus className="h-4 w-4" />,
-                onClick: () =>
-                  navigate(settlementCreatePath(), { state: fromState }),
-              }
-            : undefined
-        }
-        secondaryActions={
-          canCreate ? (
-            <Button
-              variant="outline"
-              leftIcon={<Banknote className="h-4 w-4" />}
-              onClick={() => setAdvanceDialogOpen(true)}
-            >
-              {copy.actions.createAdvance}
-            </Button>
-          ) : undefined
-        }
         beforeAwareness={
           showBeforeAwareness ? (
             <div className="space-y-3">
@@ -537,15 +512,6 @@ export function SettlementsListPage() {
           }}
         />
       ) : null}
-
-      <DriverAdvanceCreateDialog
-        open={advanceDialogOpen}
-        onOpenChange={setAdvanceDialogOpen}
-        onSuccess={() => {
-          void refetchWorkbenchCounts();
-          void refetchWorkbench();
-        }}
-      />
     </TooltipProvider>
   );
 }

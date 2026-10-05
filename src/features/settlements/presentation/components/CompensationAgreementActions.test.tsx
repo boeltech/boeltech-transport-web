@@ -161,7 +161,7 @@ describe("CompensationAgreementActions (ADR-0087)", () => {
     const queryClient = createTestQueryClient();
     mockDeleteAgreement.mockRejectedValue(
       new ApiError(
-        "No se puede eliminar una tarifa usada en una liquidación",
+        "No se puede eliminar una tarifa usada en un pago",
         409,
         "AGREEMENT_IN_USE",
       ),
@@ -184,7 +184,7 @@ describe("CompensationAgreementActions (ADR-0087)", () => {
         expect.objectContaining({
           title: "Error al eliminar tarifa",
           variant: "destructive",
-          description: expect.stringContaining("liquidación"),
+          description: expect.stringContaining("pago"),
         }),
       );
     });

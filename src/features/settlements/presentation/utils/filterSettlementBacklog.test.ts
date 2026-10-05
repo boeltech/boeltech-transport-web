@@ -18,6 +18,7 @@ function row(
     estimatedNetAmount: 1000,
     rowType: "trips_pending",
     warnings: [],
+    periodOverlap: null,
     ...overrides,
   };
 }

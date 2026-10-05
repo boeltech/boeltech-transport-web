@@ -92,6 +92,16 @@ function toManualItemBody(item: ManualSettlementItemInput) {
   };
 }
 
+/** ADR-0085 E11 punto 9: «Pago de reembolsos» — sin viajes ni período (lo fija el servidor). */
+export interface CreateReimbursementSettlementPayload {
+  employeeId: string;
+  confirmedReimbursementExpenseIds: string[];
+  advancesToApply: { advanceId: string; amountToDeduct: number }[];
+  customItems: ManualSettlementItemInput[];
+  notes?: string;
+  submitForApproval: boolean;
+}
+
 export interface ListSettlementsParams {
   employeeId?: string;
   status?: string;
@@ -124,16 +134,6 @@ export const settlementsApi = {
   getSettings: async (): Promise<TenantSettlementSettings> => {
     const response = await apiClient.get<ApiSingleResponse<ApiTenantSettlementSettingsRaw>>(
       `${BASE_ENDPOINT}/settings`,
-    );
-    return mapSettlementSettings(response.data);
-  },
-
-  updateSettings: async (payload: {
-    voboThresholdMxn?: number;
-  }): Promise<TenantSettlementSettings> => {
-    const response = await apiClient.patch<ApiSingleResponse<ApiTenantSettlementSettingsRaw>>(
-      `${BASE_ENDPOINT}/settings`,
-      payload,
     );
     return mapSettlementSettings(response.data);
   },
@@ -358,6 +358,14 @@ export const settlementsApi = {
     return mapSettlementPreview(response.data);
   },
 
+  previewReimbursementSettlement: async (employeeId: string): Promise<SettlementPreview> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiSettlementPreviewRaw>>(
+      `${BASE_ENDPOINT}/preview`,
+      { params: { employee_id: employeeId, settlement_kind: "reimbursement_only" } },
+    );
+    return mapSettlementPreview(response.data);
+  },
+
   listSettlements: async (
     params: ListSettlementsParams,
   ): Promise<MappedPaginatedResult<DriverSettlement>> => {
@@ -397,6 +405,24 @@ export const settlementsApi = {
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
       BASE_ENDPOINT,
       cleanedPayload,
+    );
+    return mapSettlement(response.data);
+  },
+
+  createReimbursementSettlement: async (
+    payload: CreateReimbursementSettlementPayload,
+  ): Promise<DriverSettlement> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
+      BASE_ENDPOINT,
+      {
+        settlementKind: "reimbursement_only",
+        employeeId: payload.employeeId,
+        confirmedReimbursementExpenseIds: payload.confirmedReimbursementExpenseIds,
+        advancesToApply: payload.advancesToApply,
+        customItems: payload.customItems.map(toManualItemBody),
+        notes: payload.notes?.trim() ? payload.notes.trim() : undefined,
+        submitForApproval: payload.submitForApproval,
+      },
     );
     return mapSettlement(response.data);
   },
@@ -479,9 +505,16 @@ export const settlementsApi = {
     return mapSettlement(response.data);
   },
 
-  cancelSettlement: async (id: string): Promise<DriverSettlement> => {
+  cancelSettlement: async (
+    id: string,
+    input: { reason?: string; expectedStatus?: SettlementStatus } = {},
+  ): Promise<DriverSettlement> => {
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
       `${BASE_ENDPOINT}/${id}/cancel`,
+      {
+        ...(input.reason ? { reason: input.reason } : {}),
+        ...(input.expectedStatus ? { expected_status: input.expectedStatus } : {}),
+      },
     );
     return mapSettlement(response.data);
   },
@@ -489,12 +522,12 @@ export const settlementsApi = {
   disburseSettlement: async (
     id: string,
     payload: DisburseSettlementFormData,
-    expectedRevision?: string | null,
+    expectedRevision: string,
   ): Promise<DriverSettlement> => {
     const cleanedPayload = {
       ...payload,
       notes: payload.notes?.trim() ? payload.notes.trim() : undefined,
-      ...(expectedRevision ? { expected_revision: expectedRevision } : {}),
+      expected_revision: expectedRevision,
     };
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
       `${BASE_ENDPOINT}/${id}/disburse`,

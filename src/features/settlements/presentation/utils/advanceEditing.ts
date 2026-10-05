@@ -64,7 +64,7 @@ export interface AdvanceEditChange {
 
 export interface AdvanceEditDiff {
   changes: AdvanceEditChange[];
-  /** Hay cambio en operador, monto, categoría o método. */
+  /** Hay cambio en operador, monto, categoría, método o viaje. */
   material: boolean;
   /** Pedirá «¿Guardar y volver a autorización?» antes del PATCH. */
   requiresConfirmation: boolean;
@@ -75,6 +75,12 @@ export interface AdvanceEditDiff {
 function normalizeText(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
   return trimmed === "" ? null : trimmed;
+}
+
+function normalizeTripId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed === "" || trimmed === "__none__") return null;
+  return trimmed;
 }
 
 function categoryLabel(value: string): string {
@@ -92,19 +98,23 @@ function methodLabel(value: string): string {
 export function diffAdvanceEdit(
   advance: DriverAdvance,
   values: DriverAdvanceEditValues,
-  employeeLabel?: { from: string; to: string },
+  labelsOverride?: {
+    employee?: { from: string; to: string };
+    trip?: { from: string; to: string };
+  },
 ): AdvanceEditDiff {
   const payload: UpdateDriverAdvancePayload = { expectedStatus: advance.status };
   const changes: AdvanceEditChange[] = [];
   const labels = flowCopy.fieldLabels;
+  const tripNone = settlementsCopy.advancesDialog.tripNone;
 
   if (advance.status === "draft" && values.employeeId && values.employeeId !== advance.employeeId) {
     payload.employeeId = values.employeeId;
     changes.push({
       field: "employeeId",
       label: labels.employeeId,
-      from: employeeLabel?.from ?? advance.employeeFullName ?? "—",
-      to: employeeLabel?.to ?? "—",
+      from: labelsOverride?.employee?.from ?? advance.employeeFullName ?? "—",
+      to: labelsOverride?.employee?.to ?? "—",
     });
   }
   if (Number(values.amount) !== advance.amount) {
@@ -132,6 +142,18 @@ export function diffAdvanceEdit(
       label: labels.paymentMethod,
       from: methodLabel(advance.paymentMethod),
       to: methodLabel(values.paymentMethod),
+    });
+  }
+
+  const nextTripId = normalizeTripId(values.tripId);
+  const prevTripId = advance.tripId;
+  if (nextTripId !== prevTripId) {
+    payload.tripId = nextTripId;
+    changes.push({
+      field: "tripId",
+      label: labels.tripId,
+      from: labelsOverride?.trip?.from ?? advance.tripCode ?? tripNone,
+      to: labelsOverride?.trip?.to ?? (nextTripId ? nextTripId : tripNone),
     });
   }
 

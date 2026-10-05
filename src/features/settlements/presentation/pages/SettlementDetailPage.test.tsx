@@ -374,7 +374,7 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     expect(screen.queryByRole("button", { name: /Imprimir recibo/i })).not.toBeInTheDocument();
   });
 
-  it("criterio 6: rechazada ofrece «Crear liquidación nueva con este periodo»", async () => {
+  it("criterio 6: rechazada ofrece «Armar pago nuevo con este periodo»", async () => {
     const user = userEvent.setup();
     mockGetSettlementById.mockResolvedValue({
       ...pendingSettlement,
@@ -384,7 +384,7 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     renderDetail();
 
     await user.click(
-      await screen.findByRole("button", { name: /Crear liquidación nueva con este periodo/i }),
+      await screen.findByRole("button", { name: /Armar pago nuevo con este periodo/i }),
     );
 
     const target = screen.getByTestId("create-probe").textContent ?? "";
@@ -439,12 +439,220 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
 
     await user.click(screen.getByRole("button", { name: "Corregir y reenviar" }));
     expect(
-      await screen.findByText("Corregir liquidación LIQ-202609-0001"),
+      await screen.findByText("Corregir pago LIQ-202609-0001"),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Guardar y reenviar" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
     await user.click(screen.getByRole("button", { name: "Reenviar sin cambios" }));
     await waitFor(() => expect(mockSubmitSettlement).toHaveBeenCalledWith("set-detail-1"));
+  });
+});
+
+describe("SettlementDetailPage franja Lo ganado − Descuentos = A pagar", () => {
+  function settlementItem(
+    overrides: Partial<NonNullable<DriverSettlement["items"]>[number]>,
+  ): NonNullable<DriverSettlement["items"]>[number] {
+    return {
+      id: "item",
+      settlementId: "set-detail-1",
+      itemType: "bonus",
+      tripId: null,
+      tripExpenseId: null,
+      advanceId: null,
+      description: "",
+      quantity: 1,
+      unitRate: 0,
+      amount: 0,
+      isDeduction: false,
+      createdAt: "2026-09-15T10:00:00Z",
+      ...overrides,
+    };
+  }
+
+  function renderDetail() {
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+          <Routes>
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-approver-999", fullName: "Auditor", tenant: { name: "Tenant" } },
+      isAuthenticated: true,
+    });
+  });
+
+  it("anticipos y otras deducciones: la franja y el desglose cuadran con el neto", async () => {
+    const user = userEvent.setup();
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      totalTripsCommission: 2733,
+      totalBaseSalary: 4500,
+      totalAdvancesDeducted: 2500,
+      totalOtherDeductions: 200,
+      grossAmount: 8033,
+      netAmount: 5333,
+      items: [
+        settlementItem({
+          id: "trip",
+          itemType: "trip_commission",
+          tripId: "trip-1",
+          tripCode: "TRP-260908-0003",
+          description: "Comisión de viaje TRP-260908-0003 (Amazon México → Estadio BBVA · Foráneo)",
+          unitRate: 2733,
+          amount: 2733,
+        }),
+        settlementItem({
+          id: "viaticos",
+          description: "Prestación fija: Viáticos",
+          unitRate: 300,
+          amount: 300,
+          calculationDetails: { source: "fixed_allowance" },
+        }),
+        settlementItem({
+          id: "comidas",
+          description: "Prestación fija: Comidas",
+          unitRate: 500,
+          amount: 500,
+          calculationDetails: { source: "fixed_allowance" },
+        }),
+        settlementItem({
+          id: "salary",
+          itemType: "base_salary",
+          description: "Sueldo base fijo (Semanal)",
+          unitRate: 4500,
+          amount: 4500,
+        }),
+        settlementItem({
+          id: "fondo",
+          itemType: "adjustment",
+          description: "Deducción de plantilla: Fondo de ahorro",
+          unitRate: 200,
+          amount: 200,
+          isDeduction: true,
+          calculationDetails: { source: "template_deduction" },
+        }),
+        settlementItem({
+          id: "advance",
+          itemType: "advance_deduction",
+          advanceId: "adv-1",
+          description: "Descuento de anticipo",
+          unitRate: 2500,
+          amount: 2500,
+          isDeduction: true,
+        }),
+      ],
+    });
+    renderDetail();
+
+    await screen.findByText("LIQ-202609-0001");
+
+    expect(
+      screen.getByText("Sueldo, viajes, prestaciones y reembolsos · 1 viaje"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Descuentos")).toBeInTheDocument();
+    expect(screen.getByText("-$2,700.00")).toBeInTheDocument();
+    expect(
+      screen.getByText("Anticipos $2,500.00 · Otros descuentos $200.00"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("$5,333.00")).toBeInTheDocument();
+    expect(screen.getByText("Lo que recibe el operador")).toBeInTheDocument();
+
+    await user.click(screen.getByText(/Ver desglose/i));
+
+    expect(screen.getByText("2. Descuentos (−)")).toBeInTheDocument();
+    expect(screen.getByText("Viáticos")).toBeInTheDocument();
+    expect(screen.getAllByText("Prestación fija")).toHaveLength(2);
+    expect(screen.getByText("Fondo de ahorro")).toBeInTheDocument();
+    expect(screen.getByText("Deducción de tarifa")).toBeInTheDocument();
+    expect(screen.getByText("De la tarifa del operador")).toBeInTheDocument();
+
+    const deductionsTable = screen.getByRole("table", { name: "Desglose de descuentos" });
+    const bodyRows = deductionsTable.querySelectorAll("tbody tr");
+    expect(bodyRows[0]?.textContent).toContain("Descuento de anticipo");
+    expect(bodyRows[1]?.textContent).toContain("Fondo de ahorro");
+
+    const footer = deductionsTable.querySelector("tfoot")?.textContent ?? "";
+    expect(footer).toContain("Anticipos:-$2,500.00");
+    expect(footer).toContain("Otros descuentos:-$200.00");
+    expect(footer).toContain("Subtotal descuentos:-$2,700.00");
+
+    const earningsFooter =
+      screen.getByRole("table", { name: "Desglose de ingresos" }).querySelector("tfoot")
+        ?.textContent ?? "";
+    expect(earningsFooter).toContain("$8,033.00");
+  });
+
+  it("solo otras deducciones: muestra el total y el subtexto de deducciones", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      totalOtherDeductions: 200,
+      netAmount: 2300,
+    });
+    renderDetail();
+
+    await screen.findByText("LIQ-202609-0001");
+
+    expect(screen.getByText("-$200.00")).toBeInTheDocument();
+    expect(screen.getByText("Deducciones y ajustes en contra")).toBeInTheDocument();
+    expect(screen.getByText("$2,300.00")).toBeInTheDocument();
+  });
+
+  it("sin descuentos: $0.00 sin signo", async () => {
+    mockGetSettlementById.mockResolvedValue(pendingSettlement);
+    renderDetail();
+
+    await screen.findByText("LIQ-202609-0001");
+
+    expect(screen.getByText("$0.00")).toBeInTheDocument();
+    expect(screen.getByText("Sin descuentos en este pago")).toBeInTheDocument();
+  });
+
+  it("descuentos mayores que lo ganado: a pagar en $0.00 con aviso del excedente", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      totalTripsCommission: 2000,
+      grossAmount: 2000,
+      totalAdvancesDeducted: 2500,
+      netAmount: 0,
+    });
+    renderDetail();
+
+    await screen.findByText("LIQ-202609-0001");
+
+    expect(screen.getByText("-$2,500.00")).toBeInTheDocument();
+    expect(screen.getByText("Anticipos descontados en este pago")).toBeInTheDocument();
+    expect(screen.getByText("$0.00")).toBeInTheDocument();
+    expect(
+      screen.getByText("Los descuentos superan lo ganado por $500.00; a pagar queda en $0.00."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Lo que recibe el operador")).not.toBeInTheDocument();
+  });
+
+  it("el aviso usa uncovered_deductions_amount del API cuando viene", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      totalTripsCommission: 2000,
+      grossAmount: 2000,
+      totalAdvancesDeducted: 2500,
+      netAmount: 0,
+      uncoveredDeductionsAmount: 300,
+    });
+    renderDetail();
+
+    await screen.findByText("LIQ-202609-0001");
+
+    expect(
+      screen.getByText("Los descuentos superan lo ganado por $300.00; a pagar queda en $0.00."),
+    ).toBeInTheDocument();
   });
 });

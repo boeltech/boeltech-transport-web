@@ -52,7 +52,7 @@ export function getTemplateCompleteness(
   };
 }
 
-/** Uso al liquidar (listado). Misma regla de completeness: rules OR corridors. */
+/** Uso al armar el pago (listado). Misma regla de completeness: rules OR corridors. */
 export function getTemplateUsageStatus(
   template: Pick<
     CompensationTemplate,

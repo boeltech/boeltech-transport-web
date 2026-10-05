@@ -6,10 +6,12 @@ import {
 } from "@features/approvals";
 import {
   settlementsApi,
+  type CreateReimbursementSettlementPayload,
   type ListSettlementsParams,
   type UpdateSettlementPayload,
 } from "../../infrastructure/settlementsApi";
 import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import type { SettlementStatus } from "../../domain/enums";
 import type {
   CreateSettlementFormData,
   DisburseSettlementFormData,
@@ -40,6 +42,21 @@ export function useCreateSettlement() {
   return useMutation({
     mutationFn: (data: CreateSettlementFormData) =>
       settlementsApi.createSettlement(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.all,
+      });
+      invalidateApprovalsRelatedQueries(queryClient);
+    },
+  });
+}
+
+export function useCreateReimbursementSettlement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateReimbursementSettlementPayload) =>
+      settlementsApi.createReimbursementSettlement(data),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.all,
@@ -165,13 +182,24 @@ export function useCancelSettlement() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => settlementsApi.cancelSettlement(id),
-    onSuccess: (_, id) => {
+    mutationFn: ({
+      id,
+      reason,
+      expectedStatus,
+    }: {
+      id: string;
+      reason?: string;
+      expectedStatus?: SettlementStatus;
+    }) => settlementsApi.cancelSettlement(id, { reason, expectedStatus }),
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.settlementDetail(id),
       });
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.settlements(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.workbench(),
       });
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.advances(),
@@ -193,11 +221,8 @@ export function useDisburseSettlement() {
       id: string;
       data: DisburseSettlementFormData;
       /** D27: `approval_revision` que vio quien registra el pago. */
-      expectedRevision?: string | null;
-    }) =>
-      expectedRevision
-        ? settlementsApi.disburseSettlement(id, data, expectedRevision)
-        : settlementsApi.disburseSettlement(id, data),
+      expectedRevision: string;
+    }) => settlementsApi.disburseSettlement(id, data, expectedRevision),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.settlementDetail(id),

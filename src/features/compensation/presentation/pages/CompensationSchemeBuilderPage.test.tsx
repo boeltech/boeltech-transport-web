@@ -133,7 +133,7 @@ function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build")
           />
           <Route
             path="/finance/settlements/new"
-            element={<div>Nueva liquidación</div>}
+            element={<div>Armar pago</div>}
           />
         </Routes>
       </MemoryRouter>
@@ -176,7 +176,7 @@ describe("CompensationSchemeBuilderPage", () => {
       within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
+      within(desktopNav).getByRole("tab", { name: /Tarifas por corredor/i }),
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText("Nombre")).toHaveValue("Operador foráneo");
@@ -198,7 +198,7 @@ describe("CompensationSchemeBuilderPage", () => {
     ).not.toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: "Vista previa de liquidación" }),
+      screen.getByRole("button", { name: "Vista previa del pago" }),
     ).toBeInTheDocument();
   });
 
@@ -230,7 +230,7 @@ describe("CompensationSchemeBuilderPage", () => {
     ).toBeInTheDocument();
 
     await user.click(
-      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
+      within(desktopNav).getByRole("tab", { name: /Tarifas por corredor/i }),
     );
 
     expect(

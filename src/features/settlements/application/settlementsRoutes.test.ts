@@ -13,6 +13,7 @@ import {
   settlementsAgreementsTabPath,
   settlementsAdvancesPath,
   settlementsRegistryPath,
+  settlementsPendingApprovalPath,
   settlementsWorkbenchBucketPath,
   resolveOperatorPaymentsHubTab,
   SETTLEMENTS_PENDING_APPROVAL_PATH,
@@ -97,9 +98,21 @@ describe("settlementsRoutes", () => {
     expect(settlementsRegistryPath({ status: "approved" })).toBe(
       "/finance/settlements/registry?status=approved",
     );
+    expect(settlementsRegistryPath({ employeeId: "emp-1" })).toBe(
+      "/finance/settlements/registry?employeeId=emp-1",
+    );
     expect(settlementsAdvancesPath()).toBe("/finance/settlements/advances");
     expect(settlementsWorkbenchBucketPath("payable")).toBe(
       "/finance/settlements?bucket=payable",
+    );
+  });
+
+  it("builds pending-approval path with optional driverId", () => {
+    expect(settlementsPendingApprovalPath()).toBe(
+      "/finance/settlements/pending-approval",
+    );
+    expect(settlementsPendingApprovalPath({ driverId: "emp-9" })).toBe(
+      "/finance/settlements/pending-approval?driverId=emp-9",
     );
   });
 

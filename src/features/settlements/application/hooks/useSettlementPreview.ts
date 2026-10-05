@@ -25,3 +25,12 @@ export function useSettlementPreview(
     enabled: isEnabled,
   });
 }
+
+/** ADR-0085 E11 punto 9: reembolsos pendientes del operador para un «Pago de reembolsos». */
+export function useReimbursementSettlementPreview(employeeId: string | null) {
+  return useQuery({
+    queryKey: settlementsQueryKeys.reimbursementPreview(employeeId ?? ""),
+    queryFn: () => settlementsApi.previewReimbursementSettlement(employeeId as string),
+    enabled: !!employeeId,
+  });
+}

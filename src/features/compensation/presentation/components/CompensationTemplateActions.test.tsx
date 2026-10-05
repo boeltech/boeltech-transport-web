@@ -107,7 +107,7 @@ describe("CompensationTemplateActions", () => {
     const onDeleted = vi.fn();
     mockDeleteMutateAsync.mockRejectedValue(
       new ApiError(
-        "No se puede eliminar una plantilla con asignaciones activas o liquidaciones",
+        "No se puede eliminar una plantilla con asignaciones activas o pagos",
         409,
         "TEMPLATE_IN_USE",
       ),

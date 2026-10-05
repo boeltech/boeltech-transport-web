@@ -5,6 +5,8 @@ export * from "./pages/SettlementsRegistryPage";
 export * from "./pages/SettlementsAdvancesPage";
 export * from "./pages/SettlementsPendingApprovalPage";
 export * from "./pages/SettlementCreatePage";
+export * from "./pages/SettlementCreateEntryPage";
+export * from "./pages/SettlementReimbursementCreatePage";
 export * from "./pages/SettlementDetailPage";
 export * from "./utils/settlementExportHelpers";
 export * from "./validation";

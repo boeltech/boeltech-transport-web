@@ -49,6 +49,7 @@ import {
   isIntermediateStep,
   OwnRequestChip,
   OwnRequestMenuItem,
+  ReapprovalConfirmNote,
   resolveApprovalActionUi,
   SelfApprovalConfirmDialog,
   useSelfActionForbiddenHandler,
@@ -60,7 +61,6 @@ import type { DriverSettlement } from "../../domain/entities";
 import {
   invalidateSettlementQueries,
   useApproveSettlement,
-  useCancelSettlement,
   useRejectSettlement,
   useReturnSettlement,
   useSubmitSettlement,
@@ -69,10 +69,11 @@ import { useSettlementSettings } from "../../application/hooks/useSettlementSett
 import { settlementsCompensationApprovalsPath } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
+import { SettlementCancelDialog } from "./SettlementCancelDialog";
 import {
   canDisburse,
   canSubmitVobo,
-  isSettlementDisbursable,
+  isSettlementAwaitingDisbursement,
   isSettlementMaker,
   resolveSettlementDisburseUi,
 } from "../utils/settlementCta";
@@ -81,6 +82,7 @@ import {
   isSettlementReturned,
   settlementGuards,
 } from "../utils/settlementEditing";
+import { isDeductionsExceedGrossError } from "../utils/settlementDeductionCapacity";
 import { settlementToApprovableItem } from "../utils/settlementApprovableItem";
 
 const copy = settlementsCopy;
@@ -95,7 +97,7 @@ interface SettlementActionsProps {
   /** Oculta approve/reject inline y muestra link a bandeja central (D6). */
   approvalLinkOnly?: boolean;
   variant?: "dropdown" | "buttons";
-  /** D21: abre el Sheet «Corregir liquidación» (solo en el detalle, que trae partidas). */
+  /** D21: abre el Sheet «Corregir pago» (solo en el detalle, que trae partidas). */
   onCorrect?: () => void;
 }
 
@@ -130,7 +132,6 @@ export function SettlementActions({
   const approveMutation = useApproveSettlement();
   const rejectMutation = useRejectSettlement();
   const returnMutation = useReturnSettlement();
-  const cancelMutation = useCancelSettlement();
   const isDeciding = rejectMutation.isPending || returnMutation.isPending;
 
   const isPendingApproval = settlement.status === "pending_approval";
@@ -163,7 +164,8 @@ export function SettlementActions({
     : null;
 
   const canSubmit = canSubmitVobo({ settlement, canUpdate });
-  const canCancel = canUpdate && isDraft;
+  // Sin dispersar: el API anula la autorización vigente y libera anticipos.
+  const canCancel = canUpdate && (isDraft || isPendingApproval || isApproved);
   const canDecideNow = canUpdate && isPendingApproval;
   const canApprove = canDecideNow && approvalUi.kind === "act";
   const canReject = canApprove;
@@ -180,8 +182,15 @@ export function SettlementActions({
       approvalUi.kind === "no_active_eligible");
   const showOwnDisburseBlocked =
     disburseUi === "blocked_own" &&
-    isSettlementDisbursable({ settlement, canExecute });
-  const canCorrect = Boolean(onCorrect) && canUpdate && isSettlementCorrectable(settlement.status);
+    canExecute &&
+    isSettlementAwaitingDisbursement(settlement);
+  const showAwaitingTreasuryHint =
+    !canExecute && isSettlementAwaitingDisbursement(settlement);
+  const canCorrect =
+    Boolean(onCorrect) &&
+    canUpdate &&
+    isSettlementCorrectable(settlement.status) &&
+    !isReturned;
   const canOpenHistory = canReadApprovals && settlement.approval != null;
   // Aviso informativo del umbral; no bloquea CTAs — el API es la autoridad.
   const showSettingsUnavailable =
@@ -197,6 +206,18 @@ export function SettlementActions({
     return forbidden
       ? (forbidden.message ?? approvalsCopy.selfApproval.serverRejected)
       : getErrorMessage(error);
+  };
+
+  /** 422 de tope de descuentos: el texto del API dice qué corregir (y si hay que volver a borrador). */
+  const handleDeductionsExceedError = (error: unknown, close?: () => void): boolean => {
+    if (!isDeductionsExceedGrossError(error)) return false;
+    close?.();
+    toast({
+      title: flowCopy.deductionsCap.actionErrorTitle,
+      description: getErrorMessage(error),
+      variant: "error",
+    });
+    return true;
   };
 
   /** Handoff F6 §6: una guarda cierra, avisa y recarga; nunca se reintenta. */
@@ -218,6 +239,7 @@ export function SettlementActions({
       });
       onActionComplete?.();
     } catch (error) {
+      if (handleDeductionsExceedError(error)) return;
       toast({
         title: copy.toasts.submitSettlementError,
         description: getErrorMessage(error),
@@ -247,6 +269,7 @@ export function SettlementActions({
       onActionComplete?.();
     } catch (error) {
       if (handleGuardError(error, closeAll)) return;
+      if (handleDeductionsExceedError(error, closeAll)) return;
       toast({
         title: copy.toasts.approveSettlementError,
         description: describeActionError(error),
@@ -261,24 +284,6 @@ export function SettlementActions({
       return;
     }
     setApproveDialogOpen(true);
-  };
-
-  const handleCancel = async () => {
-    try {
-      await cancelMutation.mutateAsync(settlement.id);
-      toast({
-        title: copy.toasts.cancelSettlementSuccess,
-        variant: "default",
-      });
-      setCancelDialogOpen(false);
-      onActionComplete?.();
-    } catch (error) {
-      toast({
-        title: copy.toasts.cancelSettlementError,
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    }
   };
 
   const closeReasonSheet = () => setReasonMode(null);
@@ -332,6 +337,12 @@ export function SettlementActions({
           subject="settlement"
           onConfirm={handleApprove}
           isPending={approveMutation.isPending}
+          note={
+            <ReapprovalConfirmNote
+              approval={settlement.approval}
+              type="internal_staff_compensation"
+            />
+          }
         />
       ) : (
         <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
@@ -352,6 +363,10 @@ export function SettlementActions({
                   {formatMxCurrency(settlement.netAmount)}
                 </span>
                 {copy.actionDialogs.approveSettlement.descriptionPart4}
+                <ReapprovalConfirmNote
+                  approval={settlement.approval}
+                  type="internal_staff_compensation"
+                />
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -385,6 +400,10 @@ export function SettlementActions({
             </AlertDialogTitle>
             <AlertDialogDescription>
               {approvalsCopy.flow.stepConfirmBody(step?.current ?? 1, step?.total ?? 2)}
+              <ReapprovalConfirmNote
+                approval={settlement.approval}
+                type="internal_staff_compensation"
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -402,34 +421,14 @@ export function SettlementActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.actionDialogs.cancelSettlement.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {copy.actionDialogs.cancelSettlement.descriptionPart1}{" "}
-              <span className="font-semibold text-foreground">
-                {settlement.settlementNumber}
-              </span>{" "}
-              {copy.actionDialogs.cancelSettlement.descriptionPart2}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelMutation.isPending}>
-              {copy.actionDialogs.cancelSettlement.cancel}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancel}
-              disabled={cancelMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelMutation.isPending
-                ? copy.actionDialogs.cancelSettlement.pending
-                : copy.actionDialogs.cancelSettlement.confirm}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {canCancel ? (
+        <SettlementCancelDialog
+          open={cancelDialogOpen}
+          onOpenChange={setCancelDialogOpen}
+          settlement={settlement}
+          onCancelled={() => onActionComplete?.()}
+        />
+      ) : null}
 
       <DecisionReasonSheet
         mode={reasonMode ?? "reject"}
@@ -490,14 +489,19 @@ export function SettlementActions({
             </Button>
           )}
           {canReject && (
-            <Button
-              variant="outline"
-              onClick={() => setReasonMode("return")}
-              disabled={isDeciding}
-            >
-              <Undo2 className="mr-2 h-4 w-4" />
-              {flowCopy.header.returnForCorrection}
-            </Button>
+            <div className="flex max-w-[14rem] flex-col items-stretch gap-1 sm:max-w-none sm:flex-row sm:items-center sm:gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setReasonMode("return")}
+                disabled={isDeciding}
+              >
+                <Undo2 className="mr-2 h-4 w-4" />
+                {flowCopy.header.returnForCorrection}
+              </Button>
+              <p className="text-[11px] leading-snug text-muted-foreground sm:max-w-[12rem]">
+                {flowCopy.returnVsRejectHint}
+              </p>
+            </div>
           )}
           {canApprove && (
             <Button
@@ -511,6 +515,11 @@ export function SettlementActions({
           {showApprovalStateChip && <ApprovalActionStateChip actionUi={approvalUi} />}
           {showOwnApproveBlocked && <OwnRequestChip />}
           {showOwnDisburseBlocked && <OwnRequestChip kind="disburse" />}
+          {showAwaitingTreasuryHint ? (
+            <p className="max-w-[14rem] text-[11px] leading-snug text-muted-foreground sm:max-w-[16rem]">
+              {copy.actions.awaitingTreasuryDisburse}
+            </p>
+          ) : null}
           {canDisburseAction && (
             <Button onClick={openDisburse}>
               <Banknote className="mr-2 h-4 w-4" />
@@ -538,7 +547,6 @@ export function SettlementActions({
                 {canCancel ? (
                   <DropdownMenuItem
                     onClick={() => setCancelDialogOpen(true)}
-                    disabled={cancelMutation.isPending}
                     className="text-destructive focus:text-destructive"
                   >
                     <XCircle className="mr-2 h-4 w-4" />
@@ -598,16 +606,6 @@ export function SettlementActions({
                 <Send className="mr-2 h-4 w-4" />
                 {submitLabel}
               </DropdownMenuItem>
-              {canCancel ? (
-                <DropdownMenuItem
-                  onClick={() => setCancelDialogOpen(true)}
-                  disabled={cancelMutation.isPending}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <XCircle className="mr-2 h-4 w-4" />
-                  {copy.actions.cancelSettlement}
-                </DropdownMenuItem>
-              ) : null}
             </>
           )}
 
@@ -672,6 +670,18 @@ export function SettlementActions({
               <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
                 <History className="mr-2 h-4 w-4" />
                 {flowCopy.header.menuHistory}
+              </DropdownMenuItem>
+            </>
+          )}
+          {canCancel && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setCancelDialogOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                {copy.actions.cancelSettlement}
               </DropdownMenuItem>
             </>
           )}
