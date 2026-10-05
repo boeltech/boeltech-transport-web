@@ -25,6 +25,8 @@ import { CompensationTemplateDetailRedirect } from "@features/compensation/prese
 import { CorridorTariffsListPage } from "@features/compensation/presentation/pages/CorridorTariffsListPage";
 import { AgreementsLegacyRedirect } from "@features/compensation/presentation/routes/AgreementsLegacyRedirect";
 import { SettlementCreatePage } from "@features/settlements/presentation/pages/SettlementCreatePage";
+import { compensationCopy } from "@features/compensation/presentation/copy/compensationCopy";
+import { settlementsCopy } from "@features/settlements/presentation/copy/settlementsCopy";
 
 const {
   mockListTemplates,
@@ -469,7 +471,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     expect(screen.getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
     // Vista previa vive en el footer del Builder (botón), no como link en el inspector.
     expect(
-      screen.getByRole("button", { name: "Vista previa de liquidación" }),
+      screen.getByRole("button", { name: compensationCopy.builder.trySchemeTitle }),
     ).toBeInTheDocument();
   });
 
@@ -531,7 +533,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
 
     expect(screen.getByRole("columnheader", { name: /^Operadores$/i })).toBeInTheDocument();
     expect(screen.getByTitle(/^1 operadores$/i)).toBeInTheDocument();
-    expect(screen.getByText("Listo para liquidar")).toBeInTheDocument();
+    expect(screen.getByText(compensationCopy.templates.usage.ready)).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: /^Editar$/i }));
 
@@ -581,7 +583,11 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     expect(screen.getByText(/Tarifa Operador foráneo/i)).toBeInTheDocument();
-    expect(screen.getByText(/Corredor: México → MTY/i)).toBeInTheDocument();
+    // El nombre y monto del corredor viven en el title del badge; el texto visible es solo la etiqueta.
+    const corridorBadge = screen.getByTitle(/^México → MTY — \$1,500\.00/);
+    expect(corridorBadge).toHaveTextContent(
+      settlementsCopy.createPage.trips.corridorBadgeLabel,
+    );
     expect(screen.getByText(/Prestaciones fijas/i)).toBeInTheDocument();
     expect(screen.getAllByText("$1,500.00").length).toBeGreaterThanOrEqual(1);
   });
