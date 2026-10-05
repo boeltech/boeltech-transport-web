@@ -278,7 +278,7 @@ export const financeCopy = {
     },
     accountStatement: {
       description:
-        "Por cobrar es el pendiente de cartera (mismo criterio que Cobros y el detalle). Pagado es facturado menos por cobrar; en PUE liquidada coincide con el total.",
+        "Por cobrar es el saldo pendiente. Abiertas son facturas PPD con saldo (cola Cobros). Pagado es facturado menos por cobrar.",
       collectAction: "Cobrar",
       collectActionAria: (clientName: string) =>
         `Cobrar a ${clientName}`,
@@ -312,7 +312,7 @@ export const financeCopy = {
       paid: "Pagado",
       balance: "Por cobrar",
       overdue: "Vencido",
-      invoices: "Facturas",
+      invoices: "Abiertas",
       actions: "Acciones",
     },
     charts: {

@@ -61,6 +61,7 @@ export function mapAccountStatementItem(
     totalPaid: asNumber(raw.total_paid),
     balanceDue: asNumber(raw.balance_due),
     invoiceCount: asNumber(raw.invoice_count),
+    openInvoiceCount: asNumber(raw.open_invoice_count),
     overdueAmount: asNumber(raw.overdue_amount),
   };
 }

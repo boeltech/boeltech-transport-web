@@ -38,7 +38,10 @@ export interface AccountStatementItem {
   totalInvoiced: number;
   totalPaid: number;
   balanceDue: number;
+  /** Todas las facturas stamped del cliente (histórico). */
   invoiceCount: number;
+  /** Facturas PPD con saldo (mismo predicado que cola Cobros). */
+  openInvoiceCount: number;
   overdueAmount: number;
 }
 

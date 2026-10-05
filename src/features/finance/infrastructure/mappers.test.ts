@@ -95,12 +95,29 @@ describe("mapAccountStatementItem", () => {
       total_paid: 0,
       balance_due: 0,
       invoice_count: 2,
+      open_invoice_count: 1,
       overdue_amount: 0,
     });
     expect(row.balanceDue).toBe(0);
     expect(row.totalPaid).toBe(0);
+    expect(row.invoiceCount).toBe(2);
+    expect(row.openInvoiceCount).toBe(1);
     expect(getAccountStatementDisplayPaid(row)).toBe(31920);
     expect(getAccountStatementDisplayPaid(row)).not.toBe(row.totalPaid);
+  });
+
+  it("defaults openInvoiceCount to 0 when open_invoice_count is omitted", () => {
+    const row = mapAccountStatementItem({
+      client_rfc: "XAXX010101000",
+      client_name: "PUBLICO EN GENERAL",
+      total_invoiced: 1000,
+      total_paid: 0,
+      balance_due: 1000,
+      invoice_count: 3,
+      overdue_amount: 0,
+    });
+    expect(row.openInvoiceCount).toBe(0);
+    expect(row.invoiceCount).toBe(3);
   });
 });
 

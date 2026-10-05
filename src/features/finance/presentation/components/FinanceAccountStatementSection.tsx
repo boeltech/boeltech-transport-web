@@ -121,11 +121,11 @@ export function FinanceAccountStatementSection({
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="secondary">{row.invoiceCount}</Badge>
+                      <Badge variant="secondary">{row.openInvoiceCount}</Badge>
                     </TableCell>
                     {showCollect ? (
                       <TableCell className="text-right">
-                        {row.balanceDue > 0 ? (
+                        {row.openInvoiceCount > 0 ? (
                           <Button
                             type="button"
                             size="sm"
