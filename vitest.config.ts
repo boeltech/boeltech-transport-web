@@ -6,6 +6,10 @@ import path from "node:path";
  * Convención: un test que necesita DOM (jsdom, Testing Library, renderHook,
  * window/document/storage) vive en `*.test.tsx`; `*.test.ts` corre en node.
  * `src/smoke/**` es el proyecto `flows` sin importar la extensión.
+ *
+ * Smokes: un archivo por flujo, `src/smoke/<slug>.smoke.test.tsx`. Se corren con
+ * `npm run test:flows -- <slug>` (filtro de Vitest por nombre de archivo); no se
+ * agregan scripts `test:smoke:*` nuevos — los existentes son alias deprecados.
  */
 const SMOKE = "src/smoke/**";
 const DOM_SETUP = "./src/test/setup.dom.ts";

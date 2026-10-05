@@ -5,6 +5,7 @@ import {
   StopType,
   TripOperationalOutcome,
   TripStatus,
+  type CargoMovement,
   type TripCargo,
   type TripStop,
 } from "@features/trips/domain";
@@ -31,6 +32,12 @@ function cargo(partial: Partial<TripCargo> = {}): TripCargo {
     movements: [],
     ...partial,
   } as TripCargo;
+}
+
+function movement(
+  partial: Pick<CargoMovement, "movementType" | "stopId" | "stopIndex">,
+): CargoMovement {
+  return { weight: null, units: null, completedAt: null, notes: null, ...partial };
 }
 
 describe("canQuickCloseTrip", () => {
@@ -64,16 +71,8 @@ describe("canQuickCloseTrip", () => {
       id: "c-in-transit",
       status: CargoStatus.IN_TRANSIT,
       movements: [
-        {
-          movementType: "pickup",
-          stopId: "o1",
-          stopIndex: 0,
-        },
-        {
-          movementType: "delivery",
-          stopId: "d1",
-          stopIndex: 2,
-        },
+        movement({ movementType: "pickup", stopId: "o1", stopIndex: 0 }),
+        movement({ movementType: "delivery", stopId: "d1", stopIndex: 2 }),
       ],
     });
 
@@ -118,11 +117,7 @@ describe("canQuickCloseTrip", () => {
       id: "c-deliver",
       status: CargoStatus.IN_TRANSIT,
       movements: [
-        {
-          movementType: "delivery",
-          stopId: "d2",
-          stopIndex: 2,
-        },
+        movement({ movementType: "delivery", stopId: "d2", stopIndex: 2 }),
       ],
     });
 
@@ -147,11 +142,7 @@ describe("canQuickCloseTrip", () => {
       id: "c-pickup",
       status: CargoStatus.PENDING,
       movements: [
-        {
-          movementType: "pickup",
-          stopId: "w2",
-          stopIndex: 1,
-        },
+        movement({ movementType: "pickup", stopId: "w2", stopIndex: 1 }),
       ],
     });
 

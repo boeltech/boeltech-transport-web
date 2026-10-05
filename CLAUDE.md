@@ -8,38 +8,42 @@ Guía mínima para agentes en este repo. **Documentación detallada:** `D:\cowor
 npm run dev        # Vite HMR
 npm run build      # tsc -b && vite build
 npm run lint
-npm run test       # Vitest (max 2 workers en local)
+npm run test       # Vitest: proyectos node + dom + flows (max 2 workers en local)
 npm run test:serial # Vitest 1 worker — máquinas 8 GB
 npm run test:watch # cerrar al terminar (proceso persistente)
-npm run test:smoke:approvals   # smoke WS-F bandeja + badge dashboard
-npm run test:smoke:approval-policies # smoke ADR-0099 reglas de autorización (plantillas, 422/409/403, simulador, historial, permisos, guardia de huérfanos)
-npm run test:smoke:notifications # smoke inbox campana + /notifications
-npm run test:smoke:fiscal-edit # smoke WS-G timbrar → corregir RFC → retimbrar
-npm run test:smoke:address-picker # smoke WS-ADDR-PRELOAD precarga parada + sustitución (partner snapshot)
-npm run test:smoke:location-field # smoke ADR-0092 LocationField BUSCAR→USAR + helpers SAT
-npm run test:smoke:platform      # smoke ADR-0062 panel tenant 0 (métricas → empresas → suspender)
-npm run test:smoke:platform-tenant-activate # smoke ADR-0073 activación admin (create/card/activate-tenant)
-npm run test:smoke:platform-catalogs-import # smoke release kit SAT (hub + plantilla + estimate; support RO)
-npm run test:smoke:billing       # smoke ADR-0064 plan/consumo + paywall equipo de apoyo
-npm run test:smoke:billing-ar    # smoke ADR-0072 saldo AR tenant (julio open → mark paid)
-npm run test:smoke:billing-stripe # smoke ADR-0076 Stripe-A + Stripe-B: Pagar ahora / Cobrar con Stripe + franja/chip/alert (mock)
-npm run test:smoke:billing-dispatch # smoke ADR-0082 corrida preview → confirm-send (digest)
-npm run test:smoke:invoice-auto-dispatch # smoke ADR-0083 flag + badge Automática + alerta failed
-npm run test:smoke:auth-phase2   # smoke ADR-0070 MFA/sesiones/cookies (contrato cliente + interceptor)
-npm run test:smoke:catalogs-tenant # smoke catálogos tenant: sin import SAT + CRUD internos
-npm run test:smoke:credit        # smoke OP-L0.9 exposición crédito detalle + wizard Costos
-npm run test:smoke:branches      # smoke sucursales: listado → detalle (mapa geo) → export → baja/restaurar + wizard alta
-npm run test:smoke:branch-kpis   # smoke SUC-M12 widget dashboard compare + tarjeta KPI detalle sucursal
-npm run test:smoke:trip-multi-invoice # smoke ADR-0068 flete + factura accesoria (CTA/scope/badge)
-npm run test:smoke:trip-false-trip # smoke ADR-0079 viaje en falso (CTA/scope/badge, sin PAC)
-npm run test:smoke:trip-revenue-split # smoke ADR-0081 prorrateo multi-RFC (CTA/scope/badge, sin PAC)
-npm run test:smoke:trip-trailers # smoke ADR-0077 remolques S/R + snapshot + cutover /trailers
-npm run test:smoke:trip-canvas # smoke ADR-0078 Reservar → canvas → detalle riel → parada → confirmar
-npm run test:smoke:trip-mid-trip # smoke ADR-0093 E1 mid-trip (composer pending-only / replan / fiscal)
-npm run test:smoke:settlements # smoke ADR-0085 liquidaciones y compensación a operadores
-npm run test:smoke:compensation-templates # smoke ADR-0089 plantillas, corredores y preview liquidación
-npm run test:smoke:drivers     # smoke wizard alta conductor /drivers/new
+npm run test:node  # proyecto node: src/**/*.test.ts (sin DOM)
+npm run test:dom   # proyecto dom: src/**/*.test.tsx (jsdom + src/test/setup.dom.ts)
+npm run test:flows # proyecto flows: todos los smokes src/smoke/**
+npm run test:flows -- <slug>  # un smoke: filtra por nombre de archivo (src/smoke/<slug>.smoke.test.tsx)
+npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de excluidos solo se achica)
 ```
+
+**Smokes:** forma canónica `npm run test:flows -- <slug>`; un smoke nuevo es un archivo `src/smoke/<slug>.smoke.test.tsx`, **sin** script nuevo en `package.json`. Slugs por área:
+
+| Slug (`test:flows -- …`) | Cubre |
+|---|---|
+| `approvals-` · `trip-expense-` | WS-F bandeja + badge dashboard; gastos de viaje (aprobación / autoaprobación) |
+| `approval-policies` | ADR-0099 reglas de autorización (plantillas, 422/409/403, simulador, historial, guardia de huérfanos) |
+| `notifications-inbox` | inbox campana + `/notifications` |
+| `fiscal-edit` | WS-G timbrar → corregir RFC → retimbrar |
+| `address-picker-` | WS-ADDR-PRELOAD precarga parada + sustitución |
+| `address-cfdi-v03` | direcciones SAT v0.3+ (contrato paquete) |
+| `location-field` | ADR-0092 LocationField BUSCAR→USAR |
+| `platform-admin` · `platform-ar` · `session-platform-erp-isolation` | ADR-0062 panel tenant 0 + aislamiento de sesión |
+| `platform-tenant-activate` | ADR-0073 activación admin |
+| `platform-catalogs-import` | release kit SAT |
+| `billing-workflow` · `billing-ar` · `billing-stripe` | ADR-0064 plan/consumo · ADR-0072 saldo AR · ADR-0076 Stripe-A/B |
+| `billing-dispatch` · `invoice-auto-dispatch` · `finance-dispatch-workbench` | ADR-0082 corrida · ADR-0083 envío automático · workbench Finanzas |
+| `auth-phase2` | ADR-0070 MFA/sesiones/cookies |
+| `catalogs-tenant` · `imports-workflow` | catálogos tenant · importaciones |
+| `credit-exposure` · `profitability-scope` | OP-L0.9 crédito · rentabilidad |
+| `branches-workflow` | sucursales (listado → detalle → export → baja/restaurar) |
+| `trip-multi-invoice` · `trip-false-trip` · `trip-revenue-split` · `trip-sin-cfdi` | ADR-0068 · ADR-0079 · ADR-0081 · viaje sin CFDI |
+| `trip-trailers` · `trip-canvas` · `trip-mid-trip` | ADR-0077 remolques · ADR-0078 canvas · ADR-0093 E1 mid-trip |
+| `settlements-workflow` · `compensation-templates` · `drivers-workflow` | ADR-0085 liquidaciones · ADR-0089 plantillas · alta conductor |
+| `dark.smoke` | smokes de tema oscuro (ya corren en `npm run test`) |
+
+**Deprecado (se retira en el próximo ciclo):** `npm run test:smoke:<x>` sigue existiendo como alias de `vitest run --project flows <filtro>` y corre **solo** su(s) smoke(s); las unitarias que antes listaba ya corren en `test:node` / `test:dom`. Excepción: `test:smoke:branch-kpis` no tiene smoke y corre los dos tests de componente SUC-M12 en el proyecto `dom`. Las menciones `Smoke npm run test:smoke:…` en las secciones de abajo equivalen a `npm run test:flows -- <slug>`.
 
 **Liquidaciones y compensación a operadores (ADR-0085 / ADR-0086 / ADR-0087 + greenfield-base F8–F16):** hub **Pagos a operadores** siempre (`/finance/settlements`, tabs + sidebar); umbral VoBo default **0** (todo corte exige autorización hasta que el tenant lo suba); 7 categorías de anticipo; cálculo reactivo (`/finance/settlements/new`); detalle inmutable con balance strip y evidencia D3′; maker-checker; recibo de firma. Smoke `npm run test:smoke:settlements`. Guía: `D:\cowork\boeltech\erp-transport\docs\finanzas\liquidaciones-operadores-usuario.md` · diseño: `D:\cowork\boeltech\erp-transport\design\adr\0086-esquemas-compuestos-compensacion-operadores.md` · gobernanza: `D:\cowork\boeltech\erp-transport\design\adr\0087-gobernanza-tarifas-compensacion-operadores.md` · addendum base: `…/design/adr/0085-addendum-greenfield-como-base.md`.
 

@@ -9,6 +9,7 @@ import {
   readCobrosFollowThrough,
   shouldClearCobrosFollowThrough,
   writeCobrosFollowThrough,
+  type CobrosFollowThrough,
 } from "./cobrosFollowThrough";
 
 function buildInvoice(): FinanceInvoiceListItem {
@@ -59,14 +60,14 @@ function buildPayment(overrides?: Partial<FinancePayment>): FinancePayment {
   };
 }
 
-const baseFollowThrough = {
+const baseFollowThrough: CobrosFollowThrough = {
   paymentId: "pay-1",
   receiverRfc: "XAXX010101000",
   amount: 1160,
   paymentDate: "2026-08-18",
   repStatus: "pending",
   invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
-} as const;
+};
 
 describe("parseCobrosFollowThrough", () => {
   it("keeps a valid snapshot so the cobro lote survives leaving open-ppd", () => {
