@@ -1,17 +1,57 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import path from "node:path";
+
+/**
+ * Convención: un test que necesita DOM (jsdom, Testing Library, renderHook,
+ * window/document/storage) vive en `*.test.tsx`; `*.test.ts` corre en node.
+ * `src/smoke/**` es el proyecto `flows` sin importar la extensión.
+ */
+const SMOKE = "src/smoke/**";
+const DOM_SETUP = "./src/test/setup.dom.ts";
 
 export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    environment: "jsdom",
-    setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-    pool: "forks",
+    // Tope global: todos los proyectos comparten un solo pool y este límite
+    // (mismo `sequence.groupOrder`). `--maxWorkers` por CLI NO se propaga a
+    // los proyectos; para serializar usa `--no-file-parallelism` o VITEST_SERIAL=1.
     maxWorkers: process.env.CI ? undefined : 2,
     fileParallelism: process.env.VITEST_SERIAL !== "1",
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          pool: "threads",
+          include: ["src/**/*.test.ts"],
+          exclude: [...configDefaults.exclude, SMOKE],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "dom",
+          environment: "jsdom",
+          pool: "forks",
+          setupFiles: [DOM_SETUP],
+          include: ["src/**/*.test.tsx"],
+          exclude: [...configDefaults.exclude, SMOKE],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "flows",
+          environment: "jsdom",
+          pool: "forks",
+          setupFiles: [DOM_SETUP],
+          include: [`${SMOKE}/*.test.{ts,tsx}`],
+        },
+      },
+    ],
   },
   resolve: {
     alias: {
