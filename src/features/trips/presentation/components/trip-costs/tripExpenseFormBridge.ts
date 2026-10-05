@@ -1,5 +1,6 @@
 import type { CreateExpenseInput, TripExpense, UpdateExpenseInput } from "@features/trips/domain";
 import type { TripExpenseFormValues } from "../../pages/create/components/validation";
+import type { TripExpenseListItem } from "./TripExpenseEditableList";
 
 export function tripExpenseToFormValues(expense: TripExpense): TripExpenseFormValues {
   return {
@@ -7,10 +8,10 @@ export function tripExpenseToFormValues(expense: TripExpense): TripExpenseFormVa
     category: expense.category,
     description: expense.description,
     amount: expense.amount,
-    currency: "MXN",
+    currency: expense.currency ?? "MXN",
+    paymentSource: expense.paymentSource ?? "driver",
     vendorName: expense.vendorName ?? "",
     notes: expense.notes ?? "",
-    isEstimated: expense.isEstimated,
   };
 }
 
@@ -22,9 +23,9 @@ export function formValuesToCreateExpenseInput(
     description: values.description,
     amount: values.amount,
     currency: values.currency,
+    paymentSource: values.paymentSource ?? "driver",
     vendorName: values.vendorName?.trim() || undefined,
     notes: values.notes?.trim() || undefined,
-    isEstimated: values.isEstimated,
   };
 }
 
@@ -36,13 +37,11 @@ export function formValuesToUpdateExpenseInput(
     description: values.description,
     amount: values.amount,
     currency: values.currency,
+    paymentSource: values.paymentSource ?? "driver",
     vendorName: values.vendorName?.trim() || null,
     notes: values.notes?.trim() || null,
-    isEstimated: values.isEstimated,
   };
 }
-
-import type { TripExpenseListItem } from "./TripExpenseEditableList";
 
 export function tripExpensesToListItems(expenses: TripExpense[]): TripExpenseListItem[] {
   return expenses.map((expense) => ({
@@ -51,8 +50,8 @@ export function tripExpensesToListItems(expenses: TripExpense[]): TripExpenseLis
     description: expense.description,
     amount: expense.amount,
     vendorName: expense.vendorName ?? undefined,
+    paymentSource: expense.paymentSource,
     status: expense.status,
-    isEstimated: expense.isEstimated,
     expenseDate: expense.expenseDate,
     hasReceipt: expense.hasReceipt,
     createdBy: expense.createdBy,

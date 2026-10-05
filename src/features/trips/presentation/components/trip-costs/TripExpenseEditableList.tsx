@@ -28,6 +28,7 @@ import {
   EXPENSE_STATUS_LABELS,
   type ExpenseCategoryType,
   type ExpenseStatusType,
+  type PaymentSource,
 } from "@features/trips/domain";
 import { formatDateTime } from "@shared/utils/dateUtils";
 
@@ -44,8 +45,8 @@ export interface TripExpenseListItem {
   description: string;
   amount: number;
   vendorName?: string;
+  paymentSource?: PaymentSource;
   status?: ExpenseStatusType;
-  isEstimated?: boolean;
   expenseDate?: Date;
   hasReceipt?: boolean;
   createdBy?: string | null;
@@ -216,9 +217,14 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
                 {statusBadgeLabel(expense.status)}
               </Badge>
             ) : null}
-            {showDetailMeta && expense.isEstimated ? (
+            {expense.paymentSource === "company" ? (
               <Badge variant="secondary" className="text-xs font-normal">
-                {copy.state.estimated}
+                {copy.paymentSource.badgeCompany}
+              </Badge>
+            ) : null}
+            {expense.paymentSource === "advance" ? (
+              <Badge variant="secondary" className="text-xs font-normal">
+                {copy.paymentSource.badgeAdvance}
               </Badge>
             ) : null}
             {showDetailMeta &&

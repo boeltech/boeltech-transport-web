@@ -1,6 +1,6 @@
 /**
  * Copy ADR-0096 — intención de liquidación / emisión CFDI (viaje).
- * Sentence-case; PRD agent c6ed85df.
+ * Sentence-case; PRD agent c6ed85df · ledger abonos (addendum 2026-10-04).
  */
 
 export const cfdiEmissionIntentCopy = {
@@ -52,31 +52,67 @@ export const cfdiEmissionIntentCopy = {
   },
   cash: {
     sectionTitle: "Cobro en efectivo",
-    statusPending: "Pendiente de cobro",
-    statusCollected: "Cobrado en efectivo",
-    scorecardLabel: "Cobrado en efectivo",
-    ctaRegister: "Registrar cobro en efectivo",
+    statusPending: "Pendiente",
+    statusPartial: "Cobro parcial",
+    statusCollected: "Cobrado",
+    /** @deprecated Prefer scorecardAccumulatedLabel */
+    scorecardLabel: "Efectivo acumulado",
+    scorecardAccumulatedLabel: "Efectivo acumulado",
+    scorecardPendingLabel: "Por cobrar",
+    ctaRegister: "Registrar abono",
+    ctaDisabledCollected: "El cobro ya cubre la tarifa",
+    emptyHistory: "Aún no hay abonos registrados.",
+    historyTitle: "Historial de abonos",
+    receiptVoided: "Anulado",
+    receiptActive: "Activo",
+    voidCta: "Anular",
+    pendingHint: (amountLabel: string) => `Por cobrar: ${amountLabel}`,
     sheet: {
-      title: "Registrar cobro en efectivo",
+      title: "Registrar abono",
       description:
-        "Registra el efectivo cobrado del flete. No genera CFDI ni afecta Cobrado del viaje fiscal.",
-      amount: "Monto (MXN)",
+        "Registra un abono del flete en efectivo. No genera CFDI ni afecta Cobrado del viaje fiscal.",
+      amount: "Monto del abono (MXN)",
       collectedAt: "Fecha y hora del cobro",
       note: "Nota (opcional)",
       notePlaceholder: "Referencia interna, folio de caja…",
-      submit: "Registrar cobro",
+      submit: "Registrar abono",
       submitting: "Registrando…",
       cancel: "Cancelar",
+      pendingHint: (amountLabel: string) =>
+        `Saldo por cobrar: ${amountLabel}. El monto por defecto es ese saldo.`,
+      warningPartial: (amountLabel: string) =>
+        `Este abono no cubre todo el saldo (${amountLabel} por cobrar). Podrás registrar el resto después.`,
+      warningExceeds: (amountLabel: string) =>
+        `El abono no puede exceder el saldo por cobrar (${amountLabel}).`,
+    },
+    voidSheet: {
+      title: "Anular abono",
+      description:
+        "El abono quedará en el historial como anulado. Para corregir el monto, registra un abono nuevo después.",
+      reason: "Motivo de anulación",
+      reasonPlaceholder: "Error de captura, cobro duplicado…",
+      submit: "Anular abono",
+      submitting: "Anulando…",
+      cancel: "Cancelar",
+      amountLabel: "Monto a anular",
     },
     toast: {
-      success: "Cobro en efectivo registrado",
-      error: "No se pudo registrar el cobro",
+      success: "Abono registrado",
+      error: "No se pudo registrar el abono",
+      voidSuccess: "Abono anulado",
+      voidError: "No se pudo anular el abono",
+      exceedsRate: "El abono excede el saldo por cobrar",
+      notAllowed: "Este viaje no admite cobro operativo en efectivo",
+      alreadyVoided: "Este abono ya estaba anulado",
     },
     validation: {
-      amountRequired: "Indica el monto cobrado",
+      amountRequired: "Indica el monto del abono",
       amountPositive: "El monto debe ser mayor a cero",
+      amountExceedsPending: "El monto no puede exceder el saldo por cobrar",
       collectedAtRequired: "Indica la fecha y hora del cobro",
       noteMax: "La nota no puede exceder 250 caracteres",
+      voidReasonRequired: "Indica el motivo de anulación",
+      voidReasonMax: "El motivo no puede exceder 250 caracteres",
     },
   },
 } as const;

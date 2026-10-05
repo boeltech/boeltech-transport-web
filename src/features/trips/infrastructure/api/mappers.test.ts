@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   mapApiExpense,
+  mapApiOperationalCashReceipt,
+  mapApiOperationalCashSummary,
   mapApiTrip,
   mapApiTripListItem,
   mapApiTripRevenueSplit,
@@ -375,5 +377,118 @@ describe("mapApiExpense self-approval evidence (ADR-0098)", () => {
     const mapped = mapApiExpense(baseExpense);
     expect(mapped.selfSegregatedApproval).toBe(false);
     expect(mapped.approverCountAtApprove).toBeNull();
+  });
+
+  it("mapea is_estimated legacy sin exigir el campo", () => {
+    expect(mapApiExpense(baseExpense).isEstimated).toBe(false);
+    expect(
+      mapApiExpense({
+        ...baseExpense,
+        is_estimated: undefined,
+      }).isEstimated,
+    ).toBeUndefined();
+  });
+});
+
+describe("mapApiOperationalCash* (ADR-0096 addendum)", () => {
+  it("maps operational_cash summary snake→camel", () => {
+    expect(
+      mapApiOperationalCashSummary({
+        status: "partial",
+        collected_total: "10000.00",
+        pending_amount: 14500,
+        base_rate: 24500,
+        receipt_count: 1,
+      }),
+    ).toEqual({
+      status: "partial",
+      collectedTotal: 10000,
+      pendingAmount: 14500,
+      baseRate: 24500,
+      receiptCount: 1,
+    });
+    expect(mapApiOperationalCashSummary(null)).toBeNull();
+  });
+
+  it("maps receipt and embeds summary on trip detail", () => {
+    const receipt = mapApiOperationalCashReceipt({
+      id: "r1",
+      trip_id: "trip-1",
+      amount: 10000,
+      collected_at: "2026-10-04T12:00:00.000Z",
+      note: "anticipo",
+      created_by: "u1",
+      created_at: "2026-10-04T12:05:00.000Z",
+      voided_at: null,
+      voided_by: null,
+      void_reason: null,
+    });
+    expect(receipt).toMatchObject({
+      id: "r1",
+      tripId: "trip-1",
+      amount: 10000,
+      note: "anticipo",
+      voidedAt: null,
+    });
+    expect(receipt.collectedAt.toISOString()).toBe(
+      "2026-10-04T12:00:00.000Z",
+    );
+
+    const trip = mapApiTrip({
+      id: "trip-1",
+      tenant_id: "t-1",
+      trip_code: "V-1",
+      vehicle_id: "veh-1",
+      driver_id: "drv-1",
+      client_id: null,
+      scheduled_departure: "2026-07-01T10:00:00.000Z",
+      scheduled_arrival: null,
+      actual_departure: null,
+      actual_arrival: null,
+      start_mileage: null,
+      end_mileage: null,
+      origin_city: "QRO",
+      origin_state: null,
+      destination_city: "CDMX",
+      destination_state: null,
+      cargo_description: null,
+      cargo_weight: null,
+      cargo_volume: null,
+      cargo_units: null,
+      cargo_value: null,
+      base_rate: 24500,
+      fuel_cost: 0,
+      toll_cost: 0,
+      other_costs: 0,
+      total_cost: 0,
+      status: "completed",
+      notes: null,
+      cancellation_reason: null,
+      total_dist_rec: null,
+      id_ccp: null,
+      operational_cash_amount: 10000,
+      operational_cash_collected_at: "2026-10-04T12:00:00.000Z",
+      operational_cash_note: null,
+      operational_cash: {
+        status: "partial",
+        collected_total: 10000,
+        pending_amount: 14500,
+        base_rate: 24500,
+        receipt_count: 1,
+      },
+      created_at: "2026-07-01T09:00:00.000Z",
+      updated_at: "2026-07-01T09:00:00.000Z",
+      created_by: null,
+      updated_by: null,
+    } as ApiTripResponse);
+
+    expect(trip.operationalCash).toEqual({
+      status: "partial",
+      collectedTotal: 10000,
+      pendingAmount: 14500,
+      baseRate: 24500,
+      receiptCount: 1,
+    });
+    expect(trip.operationalCashAmount).toBe(10000);
   });
 });

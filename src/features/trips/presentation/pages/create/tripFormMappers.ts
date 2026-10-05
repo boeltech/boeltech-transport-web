@@ -118,13 +118,13 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
     description: expense.description,
     amount: expense.amount,
     currency: "MXN" as const,
+    paymentSource: expense.paymentSource ?? ("driver" as const),
     expenseDate: expense.expenseDate
       ? utcIsoToLocalInput(expense.expenseDate.toISOString())
       : undefined,
     location: expense.location || undefined,
     vendorName: expense.vendorName || undefined,
     notes: expense.notes || undefined,
-    isEstimated: true,
   }));
 
   const mappedInternalStaff = (trip.internalStaff || []).map((member) => ({

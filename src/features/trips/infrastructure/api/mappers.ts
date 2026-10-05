@@ -28,9 +28,13 @@ import type {
   TripTrailerRef,
   TripRevenueSplit,
   TripRevenueSplitLeg,
+  OperationalCashCollectionStatus,
+  OperationalCashReceipt,
+  OperationalCashSummary,
   //   TripStatusType,
   CurrencyType,
   TripRouteTypeValue,
+  PaymentSource,
 } from "@features/trips/domain";
 import type {
   ApiTripResponse,
@@ -48,11 +52,20 @@ import type {
   ApiExpensesSummaryResponse,
   ApiTripRevenueSplitResponse,
   ApiTripRevenueSplitLegResponse,
+  ApiOperationalCashReceiptResponse,
 } from "./api-types";
 
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
+
+/** Default `driver` si el API no envía valor reconocido. */
+function mapPaymentSource(
+  value: string | null | undefined,
+): PaymentSource {
+  if (value === "company" || value === "advance") return value;
+  return "driver";
+}
 
 /** ADR-0086 — default API/BD `long_haul` si el payload omite o es inválido. */
 function mapRouteType(
@@ -98,6 +111,45 @@ function toDateOrNull(value: string | null | undefined): Date | null {
  */
 function toDate(value: string): Date {
   return new Date(value);
+}
+
+function mapOperationalCashStatus(
+  value: string | null | undefined,
+): OperationalCashCollectionStatus {
+  if (value === "partial" || value === "collected" || value === "pending") {
+    return value;
+  }
+  return "pending";
+}
+
+export function mapApiOperationalCashSummary(
+  api: ApiTripResponse["operational_cash"] | null | undefined,
+): OperationalCashSummary | null {
+  if (!api) return null;
+  return {
+    status: mapOperationalCashStatus(api.status),
+    collectedTotal: toNumberOrDefault(api.collected_total),
+    pendingAmount: toNumberOrDefault(api.pending_amount),
+    baseRate: toNumberOrDefault(api.base_rate),
+    receiptCount: toNumberOrDefault(api.receipt_count),
+  };
+}
+
+export function mapApiOperationalCashReceipt(
+  api: ApiOperationalCashReceiptResponse,
+): OperationalCashReceipt {
+  return {
+    id: api.id,
+    tripId: api.trip_id,
+    amount: toNumberOrDefault(api.amount),
+    collectedAt: toDate(api.collected_at),
+    note: api.note ?? null,
+    createdBy: api.created_by,
+    createdAt: toDate(api.created_at),
+    voidedAt: toDateOrNull(api.voided_at),
+    voidedBy: api.voided_by ?? null,
+    voidReason: api.void_reason ?? null,
+  };
 }
 
 function mapApiFiscalActionRequired(
@@ -434,9 +486,12 @@ export function mapApiExpense(api: ApiExpenseResponse): TripExpense {
     vendorName: api.vendor_name,
     vendorRfc: api.vendor_rfc,
 
+    // Fuente de pago
+    paymentSource: mapPaymentSource(api.payment_source),
+
     // Estado
     status: api.status,
-    isEstimated: api.is_estimated,
+    ...(api.is_estimated !== undefined ? { isEstimated: api.is_estimated } : {}),
     approvedBy: api.approved_by,
     approvedAt: toDateOrNull(api.approved_at),
     rejectionReason: api.rejection_reason,
@@ -672,6 +727,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
         ? null
         : toNumberOrDefault(api.operational_cash_amount),
     operationalCashNote: api.operational_cash_note ?? null,
+    operationalCash: mapApiOperationalCashSummary(api.operational_cash),
 
     // Auditoría
     createdAt: toDate(api.created_at),

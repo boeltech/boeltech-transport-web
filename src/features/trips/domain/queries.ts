@@ -145,6 +145,10 @@ export const tripQueryKeys = {
   revenueSplit: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "revenue-split"] as const,
 
+  /** ADR-0096 addendum — ledger de abonos operativos. */
+  operationalCashReceipts: (tripId: string) =>
+    [...tripQueryKeys.detail(tripId), "operational-cash-receipts"] as const,
+
   // Workbench summary (ADR-0090)
   workbenchSummary: () =>
     [...tripQueryKeys.all, "workbench-summary"] as const,

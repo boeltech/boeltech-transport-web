@@ -5,11 +5,13 @@
 
 import { canMutateCfdiEmissionIntent } from "@boeltech/cfdi-domain/reglas/cfdi-emission-intent";
 
-import type {
-  CfdiEmissionIntent,
-  Trip,
-  TripInvoicing,
-  TripStatusType,
+import {
+  hasOperationalCashCollected,
+  type CfdiEmissionIntent,
+  type OperationalCashSummary,
+  type Trip,
+  type TripInvoicing,
+  type TripStatusType,
 } from "@features/trips/domain";
 
 /** Factura principal vigente (excluye draft / cancelled / ausente). */
@@ -28,6 +30,8 @@ export type TripLiquidacionMutabilityInput = {
   status: TripStatusType;
   cfdiEmissionIntent: CfdiEmissionIntent;
   operationalCashCollectedAt: Date | null | undefined;
+  operationalCashAmount?: number | null;
+  operationalCash?: OperationalCashSummary | null;
   operationalOutcome: Trip["operationalOutcome"];
   invoicing: Pick<TripInvoicing, "hasActivePrincipalInvoice" | "invoiceStatus">;
 };
@@ -51,7 +55,7 @@ export function canEditTripLiquidacionIntent(
     currentIntent: current,
     nextIntent: probeNext,
     hasLockedPrincipalInvoice: isPrincipalInvoiceLocking(trip.invoicing),
-    hasOperationalCashCollected: trip.operationalCashCollectedAt != null,
+    hasOperationalCashCollected: hasOperationalCashCollected(trip),
     operationalOutcome: trip.operationalOutcome ?? "standard",
   });
   return gate.ok;

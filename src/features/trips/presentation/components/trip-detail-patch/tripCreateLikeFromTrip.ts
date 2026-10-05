@@ -102,7 +102,6 @@ export function buildCreateLikeFromTrip(
       location: expense.location ?? undefined,
       vendorName: expense.vendorName ?? undefined,
       notes: expense.notes ?? undefined,
-      isEstimated: expense.isEstimated,
     })),
   };
 }

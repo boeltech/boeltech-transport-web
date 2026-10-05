@@ -6,6 +6,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
+  Controller,
   useForm,
   useWatch,
   type DefaultValues,
@@ -43,6 +44,7 @@ import { cn } from "@shared/lib/utils/cn";
 import { useToast } from "@shared/hooks";
 
 import { formatMxCurrency } from "./financialSummary";
+import { tripDetailCopy } from "../../copy";
 import {
   getCategoriesForKind,
   getDefaultCategoryForKind,
@@ -55,8 +57,21 @@ import {
 import { wizardCopy } from "../../copy";
 
 const copy = wizardCopy.expense;
+const psCopy = tripDetailCopy.costs.paymentSource;
 
 const DEFAULT_DIESEL_PRICE = 24.0;
+
+const PAYMENT_SOURCE_OPTIONS = [
+  { value: "driver" as const, emoji: "🚛", label: psCopy.driver },
+  { value: "company" as const, emoji: "🏢", label: psCopy.company },
+  { value: "advance" as const, emoji: "💰", label: psCopy.advance },
+];
+
+const PAYMENT_SOURCE_HINTS: Record<string, string> = {
+  driver: psCopy.hintDriver,
+  company: psCopy.hintCompany,
+  advance: psCopy.hintAdvance,
+};
 
 export interface TripExpenseSheetProps {
   open: boolean;
@@ -85,19 +100,19 @@ function buildEmptyExpense(
     category: getDefaultCategoryForKind(kind),
     description: "",
     currency: "MXN",
+    paymentSource: "driver",
     vendorName: "",
     notes: "",
-    isEstimated: true,
   };
 }
 
 function buildEditDefaults(expense: TripExpenseFormValues): TripExpenseFormValues {
   return {
     ...expense,
-    currency: "MXN",
+    currency: expense.currency ?? "MXN",
+    paymentSource: expense.paymentSource ?? "driver",
     vendorName: expense.vendorName ?? "",
     notes: expense.notes ?? "",
-    isEstimated: expense.isEstimated ?? true,
   };
 }
 
@@ -159,6 +174,7 @@ function TripExpenseSheetSession({
   const { control, handleSubmit, reset, setValue, getValues, formState } = form;
 
   const category = useWatch({ control, name: "category" });
+  const paymentSource = useWatch({ control, name: "paymentSource" }) ?? "driver";
   const vendorName = useWatch({ control, name: "vendorName" });
   const notesValue = useWatch({ control, name: "notes" });
 
@@ -218,11 +234,10 @@ function TripExpenseSheetSession({
   const buildPayload = (values: TripExpenseFormValues): TripExpenseFormValues => ({
     ...values,
     id: values.id,
-    currency: "MXN",
+    currency: values.currency ?? "MXN",
     description: values.description.trim(),
     vendorName: values.vendorName?.trim() || undefined,
     notes: values.notes?.trim() || undefined,
-    isEstimated: true,
   });
 
   const submitSheet = handleSubmit(
@@ -402,6 +417,51 @@ function TripExpenseSheetSession({
               </div>
             </div>
           ) : null}
+        </FormSectionCard>
+
+        <FormSectionCard
+          title={psCopy.sectionTitle}
+          icon={<Wallet className="h-4 w-4" />}
+          contentClassName="space-y-3"
+        >
+          <Controller
+            control={control}
+            name="paymentSource"
+            render={({ field }) => (
+              <div
+                role="radiogroup"
+                aria-label={psCopy.sectionTitle}
+                className="space-y-2"
+              >
+                {PAYMENT_SOURCE_OPTIONS.map((opt) => {
+                  const selected = field.value === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors",
+                        selected
+                          ? "border-primary bg-primary/5 font-medium"
+                          : "border-border hover:bg-muted/50",
+                      )}
+                      onClick={() => field.onChange(opt.value)}
+                    >
+                      <span className="text-base" aria-hidden>
+                        {opt.emoji}
+                      </span>
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">
+            {PAYMENT_SOURCE_HINTS[paymentSource]}
+          </p>
         </FormSectionCard>
 
         <Card>

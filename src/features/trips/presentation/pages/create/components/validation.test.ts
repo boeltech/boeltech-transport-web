@@ -419,14 +419,27 @@ describe("tripExpenseSchema — moneda", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.currency).toBe("MXN");
+    expect(result.data).not.toHaveProperty("isEstimated");
   });
 
-  it("rejects non-MXN currencies", () => {
+  it("accepts USD currency", () => {
     const result = tripExpenseSchema.safeParse({
       category: "fuel",
       description: "Diesel",
       amount: 1200,
       currency: "USD",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.currency).toBe("USD");
+  });
+
+  it("rejects unsupported currencies", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diesel",
+      amount: 1200,
+      currency: "JPY",
     });
     expect(result.success).toBe(false);
   });
@@ -514,6 +527,53 @@ describe("tripWizardSchema — paso costos", () => {
       i.path.includes("baseRate"),
     );
     expect(baseRateIssue?.message).toMatch(/tarifa base/i);
+  });
+});
+
+describe("tripExpenseSchema — paymentSource", () => {
+  it("defaults paymentSource to driver when omitted", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diesel",
+      amount: 1200,
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.paymentSource).toBe("driver");
+  });
+
+  it("accepts company as paymentSource", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "tolls",
+      description: "TAG",
+      amount: 400,
+      paymentSource: "company",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.paymentSource).toBe("company");
+  });
+
+  it("accepts advance as paymentSource", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diésel con anticipo",
+      amount: 2000,
+      paymentSource: "advance",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.paymentSource).toBe("advance");
+  });
+
+  it("rejects invalid paymentSource", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diesel",
+      amount: 1000,
+      paymentSource: "client",
+    });
+    expect(result.success).toBe(false);
   });
 });
 

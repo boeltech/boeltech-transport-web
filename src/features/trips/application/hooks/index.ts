@@ -41,6 +41,11 @@ export { useReassignTripFleet } from "./trip/useReassignTripFleet";
 export { usePatchTripBaseRate } from "./trip/usePatchTripBaseRate";
 export { usePatchTripOperationalCash } from "./trip/usePatchTripOperationalCash";
 export type { PatchTripOperationalCashInput } from "./trip/usePatchTripOperationalCash";
+export { useOperationalCashReceipts } from "./trip/useOperationalCashReceipts";
+export { useCreateOperationalCashReceipt } from "./trip/useCreateOperationalCashReceipt";
+export type { CreateOperationalCashReceiptInput } from "./trip/useCreateOperationalCashReceipt";
+export { useVoidOperationalCashReceipt } from "./trip/useVoidOperationalCashReceipt";
+export type { VoidOperationalCashReceiptInput } from "./trip/useVoidOperationalCashReceipt";
 export { useRouteEstimate } from "./trip/useRouteEstimate";
 
 export { useDeleteTrip } from "./trip/useDeleteTrip";

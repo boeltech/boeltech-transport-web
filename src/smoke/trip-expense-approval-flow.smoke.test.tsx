@@ -174,6 +174,7 @@ function makeExpense(overrides: Partial<TripExpense> = {}): TripExpense {
     cfdiFolio: null,
     vendorName: null,
     vendorRfc: null,
+    paymentSource: "driver",
     status: "pending",
     isEstimated: false,
     approvedBy: null,

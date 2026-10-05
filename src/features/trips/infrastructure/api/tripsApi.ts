@@ -7,18 +7,23 @@ import { apiClient } from "@shared/api";
 import type {
   ClientCorridor,
   CreateStopInput,
+  OperationalCashReceipt,
   RouteEstimate,
   RouteEstimateParams,
   Trip,
 } from "@features/trips/domain";
-import type { ApiCreateTripWarning, ApiTripResponse } from "./api-types";
+import type {
+  ApiCreateTripWarning,
+  ApiOperationalCashReceiptResponse,
+  ApiTripResponse,
+} from "./api-types";
 import {
   mapApiCorridor,
   mapApiRouteEstimate,
   type ApiCorridorResponse,
   type ApiRouteEstimateResponse,
 } from "./canvas-mappers";
-import { mapApiTrip } from "./mappers";
+import { mapApiOperationalCashReceipt, mapApiTrip } from "./mappers";
 
 const CORRIDORS_ENDPOINT = "/trips/corridors";
 const ROUTE_ESTIMATE_ENDPOINT = "/trips/route-estimate";
@@ -165,8 +170,7 @@ export const tripsApi = {
   },
 
   /**
-   * ADR-0096 — cobro operativo en efectivo (`operational_cash_*`).
-   * Solo viajes `sin_cfdi_efectivo`. No escribe `cobrado_viaje`.
+   * @deprecated ADR-0096 addendum — PATCH → 410. Usar createOperationalCashReceipt.
    */
   async patchOperationalCash(
     tripId: string,
@@ -177,5 +181,48 @@ export const tripsApi = {
       message?: string;
     }>(`/trips/${tripId}/operational-cash`, body);
     return mapApiTrip(raw.data.trip);
+  },
+
+  /**
+   * ADR-0096 addendum — lista abonos del ledger.
+   * `includeVoided` → `include_voided=true` (params no pasan por deepToSnake).
+   */
+  async listOperationalCashReceipts(
+    tripId: string,
+    options?: { includeVoided?: boolean },
+  ): Promise<OperationalCashReceipt[]> {
+    const raw = await apiClient.get<{
+      data: ApiOperationalCashReceiptResponse[];
+    }>(`/trips/${tripId}/operational-cash-receipts`, {
+      params: {
+        ...(options?.includeVoided ? { include_voided: true } : {}),
+      },
+    });
+    return (raw.data ?? []).map(mapApiOperationalCashReceipt);
+  },
+
+  /** ADR-0096 addendum — registrar abono (delta). */
+  async createOperationalCashReceipt(
+    tripId: string,
+    body: { amount: number; collectedAt?: string; note?: string },
+  ): Promise<OperationalCashReceipt> {
+    const raw = await apiClient.post<{
+      data: ApiOperationalCashReceiptResponse;
+      message?: string;
+    }>(`/trips/${tripId}/operational-cash-receipts`, body);
+    return mapApiOperationalCashReceipt(raw.data);
+  },
+
+  /** ADR-0096 addendum — anular abono. */
+  async voidOperationalCashReceipt(
+    tripId: string,
+    receiptId: string,
+    body: { reason: string },
+  ): Promise<OperationalCashReceipt> {
+    const raw = await apiClient.post<{
+      data: ApiOperationalCashReceiptResponse;
+      message?: string;
+    }>(`/trips/${tripId}/operational-cash-receipts/${receiptId}/void`, body);
+    return mapApiOperationalCashReceipt(raw.data);
   },
 };

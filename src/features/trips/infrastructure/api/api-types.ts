@@ -276,9 +276,13 @@ export interface ApiExpenseResponse {
   vendor_name: string | null;
   vendor_rfc: string | null;
 
+  // Fuente de pago (0.35.0)
+  payment_source?: string | null;
+
   // Estado
   status: ExpenseStatusType;
-  is_estimated: boolean;
+  /** Legacy; API may omit or always send false. Not used by UI. */
+  is_estimated?: boolean;
   approved_by: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
@@ -479,10 +483,18 @@ export interface ApiTripResponse {
   /** ADR-0096 — liquidación sin CFDI vs emitir */
   cfdi_emission_intent?: "emitir_cfdi" | "sin_cfdi_efectivo";
 
-  /** ADR-0096 — cobro operativo (F4 API; UI sheet F6) */
+  /** ADR-0096 — cobro operativo (proyección del ledger) */
   operational_cash_collected_at?: string | null;
   operational_cash_amount?: number | string | null;
   operational_cash_note?: string | null;
+  /** ADR-0096 addendum — resumen derivado (detail) */
+  operational_cash?: {
+    status: "pending" | "partial" | "collected";
+    collected_total: number | string;
+    pending_amount: number | string;
+    base_rate: number | string;
+    receipt_count: number | string;
+  } | null;
 
   // Auditoría
   created_at: string;
@@ -503,6 +515,20 @@ export interface ApiTripResponse {
   cargos?: ApiCargoResponse[];
   expenses?: ApiExpenseResponse[];
   status_history?: ApiStatusHistoryResponse[];
+}
+
+/** ADR-0096 addendum — abono del ledger operativo. */
+export interface ApiOperationalCashReceiptResponse {
+  id: string;
+  trip_id: string;
+  amount: number | string;
+  collected_at: string;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
 }
 
 // ============================================================================

@@ -36,12 +36,17 @@ import {
   useReturnExpense,
   useUpdateExpense,
 } from "@features/trips/application/hooks/expense/useExpenseOperations";
+import { useOperationalCashReceipts } from "@features/trips/application";
 import {
   TripStatus,
   tripQueryKeys,
   isExpenseNotMutableError,
+  canRegisterOperationalCashAbono,
+  resolveOperationalCashSummary,
   type CfdiEmissionIntent,
   type ExpensesSummary,
+  type OperationalCashReceipt,
+  type OperationalCashSummary,
   type TripExpense,
   type TripInvoiceStatus,
   type TripOperationalOutcomeType,
@@ -66,8 +71,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
 import { TripBaseRateCard } from "./TripBaseRateCard";
 import { RegisterOperationalCashSheet } from "./RegisterOperationalCashSheet";
+import { VoidOperationalCashReceiptSheet } from "./VoidOperationalCashReceiptSheet";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
+import {
+  operationalCashStatusBadgeVariant,
+  operationalCashStatusLabel,
+} from "../../utils/operationalCashUi";
 
 import {
   getSheetKindForCategory,
@@ -115,6 +125,8 @@ export interface TripDetailCostsTabProps {
   operationalCashCollectedAt?: Date | null;
   operationalCashAmount?: number | null;
   operationalCashNote?: string | null;
+  /** ADR-0096 addendum — resumen ledger (detail). */
+  operationalCash?: OperationalCashSummary | null;
   clientId?: string;
   vehicleId?: string;
   stops: TripStop[];
@@ -317,6 +329,7 @@ export function TripDetailCostsTab({
   operationalCashCollectedAt = null,
   operationalCashAmount = null,
   operationalCashNote = null,
+  operationalCash = null,
   clientId,
   vehicleId,
   stops,
@@ -347,11 +360,32 @@ export function TripDetailCostsTab({
   const role = useRole();
   const isOperator = role === ROLES.OPERATOR;
   const canViewApprovalsHub = hasPermission("finance_approvals", "read");
-  const canRegisterOperationalCash = hasPermission("trips", "update");
+  const canMutateOperationalCash = hasPermission("trips", "update");
   const isSinCfdiEfectivo = cfdiEmissionIntent === "sin_cfdi_efectivo";
-  const cashCollected = operationalCashCollectedAt != null;
   const cashCopy = cfdiEmissionIntentCopy.cash;
+  const cashSummary = resolveOperationalCashSummary(
+    {
+      operationalCash,
+      operationalCashCollectedAt,
+      operationalCashAmount,
+    },
+    baseRate,
+  );
+  const canRegisterAbono = canRegisterOperationalCashAbono(cashSummary);
   const [cashSheetOpen, setCashSheetOpen] = useState(false);
+  const [voidReceipt, setVoidReceipt] = useState<OperationalCashReceipt | null>(
+    null,
+  );
+  const { data: cashReceipts = [], isLoading: isLoadingCashReceipts } =
+    useOperationalCashReceipts(tripId, {
+      includeVoided: true,
+      enabled: isSinCfdiEfectivo,
+    });
+  const sortedCashReceipts = useMemo(() => {
+    return [...cashReceipts].sort(
+      (a, b) => b.collectedAt.getTime() - a.collectedAt.getTime(),
+    );
+  }, [cashReceipts]);
   const approvalsHubPath = useMemo(
     () =>
       buildApprovalsInboxPath({
@@ -804,54 +838,122 @@ export function TripDetailCostsTab({
                   <Banknote className="h-5 w-5 shrink-0" />
                   {cashCopy.sectionTitle}
                   <Badge
-                    variant={cashCollected ? "success" : "neutral"}
+                    variant={operationalCashStatusBadgeVariant(
+                      cashSummary.status,
+                    )}
                     tone="soft"
                     className="text-xs font-medium"
                   >
-                    {cashCollected
-                      ? cashCopy.statusCollected
-                      : cashCopy.statusPending}
+                    {operationalCashStatusLabel(cashSummary.status)}
                   </Badge>
                 </CardTitle>
-                {!cashCollected && canRegisterOperationalCash ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCashSheetOpen(true)}
-                  >
-                    {cashCopy.ctaRegister}
-                  </Button>
+                {canMutateOperationalCash ? (
+                  canRegisterAbono ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCashSheetOpen(true)}
+                    >
+                      {cashCopy.ctaRegister}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {cashCopy.ctaDisabledCollected}
+                    </span>
+                  )
                 ) : null}
               </CardHeader>
-              <CardContent className="space-y-2">
-                {cashCollected ? (
-                  <>
-                    <InfoRow
-                      variant="inline"
-                      label={cashCopy.scorecardLabel}
-                      value={formatMxCurrency(operationalCashAmount ?? 0)}
-                    />
-                    {operationalCashCollectedAt ? (
-                      <InfoRow
-                        variant="inline"
-                        label={cashCopy.sheet.collectedAt}
-                        value={formatDateTime(
-                          operationalCashCollectedAt.toISOString(),
-                        )}
-                      />
-                    ) : null}
-                    {operationalCashNote ? (
-                      <p className="text-sm text-muted-foreground">
-                        {operationalCashNote}
-                      </p>
-                    ) : null}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {cfdiEmissionIntentCopy.banner}
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <InfoRow
+                    variant="inline"
+                    label={cashCopy.scorecardAccumulatedLabel}
+                    value={formatMxCurrency(cashSummary.collectedTotal)}
+                  />
+                  <InfoRow
+                    variant="inline"
+                    label={cashCopy.scorecardPendingLabel}
+                    value={formatMxCurrency(cashSummary.pendingAmount)}
+                  />
+                  {cashSummary.status === "pending" ? (
+                    <p className="text-sm text-muted-foreground">
+                      {cfdiEmissionIntentCopy.banner}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {cashCopy.historyTitle}
                   </p>
-                )}
+                  {isLoadingCashReceipts ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : sortedCashReceipts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {cashCopy.emptyHistory}
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-md border border-border">
+                      {sortedCashReceipts.map((receipt) => {
+                        const isVoided = receipt.voidedAt != null;
+                        return (
+                          <li
+                            key={receipt.id}
+                            className="flex flex-wrap items-start justify-between gap-2 px-3 py-2.5"
+                          >
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={
+                                    isVoided
+                                      ? "text-sm text-muted-foreground line-through"
+                                      : "text-sm font-medium text-foreground"
+                                  }
+                                >
+                                  {formatMxCurrency(receipt.amount)}
+                                </span>
+                                <Badge
+                                  variant={isVoided ? "neutral" : "info"}
+                                  tone="soft"
+                                  className="text-xs"
+                                >
+                                  {isVoided
+                                    ? cashCopy.receiptVoided
+                                    : cashCopy.receiptActive}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDateTime(receipt.collectedAt.toISOString())}
+                              </p>
+                              {receipt.note ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {receipt.note}
+                                </p>
+                              ) : null}
+                              {isVoided && receipt.voidReason ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {receipt.voidReason}
+                                </p>
+                              ) : null}
+                            </div>
+                            {!isVoided && canMutateOperationalCash ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                onClick={() => setVoidReceipt(receipt)}
+                              >
+                                {cashCopy.voidCta}
+                              </Button>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : null}
@@ -941,7 +1043,10 @@ export function TripDetailCostsTab({
             facturadoVigente={isSinCfdiEfectivo ? null : facturadoVigente}
             cobradoViaje={isSinCfdiEfectivo ? null : cobradoViaje}
             operationalCashAmount={
-              isSinCfdiEfectivo ? (operationalCashAmount ?? null) : null
+              isSinCfdiEfectivo ? cashSummary.collectedTotal : null
+            }
+            operationalCashPendingAmount={
+              isSinCfdiEfectivo ? cashSummary.pendingAmount : null
             }
             showOperationalCash={isSinCfdiEfectivo}
             title={
@@ -1076,12 +1181,23 @@ export function TripDetailCostsTab({
         />
       ) : null}
 
-      {isSinCfdiEfectivo && canRegisterOperationalCash ? (
+      {isSinCfdiEfectivo && canMutateOperationalCash ? (
         <RegisterOperationalCashSheet
           tripId={tripId}
           open={cashSheetOpen}
           onOpenChange={setCashSheetOpen}
-          defaultAmount={baseRate}
+          pendingAmount={cashSummary.pendingAmount}
+        />
+      ) : null}
+
+      {isSinCfdiEfectivo && canMutateOperationalCash ? (
+        <VoidOperationalCashReceiptSheet
+          tripId={tripId}
+          receipt={voidReceipt}
+          open={voidReceipt != null}
+          onOpenChange={(open) => {
+            if (!open) setVoidReceipt(null);
+          }}
         />
       ) : null}
     </div>

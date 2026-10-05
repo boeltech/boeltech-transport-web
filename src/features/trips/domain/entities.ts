@@ -11,6 +11,7 @@
  */
 
 import type { ApprovalBlock, ApprovalDecisionOutcome } from "@features/approvals";
+import type { PaymentSource } from "@boeltech/cfdi-domain/validadores/trips";
 import type {
   TripStatusType,
   StopTypeValue,
@@ -118,6 +119,35 @@ export interface ClientRef {
  * - sin_cfdi_efectivo: liquidación sin CFDI (efectivo / abasto)
  */
 export type CfdiEmissionIntent = "emitir_cfdi" | "sin_cfdi_efectivo";
+
+/** ADR-0096 addendum — estado derivado del ledger de abonos. */
+export type OperationalCashCollectionStatus =
+  | "pending"
+  | "partial"
+  | "collected";
+
+/** Resumen embebido en detail de viaje (`operational_cash`). */
+export interface OperationalCashSummary {
+  readonly status: OperationalCashCollectionStatus;
+  readonly collectedTotal: number;
+  readonly pendingAmount: number;
+  readonly baseRate: number;
+  readonly receiptCount: number;
+}
+
+/** Abono del ledger (`GET/POST …/operational-cash-receipts`). */
+export interface OperationalCashReceipt {
+  readonly id: string;
+  readonly tripId: string;
+  readonly amount: number;
+  readonly collectedAt: Date;
+  readonly note: string | null;
+  readonly createdBy: string;
+  readonly createdAt: Date;
+  readonly voidedAt: Date | null;
+  readonly voidedBy: string | null;
+  readonly voidReason: string | null;
+}
 
 export const CFDI_EMISSION_INTENT_LABELS: Record<CfdiEmissionIntent, string> = {
   emitir_cfdi: "Emitir CFDI",
@@ -394,9 +424,13 @@ export interface TripExpense {
   readonly vendorName: string | null;
   readonly vendorRfc: string | null;
 
+  // Fuente de pago (0.35.0 — quién pagó)
+  readonly paymentSource: PaymentSource;
+
   // Estado y aprobación
   readonly status: ExpenseStatusType;
-  readonly isEstimated: boolean;
+  /** Legacy API may still send `is_estimated`; UI no longer uses it. */
+  readonly isEstimated?: boolean;
   readonly approvedBy: string | null;
   readonly approvedAt: Date | null;
   readonly rejectionReason: string | null;
@@ -635,11 +669,16 @@ export interface Trip {
 
   /**
    * ADR-0096 — cobro operativo en efectivo (solo `sin_cfdi_efectivo`).
-   * Distinto de `cobradoViaje` fiscal. Mapper listo; UI sheet = F6.
+   * Distinto de `cobradoViaje` fiscal. Snapshot = proyección del ledger.
    */
   readonly operationalCashCollectedAt: Date | null;
   readonly operationalCashAmount: number | null;
   readonly operationalCashNote: string | null;
+  /**
+   * ADR-0096 addendum — resumen derivado del ledger (detail).
+   * Null si el API no lo envía (listados / caché parcial).
+   */
+  readonly operationalCash: OperationalCashSummary | null;
 
   // Auditoría
   readonly createdAt: Date;

@@ -93,7 +93,6 @@ export const costsCopy = {
     emptyIndirectEditable:
       "Comprobante sin adelanto (hospedaje, comida, etc.) → regístrelo aquí como gasto del viaje (reembolso). Efectivo adelantado → Anticipos. Pago fijo de tarifa → en Tarifas, no aquí. No duplique el mismo desembolso en dos canales.",
     emptyIndirectReadOnly: "No hay gastos del viaje del operador en este viaje.",
-    estimated: "Estimado",
     receipt: "Comprobante",
     noCategory: "Sin categoría",
     /** Badge: pending → léxico operativo */
@@ -112,9 +111,9 @@ export const costsCopy = {
     removed: "Registro eliminado",
     removeError: "No se pudo eliminar",
     expenseNotMutableEdit:
-      "Este gasto ya fue autorizado o rechazado y no se puede editar. La lista ya muestra su estado actual.",
+      "Este gasto ya no se puede editar. Actualizamos la lista con su estado actual.",
     expenseNotMutableRemove:
-      "Este gasto ya fue autorizado o rechazado y no se puede eliminar. La lista ya muestra su estado actual.",
+      "Este gasto ya no se puede eliminar. Actualizamos la lista con su estado actual.",
     approved: "Gasto aprobado",
     approveError: "No se pudo aprobar",
     rejected: "Gasto rechazado",
@@ -123,6 +122,19 @@ export const costsCopy = {
     baseRateUpdated: "Tarifa base actualizada",
     baseRateSaveError: "No se pudo guardar la tarifa",
     baseRateSavedWithWarning: "Tarifa guardada con advertencia",
+  },
+  paymentSource: {
+    sectionTitle: "¿Quién pagó?",
+    driver: "Pagó el operador (de su bolsillo)",
+    company: "Pagó la empresa (tarjeta, TAG)",
+    advance: "Con anticipo de la empresa",
+    hintDriver:
+      "Este gasto aparecerá como reembolso en el pago al operador.",
+    hintCompany: "No se reembolsará. Queda como costo del viaje.",
+    hintAdvance:
+      "No se reembolsará; el anticipo se descuenta por separado.",
+    badgeCompany: "Empresa",
+    badgeAdvance: "Con anticipo",
   },
   error: {
     invalidBaseRate: "Tarifa inválida",

@@ -584,16 +584,16 @@ export const tripExpenseSchema = z.object({
   // Descripción y monto
   description: z.string().min(1, "Descripción requerida"),
   amount: z.coerce.number().min(0.01, "El monto debe ser mayor a cero"),
-  currency: z.literal("MXN").default("MXN"),
+  currency: z.enum(["MXN", "USD", "EUR"]).default("MXN"),
+
+  // Fuente de pago (quién pagó — 0.35.0)
+  paymentSource: z.enum(["driver", "company", "advance"]).default("driver"),
 
   // Proveedor (opcional, para referencia operativa)
   vendorName: z.string().optional(),
 
   // Notas
   notes: z.string().optional(),
-
-  // Flag de planeación
-  isEstimated: z.boolean().default(true),
 
   // NOTA FUTURA: Los campos de contabilidad (CFDI UUID, RFC del proveedor,
   // clave SAT, forma de pago, tipo de cambio) deben capturarse en el módulo

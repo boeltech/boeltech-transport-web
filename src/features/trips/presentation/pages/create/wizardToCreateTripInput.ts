@@ -122,9 +122,9 @@ export function buildCreateTripInputFromWizardValues(
       description: expense.description,
       amount: expense.amount,
       currency: expense.currency as CurrencyType,
+      paymentSource: expense.paymentSource ?? "driver",
       vendorName: expense.vendorName || undefined,
       notes: expense.notes || undefined,
-      isEstimated: true,
     })),
     allowExpiredDocs,
   };

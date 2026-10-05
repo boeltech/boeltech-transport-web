@@ -12,7 +12,9 @@ import { wizardCopy } from "../../copy";
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 
 const defaultCopy = wizardCopy.costs.financialSummary;
-const cashScorecardLabel = cfdiEmissionIntentCopy.cash.scorecardLabel;
+const cashAccumulatedLabel =
+  cfdiEmissionIntentCopy.cash.scorecardAccumulatedLabel;
+const cashPendingLabel = cfdiEmissionIntentCopy.cash.scorecardPendingLabel;
 
 /** Subconjunto de labels usados por el resumen (wizard o detalle). */
 export type TripFinancialSummaryCopy = {
@@ -75,9 +77,12 @@ export interface TripWizardFinancialSummaryProps {
   /**
    * ADR-0096 — cobro operativo en efectivo (solo `sin_cfdi_efectivo`).
    * Distinto de `cobradoViaje` fiscal; no etiquetar como Cobrado del viaje.
+   * Valor = efectivo acumulado (suma abonos activos).
    */
   operationalCashAmount?: number | null;
-  /** Muestra la fila «Cobrado en efectivo» aunque el monto sea null (como —). */
+  /** ADR-0096 addendum — saldo por cobrar (no resta utilidad). */
+  operationalCashPendingAmount?: number | null;
+  /** Muestra filas de efectivo operativo aunque el monto sea null (como —). */
   showOperationalCash?: boolean;
 }
 
@@ -92,6 +97,7 @@ function TripWizardFinancialSummaryBody({
   facturadoVigente,
   cobradoViaje,
   operationalCashAmount,
+  operationalCashPendingAmount,
   showOperationalCash = false,
 }: {
   snapshot: TripWizardFinancialSnapshot;
@@ -104,6 +110,7 @@ function TripWizardFinancialSummaryBody({
   facturadoVigente?: number | null;
   cobradoViaje?: number | null;
   operationalCashAmount?: number | null;
+  operationalCashPendingAmount?: number | null;
   showOperationalCash?: boolean;
 }) {
   const { operationalCosts, indirectExpenses, financial, marginToneClass } =
@@ -159,15 +166,26 @@ function TripWizardFinancialSummaryBody({
           />
         ) : null}
         {showCashRow ? (
-          <InfoRow
-            variant="inline"
-            label={cashScorecardLabel}
-            value={
-              operationalCashAmount != null
-                ? formatMxCurrency(operationalCashAmount)
-                : "—"
-            }
-          />
+          <>
+            <InfoRow
+              variant="inline"
+              label={cashAccumulatedLabel}
+              value={
+                operationalCashAmount != null
+                  ? formatMxCurrency(operationalCashAmount)
+                  : "—"
+              }
+            />
+            <InfoRow
+              variant="inline"
+              label={cashPendingLabel}
+              value={
+                operationalCashPendingAmount != null
+                  ? formatMxCurrency(operationalCashPendingAmount)
+                  : "—"
+              }
+            />
+          </>
         ) : null}
         <InfoRow
           variant="inline"
@@ -327,6 +345,7 @@ export function TripWizardFinancialSummary({
   facturadoVigente,
   cobradoViaje,
   operationalCashAmount,
+  operationalCashPendingAmount,
   showOperationalCash = false,
 }: TripWizardFinancialSummaryProps) {
   const copy = summaryCopy ?? defaultCopy;
@@ -345,6 +364,7 @@ export function TripWizardFinancialSummary({
           facturadoVigente={facturadoVigente}
           cobradoViaje={cobradoViaje}
           operationalCashAmount={operationalCashAmount}
+          operationalCashPendingAmount={operationalCashPendingAmount}
           showOperationalCash={showOperationalCash}
         />
       </div>
@@ -371,6 +391,7 @@ export function TripWizardFinancialSummary({
           facturadoVigente={facturadoVigente}
           cobradoViaje={cobradoViaje}
           operationalCashAmount={operationalCashAmount}
+          operationalCashPendingAmount={operationalCashPendingAmount}
           showOperationalCash={showOperationalCash}
         />
       </CardContent>

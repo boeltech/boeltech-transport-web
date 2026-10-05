@@ -124,6 +124,26 @@ describe("canEditTripLiquidacionIntent", () => {
     ).toBe(false);
   });
 
+  it("denies after partial ledger summary without collectedAt projection race", () => {
+    expect(
+      canEditTripLiquidacionIntent(
+        {
+          ...base,
+          cfdiEmissionIntent: "sin_cfdi_efectivo",
+          operationalCashCollectedAt: null,
+          operationalCash: {
+            status: "partial",
+            collectedTotal: 10000,
+            pendingAmount: 14500,
+            baseRate: 24500,
+            receiptCount: 1,
+          },
+        },
+        { canUpdateTrip: true },
+      ),
+    ).toBe(false);
+  });
+
   it("denies without trips.update", () => {
     expect(
       canEditTripLiquidacionIntent(base, { canUpdateTrip: false }),

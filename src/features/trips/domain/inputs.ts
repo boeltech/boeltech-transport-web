@@ -13,6 +13,7 @@
  * Ubicación: src/features/trips/domain/inputs.ts
  */
 
+import type { PaymentSource } from "@boeltech/cfdi-domain/validadores/trips";
 import type {
   TripStatusType,
   TripRouteTypeValue,
@@ -263,12 +264,12 @@ export interface CreateExpenseInput {
   cfdiUuid?: string; // UUID del CFDI
   cfdiFolio?: string; // Folio fiscal
 
+  // Fuente de pago (quién pagó — 0.35.0)
+  paymentSource?: PaymentSource;
+
   // Proveedor
   vendorName?: string;
   vendorRfc?: string;
-
-  // Estado
-  isEstimated?: boolean;
 
   // Notas
   notes?: string;
@@ -320,12 +321,12 @@ export interface UpdateExpenseInput {
   cfdiUuid?: string | null;
   cfdiFolio?: string | null;
 
+  // Fuente de pago (quién pagó — 0.35.0)
+  paymentSource?: PaymentSource;
+
   // Proveedor
   vendorName?: string | null;
   vendorRfc?: string | null;
-
-  // Estado (`status` solo cambia por aprobar/rechazar, no por edición)
-  isEstimated?: boolean;
 
   // Notas
   notes?: string | null;

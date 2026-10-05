@@ -121,6 +121,9 @@ export type {
   TripTrailerRef,
   ClientRef,
   CfdiEmissionIntent,
+  OperationalCashCollectionStatus,
+  OperationalCashSummary,
+  OperationalCashReceipt,
   TripInternalStaff,
   TripInvoiceStatus,
   TripFiscalActionRequired,
@@ -154,6 +157,8 @@ export type {
 } from "./entities";
 
 export { CFDI_EMISSION_INTENT_LABELS } from "./entities";
+export type { PaymentSource } from "@boeltech/cfdi-domain/validadores/trips";
+export { PAYMENT_SOURCES } from "@boeltech/cfdi-domain/validadores/trips";
 
 export type {
   ClientCorridor,
@@ -254,6 +259,14 @@ export type {
 // ============================================================================
 
 export { isUnifiedAddressId } from "./stopAddress";
+
+export {
+  hasOperationalCashCollected,
+  classifyOperationalCashCollection,
+  resolveOperationalCashSummary,
+  canRegisterOperationalCashAbono,
+} from "./operationalCash";
+export type { OperationalCashProjectionInput } from "./operationalCash";
 
 export {
   V1_CARGO_PLACEHOLDER_CLIENT_SENTINEL,

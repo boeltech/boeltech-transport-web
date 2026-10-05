@@ -42,6 +42,7 @@ const baseTrip = {
   operationalCashCollectedAt: null,
   operationalCashAmount: null,
   operationalCashNote: null,
+  operationalCash: null,
   createdAt: new Date("2026-05-13T00:00:00.000Z"),
   updatedAt: new Date("2026-05-13T00:00:00.000Z"),
   createdBy: null,

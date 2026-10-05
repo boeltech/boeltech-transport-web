@@ -63,6 +63,7 @@ import {
   TripStatus,
   CargoStatus,
   getOrderedStops,
+  resolveOperationalCashSummary,
 } from "@features/trips/domain";
 
 import {
@@ -103,6 +104,10 @@ import { computeTripReadiness } from "../hooks/useTripReadiness";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 import { tripDetailCopy } from "../copy";
 import { cfdiEmissionIntentCopy } from "../copy/cfdiEmissionIntentCopy";
+import {
+  operationalCashStatusBadgeVariant,
+  operationalCashStatusLabel,
+} from "../utils/operationalCashUi";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
@@ -902,6 +907,10 @@ export function TripDetailPage() {
 
   /** Tras cargar `trip`, el estado operativo siempre está definido. */
   const resolvedDisplayStatus: TripStatusType = trip.status;
+  const operationalCashUiSummary = resolveOperationalCashSummary(
+    trip,
+    trip.costs.baseRate,
+  );
   const canEditLiquidacion = canEditTripLiquidacionIntent(trip, {
     canUpdateTrip,
     isLeanTripPortal,
@@ -1004,17 +1013,15 @@ export function TripDetailPage() {
                 />
                 {trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
                   <Badge
-                    variant={
-                      trip.operationalCashCollectedAt != null
-                        ? "success"
-                        : "neutral"
-                    }
+                    variant={operationalCashStatusBadgeVariant(
+                      operationalCashUiSummary.status,
+                    )}
                     tone="soft"
                     className="text-xs"
                   >
-                    {trip.operationalCashCollectedAt != null
-                      ? cfdiEmissionIntentCopy.cash.statusCollected
-                      : cfdiEmissionIntentCopy.cash.statusPending}
+                    {operationalCashStatusLabel(
+                      operationalCashUiSummary.status,
+                    )}
                   </Badge>
                 ) : null}
               </div>
@@ -1354,6 +1361,7 @@ export function TripDetailPage() {
                         }
                         operationalCashAmount={trip.operationalCashAmount}
                         operationalCashNote={trip.operationalCashNote}
+                        operationalCash={trip.operationalCash}
                         clientId={trip.client?.id}
                         vehicleId={trip.vehicle?.id}
                         stops={orderedStops}
