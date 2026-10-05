@@ -50,8 +50,7 @@ export function resolveOperationalCashSummary(
 ): OperationalCashSummary {
   if (trip.operationalCash) return trip.operationalCash;
 
-  const baseRate =
-    fallbackBaseRate ?? trip.baseRate ?? trip.operationalCash?.baseRate ?? 0;
+  const baseRate = fallbackBaseRate ?? trip.baseRate ?? 0;
   const collectedTotal =
     trip.operationalCashAmount == null ? 0 : Number(trip.operationalCashAmount);
   const pendingAmount = Math.max(0, baseRate - collectedTotal);

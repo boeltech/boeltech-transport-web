@@ -328,7 +328,6 @@ export function TripDetailCostsTab({
   cfdiEmissionIntent,
   operationalCashCollectedAt = null,
   operationalCashAmount = null,
-  operationalCashNote = null,
   operationalCash = null,
   clientId,
   vehicleId,
