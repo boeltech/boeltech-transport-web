@@ -63,6 +63,8 @@ export interface WorkbenchPageShellPrimaryAction {
   visible?: boolean;
   disabled?: boolean;
   disabledTitle?: string;
+  /** TEC Ola A A1 — ancla estable para spotlight de ayuda. */
+  dataHelpAnchor?: string;
 }
 
 export interface WorkbenchPageShellToolbar {
@@ -165,6 +167,7 @@ function WorkbenchPrimaryActionButton({
       onClick={action.onClick}
       leftIcon={action.icon}
       disabled={action.disabled}
+      data-help-anchor={action.dataHelpAnchor}
     >
       {action.label}
     </Button>

@@ -1,0 +1,296 @@
+import { useCallback, useRef, useState } from "react";
+import { Loader2, Paperclip, X } from "lucide-react";
+import { Button } from "@shared/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@shared/ui/sheet";
+import { Textarea } from "@shared/ui/text-area";
+import { useToast } from "@shared/hooks/useToast";
+import { useCreateHelpTicket } from "../../application";
+import { trackHelpEvent } from "../../application/trackHelpEvent";
+import { hasHelpArticleViewed } from "../../infrastructure/helpSessionFlags";
+import { helpCenterCopy } from "../copy/helpCenterCopy";
+
+const copy = helpCenterCopy.createTicket;
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ACCEPTED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
+const ACCEPT_STRING = "image/jpeg,image/png,image/webp,application/pdf";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface CreateTicketSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  articleId?: string | null;
+  articleTitle?: string | null;
+  route: string;
+  tenantName?: string;
+}
+
+export function CreateTicketSheet({
+  open,
+  onOpenChange,
+  articleId,
+  articleTitle,
+  route,
+  tenantName,
+}: CreateTicketSheetProps) {
+  const [body, setBody] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { success: toastSuccess, error: toastError } = useToast();
+  const createTicket = useCreateHelpTicket();
+
+  const canSubmit = body.trim().length >= 10 && !createTicket.isPending;
+
+  const resetForm = useCallback(() => {
+    setBody("");
+    setFile(null);
+    setFileError(null);
+  }, []);
+
+  const handleClose = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) resetForm();
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetForm],
+  );
+
+  const validateFile = useCallback((f: File): boolean => {
+    if (f.size > MAX_FILE_SIZE) {
+      setFileError(copy.attachmentTooLarge);
+      return false;
+    }
+    if (!ACCEPTED_MIME_TYPES.includes(f.type)) {
+      setFileError(copy.attachmentInvalidType);
+      return false;
+    }
+    setFileError(null);
+    return true;
+  }, []);
+
+  const handleFileSelect = useCallback(
+    (f: File | null) => {
+      if (!f) {
+        setFile(null);
+        setFileError(null);
+        return;
+      }
+      if (validateFile(f)) {
+        setFile(f);
+      }
+    },
+    [validateFile],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const dropped = e.dataTransfer.files[0];
+      if (dropped) handleFileSelect(dropped);
+    },
+    [handleFileSelect],
+  );
+
+  const handleSubmit = useCallback(async () => {
+    const formData = new FormData();
+    formData.append("body", body.trim());
+    formData.append("route", route);
+    if (articleId) formData.append("article_id", articleId);
+    if (file) formData.append("attachment", file);
+
+    try {
+      const result = await createTicket.mutateAsync(formData);
+      if (articleId && hasHelpArticleViewed(articleId)) {
+        trackHelpEvent({
+          eventName: "help_ticket_created_after_article",
+          articleId,
+          route,
+          payload: { ticketId: result.id },
+        });
+      }
+      toastSuccess(result.message);
+      handleClose(false);
+    } catch {
+      toastError(copy.errorCreate);
+    }
+  }, [body, route, articleId, file, createTicket, toastSuccess, toastError, handleClose]);
+
+  return (
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 overflow-hidden sm:max-w-md"
+      >
+        <SheetHeader className="shrink-0 px-0">
+          <SheetTitle>{copy.title}</SheetTitle>
+          <SheetDescription className="sr-only">
+            {copy.title}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4 flex flex-1 flex-col gap-5 overflow-y-auto pb-4">
+          {/* Context section */}
+          <section className="space-y-1.5">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {copy.contextSection}
+            </h3>
+            <dl className="space-y-1 text-sm">
+              {tenantName && (
+                <div className="flex gap-2">
+                  <dt className="font-medium text-muted-foreground">
+                    {copy.companyLabel}:
+                  </dt>
+                  <dd>{tenantName}</dd>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <dt className="font-medium text-muted-foreground">
+                  {copy.pageLabel}:
+                </dt>
+                <dd className="truncate font-mono text-xs">{route}</dd>
+              </div>
+              {articleTitle && (
+                <div className="flex gap-2">
+                  <dt className="font-medium text-muted-foreground">
+                    {copy.articleLabel}:
+                  </dt>
+                  <dd>{articleTitle}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+
+          {/* Body */}
+          <section className="space-y-1.5">
+            <label
+              htmlFor="ticket-body"
+              className="text-sm font-medium"
+            >
+              {copy.bodyLabel} *
+            </label>
+            <Textarea
+              id="ticket-body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={copy.bodyPlaceholder}
+              rows={4}
+              maxLength={2000}
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              {copy.bodyMinChars}
+            </p>
+          </section>
+
+          {/* File drop zone */}
+          <section className="space-y-1.5">
+            <p className="text-sm font-medium">{copy.attachmentLabel}</p>
+
+            {!file && (
+              <div
+                role="button"
+                tabIndex={0}
+                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors ${
+                  isDragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-primary/50"
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(true);
+                }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+              >
+                <Paperclip className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {copy.attachmentDrop}
+                </span>
+                <span className="text-xs text-muted-foreground/70">
+                  {copy.attachmentAccepted}
+                </span>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_STRING}
+              className="hidden"
+              onChange={(e) => {
+                handleFileSelect(e.target.files?.[0] ?? null);
+                e.target.value = "";
+              }}
+            />
+
+            {file && (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
+                <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">
+                  {file.name}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  ({formatFileSize(file.size)})
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  onClick={() => handleFileSelect(null)}
+                  aria-label={copy.remove}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+
+            {fileError && (
+              <p className="text-xs text-destructive">{fileError}</p>
+            )}
+          </section>
+        </div>
+
+        {/* Submit */}
+        <div className="shrink-0 border-t pt-4">
+          <Button
+            className="w-full"
+            disabled={!canSubmit}
+            onClick={handleSubmit}
+          >
+            {createTicket.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            {createTicket.isPending ? copy.submitting : copy.submit}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

@@ -104,8 +104,11 @@ const SheetBackdrop = React.forwardRef<
   <div
     ref={ref}
     aria-hidden="true"
+    data-sheet-backdrop=""
     className={cn(
       "fixed inset-0 z-50 bg-black/80 animate-in fade-in-0",
+      // Help spotlight (OA-3): hide dim while highlighting page controls.
+      "data-[help-spotlight-backdrop]:pointer-events-none data-[help-spotlight-backdrop]:opacity-0 data-[help-spotlight-backdrop]:transition-opacity",
       className,
     )}
     {...props}

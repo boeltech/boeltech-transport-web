@@ -39,6 +39,7 @@ import {
   isCobrosListBucket,
   type CobrosBucketId,
 } from "../config/cobrosWorkbenchConfig";
+import { useHelpEmptySupport } from "@features/help-center";
 import { financeCopy } from "../copy";
 import { getChainRepairAffectedLabels } from "../utils/chainRepairPlanLabels";
 import {
@@ -65,6 +66,7 @@ const FOLLOW_THROUGH_EXCEPTIONS_LIMIT = 50;
 
 const copy = financeCopy.cobros;
 const workbenchCopy = financeCopy.cobros.workbench;
+const COBROS_PATH = "/finance/cobros";
 
 // ============================================================================
 // CobrosRegisterBar
@@ -510,6 +512,10 @@ function FinanceCobrosWorkbench({
   const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
   const hasRfcFilter = Boolean(filterRfc);
   const listLoading = isListBucket && (isLoading || summaryLoading);
+  const helpEmpty = useHelpEmptySupport(
+    COBROS_PATH,
+    activeBucket === "open" && !hasRfcFilter,
+  );
 
   return (
     <>
@@ -592,7 +598,11 @@ function FinanceCobrosWorkbench({
                   <FileClock className="h-10 w-10 text-muted-foreground" />
                 }
                 title={emptyCopy.title}
-                description={emptyCopy.description}
+                description={
+                  !hasRfcFilter && helpEmpty
+                    ? helpEmpty.phrase
+                    : emptyCopy.description
+                }
                 secondaryCta={
                   hasRfcFilter
                     ? {
@@ -600,7 +610,9 @@ function FinanceCobrosWorkbench({
                         onClick: onClearRfc,
                         variant: "outline" as const,
                       }
-                    : undefined
+                    : helpEmpty
+                      ? helpEmpty.viewHelpCta
+                      : undefined
                 }
               />
             );

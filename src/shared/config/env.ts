@@ -46,6 +46,11 @@ interface AppConfig {
   stripe: {
     publishableKey: string;
   };
+  /** Centro de ayuda (Ola A). */
+  help: {
+    /** Kill-switch overlay A1; ausente = on (TEC §6). */
+    spotlightEnabled: boolean;
+  };
 }
 
 const config: AppConfig = {
@@ -101,6 +106,12 @@ const config: AppConfig = {
       import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
     ).trim(),
   },
+  help: {
+    spotlightEnabled: parseEnvBool(
+      import.meta.env.VITE_HELP_SPOTLIGHT_ENABLED,
+      true,
+    ),
+  },
 };
 
 // Freeze para evitar modificaciones accidentales
@@ -113,6 +124,7 @@ Object.freeze(config.app);
 Object.freeze(config.support);
 Object.freeze(config.observability);
 Object.freeze(config.stripe);
+Object.freeze(config.help);
 
 export default config;
 

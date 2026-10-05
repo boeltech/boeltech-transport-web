@@ -12,18 +12,26 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { useNavigate } from "react-router-dom";
-import { FileText, Route } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { CircleHelp, FileText, Route } from "lucide-react";
 
 import { useNavigation } from "@widgets/sidebar";
 import { useDebounce } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { useTrips } from "@features/trips";
 import { useFinanceInvoicesList } from "@features/finance/application";
+import {
+  helpCenterCopy,
+  trackHelpSearchPerformed,
+  truncateHelpPhrase,
+  useHelpArticles,
+  useHelpPanelOptional,
+} from "@features/help-center";
 import {
   CommandDialog,
   CommandEmpty,
@@ -36,8 +44,10 @@ import { DialogTitle } from "@shared/ui/dialog";
 import { headerCopy } from "../copy/headerCopy";
 
 const copy = headerCopy.commandMenu;
+const helpCopy = helpCenterCopy.surfaces;
 const MIN_QUERY_LENGTH = 2;
 const ENTITY_RESULTS_LIMIT = 5;
+const HELP_RESULTS_LIMIT = 8;
 
 export interface GlobalCommandMenuProps {
   open: boolean;
@@ -50,13 +60,19 @@ export function GlobalCommandMenu({
   onOpenChange,
 }: GlobalCommandMenuProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { navigation } = useNavigation();
   const { hasPermission } = usePermissions();
+  const { openHelpPanel } = useHelpPanelOptional();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
 
   const search = debouncedQuery.trim();
   const searchEntities = open && search.length >= MIN_QUERY_LENGTH;
+  const helpSearchFilters = useMemo(
+    () => (search.length >= MIN_QUERY_LENGTH ? { q: search } : {}),
+    [search],
+  );
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -94,6 +110,16 @@ export function GlobalCommandMenu({
       { enabled: searchEntities && hasPermission("invoices", "read") },
     );
 
+  const { data: helpArticles, isFetching: isFetchingHelp } = useHelpArticles(
+    helpSearchFilters,
+    { enabled: open },
+  );
+
+  useEffect(() => {
+    if (!open || search.length < MIN_QUERY_LENGTH) return;
+    trackHelpSearchPerformed(search, "command", location.pathname);
+  }, [open, search, location.pathname]);
+
   const runNavigate = useCallback(
     (path: string) => {
       setQuery("");
@@ -103,10 +129,25 @@ export function GlobalCommandMenu({
     [navigate, onOpenChange],
   );
 
+  const runOpenHelpArticle = useCallback(
+    (articleId: string) => {
+      setQuery("");
+      onOpenChange(false);
+      if (location.pathname.startsWith("/ayuda")) {
+        navigate(`/ayuda/${articleId}`);
+        return;
+      }
+      openHelpPanel({ articleId, expand: true });
+    },
+    [location.pathname, navigate, onOpenChange, openHelpPanel],
+  );
+
   const trips = searchEntities ? (tripResults?.data ?? []) : [];
   const invoices = searchEntities ? (invoiceResults?.data ?? []) : [];
+  const helpItems = (helpArticles ?? []).slice(0, HELP_RESULTS_LIMIT);
   const isSearching =
-    searchEntities && (isFetchingTrips || isFetchingInvoices);
+    searchEntities &&
+    (isFetchingTrips || isFetchingInvoices || isFetchingHelp);
 
   return (
     <CommandDialog open={open} onOpenChange={handleOpenChange}>
@@ -178,6 +219,24 @@ export function GlobalCommandMenu({
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
                   {invoice.receiverName}
+                </span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
+
+        {helpItems.length > 0 ? (
+          <CommandGroup heading={helpCopy.commandGroup}>
+            {helpItems.map((article) => (
+              <CommandItem
+                key={article.id}
+                value={`${article.title} ${article.phrase} ${search}`}
+                onSelect={() => runOpenHelpArticle(article.id)}
+              >
+                <CircleHelp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{article.title}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {truncateHelpPhrase(article.phrase)}
                 </span>
               </CommandItem>
             ))}

@@ -12,14 +12,13 @@
  */
 
 import { memo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Search,
   Menu,
   User,
   Settings,
   LogOut,
-  HelpCircle,
   Building2,
 } from "lucide-react";
 
@@ -41,8 +40,8 @@ import { useSidebar } from "@/app/providers/SidebarProvider";
 import { getUserFullName, getUserInitials } from "@/shared/lib/userHelpers";
 import { headerCopy } from "../copy/headerCopy";
 import { GlobalCommandMenu } from "./GlobalCommandMenu";
-import { HelpDialog } from "./HelpDialog";
 import { NotificationInboxButton } from "@features/notifications";
+import { HelpPanelButton } from "@features/help-center";
 
 // ============================================
 // Types
@@ -129,6 +128,7 @@ export const Header = memo(function Header({ className }: HeaderProps) {
           Lado derecho
           ========================================== */}
       <div className="flex items-center gap-3">
+        <HelpPanelButton />
         <NotificationInboxButton />
         <ThemeCycleButton />
         <UserMenu user={user} onLogout={logout} />
@@ -149,14 +149,11 @@ interface UserMenuProps {
 const menuCopy = headerCopy.menu;
 
 const UserMenu = memo(function UserMenu({ user, onLogout }: UserMenuProps) {
-  const location = useLocation();
   const { hasPermission } = usePermissions();
-  const [helpOpen, setHelpOpen] = useState(false);
   /** Sin el módulo settings, /settings responde con /forbidden. */
   const canOpenSettings = hasPermission("settings", "read");
 
   return (
-    <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="flex items-center gap-2 px-2">
@@ -207,14 +204,6 @@ const UserMenu = memo(function UserMenu({ user, onLogout }: UserMenuProps) {
             </DropdownMenuItem>
           ) : null}
 
-          <DropdownMenuItem
-            onSelect={() => {
-              setHelpOpen(true);
-            }}
-          >
-            <HelpCircle className="mr-2 h-4 w-4" />
-            {menuCopy.help}
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
 
           {/* Logout */}
@@ -227,14 +216,5 @@ const UserMenu = memo(function UserMenu({ user, onLogout }: UserMenuProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <HelpDialog
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-        userEmail={user?.email}
-        tenantName={user?.tenant?.name}
-        currentPath={`${location.pathname}${location.search}`}
-      />
-    </>
   );
 });

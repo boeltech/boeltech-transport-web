@@ -68,6 +68,8 @@ export interface HubPageShellAction {
   onClick?: () => void;
   variant?: "default" | "outline" | "ghost";
   icon?: ReactNode;
+  /** TEC Ola A A1 — ancla estable para spotlight de ayuda. */
+  dataHelpAnchor?: string;
 }
 
 /** Estado visual de un chip de readiness (ADR-0091 D3.2). */
@@ -122,7 +124,9 @@ function HubActionButton({ action }: { action: HubPageShellAction }) {
   if (action.href) {
     return (
       <Button asChild variant={variant} size="sm">
-        <Link to={action.href}>{content}</Link>
+        <Link to={action.href} data-help-anchor={action.dataHelpAnchor}>
+          {content}
+        </Link>
       </Button>
     );
   }
@@ -133,6 +137,7 @@ function HubActionButton({ action }: { action: HubPageShellAction }) {
       variant={variant}
       size="sm"
       onClick={action.onClick}
+      data-help-anchor={action.dataHelpAnchor}
     >
       {content}
     </Button>

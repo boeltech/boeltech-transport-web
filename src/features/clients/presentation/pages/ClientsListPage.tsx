@@ -14,6 +14,7 @@ import { Button } from "@shared/ui/button";
 import { Plus, Users, FileUp } from "lucide-react";
 
 import { MasterImportWizard } from "@features/imports";
+import { useHelpEmptySupport } from "@features/help-center";
 import { useClients } from "../../application";
 import type { ClientFilters, ClientType, PaymentTerms } from "../../domain";
 import {
@@ -30,6 +31,8 @@ import {
 } from "../utils/clientListFilters";
 
 const copy = clientsCopy;
+const CLIENTS_PATH = "/clients";
+
 
 export function ClientsListPage() {
   const navigate = useNavigate();
@@ -85,6 +88,10 @@ export function ClientsListPage() {
   const canImport =
     hasPermission("imports", "execute") && hasPermission("clients", "create");
   const [importWizardOpen, setImportWizardOpen] = useState(false);
+  const helpEmpty = useHelpEmptySupport(
+    CLIENTS_PATH,
+    !listing.hasFilters,
+  );
 
   const handleSortChange = useCallback(
     (field: string) => {
@@ -199,11 +206,13 @@ export function ClientsListPage() {
           title: copy.empty.title,
           description: listing.hasFilters
             ? copy.empty.descriptionFiltered
-            : canCreate
-              ? isManager
-                ? copy.empty.descriptionClearManager
-                : copy.empty.descriptionClear
-              : copy.empty.descriptionReadonly,
+            : helpEmpty
+              ? helpEmpty.phrase
+              : canCreate
+                ? isManager
+                  ? copy.empty.descriptionClearManager
+                  : copy.empty.descriptionClear
+                : copy.empty.descriptionReadonly,
           cta: canCreate
             ? {
                 label: copy.actions.create,
@@ -217,7 +226,9 @@ export function ClientsListPage() {
                 onClick: listing.clearAll,
                 variant: "outline",
               }
-            : undefined,
+            : helpEmpty
+              ? helpEmpty.viewHelpCta
+              : undefined,
         }}
       />
       <MasterImportWizard

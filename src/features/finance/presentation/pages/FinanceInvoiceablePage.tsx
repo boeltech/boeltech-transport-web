@@ -31,6 +31,7 @@ import {
   buildTripInvoicingHubPath,
   shouldOpenInvoiceCreateFromFinanceHub,
 } from "@features/invoicing";
+import { useHelpEmptySupport } from "@features/help-center";
 import { financeCopy } from "../copy";
 import {
   DEFAULT_INVOICEABLE_BUCKET,
@@ -181,7 +182,11 @@ function InvoiceableTripsTable({
                   </TableCell>
                   <TableCell>
                     {shouldOpenInvoiceCreateFromFinanceHub(trip) ? (
-                      <Button size="sm" onClick={() => onInvoice(trip)}>
+                      <Button
+                        size="sm"
+                        onClick={() => onInvoice(trip)}
+                        data-help-anchor="inv-facturar-row"
+                      >
                         {copy.invoiceAction}
                       </Button>
                     ) : (
@@ -314,6 +319,7 @@ export function FinanceInvoiceablePage() {
   const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
   const listLoading = isLoading || summaryLoading;
   const hasSearch = Boolean(filters.search.trim());
+  const helpEmpty = useHelpEmptySupport(PAGE_PATH, !hasSearch);
 
   return (
     <WorkbenchPageShell
@@ -358,6 +364,11 @@ export function FinanceInvoiceablePage() {
 
         if (trips.length === 0) {
           const showAccountantEmpty = isAccountant && !hasSearch;
+          const productDescription = hasSearch
+            ? copy.empty.withFilters
+            : showAccountantEmpty
+              ? copy.empty.accountantDescription
+              : emptyBucket.description;
           return (
             <EmptyState
               icon={
@@ -371,11 +382,9 @@ export function FinanceInvoiceablePage() {
                     : emptyBucket.title
               }
               description={
-                hasSearch
-                  ? copy.empty.withFilters
-                  : showAccountantEmpty
-                    ? copy.empty.accountantDescription
-                    : emptyBucket.description
+                !hasSearch && helpEmpty
+                  ? helpEmpty.phrase
+                  : productDescription
               }
               secondaryCta={
                 hasSearch
@@ -384,14 +393,16 @@ export function FinanceInvoiceablePage() {
                       onClick: filters.clearAll,
                       variant: "outline" as const,
                     }
-                  : showAccountantEmpty
-                    ? {
-                        label: copy.empty.accountantFiscalAttentionCta,
-                        onClick: () =>
-                          navigate("/trips?fiscalAttention=1"),
-                        variant: "outline" as const,
-                      }
-                    : undefined
+                  : helpEmpty
+                    ? helpEmpty.viewHelpCta
+                    : showAccountantEmpty
+                      ? {
+                          label: copy.empty.accountantFiscalAttentionCta,
+                          onClick: () =>
+                            navigate("/trips?fiscalAttention=1"),
+                          variant: "outline" as const,
+                        }
+                      : undefined
               }
             />
           );

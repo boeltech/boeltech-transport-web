@@ -18,6 +18,7 @@ import { useSidebar } from "@/app/providers/SidebarProvider";
 import { Sidebar, MobileSidebar } from "@/widgets/sidebar";
 import { Header } from "@/widgets/header";
 import { EmailVerificationBanner } from "@features/auth";
+import { HelpPanelProvider } from "@features/help-center";
 
 // ============================================
 // Constantes
@@ -36,58 +37,60 @@ export function LayoutShell() {
   const { isCollapsed } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* ==========================================
-          Sidebar Desktop
-          ========================================== */}
-      <aside
-        className={cn(
-          "fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out",
-          "hidden lg:block",
-        )}
-        style={{
-          width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
-        }}
-      >
-        <Sidebar />
-      </aside>
-
-      {/* ==========================================
-          Sidebar Mobile (Drawer)
-          ========================================== */}
-      <MobileSidebar />
-
-      {/* ==========================================
-          Header
-          ========================================== */}
-      <Header />
-
-      {/* ==========================================
-          Main Content
-          ========================================== */}
-      <main
-        className={cn("min-h-screen transition-all duration-300 ease-in-out")}
-        style={{
-          marginLeft: 0,
-          // Solo aplicar margin en desktop (lg+)
-        }}
-      >
-        {/* Wrapper con margin responsive */}
-        <div
+    <HelpPanelProvider>
+      <div className="min-h-screen bg-background">
+        {/* ==========================================
+            Sidebar Desktop
+            ========================================== */}
+        <aside
           className={cn(
-            "min-h-screen transition-all duration-300 ease-in-out",
-            isCollapsed ? "lg:ml-[70px]" : "lg:ml-[260px]",
+            "fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out",
+            "hidden lg:block",
           )}
+          style={{
+            width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+          }}
         >
-          {/* Content wrapper con padding */}
-          <div className="pt-20 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
-            <div className="mx-auto max-w-7xl">
-              <EmailVerificationBanner />
-              <Outlet />
+          <Sidebar />
+        </aside>
+
+        {/* ==========================================
+            Sidebar Mobile (Drawer)
+            ========================================== */}
+        <MobileSidebar />
+
+        {/* ==========================================
+            Header
+            ========================================== */}
+        <Header />
+
+        {/* ==========================================
+            Main Content
+            ========================================== */}
+        <main
+          className={cn("min-h-screen transition-all duration-300 ease-in-out")}
+          style={{
+            marginLeft: 0,
+            // Solo aplicar margin en desktop (lg+)
+          }}
+        >
+          {/* Wrapper con margin responsive */}
+          <div
+            className={cn(
+              "min-h-screen transition-all duration-300 ease-in-out",
+              isCollapsed ? "lg:ml-[70px]" : "lg:ml-[260px]",
+            )}
+          >
+            {/* Content wrapper con padding */}
+            <div className="pt-20 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
+              <div className="mx-auto max-w-7xl">
+                <EmailVerificationBanner />
+                <Outlet />
+              </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </HelpPanelProvider>
   );
 }

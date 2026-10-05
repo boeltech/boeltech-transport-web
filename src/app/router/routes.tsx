@@ -342,7 +342,7 @@ const OperatorPaymentsHubLayout = lazyWithRetry(() =>
   })),
 );
 const SettlementCreatePage = lazyWithRetry(() =>
-  import("@features/settlements").then((m) => ({ default: m.SettlementCreatePage })),
+  import("@features/settlements").then((m) => ({ default: m.SettlementCreateEntryPage })),
 );
 const SettlementDetailPage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementDetailPage })),
@@ -432,6 +432,22 @@ const DesignSystemPage = lazyWithRetry(() => import("@/pages/design-system"));
 
 // Onboarding guiado (post-invite / primera sesión heurística)
 const OnboardingPage = lazyWithRetry(() => import("@/pages/onboarding/OnboardingPage"));
+
+// Help Center (ADR-0100)
+const HelpIndexPage = lazyWithRetry(() =>
+  import("@features/help-center").then((m) => ({ default: m.HelpIndexPage })),
+);
+const HelpArticlePage = lazyWithRetry(() =>
+  import("@features/help-center").then((m) => ({ default: m.HelpArticlePage })),
+);
+const HelpTicketsPage = lazyWithRetry(() =>
+  import("@features/help-center").then((m) => ({ default: m.HelpTicketsPage })),
+);
+const HelpTicketDetailPage = lazyWithRetry(() =>
+  import("@features/help-center").then((m) => ({
+    default: m.HelpTicketDetailPage,
+  })),
+);
 
 const PlatformLoginPage = lazyWithRetry(() =>
   import("@features/platform/presentation/pages/PlatformLoginPage").then(
@@ -619,6 +635,24 @@ export const router = createBrowserRouter([
           {
             path: "/onboarding",
             element: withSuspense(OnboardingPage),
+          },
+
+          // Centro de Ayuda (ADR-0100) — todos los autenticados
+          {
+            path: "/ayuda",
+            element: withSuspense(HelpIndexPage),
+          },
+          {
+            path: "/ayuda/tickets",
+            element: withSuspense(HelpTicketsPage),
+          },
+          {
+            path: "/ayuda/tickets/:id",
+            element: withSuspense(HelpTicketDetailPage),
+          },
+          {
+            path: "/ayuda/:id",
+            element: withSuspense(HelpArticlePage),
           },
 
           // SaaS subscription paywall (reachable without settings/billing RBAC)

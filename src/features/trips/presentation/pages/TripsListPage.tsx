@@ -91,9 +91,11 @@ import {
   shouldShowTripsJobEmpty,
 } from "../utils/tripsListOrientation";
 import { tripsListHref } from "../utils/tripsListHref";
+import { useHelpEmptySupport } from "@features/help-center";
 
 const copy = tripsListCopy;
 const workbenchCopy = tripsListCopy.workbench;
+const TRIPS_PATH = "/trips";
 
 export function TripsListPage() {
   const navigate = useNavigate();
@@ -551,6 +553,13 @@ export function TripsListPage() {
     showJobEmpty,
   });
 
+  const showHelpOnEmpty =
+    !hasFilters &&
+    !hasOverdueFilter &&
+    !fiscalAttentionOnly &&
+    !activeBucket;
+  const helpEmpty = useHelpEmptySupport(TRIPS_PATH, showHelpOnEmpty);
+
   const overdueBanner =
     !isLeanTripPortal && !overdueOnly && overdueTripCount > 0 ? (
       <Alert variant="warning">
@@ -618,6 +627,7 @@ export function TripsListPage() {
           icon: <CalendarPlus className="h-4 w-4" />,
           onClick: goCreateReserve,
           visible: canCreate,
+          dataHelpAnchor: "trip-reservar-cta",
         }}
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.scorecardAriaLabel}
@@ -709,16 +719,33 @@ export function TripsListPage() {
                       {emptyDescription}
                     </p>
                   ) : null}
+                  {helpEmpty ? (
+                    <p className="text-sm text-muted-foreground">
+                      {helpEmpty.phrase}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {canCreate ? (
-                    <Button onClick={goCreateReserve} leftIcon={<CalendarPlus className="h-4 w-4" />}>
+                    <Button
+                      onClick={goCreateReserve}
+                      leftIcon={<CalendarPlus className="h-4 w-4" />}
+                      data-help-anchor="trip-reservar-cta"
+                    >
                       {copy.actions.create}
                     </Button>
                   ) : null}
                   {hasFilters ? (
                     <Button variant="outline" onClick={clearAllTripsFilters}>
                       {copy.actions.clearFilters}
+                    </Button>
+                  ) : null}
+                  {helpEmpty ? (
+                    <Button
+                      variant="outline"
+                      onClick={helpEmpty.viewHelpCta.onClick}
+                    >
+                      {helpEmpty.viewHelpCta.label}
                     </Button>
                   ) : null}
                 </div>

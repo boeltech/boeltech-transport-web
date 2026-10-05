@@ -693,6 +693,7 @@ export function InvoiceActions({
             className="hidden 2xl:inline-flex"
             onClick={() => setSendDialogOpen(true)}
             disabled={isLoading}
+            data-help-anchor="send-enviar-factura"
           >
             <Mail className="mr-2 h-4 w-4" />
             {sendByEmailLabel}
@@ -812,6 +813,7 @@ export function InvoiceActions({
                   className="2xl:hidden"
                   disabled={isLoading}
                   onSelect={() => setSendDialogOpen(true)}
+                  data-help-anchor="send-enviar-factura"
                 >
                   <Mail className="mr-2 h-4 w-4" />
                   {sendByEmailLabel}
