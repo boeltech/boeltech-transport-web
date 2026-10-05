@@ -133,8 +133,8 @@ export function isMultiStepApproval(
 
 /**
  * UX5: un tenant sin política propia no ve chips ni líneas nuevas en
- * solicitudes de un paso. Reautorización y escalado solo aparecen con regla
- * propia o con varios pasos.
+ * solicitudes de un paso. Escalado, línea de paso y «¿Por qué te toca?» solo
+ * aparecen con regla propia o con varios pasos.
  */
 export function showsApprovalPolicySignals(
   approval: ApprovalBlock | null | undefined,
@@ -142,6 +142,20 @@ export function showsApprovalPolicySignals(
   return Boolean(
     approval && (approval.stepsTotal > 1 || approval.routedBy.policyVersion !== null),
   );
+}
+
+/**
+ * Chip «Reautorización» (UX5 enmendada, excepción UX8): con regla propia o
+ * varios pasos, ante cualquier corrección; con la regla estándar, solo si la
+ * corrección anuló una autorización vigente.
+ */
+export function showsReapprovalSignal(
+  approval: ApprovalBlock | null | undefined,
+): approval is ApprovalBlock & { reapproval: NonNullable<ApprovalBlock["reapproval"]> } {
+  const reapproval = approval?.reapproval;
+  if (!approval || !reapproval) return false;
+  if (!OPEN_FLOW_STATUSES.includes(approval.flowStatus)) return false;
+  return showsApprovalPolicySignals(approval) || reapproval.previousStatus === "approved";
 }
 
 /** Firma un paso intermedio: queda otro por firmar después. */

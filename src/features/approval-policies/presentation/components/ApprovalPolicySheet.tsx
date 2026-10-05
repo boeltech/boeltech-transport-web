@@ -31,6 +31,7 @@ import {
   POLICY_TEMPLATE_IDS,
   buildPolicyTemplate,
   classifySavePolicyError,
+  conceptAllowsNoApprovalTier,
   describeConditions,
   describeTier,
   distinctSignersForTier,
@@ -55,6 +56,7 @@ import {
   emptyTier,
   formValuesToRules,
   rulesToFormValues,
+  type PolicyFormTier,
   type PolicyFormValues,
 } from "../validation/approvalPolicySchema";
 import { placeSavePolicyErrors } from "../utils/policyServerErrors";
@@ -78,11 +80,8 @@ interface ApprovalPolicySheetProps {
   onReload: () => void;
 }
 
-/** Umbral VoBo implícito en la regla vigente de liquidaciones (SDD §3.10). */
-function settlementThresholdFrom(rules: ApprovalRules): number {
-  const ordered = [...rules.tiers].sort((a, b) => a.minAmount - b.minAmount);
-  if (ordered[0]?.requiresApproval !== false) return 0;
-  return ordered.find((tier) => tier.requiresApproval)?.minAmount ?? 0;
+function isUnconditionedTier(tier: PolicyFormTier): boolean {
+  return tier.categories.length === 0 && !tier.missingCfdi && !tier.manualAdjustments;
 }
 
 export function ApprovalPolicySheet({
@@ -175,7 +174,16 @@ function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEdito
   const [confirmReset, setConfirmReset] = useState(false);
   const [blocking, setBlocking] = useState<{ kind: SavePolicyErrorKind; message: string } | null>(null);
 
-  const threshold = concept === "settlement" ? settlementThresholdFrom(policy.rules) : 0;
+  // Sin tramo por monto (`null`) no hay umbral que conservar: la plantilla arranca en $0.
+  const threshold = concept === "settlement" ? (policy.voboThresholdMxn ?? 0) : 0;
+  const allowsNoApprovalTier = conceptAllowsNoApprovalTier(concept);
+  const thresholdTierIndex = allowsNoApprovalTier
+    ? tiers.findIndex((tier) => tier.requiresApproval && isUnconditionedTier(tier))
+    : -1;
+  const canAddNoApprovalTier =
+    allowsNoApprovalTier &&
+    tiers.length < APPROVAL_MAX_TIERS &&
+    !tiers.some((tier) => !tier.requiresApproval);
   const categoryLabel = categoryLabelFor(concept);
   const draftRules = formValuesToRules({ tiers });
   const summary = tiers.length > 0 ? summarizeRules(draftRules, concept, { categoryLabel }) : "";
@@ -197,6 +205,18 @@ function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEdito
     form.setValue("tiers", [...tiers, emptyTier(concept, highest > 0 ? highest * 2 : 10_000)], {
       shouldDirty: true,
     });
+  };
+
+  /** D4: el tramo base pasa a «sin autorización» y el usuario captura desde cuánto se pide. */
+  const addNoApprovalTier = () => {
+    const noApprovalBase: PolicyFormTier = {
+      ...emptyTier(concept, 0),
+      requiresApproval: false,
+      steps: [],
+    };
+    form.setValue("tiers", [noApprovalBase, ...tiers], { shouldDirty: true });
+    form.clearErrors("tiers");
+    window.setTimeout(() => document.getElementById("policy-tier-1-amount")?.focus(), 0);
   };
 
   const removeTier = (index: number) => {
@@ -274,6 +294,13 @@ function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEdito
   };
 
   const confirmCopy = approvalPoliciesCopy.confirm;
+  const standardThreshold = concept === "settlement" ? policy.standardVoboThresholdMxn : undefined;
+  const resetDescription =
+    typeof standardThreshold !== "number"
+      ? confirmCopy.resetDescription
+      : standardThreshold > 0
+        ? confirmCopy.resetDescriptionSettlement(formatPolicyAmount(standardThreshold))
+        : confirmCopy.resetDescriptionSettlementZero;
 
   return (
     <>
@@ -338,14 +365,23 @@ function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEdito
               concept={concept}
               tierIndex={index}
               candidateUsers={candidateUsers}
+              amountHint={index === thresholdTierIndex ? copy.thresholdAmountHint : undefined}
               onRemove={index === 0 ? undefined : () => removeTier(index)}
             />
           ))}
           {tiers.length < APPROVAL_MAX_TIERS ? (
-            <Button type="button" variant="outline" size="sm" onClick={addTier} disabled={busy}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              {copy.addTier}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={addTier} disabled={busy}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                {copy.addTier}
+              </Button>
+              {canAddNoApprovalTier ? (
+                <Button type="button" variant="outline" size="sm" onClick={addNoApprovalTier} disabled={busy}>
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  {copy.addNoApprovalTier}
+                </Button>
+              ) : null}
+            </div>
           ) : (
             <p className="text-xs text-muted-foreground">{copy.maxTiers}</p>
           )}
@@ -414,7 +450,7 @@ function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEdito
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmCopy.resetTitle}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmCopy.resetDescription}</AlertDialogDescription>
+            <AlertDialogDescription>{resetDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{confirmCopy.cancel}</AlertDialogCancel>

@@ -22,10 +22,19 @@ interface PolicyTierEditorProps {
   concept: ApprovalConcept;
   tierIndex: number;
   candidateUsers: PolicyCandidateUser[] | null;
+  /** Ayuda bajo el «Desde» (p. ej. el tramo que fija el umbral de liquidaciones). */
+  amountHint?: string;
   onRemove?: () => void;
 }
 
-export function PolicyTierEditor({ form, concept, tierIndex, candidateUsers, onRemove }: PolicyTierEditorProps) {
+export function PolicyTierEditor({
+  form,
+  concept,
+  tierIndex,
+  candidateUsers,
+  amountHint,
+  onRemove,
+}: PolicyTierEditorProps) {
   const path = `tiers.${tierIndex}` as const;
   const tier = useWatch({ control: form.control, name: path }) as PolicyFormTier | undefined;
   const errors = form.formState.errors;
@@ -36,6 +45,11 @@ export function PolicyTierEditor({ form, concept, tierIndex, candidateUsers, onR
   const categoryLabels = CONCEPT_CATEGORY_LABELS[concept] ?? {};
   const maxSteps = conceptMaxSteps(concept);
   const amountId = `policy-tier-${tierIndex}-amount`;
+  const amountHintId = `${amountId}-hint`;
+  const amountAria = getFieldErrorAriaProps(amountId, amountError);
+  const amountDescribedBy =
+    [amountHint ? amountHintId : null, amountAria["aria-describedby"]].filter(Boolean).join(" ") ||
+    undefined;
 
   if (!tier) return null;
 
@@ -89,8 +103,14 @@ export function PolicyTierEditor({ form, concept, tierIndex, candidateUsers, onR
             currencyCode="MXN"
             decimals={2}
             error={Boolean(amountError)}
-            {...getFieldErrorAriaProps(amountId, amountError)}
+            aria-invalid={amountAria["aria-invalid"]}
+            aria-describedby={amountDescribedBy}
           />
+          {amountHint ? (
+            <p id={amountHintId} className="text-xs text-muted-foreground">
+              {amountHint}
+            </p>
+          ) : null}
           <FieldInlineError fieldId={amountId} message={amountError} />
         </div>
       )}

@@ -78,6 +78,19 @@ export interface ConceptPolicy {
   readonly rules: ApprovalRules;
   readonly summary: string;
   readonly pendingRequests: number;
+  /**
+   * Umbral VoBo de la regla vigente, calculado por el API (addendum ADR-0099 A4, rev. 0.2).
+   * En liquidaciones: número = piden autorización los pagos desde ese monto (`0` = todos);
+   * `null` = ningún tramo sin condiciones pide autorización (solo las correcciones manuales).
+   * En los demás conceptos siempre `null`.
+   * `undefined` = el API no envió el campo (anterior a F1); la UI no muestra línea de umbral.
+   */
+  readonly voboThresholdMxn?: number | null;
+  /**
+   * Monto al que vuelve «Restablecer estándar» en liquidaciones (rev. 0.2), en estado
+   * estándar y personalizado. `null` en los demás conceptos; `undefined` = el API no lo envió.
+   */
+  readonly standardVoboThresholdMxn?: number | null;
 }
 
 export interface ApprovalPoliciesOverview {

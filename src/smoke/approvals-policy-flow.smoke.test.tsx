@@ -1,7 +1,7 @@
 /**
- * Smoke ADR-0099 F7 (AX-2…AX-9) — bandeja con reglas de autorización: masiva
+ * Smoke ADR-0099 F7 (AX-2…AX-9b) — bandeja con reglas de autorización: masiva
  * por paso, «Ya firmaste», reautorización, escalada / sin elegibles, historial,
- * guardas 409, rechazo terminal y tenant sin regla propia (UX5).
+ * guardas 409, rechazo terminal y tenant sin regla propia (UX5 enmendada).
  * Mock de API; no requiere backend ni Playwright.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -15,6 +15,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type {
   ApprovableItem,
   ApprovalBlock,
+  ApprovalFieldChange,
   ApprovalHistoryEntry,
   SelfApprovalPolicy,
 } from "@features/approvals/domain";
@@ -432,6 +433,7 @@ describe("AX-4 reautorización", () => {
         reapproval: {
           invalidatedAt: "2026-10-01T17:00:00.000Z",
           previousInstanceId: "instance-1",
+          previousStatus: "approved",
           changes: [{ field: "amount", from: 8000, to: 12000 }],
         },
       }),
@@ -448,6 +450,28 @@ describe("AX-4 reautorización", () => {
       "Cambió desde la autorización anterior: Monto: $8,000.00 → $12,000.00",
     );
     expect(await screen.findByRole("tooltip")).toHaveTextContent(expected);
+  });
+
+  it("con regla propia y corrección antes de autorizar: «Cambió mientras esperaba autorización»", async () => {
+    const user = userEvent.setup();
+    const corrected = createItem("V-REAP-OPEN", {
+      amount: 12000,
+      approval: makeApproval({
+        reapproval: {
+          invalidatedAt: "2026-10-01T17:00:00.000Z",
+          previousInstanceId: "instance-1",
+          previousStatus: "in_progress",
+          changes: [{ field: "amount", from: 8000, to: 12000 }],
+        },
+      }),
+    });
+    mockList.mockResolvedValue(listResponse([corrected]));
+    renderInbox();
+
+    await user.hover(await screen.findByText(flowCopy.reapprovalChip));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Cambió mientras esperaba autorización: Monto: $8,000.00 → $12,000.00",
+    );
   });
 });
 
@@ -676,6 +700,7 @@ describe("AX-9 tenant sin regla propia (UX5)", () => {
         reapproval: {
           invalidatedAt: "2026-10-01T17:00:00.000Z",
           previousInstanceId: "instance-1",
+          previousStatus: null,
           changes: [{ field: "amount", from: 8000, to: 12000 }],
         },
       }),
@@ -693,5 +718,108 @@ describe("AX-9 tenant sin regla propia (UX5)", () => {
     expect(screen.queryByText(flowCopy.reapprovalChip)).not.toBeInTheDocument();
     expect(screen.queryByText(flowCopy.escalatedChip)).not.toBeInTheDocument();
     expect(screen.queryByText(flowCopy.noActiveChip)).not.toBeInTheDocument();
+  });
+});
+
+describe("AX-9b regla estándar con autorización anulada (UX5 enmendada · UX8)", () => {
+  const standardRoutedBy = {
+    tierIndex: null,
+    minAmount: null,
+    matchedConditions: [],
+    policyVersion: null,
+    lazy: true,
+  };
+
+  function standardReapproval(
+    tripCode: string,
+    changes: ApprovalFieldChange[],
+    previousStatus: "approved" | "in_progress" = "approved",
+  ) {
+    return createItem(tripCode, {
+      amount: 12000,
+      approval: makeApproval({
+        stepsTotal: 1,
+        nextStep: null,
+        routedBy: standardRoutedBy,
+        escalated: true,
+        reapproval: {
+          invalidatedAt: "2026-10-02T20:10:00.000Z",
+          previousInstanceId: "instance-1",
+          previousStatus,
+          changes,
+        },
+      }),
+    });
+  }
+
+  it("chip «Reautorización» con tooltip; escalada, línea de paso y «¿Por qué te toca?» siguen ocultas", async () => {
+    const user = userEvent.setup();
+    mockList.mockResolvedValue(
+      listResponse([
+        standardReapproval("V-STD-REAP", [{ field: "amount", from: "8000.00", to: "12000.00" }]),
+      ]),
+    );
+    renderInbox();
+
+    const chip = await screen.findByText(flowCopy.reapprovalChip);
+    expect(screen.queryByText(/Paso \d+ de \d+/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(flowCopy.whyHint)).not.toBeInTheDocument();
+    expect(screen.queryByText(flowCopy.escalatedChip)).not.toBeInTheDocument();
+    expect(screen.queryByText(flowCopy.noActiveChip)).not.toBeInTheDocument();
+
+    await user.hover(chip);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Cambió desde la autorización anterior: Monto: $8,000.00 → $12,000.00",
+    );
+  });
+
+  it("D5: la confirmación de Aprobar dice «Ya estaba autorizado. Cambió: …»", async () => {
+    const user = userEvent.setup();
+    mockList.mockResolvedValue(
+      listResponse([
+        standardReapproval("V-STD-D5", [{ field: "amount", from: "8000.00", to: "12000.00" }]),
+      ]),
+    );
+    renderInbox();
+
+    await screen.findByText(flowCopy.reapprovalChip);
+    await user.click(screen.getByRole("button", { name: "Aprobar" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent(
+      "Ya estaba autorizado. Cambió: Monto: $8,000.00 → $12,000.00.",
+    );
+  });
+
+  it("diff vacío: chip con tooltip sin lista y línea D5 sin cambios", async () => {
+    const user = userEvent.setup();
+    mockList.mockResolvedValue(listResponse([standardReapproval("V-STD-EMPTY", [])]));
+    renderInbox();
+
+    await user.hover(await screen.findByText(flowCopy.reapprovalChip));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      flowCopy.reapprovalTooltipNoChanges,
+    );
+    await user.unhover(screen.getByText(flowCopy.reapprovalChip));
+
+    await user.click(screen.getByRole("button", { name: "Aprobar" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "Ya estaba autorizado; se corrigió y requiere nueva firma.",
+    );
+  });
+
+  it("sin autorización anulada (in_progress) no hay chip ni línea D5", async () => {
+    const user = userEvent.setup();
+    const item = standardReapproval(
+      "V-STD-OPEN",
+      [{ field: "amount", from: "8000.00", to: "12000.00" }],
+      "in_progress",
+    );
+    mockList.mockResolvedValue(listResponse([item]));
+    renderInbox();
+
+    await screen.findByRole("checkbox", { name: "Seleccionar V-STD-OPEN" });
+    expect(screen.queryByText(flowCopy.reapprovalChip)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Aprobar" }));
+    expect(await screen.findByRole("alertdialog")).not.toHaveTextContent(/Ya estaba autorizado/);
   });
 });

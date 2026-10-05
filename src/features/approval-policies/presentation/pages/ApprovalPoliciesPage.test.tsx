@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import type { ApprovalPoliciesOverview, ConceptPolicy } from "../../domain";
-import { approvalPoliciesCopy } from "../copy/approvalPoliciesCopy";
+import { TEMPLATE_LABELS, approvalPoliciesCopy } from "../copy/approvalPoliciesCopy";
 import { ApprovalPoliciesPage } from "./ApprovalPoliciesPage";
 
 const mockApi = vi.hoisted(() => ({
@@ -61,6 +61,8 @@ function policy(concept: ConceptPolicy["concept"], overrides: Partial<ConceptPol
     },
     summary: "Cualquier autorizador",
     pendingRequests: 0,
+    voboThresholdMxn: concept === "settlement" ? 0 : null,
+    standardVoboThresholdMxn: concept === "settlement" ? 0 : null,
     ...overrides,
   };
 }
@@ -117,6 +119,238 @@ describe("ApprovalPoliciesPage", () => {
     expect(screen.getAllByText(approvalPoliciesCopy.card.standardText)).toHaveLength(4);
     expect(screen.getAllByText(approvalPoliciesCopy.floorNote.text).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: approvalPoliciesCopy.card.customize })).toHaveLength(4);
+  });
+
+  describe("umbral en la tarjeta Liquidaciones (D1/D2)", () => {
+    const cardCopy = approvalPoliciesCopy.card;
+    const thresholdRules = {
+      rulesSchemaVersion: 1 as const,
+      tiers: [
+        { minAmount: 0, conditions: {}, requiresApproval: false, steps: [] },
+        {
+          minAmount: 5000,
+          conditions: {},
+          requiresApproval: true,
+          steps: [{ eligibleRoles: [...ceilingStep.eligibleRoles], eligibleUserIds: [] }],
+        },
+      ],
+    };
+
+    it("estándar con umbral $5,000: el texto principal y la línea del umbral muestran el monto", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true, { voboThresholdMxn: 5000, rules: thresholdRules }));
+      renderPage();
+      const card = await screen.findByTestId("approval-policy-card-settlement");
+      expect(
+        within(card).getByText("Usando la regla estándar: cualquier autorizador activo, desde $5,000.00"),
+      ).toBeInTheDocument();
+      expect(within(card).getByTestId("approval-policy-threshold")).toHaveTextContent(
+        "Piden autorización los pagos desde $5,000.00.",
+      );
+      expect(within(card).getByText(cardCopy.manualAdjustmentsNote)).toBeInTheDocument();
+      expect(screen.getAllByText(cardCopy.standardText)).toHaveLength(3);
+    });
+
+    it("estándar con umbral $0: «Todos los pagos piden autorización»", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true));
+      renderPage();
+      const card = await screen.findByTestId("approval-policy-card-settlement");
+      expect(within(card).getByText(cardCopy.standardText)).toBeInTheDocument();
+      expect(within(card).getByTestId("approval-policy-threshold")).toHaveTextContent(
+        cardCopy.settlementThresholdZero,
+      );
+    });
+
+    it("personalizada: conserva el resumen y muestra el umbral que calcula el API", async () => {
+      mockApi.getOverview.mockResolvedValue(
+        overview(true, {
+          source: "tenant",
+          version: 3,
+          effectiveFrom: "2026-10-01T00:00:00Z",
+          summary: "Desde $8,000.00: cualquier autorizador",
+          voboThresholdMxn: 8000,
+        }),
+      );
+      renderPage();
+      const card = await screen.findByTestId("approval-policy-card-settlement");
+      expect(within(card).getByText(cardCopy.customBadge)).toBeInTheDocument();
+      expect(within(card).getByText("Desde $8,000.00: cualquier autorizador")).toBeInTheDocument();
+      expect(within(card).getByTestId("approval-policy-threshold")).toHaveTextContent(
+        cardCopy.settlementThreshold("$8,000.00"),
+      );
+    });
+
+    it("rev. 0.2: personalizada sin tramo por monto (null) dice que ningún pago pide autorización por monto", async () => {
+      mockApi.getOverview.mockResolvedValue(
+        overview(true, {
+          source: "tenant",
+          version: 2,
+          effectiveFrom: "2026-10-01T00:00:00Z",
+          summary: "Desde $0.00: sin autorización",
+          voboThresholdMxn: null,
+        }),
+      );
+      renderPage();
+      const card = await screen.findByTestId("approval-policy-card-settlement");
+      expect(within(card).getByTestId("approval-policy-threshold")).toHaveTextContent(
+        "Ningún pago pide autorización por monto; solo las correcciones manuales.",
+      );
+      expect(within(card).queryByText(cardCopy.settlementThresholdZero)).not.toBeInTheDocument();
+      expect(within(card).getByText(cardCopy.manualAdjustmentsNote)).toBeInTheDocument();
+    });
+
+    it("rev. 0.2: si el API no envía el campo (anterior a F1) no muestra línea de umbral", async () => {
+      const settlement = policy("settlement");
+      delete (settlement as { voboThresholdMxn?: number | null }).voboThresholdMxn;
+      mockApi.getOverview.mockResolvedValue({
+        editEnabled: true,
+        concepts: [policy("driver_advance"), policy("trip_expense"), settlement, policy("disbursement")],
+      });
+      renderPage();
+      const card = await screen.findByTestId("approval-policy-card-settlement");
+      expect(within(card).getByText(cardCopy.standardText)).toBeInTheDocument();
+      expect(within(card).queryByTestId("approval-policy-threshold")).not.toBeInTheDocument();
+    });
+
+    it("rev. 0.2: con umbral null la plantilla «Un autorizador» arranca en $0 (no hay monto que conservar)", async () => {
+      const manualOnlyRules = {
+        rulesSchemaVersion: 1 as const,
+        tiers: [
+          { minAmount: 0, conditions: {}, requiresApproval: false, steps: [] },
+          {
+            minAmount: 1000,
+            conditions: { manualAdjustments: true as const },
+            requiresApproval: true,
+            steps: [{ eligibleRoles: [...ceilingStep.eligibleRoles], eligibleUserIds: [] }],
+          },
+        ],
+      };
+      mockApi.getOverview.mockResolvedValue(
+        overview(true, {
+          source: "tenant",
+          version: 2,
+          effectiveFrom: "2026-10-01T00:00:00Z",
+          rules: manualOnlyRules,
+          voboThresholdMxn: null,
+        }),
+      );
+      const user = userEvent.setup();
+      renderPage("/settings/approvals?concept=settlement");
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: `${sheetCopy.applyTemplate} ${TEMPLATE_LABELS.oneApprover.title}`,
+        }),
+      );
+      expect(within(dialog).queryByTestId("policy-tier-1")).not.toBeInTheDocument();
+      expect(
+        within(within(dialog).getByTestId("policy-tier-0")).getByRole("checkbox", {
+          name: new RegExp(sheetCopy.noApproval),
+        }),
+      ).not.toBeChecked();
+    });
+
+    it("otros conceptos no muestran línea de umbral", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true));
+      renderPage();
+      const card = await screen.findByTestId("approval-policy-card-driver_advance");
+      expect(within(card).queryByTestId("approval-policy-threshold")).not.toBeInTheDocument();
+    });
+
+    it("editor: el «Desde» del primer tramo con autorización lleva la ayuda del monto mínimo (D3)", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true, { voboThresholdMxn: 5000, rules: thresholdRules }));
+      renderPage("/settings/approvals?concept=settlement");
+      const dialog = await screen.findByRole("dialog");
+      const amount = within(within(dialog).getByTestId("policy-tier-1")).getByLabelText(sheetCopy.minAmount);
+      expect(amount).toHaveAccessibleDescription(sheetCopy.thresholdAmountHint);
+      expect(within(within(dialog).getByTestId("policy-tier-0")).getByText(sheetCopy.noApprovalHint)).toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: sheetCopy.addNoApprovalTier })).not.toBeInTheDocument();
+    });
+
+    it("editor con umbral $0: «No pedir autorización en montos bajos» inserta el tramo base y guarda dos tramos (D4)", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true));
+      mockApi.save.mockResolvedValue({
+        message: "Regla de autorización guardada",
+        data: { ...policy("settlement"), source: "tenant", version: 1, createdBy: "u-admin", warnings: [] },
+      });
+      const user = userEvent.setup();
+      renderPage("/settings/approvals?concept=settlement");
+      const dialog = await screen.findByRole("dialog");
+
+      await user.click(within(dialog).getByRole("button", { name: sheetCopy.addNoApprovalTier }));
+      expect(
+        within(within(dialog).getByTestId("policy-tier-0")).getByRole("checkbox", {
+          name: new RegExp(sheetCopy.noApproval),
+        }),
+      ).toBeChecked();
+      const amount = within(within(dialog).getByTestId("policy-tier-1")).getByLabelText(sheetCopy.minAmount);
+      await waitFor(() => expect(amount).toHaveFocus());
+      expect(within(dialog).queryByRole("button", { name: sheetCopy.addNoApprovalTier })).not.toBeInTheDocument();
+
+      await user.clear(amount);
+      await user.type(amount, "3000");
+      await user.click(within(dialog).getByRole("button", { name: sheetCopy.save }));
+      const confirm = await screen.findByRole("alertdialog");
+      await user.click(within(confirm).getByRole("button", { name: approvalPoliciesCopy.confirm.confirm }));
+
+      await waitFor(() => expect(mockApi.save).toHaveBeenCalledTimes(1));
+      const { rules } = mockApi.save.mock.calls[0]![0];
+      expect(rules.tiers).toHaveLength(2);
+      expect(rules.tiers[0]).toEqual({ minAmount: 0, conditions: {}, requiresApproval: false, steps: [] });
+      expect(rules.tiers[1]).toMatchObject({ minAmount: 3000, requiresApproval: true });
+    });
+  });
+
+  describe("confirmación de «Restablecer estándar» (A7, rev. 0.2)", () => {
+    const customized: Partial<ConceptPolicy> = {
+      source: "tenant",
+      version: 2,
+      effectiveFrom: "2026-10-01T00:00:00Z",
+      voboThresholdMxn: null,
+    };
+
+    async function openResetConfirm(concept: ConceptPolicy["concept"] = "settlement") {
+      const user = userEvent.setup();
+      renderPage(`/settings/approvals?concept=${concept}`);
+      const dialog = await screen.findByRole("dialog");
+      await user.click(within(dialog).getByRole("button", { name: sheetCopy.reset }));
+      return screen.findByRole("alertdialog");
+    }
+
+    it("Liquidaciones con estándar $5,000: muestra el monto al que vuelve", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true, { ...customized, standardVoboThresholdMxn: 5000 }));
+      const confirm = await openResetConfirm();
+      expect(
+        within(confirm).getByText("Cualquier autorizador activo firmará los pagos nuevos desde $5,000.00."),
+      ).toBeInTheDocument();
+    });
+
+    it("Liquidaciones con estándar $0: firmará todos los pagos nuevos", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true, { ...customized, standardVoboThresholdMxn: 0 }));
+      const confirm = await openResetConfirm();
+      expect(
+        within(confirm).getByText("Cualquier autorizador activo firmará todos los pagos nuevos."),
+      ).toBeInTheDocument();
+    });
+
+    it("Liquidaciones sin el campo del API: texto genérico", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true, { ...customized, standardVoboThresholdMxn: undefined }));
+      const confirm = await openResetConfirm();
+      expect(within(confirm).getByText(approvalPoliciesCopy.confirm.resetDescription)).toBeInTheDocument();
+    });
+
+    it("otros conceptos conservan el texto genérico", async () => {
+      mockApi.getOverview.mockResolvedValue({
+        editEnabled: true,
+        concepts: [
+          policy("driver_advance", { source: "tenant", version: 1, effectiveFrom: "2026-10-01T00:00:00Z" }),
+          policy("trip_expense"),
+          policy("settlement"),
+          policy("disbursement"),
+        ],
+      });
+      const confirm = await openResetConfirm("driver_advance");
+      expect(within(confirm).getByText(approvalPoliciesCopy.confirm.resetDescription)).toBeInTheDocument();
+    });
   });
 
   it("solo lectura con edit_enabled=false: sin editar, con aviso y simulador disponible", async () => {

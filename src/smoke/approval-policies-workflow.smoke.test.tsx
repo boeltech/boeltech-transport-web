@@ -5,6 +5,8 @@
  * insatisfacibles, simulador, historial, restablecer, conflicto de versión,
  * interruptor apagado, permisos con la matriz real, guardia de huérfanos
  * en usuarios y entrada desde el hub de Pagos a operadores.
+ * AP-13 (addendum ADR-0099-A): el umbral de VoBo se ve en la tarjeta y se
+ * edita solo como «Desde» de la regla de Liquidaciones.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -183,6 +185,8 @@ function policy(concept: ApprovalConcept, overrides: Partial<ConceptPolicy> = {}
     rules: ceilingRules(concept),
     summary: "Desde $0.00: cualquier autorizador",
     pendingRequests: 0,
+    voboThresholdMxn: concept === "settlement" ? 0 : null,
+    standardVoboThresholdMxn: concept === "settlement" ? 0 : null,
     ...overrides,
   };
 }
@@ -294,7 +298,7 @@ function savedFrom(concept: ApprovalConcept, rules: ApprovalRules, version: numb
   };
 }
 
-describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-12)", () => {
+describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-13)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setRole("admin", "u-admin");
@@ -480,6 +484,9 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-12)", () => {
     expect(within(result).getByText(`Mario Gerente (${ROLE_LABELS.manager})`)).toBeInTheDocument();
     expect(within(result).getByText(copy.simulator.stepLine(2, 2))).toBeInTheDocument();
     expect(within(result).getByText(copy.simulator.nobody)).toBeInTheDocument();
+    expect(within(result).getByText(copy.simulator.violationsTitle)).toBeInTheDocument();
+    expect(within(result).getByText(copy.simulator.violationNoEligible(2))).toBeInTheDocument();
+    expect(within(result).getByTestId("policy-sim-step-2-violation")).toBeInTheDocument();
     expect(mockPoliciesApi.save).not.toHaveBeenCalled();
   });
 
@@ -902,7 +909,9 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-12)", () => {
 
   it("AP-12. Hub → /settings/approvals?concept=settlement con editor abierto; el primer guardado conserva el umbral como tramo sin autorización", async () => {
     const user = userEvent.setup();
-    setOverview(overview(true, { settlement: { rules: settlementThresholdRules(5000) } }));
+    setOverview(
+      overview(true, { settlement: { rules: settlementThresholdRules(5000), voboThresholdMxn: 5000 } }),
+    );
     mockPoliciesApi.save.mockImplementation(async ({ concept, rules }: { concept: ApprovalConcept; rules: ApprovalRules }) =>
       savedFrom(concept, rules, 1),
     );
@@ -937,5 +946,65 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-12)", () => {
     expect(payload.rules.tiers[0]).toEqual({ minAmount: 0, conditions: {}, requiresApproval: false, steps: [] });
     expect(payload.rules.tiers[1]).toMatchObject({ minAmount: 5000, requiresApproval: true });
     expect(payload.rules.tiers[2]).toMatchObject({ minAmount: 20000, steps: [{ eligibleRoles: ["admin"] }] });
+  });
+
+  it("AP-13. Umbral solo en la regla: estándar $5,000 en la tarjeta → editar el «Desde» a $8,000 → PUT con dos tramos, Personalizada v1 e invalida settings de liquidaciones", async () => {
+    const user = userEvent.setup();
+    setOverview(
+      overview(true, { settlement: { rules: settlementThresholdRules(5000), voboThresholdMxn: 5000 } }),
+    );
+    mockPoliciesApi.save.mockImplementation(async ({ concept, rules }: { concept: ApprovalConcept; rules: ApprovalRules }) => {
+      setOverview(
+        overview(true, {
+          settlement: {
+            source: "tenant",
+            version: 1,
+            effectiveFrom: EFFECTIVE_FROM,
+            createdByName: AUTHOR,
+            rules,
+            summary: "Desde $0.00: sin autorización · Desde $8,000.00: cualquier autorizador",
+            voboThresholdMxn: 8000,
+          },
+        }),
+      );
+      return savedFrom(concept, rules, 1);
+    });
+    const client = createClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+    renderPoliciesPage("/settings/approvals", client);
+
+    const card = await screen.findByTestId("approval-policy-card-settlement");
+    expect(within(card).getByText(copy.card.standardBadge)).toBeInTheDocument();
+    expect(within(card).getByText(copy.card.standardTextWithThreshold(formatPolicyAmount(5000)))).toBeInTheDocument();
+    expect(within(card).getByTestId("approval-policy-threshold")).toHaveTextContent(
+      copy.card.settlementThreshold(formatPolicyAmount(5000)),
+    );
+
+    const dialog = await openEditor(user, "settlement");
+    const amount = within(within(dialog).getByTestId("policy-tier-1")).getByLabelText(sheetCopy.minAmount);
+    expect(amount).toHaveAccessibleDescription(sheetCopy.thresholdAmountHint);
+    await user.clear(amount);
+    await user.type(amount, "8000");
+
+    const { accept } = await saveAndConfirm(user, dialog);
+    await accept();
+
+    await waitFor(() => expect(mockPoliciesApi.save).toHaveBeenCalledTimes(1));
+    const payload = mockPoliciesApi.save.mock.calls[0]![0];
+    expect(payload).toMatchObject({ concept: "settlement", expectedVersion: null });
+    expect(payload.rules.tiers).toHaveLength(2);
+    expect(payload.rules.tiers[0]).toEqual({ minAmount: 0, conditions: {}, requiresApproval: false, steps: [] });
+    expect(payload.rules.tiers[1]).toMatchObject({ minAmount: 8000, requiresApproval: true });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: settlementsQueryKeys.settings() });
+    expect(mockApiPatch).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      const updated = screen.getByTestId("approval-policy-card-settlement");
+      expect(within(updated).getByText(copy.card.customBadge)).toBeInTheDocument();
+      expect(within(updated).getByTestId("approval-policy-threshold")).toHaveTextContent(
+        copy.card.settlementThreshold(formatPolicyAmount(8000)),
+      );
+    });
+    expect(within(screen.getByTestId("approval-policy-card-settlement")).getByText(/^v1 · /)).toBeInTheDocument();
   });
 });

@@ -3,7 +3,7 @@ import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@shared/ui/card";
 import { formatDate } from "@shared/utils/dateUtils";
-import type { ConceptPolicy } from "../../domain";
+import { formatPolicyAmount, type ConceptPolicy } from "../../domain";
 import {
   APPROVAL_CONCEPT_DESCRIPTIONS,
   APPROVAL_CONCEPT_LABELS,
@@ -24,6 +24,20 @@ export function ApprovalPolicyCard({ policy, canEdit, onView, onEdit, onHistory 
   const label = APPROVAL_CONCEPT_LABELS[policy.concept];
   const isStandard = policy.source !== "tenant";
   const isNeverCustomized = policy.source === "system_default";
+  const threshold = policy.concept === "settlement" ? policy.voboThresholdMxn : undefined;
+  const headline = isNeverCustomized
+    ? typeof threshold === "number" && threshold > 0
+      ? copy.standardTextWithThreshold(formatPolicyAmount(threshold))
+      : copy.standardText
+    : policy.summary;
+  const thresholdLine =
+    threshold === undefined
+      ? null
+      : threshold === null
+        ? copy.settlementThresholdNone
+        : threshold > 0
+          ? copy.settlementThreshold(formatPolicyAmount(threshold))
+          : copy.settlementThresholdZero;
 
   return (
     <Card className="flex h-full flex-col" data-testid={`approval-policy-card-${policy.concept}`}>
@@ -37,9 +51,12 @@ export function ApprovalPolicyCard({ policy, canEdit, onView, onEdit, onHistory 
         <CardDescription>{APPROVAL_CONCEPT_DESCRIPTIONS[policy.concept]}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-2 pt-0 text-sm">
-        <p className="font-medium text-foreground">
-          {isNeverCustomized ? copy.standardText : policy.summary}
-        </p>
+        <p className="font-medium text-foreground">{headline}</p>
+        {thresholdLine ? (
+          <p className="text-foreground" data-testid="approval-policy-threshold">
+            {thresholdLine}
+          </p>
+        ) : null}
         {policy.concept === "settlement" ? (
           <p className="text-xs text-muted-foreground">{copy.manualAdjustmentsNote}</p>
         ) : null}

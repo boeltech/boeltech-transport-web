@@ -51,10 +51,13 @@ export function ApprovalRowCompensation({
     ? settlementDetailPath(ctx.settlementId)
     : SETTLEMENTS_LIST_PATH;
 
+  const isReimbursementOnly = ctx.settlementKind === "reimbursement_only";
   const periodLabel =
-    ctx.periodStart && ctx.periodEnd
-      ? `${formatDate(ctx.periodStart)} – ${formatDate(ctx.periodEnd)}`
-      : copy.table.noDescription;
+    isReimbursementOnly && ctx.createdAt
+      ? formatDate(ctx.createdAt)
+      : ctx.periodStart && ctx.periodEnd && !isReimbursementOnly
+        ? `${formatDate(ctx.periodStart)} – ${formatDate(ctx.periodEnd)}`
+        : copy.table.noDescription;
 
   return (
     <TableRow>
@@ -84,16 +87,25 @@ export function ApprovalRowCompensation({
         >
           {ctx.settlementNumber || "Liquidación"}
         </Link>
+        {isReimbursementOnly ? (
+          <Badge variant="neutral" tone="soft" className="ml-1.5 text-[10px] font-normal">
+            {copy.table.reimbursementSettlementBadge}
+          </Badge>
+        ) : null}
         <p className="text-xs text-muted-foreground">
           {ctx.employeeFullName ?? "—"}
-          {typeof ctx.tripsCount === "number" ? ` · ${ctx.tripsCount} viajes` : ""}
+          {typeof ctx.tripsCount === "number" && !isReimbursementOnly
+            ? ` · ${ctx.tripsCount} viajes`
+            : ""}
         </p>
         {/* Sub-línea de balance operativo */}
         {typeof ctx.grossAmount === "number" && typeof ctx.totalDeductions === "number" ? (
           <p className="text-[11px] text-muted-foreground font-medium">
-            <span className="text-foreground">Viajes {formatMxCurrency(ctx.grossAmount)}</span>
+            <span className="text-foreground">
+              {isReimbursementOnly ? "Reembolsos" : "Viajes"} {formatMxCurrency(ctx.grossAmount)}
+            </span>
             {ctx.totalDeductions > 0 ? (
-              <span className="text-destructive"> · Anticipos -{formatMxCurrency(ctx.totalDeductions)}</span>
+              <span className="text-destructive"> · Descuentos -{formatMxCurrency(ctx.totalDeductions)}</span>
             ) : null}
           </p>
         ) : null}

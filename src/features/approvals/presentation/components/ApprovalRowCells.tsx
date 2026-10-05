@@ -98,6 +98,7 @@ export function ApprovalActionsCell({
             onClick={onApprove}
             aria-label={copy.actions.approve}
             title={copy.actions.approve}
+            data-help-anchor="appr-approve-action"
           >
             <Check className="h-4 w-4 text-success" />
           </Button>

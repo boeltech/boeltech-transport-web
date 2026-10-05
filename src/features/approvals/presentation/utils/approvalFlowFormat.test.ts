@@ -9,6 +9,8 @@ import {
   describeBulkFailureMessage,
   formatFieldChanges,
   formatPendingFor,
+  formatReapprovalConfirmLine,
+  formatReapprovalTooltip,
   formatSignedLine,
   guardErrorMessage,
 } from "./approvalFlowFormat";
@@ -72,6 +74,221 @@ describe("formatFieldChanges", () => {
     expect(formatFieldChanges([{ field: "currency", from: null, to: "USD" }])).toEqual([
       "Moneda: — → USD",
     ]);
+  });
+
+  it("partidas manuales: agregada, quitada y cambiada con etiqueta corta", () => {
+    expect(
+      formatFieldChanges([
+        {
+          field: "manual_items",
+          from: [
+            {
+              item_type: "bonus",
+              description: "Bono puntualidad",
+              amount: "200.00",
+              is_deduction: false,
+              trip_id: null,
+            },
+            {
+              item_type: "penalty_deduction",
+              description: "Multa caseta",
+              amount: "50.00",
+              is_deduction: true,
+              trip_id: null,
+            },
+          ],
+          to: [
+            {
+              item_type: "bonus",
+              description: "Bono puntualidad",
+              amount: "300.00",
+              is_deduction: false,
+              trip_id: null,
+            },
+            {
+              item_type: "adjustment",
+              description: "Ajuste diésel",
+              amount: "30.00",
+              is_deduction: true,
+              trip_id: null,
+            },
+          ],
+        },
+      ]),
+    ).toEqual([
+      `Bono "Bono puntualidad" ${formatMxCurrency(200)}→${formatMxCurrency(300)}`,
+      `− Penalización "Multa caseta" ${formatMxCurrency(50)}`,
+      `+ Ajuste "Ajuste diésel" ${formatMxCurrency(30)}`,
+    ]);
+  });
+
+  it("anticipos: empareja por advance_id y usa folio si viene", () => {
+    expect(
+      formatFieldChanges([
+        {
+          field: "advance_deductions",
+          from: [{ advance_id: "a1", amount: "100.00" }],
+          to: [
+            { advance_id: "a1", amount: "150.00", folio: "ANT-9" },
+            { advance_id: "a2", amount: "80.00" },
+          ],
+        },
+      ]),
+    ).toEqual([
+      `Anticipo ${formatMxCurrency(100)}→${formatMxCurrency(150)}`,
+      `+ Anticipo ${formatMxCurrency(80)}`,
+    ]);
+
+    expect(
+      formatFieldChanges([
+        {
+          field: "advance_deductions",
+          from: [],
+          to: [{ advance_id: "a3", amount: "40.00", folio: "ANT-3" }],
+        },
+      ]),
+    ).toEqual([`+ Anticipo ANT-3 ${formatMxCurrency(40)}`]);
+  });
+
+  it("máximo 3 deltas de partidas + «y n más»; net_amount al final", () => {
+    const lines = formatFieldChanges([
+      {
+        field: "advance_deductions",
+        from: [],
+        to: [
+          { advance_id: "a1", amount: "10.00" },
+          { advance_id: "a2", amount: "20.00" },
+        ],
+      },
+      {
+        field: "manual_items",
+        from: [],
+        to: [
+          {
+            item_type: "bonus",
+            description: "Uno",
+            amount: "1.00",
+            is_deduction: false,
+            trip_id: null,
+          },
+          {
+            item_type: "bonus",
+            description: "Dos",
+            amount: "2.00",
+            is_deduction: false,
+            trip_id: null,
+          },
+          {
+            item_type: "bonus",
+            description: "Tres",
+            amount: "3.00",
+            is_deduction: false,
+            trip_id: null,
+          },
+        ],
+      },
+      { field: "net_amount", from: "1000.00", to: "900.00" },
+      { field: "amount", from: 50, to: 60 },
+    ]);
+
+    expect(lines).toEqual([
+      `Monto: ${formatMxCurrency(50)} → ${formatMxCurrency(60)}`,
+      `+ Anticipo ${formatMxCurrency(10)}`,
+      `+ Anticipo ${formatMxCurrency(20)}`,
+      `+ Bono "Uno" ${formatMxCurrency(1)}`,
+      "y 2 más",
+      `Neto: ${formatMxCurrency(1000)} → ${formatMxCurrency(900)}`,
+    ]);
+    expect(lines.join(" · ")).not.toContain("Partidas manuales: cambió");
+    expect(lines.join(" · ")).not.toContain("Descuentos de anticipos: cambió");
+  });
+
+  it("descripción de partida se recorta a 28 caracteres", () => {
+    const long = "A".repeat(35);
+    expect(
+      formatFieldChanges([
+        {
+          field: "manual_items",
+          from: [],
+          to: [
+            {
+              item_type: "tax_deduction",
+              description: long,
+              amount: "12.00",
+              is_deduction: true,
+              trip_id: null,
+            },
+          ],
+        },
+      ]),
+    ).toEqual([`+ Retención "${"A".repeat(28)}…" ${formatMxCurrency(12)}`]);
+  });
+});
+
+describe("formatReapprovalTooltip (handoff 12 D3/D4)", () => {
+  const amount = [{ field: "amount", from: "8000.00", to: "12000.00" }];
+  const base = { invalidatedAt: null, previousInstanceId: null };
+
+  it("approved → «Cambió desde la autorización anterior: …»", () => {
+    expect(formatReapprovalTooltip({ ...base, previousStatus: "approved", changes: amount })).toBe(
+      "Cambió desde la autorización anterior: Monto: $8,000.00 → $12,000.00",
+    );
+  });
+
+  it("approved con diff vacío → copy sin lista", () => {
+    expect(formatReapprovalTooltip({ ...base, previousStatus: "approved", changes: [] })).toBe(
+      "Se corrigió después de autorizarse; requiere nueva firma.",
+    );
+  });
+
+  it("in_progress → «Cambió mientras esperaba autorización: …»", () => {
+    expect(
+      formatReapprovalTooltip({ ...base, previousStatus: "in_progress", changes: amount }),
+    ).toBe("Cambió mientras esperaba autorización: Monto: $8,000.00 → $12,000.00");
+  });
+
+  it("D5 concuerda con el concepto: anticipo, gasto y pago «autorizado»", () => {
+    const reapproved = (changes: typeof amount | []) => ({
+      flowStatus: "in_progress" as const,
+      stepCurrent: 1,
+      stepsTotal: 1,
+      pendingFor: { roles: [], users: [] },
+      signedSteps: [],
+      routedBy: {
+        tierIndex: null,
+        minAmount: null,
+        matchedConditions: [],
+        policyVersion: null,
+        lazy: true,
+      },
+      canAct: true,
+      cannotActReason: null,
+      escalated: false,
+      reapproval: { ...base, previousStatus: "approved" as const, changes },
+      returned: null,
+    });
+    const line = "Cambió: Monto: $8,000.00 → $12,000.00.";
+    expect(formatReapprovalConfirmLine(reapproved(amount), "driver_advance_request")).toBe(
+      `Ya estaba autorizado. ${line}`,
+    );
+    expect(formatReapprovalConfirmLine(reapproved(amount), "trip_expense")).toBe(
+      `Ya estaba autorizado. ${line}`,
+    );
+    expect(formatReapprovalConfirmLine(reapproved(amount), "internal_staff_compensation")).toBe(
+      `Ya estaba autorizado. ${line}`,
+    );
+    expect(formatReapprovalConfirmLine(reapproved([]), "driver_advance_request")).toBe(
+      "Ya estaba autorizado; se corrigió y requiere nueva firma.",
+    );
+    expect(formatReapprovalConfirmLine(reapproved([]), "internal_staff_compensation")).toBe(
+      "Ya estaba autorizado; se corrigió y requiere nueva firma.",
+    );
+  });
+
+  it("sin dato (null) conserva el copy previo", () => {
+    expect(formatReapprovalTooltip({ ...base, previousStatus: null, changes: amount })).toBe(
+      "Cambió desde la autorización anterior: Monto: $8,000.00 → $12,000.00",
+    );
   });
 });
 

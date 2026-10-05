@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,8 @@ export interface SelfApprovalConfirmDialogProps {
   subject: SelfApprovalSubject;
   onConfirm: () => void;
   isPending?: boolean;
+  /** Contenido en línea al final de la descripción (p. ej. `ReapprovalConfirmNote`). */
+  note?: ReactNode;
 }
 
 /** ADR-0098 UX1: confirmación explícita antes de autorizar lo propio. */
@@ -30,6 +33,7 @@ export function SelfApprovalConfirmDialog({
   subject,
   onConfirm,
   isPending = false,
+  note,
 }: SelfApprovalConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -39,6 +43,7 @@ export function SelfApprovalConfirmDialog({
           <AlertDialogTitle>{copy.confirmTitle}</AlertDialogTitle>
           <AlertDialogDescription>
             {copy.confirmBody(subject)}
+            {note}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

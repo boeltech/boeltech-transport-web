@@ -11,6 +11,7 @@ import type {
   ApprovalFieldChange,
   ApprovalFlowStatus,
   ApprovalHistoryEntry,
+  ApprovalReapprovalPreviousStatus,
   BulkResult,
   PaginatedApprovals,
   SelfApprovalCapability,
@@ -50,6 +51,7 @@ export interface ApiApprovalBlockRaw {
   reapproval?: {
     invalidated_at: string | null;
     previous_instance_id: string | null;
+    previous_status?: string | null;
     diff?: unknown;
   } | null;
   returned?: {
@@ -154,6 +156,18 @@ const CANNOT_ACT_REASONS: readonly ApprovalCannotActReason[] = [
   "closed",
 ];
 
+const REAPPROVAL_PREVIOUS_STATUSES: readonly ApprovalReapprovalPreviousStatus[] = [
+  "approved",
+  "in_progress",
+];
+
+function mapReapprovalPreviousStatus(raw: unknown): ApprovalReapprovalPreviousStatus | null {
+  return typeof raw === "string" &&
+    (REAPPROVAL_PREVIOUS_STATUSES as readonly string[]).includes(raw)
+    ? (raw as ApprovalReapprovalPreviousStatus)
+    : null;
+}
+
 const DECISION_OUTCOMES: readonly ApprovalDecisionOutcome[] = [
   "approved",
   "rejected",
@@ -243,6 +257,7 @@ export function mapApprovalBlock(raw: ApiApprovalBlockRaw): ApprovalBlock {
       ? {
           invalidatedAt: raw.reapproval.invalidated_at,
           previousInstanceId: raw.reapproval.previous_instance_id,
+          previousStatus: mapReapprovalPreviousStatus(raw.reapproval.previous_status),
           changes: mapApprovalFieldChanges(raw.reapproval.diff),
         }
       : null,

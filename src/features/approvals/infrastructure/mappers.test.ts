@@ -147,6 +147,7 @@ const approvalBlockRaw: ApiApprovalBlockRaw = {
   reapproval: {
     invalidated_at: "2026-10-01T17:00:00.000Z",
     previous_instance_id: "inst-0",
+    previous_status: "approved",
     diff: [{ field: "amount", from: 4000, to: 6000 }, { nope: true }],
   },
   returned: null,
@@ -184,9 +185,33 @@ describe("mapApprovalBlock (ADR-0099)", () => {
       reapproval: {
         invalidatedAt: "2026-10-01T17:00:00.000Z",
         previousInstanceId: "inst-0",
+        previousStatus: "approved",
         changes: [{ field: "amount", from: 4000, to: 6000 }],
       },
       returned: null,
+    });
+  });
+
+  it("reapproval.previous_status: in_progress se conserva; ausente o inválido → null", () => {
+    const withStatus = (previous_status?: string | null) =>
+      mapApprovalBlock({
+        ...approvalBlockRaw,
+        reapproval: { invalidated_at: null, previous_instance_id: null, previous_status, diff: [] },
+      }).reapproval?.previousStatus;
+    expect(withStatus("in_progress")).toBe("in_progress");
+    expect(withStatus(undefined)).toBeNull();
+    expect(withStatus(null)).toBeNull();
+    expect(withStatus("superseded")).toBeNull();
+
+    const block = mapApprovalBlock({
+      ...approvalBlockRaw,
+      reapproval: { invalidated_at: null, previous_instance_id: null, previous_status: "approved", diff: [] },
+    });
+    expect(block.reapproval).toEqual({
+      invalidatedAt: null,
+      previousInstanceId: null,
+      previousStatus: "approved",
+      changes: [],
     });
   });
 

@@ -32,6 +32,12 @@ export function categoryLabelFor(concept: ApprovalConcept): (category: string) =
   return (category) => labels[category] ?? category;
 }
 
+/** Prefijo «Paso n: » solo cuando el paso es un entero ≥ 1. */
+function withStepPrefix(stepNo: number | null | undefined, body: string): string {
+  if (typeof stepNo === "number" && stepNo >= 1) return `Paso ${stepNo}: ${body}`;
+  return body;
+}
+
 export const TEMPLATE_LABELS: Record<PolicyTemplateId, { title: string; description: string }> = {
   oneApprover: {
     title: "Un autorizador",
@@ -67,6 +73,11 @@ export const approvalPoliciesCopy = {
     standardBadge: "Estándar",
     customBadge: "Personalizada",
     standardText: "Usando la regla estándar: cualquier autorizador activo",
+    standardTextWithThreshold: (amount: string) =>
+      `Usando la regla estándar: cualquier autorizador activo, desde ${amount}`,
+    settlementThreshold: (amount: string) => `Piden autorización los pagos desde ${amount}.`,
+    settlementThresholdZero: "Todos los pagos piden autorización.",
+    settlementThresholdNone: "Ningún pago pide autorización por monto; solo las correcciones manuales.",
     meta: (version: number, effectiveFrom: string, createdByName?: string | null) =>
       [`v${version}`, `Vigente desde ${effectiveFrom}`, createdByName].filter(Boolean).join(" · "),
     pending: (n: number) =>
@@ -89,6 +100,8 @@ export const approvalPoliciesCopy = {
     tierTitle: (n: number) => `Tramo ${n}`,
     baseTier: "Tramo base · aplica a cualquier monto",
     minAmount: "Desde (monto en MXN)",
+    thresholdAmountHint: "Monto mínimo para pedir autorización.",
+    addNoApprovalTier: "No pedir autorización en montos bajos",
     removeTier: "Quitar tramo",
     addTier: "Agregar tramo",
     maxTiers: "Máximo 4 tramos por regla.",
@@ -99,7 +112,8 @@ export const approvalPoliciesCopy = {
     missingCfdi: "Gasto sin CFDI",
     manualAdjustments: "Liquidación con ajustes manuales",
     noApproval: "Este tramo no requiere autorización",
-    noApprovalHint: "Equivale al umbral de autorización de liquidaciones.",
+    noApprovalHint:
+      "Los pagos por debajo del siguiente tramo no piden autorización. Las correcciones manuales siempre la piden.",
     stepTitle: (n: number) => `Paso ${n}`,
     singleStepTitle: "Quién autoriza",
     rolesLabel: "Roles que pueden firmar",
@@ -136,6 +150,9 @@ export const approvalPoliciesCopy = {
     cancel: "Seguir editando",
     resetTitle: "¿Restablecer la regla estándar?",
     resetDescription: "Cualquier autorizador activo podrá firmar las solicitudes nuevas de este concepto.",
+    resetDescriptionSettlement: (amount: string) =>
+      `Cualquier autorizador activo firmará los pagos nuevos desde ${amount}.`,
+    resetDescriptionSettlementZero: "Cualquier autorizador activo firmará todos los pagos nuevos.",
     resetConfirm: "Restablecer",
   },
   toasts: {
@@ -176,6 +193,18 @@ export const approvalPoliciesCopy = {
     tierApplied: (n: number) => `Aplica el tramo ${n}.`,
     stepLine: (n: number, total: number) => (total > 1 ? `Paso ${n}` : "Pueden autorizar"),
     nobody: "Nadie activo puede firmar",
+    violationsTitle: "Esta regla no se podría guardar así:",
+    violationNoEligible: (stepNo?: number | null) =>
+      withStepPrefix(
+        stepNo,
+        "nadie activo puede firmar (ningún usuario activo tiene esos roles o está designado).",
+      ),
+    violationDoubleSign: (stepNo?: number | null) =>
+      withStepPrefix(
+        stepNo,
+        "la doble firma necesita dos personas distintas; solo hay una elegible.",
+      ),
+    violationGeneric: (stepNo?: number | null) => withStepPrefix(stepNo, "revisa este paso."),
     error: "No se pudo probar la regla",
   },
   versions: {

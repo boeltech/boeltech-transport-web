@@ -54,6 +54,8 @@ export interface ApiConceptPolicy {
   rules: ApiRules;
   summary: string;
   pending_requests?: number;
+  vobo_threshold_mxn?: number | null;
+  standard_vobo_threshold_mxn?: number | null;
 }
 
 export interface ApiApprovalPoliciesOverview {
@@ -67,7 +69,8 @@ export interface ApiSatisfiabilityIssue {
   reason: string;
 }
 
-export interface ApiSavedPolicyVersion extends Omit<ApiConceptPolicy, "pending_requests"> {
+export interface ApiSavedPolicyVersion
+  extends Omit<ApiConceptPolicy, "pending_requests" | "vobo_threshold_mxn" | "standard_vobo_threshold_mxn"> {
   warnings?: ApiSatisfiabilityIssue[];
 }
 
@@ -181,6 +184,13 @@ function mapIssues(raw: ApiSatisfiabilityIssue[] | undefined): SatisfiabilityIss
   }));
 }
 
+/** Conserva la diferencia entre campo ausente (`undefined`) y `null` explícito del API. */
+function mapNullableAmount(raw: number | null | undefined): number | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  return Number(raw);
+}
+
 export function mapConceptPolicy(raw: ApiConceptPolicy): ConceptPolicy {
   return {
     concept: raw.concept,
@@ -192,6 +202,8 @@ export function mapConceptPolicy(raw: ApiConceptPolicy): ConceptPolicy {
     rules: mapRules(raw.rules),
     summary: raw.summary ?? "",
     pendingRequests: Number(raw.pending_requests ?? 0),
+    voboThresholdMxn: mapNullableAmount(raw.vobo_threshold_mxn),
+    standardVoboThresholdMxn: mapNullableAmount(raw.standard_vobo_threshold_mxn),
   };
 }
 

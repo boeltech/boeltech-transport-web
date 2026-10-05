@@ -5,6 +5,7 @@ import {
   canDisburse,
   canRejectSettlement,
   canSubmitVobo,
+  isSettlementAwaitingDisbursement,
   isSettlementMaker,
   isVoboRequiredForPreview,
   resolveCreateSettlementFeedback,
@@ -35,6 +36,26 @@ describe("settlementCta", () => {
         thresholdMxn: 5000,
       }),
     ).toBe(true);
+  });
+
+  it("rev. 0.2: umbral null no pide autorización por monto; solo los ajustes manuales la piden", () => {
+    expect(
+      isVoboRequiredForPreview({
+        netAmount: 1_000_000,
+        hasManualAdjustments: false,
+        thresholdMxn: null,
+      }),
+    ).toBe(false);
+    expect(
+      isVoboRequiredForPreview({
+        netAmount: 100,
+        hasManualAdjustments: true,
+        thresholdMxn: null,
+      }),
+    ).toBe(true);
+    expect(
+      resolveCreateCta({ netAmount: 50_000, hasManualAdjustments: false, thresholdMxn: null }),
+    ).toBe("guardar_borrador");
   });
 
   it("elige Pedir VoBo vs Guardar borrador según umbral", () => {
@@ -152,6 +173,19 @@ describe("settlementCta", () => {
 
     it("registrar pago: estado pagable + execute + no blocked_own", () => {
       const draftBypass = { status: "draft" as const, voboRequired: false };
+      expect(isSettlementAwaitingDisbursement(draftBypass)).toBe(true);
+      expect(
+        isSettlementAwaitingDisbursement({
+          status: "approved",
+          voboRequired: true,
+        }),
+      ).toBe(true);
+      expect(
+        isSettlementAwaitingDisbursement({
+          status: "draft",
+          voboRequired: true,
+        }),
+      ).toBe(false);
       expect(
         canDisburse({
           settlement: draftBypass,

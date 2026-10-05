@@ -75,6 +75,7 @@ import {
   BulkActionsBar,
   BulkDecisionResultPanel,
   DecisionReasonSheet,
+  ReapprovalConfirmNote,
   type BulkDecisionFailureRow,
   type DecisionReasonInput,
   type DecisionReasonMode,
@@ -1118,6 +1119,10 @@ export function ApprovalInboxPage({
                 : approveStep
                   ? flowCopy.stepConfirmBody(approveStep.current, approveStep.total)
                   : approveConfirmDescription}
+              <ReapprovalConfirmNote
+                approval={approveTarget?.approval}
+                type={approveTarget?.approvableType}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

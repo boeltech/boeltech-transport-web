@@ -178,6 +178,7 @@ export type DriverAdvanceFormData = DriverAdvanceFormValues;
 /** ADR-0099 D17: mismos campos que el alta; operador solo editable en borrador. */
 export const driverAdvanceEditSchema = driverAdvanceFormSchema.pick({
   employeeId: true,
+  tripId: true,
   amount: true,
   category: true,
   paymentMethod: true,
@@ -190,6 +191,8 @@ export type DriverAdvanceEditValues = z.infer<typeof driverAdvanceEditSchema>;
 export const ADVANCE_NOTE_MAX_LENGTH = 500;
 export const ADVANCE_CANCEL_REASON_MIN = 5;
 export const ADVANCE_CANCEL_REASON_MAX = 500;
+export const SETTLEMENT_CANCEL_REASON_MIN = 5;
+export const SETTLEMENT_CANCEL_REASON_MAX = 500;
 
 // ============================================================================
 // 3. PREVIEW & CREACIÓN DE LIQUIDACIÓN SCHEMAS
@@ -271,11 +274,14 @@ export const createSettlementFormSchema = z
     periodStart: z.string().regex(dateRegex, "Fecha de inicio inválida (AAAA-MM-DD)"),
     periodEnd: z.string().regex(dateRegex, "Fecha de fin inválida (AAAA-MM-DD)"),
     tripIds: z.array(z.string().uuid()).default([]),
+    /** ADR-0085 E11 punto 8: gastos con cambio de conductor marcados para este operador. */
+    confirmedReimbursementExpenseIds: z.array(z.string().uuid()).default([]),
     advancesToApply: z.array(appliedAdvanceInputSchema).default([]),
     customItems: z.array(customSettlementItemInputSchema).default([]),
     notes: z.string().max(1000, "Máximo 1000 caracteres").optional().or(z.literal("")),
     submitForApproval: z.boolean().default(false),
     acknowledgeZeroKmTrips: z.boolean().default(false),
+    acknowledgeNoRuleTrips: z.boolean().default(false),
   })
   .refine((data) => data.periodStart <= data.periodEnd, {
     message: "El inicio del periodo debe ser menor o igual al fin del periodo",
@@ -341,11 +347,3 @@ export const disburseAdvanceFormSchema = z
   });
 
 export type DisburseAdvanceFormData = z.infer<typeof disburseAdvanceFormSchema>;
-
-export const settlementSettingsFormSchema = z.object({
-  voboThresholdMxn: z
-    .number({ error: "El umbral es obligatorio" })
-    .min(0, "El umbral no puede ser negativo"),
-});
-
-export type SettlementSettingsFormData = z.infer<typeof settlementSettingsFormSchema>;

@@ -6,7 +6,9 @@ import {
   getApprovalGuardCode,
   isIntermediateStep,
   isSelfActionForbiddenCode,
+  showsReapprovalSignal,
   type ApprovableItem,
+  type ApprovableType,
   type ApprovalActionUi,
   type ApprovalBlock,
   type ApprovalFieldChange,
@@ -113,6 +115,156 @@ const CATEGORY_FIELDS = new Set(["category"]);
 /** Identificadores u objetos: solo se dice que cambiaron. */
 const OPAQUE_FIELDS = new Set(["trip_id", "employee_id", "items"]);
 
+const MANUAL_TYPE_SHORT: Record<string, string> = {
+  bonus: "Bono",
+  penalty_deduction: "Penalización",
+  tax_deduction: "Retención",
+  adjustment: "Ajuste",
+};
+
+const LINE_ITEM_DELTA_MAX = 3;
+const REAPPROVAL_TOOLTIP_CHANGES_MAX = 120;
+const REAPPROVAL_CONFIRM_CHANGES_MAX = 200;
+const MANUAL_DESCRIPTION_MAX = 28;
+
+type ManualItemView = {
+  item_type?: string;
+  description?: string | null;
+  is_deduction?: boolean;
+  trip_id?: string | null;
+  amount?: string | number | null;
+};
+
+type AdvanceDeductionView = {
+  advance_id?: string;
+  amount?: string | number | null;
+  folio?: string | null;
+};
+
+function asItemArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function amountNumber(value: unknown): number | null {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function formatAmountOrDash(value: unknown): string {
+  const amount = amountNumber(value);
+  return amount === null ? "—" : formatMxCurrency(amount);
+}
+
+function clipDescription(description: string): string {
+  if (description.length <= MANUAL_DESCRIPTION_MAX) return description;
+  return `${description.slice(0, MANUAL_DESCRIPTION_MAX)}…`;
+}
+
+function manualConcept(item: ManualItemView): string {
+  const typeLabel = MANUAL_TYPE_SHORT[item.item_type ?? ""] ?? item.item_type ?? "Partida";
+  const description = (item.description ?? "").trim();
+  if (!description) return typeLabel;
+  return `${typeLabel} "${clipDescription(description)}"`;
+}
+
+function manualKey(item: ManualItemView): string {
+  return JSON.stringify([
+    item.item_type ?? "",
+    item.description ?? "",
+    item.is_deduction === true,
+    item.trip_id ?? null,
+  ]);
+}
+
+function advanceConcept(item: AdvanceDeductionView): string {
+  const folio = typeof item.folio === "string" ? item.folio.trim() : "";
+  return folio ? `Anticipo ${folio}` : "Anticipo";
+}
+
+function capLineItemDeltas(deltas: string[]): string[] {
+  if (deltas.length <= LINE_ITEM_DELTA_MAX) return deltas;
+  const rest = deltas.length - LINE_ITEM_DELTA_MAX;
+  return [...deltas.slice(0, LINE_ITEM_DELTA_MAX), `y ${rest} más`];
+}
+
+function clampChangesSegment(text: string, max: number): string {
+  if (text.length <= max) return text;
+  if (max <= 1) return "…";
+  return `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** Diff de partidas manuales: empareja por (tipo, descripción, signo, viaje). */
+function formatManualItemDeltas(from: unknown, to: unknown): string[] {
+  const before = asItemArray(from).filter(
+    (item): item is ManualItemView => Boolean(item) && typeof item === "object",
+  );
+  const after = asItemArray(to).filter(
+    (item): item is ManualItemView => Boolean(item) && typeof item === "object",
+  );
+  const remaining = after.map((item) => ({ item, key: manualKey(item), used: false }));
+  const deltas: string[] = [];
+
+  for (const prev of before) {
+    const key = manualKey(prev);
+    const match = remaining.find((entry) => !entry.used && entry.key === key);
+    if (!match) {
+      deltas.push(`− ${manualConcept(prev)} ${formatAmountOrDash(prev.amount)}`);
+      continue;
+    }
+    match.used = true;
+    if (amountNumber(prev.amount) !== amountNumber(match.item.amount)) {
+      deltas.push(
+        `${manualConcept(prev)} ${formatAmountOrDash(prev.amount)}→${formatAmountOrDash(match.item.amount)}`,
+      );
+    }
+  }
+
+  for (const entry of remaining) {
+    if (entry.used) continue;
+    deltas.push(`+ ${manualConcept(entry.item)} ${formatAmountOrDash(entry.item.amount)}`);
+  }
+
+  return deltas;
+}
+
+/** Diff de anticipos: empareja por `advance_id`. */
+function formatAdvanceDeductionDeltas(from: unknown, to: unknown): string[] {
+  const before = asItemArray(from).filter(
+    (item): item is AdvanceDeductionView => Boolean(item) && typeof item === "object",
+  );
+  const after = asItemArray(to).filter(
+    (item): item is AdvanceDeductionView => Boolean(item) && typeof item === "object",
+  );
+  const remaining = after.map((item) => ({
+    item,
+    key: item.advance_id ?? "",
+    used: false,
+  }));
+  const deltas: string[] = [];
+
+  for (const prev of before) {
+    const key = prev.advance_id ?? "";
+    const match = remaining.find((entry) => !entry.used && entry.key === key && key !== "");
+    if (!match) {
+      deltas.push(`− ${advanceConcept(prev)} ${formatAmountOrDash(prev.amount)}`);
+      continue;
+    }
+    match.used = true;
+    if (amountNumber(prev.amount) !== amountNumber(match.item.amount)) {
+      deltas.push(
+        `${advanceConcept(prev)} ${formatAmountOrDash(prev.amount)}→${formatAmountOrDash(match.item.amount)}`,
+      );
+    }
+  }
+
+  for (const entry of remaining) {
+    if (entry.used) continue;
+    deltas.push(`+ ${advanceConcept(entry.item)} ${formatAmountOrDash(entry.item.amount)}`);
+  }
+
+  return deltas;
+}
+
 function formatChangeValue(field: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (AMOUNT_FIELDS.has(field)) {
@@ -130,14 +282,74 @@ function formatChangeValue(field: string, value: unknown): string {
 
 /** Cambios legibles con etiquetas de un diccionario fijo; lo desconocido se omite. */
 export function formatFieldChanges(changes: ReadonlyArray<ApprovalFieldChange>): string[] {
-  return changes.flatMap((change) => {
+  const scalarLines: string[] = [];
+  const lineItemDeltas: string[] = [];
+  let netAmountLine: string | null = null;
+
+  for (const change of changes) {
     const label = flowCopy.fields[change.field];
-    if (!label) return [];
-    if (OPAQUE_FIELDS.has(change.field)) return [`${label}: ${flowCopy.fieldChanged}`];
-    return [
+    if (!label) continue;
+
+    if (change.field === "manual_items") {
+      lineItemDeltas.push(...formatManualItemDeltas(change.from, change.to));
+      continue;
+    }
+    if (change.field === "advance_deductions") {
+      lineItemDeltas.push(...formatAdvanceDeductionDeltas(change.from, change.to));
+      continue;
+    }
+    if (change.field === "net_amount") {
+      netAmountLine = `Neto: ${formatChangeValue(change.field, change.from)} → ${formatChangeValue(change.field, change.to)}`;
+      continue;
+    }
+    if (OPAQUE_FIELDS.has(change.field)) {
+      scalarLines.push(`${label}: ${flowCopy.fieldChanged}`);
+      continue;
+    }
+    scalarLines.push(
       `${label}: ${formatChangeValue(change.field, change.from)} → ${formatChangeValue(change.field, change.to)}`,
-    ];
-  });
+    );
+  }
+
+  const lines = [...scalarLines, ...capLineItemDeltas(lineItemDeltas)];
+  if (netAmountLine) lines.push(netAmountLine);
+  return lines;
+}
+
+/** Tooltip del chip «Reautorización» según qué anuló la corrección (handoff 12 D3/D4). */
+export function formatReapprovalTooltip(
+  reapproval: NonNullable<ApprovalBlock["reapproval"]>,
+): string {
+  const changes = clampChangesSegment(
+    formatFieldChanges(reapproval.changes).join(" · "),
+    REAPPROVAL_TOOLTIP_CHANGES_MAX,
+  );
+  if (reapproval.previousStatus === "in_progress") {
+    return flowCopy.reapprovalTooltipInProgress(changes);
+  }
+  if (reapproval.previousStatus === "approved" && !changes) {
+    return flowCopy.reapprovalTooltipNoChanges;
+  }
+  return flowCopy.reapprovalTooltip(changes);
+}
+
+/**
+ * Handoff 12 D5: línea extra en la confirmación de Aprobar individual cuando la
+ * corrección anuló una autorización vigente; `null` en cualquier otro caso.
+ */
+export function formatReapprovalConfirmLine(
+  approval: ApprovalBlock | null | undefined,
+  type: ApprovableType | undefined,
+): string | null {
+  if (!showsReapprovalSignal(approval)) return null;
+  if (approval.reapproval.previousStatus !== "approved") return null;
+  return flowCopy.reapprovalConfirmLine(
+    clampChangesSegment(
+      formatFieldChanges(approval.reapproval.changes).join(" · "),
+      REAPPROVAL_CONFIRM_CHANGES_MAX,
+    ),
+    type,
+  );
 }
 
 /**

@@ -2,6 +2,7 @@ export { ApprovalFilters } from "./ApprovalFilters";
 export {
   ApprovalActionStateChip,
   ApprovalFlowLines,
+  ReapprovalConfirmNote,
   ReturnedChip,
 } from "./ApprovalFlowIndicators";
 export { ApprovalHistorySheet, type ApprovalHistorySheetProps } from "./ApprovalHistorySheet";

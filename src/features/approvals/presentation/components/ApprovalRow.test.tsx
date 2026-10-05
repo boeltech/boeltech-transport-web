@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import type { ApprovableItem, ApprovalBlock } from "../../domain";
@@ -115,6 +115,38 @@ describe("ApprovalRow", () => {
     expect(screen.getByText(/Roberto Garza/)).toBeInTheDocument();
     expect(screen.getByText(/Deuda abierta: \$3,200\.00 \(2 anticipos\)/)).toBeInTheDocument();
     expect(screen.getByText(/Método: transferencia/i)).toBeInTheDocument();
+    expect(screen.getByText(/Viaje: V-2026-001/)).toBeInTheDocument();
+  });
+
+  it("anticipo sin viaje usa copy de cuenta del operador (no Costos)", () => {
+    const withoutTrip: ApprovableItem = {
+      ...advanceItem,
+      context: {
+        ...advanceItem.context,
+        tripId: null,
+        tripCode: null,
+      } as ApprovableItem["context"],
+    };
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={withoutTrip}
+              selected={false}
+              selectable
+              canUpdate
+              onSelectChange={vi.fn()}
+              onApprove={vi.fn()}
+              onReject={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(approvalsCopy.inbox.table.advanceNoTrip)).toBeInTheDocument();
+    expect(screen.queryByText(/Gasto general/i)).not.toBeInTheDocument();
   });
 
   it("renders internal_staff_compensation row with settlement link", () => {
@@ -169,6 +201,62 @@ describe("ApprovalRow", () => {
     ).toHaveAttribute("href", "/finance/settlements/settlement-123");
     expect(screen.getByText(/Carlos Mendoza/)).toBeInTheDocument();
     expect(screen.getAllByText("Liquidación").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(approvalsCopy.inbox.table.reimbursementSettlementBadge)).not.toBeInTheDocument();
+  });
+
+  it("E11-F3: pago de reembolsos lleva insignia, fecha de alta y sin conteo de viajes", () => {
+    const reimbursementItem: ApprovableItem = {
+      approvableType: "internal_staff_compensation",
+      id: "settlement-456",
+      amount: 650,
+      currency: "MXN",
+      category: "internal_staff_compensation",
+      status: "pending",
+      submittedAt: "2026-10-05T10:00:00.000Z",
+      submittedBy: "user-1",
+      approvedAt: null,
+      approvedBy: null,
+      rejectedAt: null,
+      rejectionReason: null,
+      context: {
+        approvableType: "internal_staff_compensation",
+        settlementId: "settlement-456",
+        settlementNumber: "LIQ-202610-0003",
+        settlementKind: "reimbursement_only",
+        createdAt: "2026-10-04T18:00:00.000Z",
+        employeeId: "emp-1",
+        employeeFullName: "Carlos Mendoza",
+        periodStart: "2026-10-04",
+        periodEnd: "2026-10-04",
+        tripsCount: 0,
+        grossAmount: 650,
+        totalDeductions: 0,
+        netAmount: 650,
+      },
+    };
+
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={reimbursementItem}
+              selected={false}
+              selectable
+              canUpdate
+              onSelectChange={vi.fn()}
+              onApprove={vi.fn()}
+              onReject={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(approvalsCopy.inbox.table.reimbursementSettlementBadge)).toBeInTheDocument();
+    expect(screen.queryByText(/0 viajes/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Reembolsos \$650\.00/)).toBeInTheDocument();
+    expect(screen.queryByText(/–/)).not.toBeInTheDocument();
   });
 
   it("renders fallback for unsupported approvable types", () => {
@@ -382,7 +470,12 @@ describe("ApprovalRow · ADR-0099 F6a", () => {
         stepsTotal: 1,
         signedSteps: [],
         escalated: true,
-        reapproval: { invalidatedAt: null, previousInstanceId: null, changes: [] },
+        reapproval: {
+          invalidatedAt: null,
+          previousInstanceId: null,
+          previousStatus: null,
+          changes: [],
+        },
         routedBy: {
           tierIndex: null,
           minAmount: null,
@@ -397,6 +490,42 @@ describe("ApprovalRow · ADR-0099 F6a", () => {
     expect(screen.queryByText(flowCopy.reapprovalChip)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: flowCopy.whyHint })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Aprobar" })).toBeInTheDocument();
+  });
+
+  it("UX5 enmendada: regla estándar + autorización anulada muestra «Reautorización» enfocable", async () => {
+    renderRow({
+      ...tripExpenseItem,
+      approval: makeApproval({
+        stepCurrent: 1,
+        stepsTotal: 1,
+        signedSteps: [],
+        escalated: true,
+        reapproval: {
+          invalidatedAt: "2026-10-02T20:10:00.000Z",
+          previousInstanceId: "inst-0",
+          previousStatus: "approved",
+          changes: [{ field: "amount", from: "8000.00", to: "12000.00" }],
+        },
+        routedBy: {
+          tierIndex: null,
+          minAmount: null,
+          matchedConditions: [],
+          policyVersion: null,
+          lazy: true,
+        },
+      }),
+    });
+    expect(screen.getByText(flowCopy.reapprovalChip)).toBeInTheDocument();
+    expect(screen.queryByText(/Paso \d de \d/)).not.toBeInTheDocument();
+    expect(screen.queryByText(flowCopy.escalatedChip)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: flowCopy.whyHint })).not.toBeInTheDocument();
+
+    const trigger = screen.getByText(flowCopy.reapprovalChip).closest<HTMLElement>("[tabindex]");
+    expect(trigger).toHaveAttribute("tabindex", "0");
+    act(() => trigger?.focus());
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Cambió desde la autorización anterior: Monto: $8,000.00 → $12,000.00",
+    );
   });
 
   it("«Ya firmaste el paso 1» sustituye las acciones", () => {

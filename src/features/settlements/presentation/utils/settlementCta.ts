@@ -10,14 +10,16 @@ import type { DriverSettlement } from "../../domain/entities";
 /**
  * Display gating aligned with API `isVoboRequired`.
  * API remains the source of truth; this only picks CTAs before persist.
+ * `thresholdMxn: null` = la regla no pide autorización por monto; `undefined` = default.
  */
 export function isVoboRequiredForPreview(input: {
   netAmount: number;
   hasManualAdjustments: boolean;
-  thresholdMxn?: number;
+  thresholdMxn?: number | null;
 }): boolean {
-  const threshold = input.thresholdMxn ?? DEFAULT_VOBO_THRESHOLD_MXN;
   if (input.hasManualAdjustments) return true;
+  if (input.thresholdMxn === null) return false;
+  const threshold = input.thresholdMxn ?? DEFAULT_VOBO_THRESHOLD_MXN;
   return input.netAmount >= threshold;
 }
 
@@ -26,7 +28,7 @@ export type SettlementCreateCta = "pedir_vobo" | "guardar_borrador";
 export function resolveCreateCta(input: {
   netAmount: number;
   hasManualAdjustments: boolean;
-  thresholdMxn?: number;
+  thresholdMxn?: number | null;
 }): SettlementCreateCta {
   return isVoboRequiredForPreview(input) ? "pedir_vobo" : "guardar_borrador";
 }
@@ -106,15 +108,22 @@ export function canRejectSettlement(input: {
   return canApproveSettlement(input);
 }
 
+export function isSettlementAwaitingDisbursement(
+  settlement: Pick<DriverSettlement, "status" | "voboRequired">,
+): boolean {
+  if (settlement.status === "approved") return true;
+  if (settlement.status === "draft" && settlement.voboRequired === false) {
+    return true;
+  }
+  return false;
+}
+
 export function isSettlementDisbursable(input: {
   settlement: Pick<DriverSettlement, "status" | "voboRequired">;
   canExecute: boolean;
 }): boolean {
   if (!input.canExecute) return false;
-  const { status, voboRequired } = input.settlement;
-  if (status === "approved") return true;
-  if (status === "draft" && voboRequired === false) return true;
-  return false;
+  return isSettlementAwaitingDisbursement(input.settlement);
 }
 
 export function canDisburse(input: {

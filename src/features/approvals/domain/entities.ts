@@ -39,6 +39,9 @@ export interface InternalStaffCompensationContext {
   employeeFullName?: string;
   periodStart?: string;
   periodEnd?: string;
+  /** ADR-0085 E11 punto 9: un pago de reembolsos muestra su fecha de alta, no el período. */
+  settlementKind?: "regular" | "reimbursement_only";
+  createdAt?: string;
   tripsCount?: number;
   grossAmount?: number;
   totalDeductions?: number;
@@ -137,6 +140,13 @@ export interface ApprovalFieldChange {
   to: unknown;
 }
 
+/**
+ * Qué anuló la corrección: `approved` = una autorización vigente (heredada en
+ * cadena hasta que alguien vuelva a autorizar); `in_progress` = el flujo seguía
+ * abierto; `null` = la instancia no lo guarda.
+ */
+export type ApprovalReapprovalPreviousStatus = "approved" | "in_progress";
+
 /** ADR-0099 §3.9: estado del flujo visto por el usuario que consulta. */
 export interface ApprovalBlock {
   flowStatus: ApprovalFlowStatus;
@@ -164,6 +174,8 @@ export interface ApprovalBlock {
   reapproval: {
     invalidatedAt: string | null;
     previousInstanceId: string | null;
+    previousStatus: ApprovalReapprovalPreviousStatus | null;
+    /** Acumulado contra lo autorizado cuando `previousStatus = approved`; puede venir vacío. */
     changes: ApprovalFieldChange[];
   } | null;
   returned: {

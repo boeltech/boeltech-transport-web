@@ -12,6 +12,7 @@ export {
   resolveApprovalActionUi,
   returnReasonCodesFor,
   showsApprovalPolicySignals,
+  showsReapprovalSignal,
 } from "../domain/approvalAction";
 export {
   approvalsCopy,
@@ -26,6 +27,7 @@ export {
 export {
   ApprovalActionStateChip,
   ApprovalFlowLines,
+  ReapprovalConfirmNote,
   ReturnedChip,
 } from "../presentation/components/ApprovalFlowIndicators";
 export { ReturnedAlert } from "../presentation/components/ReturnedAlert";
@@ -37,6 +39,7 @@ export {
   formatApprovalRole,
   formatNextStepLabel,
   formatPendingFor,
+  formatReapprovalConfirmLine,
   formatReturnedSummary,
   guardErrorMessage,
 } from "../presentation/utils/approvalFlowFormat";

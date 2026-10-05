@@ -9,7 +9,7 @@ type ApprovableNounKey = "expense" | "advance" | "settlement";
 const APPROVABLE_NOUN: Record<ApprovableNounKey, { singular: string; plural: string }> = {
   expense: { singular: "gasto", plural: "gastos" },
   advance: { singular: "anticipo", plural: "anticipos" },
-  settlement: { singular: "liquidación", plural: "liquidaciones" },
+  settlement: { singular: "pago", plural: "pagos" },
 };
 
 function nounKey(type?: ApprovableType): ApprovableNounKey {
@@ -72,11 +72,11 @@ export const approvalsCopy = {
   inbox: {
     title: "Aprobaciones",
     description:
-      "Revisa y autoriza gastos de viaje, anticipos a operadores y liquidaciones de la operación.",
+      "Revisa y autoriza gastos de viaje, anticipos a operadores y pagos a operadores.",
     tabs: {
       tripExpense: "Gastos de viaje",
       driverAdvance: "Anticipos a operadores",
-      settlement: "Liquidaciones",
+      settlement: "Pagos a operadores",
     },
     searchPlaceholder: "Viaje, operador o folio",
     empty: {
@@ -131,6 +131,8 @@ export const approvalsCopy = {
       status: "Estado",
       actions: "Acciones",
       noDescription: "—",
+      /** ADR-0085 E11 (D12): mismo nombre que en Pagos a operadores. */
+      reimbursementSettlementBadge: "Pago de reembolsos",
       noReason: "(sin razón)",
       receiptCfdi: "CFDI validado",
       receiptTicket: "Ticket / Nota",
@@ -138,6 +140,8 @@ export const approvalsCopy = {
       openDebtAlert: (amount: string, count?: number) =>
         `Deuda abierta: ${amount}${typeof count === "number" && count > 0 ? ` (${count} anticipo${count > 1 ? "s" : ""})` : ""}`,
       noOpenDebt: "Sin anticipos abiertos",
+      /** Anticipo sin etiqueta de viaje (cuenta del operador; no es gasto de Costos). */
+      advanceNoTrip: "Sin viaje (cuenta del operador)",
     },
     actions: {
       approve: "Aprobar",
@@ -147,7 +151,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "¿Aprobar este anticipo?";
           case "internal_staff_compensation":
-            return "¿Aprobar esta liquidación?";
+            return "¿Aprobar este pago?";
           case "trip_expense":
           default:
             return "¿Aprobar este gasto?";
@@ -158,7 +162,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "El anticipo se marcará como aprobado y quedará listo para dispersión en Tesorería.";
           case "internal_staff_compensation":
-            return "La liquidación se marcará como aprobada y quedará lista para pago.";
+            return "El pago se marcará como autorizado y quedará listo para registrarse.";
           case "trip_expense":
           default:
             return "El gasto se marcará como aprobado y el costo real del viaje se actualizará.";
@@ -179,7 +183,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "Aprobar anticipo";
           case "internal_staff_compensation":
-            return "Aprobar liquidación";
+            return "Autorizar pago";
           case "trip_expense":
           default:
             return "Aprobar gasto";
@@ -193,7 +197,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "Anticipo aprobado para dispersión";
           case "internal_staff_compensation":
-            return "Liquidación aprobada para pago";
+            return "Pago autorizado para registrarse";
           case "trip_expense":
           default:
             return "Gasto aprobado";
@@ -204,7 +208,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "No se pudo aprobar el anticipo";
           case "internal_staff_compensation":
-            return "No se pudo aprobar la liquidación";
+            return "No se pudo autorizar el pago";
           case "trip_expense":
           default:
             return "No se pudo aprobar el gasto";
@@ -215,7 +219,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "Anticipo rechazado";
           case "internal_staff_compensation":
-            return "Liquidación rechazada";
+            return "Pago rechazado";
           case "trip_expense":
           default:
             return "Gasto rechazado";
@@ -226,7 +230,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "No se pudo rechazar el anticipo";
           case "internal_staff_compensation":
-            return "No se pudo rechazar la liquidación";
+            return "No se pudo rechazar el pago";
           case "trip_expense":
           default:
             return "No se pudo rechazar el gasto";
@@ -249,7 +253,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return "¿Aprobar los anticipos seleccionados?";
           case "internal_staff_compensation":
-            return "¿Aprobar las liquidaciones seleccionadas?";
+            return "¿Autorizar los pagos seleccionados?";
           case "trip_expense":
           default:
             return "¿Aprobar los gastos seleccionados?";
@@ -260,7 +264,7 @@ export const approvalsCopy = {
           case "driver_advance_request":
             return `Se aprobarán ${count} anticipo(s) para su posterior dispersión. Esta acción no se puede deshacer.`;
           case "internal_staff_compensation":
-            return `Se aprobarán ${count} liquidación(es) para su pago. Esta acción no se puede deshacer.`;
+            return `Se autorizarán ${count} pago(s). Esta acción no se puede deshacer.`;
           case "trip_expense":
           default:
             return `Se aprobarán ${count} gasto(s). Esta acción no se puede deshacer.`;
@@ -275,7 +279,7 @@ export const approvalsCopy = {
         case "driver_advance_request":
           return "Rechazar anticipo";
         case "internal_staff_compensation":
-          return "Rechazar liquidación";
+          return "Rechazar pago";
         case "trip_expense":
         default:
           return "Rechazar gasto";
@@ -286,7 +290,7 @@ export const approvalsCopy = {
         case "driver_advance_request":
           return `Rechazar ${count} anticipos`;
         case "internal_staff_compensation":
-          return `Rechazar ${count} liquidaciones`;
+          return `Rechazar ${count} pagos`;
         case "trip_expense":
         default:
           return `Rechazar ${count} gastos`;
@@ -297,7 +301,7 @@ export const approvalsCopy = {
         case "driver_advance_request":
           return "Indica la razón del rechazo del anticipo (mínimo 5 caracteres).";
         case "internal_staff_compensation":
-          return "Indica la razón del rechazo de la liquidación (mínimo 5 caracteres).";
+          return "Indica la razón del rechazo del pago (mínimo 5 caracteres).";
         case "trip_expense":
         default:
           return "Indica la razón del rechazo del gasto (mínimo 5 caracteres).";
@@ -308,7 +312,7 @@ export const approvalsCopy = {
         case "driver_advance_request":
           return `Indica la razón del rechazo para ${count} anticipo(s) (mínimo 5 caracteres).`;
         case "internal_staff_compensation":
-          return `Indica la razón del rechazo para ${count} liquidación(es) (mínimo 5 caracteres).`;
+          return `Indica la razón del rechazo para ${count} pago(s) (mínimo 5 caracteres).`;
         case "trip_expense":
         default:
           return `Indica la razón del rechazo para ${count} gasto(s) (mínimo 5 caracteres).`;
@@ -330,7 +334,7 @@ export const approvalsCopy = {
     titleBulk: (count: number, type?: ApprovableType) =>
       `Devolver ${count} ${APPROVABLE_NOUN[nounKey(type)].plural} para corregir`,
     description:
-      "Regresa a quien la capturó; puede corregir y reenviar. Empezará de nuevo en el paso 1.",
+      "Regresa a quien lo capturó; puede corregir y reenviar. Empezará de nuevo en el paso 1.",
     reasonCodeLabel: "Motivo rápido",
     reasonLabel: "Motivo",
     reasonPlaceholder: "Explica qué hay que corregir…",
@@ -415,6 +419,17 @@ export const approvalsCopy = {
       changes
         ? `Cambió desde la autorización anterior: ${changes}`
         : "Cambió desde la autorización anterior.",
+    reapprovalTooltipInProgress: (changes: string) =>
+      changes
+        ? `Cambió mientras esperaba autorización: ${changes}`
+        : "Cambió mientras esperaba autorización.",
+    reapprovalTooltipNoChanges: "Se corrigió después de autorizarse; requiere nueva firma.",
+    /** Handoff 12 D5: confirmación de Aprobar individual; concuerda con el concepto. */
+    reapprovalConfirmLine: (changes: string, _type: ApprovableType | undefined) => {
+      return changes
+        ? `Ya estaba autorizado. Cambió: ${changes}.`
+        : `Ya estaba autorizado; se corrigió y requiere nueva firma.`;
+    },
     pendingForJoin: " o ",
     pendingForMore: (first: string, rest: number) => `${first} +${rest}`,
     fieldChanged: "cambió",
@@ -430,6 +445,8 @@ export const approvalsCopy = {
       period_start: "Inicio del periodo",
       period_end: "Fin del periodo",
       items: "Partidas",
+      manual_items: "Partidas manuales",
+      advance_deductions: "Descuentos de anticipos",
     } as Record<string, string>,
     menu: {
       more: "Más acciones",

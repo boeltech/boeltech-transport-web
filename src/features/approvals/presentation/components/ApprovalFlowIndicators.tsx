@@ -10,13 +10,16 @@ import { formatDate } from "@shared/utils/dateUtils";
 import {
   isMultiStepApproval,
   showsApprovalPolicySignals,
+  showsReapprovalSignal,
+  type ApprovableType,
   type ApprovalActionUi,
   type ApprovalBlock,
 } from "../../domain";
 import { approvalsCopy } from "../copy/approvalsCopy";
 import {
-  formatFieldChanges,
   formatPendingFor,
+  formatReapprovalConfirmLine,
+  formatReapprovalTooltip,
   formatSignedLine,
   formatWhyTooltip,
 } from "../utils/approvalFlowFormat";
@@ -79,7 +82,7 @@ export function ReturnedChip({ approval }: { approval: ApprovalBlock | null | un
 
 /**
  * Líneas de flujo dentro de la celda «Estado» (handoff F6 D6, sin columna nueva).
- * Un paso sin regla propia: no agrega nada (UX5).
+ * Un paso sin regla propia: solo «Reautorización» si se anuló una autorización (UX5 enmendada).
  */
 export function ApprovalFlowLines({
   approval,
@@ -99,13 +102,10 @@ export function ApprovalFlowLines({
   const multiStep = isMultiStepApproval(approval);
   const policySignals = showsApprovalPolicySignals(approval);
   const pendingFor = formatPendingFor(approval.pendingFor);
-  const changes = approval.reapproval
-    ? formatFieldChanges(approval.reapproval.changes).join(" · ")
-    : "";
 
   const showStepLine = open && multiStep && approval.stepCurrent !== null;
   const showSigned = multiStep && approval.signedSteps.length > 0;
-  const showReapproval = open && policySignals && approval.reapproval !== null;
+  const showReapproval = showsReapprovalSignal(approval);
   const showEscalated = open && policySignals && approval.escalated;
 
   if (!showStepLine && !showSigned && !showReapproval && !showEscalated) return null;
@@ -128,11 +128,11 @@ export function ApprovalFlowLines({
           : null}
         {showReapproval || showEscalated ? (
           <div className="flex flex-wrap gap-1 pt-0.5">
-            {showReapproval ? (
+            {showReapproval && approval.reapproval ? (
               <FlowChip
                 label={copy.reapprovalChip}
                 variant="info"
-                tooltip={copy.reapprovalTooltip(changes)}
+                tooltip={formatReapprovalTooltip(approval.reapproval)}
               />
             ) : null}
             {showEscalated ? (
@@ -147,6 +147,22 @@ export function ApprovalFlowLines({
       </div>
     </TooltipProvider>
   );
+}
+
+/**
+ * Handoff 12 D5: línea dentro de `AlertDialogDescription` de Aprobar individual
+ * cuando la corrección anuló una autorización vigente.
+ */
+export function ReapprovalConfirmNote({
+  approval,
+  type,
+}: {
+  approval: ApprovalBlock | null | undefined;
+  type: ApprovableType | undefined;
+}) {
+  const line = formatReapprovalConfirmLine(approval, type);
+  if (!line) return null;
+  return <span className="mt-2 block font-medium text-foreground">{line}</span>;
 }
 
 /**

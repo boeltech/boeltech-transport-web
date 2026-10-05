@@ -10,6 +10,7 @@ import {
   resolveApprovalActionUi,
   returnReasonCodesFor,
   showsApprovalPolicySignals,
+  showsReapprovalSignal,
   type ResolveApprovalActionContext,
 } from "./approvalAction";
 import type { ApprovalBlock } from "./entities";
@@ -247,6 +248,79 @@ describe("visibilidad UX5", () => {
     const oneStepPolicy = makeApproval({ stepsTotal: 1 });
     expect(isMultiStepApproval(oneStepPolicy)).toBe(false);
     expect(showsApprovalPolicySignals(oneStepPolicy)).toBe(true);
+  });
+
+  describe("showsReapprovalSignal (UX5 enmendada, excepción UX8)", () => {
+    const standardRoutedBy = {
+      tierIndex: null,
+      minAmount: null,
+      matchedConditions: [],
+      policyVersion: null,
+      lazy: true,
+    };
+    const reapproval = (
+      previousStatus: "approved" | "in_progress" | null,
+    ): NonNullable<ApprovalBlock["reapproval"]> => ({
+      invalidatedAt: "2026-10-02T20:10:00.000Z",
+      previousInstanceId: "inst-0",
+      previousStatus,
+      changes: [{ field: "amount", from: "8000.00", to: "12000.00" }],
+    });
+    const standard = (overrides: Partial<ApprovalBlock> = {}) =>
+      makeApproval({ stepsTotal: 1, routedBy: standardRoutedBy, ...overrides });
+
+    it("regla estándar + autorización anulada → true (escalada y pasos siguen ocultos)", () => {
+      const approval = standard({ reapproval: reapproval("approved"), escalated: true });
+      expect(showsReapprovalSignal(approval)).toBe(true);
+      expect(showsApprovalPolicySignals(approval)).toBe(false);
+      expect(isMultiStepApproval(approval)).toBe(false);
+    });
+
+    it("regla estándar + corrección con flujo abierto o sin dato → false", () => {
+      expect(showsReapprovalSignal(standard({ reapproval: reapproval("in_progress") }))).toBe(
+        false,
+      );
+      expect(showsReapprovalSignal(standard({ reapproval: reapproval(null) }))).toBe(false);
+    });
+
+    it("regla estándar + autorización anulada con diff vacío → true", () => {
+      expect(
+        showsReapprovalSignal(
+          standard({ reapproval: { ...reapproval("approved"), changes: [] } }),
+        ),
+      ).toBe(true);
+    });
+
+    it("regla propia o multipaso → true con cualquier previousStatus", () => {
+      for (const status of ["approved", "in_progress", null] as const) {
+        expect(
+          showsReapprovalSignal(makeApproval({ stepsTotal: 1, reapproval: reapproval(status) })),
+        ).toBe(true);
+        expect(
+          showsReapprovalSignal(
+            makeApproval({ routedBy: standardRoutedBy, reapproval: reapproval(status) }),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it("sin reapproval o flujo cerrado/devuelto → false", () => {
+      expect(showsReapprovalSignal(standard())).toBe(false);
+      expect(showsReapprovalSignal(null)).toBe(false);
+      for (const flowStatus of ["approved", "rejected", "returned", "superseded"] as const) {
+        expect(
+          showsReapprovalSignal(standard({ flowStatus, reapproval: reapproval("approved") })),
+        ).toBe(false);
+      }
+    });
+
+    it("not_started (instancia perezosa) cuenta como abierto", () => {
+      expect(
+        showsReapprovalSignal(
+          standard({ flowStatus: "not_started", reapproval: reapproval("approved") }),
+        ),
+      ).toBe(true);
+    });
   });
 
   it("isIntermediateStep", () => {

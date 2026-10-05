@@ -17,6 +17,17 @@ import { CONCEPT_CATEGORY_LABELS, approvalPoliciesCopy } from "../copy/approvalP
 const copy = approvalPoliciesCopy.simulator;
 const NO_CATEGORY = "__none__";
 
+function formatSimulationViolation(reason: string, stepNo: number): string {
+  switch (reason) {
+    case "no_eligible":
+      return copy.violationNoEligible(stepNo);
+    case "double_sign_needs_two_people":
+      return copy.violationDoubleSign(stepNo);
+    default:
+      return copy.violationGeneric(stepNo);
+  }
+}
+
 interface PolicySimulatorProps {
   concept: ApprovalConcept;
   /** Borrador a probar; `null` = regla vigente. */
@@ -136,22 +147,41 @@ export function PolicySimulator({
             ) : (
               <>
                 <p className="font-medium">{copy.tierApplied(result.tierIndex + 1)}</p>
-                {result.steps.map((step) => (
-                  <div key={step.stepNo}>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {copy.stepLine(step.stepNo, result.steps.length)}
-                    </p>
-                    <p>
-                      {step.eligible.length > 0
-                        ? step.eligible
-                            .map((user) => `${user.fullName} (${ROLE_LABELS[user.role as UserRole] ?? user.role})`)
-                            .join(", ")
-                        : copy.nobody}
-                    </p>
-                  </div>
-                ))}
+                {result.steps.map((step) => {
+                  const hasViolation = result.violations.some((issue) => issue.stepNo === step.stepNo);
+                  return (
+                    <div
+                      key={step.stepNo}
+                      className={cn(hasViolation && "text-destructive")}
+                      data-testid={hasViolation ? `policy-sim-step-${step.stepNo}-violation` : undefined}
+                    >
+                      <p className={cn("text-xs font-medium", hasViolation ? "text-destructive" : "text-muted-foreground")}>
+                        {copy.stepLine(step.stepNo, result.steps.length)}
+                      </p>
+                      <p>
+                        {step.eligible.length > 0
+                          ? step.eligible
+                              .map((user) => `${user.fullName} (${ROLE_LABELS[user.role as UserRole] ?? user.role})`)
+                              .join(", ")
+                          : copy.nobody}
+                      </p>
+                    </div>
+                  );
+                })}
               </>
             )}
+            {result.violations.length > 0 ? (
+              <div className="space-y-1 border-t border-border/60 pt-2">
+                <p className="font-medium text-destructive">{copy.violationsTitle}</p>
+                <ul className="list-disc space-y-0.5 pl-4 text-destructive">
+                  {result.violations.map((issue, index) => (
+                    <li key={`${issue.tierIndex}-${issue.stepNo}-${issue.reason}-${index}`}>
+                      {formatSimulationViolation(issue.reason, issue.stepNo)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </CollapsibleContent>

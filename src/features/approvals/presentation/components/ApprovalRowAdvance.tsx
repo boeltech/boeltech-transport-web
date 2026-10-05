@@ -106,7 +106,7 @@ export function ApprovalRowAdvance({
           </p>
         ) : (
           <p className="text-[11px] text-muted-foreground/80 mt-0.5">
-            Gasto general / Sin viaje
+            {copy.table.advanceNoTrip}
           </p>
         )}
       </TableCell>

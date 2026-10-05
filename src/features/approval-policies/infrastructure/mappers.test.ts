@@ -60,6 +60,8 @@ describe("approval-policies mappers", () => {
       createdByName: "Gerardo Méndez",
       pendingRequests: 2,
     });
+    expect(overview.concepts[0]!.voboThresholdMxn).toBeUndefined();
+    expect(overview.concepts[0]!.standardVoboThresholdMxn).toBeUndefined();
     expect(overview.concepts[0]!.rules.tiers[1]).toEqual({
       minAmount: 5000,
       conditions: { categories: ["fuel"], missingCfdi: true },
@@ -69,6 +71,58 @@ describe("approval-policies mappers", () => {
         { eligibleRoles: [], eligibleUserIds: ["u-2", "u-1"] },
       ],
     });
+  });
+
+  it("mapea vobo_threshold_mxn: número en liquidaciones, null en el resto (addendum A4)", () => {
+    const base = {
+      source: "system_default" as const,
+      version: null,
+      effective_from: null,
+      created_by: null,
+      rules: apiRules,
+      summary: "x",
+    };
+    const overview = mapApprovalPoliciesOverview({
+      edit_enabled: true,
+      concepts: [
+        { ...base, concept: "settlement", vobo_threshold_mxn: 5000, standard_vobo_threshold_mxn: 3000 },
+        { ...base, concept: "driver_advance", vobo_threshold_mxn: null, standard_vobo_threshold_mxn: null },
+        { ...base, concept: "disbursement" },
+      ],
+    });
+    expect(overview.editEnabled).toBe(true);
+    expect(
+      overview.concepts.map((c) => [c.concept, c.voboThresholdMxn, c.standardVoboThresholdMxn]),
+    ).toEqual([
+      ["settlement", 5000, 3000],
+      ["driver_advance", null, null],
+      ["disbursement", undefined, undefined],
+    ]);
+  });
+
+  it("rev. 0.2: distingue null explícito (sin tramo por monto) de campo ausente (API anterior a F1)", () => {
+    const base = {
+      concept: "settlement" as const,
+      source: "tenant" as const,
+      version: 2,
+      effective_from: "2026-10-01T00:00:00Z",
+      created_by: "u-1",
+      rules: apiRules,
+      summary: "x",
+    };
+    const overview = mapApprovalPoliciesOverview({
+      edit_enabled: true,
+      concepts: [
+        { ...base, vobo_threshold_mxn: null, standard_vobo_threshold_mxn: 0 },
+        { ...base, vobo_threshold_mxn: 0, standard_vobo_threshold_mxn: 5000 },
+        { ...base },
+      ],
+    });
+    const [none, zero, absent] = overview.concepts;
+    expect(none).toMatchObject({ voboThresholdMxn: null, standardVoboThresholdMxn: 0 });
+    expect(zero).toMatchObject({ voboThresholdMxn: 0, standardVoboThresholdMxn: 5000 });
+    expect(absent!.voboThresholdMxn).toBeUndefined();
+    expect(absent!.standardVoboThresholdMxn).toBeUndefined();
   });
 
   it("toApiRules es inverso de mapRules y vacía pasos de tramos sin autorización", () => {

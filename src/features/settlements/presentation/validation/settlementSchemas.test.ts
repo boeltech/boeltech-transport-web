@@ -3,10 +3,10 @@ import {
   compensationAgreementFormSchema,
   compensationAgreementRuleSchema,
   driverAdvanceFormSchema,
+  driverAdvanceEditSchema,
   previewSettlementQuerySchema,
   createSettlementFormSchema,
   disburseSettlementFormSchema,
-  settlementSettingsFormSchema,
 } from "./settlementSchemas";
 
 describe("Settlement Validation Schemas (Fase 0)", () => {
@@ -168,6 +168,42 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.submitForApproval).toBe(true);
+      }
+    });
+
+    it("acepta tripId uuid opcional o vacío", () => {
+      const withTrip = driverAdvanceFormSchema.safeParse({
+        employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+        tripId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        amount: 1500,
+        category: "travel_advance" as const,
+        paymentMethod: "bank_transfer" as const,
+      });
+      expect(withTrip.success).toBe(true);
+
+      const emptyTrip = driverAdvanceFormSchema.safeParse({
+        employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+        tripId: "",
+        amount: 1500,
+        category: "travel_advance" as const,
+        paymentMethod: "bank_transfer" as const,
+      });
+      expect(emptyTrip.success).toBe(true);
+    });
+
+    it("driverAdvanceEditSchema incluye tripId opcional", () => {
+      const result = driverAdvanceEditSchema.safeParse({
+        employeeId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+        tripId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        amount: 1500,
+        category: "travel_advance" as const,
+        paymentMethod: "bank_transfer" as const,
+        bankReference: "",
+        notes: "",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.tripId).toBe("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
       }
     });
 
@@ -398,28 +434,6 @@ describe("Settlement Validation Schemas (Fase 0)", () => {
       });
 
       expect(result.success).toBe(true);
-    });
-  });
-
-  describe("settlementSettingsFormSchema", () => {
-    it("acepta umbral 0", () => {
-      const result = settlementSettingsFormSchema.safeParse({
-        voboThresholdMxn: 0,
-      });
-      expect(result.success).toBe(true);
-    });
-
-    it("rechaza umbral negativo", () => {
-      const result = settlementSettingsFormSchema.safeParse({
-        voboThresholdMxn: -1,
-      });
-      expect(result.success).toBe(false);
-    });
-
-    it("el umbral es el único campo del formulario de settings", () => {
-      expect(Object.keys(settlementSettingsFormSchema.shape)).toEqual([
-        "voboThresholdMxn",
-      ]);
     });
   });
 });
