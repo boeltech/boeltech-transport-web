@@ -25,7 +25,7 @@ vi.mock("@shared/ui/employee-async-combobox", () => ({
   EmployeeAsyncCombobox: ({ label }: { label: string }) => <div>{label}</div>,
 }));
 
-vi.mock("@features/employees", () => ({
+vi.mock("@features/employees/application", () => ({
   useEmployee: () => ({
     data: {
       data: {
@@ -36,7 +36,7 @@ vi.mock("@features/employees", () => ({
   }),
 }));
 
-vi.mock("@features/trips", () => ({
+vi.mock("@features/trips/application", () => ({
   useTrips: () => ({
     data: {
       data: [
@@ -55,14 +55,16 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
   },
 }));
 
-vi.mock("@features/approvals", async () => ({
-  ...(await import("@features/approvals/testing/selfApprovalTestModule")),
-  invalidateApprovalsRelatedQueries: vi.fn(),
-}));
-
-vi.mock("@features/approvals/application", () => ({
-  invalidateApprovalsRelatedQueries: vi.fn(),
-}));
+vi.mock("@features/approvals/application", async () => {
+  const hooks = await import(
+    "@features/approvals/application/hooks/useSelfApprovalPolicy"
+  );
+  return {
+    invalidateSelfApprovalPolicy: hooks.invalidateSelfApprovalPolicy,
+    useSelfActionForbiddenHandler: hooks.useSelfActionForbiddenHandler,
+    invalidateApprovalsRelatedQueries: vi.fn(),
+  };
+});
 
 const authorizedAdvance: DriverAdvance = {
   id: "adv-1",

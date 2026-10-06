@@ -23,7 +23,7 @@ vi.mock("@shared/permissions", () => ({
   }),
 }));
 
-vi.mock("@features/settings", () => ({
+vi.mock("@features/settings/application", () => ({
   useCompanySettings: () => ({ data: { legalName: "Transportes Test", rfc: "AAA010101AAA" } }),
 }));
 
@@ -50,23 +50,25 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
   },
 }));
 
-vi.mock("@features/approvals", async () => ({
-  ...(await import("@features/approvals/testing/selfApprovalTestModule")),
-  invalidateApprovalsRelatedQueries: vi.fn(),
-  useSelfApprovalPolicy: () => ({
-    data: {
-      advanceApprove: { allowed: false, activeCounterpartCount: 1 },
-      advanceDisburse: { allowed: false, activeCounterpartCount: 1 },
-      settlementApprove: { allowed: false, activeCounterpartCount: 1 },
-      settlementDisburse: { allowed: false, activeCounterpartCount: 1 },
-      tripExpenseApprove: { allowed: false, activeCounterpartCount: 1 },
-    },
-  }),
-}));
-
-vi.mock("@features/approvals/application", () => ({
-  invalidateApprovalsRelatedQueries: vi.fn(),
-}));
+vi.mock("@features/approvals/application", async () => {
+  const hooks = await import(
+    "@features/approvals/application/hooks/useSelfApprovalPolicy"
+  );
+  return {
+    invalidateSelfApprovalPolicy: hooks.invalidateSelfApprovalPolicy,
+    useSelfActionForbiddenHandler: hooks.useSelfActionForbiddenHandler,
+    invalidateApprovalsRelatedQueries: vi.fn(),
+    useSelfApprovalPolicy: () => ({
+      data: {
+        advanceApprove: { allowed: false, activeCounterpartCount: 1 },
+        advanceDisburse: { allowed: false, activeCounterpartCount: 1 },
+        settlementApprove: { allowed: false, activeCounterpartCount: 1 },
+        settlementDisburse: { allowed: false, activeCounterpartCount: 1 },
+        tripExpenseApprove: { allowed: false, activeCounterpartCount: 1 },
+      },
+    }),
+  };
+});
 
 function createTestQueryClient() {
   return new QueryClient({

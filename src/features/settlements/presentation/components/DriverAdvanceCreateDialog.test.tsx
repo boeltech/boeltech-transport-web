@@ -40,7 +40,7 @@ vi.mock("@shared/ui/employee-async-combobox", () => ({
   ),
 }));
 
-vi.mock("@features/employees", () => ({
+vi.mock("@features/employees/application", () => ({
   useEmployee: () => ({
     data: {
       data: {
@@ -51,7 +51,7 @@ vi.mock("@features/employees", () => ({
   }),
 }));
 
-vi.mock("@features/trips", () => ({
+vi.mock("@features/trips/application", () => ({
   useTrips: () => ({
     data: {
       data: [

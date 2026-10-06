@@ -29,16 +29,16 @@ vi.mock("../../application/hooks", async (importOriginal) => {
   };
 });
 
-vi.mock("@features/employees", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@features/employees")>();
+vi.mock("@features/employees/application", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/employees/application")>();
   return {
     ...actual,
     useEmployeeBasic: () => ({ data: { firstName: "Pedro", lastName: "Infante" } }),
   };
 });
 
-vi.mock("@features/approvals", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@features/approvals")>();
+vi.mock("@features/approvals/application", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/approvals/application")>();
   return { ...actual, useSelfApprovalPolicy: () => ({ data: undefined }) };
 });
 

@@ -67,15 +67,17 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
 
 const mockSelfApprovalPolicy = vi.fn<() => SelfApprovalPolicy | undefined>();
 
-vi.mock("@features/approvals", async () => ({
-  ...(await import("@features/approvals/testing/selfApprovalTestModule")),
-  invalidateApprovalsRelatedQueries: vi.fn(),
-  useSelfApprovalPolicy: () => ({ data: mockSelfApprovalPolicy() }),
-}));
-
-vi.mock("@features/approvals/application", () => ({
-  invalidateApprovalsRelatedQueries: vi.fn(),
-}));
+vi.mock("@features/approvals/application", async () => {
+  const hooks = await import(
+    "@features/approvals/application/hooks/useSelfApprovalPolicy"
+  );
+  return {
+    invalidateSelfApprovalPolicy: hooks.invalidateSelfApprovalPolicy,
+    useSelfActionForbiddenHandler: hooks.useSelfActionForbiddenHandler,
+    invalidateApprovalsRelatedQueries: vi.fn(),
+    useSelfApprovalPolicy: () => ({ data: mockSelfApprovalPolicy() }),
+  };
+});
 
 function makePolicy(
   overrides: Partial<Record<keyof SelfApprovalPolicy, boolean>> = {},

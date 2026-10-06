@@ -25,13 +25,16 @@ vi.mock("../../application/hooks/useAdvances", () => ({
   }),
 }));
 
-vi.mock("@features/approvals", async () => ({
-  ...(await import("@features/approvals/testing/selfApprovalTestModule")),
-}));
-
-vi.mock("@features/approvals/application", () => ({
-  invalidateApprovalsRelatedQueries: vi.fn(),
-}));
+vi.mock("@features/approvals/application", async () => {
+  const hooks = await import(
+    "@features/approvals/application/hooks/useSelfApprovalPolicy"
+  );
+  return {
+    invalidateSelfApprovalPolicy: hooks.invalidateSelfApprovalPolicy,
+    useSelfActionForbiddenHandler: hooks.useSelfActionForbiddenHandler,
+    invalidateApprovalsRelatedQueries: vi.fn(),
+  };
+});
 
 const readyAdvance: DriverAdvance = {
   id: "adv-1",
