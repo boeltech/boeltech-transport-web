@@ -8,6 +8,7 @@ Guía mínima para agentes en este repo. **Documentación detallada:** `D:\cowor
 npm run dev        # Vite HMR
 npm run build      # tsc -b && vite build
 npm run lint
+npm run lint:layers # ADR-0102 capas entre features (corre en CI; llega en la fase F2)
 npm run test       # Vitest: proyectos node + dom + flows (max 2 workers en local)
 npm run test:serial # 1 worker, pool forks (aísla archivos) — máquinas 8 GB; equivale a VITEST_SERIAL=1
 npm run test:watch # cerrar al terminar (proceso persistente)
@@ -89,7 +90,7 @@ Env: `env/.env.example` · config: `src/shared/config/env.ts` · API: **`VITE_AP
 
 `domain/` ← `infrastructure/` · `presentation/` → `application/`
 
-Importar solo vía `@features/<name>` (barrel `index.ts`).
+Entre features, importar por capa: `@features/<name>/{domain|application|infrastructure|presentation}` (el `index.ts` de cada capa). Las páginas no se exportan en ningún index: el router las carga con `lazy()` por ruta profunda (`@features/<name>/presentation/pages/<Page>`). `application`/`domain`/`infrastructure` y `@shared` no importan la raíz ni `/presentation` de otra feature; prohibido también el alias `@/features/*` (`npm run lint:layers`, desde F2). Query keys y filtros de invalidación en `domain/`. La raíz `@features/<name>` es transitoria y se retira por feature (ADR-0102). Si cambias un specifier, actualiza su `vi.mock`.
 
 | Alias | Ruta |
 |---|---|
