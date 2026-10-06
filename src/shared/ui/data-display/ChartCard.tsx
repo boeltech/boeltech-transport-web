@@ -45,15 +45,20 @@ export function ChartCard({
 
   return (
     <Card className={className}>
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-        <div className="space-y-1.5">
+      <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0 space-y-1.5">
           <CardTitle className="font-medium tracking-tight">{title}</CardTitle>
           {description ? (
             <CardDescription>{description}</CardDescription>
           ) : null}
         </div>
         {tools ? (
-          <div className="flex shrink-0 items-center gap-2">{tools}</div>
+          <div
+            data-slot="chart-card-tools"
+            className="flex min-w-0 max-w-full flex-wrap items-center gap-2 sm:shrink-0"
+          >
+            {tools}
+          </div>
         ) : null}
       </CardHeader>
       <CardContent>

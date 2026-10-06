@@ -15,6 +15,8 @@ export interface ChartTooltipContentProps
   extends TooltipProps<ValueType, NameType> {
   series?: ChartSeries[];
   valueFormatter?: (value: ValueType, dataKey: string) => string;
+  /** Título del tooltip a partir del valor de la categoría (p. ej. mes completo). */
+  titleFormatter?: (label: string) => string;
 }
 
 function formatDefaultValue(value: ValueType): string {
@@ -78,8 +80,15 @@ export function ChartTooltipContent({
   label,
   series,
   valueFormatter,
+  titleFormatter,
 }: ChartTooltipContentProps) {
   if (!active || !payload?.length) return null;
+  const title =
+    label != null && label !== ""
+      ? titleFormatter
+        ? titleFormatter(String(label))
+        : String(label)
+      : "";
 
   return (
     <div
@@ -88,9 +97,7 @@ export function ChartTooltipContent({
         "text-xs",
       )}
     >
-      {label != null && label !== "" ? (
-        <p className="mb-1.5 font-medium">{String(label)}</p>
-      ) : null}
+      {title ? <p className="mb-1.5 font-medium">{title}</p> : null}
       <ul className="space-y-1">
         {payload.map((entry, index) => {
           const dataKey = String(entry.dataKey ?? entry.name ?? index);
@@ -119,4 +126,5 @@ export function ChartTooltipContent({
 export interface ChartTooltipProps {
   series?: ChartSeries[];
   valueFormatter?: (value: ValueType, dataKey: string) => string;
+  titleFormatter?: (label: string) => string;
 }

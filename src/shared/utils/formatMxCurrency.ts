@@ -38,3 +38,20 @@ export function formatMxCurrencyOrDash(
   if (value == null) return "—";
   return formatMxCurrency(value);
 }
+
+const millionsFormatter = new Intl.NumberFormat(LOCALE, {
+  maximumFractionDigits: 1,
+});
+
+/** `$1.3 M`, `$600 k`, `$500`: ticks cortos para ejes de montos. */
+export function formatMxCurrencyCompact(amount: number): string {
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? "−" : "";
+  if (abs >= 1_000_000) {
+    return `${sign}$${millionsFormatter.format(abs / 1_000_000)} M`;
+  }
+  if (abs >= 1_000) {
+    return `${sign}$${Math.round(abs / 1_000).toLocaleString(LOCALE)} k`;
+  }
+  return `${sign}$${Math.round(abs).toLocaleString(LOCALE)}`;
+}

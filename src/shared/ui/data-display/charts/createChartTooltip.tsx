@@ -15,6 +15,7 @@ import {
 export function createChartTooltip({
   series,
   valueFormatter,
+  titleFormatter,
 }: ChartTooltipProps = {}) {
   return function ChartTooltipRenderer(
     props: TooltipProps<ValueType, NameType>,
@@ -24,6 +25,7 @@ export function createChartTooltip({
         {...props}
         series={series}
         valueFormatter={valueFormatter}
+        titleFormatter={titleFormatter}
       />
     );
   };

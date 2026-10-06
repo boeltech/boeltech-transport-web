@@ -230,7 +230,7 @@ export function PatternsSection() {
           <p className="text-xs text-muted-foreground">
             <strong className="text-foreground">Ejemplos en producción:</strong>{" "}
             <code className="font-mono">features/dashboard/presentation/DashboardPage.tsx</code>,{" "}
-            <code className="font-mono">features/finance/presentation/components/FinanceSummaryCharts.tsx</code>
+            <code className="font-mono">features/finance/presentation/components/ProfitabilityCharts.tsx</code>
           </p>
           <p className="text-xs text-muted-foreground">
             <strong className="text-foreground">Referencia viva:</strong> sección{" "}

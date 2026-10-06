@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatMxCurrency,
+  formatMxCurrencyCompact,
   formatMxCurrencyNullable,
   formatMxCurrencyOrDash,
   formatMxCurrencyWhole,
@@ -27,5 +28,13 @@ describe("formatMxCurrency", () => {
   it("returns dash for empty display helper", () => {
     expect(formatMxCurrencyOrDash(null)).toBe("—");
     expect(formatMxCurrencyOrDash(0)).toContain("$");
+  });
+
+  it("formats compact axis ticks", () => {
+    expect(formatMxCurrencyCompact(1_250_000)).toBe("$1.3 M");
+    expect(formatMxCurrencyCompact(600_000)).toBe("$600 k");
+    expect(formatMxCurrencyCompact(500)).toBe("$500");
+    expect(formatMxCurrencyCompact(0)).toBe("$0");
+    expect(formatMxCurrencyCompact(-2_000)).toBe("−$2 k");
   });
 });

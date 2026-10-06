@@ -62,4 +62,18 @@ describe("ChartTooltipContent", () => {
     expect(screen.getByText("Vencido:")).toBeInTheDocument();
     expect(screen.getByText("1,200")).toBeInTheDocument();
   });
+
+  it("formats the title from the category value (full month instead of the short tick)", () => {
+    render(
+      <ChartTooltipContent
+        active
+        label="2026-09"
+        titleFormatter={(period) => (period === "2026-09" ? "sep 2026" : period)}
+        payload={[{ name: "revenue", dataKey: "revenue", value: 700, color: "red" }]}
+      />,
+    );
+
+    expect(screen.getByText("sep 2026")).toBeInTheDocument();
+    expect(screen.queryByText("2026-09")).not.toBeInTheDocument();
+  });
 });

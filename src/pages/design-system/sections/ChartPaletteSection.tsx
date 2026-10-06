@@ -55,7 +55,11 @@ const PLAN_VS_REAL_MONTH = [
 ];
 
 const PLAN_VS_REAL_SERIES: ChartSeries[] = [
-  { dataKey: "budgeted", label: "Presupuestado", token: "chart-2" },
+  {
+    dataKey: "budgeted",
+    label: "Tarifa pactada / costo estimado",
+    token: "chart-2",
+  },
   { dataKey: "actual", label: "Real", token: "chart-1" },
 ];
 
@@ -180,12 +184,12 @@ export function ChartPaletteSection() {
         />
       </ChartCard>
 
-      {/* Plan vs real — patrón Dashboard */}
+      {/* Pactado vs real — patrón Dashboard */}
       <ChartCard
-        title="Ingresos y costos: plan vs real"
-        description="Ingresos $35,000 → $35,000 · Costos $8,000 → $7,600 · Margen real $27,400 (mes)"
+        title="Ingresos y costos: pactado vs real"
+        description="Tarifa pactada $35,000 → ingreso real $35,000 · Costo estimado $8,000 → costo real $7,600 · Margen real $27,400 (mes)"
         isLoading={false}
-        aria-label="Gráfico de barras: ingresos y costos presupuestados vs reales"
+        aria-label="Gráfico de barras: tarifa pactada y costo estimado vs ingreso y costo reales"
       >
         <BoeltechBarChart
           data={PLAN_VS_REAL_MONTH}

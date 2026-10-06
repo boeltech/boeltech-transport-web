@@ -8,6 +8,8 @@
 export { chartColor, CHART_AXIS_LINE, CHART_AXIS_TICK, CHART_GRID } from "./chartTokens";
 export type { ChartSeries, ChartToken } from "./chartTokens";
 
+export { findPeakCategory } from "./categoryAxisTicks";
+
 export { ChartContainer } from "./ChartContainer";
 export type { ChartContainerProps } from "./ChartContainer";
 
@@ -46,5 +48,7 @@ export type { BoeltechBarListProps, BarListItem } from "./BoeltechBarList";
 export { BoeltechComboChart } from "./BoeltechComboChart";
 export type {
   BoeltechComboChartProps,
+  ComboChartRow,
   ComboChartSeries,
+  ComboChartTooltipArgs,
 } from "./BoeltechComboChart";
