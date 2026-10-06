@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, useSearchParams } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import { renderWithProviders } from "@/test/renderWithProviders";
+import { grantPermissions, resetPermissionsMock } from "@/test/mocks/permissions";
 import { TrailerListPage } from "./TrailerListPage";
 import { trailersCopy } from "../copy/trailersCopy";
 import { TRAILER_STATUS_LABELS, TrailerStatus } from "../../domain";
@@ -14,13 +15,10 @@ import {
 const copy = trailersCopy.list;
 const EDIT_ID = "11111111-1111-4111-8111-111111111111";
 
-const { mockUseTrailers, mockUseTrailer, mockHasPermission, mockUseRole } =
-  vi.hoisted(() => ({
-    mockUseTrailers: vi.fn(),
-    mockUseTrailer: vi.fn(),
-    mockHasPermission: vi.fn(() => true),
-    mockUseRole: vi.fn(() => "admin"),
-  }));
+const { mockUseTrailers, mockUseTrailer } = vi.hoisted(() => ({
+  mockUseTrailers: vi.fn(),
+  mockUseTrailer: vi.fn(),
+}));
 
 vi.mock("../../application", () => ({
   useTrailers: (...args: unknown[]) => mockUseTrailers(...args),
@@ -42,20 +40,14 @@ vi.mock("../components", async (importOriginal) => {
   };
 });
 
-vi.mock("@shared/permissions", () => ({
-  usePermissions: () => ({
-    hasPermission: mockHasPermission,
-  }),
-  useRole: () => mockUseRole(),
-}));
+vi.mock("@shared/permissions", async () =>
+  (await import("@/test/mocks/permissions")).permissionsModuleMock(),
+);
 
-vi.mock("@shared/hooks", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@shared/hooks")>();
-  return {
-    ...mod,
-    useToast: () => ({ toast: vi.fn() }),
-  };
-});
+vi.mock("@shared/hooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@shared/hooks")>()),
+  ...(await import("@/test/mocks/toast")).toastHooksMock(),
+}));
 
 function SearchParamsProbe() {
   const [params] = useSearchParams();
@@ -63,16 +55,12 @@ function SearchParamsProbe() {
 }
 
 function renderPage(initialUrl = "/trailers") {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[initialUrl]}>
-        <TrailerListPage />
-        <SearchParamsProbe />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  return renderWithProviders(
+    <>
+      <TrailerListPage />
+      <SearchParamsProbe />
+    </>,
+    { route: initialUrl },
   );
 }
 
@@ -88,8 +76,7 @@ describe("TrailerListPage toolbar", () => {
       refetch: vi.fn(),
     });
     mockUseTrailer.mockReturnValue({ data: undefined });
-    mockHasPermission.mockImplementation(() => true);
-    mockUseRole.mockReturnValue("admin");
+    resetPermissionsMock();
   });
 
   it("pasa status desde la URL, muestra chip y no cuenta search en el badge", () => {
@@ -133,7 +120,7 @@ describe("TrailerListPage toolbar", () => {
   });
 
   it("manager canCreate usa empty de recepción de patio", () => {
-    mockUseRole.mockReturnValue("manager");
+    grantPermissions("all", { role: "manager" });
     renderPage();
     expect(
       screen.getByText(copy.empty.descriptionClearManager),
@@ -145,9 +132,8 @@ describe("TrailerListPage toolbar", () => {
   });
 
   it("empty RO pide el alta a administración si !trailers.create", () => {
-    mockHasPermission.mockImplementation(
-      (module: string, action: string) =>
-        !(module === "trailers" && action === "create"),
+    grantPermissions(
+      (module, action) => !(module === "trailers" && action === "create"),
     );
     renderPage();
     expect(screen.getByText(copy.empty.descriptionReadonly)).toBeInTheDocument();

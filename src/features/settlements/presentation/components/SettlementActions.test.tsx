@@ -1,8 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderWithProviders } from "@/test/renderWithProviders";
+import { resetAuthMock, setMockAuthUser } from "@/test/mocks/auth";
+import { grantPermissions } from "@/test/mocks/permissions";
+import { mockToast } from "@/test/mocks/toast";
 import { SettlementActions } from "./SettlementActions";
 import type { DriverSettlement } from "../../domain/entities";
 import type { ApprovalBlock, SelfApprovalPolicy } from "@features/approvals";
@@ -35,32 +37,37 @@ function makeApproval(overrides: Partial<ApprovalBlock> = {}): ApprovalBlock {
   };
 }
 
-const mockUsePermissions = vi.fn();
-const mockUseAuth = vi.fn();
-const mockToast = vi.fn();
 const mockApproveSettlement = vi.fn();
 const mockRejectSettlement = vi.fn();
 const mockSubmitSettlement = vi.fn();
 const mockCancelSettlement = vi.fn();
 const mockReturnSettlement = vi.fn();
-const mockSettingsQuery = vi.fn(() => ({
+interface SettingsQueryState {
+  data:
+    | { voboThresholdMxn: number; activeApproverCount: number; activeExecutorCount: number }
+    | undefined;
+  isSuccess: boolean;
+  isLoading: boolean;
+  isError: boolean;
+}
+const mockSettingsQuery = vi.fn<() => SettingsQueryState>(() => ({
   data: { voboThresholdMxn: 0, activeApproverCount: 2, activeExecutorCount: 2 },
   isSuccess: true,
   isLoading: false,
   isError: false,
 }));
 
-vi.mock("@shared/permissions", () => ({
-  usePermissions: () => mockUsePermissions(),
-}));
+vi.mock("@shared/permissions", async () =>
+  (await import("@/test/mocks/permissions")).permissionsModuleMock(),
+);
 
-vi.mock("@features/auth", () => ({
-  useAuth: () => mockUseAuth(),
-}));
+vi.mock("@features/auth", async () =>
+  (await import("@/test/mocks/auth")).authModuleMock(),
+);
 
-vi.mock("@shared/hooks", () => ({
-  useToast: () => ({ toast: mockToast }),
-}));
+vi.mock("@shared/hooks", async () =>
+  (await import("@/test/mocks/toast")).toastHooksMock(),
+);
 
 vi.mock("../../application/hooks/useSettlementSettings", () => ({
   useSettlementSettings: () => mockSettingsQuery(),
@@ -100,19 +107,11 @@ function makePolicy(
   };
 }
 
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: 0 },
-      mutations: { retry: false },
-    },
-  });
-}
-
 const sampleSettlement: DriverSettlement = {
   id: "set-1",
   tenantId: "tenant-1",
   settlementNumber: "LIQ-202608-0001",
+  settlementKind: "regular",
   employeeId: "emp-1",
   employeeFullName: "Pedro Infante",
   agreementSnapshot: { currency: "MXN" },
@@ -156,30 +155,16 @@ describe("SettlementActions", () => {
       isLoading: false,
       isError: false,
     });
-    mockUsePermissions.mockReturnValue({
-      hasPermission: vi.fn((resource: string, action: string) => {
-        if (resource === "settlements" && (action === "update" || action === "execute")) {
-          return true;
-        }
-        return false;
-      }),
-    });
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-approver-999", name: "Auditor", email: "a@boeltech.com" },
-    });
+    grantPermissions(["settlements.update", "settlements.execute"]);
+    resetAuthMock();
+    setMockAuthUser({ id: "user-approver-999" });
     mockSelfApprovalPolicy.mockReturnValue(makePolicy());
   });
 
   it("muestra autorizar/rechazar cuando el revisor no es el solicitante", async () => {
     const user = userEvent.setup();
-    const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions settlement={sampleSettlement} onView={vi.fn()} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions settlement={sampleSettlement} onView={vi.fn()} />,
     );
 
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
@@ -189,18 +174,10 @@ describe("SettlementActions", () => {
   });
 
   it("ADR-0098 blocked_own: el solicitante ve «Enviada por ti» deshabilitado en el menú", async () => {
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-    });
+    setMockAuthUser({ id: "user-creator-123" });
     const user = userEvent.setup();
-    const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions settlement={sampleSettlement} onView={vi.fn()} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions settlement={sampleSettlement} onView={vi.fn()} />,
     );
 
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
@@ -213,17 +190,9 @@ describe("SettlementActions", () => {
 
   it("ADR-0098 blocked_own: falla cerrado si la política no cargó", async () => {
     mockSelfApprovalPolicy.mockReturnValue(undefined);
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-    });
-    const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions variant="buttons" settlement={sampleSettlement} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    setMockAuthUser({ id: "user-creator-123" });
+    renderWithProviders(
+      <SettlementActions variant="buttons" settlement={sampleSettlement} />,
     );
 
     expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
@@ -232,19 +201,11 @@ describe("SettlementActions", () => {
 
   it("ADR-0098 self_confirm: el admin único autoriza lo propio tras confirmar", async () => {
     mockSelfApprovalPolicy.mockReturnValue(makePolicy({ settlementApprove: true }));
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-    });
+    setMockAuthUser({ id: "user-creator-123" });
     mockApproveSettlement.mockResolvedValue({ ...sampleSettlement, status: "approved" });
     const user = userEvent.setup();
-    const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions settlement={sampleSettlement} onView={vi.fn()} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions settlement={sampleSettlement} onView={vi.fn()} />,
     );
 
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
@@ -260,26 +221,19 @@ describe("SettlementActions", () => {
 
   it("ADR-0098 self_confirm: el ejecutor único ve Registrar pago con aviso de autoacción", async () => {
     mockSelfApprovalPolicy.mockReturnValue(makePolicy({ settlementDisburse: true }));
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-    });
+    setMockAuthUser({ id: "user-creator-123" });
     const user = userEvent.setup();
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions
-            variant="buttons"
-            onDisburse={vi.fn()}
-            settlement={{
-              ...sampleSettlement,
-              status: "approved",
-              createdBy: "user-creator-123",
-              submittedBy: "user-creator-123",
-            }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        onDisburse={vi.fn()}
+        settlement={{
+          ...sampleSettlement,
+          status: "approved",
+          createdBy: "user-creator-123",
+          submittedBy: "user-creator-123",
+        }}
+      />,
     );
 
     expect(screen.queryByText("Enviada por ti")).not.toBeInTheDocument();
@@ -297,16 +251,9 @@ describe("SettlementActions", () => {
       isLoading: false,
       isError: false,
     });
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-    });
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions variant="buttons" settlement={sampleSettlement} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    setMockAuthUser({ id: "user-creator-123" });
+    renderWithProviders(
+      <SettlementActions variant="buttons" settlement={sampleSettlement} />,
     );
 
     expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
@@ -314,20 +261,15 @@ describe("SettlementActions", () => {
   });
 
   it("muestra Enviar a autorización en borrador que lo requiere", () => {
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions
-            variant="buttons"
-            settlement={{
-              ...draftSettlement,
-              voboRequired: true,
-              createdBy: "user-creator-123",
-            }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        settlement={{
+          ...draftSettlement,
+          voboRequired: true,
+          createdBy: "user-creator-123",
+        }}
+      />,
     );
 
     expect(screen.getByRole("button", { name: /Enviar a autorización/i })).toBeInTheDocument();
@@ -341,14 +283,8 @@ describe("SettlementActions", () => {
 
   it("draft en menú muestra Enviar a autorización y Cancelar pago", async () => {
     const user = userEvent.setup();
-    const queryClient = createTestQueryClient();
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions settlement={draftSettlement} onView={vi.fn()} />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions settlement={draftSettlement} onView={vi.fn()} />,
     );
 
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
@@ -366,16 +302,12 @@ describe("SettlementActions", () => {
 
     const renderActions = (settlement: DriverSettlement) => {
       const onActionComplete = vi.fn();
-      render(
-        <QueryClientProvider client={createTestQueryClient()}>
-          <MemoryRouter>
-            <SettlementActions
-              settlement={settlement}
-              onView={vi.fn()}
-              onActionComplete={onActionComplete}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      renderWithProviders(
+        <SettlementActions
+          settlement={settlement}
+          onView={vi.fn()}
+          onActionComplete={onActionComplete}
+        />,
       );
       return { onActionComplete };
     };
@@ -459,23 +391,16 @@ describe("SettlementActions", () => {
   });
 
   it("oculta Registrar pago al maker en bypass (borrador sin VoBo)", () => {
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-    });
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions
-            variant="buttons"
-            settlement={{
-              ...draftSettlement,
-              voboRequired: false,
-              createdBy: "user-creator-123",
-            }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    setMockAuthUser({ id: "user-creator-123" });
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        settlement={{
+          ...draftSettlement,
+          voboRequired: false,
+          createdBy: "user-creator-123",
+        }}
+      />,
     );
 
     expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
@@ -486,20 +411,15 @@ describe("SettlementActions", () => {
   });
 
   it("permite Registrar pago desde borrador bypass si no es el maker", () => {
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions
-            variant="buttons"
-            settlement={{
-              ...draftSettlement,
-              voboRequired: false,
-              createdBy: "user-creator-123",
-            }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        settlement={{
+          ...draftSettlement,
+          voboRequired: false,
+          createdBy: "user-creator-123",
+        }}
+      />,
     );
 
     expect(screen.getByRole("button", { name: /Registrar pago/i })).toBeInTheDocument();
@@ -507,24 +427,17 @@ describe("SettlementActions", () => {
   });
 
   it("oculta Registrar pago al maker en Autorizado", () => {
-    mockUseAuth.mockReturnValue({
-      user: { id: "user-creator-123", name: "Creador", email: "c@boeltech.com" },
-    });
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions
-            variant="buttons"
-            settlement={{
-              ...sampleSettlement,
-              status: "approved",
-              createdBy: "user-creator-123",
-              submittedBy: "user-creator-123",
-            }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    setMockAuthUser({ id: "user-creator-123" });
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        settlement={{
+          ...sampleSettlement,
+          status: "approved",
+          createdBy: "user-creator-123",
+          submittedBy: "user-creator-123",
+        }}
+      />,
     );
 
     expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
@@ -540,21 +453,16 @@ describe("SettlementActions", () => {
       isLoading: false,
       isError: true,
     });
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <SettlementActions
-            variant="buttons"
-            settlement={{
-              ...sampleSettlement,
-              status: "approved",
-              createdBy: "user-creator-123",
-              submittedBy: "user-creator-123",
-            }}
-          />
-        </MemoryRouter>
-      </QueryClientProvider>,
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        settlement={{
+          ...sampleSettlement,
+          status: "approved",
+          createdBy: "user-creator-123",
+          submittedBy: "user-creator-123",
+        }}
+      />,
     );
 
     expect(screen.getByRole("button", { name: /Registrar pago/i })).toBeInTheDocument();
@@ -573,13 +481,8 @@ describe("SettlementActions", () => {
     it("«Devolver para corregir» pide motivo y envía guardas", async () => {
       const user = userEvent.setup();
       mockReturnSettlement.mockResolvedValueOnce({ ...sampleSettlement, status: "draft" });
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions variant="buttons" settlement={withApproval()} />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      renderWithProviders(
+        <SettlementActions variant="buttons" settlement={withApproval()} />,
       );
 
       await user.click(screen.getByRole("button", { name: /Devolver para corregir/i }));
@@ -595,7 +498,7 @@ describe("SettlementActions", () => {
           }),
         );
       });
-      expect(mockToast).toHaveBeenCalledWith(
+      expect(mockToast.toast).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Pago devuelto para corregir" }),
       );
     });
@@ -603,13 +506,8 @@ describe("SettlementActions", () => {
     it("Rechazar vive en ⋯ y usa el Sheet con guardas", async () => {
       const user = userEvent.setup();
       mockRejectSettlement.mockResolvedValueOnce({ ...sampleSettlement, status: "rejected" });
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions variant="buttons" settlement={withApproval()} />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      renderWithProviders(
+        <SettlementActions variant="buttons" settlement={withApproval()} />,
       );
 
       expect(screen.queryByRole("button", { name: /^Rechazar$/i })).not.toBeInTheDocument();
@@ -635,20 +533,15 @@ describe("SettlementActions", () => {
       mockApproveSettlement.mockRejectedValueOnce(
         Object.assign(new Error("stale"), { code: "APPROVAL_STEP_CHANGED" }),
       );
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions variant="buttons" settlement={withApproval()} />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      renderWithProviders(
+        <SettlementActions variant="buttons" settlement={withApproval()} />,
       );
 
       await user.click(screen.getByRole("button", { name: /Autorizar/i }));
       await user.click(await screen.findByRole("button", { name: /Sí, autorizar pago/i }));
 
       await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "warning" }));
+        expect(mockToast.toast).toHaveBeenCalledWith(expect.objectContaining({ variant: "warning" }));
       });
       expect(mockApproveSettlement).toHaveBeenCalledTimes(1);
       expect(mockApproveSettlement).toHaveBeenCalledWith("set-1", {
@@ -666,20 +559,15 @@ describe("SettlementActions", () => {
           path: ["advances_to_apply"],
         }),
       );
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions variant="buttons" settlement={withApproval()} />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      renderWithProviders(
+        <SettlementActions variant="buttons" settlement={withApproval()} />,
       );
 
       await user.click(screen.getByRole("button", { name: /Autorizar/i }));
       await user.click(await screen.findByRole("button", { name: /Sí, autorizar pago/i }));
 
       await waitFor(() => {
-        expect(mockToast).toHaveBeenCalledWith({
+        expect(mockToast.toast).toHaveBeenCalledWith({
           title: "Los descuentos superan lo ganado",
           description: apiMessage,
           variant: "error",
@@ -689,23 +577,18 @@ describe("SettlementActions", () => {
 
     it("D5: la confirmación de autorizar dice «Ya estaba autorizado» (diff vacío: sin lista)", async () => {
       const user = userEvent.setup();
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={withApproval({
-                reapproval: {
-                  invalidatedAt: "2026-10-02T20:10:00.000Z",
-                  previousInstanceId: "inst-0",
-                  previousStatus: "approved",
-                  changes: [],
-                },
-              })}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      renderWithProviders(
+        <SettlementActions
+          variant="buttons"
+          settlement={withApproval({
+            reapproval: {
+              invalidatedAt: "2026-10-02T20:10:00.000Z",
+              previousInstanceId: "inst-0",
+              previousStatus: "approved",
+              changes: [],
+            },
+          })}
+        />,
       );
 
       await user.click(screen.getByRole("button", { name: /Autorizar/i }));
@@ -717,51 +600,37 @@ describe("SettlementActions", () => {
     it("«Corregir» aparece solo con onCorrect y en estados corregibles", async () => {
       const user = userEvent.setup();
       const onCorrect = vi.fn();
-      const queryClient = createTestQueryClient();
-      const { rerender } = render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={{ ...sampleSettlement, status: "approved" }}
-              onCorrect={onCorrect}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      const { rerender } = renderWithProviders(
+        <SettlementActions
+          variant="buttons"
+          settlement={{ ...sampleSettlement, status: "approved" }}
+          onCorrect={onCorrect}
+        />,
       );
 
       await user.click(screen.getByRole("button", { name: "Corregir" }));
       expect(onCorrect).toHaveBeenCalledTimes(1);
 
       rerender(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              variant="buttons"
-              settlement={{ ...sampleSettlement, status: "disbursed" }}
-              onCorrect={onCorrect}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
+        <SettlementActions
+          variant="buttons"
+          settlement={{ ...sampleSettlement, status: "disbursed" }}
+          onCorrect={onCorrect}
+        />,
       );
       expect(screen.queryByRole("button", { name: "Corregir" })).not.toBeInTheDocument();
     });
 
     it("devuelta en menú: «Reenviar sin cambios» en lugar de «Enviar a autorización»", async () => {
       const user = userEvent.setup();
-      const queryClient = createTestQueryClient();
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <SettlementActions
-              settlement={{
-                ...draftSettlement,
-                approval: makeApproval({ flowStatus: "returned", stepCurrent: null, canAct: false }),
-              }}
-              onView={vi.fn()}
-            />
-          </MemoryRouter>
-        </QueryClientProvider>,
+      renderWithProviders(
+        <SettlementActions
+          settlement={{
+            ...draftSettlement,
+            approval: makeApproval({ flowStatus: "returned", stepCurrent: null, canAct: false }),
+          }}
+          onView={vi.fn()}
+        />,
       );
 
       await user.click(screen.getByRole("button", { name: /Abrir menú de acciones/i }));

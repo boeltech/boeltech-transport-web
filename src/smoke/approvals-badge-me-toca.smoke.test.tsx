@@ -3,11 +3,10 @@
  * «Todas». Usa el `approvalsApi` real con el cliente HTTP simulado: 3 pendientes
  * asignadas al usuario frente a 9 en la cola completa.
  */
-import type { ReactNode } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createTestWrapper } from "@/test/renderWithProviders";
+import { grantPermissions } from "@/test/mocks/permissions";
 import { approvalsApi } from "@features/approvals/infrastructure/approvalsApi";
 import { useNavigationWithBadges } from "@widgets/sidebar/model/useNavigationWithBadges";
 
@@ -26,12 +25,7 @@ vi.mock("@shared/api", async (importOriginal) => {
 
 vi.mock("@shared/permissions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@shared/permissions")>()),
-  usePermissions: () => ({
-    hasPermission: () => true,
-    isLoading: false,
-    isAuthenticated: true,
-    role: "manager",
-  }),
+  ...(await import("@/test/mocks/permissions")).permissionsModuleMock(),
 }));
 
 const MINE_PER_TYPE = 1;
@@ -44,18 +38,10 @@ function countResponse(total: number) {
   };
 }
 
-function wrapper({ children }: { children: ReactNode }) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={["/dashboard"]}>{children}</MemoryRouter>
-    </QueryClientProvider>
-  );
-}
-
 describe("smoke approvals ADR-0099 AX-1 badge «Me toca»", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    grantPermissions("all", { role: "manager" });
     mockApiGet.mockImplementation(
       async (_url: string, config?: { params?: Record<string, string> }) => {
         const params = config?.params ?? {};
@@ -67,7 +53,8 @@ describe("smoke approvals ADR-0099 AX-1 badge «Me toca»", () => {
   });
 
   it("3 «Me toca» / 9 «Todas»: el sidebar muestra 3 y solo consulta la cola asignada", async () => {
-    const { result } = renderHook(() => useNavigationWithBadges(), { wrapper });
+    const { Wrapper } = createTestWrapper({ route: "/dashboard" });
+    const { result } = renderHook(() => useNavigationWithBadges(), { wrapper: Wrapper });
 
     await waitFor(() => {
       const approvalsItem = result.current.navigation

@@ -1,30 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
 import { renderWithTheme } from "@/test/renderWithTheme";
+import { setMockAuthUser } from "@/test/mocks/auth";
 import { financeCopy } from "../copy";
 import { FinanceSummaryPage } from "./FinanceSummaryPage";
 
-const { mockAuthRole } = vi.hoisted(() => ({
-  mockAuthRole: vi.fn(() => "accountant"),
-}));
+vi.mock("@features/auth", async () =>
+  (await import("@/test/mocks/auth")).authModuleMock(),
+);
 
-vi.mock("@features/auth", () => ({
-  useAuth: () => ({ user: { id: "u-1", role: mockAuthRole() } }),
-}));
+vi.mock("@shared/permissions", async () =>
+  (await import("@/test/mocks/permissions")).permissionsModuleMock(),
+);
 
-vi.mock("@shared/permissions", () => ({
-  usePermissions: () => ({
-    hasPermission: () => true,
-  }),
+vi.mock("@shared/hooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@shared/hooks")>()),
+  ...(await import("@/test/mocks/toast")).toastHooksMock(),
 }));
-
-vi.mock("@shared/hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@shared/hooks")>();
-  return {
-    ...actual,
-    useToast: () => ({ toast: vi.fn() }),
-  };
-});
 
 vi.mock("@features/finance/application", async (importOriginal) => {
   const actual =
@@ -55,7 +47,7 @@ vi.mock("@features/finance/application", async (importOriginal) => {
 
 describe("FinanceSummaryPage", () => {
   it("renderiza Cartera con stepper de ciclo y sin tabs", () => {
-    mockAuthRole.mockReturnValue("accountant");
+    setMockAuthUser({ role: "accountant" });
     renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
 
     expect(
@@ -100,7 +92,7 @@ describe("FinanceSummaryPage", () => {
   });
 
   it("manager: una línea de saldos, sin copy accountant", () => {
-    mockAuthRole.mockReturnValue("manager");
+    setMockAuthUser({ role: "manager" });
     renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
 
     expect(
@@ -115,7 +107,7 @@ describe("FinanceSummaryPage", () => {
   });
 
   it("muestra Volver a reportes cuando se llegó desde el hub", () => {
-    mockAuthRole.mockReturnValue("accountant");
+    setMockAuthUser({ role: "accountant" });
     renderWithTheme(<FinanceSummaryPage />, {
       route: [{ pathname: "/finance", state: { from: "/reports" } }],
     });
