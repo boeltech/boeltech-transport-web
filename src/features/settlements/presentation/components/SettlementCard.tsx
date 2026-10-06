@@ -4,7 +4,7 @@ import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton/skeleton";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { ReturnedChip } from "@features/approvals";
+import { ReturnedChip } from "@features/approvals/presentation/components";
 import type { DriverSettlement } from "../../domain/entities";
 import { roundCents } from "../../domain/settlementTotals";
 import { isSettlementReturned } from "../utils/settlementEditing";

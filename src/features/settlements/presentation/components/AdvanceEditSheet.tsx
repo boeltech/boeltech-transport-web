@@ -43,7 +43,8 @@ import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatDate } from "@shared/utils/dateUtils";
-import { ReturnedAlert, formatApprovalRole } from "@features/approvals";
+import { formatApprovalRole } from "@features/approvals/presentation";
+import { ReturnedAlert } from "@features/approvals/presentation/components";
 import type { DriverAdvance } from "../../domain/entities";
 import {
   ADVANCE_CATEGORY_LABELS,

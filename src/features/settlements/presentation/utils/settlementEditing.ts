@@ -1,4 +1,5 @@
-import { approvalGuardsFor, getApprovalGuardCode, type ApprovalGuards } from "@features/approvals";
+import { getApprovalGuardCode, type ApprovalGuards } from "@features/approvals/domain";
+import { approvalGuardsFor } from "@features/approvals/presentation";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { DriverSettlement } from "../../domain/entities";
 import type { SettlementStatus } from "../../domain/enums";

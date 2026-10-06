@@ -53,8 +53,9 @@ import { useToast } from "@shared/hooks";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
-import { useEmployeeBasic } from "@features/employees";
-import { resolveSelfActionUi, useSelfApprovalPolicy } from "@features/approvals";
+import { useEmployeeBasic } from "@features/employees/application";
+import { resolveSelfActionUi } from "@features/approvals/domain";
+import { useSelfApprovalPolicy } from "@features/approvals/application";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import {
   useSettlementPreview,

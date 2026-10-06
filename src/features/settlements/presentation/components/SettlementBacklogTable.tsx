@@ -20,7 +20,7 @@ import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { usePermissions } from "@shared/permissions";
-import { useHelpEmptySupport } from "@features/help-center";
+import { useHelpEmptySupport } from "@features/help-center/presentation";
 import type { SettlementBacklogRow } from "../../domain/entities";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { resolveBacklogPeriodTooltip } from "../utils/backlogPeriodTooltip";

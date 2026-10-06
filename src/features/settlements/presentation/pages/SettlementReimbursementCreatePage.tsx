@@ -19,8 +19,9 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { useToast } from "@shared/hooks";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { useEmployeeBasic } from "@features/employees";
-import { resolveSelfActionUi, useSelfApprovalPolicy } from "@features/approvals";
+import { useEmployeeBasic } from "@features/employees/application";
+import { resolveSelfActionUi } from "@features/approvals/domain";
+import { useSelfApprovalPolicy } from "@features/approvals/application";
 import {
   useCreateReimbursementSettlement,
   useReimbursementSettlementPreview,

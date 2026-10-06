@@ -41,14 +41,14 @@ import { useSettlementDetail } from "../../application/hooks";
 import { useSubmitSettlement } from "../../application/hooks/useSettlements";
 import { settlementCreatePath, settlementDetailPath } from "../../application/settlementsRoutes";
 import { useAuth } from "@features/auth";
+import { showsSelfApprovedBadge } from "@features/approvals/domain";
 import {
   ApprovalFlowLines,
   ApprovalHistorySheet,
   ReturnedAlert,
   SelfApprovedBadge,
-  showsSelfApprovedBadge,
-} from "@features/approvals";
-import { useCompanySettings } from "@features/settings";
+} from "@features/approvals/presentation/components";
+import { useCompanySettings } from "@features/settings/application";
 import {
   SettlementStatusBadge,
   SettlementItemsTable,

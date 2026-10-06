@@ -37,27 +37,33 @@ import { useAuth } from "@features/auth";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
-  ApprovalHistorySheet,
-  DecisionReasonSheet,
+  getApprovalGuardCode,
+  isIntermediateStep,
+  isOwnRecord,
+  resolveApprovalActionUi,
+  resolveSelfActionUi,
+} from "@features/approvals/domain";
+import {
+  useSelfActionForbiddenHandler,
+  useSelfApprovalPolicy,
+} from "@features/approvals/application";
+import {
   approvalActionStateLabel,
   approvalGuardsFor,
   approvalsCopy,
   formatNextStepLabel,
   formatReapprovalConfirmLine,
-  getApprovalGuardCode,
   guardErrorMessage,
-  isIntermediateStep,
-  isOwnRecord,
+} from "@features/approvals/presentation";
+import {
+  ApprovalHistorySheet,
+  DecisionReasonSheet,
   OwnRequestMenuItem,
   ReapprovalConfirmNote,
-  resolveApprovalActionUi,
-  resolveSelfActionUi,
   SelfApprovalConfirmDialog,
-  useSelfActionForbiddenHandler,
-  useSelfApprovalPolicy,
   type DecisionReasonInput,
   type DecisionReasonMode,
-} from "@features/approvals";
+} from "@features/approvals/presentation/components";
 import type { DriverAdvance } from "../../domain/entities";
 import {
   invalidateAdvanceQueries,

@@ -26,10 +26,8 @@ import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import {
-  approvalsCopy,
-  useSelfActionForbiddenHandler,
-} from "@features/approvals";
+import { useSelfActionForbiddenHandler } from "@features/approvals/application";
+import { approvalsCopy } from "@features/approvals/presentation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   invalidateSettlementQueries,

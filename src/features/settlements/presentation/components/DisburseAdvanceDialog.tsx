@@ -31,10 +31,8 @@ import {
   getValidationErrors,
 } from "@shared/api/interceptors/error-handler";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import {
-  approvalsCopy,
-  useSelfActionForbiddenHandler,
-} from "@features/approvals";
+import { useSelfActionForbiddenHandler } from "@features/approvals/application";
+import { approvalsCopy } from "@features/approvals/presentation";
 import { useDisburseDriverAdvance } from "../../application/hooks/useAdvances";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {

@@ -8,7 +8,7 @@ import {
 import type { DriverAdvance } from "../../domain/entities";
 import type { UpdateDriverAdvancePayload } from "../../infrastructure/settlementsApi";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { getApprovalGuardCode } from "@features/approvals";
+import { getApprovalGuardCode } from "@features/approvals/domain";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
   ADVANCE_NOTE_MAX_LENGTH,

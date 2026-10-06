@@ -38,25 +38,31 @@ import { useToast } from "@shared/hooks";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import {
-  ApprovalActionStateChip,
-  ApprovalHistorySheet,
-  DecisionReasonSheet,
+  getApprovalGuardCode,
+  isIntermediateStep,
+  resolveApprovalActionUi,
+} from "@features/approvals/domain";
+import {
+  useSelfActionForbiddenHandler,
+  useSelfApprovalPolicy,
+} from "@features/approvals/application";
+import {
   approvalActionStateLabel,
   approvalsCopy,
   formatNextStepLabel,
-  getApprovalGuardCode,
   guardErrorMessage,
-  isIntermediateStep,
+} from "@features/approvals/presentation";
+import {
+  ApprovalActionStateChip,
+  ApprovalHistorySheet,
+  DecisionReasonSheet,
   OwnRequestChip,
   OwnRequestMenuItem,
   ReapprovalConfirmNote,
-  resolveApprovalActionUi,
   SelfApprovalConfirmDialog,
-  useSelfActionForbiddenHandler,
-  useSelfApprovalPolicy,
   type DecisionReasonInput,
   type DecisionReasonMode,
-} from "@features/approvals";
+} from "@features/approvals/presentation/components";
 import type { DriverSettlement } from "../../domain/entities";
 import {
   invalidateSettlementQueries,

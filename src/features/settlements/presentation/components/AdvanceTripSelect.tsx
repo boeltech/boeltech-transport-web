@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { useEmployee } from "@features/employees";
-import { useTrips } from "@features/trips";
+import { useEmployee } from "@features/employees/application";
+import { useTrips } from "@features/trips/application";
 import { Label } from "@shared/ui/label";
 import {
   Select,

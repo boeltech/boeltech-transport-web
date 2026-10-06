@@ -24,11 +24,11 @@ import {
   ADVANCE_CATEGORY_LABELS,
   type AdvanceCategory,
 } from "../../domain/enums";
+import { showsSelfApprovedBadge } from "@features/approvals/domain";
 import {
   ApprovalFlowLines,
   SelfApprovedBadge,
-  showsSelfApprovedBadge,
-} from "@features/approvals";
+} from "@features/approvals/presentation/components";
 import { AdvanceStatusBadge } from "./SettlementStatusBadge";
 import { AdvanceActions } from "./AdvanceActions";
 import { settlementsCopy } from "../copy/settlementsCopy";

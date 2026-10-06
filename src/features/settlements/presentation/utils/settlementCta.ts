@@ -3,7 +3,7 @@ import {
   resolveSelfActionUi,
   type SelfActionUi,
   type SelfApprovalPolicy,
-} from "@features/approvals";
+} from "@features/approvals/domain";
 import { DEFAULT_VOBO_THRESHOLD_MXN } from "../../domain/enums";
 import type { DriverSettlement } from "../../domain/entities";
 

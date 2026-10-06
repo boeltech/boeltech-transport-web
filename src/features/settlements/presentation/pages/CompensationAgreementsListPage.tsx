@@ -10,7 +10,7 @@ import {
 } from "@shared/ui/select";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
-import { useEmployees } from "@features/employees";
+import { useEmployees } from "@features/employees/application";
 import { useCompensationAgreements } from "../../application/hooks";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {

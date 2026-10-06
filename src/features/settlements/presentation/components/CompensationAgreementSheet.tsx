@@ -44,7 +44,8 @@ import {
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { useEmployees, useEmployee, type SalaryType } from "@features/employees";
+import { useEmployees, useEmployee } from "@features/employees/application";
+import type { SalaryType } from "@features/employees/domain";
 import { useCreateCompensationAgreement, useCompensationAgreements, useUpdateCompensationAgreement } from "../../application/hooks/useAgreements";
 import {
   compensationAgreementFormSchema,

@@ -14,7 +14,7 @@ import {
 import { Skeleton } from "@shared/ui/skeleton";
 import { Badge } from "@shared/ui/badge";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { ApprovalFlowLines } from "@features/approvals";
+import { ApprovalFlowLines } from "@features/approvals/presentation/components";
 import type { DriverSettlement } from "../../domain/entities";
 import { roundCents } from "../../domain/settlementTotals";
 import { SettlementStatusBadge } from "./SettlementStatusBadge";

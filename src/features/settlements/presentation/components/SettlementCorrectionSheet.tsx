@@ -36,7 +36,7 @@ import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { ReturnedAlert } from "@features/approvals";
+import { ReturnedAlert } from "@features/approvals/presentation/components";
 import type { DriverSettlement } from "../../domain/entities";
 import { calculatedBaseFromStored } from "../../domain/settlementTotals";
 import {

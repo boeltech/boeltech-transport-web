@@ -15,7 +15,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { useToast } from "@shared/hooks/useToast";
-import { invalidateNotificationsQueries } from "@features/notifications";
+import { invalidateNotificationsQueries } from "@features/notifications/application";
 import {
   type NotificationSettings,
   type UpdateNotificationSettingsDTO,
