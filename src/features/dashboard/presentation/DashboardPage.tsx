@@ -28,7 +28,6 @@ import {
   getCurrentMonthExpenseRange,
   useExpensesByDimension,
   useFinanceSummary,
-  useIncomeByMonth,
 } from "@features/finance";
 import type { FinancialTrendMonths } from "./components";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
@@ -65,7 +64,17 @@ function DashboardPage() {
   }, [searchParams]);
 
   const layoutApi = useDashboardLayout({ persistMode: "user" });
-  const { visibleWidgets, getSpanClass, canReadTrips, showFinance } = layoutApi;
+  const {
+    visibleWidgets,
+    customizableWidgets,
+    getSpanClass,
+    canReadTrips,
+    showFinance,
+  } = layoutApi;
+  const hiddenWidgetsCount = Math.max(
+    0,
+    customizableWidgets.length - visibleWidgets.length,
+  );
 
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [tripsDays, setTripsDays] = useState<TripsDayRange>(30);
@@ -87,10 +96,6 @@ function DashboardPage() {
     useFinanceSummary({
       enabled: showFinance,
     });
-  const { data: incomeByMonth, isLoading: incomeLoading } = useIncomeByMonth(
-    { months: 12 },
-    { enabled: showFinance },
-  );
   const {
     data: vehicleExpenseRanking,
     isLoading: vehicleExpenseRankingLoading,
@@ -104,12 +109,7 @@ function DashboardPage() {
     { enabled: showFinance },
   );
 
-  const collectedTrendData = useMemo(
-    () => incomeByMonth?.collected.map((value) => ({ value })) ?? [],
-    [incomeByMonth],
-  );
-
-  const financeLoading = financeSummaryLoading || incomeLoading;
+  const financeLoading = financeSummaryLoading;
 
   const widgetCtx: DashboardWidgetContext = useMemo(
     () => ({
@@ -126,7 +126,6 @@ function DashboardPage() {
       setTripsDays,
       showFinance,
       financeLoading,
-      collectedTrendData,
       financeSummary,
       vehicleExpenseRanking,
       vehicleExpenseRankingLoading,
@@ -147,7 +146,6 @@ function DashboardPage() {
       tripsDays,
       showFinance,
       financeLoading,
-      collectedTrendData,
       financeSummary,
       vehicleExpenseRanking,
       vehicleExpenseRankingLoading,
@@ -177,6 +175,14 @@ function DashboardPage() {
             >
               <SlidersHorizontal className="mr-2 h-4 w-4" />
               {dashboardCopy.customize.personalizeButton}
+              {hiddenWidgetsCount > 0 ? (
+                <>
+                  {" "}
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    · {dashboardCopy.customize.hiddenWidgetsCount(hiddenWidgetsCount)}
+                  </span>
+                </>
+              ) : null}
             </Button>
           ) : null}
           <Button

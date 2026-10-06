@@ -57,6 +57,8 @@ export interface FinancialTrendData {
   actual_revenue: number[];
   budgeted_cost: number[];
   actual_cost: number[];
+  /** Mes en curso según el API (`YYYY-MM`); es el último de `periods`. */
+  currentPeriod?: string;
 }
 
 // ============================================

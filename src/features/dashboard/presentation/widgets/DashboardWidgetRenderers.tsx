@@ -2,7 +2,6 @@ import type { DashboardWidgetContext } from "./types";
 import {
   DashboardAlertsPanel,
   DashboardFinancialComparisonChart,
-  DashboardFinancialTrendChart,
   DashboardFleetDriversCharts,
   DashboardMetricTrendCards,
   DashboardOperationsSnapshot,
@@ -74,15 +73,8 @@ export function renderFinancialComparison(ctx: DashboardWidgetContext) {
     <DashboardFinancialComparisonChart
       financialMonth={ctx.data?.stats.financial_month}
       isLoading={ctx.isLoading}
-    />
-  );
-}
-
-export function renderFinancialTrend(ctx: DashboardWidgetContext) {
-  return (
-    <DashboardFinancialTrendChart
       trend={ctx.financialTrend}
-      isLoading={ctx.financialTrendLoading}
+      trendLoading={ctx.financialTrendLoading}
       months={ctx.financialTrendMonths}
       onMonthsChange={ctx.setFinancialTrendMonths}
     />

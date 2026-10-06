@@ -9,9 +9,17 @@ import { DASHBOARD_ORIENTATION_STORAGE_KEY_PREFIX } from "./components/Dashboard
 import DashboardPage from "./DashboardPage";
 import { formatDashboardTodayLabel } from "./utils/dashboardChartHelpers";
 
-const { mockUseAuth, mockCanReadTrips } = vi.hoisted(() => ({
+type WidgetPrefStub = { id: string; visible: boolean; order: number };
+
+const { mockUseAuth, mockCanReadTrips, mockLayoutWidgets } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockCanReadTrips: vi.fn(() => true),
+  mockLayoutWidgets: vi.fn(
+    (): { customizable: WidgetPrefStub[]; visible: WidgetPrefStub[] } => ({
+      customizable: [],
+      visible: [],
+    }),
+  ),
 }));
 
 vi.mock("@/features/auth", () => ({
@@ -38,8 +46,8 @@ vi.mock("../application/hooks/useFinancialTrend", () => ({
 
 vi.mock("../application/hooks/useDashboardLayout", () => ({
   useDashboardLayout: () => ({
-    visibleWidgets: [],
-    customizableWidgets: [],
+    visibleWidgets: mockLayoutWidgets().visible,
+    customizableWidgets: mockLayoutWidgets().customizable,
     getSpanClass: () => "",
     canReadTrips: mockCanReadTrips(),
     showFinance: false,
@@ -54,7 +62,6 @@ vi.mock("@features/finance", () => ({
   getCurrentMonthExpenseRange: () => ({ from: "2026-09-01", to: "2026-09-30" }),
   useExpensesByDimension: () => ({ data: undefined, isLoading: false }),
   useFinanceSummary: () => ({ data: undefined, isLoading: false }),
-  useIncomeByMonth: () => ({ data: undefined, isLoading: false }),
 }));
 
 function renderDashboard(role: string) {
@@ -206,6 +213,47 @@ describe("DashboardPage — orientación client", () => {
     renderDashboard("dispatcher");
     expect(
       screen.getByText(formatDashboardTodayLabel()),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("DashboardPage — contador de widgets ocultos", () => {
+  beforeEach(() => {
+    mockCanReadTrips.mockReturnValue(true);
+    clearOrientationStorage();
+  });
+
+  it("muestra cuántos widgets permitidos están ocultos en Personalizar", () => {
+    // Widgets fuera del registry: el grid los omite y aísla el test del render de widgets.
+    mockLayoutWidgets.mockReturnValue({
+      customizable: [
+        { id: "stub_a", visible: true, order: 0 },
+        { id: "stub_b", visible: false, order: 1 },
+        { id: "stub_c", visible: false, order: 2 },
+        { id: "stub_d", visible: false, order: 3 },
+      ],
+      visible: [{ id: "stub_a", visible: true, order: 0 }],
+    });
+    renderDashboard("dispatcher");
+
+    expect(
+      screen.getByRole("button", {
+        name: `${dashboardCopy.customize.personalizeButton} · ${dashboardCopy.customize.hiddenWidgetsCount(3)}`,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("sin widgets ocultos no muestra contador", () => {
+    mockLayoutWidgets.mockReturnValue({
+      customizable: [{ id: "stub_a", visible: true, order: 0 }],
+      visible: [{ id: "stub_a", visible: true, order: 0 }],
+    });
+    renderDashboard("dispatcher");
+
+    expect(
+      screen.getByRole("button", {
+        name: dashboardCopy.customize.personalizeButton,
+      }),
     ).toBeInTheDocument();
   });
 });

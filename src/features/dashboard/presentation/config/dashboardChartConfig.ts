@@ -55,51 +55,15 @@ export const DASHBOARD_DRIVER_STATUS_SERIES: ChartSeries[] = [
   },
 ];
 
-export const DASHBOARD_FINANCIAL_MINI_SERIES: ChartSeries[] = [
-  {
-    dataKey: "budgeted",
-    label: dashboardCopy.financialComparison.series.budgeted,
-    token: "chart-2",
-  },
-  {
-    dataKey: "actual",
-    label: dashboardCopy.financialComparison.series.actual,
-    token: "chart-1",
-  },
-];
-
-export const DASHBOARD_FINANCIAL_COMPARISON_SERIES: ChartSeries[] = [
-  {
-    dataKey: "budgeted",
-    label: dashboardCopy.financialComparison.series.budgeted,
-    token: "chart-2",
-  },
-  {
-    dataKey: "actual",
-    label: dashboardCopy.financialComparison.series.actual,
-    token: "chart-1",
-  },
-];
-
 export const DASHBOARD_FINANCIAL_TREND_SERIES: ChartSeries[] = [
   {
-    dataKey: "budgetedRevenue",
-    label: dashboardCopy.charts.financialTrend.series.budgetedRevenue,
-    token: "chart-2",
-  },
-  {
     dataKey: "actualRevenue",
-    label: dashboardCopy.charts.financialTrend.series.actualRevenue,
+    label: dashboardCopy.financialComparison.series.actualRevenue,
     token: "chart-1",
-  },
-  {
-    dataKey: "budgetedCost",
-    label: dashboardCopy.charts.financialTrend.series.budgetedCost,
-    token: "chart-5",
   },
   {
     dataKey: "actualCost",
-    label: dashboardCopy.charts.financialTrend.series.actualCost,
+    label: dashboardCopy.financialComparison.series.actualCost,
     token: "chart-3",
   },
 ];

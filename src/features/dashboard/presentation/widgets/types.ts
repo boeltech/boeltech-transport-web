@@ -25,7 +25,6 @@ export interface DashboardWidgetContext {
   setTripsDays: (days: TripsDayRange) => void;
   showFinance: boolean;
   financeLoading: boolean;
-  collectedTrendData: { value: number }[];
   financeSummary?: ReturnType<typeof useFinanceSummary>["data"];
   vehicleExpenseRanking?: ExpensesByDimensionItem[];
   vehicleExpenseRankingLoading: boolean;

@@ -22,7 +22,6 @@ export const DASHBOARD_WIDGET_IDS = [
   "recent_trips",
   "fleet_drivers",
   "trips_by_day",
-  "financial_trend",
   "branch_kpis",
 ] as const;
 
@@ -111,7 +110,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
     },
     {
       id: "financial_comparison",
-      title: "Ingresos y costos: plan vs real",
+      title: "Ingresos, costos y margen",
       span: "full",
       defaultVisible: true,
       defaultOrder: 4,
@@ -143,19 +142,11 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       gate: ({ canReadTrips }) => canReadTrips,
     },
     {
-      id: "financial_trend",
-      title: "Tendencia plan vs real",
-      span: "full",
-      defaultVisible: false,
-      defaultOrder: 8,
-      gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
-    },
-    {
       id: "branch_kpis",
       title: "KPIs por sucursal",
       span: "full",
       defaultVisible: false,
-      defaultOrder: 9,
+      defaultOrder: 8,
       gate: ({ canReadTrips, canReadBranches }) =>
         canReadTrips && canReadBranches,
     },

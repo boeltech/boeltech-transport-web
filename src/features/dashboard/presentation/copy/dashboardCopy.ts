@@ -43,6 +43,8 @@ export const dashboardCopy = {
     description:
       "Muestra u oculta bloques de Inicio y arrastra para cambiar el orden. Solo verás widgets permitidos por tu rol.",
     personalizeButton: "Personalizar",
+    hiddenWidgetsCount: (count: number) =>
+      `${count} oculto${count === 1 ? "" : "s"}`,
     visibleLabel: "Visible",
     resetRole: "Restaurar predeterminado del rol",
     resetSystem: "Restaurar predeterminado del sistema",
@@ -186,55 +188,47 @@ export const dashboardCopy = {
         absent: "Ausentes",
       },
     },
-    financialTrend: {
-      series: {
-        budgetedRevenue: "Ingreso presup.",
-        actualRevenue: "Ingreso real",
-        budgetedCost: "Costo presup.",
-        actualCost: "Costo real",
-      },
-      emptyDescription: "Sin viajes completados en los meses consultados.",
-      footer: (months: number, periods: number) =>
-        `Tendencia de ${periods} meses · ventana de ${months} meses`,
-    },
   },
   financialComparison: {
-    title: "Ingresos y costos: plan vs real",
-    descriptionEmpty: "Comparativa del mes en curso (viajes completados)",
-    ariaLabel: "Gráfico de barras: ingresos y costos presupuestados vs reales",
+    title: "Ingresos, costos y margen",
+    description: "Ingreso real y costo real por mes de viajes completados",
+    ariaLabel: "Gráfico de barras: ingreso real y costo real por mes",
     series: {
-      budgeted: "Presupuestado",
-      actual: "Real",
+      actualRevenue: "Ingreso real",
+      actualCost: "Costo real",
     },
-    categories: {
-      revenue: "Ingresos",
-      cost: "Costos",
-    },
+    currentPeriodLabel: (label: string) => `${label} (en curso)`,
+    monthsOption: (months: number) => `${months}m`,
+    monthsAriaLabel: "Meses en la tendencia",
     empty: {
-      title: "Sin viajes completados este mes",
+      title: "Sin viajes completados",
       description:
-        "Cuando cierres viajes del mes actual, aquí verás la comparativa de plan vs real.",
+        "Cuando cierres viajes, aquí verás ingreso real, costo real y margen por mes.",
     },
+    monthEmpty: "Sin viajes completados este mes.",
     pendingExpensesAlert:
       "Hay gastos en cola de aprobación; el costo real y el margen operativo pueden bajar.",
     pendingExpensesLinkAriaLabel: "Ir a aprobaciones de gastos en cola",
     viewProfitability: "Ver rentabilidad",
-    footer: (tripCount: number) =>
-      `Basado en ${tripCount} viaje${tripCount === 1 ? "" : "s"} completado${tripCount === 1 ? "" : "s"} del mes`,
+    compareWithPreviousYear: "Comparar con año anterior",
+    footer: (months: number, tripCount: number) =>
+      `Últimos ${months} meses · mes en curso: ${tripCount} viaje${tripCount === 1 ? "" : "s"} completado${tripCount === 1 ? "" : "s"}`,
     miniKpis: {
-      revenueVariance: "Variación ingreso",
-      costVariance: "Variación costo",
-      actualMargin: "Margen operativo",
+      revenueVariance: "Ingreso real vs tarifa pactada",
+      revenueDetail: (agreed: string, actual: string) =>
+        `Tarifa pactada ${agreed} · Ingreso real ${actual}`,
+      noAgreedRate: "Sin tarifa pactada",
+      equalToAgreed: "Igual a lo pactado",
+      revenueOnlyDetail: (actual: string) => `Ingreso real ${actual}`,
+      costVariance: "Costo real vs costo estimado",
+      costDetail: (estimated: string, actual: string) =>
+        `Costo estimado ${estimated} · Costo real ${actual}`,
+      noEstimatedCost: "Sin costo estimado",
+      equalToEstimated: "Igual a lo estimado",
+      costOnlyDetail: (actual: string) => `Costo real ${actual}`,
+      actualMargin: "Margen real del mes",
+      marginDetail: "Ingreso real menos costo real",
     },
-    tooltip: {
-      variance: "Variación",
-    },
-  },
-  financialTrend: {
-    title: "Tendencia plan vs real",
-    description: "Ingresos y costos presupuestados vs reales por mes (viajes completados)",
-    ariaLabel: "Gráfico de barras: tendencia mensual plan vs real",
-    monthsOption: (months: number) => `${months}m`,
   },
   vehicleExpenses: {
     title: "Unidades con más gasto",

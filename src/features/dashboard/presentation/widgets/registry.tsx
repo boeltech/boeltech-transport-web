@@ -15,7 +15,6 @@ import type { DashboardWidgetContext } from "./types";
 import {
   renderAlerts,
   renderFinancialComparison,
-  renderFinancialTrend,
   renderFleetDrivers,
   renderMetricTrends,
   renderOperationsSnapshot,
@@ -46,7 +45,6 @@ const RENDER_BY_ID: Record<
   fleet_drivers: renderFleetDrivers,
   trips_by_day: renderTripsByDay,
   financial_comparison: renderFinancialComparison,
-  financial_trend: renderFinancialTrend,
   vehicle_expense_ranking: renderVehicleExpenseRanking,
   branch_kpis: renderBranchKpis,
 };

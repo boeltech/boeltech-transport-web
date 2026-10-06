@@ -1,8 +1,7 @@
 export { DashboardAlertsPanel } from "./DashboardAlertsPanel";
 export { DashboardCustomizePanel } from "./DashboardCustomizePanel";
 export { DashboardFinancialComparisonChart } from "./DashboardFinancialComparisonChart";
-export { DashboardFinancialTrendChart } from "./DashboardFinancialTrendChart";
-export type { FinancialTrendMonths } from "./DashboardFinancialTrendChart";
+export type { FinancialTrendMonths } from "./DashboardFinancialComparisonChart";
 export { DashboardFleetDriversCharts } from "./DashboardFleetDriversCharts";
 export { DashboardKpiStrip } from "./DashboardKpiStrip";
 export { DashboardMetricTrendCards } from "./DashboardMetricTrendCards";

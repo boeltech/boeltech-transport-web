@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { mapBranchKpis, mapBranchKpisTrend } from "./mappers";
+import { mapBranchKpis, mapBranchKpisTrend, mapFinancialTrend } from "./mappers";
+
+describe("mapFinancialTrend", () => {
+  it("mapea current_period a currentPeriod", () => {
+    const result = mapFinancialTrend({
+      periods: ["2025-12", "2026-01"],
+      budgeted_revenue: [0, 100],
+      actual_revenue: ["0", "95"],
+      budgeted_cost: [0, 60],
+      actual_cost: [0, 55],
+      current_period: "2026-01",
+    });
+
+    expect(result.periods).toEqual(["2025-12", "2026-01"]);
+    expect(result.actual_revenue).toEqual([0, 95]);
+    expect(result.currentPeriod).toBe("2026-01");
+  });
+
+  it("deja currentPeriod sin definir cuando el API no lo manda", () => {
+    expect(mapFinancialTrend({ periods: ["2026-01"] }).currentPeriod).toBeUndefined();
+    expect(mapFinancialTrend({ current_period: "" }).currentPeriod).toBeUndefined();
+  });
+});
 
 describe("mapBranchKpis", () => {
   it("mapea filas snake_case a camelCase", () => {

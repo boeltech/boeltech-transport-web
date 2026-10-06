@@ -26,6 +26,7 @@ export function mapFinancialTrend(raw: Record<string, unknown>) {
     actual_cost: Array.isArray(raw.actual_cost)
       ? raw.actual_cost.map((v) => asNumber(v))
       : [],
+    currentPeriod: asString(raw.current_period) || undefined,
   };
 }
 

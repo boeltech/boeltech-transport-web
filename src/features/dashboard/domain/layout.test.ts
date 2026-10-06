@@ -8,6 +8,8 @@ import {
   normalizeLayout,
   reorderWidgets,
   setWidgetVisibility,
+  type DashboardLayout,
+  type WidgetId,
 } from "./layout";
 
 describe("dashboard layout", () => {
@@ -36,6 +38,41 @@ describe("dashboard layout", () => {
     expect(merged.widgets.length).toBe(system.widgets.length);
   });
 
+  it("stored layout with retired financial_trend still loads and keeps prefs", () => {
+    const stored: DashboardLayout = {
+      widgets: [
+        { id: "financial_trend" as WidgetId, visible: true, order: 0 },
+        { id: "financial_comparison", visible: false, order: 1 },
+        { id: "alerts", visible: true, order: 2 },
+      ],
+    };
+    const system = buildSystemDefaultLayout();
+
+    const normalized = normalizeLayout(stored);
+    expect(normalized.widgets.map((w) => w.id)).toEqual([
+      "financial_comparison",
+      "alerts",
+    ]);
+
+    const merged = mergeWithDefaults(stored, system);
+    expect(merged.widgets.some((w) => (w.id as string) === "financial_trend")).toBe(
+      false,
+    );
+    expect(merged.widgets.length).toBe(system.widgets.length);
+    expect(
+      merged.widgets.find((w) => w.id === "financial_comparison")?.visible,
+    ).toBe(false);
+    expect(merged.widgets.find((w) => w.id === "alerts")?.visible).toBe(true);
+
+    const visible = getVisibleWidgetsInOrder(merged, {
+      canReadTrips: true,
+      showFinance: true,
+      canReadBranches: true,
+    }).map((w) => w.id);
+    expect(visible).not.toContain("financial_comparison");
+    expect(visible).toContain("alerts");
+  });
+
   it("applyRbac removes finance widgets when showFinance is false", () => {
     const layout = buildSystemDefaultLayout();
     const filtered = applyRbac(layout, {
@@ -43,9 +80,6 @@ describe("dashboard layout", () => {
       showFinance: false,
       canReadBranches: true,
     });
-    expect(
-      filtered.widgets.some((w) => w.id === "financial_trend"),
-    ).toBe(false);
     expect(
       filtered.widgets.some((w) => w.id === "financial_comparison"),
     ).toBe(false);
@@ -69,7 +103,6 @@ describe("dashboard layout", () => {
       "recent_trips",
       "fleet_drivers",
       "trips_by_day",
-      "financial_trend",
       "branch_kpis",
     ]);
     expect(
