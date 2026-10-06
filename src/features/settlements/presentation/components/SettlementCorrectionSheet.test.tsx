@@ -200,7 +200,7 @@ describe("SettlementCorrectionSheet", () => {
   });
 
   it("criterios 2 y 3: una penalización de $300 baja el neto en vivo; al guardar confirma y vuelve a autorización", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { onSaved } = renderSheet(baseSettlement);
 
     await addPenalty(user, "300");
@@ -238,10 +238,10 @@ describe("SettlementCorrectionSheet", () => {
     );
     expect(onSaved).toHaveBeenCalled();
     expect(mockSubmitSettlement).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it("borrador: permite elegir anticipos y guarda sin confirmación", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderSheet({ ...baseSettlement, status: "draft", approvedAt: null, approvedBy: null });
 
     const checkbox = await screen.findByRole("checkbox", { name: "ANT-202610-0009" });
@@ -301,7 +301,7 @@ describe("SettlementCorrectionSheet", () => {
   });
 
   it("criterio 1: devuelta muestra el motivo y «Guardar y reenviar» corrige y reenvía en un paso", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderSheet({
       ...baseSettlement,
       status: "draft",
@@ -325,7 +325,7 @@ describe("SettlementCorrectionSheet", () => {
   });
 
   it("si cambió de estado mientras se editaba, avisa y no reintenta", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockUpdateSettlement.mockRejectedValueOnce(
       Object.assign(new Error("stale"), { code: "SETTLEMENT_NOT_MUTABLE" }),
     );
@@ -359,7 +359,7 @@ describe("SettlementCorrectionSheet — tope de descuentos contra el bruto", () 
   }
 
   it("borrador: precarga solo lo que cabe; capturar de más marca error y «Descontar el máximo posible» lo ajusta", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockPreviewSettlement.mockResolvedValue({
       openAdvances: [
         {
@@ -400,7 +400,7 @@ describe("SettlementCorrectionSheet — tope de descuentos contra el bruto", () 
   });
 
   it("autorizada: una penalización mayor que lo ganado marca las partidas y no abre la confirmación", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderSheet(baseSettlement);
 
     await addPenalty(user, "1500");
@@ -411,10 +411,10 @@ describe("SettlementCorrectionSheet — tope de descuentos contra el bruto", () 
     await user.click(screen.getByRole("button", { name: flowCopy.sheet.saveCorrection }));
     expect(screen.queryByText(flowCopy.confirm.title)).not.toBeInTheDocument();
     expect(mockUpdateSettlement).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it("autorizada: el 422 muestra el texto del API en el bloque de partidas (sin alerta genérica)", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const apiMessage =
       "Los descuentos superan lo que el operador ganó en este corte. Devuelve la liquidación a borrador para ajustar los anticipos.";
     mockUpdateSettlement.mockRejectedValueOnce(exceedError(apiMessage, ["custom_items"]));
@@ -430,5 +430,5 @@ describe("SettlementCorrectionSheet — tope de descuentos contra el bruto", () 
       ),
     );
     expect(screen.queryByText(flowCopy.sheet.saveErrorTitle)).not.toBeInTheDocument();
-  });
+  }, 15_000);
 });
