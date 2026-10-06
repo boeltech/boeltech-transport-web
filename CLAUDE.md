@@ -9,7 +9,7 @@ npm run dev        # Vite HMR
 npm run build      # tsc -b && vite build
 npm run lint
 npm run test       # Vitest: proyectos node + dom + flows (max 2 workers en local)
-npm run test:serial # Vitest 1 worker — máquinas 8 GB
+npm run test:serial # 1 worker, pool forks (aísla archivos) — máquinas 8 GB; equivale a VITEST_SERIAL=1
 npm run test:watch # cerrar al terminar (proceso persistente)
 npm run test:node  # proyecto node: src/**/*.test.ts (sin DOM)
 npm run test:dom   # proyecto dom: src/**/*.test.tsx (jsdom + src/test/setup.dom.ts)
@@ -17,6 +17,8 @@ npm run test:flows # proyecto flows: todos los smokes src/smoke/**
 npm run test:flows -- <slug>  # un smoke: filtra por nombre de archivo (src/smoke/<slug>.smoke.test.tsx)
 npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de excluidos solo se achica)
 ```
+
+**Niveles de prueba (ADR-0103, propuesto):** T0 `npx vitest related --run --project node --project dom <archivos>` · T1 `npx vitest run --project node --project dom src/features/<feature>` · T2 `test:node` + `test:dom` + `typecheck:test` (CI) · T4 `test:flows -- <slug>` solo del área tocada. No correr `npm run test` completo en local salvo pre-release. Con 8 GB: `npm run test:serial` o `VITEST_SERIAL=1` (`$env:VITEST_SERIAL = "1"` en PowerShell); `--no-file-parallelism` solo deja `vmForks` en serie y comparte `document` entre archivos. Helpers: `src/test/README.md`.
 
 **Smokes:** forma canónica `npm run test:flows -- <slug>`; un smoke nuevo es un archivo `src/smoke/<slug>.smoke.test.tsx`, **sin** script nuevo en `package.json`. Slugs por área:
 
