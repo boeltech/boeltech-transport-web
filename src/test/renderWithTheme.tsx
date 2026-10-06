@@ -2,9 +2,9 @@
 import { type ReactElement, type ReactNode } from "react";
 import { expect } from "vitest";
 import { render, type RenderOptions } from "@testing-library/react";
-import { MemoryRouter, type MemoryRouterProps } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { MemoryRouterProps } from "react-router-dom";
 import { ThemeProvider } from "@/app/providers/ThemeProvider";
+import { TestProviders } from "./renderWithProviders";
 import type { ResolvedTheme, ThemeMode } from "@/shared/ui/theme/types";
 import { applyResolvedThemeToDocument } from "@/shared/ui/theme/themeRuntime";
 
@@ -49,22 +49,10 @@ function ThemeTestWrapper({
 
   applyResolvedThemeToDocument(resolvedTheme);
 
-  const content = (
-    <ThemeProvider defaultMode={defaultMode}>
-      <MemoryRouter initialEntries={route}>{children}</MemoryRouter>
-    </ThemeProvider>
-  );
-
-  if (!withQueryClient) {
-    return content;
-  }
-
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
   return (
-    <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
+    <TestProviders withQueryClient={withQueryClient} initialEntries={route}>
+      <ThemeProvider defaultMode={defaultMode}>{children}</ThemeProvider>
+    </TestProviders>
   );
 }
 
