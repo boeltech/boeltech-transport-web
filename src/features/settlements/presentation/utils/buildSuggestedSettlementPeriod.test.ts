@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
   getWeekPeriod,
   getBiweeklyPeriod,
@@ -252,6 +252,36 @@ describe("buildSuggestedSettlementPeriod", () => {
         asOfDate: "2026-09-20",
       }),
     ).toEqual({ periodStart: "2026-09-01", periodEnd: "2026-09-30" });
+  });
+
+  describe("default asOfDate (today in CDMX)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("keeps January at 23:30 CDMX of Jan 31 (already Feb 1 in UTC)", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-02-01T05:30:00Z"));
+
+      expect(buildSuggestedSettlementPeriod({ salaryPeriod: "monthly" })).toEqual({
+        periodStart: "2026-01-01",
+        periodEnd: "2026-01-31",
+      });
+      expect(buildSuggestedSettlementPeriod({ salaryPeriod: "biweekly" })).toEqual({
+        periodStart: "2026-01-16",
+        periodEnd: "2026-01-31",
+      });
+    });
+
+    it("keeps the first fortnight at 21:00 CDMX of the 15th (already the 16th in UTC)", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-16T03:00:00Z"));
+
+      expect(buildSuggestedSettlementPeriod({ salaryPeriod: "biweekly" })).toEqual({
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-15",
+      });
+    });
   });
 });
 

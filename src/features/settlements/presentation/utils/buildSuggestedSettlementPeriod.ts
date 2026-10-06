@@ -3,7 +3,10 @@
  *
  * Ported 1:1 from API `settlement.workbench.ts` (L42–176).
  * All dates are calendar-day strings `"YYYY-MM-DD"` in UTC.
+ * Default `asOfDate` is today in CDMX, like the API (`getTodayMexicoString`).
  */
+
+import { getTodayString } from "@shared/utils/dateUtils";
 
 export type SalaryPeriodKind = "weekly" | "biweekly" | "monthly";
 
@@ -25,11 +28,6 @@ function fmt(date: Date): string {
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");
   const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
-}
-
-function todayString(): string {
-  const now = new Date();
-  return fmt(now);
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +164,7 @@ export interface BuildSuggestedPeriodInput {
 export function buildSuggestedSettlementPeriod(
   input: BuildSuggestedPeriodInput,
 ): PeriodResult {
-  const asOfDate = input.asOfDate ?? todayString();
+  const asOfDate = input.asOfDate ?? getTodayString();
   const anchorDate = input.oldestTripDate ?? input.latestTripDate ?? asOfDate;
 
   switch (input.salaryPeriod) {
