@@ -1,4 +1,4 @@
-﻿# CLAUDE.md — boeltech-transport-web
+# CLAUDE.md — boeltech-transport-web
 
 Guía mínima para agentes en este repo. **Documentación detallada:** `D:\cowork\boeltech\erp-transport\docs\README.md` (rutas absolutas; ajustar si clonas fuera de `D:\cowork`).
 
@@ -18,7 +18,7 @@ npm run test:flows -- <slug>  # un smoke: filtra por nombre de archivo (src/smok
 npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de excluidos solo se achica)
 ```
 
-**Niveles de prueba (ADR-0103, propuesto):** T0 `npx vitest related --run --project node --project dom <archivos>` · T1 `npx vitest run --project node --project dom src/features/<feature>` · T2 `test:node` + `test:dom` + `typecheck:test` (CI) · T4 `test:flows -- <slug>` solo del área tocada. No correr `npm run test` completo en local salvo pre-release. Con 8 GB: `npm run test:serial` o `VITEST_SERIAL=1` (`$env:VITEST_SERIAL = "1"` en PowerShell); `--no-file-parallelism` solo deja `vmForks` en serie y comparte `document` entre archivos. Helpers: `src/test/README.md`.
+**Niveles de prueba (ADR-0103):** T0 `npx vitest related --run --project node --project dom <archivos>` · T1 `npx vitest run --project node --project dom src/features/<feature>` · T2 `test:node` + `test:dom` + `typecheck:test` (CI) · T4 `test:flows -- <slug>` solo del área tocada. No correr `npm run test` completo en local salvo pre-release. Con 8 GB: `npm run test:serial` o `VITEST_SERIAL=1` (`$env:VITEST_SERIAL = "1"` en PowerShell); `--no-file-parallelism` solo deja `vmForks` en serie y comparte `document` entre archivos. Helpers: `src/test/README.md`.
 
 **Smokes:** forma canónica `npm run test:flows -- <slug>`; un smoke nuevo es un archivo `src/smoke/<slug>.smoke.test.tsx`, **sin** script nuevo en `package.json`. Slugs por área:
 
