@@ -23,6 +23,10 @@ export default defineConfig({
     // los proyectos; para serializar usa `--no-file-parallelism` o VITEST_SERIAL=1.
     maxWorkers: process.env.CI ? undefined : 2,
     fileParallelism: process.env.VITEST_SERIAL !== "1",
+    // vmForks reutiliza el entorno jsdom entre archivos; el tope recicla el
+    // worker antes de que su heap crezca sin control. Con 512MB el pico local
+    // ronda ~2 GB con 2 workers (1GB lo sube a ~3 GB en máquinas de 12 GB).
+    vmMemoryLimit: "512MB",
     projects: [
       {
         extends: true,
@@ -39,7 +43,7 @@ export default defineConfig({
         test: {
           name: "dom",
           environment: "jsdom",
-          pool: "forks",
+          pool: "vmForks",
           setupFiles: [DOM_SETUP],
           include: ["src/**/*.test.tsx"],
           exclude: [...configDefaults.exclude, SMOKE],
@@ -50,7 +54,7 @@ export default defineConfig({
         test: {
           name: "flows",
           environment: "jsdom",
-          pool: "forks",
+          pool: "vmForks",
           setupFiles: [DOM_SETUP],
           include: [`${SMOKE}/*.test.{ts,tsx}`],
         },
