@@ -1,0 +1,202 @@
+import { useId, useMemo, useState } from "react";
+import { AlertCircle, Download, Info, TrendingUp } from "lucide-react";
+import {
+  DEFAULT_MONTHLY_PERFORMANCE_MONTHS,
+  MONTHLY_PERFORMANCE_MONTH_OPTIONS,
+  alignPerformanceMonths,
+  hasAnyPeriodActivity,
+  summarizePeriods,
+  useMonthlyPerformance,
+  type MonthlyPerformanceMonths,
+} from "@features/finance/application";
+import { Button } from "@shared/ui/button";
+import { Card, CardContent } from "@shared/ui/card";
+import { EmptyState } from "@shared/ui/feedback-states";
+import { Label } from "@shared/ui/label";
+import { Switch } from "@shared/ui/switch";
+import { useToast } from "@shared/hooks";
+import {
+  PerformanceComparisonChart,
+  PerformanceKpiCards,
+  PerformanceMonthlyTable,
+} from "../components";
+import { financeCopy } from "../copy";
+import { exportMonthlyPerformanceCsv } from "../utils/financeExportHelpers";
+import { formatPerformanceMonth } from "../utils/monthlyPerformanceFormat";
+
+const copy = financeCopy.performance;
+
+function MonthsSelector({
+  value,
+  onChange,
+}: {
+  value: MonthlyPerformanceMonths;
+  onChange: (months: MonthlyPerformanceMonths) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={copy.controls.monthsAriaLabel}
+      className="flex gap-0.5 rounded-lg bg-muted/50 p-0.5"
+    >
+      {MONTHLY_PERFORMANCE_MONTH_OPTIONS.map((months) => (
+        <Button
+          key={months}
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-pressed={value === months}
+          className={
+            value === months
+              ? "h-8 bg-background px-3 text-foreground shadow-sm hover:bg-background"
+              : "h-8 px-3 text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground"
+          }
+          onClick={() => onChange(months)}
+        >
+          {copy.controls.monthsOption(months)}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+export function PerformanceTab() {
+  const { toast } = useToast();
+  const compareSwitchId = useId();
+  const noPreviousNoticeId = useId();
+  const [months, setMonths] = useState<MonthlyPerformanceMonths>(
+    DEFAULT_MONTHLY_PERFORMANCE_MONTHS,
+  );
+  /** `null` = sin elección del usuario: se compara cuando hay datos del año anterior. */
+  const [compareChoice, setCompareChoice] = useState<boolean | null>(null);
+
+  const { data, isLoading, isError, refetch } = useMonthlyPerformance(months);
+
+  const aligned = useMemo(() => (data ? alignPerformanceMonths(data) : []), [data]);
+  const currentRows = useMemo(() => aligned.map((month) => month.current), [aligned]);
+  const previousRows = useMemo(() => aligned.map((month) => month.previous), [aligned]);
+  const currentTotals = useMemo(() => summarizePeriods(currentRows), [currentRows]);
+  const previousTotals = useMemo(() => summarizePeriods(previousRows), [previousRows]);
+
+  const hasCurrent = hasAnyPeriodActivity(currentRows);
+  const hasPrevious = hasAnyPeriodActivity(previousRows);
+  const compare = hasPrevious && (compareChoice ?? true);
+
+  const isEmpty = !isLoading && !isError && !hasCurrent;
+  const showContent = !isError && !isEmpty;
+  const compareUnavailable = !isLoading && !hasPrevious;
+
+  const previousRangeLabel =
+    previousRows.length > 0
+      ? copy.rangeLabel(
+          formatPerformanceMonth(previousRows[0]!.period),
+          formatPerformanceMonth(previousRows.at(-1)!.period),
+        )
+      : "";
+  const showNoPreviousNotice = showContent && compareUnavailable && !!previousRangeLabel;
+
+  const handleExport = () => {
+    exportMonthlyPerformanceCsv(aligned, { compare });
+    toast({
+      title: financeCopy.exports.toasts.exportedTitle,
+      description: financeCopy.exports.toasts.performance,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <MonthsSelector value={months} onChange={setMonths} />
+          <div className="flex items-center gap-2">
+            <Switch
+              id={compareSwitchId}
+              checked={compare}
+              onCheckedChange={setCompareChoice}
+              disabled={isLoading || !hasPrevious}
+              aria-describedby={showNoPreviousNotice ? noPreviousNoticeId : undefined}
+            />
+            <Label
+              htmlFor={compareSwitchId}
+              className={
+                compareUnavailable
+                  ? "cursor-not-allowed text-sm text-muted-foreground"
+                  : "cursor-pointer text-sm"
+              }
+            >
+              {copy.controls.compareLabel}
+            </Label>
+          </div>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isLoading || !hasCurrent}
+          onClick={handleExport}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {copy.exportCsv}
+        </Button>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-xs text-muted-foreground">{copy.scopeNote}</p>
+        {showNoPreviousNotice ? (
+          <p
+            id={noPreviousNoticeId}
+            role="status"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground"
+          >
+            <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {copy.noPreviousData(previousRangeLabel)}
+          </p>
+        ) : null}
+      </div>
+
+      {isError ? (
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon={<AlertCircle className="h-10 w-10 text-destructive" />}
+              title={copy.error.title}
+              description={copy.error.description}
+              cta={{
+                label: copy.error.retry,
+                variant: "outline",
+                onClick: () => void refetch(),
+              }}
+            />
+          </CardContent>
+        </Card>
+      ) : isEmpty ? (
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon={<TrendingUp className="h-10 w-10 text-muted-foreground" />}
+              title={copy.empty.title}
+              description={copy.empty.description}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <PerformanceKpiCards
+            current={currentTotals}
+            previous={previousTotals}
+            compare={compare}
+            isLoading={isLoading}
+          />
+          <PerformanceComparisonChart
+            months={aligned}
+            compare={compare}
+            isLoading={isLoading}
+          />
+          {!isLoading ? (
+            <PerformanceMonthlyTable months={aligned} compare={compare} />
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}

@@ -101,4 +101,18 @@ describe("profitability scope smoke", () => {
     expect(scopeCalls).not.toContain("all");
     expect(scopeCalls).not.toContain("with_in_progress");
   });
+
+  it("renders charts without a toggle and before the master table", async () => {
+    renderTab();
+
+    const charts = await screen.findByTestId("profitability-charts-stub");
+    const table = screen.getByTestId("profitability-table-stub");
+
+    expect(
+      screen.queryByRole("button", { name: /gráficas/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      charts.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

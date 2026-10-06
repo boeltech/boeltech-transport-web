@@ -8,6 +8,8 @@ import type {
   FinanceSummary,
   IncomeByMonth,
   InvoicesByStatusMonth,
+  MonthlyPerformance,
+  PeriodFinancials,
   ProfitabilityAggregateItem,
   ProfitabilityStatus,
   ProfitabilityTripItem,
@@ -261,6 +263,32 @@ export function mapIncomeByMonth(raw: Record<string, unknown>): IncomeByMonth {
     ? raw.collected.map(asNumber)
     : [];
   return { periods, collected };
+}
+
+export function mapPeriodFinancials(raw: Record<string, unknown>): PeriodFinancials {
+  return {
+    period: asString(raw.period),
+    actualRevenue: asNumber(raw.actual_revenue),
+    actualCost: asNumber(raw.actual_cost),
+    actualMargin: asNumber(raw.actual_margin),
+    tripCount: asNumber(raw.trip_count),
+  };
+}
+
+function mapPeriodFinancialsList(raw: unknown): PeriodFinancials[] {
+  return Array.isArray(raw)
+    ? raw.map((item) => mapPeriodFinancials((item ?? {}) as Record<string, unknown>))
+    : [];
+}
+
+export function mapMonthlyPerformance(
+  raw: Record<string, unknown>,
+): MonthlyPerformance {
+  return {
+    periods: Array.isArray(raw.periods) ? raw.periods.map(asString) : [],
+    current: mapPeriodFinancialsList(raw.current),
+    previous: mapPeriodFinancialsList(raw.previous),
+  };
 }
 
 export function mapInvoicesByStatusMonth(

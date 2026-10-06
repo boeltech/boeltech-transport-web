@@ -1,5 +1,9 @@
-import type { ChartSeries, ChartToken } from "@shared/ui/data-display";
-import type { AgingBucket, ProfitabilityStatus } from "@features/finance/domain";
+import type {
+  ChartSeries,
+  ChartToken,
+  ComboChartSeries,
+} from "@shared/ui/data-display";
+import type { AgingBucket } from "@features/finance/domain";
 import { financeCopy } from "../copy";
 
 export const FINANCE_EXPENSE_CHART_TOKENS: ChartToken[] = [
@@ -25,43 +29,6 @@ export function buildExpenseCategoryChartSeries(
   }));
 }
 
-export const FINANCE_INVOICE_STATUS_CHART_CONFIG = [
-  { key: "draft" as const, token: "neutral" as const, copyKey: "draft" as const },
-  { key: "stamped" as const, token: "chart-1" as const, copyKey: "stamped" as const },
-  {
-    key: "cancellationPending" as const,
-    token: "warning" as const,
-    copyKey: "cancellation_pending" as const,
-  },
-  { key: "cancelled" as const, token: "destructive" as const, copyKey: "cancelled" as const },
-] as const;
-
-export const FINANCE_RECEIVABLE_AMOUNT_SERIES: ChartSeries[] = [
-  {
-    dataKey: "value",
-    label: financeCopy.summary.charts.amounts.receivable,
-    token: "warning",
-  },
-  {
-    dataKey: "value",
-    label: financeCopy.summary.charts.amounts.collected,
-    token: "success",
-  },
-  {
-    dataKey: "value",
-    label: financeCopy.summary.charts.amounts.overdue,
-    token: "destructive",
-  },
-];
-
-export const FINANCE_INCOME_SERIES: ChartSeries[] = [
-  {
-    dataKey: "collected",
-    label: financeCopy.summary.charts.amounts.collected,
-    token: "success",
-  },
-];
-
 export const FINANCE_AGING_BUCKET_KEYS: AgingBucket[] = [
   "0-30",
   "31-60",
@@ -76,41 +43,6 @@ export const FINANCE_AGING_SERIES: ChartSeries[] = [
     token: "chart-1",
   },
 ];
-
-export function buildInvoiceStatusChartSeries(): ChartSeries[] {
-  return FINANCE_INVOICE_STATUS_CHART_CONFIG.map(({ token, copyKey }) => ({
-    dataKey: "value",
-    label: financeCopy.invoices.statusLabels[copyKey],
-    token,
-  }));
-}
-
-export function buildInvoiceStatusMonthChartSeries(): ChartSeries[] {
-  return FINANCE_INVOICE_STATUS_CHART_CONFIG.map(({ key, token, copyKey }) => ({
-    dataKey: key,
-    label: financeCopy.invoices.statusLabels[copyKey],
-    token,
-  }));
-}
-
-export const FINANCE_PROFITABILITY_STATUS_ORDER: ProfitabilityStatus[] = [
-  "high",
-  "medium",
-  "low",
-  "breakeven",
-  "loss",
-];
-
-export const FINANCE_PROFITABILITY_STATUS_TOKEN: Record<
-  ProfitabilityStatus,
-  ChartToken
-> = {
-  high: "success",
-  medium: "chart-1",
-  low: "warning",
-  breakeven: "info",
-  loss: "destructive",
-};
 
 export const FINANCE_PROFITABILITY_MONTHLY_SERIES: ChartSeries[] = [
   {
@@ -147,6 +79,70 @@ export const FINANCE_PROFITABILITY_COMBO_SERIES = [
   },
 ];
 
+/** Vista Rendimiento: el año anterior se dibuja con el mismo token, atenuado. */
+export const PERFORMANCE_PREVIOUS_OPACITY = 0.35;
+
+export const PERFORMANCE_CHART_SYNC_ID = "finance-performance-monthly";
+
+const performanceLegend = financeCopy.performance.chart.legend;
+
+function previousLabel(label: string): string {
+  return `${label} ${performanceLegend.previousSuffix}`;
+}
+
+/** Orden por mes: año anterior junto al actual de cada concepto. */
+export function buildPerformanceAmountSeries(compare: boolean): ComboChartSeries[] {
+  const revenue: ComboChartSeries = {
+    dataKey: "revenue",
+    label: performanceLegend.revenue,
+    token: "chart-1",
+    type: "bar",
+  };
+  const cost: ComboChartSeries = {
+    dataKey: "cost",
+    label: performanceLegend.cost,
+    token: "chart-3",
+    type: "bar",
+  };
+  if (!compare) return [revenue, cost];
+  return [
+    {
+      ...revenue,
+      dataKey: "previousRevenue",
+      label: previousLabel(revenue.label),
+      fillOpacity: PERFORMANCE_PREVIOUS_OPACITY,
+    },
+    revenue,
+    {
+      ...cost,
+      dataKey: "previousCost",
+      label: previousLabel(cost.label),
+      fillOpacity: PERFORMANCE_PREVIOUS_OPACITY,
+    },
+    cost,
+  ];
+}
+
+export function buildPerformanceMarginSeries(compare: boolean): ComboChartSeries[] {
+  const marginPct: ComboChartSeries = {
+    dataKey: "marginPct",
+    label: performanceLegend.marginPct,
+    token: "success",
+    type: "line",
+  };
+  if (!compare) return [marginPct];
+  return [
+    {
+      ...marginPct,
+      dataKey: "previousMarginPct",
+      label: previousLabel(marginPct.label),
+      fillOpacity: 0.6,
+      strokeDasharray: "6 4",
+    },
+    marginPct,
+  ];
+}
+
 export const FINANCE_BUCKET_BAR_SEGMENT_KEYS = [
   { key: "realized", token: "success" as const },
   { key: "pipeline", token: "info" as const },
@@ -171,13 +167,5 @@ export function buildFinanceBucketBarSegments(values: {
     label: financeCopy.profitability.buckets[key],
     value: map[key] ?? 0,
     token,
-  }));
-}
-
-export function buildProfitabilityStatusChartSeries(): ChartSeries[] {
-  return FINANCE_PROFITABILITY_STATUS_ORDER.map((status) => ({
-    dataKey: "value",
-    label: financeCopy.profitability.statuses[status],
-    token: FINANCE_PROFITABILITY_STATUS_TOKEN[status],
   }));
 }

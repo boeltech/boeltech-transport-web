@@ -2,7 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   filterNonZeroChartSlices,
   formatExpenseTemporalLabel,
+  formatFinancePeriodLabel,
 } from "./financeChartHelpers";
+
+describe("formatFinancePeriodLabel", () => {
+  it("shows the short month with the full year", () => {
+    expect(formatFinancePeriodLabel("2026-09-01")).toBe("sep 2026");
+    expect(formatFinancePeriodLabel("2026-01")).toBe("ene 2026");
+  });
+
+  it("returns the raw value when it is not a period", () => {
+    expect(formatFinancePeriodLabel("bad")).toBe("bad");
+  });
+});
 
 describe("filterNonZeroChartSlices", () => {
   it("keeps only slices with value greater than zero", () => {

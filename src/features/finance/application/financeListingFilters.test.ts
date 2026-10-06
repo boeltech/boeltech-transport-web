@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isFinanceAnalysisView,
   parseExpenseDimension,
   parseExpenseGranularity,
   parseFinanceInvoiceStatus,
@@ -65,6 +66,15 @@ describe("buildFinanceAnalysisSearchParams", () => {
     expect(result.get("vehicleId")).toBe("vehicle-1");
     expect(result.get("from")).toBe("2026-07-01");
   });
+
+  it("drops grouping dimension when switching to performance", () => {
+    const current = new URLSearchParams({ view: "margin", dimension: "client" });
+    const result = buildFinanceAnalysisSearchParams("performance", {
+      preserveFrom: current,
+    });
+    expect(result.get("view")).toBe("performance");
+    expect(result.has("dimension")).toBe(false);
+  });
 });
 
 describe("analysis filter parsers", () => {
@@ -79,6 +89,12 @@ describe("analysis filter parsers", () => {
   it("sanitizeAnalysisDimension omits invalid values for the view", () => {
     expect(sanitizeAnalysisDimension("margin", "month")).toBe("month");
     expect(sanitizeAnalysisDimension("expenses", "month")).toBeUndefined();
+    expect(sanitizeAnalysisDimension("performance", "vehicle")).toBeUndefined();
+  });
+
+  it("accepts performance as an analysis view", () => {
+    expect(isFinanceAnalysisView("performance")).toBe(true);
+    expect(isFinanceAnalysisView("yoy")).toBe(false);
   });
 });
 

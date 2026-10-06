@@ -293,6 +293,25 @@ export interface IncomeByMonthFilters {
   months?: number;
 }
 
+/** Totales de un mes calendario (`YYYY-MM`) de viajes completados. */
+export interface PeriodFinancials {
+  period: string;
+  actualRevenue: number;
+  actualCost: number;
+  actualMargin: number;
+  tripCount: number;
+}
+
+/**
+ * `GET /finance/performance/monthly` — `previous[i]` es el mismo mes que
+ * `current[i]` un año antes; el último periodo es el mes en curso.
+ */
+export interface MonthlyPerformance {
+  periods: string[];
+  current: PeriodFinancials[];
+  previous: PeriodFinancials[];
+}
+
 export interface InvoicesByStatusMonthFilters {
   months?: number;
 }

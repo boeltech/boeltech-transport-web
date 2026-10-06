@@ -3,6 +3,7 @@ import {
   mapAgingSummary,
   mapAccountStatementItem,
   mapFinanceSummary,
+  mapMonthlyPerformance,
   mapProfitabilityTripsResponse,
 } from "./mappers";
 import { getAccountStatementDisplayPaid } from "../presentation/utils/accountStatementDisplayPaid";
@@ -118,6 +119,67 @@ describe("mapAccountStatementItem", () => {
     });
     expect(row.openInvoiceCount).toBe(0);
     expect(row.invoiceCount).toBe(3);
+  });
+});
+
+describe("mapMonthlyPerformance", () => {
+  it("maps current and previous periods to camelCase keeping index alignment", () => {
+    const result = mapMonthlyPerformance({
+      periods: ["2026-09", "2026-10"],
+      current: [
+        {
+          period: "2026-09",
+          actual_revenue: 1000,
+          actual_cost: 600,
+          actual_margin: 400,
+          trip_count: 2,
+        },
+        {
+          period: "2026-10",
+          actual_revenue: "1500.50",
+          actual_cost: "500.25",
+          actual_margin: "1000.25",
+          trip_count: "3",
+        },
+      ],
+      previous: [
+        {
+          period: "2025-09",
+          actual_revenue: 800,
+          actual_cost: 500,
+          actual_margin: 300,
+          trip_count: 1,
+        },
+        {
+          period: "2025-10",
+          actual_revenue: 0,
+          actual_cost: 0,
+          actual_margin: 0,
+          trip_count: 0,
+        },
+      ],
+    });
+
+    expect(result.periods).toEqual(["2026-09", "2026-10"]);
+    expect(result.current[0]).toEqual({
+      period: "2026-09",
+      actualRevenue: 1000,
+      actualCost: 600,
+      actualMargin: 400,
+      tripCount: 2,
+    });
+    expect(result.current[1]?.actualRevenue).toBe(1500.5);
+    expect(result.current[1]?.tripCount).toBe(3);
+    expect(result.previous[0]?.period).toBe("2025-09");
+    expect(result.previous[1]?.actualMargin).toBe(0);
+  });
+
+  it("returns empty arrays when the payload is incomplete", () => {
+    expect(mapMonthlyPerformance({})).toEqual({
+      periods: [],
+      current: [],
+      previous: [],
+    });
   });
 });
 

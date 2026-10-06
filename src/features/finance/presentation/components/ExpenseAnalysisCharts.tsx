@@ -7,7 +7,10 @@ import {
   type ChartSeries,
 } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import {
+  formatMxCurrency,
+  formatMxCurrencyCompact,
+} from "@shared/utils/formatMxCurrency";
 import type { ExpensesByCategory } from "@features/finance/domain";
 import { buildExpenseCategoryChartSeries, pickFinanceExpenseChartToken } from "../config/financeChartConfig";
 import { financeCopy } from "../copy";
@@ -117,6 +120,8 @@ export function ExpenseAnalysisCharts({
             series={timeSeriesChartSeries}
             stacked
             valueFormatter={financeCurrencyValueFormatter}
+            yAxisTickFormatter={formatMxCurrencyCompact}
+            yAxisWidth={64}
           />
         )}
       </ChartCard>

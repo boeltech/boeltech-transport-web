@@ -1,3 +1,4 @@
+import type { AlignedPerformanceMonth } from "@features/finance/application";
 import type {
   AgingByClientItem,
   ExpensesByDimensionItem,
@@ -5,6 +6,7 @@ import type {
 } from "@features/finance/domain";
 import { downloadCsv } from "@shared/utils/exportCsv";
 import { financeCopy } from "../copy";
+import { buildMonthlyPerformanceCsv } from "./monthlyPerformanceFormat";
 
 function nowDateKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -33,6 +35,18 @@ export function exportProfitabilityTripsCsv(
       "gross_margin_pct",
       "profitability_status",
     ],
+    rows,
+  );
+}
+
+export function exportMonthlyPerformanceCsv(
+  months: readonly AlignedPerformanceMonth[],
+  options: { compare: boolean },
+): void {
+  const { headers, rows } = buildMonthlyPerformanceCsv(months, options);
+  downloadCsv(
+    `${financeCopy.exports.files.performance}-${nowDateKey()}.csv`,
+    headers,
     rows,
   );
 }

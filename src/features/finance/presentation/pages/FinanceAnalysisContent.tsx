@@ -1,7 +1,11 @@
 import { cn } from "@shared/lib/utils/cn";
-import type { FinanceAnalysisView } from "@features/finance/application";
+import {
+  FINANCE_ANALYSIS_VIEWS,
+  type FinanceAnalysisView,
+} from "@features/finance/application";
 import { financeCopy } from "../copy";
 import { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
+import { PerformanceTab } from "./PerformanceTab";
 import { ProfitabilityTab } from "./ProfitabilityTab";
 
 interface FinanceAnalysisContentProps {
@@ -9,7 +13,16 @@ interface FinanceAnalysisContentProps {
   onViewChange: (view: FinanceAnalysisView) => void;
 }
 
-const VIEWS: FinanceAnalysisView[] = ["margin", "expenses"];
+function renderView(view: FinanceAnalysisView) {
+  switch (view) {
+    case "expenses":
+      return <ExpenseAnalysisTab />;
+    case "performance":
+      return <PerformanceTab />;
+    default:
+      return <ProfitabilityTab />;
+  }
+}
 
 export function FinanceAnalysisContent({
   view,
@@ -24,7 +37,7 @@ export function FinanceAnalysisContent({
         role="radiogroup"
         aria-label={labels.ariaLabel}
       >
-        {VIEWS.map((option) => (
+        {FINANCE_ANALYSIS_VIEWS.map((option) => (
           <button
             key={option}
             type="button"
@@ -39,12 +52,12 @@ export function FinanceAnalysisContent({
                 : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
             )}
           >
-            {option === "margin" ? labels.margin : labels.expenses}
+            {labels[option]}
           </button>
         ))}
       </div>
 
-      {view === "margin" ? <ProfitabilityTab /> : <ExpenseAnalysisTab />}
+      {renderView(view)}
     </div>
   );
 }

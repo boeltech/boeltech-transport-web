@@ -44,6 +44,11 @@ describe("ReportsPage", () => {
     expect(
       screen.getByRole("heading", { name: "Reportes" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Comparativa mensual e interanual")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ver comparativa$/i })).toHaveAttribute(
+      "href",
+      "/finance/analysis?view=performance",
+    );
     expect(screen.getByText("Rentabilidad y margen")).toBeInTheDocument();
     expect(screen.getByText("Cartera y cobranza")).toBeInTheDocument();
     expect(screen.getByText("Gastos por unidad, operador o ruta")).toBeInTheDocument();
@@ -70,6 +75,9 @@ describe("ReportsPage", () => {
 
     renderWithTheme(<ReportsPage />, { route: ["/reports"] });
 
+    expect(
+      screen.queryByText("Comparativa mensual e interanual"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Rentabilidad y margen")).not.toBeInTheDocument();
     expect(screen.queryByText("Cartera y cobranza")).not.toBeInTheDocument();
     expect(screen.queryByText("Gastos por unidad, operador o ruta")).not.toBeInTheDocument();

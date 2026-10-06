@@ -10,6 +10,7 @@ export const reportsCopy = {
   },
   catalog: {
     viewAnalysisCta: "Ver análisis",
+    viewPerformanceCta: "Ver comparativa",
     viewCarteraCta: "Ver cartera",
     viewDashboardCta: "Ver dashboard",
     viewBranchKpisCta: "Ver comparativa en el dashboard",
@@ -17,7 +18,7 @@ export const reportsCopy = {
       financial: {
         title: "Financiero",
         description:
-          "Cartera, margen y concentración de gastos con el detalle en Finanzas.",
+          "Comparativa mensual, cartera, margen y concentración de gastos con el detalle en Finanzas.",
       },
       operational: {
         title: "Operativo",
@@ -26,6 +27,11 @@ export const reportsCopy = {
       },
     },
     items: {
+      performance: {
+        title: "Comparativa mensual e interanual",
+        description:
+          "Mes con mes: cuánto ingresó, cuánto se gastó y el margen, comparado con el mismo mes del año anterior.",
+      },
       margin: {
         title: "Rentabilidad y margen",
         description:

@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  CalendarRange,
   CircleDollarSign,
   GitBranch,
   LayoutDashboard,
@@ -31,6 +32,16 @@ export interface ReportsCatalogItemDefinition {
 const copy = reportsCopy.catalog.items;
 
 export const REPORTS_CATALOG_ITEMS: readonly ReportsCatalogItemDefinition[] = [
+  {
+    id: "performance",
+    group: "financial",
+    title: copy.performance.title,
+    description: copy.performance.description,
+    href: "/finance/analysis?view=performance",
+    cta: reportsCopy.catalog.viewPerformanceCta,
+    icon: CalendarRange,
+    isVisible: (ctx) => ctx.canFinanceAnalytics,
+  },
   {
     id: "margin",
     group: "financial",

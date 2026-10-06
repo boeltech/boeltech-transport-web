@@ -11,7 +11,28 @@ export {
   useExpensesByDimension,
   useIncomeByMonth,
   useInvoicesByStatusMonth,
+  useMonthlyPerformance,
 } from "./hooks/useFinance";
+export {
+  MONTHLY_PERFORMANCE_MONTH_OPTIONS,
+  DEFAULT_MONTHLY_PERFORMANCE_MONTHS,
+  YEAR_OVER_YEAR_OFFSET_MONTHS,
+  alignPerformanceMonths,
+  computeMarginPct,
+  computeVariation,
+  getInProgressPeriod,
+  hasAnyPeriodActivity,
+  hasPeriodActivity,
+  shiftPeriod,
+  summarizePeriods,
+  variationSentiment,
+  type AlignedPerformanceMonth,
+  type MonthlyPerformanceMonths,
+  type PerformanceTotals,
+  type Variation,
+  type VariationPolarity,
+  type VariationSentiment,
+} from "./monthlyPerformance";
 export { useFinanceInvoicesList } from "./hooks/useFinanceInvoicesList";
 export {
   OPEN_PPD_INVOICES_PAGE_SIZE,

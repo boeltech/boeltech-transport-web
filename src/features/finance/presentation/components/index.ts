@@ -1,7 +1,5 @@
 export { FinanceCycleStepper } from "./FinanceCycleStepper";
 export { FinanceSummaryCards } from "./FinanceSummaryCards";
-export { FinanceSummaryCharts } from "./FinanceSummaryCharts";
-export { FinanceSummaryTimeSeriesCharts } from "./FinanceSummaryTimeSeriesCharts";
 export { FinanceAccountStatementSection } from "./FinanceAccountStatementSection";
 export { FinanceAgingChart } from "./FinanceAgingChart";
 export { ExpenseAnalysisCharts } from "./ExpenseAnalysisCharts";
@@ -14,6 +12,9 @@ export { ProfitabilityScopeToolbar } from "./ProfitabilityScopeToolbar";
 export { ProfitabilityContextCards } from "./ProfitabilityContextCards";
 export { ProfitabilityBucketBar } from "./ProfitabilityBucketBar";
 export { ProfitabilityDimensionBarList } from "./ProfitabilityDimensionBarList";
+export { PerformanceComparisonChart } from "./PerformanceComparisonChart";
+export { PerformanceKpiCards } from "./PerformanceKpiCards";
+export { PerformanceMonthlyTable } from "./PerformanceMonthlyTable";
 export { FinanceInvoiceListTable } from "./FinanceInvoiceListTable";
 export { FinanceDispatchRunsTable } from "./FinanceDispatchRunsTable";
 export { FinanceDispatchPeriodFilters } from "./FinanceDispatchPeriodFilters";

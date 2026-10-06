@@ -9,4 +9,5 @@ export { FinanceDispatchRunsPage } from "./FinanceDispatchRunsPage";
 export { FinanceAnalysisPage } from "./FinanceAnalysisPage";
 export { ProfitabilityTab } from "./ProfitabilityTab";
 export { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
+export { PerformanceTab } from "./PerformanceTab";
 export { DispatchRunDetailPage } from "./DispatchRunDetailPage";

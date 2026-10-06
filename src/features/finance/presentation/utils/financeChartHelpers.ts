@@ -1,11 +1,11 @@
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { ChartSeries } from "@shared/ui/data-display";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { formatMonthPeriodShort } from "@shared/utils/monthPeriod";
 
+/** `2026-09-01` → `sep 2026`, igual que Rendimiento y el dashboard. */
 export function formatFinancePeriodLabel(period: string): string {
-  const date = new Date(`${period}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return period;
-  return date.toLocaleDateString("es-MX", { month: "short", year: "2-digit" });
+  return formatMonthPeriodShort(period);
 }
 
 export function formatFinanceReferencePeriod(period: string): string {

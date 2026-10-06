@@ -17,8 +17,9 @@ describe("reportsHubCatalog", () => {
     canReadBranches: true,
   };
 
-  it("exposes five catalog entries for finance-enabled roles", () => {
+  it("exposes six catalog entries for finance-enabled roles", () => {
     expect(getVisibleReportsCatalogItems(financeAccess).map((item) => item.id)).toEqual([
+      "performance",
       "margin",
       "receivables",
       "expenses",
@@ -37,6 +38,7 @@ describe("reportsHubCatalog", () => {
   it("groups catalog items by financial and operational sections", () => {
     const groups = getReportsCatalogItemsByGroup(financeAccess);
     expect(groups.financial.map((item) => item.id)).toEqual([
+      "performance",
       "margin",
       "receivables",
       "expenses",
@@ -49,6 +51,12 @@ describe("reportsHubCatalog", () => {
 
   it("links catalog entries to existing analytic routes", () => {
     const items = getVisibleReportsCatalogItems(financeAccess);
+    expect(items.find((item) => item.id === "performance")?.href).toBe(
+      "/finance/analysis?view=performance",
+    );
+    expect(items.find((item) => item.id === "performance")?.title).toBe(
+      "Comparativa mensual e interanual",
+    );
     expect(items.find((item) => item.id === "margin")?.href).toBe(
       "/finance/analysis?view=margin",
     );

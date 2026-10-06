@@ -1,22 +1,22 @@
+import { getTodayString } from "@shared/utils/dateUtils";
+
 export interface FinanceDateRange {
   from: string;
   to: string;
 }
 
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/** Mes calendario local usado por dashboard y detalle de unidad. */
+/**
+ * Mes calendario de hoy en CDMX (`today` = `YYYY-MM-DD`), usado por dashboard,
+ * detalle de unidad y Reportes. No depende de la zona del navegador.
+ */
 export function getCurrentMonthExpenseRange(
-  now: Date = new Date(),
+  today: string = getTodayString(),
 ): FinanceDateRange {
+  const [year, month] = today.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
   return {
-    from: formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1)),
-    to: formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    from: `${monthKey}-01`,
+    to: `${monthKey}-${String(lastDay).padStart(2, "0")}`,
   };
 }
-

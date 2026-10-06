@@ -13,6 +13,7 @@ import type {
   IncomeByMonthFilters,
   InvoicesByStatusMonth,
   InvoicesByStatusMonthFilters,
+  MonthlyPerformance,
   ProfitabilityAggregateFilters,
   ProfitabilityAggregateItem,
   ProfitabilityTripsFilters,
@@ -28,6 +29,7 @@ import {
   mapFinanceSummary,
   mapIncomeByMonth,
   mapInvoicesByStatusMonth,
+  mapMonthlyPerformance,
   mapProfitabilityAggregateItem,
   mapProfitabilityTripsResponse,
 } from "./mappers";
@@ -248,5 +250,15 @@ export const financeApi = {
       `${FINANCE_BASE}/invoices-by-status-month${qs ? `?${qs}` : ""}`,
     );
     return mapInvoicesByStatusMonth(response.data as Record<string, unknown>);
+  },
+
+  getMonthlyPerformance: async (months: number): Promise<MonthlyPerformance> => {
+    const params = new URLSearchParams();
+    addOptionalParam(params, "months", months);
+
+    const response = await apiClient.get<{ data: unknown }>(
+      `${FINANCE_BASE}/performance/monthly?${params.toString()}`,
+    );
+    return mapMonthlyPerformance((response.data ?? {}) as Record<string, unknown>);
   },
 };

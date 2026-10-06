@@ -26,6 +26,8 @@ export type {
   FinanceInvoiceListFilters,
   IncomeByMonth,
   IncomeByMonthFilters,
+  PeriodFinancials,
+  MonthlyPerformance,
   InvoicesByStatusMonth,
   InvoicesByStatusMonthFilters,
   FinanceRepExceptionStatus,

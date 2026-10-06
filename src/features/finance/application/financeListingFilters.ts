@@ -23,7 +23,7 @@ export const FINANCE_PRESERVED_URL_PARAMS = [
   FINANCE_DISPATCH_TAB_PARAM,
 ] as const;
 
-export const FINANCE_ANALYSIS_VIEWS = ["margin", "expenses"] as const;
+export const FINANCE_ANALYSIS_VIEWS = ["margin", "expenses", "performance"] as const;
 
 export type FinanceAnalysisView = (typeof FINANCE_ANALYSIS_VIEWS)[number];
 
@@ -146,5 +146,8 @@ export function sanitizeAnalysisDimension(
   if (view === "margin") {
     return includesValue(MARGIN_ANALYSIS_DIMENSIONS, raw) ? raw : undefined;
   }
-  return includesValue(EXPENSE_ANALYSIS_DIMENSIONS, raw) ? raw : undefined;
+  if (view === "expenses") {
+    return includesValue(EXPENSE_ANALYSIS_DIMENSIONS, raw) ? raw : undefined;
+  }
+  return undefined;
 }

@@ -119,7 +119,7 @@ describe("navigationConfig", () => {
       "Aprobaciones",
       "Liquidaciones",
       "Esquemas de compensación",
-      "Rentabilidad",
+      "Análisis",
     ]);
 
     expect(reports?.title).toBe("Reportes");

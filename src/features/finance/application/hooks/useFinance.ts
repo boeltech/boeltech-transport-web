@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { financeApi } from "@features/finance/infrastructure";
 import type {
   ExpensesByCategoryFilters,
@@ -33,6 +33,8 @@ export const financeQueryKeys = {
     [...financeQueryKeys.all, "income-by-month", filters] as const,
   invoicesByStatusMonth: (filters: InvoicesByStatusMonthFilters) =>
     [...financeQueryKeys.all, "invoices-by-status-month", filters] as const,
+  monthlyPerformance: (months: number) =>
+    [...financeQueryKeys.all, "monthly-performance", months] as const,
   repExceptions: (
     receiverRfc: string | null,
     page: number,
@@ -156,6 +158,18 @@ export const useIncomeByMonth = (
     queryFn: () => financeApi.getIncomeByMonth(filters),
     enabled: options?.enabled ?? true,
     staleTime: 60_000,
+  });
+
+export const useMonthlyPerformance = (
+  months: number,
+  options?: { enabled?: boolean },
+) =>
+  useQuery({
+    queryKey: financeQueryKeys.monthlyPerformance(months),
+    queryFn: () => financeApi.getMonthlyPerformance(months),
+    enabled: options?.enabled ?? true,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
 
 export const useInvoicesByStatusMonth = (

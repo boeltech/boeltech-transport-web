@@ -39,7 +39,6 @@ const DEFAULT_GRANULARITY = "month";
 
 export function ExpenseAnalysisTab() {
   const { toast } = useToast();
-  const [chartsOpen, setChartsOpen] = useState(false);
   const [includesOpen, setIncludesOpen] = useState(false);
 
   const filters = useFinanceListingFilters<
@@ -137,7 +136,6 @@ export function ExpenseAnalysisTab() {
     latestPeriod,
   });
 
-  const chartsCopy = financeCopy.expenses.chartsSection;
   const alertCopy = financeCopy.expenses.alert;
 
   return (
@@ -258,39 +256,21 @@ export function ExpenseAnalysisTab() {
         isDimensionLoading={byDimensionLoading}
       />
 
+      <ExpenseAnalysisCharts
+        byCategory={byCategory}
+        categorySummary={categorySummary}
+        latestPeriodIndex={latestPeriodIndex}
+        latestPeriod={latestPeriod}
+        periodLabel={periodLabel}
+        isLoading={byCategoryLoading}
+      />
+
       <ExpenseDimensionTableSection
         dimension={dimension}
         onDimensionChange={handleDimensionChange}
         rows={dimensionRows}
         isLoading={byDimensionLoading}
       />
-
-      <Collapsible open={chartsOpen} onOpenChange={setChartsOpen}>
-        <CollapsibleTrigger
-          type="button"
-          className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted/40 sm:w-auto sm:min-w-[14rem]"
-          aria-expanded={chartsOpen}
-        >
-          <span>{chartsOpen ? chartsCopy.hide : chartsCopy.show}</span>
-          <ChevronDown
-            className={cn(
-              "ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-              chartsOpen && "rotate-180",
-            )}
-            aria-hidden
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-4">
-          <ExpenseAnalysisCharts
-            byCategory={byCategory}
-            categorySummary={categorySummary}
-            latestPeriodIndex={latestPeriodIndex}
-            latestPeriod={latestPeriod}
-            periodLabel={periodLabel}
-            isLoading={byCategoryLoading}
-          />
-        </CollapsibleContent>
-      </Collapsible>
     </div>
   );
 }

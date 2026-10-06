@@ -5,12 +5,14 @@ const exportCopy = {
     profitability: "Margen por viaje (CSV).",
     profitabilityTruncated: (exported: number, total: number) =>
       `Muestra de ${exported} de ${total} viajes (CSV).`,
+    performance: "Rendimiento mes a mes (CSV).",
     aging: "Antigüedad de saldos por cliente (CSV).",
     expenses: (groupLabel: string) =>
       `Gastos por ${groupLabel.toLowerCase()} (CSV).`,
   },
   files: {
     profitability: "finance-margen",
+    performance: "finance-rendimiento",
     aging: "finance-antiguedad",
     /** Prefijo + slug de agrupación (unidad|operador|cliente|ruta). */
     expensesPrefix: "finance-gastos",
@@ -254,7 +256,8 @@ export const financeCopy = {
       },
       analysis: {
         title: "Análisis",
-        subtitle: "Margen por viaje y concentración de gastos operativos aprobados.",
+        subtitle:
+          "Margen por viaje, concentración de gastos y rendimiento mes a mes contra el año anterior.",
       },
       approvals: {
         title: "Aprobaciones",
@@ -264,6 +267,7 @@ export const financeCopy = {
     analysisViews: {
       margin: "Margen",
       expenses: "Gastos",
+      performance: "Rendimiento",
       ariaLabel: "Tipo de análisis",
     },
     clearFilters: "Limpiar filtros",
@@ -292,13 +296,10 @@ export const financeCopy = {
       "90+": "Más de 90 días",
     },
     exportAging: "Exportar antigüedad (CSV)",
-    invoicesCountLabel: (count: number) => `${count} facturas`,
     errors: {
       summary: "Error al cargar resumen financiero",
       statement: "Error al cargar estado de cuenta",
       aging: "Error al cargar antigüedad de saldos",
-      incomeByMonth: "Error al cargar ingresos por mes",
-      invoicesByStatusMonth: "Error al cargar facturas por estado y mes",
     },
     empty: {
       title: "Sin datos de cobro",
@@ -316,44 +317,12 @@ export const financeCopy = {
       actions: "Acciones",
     },
     charts: {
-      empty: {
-        title: "Sin datos para graficar",
-      },
       agingBuckets: {
         title: "Antigüedad de saldos",
         description: "Por cobrar pendiente por rango de días vencidos",
         balanceLabel: "Por cobrar",
         footer: (totalReceivable: string) =>
           `Cartera total por antigüedad: ${totalReceivable}`,
-      },
-      /** Conservado para charts legacy no montados en Resumen. */
-      amounts: {
-        title: "Cartera por cobrar",
-        description: "Distribución de montos: por cobrar, cobrado y vencido",
-        centerLabel: "Por cobrar",
-        receivable: "Por cobrar",
-        collected: "Cobrado este mes",
-        overdue: "Vencido",
-        emptyDescription: "No hay montos registrados en cartera para este periodo.",
-        footer: (receivable: string, overdue: string) =>
-          `Saldo por cobrar ${receivable} · Vencido ${overdue}`,
-      },
-      invoiceStatus: {
-        title: "Facturas por estado",
-        description: "Conteo de facturas en cada estatus del ciclo de vida",
-        centerLabel: "Total facturas",
-        emptyDescription: "No hay facturas registradas con los filtros actuales.",
-      },
-      incomeByMonth: {
-        title: "Ingresos cobrados por mes",
-        description: "Pagos registrados en los últimos meses",
-        footer: (latestCollected: string) =>
-          `Último mes registrado: ${latestCollected}`,
-      },
-      invoicesByStatusMonth: {
-        title: "Facturas por estado y mes",
-        description: "Conteo mensual de facturas por estatus",
-        footer: (legend: string) => `Series: ${legend}`,
       },
     },
   },
@@ -579,11 +548,6 @@ export const financeCopy = {
         "Ranking de los cinco grupos con mayor métrica según el alcance activo.",
       emptyDescription: "No hay agregados para mostrar ranking.",
     },
-    chartsSection: {
-      title: "Gráficas",
-      show: "Ver gráficas",
-      hide: "Ocultar gráficas",
-    },
     metrics: {
       totalRevenue: "Ingreso",
       totalRevenueHint:
@@ -676,13 +640,6 @@ export const financeCopy = {
             : "Sin meses con datos de margen",
         emptyDescription: "No hay agregados mensuales para mostrar.",
       },
-      statusDistribution: {
-        title: "Viajes por rentabilidad",
-        description: "Conteo de viajes en cada banda de margen",
-        centerLabel: "Total viajes",
-        footer: (tripCount: number) => `${tripCount} viaje(s) en la muestra`,
-        emptyDescription: "No hay viajes en la muestra para los filtros actuales.",
-      },
     },
     exportCsv: "Exportar muestra (CSV)",
   },
@@ -758,10 +715,6 @@ export const financeCopy = {
       description:
         "No hay costos aprobados para los filtros actuales. Revisa que existan conceptos en Viajes → Costos y que estén aprobados.",
     },
-    chartsSection: {
-      show: "Ver tendencia y composición",
-      hide: "Ocultar tendencia y composición",
-    },
     charts: {
       empty: {
         title: "Sin datos para graficar",
@@ -785,6 +738,102 @@ export const financeCopy = {
       },
     },
     exportCsv: "Exportar listado (CSV)",
+  },
+  performance: {
+    controls: {
+      monthsAriaLabel: "Meses a mostrar",
+      monthsOption: (months: number) => `${months} meses`,
+      compareLabel: "Comparar con año anterior",
+    },
+    scopeNote:
+      "Solo viajes completados, contados en el mes de su salida programada. Ingreso: lo facturado o, si aún no se factura, la tarifa del viaje. Gasto: gastos aprobados del viaje, en ese mismo mes; por eso puede no cuadrar con la vista Gastos, que cuenta cada gasto en la fecha en que se hizo.",
+    noPreviousData: (rangeLabel: string) =>
+      `Aún no hay datos de ${rangeLabel} para comparar.`,
+    rangeLabel: (from: string, to: string) =>
+      from === to ? from : `${from} a ${to}`,
+    kpis: {
+      ariaLabel: "Totales del rango",
+      revenue: "Ingreso",
+      cost: "Gasto",
+      margin: "Margen",
+      shareOfRevenue: (pct: string) => `${pct} del ingreso`,
+      tripCount: (count: number) =>
+        `${count.toLocaleString("es-MX")} viaje${count === 1 ? "" : "s"} completado${count === 1 ? "" : "s"}`,
+      versusPrevious: (amount: string) => `vs ${amount} año anterior`,
+      previousMarginPct: (pct: string) => `Margen del año anterior: ${pct}`,
+    },
+    variation: {
+      new: "Nuevo",
+      none: "—",
+      upAria: "subió",
+      downAria: "bajó",
+      flatAria: "sin cambio",
+    },
+    chart: {
+      title: "Ingreso, gasto y margen mes a mes",
+      description: "Ingreso y gasto de cada mes; abajo, el margen como % del ingreso.",
+      descriptionCompare:
+        "Barras sólidas: este periodo. Barras claras: el mismo mes del año anterior.",
+      ariaLabel:
+        "Gráficas mensuales: barras de ingreso y gasto, y línea de margen como porcentaje del ingreso",
+      amountsLegendAriaLabel: "Leyenda de ingreso y gasto",
+      marginHeading: "Margen % por mes",
+      marginLegendAriaLabel: "Leyenda de margen %",
+      inProgressSuffix: "(en curso)",
+      inProgressNote: (month: string) =>
+        `${month} sigue en curso: sus cifras pueden cambiar hasta que cierre el mes.`,
+      legend: {
+        revenue: "Ingreso",
+        cost: "Gasto",
+        marginPct: "Margen %",
+        previousSuffix: "año anterior",
+      },
+    },
+    tooltip: {
+      metric: "Concepto",
+      delta: "Diferencia",
+      revenue: "Ingreso",
+      cost: "Gasto",
+      margin: "Margen",
+      marginPct: "Margen %",
+    },
+    table: {
+      title: "Cifras por mes",
+      description: "Montos exactos de cada mes del rango.",
+      month: "Mes",
+      revenue: "Ingreso",
+      cost: "Gasto",
+      margin: "Margen",
+      marginPct: "Margen %",
+      trips: "Viajes",
+      deltaRevenue: "Ingreso vs año ant.",
+      deltaCost: "Gasto vs año ant.",
+      deltaMargin: "Margen vs año ant.",
+    },
+    empty: {
+      title: "Sin viajes completados en el rango",
+      description:
+        "Cuando completes viajes, aquí verás cuánto ingresó, cuánto se gastó y el margen de cada mes.",
+    },
+    error: {
+      title: "No se pudieron cargar las cifras",
+      description: "Revisa tu conexión e intenta de nuevo.",
+      retry: "Reintentar",
+    },
+    exportCsv: "Exportar CSV",
+    csv: {
+      month: "mes",
+      revenue: "ingreso",
+      cost: "gasto",
+      margin: "margen",
+      marginPct: "margen_pct",
+      trips: "viajes",
+      previousSuffix: "_anio_anterior",
+      revenueVariationPct: "variacion_ingreso_pct",
+      costVariationPct: "variacion_gasto_pct",
+      marginVariationPct: "variacion_margen_pct",
+      newValue: "nuevo",
+    },
   },
   exports: exportCopy,
   paymentMethods: {

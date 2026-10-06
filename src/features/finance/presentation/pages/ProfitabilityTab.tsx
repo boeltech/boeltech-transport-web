@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { ChevronDown, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import {
   DEFAULT_MARGIN_DIMENSION,
   DEFAULT_PROFITABILITY_SCOPE,
@@ -15,13 +15,7 @@ import type {
   ProfitabilityScope,
 } from "@features/finance/domain";
 import { Button } from "@shared/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
 import { useToast } from "@shared/hooks";
-import { cn } from "@shared/lib/utils/cn";
 import {
   FinanceTabFiltersBar,
   ProfitabilityCharts,
@@ -35,7 +29,6 @@ import { exportProfitabilityTripsCsv } from "../utils/financeExportHelpers";
 export function ProfitabilityTab() {
   const { toast } = useToast();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const [chartsOpen, setChartsOpen] = useState(false);
 
   const filters = useFinanceListingFilters<"scope" | "dimension" | "status">({
     filters: {
@@ -133,8 +126,6 @@ export function ProfitabilityTab() {
       },
     );
 
-  const chartsCopy = financeCopy.profitability.chartsSection;
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -178,6 +169,12 @@ export function ProfitabilityTab() {
         isLoading={tripsLoading || monthAggregateLoading}
       />
 
+      <ProfitabilityCharts
+        scope={scope}
+        monthAggregate={monthAggregate}
+        monthLoading={monthAggregateLoading}
+      />
+
       <ProfitabilityMasterDetailTable
         scope={scope}
         dimension={dimension}
@@ -192,33 +189,6 @@ export function ProfitabilityTab() {
         expandedKey={expandedKey}
         onExpandedKeyChange={setExpandedKey}
       />
-
-      <Collapsible open={chartsOpen} onOpenChange={setChartsOpen}>
-        <CollapsibleTrigger
-          type="button"
-          className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-muted/40 sm:w-auto sm:min-w-[12rem]"
-          aria-expanded={chartsOpen}
-        >
-          <span>{chartsOpen ? chartsCopy.hide : chartsCopy.show}</span>
-          <ChevronDown
-            className={cn(
-              "ml-2 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-              chartsOpen && "rotate-180",
-            )}
-            aria-hidden
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-4">
-          <ProfitabilityCharts
-            scope={scope}
-            trips={trips}
-            monthAggregate={monthAggregate}
-            tripsLoading={tripsLoading}
-            monthLoading={monthAggregateLoading}
-            showStatusDistribution={false}
-          />
-        </CollapsibleContent>
-      </Collapsible>
     </div>
   );
 }

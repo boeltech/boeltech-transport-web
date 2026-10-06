@@ -33,7 +33,8 @@ export const navigationCopy = {
     financeAgreements: "Esquemas de compensación",
     /** Workbench unificado de envío de facturas (pendientes / enviadas / historial). */
     financeDispatch: "Envíos",
-    financeAnalysis: "Rentabilidad",
+    /** /finance/analysis: vistas Margen, Gastos y Rendimiento (PRD D7). */
+    financeAnalysis: "Análisis",
     /** Listado de facturas (staff con invoices.read y portal client). */
     financeInvoices: "Facturas",
     /** Hub de reportes de negocio (/reports). Promovido como grupo independiente. */
