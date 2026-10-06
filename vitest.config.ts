@@ -13,6 +13,7 @@ import path from "node:path";
  */
 const SMOKE = "src/smoke/**";
 const DOM_SETUP = "./src/test/setup.dom.ts";
+const SERIAL = process.env.VITEST_SERIAL === "1";
 
 export default defineConfig({
   plugins: [react()],
@@ -20,9 +21,11 @@ export default defineConfig({
     globals: true,
     // Tope global: todos los proyectos comparten un solo pool y este límite
     // (mismo `sequence.groupOrder`). `--maxWorkers` por CLI NO se propaga a
-    // los proyectos; para serializar usa `--no-file-parallelism` o VITEST_SERIAL=1.
+    // los proyectos; para serializar usa VITEST_SERIAL=1 o `npm run test:serial`.
+    // `--no-file-parallelism` solo deja vmForks en serie, que comparte el
+    // `document` de jsdom y módulos entre archivos del mismo worker.
     maxWorkers: process.env.CI ? undefined : 2,
-    fileParallelism: process.env.VITEST_SERIAL !== "1",
+    fileParallelism: !SERIAL,
     // vmForks reutiliza el entorno jsdom entre archivos; el tope recicla el
     // worker antes de que su heap crezca sin control. Con 512MB el pico local
     // ronda ~2 GB con 2 workers (1GB lo sube a ~3 GB en máquinas de 12 GB).
@@ -43,7 +46,7 @@ export default defineConfig({
         test: {
           name: "dom",
           environment: "jsdom",
-          pool: "vmForks",
+          pool: SERIAL ? "forks" : "vmForks",
           setupFiles: [DOM_SETUP],
           include: ["src/**/*.test.tsx"],
           exclude: [...configDefaults.exclude, SMOKE],
@@ -54,7 +57,7 @@ export default defineConfig({
         test: {
           name: "flows",
           environment: "jsdom",
-          pool: "vmForks",
+          pool: SERIAL ? "forks" : "vmForks",
           setupFiles: [DOM_SETUP],
           include: [`${SMOKE}/*.test.{ts,tsx}`],
         },
