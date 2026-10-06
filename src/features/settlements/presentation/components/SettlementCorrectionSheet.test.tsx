@@ -34,6 +34,10 @@ vi.mock("@features/approvals", async () => ({
   invalidateApprovalsRelatedQueries: vi.fn(),
 }));
 
+vi.mock("@features/approvals/application", () => ({
+  invalidateApprovalsRelatedQueries: vi.fn(),
+}));
+
 const flowCopy = settlementsCopy.settlementFlow;
 
 const baseSettlement: DriverSettlement = {

@@ -91,6 +91,10 @@ vi.mock("@features/approvals", async () => ({
   useSelfApprovalPolicy: () => ({ data: mockSelfApprovalPolicy() }),
 }));
 
+vi.mock("@features/approvals/application", () => ({
+  invalidateApprovalsRelatedQueries: vi.fn(),
+}));
+
 function makePolicy(
   overrides: Partial<Record<keyof SelfApprovalPolicy, boolean>> = {},
 ): SelfApprovalPolicy {

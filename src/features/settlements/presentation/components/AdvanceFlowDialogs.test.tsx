@@ -60,6 +60,10 @@ vi.mock("@features/approvals", async () => ({
   invalidateApprovalsRelatedQueries: vi.fn(),
 }));
 
+vi.mock("@features/approvals/application", () => ({
+  invalidateApprovalsRelatedQueries: vi.fn(),
+}));
+
 const authorizedAdvance: DriverAdvance = {
   id: "adv-1",
   tenantId: "tenant-1",

@@ -29,6 +29,10 @@ vi.mock("@features/approvals", async () => ({
   ...(await import("@features/approvals/testing/selfApprovalTestModule")),
 }));
 
+vi.mock("@features/approvals/application", () => ({
+  invalidateApprovalsRelatedQueries: vi.fn(),
+}));
+
 const readyAdvance: DriverAdvance = {
   id: "adv-1",
   tenantId: "tenant-1",

@@ -94,6 +94,10 @@ vi.mock("@features/approvals", async () => ({
   useSelfActionResolver: () => () => "normal",
 }));
 
+vi.mock("@features/approvals/application", () => ({
+  invalidateApprovalsRelatedQueries: vi.fn(),
+}));
+
 const TRIP_ID = "550e8400-e29b-41d4-a716-446655440099";
 const BASE_RATE = 24500;
 

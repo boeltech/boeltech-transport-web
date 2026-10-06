@@ -64,6 +64,10 @@ vi.mock("@features/approvals", async () => ({
   }),
 }));
 
+vi.mock("@features/approvals/application", () => ({
+  invalidateApprovalsRelatedQueries: vi.fn(),
+}));
+
 function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {

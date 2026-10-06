@@ -51,6 +51,10 @@ vi.mock("@features/approvals", async () => ({
   buildApprovalsInboxPath: () => "/finance/approvals",
 }));
 
+vi.mock("@features/approvals/application", () => ({
+  invalidateApprovalsRelatedQueries: vi.fn(),
+}));
+
 vi.mock("@features/trips/application/hooks/expense/useExpenseOperations", () => {
   const idle = () => ({ mutateAsync: vi.fn(), isPending: false });
   return {
