@@ -4,11 +4,11 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import {
-  invalidateApprovalsRelatedQueries,
-  type ApprovalGuards,
-  type ApprovalReturnReasonCode,
-} from "@features/approvals";
+import { invalidateApprovalsRelatedQueries } from "@features/approvals/application";
+import type {
+  ApprovalGuards,
+  ApprovalReturnReasonCode,
+} from "@features/approvals/domain";
 import {
   settlementsApi,
   type ListAdvancesParams,

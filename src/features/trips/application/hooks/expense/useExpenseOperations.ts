@@ -16,10 +16,8 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import {
-  invalidateApprovalsRelatedQueries,
-  type ApprovalGuards,
-} from "@features/approvals";
+import { invalidateApprovalsRelatedQueries } from "@features/approvals/application";
+import type { ApprovalGuards } from "@features/approvals/domain";
 import {
   isExpenseNotMutableError,
   tripQueryKeys,

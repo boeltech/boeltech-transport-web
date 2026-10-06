@@ -1,6 +1,6 @@
 import { deepToCamel } from "@shared/api";
 import type { MappedPaginatedResult } from "@shared/api";
-import { mapApprovalBlock, type ApiApprovalBlockRaw } from "@features/approvals";
+import { mapApprovalBlock, type ApiApprovalBlockRaw } from "@features/approvals/infrastructure";
 import type {
   CompensationAgreement,
   CompensationAgreementRule,

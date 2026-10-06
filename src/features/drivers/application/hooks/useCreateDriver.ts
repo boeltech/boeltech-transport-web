@@ -10,7 +10,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import { employeeQueryKeys } from "@features/employees";
+import { employeeQueryKeys } from "@features/employees/application";
 import {
   type Driver,
   type CreateDriverDTO,

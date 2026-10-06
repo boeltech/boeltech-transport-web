@@ -4,10 +4,10 @@
  */
 
 import type { QueryClient } from "@tanstack/react-query";
-import { clientQueryKeys } from "@features/clients";
-import { employeeQueryKeys } from "@features/employees";
-import { vehicleQueryKeys } from "@features/vehicles";
-import { driverQueryKeys } from "@features/drivers";
+import { clientQueryKeys } from "@features/clients/domain";
+import { employeeQueryKeys } from "@features/employees/application";
+import { vehicleQueryKeys } from "@features/vehicles/domain";
+import { driverQueryKeys } from "@features/drivers/domain";
 import type { ImportImplementedEntityType } from "../domain";
 
 export function invalidateImportedMasterQueries(

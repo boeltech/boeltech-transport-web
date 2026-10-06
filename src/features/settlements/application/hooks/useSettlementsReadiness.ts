@@ -1,6 +1,6 @@
 import type { HubReadinessItem } from "@shared/ui/page-shells";
 import { getTodayString } from "@shared/utils/dateUtils";
-import { useEmployees } from "@features/employees";
+import { useEmployees } from "@features/employees/application";
 import {
   COMPENSATION_TEMPLATES_PATH,
   compensationTemplateOperatorsPath,
@@ -9,7 +9,8 @@ import {
   useCompensationTemplates,
   useTemplateAssignments,
 } from "@features/compensation/application/hooks";
-import { TripStatus, useTrips } from "@features/trips";
+import { useTrips } from "@features/trips/application";
+import { TripStatus } from "@features/trips/domain";
 import { settlementsCopy } from "../../presentation/copy/settlementsCopy";
 
 const copy = settlementsCopy.workbench.readiness;

@@ -13,7 +13,8 @@
  */
 
 import type { ApiPaginatedResponse, MappedSingleResult } from "@shared/api";
-import { mapApprovalBlock, type ApprovalDecisionOutcome } from "@features/approvals";
+import { mapApprovalBlock } from "@features/approvals/infrastructure";
+import type { ApprovalDecisionOutcome } from "@features/approvals/domain";
 import type {
   Trip,
   TripListItem,

@@ -1,5 +1,5 @@
-import { useClient } from "@features/clients";
-import { useTrip } from "@features/trips";
+import { useClient } from "@features/clients/application";
+import { useTrip } from "@features/trips/application";
 import type { ClientType } from "@features/clients/domain";
 import type { Invoice } from "../../domain";
 

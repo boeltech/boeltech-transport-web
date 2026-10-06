@@ -1,8 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { financeQueryKeys } from "@features/finance/application";
 import { dashboardQueryKeys } from "@features/dashboard/application/hooks/useDashboard";
-import { invalidateNotificationsQueries } from "@features/notifications";
-import { settlementsQueryKeys } from "@features/settlements/application";
+import { invalidateNotificationsQueries } from "@features/notifications/application";
+// F3 ADR-0102: mover a módulo hoja
+import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import { tripQueryKeys } from "@features/trips/domain";
 import { approvalsQueryKeys } from "./approvalsQueryKeys";
 

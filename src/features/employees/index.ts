@@ -16,7 +16,7 @@ export type {
   CreateEmployeeDTO,
   UpdateEmployeeDTO,
   TerminateEmployeeDTO,
-} from "./domain/entities";
+} from "./domain";
 
 // Application (Hooks)
 export {
@@ -28,7 +28,7 @@ export {
   useAvailableEmployeesForDriver,
   useEmployeeBasic,
   employeeQueryKeys,
-} from "./application/hooks/useEmployees";
+} from "./application";
 
 // Infrastructure
 export { employeeRepository } from "./infrastructure/employeeRepository";

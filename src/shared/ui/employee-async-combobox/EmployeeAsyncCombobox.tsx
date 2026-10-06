@@ -14,8 +14,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
 import { Checkbox } from "@shared/ui/checkbox";
 import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
-import { useEmployees, useEmployeeBasic } from "@features/employees";
-import type { EmployeeListItem } from "@features/employees";
+import { useEmployees, useEmployeeBasic } from "@features/employees/application";
+import type { EmployeeListItem } from "@features/employees/domain";
 import { employeeAsyncComboboxCopy } from "./employeeAsyncComboboxCopy";
 
 const copy = employeeAsyncComboboxCopy;

@@ -13,8 +13,8 @@ import {
 } from "@shared/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@shared/ui/popover";
 import { FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
-import { BranchStatus, useBranch, useBranches } from "@features/branches";
-import type { BranchListItem } from "@features/branches";
+import { useBranch, useBranches } from "@features/branches/application";
+import { BranchStatus, type BranchListItem } from "@features/branches/domain";
 import { branchAsyncComboboxCopy } from "./branchAsyncComboboxCopy";
 
 const copy = branchAsyncComboboxCopy;
