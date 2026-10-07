@@ -17,10 +17,10 @@ function renderView(view: FinanceAnalysisView) {
   switch (view) {
     case "expenses":
       return <ExpenseAnalysisTab />;
-    case "performance":
-      return <PerformanceTab />;
-    default:
+    case "margin":
       return <ProfitabilityTab />;
+    default:
+      return <PerformanceTab />;
   }
 }
 

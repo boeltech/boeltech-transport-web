@@ -1,96 +1,107 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import type { ProfitabilityAggregateItem } from "@features/finance/domain";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ProfitabilityTripsResponse } from "@features/finance/domain";
 import { ProfitabilityKpiCards } from "./ProfitabilityKpiCards";
 
-vi.mock("@shared/ui/data-display", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@shared/ui/data-display")>()),
-  Sparkline: ({ data }: { data: Array<{ value: number }> }) => (
-    <div
-      data-testid="revenue-sparkline"
-      data-values={data.map((point) => point.value).join(",")}
-    />
-  ),
-}));
-
-const baseTrips = {
-  data: [],
-  pagination: { page: 1, limit: 20, total: 2, totalPages: 1 },
-  aggregates: {
-    totalRevenue: 4000,
-    totalActual: 1000,
-    blendedMargin: 3000,
-    blendedMarginPct: 75,
-    totalProjectedRevenue: 3000,
-    totalCancellationLoss: 250,
-    totalCancelledInvoiceRevenue: 0,
-    byProfitabilityStatus: {
-      high: 1,
-      medium: 0,
-      low: 0,
-      breakeven: 0,
-      loss: 0,
-    },
-  },
-};
-
-function monthRow(key: string, totalRevenue: number): ProfitabilityAggregateItem {
+function buildTrips(loss = 0, total = 120): ProfitabilityTripsResponse {
   return {
-    key,
-    label: key,
-    tripCount: 1,
-    totalRevenue,
-    totalActual: 0,
-    blendedMargin: totalRevenue,
-    blendedMarginPct: 100,
+    data: [],
+    pagination: { page: 1, limit: 100, total, totalPages: 2 },
+    aggregates: {
+      totalRevenue: 4000,
+      totalActual: 1000,
+      blendedMargin: 3000,
+      blendedMarginPct: 75,
+      totalProjectedRevenue: 3000,
+      totalCancellationLoss: 250,
+      totalCancelledInvoiceRevenue: 0,
+      byProfitabilityStatus: {
+        high: 1,
+        medium: 0,
+        low: 0,
+        breakeven: 0,
+        loss,
+      },
+    },
   };
 }
 
 describe("ProfitabilityKpiCards", () => {
-  it("shows margin cards for operational scope", () => {
-    render(
-      <ProfitabilityKpiCards scope="operational" trips={baseTrips} />,
-    );
+  it("shows revenue, actual cost, margin $·% and the loss card for operational scope", () => {
+    render(<ProfitabilityKpiCards scope="operational" trips={buildTrips(7)} />);
     expect(screen.getByText("Ingreso")).toBeInTheDocument();
-    expect(screen.getAllByText(/^Margen$/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Gasto real")).toBeInTheDocument();
+    expect(screen.getByText("$3,000.00 · 75.00%")).toBeInTheDocument();
+    const lossCard = screen.getByTestId("profitability-loss-card");
+    expect(within(lossCard).getByText("Viajes con pérdida")).toBeInTheDocument();
+    expect(within(lossCard).getByText("7 de 120")).toBeInTheDocument();
   });
 
-  it("shows projected revenue without margin for pipeline scope", () => {
-    render(<ProfitabilityKpiCards scope="pipeline" trips={baseTrips} />);
-    expect(screen.getByText("Ingreso estimado")).toBeInTheDocument();
-    expect(screen.queryByText(/^Margen$/)).not.toBeInTheDocument();
+  it("no longer shows the «todo el histórico» caption or a sparkline", () => {
+    render(<ProfitabilityKpiCards scope="operational" trips={buildTrips()} />);
+    expect(screen.queryByText(/todo el histórico/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Top 20/)).not.toBeInTheDocument();
   });
 
-  it("shows cancellation loss for cancelled scope", () => {
-    render(<ProfitabilityKpiCards scope="cancelled" trips={baseTrips} />);
-    expect(screen.getByText("Pérdida por cancelación")).toBeInTheDocument();
-    expect(screen.queryByText(/^Margen$/)).not.toBeInTheDocument();
+  it("toggles the loss filter and says it only filters the trips of an opened group", async () => {
+    const user = userEvent.setup();
+    const onLossOnlyChange = vi.fn();
+    const { rerender } = render(
+      <ProfitabilityKpiCards
+        scope="operational"
+        trips={buildTrips(7)}
+        onLossOnlyChange={onLossOnlyChange}
+      />,
+    );
+    const apply = screen.getByRole("button", {
+      name: "Ver solo estos al abrir un grupo",
+    });
+    expect(apply).toHaveAttribute("aria-pressed", "false");
+    await user.click(apply);
+    expect(onLossOnlyChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <ProfitabilityKpiCards
+        scope="operational"
+        trips={buildTrips(7)}
+        lossOnly
+        onLossOnlyChange={onLossOnlyChange}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Quitar filtro" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByText(/solo ves sus viajes con pérdida\. Los totales no cambian/),
+    ).toBeInTheDocument();
   });
 
-  it.each(["operational", "pipeline", "cancelled"] as const)(
-    "says the figures cover all history (%s scope)",
-    (scope) => {
-      render(<ProfitabilityKpiCards scope={scope} trips={baseTrips} />);
-      expect(screen.getByText("Periodo: todo el histórico")).toBeInTheDocument();
-    },
-  );
-
-  it("draws the revenue sparkline in chronological order even if the API sorts by revenue", () => {
+  it("disables the loss filter when there are no loss trips", () => {
     render(
       <ProfitabilityKpiCards
         scope="operational"
-        trips={baseTrips}
-        monthAggregate={[
-          monthRow("2026-01", 100),
-          monthRow("2026-03", 200),
-          monthRow("2025-12", 300),
-          monthRow("2026-02", 400),
-        ]}
+        trips={buildTrips(0)}
+        onLossOnlyChange={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("revenue-sparkline")).toHaveAttribute(
-      "data-values",
-      "300,100,400,200",
-    );
+    expect(
+      screen.getByRole("button", { name: "Ver solo estos al abrir un grupo" }),
+    ).toBeDisabled();
+  });
+
+  it("shows projected revenue without margin nor loss card for pipeline scope", () => {
+    render(<ProfitabilityKpiCards scope="pipeline" trips={buildTrips()} />);
+    expect(screen.getByText("Ingreso estimado")).toBeInTheDocument();
+    expect(screen.queryByText(/^Margen$/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("profitability-loss-card")).not.toBeInTheDocument();
+  });
+
+  it("shows cancellation loss for cancelled scope", () => {
+    render(<ProfitabilityKpiCards scope="cancelled" trips={buildTrips()} />);
+    expect(screen.getByText("Pérdida por cancelación")).toBeInTheDocument();
+    expect(screen.queryByText(/^Margen$/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("profitability-loss-card")).not.toBeInTheDocument();
   });
 });

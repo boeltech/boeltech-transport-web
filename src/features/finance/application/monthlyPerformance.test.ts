@@ -6,7 +6,10 @@ import {
   computeVariation,
   getInProgressPeriod,
   hasAnyPeriodActivity,
+  monthlyPerformanceRequestMonths,
   shiftPeriod,
+  splitCompletedMonths,
+  summarizePerformanceWindow,
   summarizePeriods,
   variationSentiment,
 } from "./monthlyPerformance";
@@ -149,5 +152,76 @@ describe("alignPerformanceMonths", () => {
     expect(alignPerformanceMonths({ periods: [], current: [], previous: [] })).toEqual(
       [],
     );
+  });
+});
+
+describe("monthlyPerformanceRequestMonths", () => {
+  it("asks for the N complete months plus the month in progress", () => {
+    expect(monthlyPerformanceRequestMonths(12)).toBe(13);
+    expect(monthlyPerformanceRequestMonths(6)).toBe(7);
+  });
+});
+
+describe("summarizePerformanceWindow (N5: complete months only)", () => {
+  const data: MonthlyPerformance = {
+    periods: ["2026-08", "2026-09", "2026-10"],
+    current: [
+      period("2026-08", 1000, 400),
+      period("2026-09", 2000, 1000),
+      period("2026-10", 500, 0),
+    ],
+    previous: [
+      period("2025-08", 800, 300),
+      period("2025-09", 1500, 700),
+      period("2025-10", 3000, 1000),
+    ],
+  };
+
+  it("splits the month in progress from the complete months", () => {
+    const { completed, inProgress } = splitCompletedMonths(alignPerformanceMonths(data));
+    expect(completed.map((month) => month.period)).toEqual(["2026-08", "2026-09"]);
+    expect(inProgress?.period).toBe("2026-10");
+  });
+
+  it("totals (current and previous year) leave the month in progress out", () => {
+    const summary = summarizePerformanceWindow(alignPerformanceMonths(data));
+    expect(summary.current).toMatchObject({ revenue: 3000, cost: 1400, margin: 1600 });
+    expect(summary.previous).toMatchObject({ revenue: 2300, cost: 1000, margin: 1300 });
+    expect(summary.current.tripCount).toBe(2);
+    expect(summary.inProgressOnly).toBe(false);
+    expect(summary.canCompare).toBe(true);
+  });
+
+  it("evaluates hasPrevious only on complete months", () => {
+    const onlyInProgressPrevious = summarizePerformanceWindow(
+      alignPerformanceMonths({
+        periods: ["2026-09", "2026-10"],
+        current: [period("2026-09", 1000, 400), period("2026-10", 500, 0)],
+        previous: [period("2025-09", 0, 0), period("2025-10", 3000, 1000)],
+      }),
+    );
+    expect(onlyInProgressPrevious.hasPrevious).toBe(false);
+    expect(onlyInProgressPrevious.canCompare).toBe(false);
+  });
+
+  it("shows the month in progress on its own when no complete month has activity", () => {
+    const summary = summarizePerformanceWindow(
+      alignPerformanceMonths({
+        periods: ["2026-09", "2026-10"],
+        current: [period("2026-09", 0, 0), period("2026-10", 700, 200)],
+        previous: [period("2025-09", 400, 100), period("2025-10", 0, 0)],
+      }),
+    );
+    expect(summary.inProgressOnly).toBe(true);
+    expect(summary.hasCurrent).toBe(true);
+    expect(summary.current).toMatchObject({ revenue: 700, cost: 200, margin: 500 });
+    expect(summary.canCompare).toBe(false);
+  });
+
+  it("reports no activity for an empty window", () => {
+    const summary = summarizePerformanceWindow([]);
+    expect(summary.hasCurrent).toBe(false);
+    expect(summary.inProgress).toBeNull();
+    expect(summary.current.revenue).toBe(0);
   });
 });

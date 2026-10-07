@@ -1,6 +1,6 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
@@ -25,16 +25,17 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
-import { EmptyState } from "@shared/ui/feedback-states";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { useProfitabilityTrips } from "@features/finance/application";
+import {
+  MARGIN_ANALYSIS_DIMENSIONS,
+  useProfitabilityTrips,
+  type MarginAnalysisDimension,
+} from "@features/finance/application";
 import type {
   FinancialBucket,
   ProfitabilityAggregateItem,
-  ProfitabilityDimension,
   ProfitabilityScope,
-  ProfitabilityStatus,
   ProfitabilityTripItem,
   ProfitabilityTripsFilters,
 } from "@features/finance/domain";
@@ -45,13 +46,7 @@ import {
   filterTripsForExpandedGroup,
 } from "../utils/profitabilityExpandTripsFilters";
 
-const DIMENSION_LABELS: Record<ProfitabilityDimension, string> = {
-  client: financeCopy.profitability.filters.dimensions.client,
-  vehicle: financeCopy.profitability.filters.dimensions.vehicle,
-  driver: financeCopy.profitability.filters.dimensions.driver,
-  route: financeCopy.profitability.filters.dimensions.route,
-  month: financeCopy.profitability.filters.dimensions.month,
-};
+const DIMENSION_LABELS = financeCopy.profitability.filters.dimensions;
 
 const FINANCIAL_BUCKET_LABELS: Record<FinancialBucket, string> = {
   realized: financeCopy.profitability.buckets.realized,
@@ -91,13 +86,17 @@ function ProfitabilityRevenueCell({ row }: { row: ProfitabilityTripItem }) {
 
 interface ProfitabilityMasterDetailTableProps {
   scope: ProfitabilityScope;
-  dimension: ProfitabilityDimension;
-  onDimensionChange: (value: ProfitabilityDimension) => void;
-  status: string;
-  onStatusChange: (value: string) => void;
+  dimension: MarginAnalysisDimension;
+  onDimensionChange: (value: MarginAnalysisDimension) => void;
+  /** Periodo de la tabla y de los viajes al abrir un grupo (días civiles CDMX). */
+  from?: string;
+  to?: string;
+  /** Al abrir un grupo, solo sus viajes con pérdida. */
+  lossOnly?: boolean;
   aggregate: ProfitabilityAggregateItem[] | undefined;
   aggregateLoading: boolean;
-  profitabilityStatus: ProfitabilityStatus[] | undefined;
+  /** Estado vacío del periodo (lo arma la vista, que conoce periodo y alcance). */
+  emptyState: ReactNode;
   expandedKey: string | null;
   onExpandedKeyChange: (key: string | null) => void;
   queriesEnabled?: boolean;
@@ -108,12 +107,14 @@ function ProfitabilityTripDetailPanel({
   groupKey,
   filters,
   scope,
+  lossOnly,
   queriesEnabled,
 }: {
-  dimension: ProfitabilityDimension;
+  dimension: MarginAnalysisDimension;
   groupKey: string;
   filters: ProfitabilityTripsFilters;
   scope: ProfitabilityScope;
+  lossOnly: boolean;
   queriesEnabled: boolean;
 }) {
   const { data, isLoading } = useProfitabilityTrips(filters, {
@@ -138,7 +139,9 @@ function ProfitabilityTripDetailPanel({
   if (rows.length === 0) {
     return (
       <p className="px-4 py-3 text-sm text-muted-foreground">
-        {financeCopy.profitability.masterDetail.detailEmpty}
+        {lossOnly
+          ? financeCopy.profitability.masterDetail.detailEmptyLoss
+          : financeCopy.profitability.masterDetail.detailEmpty}
       </p>
     );
   }
@@ -280,24 +283,28 @@ export function ProfitabilityMasterDetailTable({
   scope,
   dimension,
   onDimensionChange,
-  status,
-  onStatusChange,
+  from,
+  to,
+  lossOnly = false,
   aggregate,
   aggregateLoading,
-  profitabilityStatus,
+  emptyState,
   expandedKey,
   onExpandedKeyChange,
   queriesEnabled = true,
 }: ProfitabilityMasterDetailTableProps) {
+  const expandContext = useMemo(
+    () => ({ scope, from, to, lossOnly }),
+    [from, lossOnly, scope, to],
+  );
   const expandedFilters = useMemo(() => {
     if (!expandedKey) return null;
     return buildProfitabilityTripsFiltersForExpand(
       dimension,
       expandedKey,
-      profitabilityStatus,
-      scope,
+      expandContext,
     );
-  }, [dimension, expandedKey, profitabilityStatus, scope]);
+  }, [dimension, expandContext, expandedKey]);
 
   const items = aggregate ?? [];
   const showEmpty = !aggregateLoading && items.length === 0;
@@ -305,51 +312,6 @@ export function ProfitabilityMasterDetailTable({
   const toggleRow = (key: string) => {
     onExpandedKeyChange(expandedKey === key ? null : key);
   };
-
-  const filterControls = (
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <Select
-        value={status}
-        onValueChange={onStatusChange}
-      >
-        <SelectTrigger
-          className="w-[180px]"
-          aria-label={financeCopy.profitability.filters.statusPlaceholder}
-        >
-          <SelectValue placeholder={financeCopy.profitability.filters.statusPlaceholder} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{financeCopy.profitability.filters.allStatuses}</SelectItem>
-          {(
-            Object.keys(financeCopy.profitability.statuses) as ProfitabilityStatus[]
-          ).map((key) => (
-            <SelectItem key={key} value={key}>
-              {financeCopy.profitability.statuses[key]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={dimension}
-        onValueChange={(value) => onDimensionChange(value as ProfitabilityDimension)}
-      >
-        <SelectTrigger
-          className="w-[180px]"
-          aria-label={financeCopy.profitability.filters.dimensionPlaceholder}
-        >
-          <SelectValue placeholder={financeCopy.profitability.filters.dimensionPlaceholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(DIMENSION_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
 
   return (
     <Card>
@@ -359,8 +321,38 @@ export function ProfitabilityMasterDetailTable({
           <CardDescription>
             {financeCopy.profitability.aggregateTable.description}
           </CardDescription>
+          {lossOnly ? (
+            <p
+              role="status"
+              className="flex items-center gap-1.5 text-xs font-medium text-destructive"
+            >
+              <Filter className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {financeCopy.profitability.aggregateTable.lossFilterNote}
+            </p>
+          ) : null}
         </div>
-        {filterControls}
+        <Select
+          value={dimension}
+          onValueChange={(value) =>
+            onDimensionChange(value as MarginAnalysisDimension)
+          }
+        >
+          <SelectTrigger
+            className="w-[180px]"
+            aria-label={financeCopy.profitability.filters.dimensionPlaceholder}
+          >
+            <SelectValue
+              placeholder={financeCopy.profitability.filters.dimensionPlaceholder}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {MARGIN_ANALYSIS_DIMENSIONS.map((value) => (
+              <SelectItem key={value} value={value}>
+                {DIMENSION_LABELS[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </CardHeader>
       <CardContent>
         {aggregateLoading ? (
@@ -370,11 +362,7 @@ export function ProfitabilityMasterDetailTable({
             ))}
           </div>
         ) : showEmpty ? (
-          <EmptyState
-            icon={<TrendingUp className="h-10 w-10 text-muted-foreground" />}
-            title={financeCopy.profitability.empty.title}
-            description={financeCopy.profitability.empty.description}
-          />
+          emptyState
         ) : (
           <div className="overflow-hidden rounded-md border">
             <Table>
@@ -407,8 +395,7 @@ export function ProfitabilityMasterDetailTable({
                   buildProfitabilityTripsFiltersForExpand(
                     dimension,
                     item.key,
-                    profitabilityStatus,
-                    scope,
+                    expandContext,
                   ),
                 );
 
@@ -464,6 +451,7 @@ export function ProfitabilityMasterDetailTable({
                             groupKey={item.key}
                             filters={expandedFilters}
                             scope={scope}
+                            lossOnly={lossOnly}
                             queriesEnabled={queriesEnabled}
                           />
                         </TableCell>

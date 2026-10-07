@@ -30,7 +30,7 @@ export function ProfitabilityScopeToolbar({
       <div className="space-y-0.5">
         <p className="text-sm font-medium">{financeCopy.profitability.scope.label}</p>
         <p className="text-xs text-muted-foreground">
-          Delimita qué viajes alimentan KPIs, gráficos y tabla.
+          {financeCopy.profitability.scopeHint}
         </p>
       </div>
       <Select

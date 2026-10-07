@@ -2,6 +2,7 @@ import {
   computeMarginPct,
   computeVariation,
   type AlignedPerformanceMonth,
+  type PerformanceWindowSummary,
   type Variation,
 } from "@features/finance/application";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
@@ -67,16 +68,22 @@ export interface PerformanceChartRow {
   revenue: number;
   cost: number;
   marginPct: number | null;
-  previousRevenue: number;
-  previousCost: number;
+  /** `null` en el mes en curso: no se dibuja contra el año anterior. */
+  previousRevenue: number | null;
+  previousCost: number | null;
   previousMarginPct: number | null;
 }
 
-/** Filas de ambas gráficas; el eje X va por `period` (`YYYY-MM`). */
+/**
+ * Filas de ambas gráficas; el eje X va por `period` (`YYYY-MM`).
+ * El mes en curso no lleva año anterior: sin barras claras y la línea punteada
+ * de margen termina en el último mes completo.
+ */
 export function buildPerformanceChartRows(
   months: readonly AlignedPerformanceMonth[],
 ): PerformanceChartRow[] {
   return months.map((month) => {
+    const withPrevious = !month.isInProgress;
     return {
       period: month.period,
       revenue: month.current.actualRevenue,
@@ -85,14 +92,35 @@ export function buildPerformanceChartRows(
         month.current.actualMargin,
         month.current.actualRevenue,
       ),
-      previousRevenue: month.previous.actualRevenue,
-      previousCost: month.previous.actualCost,
-      previousMarginPct: computeMarginPct(
-        month.previous.actualMargin,
-        month.previous.actualRevenue,
-      ),
+      previousRevenue: withPrevious ? month.previous.actualRevenue : null,
+      previousCost: withPrevious ? month.previous.actualCost : null,
+      previousMarginPct: withPrevious
+        ? computeMarginPct(month.previous.actualMargin, month.previous.actualRevenue)
+        : null,
     };
   });
+}
+
+/**
+ * Rótulo sobre los KPI: «Totales de oct 2025 a sep 2026 · 12 meses completos.
+ * oct 2026 va en curso…», o el modo «solo mes en curso».
+ */
+export function formatPerformancePeriodNote(
+  summary: Pick<PerformanceWindowSummary, "completed" | "inProgress" | "inProgressOnly">,
+): string {
+  const { completed, inProgress, inProgressOnly } = summary;
+  if (inProgressOnly && inProgress) {
+    return copy.periodNote.inProgressOnly(formatPerformanceMonth(inProgress.period));
+  }
+  if (completed.length === 0) return "";
+  const range = copy.rangeLabel(
+    formatPerformanceMonth(completed[0]!.period),
+    formatPerformanceMonth(completed.at(-1)!.period),
+  );
+  const completedNote = copy.periodNote.completed(range, completed.length);
+  return inProgress
+    ? `${completedNote}${copy.periodNote.inProgress(formatPerformanceMonth(inProgress.period))}`
+    : completedNote;
 }
 
 function roundTo2(value: number): number {
@@ -119,11 +147,12 @@ export function buildMonthlyPerformanceCsv(
   options: { compare: boolean },
 ): CsvTable {
   const c = copy.csv;
-  const baseHeaders = [c.month, c.revenue, c.cost, c.margin, c.marginPct, c.trips];
+  const amountHeaders = [c.revenue, c.cost, c.margin, c.marginPct, c.trips];
+  const baseHeaders = [c.month, c.status, ...amountHeaders];
   const headers = options.compare
     ? [
         ...baseHeaders,
-        ...baseHeaders.map((header) => `${header}${c.previousSuffix}`),
+        ...[c.month, ...amountHeaders].map((header) => `${header}${c.previousSuffix}`),
         c.revenueVariationPct,
         c.costVariationPct,
         c.marginVariationPct,
@@ -134,6 +163,7 @@ export function buildMonthlyPerformanceCsv(
     const { current, previous } = month;
     const base: Array<string | number> = [
       current.period,
+      month.isInProgress ? c.statusInProgress : c.statusCompleted,
       current.actualRevenue,
       current.actualCost,
       current.actualMargin,
@@ -141,6 +171,13 @@ export function buildMonthlyPerformanceCsv(
       current.tripCount,
     ];
     if (!options.compare) return base;
+    const variations = month.isInProgress
+      ? ["", "", ""]
+      : [
+          csvVariation(computeVariation(current.actualRevenue, previous.actualRevenue)),
+          csvVariation(computeVariation(current.actualCost, previous.actualCost)),
+          csvVariation(computeVariation(current.actualMargin, previous.actualMargin)),
+        ];
     return [
       ...base,
       previous.period,
@@ -149,9 +186,7 @@ export function buildMonthlyPerformanceCsv(
       previous.actualMargin,
       csvPct(computeMarginPct(previous.actualMargin, previous.actualRevenue)),
       previous.tripCount,
-      csvVariation(computeVariation(current.actualRevenue, previous.actualRevenue)),
-      csvVariation(computeVariation(current.actualCost, previous.actualCost)),
-      csvVariation(computeVariation(current.actualMargin, previous.actualMargin)),
+      ...variations,
     ];
   });
 

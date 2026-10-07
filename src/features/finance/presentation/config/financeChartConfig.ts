@@ -44,42 +44,7 @@ export const FINANCE_AGING_SERIES: ChartSeries[] = [
   },
 ];
 
-export const FINANCE_PROFITABILITY_MONTHLY_SERIES: ChartSeries[] = [
-  {
-    dataKey: "revenue",
-    label: financeCopy.profitability.table.revenue,
-    token: "chart-1",
-  },
-  {
-    dataKey: "actual",
-    label: financeCopy.profitability.table.actualTotal,
-    token: "chart-3",
-  },
-];
-
-export const FINANCE_PROFITABILITY_COMBO_SERIES = [
-  {
-    dataKey: "revenue",
-    label: financeCopy.profitability.table.revenue,
-    token: "chart-1" as const,
-    type: "bar" as const,
-  },
-  {
-    dataKey: "actual",
-    label: financeCopy.profitability.table.actualTotal,
-    token: "chart-3" as const,
-    type: "bar" as const,
-  },
-  {
-    dataKey: "marginPct",
-    label: financeCopy.profitability.table.marginPct,
-    token: "success" as const,
-    type: "line" as const,
-    yAxisId: "right" as const,
-  },
-];
-
-/** Vista Rendimiento: el año anterior se dibuja con el mismo token, atenuado. */
+/** Vista Mes a mes: el año anterior se dibuja con el mismo token, atenuado. */
 export const PERFORMANCE_PREVIOUS_OPACITY = 0.35;
 
 export const PERFORMANCE_CHART_SYNC_ID = "finance-performance-monthly";
@@ -141,31 +106,4 @@ export function buildPerformanceMarginSeries(compare: boolean): ComboChartSeries
     },
     marginPct,
   ];
-}
-
-export const FINANCE_BUCKET_BAR_SEGMENT_KEYS = [
-  { key: "realized", token: "success" as const },
-  { key: "pipeline", token: "info" as const },
-  { key: "in_progress", token: "warning" as const },
-  { key: "cancellation_loss", token: "destructive" as const },
-] as const;
-
-export function buildFinanceBucketBarSegments(values: {
-  realized: number;
-  pipeline: number;
-  inProgress: number;
-  cancellationLoss: number;
-}) {
-  const map: Record<string, number> = {
-    realized: values.realized,
-    pipeline: values.pipeline,
-    in_progress: values.inProgress,
-    cancellation_loss: values.cancellationLoss,
-  };
-  return FINANCE_BUCKET_BAR_SEGMENT_KEYS.map(({ key, token }) => ({
-    key,
-    label: financeCopy.profitability.buckets[key],
-    value: map[key] ?? 0,
-    token,
-  }));
 }

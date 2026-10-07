@@ -2,17 +2,21 @@ const exportCopy = {
   exportCsv: "Exportar CSV",
   toasts: {
     exportedTitle: "Archivo exportado",
-    profitability: "Margen por viaje (CSV).",
+    profitability: "Muestra de viajes con su margen (CSV).",
     profitabilityTruncated: (exported: number, total: number) =>
       `Muestra de ${exported} de ${total} viajes (CSV).`,
-    performance: "Rendimiento mes a mes (CSV).",
+    profitabilityGrouped: (groupLabel: string) =>
+      `Rentabilidad por ${groupLabel.toLowerCase()} (CSV).`,
+    performance: "Cifras mes a mes (CSV).",
     aging: "Antigüedad de saldos por cliente (CSV).",
     expenses: (groupLabel: string) =>
       `Gastos por ${groupLabel.toLowerCase()} (CSV).`,
   },
   files: {
     profitability: "finance-margen",
-    performance: "finance-rendimiento",
+    /** Prefijo + slug de agrupación (cliente|ruta|unidad|operador). */
+    profitabilityGroupedPrefix: "finance-rentabilidad",
+    performance: "finance-mes-a-mes",
     aging: "finance-antiguedad",
     /** Prefijo + slug de agrupación (unidad|operador|cliente|ruta). */
     expensesPrefix: "finance-gastos",
@@ -257,7 +261,7 @@ export const financeCopy = {
       analysis: {
         title: "Análisis",
         subtitle:
-          "Margen por viaje, concentración de gastos y rendimiento mes a mes contra el año anterior.",
+          "Cómo vas mes a mes contra el año anterior, quién te deja margen (cliente, ruta, unidad u operador) y en qué se va el gasto.",
       },
       approvals: {
         title: "Aprobaciones",
@@ -265,9 +269,9 @@ export const financeCopy = {
       },
     },
     analysisViews: {
-      margin: "Margen",
+      performance: "Mes a mes",
+      margin: "Rentabilidad",
       expenses: "Gastos",
-      performance: "Rendimiento",
       ariaLabel: "Tipo de análisis",
     },
     clearFilters: "Limpiar filtros",
@@ -518,17 +522,11 @@ export const financeCopy = {
       cancelled: "Cancelados",
       all: "Todos",
     },
-    periodNote: "Periodo: todo el histórico",
+    scopeHint: "Delimita qué viajes alimentan los totales y la tabla.",
     context: {
-      heading: "Fuera de operación · no incluido en el margen",
-      projected: "Ingreso estimado",
       projectedHint: "Ingreso estimado de viajes en Reserva y Programados.",
-      cancellationLoss: "Pérdida por cancelaciones",
       cancellationLossHint:
         "Gastos aprobados de viajes cancelados (no incluye facturas canceladas).",
-      cancelledInvoiceRevenue: "Ingreso no reconocido (factura cancelada)",
-      cancelledInvoiceRevenueHint:
-        "Subtotales acumulados de facturas canceladas vinculadas a viajes.",
     },
     buckets: {
       realized: "Realizado",
@@ -536,51 +534,40 @@ export const financeCopy = {
       pipeline: "Estimado",
       cancellation_loss: "Cancelación",
     },
-    bucketBar: {
-      title: "Composición financiera",
-      description:
-        "Distribución global de ingresos reconocidos, estimado, gasto en curso y pérdidas por cancelación.",
-      footer: "Los segmentos fuera de realizado no entran en el margen operativo.",
-      emptyDescription: "No hay datos de composición financiera.",
-    },
-    barList: {
-      title: "Top grupos",
-      description:
-        "Ranking de los cinco grupos con mayor métrica según el alcance activo.",
-      emptyDescription: "No hay agregados para mostrar ranking.",
-    },
     metrics: {
+      ariaLabel: "Totales del periodo",
       totalRevenue: "Ingreso",
-      totalRevenueHint:
-        "Importe de factura emitida o tarifa del viaje (sin impuestos).",
       projectedRevenue: "Ingreso estimado",
       cancellationLoss: "Pérdida por cancelación",
       tripCount: "Viajes",
       totalActual: "Gasto real",
+      totalActualHint: "Gastos aprobados de esos viajes",
       blendedMargin: "Margen",
       blendedMarginHint: "Ingreso menos gasto real",
-      blendedMarginPct: "Margen %",
-      tripSample: {
-        title: "Viajes en muestra",
-        subtitle: "Top 20 por margen % con filtros actuales",
-      },
+      shareOfRevenue: (pct: string) => `${pct} del ingreso`,
+    },
+    lossCard: {
+      title: "Viajes con pérdida",
+      value: (loss: number, total: number) =>
+        `${loss.toLocaleString("es-MX")} de ${total.toLocaleString("es-MX")}`,
+      hint: "Al abrir un grupo de la tabla, puedes ver solo estos viajes.",
+      activeHint:
+        "Filtro activo: al abrir un grupo solo ves sus viajes con pérdida. Los totales no cambian.",
+      apply: "Ver solo estos al abrir un grupo",
+      remove: "Quitar filtro",
     },
     filters: {
-      statusPlaceholder: "Filtrar por rentabilidad",
-      allStatuses: "Todas",
       dimensionPlaceholder: "Agrupar por",
       chipScope: (value: string) =>
         `Alcance: ${financeCopy.profitability.scope[value as keyof typeof financeCopy.profitability.scope] ?? value}`,
       chipDimension: (value: string) =>
         `Agrupar por: ${financeCopy.profitability.filters.dimensions[value as keyof typeof financeCopy.profitability.filters.dimensions] ?? value}`,
-      chipStatus: (value: string) =>
-        `Rentabilidad: ${financeCopy.profitability.statuses[value as keyof typeof financeCopy.profitability.statuses] ?? value}`,
+      chipLossFilter: () => "Viajes del grupo: solo con pérdida",
       dimensions: {
         client: "Cliente",
+        route: "Ruta",
         vehicle: "Unidad",
         driver: "Operador",
-        route: "Ruta",
-        month: "Mes",
       },
     },
     table: {
@@ -600,9 +587,10 @@ export const financeCopy = {
         `Factura cancelada: ${amount}`,
     },
     aggregateTable: {
-      title: "Margen por grupo",
+      title: "¿Quién te deja margen?",
       description:
-        "Agregados por cliente, unidad, operador, ruta o mes. Expande una fila para ver viajes del grupo; el código de viaje abre su detalle.",
+        "Totales por cliente, ruta, unidad u operador, de mayor a menor margen. Abre una fila para ver sus viajes; el código de viaje abre su detalle.",
+      lossFilterNote: "Al abrir un grupo solo se muestran sus viajes con pérdida.",
       trips: "Viajes",
       revenue: "Ingreso",
       actualTotal: "Gasto real",
@@ -613,11 +601,26 @@ export const financeCopy = {
       expandRow: "Ver viajes del grupo",
       collapseRow: "Ocultar viajes del grupo",
       detailEmpty: "Sin viajes en este grupo para los filtros actuales.",
+      detailEmptyLoss: "Este grupo no tiene viajes con pérdida en el periodo.",
       viewTrip: (tripCode: string) => `Ver detalle del viaje ${tripCode}`,
     },
     empty: {
-      title: "Sin viajes para margen",
-      description: "No hay viajes que cumplan los filtros actuales.",
+      periodTitle: (from: string, to: string) =>
+        `Sin viajes completados entre ${from} y ${to}`,
+      periodDescription:
+        "Prueba con un periodo más amplio o revisa el mes a mes.",
+      absoluteTitle: "Sin viajes completados en los últimos 12 meses",
+      absoluteDescription:
+        "Cuando completes viajes, aquí verás qué clientes, rutas, unidades y operadores te dejan margen.",
+      pipelineTitle: "Sin viajes por iniciar en el periodo",
+      pipelineDescription:
+        "No hay viajes en Reserva ni Programados con salida en este periodo.",
+      cancelledTitle: "Sin viajes cancelados en el periodo",
+      cancelledDescription: "No hay viajes cancelados con salida en este periodo.",
+      allTitle: "Sin viajes en el periodo",
+      allDescription: "No hay viajes con salida en este periodo.",
+      widenPeriod: "Ampliar a 12 meses",
+      viewPerformance: "Ver mes a mes",
     },
     statuses: {
       high: "Alta",
@@ -626,23 +629,34 @@ export const financeCopy = {
       breakeven: "Equilibrio",
       loss: "Pérdida",
     },
-    charts: {
-      empty: {
-        title: "Sin datos para graficar",
-      },
-      monthlyTrend: {
-        title: "Ingreso vs gasto real por mes",
-        description: "Tendencia mensual de margen agregado",
-        comboDescription:
-          "Barras: ingreso y gasto. Línea: margen % (solo viajes realizados).",
-        footer: (monthCount: number) =>
-          monthCount > 0
-            ? `${monthCount} mes(es) en la serie`
-            : "Sin meses con datos de margen",
-        emptyDescription: "No hay agregados mensuales para mostrar.",
-      },
+    exportMenu: {
+      trigger: "Exportar CSV",
+      grouped: (groupLabel: string) =>
+        `Tabla por ${groupLabel.toLowerCase()} del periodo`,
+      trips: (limit: number) => `Muestra de viajes (máx. ${limit})`,
     },
-    exportCsv: "Exportar muestra (CSV)",
+  },
+  /** Periodo compartido por Rentabilidad y Gastos. */
+  analysisPeriod: {
+    label: "Periodo",
+    options: {
+      this_month: "Este mes",
+      last_3: "Últimos 3 meses",
+      last_6: "Últimos 6 meses",
+      last_12: "Últimos 12 meses",
+      custom: "Personalizado",
+    },
+    customHeading: "Rango de fechas",
+    customPlaceholder: "Elegir fechas",
+    caption: (rangeLabel: string, detail?: string) =>
+      detail ? `Periodo: ${rangeLabel} · ${detail}` : `Periodo: ${rangeLabel}`,
+    completedMonths: (months: number) =>
+      `${months} ${months === 1 ? "mes completo" : "meses completos"}`,
+    currentMonth: "mes en curso",
+    rangeLabel: (from: string, to: string) =>
+      from === to ? from : `${from} a ${to}`,
+    since: (from: string) => `desde ${from}`,
+    until: (to: string) => `hasta ${to}`,
   },
   expenses: {
     alert: {
@@ -658,6 +672,7 @@ export const financeCopy = {
     },
     metrics: {
       totalExpense: "Gasto total",
+      totalExpenseHint: "Total del periodo",
       topConcentration: {
         title: "Mayor concentración",
         empty: "Sin agrupación con gasto",
@@ -675,11 +690,7 @@ export const financeCopy = {
         `Ver por: ${financeCopy.expenses.filters.granularityValues[value as keyof typeof financeCopy.expenses.filters.granularityValues] ?? value}`,
       chipDimension: (value: string) =>
         `Agrupar por: ${financeCopy.expenses.filters.dimensionValues[value as keyof typeof financeCopy.expenses.filters.dimensionValues] ?? value}`,
-      chipFrom: (value: string) => `Desde: ${value}`,
-      chipTo: (value: string) => `Hasta: ${value}`,
       chipVehicle: "Unidad seleccionada",
-      dateRangeHeading: "Rango de fechas",
-      dateRangePlaceholder: "Seleccionar fechas",
       dimension: "Agrupar por",
       dimensionValues: {
         vehicle: "Unidad",
@@ -752,6 +763,16 @@ export const financeCopy = {
       `Aún no hay datos de ${rangeLabel} para comparar.`,
     rangeLabel: (from: string, to: string) =>
       from === to ? from : `${from} a ${to}`,
+    periodNote: {
+      completed: (rangeLabel: string, months: number) =>
+        `Totales de ${rangeLabel} · ${months} ${months === 1 ? "mes completo" : "meses completos"}.`,
+      inProgress: (month: string) =>
+        ` ${month} va en curso y se suma al terminar el mes.`,
+      inProgressOnly: (month: string) =>
+        `${month} (en curso) · aún no hay meses completos para sumar ni comparar.`,
+    },
+    operationalNote:
+      "Cifras de la operación para decidir tarifas y flota. No son las cifras de tu contabilidad ni de tus declaraciones.",
     kpis: {
       ariaLabel: "Totales del rango",
       revenue: "Ingreso",
@@ -782,7 +803,7 @@ export const financeCopy = {
       marginLegendAriaLabel: "Leyenda de margen %",
       inProgressSuffix: "(en curso)",
       inProgressNote: (month: string) =>
-        `${month} sigue en curso: sus cifras pueden cambiar hasta que cierre el mes.`,
+        `${month} sigue en curso: sus cifras pueden subir mientras se completan viajes y se aprueban gastos. No se suma a los totales ni se compara con el año anterior hasta que termine.`,
       legend: {
         revenue: "Ingreso",
         cost: "Gasto",
@@ -797,10 +818,15 @@ export const financeCopy = {
       cost: "Gasto",
       margin: "Margen",
       marginPct: "Margen %",
+      inProgressNote: (previousMonth: string) =>
+        `Se compara con ${previousMonth} cuando termine el mes.`,
     },
     table: {
       title: "Cifras por mes",
-      description: "Montos exactos de cada mes del rango.",
+      description:
+        "Montos exactos de cada mes. El último mes va en curso. Abre un mes para ver su rentabilidad por cliente, ruta, unidad u operador.",
+      inProgressComparison: "Se compara cuando termine el mes",
+      openMonthAria: (month: string) => `Ver rentabilidad de ${month}`,
       month: "Mes",
       revenue: "Ingreso",
       cost: "Gasto",
@@ -824,6 +850,9 @@ export const financeCopy = {
     exportCsv: "Exportar CSV",
     csv: {
       month: "mes",
+      status: "estado",
+      statusCompleted: "completo",
+      statusInProgress: "en_curso",
       revenue: "ingreso",
       cost: "gasto",
       margin: "margen",

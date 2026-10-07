@@ -58,4 +58,34 @@ describe("PerformanceKpiCards", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
     expect(document.body.textContent).not.toMatch(/Infinity|NaN/);
   });
+
+  it("shows the period caption above the KPIs", () => {
+    const note =
+      "Totales de oct 2025 a sep 2026 · 12 meses completos. oct 2026 va en curso y se suma al terminar el mes.";
+    render(
+      <PerformanceKpiCards
+        current={current}
+        previous={previous}
+        compare
+        periodNote={note}
+      />,
+    );
+    expect(screen.getByText(note)).toBeInTheDocument();
+  });
+
+  it("in «only the month in progress» mode shows its amounts without comparison nor $0.00", () => {
+    const note = "oct 2026 (en curso) · aún no hay meses completos para sumar ni comparar.";
+    render(
+      <PerformanceKpiCards
+        current={{ revenue: 700, cost: 200, margin: 500, marginPct: 71.43, tripCount: 2 }}
+        previous={{ revenue: 0, cost: 0, margin: 0, marginPct: null, tripCount: 0 }}
+        compare={false}
+        periodNote={note}
+      />,
+    );
+    expect(screen.getByText(note)).toBeInTheDocument();
+    expect(screen.getByText("$700.00")).toBeInTheDocument();
+    expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
+    expect(screen.queryByText(/año anterior/)).not.toBeInTheDocument();
+  });
 });

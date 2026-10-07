@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   alignPerformanceMonths,
   computeVariation,
+  shiftPeriod,
+  summarizePerformanceWindow,
 } from "@features/finance/application";
 import type { MonthlyPerformance } from "@features/finance/domain";
 import {
   buildMonthlyPerformanceCsv,
   buildPerformanceChartRows,
   formatPerformanceMonth,
+  formatPerformancePeriodNote,
   formatPerformanceMonthWithStatus,
   formatVariationDetail,
   formatVariationPct,
@@ -97,17 +100,76 @@ describe("buildPerformanceChartRows", () => {
     expect(rows.map((row) => row.period)).toEqual(["2025-12", "2026-01"]);
     expect(rows[0]?.marginPct).toBe(40);
     expect(rows[0]?.previousMarginPct).toBe(37.5);
-    expect(rows[1]?.previousMarginPct).toBeNull();
+    expect(rows[0]?.previousRevenue).toBe(800);
+  });
+
+  it("draws no previous-year values for the in-progress month (last API period)", () => {
+    const rows = buildPerformanceChartRows(alignPerformanceMonths(data));
+    expect(rows[1]).toMatchObject({
+      period: "2026-01",
+      revenue: 500,
+      previousRevenue: null,
+      previousCost: null,
+      previousMarginPct: null,
+    });
+  });
+});
+
+describe("formatPerformancePeriodNote", () => {
+  it("names the complete months and the month in progress", () => {
+    const summary = summarizePerformanceWindow(alignPerformanceMonths(data));
+    expect(formatPerformancePeriodNote(summary)).toBe(
+      "Totales de dic 2025 · 1 mes completo. ene 2026 va en curso y se suma al terminar el mes.",
+    );
+  });
+
+  it("matches the PRD wording for a 12-month window", () => {
+    const periods = Array.from({ length: 13 }, (_, index) =>
+      shiftPeriod("2025-10", index),
+    );
+    const summary = summarizePerformanceWindow(
+      alignPerformanceMonths({
+        periods,
+        current: periods.map((period) => ({
+          period,
+          actualRevenue: 100,
+          actualCost: 50,
+          actualMargin: 50,
+          tripCount: 1,
+        })),
+        previous: [],
+      }),
+    );
+    expect(formatPerformancePeriodNote(summary)).toBe(
+      "Totales de oct 2025 a sep 2026 · 12 meses completos. oct 2026 va en curso y se suma al terminar el mes.",
+    );
+  });
+
+  it("explains when only the month in progress has activity", () => {
+    const summary = summarizePerformanceWindow(
+      alignPerformanceMonths({
+        periods: ["2026-09", "2026-10"],
+        current: [
+          { period: "2026-09", actualRevenue: 0, actualCost: 0, actualMargin: 0, tripCount: 0 },
+          { period: "2026-10", actualRevenue: 700, actualCost: 200, actualMargin: 500, tripCount: 2 },
+        ],
+        previous: [],
+      }),
+    );
+    expect(formatPerformancePeriodNote(summary)).toBe(
+      "oct 2026 (en curso) · aún no hay meses completos para sumar ni comparar.",
+    );
   });
 });
 
 describe("buildMonthlyPerformanceCsv", () => {
   const months = alignPerformanceMonths(data);
 
-  it("exports the current range only when comparison is off", () => {
+  it("exports the current range with an «estado» column when comparison is off", () => {
     const csv = buildMonthlyPerformanceCsv(months, { compare: false });
     expect(csv.headers).toEqual([
       "mes",
+      "estado",
       "ingreso",
       "gasto",
       "margen",
@@ -115,15 +177,16 @@ describe("buildMonthlyPerformanceCsv", () => {
       "viajes",
     ]);
     expect(csv.rows).toEqual([
-      ["2025-12", 1000, 600, 400, 40, 2],
-      ["2026-01", 500, 0, 500, 100, 1],
+      ["2025-12", "completo", 1000, 600, 400, 40, 2],
+      ["2026-01", "en_curso", 500, 0, 500, 100, 1],
     ]);
   });
 
-  it("adds previous-year columns and variation % when comparison is on", () => {
+  it("adds previous-year columns and leaves variation empty for the month in progress", () => {
     const csv = buildMonthlyPerformanceCsv(months, { compare: true });
     expect(csv.headers).toEqual([
       "mes",
+      "estado",
       "ingreso",
       "gasto",
       "margen",
@@ -141,6 +204,7 @@ describe("buildMonthlyPerformanceCsv", () => {
     ]);
     expect(csv.rows[0]).toEqual([
       "2025-12",
+      "completo",
       1000,
       600,
       400,
@@ -158,6 +222,7 @@ describe("buildMonthlyPerformanceCsv", () => {
     ]);
     expect(csv.rows[1]).toEqual([
       "2026-01",
+      "en_curso",
       500,
       0,
       500,
@@ -169,9 +234,29 @@ describe("buildMonthlyPerformanceCsv", () => {
       0,
       "",
       0,
-      "nuevo",
       "",
-      "nuevo",
+      "",
+      "",
     ]);
+  });
+
+  it("never exports −100 % (or any variation) for the month in progress", () => {
+    const inProgressWithPrevious = alignPerformanceMonths({
+      periods: ["2026-09", "2026-10"],
+      current: [
+        { period: "2026-09", actualRevenue: 900, actualCost: 300, actualMargin: 600, tripCount: 3 },
+        { period: "2026-10", actualRevenue: 0, actualCost: 0, actualMargin: 0, tripCount: 0 },
+      ],
+      previous: [
+        { period: "2025-09", actualRevenue: 800, actualCost: 200, actualMargin: 600, tripCount: 2 },
+        { period: "2025-10", actualRevenue: 1000, actualCost: 400, actualMargin: 600, tripCount: 4 },
+      ],
+    });
+    const csv = buildMonthlyPerformanceCsv(inProgressWithPrevious, { compare: true });
+    const lastRow = csv.rows.at(-1)!;
+    expect(lastRow[1]).toBe("en_curso");
+    expect(lastRow.slice(-3)).toEqual(["", "", ""]);
+    expect(lastRow).toContain(1000);
+    expect(lastRow).not.toContain(-100);
   });
 });

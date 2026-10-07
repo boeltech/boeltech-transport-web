@@ -35,7 +35,7 @@ export const reportsCopy = {
       margin: {
         title: "Rentabilidad y margen",
         description:
-          "Compara margen operativo del mes y revisa la tendencia mensual de ingreso vs gasto real.",
+          "Qué clientes, rutas, unidades y operadores te dejan margen en el periodo que elijas (por defecto, los últimos 12 meses completos).",
       },
       receivables: {
         title: "Cartera y cobranza",

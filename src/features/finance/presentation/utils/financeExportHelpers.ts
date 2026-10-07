@@ -1,15 +1,78 @@
-import type { AlignedPerformanceMonth } from "@features/finance/application";
+import type {
+  AlignedPerformanceMonth,
+  MarginAnalysisDimension,
+} from "@features/finance/application";
 import type {
   AgingByClientItem,
   ExpensesByDimensionItem,
+  ProfitabilityAggregateItem,
+  ProfitabilityScope,
   ProfitabilityTripItem,
 } from "@features/finance/domain";
+import { getTodayString } from "@shared/utils/dateUtils";
 import { downloadCsv } from "@shared/utils/exportCsv";
 import { financeCopy } from "../copy";
 import { buildMonthlyPerformanceCsv } from "./monthlyPerformanceFormat";
 
 function nowDateKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getTodayString();
+}
+
+export interface ProfitabilityAggregateCsvContext {
+  dimension: MarginAnalysisDimension;
+  scope: ProfitabilityScope;
+  from?: string;
+  to?: string;
+}
+
+/** Tabla agrupada visible (dimensión + periodo), completa y en el orden de pantalla. */
+export function buildProfitabilityAggregateCsv(
+  items: readonly ProfitabilityAggregateItem[],
+  { dimension, scope, from = "", to = "" }: ProfitabilityAggregateCsvContext,
+): { headers: string[]; rows: (string | number | null)[][] } {
+  return {
+    headers: [
+      "dimension",
+      "scope",
+      "from",
+      "to",
+      "key",
+      "label",
+      "trip_count",
+      "total_revenue",
+      "total_actual",
+      "blended_margin",
+      "blended_margin_pct",
+    ],
+    rows: items.map((item) => [
+      dimension,
+      scope,
+      from,
+      to,
+      item.key,
+      item.label,
+      item.tripCount,
+      item.totalRevenue,
+      item.totalActual,
+      item.blendedMargin,
+      item.blendedMarginPct,
+    ]),
+  };
+}
+
+export function exportProfitabilityAggregateCsv(
+  items: readonly ProfitabilityAggregateItem[],
+  context: ProfitabilityAggregateCsvContext,
+): void {
+  const slug = financeCopy.expenses.filters.exportFileSlug[context.dimension];
+  const periodKey =
+    context.from && context.to ? `${context.from}_${context.to}` : nowDateKey();
+  const { headers, rows } = buildProfitabilityAggregateCsv(items, context);
+  downloadCsv(
+    `${financeCopy.exports.files.profitabilityGroupedPrefix}-${slug}-${periodKey}.csv`,
+    headers,
+    rows,
+  );
 }
 
 export function exportProfitabilityTripsCsv(

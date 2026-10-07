@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import {
+  buildFinanceMarginMonthHref,
   computeMarginPct,
   computeVariation,
   type AlignedPerformanceMonth,
@@ -73,7 +75,15 @@ export function PerformanceMonthlyTable({
                     className={cn(month.isInProgress && "bg-muted/40")}
                   >
                     <TableCell className="whitespace-nowrap font-medium">
-                      {formatPerformanceMonthWithStatus(month.period, month.isInProgress)}
+                      <Link
+                        to={buildFinanceMarginMonthHref(month.period)}
+                        className="text-primary underline-offset-4 hover:underline"
+                        aria-label={copy.openMonthAria(
+                          formatPerformanceMonthWithStatus(month.period, month.isInProgress),
+                        )}
+                      >
+                        {formatPerformanceMonthWithStatus(month.period, month.isInProgress)}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatMxCurrency(current.actualRevenue)}
@@ -97,7 +107,14 @@ export function PerformanceMonthlyTable({
                     <TableCell className="text-right tabular-nums">
                       {current.tripCount.toLocaleString("es-MX")}
                     </TableCell>
-                    {compare ? (
+                    {compare && month.isInProgress ? (
+                      <TableCell
+                        colSpan={3}
+                        className="text-center text-xs text-muted-foreground"
+                      >
+                        {copy.inProgressComparison}
+                      </TableCell>
+                    ) : compare ? (
                       <>
                         <TableCell className="text-right">
                           <PerformanceVariation

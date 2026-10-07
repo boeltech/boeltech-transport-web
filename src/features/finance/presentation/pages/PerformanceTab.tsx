@@ -4,8 +4,8 @@ import {
   DEFAULT_MONTHLY_PERFORMANCE_MONTHS,
   MONTHLY_PERFORMANCE_MONTH_OPTIONS,
   alignPerformanceMonths,
-  hasAnyPeriodActivity,
-  summarizePeriods,
+  monthlyPerformanceRequestMonths,
+  summarizePerformanceWindow,
   useMonthlyPerformance,
   type MonthlyPerformanceMonths,
 } from "@features/finance/application";
@@ -22,7 +22,10 @@ import {
 } from "../components";
 import { financeCopy } from "../copy";
 import { exportMonthlyPerformanceCsv } from "../utils/financeExportHelpers";
-import { formatPerformanceMonth } from "../utils/monthlyPerformanceFormat";
+import {
+  formatPerformanceMonth,
+  formatPerformancePeriodNote,
+} from "../utils/monthlyPerformanceFormat";
 
 const copy = financeCopy.performance;
 
@@ -70,29 +73,29 @@ export function PerformanceTab() {
   /** `null` = sin elección del usuario: se compara cuando hay datos del año anterior. */
   const [compareChoice, setCompareChoice] = useState<boolean | null>(null);
 
-  const { data, isLoading, isError, refetch } = useMonthlyPerformance(months);
+  const { data, isLoading, isError, refetch } = useMonthlyPerformance(
+    monthlyPerformanceRequestMonths(months),
+  );
 
   const aligned = useMemo(() => (data ? alignPerformanceMonths(data) : []), [data]);
-  const currentRows = useMemo(() => aligned.map((month) => month.current), [aligned]);
-  const previousRows = useMemo(() => aligned.map((month) => month.previous), [aligned]);
-  const currentTotals = useMemo(() => summarizePeriods(currentRows), [currentRows]);
-  const previousTotals = useMemo(() => summarizePeriods(previousRows), [previousRows]);
-
-  const hasCurrent = hasAnyPeriodActivity(currentRows);
-  const hasPrevious = hasAnyPeriodActivity(previousRows);
-  const compare = hasPrevious && (compareChoice ?? true);
+  /** KPI, totales y comparación solo sobre meses completos (N5). */
+  const summary = useMemo(() => summarizePerformanceWindow(aligned), [aligned]);
+  const { hasCurrent, canCompare } = summary;
+  const compare = canCompare && (compareChoice ?? true);
 
   const isEmpty = !isLoading && !isError && !hasCurrent;
   const showContent = !isError && !isEmpty;
-  const compareUnavailable = !isLoading && !hasPrevious;
+  const compareUnavailable = !isLoading && !canCompare;
 
+  const completedPrevious = summary.completed.map((month) => month.previous);
   const previousRangeLabel =
-    previousRows.length > 0
+    completedPrevious.length > 0 && !summary.inProgressOnly
       ? copy.rangeLabel(
-          formatPerformanceMonth(previousRows[0]!.period),
-          formatPerformanceMonth(previousRows.at(-1)!.period),
+          formatPerformanceMonth(completedPrevious[0]!.period),
+          formatPerformanceMonth(completedPrevious.at(-1)!.period),
         )
       : "";
+  const periodNote = formatPerformancePeriodNote(summary);
   const showNoPreviousNotice = showContent && compareUnavailable && !!previousRangeLabel;
 
   const handleExport = () => {
@@ -113,7 +116,7 @@ export function PerformanceTab() {
               id={compareSwitchId}
               checked={compare}
               onCheckedChange={setCompareChoice}
-              disabled={isLoading || !hasPrevious}
+              disabled={isLoading || !canCompare}
               aria-describedby={showNoPreviousNotice ? noPreviousNoticeId : undefined}
             />
             <Label
@@ -182,10 +185,11 @@ export function PerformanceTab() {
       ) : (
         <>
           <PerformanceKpiCards
-            current={currentTotals}
-            previous={previousTotals}
+            current={summary.current}
+            previous={summary.previous}
             compare={compare}
             isLoading={isLoading}
+            periodNote={periodNote}
           />
           <PerformanceComparisonChart
             months={aligned}

@@ -6,8 +6,6 @@ import { financeCopy } from "../copy";
 
 interface ExpenseAnalysisKpiCardsProps {
   byCategory?: ExpensesByCategory;
-  latestPeriodIndex: number;
-  periodLabel: string;
   dimensionLabel: string;
   dimensionRows: ExpensesByDimensionItem[];
   isLoading?: boolean;
@@ -16,17 +14,15 @@ interface ExpenseAnalysisKpiCardsProps {
 
 export function ExpenseAnalysisKpiCards({
   byCategory,
-  latestPeriodIndex,
-  periodLabel,
   dimensionLabel,
   dimensionRows,
   isLoading = false,
   isDimensionLoading = false,
 }: ExpenseAnalysisKpiCardsProps) {
-  const periodTotal =
-    latestPeriodIndex >= 0 && byCategory
-      ? (byCategory.total[latestPeriodIndex] ?? 0)
-      : 0;
+  const rangeTotal = useMemo(
+    () => byCategory?.total.reduce((sum, value) => sum + value, 0) ?? 0,
+    [byCategory],
+  );
 
   const expenseTrendData = useMemo(
     () => byCategory?.total.map((value) => ({ value })) ?? [],
@@ -44,8 +40,8 @@ export function ExpenseAnalysisKpiCards({
     {
       key: "periodTotal",
       title: financeCopy.expenses.metrics.totalExpense,
-      subtitle: periodLabel,
-      value: formatMxCurrency(periodTotal),
+      subtitle: financeCopy.expenses.metrics.totalExpenseHint,
+      value: formatMxCurrency(rangeTotal),
       tone: "warning" as const,
       trend: expenseSparkline,
       cardLoading: isLoading,

@@ -28,6 +28,8 @@ interface PerformanceKpiCardsProps {
   previous?: PerformanceTotals;
   compare: boolean;
   isLoading?: boolean;
+  /** Rótulo de periodo siempre visible sobre los KPI (meses completos / en curso). */
+  periodNote?: string;
 }
 
 function KpiCard({
@@ -91,6 +93,7 @@ export function PerformanceKpiCards({
   previous,
   compare,
   isLoading = false,
+  periodNote,
 }: PerformanceKpiCardsProps) {
   const kpis: KpiDefinition[] = [
     {
@@ -127,13 +130,18 @@ export function PerformanceKpiCards({
   ];
 
   return (
-    <section
-      aria-label={copy.ariaLabel}
-      className="grid grid-cols-1 gap-4 md:grid-cols-3"
-    >
-      {kpis.map((kpi) => (
-        <KpiCard key={kpi.key} kpi={kpi} compare={compare} isLoading={isLoading} />
-      ))}
-    </section>
+    <div className="space-y-2">
+      {periodNote && !isLoading ? (
+        <p className="text-xs text-muted-foreground">{periodNote}</p>
+      ) : null}
+      <section
+        aria-label={copy.ariaLabel}
+        className="grid grid-cols-1 gap-4 md:grid-cols-3"
+      >
+        {kpis.map((kpi) => (
+          <KpiCard key={kpi.key} kpi={kpi} compare={compare} isLoading={isLoading} />
+        ))}
+      </section>
+    </div>
   );
 }

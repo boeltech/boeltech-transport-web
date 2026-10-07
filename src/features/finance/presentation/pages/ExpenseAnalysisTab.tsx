@@ -7,7 +7,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
-import { ListingDateRangeFilter } from "@shared/ui/listing";
 import {
   Select,
   SelectContent,
@@ -17,22 +16,27 @@ import {
 } from "@shared/ui/select";
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
+import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import {
   parseExpenseDimension,
   parseExpenseGranularity,
+  resolveAnalysisPeriod,
   useExpensesByCategory,
   useExpensesByDimension,
   useFinanceListingFilters,
+  type FinanceDateRange,
 } from "@features/finance/application";
 import { financeCopy } from "../copy";
 import {
+  AnalysisPeriodCaption,
+  AnalysisPeriodSelector,
   ExpenseAnalysisCharts,
   ExpenseAnalysisKpiCards,
   ExpenseDimensionTableSection,
   FinanceTabFiltersBar,
 } from "../components";
 import { exportExpensesByDimensionCsv } from "../utils/financeExportHelpers";
-import { formatExpenseTemporalLabel } from "../utils/financeChartHelpers";
+import { formatFinancePeriodLabel } from "../utils/financeChartHelpers";
 
 const DEFAULT_DIMENSION = "vehicle";
 const DEFAULT_GRANULARITY = "month";
@@ -40,6 +44,7 @@ const DEFAULT_GRANULARITY = "month";
 export function ExpenseAnalysisTab() {
   const { toast } = useToast();
   const [includesOpen, setIncludesOpen] = useState(false);
+  const [today] = useState(getTodayString);
 
   const filters = useFinanceListingFilters<
     "dimension" | "granularity" | "from" | "to" | "vehicleId"
@@ -59,17 +64,29 @@ export function ExpenseAnalysisTab() {
     chipLabels: {
       dimension: financeCopy.expenses.filters.chipDimension,
       granularity: financeCopy.expenses.filters.chipGranularity,
-      from: financeCopy.expenses.filters.chipFrom,
-      to: financeCopy.expenses.filters.chipTo,
       vehicleId: () => financeCopy.expenses.filters.chipVehicle,
     },
   });
 
   const dimension = parseExpenseDimension(filters.filters.dimension);
   const granularity = parseExpenseGranularity(filters.filters.granularity);
-  const from = filters.filters.from;
-  const to = filters.filters.to;
+  const period = useMemo(
+    () =>
+      resolveAnalysisPeriod(
+        { from: filters.filters.from, to: filters.filters.to },
+        today,
+      ),
+    [filters.filters.from, filters.filters.to, today],
+  );
+  const { from, to } = period;
   const vehicleId = filters.filters.vehicleId;
+
+  const handlePeriodChange = useCallback(
+    (range: FinanceDateRange) => {
+      filters.setFilters({ from: range.from, to: range.to });
+    },
+    [filters],
+  );
 
   const handleDimensionChange = useCallback(
     (value: "vehicle" | "driver" | "client" | "route") => {
@@ -88,8 +105,8 @@ export function ExpenseAnalysisTab() {
   const byCategoryFilters = useMemo(
     () => ({
       granularity,
-      from: from || undefined,
-      to: to || undefined,
+      from,
+      to,
       vehicleId: vehicleId || undefined,
     }),
     [from, granularity, to, vehicleId],
@@ -99,8 +116,8 @@ export function ExpenseAnalysisTab() {
       dimension,
       sortBy: "total" as const,
       sortOrder: "desc" as const,
-      from: from || undefined,
-      to: to || undefined,
+      from,
+      to,
       vehicleId: vehicleId || undefined,
     }),
     [dimension, from, to, vehicleId],
@@ -130,11 +147,11 @@ export function ExpenseAnalysisTab() {
 
   const dimensionRows = byDimension ?? [];
   const dimensionLabel = financeCopy.expenses.filters.dimensionValues[dimension];
-  const periodLabel = formatExpenseTemporalLabel({
-    from: from || undefined,
-    to: to || undefined,
-    latestPeriod,
-  });
+  const latestBucketLabel = latestPeriod
+    ? granularity === "month"
+      ? formatFinancePeriodLabel(latestPeriod)
+      : formatDate(latestPeriod)
+    : "";
 
   const alertCopy = financeCopy.expenses.alert;
 
@@ -195,17 +212,12 @@ export function ExpenseAnalysisTab() {
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <ListingDateRangeFilter
-            fromDate={from}
-            toDate={to}
-            onApply={(nextFrom, nextTo) =>
-              filters.setFilters({ from: nextFrom, to: nextTo })
-            }
-            onClear={() => filters.setFilters({ from: "", to: "" })}
-            heading={financeCopy.expenses.filters.dateRangeHeading}
-            placeholder={financeCopy.expenses.filters.dateRangePlaceholder}
-            idPrefix="expense-analysis-date"
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <AnalysisPeriodSelector
+            period={period}
+            onRangeChange={handlePeriodChange}
+            today={today}
+            idPrefix="expense-analysis-period"
           />
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">
@@ -246,22 +258,23 @@ export function ExpenseAnalysisTab() {
         />
       </div>
 
-      <ExpenseAnalysisKpiCards
-        byCategory={byCategory}
-        latestPeriodIndex={latestPeriodIndex}
-        periodLabel={periodLabel}
-        dimensionLabel={dimensionLabel}
-        dimensionRows={dimensionRows}
-        isLoading={byCategoryLoading}
-        isDimensionLoading={byDimensionLoading}
-      />
+      <div className="space-y-2">
+        <AnalysisPeriodCaption period={period} today={today} />
+        <ExpenseAnalysisKpiCards
+          byCategory={byCategory}
+          dimensionLabel={dimensionLabel}
+          dimensionRows={dimensionRows}
+          isLoading={byCategoryLoading}
+          isDimensionLoading={byDimensionLoading}
+        />
+      </div>
 
       <ExpenseAnalysisCharts
         byCategory={byCategory}
         categorySummary={categorySummary}
         latestPeriodIndex={latestPeriodIndex}
         latestPeriod={latestPeriod}
-        periodLabel={periodLabel}
+        periodLabel={latestBucketLabel}
         isLoading={byCategoryLoading}
       />
 

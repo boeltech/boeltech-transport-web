@@ -3,22 +3,21 @@
  * Redirects legacy ?tab= y helpers de navegación entre secciones.
  */
 
+import { monthPeriodDateRange } from "./analysisPeriod";
 import {
   FINANCE_ANALYSIS_VIEW_PARAM,
   FINANCE_COBROS_RFC_PARAM,
   type FinanceAnalysisView,
+  parseProfitabilityLossFilter,
   sanitizeAnalysisDimension,
 } from "./financeListingFilters";
 
-const FINANCE_ANALYSIS_FILTER_PARAMS = [
-  "dimension",
-  "granularity",
-  "from",
-  "to",
-  "vehicleId",
-  "status",
-  "type",
-] as const;
+/** Parámetros que cada vista aplica; el resto se quita de la URL al cambiar de vista. */
+const FINANCE_ANALYSIS_VIEW_PARAMS: Record<FinanceAnalysisView, readonly string[]> = {
+  performance: [],
+  margin: ["from", "to", "scope", "dimension", "status"],
+  expenses: ["from", "to", "vehicleId", "dimension", "granularity"],
+};
 
 const LEGACY_TAB_ALIASES: Record<
   string,
@@ -89,7 +88,7 @@ export function buildFinanceAnalysisSearchParams(
   options?: { preserveFrom?: URLSearchParams },
 ): URLSearchParams {
   const params = new URLSearchParams();
-  for (const key of FINANCE_ANALYSIS_FILTER_PARAMS) {
+  for (const key of FINANCE_ANALYSIS_VIEW_PARAMS[view]) {
     const value = options?.preserveFrom?.get(key);
     if (!value) continue;
     if (key === "dimension") {
@@ -97,8 +96,20 @@ export function buildFinanceAnalysisSearchParams(
       if (sanitized) params.set(key, sanitized);
       continue;
     }
+    if (key === "status" && !parseProfitabilityLossFilter(value)) continue;
     params.set(key, value);
   }
   params.set(FINANCE_ANALYSIS_VIEW_PARAM, view);
   return params;
+}
+
+/** Rentabilidad de un mes de negocio (`YYYY-MM`), p. ej. desde «Cifras por mes». */
+export function buildFinanceMarginMonthHref(monthKey: string): string {
+  const { from, to } = monthPeriodDateRange(monthKey);
+  const params = new URLSearchParams({
+    [FINANCE_ANALYSIS_VIEW_PARAM]: "margin",
+    from,
+    to,
+  });
+  return `/finance/analysis?${params.toString()}`;
 }

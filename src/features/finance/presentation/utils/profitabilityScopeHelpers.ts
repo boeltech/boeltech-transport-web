@@ -11,23 +11,6 @@ export function showsMarginForScope(scope: ProfitabilityScope): boolean {
   );
 }
 
-export function aggregateMetricForBarList(
-  scope: ProfitabilityScope,
-  row: {
-    totalRevenue: number;
-    totalActual: number;
-    blendedMargin: number;
-  },
-): number {
-  if (scope === "pipeline") {
-    return row.totalRevenue;
-  }
-  if (scope === "cancelled") {
-    return row.totalActual;
-  }
-  return row.totalRevenue;
-}
-
 export function tripCountLabel(count: number): string {
   return `${count} viaje${count === 1 ? "" : "s"}`;
 }

@@ -1,6 +1,8 @@
 /**
- * Cálculos puros de la vista Rendimiento (Finanzas › Análisis):
+ * Cálculos puros de la vista Mes a mes (Finanzas › Análisis):
  * totales del rango, margen % y variación contra el mismo mes del año anterior.
+ * «N meses» son N meses completos; el mes en curso se muestra aparte y nunca se suma
+ * ni se compara.
  */
 
 import type {
@@ -17,6 +19,13 @@ export type MonthlyPerformanceMonths =
 export const DEFAULT_MONTHLY_PERFORMANCE_MONTHS: MonthlyPerformanceMonths = 12;
 
 export const YEAR_OVER_YEAR_OFFSET_MONTHS = 12;
+
+/** Meses a pedir al API: los N completos más el mes en curso (el API admite hasta 24). */
+export function monthlyPerformanceRequestMonths(
+  months: MonthlyPerformanceMonths,
+): number {
+  return months + 1;
+}
 
 /**
  * - `none`: ambos periodos en cero (no hay nada que comparar).
@@ -137,4 +146,61 @@ export function alignPerformanceMonths(
       isInProgress: period === inProgress,
     };
   });
+}
+
+export interface PerformanceWindowSplit {
+  completed: AlignedPerformanceMonth[];
+  inProgress: AlignedPerformanceMonth | null;
+}
+
+export function splitCompletedMonths(
+  months: readonly AlignedPerformanceMonth[],
+): PerformanceWindowSplit {
+  return {
+    completed: months.filter((month) => !month.isInProgress),
+    inProgress: months.find((month) => month.isInProgress) ?? null,
+  };
+}
+
+export interface PerformanceWindowSummary {
+  completed: AlignedPerformanceMonth[];
+  inProgress: AlignedPerformanceMonth | null;
+  /** Totales de los KPI: meses completos o, si ninguno tiene actividad, el mes en curso. */
+  current: PerformanceTotals;
+  /** Mismos meses completos un año antes. */
+  previous: PerformanceTotals;
+  /** Hay actividad en algún mes de la ventana, incluido el mes en curso. */
+  hasCurrent: boolean;
+  /** Hay actividad del año anterior en los meses completos. */
+  hasPrevious: boolean;
+  /** Solo el mes en curso tiene actividad: no hay nada completo que sumar ni comparar. */
+  inProgressOnly: boolean;
+  canCompare: boolean;
+}
+
+export function summarizePerformanceWindow(
+  months: readonly AlignedPerformanceMonth[],
+): PerformanceWindowSummary {
+  const { completed, inProgress } = splitCompletedMonths(months);
+  const completedCurrent = completed.map((month) => month.current);
+  const completedPrevious = completed.map((month) => month.previous);
+  const hasCompletedActivity = hasAnyPeriodActivity(completedCurrent);
+  const inProgressHasActivity = inProgress
+    ? hasPeriodActivity(inProgress.current)
+    : false;
+  const inProgressOnly = !hasCompletedActivity && inProgressHasActivity;
+  const hasPrevious = hasAnyPeriodActivity(completedPrevious);
+
+  return {
+    completed,
+    inProgress,
+    current: summarizePeriods(
+      inProgressOnly && inProgress ? [inProgress.current] : completedCurrent,
+    ),
+    previous: summarizePeriods(completedPrevious),
+    hasCurrent: hasCompletedActivity || inProgressHasActivity,
+    hasPrevious,
+    inProgressOnly,
+    canCompare: hasPrevious && !inProgressOnly,
+  };
 }

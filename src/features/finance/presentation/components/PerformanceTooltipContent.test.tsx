@@ -42,22 +42,13 @@ describe("PerformanceTooltipContent", () => {
     expect(within(costRow).getByText("+$100.00 (+20.0%)")).toBeInTheDocument();
   });
 
-  it("labels the in-progress month and avoids Infinity when last year is zero", () => {
+  it("avoids Infinity when last year is zero for a complete month", () => {
     const { container } = render(
       <PerformanceTooltipContent
         compare
         month={month({
-          period: "2026-10",
-          isInProgress: true,
-          current: {
-            period: "2026-10",
-            actualRevenue: 500,
-            actualCost: 0,
-            actualMargin: 500,
-            tripCount: 1,
-          },
           previous: {
-            period: "2025-10",
+            period: "2025-01",
             actualRevenue: 0,
             actualCost: 0,
             actualMargin: 0,
@@ -67,9 +58,53 @@ describe("PerformanceTooltipContent", () => {
       />,
     );
 
-    expect(screen.getByText("oct 2026 (en curso)")).toBeInTheDocument();
-    expect(screen.getAllByText("+$500.00 (Nuevo)")).toHaveLength(2);
+    expect(screen.getAllByText("+$1,000.00 (Nuevo)")).toHaveLength(1);
     expect(container.textContent).not.toMatch(/Infinity|NaN/);
+  });
+
+  it("shows only the current year for the in-progress month, with a note instead of a comparison", () => {
+    const { container } = render(
+      <PerformanceTooltipContent
+        compare
+        month={month({
+          period: "2026-10",
+          isInProgress: true,
+          current: {
+            period: "2026-10",
+            actualRevenue: 500,
+            actualCost: 100,
+            actualMargin: 400,
+            tripCount: 1,
+          },
+          previous: {
+            period: "2025-10",
+            actualRevenue: 900,
+            actualCost: 300,
+            actualMargin: 600,
+            tripCount: 3,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("oct 2026 (en curso)")).toBeInTheDocument();
+    expect(screen.getByText("$500.00")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
+    expect(screen.queryByText("$900.00")).not.toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Diferencia|−\$|\+\$|%\)/);
+    expect(
+      screen.getByText("Se compara con oct 2025 cuando termine el mes."),
+    ).toBeInTheDocument();
+  });
+
+  it("does not add the in-progress note when comparison is off", () => {
+    render(
+      <PerformanceTooltipContent
+        compare={false}
+        month={month({ period: "2026-10", isInProgress: true })}
+      />,
+    );
+    expect(screen.queryByText(/cuando termine el mes/)).not.toBeInTheDocument();
   });
 
   it("omits previous-year columns without comparison", () => {

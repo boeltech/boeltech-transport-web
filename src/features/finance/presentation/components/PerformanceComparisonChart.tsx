@@ -112,11 +112,12 @@ export function PerformanceComparisonChart({
       isLoading={isLoading}
       aria-label={copy.ariaLabel}
       footer={
-        inProgressMonth ? (
-          <p className="text-xs text-muted-foreground">
-            {copy.inProgressNote(formatPerformanceMonth(inProgressMonth.period))}
-          </p>
-        ) : undefined
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {inProgressMonth ? (
+            <p>{copy.inProgressNote(formatPerformanceMonth(inProgressMonth.period))}</p>
+          ) : null}
+          <p>{financeCopy.performance.operationalNote}</p>
+        </div>
       }
     >
       <div className="space-y-6">

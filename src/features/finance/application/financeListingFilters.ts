@@ -23,17 +23,28 @@ export const FINANCE_PRESERVED_URL_PARAMS = [
   FINANCE_DISPATCH_TAB_PARAM,
 ] as const;
 
-export const FINANCE_ANALYSIS_VIEWS = ["margin", "expenses", "performance"] as const;
+/** Orden de las vistas en pantalla: de lo general (Mes a mes) al detalle. */
+export const FINANCE_ANALYSIS_VIEWS = ["performance", "margin", "expenses"] as const;
 
 export type FinanceAnalysisView = (typeof FINANCE_ANALYSIS_VIEWS)[number];
 
+export const DEFAULT_FINANCE_ANALYSIS_VIEW: FinanceAnalysisView = "performance";
+
+/** Sin «Mes»: la lectura por mes vive en Mes a mes. */
 export const MARGIN_ANALYSIS_DIMENSIONS = [
   "client",
+  "route",
   "vehicle",
   "driver",
-  "route",
-  "month",
 ] as const satisfies readonly ProfitabilityDimension[];
+
+export type MarginAnalysisDimension = (typeof MARGIN_ANALYSIS_DIMENSIONS)[number];
+
+/**
+ * Único valor de `status` que lee Rentabilidad: la tarjeta «Viajes con pérdida»
+ * filtra solo los viajes de un grupo abierto (el agregado del API no filtra por estado).
+ */
+export const PROFITABILITY_LOSS_FILTER = "loss" as const satisfies ProfitabilityStatus;
 
 export const EXPENSE_ANALYSIS_DIMENSIONS = [
   "vehicle",
@@ -72,7 +83,7 @@ export const EXPENSE_GRANULARITIES = ["day", "week", "month"] as const;
 export type ExpenseAnalysisDimension = (typeof EXPENSE_ANALYSIS_DIMENSIONS)[number];
 export type ExpenseGranularity = (typeof EXPENSE_GRANULARITIES)[number];
 
-export const DEFAULT_MARGIN_DIMENSION: ProfitabilityDimension = "client";
+export const DEFAULT_MARGIN_DIMENSION: MarginAnalysisDimension = "client";
 export const DEFAULT_EXPENSE_DIMENSION: ExpenseAnalysisDimension = "vehicle";
 export const DEFAULT_PROFITABILITY_SCOPE: ProfitabilityScope = "operational";
 export const DEFAULT_EXPENSE_GRANULARITY: ExpenseGranularity = "month";
@@ -95,9 +106,15 @@ export function isFinanceAnalysisView(
 
 export function parseProfitabilityDimension(
   raw: string | null | undefined,
-): ProfitabilityDimension {
+): MarginAnalysisDimension {
   if (includesValue(MARGIN_ANALYSIS_DIMENSIONS, raw)) return raw;
   return DEFAULT_MARGIN_DIMENSION;
+}
+
+export function parseProfitabilityLossFilter(
+  raw: string | null | undefined,
+): boolean {
+  return raw === PROFITABILITY_LOSS_FILTER;
 }
 
 export function parseExpenseDimension(
@@ -135,6 +152,12 @@ export function parseExpenseGranularity(
 ): ExpenseGranularity {
   if (includesValue(EXPENSE_GRANULARITIES, raw)) return raw;
   return DEFAULT_EXPENSE_GRANULARITY;
+}
+
+export function resolveFinanceAnalysisView(
+  raw: string | null,
+): FinanceAnalysisView {
+  return isFinanceAnalysisView(raw) ? raw : DEFAULT_FINANCE_ANALYSIS_VIEW;
 }
 
 /** Omite dimension si está vacía o no aplica a la vista de Análisis. */

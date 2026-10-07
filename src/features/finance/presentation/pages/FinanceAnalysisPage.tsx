@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
 import {
   buildFinanceAnalysisSearchParams,
-  isFinanceAnalysisView,
+  resolveFinanceAnalysisView,
   type FinanceAnalysisView,
 } from "@features/finance/application";
 import {
@@ -18,10 +18,7 @@ export function FinanceAnalysisPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const reportsBackHref = useReportsReturnHref();
 
-  const fromUrl = searchParams.get("view");
-  const view: FinanceAnalysisView = isFinanceAnalysisView(fromUrl)
-    ? fromUrl
-    : "margin";
+  const view = resolveFinanceAnalysisView(searchParams.get("view"));
 
   const handleViewChange = useCallback(
     (nextView: FinanceAnalysisView) => {

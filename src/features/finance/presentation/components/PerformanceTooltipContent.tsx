@@ -7,6 +7,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
 import {
   formatPct,
+  formatPerformanceMonth,
   formatPerformanceMonthWithStatus,
   formatPerformanceYear,
   formatVariationDetail,
@@ -21,9 +22,12 @@ interface PerformanceTooltipContentProps {
 
 export function PerformanceTooltipContent({
   month,
-  compare,
+  compare: compareRequested,
 }: PerformanceTooltipContentProps) {
   const { current, previous } = month;
+  /** El mes en curso nunca se compara: solo el año actual + nota. */
+  const compare = compareRequested && !month.isInProgress;
+  const showInProgressNote = compareRequested && month.isInProgress;
   const amountRows = [
     { key: "revenue", label: copy.revenue, cur: current.actualRevenue, prev: previous.actualRevenue },
     { key: "cost", label: copy.cost, cur: current.actualCost, prev: previous.actualCost },
@@ -87,6 +91,11 @@ export function PerformanceTooltipContent({
           </tr>
         </tbody>
       </table>
+      {showInProgressNote ? (
+        <p className="max-w-[240px] text-xs text-muted-foreground">
+          {copy.inProgressNote(formatPerformanceMonth(previous.period))}
+        </p>
+      ) : null}
     </div>
   );
 }

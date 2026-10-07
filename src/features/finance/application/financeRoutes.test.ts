@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFinanceAnalysisSearchParams,
+  buildFinanceMarginMonthHref,
   resolveLegacyFinanceLocation,
 } from "./financeRoutes";
 
@@ -31,5 +32,27 @@ describe("financeRoutes", () => {
     });
     expect(result.get("dimension")).toBeNull();
     expect(result.get("from")).toBe("2026-07-01");
+  });
+
+  it("buildFinanceAnalysisSearchParams drops month dimension for margin view too", () => {
+    const result = buildFinanceAnalysisSearchParams("margin", {
+      preserveFrom: new URLSearchParams({ dimension: "month" }),
+    });
+    expect(result.get("dimension")).toBeNull();
+  });
+
+  it("buildFinanceMarginMonthHref opens Rentabilidad with that whole month as the period", () => {
+    expect(buildFinanceMarginMonthHref("2026-09")).toBe(
+      "/finance/analysis?view=margin&from=2026-09-01&to=2026-09-30",
+    );
+    expect(buildFinanceMarginMonthHref("2028-02")).toBe(
+      "/finance/analysis?view=margin&from=2028-02-01&to=2028-02-29",
+    );
+  });
+
+  it("legacy ?tab=profitability still lands on Rentabilidad", () => {
+    expect(resolveLegacyFinanceLocation("?tab=profitability")).toBe(
+      "/finance/analysis?view=margin",
+    );
   });
 });
