@@ -16,6 +16,7 @@ import {
 } from "../config/financeChartConfig";
 import { financeCopy } from "../copy";
 import { financeCurrencyValueFormatter } from "../utils/financeChartHelpers";
+import { buildProfitabilityMonthlyChartRows } from "../utils/profitabilityMonthSeries";
 import { showsMarginForScope } from "../utils/profitabilityScopeHelpers";
 
 interface ProfitabilityChartsProps {
@@ -41,13 +42,7 @@ export function ProfitabilityCharts({
   monthLoading = false,
 }: ProfitabilityChartsProps) {
   const monthlyData = useMemo(
-    () =>
-      (monthAggregate ?? []).map((row) => ({
-        label: row.label,
-        revenue: row.totalRevenue,
-        actual: row.totalActual,
-        marginPct: row.blendedMarginPct ?? 0,
-      })),
+    () => buildProfitabilityMonthlyChartRows(monthAggregate),
     [monthAggregate],
   );
 

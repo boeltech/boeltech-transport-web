@@ -117,14 +117,7 @@ export function ProfitabilityTab() {
     useProfitabilityAggregate(aggregateFilters);
 
   const { data: monthAggregate, isLoading: monthAggregateLoading } =
-    useProfitabilityAggregate(
-      {
-        dimension: "month",
-        scope,
-        sortBy: "totalRevenue",
-        sortOrder: "asc",
-      },
-    );
+    useProfitabilityAggregate({ dimension: "month", scope });
 
   return (
     <div className="space-y-6">

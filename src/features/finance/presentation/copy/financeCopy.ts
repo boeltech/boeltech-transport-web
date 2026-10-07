@@ -518,6 +518,7 @@ export const financeCopy = {
       cancelled: "Cancelados",
       all: "Todos",
     },
+    periodNote: "Periodo: todo el histórico",
     context: {
       heading: "Fuera de operación · no incluido en el margen",
       projected: "Ingreso estimado",

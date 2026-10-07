@@ -86,6 +86,7 @@ describe("profitability scope smoke", () => {
       expect(screen.getByText("Margen")).toBeInTheDocument();
     });
 
+    expect(screen.getByText("Periodo: todo el histórico")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Exportar muestra/i }),
     ).toBeInTheDocument();

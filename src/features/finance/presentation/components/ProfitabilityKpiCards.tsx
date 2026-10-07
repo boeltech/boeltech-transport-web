@@ -7,6 +7,7 @@ import type {
   ProfitabilityTripsResponse,
 } from "@features/finance/domain";
 import { financeCopy } from "../copy";
+import { sortProfitabilityMonthsChronologically } from "../utils/profitabilityMonthSeries";
 import {
   showsMarginForScope,
   tripCountLabel,
@@ -26,7 +27,10 @@ export function ProfitabilityKpiCards({
   isLoading = false,
 }: ProfitabilityKpiCardsProps) {
   const revenueTrendData = useMemo(
-    () => monthAggregate?.map((row) => ({ value: row.totalRevenue })) ?? [],
+    () =>
+      sortProfitabilityMonthsChronologically(monthAggregate).map((row) => ({
+        value: row.totalRevenue,
+      })),
     [monthAggregate],
   );
 
@@ -149,22 +153,27 @@ export function ProfitabilityKpiCards({
   ]);
 
   return (
-    <div
-      className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
-        cards.length >= 4 ? "xl:grid-cols-4" : cards.length === 3 ? "lg:grid-cols-3" : ""
-      }`}
-    >
-      {cards.map((card) => (
-        <MetricTrendCard
-          key={card.key}
-          title={card.title}
-          subtitle={card.subtitle}
-          value={card.value}
-          tone={card.tone}
-          trend={card.trend}
-          isLoading={isLoading}
-        />
-      ))}
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        {financeCopy.profitability.periodNote}
+      </p>
+      <div
+        className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
+          cards.length >= 4 ? "xl:grid-cols-4" : cards.length === 3 ? "lg:grid-cols-3" : ""
+        }`}
+      >
+        {cards.map((card) => (
+          <MetricTrendCard
+            key={card.key}
+            title={card.title}
+            subtitle={card.subtitle}
+            value={card.value}
+            tone={card.tone}
+            trend={card.trend}
+            isLoading={isLoading}
+          />
+        ))}
+      </div>
     </div>
   );
 }
