@@ -41,7 +41,7 @@ import { SettingsRoutes } from "@features/settings/presentation/routes";
 import { UsersListPage } from "@features/users/presentation/pages/UsersListPage";
 import { UserEditPage } from "@features/users/presentation/pages/UserEditPage";
 
-const { mockPoliciesApi, mockSession, mockToast, mockApiGet, mockApiPatch } = vi.hoisted(() => ({
+const { mockPoliciesApi, mockSession, mockToast, mockApiGet, mockApiPatch, mockApiPut } = vi.hoisted(() => ({
   mockPoliciesApi: {
     getOverview: vi.fn(),
     save: vi.fn(),
@@ -54,6 +54,7 @@ const { mockPoliciesApi, mockSession, mockToast, mockApiGet, mockApiPatch } = vi
   mockToast: vi.fn(),
   mockApiGet: vi.fn(),
   mockApiPatch: vi.fn(),
+  mockApiPut: vi.fn(),
 }));
 
 vi.mock("@features/approval-policies/infrastructure/approvalPoliciesApi", () => ({
@@ -98,7 +99,10 @@ vi.mock("@shared/hooks", async (importOriginal) => ({
 
 vi.mock("@shared/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/api")>();
-  return { ...actual, apiClient: { ...actual.apiClient, get: mockApiGet, patch: mockApiPatch } };
+  return {
+    ...actual,
+    apiClient: { ...actual.apiClient, get: mockApiGet, patch: mockApiPatch, put: mockApiPut },
+  };
 });
 
 vi.mock("@features/users/presentation/components/PendingInvitationsPanel", () => ({
@@ -304,7 +308,7 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-13)", () => {
     setRole("admin", "u-admin");
     setOverview(overview());
     mockPoliciesApi.getOverview.mockImplementation(async () => currentOverview);
-    mockPoliciesApi.listCandidateUsers.mockResolvedValue(CANDIDATES);
+    mockPoliciesApi.listCandidateUsers.mockResolvedValue({ users: CANDIDATES, referencedUsers: [] });
   });
 
   it("AP-1. Estado estándar: 4 tarjetas estándar, pendientes 6/0/2/1, nota del piso y sin autor", async () => {
@@ -393,10 +397,13 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-13)", () => {
 
   it("AP-3. Doble firma con una sola persona: contador previo y 422 ubicado en tramo 2 · paso 2 sin cerrar el sheet", async () => {
     const user = userEvent.setup();
-    mockPoliciesApi.listCandidateUsers.mockResolvedValue([
-      { id: "u-admin", fullName: "Ana Admin", role: "admin" },
-      { id: "u-mgr", fullName: "Mario Gerente", role: "manager" },
-    ]);
+    mockPoliciesApi.listCandidateUsers.mockResolvedValue({
+      users: [
+        { id: "u-admin", fullName: "Ana Admin", role: "admin" },
+        { id: "u-mgr", fullName: "Mario Gerente", role: "manager" },
+      ],
+      referencedUsers: [],
+    });
     mockPoliciesApi.save.mockRejectedValue(
       new ApiError("La regla no se puede cumplir con el equipo actual", 422, "APPROVAL_POLICY_UNSATISFIABLE", {
         violations: [{ tier_index: 1, step_no: 2, reason: "double_sign_needs_two_people" }],
@@ -1006,5 +1013,120 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-13)", () => {
       );
     });
     expect(within(screen.getByTestId("approval-policy-card-settlement")).getByText(/^v1 · /)).toBeInTheDocument();
+  });
+
+  describe("AP-14. Padrón de candidatos sin tope de 100 (web#45)", () => {
+    const peopleTrigger = (scope: HTMLElement, stepNo = 1) =>
+      within(scope).getByRole("button", { name: `${sheetCopy.peopleLabel} · ${sheetCopy.stepTitle(stepNo)}` });
+
+    it("150 candidatos con «Zulema» al final: se busca, se elige y el PUT la incluye en eligible_user_ids", async () => {
+      const user = userEvent.setup();
+      const { approvalPoliciesApi: realApi } = await vi.importActual<
+        typeof import("@features/approval-policies/infrastructure/approvalPoliciesApi")
+      >("@features/approval-policies/infrastructure/approvalPoliciesApi");
+      const roles = ["admin", "manager", "accountant"] as const;
+      const apiUsers = [
+        ...Array.from({ length: 149 }, (_, i) => ({
+          id: `u-${String(i + 1).padStart(3, "0")}`,
+          full_name: `Persona ${String(i + 1).padStart(3, "0")}`,
+          role: roles[i % roles.length],
+        })),
+        { id: "u-zulema", full_name: "Zulema Zapata", role: "accountant" },
+      ];
+      mockApiGet.mockImplementation(async (url: string) =>
+        url === "/approval-policies/candidates" ? { data: { users: apiUsers } } : { data: [] },
+      );
+      mockApiPut.mockImplementation(async (url: string, body: { rules: unknown }) => ({
+        message: copy.toasts.saved,
+        data: {
+          concept: url.split("/").pop(),
+          source: "tenant",
+          version: 1,
+          effective_from: EFFECTIVE_FROM,
+          created_by: "u-admin",
+          rules: body.rules,
+          summary: "x",
+          warnings: [],
+        },
+      }));
+      mockPoliciesApi.listCandidateUsers.mockImplementation(realApi.listCandidateUsers);
+      mockPoliciesApi.save.mockImplementation(realApi.save);
+      renderPoliciesPage();
+
+      const dialog = await openEditor(user, "driver_advance");
+      const step = within(dialog).getByTestId("policy-tier-0-step-0");
+      await waitFor(() =>
+        expect(within(step).getByTestId("policy-tier-0-step-0-eligible")).toHaveTextContent(
+          sheetCopy.eligibleCount(150),
+        ),
+      );
+      expect(mockApiGet).toHaveBeenCalledWith("/approval-policies/candidates");
+
+      await user.click(peopleTrigger(step));
+      expect(await screen.findAllByRole("option")).toHaveLength(150);
+      await user.type(screen.getByPlaceholderText(sheetCopy.peopleSearch), "Zulema");
+      await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
+      await user.click(screen.getByRole("option", { name: /Zulema Zapata/ }));
+      await user.keyboard("{Escape}");
+      expect(within(step).getByTestId("policy-tier-0-step-0-person-u-zulema")).toHaveTextContent("Zulema Zapata");
+
+      const { accept } = await saveAndConfirm(user, dialog);
+      await accept();
+
+      await waitFor(() => expect(mockApiPut).toHaveBeenCalledTimes(1));
+      const [url, body] = mockApiPut.mock.calls[0]! as [string, { eligible_user_ids: string[] }];
+      expect(url).toBe("/approval-policies/driver_advance");
+      expect(body.eligible_user_ids).toContain("u-zulema");
+    });
+
+    it("versión vigente que nombra a un suspendido: chip con nombre, se puede quitar y no cuenta como elegible", async () => {
+      const user = userEvent.setup();
+      setOverview(
+        overview(true, {
+          settlement: {
+            source: "tenant",
+            version: 2,
+            effectiveFrom: EFFECTIVE_FROM,
+            rules: {
+              rulesSchemaVersion: 1,
+              tiers: [
+                {
+                  minAmount: 0,
+                  conditions: {},
+                  requiresApproval: true,
+                  steps: [{ eligibleRoles: ["admin"], eligibleUserIds: ["u-susp"] }],
+                },
+              ],
+            },
+          },
+        }),
+      );
+      mockPoliciesApi.listCandidateUsers.mockResolvedValue({
+        users: CANDIDATES,
+        referencedUsers: [{ id: "u-susp", fullName: "Sergio Suspendido", role: "manager", status: "suspended" }],
+      });
+      mockPoliciesApi.save.mockImplementation(async ({ concept, rules }: { concept: ApprovalConcept; rules: ApprovalRules }) =>
+        savedFrom(concept, rules, 3),
+      );
+      renderPoliciesPage();
+
+      const dialog = await openEditor(user, "settlement");
+      const step = within(dialog).getByTestId("policy-tier-0-step-0");
+      const chip = await within(step).findByTestId("policy-tier-0-step-0-person-u-susp");
+      expect(chip).toHaveTextContent("Sergio Suspendido");
+      expect(chip).toHaveTextContent(sheetCopy.personState.suspended);
+      expect(within(step).getByTestId("policy-tier-0-step-0-eligible")).toHaveTextContent(sheetCopy.eligibleCount(1));
+
+      await user.click(within(chip).getByRole("button", { name: sheetCopy.removePerson("Sergio Suspendido") }));
+      expect(within(step).queryByTestId("policy-tier-0-step-0-person-u-susp")).not.toBeInTheDocument();
+      expect(within(step).getByTestId("policy-tier-0-step-0-eligible")).toHaveTextContent(sheetCopy.eligibleCount(1));
+
+      const { accept } = await saveAndConfirm(user, dialog);
+      await accept();
+      await waitFor(() => expect(mockPoliciesApi.save).toHaveBeenCalledTimes(1));
+      const payload = mockPoliciesApi.save.mock.calls[0]![0];
+      expect(payload).toMatchObject({ concept: "settlement", expectedVersion: 2 });
+      expect(payload.rules.tiers[0].steps[0]).toEqual({ eligibleRoles: ["admin"], eligibleUserIds: [] });
+    });
   });
 });

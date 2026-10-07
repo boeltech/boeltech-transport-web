@@ -15,6 +15,7 @@ import { useApprovalPolicies, usePolicyCandidateUsers } from "../../application"
 import { approvalPoliciesCopy } from "../copy/approvalPoliciesCopy";
 import { ApprovalPolicyCard } from "../components/ApprovalPolicyCard";
 import { ApprovalPolicySheet, type ApprovalPolicySheetMode } from "../components/ApprovalPolicySheet";
+import type { PolicyPeopleState } from "../components/PolicyStepEditor";
 import { PolicyVersionsSheet } from "../components/PolicyVersionsSheet";
 import { SelfApprovalFloorNote } from "../components/SelfApprovalFloorNote";
 
@@ -27,7 +28,14 @@ export function ApprovalPoliciesPage() {
   const hasUpdatePermission = hasPermission("approval_policies", "update");
   const editEnabled = overview.data?.editEnabled === true;
   const canEdit = hasUpdatePermission && editEnabled;
-  const candidateUsers = usePolicyCandidateUsers({ enabled: canEdit });
+  const candidates = usePolicyCandidateUsers({ enabled: canEdit });
+  const people: PolicyPeopleState = candidates.data
+    ? { status: "ready", users: candidates.data.users, referencedUsers: candidates.data.referencedUsers }
+    : {
+        status: candidates.isError && !candidates.isFetching ? "error" : "loading",
+        users: null,
+        referencedUsers: [],
+      };
 
   const conceptParam = searchParams.get("concept");
   const [openConcept, setOpenConcept] = useState<ApprovalConcept | null>(
@@ -112,7 +120,8 @@ export function ApprovalPoliciesPage() {
         onOpenChange={closeSheet}
         policy={openPolicy}
         mode={effectiveMode}
-        candidateUsers={candidateUsers.data ?? null}
+        people={people}
+        onRetryPeople={() => void candidates.refetch()}
         onReload={() => void overview.refetch()}
       />
       <PolicyVersionsSheet

@@ -14,7 +14,9 @@ import {
 import type {
   ApprovalConcept,
   ApprovalRuleStep,
+  DesignatedPerson,
   PolicyCandidateUser,
+  PolicyReferencedUser,
 } from "./entities";
 
 const CEILING_PERMISSION: Record<ApprovalConcept, { module: Module; action: Action }> = {
@@ -60,6 +62,38 @@ export function ceilingUsers(
 ): PolicyCandidateUser[] {
   const ceiling = getConceptCeilingRoles(concept);
   return users.filter((user) => ceiling.includes(user.role));
+}
+
+/**
+ * Nombre y estado de una persona designada en un paso. Un referenciado activo
+ * llega porque su rol quedó fuera del techo, así que el estado no basta.
+ */
+export function resolveDesignatedPerson(
+  id: string,
+  concept: ApprovalConcept,
+  candidates: {
+    readonly users: readonly PolicyCandidateUser[];
+    readonly referencedUsers: readonly PolicyReferencedUser[];
+  },
+): DesignatedPerson {
+  const ceiling = getConceptCeilingRoles(concept);
+  const active = candidates.users.find((user) => user.id === id);
+  if (active) {
+    return {
+      id,
+      fullName: active.fullName,
+      state: ceiling.includes(active.role) ? "eligible" : "no_permission",
+    };
+  }
+  const referenced = candidates.referencedUsers.find((user) => user.id === id);
+  if (!referenced) return { id, fullName: null, state: "unavailable" };
+  const state =
+    referenced.status === "active"
+      ? "no_permission"
+      : referenced.status === "suspended"
+        ? "suspended"
+        : "inactive";
+  return { id, fullName: referenced.fullName, state };
 }
 
 /** Personas distintas que cubren los dos pasos de una doble firma. */

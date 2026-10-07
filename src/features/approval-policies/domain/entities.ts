@@ -175,6 +175,31 @@ export interface PolicyCandidateUser {
   readonly role: UserRole;
 }
 
+/**
+ * Nombrado en un paso de una versión vigente que hoy no puede firmar:
+ * inactivo, suspendido o activo con rol fuera del techo. Nunca es elegible.
+ */
+export interface PolicyReferencedUser extends PolicyCandidateUser {
+  readonly status: string;
+}
+
+/** `GET /approval-policies/candidates` (TEC-7). */
+export interface PolicyCandidates {
+  /** Activos con rol dentro del techo de algún concepto; única fuente de elegibles. */
+  readonly users: PolicyCandidateUser[];
+  readonly referencedUsers: PolicyReferencedUser[];
+}
+
+/** Cómo se muestra una persona designada en un paso. */
+export type DesignatedPersonState = "eligible" | "inactive" | "suspended" | "no_permission" | "unavailable";
+
+export interface DesignatedPerson {
+  readonly id: string;
+  /** `null` = el usuario ya no existe en el tenant. */
+  readonly fullName: string | null;
+  readonly state: DesignatedPersonState;
+}
+
 /** Detalle del 409 `APPROVAL_POLICY_ORPHAN_GUARD` al cambiar un usuario. */
 export interface PolicyOrphanViolation {
   readonly concept: ApprovalConcept | string;

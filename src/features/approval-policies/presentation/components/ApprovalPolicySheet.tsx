@@ -40,7 +40,6 @@ import {
   templateAvailability,
   type ApprovalRules,
   type ConceptPolicy,
-  type PolicyCandidateUser,
   type PolicyTemplateId,
   type SavePolicyErrorKind,
 } from "../../domain";
@@ -61,6 +60,7 @@ import {
 } from "../validation/approvalPolicySchema";
 import { placeSavePolicyErrors } from "../utils/policyServerErrors";
 import { PolicySimulator } from "./PolicySimulator";
+import type { PolicyPeopleState } from "./PolicyStepEditor";
 import { PolicyTierEditor } from "./PolicyTierEditor";
 import { SelfApprovalFloorNote } from "./SelfApprovalFloorNote";
 
@@ -74,8 +74,10 @@ interface ApprovalPolicySheetProps {
   onOpenChange: (open: boolean) => void;
   policy: ConceptPolicy | null;
   mode: ApprovalPolicySheetMode;
-  /** Activos del tenant (solo editores); `null` si no se cargaron. */
-  candidateUsers: PolicyCandidateUser[] | null;
+  /** Padrón de personas del editor (solo editores). */
+  people: PolicyPeopleState;
+  /** Vuelve a pedir el padrón tras un error. */
+  onRetryPeople: () => void;
   /** Vuelve a leer el overview tras un 409 o un 403 de edición. */
   onReload: () => void;
 }
@@ -89,7 +91,8 @@ export function ApprovalPolicySheet({
   onOpenChange,
   policy,
   mode,
-  candidateUsers,
+  people,
+  onRetryPeople,
   onReload,
 }: ApprovalPolicySheetProps) {
   const label = policy ? APPROVAL_CONCEPT_LABELS[policy.concept] : "";
@@ -108,7 +111,8 @@ export function ApprovalPolicySheet({
             <PolicyEditor
               key={`${policy.concept}-${policy.version ?? "default"}-${policy.source}`}
               policy={policy}
-              candidateUsers={candidateUsers}
+              people={people}
+              onRetryPeople={onRetryPeople}
               onClose={() => onOpenChange(false)}
               onReload={onReload}
             />
@@ -153,13 +157,15 @@ function PolicyViewer({ policy, onClose }: { policy: ConceptPolicy; onClose: () 
 
 interface PolicyEditorProps {
   policy: ConceptPolicy;
-  candidateUsers: PolicyCandidateUser[] | null;
+  people: PolicyPeopleState;
+  onRetryPeople: () => void;
   onClose: () => void;
   onReload: () => void;
 }
 
-function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEditorProps) {
+function PolicyEditor({ policy, people, onRetryPeople, onClose, onReload }: PolicyEditorProps) {
   const { concept } = policy;
+  const candidateUsers = people.status === "ready" ? people.users : null;
   const { toast } = useToast();
   const saveMutation = useSaveApprovalPolicy();
   const resetMutation = useResetApprovalPolicy();
@@ -327,6 +333,19 @@ function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEdito
           </Alert>
         ) : null}
 
+        {people.status === "error" ? (
+          <Alert variant="destructive" data-testid="policy-people-error">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex flex-wrap items-center gap-3">
+              <span>{copy.peopleLoadError}</span>
+              <Button type="button" size="sm" variant="outline" onClick={onRetryPeople}>
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                {copy.peopleRetry}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         <section className="space-y-2">
           <div>
             <h3 className="text-sm font-semibold">{copy.templatesTitle}</h3>
@@ -364,7 +383,7 @@ function PolicyEditor({ policy, candidateUsers, onClose, onReload }: PolicyEdito
               form={form}
               concept={concept}
               tierIndex={index}
-              candidateUsers={candidateUsers}
+              people={people}
               amountHint={index === thresholdTierIndex ? copy.thresholdAmountHint : undefined}
               onRemove={index === 0 ? undefined : () => removeTier(index)}
             />

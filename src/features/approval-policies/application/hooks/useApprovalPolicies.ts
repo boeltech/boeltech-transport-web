@@ -20,7 +20,7 @@ export function useApprovalPolicies() {
   });
 }
 
-/** Activos del tenant para elegir personas y contar elegibles (solo editores). */
+/** Autorizadores posibles y referenciados en reglas vigentes (solo editores). */
 export function usePolicyCandidateUsers(options: { enabled: boolean }) {
   return useQuery({
     queryKey: approvalPoliciesQueryKeys.candidateUsers(),

@@ -4,7 +4,7 @@ import type {
   ApprovalConcept,
   ApprovalPoliciesOverview,
   ApprovalRules,
-  PolicyCandidateUser,
+  PolicyCandidates,
   PolicyVersionPage,
   SavedPolicyVersion,
   SimulationFacts,
@@ -13,14 +13,14 @@ import type {
 import {
   collectEligibleUserIds,
   mapApprovalPoliciesOverview,
-  mapCandidateUser,
+  mapPolicyCandidates,
   mapPolicyVersionsResponse,
   mapSavedPolicyVersion,
   mapSimulationResult,
   toApiRules,
   toApiSimulationFacts,
   type ApiApprovalPoliciesOverview,
-  type ApiCandidateUser,
+  type ApiPolicyCandidates,
   type ApiPolicyVersionsResponse,
   type ApiSavedPolicyVersion,
   type ApiSimulationResult,
@@ -86,11 +86,13 @@ export const approvalPoliciesApi = {
     return mapSimulationResult(response.data);
   },
 
-  /** Usuarios activos para elegir «personas designadas» y contar elegibles. */
-  listCandidateUsers: async (): Promise<PolicyCandidateUser[]> => {
-    const response = await apiClient.get<{ data: ApiCandidateUser[] }>("/users", {
-      params: { status: "active", limit: "100", sort_by: "first_name", sort_order: "asc" },
-    });
-    return (response.data ?? []).map(mapCandidateUser);
+  /**
+   * Autorizadores posibles (activos dentro del techo) para elegir «personas
+   * designadas» y contar elegibles, más los nombrados en reglas vigentes que
+   * ya no pueden firmar. Solo admin (`approval_policies.update`).
+   */
+  listCandidateUsers: async (): Promise<PolicyCandidates> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiPolicyCandidates>>(`${ENDPOINT}/candidates`);
+    return mapPolicyCandidates(response.data);
   },
 };

@@ -9,11 +9,10 @@ import {
   conceptAllowsNoApprovalTier,
   conceptMaxSteps,
   type ApprovalConcept,
-  type PolicyCandidateUser,
 } from "../../domain";
 import { CONCEPT_CATEGORY_LABELS, approvalPoliciesCopy } from "../copy/approvalPoliciesCopy";
 import { emptyStep, type PolicyFormTier, type PolicyFormValues } from "../validation/approvalPolicySchema";
-import { PolicyStepEditor } from "./PolicyStepEditor";
+import { PolicyStepEditor, type PolicyPeopleState } from "./PolicyStepEditor";
 
 const copy = approvalPoliciesCopy.sheet;
 
@@ -21,7 +20,7 @@ interface PolicyTierEditorProps {
   form: UseFormReturn<PolicyFormValues>;
   concept: ApprovalConcept;
   tierIndex: number;
-  candidateUsers: PolicyCandidateUser[] | null;
+  people: PolicyPeopleState;
   /** Ayuda bajo el «Desde» (p. ej. el tramo que fija el umbral de liquidaciones). */
   amountHint?: string;
   onRemove?: () => void;
@@ -31,7 +30,7 @@ export function PolicyTierEditor({
   form,
   concept,
   tierIndex,
-  candidateUsers,
+  people,
   amountHint,
   onRemove,
 }: PolicyTierEditorProps) {
@@ -181,7 +180,7 @@ export function PolicyTierEditor({
               tierIndex={tierIndex}
               stepIndex={stepIndex}
               stepsInTier={tier.steps.length}
-              candidateUsers={candidateUsers}
+              people={people}
             />
           ))}
           {maxSteps > 1 ? (

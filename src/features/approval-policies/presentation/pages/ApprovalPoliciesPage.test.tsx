@@ -92,6 +92,11 @@ function renderPage(path = "/settings/approvals") {
 
 const sheetCopy = approvalPoliciesCopy.sheet;
 
+const ACTIVE_USERS = [
+  { id: "u-admin", fullName: "Ana Admin", role: "admin" },
+  { id: "u-mgr", fullName: "Mario Gerente", role: "manager" },
+];
+
 async function openSettlementEditorAndSave() {
   const user = userEvent.setup();
   renderPage("/settings/approvals?concept=settlement");
@@ -106,10 +111,104 @@ describe("ApprovalPoliciesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPermissions.granted = new Set(["approval_policies.read", "approval_policies.update"]);
-    mockApi.listCandidateUsers.mockResolvedValue([
-      { id: "u-admin", fullName: "Ana Admin", role: "admin" },
-      { id: "u-mgr", fullName: "Mario Gerente", role: "manager" },
-    ]);
+    mockApi.listCandidateUsers.mockResolvedValue({ users: ACTIVE_USERS, referencedUsers: [] });
+  });
+
+  describe("personas designadas con el padrón de candidatos (web#45)", () => {
+    const REFERENCED = [
+      { id: "u-old", fullName: "Olga Antigua", role: "manager", status: "inactive" },
+      { id: "u-disp", fullName: "Diego Despacho", role: "dispatcher", status: "active" },
+    ];
+
+    function settlementNaming(ids: string[]): ApprovalPoliciesOverview {
+      return overview(true, {
+        source: "tenant",
+        version: 2,
+        effectiveFrom: "2026-10-01T00:00:00Z",
+        rules: {
+          rulesSchemaVersion: 1,
+          tiers: [
+            {
+              minAmount: 0,
+              conditions: {},
+              requiresApproval: true,
+              steps: [{ eligibleRoles: ["admin"], eligibleUserIds: ids }],
+            },
+          ],
+        },
+      });
+    }
+
+    async function openSettlementStep() {
+      renderPage("/settings/approvals?concept=settlement");
+      const dialog = await screen.findByRole("dialog");
+      return within(dialog).getByTestId("policy-tier-0-step-0");
+    }
+
+    beforeEach(() => {
+      mockApi.listCandidateUsers.mockResolvedValue({ users: ACTIVE_USERS, referencedUsers: REFERENCED });
+    });
+
+    it("referenciado inactivo: chip con nombre y «Inactiva», fuera del conteo de elegibles", async () => {
+      mockApi.getOverview.mockResolvedValue(settlementNaming(["u-old"]));
+      const step = await openSettlementStep();
+      const chip = await within(step).findByTestId("policy-tier-0-step-0-person-u-old");
+      expect(chip).toHaveTextContent("Olga Antigua");
+      expect(chip).toHaveTextContent(sheetCopy.personState.inactive);
+      expect(within(step).getByTestId("policy-tier-0-step-0-eligible")).toHaveTextContent(sheetCopy.eligibleCount(1));
+      expect(within(chip).getByRole("button", { name: sheetCopy.removePerson("Olga Antigua") })).toBeInTheDocument();
+    });
+
+    it("referenciado activo con rol fuera del techo: «Sin permiso para autorizar» (no decide solo por status)", async () => {
+      mockApi.getOverview.mockResolvedValue(settlementNaming(["u-disp"]));
+      const step = await openSettlementStep();
+      const chip = await within(step).findByTestId("policy-tier-0-step-0-person-u-disp");
+      expect(chip).toHaveTextContent("Diego Despacho");
+      expect(chip).toHaveTextContent(sheetCopy.personState.no_permission);
+      expect(within(step).getByTestId("policy-tier-0-step-0-eligible")).toHaveTextContent(sheetCopy.eligibleCount(1));
+    });
+
+    it("usuario borrado: chip «Usuario no disponible» que se puede quitar", async () => {
+      mockApi.getOverview.mockResolvedValue(settlementNaming(["u-gone"]));
+      const user = userEvent.setup();
+      const step = await openSettlementStep();
+      const chip = await within(step).findByTestId("policy-tier-0-step-0-person-u-gone");
+      expect(chip).toHaveTextContent(sheetCopy.personUnavailable);
+      expect(chip).not.toHaveTextContent("u-gone");
+      await user.click(within(chip).getByRole("button", { name: sheetCopy.removePerson(sheetCopy.personUnavailable) }));
+      expect(within(step).queryByTestId("policy-tier-0-step-0-person-u-gone")).not.toBeInTheDocument();
+    });
+
+    it("error al cargar personas: alerta con «Reintentar» que vuelve a pedir el padrón", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true));
+      mockApi.listCandidateUsers
+        .mockRejectedValueOnce(new ApiError("Falla", 500, "INTERNAL"))
+        .mockResolvedValueOnce({ users: ACTIVE_USERS, referencedUsers: [] });
+      const user = userEvent.setup();
+      renderPage("/settings/approvals?concept=settlement");
+      const dialog = await screen.findByRole("dialog");
+      const alert = await within(dialog).findByTestId("policy-people-error");
+      expect(alert).toHaveTextContent(sheetCopy.peopleLoadError);
+      expect(within(dialog).queryByRole("button", { name: `${sheetCopy.peopleLabel} · ${sheetCopy.stepTitle(1)}` })).not.toBeInTheDocument();
+
+      await user.click(within(alert).getByRole("button", { name: sheetCopy.peopleRetry }));
+      await waitFor(() => expect(mockApi.listCandidateUsers).toHaveBeenCalledTimes(2));
+      expect(
+        await within(dialog).findByRole("button", { name: `${sheetCopy.peopleLabel} · ${sheetCopy.stepTitle(1)}` }),
+      ).toBeInTheDocument();
+      expect(within(dialog).queryByTestId("policy-people-error")).not.toBeInTheDocument();
+    });
+
+    it("sin autorizadores activos: «No hay autorizadores activos» en lugar del selector", async () => {
+      mockApi.getOverview.mockResolvedValue(overview(true));
+      mockApi.listCandidateUsers.mockResolvedValue({ users: [], referencedUsers: [] });
+      renderPage("/settings/approvals?concept=settlement");
+      const dialog = await screen.findByRole("dialog");
+      expect(await within(dialog).findByTestId("policy-tier-0-step-0-people-empty")).toHaveTextContent(
+        sheetCopy.peopleNoneActive,
+      );
+      expect(within(dialog).getByTestId("policy-tier-0-step-0-eligible")).toHaveTextContent(sheetCopy.eligibleCount(0));
+    });
   });
 
   it("estado estándar: 4 tarjetas con «Usando la regla estándar» y nota de piso", async () => {

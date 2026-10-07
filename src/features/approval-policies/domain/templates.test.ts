@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { PolicyCandidateUser } from "./entities";
-import { getConceptCeilingRoles } from "./eligibility";
+import type { PolicyCandidates, PolicyCandidateUser } from "./entities";
+import { getConceptCeilingRoles, resolveDesignatedPerson } from "./eligibility";
 import { buildPolicyTemplate, templateAvailability, TEMPLATE_HIGH_AMOUNT_MXN } from "./templates";
 
 const admin: PolicyCandidateUser = { id: "a", fullName: "Ana", role: "admin" };
@@ -69,5 +69,65 @@ describe("templateAvailability", () => {
   it("por monto requiere un administrador activo", () => {
     expect(templateAvailability("byAmount", "settlement", [manager]).available).toBe(false);
     expect(templateAvailability("byAmount", "settlement", [manager, admin]).available).toBe(true);
+  });
+
+  it("los referenciados (inactivos, suspendidos o sin permiso) no habilitan plantillas", () => {
+    const candidates: PolicyCandidates = {
+      users: [manager],
+      referencedUsers: [
+        { id: "x-admin", fullName: "Xavier", role: "admin", status: "suspended" },
+        { id: "x-acc", fullName: "Olga", role: "accountant", status: "inactive" },
+      ],
+    };
+    expect(templateAvailability("doubleSign", "settlement", candidates.users)).toEqual({
+      available: false,
+      reason: "Requiere 2 autorizadores activos; tienes 1",
+    });
+    expect(templateAvailability("byAmount", "settlement", candidates.users).available).toBe(false);
+  });
+});
+
+describe("resolveDesignatedPerson", () => {
+  const candidates: PolicyCandidates = {
+    users: [admin, manager],
+    referencedUsers: [
+      { id: "r-inactive", fullName: "Olga Antigua", role: "manager", status: "inactive" },
+      { id: "r-suspended", fullName: "Sergio Suspendido", role: "admin", status: "suspended" },
+      { id: "r-dispatcher", fullName: "Diego Despacho", role: "dispatcher", status: "active" },
+    ],
+  };
+
+  it("activo dentro del techo = elegible", () => {
+    expect(resolveDesignatedPerson("a", "settlement", candidates)).toEqual({
+      id: "a",
+      fullName: "Ana",
+      state: "eligible",
+    });
+  });
+
+  it("activo del padrón fuera del techo del concepto = sin permiso (gerente en dispersión)", () => {
+    expect(resolveDesignatedPerson("m", "disbursement", candidates).state).toBe("no_permission");
+  });
+
+  it("referenciado: estado por status, y activo con rol fuera del techo = sin permiso", () => {
+    expect(resolveDesignatedPerson("r-inactive", "settlement", candidates)).toEqual({
+      id: "r-inactive",
+      fullName: "Olga Antigua",
+      state: "inactive",
+    });
+    expect(resolveDesignatedPerson("r-suspended", "settlement", candidates).state).toBe("suspended");
+    expect(resolveDesignatedPerson("r-dispatcher", "settlement", candidates)).toEqual({
+      id: "r-dispatcher",
+      fullName: "Diego Despacho",
+      state: "no_permission",
+    });
+  });
+
+  it("borrado (en ninguna lista) = no disponible, sin nombre", () => {
+    expect(resolveDesignatedPerson("u-gone", "settlement", candidates)).toEqual({
+      id: "u-gone",
+      fullName: null,
+      state: "unavailable",
+    });
   });
 });

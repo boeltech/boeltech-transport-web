@@ -5,6 +5,7 @@ export {
   eligibleUsersForStep,
   ceilingUsers,
   distinctSignersForTier,
+  resolveDesignatedPerson,
 } from "./eligibility";
 export {
   summarizeRules,

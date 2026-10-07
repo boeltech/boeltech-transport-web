@@ -12,8 +12,10 @@ import {
   type ApprovalTierConditions,
   type ConceptPolicy,
   type ConceptPolicySource,
+  type PolicyCandidates,
   type PolicyCandidateUser,
   type PolicyDiffEntry,
+  type PolicyReferencedUser,
   type PolicyVersionPage,
   type SatisfiabilityIssue,
   type SavedPolicyVersion,
@@ -111,6 +113,15 @@ export interface ApiCandidateUser {
   full_name?: string | null;
   email?: string | null;
   role: string;
+}
+
+export interface ApiReferencedUser extends ApiCandidateUser {
+  status: string;
+}
+
+export interface ApiPolicyCandidates {
+  users?: ApiCandidateUser[];
+  referenced_users?: ApiReferencedUser[];
 }
 
 function mapConditions(raw: ApiTierConditions | undefined): ApprovalTierConditions {
@@ -281,5 +292,14 @@ export function mapCandidateUser(raw: ApiCandidateUser): PolicyCandidateUser {
     id: raw.id,
     fullName: raw.full_name?.trim() || composed || raw.email || raw.id,
     role: raw.role as UserRole,
+  };
+}
+
+export function mapPolicyCandidates(raw: ApiPolicyCandidates | null | undefined): PolicyCandidates {
+  return {
+    users: (raw?.users ?? []).map(mapCandidateUser),
+    referencedUsers: (raw?.referenced_users ?? []).map(
+      (user): PolicyReferencedUser => ({ ...mapCandidateUser(user), status: user.status }),
+    ),
   };
 }

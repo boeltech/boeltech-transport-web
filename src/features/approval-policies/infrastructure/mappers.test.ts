@@ -3,6 +3,7 @@ import {
   collectEligibleUserIds,
   mapApprovalPoliciesOverview,
   mapCandidateUser,
+  mapPolicyCandidates,
   mapPolicyVersionsResponse,
   mapRules,
   mapSavedPolicyVersion,
@@ -193,6 +194,32 @@ describe("approval-policies mappers", () => {
       steps: [{ stepNo: 1, eligible: [{ userId: "u-1", fullName: "Ana", role: "admin" }] }],
       violations: [],
     });
+  });
+
+  it("candidatos: users y referenced_users snake → camel, con estado en los referenciados", () => {
+    expect(
+      mapPolicyCandidates({
+        users: [{ id: "u-1", full_name: "Ana Admin", role: "admin" }],
+        referenced_users: [
+          { id: "u-2", full_name: "Olga Antigua", role: "manager", status: "inactive" },
+          { id: "u-3", full_name: "Diego Despacho", role: "dispatcher", status: "active" },
+        ],
+      }),
+    ).toEqual({
+      users: [{ id: "u-1", fullName: "Ana Admin", role: "admin" }],
+      referencedUsers: [
+        { id: "u-2", fullName: "Olga Antigua", role: "manager", status: "inactive" },
+        { id: "u-3", fullName: "Diego Despacho", role: "dispatcher", status: "active" },
+      ],
+    });
+  });
+
+  it("candidatos: tolera referenced_users ausente (y respuesta vacía)", () => {
+    expect(mapPolicyCandidates({ users: [{ id: "u-1", full_name: "Ana Admin", role: "admin" }] })).toEqual({
+      users: [{ id: "u-1", fullName: "Ana Admin", role: "admin" }],
+      referencedUsers: [],
+    });
+    expect(mapPolicyCandidates(undefined)).toEqual({ users: [], referencedUsers: [] });
   });
 
   it("usuario candidato compone el nombre", () => {
