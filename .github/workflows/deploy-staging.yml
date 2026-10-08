@@ -2,13 +2,25 @@ name: Deploy Staging (Web)
 
 on:
   push:
-    branches: [main]
+    tags:
+      - "staging-*"
   workflow_dispatch:
+    inputs:
+      skip_ci_check:
+        description: "Desplegar sin CI en verde sobre el commit (override CEO, HB-G5)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
   contents: read
   packages: read
+  actions: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
 
 env:
   AWS_REGION: us-east-1
@@ -22,6 +34,46 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify commit is on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "El commit $GITHUB_SHA no está en main: los tags staging-* deben apuntar a un commit de main."
+            exit 1
+          fi
+
+      - name: Wait for green CI on this commit
+        if: ${{ !inputs.skip_ci_check }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # CI solo corre sobre el último commit de cada push: el tag debe apuntar a uno de esos.
+          for i in $(seq 1 40); do
+            RUN=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" \
+              --event push --limit 1 --json status,conclusion,url)
+            STATUS=$(echo "$RUN" | jq -r '.[0].status // "missing"')
+            CONCLUSION=$(echo "$RUN" | jq -r '.[0].conclusion // ""')
+            URL=$(echo "$RUN" | jq -r '.[0].url // ""')
+            if [ "$STATUS" = "missing" ] && [ "$i" -ge 4 ]; then
+              echo "No hay corrida de CI (push) para $GITHUB_SHA."
+              exit 1
+            fi
+            if [ "$STATUS" = "completed" ]; then
+              if [ "$CONCLUSION" = "success" ]; then
+                echo "CI en verde: $URL"
+                exit 0
+              fi
+              echo "CI terminó en '$CONCLUSION': $URL"
+              exit 1
+            fi
+            echo "CI: $STATUS (intento $i/40)"
+            sleep 30
+          done
+          echo "CI no terminó en 20 min para $GITHUB_SHA."
+          exit 1
 
       - uses: actions/setup-node@v4
         with:

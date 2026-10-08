@@ -174,6 +174,13 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 
 Conventional Commits · ramas `feature/...`, `bugfix/...`.
 
+## Despliegue
+
+- **Push a `main` no despliega**: solo corre `CI` (build, tokens, contraste, `npm run test` con flows).
+- **Staging = tag** `staging-AAAA-MM-DD.N` sobre un commit de `main` (`deploy-staging.yml`). El workflow verifica que el commit esté en `main` y espera a que su corrida de `CI` esté en verde; el tag debe apuntar al último commit de un push. Lo crea y empuja el CEO tras el gate de despliegue de `/qa` (HB-G8). Si el cambio depende de la API, etiquetar primero la API.
+- **Producción:** `deploy-prod.yml` manual (`workflow_dispatch`), frase literal del CEO (HB-G4).
+- Por pedido, `/qa` y los constructores solo corren pruebas acotadas (T0/T1, T4 del área); `npm run test` completo lo corre CI y se exige en el gate de despliegue.
+
 
 ## Cursor rules (versionadas en repo)
 Core en .cursor/rules/ (Cloud Agents las ven): `form-validation-ux`, `overlays-toast`, `sheet-from-menu-focus`, `frontend-api-env`, `cfdi-domain-adr-0043`. (`database-timestamptz` vive en la API, por glob de SQL.)
