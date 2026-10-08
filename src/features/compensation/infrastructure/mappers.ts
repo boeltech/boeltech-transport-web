@@ -8,6 +8,8 @@ import { DEFAULT_MID_TRIP_PAYOUT_POLICY } from "@features/settlements/domain/enu
 import type {
   CorridorRefType,
   CompensationTemplateEventAction,
+  CompensationTemplateInactiveReason,
+  CompensationTemplateLockedReason,
   CompensationTemplateStatus,
   FixedAllowancePeriod,
   FixedAllowanceType,
@@ -89,6 +91,10 @@ export interface ApiCompensationTemplateRaw {
   family_id?: string;
   supersedes_template_id?: string | null;
   locked_for_edit?: boolean;
+  locked_reason?: string | null;
+  inactive_reason?: string | null;
+  superseded_by_template_id?: string | null;
+  inactivated_at?: string | null;
   mid_trip_payout_policy?: string;
   rules: ApiCompensationTemplateRuleRaw[];
   fixed_allowances: ApiTemplateFixedAllowanceRaw[];
@@ -201,6 +207,47 @@ function resolveTemplateStatus(
   return isActive ? "active" : "inactive";
 }
 
+/** Un valor desconocido se trata como ausente para no inventar un estado. */
+function resolveInactiveReason(
+  value: string | null | undefined,
+): CompensationTemplateInactiveReason | null | undefined {
+  if (value === "superseded" || value === "manual") return value;
+  if (value === null) return null;
+  return undefined;
+}
+
+function resolveLockedReason(
+  value: string | null | undefined,
+): CompensationTemplateLockedReason | null | undefined {
+  if (value === "superseded" || value === "used_in_settlements") return value;
+  if (value === null) return null;
+  return undefined;
+}
+
+type TemplateVersionLifecycleFields = Pick<
+  CompensationTemplate,
+  "lockedReason" | "inactiveReason" | "supersededByTemplateId" | "inactivatedAt"
+>;
+
+/** Solo incluye las claves que la API envió (conserva `undefined` vs `null`). */
+function mapVersionLifecycleFields(fields: {
+  lockedReason: string | null | undefined;
+  inactiveReason: string | null | undefined;
+  supersededByTemplateId: string | null | undefined;
+  inactivatedAt: string | null | undefined;
+}): TemplateVersionLifecycleFields {
+  const lockedReason = resolveLockedReason(fields.lockedReason);
+  const inactiveReason = resolveInactiveReason(fields.inactiveReason);
+  return {
+    ...(lockedReason !== undefined ? { lockedReason } : {}),
+    ...(inactiveReason !== undefined ? { inactiveReason } : {}),
+    ...(fields.supersededByTemplateId !== undefined
+      ? { supersededByTemplateId: fields.supersededByTemplateId }
+      : {}),
+    ...(fields.inactivatedAt !== undefined ? { inactivatedAt: fields.inactivatedAt } : {}),
+  };
+}
+
 export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTemplate {
   const status = resolveTemplateStatus(raw.status, raw.is_active);
   return {
@@ -213,6 +260,12 @@ export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTempla
     familyId: raw.family_id ?? raw.id,
     supersedesTemplateId: raw.supersedes_template_id ?? null,
     lockedForEdit: Boolean(raw.locked_for_edit),
+    ...mapVersionLifecycleFields({
+      lockedReason: raw.locked_reason,
+      inactiveReason: raw.inactive_reason,
+      supersededByTemplateId: raw.superseded_by_template_id,
+      inactivatedAt: raw.inactivated_at,
+    }),
     midTripPayoutPolicy:
       (raw.mid_trip_payout_policy as MidTripPayoutPolicy | undefined) ??
       DEFAULT_MID_TRIP_PAYOUT_POLICY,
@@ -351,6 +404,10 @@ export interface ApiCompensationTemplateCamel {
   familyId?: string;
   supersedesTemplateId?: string | null;
   lockedForEdit?: boolean;
+  lockedReason?: string | null;
+  inactiveReason?: string | null;
+  supersededByTemplateId?: string | null;
+  inactivatedAt?: string | null;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules: ApiCompensationTemplateRuleCamel[];
   fixedAllowances: ApiTemplateFixedAllowanceCamel[];
@@ -499,6 +556,12 @@ export function mapTemplateFromApi(raw: ApiCompensationTemplateCamel): Compensat
     familyId: raw.familyId ?? raw.id,
     supersedesTemplateId: raw.supersedesTemplateId ?? null,
     lockedForEdit: Boolean(raw.lockedForEdit),
+    ...mapVersionLifecycleFields({
+      lockedReason: raw.lockedReason,
+      inactiveReason: raw.inactiveReason,
+      supersededByTemplateId: raw.supersededByTemplateId,
+      inactivatedAt: raw.inactivatedAt,
+    }),
     midTripPayoutPolicy:
       raw.midTripPayoutPolicy ?? DEFAULT_MID_TRIP_PAYOUT_POLICY,
     rules: (raw.rules ?? []).map(mapTemplateRuleFromApi),

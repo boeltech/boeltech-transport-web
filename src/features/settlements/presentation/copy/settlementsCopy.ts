@@ -696,8 +696,9 @@ export const settlementsCopy = {
     sections: {
       filtersTitle: "1. Operador y período",
       filtersDescription: "Selecciona el operador y el rango de fechas para consultar viajes y anticipos abiertos.",
-      agreementActiveLabel: "Tarifa de pago activa",
-      templateActivePrefix: "Tarifa",
+      agreementActiveLabel: "Tarifa de pago aplicada",
+      templateAppliedValue: (name: string, version?: number) =>
+        version != null ? `${name} versión ${version}` : name,
       agreementProfileSalaryHint:
         "El sueldo base se toma de la ficha del empleado al armar el pago; asigna una tarifa si aún no tiene una.",
       agreementProfileSalaryHintLink: "Abrir ficha del empleado para configurar sueldo base",

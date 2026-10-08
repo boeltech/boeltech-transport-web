@@ -1082,6 +1082,11 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     expect(alert).toHaveTextContent(settlementsCopy.workbench.templateSuperseded.title);
     expect(alert).toHaveTextContent(expectedBody);
     expect(screen.queryByText(/template_version_superseded/)).not.toBeInTheDocument();
+    const appliedBanner = screen
+      .getByText(`${settlementsCopy.createPage.sections.agreementActiveLabel}:`)
+      .closest("div.rounded-lg") as HTMLElement;
+    expect(alert.nextElementSibling).toBe(appliedBanner);
+    expect(within(appliedBanner).getByText(/^Norte versión 1( — |$)/)).toBeInTheDocument();
     expect(mockPreviewSettlement).toHaveBeenCalledWith(
       expect.objectContaining({
         employeeId: "emp-smoke-1",

@@ -34,6 +34,7 @@ export type TemplateUsageStatus =
   | "ready"
   | "ready_to_activate"
   | "needs_payment"
+  | "superseded_paying"
   | "paused";
 
 export interface TemplateSummaryLine {

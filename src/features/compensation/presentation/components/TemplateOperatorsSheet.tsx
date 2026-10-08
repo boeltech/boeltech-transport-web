@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Users } from "lucide-react";
+import { AlertCircle, History, Users } from "lucide-react";
+import { Alert, AlertDescription } from "@shared/ui/alert";
 import {
   Sheet,
   SheetContent,
@@ -9,6 +10,7 @@ import {
 } from "@shared/ui/sheet";
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
+import { getTemplateDisplayStatus } from "../utils/getTemplateDisplayStatus";
 import { TemplateOperatorsPanel } from "./TemplateOperatorsPanel";
 
 const copy = compensationCopy.operatorsSheet;
@@ -52,6 +54,8 @@ export function TemplateOperatorsSheet({
 
   if (!template) return null;
 
+  const displayStatus = getTemplateDisplayStatus(template);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -62,11 +66,22 @@ export function TemplateOperatorsSheet({
         <SheetHeader className="border-b px-6 py-4 text-left">
           <SheetTitle className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
-            {copy.title.replace("{{name}}", template.name)}
+            {copy.title(template.name, template.version)}
           </SheetTitle>
           <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+          {displayStatus === "superseded" ? (
+            <Alert variant="info" data-testid="operators-sheet-version-notice">
+              <History className="h-4 w-4" />
+              <AlertDescription>{copy.supersededNotice}</AlertDescription>
+            </Alert>
+          ) : displayStatus === "deactivated" ? (
+            <Alert variant="warning" data-testid="operators-sheet-version-notice">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{copy.deactivatedNotice}</AlertDescription>
+            </Alert>
+          ) : null}
           <TemplateOperatorsPanel
             template={template}
             canUpdate={canUpdate}

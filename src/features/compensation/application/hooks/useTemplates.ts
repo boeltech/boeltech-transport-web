@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import { compensationApi } from "../../infrastructure/compensationApi";
+import { COMPENSATION_ERROR_CODES } from "../../domain/enums";
 import { compensationQueryKeys } from "../compensationQueryKeys";
 import type {
   ActivateCompensationTemplatePayload,
@@ -87,6 +89,14 @@ export function useUpdateCompensationTemplate() {
       compensationApi.updateTemplate(id, payload),
     onSuccess: (_, variables) => {
       invalidateTemplateFamily(queryClient, variables.id);
+    },
+    onError: (error, variables) => {
+      if (
+        isApiError(error) &&
+        error.code === COMPENSATION_ERROR_CODES.TEMPLATE_CONFIG_LOCKED
+      ) {
+        invalidateTemplateFamily(queryClient, variables.id);
+      }
     },
   });
 }

@@ -63,15 +63,25 @@ export const compensationCopy = {
       readyToActivate: "Lista para activar",
       needsPayment: "Falta definir el pago",
       paused: "Pausada",
+      supersededPaying: "Sigue pagando a asignados",
     },
     status: {
       draft: "Borrador",
       active: "Activa",
       inactive: "Inactiva",
+      superseded: "Reemplazada",
+      deactivated: "Desactivada",
+    },
+    statusTooltips: {
+      superseded:
+        "Ya hay otra versión activa de esta tarifa. Esta sigue calculando el pago de los operadores asignados a ella hasta que los reasignes.",
+      deactivated:
+        "No calcula pagos, ni siquiera de los operadores que sigan asignados a ella.",
     },
     versionLabel: (version: number) => `v${version}`,
     completePayment: "Completar pago",
     edit: "Editar",
+    viewConfiguration: "Ver configuración",
     activate: "Activar",
     deactivate: "Desactivar",
     createVersion: "Crear nueva versión",
@@ -191,6 +201,29 @@ export const compensationCopy = {
     lockedBannerDescription:
       "La configuración está bloqueada. Crea una nueva versión para cambiar el pago.",
     lockedBannerAction: "Crear nueva versión",
+    supersededBanner: {
+      title: "Esta versión ya fue reemplazada",
+      assignments: (count: number) =>
+        count === 0
+          ? "Hoy no tiene operadores asignados y su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión."
+          : count === 1
+            ? "Sigue calculando el pago de 1 operador asignado a esta versión hasta que lo reasignes, pero su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión."
+            : `Sigue calculando el pago de ${count} operadores asignados a esta versión hasta que los reasignes, pero su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión.`,
+      activeVersionSameName: (version: number) =>
+        `La versión activa hoy es la ${version}.`,
+      activeVersionRenamed: (name: string, version: number) =>
+        `La versión activa hoy es ${name} versión ${version}.`,
+      noActiveVersion: "Ninguna versión de esta tarifa está activa hoy.",
+      openActiveVersion: (version: number) => `Abrir versión ${version}`,
+    },
+    deactivatedOperatorsBanner: {
+      title: "Versión desactivada con operadores asignados",
+      description: (count: number) =>
+        count === 1
+          ? "1 operador sigue asignado a esta versión y no puede cobrar con ella. Reasígnalo a otra versión para que pueda cobrar."
+          : `${count} operadores siguen asignados a esta versión y no pueden cobrar con ella. Reasígnalos a otra versión para que puedan cobrar.`,
+      viewOperators: "Ver operadores",
+    },
     reviewSaveFirst: "Guarda los cambios antes de activar.",
     reviewNotActivatable:
       "Agrega al menos una regla de pago o una ruta con tarifa fija para poder activar.",
@@ -203,6 +236,8 @@ export const compensationCopy = {
     historyEmptyActivity: "Sin actividad registrada.",
     historyOpenVersion: "Abrir",
     historyCurrentBadge: "Actual",
+    historySupersededOn: (date: string) => `Reemplazada el ${date}`,
+    historyDeactivatedOn: (date: string) => `Desactivada el ${date}`,
     trySchemeTitle: "Vista previa del pago",
     trySchemeWithOperator: "Vista previa con {{name}}",
     trySchemeAssignFirst: "Asigna un operador a esta tarifa para ver la vista previa.",
@@ -259,8 +294,12 @@ export const compensationCopy = {
     noCorridors: "Sin rutas con tarifa fija",
   },
   operatorsSheet: {
-    title: "Operadores — {{name}}",
+    title: (name: string, version: number) => `Operadores — ${name} versión ${version}`,
     description: "Asignaciones vigentes, overrides de prestaciones y asignación masiva.",
+    supersededNotice:
+      "Esta versión ya fue reemplazada. Los operadores asignados aquí siguen cobrando con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
+    deactivatedNotice:
+      "Esta versión está desactivada y no calcula pagos, ni siquiera de los operadores asignados aquí. Asígnalos a otra versión para que puedan cobrar.",
   },
   templateDetail: {
     tabs: {
@@ -391,6 +430,8 @@ export const compensationCopy = {
     errors: {
       TEMPLATE_CONFIG_LOCKED:
         "Esta tarifa ya fue utilizada en pagos. Crea una nueva versión para editarla.",
+      TEMPLATE_CONFIG_LOCKED_SUPERSEDED:
+        "Esta versión ya fue reemplazada y tus cambios no se guardaron. Crea una nueva versión y vuelve a capturarlos.",
       TEMPLATE_NOT_ACTIVATABLE:
         "Define el pago (reglas o rutas fijas) antes de activar la tarifa.",
       TEMPLATE_INVALID_STATUS_TRANSITION:

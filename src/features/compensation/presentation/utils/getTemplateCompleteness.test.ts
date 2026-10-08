@@ -100,6 +100,33 @@ describe("getTemplateUsageStatus", () => {
       }),
     ).toBe("paused");
   });
+
+  it("returns superseded_paying when inactive because it was replaced", () => {
+    expect(
+      getTemplateUsageStatus({
+        ...baseTemplate,
+        status: "inactive",
+        isActive: false,
+        inactiveReason: "superseded",
+        corridorIds: ["c-1"],
+      }),
+    ).toBe("superseded_paying");
+  });
+
+  it.each([
+    ["manual", "manual" as const],
+    ["null", null],
+  ])("returns paused when inactive with reason %s", (_label, inactiveReason) => {
+    expect(
+      getTemplateUsageStatus({
+        ...baseTemplate,
+        status: "inactive",
+        isActive: false,
+        inactiveReason,
+        corridorIds: ["c-1"],
+      }),
+    ).toBe("paused");
+  });
 });
 
 describe("getTemplateSectionStatuses", () => {

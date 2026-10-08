@@ -10,10 +10,11 @@
  * 4. Redirect legacy detalle → Sheet operadores.
  * 5. Sheet de asignación masiva desde CTA Operadores del catálogo.
  * 6–7. Preview liquidación con plantilla, badge de corredor (E1) y prestaciones (E3).
+ * 8–9. Versión reemplazada: catálogo → Builder bloqueado → versión activa; 409 en carrera (api#59 W5).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -27,6 +28,7 @@ import { AgreementsLegacyRedirect } from "@features/compensation/presentation/ro
 import { SettlementCreatePage } from "@features/settlements/presentation/pages/SettlementCreatePage";
 import { compensationCopy } from "@features/compensation/presentation/copy/compensationCopy";
 import { settlementsCopy } from "@features/settlements/presentation/copy/settlementsCopy";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 
 const {
   mockListTemplates,
@@ -40,7 +42,9 @@ const {
   mockListAgreements,
   mockFetchEmployees,
   mockGetEmployeeBasic,
+  mockListTemplateVersions,
 } = vi.hoisted(() => ({
+  mockListTemplateVersions: vi.fn(),
   mockListTemplates: vi.fn(),
   mockGetTemplate: vi.fn(),
   mockCreateTemplate: vi.fn(),
@@ -65,7 +69,7 @@ vi.mock("@features/compensation/infrastructure/compensationApi", () => ({
     activateTemplate: vi.fn(),
     deactivateTemplate: vi.fn(),
     createTemplateVersion: vi.fn(),
-    listTemplateVersions: vi.fn().mockResolvedValue([]),
+    listTemplateVersions: (...args: unknown[]) => mockListTemplateVersions(...args),
     listTemplateActivity: vi.fn().mockResolvedValue({
       data: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
@@ -263,6 +267,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     );
     mockCreateTemplate.mockResolvedValue(mockCreatedTemplate);
     mockUpdateTemplate.mockResolvedValue(mockCreatedTemplate);
+    mockListTemplateVersions.mockResolvedValue([]);
     mockListCorridors.mockResolvedValue({
       data: [mockCorridor],
       pagination: { total: 1, page: 1, limit: 100, totalPages: 1 },
@@ -582,7 +587,10 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(screen.getByText("VIA-200")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Tarifa Operador foráneo/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(settlementsCopy.createPage.sections.agreementActiveLabel + ":"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Operador foráneo — /)).toBeInTheDocument();
     // El nombre y monto del corredor viven en el title del badge; el texto visible es solo la etiqueta.
     const corridorBadge = screen.getByTitle(/^México → MTY — \$1,500\.00/);
     expect(corridorBadge).toHaveTextContent(
@@ -626,10 +634,100 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Tarifa de pago activa/i)).toBeInTheDocument();
+      expect(screen.getByText(/Tarifa de pago aplicada/i)).toBeInTheDocument();
     });
 
     expect(screen.queryByText(/Prestaciones fijas/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("$3,500.00").length).toBeGreaterThanOrEqual(1);
+  });
+
+  describe("W5: versiones reemplazadas", () => {
+    const supersededTemplate = {
+      ...mockTemplate,
+      id: "tpl-v2",
+      isActive: false,
+      status: "inactive" as const,
+      version: 2,
+      familyId: "tpl-1",
+      lockedForEdit: true,
+      lockedReason: "superseded" as const,
+      inactiveReason: "superseded" as const,
+      supersededByTemplateId: "tpl-v3-borrada",
+      inactivatedAt: "2026-10-01T15:00:00Z",
+      activeAssignmentsCount: 2,
+    };
+
+    it("8. Catálogo → «Ver configuración» → aviso con versión activa → «Abrir versión 1»", async () => {
+      const user = userEvent.setup();
+      mockListTemplates.mockResolvedValue({
+        data: [supersededTemplate],
+        pagination: { total: 1, page: 1, limit: 100, totalPages: 1 },
+      });
+      mockGetTemplate.mockImplementation(async (id: string) =>
+        id === "tpl-v2" ? supersededTemplate : mockTemplate,
+      );
+      mockListTemplateVersions.mockResolvedValue([mockTemplate, supersededTemplate]);
+
+      renderWithRoutes(
+        "/finance/compensation/templates",
+        <Routes>{compensationRoutes}</Routes>,
+      );
+
+      expect(await screen.findByText(compensationCopy.templates.status.superseded)).toBeInTheDocument();
+      expect(screen.getByText(compensationCopy.templates.usage.supersededPaying)).toBeInTheDocument();
+
+      await user.click(screen.getByRole("link", { name: compensationCopy.templates.viewConfiguration }));
+
+      const banner = await screen.findByTestId("builder-superseded-banner");
+      expect(await within(banner).findByText("La versión activa hoy es la 1.")).toBeInTheDocument();
+      expect(mockListTemplateVersions).toHaveBeenCalledWith("tpl-v2");
+      expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
+
+      await user.click(within(banner).getByRole("link", { name: "Abrir versión 1" }));
+
+      expect(await screen.findByRole("button", { name: "Guardar" })).toBeInTheDocument();
+      expect(screen.queryByTestId("builder-superseded-banner")).not.toBeInTheDocument();
+      expect(mockGetTemplate).toHaveBeenLastCalledWith("tpl-1");
+    });
+
+    it("9. 409 TEMPLATE_CONFIG_LOCKED superseded: la pantalla se bloquea sin recargar y el mensaje sigue visible", async () => {
+      const user = userEvent.setup();
+      const editableV1 = { ...mockTemplate, corridorIds: [] as string[], corridors: [] };
+      const lockedV1 = {
+        ...supersededTemplate,
+        ...editableV1,
+        isActive: false,
+        status: "inactive" as const,
+        lockedForEdit: true,
+      };
+      mockGetTemplate.mockResolvedValue(editableV1);
+      mockUpdateTemplate.mockImplementation(async () => {
+        mockGetTemplate.mockResolvedValue(lockedV1);
+        throw new ApiError("Versión reemplazada", 409, "TEMPLATE_CONFIG_LOCKED", {
+          reason: "superseded",
+        });
+      });
+
+      renderWithRoutes(
+        "/finance/compensation/templates/tpl-1/build",
+        <Routes>{compensationRoutes}</Routes>,
+      );
+
+      const nameInput = await screen.findByLabelText("Nombre");
+      await user.clear(nameInput);
+      await user.type(nameInput, "Cambio en carrera");
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      await waitFor(() => expect(mockUpdateTemplate).toHaveBeenCalledTimes(1));
+
+      const message =
+        "Esta versión ya fue reemplazada y tus cambios no se guardaron. Crea una nueva versión y vuelve a capturarlos.";
+      expect(await screen.findByTestId("builder-superseded-banner")).toBeInTheDocument();
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
+      expect(
+        await screen.findByText("Ninguna versión de esta tarifa está activa hoy."),
+      ).toBeInTheDocument();
+      expect(screen.getByText(message)).toBeInTheDocument();
+    });
   });
 });

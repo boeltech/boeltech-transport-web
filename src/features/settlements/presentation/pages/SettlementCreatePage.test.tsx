@@ -218,7 +218,8 @@ describe("SettlementCreatePage Component", () => {
 
     // Validar encabezado y resumen de acuerdo activo
     expect(screen.getByText("Armar pago")).toBeInTheDocument();
-    expect(screen.getByText(/Tarifa de pago activa:/i)).toBeInTheDocument();
+    expect(screen.getByText("Tarifa de pago aplicada:")).toBeInTheDocument();
+    expect(screen.getByText(/^Operador estándar — /)).toBeInTheDocument();
     expect(screen.getByText(/Sueldo base semanal de \$3,500\.00/i)).toBeInTheDocument();
     expect(screen.getByText(/15% de comisión sobre flete/i)).toBeInTheDocument();
 
@@ -416,7 +417,7 @@ describe("SettlementCreatePage Component", () => {
       expect(screen.getByText(/Sin tarifa asignada/i)).toBeInTheDocument();
     });
 
-    expect(screen.queryByText(/Tarifa de pago activa:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tarifa de pago aplicada:/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Ir a Tarifas/i }),
     ).toBeInTheDocument();
@@ -618,7 +619,7 @@ describe("SettlementCreatePage Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Tarifa Operador foráneo/i)).toBeInTheDocument();
+      expect(screen.getByText(/^Operador foráneo( —|$)/)).toBeInTheDocument();
     });
 
     const corridorBadge = screen.getByText("Corredor");
@@ -1159,6 +1160,40 @@ describe("SettlementCreatePage Component", () => {
         .getByText(`${settlementsCopy.createPage.sections.agreementActiveLabel}:`)
         .closest("div.rounded-lg");
       expect(alert.nextElementSibling).toBe(banner);
+    });
+
+    it("criterio 12 (W5): banner «Tarifa de pago aplicada: {nombre} versión 2 — …» + W3, sin otro aviso", async () => {
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        template: { ...mockPreview.template, version: 2, payability: "superseded" },
+        templateSuperseded: {
+          ...superseded,
+          templateVersion: 2,
+          replacedBy: { templateId: "tpl-v3", templateName: "Operador estándar", templateVersion: 3 },
+        },
+      });
+      renderPage();
+
+      const alert = await screen.findByTestId("settlement-template-superseded-alert");
+      const banner = screen
+        .getByText("Tarifa de pago aplicada:")
+        .closest("div.rounded-lg") as HTMLElement;
+      expect(alert.nextElementSibling).toBe(banner);
+      expect(within(banner).getByText(/^Operador estándar versión 2 — \S/)).toBeInTheDocument();
+      expect(banner).not.toHaveTextContent(/Tarifa Operador|reemplazada|activa/i);
+      expect(screen.getAllByTestId("settlement-template-superseded-alert")).toHaveLength(1);
+    });
+
+    it("criterio 12 (W5): sin version el banner muestra solo el nombre", async () => {
+      mockPreviewSettlement.mockResolvedValue({ ...mockPreview });
+      renderPage();
+
+      await screen.findByText("VIA-100");
+      const banner = screen
+        .getByText("Tarifa de pago aplicada:")
+        .closest("div.rounded-lg") as HTMLElement;
+      expect(within(banner).getByText(/^Operador estándar — \S/)).toBeInTheDocument();
+      expect(banner).not.toHaveTextContent(/versión/);
     });
 
     it("sin versión activa (replacedBy null): variante sin M", async () => {

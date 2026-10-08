@@ -53,6 +53,12 @@ export const CORRIDOR_REF_TYPE_LABELS: Record<CorridorRefType, string> = {
 /** Lifecycle de tarifa de pago (ADR versionado). */
 export type CompensationTemplateStatus = "draft" | "active" | "inactive";
 
+/** Por qué una versión quedó `inactive` (api#59 F1). */
+export type CompensationTemplateInactiveReason = "superseded" | "manual";
+
+/** Por qué la configuración de una versión ya no se puede editar (api#59 F4). */
+export type CompensationTemplateLockedReason = "used_in_settlements" | "superseded";
+
 export const COMPENSATION_TEMPLATE_STATUS_LABELS: Record<
   CompensationTemplateStatus,
   string

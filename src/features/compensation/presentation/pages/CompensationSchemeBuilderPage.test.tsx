@@ -5,6 +5,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CompensationSchemeBuilderPage } from "./CompensationSchemeBuilderPage";
 import type { CompensationTemplate } from "../../domain/entities";
+import { ApiError } from "@shared/api/interceptors/error-handler";
+import { compensationCopy } from "../copy/compensationCopy";
 
 const {
   mockUseCompensationTemplate,
@@ -12,7 +14,9 @@ const {
   mockHasPermission,
   mockUseCorridorTariffs,
   mockUseBranches,
+  mockUseTemplateVersions,
 } = vi.hoisted(() => ({
+  mockUseTemplateVersions: vi.fn(),
   mockUseCompensationTemplate: vi.fn(),
   mockMutateAsync: vi.fn(),
   mockHasPermission: vi.fn(() => true),
@@ -38,7 +42,7 @@ vi.mock("../../application/hooks", async (importOriginal) => {
       mutateAsync: vi.fn(),
       isPending: false,
     }),
-    useTemplateVersions: () => ({ data: [], isLoading: false }),
+    useTemplateVersions: (...args: unknown[]) => mockUseTemplateVersions(...args),
     useTemplateActivity: () => ({
       data: { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
       isLoading: false,
@@ -153,6 +157,7 @@ describe("CompensationSchemeBuilderPage", () => {
     });
     mockUseCorridorTariffs.mockReturnValue({ data: { data: [] } });
     mockUseBranches.mockReturnValue({ data: { data: [] } });
+    mockUseTemplateVersions.mockReturnValue({ data: [], isLoading: false, isError: false });
   });
 
   it("monta el Builder con plantilla y secciones operativas (sin Identidad)", () => {
@@ -299,5 +304,254 @@ describe("CompensationSchemeBuilderPage", () => {
     renderPage();
 
     expect(screen.getByText("Tarifa no encontrada")).toBeInTheDocument();
+  });
+});
+
+describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivadas (W5)", () => {
+  const builderCopy = compensationCopy.builder;
+  const superseded: CompensationTemplate = {
+    ...template,
+    id: "tpl-v2",
+    isActive: false,
+    status: "inactive",
+    version: 2,
+    lockedForEdit: true,
+    lockedReason: "superseded",
+    inactiveReason: "superseded",
+    supersededByTemplateId: "tpl-v3-borrada",
+    inactivatedAt: "2026-10-01T15:00:00Z",
+    activeAssignmentsCount: 3,
+  };
+  const activeV1: CompensationTemplate = {
+    ...template,
+    id: "tpl-v1",
+    version: 1,
+  };
+
+  function templatesById(byId: Record<string, CompensationTemplate>) {
+    mockUseCompensationTemplate.mockImplementation((id: string) => ({
+      data: byId[id],
+      isLoading: false,
+      isError: !byId[id],
+    }));
+  }
+
+  beforeEach(() => {
+    mockHasPermission.mockReturnValue(true);
+    mockMutateAsync.mockReset();
+    mockUseCorridorTariffs.mockReturnValue({ data: { data: [] } });
+    mockUseBranches.mockReturnValue({ data: { data: [] } });
+    mockUseTemplateVersions.mockReturnValue({
+      data: [activeV1, superseded],
+      isLoading: false,
+      isError: false,
+    });
+    templatesById({ "tpl-v2": superseded, "tpl-v1": activeV1 });
+  });
+
+  it("criterio 5: v2 reemplazada con v1 activa — aviso, «La versión activa hoy es la 1.» y «Abrir versión 1» abre v1", async () => {
+    const user = userEvent.setup();
+    renderPage("/finance/compensation/templates/tpl-v2/build");
+
+    const banner = screen.getByTestId("builder-superseded-banner");
+    expect(within(banner).getByText(builderCopy.supersededBanner.title)).toBeInTheDocument();
+    expect(
+      within(banner).getByText(
+        "Sigue calculando el pago de 3 operadores asignados a esta versión hasta que los reasignes, pero su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(banner).getByText("La versión activa hoy es la 1.")).toBeInTheDocument();
+    expect(banner).not.toHaveTextContent(/nueva versión activa|la nueva/i);
+    expect(
+      within(banner).getByRole("button", { name: builderCopy.lockedBannerAction }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(builderCopy.lockedBannerTitle)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Reemplazada").length).toBeGreaterThan(0);
+    expect(mockUseTemplateVersions).toHaveBeenCalledWith("tpl-v2", true);
+
+    const openV1 = within(banner).getByRole("link", { name: "Abrir versión 1" });
+    expect(openV1).toHaveAttribute("href", "/finance/compensation/templates/tpl-v1/build");
+    await user.click(openV1);
+
+    expect(mockUseCompensationTemplate).toHaveBeenLastCalledWith("tpl-v1");
+    expect(screen.queryByTestId("builder-superseded-banner")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeInTheDocument();
+  });
+
+  it("M sale de la versión activa hoy, no de supersededByTemplateId, y puede tener otro nombre", () => {
+    mockUseTemplateVersions.mockReturnValue({
+      data: [{ ...activeV1, name: "Operador foráneo 2026" }, superseded],
+      isLoading: false,
+      isError: false,
+    });
+    renderPage("/finance/compensation/templates/tpl-v2/build");
+
+    const banner = screen.getByTestId("builder-superseded-banner");
+    expect(
+      within(banner).getByText("La versión activa hoy es Operador foráneo 2026 versión 1."),
+    ).toBeInTheDocument();
+    expect(within(banner).getByRole("link", { name: "Abrir versión 1" })).toHaveAttribute(
+      "href",
+      "/finance/compensation/templates/tpl-v1/build",
+    );
+  });
+
+  it.each([
+    [1, "Sigue calculando el pago de 1 operador asignado a esta versión hasta que lo reasignes, pero su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión."],
+    [0, "Hoy no tiene operadores asignados y su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión."],
+  ])("aviso de reemplazada con %i operadores", (count, expected) => {
+    templatesById({ "tpl-v2": { ...superseded, activeAssignmentsCount: count } });
+    renderPage("/finance/compensation/templates/tpl-v2/build");
+
+    expect(
+      within(screen.getByTestId("builder-superseded-banner")).getByText(expected),
+    ).toBeInTheDocument();
+  });
+
+  it("criterio 6: sin versión activa — «Ninguna versión…» y solo «Crear nueva versión»", () => {
+    mockUseTemplateVersions.mockReturnValue({
+      data: [superseded],
+      isLoading: false,
+      isError: false,
+    });
+    renderPage("/finance/compensation/templates/tpl-v2/build");
+
+    const banner = screen.getByTestId("builder-superseded-banner");
+    expect(
+      within(banner).getByText("Ninguna versión de esta tarifa está activa hoy."),
+    ).toBeInTheDocument();
+    expect(within(banner).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(banner).getAllByRole("button")).toHaveLength(1);
+    expect(
+      within(banner).getByRole("button", { name: builderCopy.lockedBannerAction }),
+    ).toBeInTheDocument();
+  });
+
+  it("cargando versiones: sin frase de versión activa y solo «Crear nueva versión»", () => {
+    mockUseTemplateVersions.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+    renderPage("/finance/compensation/templates/tpl-v2/build");
+
+    const banner = screen.getByTestId("builder-superseded-banner");
+    expect(within(banner).queryByText(/versión activa hoy|Ninguna versión/)).not.toBeInTheDocument();
+    expect(within(banner).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(banner).getAllByRole("button")).toHaveLength(1);
+  });
+
+  it.each([
+    ["locked_reason ausente (API anterior)", {}],
+    ["used_in_settlements", { lockedReason: "used_in_settlements" as const }],
+  ])("criterio 7: bloqueada con %s conserva el aviso actual palabra por palabra", (_label, extra) => {
+    templatesById({ "tpl-1": { ...template, lockedForEdit: true, ...extra } });
+    renderPage();
+
+    expect(screen.getByText("Esta tarifa ya fue utilizada en pagos")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "La configuración está bloqueada. Crea una nueva versión para cambiar el pago.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("builder-superseded-banner")).not.toBeInTheDocument();
+    expect(mockUseTemplateVersions).toHaveBeenCalledWith("tpl-1", false);
+  });
+
+  it("criterio 8: 409 superseded — mensaje persistente y la pantalla pasa a bloqueada sin recargar", async () => {
+    const user = userEvent.setup();
+    const editable: CompensationTemplate = { ...template, id: "tpl-v2", version: 2 };
+    templatesById({ "tpl-v2": editable });
+    mockUseTemplateVersions.mockReturnValue({ data: [], isLoading: false, isError: false });
+    mockMutateAsync.mockImplementation(async () => {
+      templatesById({ "tpl-v2": superseded });
+      throw new ApiError("Versión reemplazada", 409, "TEMPLATE_CONFIG_LOCKED", {
+        reason: "superseded",
+      });
+    });
+    renderPage("/finance/compensation/templates/tpl-v2/build");
+
+    await user.clear(screen.getByLabelText("Nombre"));
+    await user.type(screen.getByLabelText("Nombre"), "Cambio en carrera");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    const message =
+      "Esta versión ya fue reemplazada y tus cambios no se guardaron. Crea una nueva versión y vuelve a capturarlos.";
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByTestId("builder-superseded-banner")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it("409 sin details.reason conserva el mensaje actual", async () => {
+    const user = userEvent.setup();
+    templatesById({ "tpl-1": template });
+    mockMutateAsync.mockRejectedValue(
+      new ApiError("Bloqueada", 409, "TEMPLATE_CONFIG_LOCKED"),
+    );
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(
+      await screen.findByText(
+        "Esta tarifa ya fue utilizada en pagos. Crea una nueva versión para editarla.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("criterio 9: desactivada con 2 operadores — aviso y «Ver operadores»", () => {
+    templatesById({
+      "tpl-1": {
+        ...template,
+        isActive: false,
+        status: "inactive",
+        inactiveReason: "manual",
+        activeAssignmentsCount: 2,
+      },
+    });
+    renderPage();
+
+    const banner = screen.getByTestId("builder-deactivated-operators-banner");
+    expect(
+      within(banner).getByText("Versión desactivada con operadores asignados"),
+    ).toBeInTheDocument();
+    expect(
+      within(banner).getByText(
+        "2 operadores siguen asignados a esta versión y no pueden cobrar con ella. Reasígnalos a otra versión para que puedan cobrar.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(banner).getByRole("link", { name: "Ver operadores" })).toHaveAttribute(
+      "href",
+      "/finance/compensation/templates?operators=tpl-1",
+    );
+    expect(screen.getAllByText("Desactivada").length).toBeGreaterThan(0);
+  });
+
+  it("desactivada con 1 operador usa singular", () => {
+    templatesById({
+      "tpl-1": {
+        ...template,
+        isActive: false,
+        status: "inactive",
+        inactiveReason: null,
+        activeAssignmentsCount: 1,
+      },
+    });
+    renderPage();
+
+    expect(
+      screen.getByText(
+        "1 operador sigue asignado a esta versión y no puede cobrar con ella. Reasígnalo a otra versión para que pueda cobrar.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["desactivada con 0 operadores", { inactiveReason: "manual" as const, activeAssignmentsCount: 0 }],
+    ["inactiva sin motivo (API anterior)", { activeAssignmentsCount: 2 }],
+  ])("criterio 9: %s no muestra aviso", (_label, extra) => {
+    templatesById({
+      "tpl-1": { ...template, isActive: false, status: "inactive", ...extra },
+    });
+    renderPage();
+
+    expect(screen.queryByTestId("builder-deactivated-operators-banner")).not.toBeInTheDocument();
   });
 });

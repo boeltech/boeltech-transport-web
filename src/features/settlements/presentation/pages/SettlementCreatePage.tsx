@@ -946,8 +946,10 @@ export function SettlementCreatePage() {
                   </span>
                   {preview.template ? (
                     <span className="text-primary font-medium">
-                      {createCopy.sections.templateActivePrefix}{" "}
-                      {preview.template.name}
+                      {createCopy.sections.templateAppliedValue(
+                        preview.template.name,
+                        preview.template.version,
+                      )}
                       {agreementSummaryText ? ` — ${agreementSummaryText}` : ""}
                     </span>
                   ) : (

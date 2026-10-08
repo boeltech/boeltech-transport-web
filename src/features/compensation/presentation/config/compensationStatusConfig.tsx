@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileEdit,
+  History,
   MinusCircle,
   PauseCircle,
 } from "lucide-react";
@@ -10,9 +11,20 @@ import {
   createStatusConfig,
 } from "@shared/config/status/types";
 import { createStatusBadgeComponent } from "@shared/components/StatusBadge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 import { compensationCopy } from "../copy/compensationCopy";
 import type { TemplateUsageStatus } from "../utils/templateCompositionTypes";
 import { getTemplateUsageStatus } from "../utils/getTemplateCompleteness";
+import {
+  TEMPLATE_DISPLAY_STATUS_LABELS,
+  type TemplateDisplayStatus,
+  getTemplateDisplayStatus,
+} from "../utils/getTemplateDisplayStatus";
 import type { CompensationTemplate } from "../../domain/entities";
 import type { CompensationTemplateStatus } from "../../domain/enums";
 
@@ -90,6 +102,67 @@ export function CompensationTemplateStatusBadge({
   return <CompensationTemplateStatusBadgeBase status={status} />;
 }
 
+const COMPENSATION_TEMPLATE_DISPLAY_STATUS_CONFIG: Record<
+  TemplateDisplayStatus,
+  StatusConfig
+> = {
+  draft: COMPENSATION_TEMPLATE_STATUS_CONFIG.draft,
+  active: COMPENSATION_TEMPLATE_STATUS_CONFIG.active,
+  superseded: createStatusConfig("info", {
+    label: TEMPLATE_DISPLAY_STATUS_LABELS.superseded,
+    icon: History,
+    description: copy.statusTooltips.superseded,
+    tone: "soft",
+  }),
+  deactivated: createStatusConfig("neutral", {
+    label: TEMPLATE_DISPLAY_STATUS_LABELS.deactivated,
+    icon: PauseCircle,
+    description: copy.statusTooltips.deactivated,
+    tone: "soft",
+  }),
+  inactive_unknown: COMPENSATION_TEMPLATE_STATUS_CONFIG.inactive,
+};
+
+const DISPLAY_STATUS_TOOLTIPS: Partial<Record<TemplateDisplayStatus, string>> = {
+  superseded: copy.statusTooltips.superseded,
+  deactivated: copy.statusTooltips.deactivated,
+};
+
+const CompensationTemplateDisplayStatusBadgeBase = createStatusBadgeComponent(
+  COMPENSATION_TEMPLATE_DISPLAY_STATUS_CONFIG,
+);
+
+/** Insignia calculada (Reemplazada / Desactivada / fallback «Inactiva»); tooltip solo en las dos primeras. */
+export function CompensationTemplateDisplayStatusBadge({
+  template,
+}: {
+  template: Parameters<typeof getTemplateDisplayStatus>[0];
+}) {
+  const displayStatus = getTemplateDisplayStatus(template);
+  const badge = <CompensationTemplateDisplayStatusBadgeBase status={displayStatus} />;
+  const tooltip = DISPLAY_STATUS_TOOLTIPS[displayStatus];
+  if (!tooltip) return badge;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className="inline-flex cursor-help rounded-md"
+            data-testid="template-display-status-trigger"
+          >
+            {badge}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export const COMPENSATION_USAGE_STATUS_CONFIG: Record<
   TemplateUsageStatus,
   StatusConfig
@@ -112,6 +185,12 @@ export const COMPENSATION_USAGE_STATUS_CONFIG: Record<
     description: "Faltan reglas de pago o tarifas por corredor",
     tone: "soft",
   }),
+  superseded_paying: createStatusConfig("info", {
+    label: copy.usage.supersededPaying,
+    icon: History,
+    description: "Sigue calculando el pago de los operadores asignados",
+    tone: "soft",
+  }),
   paused: createStatusConfig("neutral", {
     label: copy.usage.paused,
     icon: PauseCircle,
@@ -129,7 +208,7 @@ export function CompensationUsageStatusBadge({
 }: {
   template: Pick<
     CompensationTemplate,
-    "status" | "isActive" | "rules" | "corridorIds"
+    "status" | "isActive" | "rules" | "corridorIds" | "inactiveReason"
   >;
 }) {
   return (

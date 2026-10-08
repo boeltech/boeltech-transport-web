@@ -4,6 +4,8 @@ import type {
 } from "@features/settlements";
 import type {
   CompensationTemplateEventAction,
+  CompensationTemplateInactiveReason,
+  CompensationTemplateLockedReason,
   CompensationTemplateStatus,
   CorridorRefType,
   FixedAllowancePeriod,
@@ -76,6 +78,12 @@ export interface CompensationTemplate {
   supersedesTemplateId?: string | null;
   /** true si ya hay liquidaciones que referencian esta versión. */
   lockedForEdit: boolean;
+  /** `undefined` = la API aún no envía el campo; `null` = sin motivo. */
+  lockedReason?: CompensationTemplateLockedReason | null;
+  /** `undefined` = la API aún no envía el campo; `null` = inactiva sin motivo registrado. */
+  inactiveReason?: CompensationTemplateInactiveReason | null;
+  supersededByTemplateId?: string | null;
+  inactivatedAt?: string | null;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
   rules: CompensationTemplateRule[];
   fixedAllowances: TemplateFixedAllowance[];

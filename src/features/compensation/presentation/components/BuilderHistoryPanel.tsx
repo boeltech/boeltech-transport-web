@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Skeleton } from "@shared/ui/skeleton";
-import { formatDateTime } from "@shared/utils/dateUtils";
+import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
 import {
   useTemplateActivity,
   useTemplateVersions,
@@ -13,10 +13,27 @@ import {
   COMPENSATION_TEMPLATE_EVENT_ACTION_LABELS,
   COMPENSATION_TEMPLATE_STATUS_LABELS,
 } from "../../domain/enums";
-import { CompensationTemplateStatusBadge } from "../config/compensationStatusConfig";
+import { CompensationTemplateDisplayStatusBadge } from "../config/compensationStatusConfig";
 import { compensationCopy } from "../copy/compensationCopy";
+import { getTemplateDisplayStatus } from "../utils/getTemplateDisplayStatus";
 
 const copy = compensationCopy.builder;
+
+/**
+ * Segunda línea de cada versión: la fecha de reemplazo o desactivación si la hay.
+ * Sin motivo de inactivación conocido se conserva la etiqueta de estado de siempre.
+ */
+function versionDetailLine(version: CompensationTemplate): string | null {
+  const displayStatus = getTemplateDisplayStatus(version);
+  if (displayStatus === "superseded" || displayStatus === "deactivated") {
+    if (!version.inactivatedAt) return null;
+    const date = formatDate(version.inactivatedAt);
+    return displayStatus === "superseded"
+      ? copy.historySupersededOn(date)
+      : copy.historyDeactivatedOn(date);
+  }
+  return COMPENSATION_TEMPLATE_STATUS_LABELS[version.status];
+}
 
 interface BuilderHistoryPanelProps {
   template: CompensationTemplate;
@@ -61,6 +78,7 @@ export function BuilderHistoryPanel({ template }: BuilderHistoryPanelProps) {
           <ul className="space-y-2">
             {versions.map((version) => {
               const isCurrent = version.id === template.id;
+              const detailLine = versionDetailLine(version);
               return (
                 <li
                   key={version.id}
@@ -71,16 +89,16 @@ export function BuilderHistoryPanel({ template }: BuilderHistoryPanelProps) {
                       <span className="font-medium">
                         {copy.versionBadge(version.version)}
                       </span>
-                      <CompensationTemplateStatusBadge status={version.status} />
+                      <CompensationTemplateDisplayStatusBadge template={version} />
                       {isCurrent ? (
                         <Badge variant="secondary" tone="soft">
                           {copy.historyCurrentBadge}
                         </Badge>
                       ) : null}
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {COMPENSATION_TEMPLATE_STATUS_LABELS[version.status]}
-                    </p>
+                    {detailLine ? (
+                      <p className="truncate text-xs text-muted-foreground">{detailLine}</p>
+                    ) : null}
                   </div>
                   {!isCurrent ? (
                     <Button type="button" size="sm" variant="outline" asChild>

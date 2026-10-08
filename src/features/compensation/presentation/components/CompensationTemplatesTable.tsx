@@ -14,12 +14,13 @@ import {
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationTemplateBuildPath } from "../../application/compensationRoutes";
 import {
-  CompensationTemplateStatusBadge,
+  CompensationTemplateDisplayStatusBadge,
   CompensationUsageStatusBadge,
 } from "../config/compensationStatusConfig";
 import { compensationCopy } from "../copy/compensationCopy";
 import { buildTemplateSummary } from "../utils/buildTemplateSummary";
 import { getTemplateUsageStatus } from "../utils/getTemplateCompleteness";
+import { isTemplateLockedBySupersede } from "../utils/getTemplateDisplayStatus";
 import { CompensationTemplateActions } from "./CompensationTemplateActions";
 
 const copy = compensationCopy.templates;
@@ -53,6 +54,11 @@ function RowActions({
   const canAssignPending =
     Boolean(pendingEmployeeId) && canUpdate && usage === "ready";
   const buildHref = compensationTemplateBuildPath(template.id);
+  const buildLabel = template.lockedForEdit
+    ? isTemplateLockedBySupersede(template)
+      ? copy.viewConfiguration
+      : copy.createVersion
+    : copy.edit;
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-1">
@@ -99,7 +105,7 @@ function RowActions({
             <Button type="button" size="sm" variant="outline" asChild>
               <Link to={buildHref} className="inline-flex items-center gap-2">
                 <Settings2 className="h-3.5 w-3.5" aria-hidden />
-                {template.lockedForEdit ? copy.createVersion : copy.edit}
+                {buildLabel}
               </Link>
             </Button>
           </>
@@ -137,7 +143,7 @@ function TemplateCatalogCard({
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <CompensationTemplateStatusBadge status={template.status} />
+              <CompensationTemplateDisplayStatusBadge template={template} />
               <CompensationUsageStatusBadge template={template} />
             </div>
           </div>
@@ -235,7 +241,7 @@ export function CompensationTemplatesTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <CompensationTemplateStatusBadge status={template.status} />
+                  <CompensationTemplateDisplayStatusBadge template={template} />
                 </TableCell>
                 <TableCell>
                   <CompensationUsageStatusBadge template={template} />

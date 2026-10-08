@@ -13,7 +13,10 @@ import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useUpdateCompensationTemplate } from "../../application/hooks";
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
-import { getCompensationLifecycleErrorMessage } from "../utils/compensationLifecycleErrors";
+import {
+  getCompensationLifecycleErrorMessage,
+  isTemplateConfigLockedError,
+} from "../utils/compensationLifecycleErrors";
 import {
   DEFAULT_TEMPLATE_FORM_VALUES,
   TEMPLATE_FORM_ID,
@@ -72,6 +75,11 @@ export function useCompensationTemplateForm({
 }: UseCompensationTemplateFormOptions): UseCompensationTemplateFormResult {
   const { toast } = useToast();
   const [apiError, setApiError] = useState<string | null>(null);
+  /** Sobrevive a la recarga de la plantilla que dispara el 409 (el efecto de abajo limpia `apiError`). */
+  const [lockConflict, setLockConflict] = useState<{
+    templateId: string;
+    message: string;
+  } | null>(null);
   const updateMutation = useUpdateCompensationTemplate();
   const resolvedFormId =
     formId ?? (template?.id ? templateInlineFormId(template.id) : TEMPLATE_FORM_ID);
@@ -132,6 +140,7 @@ export function useCompensationTemplateForm({
         if (!template?.id) return;
 
         setApiError(null);
+        setLockConflict(null);
 
         try {
           await updateMutation.mutateAsync({
@@ -148,11 +157,20 @@ export function useCompensationTemplateForm({
           onSuccess?.();
         } catch (error) {
           const lockedMessage = getCompensationLifecycleErrorMessage(error);
-          setApiError(lockedMessage ?? getErrorMessage(error));
+          const message = lockedMessage ?? getErrorMessage(error);
+          if (isTemplateConfigLockedError(error)) {
+            setLockConflict({ templateId: template.id, message });
+            return;
+          }
+          setApiError(message);
         }
       })(),
     [handleSubmit, onSuccess, template?.id, toast, updateMutation],
   );
+
+  const visibleApiError =
+    apiError ??
+    (lockConflict && lockConflict.templateId === template?.id ? lockConflict.message : null);
 
   return {
     form,
@@ -168,7 +186,7 @@ export function useCompensationTemplateForm({
     removeDeduction,
     watchedRules,
     validationMessages,
-    apiError,
+    apiError: visibleApiError,
     isSaving,
     onSubmit,
   };

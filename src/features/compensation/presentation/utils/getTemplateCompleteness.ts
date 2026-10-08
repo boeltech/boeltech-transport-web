@@ -56,7 +56,7 @@ export function getTemplateCompleteness(
 export function getTemplateUsageStatus(
   template: Pick<
     CompensationTemplate,
-    "status" | "isActive" | "rules" | "corridorIds"
+    "status" | "isActive" | "rules" | "corridorIds" | "inactiveReason"
   >,
 ): TemplateUsageStatus {
   const status =
@@ -65,7 +65,7 @@ export function getTemplateUsageStatus(
     template.rules.length > 0 || template.corridorIds.length > 0;
 
   if (status === "inactive") {
-    return "paused";
+    return template.inactiveReason === "superseded" ? "superseded_paying" : "paused";
   }
   if (!isComplete) {
     return "needs_payment";

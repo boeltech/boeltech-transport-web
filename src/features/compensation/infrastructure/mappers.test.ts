@@ -194,6 +194,100 @@ describe("compensation mappers", () => {
     expect(mapped.deductions).toEqual([]);
   });
 
+  describe("api#59 F1/F4 — motivo de inactivación y de bloqueo", () => {
+    const baseRaw = {
+      id: "tpl-2",
+      name: "Operador foráneo",
+      description: null,
+      is_active: false,
+      status: "inactive",
+      version: 2,
+      rules: [],
+      fixed_allowances: [],
+      corridor_ids: [],
+      corridors: [],
+    };
+
+    it("mapTemplate convierte los cuatro campos snake_case", () => {
+      const mapped = mapTemplate({
+        ...baseRaw,
+        locked_for_edit: true,
+        locked_reason: "superseded",
+        inactive_reason: "superseded",
+        superseded_by_template_id: "tpl-1",
+        inactivated_at: "2026-10-01T15:00:00.000Z",
+      });
+
+      expect(mapped.lockedReason).toBe("superseded");
+      expect(mapped.inactiveReason).toBe("superseded");
+      expect(mapped.supersededByTemplateId).toBe("tpl-1");
+      expect(mapped.inactivatedAt).toBe("2026-10-01T15:00:00.000Z");
+    });
+
+    it("sin los campos (API anterior) no agrega las claves", () => {
+      const mapped = mapTemplate(baseRaw);
+
+      expect(mapped).not.toHaveProperty("lockedReason");
+      expect(mapped).not.toHaveProperty("inactiveReason");
+      expect(mapped).not.toHaveProperty("supersededByTemplateId");
+      expect(mapped).not.toHaveProperty("inactivatedAt");
+    });
+
+    it("conserva null distinto de ausente", () => {
+      const mapped = mapTemplateFromApi({
+        id: "tpl-2",
+        name: "Operador foráneo",
+        description: null,
+        isActive: false,
+        status: "inactive",
+        lockedReason: null,
+        inactiveReason: null,
+        supersededByTemplateId: null,
+        inactivatedAt: null,
+        rules: [],
+        fixedAllowances: [],
+        corridorIds: [],
+        corridors: [],
+      });
+
+      expect(mapped.lockedReason).toBeNull();
+      expect(mapped.inactiveReason).toBeNull();
+      expect(mapped.supersededByTemplateId).toBeNull();
+      expect(mapped.inactivatedAt).toBeNull();
+    });
+
+    it("mapTemplateFromApi acepta manual y used_in_settlements", () => {
+      const mapped = mapTemplateFromApi({
+        id: "tpl-2",
+        name: "Operador foráneo",
+        description: null,
+        isActive: false,
+        status: "inactive",
+        lockedForEdit: true,
+        lockedReason: "used_in_settlements",
+        inactiveReason: "manual",
+        rules: [],
+        fixedAllowances: [],
+        corridorIds: [],
+        corridors: [],
+      });
+
+      expect(mapped.lockedReason).toBe("used_in_settlements");
+      expect(mapped.inactiveReason).toBe("manual");
+    });
+
+    it("un motivo desconocido se trata como ausente", () => {
+      const mapped = mapTemplate({
+        ...baseRaw,
+        locked_reason: "otro",
+        inactive_reason: "archivada",
+      });
+
+      expect(mapped).not.toHaveProperty("lockedReason");
+      expect(mapped).not.toHaveProperty("inactiveReason");
+    });
+  });
+
   it("mapCorridor convierte refs y monto", () => {
     const mapped = mapCorridor({
       id: "corridor-1",

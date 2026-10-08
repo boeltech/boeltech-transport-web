@@ -266,4 +266,77 @@ describe("CompensationTemplateListPage", () => {
     ).not.toBeInTheDocument();
     expect(mockRefetchTemplates).toHaveBeenCalled();
   });
+
+  describe("Sheet de operadores en versiones no activas (W5)", () => {
+    function listWithInactiveVersion(extra: Record<string, unknown>) {
+      mockUseCompensationTemplates.mockReturnValue({
+        data: {
+          data: [
+            {
+              id: "tpl-old",
+              name: "Operador foráneo",
+              description: null,
+              isActive: false,
+              status: "inactive",
+              version: 2,
+              familyId: "tpl-1",
+              lockedForEdit: true,
+              rules: [],
+              fixedAllowances: [],
+              deductions: [],
+              corridorIds: [],
+              corridors: [],
+              activeAssignmentsCount: 2,
+              ...extra,
+            },
+          ],
+          pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+        },
+        isLoading: false,
+        isFetching: false,
+        refetch: mockRefetchTemplates,
+      });
+    }
+
+    it.each([
+      [
+        "reemplazada",
+        { inactiveReason: "superseded", lockedReason: "superseded" },
+        "Esta versión ya fue reemplazada. Los operadores asignados aquí siguen cobrando con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
+      ],
+      [
+        "desactivada",
+        { inactiveReason: "manual" },
+        "Esta versión está desactivada y no calcula pagos, ni siquiera de los operadores asignados aquí. Asígnalos a otra versión para que puedan cobrar.",
+      ],
+    ])(
+      "criterio 11: %s — título con versión, aviso y «Asignar operadores» disponible",
+      async (_label, extra, notice) => {
+        listWithInactiveVersion(extra);
+        renderPage("/finance/compensation/templates?operators=tpl-old");
+
+        expect(
+          await screen.findByRole("heading", {
+            name: "Operadores — Operador foráneo versión 2",
+          }),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId("operators-sheet-version-notice")).toHaveTextContent(notice);
+        expect(
+          await screen.findByRole("button", { name: /Asignar operadores/i }),
+        ).toBeEnabled();
+      },
+    );
+
+    it("inactiva sin motivo (API anterior) no muestra aviso", async () => {
+      listWithInactiveVersion({});
+      renderPage("/finance/compensation/templates?operators=tpl-old");
+
+      expect(
+        await screen.findByRole("heading", {
+          name: "Operadores — Operador foráneo versión 2",
+        }),
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId("operators-sheet-version-notice")).not.toBeInTheDocument();
+    });
+  });
 });

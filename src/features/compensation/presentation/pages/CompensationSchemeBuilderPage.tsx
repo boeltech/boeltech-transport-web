@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useWatch } from "react-hook-form";
 import {
   AlertCircle,
   Banknote,
   FileStack,
   Gift,
+  History,
   Route,
+  Users,
 } from "lucide-react";
 import {
   BuilderPageShell,
@@ -41,6 +43,7 @@ import {
   useCompensationTemplate,
   useCreateCompensationTemplateVersion,
   useTemplateAssignments,
+  useTemplateVersions,
 } from "../../application/hooks";
 import { useCompensationTemplateForm } from "../hooks/useCompensationTemplateForm";
 import { compensationCopy } from "../copy/compensationCopy";
@@ -48,8 +51,13 @@ import type { CompensationTemplateFormData } from "../validation/compensationSch
 import { getTemplateSectionStatuses } from "../utils/getTemplateCompleteness";
 import { getCompensationLifecycleErrorMessage } from "../utils/compensationLifecycleErrors";
 import type { BuilderSectionId } from "../utils/templateCompositionTypes";
-import { COMPENSATION_TEMPLATE_STATUS_LABELS } from "../../domain/enums";
-import { CompensationTemplateStatusBadge } from "../config/compensationStatusConfig";
+import {
+  getTemplateDisplayStatus,
+  getTemplateDisplayStatusLabel,
+  isTemplateLockedBySupersede,
+  pickActiveTemplateVersion,
+} from "../utils/getTemplateDisplayStatus";
+import { CompensationTemplateDisplayStatusBadge } from "../config/compensationStatusConfig";
 import { BuilderIdentitySection } from "../components/BuilderIdentitySection";
 import { BuilderPaymentRulesSection } from "../components/BuilderPaymentRulesSection";
 import { BuilderAllowancesSection } from "../components/BuilderAllowancesSection";
@@ -90,6 +98,17 @@ export function CompensationSchemeBuilderPage() {
 
   const backHref = COMPENSATION_TEMPLATES_PATH;
   const locked = Boolean(template?.lockedForEdit);
+  const lockedBySupersede = Boolean(template && isTemplateLockedBySupersede(template));
+
+  const {
+    data: familyVersions,
+    isLoading: familyVersionsLoading,
+    isError: familyVersionsError,
+  } = useTemplateVersions(template?.id, lockedBySupersede);
+  const activeVersion = useMemo(
+    () => pickActiveTemplateVersion(familyVersions),
+    [familyVersions],
+  );
 
   const formApi = useCompensationTemplateForm({
     template,
@@ -332,9 +351,20 @@ export function CompensationSchemeBuilderPage() {
     );
   }
 
-  const statusLabel =
-    COMPENSATION_TEMPLATE_STATUS_LABELS[template.status] ??
-    (template.isActive ? copy.statusActive : copy.statusInactive);
+  const statusLabel = getTemplateDisplayStatusLabel(template);
+  const supersededCopy = copy.supersededBanner;
+  const deactivatedCopy = copy.deactivatedOperatorsBanner;
+  const showDeactivatedOperators =
+    getTemplateDisplayStatus(template) === "deactivated" &&
+    template.activeAssignmentsCount > 0;
+  const versionsLoaded = !familyVersionsLoading && !familyVersionsError;
+  const activeVersionText = !versionsLoaded
+    ? null
+    : !activeVersion
+      ? supersededCopy.noActiveVersion
+      : activeVersion.name === template.name
+        ? supersededCopy.activeVersionSameName(activeVersion.version)
+        : supersededCopy.activeVersionRenamed(activeVersion.name, activeVersion.version);
 
   return (
     <>
@@ -352,7 +382,7 @@ export function CompensationSchemeBuilderPage() {
           backLabel={copy.backLabel}
           statusBadge={
             <div className="flex flex-wrap items-center gap-2">
-              <CompensationTemplateStatusBadge status={template.status} />
+              <CompensationTemplateDisplayStatusBadge template={template} />
               <Badge variant="secondary" tone="soft">
                 {copy.versionBadge(template.version)}
               </Badge>
@@ -361,7 +391,39 @@ export function CompensationSchemeBuilderPage() {
           }
           banner={
             <div className="space-y-3">
-              {locked ? (
+              {locked && lockedBySupersede ? (
+                <Alert variant="info" data-testid="builder-superseded-banner">
+                  <History className="h-4 w-4" />
+                  <AlertTitle>{supersededCopy.title}</AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <p>{supersededCopy.assignments(template.activeAssignmentsCount)}</p>
+                    {activeVersionText ? <p>{activeVersionText}</p> : null}
+                    <div className="flex flex-wrap gap-2">
+                      {versionsLoaded && activeVersion ? (
+                        <Button type="button" size="sm" asChild>
+                          <Link to={compensationTemplateBuildPath(activeVersion.id)}>
+                            {supersededCopy.openActiveVersion(activeVersion.version)}
+                          </Link>
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          familyVersionsLoading || (versionsLoaded && activeVersion)
+                            ? "outline"
+                            : "default"
+                        }
+                        disabled={createVersionMutation.isPending}
+                        isLoading={createVersionMutation.isPending}
+                        onClick={() => void handleCreateVersion()}
+                      >
+                        {copy.lockedBannerAction}
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ) : locked ? (
                 <Alert variant="warning">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>{copy.lockedBannerTitle}</AlertTitle>
@@ -375,6 +437,24 @@ export function CompensationSchemeBuilderPage() {
                       onClick={() => void handleCreateVersion()}
                     >
                       {copy.lockedBannerAction}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {showDeactivatedOperators ? (
+                <Alert variant="warning" data-testid="builder-deactivated-operators-banner">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{deactivatedCopy.title}</AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <p>{deactivatedCopy.description(template.activeAssignmentsCount)}</p>
+                    <Button type="button" size="sm" variant="outline" asChild>
+                      <Link
+                        to={compensationTemplateOperatorsPath(template.id)}
+                        className="inline-flex items-center gap-2"
+                      >
+                        <Users className="h-3.5 w-3.5" aria-hidden />
+                        {deactivatedCopy.viewOperators}
+                      </Link>
                     </Button>
                   </AlertDescription>
                 </Alert>
