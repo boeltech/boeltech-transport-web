@@ -8,6 +8,7 @@ import { ApiError } from "@shared/api/interceptors/error-handler";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import type {
   SettlementTemplateChange,
+  SettlementTemplateSuperseded,
   TemplatePeriodAssignmentRef,
 } from "../../domain/entities";
 
@@ -18,7 +19,9 @@ const {
   mockListAssignments,
   mockGetSettings,
   mockToast,
+  mockPreviewReimbursement,
 } = vi.hoisted(() => ({
+  mockPreviewReimbursement: vi.fn(),
   mockPreviewSettlement: vi.fn(),
   mockCreateSettlement: vi.fn(),
   mockFetchEmployees: vi.fn(),
@@ -30,6 +33,7 @@ const {
 vi.mock("@features/settlements/infrastructure/settlementsApi", () => ({
   settlementsApi: {
     previewSettlement: (...args: unknown[]) => mockPreviewSettlement(...args),
+    previewReimbursementSettlement: (...args: unknown[]) => mockPreviewReimbursement(...args),
     createSettlement: (...args: unknown[]) => mockCreateSettlement(...args),
     listAgreements: vi.fn(),
     updateAgreement: vi.fn(),
@@ -181,6 +185,12 @@ describe("SettlementCreatePage Component", () => {
       pagination: { total: 1, page: 1, limit: 100, totalPages: 1 },
     });
     mockPreviewSettlement.mockResolvedValue(mockPreview);
+    mockPreviewReimbursement.mockResolvedValue({
+      ...mockPreview,
+      settlementKind: "reimbursement_only",
+      reimbursements: [],
+      reimbursementsRequiringPayee: [],
+    });
     mockCreateSettlement.mockResolvedValue({ id: "settlement-new-1" });
     mockListAssignments.mockResolvedValue({ data: [], pagination: { total: 0, page: 1, pageSize: 100, totalPages: 0 } });
     mockGetSettings.mockResolvedValue({
@@ -1079,7 +1089,200 @@ describe("SettlementCreatePage Component", () => {
         expect(await screen.findByText(ambiguityTitle)).toBeInTheDocument();
         expect(screen.queryByTestId("settlement-template-change-alert")).not.toBeInTheDocument();
       });
+
+      it("W6: la fecha aplicada sale de la asignación que usó la preliquidación", async () => {
+        mockPreviewSettlement.mockResolvedValue(
+          previewWith(null, true, {
+            template: { ...mockPreview.template, assignmentId: "a" },
+          }),
+        );
+        renderAugust();
+
+        const title = await screen.findByText(ambiguityTitle);
+        const alert = title.closest('[role="alert"]') ?? title.parentElement!;
+        expect(alert).toHaveTextContent("1 jul 2026");
+        expect(alert).not.toHaveTextContent("15 ago 2026");
+      });
+
+      it("W6: si la asignación de la preliquidación no está en la lista, usa el desempate local", async () => {
+        mockPreviewSettlement.mockResolvedValue(previewWith(null, true));
+        renderAugust();
+
+        const title = await screen.findByText(ambiguityTitle);
+        const alert = title.closest('[role="alert"]') ?? title.parentElement!;
+        expect(alert).toHaveTextContent("15 ago 2026");
+      });
     });
+  });
+
+  describe("api#59 — versión de tarifa reemplazada en la preliquidación (W3)", () => {
+    const superseded: SettlementTemplateSuperseded = {
+      templateId: "tpl-default",
+      templateName: "Operador estándar",
+      templateVersion: 1,
+      assignmentId: "assign-default",
+      supersededAt: "2026-08-03T16:00:00Z",
+      replacedBy: { templateId: "tpl-v2", templateName: "Operador estándar", templateVersion: 2 },
+    };
+
+    function renderPage() {
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter
+            initialEntries={[
+              "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+            ]}
+          >
+            <SettlementCreatePage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    it("con la versión que la reemplazó: título y cuerpo", async () => {
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        template: { ...mockPreview.template, version: 1, payability: "superseded" },
+        templateSuperseded: superseded,
+      });
+      renderPage();
+
+      const alert = await screen.findByTestId("settlement-template-superseded-alert");
+      expect(within(alert).getByText("Versión de tarifa reemplazada")).toBeInTheDocument();
+      expect(
+        within(alert).getByText(
+          "Se calcula con Operador estándar versión 1, que ya fue reemplazada por la versión 2. Si el operador debe cobrar con la versión 2, reasígnalo indicando desde qué fecha.",
+        ),
+      ).toBeInTheDocument();
+      expect(alert).not.toHaveTextContent("template_version_superseded");
+      const banner = screen
+        .getByText(`${settlementsCopy.createPage.sections.agreementActiveLabel}:`)
+        .closest("div.rounded-lg");
+      expect(alert.nextElementSibling).toBe(banner);
+    });
+
+    it("sin versión activa (replacedBy null): variante sin M", async () => {
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        templateSuperseded: { ...superseded, replacedBy: null },
+      });
+      renderPage();
+
+      const alert = await screen.findByTestId("settlement-template-superseded-alert");
+      expect(
+        within(alert).getByText(
+          "Se calcula con Operador estándar versión 1, que ya fue reemplazada. Si el operador debe cobrar con otra versión, reasígnalo indicando desde qué fecha.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it.each([
+      ["null", { templateSuperseded: null }],
+      ["ausente (API anterior)", {}],
+    ])("templateSuperseded %s: sin aviso", async (_label, extra) => {
+      mockPreviewSettlement.mockResolvedValue({ ...mockPreview, ...extra });
+      renderPage();
+
+      await screen.findByText("VIA-100");
+      expect(screen.queryByTestId("settlement-template-superseded-alert")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("api#59 — tarifa faltante según details.reason (W4)", () => {
+    const createCopy = settlementsCopy.createPage;
+
+    function renderPage() {
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter
+            initialEntries={[
+              "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+            ]}
+          >
+            <SettlementCreatePage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    beforeEach(() => {
+      mockPreviewReimbursement.mockResolvedValue({
+        ...mockPreview,
+        settlementKind: "reimbursement_only",
+        reimbursements: [
+          {
+            tripExpenseId: "exp-1",
+            tripId: "trip-9",
+            tripCode: "VIA-009",
+            category: "tolls",
+            description: "Caseta",
+            amount: 150,
+            receiptNumber: null,
+            approvedAt: "2026-08-10T10:00:00Z",
+            isLate: false,
+            tripSettledIn: null,
+          },
+        ],
+        reimbursementsRequiringPayee: [],
+      });
+    });
+
+    it.each([
+      [
+        "template_deactivated",
+        {
+          reason: "template_deactivated",
+          template_id: "tpl-1",
+          template_name: "Operador foráneo",
+          template_version: 2,
+          assignment_id: "asg-1",
+        },
+        "Tarifa desactivada",
+        "Operador foráneo versión 2 fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.",
+      ],
+      [
+        "template_draft",
+        {
+          reason: "template_draft",
+          template_id: "tpl-1",
+          template_name: "Operador foráneo",
+          template_version: 3,
+          assignment_id: "asg-1",
+        },
+        "Tarifa en borrador",
+        "Operador foráneo versión 3 está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.",
+      ],
+      [
+        "no_assignment",
+        { reason: "no_assignment" },
+        createCopy.empty.missingSchemeTitle,
+        createCopy.empty.missingSchemeDescription,
+      ],
+      [
+        "sin details",
+        undefined,
+        createCopy.empty.missingSchemeTitle,
+        createCopy.empty.missingSchemeDescription,
+      ],
+    ] as const)(
+      "%s: copy de la variante, botón de tarifas y pago de reembolsos",
+      async (_label, details, title, description) => {
+        mockPreviewSettlement.mockRejectedValue(
+          new ApiError("Sin esquema", 422, "MISSING_COMPENSATION_SCHEME", details),
+        );
+        renderPage();
+
+        expect((await screen.findAllByText(title)).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(description).length).toBeGreaterThanOrEqual(1);
+        expect(
+          screen.getByRole("link", { name: createCopy.empty.configureCompensationAction }),
+        ).toBeInTheDocument();
+        expect(
+          await screen.findByRole("link", { name: settlementsCopy.reimbursements.createAction }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(createCopy.empty.previewErrorTitle)).not.toBeInTheDocument();
+      },
+    );
   });
 
   describe("período por defecto en día de México (ADR-0101)", () => {

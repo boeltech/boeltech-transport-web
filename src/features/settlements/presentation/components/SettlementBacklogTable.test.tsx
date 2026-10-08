@@ -8,6 +8,7 @@ import type {
   SettlementBacklogRowType,
   SettlementPeriodOverlap,
   SettlementTemplateChange,
+  SettlementTemplateSuperseded,
   TemplatePeriodAssignmentRef,
 } from "../../domain/entities";
 import {
@@ -849,5 +850,107 @@ describe("SettlementBacklogTable — cambio de esquema en el período (D-1 C1)",
 
     expect(screen.queryByText("brand_new_code")).not.toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+});
+
+describe("SettlementBacklogTable — versión de tarifa reemplazada (api#59)", () => {
+  const BADGE = "Versión de tarifa reemplazada";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHasPermission.mockReturnValue(true);
+  });
+
+  const superseded: SettlementTemplateSuperseded = {
+    templateId: "tpl-v1",
+    templateName: "Operador estándar",
+    templateVersion: 1,
+    assignmentId: "asg-1",
+    supersededAt: "2026-10-03T16:00:00Z",
+    replacedBy: { templateId: "tpl-v2", templateName: "Operador estándar", templateVersion: 2 },
+  };
+
+  function rowWith(
+    templateSuperseded: SettlementTemplateSuperseded | null | undefined,
+    overrides: Partial<SettlementBacklogRow> = {},
+  ): SettlementBacklogRow {
+    return makeRow("salary_close", {
+      periodStart: "2026-09-16",
+      periodEnd: "2026-09-30",
+      pendingTripsCount: 0,
+      warnings: ["template_version_superseded"],
+      templateSuperseded,
+      ...overrides,
+    });
+  }
+
+  it.each([
+    [
+      "con la versión que la reemplazó",
+      superseded,
+      "Se calcula con Operador estándar versión 1, que ya fue reemplazada por la versión 2. Si el operador debe cobrar con la versión 2, reasígnalo indicando desde qué fecha.",
+    ],
+    [
+      "sin versión activa (replacedBy null)",
+      { ...superseded, replacedBy: null },
+      "Se calcula con Operador estándar versión 1, que ya fue reemplazada. Si el operador debe cobrar con otra versión, reasígnalo indicando desde qué fecha.",
+    ],
+  ] as const)("%s: insignia y tooltip", async (_label, value, expected) => {
+    const user = userEvent.setup();
+    renderTable([rowWith(value)]);
+
+    const badge = screen.getByTestId("backlog-template-superseded-badge");
+    expect(badge).toHaveTextContent(BADGE);
+    await user.hover(badge);
+
+    expect(await screen.findByRole("tooltip", { name: expected })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["null", null],
+    ["ausente (API anterior)", undefined],
+  ])("código con templateSuperseded %s: insignia sin tooltip", async (_label, value) => {
+    const user = userEvent.setup();
+    renderTable([rowWith(value)]);
+
+    const badge = screen.getByTestId("backlog-template-superseded-badge");
+    expect(badge).toHaveTextContent(BADGE);
+    await user.hover(badge);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("sin el código no hay insignia aunque llegue el objeto", () => {
+    renderTable([rowWith(superseded, { warnings: [] })]);
+    expect(screen.queryByTestId("backlog-template-superseded-badge")).not.toBeInTheDocument();
+  });
+
+  it("se ordena después del cambio de esquema y antes del anticipo", () => {
+    renderTable([
+      rowWith(superseded, {
+        warnings: [
+          "open_advance",
+          "template_version_superseded",
+          "template_change_in_period",
+          "period_overlap",
+        ],
+      }),
+    ]);
+
+    const list = screen.getByTestId("backlog-template-superseded-badge").closest("ul")!;
+    const items = within(list).getAllByRole("listitem").map((li) => li.textContent);
+    expect(items).toEqual([
+      settlementsCopy.workbench.warnings.period_overlap,
+      settlementsCopy.workbench.warnings.template_change_in_period,
+      BADGE,
+      settlementsCopy.workbench.warnings.open_advance,
+    ]);
+  });
+
+  it("también aparece en la vista de tarjetas y nunca el código crudo", () => {
+    renderTable([rowWith(superseded)], "cards");
+    expect(screen.getByTestId("backlog-template-superseded-badge")).toHaveTextContent(BADGE);
+    expect(screen.queryByText("template_version_superseded")).not.toBeInTheDocument();
   });
 });

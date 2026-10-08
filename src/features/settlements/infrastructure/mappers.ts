@@ -19,8 +19,10 @@ import type {
   SettlementPeriodOverlapStatus,
   SettlementWorkbenchData,
   SettlementTemplateChange,
+  SettlementTemplateSuperseded,
   SettlementWorkbenchSummary,
   TemplatePeriodAssignmentRef,
+  TemplateVersionReplacementRef,
   TenantSettlementSettings,
   ZeroCommissionReason,
 } from "../domain/entities";
@@ -238,6 +240,19 @@ export interface ApiTemplateChangeInPeriodRaw {
   assignments: ApiTemplatePeriodAssignmentRefRaw[];
 }
 
+export interface ApiTemplateVersionSupersededRaw {
+  template_id: string;
+  template_name: string;
+  template_version: number;
+  assignment_id: string;
+  superseded_at?: string | null;
+  replaced_by?: {
+    template_id: string;
+    template_name: string;
+    template_version: number;
+  } | null;
+}
+
 export interface ApiSettlementPreviewRaw {
   employee_id: string;
   employee_name: string;
@@ -251,9 +266,14 @@ export interface ApiSettlementPreviewRaw {
     id: string;
     name: string;
     assignment_id: string;
+    /** api#59 F3. Ausente en el API anterior. */
+    version?: number;
+    payability?: string;
   };
   /** D-1 C1 (API F5). Ausente en el API anterior. */
   template_change?: ApiTemplateChangeInPeriodRaw | null;
+  /** api#59 F3. Ausente en el API anterior. */
+  template_superseded?: ApiTemplateVersionSupersededRaw | null;
   employee_compensation?: {
     base_salary: number;
     salary_type: string | null;
@@ -672,6 +692,55 @@ export function mapTemplateChange(
   };
 }
 
+function finiteVersion(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const version = Number(value);
+  return Number.isFinite(version) ? version : null;
+}
+
+function mapTemplateReplacement(
+  raw: ApiTemplateVersionSupersededRaw["replaced_by"],
+): TemplateVersionReplacementRef | null {
+  const version = finiteVersion(raw?.template_version);
+  if (!raw?.template_id || !raw.template_name || version === null) return null;
+  return {
+    templateId: raw.template_id,
+    templateName: raw.template_name,
+    templateVersion: version,
+  };
+}
+
+/** Sin id, nombre o versión válida no hay texto que mostrar: se trata como ausente. */
+export function mapTemplateSuperseded(
+  raw: ApiTemplateVersionSupersededRaw | null | undefined,
+): SettlementTemplateSuperseded | null {
+  const version = finiteVersion(raw?.template_version);
+  if (!raw?.template_id || !raw.template_name || version === null) return null;
+  return {
+    templateId: raw.template_id,
+    templateName: raw.template_name,
+    templateVersion: version,
+    assignmentId: raw.assignment_id ?? "",
+    supersededAt: raw.superseded_at ?? null,
+    replacedBy: mapTemplateReplacement(raw.replaced_by),
+  };
+}
+
+function mapPreviewTemplate(
+  raw: NonNullable<ApiSettlementPreviewRaw["template"]>,
+): NonNullable<SettlementPreview["template"]> {
+  const version = finiteVersion(raw.version);
+  const payability =
+    raw.payability === "active" || raw.payability === "superseded" ? raw.payability : null;
+  return {
+    id: raw.id,
+    name: raw.name,
+    assignmentId: raw.assignment_id,
+    ...(version !== null ? { version } : {}),
+    ...(payability !== null ? { payability } : {}),
+  };
+}
+
 export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPreview {
   return {
     employeeId: raw.employee_id,
@@ -692,14 +761,9 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
     periodStart: raw.period_start,
     periodEnd: raw.period_end,
     agreement: deepToCamel(raw.agreement) as unknown as SettlementPreview["agreement"],
-    template: raw.template
-      ? {
-          id: raw.template.id,
-          name: raw.template.name,
-          assignmentId: raw.template.assignment_id,
-        }
-      : undefined,
+    template: raw.template ? mapPreviewTemplate(raw.template) : undefined,
     templateChange: mapTemplateChange(raw.template_change),
+    templateSuperseded: mapTemplateSuperseded(raw.template_superseded),
     employeeCompensation: raw.employee_compensation
       ? {
           baseSalary: Number(raw.employee_compensation.base_salary),
@@ -855,6 +919,8 @@ export interface ApiSettlementBacklogRowRaw {
   period_overlap?: ApiSettlementPeriodOverlapRaw | null;
   /** D-1 C1 (API F5). Ausente en el API anterior. */
   template_change?: ApiTemplateChangeInPeriodRaw | null;
+  /** api#59 F3. Ausente en el API anterior. */
+  template_superseded?: ApiTemplateVersionSupersededRaw | null;
   suggested_period_start?: string | null;
   pending_reimbursements_count?: number;
   pending_reimbursements_amount?: number;
@@ -908,6 +974,7 @@ export function mapBacklogRow(raw: ApiSettlementBacklogRowRaw): SettlementBacklo
     warnings: (raw.warnings ?? []) as SettlementBacklogRow["warnings"],
     periodOverlap: mapPeriodOverlap(raw.period_overlap),
     templateChange: mapTemplateChange(raw.template_change),
+    templateSuperseded: mapTemplateSuperseded(raw.template_superseded),
     suggestedPeriodStart: raw.suggested_period_start ?? null,
     employmentType: raw.employment_type,
     pendingReimbursementsCount: Number(raw.pending_reimbursements_count ?? 0),

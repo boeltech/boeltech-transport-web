@@ -31,6 +31,7 @@ import {
   mapSettlementPreview,
   mapWorkbenchResponse,
   type ApiTemplateChangeInPeriodRaw,
+  type ApiTemplateVersionSupersededRaw,
 } from "@features/settlements/infrastructure/mappers";
 import { compensationApi } from "@features/compensation/infrastructure/compensationApi";
 import { ApprovalRowCompensation } from "@features/approvals/presentation/components/ApprovalRowCompensation";
@@ -967,6 +968,120 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       "Se aplica Sur a todo el período porque es el vigente el 31 ago 2026.",
     );
     expect(screen.queryByText(/template_change_in_period/)).not.toBeInTheDocument();
+    expect(mockPreviewSettlement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        employeeId: "emp-smoke-1",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+      }),
+    );
+
+    listAssignmentsSpy.mockRestore();
+  });
+
+  it("12. api#59: versión de tarifa reemplazada — insignia en Por pagar → alta con el aviso", async () => {
+    const user = userEvent.setup();
+    const listAssignmentsSpy = vi
+      .spyOn(compensationApi, "listAssignments")
+      .mockResolvedValue({ data: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0 } });
+
+    const rawSuperseded: ApiTemplateVersionSupersededRaw = {
+      template_id: "tpl-norte-v1",
+      template_name: "Norte",
+      template_version: 1,
+      assignment_id: "asg-norte",
+      superseded_at: "2026-08-03T16:00:00Z",
+      replaced_by: { template_id: "tpl-norte-v2", template_name: "Norte", template_version: 2 },
+    };
+    const expectedBody =
+      "Se calcula con Norte versión 1, que ya fue reemplazada por la versión 2. Si el operador debe cobrar con la versión 2, reasígnalo indicando desde qué fecha.";
+
+    mockGetWorkbench.mockResolvedValue(
+      mapWorkbenchResponse({
+        summary: { pending: 1, draft: 0, approval: 0, payable: 0, closed: 0, open_advances: 0 },
+        backlog: [
+          {
+            employee_id: "emp-smoke-1",
+            employee_full_name: "Roberto González",
+            employment_type: "permanent",
+            branch_id: null,
+            branch_name: null,
+            period_start: "2026-08-01",
+            period_end: "2026-08-31",
+            pending_trips_count: 0,
+            oldest_trip_age_days: 0,
+            estimated_net_amount: 3500,
+            row_type: "salary_close",
+            warnings: ["template_version_superseded"],
+            period_overlap: null,
+            template_change: null,
+            template_superseded: rawSuperseded,
+            suggested_period_start: null,
+            pending_reimbursements_count: 0,
+          },
+        ],
+      }),
+    );
+    mockPreviewSettlement.mockResolvedValue(
+      mapSettlementPreview({
+        employee_id: "emp-smoke-1",
+        employee_name: "Roberto González",
+        period_start: "2026-08-01",
+        period_end: "2026-08-31",
+        agreement: { rules: [] },
+        template: {
+          id: "tpl-norte-v1",
+          name: "Norte",
+          assignment_id: "asg-norte",
+          version: 1,
+          payability: "superseded",
+        },
+        template_superseded: rawSuperseded,
+        employee_compensation: { base_salary: 3500, salary_type: "monthly" },
+        eligible_trips: [],
+        open_advances: [],
+        summary: {
+          total_commissions: 0,
+          total_base_salary: 3500,
+          total_reimbursements: 0,
+          suggested_advance_deduction: 0,
+          gross_amount: 3500,
+          net_amount: 3500,
+        },
+      }),
+    );
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter initialEntries={["/finance/settlements"]}>
+            <Routes>
+              <Route path="/finance/settlements" element={<SettlementsListPage />} />
+              <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
+            </Routes>
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    const badge = await screen.findByTestId("backlog-template-superseded-badge");
+    expect(badge).toHaveTextContent(
+      settlementsCopy.workbench.warnings.template_version_superseded,
+    );
+    expect(screen.queryByText("template_version_superseded")).not.toBeInTheDocument();
+
+    await user.hover(badge);
+    expect((await screen.findAllByText(expectedBody)).length).toBeGreaterThanOrEqual(1);
+    await user.unhover(badge);
+
+    await user.click(
+      screen.getByRole("button", { name: settlementsCopy.workbench.actions.settlePeriod }),
+    );
+
+    const alert = await screen.findByTestId("settlement-template-superseded-alert");
+    expect(alert).toHaveTextContent(settlementsCopy.workbench.templateSuperseded.title);
+    expect(alert).toHaveTextContent(expectedBody);
+    expect(screen.queryByText(/template_version_superseded/)).not.toBeInTheDocument();
     expect(mockPreviewSettlement).toHaveBeenCalledWith(
       expect.objectContaining({
         employeeId: "emp-smoke-1",

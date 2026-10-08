@@ -129,6 +129,20 @@ export const settlementsCopy = {
       period_overlap_cta: "Ver en historial",
       open_advance: "Anticipo por descontar",
       template_change_in_period: "Cambio de esquema en el período",
+      template_version_superseded: "Versión de tarifa reemplazada",
+    },
+    /**
+     * api#59 V8 — base DOM Respuesta 4. `replaced_by` es la versión activa hoy y puede ser
+     * menor que la reemplazada: no decir «nueva».
+     */
+    templateSuperseded: {
+      title: "Versión de tarifa reemplazada",
+      replacementSameName: (version: number) => `la versión ${version}`,
+      replacementRenamed: (name: string, version: number) => `${name} versión ${version}`,
+      body: (p: { name: string; version: number; replacement: string }) =>
+        `Se calcula con ${p.name} versión ${p.version}, que ya fue reemplazada por ${p.replacement}. Si el operador debe cobrar con ${p.replacement}, reasígnalo indicando desde qué fecha.`,
+      bodyNoReplacement: (p: { name: string; version: number }) =>
+        `Se calcula con ${p.name} versión ${p.version}, que ya fue reemplazada. Si el operador debe cobrar con otra versión, reasígnalo indicando desde qué fecha.`,
     },
     /** D-1 C1 — copy DOM final (`handoff-tec-c1.md` §3.3). Nombres y fechas ya resueltos. */
     templateChange: {
@@ -853,6 +867,16 @@ export const settlementsCopy = {
       missingSchemeTitle: "Sin tarifa asignada",
       missingSchemeDescription:
         "Este operador no tiene una tarifa vigente para el período. Crea o asígnale una en Tarifas para poder calcular sueldo, pago por viajes y prestaciones.",
+      /** api#59 V5 — 422 `MISSING_COMPENSATION_SCHEME` con `details.reason`. */
+      deactivatedSchemeTitle: "Tarifa desactivada",
+      deactivatedSchemeDescription: (template: string) =>
+        `${template} fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.`,
+      deactivatedSchemeUnnamed: "La tarifa asignada",
+      draftSchemeTitle: "Tarifa en borrador",
+      draftSchemeDescription: (template: string) =>
+        `${template} está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.`,
+      draftSchemeUnnamed: "La tarifa asignada",
+      schemeWithVersion: (name: string, version: number) => `${name} versión ${version}`,
       incompleteAgreementTitle: "Tarifa incompleta",
       incompleteAgreementDescription:
         "Hay una tarifa asignada, pero no genera montos pagables en este período. Completa reglas o prestaciones en Tarifas. Si la tarifa usa sueldo base, configúralo en la ficha del empleado.",

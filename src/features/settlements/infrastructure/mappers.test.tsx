@@ -14,6 +14,7 @@ import {
   type ApiSettlementBacklogRowRaw,
   type ApiSettlementPreviewRaw,
   type ApiTemplateChangeInPeriodRaw,
+  type ApiTemplateVersionSupersededRaw,
 } from "./mappers";
 
 describe("Settlements Infrastructure Mappers", () => {
@@ -817,6 +818,155 @@ describe("Settlements Infrastructure Mappers", () => {
       expect(
         mapSettlementPreview({ ...rawPreview, template_change: null }).templateChange,
       ).toBeNull();
+    });
+  });
+
+  describe("api#59 — template_superseded", () => {
+    const rawSuperseded: ApiTemplateVersionSupersededRaw = {
+      template_id: "tpl-v1",
+      template_name: "Operador estándar",
+      template_version: 1,
+      assignment_id: "asg-1",
+      superseded_at: "2026-10-03T16:00:00Z",
+      replaced_by: { template_id: "tpl-v2", template_name: "Operador estándar", template_version: 2 },
+    };
+
+    const expectedSuperseded = {
+      templateId: "tpl-v1",
+      templateName: "Operador estándar",
+      templateVersion: 1,
+      assignmentId: "asg-1",
+      supersededAt: "2026-10-03T16:00:00Z",
+      replacedBy: { templateId: "tpl-v2", templateName: "Operador estándar", templateVersion: 2 },
+    };
+
+    const rawRow: ApiSettlementBacklogRowRaw = {
+      employee_id: "emp-1",
+      employee_full_name: "Juan Pérez",
+      period_start: "2026-09-16",
+      period_end: "2026-09-30",
+      pending_trips_count: 0,
+      oldest_trip_age_days: 0,
+      row_type: "salary_close",
+      warnings: ["template_version_superseded"],
+    };
+
+    const rawPreview: ApiSettlementPreviewRaw = {
+      employee_id: "emp-1",
+      employee_name: "Juan Pérez",
+      period_start: "2026-09-16",
+      period_end: "2026-09-30",
+      agreement: {},
+      template: { id: "tpl-v1", name: "Operador estándar", assignment_id: "asg-1" },
+      eligible_trips: [],
+      open_advances: [],
+      summary: {
+        total_commissions: 0,
+        total_base_salary: 0,
+        total_reimbursements: 0,
+        suggested_advance_deduction: 0,
+        gross_amount: 0,
+        net_amount: 0,
+      },
+    };
+
+    it("fila de «Por pagar»: snake→camel y conserva el código", () => {
+      const row = mapBacklogRow({ ...rawRow, template_superseded: rawSuperseded });
+      expect(row.warnings).toEqual(["template_version_superseded"]);
+      expect(row.templateSuperseded).toEqual(expectedSuperseded);
+    });
+
+    it("fila de «Por pagar»: campo ausente (API anterior) o null → null", () => {
+      expect(mapBacklogRow(rawRow).templateSuperseded).toBeNull();
+      expect(mapBacklogRow({ ...rawRow, template_superseded: null }).templateSuperseded).toBeNull();
+    });
+
+    it("replaced_by null (sin versión activa) se conserva como null", () => {
+      const row = mapBacklogRow({
+        ...rawRow,
+        template_superseded: { ...rawSuperseded, replaced_by: null, superseded_at: null },
+      });
+      expect(row.templateSuperseded).toEqual({
+        ...expectedSuperseded,
+        supersededAt: null,
+        replacedBy: null,
+      });
+    });
+
+    it("replaced_by con versión menor (v1 reactivada reemplaza a v2) se mapea igual", () => {
+      const row = mapBacklogRow({
+        ...rawRow,
+        template_superseded: {
+          ...rawSuperseded,
+          template_id: "tpl-v2",
+          template_version: 2,
+          replaced_by: { template_id: "tpl-v1", template_name: "Operador estándar", template_version: 1 },
+        },
+      });
+      expect(row.templateSuperseded?.templateVersion).toBe(2);
+      expect(row.templateSuperseded?.replacedBy?.templateVersion).toBe(1);
+    });
+
+    it("sin versión válida no hay texto posible: se trata como ausente", () => {
+      const row = mapBacklogRow({
+        ...rawRow,
+        template_superseded: {
+          ...rawSuperseded,
+          template_version: undefined as unknown as number,
+        },
+      });
+      expect(row.templateSuperseded).toBeNull();
+    });
+
+    it("replaced_by incompleto → null sin descartar el aviso", () => {
+      const row = mapBacklogRow({
+        ...rawRow,
+        template_superseded: {
+          ...rawSuperseded,
+          replaced_by: { template_id: "tpl-v2", template_name: "", template_version: 2 },
+        },
+      });
+      expect(row.templateSuperseded?.replacedBy).toBeNull();
+      expect(row.templateSuperseded?.templateVersion).toBe(1);
+    });
+
+    it("preliquidación: template.version, payability y template_superseded", () => {
+      const preview = mapSettlementPreview({
+        ...rawPreview,
+        template: { ...rawPreview.template!, version: 1, payability: "superseded" },
+        template_superseded: rawSuperseded,
+      });
+      expect(preview.template).toEqual({
+        id: "tpl-v1",
+        name: "Operador estándar",
+        assignmentId: "asg-1",
+        version: 1,
+        payability: "superseded",
+      });
+      expect(preview.templateSuperseded).toEqual(expectedSuperseded);
+    });
+
+    it("preliquidación del API anterior: sin version, payability ni template_superseded", () => {
+      const preview = mapSettlementPreview(rawPreview);
+      expect(preview.template).toStrictEqual({
+        id: "tpl-v1",
+        name: "Operador estándar",
+        assignmentId: "asg-1",
+      });
+      expect(preview.templateSuperseded).toBeNull();
+    });
+
+    it("preliquidación: payability desconocida se omite", () => {
+      const preview = mapSettlementPreview({
+        ...rawPreview,
+        template: { ...rawPreview.template!, version: 3, payability: "deactivated" },
+      });
+      expect(preview.template).toStrictEqual({
+        id: "tpl-v1",
+        name: "Operador estándar",
+        assignmentId: "asg-1",
+        version: 3,
+      });
     });
   });
 });

@@ -32,6 +32,7 @@ import {
   resolvePeriodOverlapWarningCopy,
 } from "../utils/backlogPeriodOverlap";
 import { resolveTemplateChangeTooltip } from "../utils/templateChangeNotice";
+import { resolveTemplateSupersededText } from "../utils/templateSupersededNotice";
 
 const copy = settlementsCopy.workbench;
 const fieldsCopy = settlementsCopy.fields;
@@ -115,6 +116,7 @@ const IGNORED_BACKLOG_WARNINGS = new Set(["no_client_invoice", "late_reimburseme
 const WARNING_ORDER = [
   "period_overlap",
   "template_change_in_period",
+  "template_version_superseded",
   "reimbursement_payee_required",
   "open_advance",
 ];
@@ -134,6 +136,7 @@ const WARNINGS_WITH_OWN_BADGE = new Set([
   "period_overlap",
   "reimbursement_payee_required",
   "template_change_in_period",
+  "template_version_superseded",
 ]);
 
 function PeriodWarnings({ row }: { row: SettlementBacklogRow }) {
@@ -233,6 +236,36 @@ function PeriodWarnings({ row }: { row: SettlementBacklogRow }) {
                     row.templateChange,
                     row.pendingTripsCount > 0,
                   )}
+                </TooltipContent>
+              </Tooltip>
+            </li>
+          );
+        }
+
+        if (warning === "template_version_superseded") {
+          const badge = (
+            <Badge
+              variant="warning"
+              tone="soft"
+              className="text-xs font-medium"
+              data-testid="backlog-template-superseded-badge"
+            >
+              {copy.warnings.template_version_superseded}
+            </Badge>
+          );
+          if (!row.templateSuperseded) {
+            return <li key={warning}>{badge}</li>;
+          }
+          return (
+            <li key={warning}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex cursor-help rounded-md">
+                    {badge}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  {resolveTemplateSupersededText(row.templateSuperseded)}
                 </TooltipContent>
               </Tooltip>
             </li>

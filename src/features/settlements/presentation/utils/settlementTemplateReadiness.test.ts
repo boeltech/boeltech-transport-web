@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@shared/api/interceptors/error-handler";
-import { resolveSettlementCompensationReadiness } from "./settlementTemplateReadiness";
+import {
+  parseMissingCompensationSchemeError,
+  resolveMissingSchemeCopy,
+  resolveSettlementCompensationReadiness,
+} from "./settlementTemplateReadiness";
+import { settlementsCopy } from "../copy/settlementsCopy";
 import type { SettlementPreview } from "../../domain/entities";
 
 const basePreview: SettlementPreview = {
@@ -67,5 +72,78 @@ describe("resolveSettlementCompensationReadiness", () => {
         agreement: { currency: "MXN", rules: [] },
       }),
     ).toBe("incomplete");
+  });
+
+  it("api#59: el 422 con details.reason sigue siendo missing_scheme", () => {
+    const error = new ApiError("Desactivada", 422, "MISSING_COMPENSATION_SCHEME", {
+      reason: "template_deactivated",
+    });
+    expect(resolveSettlementCompensationReadiness(undefined, error)).toBe("missing_scheme");
+  });
+});
+
+describe("api#59 — 422 MISSING_COMPENSATION_SCHEME por motivo", () => {
+  const empty = settlementsCopy.createPage.empty;
+  const schemeError = (details?: Record<string, unknown>) =>
+    new ApiError("x", 422, "MISSING_COMPENSATION_SCHEME", details);
+
+  it("template_deactivated con nombre y versión", () => {
+    const error = schemeError({
+      reason: "template_deactivated",
+      template_id: "tpl-1",
+      template_name: "Operador foráneo",
+      template_version: 2,
+      assignment_id: "asg-1",
+    });
+    expect(parseMissingCompensationSchemeError(error)).toEqual({
+      reason: "template_deactivated",
+      templateName: "Operador foráneo",
+      templateVersion: 2,
+    });
+    expect(resolveMissingSchemeCopy(error)).toEqual({
+      title: "Tarifa desactivada",
+      description:
+        "Operador foráneo versión 2 fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.",
+    });
+  });
+
+  it("template_draft con nombre y versión", () => {
+    const error = schemeError({
+      reason: "template_draft",
+      template_name: "Operador foráneo",
+      template_version: 3,
+    });
+    expect(resolveMissingSchemeCopy(error)).toEqual({
+      title: "Tarifa en borrador",
+      description:
+        "Operador foráneo versión 3 está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.",
+    });
+  });
+
+  it("sin versión muestra solo el nombre; sin nombre usa «La tarifa asignada»", () => {
+    expect(
+      resolveMissingSchemeCopy(
+        schemeError({ reason: "template_deactivated", template_name: "Operador foráneo" }),
+      ).description,
+    ).toBe(
+      "Operador foráneo fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.",
+    );
+    expect(resolveMissingSchemeCopy(schemeError({ reason: "template_draft" })).description).toBe(
+      "La tarifa asignada está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.",
+    );
+  });
+
+  it.each([
+    ["no_assignment", schemeError({ reason: "no_assignment" })],
+    ["sin details (API anterior / plantilla inexistente)", schemeError()],
+    ["motivo desconocido", schemeError({ reason: "brand_new_reason" })],
+    ["otro código", new ApiError("x", 422, "OTHER", { reason: "template_deactivated" })],
+    ["error no API", new Error("x")],
+  ])("%s → copy actual", (_label, error) => {
+    expect(parseMissingCompensationSchemeError(error)).toBeNull();
+    expect(resolveMissingSchemeCopy(error)).toEqual({
+      title: empty.missingSchemeTitle,
+      description: empty.missingSchemeDescription,
+    });
   });
 });

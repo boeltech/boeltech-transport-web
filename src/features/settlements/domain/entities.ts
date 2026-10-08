@@ -400,6 +400,28 @@ export interface CompensationTemplatePreviewRef {
   readonly id: string;
   readonly name: string;
   readonly assignmentId: string;
+  /** api#59 F3; ausente en el API anterior. */
+  readonly version?: number;
+  /** api#59 F3; ausente en el API anterior. */
+  readonly payability?: "active" | "superseded";
+}
+
+/** api#59: versión activa hoy en la familia; puede ser menor que la reemplazada. */
+export interface TemplateVersionReplacementRef {
+  readonly templateId: string;
+  readonly templateName: string;
+  readonly templateVersion: number;
+}
+
+/** api#59 V8: el período se paga con una versión de tarifa reemplazada. */
+export interface SettlementTemplateSuperseded {
+  readonly templateId: string;
+  readonly templateName: string;
+  readonly templateVersion: number;
+  readonly assignmentId: string;
+  readonly supersededAt: string | null;
+  /** `null` si la familia no tiene hoy ninguna versión activa. */
+  readonly replacedBy: TemplateVersionReplacementRef | null;
 }
 
 export interface FixedAllowancePreviewLine {
@@ -461,6 +483,8 @@ export interface SettlementPreview {
   readonly reimbursementsRequiringPayee?: readonly ReimbursementRequiringPayeeLine[];
   /** D-1 C1: el período toca ≥ 2 esquemas; `null` si no aplica o el API aún no lo envía. */
   readonly templateChange?: SettlementTemplateChange | null;
+  /** api#59 V8: `null` si no aplica o el API aún no lo envía. */
+  readonly templateSuperseded?: SettlementTemplateSuperseded | null;
 }
 
 /** D-1 C1: asignación de esquema que toca el período. */
@@ -505,7 +529,8 @@ export type SettlementBacklogWarning =
   | "open_advance"
   | "late_reimbursement"
   | "reimbursement_payee_required"
-  | "template_change_in_period";
+  | "template_change_in_period"
+  | "template_version_superseded";
 
 /** Status activos de solape de período (excluye cancelled/rejected). */
 export type SettlementPeriodOverlapStatus =
@@ -543,6 +568,8 @@ export interface SettlementBacklogRow {
   readonly periodOverlap: SettlementPeriodOverlap | null;
   /** D-1 C1: presente con `template_change_in_period`; `null` si no aplica o el API aún no lo envía. */
   readonly templateChange?: SettlementTemplateChange | null;
+  /** api#59 V8: presente con `template_version_superseded`; `null` si no aplica o el API aún no lo envía. */
+  readonly templateSuperseded?: SettlementTemplateSuperseded | null;
   /** ADR-0085 E11 — día siguiente al último periodo cubierto cuando el solape es parcial. */
   readonly suggestedPeriodStart?: string | null;
   readonly employmentType?: string;

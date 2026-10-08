@@ -74,8 +74,12 @@ import {
   resolveSettlementWayfindingBackLabel,
 } from "../utils/settlementWayfinding";
 import { shouldShowSupportParticipationBadge } from "../utils/settlementParticipationHelpers";
-import { resolveSettlementCompensationReadiness } from "../utils/settlementTemplateReadiness";
+import {
+  resolveMissingSchemeCopy,
+  resolveSettlementCompensationReadiness,
+} from "../utils/settlementTemplateReadiness";
 import { resolveTemplateChangeAlert } from "../utils/templateChangeNotice";
+import { resolveTemplateSupersededAlert } from "../utils/templateSupersededNotice";
 import { useTemplateAssignments } from "@features/compensation/application/hooks";
 import {
   findEligibleAssignmentsForEmployeeOnDate,
@@ -524,6 +528,11 @@ export function SettlementCreatePage() {
           preview.periodEnd,
         )
       : null;
+  const templateSupersededAlert =
+    preview?.templateSuperseded && isAgreementReady
+      ? resolveTemplateSupersededAlert(preview.templateSuperseded)
+      : null;
+  const missingSchemeCopy = resolveMissingSchemeCopy(previewError);
   // D9: sin tarifa válida, los reembolsos pendientes se pagan en un pago de reembolsos.
   const { data: reimbursementOnlyPreview } = useReimbursementSettlementPreview(
     selectedEmployeeId && (isMissingCompensationScheme || (preview && !isAgreementReady))
@@ -534,6 +543,7 @@ export function SettlementCreatePage() {
     (reimbursementOnlyPreview?.reimbursements?.length ?? 0) +
       (reimbursementOnlyPreview?.reimbursementsRequiringPayee?.length ?? 0) >
     0;
+  const previewAssignmentId = preview?.template?.assignmentId;
   const assignmentAmbiguity = useMemo(() => {
     if (!selectedEmployeeId || !periodEnd) {
       return { hasAmbiguity: false, appliedAssignment: null, eligibleCount: 0 };
@@ -545,12 +555,16 @@ export function SettlementCreatePage() {
       periodEnd,
     );
 
+    const appliedByPreview = previewAssignmentId
+      ? eligible.find((assignment) => assignment.id === previewAssignmentId)
+      : undefined;
+
     return {
       hasAmbiguity: eligible.length > 1,
-      appliedAssignment: pickAssignmentBySettlementTiebreak(eligible),
+      appliedAssignment: appliedByPreview ?? pickAssignmentBySettlementTiebreak(eligible),
       eligibleCount: eligible.length,
     };
-  }, [employeeAssignments, periodEnd, selectedEmployeeId]);
+  }, [employeeAssignments, periodEnd, selectedEmployeeId, previewAssignmentId]);
   const hasFixedSalary = Boolean(agreement?.has_fixed_salary || agreement?.hasFixedSalary);
   const fixedSalaryAmount = Number(agreement?.fixed_salary_amount ?? agreement?.fixedSalaryAmount ?? 0);
   const fixedSalaryPeriod = String(agreement?.fixed_salary_period ?? agreement?.fixedSalaryPeriod ?? "weekly");
@@ -915,6 +929,13 @@ export function SettlementCreatePage() {
                 <AlertDescription>{templateChangeAlert.body}</AlertDescription>
               </Alert>
             )}
+            {templateSupersededAlert && (
+              <Alert variant="warning" data-testid="settlement-template-superseded-alert">
+                <AlertTriangle />
+                <AlertTitle>{templateSupersededAlert.title}</AlertTitle>
+                <AlertDescription>{templateSupersededAlert.body}</AlertDescription>
+              </Alert>
+            )}
             {/* Banner: tarifa lista vs configuración incompleta (PD2) */}
             {preview && readiness === "ready" && (preview.template || agreementSummaryText) && (
               <div className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs">
@@ -969,13 +990,13 @@ export function SettlementCreatePage() {
                 <AlertTitle>
                   {readiness === "incomplete"
                     ? createCopy.empty.incompleteAgreementTitle
-                    : createCopy.empty.missingSchemeTitle}
+                    : missingSchemeCopy.title}
                 </AlertTitle>
                 <AlertDescription className="space-y-3">
                   <p>
                     {readiness === "incomplete"
                       ? createCopy.empty.incompleteAgreementDescription
-                      : createCopy.empty.missingSchemeDescription}
+                      : missingSchemeCopy.description}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-1">
                     <Button type="button" size="sm" asChild>
@@ -1906,8 +1927,8 @@ export function SettlementCreatePage() {
         ) : isMissingCompensationScheme ? (
           <EmptyState
             icon={<AlertTriangle className="h-8 w-8 text-warning" />}
-            title={createCopy.empty.missingSchemeTitle}
-            description={createCopy.empty.missingSchemeDescription}
+            title={missingSchemeCopy.title}
+            description={missingSchemeCopy.description}
             cta={{
               label: createCopy.empty.configureCompensationAction,
               onClick: () =>
