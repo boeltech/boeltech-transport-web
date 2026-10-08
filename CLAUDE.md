@@ -166,7 +166,9 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 
 **Skill compartido:** `D:\boeltech\dev\workspace\clients\transporte\skills\boeltech-erp-development\`
 
-**Skills locales:** `.agents/skills/` y `.claude/skills/` — `frontend-design`, `vercel-react-best-practices`, `detail-sheet-master-detail` (`.agents` only), `neversight-skills_feed-tremor-design-system` (`tremor-design-system`, dashboards/charts vía LobeHub).
+**Skills versionadas (Cloud Agents y `/frontend-senior`):** `.agents/skills/` — `design-system`, `frontend-component`, `frontend-module-scaffold`, `vitest-testing-patterns`, `detail-sheet-master-detail`.
+
+**Skills locales (gitignored):** `.agents/skills/` y `.claude/skills/` — `frontend-design`, `vercel-react-best-practices`, `neversight-skills_feed-tremor-design-system` (`tremor-design-system`, dashboards/charts vía LobeHub).
 
 ## Git
 
@@ -174,7 +176,7 @@ Conventional Commits · ramas `feature/...`, `bugfix/...`.
 
 
 ## Cursor rules (versionadas en repo)
-Core en .cursor/rules/ (Cloud Agents las ven): `form-validation-ux`, `overlays-toast`, `sheet-from-menu-focus`, `frontend-api-env`, `database-timestamptz`, `cfdi-domain-adr-0043`.
+Core en .cursor/rules/ (Cloud Agents las ven): `form-validation-ux`, `overlays-toast`, `sheet-from-menu-focus`, `frontend-api-env`, `cfdi-domain-adr-0043`. (`database-timestamptz` vive en la API, por glob de SQL.)
 `.cursor/plans/` sigue gitignored — no always-on.
 
 ## Capacidades Cursor (Software Factory)

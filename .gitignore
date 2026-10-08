@@ -24,8 +24,20 @@ dist-ssr
 *.sw?
 
 
-# AI Skills
-.agents
+# AI Skills (core allowlisted for Cloud Agents and /frontend-senior; rest local-only)
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/design-system/
+!.agents/skills/design-system/**
+!.agents/skills/frontend-component/
+!.agents/skills/frontend-component/**
+!.agents/skills/frontend-module-scaffold/
+!.agents/skills/frontend-module-scaffold/**
+!.agents/skills/vitest-testing-patterns/
+!.agents/skills/vitest-testing-patterns/**
+!.agents/skills/detail-sheet-master-detail/
+!.agents/skills/detail-sheet-master-detail/**
 .claude
 skills-lock.json
 
@@ -38,7 +50,6 @@ skills-lock.json
 !.cursor/rules/overlays-toast.mdc
 !.cursor/rules/sheet-from-menu-focus.mdc
 !.cursor/rules/frontend-api-env.mdc
-!.cursor/rules/database-timestamptz.mdc
 !.cursor/rules/cfdi-domain-adr-0043.mdc
 # Puntero a las capacidades en software-factory (los prompts ya no viven aquí)
 !.cursor/prompts/
