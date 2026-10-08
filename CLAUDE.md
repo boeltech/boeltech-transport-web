@@ -174,12 +174,14 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 
 Conventional Commits · ramas `feature/...`, `bugfix/...`.
 
+**Worktrees:** por defecto se construye en el repo principal. Worktree (`../_wt-web-<slug>`, rama desde `main` local) solo si hay otro pedido en curso en este repo o WIP sin commitear que se cruza con el pedido. Al crearlo, el orquestador lo agrega **antes de construir** a `../boeltech-transport.code-workspace` (`folders`), sin pedir permiso, y lo quita al cerrar. Detalle: `software-factory/factory/GROK_CURSOR_ADDENDUM.md` §Worktrees.
+
 ## Despliegue
 
 - **Push a `main` no despliega**: solo corre `CI` (build, tokens, contraste, `npm run test` con flows).
 - **Staging = tag** `staging-AAAA-MM-DD.N` sobre un commit de `main` (`deploy-staging.yml`). El workflow verifica que el commit esté en `main` y espera a que su corrida de `CI` esté en verde; el tag debe apuntar al último commit de un push. Lo crea y empuja el CEO tras el gate de despliegue de `/qa` (HB-G8). Si el cambio depende de la API, etiquetar primero la API.
 - **Producción:** `deploy-prod.yml` manual (`workflow_dispatch`), frase literal del CEO (HB-G4).
-- Por pedido, `/qa` y los constructores solo corren pruebas acotadas (T0/T1, T4 del área); `npm run test` completo lo corre CI y se exige en el gate de despliegue.
+- **Mínimo de pruebas por pedido:** el constructor corre una vez, al cerrar el pedido, según el tipo de cambio (nada en copy/estilos; `vitest related` en lógica normal; feature si es código compartido; smoke del área solo si cambia el flujo). `/qa` de desarrollo solo si hay riesgo crítico y sin re-corridas. `npm run test` completo lo corre CI y se exige en el gate de despliegue. Detalle: `software-factory/factory/agents/frontend-senior.md` §Mínimo necesario.
 
 
 ## Cursor rules (versionadas en repo)
