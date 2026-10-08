@@ -342,9 +342,9 @@ export const compensationCopy = {
     activateDialog: {
       title: "¿Activar esta tarifa?",
       description:
-        "Pasará a usarse en pagos. Si hay otra versión activa de la misma tarifa, se desactivará.",
+        "Pasará a usarse en pagos. Si hay otra versión activa, quedará reemplazada.",
       reassignWarning:
-        "Los operadores asignados a una versión anterior no se mueven solos: reasígnarlos cuando quieras que cobren con esta.",
+        "Los operadores en versiones anteriores siguen cobrando con esa versión hasta que los reasignes.",
       confirm: "Activar",
       pending: "Activando…",
       cancel: "Cancelar",
@@ -352,7 +352,7 @@ export const compensationCopy = {
     deactivateDialog: {
       title: "¿Desactivar esta tarifa?",
       description:
-        "Dejará de estar disponible para pagos nuevos. No afecta pagos ya registrados.",
+        "Dejará de usarse para calcular pagos, incluidos los períodos pendientes de quien siga asignado a ella. No afecta pagos ya registrados.",
       confirm: "Desactivar",
       pending: "Desactivando…",
       cancel: "Cancelar",
