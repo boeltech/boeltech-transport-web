@@ -8,7 +8,6 @@ interface Props {
   brand: string;
   model: string;
   year: number;
-  isActive: boolean;
 }
 
 export function VehicleDetailHeaderSubtitle({
@@ -17,7 +16,6 @@ export function VehicleDetailHeaderSubtitle({
   brand,
   model,
   year,
-  isActive,
 }: Props) {
   return (
     <div className="space-y-0.5">
@@ -26,9 +24,6 @@ export function VehicleDetailHeaderSubtitle({
       </p>
       <p className="truncate text-xs text-muted-foreground">
         {copy.format.vehicleLine(brand, model, year)}
-        {!isActive ? (
-          <span className="text-destructive"> · {copy.state.inactiveRegistration}</span>
-        ) : null}
       </p>
     </div>
   );

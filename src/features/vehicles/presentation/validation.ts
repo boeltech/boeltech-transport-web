@@ -369,7 +369,6 @@ export const updateVehicleSchema = z.object({
 
   // Status
   status: vehicleStatusSchema.optional(),
-  isActive: z.boolean().optional(),
 });
 
 // ============================================

@@ -186,6 +186,10 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
     "No se puede dar de baja la unidad porque tiene viajes activos. Reasigne o libere la flota en esos viajes antes de continuar.",
   VEHICLE_INACTIVE:
     "La unidad asignada está dada de baja. Reasigne la flota del viaje antes de confirmar la reserva.",
+  VEHICLE_ALREADY_INACTIVE: "La unidad ya está dada de baja.",
+  VEHICLE_ALREADY_ACTIVE: "La unidad ya está activa.",
+  VEHICLE_INACTIVE_READONLY:
+    "La unidad está dada de baja y es de solo lectura. Restáurala para editarla.",
   INVALID_STATUS_TRANSITION: "Transición de estado no permitida",
   INVALID_MILEAGE: "El kilometraje no puede ser menor al actual",
 

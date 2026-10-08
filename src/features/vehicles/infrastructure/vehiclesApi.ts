@@ -24,8 +24,11 @@ import {
 import {
   mapVehicleList,
   mapVehicleDetail,
+  mapVehicleRestore,
+  toApiDeactivateVehicle,
   type ApiVehicleListItemResponse,
   type ApiVehicleResponse,
+  type ApiVehicleRestoreResponse,
 } from "./mappers";
 import type {
   Vehicle,
@@ -34,6 +37,8 @@ import type {
   CreateVehiclePayload,
   UpdateVehiclePayload,
   VehicleStatusType,
+  DeactivateVehiclePayload,
+  RestoreVehicleResult,
 } from "@features/vehicles/domain";
 
 // ============================================================================
@@ -152,7 +157,11 @@ export const vehiclesApi = {
     id: string,
     payload: UpdateVehiclePayload,
   ): Promise<MappedSingleResult<Vehicle>> => {
-    const response = await apiClient.put(`${VEHICLE_ENDPOINT}/${id}`, payload);
+    // La API rechaza `is_active` en PUT (400); baja y restaurar van por sus endpoints.
+    const body: Record<string, unknown> = { ...payload };
+    delete body.isActive;
+    delete body.is_active;
+    const response = await apiClient.put(`${VEHICLE_ENDPOINT}/${id}`, body);
     return mapVehicleDetail(response as unknown as ApiSingleResponse<ApiVehicleResponse>);
   },
 
@@ -171,11 +180,27 @@ export const vehiclesApi = {
   },
 
   /**
-   * DELETE /api/v1/vehicles/:id
-   * Response: { message }
+   * DELETE /api/v1/vehicles/:id — dar de baja (baja lógica con motivo).
+   * Body: { reason_code, reason_note? } · Response: { message }
    */
-  delete: async (id: string): Promise<MappedActionResult> => {
-    const response = await apiClient.delete(`${VEHICLE_ENDPOINT}/${id}`);
+  delete: async (
+    id: string,
+    payload: DeactivateVehiclePayload,
+  ): Promise<MappedActionResult> => {
+    const response = await apiClient.delete(`${VEHICLE_ENDPOINT}/${id}`, {
+      data: toApiDeactivateVehicle(payload),
+    });
     return mapActionResponse(response as unknown as ApiActionResponse);
+  },
+
+  /**
+   * POST /api/v1/vehicles/:id/restore — vuelve al padrón como `available`.
+   * Response: { message, data: { ...vehicle }, warnings? }
+   */
+  restore: async (id: string): Promise<RestoreVehicleResult> => {
+    const response = await apiClient.post<ApiVehicleRestoreResponse>(
+      `${VEHICLE_ENDPOINT}/${id}/restore`,
+    );
+    return mapVehicleRestore(response);
   },
 };

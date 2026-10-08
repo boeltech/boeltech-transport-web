@@ -19,7 +19,10 @@ import {
 import { Skeleton } from "@shared/ui/skeleton";
 import type { VehicleListItem, VehicleStatusType } from "../../domain";
 import { VEHICLE_TYPE_LABELS } from "../../domain";
-import { VehicleStatusBadge } from "../config/vehicleStatusConfig";
+import {
+  VehicleLifecycleBadge,
+  VehicleStatusBadge,
+} from "../config/vehicleStatusConfig";
 import { VehicleActions } from "./VehicleActions";
 import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import { vehiclesCopy } from "../copy";
@@ -35,7 +38,8 @@ interface VehicleTableProps {
   isLoading: boolean;
   onView: (id: string) => void;
   onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
+  onDeactivate?: (id: string) => void;
+  onRestore?: (id: string) => void;
   onChangeStatus?: (id: string, status: VehicleStatusType) => void;
   onMaintenance?: (id: string) => void;
   onDocuments?: (id: string) => void;
@@ -134,7 +138,8 @@ export function VehicleTable({
   isLoading,
   onView,
   onEdit,
-  onDelete,
+  onDeactivate,
+  onRestore,
   onChangeStatus,
   onMaintenance,
   onDocuments,
@@ -207,11 +212,15 @@ export function VehicleTable({
 
               {/* Estado */}
               <TableCell>
-                <VehicleStatusBadge
-                  status={vehicle.status}
-                  size="sm"
-                  showIcon
-                />
+                {vehicle.isActive === false ? (
+                  <VehicleLifecycleBadge status="deactivated" size="sm" showIcon />
+                ) : (
+                  <VehicleStatusBadge
+                    status={vehicle.status}
+                    size="sm"
+                    showIcon
+                  />
+                )}
               </TableCell>
 
               {/* Acciones */}
@@ -220,7 +229,8 @@ export function VehicleTable({
                   vehicle={vehicle}
                   onView={onView}
                   onEdit={onEdit}
-                  onDelete={onDelete}
+                  onDeactivate={onDeactivate}
+                  onRestore={onRestore}
                   onChangeStatus={onChangeStatus}
                   onMaintenance={onMaintenance}
                   onDocuments={onDocuments}

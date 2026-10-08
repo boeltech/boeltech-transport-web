@@ -17,6 +17,9 @@ export { VehicleCardSkeleton } from "./VehicleCardSkeleton";
 
 // Shared Components
 export { VehicleActions } from "./VehicleActions";
+export { VehicleDeactivateDialog } from "./VehicleDeactivateDialog";
+export { VehicleRestoreDialog } from "./VehicleRestoreDialog";
+export type { VehicleLifecycleTarget } from "./vehicleLifecycleTarget";
 export { VehicleDetailDocumentsTab } from "./VehicleDetailDocumentsTab";
 export { VehicleDetailUnitTab } from "./VehicleDetailUnitTab";
 export { VehicleFilters } from "./VehicleFilters";

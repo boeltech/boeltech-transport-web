@@ -16,6 +16,7 @@ vi.mock("@shared/permissions", () => ({
 vi.mock("../../application", () => ({
   useUpdateVehicle: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteVehicle: () => ({ mutate: vi.fn(), isPending: false }),
+  useRestoreVehicle: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@shared/hooks", () => ({
@@ -66,6 +67,9 @@ function renderActions(vehicle: VehicleListItem) {
   );
 }
 
+const deactivateButton = () =>
+  screen.getByRole("button", { name: vehiclesCopy.deactivate.action });
+
 describe("VehicleActions billing policy (F1)", () => {
   beforeEach(() => {
     mockHasPermission.mockImplementation(
@@ -74,11 +78,11 @@ describe("VehicleActions billing policy (F1)", () => {
     );
   });
 
-  it("eliminar tracto cobrable muestra la frase de baja sin link (gerente)", async () => {
+  it("dar de baja tracto cobrable muestra la frase de baja sin link (gerente)", async () => {
     const user = userEvent.setup();
     renderActions(buildVehicle());
 
-    await user.click(screen.getByRole("button", { name: /eliminar/i }));
+    await user.click(deactivateButton());
 
     expect(
       screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
@@ -88,22 +92,22 @@ describe("VehicleActions billing policy (F1)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("eliminar pickup cobrable muestra la frase de crédito", async () => {
+  it("dar de baja pickup cobrable muestra la frase de crédito", async () => {
     const user = userEvent.setup();
     renderActions(buildVehicle({ type: "pickup" }));
 
-    await user.click(screen.getByRole("button", { name: /eliminar/i }));
+    await user.click(deactivateButton());
 
     expect(
       screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
     ).toBeInTheDocument();
   });
 
-  it("eliminar utility no muestra la frase de crédito", async () => {
+  it("dar de baja utility no muestra la frase de crédito", async () => {
     const user = userEvent.setup();
     renderActions(buildVehicle({ type: "utility" }));
 
-    await user.click(screen.getByRole("button", { name: /eliminar/i }));
+    await user.click(deactivateButton());
 
     expect(
       screen.queryByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
@@ -139,7 +143,7 @@ describe("VehicleActions billing policy (F1)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("admin con billing.read ve el link en eliminar", async () => {
+  it("admin con billing.read ve el link en dar de baja", async () => {
     mockHasPermission.mockImplementation(
       (module: string, action: string) =>
         (module === "vehicles" &&
@@ -149,10 +153,36 @@ describe("VehicleActions billing policy (F1)", () => {
     const user = userEvent.setup();
     renderActions(buildVehicle());
 
-    await user.click(screen.getByRole("button", { name: /eliminar/i }));
+    await user.click(deactivateButton());
 
     expect(
       screen.getByRole("link", { name: "Ver suscripción" }),
     ).toHaveAttribute("href", "/settings/subscription");
+  });
+
+  it("restaurar un tracto dado de baja muestra la frase de alta", async () => {
+    const user = userEvent.setup();
+    renderActions(buildVehicle({ isActive: false }));
+
+    await user.click(
+      screen.getByRole("button", { name: vehiclesCopy.restore.action }),
+    );
+
+    expect(
+      screen.getByText(vehiclesCopy.billingPolicy.create, { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("restaurar un utility dado de baja no muestra la frase de cobro", async () => {
+    const user = userEvent.setup();
+    renderActions(buildVehicle({ isActive: false, type: "utility" }));
+
+    await user.click(
+      screen.getByRole("button", { name: vehiclesCopy.restore.action }),
+    );
+
+    expect(
+      screen.queryByText(vehiclesCopy.billingPolicy.create, { exact: false }),
+    ).not.toBeInTheDocument();
   });
 });

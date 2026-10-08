@@ -22,14 +22,19 @@ import {
   MoreVertical,
   Eye,
   Pencil,
-  Trash2,
+  Archive,
+  RotateCcw,
   Gauge,
   Calendar,
   CreditCard,
 } from "lucide-react";
 import type { VehicleListItem } from "../../domain";
-import { VEHICLE_TYPE_LABELS } from "../../domain";
-import { VehicleStatusBadge } from "../index";
+import { VEHICLE_TYPE_LABELS, VehicleStatus } from "../../domain";
+import {
+  VehicleLifecycleBadge,
+  VehicleStatusBadge,
+} from "../config/vehicleStatusConfig";
+import { vehiclesCopy } from "../copy";
 
 // ============================================================================
 // TYPES
@@ -39,7 +44,8 @@ interface VehicleCardProps {
   vehicle: VehicleListItem;
   onView: (id: string) => void;
   onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
+  onDeactivate?: (id: string) => void;
+  onRestore?: (id: string) => void;
 }
 
 // ============================================================================
@@ -50,9 +56,17 @@ export function VehicleCard({
   vehicle,
   onView,
   onEdit,
-  onDelete,
+  onDeactivate,
+  onRestore,
 }: VehicleCardProps) {
-  const hasActions = onEdit || onDelete;
+  const isInactive = vehicle.isActive === false;
+  const editAction = isInactive ? undefined : onEdit;
+  const deactivateAction =
+    isInactive || vehicle.status === VehicleStatus.ON_TRIP
+      ? undefined
+      : onDeactivate;
+  const restoreAction = isInactive ? onRestore : undefined;
+  const hasActions = editAction || deactivateAction || restoreAction;
 
   return (
     <Card
@@ -97,31 +111,42 @@ export function VehicleCard({
                   }}
                 >
                   <Eye className="mr-2 h-4 w-4" />
-                  Ver detalles
+                  {vehiclesCopy.lifecycle.viewDetail}
                 </DropdownMenuItem>
-                {onEdit && (
+                {editAction && (
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit(vehicle.id);
+                      editAction(vehicle.id);
                     }}
                   >
                     <Pencil className="mr-2 h-4 w-4" />
                     Editar
                   </DropdownMenuItem>
                 )}
-                {onDelete && (
+                {restoreAction && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      restoreAction(vehicle.id);
+                    }}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    {vehiclesCopy.restore.action}
+                  </DropdownMenuItem>
+                )}
+                {deactivateAction && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDelete(vehicle.id);
+                        deactivateAction(vehicle.id);
                       }}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Eliminar
+                      <Archive className="mr-2 h-4 w-4" />
+                      {vehiclesCopy.deactivate.action}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -164,11 +189,15 @@ export function VehicleCard({
 
       <CardFooter className="pt-3 border-t">
         <div className="flex w-full items-center justify-between">
-          <VehicleStatusBadge
-            status={vehicle.status}
-            size="sm"
-            showIcon={true}
-          />
+          {isInactive ? (
+            <VehicleLifecycleBadge status="deactivated" size="sm" showIcon />
+          ) : (
+            <VehicleStatusBadge
+              status={vehicle.status}
+              size="sm"
+              showIcon={true}
+            />
+          )}
           <Button
             variant="ghost"
             size="sm"

@@ -4,7 +4,7 @@
  * Edición de vehículo existente (FormPageShell + VehicleForm).
  */
 
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { Truck } from "lucide-react";
@@ -84,6 +84,17 @@ export function EditVehiclePage() {
   const typeLabel = vehicle
     ? VEHICLE_TYPE_LABELS[vehicle.type as VehicleTypeValue] || vehicle.type
     : "";
+
+  // Unidad dada de baja: solo lectura (la API responde 409 VEHICLE_INACTIVE_READONLY).
+  if (vehicle && !vehicle.isActive) {
+    return (
+      <Navigate
+        to={`/vehicles/${vehicleId}`}
+        replace
+        state={incomingFrom ? { from: incomingFrom } : undefined}
+      />
+    );
+  }
 
   return (
     <FormPageShell

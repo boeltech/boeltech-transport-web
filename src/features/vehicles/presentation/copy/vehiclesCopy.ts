@@ -9,10 +9,20 @@ export const vehiclesCopy = {
     },
     state: {
       notFoundTitle: "Vehículo no encontrado",
-      notFoundDescription:
-        "La unidad que buscas no existe o fue eliminada de flota.",
+      notFoundDescription: "La unidad que buscas no existe en tu flota.",
       backToList: "Volver a vehículos",
-      inactiveRegistration: "Unidad inactiva",
+    },
+    deactivated: {
+      title: "Unidad dada de baja",
+      when: (date: string, by: string | null) =>
+        by ? `El ${date} por ${by}.` : `El ${date}.`,
+      reason: (label: string, note: string | null) =>
+        note
+          ? `Motivo: ${label} — ${note}${/[.!?]$/.test(note) ? "" : "."}`
+          : `Motivo: ${label}.`,
+      reasonNotRecorded: "sin registrar",
+      impact:
+        "No aparece en el padrón ni puede asignarse a viajes. Sus viajes y facturas anteriores no cambian.",
     },
     stat: {
       mileage: {
@@ -164,6 +174,71 @@ export const vehiclesCopy = {
       descriptionFiltered:
         "Nada coincide. Prueba otra unidad, placa o VIN, o limpia los recortes.",
     },
+    deactivatedView: {
+      label: "Dadas de baja",
+      aria: "Ver unidades dadas de baja",
+      chip: "Vista: dadas de baja",
+      emptyTitle: "No hay unidades dadas de baja.",
+    },
+  },
+  lifecycle: {
+    deactivatedBadge: "Dada de baja",
+    viewDetail: "Ver detalles",
+  },
+  /** PRD D2/D3 — diálogo «Dar de baja». */
+  deactivate: {
+    action: "Dar de baja",
+    title: (unitNumber: string) => `¿Dar de baja la unidad ${unitNumber}?`,
+    description:
+      "La unidad saldrá del padrón y ya no podrá asignarse a viajes. Su historial (viajes, Carta Porte, facturas, mantenimiento y documentos) se conserva. Puedes restaurarla después desde «Dadas de baja».",
+    outOfServiceHint:
+      "¿Solo estará detenida un tiempo? Usa «Cambiar estado → Fuera de servicio».",
+    reasonLabel: "Motivo de la baja",
+    reasonPlaceholder: "Selecciona un motivo",
+    reasonRequired: "Selecciona el motivo de la baja",
+    noteLabel: "Nota",
+    notePlaceholder: "Ej. vendida a Transportes X, factura 1234",
+    noteOptionalHint: "Opcional.",
+    noteRequiredHint: "Obligatoria con el motivo «Otro».",
+    noteRequired: "Escribe una nota cuando el motivo es «Otro»",
+    noteMax: "La nota no puede exceder 500 caracteres",
+    validationSummary: "Revisa los datos de la baja",
+    cancel: "Cancelar",
+    confirm: "Dar de baja",
+    submitting: "Dando de baja…",
+    successToast: (unitNumber: string) => `Unidad ${unitNumber} dada de baja`,
+    errorTitle: "No se pudo dar de baja",
+    activeTrips: {
+      title: "No se puede dar de baja: la unidad está en viajes activos.",
+      lead: "Reasigna la flota o cancela estos viajes y vuelve a intentar:",
+      more: (count: number) => `(y ${count} más)`,
+      goToTrips: "Ir a Viajes",
+    },
+  },
+  /** PRD D6 — confirmación «Restaurar». */
+  restore: {
+    action: "Restaurar",
+    title: (unitNumber: string) => `¿Restaurar la unidad ${unitNumber}?`,
+    descriptionLead: "Volverá al padrón como",
+    descriptionStatus: "Disponible",
+    descriptionTail: "y podrá asignarse a viajes.",
+    cancel: "Cancelar",
+    confirm: "Restaurar",
+    submitting: "Restaurando…",
+    successToast: (unitNumber: string) => `Unidad ${unitNumber} restaurada`,
+    successDescription: "Volvió al padrón como Disponible.",
+    branchClearedTitle: (unitNumber: string) =>
+      `Unidad ${unitNumber} restaurada sin sucursal`,
+    branchClearedHint: "Asígnale una desde Editar.",
+    errorTitle: "No se pudo restaurar",
+    conflictUnitNumber: (unitNumber: string) =>
+      `No se puede restaurar: el número económico ${unitNumber} ya lo usa otra unidad activa.`,
+    conflictLicensePlate: (licensePlate: string) =>
+      `No se puede restaurar: la placa ${licensePlate} ya la usa otra unidad activa.`,
+    conflictViewUnit: "Ver unidad",
+    conflictHint: "Cambia ese dato en la otra unidad y vuelve a intentar.",
+    notOperable: (detail: string) =>
+      `No se puede restaurar: a la unidad le faltan datos para operar (${detail}).`,
   },
   form: {
     edit: {
@@ -313,8 +388,7 @@ export const vehiclesCopy = {
     },
     state: {
       notFoundTitle: "Vehículo no encontrado",
-      notFoundDescription:
-        "La unidad que intentas editar no existe o fue eliminada.",
+      notFoundDescription: "La unidad que intentas editar no existe en tu flota.",
       backToList: "Volver a vehículos",
     },
   },

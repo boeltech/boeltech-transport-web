@@ -11,6 +11,8 @@
  * 2. Con props individuales (para VehicleDetailPage):
  *    <VehicleActions vehicleId={id} vehicleName={name} status={status} variant="buttons" />
  *
+ * Unidad dada de baja (`isActive === false`): solo «Ver detalles» y «Restaurar».
+ *
  * Ubicación: src/features/vehicles/presentation/components/VehicleActions.tsx
  */
 
@@ -18,16 +20,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 import { Button } from "@shared/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@shared/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -47,8 +39,7 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
-import { isApiError } from "@shared/api/interceptors/error-handler";
-import { useUpdateVehicle, useDeleteVehicle } from "../../application";
+import { useUpdateVehicle } from "../../application";
 import {
   VehicleStatus,
   VEHICLE_STATUS_LABELS,
@@ -57,12 +48,17 @@ import {
   type Vehicle,
   type VehicleStatusType,
 } from "../../domain";
+import { vehiclesCopy } from "../copy";
 import { VehicleBillingPolicyNote } from "./VehicleBillingPolicyNote";
+import { VehicleDeactivateDialog } from "./VehicleDeactivateDialog";
+import { VehicleRestoreDialog } from "./VehicleRestoreDialog";
+import type { VehicleLifecycleTarget } from "./vehicleLifecycleTarget";
 import {
   MoreHorizontal,
   Eye,
   Pencil,
-  Trash2,
+  Archive,
+  RotateCcw,
   Wrench,
   FileText,
   CheckCircle,
@@ -70,25 +66,6 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-
-const VEHICLE_ASSIGNED_DELETE_CODES = new Set([
-  "VEHICLE_ASSIGNED_TO_ACTIVE_TRIP",
-]);
-
-function deleteVehicleErrorDescription(error: unknown): string {
-  const message =
-    error instanceof Error && error.message
-      ? error.message
-      : "No se pudo eliminar el vehículo";
-  if (
-    isApiError(error) &&
-    error.code &&
-    VEHICLE_ASSIGNED_DELETE_CODES.has(error.code)
-  ) {
-    return `${message} Revise Viajes y reasigne la flota.`;
-  }
-  return message;
-}
 
 // ============================================================================
 // TYPES
@@ -102,6 +79,7 @@ interface VehicleObjectProps {
   vehicleId?: never;
   vehicleName?: never;
   status?: never;
+  isActive?: never;
 }
 
 /**
@@ -112,6 +90,7 @@ interface VehicleIndividualProps {
   vehicleId: string;
   vehicleName: string;
   status: VehicleStatusType;
+  isActive?: boolean;
 }
 
 /**
@@ -124,8 +103,10 @@ interface CommonProps {
   onView?: (id: string) => void;
   /** Callback para editar (solo en modo dropdown desde tabla) */
   onEdit?: (id: string) => void;
-  /** Callback para eliminar (solo en modo dropdown desde tabla) */
-  onDelete?: (id: string) => void;
+  /** Callback para dar de baja (solo en modo dropdown desde tabla) */
+  onDeactivate?: (id: string) => void;
+  /** Callback para restaurar una unidad dada de baja (solo en modo dropdown) */
+  onRestore?: (id: string) => void;
   /** Callback para cambio de estado (solo en modo dropdown desde tabla) */
   onChangeStatus?: (id: string, status: VehicleStatusType) => void;
   /** Callback para historial de mantenimiento */
@@ -189,7 +170,8 @@ export function VehicleActions(props: VehicleActionsProps) {
     variant = "dropdown",
     onView,
     onEdit,
-    onDelete,
+    onDeactivate,
+    onRestore,
     onChangeStatus,
     onMaintenance,
     onDocuments,
@@ -200,11 +182,19 @@ export function VehicleActions(props: VehicleActionsProps) {
   const id = props.vehicle?.id ?? props.vehicleId!;
   const name = props.vehicle?.unitNumber ?? props.vehicleName!;
   const currentStatus = props.vehicle?.status ?? props.status!;
+  const isActive = (props.vehicle?.isActive ?? props.isActive) !== false;
   const billableNow = isBillableMotrizNow({
     type: props.vehicle?.type,
     status: currentStatus,
-    isActive: props.vehicle?.isActive,
+    isActive,
   });
+  const lifecycleTarget: VehicleLifecycleTarget = {
+    id,
+    unitNumber: name,
+    type: props.vehicle?.type,
+    status: currentStatus,
+    isActive,
+  };
 
   const navigate = useNavigate();
   const fromState = useMasterActionFrom("/vehicles");
@@ -215,9 +205,8 @@ export function VehicleActions(props: VehicleActionsProps) {
   // DIALOG STATES (solo para variant="buttons")
   // ══════════════════════════════════════════════════════════════════════════
 
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean }>({
-    open: false,
-  });
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
 
   const [statusDialog, setStatusDialog] = useState<{
     open: boolean;
@@ -252,21 +241,7 @@ export function VehicleActions(props: VehicleActionsProps) {
     },
   });
 
-  const deleteMutation = useDeleteVehicle({
-    onSuccess: () => {
-      toast({ title: "Vehículo eliminado", variant: "success" });
-      navigate("/vehicles");
-    },
-    onError: (error) => {
-      toast({
-        title: "Error al eliminar",
-        description: deleteVehicleErrorDescription(error),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const isLoading = updateMutation.isPending || deleteMutation.isPending;
+  const isLoading = updateMutation.isPending;
 
   // ══════════════════════════════════════════════════════════════════════════
   // PERMISSIONS & AVAILABLE ACTIONS
@@ -275,18 +250,18 @@ export function VehicleActions(props: VehicleActionsProps) {
   const canUpdate = hasPermission("vehicles", "update");
   const canDelete = hasPermission("vehicles", "delete");
 
-  const availableTransitions = VALID_STATUS_TRANSITIONS[currentStatus] || [];
+  const availableTransitions = isActive
+    ? VALID_STATUS_TRANSITIONS[currentStatus] || []
+    : [];
 
-  // No se puede eliminar si está en viaje
-  const canDeleteVehicle = currentStatus !== VehicleStatus.ON_TRIP && canDelete;
+  // No se puede dar de baja si está en viaje
+  const canDeactivateVehicle =
+    isActive && currentStatus !== VehicleStatus.ON_TRIP && canDelete;
+  const canRestoreVehicle = !isActive && canUpdate;
 
   // ══════════════════════════════════════════════════════════════════════════
   // HANDLERS
   // ══════════════════════════════════════════════════════════════════════════
-
-  const handleDeleteConfirm = () => {
-    deleteMutation.mutate(id);
-  };
 
   const handleStatusConfirm = () => {
     if (!statusDialog.targetStatus) return;
@@ -307,6 +282,33 @@ export function VehicleActions(props: VehicleActionsProps) {
   // ══════════════════════════════════════════════════════════════════════════
 
   if (variant === "dropdown") {
+    if (!isActive) {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Abrir menú de acciones</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {onView && (
+              <DropdownMenuItem onClick={() => onView(id)}>
+                <Eye className="mr-2 h-4 w-4" />
+                {vehiclesCopy.lifecycle.viewDetail}
+              </DropdownMenuItem>
+            )}
+            {canRestoreVehicle && onRestore && (
+              <DropdownMenuItem onClick={() => onRestore(id)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {vehiclesCopy.restore.action}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
+
     const hasStatusActions =
       canUpdate && onChangeStatus && availableTransitions.length > 0;
     const hasSecondaryActions = onMaintenance || onDocuments;
@@ -324,7 +326,7 @@ export function VehicleActions(props: VehicleActionsProps) {
           {onView && (
             <DropdownMenuItem onClick={() => onView(id)}>
               <Eye className="mr-2 h-4 w-4" />
-              Ver detalles
+              {vehiclesCopy.lifecycle.viewDetail}
             </DropdownMenuItem>
           )}
 
@@ -381,16 +383,16 @@ export function VehicleActions(props: VehicleActionsProps) {
             </>
           )}
 
-          {/* Eliminar */}
-          {canDeleteVehicle && onDelete && (
+          {/* Dar de baja */}
+          {canDeactivateVehicle && onDeactivate && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => onDelete(id)}
+                onClick={() => onDeactivate(id)}
                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
+                <Archive className="mr-2 h-4 w-4" />
+                {vehiclesCopy.deactivate.action}
               </DropdownMenuItem>
             </>
           )}
@@ -403,8 +405,28 @@ export function VehicleActions(props: VehicleActionsProps) {
   // RENDER: BUTTONS MODE (para VehicleDetailPage)
   // ══════════════════════════════════════════════════════════════════════════
 
+  if (!isActive) {
+    if (!canRestoreVehicle) return null;
+    return (
+      <>
+        <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => setRestoreOpen(true)}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {vehiclesCopy.restore.action}
+          </Button>
+        </div>
+        <VehicleRestoreDialog
+          vehicle={lifecycleTarget}
+          open={restoreOpen}
+          onOpenChange={setRestoreOpen}
+          onRestored={() => onActionComplete?.()}
+        />
+      </>
+    );
+  }
+
   const hasNoActions =
-    !canUpdate && !canDeleteVehicle && availableTransitions.length === 0;
+    !canUpdate && !canDeactivateVehicle && availableTransitions.length === 0;
 
   if (hasNoActions) {
     return null;
@@ -463,16 +485,16 @@ export function VehicleActions(props: VehicleActionsProps) {
           </DropdownMenu>
         )}
 
-        {/* Eliminar */}
-        {canDeleteVehicle && (
+        {/* Dar de baja */}
+        {canDeactivateVehicle && (
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => setDeleteDialog({ open: true })}
+            onClick={() => setDeactivateOpen(true)}
             disabled={isLoading}
           >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
+            <Archive className="mr-2 h-4 w-4" />
+            {vehiclesCopy.deactivate.action}
           </Button>
         )}
       </div>
@@ -481,40 +503,12 @@ export function VehicleActions(props: VehicleActionsProps) {
       {/* DIALOGS                                                              */}
       {/* ════════════════════════════════════════════════════════════════════ */}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ open })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar este vehículo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. El vehículo{" "}
-              <strong>{name}</strong> será eliminado permanentemente del
-              sistema.
-              {billableNow ? (
-                <>
-                  {" "}
-                  <VehicleBillingPolicyNote kind="remove" />
-                </>
-              ) : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <VehicleDeactivateDialog
+        vehicle={lifecycleTarget}
+        open={deactivateOpen}
+        onOpenChange={setDeactivateOpen}
+        onDeactivated={() => navigate("/vehicles")}
+      />
 
       {/* Status Change Dialog */}
       <Dialog

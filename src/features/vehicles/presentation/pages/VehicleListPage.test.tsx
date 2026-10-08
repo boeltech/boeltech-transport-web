@@ -26,6 +26,7 @@ const {
 vi.mock("../../application", () => ({
   useVehicles: (...args: unknown[]) => mockUseVehicles(...args),
   useDeleteVehicle: (...args: unknown[]) => mockUseDeleteVehicle(...args),
+  useRestoreVehicle: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateVehicle: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
@@ -227,7 +228,7 @@ describe("VehicleListPage billing policy (F1)", () => {
     expect(screen.queryByText(/suscripción/i)).not.toBeInTheDocument();
   });
 
-  it("eliminar un tracto cobrable muestra la frase de baja", async () => {
+  it("dar de baja un tracto cobrable muestra la frase de baja", async () => {
     const user = userEvent.setup();
     mockUseVehicles.mockReturnValue({
       data: {
@@ -242,14 +243,14 @@ describe("VehicleListPage billing policy (F1)", () => {
     renderPage();
 
     await user.click(screen.getByRole("button", { name: /abrir menú/i }));
-    await user.click(screen.getByRole("menuitem", { name: /eliminar/i }));
+    await user.click(screen.getByRole("menuitem", { name: /dar de baja/i }));
 
     expect(
       screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
     ).toBeInTheDocument();
   });
 
-  it("eliminar un pickup cobrable muestra la frase de baja", async () => {
+  it("dar de baja un pickup cobrable muestra la frase de baja", async () => {
     const user = userEvent.setup();
     mockUseVehicles.mockReturnValue({
       data: {
@@ -264,14 +265,14 @@ describe("VehicleListPage billing policy (F1)", () => {
     renderPage();
 
     await user.click(screen.getByRole("button", { name: /abrir menú/i }));
-    await user.click(screen.getByRole("menuitem", { name: /eliminar/i }));
+    await user.click(screen.getByRole("menuitem", { name: /dar de baja/i }));
 
     expect(
       screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
     ).toBeInTheDocument();
   });
 
-  it("eliminar un utility no muestra la frase de crédito", async () => {
+  it("dar de baja un utility no muestra la frase de crédito", async () => {
     const user = userEvent.setup();
     mockUseVehicles.mockReturnValue({
       data: {
@@ -286,11 +287,194 @@ describe("VehicleListPage billing policy (F1)", () => {
     renderPage();
 
     await user.click(screen.getByRole("button", { name: /abrir menú/i }));
-    await user.click(screen.getByRole("menuitem", { name: /eliminar/i }));
+    await user.click(screen.getByRole("menuitem", { name: /dar de baja/i }));
 
-    const dialog = screen.getByRole("alertdialog");
+    const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("U-U1");
     expect(dialog).not.toHaveTextContent(vehiclesCopy.billingPolicy.remove);
     expect(dialog).not.toHaveTextContent(/crédito/i);
+  });
+});
+
+describe("VehicleListPage vista «Dadas de baja» (D5)", () => {
+  beforeEach(() => {
+    mockUseBranches.mockReturnValue({ data: { data: [] } });
+    mockUseDeleteVehicle.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    mockHasPermission.mockImplementation(() => true);
+    mockUseRole.mockReturnValue("admin");
+    mockUseVehicles.mockImplementation(
+      (params: { filters: { isActive: boolean } }) => ({
+        data: {
+          data: params.filters.isActive
+            ? [buildListItem()]
+            : [
+                buildListItem({
+                  id: "v-off",
+                  unitNumber: "T-12",
+                  isActive: false,
+                  deactivatedAt: "2026-10-08T15:00:00Z",
+                  deactivationReasonCode: "venta",
+                }),
+              ],
+          pagination: { page: 1, totalPages: 1, total: 1, limit: 10 },
+        },
+        isLoading: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      }),
+    );
+  });
+
+  it("por defecto consulta activas y ofrece el toggle", () => {
+    renderPage();
+
+    expect(mockUseVehicles).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ isActive: true }),
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: copy.deactivatedView.aria }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("button", { name: copy.actions.create }),
+    ).toBeInTheDocument();
+  });
+
+  it("el toggle consulta isActive:false, muestra chip y oculta alta, importar y estado", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.deactivatedView.aria }),
+    );
+
+    expect(mockUseVehicles).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ isActive: false, status: undefined }),
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: copy.deactivatedView.aria }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(copy.deactivatedView.chip)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.actions.create }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.actions.importAria }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(vehiclesCopy.lifecycle.deactivatedBadge)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Filtros$/ }));
+    expect(
+      screen.queryByRole("combobox", { name: copy.filter.statusLabel }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: copy.filter.typeLabel }),
+    ).toBeInTheDocument();
+  });
+
+  it("el menú de fila en la vista solo ofrece Ver detalles y Restaurar", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.deactivatedView.aria }),
+    );
+    await user.click(screen.getByRole("button", { name: /abrir menú/i }));
+
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items).toEqual([
+      vehiclesCopy.lifecycle.viewDetail,
+      vehiclesCopy.restore.action,
+    ]);
+
+    await user.click(
+      screen.getByRole("menuitem", { name: vehiclesCopy.restore.action }),
+    );
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      vehiclesCopy.restore.title("T-12"),
+    );
+  });
+
+  it("vacío de la vista usa el copy de dadas de baja sin CTA de alta", async () => {
+    mockUseVehicles.mockImplementation(() => ({
+      data: {
+        data: [],
+        pagination: { page: 1, totalPages: 1, total: 0, limit: 10 },
+      },
+      isLoading: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    }));
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.deactivatedView.aria }),
+    );
+
+    expect(screen.getByText(copy.deactivatedView.emptyTitle)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.actions.create }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("quitar el chip vuelve al padrón activo", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.deactivatedView.aria }),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(`quitar.*${copy.deactivatedView.chip}`, "i"),
+      }),
+    );
+
+    expect(mockUseVehicles).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ isActive: true }),
+      }),
+    );
+  });
+
+  it("usuario solo lectura ve el toggle y en la vista solo Ver detalles, sin Restaurar", async () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        module === "vehicles" && action === "read",
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: copy.deactivatedView.aria }),
+    );
+    expect(mockUseVehicles).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({ isActive: false }),
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú/i }));
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items).toEqual([vehiclesCopy.lifecycle.viewDetail]);
+    expect(
+      screen.queryByRole("menuitem", { name: vehiclesCopy.restore.action }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sin vehicles.read no hay toggle", () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        !(module === "vehicles" && action === "read"),
+    );
+    renderPage();
+
+    expect(
+      screen.queryByRole("button", { name: copy.deactivatedView.aria }),
+    ).not.toBeInTheDocument();
   });
 });

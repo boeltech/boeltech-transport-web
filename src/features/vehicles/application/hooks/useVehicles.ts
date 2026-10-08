@@ -33,6 +33,8 @@ import {
   type AssignableVehicleItem,
   type CreateVehiclePayload,
   type UpdateVehiclePayload,
+  type DeactivateVehiclePayload,
+  type RestoreVehicleResult,
 } from "@features/vehicles/domain";
 import { isExpired } from "@shared/utils/dateUtils";
 
@@ -366,17 +368,52 @@ export const useUpdateVehicleStatus = (callbacks?: MutationCallbacks) => {
   });
 };
 
+/** Dar de baja (baja lógica con motivo). */
 export const useDeleteVehicle = (callbacks?: MutationCallbacks<void>) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => vehiclesApi.delete(id),
-    onSuccess: () => {
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: DeactivateVehiclePayload;
+    }) => vehiclesApi.delete(id, payload),
+    onSuccess: (_result, { id }) => {
       queryClient.invalidateQueries({ queryKey: vehicleQueryKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: vehicleQueryKeys.detail(id),
+      });
       queryClient.invalidateQueries({
         queryKey: vehicleQueryKeys.assignable(),
       });
+      invalidateNotificationsQueries(queryClient);
       callbacks?.onSuccess?.(undefined);
+    },
+    onError: (error: Error) => {
+      callbacks?.onError?.(error);
+    },
+  });
+};
+
+export const useRestoreVehicle = (
+  callbacks?: MutationCallbacks<RestoreVehicleResult>,
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => vehiclesApi.restore(id),
+    onSuccess: (result, id) => {
+      queryClient.invalidateQueries({ queryKey: vehicleQueryKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: vehicleQueryKeys.detail(id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: vehicleQueryKeys.assignable(),
+      });
+      invalidateNotificationsQueries(queryClient);
+      callbacks?.onSuccess?.(result);
     },
     onError: (error: Error) => {
       callbacks?.onError?.(error);

@@ -26,8 +26,12 @@ import {
   type Vehicle,
   type VehicleTypeValue,
 } from "../../domain";
-import { VehicleStatusBadge } from "../config/vehicleStatusConfig";
+import {
+  VehicleLifecycleBadge,
+  VehicleStatusBadge,
+} from "../config/vehicleStatusConfig";
 import { VehicleActions } from "../components/VehicleActions";
+import { VehicleDeactivatedAlert } from "../components/VehicleDeactivatedAlert";
 import { VehicleDetailDocumentsTab } from "../components/VehicleDetailDocumentsTab";
 import { VehicleDetailHeaderSubtitle } from "../components/VehicleDetailHeaderSubtitle";
 import { VehicleDetailUnitTab } from "../components/VehicleDetailUnitTab";
@@ -138,14 +142,13 @@ export function VehicleDetailPage() {
   }
 
   const { capacities } = vehicle;
+  const isDeactivated = !vehicle.isActive;
   const typeLabel =
     VEHICLE_TYPE_LABELS[vehicle.type as VehicleTypeValue] || vehicle.type;
-  const {
-    hasDocumentAlerts,
-    documentAlertItems,
-    insuranceExpired,
-    sctExpired,
-  } = buildDocumentAlerts(vehicle);
+  const documentAlerts = buildDocumentAlerts(vehicle);
+  // Una unidad dada de baja no opera: sus vencimientos de documentos no exigen acción.
+  const hasDocumentAlerts = !isDeactivated && documentAlerts.hasDocumentAlerts;
+  const { documentAlertItems, insuranceExpired, sctExpired } = documentAlerts;
 
   return (
     <DetailPageShell
@@ -161,7 +164,11 @@ export function VehicleDetailPage() {
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span className="shrink-0">{vehicle.unitNumber}</span>
-            <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />
+            {isDeactivated ? (
+              <VehicleLifecycleBadge status="deactivated" showIcon size="sm" />
+            ) : (
+              <VehicleStatusBadge status={vehicle.status} showIcon size="sm" />
+            )}
           </span>
         ),
         subtitle: (
@@ -171,7 +178,6 @@ export function VehicleDetailPage() {
             brand={vehicle.brand}
             model={vehicle.model}
             year={vehicle.year}
-            isActive={vehicle.isActive}
           />
         ),
         actions: (
@@ -183,7 +189,9 @@ export function VehicleDetailPage() {
         ),
       }}
       alerts={
-        hasDocumentAlerts ? (
+        isDeactivated ? (
+          <VehicleDeactivatedAlert vehicle={vehicle} />
+        ) : hasDocumentAlerts ? (
           <DetailAlertCard
             severity={insuranceExpired || sctExpired ? "critical" : "warning"}
             icon={

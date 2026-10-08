@@ -43,6 +43,8 @@ export interface VehicleListFiltersProps {
   onStatusChange: (value: string) => void;
   onTypeChange: (value: string) => void;
   onBranchChange: (value: string) => void;
+  /** En la vista «Dadas de baja» el estado operativo no aplica. */
+  showStatus?: boolean;
 }
 
 /**
@@ -58,6 +60,7 @@ export function VehicleListFilters({
   onStatusChange,
   onTypeChange,
   onBranchChange,
+  showStatus = true,
 }: VehicleListFiltersProps) {
   const [userCollapsedWhileActive, setUserCollapsedWhileActive] = useState(false);
   const [userExpandedWhileIdle, setUserExpandedWhileIdle] = useState(false);
@@ -108,29 +111,31 @@ export function VehicleListFilters({
           <CardContent
             className={cn(
               "grid gap-3 p-4 sm:grid-cols-2",
-              showBranch && "lg:grid-cols-3",
+              showBranch && showStatus && "lg:grid-cols-3",
             )}
           >
-            <div className="space-y-1.5">
-              <Label htmlFor="vehicles-filter-status">{filterCopy.statusLabel}</Label>
-              <Select value={status || "all"} onValueChange={onStatusChange}>
-                <SelectTrigger
-                  id="vehicles-filter-status"
-                  className="w-full"
-                  aria-label={filterCopy.statusLabel}
-                >
-                  <SelectValue placeholder={filterCopy.statusLabel} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{filterCopy.statusAll}</SelectItem>
-                  {Object.values(VehicleStatus).map((statusValue) => (
-                    <SelectItem key={statusValue} value={statusValue}>
-                      {VEHICLE_STATUS_LABELS[statusValue]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {showStatus ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="vehicles-filter-status">{filterCopy.statusLabel}</Label>
+                <Select value={status || "all"} onValueChange={onStatusChange}>
+                  <SelectTrigger
+                    id="vehicles-filter-status"
+                    className="w-full"
+                    aria-label={filterCopy.statusLabel}
+                  >
+                    <SelectValue placeholder={filterCopy.statusLabel} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{filterCopy.statusAll}</SelectItem>
+                    {Object.values(VehicleStatus).map((statusValue) => (
+                      <SelectItem key={statusValue} value={statusValue}>
+                        {VEHICLE_STATUS_LABELS[statusValue]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="space-y-1.5">
               <Label htmlFor="vehicles-filter-type">{filterCopy.typeLabel}</Label>

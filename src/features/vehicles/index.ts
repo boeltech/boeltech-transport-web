@@ -2,6 +2,7 @@ export {
   useAssignableVehicles,
   useCreateVehicle,
   useDeleteVehicle,
+  useRestoreVehicle,
   useUpdateVehicle,
   useUpdateVehicleStatus,
   useVehicle,

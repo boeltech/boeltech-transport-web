@@ -35,6 +35,22 @@ export const VehicleType = {
 
 export type VehicleTypeValue = (typeof VehicleType)[keyof typeof VehicleType];
 
+/** Motivos de baja (catálogo interno de la API, no SAT). */
+export const VehicleDeactivationReason = {
+  SALE: "venta",
+  TOTAL_LOSS: "siniestro_perdida_total",
+  THEFT: "robo",
+  LEASE_END: "fin_arrendamiento",
+  PLATES_PERMIT_CANCELLED: "baja_placas_permiso",
+  TRANSFER: "traspaso",
+  SCRAPPED: "desguace",
+  DATA_ENTRY_ERROR: "error_captura",
+  OTHER: "otro",
+} as const;
+
+export type VehicleDeactivationReasonCode =
+  (typeof VehicleDeactivationReason)[keyof typeof VehicleDeactivationReason];
+
 // ============================================================================
 // VALUE OBJECTS
 // ============================================================================
@@ -131,6 +147,12 @@ export interface VehicleListItem {
   readonly branchId: string | null;
   readonly branchName: string | null;
   readonly branchCode: string | null;
+  // Baja lógica — opcionales en el listado (consumidores de asignación no los usan)
+  readonly deactivatedAt?: string | null;
+  readonly deactivatedBy?: string | null;
+  readonly deactivatedByName?: string | null;
+  readonly deactivationReasonCode?: VehicleDeactivationReasonCode | null;
+  readonly deactivationNote?: string | null;
 }
 
 /**
@@ -167,6 +189,13 @@ export interface Vehicle {
   // Status
   readonly status: VehicleStatusType;
   readonly isActive: boolean;
+
+  // Baja lógica (ISO 8601; null si la unidad está activa)
+  readonly deactivatedAt: string | null;
+  readonly deactivatedBy: string | null;
+  readonly deactivatedByName: string | null;
+  readonly deactivationReasonCode: VehicleDeactivationReasonCode | null;
+  readonly deactivationNote: string | null;
 
   // Audit
   readonly createdAt: Date;
@@ -257,11 +286,29 @@ export interface CreateVehiclePayload {
   readonly branchId?: string;
 }
 
+/** `is_active` no viaja en la edición: baja y restaurar tienen endpoints propios. */
 export interface UpdateVehiclePayload extends Partial<
   Omit<CreateVehiclePayload, "unitNumber">
 > {
   readonly status?: VehicleStatusType;
-  readonly isActive?: boolean;
+}
+
+export interface DeactivateVehiclePayload {
+  readonly reasonCode: VehicleDeactivationReasonCode;
+  readonly reasonNote?: string;
+}
+
+export interface VehicleRestoreWarning {
+  readonly code: "VEHICLE_BRANCH_CLEARED";
+  readonly reason: "inactive" | "not_plan_eligible";
+  readonly message: string;
+  readonly previousBranchId: string;
+  readonly previousBranchName: string | null;
+}
+
+export interface RestoreVehicleResult {
+  readonly vehicle: Vehicle;
+  readonly warnings: VehicleRestoreWarning[];
 }
 
 // ============================================================================
@@ -352,6 +399,23 @@ export const VEHICLE_STATUS_LABELS: Record<VehicleStatusType, string> = {
   [VehicleStatus.ON_TRIP]: "En Viaje",
   [VehicleStatus.IN_MAINTENANCE]: "En Mantenimiento",
   [VehicleStatus.OUT_OF_SERVICE]: "Fuera de Servicio",
+};
+
+export const VEHICLE_DEACTIVATION_REASON_LABELS: Record<
+  VehicleDeactivationReasonCode,
+  string
+> = {
+  [VehicleDeactivationReason.SALE]: "Venta",
+  [VehicleDeactivationReason.TOTAL_LOSS]: "Siniestro o pérdida total",
+  [VehicleDeactivationReason.THEFT]: "Robo",
+  [VehicleDeactivationReason.LEASE_END]: "Fin de arrendamiento",
+  [VehicleDeactivationReason.PLATES_PERMIT_CANCELLED]:
+    "Baja de placas o permiso",
+  [VehicleDeactivationReason.TRANSFER]: "Traspaso",
+  [VehicleDeactivationReason.SCRAPPED]: "Desguace o fin de vida útil",
+  [VehicleDeactivationReason.DATA_ENTRY_ERROR]:
+    "Error de captura o registro duplicado",
+  [VehicleDeactivationReason.OTHER]: "Otro",
 };
 
 export const VEHICLE_TYPE_LABELS: Record<VehicleTypeValue, string> = {

@@ -8,7 +8,7 @@
  * Ubicación: src/features/vehicles/presentation/config/vehicleStatusConfig.ts
  */
 
-import { CheckCircle2, Wrench, XCircle, Truck } from "lucide-react";
+import { Archive, CheckCircle2, Wrench, XCircle, Truck } from "lucide-react";
 import {
   type StatusConfig,
   createStatusConfig,
@@ -19,6 +19,7 @@ import {
   VehicleStatus,
   type VehicleStatusType,
 } from "../../domain";
+import { vehiclesCopy } from "../copy/vehiclesCopy";
 
 // ============================================================================
 // CONFIGURATION
@@ -77,6 +78,19 @@ export const VEHICLE_STATUS_CONFIG: Record<VehicleStatusType, StatusConfig> = {
  */
 export const VehicleStatusBadge = createStatusBadgeComponent(
   VEHICLE_STATUS_CONFIG,
+);
+
+/** Baja lógica (`is_active = false`): reemplaza al estado operativo. */
+export const VEHICLE_LIFECYCLE_CONFIG: Record<"deactivated", StatusConfig> = {
+  deactivated: createStatusConfig("neutral", {
+    label: vehiclesCopy.lifecycle.deactivatedBadge,
+    icon: Archive,
+    description: "Unidad fuera del padrón; su historial se conserva",
+  }),
+};
+
+export const VehicleLifecycleBadge = createStatusBadgeComponent(
+  VEHICLE_LIFECYCLE_CONFIG,
 );
 
 // ============================================================================

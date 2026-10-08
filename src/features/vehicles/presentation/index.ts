@@ -12,6 +12,7 @@ export {
 export {
   VEHICLE_STATUS_CONFIG,
   VehicleStatusBadge,
+  VehicleLifecycleBadge,
   getVehicleStatusConfig,
   getVehicleStatusLabel,
 } from "./config/vehicleStatusConfig";

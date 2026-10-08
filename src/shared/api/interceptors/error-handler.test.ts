@@ -321,6 +321,18 @@ describe("ApiError.fromAxiosError", () => {
     expect(error.message).toContain("Reasigne la flota");
   });
 
+  it.each([
+    ["VEHICLE_ALREADY_INACTIVE", "ya está dada de baja"],
+    ["VEHICLE_ALREADY_ACTIVE", "ya está activa"],
+    ["VEHICLE_INACTIVE_READONLY", "solo lectura"],
+  ])("fallback de diccionario para %s sin mensaje", (code, expected) => {
+    const error = ApiError.fromAxiosError(buildAxiosError({ code }, 409));
+
+    expect(error.code).toBe(code);
+    expect(error.message).toContain(expected);
+    expect(error.message).not.toMatch(/elimin/i);
+  });
+
   it("conserva mensaje del backend con trip_code en VEHICLE_ASSIGNED_TO_ACTIVE_TRIP", () => {
     const backendMessage =
       "No se puede dar de baja la unidad porque tiene viajes activos (TRP-260907-0002). Reasigne o libere la flota en esos viajes antes de continuar.";

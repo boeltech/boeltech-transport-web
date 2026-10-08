@@ -18,8 +18,12 @@ import type {
   VehicleListItem,
   VehicleStatusType,
   VehicleTypeValue,
+  VehicleDeactivationReasonCode,
   CreateVehiclePayload,
   UpdateVehiclePayload,
+  DeactivateVehiclePayload,
+  RestoreVehicleResult,
+  VehicleRestoreWarning,
 } from "@features/vehicles/domain";
 import type {
   ApiPaginatedResponse,
@@ -32,8 +36,17 @@ import type {
 // RAW API TYPES (snake_case — solo usados en este archivo)
 // ============================================================================
 
+/** Campos de baja lógica (migr. 214) en listado y detalle. */
+export interface ApiVehicleDeactivationFields {
+  deactivated_at?: string | null;
+  deactivated_by?: string | null;
+  deactivated_by_name?: string | null;
+  deactivation_reason_code?: string | null;
+  deactivation_note?: string | null;
+}
+
 /** GET /api/v1/vehicles — List item shape from backend */
-export interface ApiVehicleListItemResponse {
+export interface ApiVehicleListItemResponse extends ApiVehicleDeactivationFields {
   id: string;
   unit_number: string;
   license_plate: string;
@@ -61,7 +74,7 @@ export interface ApiVehicleListItemResponse {
 }
 
 /** GET /api/v1/vehicles/:id — Full detail shape from backend */
-export interface ApiVehicleResponse {
+export interface ApiVehicleResponse extends ApiVehicleDeactivationFields {
   id: string;
   tenant_id: string;
   unit_number: string;
@@ -112,9 +125,35 @@ export interface ApiVehicleRemolqueResponse {
   license_plate: string;
 }
 
+/** POST /api/v1/vehicles/:id/restore — `warnings` en la raíz, solo si aplica. */
+export interface ApiVehicleRestoreResponse
+  extends ApiSingleResponse<ApiVehicleResponse> {
+  warnings?: ApiVehicleRestoreWarning[];
+}
+
+export interface ApiVehicleRestoreWarning {
+  code: "VEHICLE_BRANCH_CLEARED";
+  reason: "inactive" | "not_plan_eligible";
+  message: string;
+  previous_branch_id: string;
+  previous_branch_name: string | null;
+}
+
 // ============================================================================
 // MAPPERS: API → Domain
 // ============================================================================
+
+function mapDeactivationFields(raw: ApiVehicleDeactivationFields) {
+  return {
+    deactivatedAt: raw.deactivated_at ?? null,
+    deactivatedBy: raw.deactivated_by ?? null,
+    deactivatedByName: raw.deactivated_by_name ?? null,
+    deactivationReasonCode:
+      (raw.deactivation_reason_code as VehicleDeactivationReasonCode | null) ??
+      null,
+    deactivationNote: raw.deactivation_note ?? null,
+  };
+}
 
 /**
  * Maps a single raw list item from API to domain VehicleListItem
@@ -151,6 +190,7 @@ export function mapVehicleListItem(
     branchId: raw.branch_id ?? null,
     branchName: raw.branch_name ?? null,
     branchCode: raw.branch_code ?? null,
+    ...mapDeactivationFields(raw),
   };
 }
 
@@ -233,6 +273,7 @@ export function mapVehicleDetail(
       // Status
       status: raw.data.status as VehicleStatusType,
       isActive: raw.data.is_active,
+      ...mapDeactivationFields(raw.data),
 
       // Audit
       createdAt: new Date(raw.data.created_at),
@@ -249,9 +290,39 @@ export function mapVehicleDetail(
   };
 }
 
+function mapRestoreWarning(raw: ApiVehicleRestoreWarning): VehicleRestoreWarning {
+  return {
+    code: raw.code,
+    reason: raw.reason,
+    message: raw.message,
+    previousBranchId: raw.previous_branch_id,
+    previousBranchName: raw.previous_branch_name ?? null,
+  };
+}
+
+export function mapVehicleRestore(
+  raw: ApiVehicleRestoreResponse,
+): RestoreVehicleResult {
+  return {
+    vehicle: mapVehicleDetail(raw).data,
+    warnings: (raw.warnings ?? []).map(mapRestoreWarning),
+  };
+}
+
 // ============================================================================
 // MAPPERS: Domain → API (para requests)
 // ============================================================================
+
+/** Body de `DELETE /vehicles/:id` (axios no serializa `config.data` a snake_case). */
+export function toApiDeactivateVehicle(
+  payload: DeactivateVehiclePayload,
+): { reason_code: string; reason_note?: string } {
+  const note = payload.reasonNote?.trim();
+  return {
+    reason_code: payload.reasonCode,
+    ...(note ? { reason_note: note } : {}),
+  };
+}
 
 /**
  * Convierte CreateVehiclePayload (camelCase) a snake_case para el API
@@ -352,7 +423,6 @@ export function toApiUpdateVehicle(
     }));
   // Status
   if (payload.status !== undefined) result.status = payload.status;
-  if (payload.isActive !== undefined) result.is_active = payload.isActive;
   if (payload.branchId !== undefined) result.branch_id = payload.branchId;
 
   return result;
