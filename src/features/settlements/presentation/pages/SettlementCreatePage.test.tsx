@@ -1,10 +1,15 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettlementCreatePage } from "./SettlementCreatePage";
 import { ApiError } from "@shared/api/interceptors/error-handler";
+import { settlementsCopy } from "../copy/settlementsCopy";
+import type {
+  SettlementTemplateChange,
+  TemplatePeriodAssignmentRef,
+} from "../../domain/entities";
 
 const {
   mockPreviewSettlement,
@@ -851,6 +856,263 @@ describe("SettlementCreatePage Component", () => {
           { itemType: "bonus", description: "Bono de puntualidad", amount: 500 },
         ],
       }),
+    );
+  });
+
+  describe("aviso de cambio de esquema en el período (D-1 C1)", () => {
+    function ref(
+      templateId: string,
+      templateName: string,
+      effectiveFrom: string,
+      effectiveTo: string | null,
+      overrides: Partial<TemplatePeriodAssignmentRef> = {},
+    ): TemplatePeriodAssignmentRef {
+      return {
+        assignmentId: `asg-${templateId}`,
+        templateId,
+        templateName,
+        templateVersion: 1,
+        effectiveFrom,
+        effectiveTo,
+        isClosing: false,
+        ...overrides,
+      };
+    }
+
+    function change(
+      assignments: TemplatePeriodAssignmentRef[],
+      from: TemplatePeriodAssignmentRef,
+    ): SettlementTemplateChange {
+      const to = { ...assignments[assignments.length - 1]!, isClosing: true };
+      return {
+        templatesCount: new Set(assignments.map((a) => a.templateId)).size,
+        from,
+        to,
+        assignments: [...assignments.slice(0, -1), to],
+      };
+    }
+
+    const norte = ref("tpl-norte", "Norte", "2026-07-01", "2026-08-14");
+    const sur = ref("tpl-sur", "Sur", "2026-08-15", null);
+    const twoSchemes = change([norte, sur], norte);
+    const norteOpen = ref("tpl-norte", "Norte", "2026-07-01", null);
+    const concurrent = change([norteOpen, sur], norteOpen);
+    const norteShort = ref("tpl-norte", "Norte", "2026-07-01", "2026-08-09");
+    const centro = ref("tpl-centro", "Centro", "2026-08-10", "2026-08-19");
+    const surLate = ref("tpl-sur", "Sur", "2026-08-20", null);
+    const severalSchemes = change([norteShort, centro, surLate], centro);
+
+    function previewWith(
+      templateChange: SettlementTemplateChange | null,
+      withTrips: boolean,
+      overrides: Record<string, unknown> = {},
+    ) {
+      return {
+        ...mockPreview,
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        eligibleTrips: withTrips ? mockPreview.eligibleTrips : [],
+        templateChange,
+        ...overrides,
+      };
+    }
+
+    function renderAugust() {
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter
+            initialEntries={[
+              "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-31",
+            ]}
+          >
+            <SettlementCreatePage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    const createCopy = settlementsCopy.createPage;
+    const ambiguityTitle = settlementsCopy.agreementGovernance.settlementAmbiguityTitle;
+
+    it.each([
+      [
+        "dos esquemas · sin viajes",
+        twoSchemes,
+        false,
+        "Este período tiene dos esquemas",
+        "Se aplica Sur a todo el período porque es el vigente el 31 ago 2026. Las prestaciones y deducciones de Norte no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).",
+      ],
+      [
+        "dos esquemas · con viajes",
+        twoSchemes,
+        true,
+        "Este período tiene dos esquemas",
+        "Se aplica Sur a todo el período porque es el vigente el 31 ago 2026, también a los viajes con salida antes del 15 ago 2026. Las reglas de pago, corredores, prestaciones y deducciones de Norte no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).",
+      ],
+      [
+        "varios esquemas · sin viajes",
+        severalSchemes,
+        false,
+        "Este período tiene varios esquemas",
+        "Se aplica Sur a todo el período porque es el vigente el 31 ago 2026. Las prestaciones y deducciones de los demás esquemas no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).",
+      ],
+      [
+        "varios esquemas · con viajes",
+        severalSchemes,
+        true,
+        "Este período tiene varios esquemas",
+        "Se aplica Sur a todo el período porque es el vigente el 31 ago 2026, también a los viajes con salida antes del 20 ago 2026. Las reglas de pago, corredores, prestaciones y deducciones de los demás esquemas no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).",
+      ],
+      [
+        "a la vez · sin viajes",
+        concurrent,
+        false,
+        "Este período tiene dos esquemas a la vez",
+        "Norte y Sur están vigentes al mismo tiempo. Se aplica Sur a todo el período porque es el más reciente por vigencia. Las prestaciones y deducciones de Norte no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).",
+      ],
+      [
+        "a la vez · con viajes",
+        concurrent,
+        true,
+        "Este período tiene dos esquemas a la vez",
+        "Norte y Sur están vigentes al mismo tiempo. Se aplica Sur a todo el período, incluidos sus viajes, porque es el más reciente por vigencia. Las reglas de pago, corredores, prestaciones y deducciones de Norte no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).",
+      ],
+    ] as const)("%s: título y cuerpo de la variante", async (_label, tc, withTrips, title, body) => {
+      mockPreviewSettlement.mockResolvedValue(previewWith(tc, withTrips));
+      renderAugust();
+
+      const alert = await screen.findByTestId("settlement-template-change-alert");
+      expect(within(alert).getByText(title)).toBeInTheDocument();
+      expect(within(alert).getByText(body)).toBeInTheDocument();
+      expect(alert).not.toHaveTextContent("template_change_in_period");
+    });
+
+    it("agrega la versión cuando los dos esquemas se llaman igual", async () => {
+      const v1 = ref("tpl-a1", "Operador estándar", "2026-07-01", "2026-08-14");
+      const v2 = ref("tpl-a2", "Operador estándar", "2026-08-15", null, { templateVersion: 2 });
+      mockPreviewSettlement.mockResolvedValue(previewWith(change([v1, v2], v1), false));
+      renderAugust();
+
+      const alert = await screen.findByTestId("settlement-template-change-alert");
+      expect(
+        within(alert).getByText(
+          "Se aplica Operador estándar (v2) a todo el período porque es el vigente el 31 ago 2026. Las prestaciones y deducciones de Operador estándar (v1) no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("va justo arriba del banner de tarifa aplicada", async () => {
+      mockPreviewSettlement.mockResolvedValue(previewWith(twoSchemes, true));
+      renderAugust();
+
+      const alert = await screen.findByTestId("settlement-template-change-alert");
+      const banner = screen.getByText(`${createCopy.sections.agreementActiveLabel}:`).closest("div.rounded-lg");
+      expect(alert.nextElementSibling).toBe(banner);
+    });
+
+    it("sin templateChange no muestra el aviso nuevo", async () => {
+      mockPreviewSettlement.mockResolvedValue(previewWith(null, true));
+      renderAugust();
+
+      await screen.findByText("VIA-100");
+      expect(screen.queryByTestId("settlement-template-change-alert")).not.toBeInTheDocument();
+    });
+
+    it("con readiness distinto de ready no muestra el aviso nuevo", async () => {
+      mockPreviewSettlement.mockResolvedValue(
+        previewWith(twoSchemes, false, {
+          agreement: { ...mockPreview.agreement, rules: [] },
+          summary: {
+            ...mockPreview.summary,
+            totalCommissions: 0,
+            totalBaseSalary: 0,
+            totalReimbursements: 0,
+            grossAmount: 0,
+            netAmount: 0,
+          },
+        }),
+      );
+      renderAugust();
+
+      expect(await screen.findByText(createCopy.empty.incompleteAgreementTitle)).toBeInTheDocument();
+      expect(screen.queryByTestId("settlement-template-change-alert")).not.toBeInTheDocument();
+    });
+
+    describe("P4: convivencia con el aviso de varias asignaciones vigentes", () => {
+      const assignment = (id: string, effectiveFrom: string) => ({
+        id,
+        employeeId: "emp-1",
+        employeeFullName: "Pedro Infante",
+        templateId: `tpl-${id}`,
+        templateName: `Tarifa ${id}`,
+        effectiveFrom,
+        effectiveTo: null,
+        isActive: true,
+        assignedBy: null,
+        reason: null,
+        createdAt: `${effectiveFrom}T12:00:00Z`,
+        updatedAt: `${effectiveFrom}T12:00:00Z`,
+      });
+
+      beforeEach(() => {
+        mockListAssignments.mockResolvedValue({
+          data: [assignment("a", "2026-07-01"), assignment("b", "2026-08-15")],
+          pagination: { total: 2, page: 1, pageSize: 100, totalPages: 1 },
+        });
+      });
+
+      it("con templateChange solo se muestra el aviso nuevo", async () => {
+        mockPreviewSettlement.mockResolvedValue(previewWith(concurrent, true));
+        renderAugust();
+
+        await screen.findByTestId("settlement-template-change-alert");
+        await waitFor(() => expect(mockListAssignments).toHaveBeenCalled());
+        await expect(
+          screen.findByText(ambiguityTitle, {}, { timeout: 500 }),
+        ).rejects.toThrow();
+      });
+
+      it("sin templateChange el aviso de varias asignaciones sigue igual", async () => {
+        mockPreviewSettlement.mockResolvedValue(previewWith(null, true));
+        renderAugust();
+
+        expect(await screen.findByText(ambiguityTitle)).toBeInTheDocument();
+        expect(screen.queryByTestId("settlement-template-change-alert")).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("período por defecto en día de México (ADR-0101)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["19:00 CDMX del último día del mes", "2026-10-01T01:00:00Z", "2026-09-01", "2026-09-30"],
+      ["00:00 CDMX del día 1", "2026-10-01T06:00:00Z", "2026-10-01", "2026-10-01"],
+    ])(
+      "sin período en la URL propone el mes de México a las %s",
+      async (_label, now, expectedStart, expectedEnd) => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date(now));
+
+        render(
+          <QueryClientProvider client={createTestQueryClient()}>
+            <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1"]}>
+              <SettlementCreatePage />
+            </MemoryRouter>
+          </QueryClientProvider>,
+        );
+
+        await waitFor(() => expect(mockPreviewSettlement).toHaveBeenCalled());
+        expect(mockPreviewSettlement.mock.calls[0]![0]).toEqual(
+          expect.objectContaining({
+            employeeId: "emp-1",
+            periodStart: expectedStart,
+            periodEnd: expectedEnd,
+          }),
+        );
+      },
     );
   });
 

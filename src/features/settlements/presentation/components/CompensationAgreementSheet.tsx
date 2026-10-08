@@ -44,6 +44,7 @@ import {
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { getTodayString } from "@shared/utils/dateUtils";
 import { useEmployees, useEmployee } from "@features/employees/application";
 import type { SalaryType } from "@features/employees/domain";
 import { useCreateCompensationAgreement, useCompensationAgreements, useUpdateCompensationAgreement } from "../../application/hooks/useAgreements";
@@ -280,7 +281,7 @@ export function CompensationAgreementSheet({
       percentageRate: 0,
       helperDailyRate: 0,
       currency: "MXN",
-      effectiveFrom: new Date().toISOString().slice(0, 10),
+      effectiveFrom: getTodayString(),
       effectiveTo: "",
       notes: "",
     },
@@ -416,7 +417,7 @@ export function CompensationAgreementSheet({
         percentageRate: 0,
         helperDailyRate: 0,
         currency: "MXN",
-        effectiveFrom: new Date().toISOString().slice(0, 10),
+        effectiveFrom: getTodayString(),
         effectiveTo: "",
         notes: "",
       });

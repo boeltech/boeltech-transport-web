@@ -4,13 +4,16 @@ import {
   mapAdvance,
   mapSettlement,
   mapSettlementPreview,
+  mapBacklogRow,
   mapListSettlementsResponse,
   mapListAdvancesResponse,
   mapSettlementSettings,
   type ApiCompensationAgreementRaw,
   type ApiDriverAdvanceRaw,
   type ApiDriverSettlementRaw,
+  type ApiSettlementBacklogRowRaw,
   type ApiSettlementPreviewRaw,
+  type ApiTemplateChangeInPeriodRaw,
 } from "./mappers";
 
 describe("Settlements Infrastructure Mappers", () => {
@@ -709,5 +712,111 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.pagination.page).toBe(2);
     expect(mapped.pagination.limit).toBe(20);
     expect(mapped.pagination.totalPages).toBe(3);
+  });
+
+  describe("D-1 C1 — template_change", () => {
+    const rawChange: ApiTemplateChangeInPeriodRaw = {
+      templates_count: 2,
+      from: {
+        assignment_id: "asg-1",
+        template_id: "tpl-a",
+        template_name: "Operador estándar",
+        template_version: 1,
+        effective_from: "2026-07-01",
+        effective_to: "2026-08-14",
+        is_closing: false,
+      },
+      to: {
+        assignment_id: "asg-2",
+        template_id: "tpl-b",
+        template_name: "Operador estándar",
+        template_version: 2,
+        effective_from: "2026-08-15",
+        effective_to: null,
+        is_closing: true,
+      },
+      assignments: [],
+    };
+    rawChange.assignments = [rawChange.from, rawChange.to];
+
+    const expectedChange = {
+      templatesCount: 2,
+      from: {
+        assignmentId: "asg-1",
+        templateId: "tpl-a",
+        templateName: "Operador estándar",
+        templateVersion: 1,
+        effectiveFrom: "2026-07-01",
+        effectiveTo: "2026-08-14",
+        isClosing: false,
+      },
+      to: {
+        assignmentId: "asg-2",
+        templateId: "tpl-b",
+        templateName: "Operador estándar",
+        templateVersion: 2,
+        effectiveFrom: "2026-08-15",
+        effectiveTo: null,
+        isClosing: true,
+      },
+    };
+
+    const rawRow: ApiSettlementBacklogRowRaw = {
+      employee_id: "emp-1",
+      employee_full_name: "Juan Pérez",
+      period_start: "2026-08-01",
+      period_end: "2026-08-31",
+      pending_trips_count: 2,
+      oldest_trip_age_days: 3,
+      row_type: "trips_pending",
+      warnings: ["template_change_in_period"],
+    };
+
+    const rawPreview: ApiSettlementPreviewRaw = {
+      employee_id: "emp-1",
+      employee_name: "Juan Pérez",
+      period_start: "2026-08-01",
+      period_end: "2026-08-31",
+      agreement: {},
+      eligible_trips: [],
+      open_advances: [],
+      summary: {
+        total_commissions: 0,
+        total_base_salary: 0,
+        total_reimbursements: 0,
+        suggested_advance_deduction: 0,
+        gross_amount: 0,
+        net_amount: 0,
+      },
+    };
+
+    it("fila de «Por pagar»: snake→camel con effectiveTo null en la asignación abierta", () => {
+      const row = mapBacklogRow({ ...rawRow, template_change: rawChange });
+      expect(row.warnings).toEqual(["template_change_in_period"]);
+      expect(row.templateChange).toEqual({
+        ...expectedChange,
+        assignments: [expectedChange.from, expectedChange.to],
+      });
+    });
+
+    it("fila de «Por pagar»: campo ausente (API anterior) o null → null", () => {
+      expect(mapBacklogRow(rawRow).templateChange).toBeNull();
+      expect(mapBacklogRow({ ...rawRow, template_change: null }).templateChange).toBeNull();
+    });
+
+    it("preliquidación: snake→camel", () => {
+      const preview = mapSettlementPreview({ ...rawPreview, template_change: rawChange });
+      expect(preview.templateChange).toEqual({
+        ...expectedChange,
+        assignments: [expectedChange.from, expectedChange.to],
+      });
+    });
+
+    it("preliquidación: campo ausente (API anterior) o null → null", () => {
+      expect(mapSettlementPreview(rawPreview).templateChange).toBeNull();
+      expect(
+        mapSettlementPreview({ ...rawPreview, template_change: null }).templateChange,
+      ).toBeNull();
+    });
   });
 });

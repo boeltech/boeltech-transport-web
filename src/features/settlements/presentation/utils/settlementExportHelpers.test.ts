@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   exportSettlementsCsv,
   exportDriverAdvancesCsv,
@@ -158,6 +158,119 @@ describe("settlementExportHelpers", () => {
 
       const [, , rows] = mockDownloadCsv.mock.calls[0]!;
       expect(rows.map((row: unknown[]) => row.at(-1))).toEqual([500, 500]);
+    });
+  });
+
+  describe("día de México (ADR-0101)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const setClock = (iso: string) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(iso));
+    };
+
+    const settlementWithCreatedAt = (id: string, createdAt: string) =>
+      ({
+        id,
+        tenantId: "tenant-1",
+        settlementNumber: `LIQ-${id}`,
+        employeeId: "emp-1",
+        employeeFullName: "Pedro Infante",
+        agreementSnapshot: { currency: "MXN" },
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-30",
+        status: "approved",
+        totalTripsCommission: 0,
+        totalBaseSalary: 0,
+        totalReimbursableExpenses: 0,
+        totalBonuses: 0,
+        totalAdvancesDeducted: 0,
+        totalOtherDeductions: 0,
+        grossAmount: 0,
+        netAmount: 0,
+        currency: "MXN",
+        disbursedAt: null,
+        disbursedBy: null,
+        disbursementMethod: null,
+        disbursementReference: null,
+        approvedAt: null,
+        approvedBy: null,
+        rejectionReason: null,
+        notes: null,
+        createdAt,
+        updatedAt: createdAt,
+      }) as unknown as DriverSettlement;
+
+    const advanceWithCreatedAt = (id: string, createdAt: string) =>
+      ({
+        id,
+        tenantId: "tenant-1",
+        folio: `ANT-${id}`,
+        employeeId: "emp-1",
+        employeeFullName: "Pedro Infante",
+        tripId: null,
+        tripCode: null,
+        amount: 100,
+        balanceRemaining: 100,
+        currency: "MXN",
+        category: "travel_advance",
+        status: "disbursed",
+        disbursedAt: null,
+        paymentMethod: null,
+        bankReference: null,
+        notes: null,
+        createdAt,
+        updatedAt: createdAt,
+      }) as unknown as DriverAdvance;
+
+    it("nombra los archivos con el día de México a las 19:00 CDMX del último día del mes", () => {
+      setClock("2026-10-01T01:00:00Z");
+
+      exportSettlementsCsv([]);
+      exportDriverAdvancesCsv([]);
+
+      expect(mockDownloadCsv.mock.calls[0]![0]).toBe("pagos-2026-09-30.csv");
+      expect(mockDownloadCsv.mock.calls[1]![0]).toBe(
+        "anticipos-operadores-2026-09-30.csv",
+      );
+    });
+
+    it("exporta «Fecha Creación» de liquidaciones en día de México", () => {
+      setClock("2026-10-01T01:00:00Z");
+
+      exportSettlementsCsv([
+        settlementWithCreatedAt("evening", "2026-10-01T01:00:00Z"),
+        settlementWithCreatedAt("midnight", "2026-10-01T06:00:00Z"),
+        settlementWithCreatedAt("empty", ""),
+      ]);
+
+      const [, headers, rows] = mockDownloadCsv.mock.calls[0]!;
+      const col = (headers as string[]).indexOf("Fecha Creación");
+      expect(rows.map((row: unknown[]) => row[col])).toEqual([
+        "2026-09-30",
+        "2026-10-01",
+        "",
+      ]);
+    });
+
+    it("exporta «Fecha Creación» de anticipos en día de México", () => {
+      setClock("2026-10-01T01:00:00Z");
+
+      exportDriverAdvancesCsv([
+        advanceWithCreatedAt("evening", "2026-10-01T01:00:00Z"),
+        advanceWithCreatedAt("midnight", "2026-10-01T06:00:00Z"),
+        advanceWithCreatedAt("empty", ""),
+      ]);
+
+      const [, headers, rows] = mockDownloadCsv.mock.calls[0]!;
+      const col = (headers as string[]).indexOf("Fecha Creación");
+      expect(rows.map((row: unknown[]) => row[col])).toEqual([
+        "2026-09-30",
+        "2026-10-01",
+        "",
+      ]);
     });
   });
 });

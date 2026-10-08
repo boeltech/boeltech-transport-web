@@ -50,7 +50,7 @@ import { Checkbox } from "@shared/ui/checkbox";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { useToast } from "@shared/hooks";
-import { formatDate } from "@shared/utils/dateUtils";
+import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import { useEmployeeBasic } from "@features/employees/application";
@@ -75,6 +75,7 @@ import {
 } from "../utils/settlementWayfinding";
 import { shouldShowSupportParticipationBadge } from "../utils/settlementParticipationHelpers";
 import { resolveSettlementCompensationReadiness } from "../utils/settlementTemplateReadiness";
+import { resolveTemplateChangeAlert } from "../utils/templateChangeNotice";
 import { useTemplateAssignments } from "@features/compensation/application/hooks";
 import {
   findEligibleAssignmentsForEmployeeOnDate,
@@ -179,11 +180,10 @@ export function SettlementCreatePage() {
   const [periodStart, setPeriodStart] = useState<string>(() => {
     const param = searchParams.get("periodStart");
     if (param) return param;
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return `${getTodayString().slice(0, 7)}-01`;
   });
   const [periodEnd, setPeriodEnd] = useState<string>(
-    () => searchParams.get("periodEnd") || new Date().toISOString().slice(0, 10),
+    () => searchParams.get("periodEnd") || getTodayString(),
   );
 
   // Selected advances deduction state: map of advanceId -> amount
@@ -516,6 +516,14 @@ export function SettlementCreatePage() {
     [preview, previewError],
   );
   const isAgreementReady = readiness === "ready";
+  const templateChangeAlert =
+    preview?.templateChange && isAgreementReady
+      ? resolveTemplateChangeAlert(
+          preview.templateChange,
+          preview.eligibleTrips.length > 0,
+          preview.periodEnd,
+        )
+      : null;
   // D9: sin tarifa válida, los reembolsos pendientes se pagan en un pago de reembolsos.
   const { data: reimbursementOnlyPreview } = useReimbursementSettlementPreview(
     selectedEmployeeId && (isMissingCompensationScheme || (preview && !isAgreementReady))
@@ -900,6 +908,13 @@ export function SettlementCreatePage() {
               </div>
             </div>
 
+            {templateChangeAlert && (
+              <Alert variant="warning" data-testid="settlement-template-change-alert">
+                <AlertTriangle />
+                <AlertTitle>{templateChangeAlert.title}</AlertTitle>
+                <AlertDescription>{templateChangeAlert.body}</AlertDescription>
+              </Alert>
+            )}
             {/* Banner: tarifa lista vs configuración incompleta (PD2) */}
             {preview && readiness === "ready" && (preview.template || agreementSummaryText) && (
               <div className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs">
@@ -922,6 +937,7 @@ export function SettlementCreatePage() {
             )}
             {preview &&
               readiness === "ready" &&
+              !preview.templateChange &&
               assignmentAmbiguity.hasAmbiguity &&
               assignmentAmbiguity.appliedAssignment && (
                 <Alert variant="warning">

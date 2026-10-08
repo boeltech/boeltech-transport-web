@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -133,5 +133,47 @@ describe("CompensationAgreementSheet governance (ADR-0087)", () => {
       mockCreateAgreement.mock.invocationCallOrder[0]!,
     );
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  describe("vigencia en día de México (ADR-0101)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("a las 19:00 CDMX del último día del mes inicia hoy y cierra la anterior ayer", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-01T01:00:00Z"));
+      const user = userEvent.setup();
+
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <CompensationAgreementSheet
+            open
+            onOpenChange={vi.fn()}
+            defaultEmployeeId="emp-1"
+            lockEmployee
+            onSuccess={vi.fn()}
+          />
+        </QueryClientProvider>,
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Hay otra tarifa activa con vigencia traslapada/i),
+        ).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: /Guardar tarifa de operador/i }));
+
+      await waitFor(() => {
+        expect(mockCreateAgreement).toHaveBeenCalledWith(
+          expect.objectContaining({ effectiveFrom: "2026-09-30" }),
+        );
+      });
+      expect(mockUpdateAgreement).toHaveBeenCalledWith(
+        "agr-existing",
+        expect.objectContaining({ effectiveTo: "2026-09-29" }),
+      );
+    });
   });
 });

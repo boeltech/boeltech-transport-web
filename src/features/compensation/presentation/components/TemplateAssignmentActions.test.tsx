@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -106,6 +106,73 @@ describe("TemplateAssignmentActions", () => {
       expect(mockUpdateAssignment).toHaveBeenCalledWith({
         id: "assign-1",
         payload: { isActive: false },
+      });
+    });
+  });
+
+  describe("Cerrar vigencia en día de México (ADR-0101)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const setClock = (iso: string) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(iso));
+    };
+
+    function renderWithPermissions() {
+      mockUsePermissions.mockReturnValue({
+        hasPermission: vi.fn(
+          (resource: string, action: string) =>
+            resource === "settlements" && (action === "update" || action === "delete"),
+        ),
+      });
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <TemplateAssignmentActions assignment={sampleAssignment} />
+        </QueryClientProvider>,
+      );
+    }
+
+    async function openAndConfirmCloseValidity(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(
+        screen.getByRole("button", { name: /Abrir menú de acciones de asignación/i }),
+      );
+      await user.click(screen.getByText("Cerrar vigencia…"));
+      await user.click(screen.getByRole("button", { name: /^Cerrar vigencia$/i }));
+    }
+
+    it.each([
+      ["19:00 CDMX del último día del mes", "2026-10-01T01:00:00Z", "2026-09-30"],
+      ["00:00 CDMX del día 1", "2026-10-01T06:00:00Z", "2026-10-01"],
+    ])("propone el día de México a las %s", async (_label, now, expected) => {
+      setClock(now);
+      const user = userEvent.setup();
+      renderWithPermissions();
+
+      await openAndConfirmCloseValidity(user);
+
+      await waitFor(() => {
+        expect(mockUpdateAssignment).toHaveBeenCalledWith({
+          id: "assign-1",
+          payload: { effectiveTo: expected },
+        });
+      });
+    });
+
+    it("recalcula la fecha al abrir el diálogo, no al montar la fila", async () => {
+      setClock("2026-10-01T05:59:00Z");
+      const user = userEvent.setup();
+      renderWithPermissions();
+
+      vi.setSystemTime(new Date("2026-10-01T06:00:00Z"));
+      await openAndConfirmCloseValidity(user);
+
+      await waitFor(() => {
+        expect(mockUpdateAssignment).toHaveBeenCalledWith({
+          id: "assign-1",
+          payload: { effectiveTo: "2026-10-01" },
+        });
       });
     });
   });

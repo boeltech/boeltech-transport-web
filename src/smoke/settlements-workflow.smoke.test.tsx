@@ -26,6 +26,13 @@ import { SettlementsAdvancesPage } from "@features/settlements/presentation/page
 import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
 import { AgreementsLegacyRedirect } from "@features/compensation/presentation/routes/AgreementsLegacyRedirect";
 import { SettlementDetailPage } from "@features/settlements/presentation/pages/SettlementDetailPage";
+import { SettlementCreatePage } from "@features/settlements/presentation/pages/SettlementCreatePage";
+import {
+  mapSettlementPreview,
+  mapWorkbenchResponse,
+  type ApiTemplateChangeInPeriodRaw,
+} from "@features/settlements/infrastructure/mappers";
+import { compensationApi } from "@features/compensation/infrastructure/compensationApi";
 import { ApprovalRowCompensation } from "@features/approvals/presentation/components/ApprovalRowCompensation";
 import { ApprovalRowAdvance } from "@features/approvals/presentation/components/ApprovalRowAdvance";
 import type { ApprovableItem, SelfApprovalPolicy } from "@features/approvals/domain";
@@ -853,6 +860,122 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     await waitFor(() => {
       expect(screen.getByTestId("compensation-templates-hub")).toBeInTheDocument();
     });
+  });
+
+  it("11. D-1 C1: cambio de esquema en el período — insignia en Por pagar → alta con el aviso", async () => {
+    const user = userEvent.setup();
+    const listAssignmentsSpy = vi
+      .spyOn(compensationApi, "listAssignments")
+      .mockResolvedValue({ data: [], pagination: { total: 0, page: 1, limit: 100, totalPages: 0 } });
+
+    const rawChange = {
+      templates_count: 2,
+      from: {
+        assignment_id: "asg-norte",
+        template_id: "tpl-norte",
+        template_name: "Norte",
+        template_version: 1,
+        effective_from: "2026-07-01",
+        effective_to: "2026-08-14",
+        is_closing: false,
+      },
+      to: {
+        assignment_id: "asg-sur",
+        template_id: "tpl-sur",
+        template_name: "Sur",
+        template_version: 1,
+        effective_from: "2026-08-15",
+        effective_to: null,
+        is_closing: true,
+      },
+      assignments: [] as unknown[],
+    };
+    rawChange.assignments = [rawChange.from, rawChange.to];
+
+    mockGetWorkbench.mockResolvedValue(
+      mapWorkbenchResponse({
+        summary: { pending: 1, draft: 0, approval: 0, payable: 0, closed: 0, open_advances: 0 },
+        backlog: [
+          {
+            employee_id: "emp-smoke-1",
+            employee_full_name: "Roberto González",
+            employment_type: "permanent",
+            branch_id: null,
+            branch_name: null,
+            period_start: "2026-08-01",
+            period_end: "2026-08-31",
+            pending_trips_count: 0,
+            oldest_trip_age_days: 0,
+            estimated_net_amount: 3500,
+            row_type: "salary_close",
+            warnings: ["template_change_in_period"],
+            period_overlap: null,
+            template_change: rawChange,
+            suggested_period_start: null,
+            pending_reimbursements_count: 0,
+          },
+        ],
+      }),
+    );
+    mockPreviewSettlement.mockResolvedValue(
+      mapSettlementPreview({
+        employee_id: "emp-smoke-1",
+        employee_name: "Roberto González",
+        period_start: "2026-08-01",
+        period_end: "2026-08-31",
+        agreement: { rules: [] },
+        template: { id: "tpl-sur", name: "Sur", assignment_id: "asg-sur" },
+        template_change: rawChange as unknown as ApiTemplateChangeInPeriodRaw,
+        employee_compensation: { base_salary: 3500, salary_type: "monthly" },
+        eligible_trips: [],
+        open_advances: [],
+        summary: {
+          total_commissions: 0,
+          total_base_salary: 3500,
+          total_reimbursements: 0,
+          suggested_advance_deduction: 0,
+          gross_amount: 3500,
+          net_amount: 3500,
+        },
+      }),
+    );
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter initialEntries={["/finance/settlements"]}>
+            <Routes>
+              <Route path="/finance/settlements" element={<SettlementsListPage />} />
+              <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
+            </Routes>
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    const badge = await screen.findByTestId("backlog-template-change-badge");
+    expect(badge).toHaveTextContent(settlementsCopy.workbench.warnings.template_change_in_period);
+    expect(screen.queryByText("template_change_in_period")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: settlementsCopy.workbench.actions.settlePeriod }),
+    );
+
+    const alert = await screen.findByTestId("settlement-template-change-alert");
+    expect(alert).toHaveTextContent("Este período tiene dos esquemas");
+    expect(alert).toHaveTextContent(
+      "Se aplica Sur a todo el período porque es el vigente el 31 ago 2026.",
+    );
+    expect(screen.queryByText(/template_change_in_period/)).not.toBeInTheDocument();
+    expect(mockPreviewSettlement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        employeeId: "emp-smoke-1",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+      }),
+    );
+
+    listAssignmentsSpy.mockRestore();
   });
 
   describe("ADR-0098 autoaprobación", () => {

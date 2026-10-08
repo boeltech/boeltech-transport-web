@@ -31,6 +31,7 @@ import {
   resolvePeriodOverlapTooltip,
   resolvePeriodOverlapWarningCopy,
 } from "../utils/backlogPeriodOverlap";
+import { resolveTemplateChangeTooltip } from "../utils/templateChangeNotice";
 
 const copy = settlementsCopy.workbench;
 const fieldsCopy = settlementsCopy.fields;
@@ -111,17 +112,35 @@ function backlogCtaLabel(row: SettlementBacklogRow): string {
 const IGNORED_BACKLOG_WARNINGS = new Set(["no_client_invoice", "late_reimbursement"]);
 
 /** D10: folio de solape → gasto por definir → anticipo; el resto después. */
-const WARNING_ORDER = ["period_overlap", "reimbursement_payee_required", "open_advance"];
+const WARNING_ORDER = [
+  "period_overlap",
+  "template_change_in_period",
+  "reimbursement_payee_required",
+  "open_advance",
+];
 
 function warningRank(warning: string): number {
   const index = WARNING_ORDER.indexOf(warning);
   return index === -1 ? WARNING_ORDER.length : index;
 }
 
+/** Un código sin copy no se pinta: el API puede adelantarse a la web. */
+function genericWarningLabel(warning: string): string | null {
+  const label: unknown = copy.warnings[warning as keyof typeof copy.warnings];
+  return typeof label === "string" ? label : null;
+}
+
+const WARNINGS_WITH_OWN_BADGE = new Set([
+  "period_overlap",
+  "reimbursement_payee_required",
+  "template_change_in_period",
+]);
+
 function PeriodWarnings({ row }: { row: SettlementBacklogRow }) {
   const { warnings, employeeId, periodOverlap } = row;
   const visible = warnings
     .filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w))
+    .filter((w) => WARNINGS_WITH_OWN_BADGE.has(w) || genericWarningLabel(w) !== null)
     .sort((a, b) => warningRank(a) - warningRank(b));
   if (visible.length === 0) return null;
 
@@ -187,12 +206,43 @@ function PeriodWarnings({ row }: { row: SettlementBacklogRow }) {
           );
         }
 
-        const label =
-          copy.warnings[warning as keyof typeof copy.warnings] ?? warning;
+        if (warning === "template_change_in_period") {
+          const badge = (
+            <Badge
+              variant="warning"
+              tone="soft"
+              className="text-xs font-medium"
+              data-testid="backlog-template-change-badge"
+            >
+              {copy.warnings.template_change_in_period}
+            </Badge>
+          );
+          if (!row.templateChange) {
+            return <li key={warning}>{badge}</li>;
+          }
+          return (
+            <li key={warning}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex cursor-help rounded-md">
+                    {badge}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  {resolveTemplateChangeTooltip(
+                    row.templateChange,
+                    row.pendingTripsCount > 0,
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </li>
+          );
+        }
+
         return (
           <li key={warning}>
             <Badge variant="warning" tone="soft" className="text-xs font-medium">
-              {label}
+              {genericWarningLabel(warning)}
             </Badge>
           </li>
         );

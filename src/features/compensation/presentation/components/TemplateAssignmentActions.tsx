@@ -64,6 +64,8 @@ import { useToast } from "@shared/hooks";
 
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 
+import { getTodayString } from "@shared/utils/dateUtils";
+
 import {
 
   useDeleteTemplateAssignment,
@@ -124,7 +126,7 @@ export function TemplateAssignmentActions({
 
   const [closeValidityDate, setCloseValidityDate] = useState(
 
-    () => new Date().toISOString().slice(0, 10),
+    () => getTodayString(),
 
   );
 
@@ -283,6 +285,7 @@ export function TemplateAssignmentActions({
               <DropdownMenuItem
                 onClick={() => {
                   setCloseValidityApiError(null);
+                  setCloseValidityDate(getTodayString());
                   setCloseValidityDialogOpen(true);
                 }}
               >

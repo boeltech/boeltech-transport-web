@@ -128,6 +128,43 @@ export const settlementsCopy = {
         "El período sugerido se cruza con un pago ya registrado de este operador.",
       period_overlap_cta: "Ver en historial",
       open_advance: "Anticipo por descontar",
+      template_change_in_period: "Cambio de esquema en el período",
+    },
+    /** D-1 C1 — copy DOM final (`handoff-tec-c1.md` §3.3). Nombres y fechas ya resueltos. */
+    templateChange: {
+      tooltip: {
+        two: (p: { a: string; b: string; endA: string; startB: string }) =>
+          `En este período el operador tuvo dos esquemas: ${p.a} hasta el ${p.endA} y ${p.b} desde el ${p.startB}. El pago se calcula completo con ${p.b}, el vigente al cierre. Si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
+        twoWithTrips: (p: { a: string; b: string; endA: string; startB: string }) =>
+          `En este período el operador tuvo dos esquemas: ${p.a} hasta el ${p.endA} y ${p.b} desde el ${p.startB}. Todos los viajes y conceptos del período se calculan con ${p.b}, el vigente al cierre. Si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
+        several: (p: { n: number; first: string; closing: string }) =>
+          `En este período el operador tuvo ${p.n} esquemas, de ${p.first} a ${p.closing}. El pago se calcula completo con ${p.closing}, el vigente al cierre. Si debe reflejar la parte de los demás esquemas, agrega un ajuste manual.`,
+        severalWithTrips: (p: { n: number; first: string; closing: string }) =>
+          `En este período el operador tuvo ${p.n} esquemas, de ${p.first} a ${p.closing}. Todos los viajes y conceptos del período se calculan con ${p.closing}, el vigente al cierre. Si debe reflejar la parte de los demás esquemas, agrega un ajuste manual.`,
+        concurrent: (p: { a: string; b: string }) =>
+          `En este período el operador tuvo dos esquemas a la vez: ${p.a} y ${p.b}. El pago se calcula completo con ${p.b}, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
+        concurrentWithTrips: (p: { a: string; b: string }) =>
+          `En este período el operador tuvo dos esquemas a la vez: ${p.a} y ${p.b}. Todos los viajes y conceptos del período se calculan con ${p.b}, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
+      },
+      alertTitle: {
+        two: "Este período tiene dos esquemas",
+        several: "Este período tiene varios esquemas",
+        concurrent: "Este período tiene dos esquemas a la vez",
+      },
+      alertBody: {
+        two: (p: { a: string; b: string; periodEnd: string }) =>
+          `Se aplica ${p.b} a todo el período porque es el vigente el ${p.periodEnd}. Las prestaciones y deducciones de ${p.a} no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).`,
+        twoWithTrips: (p: { a: string; b: string; periodEnd: string; startB: string }) =>
+          `Se aplica ${p.b} a todo el período porque es el vigente el ${p.periodEnd}, también a los viajes con salida antes del ${p.startB}. Las reglas de pago, corredores, prestaciones y deducciones de ${p.a} no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).`,
+        several: (p: { closing: string; periodEnd: string }) =>
+          `Se aplica ${p.closing} a todo el período porque es el vigente el ${p.periodEnd}. Las prestaciones y deducciones de los demás esquemas no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).`,
+        severalWithTrips: (p: { closing: string; periodEnd: string; startB: string }) =>
+          `Se aplica ${p.closing} a todo el período porque es el vigente el ${p.periodEnd}, también a los viajes con salida antes del ${p.startB}. Las reglas de pago, corredores, prestaciones y deducciones de los demás esquemas no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).`,
+        concurrent: (p: { a: string; b: string }) =>
+          `${p.a} y ${p.b} están vigentes al mismo tiempo. Se aplica ${p.b} a todo el período porque es el más reciente por vigencia. Las prestaciones y deducciones de ${p.a} no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).`,
+        concurrentWithTrips: (p: { a: string; b: string }) =>
+          `${p.a} y ${p.b} están vigentes al mismo tiempo. Se aplica ${p.b} a todo el período, incluidos sus viajes, porque es el más reciente por vigencia. Las reglas de pago, corredores, prestaciones y deducciones de ${p.a} no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).`,
+      },
     },
     /** ADR-0085 E11 — conflicto primario con folio («LIQ-… · Borrador · creado hace 3 días»). */
     periodOverlapFolio: {

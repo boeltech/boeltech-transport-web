@@ -7,6 +7,8 @@ import type {
   SettlementBacklogRow,
   SettlementBacklogRowType,
   SettlementPeriodOverlap,
+  SettlementTemplateChange,
+  TemplatePeriodAssignmentRef,
 } from "../../domain/entities";
 import {
   settlementDetailPath,
@@ -648,5 +650,204 @@ describe("SettlementBacklogTable reimbursement_only (E11-F3)", () => {
     const path = resolveBacklogCreatePath(reimbursementRow());
     expect(path).toContain("kind=reimbursements");
     expect(path).not.toContain("periodEnd");
+  });
+});
+
+describe("SettlementBacklogTable — cambio de esquema en el período (D-1 C1)", () => {
+  const BADGE = "Cambio de esquema en el período";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHasPermission.mockReturnValue(true);
+  });
+
+  function ref(
+    templateId: string,
+    templateName: string,
+    effectiveFrom: string,
+    effectiveTo: string | null,
+    overrides: Partial<TemplatePeriodAssignmentRef> = {},
+  ): TemplatePeriodAssignmentRef {
+    return {
+      assignmentId: `asg-${templateId}`,
+      templateId,
+      templateName,
+      templateVersion: 1,
+      effectiveFrom,
+      effectiveTo,
+      isClosing: false,
+      ...overrides,
+    };
+  }
+
+  function change(
+    assignments: TemplatePeriodAssignmentRef[],
+    from: TemplatePeriodAssignmentRef,
+    templatesCount = new Set(assignments.map((a) => a.templateId)).size,
+  ): SettlementTemplateChange {
+    const to = { ...assignments[assignments.length - 1]!, isClosing: true };
+    return { templatesCount, from, to, assignments: [...assignments.slice(0, -1), to] };
+  }
+
+  const norte = ref("tpl-norte", "Norte", "2026-07-01", "2026-08-14");
+  const sur = ref("tpl-sur", "Sur", "2026-08-15", null);
+  const twoSchemes = change([norte, sur], norte);
+
+  const norteOpen = ref("tpl-norte", "Norte", "2026-07-01", null);
+  const concurrentOpen = change([norteOpen, sur], norteOpen);
+  const norteOverlapping = ref("tpl-norte", "Norte", "2026-07-01", "2026-08-20");
+  const concurrentOverlap = change([norteOverlapping, sur], norteOverlapping);
+
+  const norteShort = ref("tpl-norte", "Norte", "2026-07-01", "2026-08-09");
+  const centro = ref("tpl-centro", "Centro", "2026-08-10", "2026-08-19");
+  const surLate = ref("tpl-sur", "Sur", "2026-08-20", null);
+  const severalSchemes = change([norteShort, centro, surLate], centro);
+
+  function rowWith(
+    templateChange: SettlementTemplateChange | null,
+    withTrips: boolean,
+    overrides: Partial<SettlementBacklogRow> = {},
+  ): SettlementBacklogRow {
+    return makeRow(withTrips ? "trips_pending" : "salary_close", {
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-31",
+      pendingTripsCount: withTrips ? 2 : 0,
+      warnings: ["template_change_in_period"],
+      templateChange,
+      ...overrides,
+    });
+  }
+
+  it.each([
+    [
+      "dos esquemas · sin viajes",
+      twoSchemes,
+      false,
+      "En este período el operador tuvo dos esquemas: Norte hasta el 14 ago 2026 y Sur desde el 15 ago 2026. El pago se calcula completo con Sur, el vigente al cierre. Si debe reflejar la parte de Norte, agrega un ajuste manual.",
+    ],
+    [
+      "dos esquemas · con viajes",
+      twoSchemes,
+      true,
+      "En este período el operador tuvo dos esquemas: Norte hasta el 14 ago 2026 y Sur desde el 15 ago 2026. Todos los viajes y conceptos del período se calculan con Sur, el vigente al cierre. Si debe reflejar la parte de Norte, agrega un ajuste manual.",
+    ],
+    [
+      "varios esquemas · sin viajes",
+      severalSchemes,
+      false,
+      "En este período el operador tuvo 3 esquemas, de Norte a Sur. El pago se calcula completo con Sur, el vigente al cierre. Si debe reflejar la parte de los demás esquemas, agrega un ajuste manual.",
+    ],
+    [
+      "varios esquemas · con viajes",
+      severalSchemes,
+      true,
+      "En este período el operador tuvo 3 esquemas, de Norte a Sur. Todos los viajes y conceptos del período se calculan con Sur, el vigente al cierre. Si debe reflejar la parte de los demás esquemas, agrega un ajuste manual.",
+    ],
+    [
+      "a la vez (anterior abierta) · sin viajes",
+      concurrentOpen,
+      false,
+      "En este período el operador tuvo dos esquemas a la vez: Norte y Sur. El pago se calcula completo con Sur, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de Norte, agrega un ajuste manual.",
+    ],
+    [
+      "a la vez (anterior traslapada) · con viajes",
+      concurrentOverlap,
+      true,
+      "En este período el operador tuvo dos esquemas a la vez: Norte y Sur. Todos los viajes y conceptos del período se calculan con Sur, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de Norte, agrega un ajuste manual.",
+    ],
+  ] as const)("%s: insignia y tooltip de la variante", async (_label, tc, withTrips, expected) => {
+    const user = userEvent.setup();
+    renderTable([rowWith(tc, withTrips)]);
+
+    const badge = screen.getByTestId("backlog-template-change-badge");
+    expect(badge).toHaveTextContent(BADGE);
+    await user.hover(badge);
+
+    expect(await screen.findByRole("tooltip", { name: expected })).toBeInTheDocument();
+  });
+
+  it("agrega la versión cuando los dos esquemas mostrados se llaman igual", async () => {
+    const user = userEvent.setup();
+    const v1 = ref("tpl-a1", "Operador estándar", "2026-07-01", "2026-08-14");
+    const v2 = ref("tpl-a2", "Operador estándar", "2026-08-15", null, { templateVersion: 2 });
+    renderTable([rowWith(change([v1, v2], v1), false)]);
+
+    await user.hover(screen.getByTestId("backlog-template-change-badge"));
+
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "En este período el operador tuvo dos esquemas: Operador estándar (v1) hasta el 14 ago 2026 y Operador estándar (v2) desde el 15 ago 2026. El pago se calcula completo con Operador estándar (v2), el vigente al cierre. Si debe reflejar la parte de Operador estándar (v1), agrega un ajuste manual.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("no agrega versión si el nombre repetido no aparece en el texto", async () => {
+    const user = userEvent.setup();
+    const middle = ref("tpl-sur-v1", "Sur", "2026-08-10", "2026-08-19");
+    const closing = ref("tpl-sur-v2", "Sur", "2026-08-20", null, { templateVersion: 2 });
+    renderTable([rowWith(change([norteShort, middle, closing], middle), false)]);
+
+    await user.hover(screen.getByTestId("backlog-template-change-badge"));
+
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "En este período el operador tuvo 3 esquemas, de Norte a Sur. El pago se calcula completo con Sur, el vigente al cierre. Si debe reflejar la parte de los demás esquemas, agrega un ajuste manual.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("código sin templateChange: insignia sin tooltip", async () => {
+    const user = userEvent.setup();
+    renderTable([rowWith(null, true)]);
+
+    const badge = screen.getByTestId("backlog-template-change-badge");
+    expect(badge).toHaveTextContent(BADGE);
+    await user.hover(badge);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("se ordena después del folio de solape y antes del anticipo", () => {
+    renderTable([
+      rowWith(twoSchemes, true, {
+        warnings: ["open_advance", "template_change_in_period", "period_overlap"],
+      }),
+    ]);
+
+    const list = screen.getByTestId("backlog-template-change-badge").closest("ul")!;
+    const items = within(list).getAllByRole("listitem").map((li) => li.textContent);
+    expect(items).toEqual([
+      settlementsCopy.workbench.warnings.period_overlap,
+      BADGE,
+      settlementsCopy.workbench.warnings.open_advance,
+    ]);
+  });
+
+  it("también aparece en la vista de tarjetas", () => {
+    renderTable([rowWith(twoSchemes, true)], "cards");
+    expect(screen.getByTestId("backlog-template-change-badge")).toHaveTextContent(BADGE);
+  });
+
+  it("un código sin copy no se pinta", () => {
+    renderTable([
+      makeRow("trips_pending", {
+        warnings: ["brand_new_code", "open_advance"] as unknown as SettlementBacklogRow["warnings"],
+      }),
+    ]);
+
+    expect(screen.queryByText("brand_new_code")).not.toBeInTheDocument();
+    expect(screen.getByText(settlementsCopy.workbench.warnings.open_advance)).toBeInTheDocument();
+  });
+
+  it("si solo llegan códigos sin copy no queda lista vacía", () => {
+    renderTable([
+      makeRow("trips_pending", {
+        warnings: ["brand_new_code"] as unknown as SettlementBacklogRow["warnings"],
+      }),
+    ]);
+
+    expect(screen.queryByText("brand_new_code")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 });

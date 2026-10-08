@@ -47,6 +47,7 @@ import { DateField } from "@shared/ui/form";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
+import { getTodayString } from "@shared/utils/dateUtils";
 import { settlementCreatePath } from "../../application/settlementsRoutes";
 import {
   useDeleteCompensationAgreement,
@@ -83,7 +84,7 @@ export function CompensationAgreementActions({
   const [closeValidityDialogOpen, setCloseValidityDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeValidityDate, setCloseValidityDate] = useState(
-    () => new Date().toISOString().slice(0, 10),
+    () => getTodayString(),
   );
 
   const hasGovernanceActions =
@@ -205,7 +206,12 @@ export function CompensationAgreementActions({
                 <Ban className="mr-2 h-4 w-4" />
                 {governanceCopy.actions.deactivate}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCloseValidityDialogOpen(true)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setCloseValidityDate(getTodayString());
+                  setCloseValidityDialogOpen(true);
+                }}
+              >
                 <CalendarOff className="mr-2 h-4 w-4" />
                 {governanceCopy.actions.closeValidity}
               </DropdownMenuItem>

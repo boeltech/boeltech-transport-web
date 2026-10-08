@@ -1,11 +1,8 @@
 import type { DriverSettlement, DriverAdvance } from "../../domain/entities";
 import { downloadCsv } from "@shared/utils/exportCsv";
+import { getTodayString, toMexicoDayKey } from "@shared/utils/dateUtils";
 import { SETTLEMENT_STATUS_LABELS, ADVANCE_STATUS_LABELS, ADVANCE_CATEGORY_LABELS } from "../../domain/enums";
 import { uncoveredDeductionsAmount } from "../../domain/settlementTotals";
-
-function nowDateKey(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function exportSettlementsCsv(settlements: readonly DriverSettlement[]): void {
   const headers = [
@@ -32,11 +29,11 @@ export function exportSettlementsCsv(settlements: readonly DriverSettlement[]): 
     st.totalOtherDeductions,
     st.netAmount,
     SETTLEMENT_STATUS_LABELS[st.status] ?? st.status,
-    st.createdAt ? st.createdAt.slice(0, 10) : "",
+    toMexicoDayKey(st.createdAt) ?? "",
     st.uncoveredDeductionsAmount ?? uncoveredDeductionsAmount(st),
   ]);
 
-  downloadCsv(`pagos-${nowDateKey()}.csv`, headers, rows);
+  downloadCsv(`pagos-${getTodayString()}.csv`, headers, rows);
 }
 
 export function exportDriverAdvancesCsv(advances: readonly DriverAdvance[]): void {
@@ -60,9 +57,9 @@ export function exportDriverAdvancesCsv(advances: readonly DriverAdvance[]): voi
     adv.amount - adv.balanceRemaining,
     adv.balanceRemaining,
     ADVANCE_STATUS_LABELS[adv.status] ?? adv.status,
-    adv.createdAt ? adv.createdAt.slice(0, 10) : "",
+    toMexicoDayKey(adv.createdAt) ?? "",
     adv.notes ?? "",
   ]);
 
-  downloadCsv(`anticipos-operadores-${nowDateKey()}.csv`, headers, rows);
+  downloadCsv(`anticipos-operadores-${getTodayString()}.csv`, headers, rows);
 }

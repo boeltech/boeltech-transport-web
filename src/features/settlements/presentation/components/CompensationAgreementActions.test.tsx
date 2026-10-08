@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -212,5 +212,66 @@ describe("CompensationAgreementActions (ADR-0087)", () => {
     await openActionsMenu(user);
     expect(screen.getByText("Desactivar tarifa")).toBeInTheDocument();
     expect(screen.queryByText("Eliminar tarifa")).not.toBeInTheDocument();
+  });
+
+  describe("Cerrar vigencia en día de México (ADR-0101)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const setClock = (iso: string) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(iso));
+    };
+
+    function renderActions() {
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter>
+            <CompensationAgreementActions agreement={sampleAgreement} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    async function openAndConfirmCloseValidity(user: ReturnType<typeof userEvent.setup>) {
+      await openActionsMenu(user);
+      await user.click(screen.getByText(/Cerrar vigencia/i));
+      await user.click(screen.getByRole("button", { name: /^Cerrar vigencia$/i }));
+    }
+
+    it.each([
+      ["19:00 CDMX del último día del mes", "2026-10-01T01:00:00Z", "2026-09-30"],
+      ["00:00 CDMX del día 1", "2026-10-01T06:00:00Z", "2026-10-01"],
+    ])("propone el día de México a las %s", async (_label, now, expected) => {
+      setClock(now);
+      const user = userEvent.setup();
+      renderActions();
+
+      await openAndConfirmCloseValidity(user);
+
+      await waitFor(() => {
+        expect(mockUpdateAgreement).toHaveBeenCalledWith(
+          "agr-gov-1",
+          expect.objectContaining({ effectiveTo: expected }),
+        );
+      });
+    });
+
+    it("recalcula la fecha al abrir el diálogo, no al montar la fila", async () => {
+      setClock("2026-10-01T05:59:00Z");
+      const user = userEvent.setup();
+      renderActions();
+
+      vi.setSystemTime(new Date("2026-10-01T06:00:00Z"));
+      await openAndConfirmCloseValidity(user);
+
+      await waitFor(() => {
+        expect(mockUpdateAgreement).toHaveBeenCalledWith(
+          "agr-gov-1",
+          expect.objectContaining({ effectiveTo: "2026-10-01" }),
+        );
+      });
+    });
   });
 });

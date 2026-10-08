@@ -459,6 +459,33 @@ export interface SettlementPreview {
   readonly reimbursements?: readonly ReimbursementPreviewLine[];
   /** E11 punto 8: no suman al total hasta que el usuario los marca. */
   readonly reimbursementsRequiringPayee?: readonly ReimbursementRequiringPayeeLine[];
+  /** D-1 C1: el período toca ≥ 2 esquemas; `null` si no aplica o el API aún no lo envía. */
+  readonly templateChange?: SettlementTemplateChange | null;
+}
+
+/** D-1 C1: asignación de esquema que toca el período. */
+export interface TemplatePeriodAssignmentRef {
+  readonly assignmentId: string;
+  readonly templateId: string;
+  readonly templateName: string;
+  /** Las versiones de una familia pueden compartir nombre. */
+  readonly templateVersion: number;
+  readonly effectiveFrom: string;
+  /** `null` = abierta. */
+  readonly effectiveTo: string | null;
+  readonly isClosing: boolean;
+}
+
+/** D-1 C1: cambio de esquema dentro del período. */
+export interface SettlementTemplateChange {
+  /** Esquemas distintos; ≥ 2. */
+  readonly templatesCount: number;
+  /** Esquema inmediatamente anterior al del cierre. */
+  readonly from: TemplatePeriodAssignmentRef;
+  /** Asignación del cierre (la que usa la preliquidación). */
+  readonly to: TemplatePeriodAssignmentRef;
+  /** Asignaciones que tocan el período, `effectiveFrom` ASC. */
+  readonly assignments: readonly TemplatePeriodAssignmentRef[];
 }
 
 // ============================================================================
@@ -477,7 +504,8 @@ export type SettlementBacklogWarning =
   | "period_overlap"
   | "open_advance"
   | "late_reimbursement"
-  | "reimbursement_payee_required";
+  | "reimbursement_payee_required"
+  | "template_change_in_period";
 
 /** Status activos de solape de período (excluye cancelled/rejected). */
 export type SettlementPeriodOverlapStatus =
@@ -513,6 +541,8 @@ export interface SettlementBacklogRow {
   readonly warnings: readonly SettlementBacklogWarning[];
   /** Null si no hay solape o el API aún no envía el enrich (compat F1). */
   readonly periodOverlap: SettlementPeriodOverlap | null;
+  /** D-1 C1: presente con `template_change_in_period`; `null` si no aplica o el API aún no lo envía. */
+  readonly templateChange?: SettlementTemplateChange | null;
   /** ADR-0085 E11 — día siguiente al último periodo cubierto cuando el solape es parcial. */
   readonly suggestedPeriodStart?: string | null;
   readonly employmentType?: string;

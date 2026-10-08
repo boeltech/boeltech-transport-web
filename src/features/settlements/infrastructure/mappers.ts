@@ -18,7 +18,9 @@ import type {
   SettlementPeriodOverlap,
   SettlementPeriodOverlapStatus,
   SettlementWorkbenchData,
+  SettlementTemplateChange,
   SettlementWorkbenchSummary,
+  TemplatePeriodAssignmentRef,
   TenantSettlementSettings,
   ZeroCommissionReason,
 } from "../domain/entities";
@@ -219,6 +221,23 @@ export interface ApiReimbursementRequiringPayeeLineRaw {
   trip_settled_in?: ApiTripSettledInRaw | null;
 }
 
+export interface ApiTemplatePeriodAssignmentRefRaw {
+  assignment_id: string;
+  template_id: string;
+  template_name: string;
+  template_version: number;
+  effective_from: string;
+  effective_to: string | null;
+  is_closing: boolean;
+}
+
+export interface ApiTemplateChangeInPeriodRaw {
+  templates_count: number;
+  from: ApiTemplatePeriodAssignmentRefRaw;
+  to: ApiTemplatePeriodAssignmentRefRaw;
+  assignments: ApiTemplatePeriodAssignmentRefRaw[];
+}
+
 export interface ApiSettlementPreviewRaw {
   employee_id: string;
   employee_name: string;
@@ -233,6 +252,8 @@ export interface ApiSettlementPreviewRaw {
     name: string;
     assignment_id: string;
   };
+  /** D-1 C1 (API F5). Ausente en el API anterior. */
+  template_change?: ApiTemplateChangeInPeriodRaw | null;
   employee_compensation?: {
     base_salary: number;
     salary_type: string | null;
@@ -625,6 +646,32 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
   };
 }
 
+function mapTemplatePeriodAssignmentRef(
+  raw: ApiTemplatePeriodAssignmentRefRaw,
+): TemplatePeriodAssignmentRef {
+  return {
+    assignmentId: raw.assignment_id,
+    templateId: raw.template_id,
+    templateName: raw.template_name,
+    templateVersion: Number(raw.template_version),
+    effectiveFrom: raw.effective_from,
+    effectiveTo: raw.effective_to ?? null,
+    isClosing: Boolean(raw.is_closing),
+  };
+}
+
+export function mapTemplateChange(
+  raw: ApiTemplateChangeInPeriodRaw | null | undefined,
+): SettlementTemplateChange | null {
+  if (!raw?.from || !raw.to) return null;
+  return {
+    templatesCount: Number(raw.templates_count),
+    from: mapTemplatePeriodAssignmentRef(raw.from),
+    to: mapTemplatePeriodAssignmentRef(raw.to),
+    assignments: (raw.assignments ?? []).map(mapTemplatePeriodAssignmentRef),
+  };
+}
+
 export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPreview {
   return {
     employeeId: raw.employee_id,
@@ -652,6 +699,7 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
           assignmentId: raw.template.assignment_id,
         }
       : undefined,
+    templateChange: mapTemplateChange(raw.template_change),
     employeeCompensation: raw.employee_compensation
       ? {
           baseSalary: Number(raw.employee_compensation.base_salary),
@@ -805,6 +853,8 @@ export interface ApiSettlementBacklogRowRaw {
   employment_type?: string;
   /** Ausente o null = sin solape / API pre-F2 (compat soft CTA F1). */
   period_overlap?: ApiSettlementPeriodOverlapRaw | null;
+  /** D-1 C1 (API F5). Ausente en el API anterior. */
+  template_change?: ApiTemplateChangeInPeriodRaw | null;
   suggested_period_start?: string | null;
   pending_reimbursements_count?: number;
   pending_reimbursements_amount?: number;
@@ -857,6 +907,7 @@ export function mapBacklogRow(raw: ApiSettlementBacklogRowRaw): SettlementBacklo
     rowType: (raw.row_type as SettlementBacklogRow["rowType"]) || "trips_pending",
     warnings: (raw.warnings ?? []) as SettlementBacklogRow["warnings"],
     periodOverlap: mapPeriodOverlap(raw.period_overlap),
+    templateChange: mapTemplateChange(raw.template_change),
     suggestedPeriodStart: raw.suggested_period_start ?? null,
     employmentType: raw.employment_type,
     pendingReimbursementsCount: Number(raw.pending_reimbursements_count ?? 0),
