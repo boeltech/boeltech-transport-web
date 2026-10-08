@@ -551,6 +551,7 @@ export const financeCopy = {
       value: (loss: number, total: number) =>
         `${loss.toLocaleString("es-MX")} de ${total.toLocaleString("es-MX")}`,
       hint: "Al abrir un grupo de la tabla, puedes ver solo estos viajes.",
+      none: "Ningún viaje con pérdida en este periodo.",
       activeHint:
         "Filtro activo: al abrir un grupo solo ves sus viajes con pérdida. Los totales no cambian.",
       apply: "Ver solo estos al abrir un grupo",

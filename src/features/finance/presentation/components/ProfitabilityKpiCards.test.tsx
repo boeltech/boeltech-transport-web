@@ -78,7 +78,7 @@ describe("ProfitabilityKpiCards", () => {
     ).toBeInTheDocument();
   });
 
-  it("disables the loss filter when there are no loss trips", () => {
+  it("hides the loss filter and says so when there are no loss trips", () => {
     render(
       <ProfitabilityKpiCards
         scope="operational"
@@ -86,9 +86,24 @@ describe("ProfitabilityKpiCards", () => {
         onLossOnlyChange={vi.fn()}
       />,
     );
+    const lossCard = screen.getByTestId("profitability-loss-card");
+    expect(within(lossCard).getByText("0 de 120")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Ver solo estos al abrir un grupo" }),
-    ).toBeDisabled();
+      within(lossCard).getByText("Ningún viaje con pérdida en este periodo."),
+    ).toBeInTheDocument();
+    expect(within(lossCard).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("keeps «Quitar filtro» when the filter is active and the period has no loss trips", () => {
+    render(
+      <ProfitabilityKpiCards
+        scope="operational"
+        trips={buildTrips(0)}
+        lossOnly
+        onLossOnlyChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Quitar filtro" })).toBeEnabled();
   });
 
   it("shows projected revenue without margin nor loss card for pipeline scope", () => {

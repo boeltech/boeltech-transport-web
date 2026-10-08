@@ -44,6 +44,7 @@ function LossTripsCard({
   onLossOnlyChange?: (lossOnly: boolean) => void;
   isLoading: boolean;
 }) {
+  const noLosses = !isLoading && !lossOnly && lossCount === 0;
   return (
     <Card
       className={cn(lossOnly && "border-destructive/60 bg-destructive/5")}
@@ -66,16 +67,20 @@ function LossTripsCard({
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          {lossOnly ? copy.lossCard.activeHint : copy.lossCard.hint}
+          {lossOnly
+            ? copy.lossCard.activeHint
+            : noLosses
+              ? copy.lossCard.none
+              : copy.lossCard.hint}
         </p>
-        {onLossOnlyChange ? (
+        {onLossOnlyChange && !noLosses ? (
           <Button
             type="button"
             size="sm"
             variant={lossOnly ? "secondary" : "outline"}
             className="mt-auto self-start"
             aria-pressed={lossOnly}
-            disabled={isLoading || (!lossOnly && lossCount === 0)}
+            disabled={isLoading}
             onClick={() => onLossOnlyChange(!lossOnly)}
           >
             {lossOnly ? (
