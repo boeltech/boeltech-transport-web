@@ -19,6 +19,7 @@ export const MODULES = [
   "trips",
   "trips_stops_fiscal",
   "trips_fiscal_edit",
+  "trips_fleet_snapshot",
   "vehicles",
   "trailers",
   "drivers",

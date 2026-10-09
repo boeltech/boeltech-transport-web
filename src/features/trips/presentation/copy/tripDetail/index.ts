@@ -1,5 +1,6 @@
 import { cargoCopy } from "./cargoCopy";
 import { costsCopy } from "./costsCopy";
+import { fleetSnapshotCopy } from "./fleetSnapshotCopy";
 import { historyCopy } from "./historyCopy";
 import { operationCopy } from "./operationCopy";
 import { progressCopy } from "./progressCopy";
@@ -14,6 +15,7 @@ import { trackingCopy } from "./trackingCopy";
 export const tripDetailCopy = {
   tracking: trackingCopy,
   operation: operationCopy,
+  fleetSnapshot: fleetSnapshotCopy,
   route: routeCopy,
   progress: progressCopy,
   cargo: cargoCopy,
@@ -25,6 +27,7 @@ export const tripDetailCopy = {
 export {
   cargoCopy,
   costsCopy,
+  fleetSnapshotCopy,
   historyCopy,
   operationCopy,
   progressCopy,

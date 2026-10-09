@@ -239,6 +239,17 @@ describe("SubstitutionTripAssignmentSection — selectabilidad docs vencidos (T4
     expect(screen.queryByLabelText(/documentación vencida/i)).not.toBeInTheDocument();
   });
 
+  it("distingue cambiar de unidad u operador de corregir un dato mal capturado (refresco en el viaje)", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    await openAssignmentSection(user);
+
+    expect(screen.getByText(copy.sectionHint)).toHaveTextContent(
+      /si el viaje lo hizo otra.*Refrescar desde el catálogo/i,
+    );
+    expect(copy.sectionHintDetail).not.toMatch(/maestro/i);
+  });
+
   it("deja unidades con docs vencidos visibles pero no seleccionables", async () => {
     const user = userEvent.setup();
     renderSection();

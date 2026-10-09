@@ -288,6 +288,31 @@ export type {
   PatchTripFiscalResult,
 } from "./tripFiscal.types";
 
+export type {
+  RefreshTripFleetSnapshotInput,
+  RefreshTripFleetSnapshotResult,
+  TripFleetCpInvoice,
+  TripFleetDiffEntry,
+  TripFleetDiffFieldKey,
+  TripFleetDriverValues,
+  TripFleetLastRefresh,
+  TripFleetMasterDriver,
+  TripFleetMasterValidationIssue,
+  TripFleetMasterVehicle,
+  TripFleetPerBlock,
+  TripFleetRefreshBlockState,
+  TripFleetRefreshReasonCode,
+  TripFleetSnapshotBlock,
+  TripFleetSnapshotBlockMeta,
+  TripFleetSnapshotData,
+  TripFleetSnapshotSource,
+  TripFleetSnapshotView,
+  TripFleetValue,
+  TripFleetVehicleValues,
+  TripFleetWarning,
+  TripFleetWarningCode,
+} from "./tripFleetSnapshot.types";
+
 // ============================================================================
 // ROUTE VALIDATION
 // ============================================================================

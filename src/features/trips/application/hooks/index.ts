@@ -77,3 +77,8 @@ export {
   useUpsertTripRevenueSplit,
   useDeleteTripRevenueSplit,
 } from "./useTripRevenueSplit";
+export {
+  useTripFleetSnapshot,
+  useRefreshTripFleetSnapshot,
+  type RefreshTripFleetSnapshotOutcome,
+} from "./useTripFleetSnapshot";

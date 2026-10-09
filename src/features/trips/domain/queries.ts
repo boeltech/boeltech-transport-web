@@ -145,6 +145,10 @@ export const tripQueryKeys = {
   revenueSplit: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "revenue-split"] as const,
 
+  /** Datos para Carta Porte congelados del viaje (unidad y operador). */
+  fleetSnapshot: (tripId: string) =>
+    [...tripQueryKeys.detail(tripId), "fleet-snapshot"] as const,
+
   /** ADR-0096 addendum — ledger de abonos operativos. */
   operationalCashReceipts: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "operational-cash-receipts"] as const,

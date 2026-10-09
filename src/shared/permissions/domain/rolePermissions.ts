@@ -55,6 +55,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.export",
       "trips_stops_fiscal.execute",
       "trips_fiscal_edit.execute",
+      // Datos para Carta Porte del viaje — lockstep API trips_fleet_snapshot
+      "trips_fleet_snapshot.read",
+      "trips_fleet_snapshot.execute",
 
       // Vehículos - Control total
       "vehicles.read",
@@ -233,6 +236,8 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Edición fiscal post-cierre (RFC parada)
       "trips_stops_fiscal.execute",
       "trips_fiscal_edit.execute",
+      // Datos para Carta Porte del viaje — lockstep API (refresco: admin/manager)
+      "trips_fleet_snapshot.read",
 
       // Configuración - Lectura (incluye settings/billing GET)
       "settings.read",
@@ -299,6 +304,8 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.execute", // ADR-0079: lockstep API tracking (false_trip_declared)
       "trips.assign",
       "trips.export",
+      // Datos para Carta Porte del viaje — lockstep API (refresco: admin/manager)
+      "trips_fleet_snapshot.read",
 
       // Vehículos - Lectura y disponibilidad
       "vehicles.read",

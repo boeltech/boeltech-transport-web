@@ -603,9 +603,9 @@ export const invoicingCopy = {
       assignment: {
         sectionTitle: "Operador y unidad",
         sectionHint:
-          "Cambia operador o unidad si no coinciden con el complemento. Si no están asignables (docs vencidos), ve a Operación → Reasignar flota y vuelve a sustituir.",
+          "Cambia operador o unidad si el viaje lo hizo otra. Si es la misma unidad u operador con un dato mal capturado, corrige el catálogo y luego, en el detalle del viaje, usa Operación → Datos para Carta Porte → Refrescar desde el catálogo.",
         sectionHintDetail:
-          "El permiso de documentación vencida solo está en Reasignar flota del viaje, no en este sheet. Completa datos faltantes en el maestro o reasigna ahí; luego regresa a sustituir. Al cambiar la unidad en un viaje cerrado, el kilometraje recorrido (odómetro final − inicial) se transfiere a la nueva unidad.",
+          "El permiso de documentación vencida solo está en Reasignar flota del viaje, no en este sheet. Completa datos faltantes en el catálogo y refréscalos en el viaje, o reasigna ahí; luego regresa a sustituir. Al cambiar la unidad en un viaje cerrado, el kilometraje recorrido (odómetro final − inicial) se transfiere a la nueva unidad.",
         expiredDocsPathHint:
           "Unidad u operador con documentación vencida: en el detalle del viaje usa Operación → Reasignar flota (activa el permiso ahí) y vuelve a este sheet.",
         noPermission:
@@ -622,7 +622,7 @@ export const invoicingCopy = {
         noAssignmentChange:
           "Selecciona un operador o una unidad distinta a la asignación actual del viaje",
         fleetIncomplete:
-          "Completa los datos de flota en el maestro o reasigna en Operación → Reasignar flota; luego vuelve a sustituir.",
+          "Completa los datos de flota en el catálogo o reasigna en Operación → Reasignar flota; luego vuelve a sustituir.",
         saveCorrection: "Incluir en sustitución",
         editAgain: "Actualizar corrección",
       },

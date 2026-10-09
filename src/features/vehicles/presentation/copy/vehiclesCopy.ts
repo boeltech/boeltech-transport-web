@@ -372,9 +372,9 @@ export const vehiclesCopy = {
     },
     alert: {
       cartaPorteCreate:
-        "Los campos marcados con * son obligatorios para timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML.",
+        "Los campos marcados con * son obligatorios para timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML. Los viajes ya iniciados o timbrados conservan los datos con los que salieron; para corregirlos usa «Refrescar desde el catálogo» en el viaje.",
       cartaPorteEdit:
-        "Los campos Autotransporte con * son obligatorios para guardar una unidad operable y timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML.",
+        "Los campos Autotransporte con * son obligatorios para guardar una unidad operable y timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML. Los viajes ya iniciados o timbrados conservan los datos con los que salieron; para corregirlos usa «Refrescar desde el catálogo» en el viaje.",
     },
     action: {
       cancel: "Cancelar",
