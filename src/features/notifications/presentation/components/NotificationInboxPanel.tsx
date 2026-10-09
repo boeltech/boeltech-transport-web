@@ -55,7 +55,7 @@ export function NotificationInboxPanel({
           {notificationsCopy.panelEmpty}
         </p>
       ) : (
-        <ScrollArea className="max-h-[420px]">
+        <ScrollArea viewportClassName="max-h-[420px]">
           <div className="space-y-1 p-2">
             {items.map((item) => (
               <NotificationRow

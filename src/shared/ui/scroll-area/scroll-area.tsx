@@ -13,6 +13,12 @@ type ScrollAreaProps = React.ComponentPropsWithoutRef<
    * `horizontal` = franjas de tabs / chips.
    */
   orientation?: ScrollAreaOrientation;
+  /**
+   * Clases del Viewport. Un `max-h-*` debe ir aquí, no en `className`:
+   * el Viewport usa `h-full`, que no se resuelve contra un `max-height`
+   * del Root, y el contenido se recorta sin scroll.
+   */
+  viewportClassName?: string;
 };
 
 const ScrollArea = React.forwardRef<
@@ -20,7 +26,14 @@ const ScrollArea = React.forwardRef<
   ScrollAreaProps
 >(
   (
-    { className, children, type = "hover", orientation = "vertical", ...props },
+    {
+      className,
+      viewportClassName,
+      children,
+      type = "hover",
+      orientation = "vertical",
+      ...props
+    },
     ref,
   ) => {
     const showVertical =
@@ -41,6 +54,7 @@ const ScrollArea = React.forwardRef<
             // h-full solo cuando hay scroll vertical; en horizontal deja
             // que la altura la marque el contenido (tabs).
             showVertical ? "h-full" : undefined,
+            viewportClassName,
           )}
         >
           {children}
