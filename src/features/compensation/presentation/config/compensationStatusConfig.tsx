@@ -1,5 +1,7 @@
 import {
   AlertTriangle,
+  CalendarCheck,
+  CalendarClock,
   CheckCircle2,
   FileEdit,
   History,
@@ -17,18 +19,24 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@shared/ui/tooltip";
+import { formatDate } from "@shared/utils/dateUtils";
 import { compensationCopy } from "../copy/compensationCopy";
 import type { TemplateUsageStatus } from "../utils/templateCompositionTypes";
+import {
+  type AssignmentDisplayStatus,
+  getAssignmentDisplayStatus,
+} from "../utils/getAssignmentDisplayStatus";
 import { getTemplateUsageStatus } from "../utils/getTemplateCompleteness";
 import {
   TEMPLATE_DISPLAY_STATUS_LABELS,
   type TemplateDisplayStatus,
   getTemplateDisplayStatus,
 } from "../utils/getTemplateDisplayStatus";
-import type { CompensationTemplate } from "../../domain/entities";
+import type { CompensationTemplate, TemplateAssignment } from "../../domain/entities";
 import type { CompensationTemplateStatus } from "../../domain/enums";
 
 const copy = compensationCopy.templates;
+const assignmentCopy = compensationCopy.assignments;
 
 export type CompensationActiveStatus = "active" | "inactive";
 
@@ -157,6 +165,89 @@ export function CompensationTemplateDisplayStatusBadge({
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs">
           {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+const ASSIGNMENT_DISPLAY_STATUS_CONFIG: Record<AssignmentDisplayStatus, StatusConfig> = {
+  current: createStatusConfig("success", {
+    label: assignmentCopy.displayStatus.current,
+    icon: CheckCircle2,
+    description: assignmentCopy.displayStatusTooltip.current,
+    tone: "soft",
+  }),
+  scheduled: createStatusConfig("info", {
+    label: assignmentCopy.displayStatus.scheduled,
+    icon: CalendarClock,
+    description: assignmentCopy.displayStatus.scheduled,
+    tone: "soft",
+  }),
+  concluded: {
+    ...createStatusConfig("neutral", {
+      label: assignmentCopy.displayStatus.concluded,
+      icon: CalendarCheck,
+      description: assignmentCopy.displayStatus.concluded,
+      tone: "soft",
+    }),
+    bgColor: "bg-transparent",
+    textColor: "text-muted-foreground",
+  },
+  deactivated: createStatusConfig("neutral", {
+    label: assignmentCopy.displayStatus.deactivated,
+    icon: PauseCircle,
+    description: assignmentCopy.displayStatusTooltip.deactivated,
+    tone: "soft",
+  }),
+};
+
+const AssignmentDisplayStatusBadgeBase = createStatusBadgeComponent(
+  ASSIGNMENT_DISPLAY_STATUS_CONFIG,
+);
+
+function assignmentStatusTooltip(
+  status: AssignmentDisplayStatus,
+  assignment: Pick<TemplateAssignment, "effectiveFrom" | "effectiveTo">,
+): string {
+  const tooltips = assignmentCopy.displayStatusTooltip;
+  switch (status) {
+    case "current":
+      return tooltips.current;
+    case "scheduled":
+      return tooltips.scheduled(formatDate(assignment.effectiveFrom));
+    case "concluded":
+      return tooltips.concluded(formatDate(assignment.effectiveTo));
+    case "deactivated":
+      return tooltips.deactivated;
+  }
+}
+
+/** Insignia por vigencia contra hoy (CDMX), con tooltip accesible por teclado. */
+export function AssignmentDisplayStatusBadge({
+  assignment,
+  status,
+}: {
+  assignment: Pick<TemplateAssignment, "isActive" | "effectiveFrom" | "effectiveTo">;
+  /** Ya calculado por quien ordena la tabla; si falta, se calcula con hoy. */
+  status?: AssignmentDisplayStatus;
+}) {
+  const displayStatus = status ?? getAssignmentDisplayStatus(assignment);
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className="inline-flex cursor-help rounded-md"
+            data-testid="assignment-display-status-trigger"
+          >
+            <AssignmentDisplayStatusBadgeBase status={displayStatus} />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs">
+          {assignmentStatusTooltip(displayStatus, assignment)}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

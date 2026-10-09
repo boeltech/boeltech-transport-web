@@ -2,14 +2,35 @@ import { useCallback, useState } from "react";
 import { Users } from "lucide-react";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
+import { getTodayString } from "@shared/utils/dateUtils";
 import { useTemplateAssignments } from "../../application/hooks";
-import type { CompensationTemplate } from "../../domain/entities";
+import type { CompensationTemplate, TemplateAssignment } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
+import { getAssignmentDisplayStatus } from "../utils/getAssignmentDisplayStatus";
 import { TemplateAssignmentBatchSheet } from "./TemplateAssignmentBatchSheet";
 import { TemplateAssignmentsTable } from "./TemplateAssignmentsTable";
 
 const copy = compensationCopy.templateDetail;
 const panelCopy = compensationCopy.compositionCanvas;
+const assignmentsCopy = compensationCopy.assignments;
+
+/** Conteos de la API (la tabla se trunca a 100); programadas por filas solo si la API no las manda. */
+function buildAssignmentsSummary(
+  template: CompensationTemplate,
+  assignments: readonly TemplateAssignment[],
+): string {
+  const today = getTodayString();
+  const current = template.activeAssignmentsCount;
+  const scheduled =
+    template.scheduledAssignmentsCount ??
+    assignments.filter((row) => getAssignmentDisplayStatus(row, today) === "scheduled")
+      .length;
+
+  const segments: string[] = [];
+  if (current > 0) segments.push(assignmentsCopy.summaryCurrent(current));
+  if (scheduled > 0) segments.push(assignmentsCopy.summaryScheduled(scheduled));
+  return segments.join(" · ");
+}
 
 interface TemplateOperatorsPanelProps {
   template: CompensationTemplate;
@@ -54,6 +75,7 @@ export function TemplateOperatorsPanel({
   } = useTemplateAssignments({ templateId: template.id, pageSize: 100 });
 
   const assignments = assignmentsData?.data ?? [];
+  const summary = buildAssignmentsSummary(template, assignments);
 
   const handleActionComplete = useCallback(() => {
     void refetchAssignments();
@@ -77,16 +99,24 @@ export function TemplateOperatorsPanel({
         </Alert>
       ) : null}
 
-      {canUpdate ? (
-        <div className="mb-4 flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            size="sm"
-            leftIcon={<Users className="h-4 w-4" />}
-            onClick={() => setBatchOpen(true)}
+      {canUpdate || summary ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="template-operators-summary"
           >
-            {copy.batchAssign}
-          </Button>
+            {summary}
+          </p>
+          {canUpdate ? (
+            <Button
+              type="button"
+              size="sm"
+              leftIcon={<Users className="h-4 w-4" />}
+              onClick={() => setBatchOpen(true)}
+            >
+              {copy.batchAssign}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

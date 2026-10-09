@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 import {
   Table,
@@ -11,14 +11,40 @@ import {
 import { Button } from "@shared/ui/button";
 import { Skeleton } from "@shared/ui/skeleton";
 import { EmptyState } from "@shared/ui/feedback-states";
+import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import type { TemplateAssignment, TemplateFixedAllowance } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
-import { CompensationActiveStatusBadge } from "../config/compensationStatusConfig";
+import { AssignmentDisplayStatusBadge } from "../config/compensationStatusConfig";
+import {
+  type AssignmentDisplayStatus,
+  getAssignmentDisplayStatus,
+} from "../utils/getAssignmentDisplayStatus";
 import { FixedAllowanceOverridePanel } from "./FixedAllowanceOverridePanel";
 import { TemplateAssignmentActions } from "./TemplateAssignmentActions";
 
 const copy = compensationCopy.assignments;
 const TABLE_ARIA_LABEL = "Operadores asignados a la tarifa de pago";
+
+const STATUS_ORDER: Record<AssignmentDisplayStatus, number> = {
+  current: 0,
+  scheduled: 1,
+  concluded: 2,
+  deactivated: 3,
+};
+
+/** PRD D12: por estado y, dentro de cada uno, «Desde» descendente. */
+function sortByDisplayStatus(assignments: readonly TemplateAssignment[], today: string) {
+  return assignments
+    .map((assignment) => ({
+      assignment,
+      status: getAssignmentDisplayStatus(assignment, today),
+    }))
+    .sort(
+      (left, right) =>
+        STATUS_ORDER[left.status] - STATUS_ORDER[right.status] ||
+        right.assignment.effectiveFrom.localeCompare(left.assignment.effectiveFrom),
+    );
+}
 
 interface TemplateAssignmentsTableProps {
   assignments: TemplateAssignment[];
@@ -89,6 +115,10 @@ export function TemplateAssignmentsTable({
 }: TemplateAssignmentsTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const showOverrides = fixedAllowances.length > 0;
+  const rows = useMemo(
+    () => sortByDisplayStatus(assignments, getTodayString()),
+    [assignments],
+  );
 
   if (isLoading) {
     return (
@@ -116,7 +146,7 @@ export function TemplateAssignmentsTable({
     <AssignmentsTableFrame>
       <AssignmentsTableHeader showOverrides={showOverrides} />
       <TableBody>
-        {assignments.map((assignment) => {
+        {rows.map(({ assignment, status }) => {
           const isExpanded = expandedId === assignment.id;
 
           return (
@@ -146,14 +176,19 @@ export function TemplateAssignmentsTable({
                 <TableCell>
                   {assignment.employeeFullName ?? assignment.employeeId.slice(0, 8)}
                 </TableCell>
-                <TableCell>{assignment.effectiveFrom}</TableCell>
-                <TableCell>{assignment.effectiveTo ?? "—"}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {formatDate(assignment.effectiveFrom)}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {formatDate(assignment.effectiveTo)}
+                </TableCell>
                 <TableCell>
-                  <CompensationActiveStatusBadge isActive={assignment.isActive} />
+                  <AssignmentDisplayStatusBadge assignment={assignment} status={status} />
                 </TableCell>
                 <TableCell className="text-right">
                   <TemplateAssignmentActions
                     assignment={assignment}
+                    displayStatus={status}
                     onActionComplete={onActionComplete}
                   />
                 </TableCell>

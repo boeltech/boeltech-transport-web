@@ -295,7 +295,8 @@ export const compensationCopy = {
   },
   operatorsSheet: {
     title: (name: string, version: number) => `Operadores — ${name} versión ${version}`,
-    description: "Asignaciones vigentes, overrides de prestaciones y asignación masiva.",
+    description:
+      "Operadores asignados a esta versión y su vigencia. Desde aquí puedes asignar varios a la vez.",
     supersededNotice:
       "Esta versión ya fue reemplazada. Los operadores asignados aquí siguen cobrando con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
     deactivatedNotice:
@@ -613,27 +614,55 @@ export const compensationCopy = {
     emptyTitle: "Sin operadores asignados",
     expandRow: "Expandir fila de prestaciones",
     collapseRow: "Contraer fila de prestaciones",
+    displayStatus: {
+      current: "Vigente",
+      scheduled: "Programada",
+      concluded: "Concluida",
+      deactivated: "Desactivada",
+    },
+    displayStatusTooltip: {
+      current: "Cobra con esta versión hoy.",
+      scheduled: (from: string) => `Empieza a cobrar con esta versión el ${from}.`,
+      concluded: (to: string) => `Cobró con esta versión hasta el ${to}.`,
+      deactivated: "No se usa para calcular pagos. Los pagos ya registrados no cambian.",
+    },
+    summaryCurrent: (count: number) => `${count} ${count === 1 ? "vigente" : "vigentes"}`,
+    summaryScheduled: (count: number) =>
+      `${count} ${count === 1 ? "programada" : "programadas"}`,
   },
   assignmentActions: {
     openMenuSr: "Abrir menú de acciones de asignación",
     deactivate: "Desactivar asignación",
     closeValidity: "Cerrar vigencia…",
+    changeEndDate: "Cambiar fecha de fin…",
     delete: "Eliminar asignación",
+    settledTitle: "Hay días ya liquidados",
     deactivateDialog: {
       title: "¿Desactivar asignación?",
-      description:
-        "La asignación dejará de aplicarse en pagos futuros. No afecta pagos ya creados.",
+      description: (name: string) =>
+        `${name} dejará de cobrar con esta versión en los días que aún no estén en una liquidación. Si debe cobrar con otra, asígnalo ahí. Los pagos ya registrados no cambian.`,
+      unnamedOperator: "El operador",
       confirm: "Desactivar",
       pending: "Desactivando…",
       cancel: "Cancelar",
+      closeOn: (date: string) => `Cerrar vigencia el ${date}`,
     },
     closeValidityDialog: {
       title: "Cerrar vigencia de asignación",
-      description: "Indica la última fecha en que esta tarifa aplica al operador.",
+      changeTitle: "Cambiar fecha de fin",
+      currentDescription: (name: string) =>
+        `Indica el último día en que ${name} cobra con esta versión.`,
+      scheduledDescription: (from: string) =>
+        `Empieza el ${from}. Indica el último día en que cobrará con esta versión.`,
+      concludedDescription: (to: string) =>
+        `Concluyó el ${to}. Cambia la fecha solo si se capturó mal.`,
+      unnamedOperator: "el operador",
       dateLabel: "Vigente hasta",
       confirm: "Cerrar vigencia",
+      changeConfirm: "Guardar fecha",
       pending: "Guardando…",
       cancel: "Cancelar",
+      useDate: (date: string) => `Usar ${date}`,
     },
     deleteDialog: {
       title: "¿Eliminar asignación?",
