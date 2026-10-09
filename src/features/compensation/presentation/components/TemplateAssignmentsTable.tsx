@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 import {
   Table,
@@ -50,7 +50,16 @@ interface TemplateAssignmentsTableProps {
   assignments: TemplateAssignment[];
   fixedAllowances?: TemplateFixedAllowance[];
   isLoading?: boolean;
+  /** PRD D20: fila resaltada, desplazada a la vista y con el foco en su «···». */
+  focusedAssignmentId?: string;
   onActionComplete?: () => void;
+}
+
+/** Botón «···» de la fila; si no hay menú (sin permisos), la fila misma recibe el foco. */
+function focusRowMenu(row: HTMLTableRowElement) {
+  row.scrollIntoView?.({ block: "center" });
+  const trigger = row.querySelector<HTMLElement>("[data-assignment-menu-trigger]");
+  (trigger ?? row).focus();
 }
 
 function AssignmentsTableHeader({ showOverrides }: { showOverrides: boolean }) {
@@ -111,6 +120,7 @@ export function TemplateAssignmentsTable({
   assignments,
   fixedAllowances = [],
   isLoading,
+  focusedAssignmentId,
   onActionComplete,
 }: TemplateAssignmentsTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -119,6 +129,18 @@ export function TemplateAssignmentsTable({
     () => sortByDisplayStatus(assignments, getTodayString()),
     [assignments],
   );
+  const focusedRowRef = useRef<HTMLTableRowElement>(null);
+  const focusedOnceRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!focusedAssignmentId) {
+      focusedOnceRef.current = null;
+      return;
+    }
+    if (focusedOnceRef.current === focusedAssignmentId || !focusedRowRef.current) return;
+    focusedOnceRef.current = focusedAssignmentId;
+    focusRowMenu(focusedRowRef.current);
+  }, [focusedAssignmentId, rows, isLoading]);
 
   if (isLoading) {
     return (
@@ -148,10 +170,16 @@ export function TemplateAssignmentsTable({
       <TableBody>
         {rows.map(({ assignment, status }) => {
           const isExpanded = expandedId === assignment.id;
+          const isFocused = assignment.id === focusedAssignmentId;
 
           return (
             <Fragment key={assignment.id}>
-              <TableRow>
+              <TableRow
+                ref={isFocused ? focusedRowRef : undefined}
+                data-focused={isFocused ? "true" : undefined}
+                tabIndex={isFocused ? -1 : undefined}
+                className={isFocused ? "bg-accent hover:bg-accent" : undefined}
+              >
                 {showOverrides ? (
                   <TableCell className="py-2">
                     <Button

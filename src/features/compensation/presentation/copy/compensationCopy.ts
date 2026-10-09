@@ -307,6 +307,19 @@ export const compensationCopy = {
       "Esta versión ya fue reemplazada. Los operadores asignados aquí siguen cobrando con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
     deactivatedNotice:
       "Esta versión está desactivada y no calcula pagos, ni siquiera de los operadores asignados aquí. Asígnalos a otra versión para que puedan cobrar.",
+    focusNotice: {
+      title: (name: string) => `Asignación de ${name}`,
+      untitled: "Asignación del operador",
+      description: (origin: string, effectiveFrom: string | null) =>
+        `Para que cobre con ${origin}${effectiveFrom ? ` desde el ${effectiveFrom}` : ""}, desactiva esta asignación desde el menú ··· de su fila. Si tiene días ya liquidados, el sistema te dirá desde qué fecha puedes cerrarla.`,
+      originFallback: "la otra versión",
+      done: "Listo: su asignación en esta versión quedó desactivada. Vuelve para asignarlo.",
+      notFound:
+        "No encontramos esa asignación en esta versión; pudo haber cambiado. Revisa la lista.",
+      returnTo: (origin: string) => `Volver a ${origin}`,
+      returnFallback: "Volver a la asignación masiva",
+      dismiss: "Listo",
+    },
   },
   templateDetail: {
     tabs: {

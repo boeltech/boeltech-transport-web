@@ -181,6 +181,13 @@ export function withSameTemplateFocus(
   return next;
 }
 
+/** «Listo» en el aviso del sheet destino: quita foco y regreso; el sheet sigue abierto. */
+export function withFocusDismissed(prev: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  deleteParams(next, [PARAM.focus, ...RETURN_PARAMS]);
+  return next;
+}
+
 /** Cerrar el sheet de operadores: quita lote, foco y regreso; conserva Por pagar. */
 export function withOperatorsClosed(prev: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams(prev);

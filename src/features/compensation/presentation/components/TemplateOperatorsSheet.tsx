@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { AlertCircle, History, Users } from "lucide-react";
-import { Alert, AlertDescription } from "@shared/ui/alert";
+import { useState } from "react";
+import { AlertCircle, History, Info, Users } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -8,12 +9,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
+import { formatDate } from "@shared/utils/dateUtils";
+import { useCompensationTemplate } from "../../application/hooks";
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
+import {
+  type FocusedTemplateAssignment,
+  useFocusedTemplateAssignment,
+} from "../hooks/useFocusedTemplateAssignment";
 import { getTemplateDisplayStatus } from "../utils/getTemplateDisplayStatus";
+import type { BatchConflictLink } from "../utils/resolveBatchConflictView";
+import type { BatchAssignmentFormSnapshot } from "./TemplateAssignmentBatchSheet";
 import { TemplateOperatorsPanel } from "./TemplateOperatorsPanel";
 
 const copy = compensationCopy.operatorsSheet;
+const noticeCopy = copy.focusNotice;
 
 interface TemplateOperatorsSheetProps {
   open: boolean;
@@ -27,6 +37,76 @@ interface TemplateOperatorsSheetProps {
   paymentPeriodEnd?: string;
   onAssignmentsChange?: () => void;
   onBatchSuccess?: () => void;
+  /** Asignación a resaltar (`focus`). */
+  focusAssignmentId?: string;
+  /** Plantilla del lote de origen (`returnTo`); muestra el aviso D21. */
+  returnTemplateId?: string;
+  /** «Vigente desde» del lote de origen (`returnFrom`). */
+  returnEffectiveFrom?: string;
+  onReturnToBatch?: () => void;
+  /** «Listo»: quita foco y regreso. */
+  onDismissFocus?: () => void;
+  onOpenBlockingAssignment?: (
+    link: BatchConflictLink,
+    form: BatchAssignmentFormSnapshot,
+  ) => void;
+}
+
+function FocusNotice({
+  focused,
+  returnTemplate,
+  returnEffectiveFrom,
+  onReturnToBatch,
+  onDismissFocus,
+}: {
+  focused: FocusedTemplateAssignment;
+  returnTemplate: CompensationTemplate | undefined;
+  returnEffectiveFrom?: string;
+  onReturnToBatch?: () => void;
+  onDismissFocus?: () => void;
+}) {
+  const assignment = focused.status === "found" ? focused.assignment : null;
+  const origin = returnTemplate
+    ? compensationCopy.batchAssignment.templateVersion(
+        returnTemplate.name,
+        returnTemplate.version,
+      )
+    : null;
+
+  const description =
+    focused.status === "missing"
+      ? noticeCopy.notFound
+      : assignment && !assignment.isActive
+        ? noticeCopy.done
+        : noticeCopy.description(
+            origin ?? noticeCopy.originFallback,
+            returnEffectiveFrom ? formatDate(returnEffectiveFrom) : null,
+          );
+  const name = assignment?.employeeFullName?.trim();
+
+  return (
+    <Alert variant="info" data-testid="operators-sheet-focus-notice">
+      <Info className="h-4 w-4" />
+      {focused.status !== "missing" ? (
+        <AlertTitle>{name ? noticeCopy.title(name) : noticeCopy.untitled}</AlertTitle>
+      ) : null}
+      <AlertDescription className="space-y-3">
+        <p>{description}</p>
+        <div className="flex flex-wrap gap-2">
+          {onReturnToBatch ? (
+            <Button type="button" size="sm" onClick={onReturnToBatch}>
+              {origin ? noticeCopy.returnTo(origin) : noticeCopy.returnFallback}
+            </Button>
+          ) : null}
+          {onDismissFocus ? (
+            <Button type="button" size="sm" variant="outline" onClick={onDismissFocus}>
+              {noticeCopy.dismiss}
+            </Button>
+          ) : null}
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 export function TemplateOperatorsSheet({
@@ -41,22 +121,36 @@ export function TemplateOperatorsSheet({
   paymentPeriodEnd,
   onAssignmentsChange,
   onBatchSuccess,
+  focusAssignmentId,
+  returnTemplateId,
+  returnEffectiveFrom,
+  onReturnToBatch,
+  onDismissFocus,
+  onOpenBlockingAssignment,
 }: TemplateOperatorsSheetProps) {
   const [batchOpen, setBatchOpen] = useState(false);
 
-  useEffect(() => {
-    if (!open) {
-      setBatchOpen(false);
-      return;
-    }
-    if (batchInitialEmployeeIds?.length) {
-      setBatchOpen(true);
-    }
-  }, [open, batchInitialEmployeeIds]);
+  // Otra plantilla u otros operadores iniciales = otra sesión del lote (TEC T5).
+  const batchInitialIdsKey = batchInitialEmployeeIds?.join(",") ?? "";
+  const batchSessionKey = open && template ? `${template.id}|${batchInitialIdsKey}` : null;
+  const [seenBatchSessionKey, setSeenBatchSessionKey] = useState<string | null>(null);
+  if (seenBatchSessionKey !== batchSessionKey) {
+    setSeenBatchSessionKey(batchSessionKey);
+    setBatchOpen(Boolean(batchSessionKey && batchInitialIdsKey));
+  }
+
+  const focused = useFocusedTemplateAssignment(
+    open ? template?.id : undefined,
+    focusAssignmentId,
+  );
+  const { data: returnTemplate } = useCompensationTemplate(
+    open ? returnTemplateId : undefined,
+  );
 
   if (!template) return null;
 
   const displayStatus = getTemplateDisplayStatus(template);
+  const showFocusNotice = Boolean(returnTemplateId) || focused.status === "missing";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -73,6 +167,15 @@ export function TemplateOperatorsSheet({
           <SheetDescription>{copy.description}</SheetDescription>
         </SheetHeader>
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+          {showFocusNotice ? (
+            <FocusNotice
+              focused={focused}
+              returnTemplate={returnTemplateId ? returnTemplate : undefined}
+              returnEffectiveFrom={returnEffectiveFrom}
+              onReturnToBatch={returnTemplateId ? onReturnToBatch : undefined}
+              onDismissFocus={onDismissFocus}
+            />
+          ) : null}
           {displayStatus === "superseded" ? (
             <Alert variant="info" data-testid="operators-sheet-version-notice">
               <History className="h-4 w-4" />
@@ -96,6 +199,8 @@ export function TemplateOperatorsSheet({
             paymentPeriodEnd={paymentPeriodEnd}
             onAssignmentsChange={onAssignmentsChange}
             onBatchSuccess={onBatchSuccess}
+            focusAssignmentId={focusAssignmentId}
+            onOpenBlockingAssignment={onOpenBlockingAssignment}
           />
         </div>
       </SheetContent>

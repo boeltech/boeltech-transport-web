@@ -18,6 +18,7 @@ import {
   resolveLegacyAgreementsPath,
   withBatchCompleted,
   withBlockingAssignmentFocus,
+  withFocusDismissed,
   withOperatorsClosed,
   withReturnToBatch,
   withSameTemplateFocus,
@@ -226,6 +227,21 @@ describe("compensationRoutes — lote y enlace a la asignación que bloquea (api
     expect(entries(withOperatorsClosed(batchOpenOn("tpl-v2")))).toEqual(entries(fromPayables));
   });
 
+  it("«Listo»: quita foco y regreso; deja abierto el sheet destino y Por pagar", () => {
+    const there = withBlockingAssignmentFocus(batchOpenOn("tpl-v2"), {
+      targetTemplateId: "tpl-v1",
+      assignmentId: "asg-fernando",
+      returnTemplateId: "tpl-v2",
+      returnEmployeeIds: ["emp-1"],
+      returnEffectiveFrom: "2026-09-01",
+    });
+
+    expect(entries(withFocusDismissed(there))).toEqual({
+      ...entries(fromPayables),
+      operators: "tpl-v1",
+    });
+  });
+
   it("lote completo con éxito: además quita el contexto de Por pagar", () => {
     const params = batchOpenOn("tpl-v2");
     params.set("focus", "asg-1");
@@ -240,6 +256,7 @@ describe("compensationRoutes — lote y enlace a la asignación que bloquea (api
     withBatchCompleted(params);
     withSameTemplateFocus(params, "asg-1");
     withReturnToBatch(params);
+    withFocusDismissed(params);
     expect(params.toString()).toBe(before);
   });
 });

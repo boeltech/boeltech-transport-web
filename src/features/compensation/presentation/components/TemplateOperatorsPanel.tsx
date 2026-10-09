@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Users } from "lucide-react";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
@@ -6,8 +6,16 @@ import { getTodayString } from "@shared/utils/dateUtils";
 import { useTemplateAssignments } from "../../application/hooks";
 import type { CompensationTemplate, TemplateAssignment } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
+import {
+  TEMPLATE_OPERATORS_PAGE_SIZE,
+  useFocusedTemplateAssignment,
+} from "../hooks/useFocusedTemplateAssignment";
 import { getAssignmentDisplayStatus } from "../utils/getAssignmentDisplayStatus";
-import { TemplateAssignmentBatchSheet } from "./TemplateAssignmentBatchSheet";
+import type { BatchConflictLink } from "../utils/resolveBatchConflictView";
+import {
+  TemplateAssignmentBatchSheet,
+  type BatchAssignmentFormSnapshot,
+} from "./TemplateAssignmentBatchSheet";
 import { TemplateAssignmentsTable } from "./TemplateAssignmentsTable";
 
 const copy = compensationCopy.templateDetail;
@@ -45,6 +53,13 @@ interface TemplateOperatorsPanelProps {
   onAssignmentsChange?: () => void;
   /** Lote con todos asignados: cierre en cascada / limpieza de deep-link (lista Tarifas). */
   onBatchSuccess?: () => void;
+  /** Asignación a resaltar (`focus`, PRD D20). */
+  focusAssignmentId?: string;
+  /** Enlace a la asignación que bloquea (PRD D18); el lote se cierra antes de navegar. */
+  onOpenBlockingAssignment?: (
+    link: BatchConflictLink,
+    form: BatchAssignmentFormSnapshot,
+  ) => void;
   className?: string;
 }
 
@@ -60,6 +75,8 @@ export function TemplateOperatorsPanel({
   paymentPeriodEnd,
   onAssignmentsChange,
   onBatchSuccess,
+  focusAssignmentId,
+  onOpenBlockingAssignment,
   className,
 }: TemplateOperatorsPanelProps) {
   const [internalBatchOpen, setInternalBatchOpen] = useState(false);
@@ -72,10 +89,28 @@ export function TemplateOperatorsPanel({
     data: assignmentsData,
     isLoading: assignmentsLoading,
     refetch: refetchAssignments,
-  } = useTemplateAssignments({ templateId: template.id, pageSize: 100 });
+  } = useTemplateAssignments({ templateId: template.id, pageSize: TEMPLATE_OPERATORS_PAGE_SIZE });
+  const focused = useFocusedTemplateAssignment(template.id, focusAssignmentId);
 
-  const assignments = assignmentsData?.data ?? [];
-  const summary = buildAssignmentsSummary(template, assignments);
+  const pageAssignments = assignmentsData?.data;
+  const outOfPageFocused =
+    focused.status === "found" && !focused.inPage ? focused.assignment : null;
+  const assignments = useMemo(() => {
+    const rows = pageAssignments ?? [];
+    return outOfPageFocused ? [...rows, outOfPageFocused] : rows;
+  }, [pageAssignments, outOfPageFocused]);
+  const summary = buildAssignmentsSummary(template, pageAssignments ?? []);
+
+  const handleOpenBlockingAssignment = useMemo(
+    () =>
+      onOpenBlockingAssignment
+        ? (link: BatchConflictLink, form: BatchAssignmentFormSnapshot) => {
+            setBatchOpen(false);
+            onOpenBlockingAssignment(link, form);
+          }
+        : undefined,
+    [onOpenBlockingAssignment, setBatchOpen],
+  );
 
   const handleActionComplete = useCallback(() => {
     void refetchAssignments();
@@ -125,6 +160,7 @@ export function TemplateOperatorsPanel({
           assignments={assignments}
           fixedAllowances={template.fixedAllowances}
           isLoading={assignmentsLoading}
+          focusedAssignmentId={focused.status === "found" ? focused.assignment.id : undefined}
           onActionComplete={handleActionComplete}
         />
       </div>
@@ -139,6 +175,7 @@ export function TemplateOperatorsPanel({
         paymentPeriodEnd={paymentPeriodEnd}
         onAssignmentsCreated={handleActionComplete}
         onSuccess={onBatchSuccess}
+        onOpenBlockingAssignment={handleOpenBlockingAssignment}
       />
     </div>
   );

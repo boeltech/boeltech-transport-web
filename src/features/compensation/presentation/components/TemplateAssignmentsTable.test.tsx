@@ -6,7 +6,11 @@ import type { TemplateAssignment } from "../../domain/entities";
 import { TemplateAssignmentsTable } from "./TemplateAssignmentsTable";
 
 vi.mock("./TemplateAssignmentActions", () => ({
-  TemplateAssignmentActions: () => null,
+  TemplateAssignmentActions: ({ assignment }: { assignment: TemplateAssignment }) => (
+    <button type="button" data-assignment-menu-trigger>
+      Acciones de {assignment.employeeFullName}
+    </button>
+  ),
 }));
 
 vi.mock("./FixedAllowanceOverridePanel", () => ({
@@ -31,9 +35,14 @@ function makeAssignment(overrides: Partial<TemplateAssignment>): TemplateAssignm
   };
 }
 
-function renderTable(assignments: TemplateAssignment[]) {
+function renderTable(assignments: TemplateAssignment[], focusedAssignmentId?: string) {
   render(
-    <TemplateAssignmentsTable assignments={assignments} fixedAllowances={[]} isLoading={false} />,
+    <TemplateAssignmentsTable
+      assignments={assignments}
+      fixedAllowances={[]}
+      isLoading={false}
+      focusedAssignmentId={focusedAssignmentId}
+    />,
   );
 }
 
@@ -125,5 +134,44 @@ describe("TemplateAssignmentsTable", () => {
         name: `Empieza a cobrar con esta versión el ${formatDate("2026-11-01")}.`,
       }),
     ).toBeInTheDocument();
+  });
+
+  describe("D20: asignación enfocada", () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+
+    beforeEach(() => {
+      scrollIntoView.mockClear();
+      Element.prototype.scrollIntoView = scrollIntoView;
+    });
+
+    afterEach(() => {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    });
+
+    const assignments = [
+      makeAssignment({ id: "a", employeeFullName: "Ana Ruiz" }),
+      makeAssignment({ id: "b", employeeFullName: "Beto Díaz", effectiveFrom: "2026-07-01" }),
+    ];
+
+    it("resalta la fila, la lleva a la vista y pone el foco en su «···»", () => {
+      renderTable(assignments, "b");
+
+      const focused = bodyRows().filter((row) => row.getAttribute("data-focused") === "true");
+      expect(focused).toHaveLength(1);
+      expect(focused[0]).toHaveTextContent("Beto Díaz");
+      expect(focused[0]).toHaveClass("bg-accent");
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView.mock.contexts[0]).toBe(focused[0]);
+      expect(within(focused[0]).getByRole("button", { name: "Acciones de Beto Díaz" })).toHaveFocus();
+    });
+
+    it("sin foco en la URL no resalta ni mueve el foco", () => {
+      renderTable(assignments);
+
+      expect(bodyRows().some((row) => row.hasAttribute("data-focused"))).toBe(false);
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(document.body).toHaveFocus();
+    });
   });
 });

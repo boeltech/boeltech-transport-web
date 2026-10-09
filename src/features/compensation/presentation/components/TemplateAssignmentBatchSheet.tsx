@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, AlertTriangle, X } from "lucide-react";
@@ -231,14 +231,19 @@ export function TemplateAssignmentBatchSheet({
     [setValue],
   );
 
+  /** Al cerrar por el enlace, el foco va a la fila resaltada (D20), no al botón que abrió el lote. */
+  const skipCloseAutoFocusRef = useRef(false);
+
   const handleOpenLink = useMemo(
     () =>
       onOpenBlockingAssignment
-        ? (link: BatchConflictLink) =>
+        ? (link: BatchConflictLink) => {
+            skipCloseAutoFocusRef.current = true;
             onOpenBlockingAssignment(link, {
               employeeIds: getValues("employeeIds"),
               effectiveFrom: getValues("effectiveFrom"),
-            })
+            });
+          }
         : undefined,
     [getValues, onOpenBlockingAssignment],
   );
@@ -328,6 +333,11 @@ export function TemplateAssignmentBatchSheet({
         side="right"
         className="w-full sm:max-w-lg p-0 flex flex-col h-full bg-background"
         onFocusOutside={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => {
+          if (!skipCloseAutoFocusRef.current) return;
+          skipCloseAutoFocusRef.current = false;
+          event.preventDefault();
+        }}
       >
         <SheetHeader className="px-6 py-4 border-b bg-card shrink-0">
           <SheetTitle className="text-lg font-semibold text-foreground">{copy.batchTitle}</SheetTitle>

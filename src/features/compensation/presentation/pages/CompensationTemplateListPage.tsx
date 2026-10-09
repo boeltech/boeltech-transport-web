@@ -24,13 +24,19 @@ import {
   parseAssignEmployeeIds,
   TEMPLATE_OPERATORS_PARAMS,
   withBatchCompleted,
+  withBlockingAssignmentFocus,
+  withFocusDismissed,
   withOperatorsClosed,
+  withReturnToBatch,
+  withSameTemplateFocus,
 } from "../../application/compensationRoutes";
 import { compensationCopy } from "../copy/compensationCopy";
 import {
   CompensationTemplatesTable,
   TemplateOperatorsSheet,
 } from "../components";
+import type { BatchAssignmentFormSnapshot } from "../components/TemplateAssignmentBatchSheet";
+import type { BatchConflictLink } from "../utils/resolveBatchConflictView";
 import { TariffPresetSelector } from "../components/TariffPresetSelector";
 import { useRegisterCompensationHubCreateAction } from "../hooks/useRegisterCompensationHubCreateAction";
 
@@ -56,6 +62,12 @@ export function CompensationTemplateListPage() {
     searchParams.get(TEMPLATE_OPERATORS_PARAMS.assignFrom)?.trim() || undefined;
   const paymentPeriodStart = searchParams.get("periodStart")?.trim() || undefined;
   const paymentPeriodEnd = searchParams.get("periodEnd")?.trim() || undefined;
+  const focusAssignmentId =
+    searchParams.get(TEMPLATE_OPERATORS_PARAMS.focus)?.trim() || undefined;
+  const returnTemplateId =
+    searchParams.get(TEMPLATE_OPERATORS_PARAMS.returnTo)?.trim() || undefined;
+  const returnEffectiveFrom =
+    searchParams.get(TEMPLATE_OPERATORS_PARAMS.returnFrom)?.trim() || undefined;
   const isDesktop = !useMediaQuery("(max-width: 1023px)");
 
   const { toast } = useToast();
@@ -150,12 +162,54 @@ export function CompensationTemplateListPage() {
     setSearchParams(withOperatorsClosed, { replace: true });
   }, [setSearchParams]);
 
+  /** Versión abierta por `focus`: tras «Listo» sigue sin abrir el lote del banner (D23). */
+  const [focusedTemplateId, setFocusedTemplateId] = useState<string | null>(null);
+  if (focusAssignmentId && operatorsTemplateId !== focusedTemplateId) {
+    setFocusedTemplateId(operatorsTemplateId);
+  } else if (!focusAssignmentId && focusedTemplateId && operatorsTemplateId !== focusedTemplateId) {
+    setFocusedTemplateId(null);
+  }
+  const suppressPendingBatch =
+    Boolean(focusAssignmentId) || (focusedTemplateId !== null && operatorsTemplateId === focusedTemplateId);
+
   /** Por texto de la URL: un arreglo nuevo en cada render reabriría o reiniciaría el lote. */
   const batchInitialEmployeeIds = useMemo(() => {
     const assignIds = parseAssignEmployeeIds(assignRaw);
     if (assignIds.length > 0) return assignIds;
+    if (suppressPendingBatch) return undefined;
     return pendingEmployeeId && operatorsTemplateId ? [pendingEmployeeId] : undefined;
-  }, [assignRaw, pendingEmployeeId, operatorsTemplateId]);
+  }, [assignRaw, suppressPendingBatch, pendingEmployeeId, operatorsTemplateId]);
+
+  const openBlockingAssignment = useCallback(
+    (link: BatchConflictLink, form: BatchAssignmentFormSnapshot) => {
+      setSearchParams(
+        (prev) => {
+          if (link.type === "same-template") {
+            return withSameTemplateFocus(prev, link.assignmentId);
+          }
+          const originTemplateId = prev.get(TEMPLATE_OPERATORS_PARAMS.operators)?.trim();
+          if (!originTemplateId) return prev;
+          return withBlockingAssignmentFocus(prev, {
+            targetTemplateId: link.templateId,
+            assignmentId: link.assignmentId,
+            returnTemplateId: originTemplateId,
+            returnEmployeeIds: form.employeeIds,
+            returnEffectiveFrom: form.effectiveFrom,
+          });
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const returnToBatch = useCallback(() => {
+    setSearchParams(withReturnToBatch, { replace: true });
+  }, [setSearchParams]);
+
+  const dismissFocus = useCallback(() => {
+    setSearchParams(withFocusDismissed, { replace: true });
+  }, [setSearchParams]);
 
   const handleOperatorsOpenChange = useCallback(
     (open: boolean) => {
@@ -320,6 +374,12 @@ export function CompensationTemplateListPage() {
         paymentPeriodEnd={paymentPeriodEnd}
         onAssignmentsChange={() => void refetch()}
         onBatchSuccess={handleBatchSuccess}
+        focusAssignmentId={focusAssignmentId}
+        returnTemplateId={returnTemplateId}
+        returnEffectiveFrom={returnEffectiveFrom}
+        onReturnToBatch={returnToBatch}
+        onDismissFocus={dismissFocus}
+        onOpenBlockingAssignment={openBlockingAssignment}
       />
 
       <TariffPresetSelector
