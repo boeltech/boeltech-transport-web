@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  mapBatchConflict,
+  mapBatchConflictFromApi,
+  mapBatchPreviewFromApi,
+  mapBatchResultFromApi,
   mapCorridor,
   mapCorridorFromApi,
   mapFrequentCityPair,
@@ -285,6 +289,271 @@ describe("compensation mappers", () => {
 
       expect(mapped).not.toHaveProperty("lockedReason");
       expect(mapped).not.toHaveProperty("inactiveReason");
+    });
+  });
+
+  describe("api#63 — conflictos del lote, vista previa y programadas", () => {
+    const templateBase = {
+      id: "tpl-v2",
+      name: "Operador Foráneo Estándar",
+      description: null,
+      is_active: true,
+      rules: [],
+      fixed_allowances: [],
+      corridor_ids: [],
+      corridors: [],
+      active_assignments_count: 2,
+    };
+
+    it("mapTemplate y mapTemplateFromApi leen scheduled_assignments_count", () => {
+      expect(
+        mapTemplate({ ...templateBase, scheduled_assignments_count: 1 }).scheduledAssignmentsCount,
+      ).toBe(1);
+      expect(
+        mapTemplateFromApi({
+          id: "tpl-v2",
+          name: "Operador Foráneo Estándar",
+          description: null,
+          isActive: true,
+          rules: [],
+          fixedAllowances: [],
+          corridorIds: [],
+          corridors: [],
+          activeAssignmentsCount: 2,
+          scheduledAssignmentsCount: 0,
+        }).scheduledAssignmentsCount,
+      ).toBe(0);
+    });
+
+    it("plantilla sin scheduled (API anterior) → undefined, no 0", () => {
+      expect(mapTemplate(templateBase).scheduledAssignmentsCount).toBeUndefined();
+      expect(
+        mapTemplateFromApi({
+          id: "tpl-v2",
+          name: "Operador Foráneo Estándar",
+          description: null,
+          isActive: true,
+          rules: [],
+          fixedAllowances: [],
+          corridorIds: [],
+          corridors: [],
+        }).scheduledAssignmentsCount,
+      ).toBeUndefined();
+    });
+
+    const fullConflictSnake = {
+      employee_id: "emp-fernando",
+      code: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+      message: "No se puede cerrar la asignación anterior: …",
+      reason: "previous_starts_on_or_after",
+      employee_full_name: "Fernando Castillo",
+      existing_assignment_id: "asg-v1",
+      existing_template_id: "tpl-v1",
+      existing_template_name: "Operador Foráneo Estándar",
+      existing_template_version: 1,
+      existing_effective_from: "2026-09-01",
+      existing_effective_to: "2026-10-06",
+      close_previous_on: null,
+      suggested_effective_from: "2026-10-07",
+    };
+
+    const fullConflictMapped = {
+      employeeId: "emp-fernando",
+      code: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+      message: "No se puede cerrar la asignación anterior: …",
+      reason: "previous_starts_on_or_after",
+      employeeFullName: "Fernando Castillo",
+      existingAssignmentId: "asg-v1",
+      existingTemplateId: "tpl-v1",
+      existingTemplateName: "Operador Foráneo Estándar",
+      existingTemplateVersion: 1,
+      existingEffectiveFrom: "2026-09-01",
+      existingEffectiveTo: "2026-10-06",
+      closePreviousOn: null,
+      suggestedEffectiveFrom: "2026-10-07",
+    };
+
+    it("conflicto completo: snake y camel dan lo mismo", () => {
+      expect(mapBatchConflict(fullConflictSnake)).toEqual(fullConflictMapped);
+      expect(
+        mapBatchConflictFromApi({
+          employeeId: "emp-fernando",
+          code: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+          message: "No se puede cerrar la asignación anterior: …",
+          reason: "previous_starts_on_or_after",
+          employeeFullName: "Fernando Castillo",
+          existingAssignmentId: "asg-v1",
+          existingTemplateId: "tpl-v1",
+          existingTemplateName: "Operador Foráneo Estándar",
+          existingTemplateVersion: 1,
+          existingEffectiveFrom: "2026-09-01",
+          existingEffectiveTo: "2026-10-06",
+          closePreviousOn: null,
+          suggestedEffectiveFrom: "2026-10-07",
+        }),
+      ).toEqual(fullConflictMapped);
+    });
+
+    it("conflicto de días liquidados con liquidaciones que bloquean", () => {
+      const mapped = mapBatchConflict({
+        employee_id: "emp-1",
+        code: "ASSIGNMENT_PERIOD_SETTLED",
+        message: "La liquidación LIQ-0012 …",
+        reason: "period_settled",
+        existing_assignment_id: null,
+        existing_template_id: null,
+        blocking_settlements: [
+          {
+            settlement_id: "set-1",
+            settlement_number: "LIQ-0012",
+            status: "approved",
+            period_start: "2026-09-01",
+            period_end: "2026-09-15",
+          },
+        ],
+        blocking_settlements_total: 1,
+        min_effective_to: "2026-09-15",
+        suggested_effective_from: "2026-09-16",
+      });
+
+      expect(mapped.reason).toBe("period_settled");
+      expect(mapped.existingAssignmentId).toBeNull();
+      expect(mapped.existingTemplateId).toBeNull();
+      expect(mapped.blockingSettlements).toEqual([
+        {
+          settlementId: "set-1",
+          settlementNumber: "LIQ-0012",
+          status: "approved",
+          periodStart: "2026-09-01",
+          periodEnd: "2026-09-15",
+        },
+      ]);
+      expect(mapped.blockingSettlementsTotal).toBe(1);
+      expect(mapped.minEffectiveTo).toBe("2026-09-15");
+      expect(mapped.suggestedEffectiveFrom).toBe("2026-09-16");
+    });
+
+    it("conflicto vacío (API anterior): campos nuevos → undefined", () => {
+      const mapped = mapBatchConflict({ employee_id: "emp-1", code: "OVERLAPPING_ACTIVE_ASSIGNMENT" });
+
+      expect(mapped).toEqual({ employeeId: "emp-1", code: "OVERLAPPING_ACTIVE_ASSIGNMENT" });
+      for (const key of [
+        "message",
+        "reason",
+        "employeeFullName",
+        "existingAssignmentId",
+        "existingTemplateId",
+        "existingTemplateName",
+        "existingTemplateVersion",
+        "existingEffectiveFrom",
+        "existingEffectiveTo",
+        "closePreviousOn",
+        "suggestedEffectiveFrom",
+        "blockingSettlements",
+        "blockingSettlementsTotal",
+        "minEffectiveTo",
+      ] as const) {
+        expect(mapped[key]).toBeUndefined();
+      }
+    });
+
+    it("un reason desconocido se trata como ausente", () => {
+      expect(
+        mapBatchConflict({ ...fullConflictSnake, reason: "ASSIGNMENT_PERIOD_SETTLED" }).reason,
+      ).toBeUndefined();
+    });
+
+    it("mapBatchResultFromApi conserva los campos nuevos de cada conflicto", () => {
+      const result = mapBatchResultFromApi({
+        createdCount: 0,
+        skippedCount: 1,
+        conflicts: [
+          {
+            employeeId: "emp-fernando",
+            code: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+            reason: "overlap_close_disabled",
+            closePreviousOn: "2026-09-14",
+          },
+        ],
+        created: [],
+      });
+
+      expect(result.conflicts[0]).toMatchObject({
+        reason: "overlap_close_disabled",
+        closePreviousOn: "2026-09-14",
+      });
+    });
+
+    it("mapBatchPreviewFromApi convierte operadores, conflictos y cierres", () => {
+      const preview = mapBatchPreviewFromApi({
+        wouldCreateCount: 1,
+        wouldSkipCount: 1,
+        employees: [
+          { employeeId: "emp-1", employeeFullName: "Ana López", outcome: "create" },
+          { employeeId: "emp-fernando", employeeFullName: null, outcome: "skip" },
+        ],
+        conflicts: [
+          {
+            employeeId: "emp-fernando",
+            code: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+            reason: "previous_starts_on_or_after",
+            existingTemplateVersion: 1,
+          },
+        ],
+        closures: [
+          {
+            employeeId: "emp-1",
+            employeeFullName: "Ana López",
+            assignmentId: "asg-ana-v1",
+            templateId: "tpl-v1",
+            templateName: "Operador Foráneo Estándar",
+            templateVersion: 1,
+            effectiveFrom: "2026-08-01",
+            effectiveTo: null,
+            closeTo: "2026-08-31",
+          },
+        ],
+      });
+
+      expect(preview).toEqual({
+        wouldCreateCount: 1,
+        wouldSkipCount: 1,
+        employees: [
+          { employeeId: "emp-1", employeeFullName: "Ana López", outcome: "create" },
+          { employeeId: "emp-fernando", employeeFullName: null, outcome: "skip" },
+        ],
+        conflicts: [
+          {
+            employeeId: "emp-fernando",
+            code: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+            reason: "previous_starts_on_or_after",
+            existingTemplateVersion: 1,
+          },
+        ],
+        closures: [
+          {
+            employeeId: "emp-1",
+            employeeFullName: "Ana López",
+            assignmentId: "asg-ana-v1",
+            templateId: "tpl-v1",
+            templateName: "Operador Foráneo Estándar",
+            templateVersion: 1,
+            effectiveFrom: "2026-08-01",
+            effectiveTo: null,
+            closeTo: "2026-08-31",
+          },
+        ],
+      });
+    });
+
+    it("vista previa sin listas → arreglos vacíos", () => {
+      expect(mapBatchPreviewFromApi({ wouldCreateCount: 0, wouldSkipCount: 0 })).toEqual({
+        wouldCreateCount: 0,
+        wouldSkipCount: 0,
+        employees: [],
+        conflicts: [],
+        closures: [],
+      });
     });
   });
 

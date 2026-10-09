@@ -88,9 +88,33 @@ export const COMPENSATION_TEMPLATE_EVENT_ACTION_LABELS: Record<
   metadata_updated: "Datos actualizados",
 };
 
+/** Tope de operadores por lote y por vista previa (la API responde 400 arriba de esto). */
+export const BATCH_ASSIGNMENT_MAX_EMPLOYEES = 100;
+
+/** Causa de un operador omitido en el lote de asignaciones (api#63). */
+export type BatchAssignmentConflictReason =
+  | "overlap_close_disabled"
+  | "previous_starts_on_or_after"
+  | "period_settled";
+
+export const BATCH_ASSIGNMENT_CONFLICT_REASONS: readonly BatchAssignmentConflictReason[] = [
+  "overlap_close_disabled",
+  "previous_starts_on_or_after",
+  "period_settled",
+];
+
+/** Estado de una liquidación que congela días de asignación (api#62). */
+export type AssignmentBlockingSettlementStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "disbursed";
+
 export const COMPENSATION_ERROR_CODES = {
   TEMPLATE_CONFIG_LOCKED: "TEMPLATE_CONFIG_LOCKED",
   TEMPLATE_INVALID_STATUS_TRANSITION: "TEMPLATE_INVALID_STATUS_TRANSITION",
   TEMPLATE_NOT_ACTIVATABLE: "TEMPLATE_NOT_ACTIVATABLE",
   TEMPLATE_IN_USE: "TEMPLATE_IN_USE",
+  OVERLAPPING_ACTIVE_ASSIGNMENT: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+  ASSIGNMENT_PERIOD_SETTLED: "ASSIGNMENT_PERIOD_SETTLED",
 } as const;

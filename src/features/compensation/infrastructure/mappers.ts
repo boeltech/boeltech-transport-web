@@ -5,18 +5,24 @@ import type {
   TripRouteType,
 } from "@features/settlements";
 import { DEFAULT_MID_TRIP_PAYOUT_POLICY } from "@features/settlements/domain/enums";
-import type {
-  CorridorRefType,
-  CompensationTemplateEventAction,
-  CompensationTemplateInactiveReason,
-  CompensationTemplateLockedReason,
-  CompensationTemplateStatus,
-  FixedAllowancePeriod,
-  FixedAllowanceType,
-  TemplateDeductionType,
+import {
+  BATCH_ASSIGNMENT_CONFLICT_REASONS,
+  type AssignmentBlockingSettlementStatus,
+  type BatchAssignmentConflictReason,
+  type CorridorRefType,
+  type CompensationTemplateEventAction,
+  type CompensationTemplateInactiveReason,
+  type CompensationTemplateLockedReason,
+  type CompensationTemplateStatus,
+  type FixedAllowancePeriod,
+  type FixedAllowanceType,
+  type TemplateDeductionType,
 } from "../domain/enums";
 import type {
+  AssignmentBlockingSettlement,
   BatchAssignmentConflict,
+  BatchAssignmentPlannedClosure,
+  BatchAssignmentPreview,
   BatchAssignmentResult,
   CompensationTemplate,
   CompensationTemplateEvent,
@@ -102,6 +108,7 @@ export interface ApiCompensationTemplateRaw {
   corridor_ids: string[];
   corridors: ApiRouteCorridorTariffRaw[];
   active_assignments_count?: number;
+  scheduled_assignments_count?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -122,11 +129,31 @@ export interface ApiTemplateAssignmentRaw {
   updated_at?: string;
 }
 
+export interface ApiAssignmentBlockingSettlementRaw {
+  settlement_id: string;
+  settlement_number: string;
+  status: string;
+  period_start: string;
+  period_end: string;
+}
+
 export interface ApiBatchAssignmentConflictRaw {
   employee_id: string;
   code: string;
-  existing_assignment_id?: string;
   message?: string;
+  reason?: string;
+  employee_full_name?: string | null;
+  existing_assignment_id?: string | null;
+  existing_template_id?: string | null;
+  existing_template_name?: string | null;
+  existing_template_version?: number | null;
+  existing_effective_from?: string | null;
+  existing_effective_to?: string | null;
+  close_previous_on?: string | null;
+  suggested_effective_from?: string | null;
+  blocking_settlements?: ApiAssignmentBlockingSettlementRaw[];
+  blocking_settlements_total?: number;
+  min_effective_to?: string | null;
 }
 
 export interface ApiBatchAssignmentResultRaw {
@@ -275,6 +302,7 @@ export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTempla
     corridorIds: raw.corridor_ids ?? [],
     corridors: (raw.corridors ?? []).map(mapCorridor),
     activeAssignmentsCount: raw.active_assignments_count ?? 0,
+    scheduledAssignmentsCount: raw.scheduled_assignments_count,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -324,12 +352,7 @@ export function mapFixedAllowanceOverride(
 }
 
 export function mapBatchConflict(raw: ApiBatchAssignmentConflictRaw): BatchAssignmentConflict {
-  return {
-    employeeId: raw.employee_id,
-    code: raw.code,
-    existingAssignmentId: raw.existing_assignment_id,
-    message: raw.message,
-  };
+  return mapBatchConflictFromApi(deepToCamel(raw) as ApiBatchAssignmentConflictCamel);
 }
 
 export function mapBatchResult(raw: ApiBatchAssignmentResultRaw): BatchAssignmentResult {
@@ -415,6 +438,7 @@ export interface ApiCompensationTemplateCamel {
   corridorIds: string[];
   corridors: ApiRouteCorridorTariffCamel[];
   activeAssignmentsCount?: number;
+  scheduledAssignmentsCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -449,11 +473,31 @@ export interface ApiTemplateAssignmentCamel {
   updatedAt?: string;
 }
 
+export interface ApiAssignmentBlockingSettlementCamel {
+  settlementId: string;
+  settlementNumber: string;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
 export interface ApiBatchAssignmentConflictCamel {
   employeeId: string;
   code: string;
-  existingAssignmentId?: string;
   message?: string;
+  reason?: string;
+  employeeFullName?: string | null;
+  existingAssignmentId?: string | null;
+  existingTemplateId?: string | null;
+  existingTemplateName?: string | null;
+  existingTemplateVersion?: number | null;
+  existingEffectiveFrom?: string | null;
+  existingEffectiveTo?: string | null;
+  closePreviousOn?: string | null;
+  suggestedEffectiveFrom?: string | null;
+  blockingSettlements?: ApiAssignmentBlockingSettlementCamel[];
+  blockingSettlementsTotal?: number;
+  minEffectiveTo?: string | null;
 }
 
 export interface ApiBatchAssignmentResultCamel {
@@ -461,6 +505,32 @@ export interface ApiBatchAssignmentResultCamel {
   skippedCount: number;
   conflicts: ApiBatchAssignmentConflictCamel[];
   created: ApiTemplateAssignmentCamel[];
+}
+
+export interface ApiBatchAssignmentPlannedClosureCamel {
+  employeeId: string;
+  employeeFullName?: string | null;
+  assignmentId: string;
+  templateId: string;
+  templateName: string;
+  templateVersion: number;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  closeTo: string;
+}
+
+export interface ApiBatchAssignmentPreviewEmployeeCamel {
+  employeeId: string;
+  employeeFullName?: string | null;
+  outcome: string;
+}
+
+export interface ApiBatchAssignmentPreviewCamel {
+  wouldCreateCount: number;
+  wouldSkipCount: number;
+  employees?: ApiBatchAssignmentPreviewEmployeeCamel[];
+  conflicts?: ApiBatchAssignmentConflictCamel[];
+  closures?: ApiBatchAssignmentPlannedClosureCamel[];
 }
 
 export interface ApiFixedAllowanceOverrideCamel {
@@ -570,6 +640,7 @@ export function mapTemplateFromApi(raw: ApiCompensationTemplateCamel): Compensat
     corridorIds: raw.corridorIds ?? [],
     corridors: (raw.corridors ?? []).map(mapCorridorFromApi),
     activeAssignmentsCount: raw.activeAssignmentsCount ?? 0,
+    scheduledAssignmentsCount: raw.scheduledAssignmentsCount,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -624,14 +695,45 @@ export function mapFixedAllowanceOverrideFromApi(
   };
 }
 
+/** Un motivo desconocido se trata como ausente: la web cae al mensaje de la API. */
+function resolveBatchConflictReason(
+  value: string | undefined,
+): BatchAssignmentConflictReason | undefined {
+  return BATCH_ASSIGNMENT_CONFLICT_REASONS.find((reason) => reason === value);
+}
+
+export function mapBlockingSettlementFromApi(
+  raw: ApiAssignmentBlockingSettlementCamel,
+): AssignmentBlockingSettlement {
+  return {
+    settlementId: raw.settlementId,
+    settlementNumber: raw.settlementNumber,
+    status: raw.status as AssignmentBlockingSettlementStatus,
+    periodStart: raw.periodStart,
+    periodEnd: raw.periodEnd,
+  };
+}
+
 export function mapBatchConflictFromApi(
   raw: ApiBatchAssignmentConflictCamel,
 ): BatchAssignmentConflict {
   return {
     employeeId: raw.employeeId,
     code: raw.code,
-    existingAssignmentId: raw.existingAssignmentId,
     message: raw.message,
+    reason: resolveBatchConflictReason(raw.reason),
+    employeeFullName: raw.employeeFullName,
+    existingAssignmentId: raw.existingAssignmentId,
+    existingTemplateId: raw.existingTemplateId,
+    existingTemplateName: raw.existingTemplateName,
+    existingTemplateVersion: raw.existingTemplateVersion,
+    existingEffectiveFrom: raw.existingEffectiveFrom,
+    existingEffectiveTo: raw.existingEffectiveTo,
+    closePreviousOn: raw.closePreviousOn,
+    suggestedEffectiveFrom: raw.suggestedEffectiveFrom,
+    blockingSettlements: raw.blockingSettlements?.map(mapBlockingSettlementFromApi),
+    blockingSettlementsTotal: raw.blockingSettlementsTotal,
+    minEffectiveTo: raw.minEffectiveTo,
   };
 }
 
@@ -641,6 +743,38 @@ export function mapBatchResultFromApi(raw: ApiBatchAssignmentResultCamel): Batch
     skippedCount: raw.skippedCount,
     conflicts: (raw.conflicts ?? []).map(mapBatchConflictFromApi),
     created: (raw.created ?? []).map(mapAssignmentFromApi),
+  };
+}
+
+export function mapPlannedClosureFromApi(
+  raw: ApiBatchAssignmentPlannedClosureCamel,
+): BatchAssignmentPlannedClosure {
+  return {
+    employeeId: raw.employeeId,
+    employeeFullName: raw.employeeFullName ?? null,
+    assignmentId: raw.assignmentId,
+    templateId: raw.templateId,
+    templateName: raw.templateName,
+    templateVersion: raw.templateVersion,
+    effectiveFrom: raw.effectiveFrom,
+    effectiveTo: raw.effectiveTo ?? null,
+    closeTo: raw.closeTo,
+  };
+}
+
+export function mapBatchPreviewFromApi(
+  raw: ApiBatchAssignmentPreviewCamel,
+): BatchAssignmentPreview {
+  return {
+    wouldCreateCount: raw.wouldCreateCount,
+    wouldSkipCount: raw.wouldSkipCount,
+    employees: (raw.employees ?? []).map((employee) => ({
+      employeeId: employee.employeeId,
+      employeeFullName: employee.employeeFullName ?? null,
+      outcome: employee.outcome === "skip" ? "skip" : "create",
+    })),
+    conflicts: (raw.conflicts ?? []).map(mapBatchConflictFromApi),
+    closures: (raw.closures ?? []).map(mapPlannedClosureFromApi),
   };
 }
 

@@ -3,6 +3,8 @@ import type {
   TripRouteType,
 } from "@features/settlements";
 import type {
+  AssignmentBlockingSettlementStatus,
+  BatchAssignmentConflictReason,
   CompensationTemplateEventAction,
   CompensationTemplateInactiveReason,
   CompensationTemplateLockedReason,
@@ -92,6 +94,8 @@ export interface CompensationTemplate {
   corridors: RouteCorridorTariff[];
   /** Asignaciones vigentes hoy (isActive + ventana de fechas). */
   activeAssignmentsCount: number;
+  /** Activas que empiezan después de hoy (CDMX). `undefined` = la API aún no envía el campo. */
+  scheduledAssignmentsCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -124,11 +128,48 @@ export interface TemplateAssignment {
   updatedAt?: string;
 }
 
+/** Liquidación viva que congela días de una asignación (api#62). */
+export interface AssignmentBlockingSettlement {
+  settlementId: string;
+  settlementNumber: string;
+  status: AssignmentBlockingSettlementStatus;
+  periodStart: string;
+  periodEnd: string;
+}
+
+/** `details` del 409 `ASSIGNMENT_PERIOD_SETTLED` en alta, cierre, baja o eliminación. */
+export interface AssignmentPeriodSettledError {
+  message: string;
+  existingAssignmentId: string | null;
+  blockingSettlements: AssignmentBlockingSettlement[];
+  blockingSettlementsTotal: number;
+  minEffectiveTo: string | null;
+  suggestedEffectiveFrom: string | null;
+}
+
+/**
+ * Operador omitido por el lote o por su vista previa. Campos opcionales: la API
+ * anterior a api#63 solo envía `employeeId`, `code` y a veces `message`.
+ */
 export interface BatchAssignmentConflict {
   employeeId: string;
   code: string;
-  existingAssignmentId?: string;
   message?: string;
+  /** Ausente en un 409 no previsto o con la API anterior. */
+  reason?: BatchAssignmentConflictReason;
+  employeeFullName?: string | null;
+  existingAssignmentId?: string | null;
+  existingTemplateId?: string | null;
+  existingTemplateName?: string | null;
+  existingTemplateVersion?: number | null;
+  existingEffectiveFrom?: string | null;
+  existingEffectiveTo?: string | null;
+  /** Solo `overlap_close_disabled`: fecha en que se cerraría con la casilla marcada. */
+  closePreviousOn?: string | null;
+  suggestedEffectiveFrom?: string | null;
+  blockingSettlements?: AssignmentBlockingSettlement[];
+  blockingSettlementsTotal?: number;
+  minEffectiveTo?: string | null;
 }
 
 export interface BatchAssignmentResult {
@@ -136,6 +177,37 @@ export interface BatchAssignmentResult {
   skippedCount: number;
   conflicts: BatchAssignmentConflict[];
   created: TemplateAssignment[];
+}
+
+/** Asignación que el lote cerraría el día anterior al nuevo «Vigente desde». */
+export interface BatchAssignmentPlannedClosure {
+  employeeId: string;
+  employeeFullName: string | null;
+  assignmentId: string;
+  templateId: string;
+  templateName: string;
+  templateVersion: number;
+  effectiveFrom: string;
+  /** Fin antes del cierre; `null` = abierta. */
+  effectiveTo: string | null;
+  closeTo: string;
+}
+
+export interface BatchAssignmentPreviewEmployee {
+  employeeId: string;
+  employeeFullName: string | null;
+  outcome: "create" | "skip";
+}
+
+/** Vista previa del lote (orientativa: el resultado del lote manda). */
+export interface BatchAssignmentPreview {
+  wouldCreateCount: number;
+  wouldSkipCount: number;
+  /** En el orden enviado, sin duplicados. */
+  employees: BatchAssignmentPreviewEmployee[];
+  conflicts: BatchAssignmentConflict[];
+  /** Solo de operadores que se asignarían. */
+  closures: BatchAssignmentPlannedClosure[];
 }
 
 export interface CreateCompensationTemplatePayload {

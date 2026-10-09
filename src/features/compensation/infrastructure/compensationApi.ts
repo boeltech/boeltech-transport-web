@@ -8,6 +8,7 @@ import {
 } from "@shared/api";
 import type {
   ActivateCompensationTemplatePayload,
+  BatchAssignmentPreview,
   BatchAssignmentResult,
   BatchTemplateAssignmentPayload,
   CompensationTemplate,
@@ -27,12 +28,14 @@ import type {
 import type { CompensationTemplateStatus } from "../domain/enums";
 import {
   mapAssignmentFromApi,
+  mapBatchPreviewFromApi,
   mapBatchResultFromApi,
   mapCorridorFromApi,
   mapFixedAllowanceOverrideFromApi,
   mapFrequentCityPairFromApi,
   mapTemplateEventFromApi,
   mapTemplateFromApi,
+  type ApiBatchAssignmentPreviewCamel,
   type ApiBatchAssignmentResultCamel,
   type ApiCompensationTemplateCamel,
   type ApiCompensationTemplateEventCamel,
@@ -177,6 +180,18 @@ function toPatchTemplatePayload(payload: UpdateCompensationTemplatePayload) {
   }
 
   return body;
+}
+
+/** El lote no quita ids repetidos (la vista previa sí): se mandan únicos y en orden. */
+function toBatchAssignmentBody(payload: BatchTemplateAssignmentPayload) {
+  return {
+    templateId: payload.templateId,
+    employeeIds: [...new Set(payload.employeeIds)],
+    effectiveFrom: payload.effectiveFrom,
+    effectiveTo: payload.effectiveTo ?? null,
+    closePreviousAssignment: payload.closePreviousAssignment ?? true,
+    reason: payload.reason ?? null,
+  };
 }
 
 function toOverridePayload(payload: UpsertFixedAllowanceOverridePayload) {
@@ -424,17 +439,30 @@ export const compensationApi = {
   ): Promise<BatchAssignmentResult> => {
     const response = await apiClient.post<ApiSingleResponse<ApiBatchAssignmentResultCamel>>(
       `${BASE}/template-assignments/batch`,
-      {
-        templateId: payload.templateId,
-        employeeIds: payload.employeeIds,
-        effectiveFrom: payload.effectiveFrom,
-        effectiveTo: payload.effectiveTo ?? null,
-        closePreviousAssignment: payload.closePreviousAssignment ?? true,
-        reason: payload.reason ?? null,
-      },
+      toBatchAssignmentBody(payload),
     );
     const { data } = mapSingleResponse(response);
     return mapBatchResultFromApi(data);
+  },
+
+  /** Misma regla que el lote, sin escribir (api#63). */
+  previewBatchAssignments: async (
+    payload: BatchTemplateAssignmentPayload,
+  ): Promise<BatchAssignmentPreview> => {
+    const response = await apiClient.post<ApiSingleResponse<ApiBatchAssignmentPreviewCamel>>(
+      `${BASE}/template-assignments/batch/preview`,
+      toBatchAssignmentBody(payload),
+    );
+    const { data } = mapSingleResponse(response);
+    return mapBatchPreviewFromApi(data);
+  },
+
+  getAssignment: async (id: string): Promise<TemplateAssignment> => {
+    const response = await apiClient.get<ApiSingleResponse<ApiTemplateAssignmentCamel>>(
+      `${BASE}/template-assignments/${id}`,
+    );
+    const { data } = mapSingleResponse(response);
+    return mapAssignmentFromApi(data);
   },
 
   deleteAssignment: async (id: string): Promise<void> => {

@@ -21,6 +21,12 @@ export const compensationQueryKeys = {
   assignments: () => [...compensationQueryKeys.all, "assignments"] as const,
   assignmentsList: (params?: Record<string, unknown>) =>
     [...compensationQueryKeys.assignments(), "list", params] as const,
+  assignmentDetail: (id: string) =>
+    [...compensationQueryKeys.assignments(), "detail", id] as const,
+  assignmentBatchPreviews: () =>
+    [...compensationQueryKeys.assignments(), "batch-preview"] as const,
+  assignmentBatchPreview: (params: Record<string, unknown>) =>
+    [...compensationQueryKeys.assignmentBatchPreviews(), params] as const,
   allowanceOverrides: () => [...compensationQueryKeys.all, "allowance-overrides"] as const,
   allowanceOverridesList: (params?: Record<string, unknown>) =>
     [...compensationQueryKeys.allowanceOverrides(), "list", params] as const,

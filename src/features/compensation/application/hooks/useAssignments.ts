@@ -1,6 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useDebounce } from "@shared/hooks";
 import { compensationApi } from "../../infrastructure/compensationApi";
 import { compensationQueryKeys } from "../compensationQueryKeys";
+import { BATCH_ASSIGNMENT_MAX_EMPLOYEES } from "../../domain/enums";
 import type {
   BatchTemplateAssignmentPayload,
   UpdateTemplateAssignmentPayload,
@@ -31,6 +39,78 @@ export function useTemplateAssignments(params?: {
   });
 }
 
+export function useTemplateAssignment(
+  id: string | null | undefined,
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: compensationQueryKeys.assignmentDetail(id ?? ""),
+    queryFn: () => compensationApi.getAssignment(id!),
+    enabled: enabled && Boolean(id),
+  });
+}
+
+export const BATCH_ASSIGNMENT_PREVIEW_DEBOUNCE_MS = 300;
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+type BatchPreviewParams = Required<
+  Pick<
+    BatchTemplateAssignmentPayload,
+    "templateId" | "employeeIds" | "effectiveFrom" | "effectiveTo" | "closePreviousAssignment"
+  >
+>;
+
+/** `reason` no entra: la vista previa lo ignora y no debe volver a pedirse al escribirlo. */
+function toBatchPreviewParams(
+  payload: BatchTemplateAssignmentPayload | null | undefined,
+): BatchPreviewParams | null {
+  if (!payload) return null;
+  return {
+    templateId: payload.templateId,
+    employeeIds: [...new Set(payload.employeeIds)],
+    effectiveFrom: payload.effectiveFrom,
+    effectiveTo: payload.effectiveTo?.trim() ? payload.effectiveTo.trim() : null,
+    closePreviousAssignment: payload.closePreviousAssignment ?? true,
+  };
+}
+
+function canPreviewBatch(params: BatchPreviewParams | null): params is BatchPreviewParams {
+  if (!params?.templateId) return false;
+  const count = params.employeeIds.length;
+  if (count === 0 || count > BATCH_ASSIGNMENT_MAX_EMPLOYEES) return false;
+  if (!ISO_DATE.test(params.effectiveFrom)) return false;
+  if (params.effectiveTo === null) return true;
+  return ISO_DATE.test(params.effectiveTo) && params.effectiveTo >= params.effectiveFrom;
+}
+
+/**
+ * Vista previa del lote en el servidor, con espera tras el último cambio.
+ * Orientativa: si falla, el formulario sigue permitiendo confirmar.
+ */
+export function useBatchAssignmentPreview(
+  payload: BatchTemplateAssignmentPayload | null | undefined,
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  const serialized = JSON.stringify(toBatchPreviewParams(payload));
+  const debounced = useDebounce(serialized, BATCH_ASSIGNMENT_PREVIEW_DEBOUNCE_MS);
+  const params = useMemo(
+    () => JSON.parse(debounced) as BatchPreviewParams | null,
+    [debounced],
+  );
+  const ready = canPreviewBatch(params);
+
+  return useQuery({
+    queryKey: compensationQueryKeys.assignmentBatchPreview(params ?? {}),
+    queryFn: () => compensationApi.previewBatchAssignments(params!),
+    enabled: enabled && ready,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
 export function useBatchCreateTemplateAssignments() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -55,9 +135,7 @@ export function useUpdateTemplateAssignment() {
       id: string;
       payload: UpdateTemplateAssignmentPayload;
     }) => compensationApi.updateAssignment(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.assignments() });
-    },
+    onSuccess: () => invalidateAfterAssignmentChange(queryClient),
   });
 }
 
@@ -65,10 +143,14 @@ export function useDeleteTemplateAssignment() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => compensationApi.deleteAssignment(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.assignments() });
-    },
+    onSuccess: () => invalidateAfterAssignmentChange(queryClient),
   });
+}
+
+/** Lista, detalle y vista previa cuelgan de `assignments()`; los conteos, de `templates()`. */
+function invalidateAfterAssignmentChange(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: compensationQueryKeys.assignments() });
+  queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
 }
 
 export function useFixedAllowanceOverrides(params?: {

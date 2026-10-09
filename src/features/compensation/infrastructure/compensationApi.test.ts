@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getMock } = vi.hoisted(() => ({
+const { getMock, postMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
+  postMock: vi.fn(),
 }));
 
 vi.mock("@shared/api", async (importOriginal) => {
@@ -10,6 +11,7 @@ vi.mock("@shared/api", async (importOriginal) => {
     ...actual,
     apiClient: {
       get: getMock,
+      post: postMock,
     },
   };
 });
@@ -160,5 +162,127 @@ describe("compensationApi", () => {
       totalPages: 2,
     });
     expect(result.data[0]?.employeeFullName).toBe("Juan Pérez");
+  });
+
+  describe("api#63 — vista previa del lote y asignación por id", () => {
+    const payload = {
+      templateId: "tpl-v2",
+      employeeIds: ["emp-fernando", "emp-1", "emp-fernando"],
+      effectiveFrom: "2026-09-01",
+      reason: "Cambio de versión",
+    };
+
+    const expectedBody = {
+      templateId: "tpl-v2",
+      employeeIds: ["emp-fernando", "emp-1"],
+      effectiveFrom: "2026-09-01",
+      effectiveTo: null,
+      closePreviousAssignment: true,
+      reason: "Cambio de versión",
+    };
+
+    it("previewBatchAssignments hace POST a /batch/preview con el body del lote y mapea", async () => {
+      postMock.mockResolvedValue({
+        data: {
+          would_create_count: 1,
+          would_skip_count: 1,
+          employees: [
+            { employee_id: "emp-fernando", employee_full_name: "Fernando Castillo", outcome: "skip" },
+            { employee_id: "emp-1", employee_full_name: "Ana López", outcome: "create" },
+          ],
+          conflicts: [
+            {
+              employee_id: "emp-fernando",
+              code: "OVERLAPPING_ACTIVE_ASSIGNMENT",
+              message: "No se puede cerrar …",
+              reason: "previous_starts_on_or_after",
+              employee_full_name: "Fernando Castillo",
+              existing_assignment_id: "asg-v1",
+              existing_template_id: "tpl-v1",
+              existing_template_name: "Operador Foráneo Estándar",
+              existing_template_version: 1,
+              existing_effective_from: "2026-09-01",
+              existing_effective_to: "2026-10-06",
+              suggested_effective_from: "2026-10-07",
+            },
+          ],
+          closures: [],
+        },
+      });
+
+      const result = await compensationApi.previewBatchAssignments(payload);
+
+      expect(postMock).toHaveBeenCalledTimes(1);
+      expect(postMock).toHaveBeenCalledWith(
+        "/compensation/template-assignments/batch/preview",
+        expectedBody,
+      );
+      expect(result.wouldSkipCount).toBe(1);
+      expect(result.employees.map((e) => e.employeeFullName)).toEqual([
+        "Fernando Castillo",
+        "Ana López",
+      ]);
+      expect(result.conflicts[0]).toMatchObject({
+        reason: "previous_starts_on_or_after",
+        existingTemplateVersion: 1,
+        existingEffectiveTo: "2026-10-06",
+        suggestedEffectiveFrom: "2026-10-07",
+      });
+    });
+
+    it("batchCreateAssignments manda el mismo body sin ids repetidos (el lote no los quita)", async () => {
+      postMock.mockResolvedValue({
+        data: { created_count: 2, skipped_count: 0, conflicts: [], created: [] },
+      });
+
+      await compensationApi.batchCreateAssignments(payload);
+
+      expect(postMock).toHaveBeenCalledWith(
+        "/compensation/template-assignments/batch",
+        expectedBody,
+      );
+    });
+
+    it("conserva la casilla desmarcada y el «hasta»", async () => {
+      postMock.mockResolvedValue({
+        data: { would_create_count: 0, would_skip_count: 0, employees: [], conflicts: [], closures: [] },
+      });
+
+      await compensationApi.previewBatchAssignments({
+        ...payload,
+        effectiveTo: "2026-09-30",
+        closePreviousAssignment: false,
+      });
+
+      expect(postMock).toHaveBeenCalledWith(
+        "/compensation/template-assignments/batch/preview",
+        { ...expectedBody, effectiveTo: "2026-09-30", closePreviousAssignment: false },
+      );
+    });
+
+    it("getAssignment hace GET por id y mapea", async () => {
+      getMock.mockResolvedValue({
+        data: {
+          id: "asg-v1",
+          employee_id: "emp-fernando",
+          employee_full_name: "Fernando Castillo",
+          template_id: "tpl-v1",
+          effective_from: "2026-09-01",
+          effective_to: "2026-10-06",
+          is_active: true,
+        },
+      });
+
+      const result = await compensationApi.getAssignment("asg-v1");
+
+      expect(getMock).toHaveBeenCalledWith("/compensation/template-assignments/asg-v1");
+      expect(result).toMatchObject({
+        id: "asg-v1",
+        employeeFullName: "Fernando Castillo",
+        templateId: "tpl-v1",
+        effectiveTo: "2026-10-06",
+        isActive: true,
+      });
+    });
   });
 });

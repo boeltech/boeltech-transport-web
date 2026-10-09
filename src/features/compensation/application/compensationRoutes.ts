@@ -2,6 +2,8 @@
  * Rutas UI de esquemas de compensación (ADR-0089 / ADR-0091).
  */
 
+import { BATCH_ASSIGNMENT_MAX_EMPLOYEES } from "../domain/enums";
+
 export const COMPENSATION_HUB_PATH = "/finance/compensation";
 export const COMPENSATION_TEMPLATES_PATH = "/finance/compensation/templates";
 export const COMPENSATION_CORRIDORS_PATH = "/finance/compensation/corridors";
@@ -40,15 +42,157 @@ export function compensationTemplateOperatorsPath(templateId: string): string {
   return buildTemplatesListSearch({ operators: templateId });
 }
 
-/** Deep link: Sheet de operadores con operador preseleccionado para asignar. */
+/** Parámetros de URL del listado de tarifas: sheet de operadores, lote y enlace (api#63 C13). */
+export const TEMPLATE_OPERATORS_PARAMS = {
+  /** Plantilla del sheet de operadores abierto. */
+  operators: "operators",
+  /** Operadores del lote, separados por comas. Abre el lote. */
+  assign: "assign",
+  /** «Vigente desde» inicial del lote. */
+  assignFrom: "assignFrom",
+  /** Asignación a resaltar. */
+  focus: "focus",
+  /** Plantilla a la que vuelve el aviso del sheet destino. */
+  returnTo: "returnTo",
+  returnAssign: "returnAssign",
+  returnFrom: "returnFrom",
+  /** Contexto de Por pagar; se conserva al ir y volver. */
+  employeeId: "employeeId",
+  periodStart: "periodStart",
+  periodEnd: "periodEnd",
+} as const;
+
+const PARAM = TEMPLATE_OPERATORS_PARAMS;
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Deep link: Sheet de operadores con operador(es) preseleccionado(s) para asignar. */
 export function compensationTemplateAssignPath(
   templateId: string,
-  employeeId: string,
+  employeeIds: string | readonly string[],
+  options: { effectiveFrom?: string } = {},
 ): string {
+  const ids =
+    typeof employeeIds === "string" ? parseAssignEmployeeIds(employeeIds) : employeeIds;
   return buildTemplatesListSearch({
-    operators: templateId,
-    assign: employeeId,
+    [PARAM.operators]: templateId,
+    [PARAM.assign]: formatAssignEmployeeIds(ids) || undefined,
+    [PARAM.assignFrom]: options.effectiveFrom,
   });
+}
+
+/** Lista separada por comas → ids sin vacíos ni duplicados, en orden, tope 100. */
+export function parseAssignEmployeeIds(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return formatIds(raw.split(","));
+}
+
+export function formatAssignEmployeeIds(ids: readonly string[]): string {
+  return formatIds(ids).join(",");
+}
+
+function formatIds(ids: readonly string[]): string[] {
+  const unique = new Set<string>();
+  for (const id of ids) {
+    const trimmed = id.trim();
+    if (trimmed) unique.add(trimmed);
+    if (unique.size === BATCH_ASSIGNMENT_MAX_EMPLOYEES) break;
+  }
+  return [...unique];
+}
+
+/** «Vigente desde» inicial del lote: `assignFrom` > `periodStart` > hoy. */
+export function resolveBatchInitialEffectiveFrom(input: {
+  assignFrom?: string | null;
+  periodStart?: string | null;
+  today: string;
+}): string {
+  const assignFrom = input.assignFrom?.trim();
+  if (assignFrom && ISO_DATE.test(assignFrom)) return assignFrom;
+  const periodStart = input.periodStart?.trim();
+  if (periodStart && ISO_DATE.test(periodStart)) return periodStart;
+  return input.today;
+}
+
+function deleteParams(params: URLSearchParams, keys: readonly string[]): void {
+  for (const key of keys) params.delete(key);
+}
+
+function setOrDelete(params: URLSearchParams, key: string, value: string | null | undefined) {
+  if (value) params.set(key, value);
+  else params.delete(key);
+}
+
+const RETURN_PARAMS = [PARAM.returnTo, PARAM.returnAssign, PARAM.returnFrom] as const;
+const OPERATORS_SHEET_PARAMS = [
+  PARAM.operators,
+  PARAM.assign,
+  PARAM.assignFrom,
+  PARAM.focus,
+  ...RETURN_PARAMS,
+] as const;
+
+/**
+ * Ir a la asignación que bloquea (C2): cambia el sheet por el de su plantilla, la resalta
+ * y guarda cómo volver al lote. Conserva el contexto de Por pagar.
+ */
+export function withBlockingAssignmentFocus(
+  prev: URLSearchParams,
+  input: {
+    targetTemplateId: string;
+    assignmentId: string;
+    returnTemplateId: string;
+    returnEmployeeIds: readonly string[];
+    returnEffectiveFrom?: string | null;
+  },
+): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  deleteParams(next, [PARAM.assign, PARAM.assignFrom]);
+  next.set(PARAM.operators, input.targetTemplateId);
+  next.set(PARAM.focus, input.assignmentId);
+  next.set(PARAM.returnTo, input.returnTemplateId);
+  setOrDelete(next, PARAM.returnAssign, formatAssignEmployeeIds(input.returnEmployeeIds));
+  setOrDelete(next, PARAM.returnFrom, input.returnEffectiveFrom);
+  return next;
+}
+
+/** «Volver a …»: reabre la plantilla de origen con el lote, sus operadores y su fecha. */
+export function withReturnToBatch(prev: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  const returnTo = prev.get(PARAM.returnTo)?.trim();
+  if (returnTo) {
+    const returnIds = parseAssignEmployeeIds(prev.get(PARAM.returnAssign));
+    next.set(PARAM.operators, returnTo);
+    setOrDelete(next, PARAM.assign, formatAssignEmployeeIds(returnIds));
+    setOrDelete(next, PARAM.assignFrom, prev.get(PARAM.returnFrom)?.trim());
+  }
+  deleteParams(next, [PARAM.focus, ...RETURN_PARAMS]);
+  return next;
+}
+
+/** D5 «Ver su asignación»: misma plantilla, cierra el lote y resalta la fila; sin regreso. */
+export function withSameTemplateFocus(
+  prev: URLSearchParams,
+  assignmentId: string,
+): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  deleteParams(next, [PARAM.assign, PARAM.assignFrom, ...RETURN_PARAMS]);
+  next.set(PARAM.focus, assignmentId);
+  return next;
+}
+
+/** Cerrar el sheet de operadores: quita lote, foco y regreso; conserva Por pagar. */
+export function withOperatorsClosed(prev: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  deleteParams(next, OPERATORS_SHEET_PARAMS);
+  return next;
+}
+
+/** Lote completo con éxito: además quita el contexto de Por pagar. */
+export function withBatchCompleted(prev: URLSearchParams): URLSearchParams {
+  const next = withOperatorsClosed(prev);
+  deleteParams(next, [PARAM.employeeId, PARAM.periodStart, PARAM.periodEnd]);
+  return next;
 }
 
 /** Alias: deep link al Sheet de operadores (compatibilidad con callers existentes). */
