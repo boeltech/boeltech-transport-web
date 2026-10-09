@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { Settings2, Users } from "lucide-react";
+import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@shared/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -35,6 +37,42 @@ interface CompensationTemplatesTableProps {
   layout?: "table" | "cards";
   onOpenOperators: (templateId: string, assignEmployeeId?: string) => void;
   onDeleted?: () => void;
+}
+
+/** PRD D15/D16: vigentes + «· +k programada(s)» tenue; sin el campo (API vieja) o en 0, solo el número. */
+function TemplateOperatorsCount({
+  template,
+  className,
+}: {
+  template: CompensationTemplate;
+  className?: string;
+}) {
+  const current = template.activeAssignmentsCount ?? 0;
+  const scheduled = template.scheduledAssignmentsCount ?? 0;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className={cn("cursor-help whitespace-nowrap rounded-md tabular-nums", className)}
+            data-testid="template-operators-count-trigger"
+          >
+            {current}
+            {scheduled > 0 ? (
+              <span className="font-normal text-muted-foreground">
+                {` · ${copy.operatorsScheduled(scheduled)}`}
+              </span>
+            ) : null}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs">
+          {copy.operatorsTooltip(current, scheduled)}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 function RowActions({
@@ -129,8 +167,6 @@ function TemplateCatalogCard({
   onOpenOperators: (templateId: string, assignEmployeeId?: string) => void;
   onDeleted?: () => void;
 }) {
-  const operatorsCount = template.activeAssignmentsCount ?? 0;
-
   return (
     <Card className="shadow-sm">
       <CardContent className="space-y-3 p-4">
@@ -147,12 +183,10 @@ function TemplateCatalogCard({
               <CompensationUsageStatusBadge template={template} />
             </div>
           </div>
-          <span
-            className="shrink-0 tabular-nums text-sm font-medium text-foreground"
-            title={copy.operatorsCountLabel.replace("{{count}}", String(operatorsCount))}
-          >
-            {operatorsCount}
-          </span>
+          <TemplateOperatorsCount
+            template={template}
+            className="shrink-0 text-sm font-medium text-foreground"
+          />
         </div>
         <p className="line-clamp-1 text-xs text-muted-foreground">
           {buildTemplateSummary(template)}
@@ -229,7 +263,6 @@ export function CompensationTemplatesTable({
         </TableHeader>
         <TableBody>
           {templates.map((template) => {
-            const operatorsCount = template.activeAssignmentsCount ?? 0;
             return (
               <TableRow key={template.id}>
                 <TableCell>
@@ -249,15 +282,8 @@ export function CompensationTemplatesTable({
                 <TableCell className="max-w-xs text-sm text-muted-foreground">
                   <span className="line-clamp-1">{buildTemplateSummary(template)}</span>
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  <span
-                    title={copy.operatorsCountLabel.replace(
-                      "{{count}}",
-                      String(operatorsCount),
-                    )}
-                  >
-                    {operatorsCount}
-                  </span>
+                <TableCell className="text-right">
+                  <TemplateOperatorsCount template={template} />
                 </TableCell>
                 <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                   <RowActions

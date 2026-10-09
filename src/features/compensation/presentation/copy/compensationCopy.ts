@@ -86,7 +86,13 @@ export const compensationCopy = {
     deactivate: "Desactivar",
     createVersion: "Crear nueva versión",
     operators: "Operadores",
-    operatorsCountLabel: "{{count}} operadores",
+    operatorsScheduled: (count: number) =>
+      `+${count} ${count === 1 ? "programada" : "programadas"}`,
+    operatorsTooltip: (current: number, scheduled: number) => {
+      const today = `${current} ${current === 1 ? "operador cobra" : "operadores cobran"} con esta versión hoy.`;
+      if (scheduled <= 0) return today;
+      return `${today} ${scheduled} más ${scheduled === 1 ? "empieza" : "empiezan"} después.`;
+    },
     summaryEmpty: "Sin configurar",
     /** Activo/inactivo de asignaciones y corredores (no el listado de tarifas). */
     active: "Activo",
