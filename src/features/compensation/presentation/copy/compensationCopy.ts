@@ -539,9 +539,6 @@ export const compensationCopy = {
     cancel: "Cancelar",
     validationSummary: "Revisa los campos marcados",
     confirmBatch: "Confirmar asignación",
-    conflictPreviewTitle: "Conflictos detectados",
-    conflictPreviewDescription:
-      "Estos operadores tienen otra asignación activa con vigencia traslapada. Se omitirán al confirmar si persiste el conflicto.",
     coverageHint: (periodStart: string, periodEnd: string) =>
       `Para cubrir el pago del ${periodStart} al ${periodEnd}, la vigencia debe iniciar en o antes del ${periodStart}.`,
     coverageWarningTitle: "Esta vigencia no cubre el período del pago",
@@ -554,6 +551,53 @@ export const compensationCopy = {
       "Ya existe otra ruta con el mismo origen y destino. en el pago solo se aplicará una (la más reciente).",
     duplicateConfirmAction: "Guardar de todos modos",
     saveForbidden: "No tienes permiso para guardar rutas con tarifa fija.",
+  },
+  batchAssignment: {
+    templateVersion: (name: string, version: number) => `${name} versión ${version}`,
+    unnamedOperator: "Operador sin nombre",
+    closedPeriod: (from: string, to: string) => `del ${from} al ${to}`,
+    openPeriod: (from: string) => `desde el ${from}, sin fecha de fin`,
+    conflicts: {
+      previousStartsCause: (template: string, period: string) =>
+        `Ya está asignado a ${template} ${period}. Esa asignación empieza el mismo día o después que la nueva, así que no se puede cerrar antes de que empiece.`,
+      previousClosedAction: (nextFrom: string, newFrom: string, template: string) =>
+        `Para que cobre con esta versión al terminar esa asignación, asígnalo desde el ${nextFrom}. Si esta versión debe aplicar desde el ${newFrom}, primero desactiva su asignación en ${template}.`,
+      previousOpenAction: (existingFrom: string, newFrom: string, template: string) =>
+        `Elige un inicio posterior al ${existingFrom}: su asignación en ${template} se cerrará el día anterior. Si esta versión debe aplicar desde el ${newFrom}, primero desactiva esa asignación.`,
+      sameTemplateCause: (period: string) => `Ya está asignado a esta versión ${period}.`,
+      sameTemplateAction:
+        "No hace falta asignarlo otra vez. Si quieres cambiar sus fechas, usa el menú ··· de su fila.",
+      overlapCause: (template: string, period: string) =>
+        `Ya está asignado a ${template} ${period}, y esas fechas se cruzan con la nueva asignación.`,
+      overlapCloseAction: (closeOn: string) =>
+        `Marca “Cerrar asignación anterior al iniciar la nueva” para que se cierre el ${closeOn}, o cambia las fechas para que no se crucen.`,
+      settledCause: "Tiene días ya liquidados.",
+      unknownMessage: "No se pudo asignar por un conflicto con otra asignación.",
+      assignFrom: (name: string, date: string) => `Asignar a ${name} desde el ${date}`,
+      markClosePrevious: "Marcar cierre de la anterior",
+      goToAssignment: (template: string) => `Ir a su asignación en ${template}`,
+      goToAssignmentHelp:
+        "Se cerrará esta asignación masiva. Podrás volver con los mismos operadores y fecha.",
+      viewOwnAssignment: "Ver su asignación",
+    },
+    preview: {
+      title: "Revisa antes de confirmar",
+      closures: (count: number, closeOn: string) =>
+        `Se cerrará la asignación anterior de ${count} ${count === 1 ? "operador" : "operadores"} el ${closeOn}.`,
+      showDetail: "Ver detalle",
+      hideDetail: "Ocultar detalle",
+      closureItem: (name: string, template: string, from: string) =>
+        `${name} — ${template}, desde el ${from}`,
+      unavailable: "No se pudo verificar; puedes confirmar igual",
+    },
+    result: {
+      partialTitle: (created: number, total: number) =>
+        `Se asignaron ${created} de ${total} operadores`,
+      noneTitle: "No se asignó ningún operador",
+      description:
+        "Corrige lo siguiente y vuelve a confirmar; solo se intentará con estos operadores.",
+      dismiss: "Descartar aviso",
+    },
   },
   assignments: {
     columns: {
@@ -684,8 +728,12 @@ export const compensationCopy = {
     corridorSaveError: "No se pudo guardar la ruta",
     corridorDeleted: "Ruta eliminada",
     batchSuccess: "Asignación completada",
-    batchPartial:
-      "Asignación parcial: algunos operadores se omitieron por conflicto de vigencia.",
+    batchPartial: (created: number, total: number) =>
+      `Se asignaron ${created} de ${total} operadores`,
+    batchPartialDescription: "Revisa en el panel por qué se omitieron los demás.",
+    batchNone: "No se asignó ningún operador",
+    batchNoneDescription: "Revisa el motivo en el panel.",
+    batchError: "No se pudo completar la asignación",
     dataRefreshed: "Datos actualizados",
   },
 } as const;

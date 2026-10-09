@@ -85,6 +85,13 @@ function canPreviewBatch(params: BatchPreviewParams | null): params is BatchPrev
   return ISO_DATE.test(params.effectiveTo) && params.effectiveTo >= params.effectiveFrom;
 }
 
+/** Misma regla que habilita la vista previa: fuera de ella, sus datos previos no aplican. */
+export function isBatchPreviewPayloadReady(
+  payload: BatchTemplateAssignmentPayload | null | undefined,
+): boolean {
+  return canPreviewBatch(toBatchPreviewParams(payload));
+}
+
 /**
  * Vista previa del lote en el servidor, con espera tras el último cambio.
  * Orientativa: si falla, el formulario sigue permitiendo confirmar.

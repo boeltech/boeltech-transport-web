@@ -36,6 +36,7 @@ vi.mock("../../application/hooks", async (importOriginal) => {
       mutateAsync: mockBatchMutate,
       isPending: false,
     }),
+    useBatchAssignmentPreview: () => ({ data: undefined, isError: false }),
     useDeleteCompensationTemplate: () => ({
       mutateAsync: vi.fn(),
       isPending: false,
@@ -105,7 +106,12 @@ describe("CompensationTemplateListPage", () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     mockBatchMutate.mockReset();
-    mockBatchMutate.mockResolvedValue({ createdCount: 1, skippedCount: 0 });
+    mockBatchMutate.mockResolvedValue({
+      createdCount: 1,
+      skippedCount: 0,
+      conflicts: [],
+      created: [],
+    });
     mockRefetchTemplates.mockReset();
     mockUseCompensationTemplate.mockReturnValue({ data: undefined });
     mockUseCompensationTemplates.mockReturnValue({

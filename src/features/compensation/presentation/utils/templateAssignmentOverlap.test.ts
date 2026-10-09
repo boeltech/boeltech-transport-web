@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   findEligibleAssignmentsForEmployeeOnDate,
   pickAssignmentBySettlementTiebreak,
-  previewBatchAssignmentConflicts,
-} from "./templateAssignmentOverlap";import type { TemplateAssignment } from "../../domain/entities";
+} from "./templateAssignmentOverlap";
+import type { TemplateAssignment } from "../../domain/entities";
 
 const baseAssignment = (
   overrides: Partial<TemplateAssignment>,
@@ -15,23 +15,6 @@ const baseAssignment = (
   effectiveTo: null,
   isActive: true,
   ...overrides,
-});
-
-describe("previewBatchAssignmentConflicts", () => {
-  it("detecta solape de vigencia para operador seleccionado", () => {
-    const conflicts = previewBatchAssignmentConflicts(
-      [
-        baseAssignment({ id: "a1", employeeId: "emp-1" }),
-        baseAssignment({ id: "a2", employeeId: "emp-2", effectiveFrom: "2026-10-01" }),
-      ],
-      ["emp-1"],
-      "2026-09-15",
-      "2026-09-30",
-    );
-
-    expect(conflicts).toHaveLength(1);
-    expect(conflicts[0]?.employeeId).toBe("emp-1");
-  });
 });
 
 describe("findEligibleAssignmentsForEmployeeOnDate", () => {

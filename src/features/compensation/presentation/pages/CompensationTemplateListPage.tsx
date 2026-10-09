@@ -19,7 +19,13 @@ import {
   useCompensationTemplate,
   useCompensationTemplates,
 } from "../../application/hooks";
-import { compensationTemplateBuildPath } from "../../application/compensationRoutes";
+import {
+  compensationTemplateBuildPath,
+  parseAssignEmployeeIds,
+  TEMPLATE_OPERATORS_PARAMS,
+  withBatchCompleted,
+  withOperatorsClosed,
+} from "../../application/compensationRoutes";
 import { compensationCopy } from "../copy/compensationCopy";
 import {
   CompensationTemplatesTable,
@@ -45,7 +51,9 @@ export function CompensationTemplateListPage() {
   const navigate = useNavigate();
   const pendingEmployeeId = searchParams.get("employeeId")?.trim() ?? "";
   const operatorsTemplateId = searchParams.get("operators")?.trim() || null;
-  const assignEmployeeId = searchParams.get("assign")?.trim() || null;
+  const assignRaw = searchParams.get(TEMPLATE_OPERATORS_PARAMS.assign) ?? "";
+  const assignFrom =
+    searchParams.get(TEMPLATE_OPERATORS_PARAMS.assignFrom)?.trim() || undefined;
   const paymentPeriodStart = searchParams.get("periodStart")?.trim() || undefined;
   const paymentPeriodEnd = searchParams.get("periodEnd")?.trim() || undefined;
   const isDesktop = !useMediaQuery("(max-width: 1023px)");
@@ -139,16 +147,15 @@ export function CompensationTemplateListPage() {
   );
 
   const closeOperators = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("operators");
-        next.delete("assign");
-        return next;
-      },
-      { replace: true },
-    );
+    setSearchParams(withOperatorsClosed, { replace: true });
   }, [setSearchParams]);
+
+  /** Por texto de la URL: un arreglo nuevo en cada render reabriría o reiniciaría el lote. */
+  const batchInitialEmployeeIds = useMemo(() => {
+    const assignIds = parseAssignEmployeeIds(assignRaw);
+    if (assignIds.length > 0) return assignIds;
+    return pendingEmployeeId && operatorsTemplateId ? [pendingEmployeeId] : undefined;
+  }, [assignRaw, pendingEmployeeId, operatorsTemplateId]);
 
   const handleOperatorsOpenChange = useCallback(
     (open: boolean) => {
@@ -183,21 +190,10 @@ export function CompensationTemplateListPage() {
     void refetch();
   }, [closeOperators, operatorsTemplateId, refetch]);
 
-  /** Tras batch exitoso: cierra ambos sheets y limpia banner employeeId + período. */
+  /** Lote con todos asignados: cierra ambos sheets y limpia banner employeeId + período. */
   const handleBatchSuccess = useCallback(() => {
     void refetch();
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("employeeId");
-        next.delete("operators");
-        next.delete("assign");
-        next.delete("periodStart");
-        next.delete("periodEnd");
-        return next;
-      },
-      { replace: true },
-    );
+    setSearchParams(withBatchCompleted, { replace: true });
   }, [refetch, setSearchParams]);
 
   const assignBannerDescription = employeeName
@@ -318,13 +314,8 @@ export function CompensationTemplateListPage() {
         onOpenChange={handleOperatorsOpenChange}
         template={operatorsTemplate}
         canUpdate={canUpdate}
-        batchInitialEmployeeIds={
-          assignEmployeeId
-            ? [assignEmployeeId]
-            : pendingEmployeeId && operatorsTemplateId
-              ? [pendingEmployeeId]
-              : undefined
-        }
+        batchInitialEmployeeIds={batchInitialEmployeeIds}
+        batchInitialEffectiveFrom={assignFrom}
         paymentPeriodStart={paymentPeriodStart}
         paymentPeriodEnd={paymentPeriodEnd}
         onAssignmentsChange={() => void refetch()}

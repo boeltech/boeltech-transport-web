@@ -21,7 +21,8 @@ interface TemplateOperatorsSheetProps {
   template: CompensationTemplate | null;
   canUpdate?: boolean;
   compositionEditing?: boolean;
-  batchInitialEmployeeIds?: string[];
+  batchInitialEmployeeIds?: readonly string[];
+  batchInitialEffectiveFrom?: string;
   paymentPeriodStart?: string;
   paymentPeriodEnd?: string;
   onAssignmentsChange?: () => void;
@@ -35,6 +36,7 @@ export function TemplateOperatorsSheet({
   canUpdate = false,
   compositionEditing = false,
   batchInitialEmployeeIds,
+  batchInitialEffectiveFrom,
   paymentPeriodStart,
   paymentPeriodEnd,
   onAssignmentsChange,
@@ -89,6 +91,7 @@ export function TemplateOperatorsSheet({
             batchOpen={batchOpen}
             onBatchOpenChange={setBatchOpen}
             batchInitialEmployeeIds={batchInitialEmployeeIds}
+            batchInitialEffectiveFrom={batchInitialEffectiveFrom}
             paymentPeriodStart={paymentPeriodStart}
             paymentPeriodEnd={paymentPeriodEnd}
             onAssignmentsChange={onAssignmentsChange}
