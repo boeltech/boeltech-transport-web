@@ -46,7 +46,10 @@ import {
 } from "../../application/hooks";
 import type { AssignmentPeriodSettledError, TemplateAssignment } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
-import { readAssignmentPeriodSettledError } from "../utils/compensationLifecycleErrors";
+import {
+  isAssignmentInUseError,
+  readAssignmentPeriodSettledError,
+} from "../utils/compensationLifecycleErrors";
 import {
   type AssignmentDisplayStatus,
   getAssignmentDisplayStatus,
@@ -58,11 +61,29 @@ type ActionDialog = "deactivate" | "endDate" | "delete";
 
 type DialogError =
   | { kind: "settled"; settled: AssignmentPeriodSettledError }
+  | { kind: "inUse" }
   | { kind: "other"; message: string };
 
 function readDialogError(error: unknown): DialogError {
+  if (isAssignmentInUseError(error)) return { kind: "inUse" };
   const settled = readAssignmentPeriodSettledError(error);
   return settled ? { kind: "settled", settled } : { kind: "other", message: getErrorMessage(error) };
+}
+
+function dialogErrorTitle(error: DialogError): string | null {
+  if (error.kind === "settled") return copy.settledTitle;
+  if (error.kind === "inUse") return copy.inUseError.title;
+  return null;
+}
+
+function dialogErrorMessage(error: DialogError, status: AssignmentDisplayStatus): string {
+  if (error.kind === "settled") return error.settled.message;
+  if (error.kind === "inUse") {
+    return status === "deactivated"
+      ? copy.inUseError.deactivated
+      : copy.inUseError.notDeactivated;
+  }
+  return error.message;
 }
 
 /** PRD D13: fecha con la que abre el diálogo de fin según el estado. */
@@ -91,13 +112,22 @@ function endDateDescription(
   );
 }
 
-function DialogErrorAlert({ error, action }: { error: DialogError; action?: ReactNode }) {
+function DialogErrorAlert({
+  error,
+  status,
+  action,
+}: {
+  error: DialogError;
+  status: AssignmentDisplayStatus;
+  action?: ReactNode;
+}) {
+  const title = dialogErrorTitle(error);
   return (
     <Alert variant="destructive" data-testid="assignment-action-error">
       <AlertCircle className="h-4 w-4" />
-      {error.kind === "settled" ? <AlertTitle>{copy.settledTitle}</AlertTitle> : null}
+      {title ? <AlertTitle>{title}</AlertTitle> : null}
       <AlertDescription>
-        <p>{error.kind === "settled" ? error.settled.message : error.message}</p>
+        <p>{dialogErrorMessage(error, status)}</p>
         {action ? <div className="mt-2">{action}</div> : null}
       </AlertDescription>
     </Alert>
@@ -130,8 +160,11 @@ export function TemplateAssignmentActions({
 
   const status = displayStatus ?? getAssignmentDisplayStatus(assignment);
   const showUpdateItems = canUpdate && status !== "deactivated";
+  const showDeleteItem = canDelete && assignment.isUsedInSettlement !== true;
+  const showMenu = showUpdateItems || showDeleteItem;
 
-  if (!showUpdateItems && !canDelete) {
+  // Con un diálogo abierto, recargar la fila (p. ej. tras 409 en uso) no debe desmontarlo.
+  if (!showMenu && openDialog === null) {
     return null;
   }
 
@@ -165,7 +198,6 @@ export function TemplateAssignmentActions({
       finish(copy.toasts.deactivateSuccess);
     } catch (error) {
       setDialogError(readDialogError(error));
-      toast({ title: copy.toasts.deactivateError, variant: "error" });
     }
   };
 
@@ -180,7 +212,6 @@ export function TemplateAssignmentActions({
       finish(copy.toasts.closeValiditySuccess);
     } catch (error) {
       setDialogError(readDialogError(error));
-      toast({ title: copy.toasts.closeValidityError, variant: "error" });
     }
   };
 
@@ -191,57 +222,59 @@ export function TemplateAssignmentActions({
       finish(copy.toasts.deleteSuccess);
     } catch (error) {
       setDialogError(readDialogError(error));
-      toast({ title: copy.toasts.deleteError, variant: "error" });
     }
   };
 
   const settledError = dialogError?.kind === "settled" ? dialogError.settled : null;
+  const deleteBlocked = settledError !== null || dialogError?.kind === "inUse";
   const minEffectiveTo = settledError?.minEffectiveTo ?? null;
   const isConcluded = status === "concluded";
   const endDateCopy = copy.closeValidityDialog;
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild onClick={(event) => event.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-8 w-8" data-assignment-menu-trigger>
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">{copy.openMenuSr}</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
-          {showUpdateItems ? (
-            <>
-              <DropdownMenuItem
-                onClick={() => showEndDateDialog(initialEndDate(assignment, status))}
-              >
-                {isConcluded ? (
-                  <CalendarCog className="mr-2 h-4 w-4" />
-                ) : (
-                  <CalendarOff className="mr-2 h-4 w-4" />
-                )}
-                {isConcluded ? copy.changeEndDate : copy.closeValidity}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => showDialog("deactivate")}>
-                <Ban className="mr-2 h-4 w-4" />
-                {copy.deactivate}
-              </DropdownMenuItem>
-            </>
-          ) : null}
-          {canDelete ? (
-            <>
-              {showUpdateItems ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => showDialog("delete")}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {copy.delete}
-              </DropdownMenuItem>
-            </>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {showMenu ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(event) => event.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" data-assignment-menu-trigger>
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">{copy.openMenuSr}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
+            {showUpdateItems ? (
+              <>
+                <DropdownMenuItem
+                  onClick={() => showEndDateDialog(initialEndDate(assignment, status))}
+                >
+                  {isConcluded ? (
+                    <CalendarCog className="mr-2 h-4 w-4" />
+                  ) : (
+                    <CalendarOff className="mr-2 h-4 w-4" />
+                  )}
+                  {isConcluded ? copy.changeEndDate : copy.closeValidity}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => showDialog("deactivate")}>
+                  <Ban className="mr-2 h-4 w-4" />
+                  {copy.deactivate}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {showDeleteItem ? (
+              <>
+                {showUpdateItems ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => showDialog("delete")}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {copy.delete}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
 
       <AlertDialog
         open={openDialog === "deactivate"}
@@ -259,6 +292,7 @@ export function TemplateAssignmentActions({
           {dialogError ? (
             <DialogErrorAlert
               error={dialogError}
+              status={status}
               action={
                 minEffectiveTo ? (
                   <Button
@@ -301,6 +335,7 @@ export function TemplateAssignmentActions({
           {dialogError ? (
             <DialogErrorAlert
               error={dialogError}
+              status={status}
               action={
                 minEffectiveTo ? (
                   <Button
@@ -353,10 +388,10 @@ export function TemplateAssignmentActions({
             <AlertDialogTitle>{copy.deleteDialog.title}</AlertDialogTitle>
             <AlertDialogDescription>{copy.deleteDialog.description}</AlertDialogDescription>
           </AlertDialogHeader>
-          {dialogError ? <DialogErrorAlert error={dialogError} /> : null}
+          {dialogError ? <DialogErrorAlert error={dialogError} status={status} /> : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              {copy.deleteDialog.cancel}
+              {dialogError?.kind === "inUse" ? copy.deleteDialog.close : copy.deleteDialog.cancel}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -364,7 +399,7 @@ export function TemplateAssignmentActions({
                 event.preventDefault();
                 void handleDelete();
               }}
-              disabled={deleteMutation.isPending || settledError !== null}
+              disabled={deleteMutation.isPending || deleteBlocked}
             >
               {deleteMutation.isPending ? copy.deleteDialog.pending : copy.deleteDialog.confirm}
             </AlertDialogAction>

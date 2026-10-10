@@ -254,11 +254,17 @@ describe("TemplateAssignmentActions", () => {
       );
     });
 
-    it("criterio 12: desactivada solo ofrece «Eliminar asignación»", async () => {
-      await openMenu(deactivated);
+    it.each([
+      ["API anterior (sin el campo)", undefined],
+      ["sin uso en liquidaciones", false],
+    ])(
+      "criterio 12 / CA3–CA4: desactivada %s solo ofrece «Eliminar asignación»",
+      async (_label, isUsedInSettlement) => {
+        await openMenu({ ...deactivated, isUsedInSettlement });
 
-      expect(menuItemNames()).toEqual(["Eliminar asignación"]);
-    });
+        expect(menuItemNames()).toEqual(["Eliminar asignación"]);
+      },
+    );
 
     it("desactivada sin permiso de eliminar no muestra menú", () => {
       mockUsePermissions.mockReturnValue({
@@ -307,10 +313,7 @@ describe("TemplateAssignmentActions", () => {
       const alert = await within(dialog).findByTestId("assignment-action-error");
       expect(within(alert).getByText("Hay días ya liquidados")).toBeInTheDocument();
       expect(within(alert).getByText(SETTLED_MESSAGE)).toBeInTheDocument();
-      expect(mockToast).toHaveBeenCalledWith({
-        title: "Error al cerrar vigencia",
-        variant: "error",
-      });
+      expect(mockToast).not.toHaveBeenCalled();
 
       await user.click(
         within(alert).getByRole("button", { name: `Usar ${formatDate(MIN_EFFECTIVE_TO)}` }),
@@ -395,6 +398,232 @@ describe("TemplateAssignmentActions", () => {
       expect(within(alert).getByText(SETTLED_MESSAGE)).toBeInTheDocument();
       expect(within(alertDialog).getByRole("button", { name: /^Eliminar$/i })).toBeDisabled();
       expect(within(alert).queryByRole("button")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("asignación usada en una liquidación (PRD D1–D4)", () => {
+    const IN_USE_TITLE = "No se puede eliminar";
+    const IN_USE_DEACTIVATED =
+      "Esta asignación formó parte de una liquidación (aunque esté cancelada) y se conserva como historial. Como está desactivada, no cobra ni afecta a otras asignaciones.";
+    const IN_USE_NOT_DEACTIVATED =
+      "Esta asignación formó parte de una liquidación (aunque esté cancelada) y se conserva como historial. Para que deje de cobrar, desactívala o cierra su vigencia.";
+
+    const deactivated: TemplateAssignment = { ...sampleAssignment, isActive: false };
+
+    function inUseError() {
+      return new ApiError("La asignación tiene liquidaciones", 409, "ASSIGNMENT_IN_USE");
+    }
+
+    function grant(...actions: string[]) {
+      mockUsePermissions.mockReturnValue({
+        hasPermission: vi.fn(
+          (resource: string, action: string) =>
+            resource === "settlements" && actions.includes(action),
+        ),
+      });
+    }
+
+    function renderActions(assignment: TemplateAssignment) {
+      const queryClient = createTestQueryClient();
+      const element = (row: TemplateAssignment) => (
+        <QueryClientProvider client={queryClient}>
+          <TemplateAssignmentActions assignment={row} />
+        </QueryClientProvider>
+      );
+      const utils = render(element(assignment));
+      return { ...utils, rerenderWith: (row: TemplateAssignment) => utils.rerender(element(row)) };
+    }
+
+    const openMenuButton = () =>
+      screen.getByRole("button", { name: /Abrir menú de acciones de asignación/i });
+    const menuItemNames = () =>
+      screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-08T18:00:00Z"));
+      grant("update", "delete");
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["vigente", sampleAssignment, ["Cerrar vigencia…", "Desactivar asignación"]],
+      [
+        "programada",
+        { ...sampleAssignment, effectiveFrom: "2026-11-01" },
+        ["Cerrar vigencia…", "Desactivar asignación"],
+      ],
+      [
+        "concluida",
+        { ...sampleAssignment, effectiveTo: "2026-09-30" },
+        ["Cambiar fecha de fin…", "Desactivar asignación"],
+      ],
+    ])("CA1: %s en uso → acciones de fecha y desactivar, sin «Eliminar»", async (_l, row, items) => {
+      const user = userEvent.setup();
+      renderActions({ ...row, isUsedInSettlement: true });
+
+      await user.click(openMenuButton());
+
+      expect(menuItemNames()).toEqual(items);
+      expect(screen.queryByText("Eliminar asignación")).not.toBeInTheDocument();
+    });
+
+    it("CA4: vigente sin el campo (API anterior) sigue ofreciendo «Eliminar»", async () => {
+      const user = userEvent.setup();
+      renderActions({ ...sampleAssignment, isUsedInSettlement: undefined });
+
+      await user.click(openMenuButton());
+
+      expect(menuItemNames()).toEqual([
+        "Cerrar vigencia…",
+        "Desactivar asignación",
+        "Eliminar asignación",
+      ]);
+    });
+
+    it("CA2: desactivada en uso → sin «···»", () => {
+      const { container } = renderActions({ ...deactivated, isUsedInSettlement: true });
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("CA12: contador (sin eliminar) → desactivada sin «···», con o sin uso", () => {
+      grant("update");
+      const { container, rerenderWith } = renderActions({
+        ...deactivated,
+        isUsedInSettlement: false,
+      });
+      expect(container).toBeEmptyDOMElement();
+
+      rerenderWith({ ...deactivated, isUsedInSettlement: undefined });
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("CA3: desactivada sin uso → elimina, toast de éxito y cierra", async () => {
+      const user = userEvent.setup();
+      renderActions({ ...deactivated, isUsedInSettlement: false });
+
+      await user.click(openMenuButton());
+      await user.click(screen.getByText("Eliminar asignación"));
+      await user.click(screen.getByRole("button", { name: /^Eliminar$/i }));
+
+      await waitFor(() => expect(mockDeleteAssignment).toHaveBeenCalledWith("assign-1"));
+      expect(mockToast).toHaveBeenCalledTimes(1);
+      expect(mockToast).toHaveBeenCalledWith({ title: "Asignación eliminada", variant: "success" });
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    });
+
+    it("el diálogo de eliminar explica que cuenta cualquier liquidación", async () => {
+      const user = userEvent.setup();
+      renderActions(deactivated);
+
+      await user.click(openMenuButton());
+      await user.click(screen.getByText("Eliminar asignación"));
+
+      expect(
+        within(screen.getByRole("alertdialog")).getByText(
+          "La asignación se borrará de forma permanente. Solo se puede eliminar si nunca formó parte de una liquidación, sin importar su estado (incluso cancelada). Si ya formó parte de una, desactívala o cierra su vigencia: deja de cobrar y se conserva como historial.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it.each([
+      ["desactivada", deactivated, IN_USE_DEACTIVATED],
+      ["vigente", sampleAssignment, IN_USE_NOT_DEACTIVATED],
+    ])(
+      "CA5: 409 ASSIGNMENT_IN_USE en %s → Alert con título y texto por estado, sin toast",
+      async (_label, row, message) => {
+        mockDeleteAssignment.mockRejectedValueOnce(inUseError());
+        const user = userEvent.setup();
+        renderActions(row);
+
+        await user.click(openMenuButton());
+        await user.click(screen.getByText("Eliminar asignación"));
+        await user.click(screen.getByRole("button", { name: /^Eliminar$/i }));
+
+        const alertDialog = await screen.findByRole("alertdialog");
+        const alert = await within(alertDialog).findByTestId("assignment-action-error");
+        expect(within(alert).getByText(IN_USE_TITLE)).toBeInTheDocument();
+        expect(within(alert).getByText(message)).toBeInTheDocument();
+        expect(within(alert).queryByText("La asignación tiene liquidaciones")).not.toBeInTheDocument();
+        expect(within(alertDialog).getByRole("button", { name: /^Eliminar$/i })).toBeDisabled();
+        expect(within(alertDialog).getByRole("button", { name: "Cerrar" })).toBeEnabled();
+        expect(
+          within(alertDialog).queryByRole("button", { name: "Cancelar" }),
+        ).not.toBeInTheDocument();
+        expect(mockToast).not.toHaveBeenCalled();
+      },
+    );
+
+    it("CA5: al recargar la fila en uso el diálogo sigue montado; al cerrar ya no hay «···»", async () => {
+      mockDeleteAssignment.mockRejectedValueOnce(inUseError());
+      const user = userEvent.setup();
+      const { container, rerenderWith } = renderActions(deactivated);
+
+      await user.click(openMenuButton());
+      await user.click(screen.getByText("Eliminar asignación"));
+      await user.click(screen.getByRole("button", { name: /^Eliminar$/i }));
+      await screen.findByTestId("assignment-action-error");
+
+      rerenderWith({ ...deactivated, isUsedInSettlement: true });
+
+      const alertDialog = screen.getByRole("alertdialog");
+      expect(within(alertDialog).getByText(IN_USE_DEACTIVATED)).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Abrir menú de acciones de asignación/i }),
+      ).not.toBeInTheDocument();
+
+      await user.click(within(alertDialog).getByRole("button", { name: "Cerrar" }));
+
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("CA6: error al desactivar → un solo aviso en el diálogo, sin toast", async () => {
+      mockUpdateAssignment.mockRejectedValueOnce(new ApiError("Fallo al desactivar", 500));
+      const user = userEvent.setup();
+      renderActions(sampleAssignment);
+
+      await user.click(openMenuButton());
+      await user.click(screen.getByText("Desactivar asignación"));
+      await user.click(screen.getByRole("button", { name: /^Desactivar$/i }));
+
+      const alertDialog = await screen.findByRole("alertdialog");
+      expect(within(alertDialog).getAllByTestId("assignment-action-error")).toHaveLength(1);
+      expect(mockToast).not.toHaveBeenCalled();
+    });
+
+    it("CA6: error al cerrar vigencia → un solo aviso en el diálogo, sin toast", async () => {
+      mockUpdateAssignment.mockRejectedValueOnce(new ApiError("Fallo al cerrar", 500));
+      const user = userEvent.setup();
+      renderActions(sampleAssignment);
+
+      await user.click(openMenuButton());
+      await user.click(screen.getByText("Cerrar vigencia…"));
+      await user.click(screen.getByRole("button", { name: /^Cerrar vigencia$/i }));
+
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getAllByTestId("assignment-action-error")).toHaveLength(1);
+      expect(mockToast).not.toHaveBeenCalled();
+    });
+
+    it("CA6: éxito al desactivar conserva el toast", async () => {
+      const user = userEvent.setup();
+      renderActions(sampleAssignment);
+
+      await user.click(openMenuButton());
+      await user.click(screen.getByText("Desactivar asignación"));
+      await user.click(screen.getByRole("button", { name: /^Desactivar$/i }));
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith({
+          title: "Asignación desactivada",
+          variant: "success",
+        }),
+      );
     });
   });
 });

@@ -6,17 +6,22 @@ import type { CompensationTemplate, TemplateAssignment } from "../../domain/enti
 import type { FocusedTemplateAssignment } from "../hooks/useFocusedTemplateAssignment";
 import { TemplateOperatorsSheet } from "./TemplateOperatorsSheet";
 
-const { mockUseFocused, mockUseCompensationTemplate } = vi.hoisted(() => ({
-  mockUseFocused: vi.fn(),
-  mockUseCompensationTemplate: vi.fn(),
-}));
+const { mockUseFocused, mockUseCompensationTemplate, mockUseTemplateAssignments } = vi.hoisted(
+  () => ({
+    mockUseFocused: vi.fn(),
+    mockUseCompensationTemplate: vi.fn(),
+    mockUseTemplateAssignments: vi.fn(),
+  }),
+);
 
 vi.mock("../hooks/useFocusedTemplateAssignment", () => ({
+  TEMPLATE_OPERATORS_PAGE_SIZE: 100,
   useFocusedTemplateAssignment: (...args: unknown[]) => mockUseFocused(...args),
 }));
 
 vi.mock("../../application/hooks", () => ({
   useCompensationTemplate: (...args: unknown[]) => mockUseCompensationTemplate(...args),
+  useTemplateAssignments: (...args: unknown[]) => mockUseTemplateAssignments(...args),
 }));
 
 vi.mock("./TemplateOperatorsPanel", () => ({
@@ -101,6 +106,75 @@ describe("TemplateOperatorsSheet", () => {
     mockUseCompensationTemplate.mockImplementation((id?: string) => ({
       data: id === origin.id ? origin : undefined,
     }));
+    mockUseTemplateAssignments.mockReturnValue({ data: { data: [] } });
+  });
+
+  describe("D5: aviso de versión reemplazada según quién cobra con ella", () => {
+    const STILL_PAYING =
+      "Esta versión ya fue reemplazada, pero hay operadores que todavía cobran o cobrarán con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.";
+    const NONE_PAYING = "Esta versión ya fue reemplazada y ningún operador cobra con ella.";
+    const HISTORY = "Las asignaciones de abajo se conservan como historial.";
+
+    function superseded(counts: Partial<CompensationTemplate>) {
+      return makeTemplate({
+        isActive: false,
+        status: "inactive",
+        inactiveReason: "superseded",
+        activeAssignmentsCount: 0,
+        ...counts,
+      });
+    }
+
+    const versionNotice = () => screen.getByTestId("operators-sheet-version-notice");
+
+    it.each([
+      ["vigentes", { activeAssignmentsCount: 2, scheduledAssignmentsCount: 0 }],
+      ["solo programadas", { activeAssignmentsCount: 0, scheduledAssignmentsCount: 1 }],
+      ["sin programadas en la API (API anterior)", { activeAssignmentsCount: 0 }],
+    ])("CA7: con %s → variante A", (_label, counts) => {
+      mockUseTemplateAssignments.mockReturnValue({ data: { data: [fernando] } });
+      render(sheetElement({ template: superseded(counts) }));
+
+      expect(versionNotice()).toHaveTextContent(STILL_PAYING);
+    });
+
+    it("CA8: nadie cobra y hay filas → variante B con la segunda oración", () => {
+      mockUseTemplateAssignments.mockReturnValue({
+        data: { data: [{ ...fernando, isActive: false }] },
+      });
+      render(
+        sheetElement({
+          template: superseded({ activeAssignmentsCount: 0, scheduledAssignmentsCount: 0 }),
+        }),
+      );
+
+      expect(versionNotice().textContent?.trim()).toBe(`${NONE_PAYING} ${HISTORY}`);
+    });
+
+    it("CA8: nadie cobra y no hay filas → solo la primera oración", () => {
+      render(
+        sheetElement({
+          template: superseded({ activeAssignmentsCount: 0, scheduledAssignmentsCount: 0 }),
+        }),
+      );
+
+      expect(versionNotice().textContent?.trim()).toBe(NONE_PAYING);
+    });
+
+    it("pide la misma página de asignaciones que la tabla, solo con el sheet abierto", () => {
+      const template = superseded({ activeAssignmentsCount: 1 });
+      const { rerender } = render(sheetElement({ template }));
+      expect(mockUseTemplateAssignments).toHaveBeenLastCalledWith({
+        templateId: template.id,
+        pageSize: 100,
+      });
+
+      rerender(sheetElement({ template, open: false }));
+      expect(mockUseTemplateAssignments).toHaveBeenLastCalledWith({
+        templateId: undefined,
+        pageSize: 100,
+      });
+    });
   });
 
   describe("D21: aviso en la versión destino", () => {

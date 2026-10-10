@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  mapAssignment,
+  mapAssignmentFromApi,
   mapBatchConflict,
   mapBatchConflictFromApi,
   mapBatchPreviewFromApi,
@@ -554,6 +556,49 @@ describe("compensation mappers", () => {
         conflicts: [],
         closures: [],
       });
+    });
+  });
+
+  describe("asignación usada en una liquidación (is_used_in_settlement)", () => {
+    const rawSnake = {
+      id: "asg-1",
+      employee_id: "emp-1",
+      template_id: "tpl-1",
+      effective_from: "2026-08-01",
+      effective_to: null,
+      is_active: false,
+    };
+    const rawCamel = {
+      id: "asg-1",
+      employeeId: "emp-1",
+      templateId: "tpl-1",
+      effectiveFrom: "2026-08-01",
+      effectiveTo: null,
+      isActive: false,
+    };
+
+    it.each([true, false])("conserva el valor %s", (value) => {
+      expect(mapAssignment({ ...rawSnake, is_used_in_settlement: value }).isUsedInSettlement).toBe(
+        value,
+      );
+      expect(
+        mapAssignmentFromApi({ ...rawCamel, isUsedInSettlement: value }).isUsedInSettlement,
+      ).toBe(value);
+    });
+
+    it("sin el campo (API anterior) queda undefined, no false", () => {
+      expect(mapAssignment(rawSnake).isUsedInSettlement).toBeUndefined();
+      expect(mapAssignmentFromApi(rawCamel).isUsedInSettlement).toBeUndefined();
+    });
+
+    it("las asignaciones creadas en lote también lo llevan", () => {
+      const result = mapBatchResultFromApi({
+        createdCount: 1,
+        skippedCount: 0,
+        conflicts: [],
+        created: [{ ...rawCamel, isUsedInSettlement: false }],
+      });
+      expect(result.created[0].isUsedInSettlement).toBe(false);
     });
   });
 

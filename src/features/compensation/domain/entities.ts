@@ -124,6 +124,11 @@ export interface TemplateAssignment {
   isActive: boolean;
   assignedBy?: string | null;
   reason?: string | null;
+  /**
+   * Formó parte de alguna liquidación (cualquier estado): no se puede eliminar.
+   * `undefined` = la API aún no envía el campo.
+   */
+  isUsedInSettlement?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

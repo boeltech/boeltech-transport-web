@@ -333,7 +333,7 @@ describe("CompensationTemplateListPage", () => {
       [
         "reemplazada",
         { inactiveReason: "superseded", lockedReason: "superseded" },
-        "Esta versión ya fue reemplazada. Los operadores asignados aquí siguen cobrando con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
+        "Esta versión ya fue reemplazada, pero hay operadores que todavía cobran o cobrarán con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
       ],
       [
         "desactivada",
@@ -368,6 +368,39 @@ describe("CompensationTemplateListPage", () => {
         }),
       ).toBeInTheDocument();
       expect(screen.queryByTestId("operators-sheet-version-notice")).not.toBeInTheDocument();
+    });
+
+    it("D5: reemplazada sin vigentes ni programadas y con filas → aviso de historial", async () => {
+      listWithInactiveVersion({
+        inactiveReason: "superseded",
+        lockedReason: "superseded",
+        activeAssignmentsCount: 0,
+        scheduledAssignmentsCount: 0,
+      });
+      mockUseTemplateAssignments.mockReturnValue(
+        assignmentsPage([
+          {
+            id: "asg-old",
+            employeeId: "emp-old",
+            employeeFullName: "Juan Pérez",
+            templateId: "tpl-old",
+            effectiveFrom: "2026-01-01",
+            effectiveTo: null,
+            isActive: false,
+            isUsedInSettlement: true,
+          },
+        ]),
+      );
+      renderPage("/finance/compensation/templates?operators=tpl-old");
+
+      expect(
+        await screen.findByRole("heading", {
+          name: "Operadores — Operador foráneo versión 2",
+        }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("operators-sheet-version-notice")).toHaveTextContent(
+        "Esta versión ya fue reemplazada y ningún operador cobra con ella. Las asignaciones de abajo se conservan como historial.",
+      );
     });
   });
 

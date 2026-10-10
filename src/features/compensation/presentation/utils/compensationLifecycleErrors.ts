@@ -27,6 +27,11 @@ export function isTemplateConfigLockedError(error: unknown): boolean {
   return getCompensationErrorCode(error) === COMPENSATION_ERROR_CODES.TEMPLATE_CONFIG_LOCKED;
 }
 
+/** 409 `ASSIGNMENT_IN_USE`: la asignación formó parte de una liquidación y no se elimina. */
+export function isAssignmentInUseError(error: unknown): boolean {
+  return getCompensationErrorCode(error) === COMPENSATION_ERROR_CODES.ASSIGNMENT_IN_USE;
+}
+
 function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }

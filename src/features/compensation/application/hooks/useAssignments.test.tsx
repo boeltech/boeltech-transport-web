@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 import type { BatchTemplateAssignmentPayload } from "../../domain/entities";
 import { compensationQueryKeys } from "../compensationQueryKeys";
 import {
@@ -45,6 +46,7 @@ describe("useUpdate/DeleteTemplateAssignment — invalidación (api#63 C15)", ()
 
   const previewKey = compensationQueryKeys.assignmentBatchPreview({ templateId: "tpl-v2" });
   const templatesKey = compensationQueryKeys.templatesList({ page: 1 });
+  const listKey = compensationQueryKeys.assignmentsList({ templateId: "tpl-v1", pageSize: 100 });
 
   function seed(queryClient: QueryClient) {
     queryClient.setQueryData(previewKey, emptyPreview);
@@ -77,6 +79,38 @@ describe("useUpdate/DeleteTemplateAssignment — invalidación (api#63 C15)", ()
 
     expect(queryClient.getQueryState(previewKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(templatesKey)?.isInvalidated).toBe(true);
+  });
+
+  it("eliminar con 409 ASSIGNMENT_IN_USE invalida la lista (la fila pasa a «en uso»)", async () => {
+    mockApi.deleteAssignment.mockRejectedValue(
+      new ApiError("La asignación tiene liquidaciones", 409, "ASSIGNMENT_IN_USE"),
+    );
+    const { queryClient, wrapper } = createWrapper();
+    seed(queryClient);
+    queryClient.setQueryData(listKey, { data: [] });
+    const { result } = renderHook(() => useDeleteTemplateAssignment(), { wrapper });
+
+    await act(async () => {
+      await expect(result.current.mutateAsync("asg-1")).rejects.toBeInstanceOf(ApiError);
+    });
+
+    expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(templatesKey)?.isInvalidated).toBe(true);
+  });
+
+  it("eliminar con otro error no invalida", async () => {
+    mockApi.deleteAssignment.mockRejectedValue(new ApiError("Error interno", 500));
+    const { queryClient, wrapper } = createWrapper();
+    seed(queryClient);
+    queryClient.setQueryData(listKey, { data: [] });
+    const { result } = renderHook(() => useDeleteTemplateAssignment(), { wrapper });
+
+    await act(async () => {
+      await expect(result.current.mutateAsync("asg-1")).rejects.toBeInstanceOf(ApiError);
+    });
+
+    expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(templatesKey)?.isInvalidated).toBe(false);
   });
 });
 

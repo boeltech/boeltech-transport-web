@@ -6,9 +6,13 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useDebounce } from "@shared/hooks";
+import { isApiError } from "@shared/api/interceptors/error-handler";
 import { compensationApi } from "../../infrastructure/compensationApi";
 import { compensationQueryKeys } from "../compensationQueryKeys";
-import { BATCH_ASSIGNMENT_MAX_EMPLOYEES } from "../../domain/enums";
+import {
+  BATCH_ASSIGNMENT_MAX_EMPLOYEES,
+  COMPENSATION_ERROR_CODES,
+} from "../../domain/enums";
 import type {
   BatchTemplateAssignmentPayload,
   UpdateTemplateAssignmentPayload,
@@ -151,6 +155,12 @@ export function useDeleteTemplateAssignment() {
   return useMutation({
     mutationFn: (id: string) => compensationApi.deleteAssignment(id),
     onSuccess: () => invalidateAfterAssignmentChange(queryClient),
+    onError: (error) => {
+      // La fila trae `is_used_in_settlement` desactualizado: recargar para ocultar «Eliminar».
+      if (isApiError(error) && error.code === COMPENSATION_ERROR_CODES.ASSIGNMENT_IN_USE) {
+        invalidateAfterAssignmentChange(queryClient);
+      }
+    },
   });
 }
 

@@ -303,8 +303,12 @@ export const compensationCopy = {
     title: (name: string, version: number) => `Operadores — ${name} versión ${version}`,
     description:
       "Operadores asignados a esta versión y su vigencia. Desde aquí puedes asignar varios a la vez.",
-    supersededNotice:
-      "Esta versión ya fue reemplazada. Los operadores asignados aquí siguen cobrando con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
+    supersededNotice: {
+      stillPaying:
+        "Esta versión ya fue reemplazada, pero hay operadores que todavía cobran o cobrarán con ella. Para que cobren con la versión activa, asígnalos desde esa versión indicando desde qué fecha.",
+      nonePaying: "Esta versión ya fue reemplazada y ningún operador cobra con ella.",
+      history: "Las asignaciones de abajo se conservan como historial.",
+    },
     deactivatedNotice:
       "Esta versión está desactivada y no calcula pagos, ni siquiera de los operadores asignados aquí. Asígnalos a otra versión para que puedan cobrar.",
     focusNotice: {
@@ -633,6 +637,8 @@ export const compensationCopy = {
     emptyTitle: "Sin operadores asignados",
     expandRow: "Expandir fila de prestaciones",
     collapseRow: "Contraer fila de prestaciones",
+    showDeactivated: (count: number) => `Mostrar desactivadas (${count})`,
+    hideDeactivated: "Ocultar desactivadas",
     displayStatus: {
       current: "Vigente",
       scheduled: "Programada",
@@ -644,6 +650,8 @@ export const compensationCopy = {
       scheduled: (from: string) => `Empieza a cobrar con esta versión el ${from}.`,
       concluded: (to: string) => `Cobró con esta versión hasta el ${to}.`,
       deactivated: "No se usa para calcular pagos. Los pagos ya registrados no cambian.",
+      deactivatedInUse:
+        "No se usa para calcular pagos. Formó parte de una liquidación (aunque esté cancelada), así que se conserva como historial y no se puede eliminar.",
     },
     summaryCurrent: (count: number) => `${count} ${count === 1 ? "vigente" : "vigentes"}`,
     summaryScheduled: (count: number) =>
@@ -656,6 +664,13 @@ export const compensationCopy = {
     changeEndDate: "Cambiar fecha de fin…",
     delete: "Eliminar asignación",
     settledTitle: "Hay días ya liquidados",
+    inUseError: {
+      title: "No se puede eliminar",
+      deactivated:
+        "Esta asignación formó parte de una liquidación (aunque esté cancelada) y se conserva como historial. Como está desactivada, no cobra ni afecta a otras asignaciones.",
+      notDeactivated:
+        "Esta asignación formó parte de una liquidación (aunque esté cancelada) y se conserva como historial. Para que deje de cobrar, desactívala o cierra su vigencia.",
+    },
     deactivateDialog: {
       title: "¿Desactivar asignación?",
       description: (name: string) =>
@@ -686,18 +701,16 @@ export const compensationCopy = {
     deleteDialog: {
       title: "¿Eliminar asignación?",
       description:
-        "Solo elimina asignaciones que no hayan sido usadas en pagos. Si ya se usó en un pago, cierra la vigencia en su lugar.",
+        "La asignación se borrará de forma permanente. Solo se puede eliminar si nunca formó parte de una liquidación, sin importar su estado (incluso cancelada). Si ya formó parte de una, desactívala o cierra su vigencia: deja de cobrar y se conserva como historial.",
       confirm: "Eliminar",
       pending: "Eliminando…",
       cancel: "Cancelar",
+      close: "Cerrar",
     },
     toasts: {
       deactivateSuccess: "Asignación desactivada",
-      deactivateError: "Error al desactivar asignación",
       closeValiditySuccess: "Vigencia cerrada",
-      closeValidityError: "Error al cerrar vigencia",
       deleteSuccess: "Asignación eliminada",
-      deleteError: "Error al eliminar asignación",
     },
   },
   allowanceOverrides: {

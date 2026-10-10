@@ -10,11 +10,12 @@ import {
   SheetTitle,
 } from "@shared/ui/sheet";
 import { formatDate } from "@shared/utils/dateUtils";
-import { useCompensationTemplate } from "../../application/hooks";
+import { useCompensationTemplate, useTemplateAssignments } from "../../application/hooks";
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
 import {
   type FocusedTemplateAssignment,
+  TEMPLATE_OPERATORS_PAGE_SIZE,
   useFocusedTemplateAssignment,
 } from "../hooks/useFocusedTemplateAssignment";
 import { getTemplateDisplayStatus } from "../utils/getTemplateDisplayStatus";
@@ -109,6 +110,19 @@ function FocusNotice({
   );
 }
 
+/**
+ * PRD D5: conteos de la API, no filas (la tabla se trunca a 100). Sin programadas en la
+ * respuesta (API anterior) se asume que alguien cobra.
+ */
+function supersededNoticeText(template: CompensationTemplate, hasRows: boolean): string {
+  const versionCopy = copy.supersededNotice;
+  const stillPaying =
+    template.scheduledAssignmentsCount === undefined ||
+    template.activeAssignmentsCount + template.scheduledAssignmentsCount > 0;
+  if (stillPaying) return versionCopy.stillPaying;
+  return hasRows ? `${versionCopy.nonePaying} ${versionCopy.history}` : versionCopy.nonePaying;
+}
+
 export function TemplateOperatorsSheet({
   open,
   onOpenChange,
@@ -146,10 +160,15 @@ export function TemplateOperatorsSheet({
   const { data: returnTemplate } = useCompensationTemplate(
     open ? returnTemplateId : undefined,
   );
+  const { data: assignmentsPage } = useTemplateAssignments({
+    templateId: open ? template?.id : undefined,
+    pageSize: TEMPLATE_OPERATORS_PAGE_SIZE,
+  });
 
   if (!template) return null;
 
   const displayStatus = getTemplateDisplayStatus(template);
+  const hasAssignmentRows = (assignmentsPage?.data.length ?? 0) > 0;
   const showFocusNotice = Boolean(returnTemplateId) || focused.status === "missing";
 
   return (
@@ -179,7 +198,7 @@ export function TemplateOperatorsSheet({
           {displayStatus === "superseded" ? (
             <Alert variant="info" data-testid="operators-sheet-version-notice">
               <History className="h-4 w-4" />
-              <AlertDescription>{copy.supersededNotice}</AlertDescription>
+              <AlertDescription>{supersededNoticeText(template, hasAssignmentRows)}</AlertDescription>
             </Alert>
           ) : displayStatus === "deactivated" ? (
             <Alert variant="warning" data-testid="operators-sheet-version-notice">

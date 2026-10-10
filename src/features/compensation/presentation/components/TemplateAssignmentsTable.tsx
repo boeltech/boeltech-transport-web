@@ -124,11 +124,35 @@ export function TemplateAssignmentsTable({
   onActionComplete,
 }: TemplateAssignmentsTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showDeactivated, setShowDeactivated] = useState(false);
+  const [openedForFocusId, setOpenedForFocusId] = useState<string | null>(null);
   const showOverrides = fixedAllowances.length > 0;
   const rows = useMemo(
     () => sortByDisplayStatus(assignments, getTodayString()),
     [assignments],
   );
+  const deactivatedCount = rows.filter(({ status }) => status === "deactivated").length;
+  /** PRD D6: solo se colapsa si conviven desactivadas con otros estados. */
+  const canCollapseDeactivated = deactivatedCount > 0 && deactivatedCount < rows.length;
+
+  // Se abre durante el render (no en un efecto) para que la fila exista cuando corra el foco D20.
+  const focusTargetsDeactivated = rows.some(
+    ({ assignment, status }) =>
+      assignment.id === focusedAssignmentId && status === "deactivated",
+  );
+  if (
+    focusedAssignmentId &&
+    focusTargetsDeactivated &&
+    openedForFocusId !== focusedAssignmentId
+  ) {
+    setOpenedForFocusId(focusedAssignmentId);
+    setShowDeactivated(true);
+  }
+
+  const visibleRows =
+    canCollapseDeactivated && !showDeactivated
+      ? rows.filter(({ status }) => status !== "deactivated")
+      : rows;
   const focusedRowRef = useRef<HTMLTableRowElement>(null);
   const focusedOnceRef = useRef<string | null>(null);
 
@@ -140,7 +164,7 @@ export function TemplateAssignmentsTable({
     if (focusedOnceRef.current === focusedAssignmentId || !focusedRowRef.current) return;
     focusedOnceRef.current = focusedAssignmentId;
     focusRowMenu(focusedRowRef.current);
-  }, [focusedAssignmentId, rows, isLoading]);
+  }, [focusedAssignmentId, visibleRows, isLoading]);
 
   if (isLoading) {
     return (
@@ -165,78 +189,92 @@ export function TemplateAssignmentsTable({
   }
 
   return (
-    <AssignmentsTableFrame>
-      <AssignmentsTableHeader showOverrides={showOverrides} />
-      <TableBody>
-        {rows.map(({ assignment, status }) => {
-          const isExpanded = expandedId === assignment.id;
-          const isFocused = assignment.id === focusedAssignmentId;
+    <div className="space-y-2">
+      <AssignmentsTableFrame>
+        <AssignmentsTableHeader showOverrides={showOverrides} />
+        <TableBody>
+          {visibleRows.map(({ assignment, status }) => {
+            const isExpanded = expandedId === assignment.id;
+            const isFocused = assignment.id === focusedAssignmentId;
 
-          return (
-            <Fragment key={assignment.id}>
-              <TableRow
-                ref={isFocused ? focusedRowRef : undefined}
-                data-focused={isFocused ? "true" : undefined}
-                tabIndex={isFocused ? -1 : undefined}
-                className={isFocused ? "bg-accent hover:bg-accent" : undefined}
-              >
-                {showOverrides ? (
-                  <TableCell className="py-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      aria-expanded={isExpanded}
-                      aria-label={isExpanded ? copy.collapseRow : copy.expandRow}
-                      onClick={() =>
-                        setExpandedId(isExpanded ? null : assignment.id)
-                      }
-                    >
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
+            return (
+              <Fragment key={assignment.id}>
+                <TableRow
+                  ref={isFocused ? focusedRowRef : undefined}
+                  data-focused={isFocused ? "true" : undefined}
+                  tabIndex={isFocused ? -1 : undefined}
+                  className={isFocused ? "bg-accent hover:bg-accent" : undefined}
+                >
+                  {showOverrides ? (
+                    <TableCell className="py-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        aria-expanded={isExpanded}
+                        aria-label={isExpanded ? copy.collapseRow : copy.expandRow}
+                        onClick={() =>
+                          setExpandedId(isExpanded ? null : assignment.id)
+                        }
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableCell>
+                  ) : null}
+                  <TableCell>
+                    {assignment.employeeFullName ?? assignment.employeeId.slice(0, 8)}
                   </TableCell>
-                ) : null}
-                <TableCell>
-                  {assignment.employeeFullName ?? assignment.employeeId.slice(0, 8)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  {formatDate(assignment.effectiveFrom)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  {formatDate(assignment.effectiveTo)}
-                </TableCell>
-                <TableCell>
-                  <AssignmentDisplayStatusBadge assignment={assignment} status={status} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <TemplateAssignmentActions
-                    assignment={assignment}
-                    displayStatus={status}
-                    onActionComplete={onActionComplete}
-                  />
-                </TableCell>
-              </TableRow>
-              {showOverrides && isExpanded ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="bg-muted/20 p-0">
-                    <div className="p-4">
-                      <FixedAllowanceOverridePanel
-                        assignment={assignment}
-                        fixedAllowances={fixedAllowances}
-                      />
-                    </div>
+                  <TableCell className="whitespace-nowrap">
+                    {formatDate(assignment.effectiveFrom)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {formatDate(assignment.effectiveTo)}
+                  </TableCell>
+                  <TableCell>
+                    <AssignmentDisplayStatusBadge assignment={assignment} status={status} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <TemplateAssignmentActions
+                      assignment={assignment}
+                      displayStatus={status}
+                      onActionComplete={onActionComplete}
+                    />
                   </TableCell>
                 </TableRow>
-              ) : null}
-            </Fragment>
-          );
-        })}
-      </TableBody>
-    </AssignmentsTableFrame>
+                {showOverrides && isExpanded ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="bg-muted/20 p-0">
+                      <div className="p-4">
+                        <FixedAllowanceOverridePanel
+                          assignment={assignment}
+                          fixedAllowances={fixedAllowances}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+      </AssignmentsTableFrame>
+      {canCollapseDeactivated ? (
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="h-auto px-0"
+          aria-expanded={showDeactivated}
+          onClick={() => setShowDeactivated((open) => !open)}
+        >
+          {showDeactivated ? copy.hideDeactivated : copy.showDeactivated(deactivatedCount)}
+        </Button>
+      ) : null}
+    </div>
   );
 }

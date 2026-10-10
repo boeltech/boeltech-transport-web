@@ -125,6 +125,7 @@ export interface ApiTemplateAssignmentRaw {
   is_active: boolean;
   assigned_by?: string | null;
   reason?: string | null;
+  is_used_in_settlement?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -320,6 +321,7 @@ export function mapAssignment(raw: ApiTemplateAssignmentRaw): TemplateAssignment
     isActive: raw.is_active,
     assignedBy: raw.assigned_by ?? null,
     reason: raw.reason ?? null,
+    isUsedInSettlement: raw.is_used_in_settlement,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -469,6 +471,7 @@ export interface ApiTemplateAssignmentCamel {
   isActive: boolean;
   assignedBy?: string | null;
   reason?: string | null;
+  isUsedInSettlement?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -675,6 +678,7 @@ export function mapAssignmentFromApi(raw: ApiTemplateAssignmentCamel): TemplateA
     isActive: raw.isActive,
     assignedBy: raw.assignedBy ?? null,
     reason: raw.reason ?? null,
+    isUsedInSettlement: raw.isUsedInSettlement,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };

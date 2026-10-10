@@ -3,6 +3,7 @@ import { ApiError } from "@shared/api/interceptors/error-handler";
 import { compensationCopy } from "../copy/compensationCopy";
 import {
   getCompensationLifecycleErrorMessage,
+  isAssignmentInUseError,
   isTemplateConfigLockedError,
   readAssignmentPeriodSettledError,
 } from "./compensationLifecycleErrors";
@@ -36,6 +37,16 @@ describe("getCompensationLifecycleErrorMessage — 409 TEMPLATE_CONFIG_LOCKED", 
       isTemplateConfigLockedError(new ApiError("x", 409, "TEMPLATE_NOT_ACTIVATABLE")),
     ).toBe(false);
     expect(isTemplateConfigLockedError(new Error("x"))).toBe(false);
+  });
+});
+
+describe("isAssignmentInUseError — 409 ASSIGNMENT_IN_USE", () => {
+  it("solo con ese código", () => {
+    expect(isAssignmentInUseError(new ApiError("x", 409, "ASSIGNMENT_IN_USE"))).toBe(true);
+    expect(isAssignmentInUseError(new ApiError("x", 409, "ASSIGNMENT_PERIOD_SETTLED"))).toBe(
+      false,
+    );
+    expect(isAssignmentInUseError(new Error("ASSIGNMENT_IN_USE"))).toBe(false);
   });
 });
 

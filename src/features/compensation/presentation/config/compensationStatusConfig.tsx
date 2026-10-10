@@ -208,7 +208,7 @@ const AssignmentDisplayStatusBadgeBase = createStatusBadgeComponent(
 
 function assignmentStatusTooltip(
   status: AssignmentDisplayStatus,
-  assignment: Pick<TemplateAssignment, "effectiveFrom" | "effectiveTo">,
+  assignment: Pick<TemplateAssignment, "effectiveFrom" | "effectiveTo" | "isUsedInSettlement">,
 ): string {
   const tooltips = assignmentCopy.displayStatusTooltip;
   switch (status) {
@@ -219,7 +219,9 @@ function assignmentStatusTooltip(
     case "concluded":
       return tooltips.concluded(formatDate(assignment.effectiveTo));
     case "deactivated":
-      return tooltips.deactivated;
+      return assignment.isUsedInSettlement === true
+        ? tooltips.deactivatedInUse
+        : tooltips.deactivated;
   }
 }
 
@@ -228,7 +230,10 @@ export function AssignmentDisplayStatusBadge({
   assignment,
   status,
 }: {
-  assignment: Pick<TemplateAssignment, "isActive" | "effectiveFrom" | "effectiveTo">;
+  assignment: Pick<
+    TemplateAssignment,
+    "isActive" | "effectiveFrom" | "effectiveTo" | "isUsedInSettlement"
+  >;
   /** Ya calculado por quien ordena la tabla; si falta, se calcula con hoy. */
   status?: AssignmentDisplayStatus;
 }) {

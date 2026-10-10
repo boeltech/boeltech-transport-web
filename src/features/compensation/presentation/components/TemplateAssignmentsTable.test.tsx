@@ -6,11 +6,14 @@ import type { TemplateAssignment } from "../../domain/entities";
 import { TemplateAssignmentsTable } from "./TemplateAssignmentsTable";
 
 vi.mock("./TemplateAssignmentActions", () => ({
-  TemplateAssignmentActions: ({ assignment }: { assignment: TemplateAssignment }) => (
-    <button type="button" data-assignment-menu-trigger>
-      Acciones de {assignment.employeeFullName}
-    </button>
-  ),
+  TemplateAssignmentActions: ({ assignment }: { assignment: TemplateAssignment }) =>
+    assignment.isUsedInSettlement === true ? (
+      <span data-testid="actions-in-use">{String(assignment.isUsedInSettlement)}</span>
+    ) : (
+      <button type="button" data-assignment-menu-trigger>
+        Acciones de {assignment.employeeFullName}
+      </button>
+    ),
 }));
 
 vi.mock("./FixedAllowanceOverridePanel", () => ({
@@ -84,7 +87,8 @@ describe("TemplateAssignmentsTable", () => {
     expect(within(row).getByText("Vigente")).toBeInTheDocument();
   });
 
-  it("ordena Vigente, Programada, Concluida, Desactivada y «Desde» descendente en cada grupo", () => {
+  it("ordena Vigente, Programada, Concluida, Desactivada y «Desde» descendente en cada grupo", async () => {
+    const user = userEvent.setup();
     renderTable([
       makeAssignment({ id: "d", employeeFullName: "Desactivada", isActive: false }),
       makeAssignment({
@@ -97,6 +101,7 @@ describe("TemplateAssignmentsTable", () => {
       makeAssignment({ id: "p", employeeFullName: "Programada", effectiveFrom: "2026-11-01" }),
       makeAssignment({ id: "v-new", employeeFullName: "Vigente reciente", effectiveFrom: "2026-09-01" }),
     ]);
+    await user.click(screen.getByRole("button", { name: "Mostrar desactivadas (1)" }));
 
     const names = bodyRows().map((row) => within(row).getAllByRole("cell")[0].textContent);
     expect(names).toEqual([
@@ -134,6 +139,153 @@ describe("TemplateAssignmentsTable", () => {
         name: `Empieza a cobrar con esta versión el ${formatDate("2026-11-01")}.`,
       }),
     ).toBeInTheDocument();
+  });
+
+  describe("desactivada y usada en una liquidación (PRD D2)", () => {
+    const deactivatedTooltip = "No se usa para calcular pagos. Los pagos ya registrados no cambian.";
+    const inUseTooltip =
+      "No se usa para calcular pagos. Formó parte de una liquidación (aunque esté cancelada), así que se conserva como historial y no se puede eliminar.";
+
+    it.each([
+      ["en uso", true, inUseTooltip],
+      ["sin uso", false, deactivatedTooltip],
+      ["sin el campo (API anterior)", undefined, deactivatedTooltip],
+    ])("CA2: tooltip de «Desactivada» %s", async (_label, isUsedInSettlement, tooltip) => {
+      renderTable([makeAssignment({ id: "d", isActive: false, isUsedInSettlement })]);
+      const user = userEvent.setup();
+
+      await user.tab();
+      expect(screen.getByTestId("assignment-display-status-trigger")).toHaveFocus();
+      expect(await screen.findByRole("tooltip", { name: tooltip })).toBeInTheDocument();
+    });
+
+    it("la tabla pasa la asignación completa a las acciones y conserva la celda", () => {
+      renderTable([makeAssignment({ id: "d", isActive: false, isUsedInSettlement: true })]);
+
+      const [row] = bodyRows();
+      expect(within(row).getAllByRole("cell")).toHaveLength(5);
+      expect(screen.getByTestId("actions-in-use")).toHaveTextContent("true");
+    });
+  });
+
+  describe("desactivadas colapsadas (PRD D6)", () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+
+    beforeEach(() => {
+      scrollIntoView.mockClear();
+      Element.prototype.scrollIntoView = scrollIntoView;
+    });
+
+    afterEach(() => {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    });
+
+    const mixed = [
+      makeAssignment({ id: "d1", employeeFullName: "Desactivada uno", isActive: false }),
+      makeAssignment({ id: "v1", employeeFullName: "Vigente uno", effectiveFrom: "2026-09-01" }),
+      makeAssignment({
+        id: "d2",
+        employeeFullName: "Desactivada dos",
+        isActive: false,
+        effectiveFrom: "2026-07-01",
+      }),
+      makeAssignment({ id: "v2", employeeFullName: "Vigente dos", effectiveFrom: "2026-06-01" }),
+      makeAssignment({
+        id: "d3",
+        employeeFullName: "Desactivada tres",
+        isActive: false,
+        effectiveFrom: "2026-06-01",
+      }),
+    ];
+
+    function rowNames() {
+      return bodyRows().map((row) => within(row).getAllByRole("cell")[0].textContent);
+    }
+
+    it("CA9: 2 vigentes + 3 desactivadas → 2 filas y «Mostrar desactivadas (3)»; al pulsar aparecen al final", async () => {
+      const user = userEvent.setup();
+      renderTable(mixed);
+
+      expect(rowNames()).toEqual(["Vigente uno", "Vigente dos"]);
+      const toggle = screen.getByRole("button", { name: "Mostrar desactivadas (3)" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+      await user.click(toggle);
+
+      expect(rowNames()).toEqual([
+        "Vigente uno",
+        "Vigente dos",
+        "Desactivada uno",
+        "Desactivada dos",
+        "Desactivada tres",
+      ]);
+      const hide = screen.getByRole("button", { name: "Ocultar desactivadas" });
+      expect(hide).toHaveAttribute("aria-expanded", "true");
+
+      await user.click(hide);
+
+      expect(rowNames()).toEqual(["Vigente uno", "Vigente dos"]);
+      expect(screen.getByRole("button", { name: "Mostrar desactivadas (3)" })).toBeInTheDocument();
+    });
+
+    it("CA10: todas desactivadas → se ven todas, sin botón", () => {
+      renderTable(mixed.filter((assignment) => assignment.isActive === false));
+
+      expect(rowNames()).toEqual(["Desactivada uno", "Desactivada dos", "Desactivada tres"]);
+      expect(screen.queryByRole("button", { name: /desactivadas/i })).not.toBeInTheDocument();
+    });
+
+    it("sin desactivadas no hay botón", () => {
+      renderTable(mixed.filter((assignment) => assignment.isActive !== false));
+
+      expect(rowNames()).toEqual(["Vigente uno", "Vigente dos"]);
+      expect(screen.queryByRole("button", { name: /desactivadas/i })).not.toBeInTheDocument();
+    });
+
+    it("CA11: foco en una desactivada → sección abierta, fila resaltada y con foco", () => {
+      renderTable(mixed, "d2");
+
+      expect(rowNames()).toHaveLength(5);
+      expect(screen.getByRole("button", { name: "Ocultar desactivadas" })).toBeInTheDocument();
+      const focused = bodyRows().filter((row) => row.getAttribute("data-focused") === "true");
+      expect(focused).toHaveLength(1);
+      expect(focused[0]).toHaveTextContent("Desactivada dos");
+      expect(focused[0]).toHaveClass("bg-accent");
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(
+        within(focused[0]).getByRole("button", { name: "Acciones de Desactivada dos" }),
+      ).toHaveFocus();
+    });
+
+    it("CA11: foco en una desactivada en uso (sin «···») → la fila misma recibe el foco", () => {
+      renderTable(
+        mixed.map((assignment) =>
+          assignment.id === "d3" ? { ...assignment, isUsedInSettlement: true } : assignment,
+        ),
+        "d3",
+      );
+
+      const focused = bodyRows().find((row) => row.getAttribute("data-focused") === "true");
+      expect(focused).toHaveTextContent("Desactivada tres");
+      expect(focused).toHaveFocus();
+    });
+
+    it("foco en una vigente → las desactivadas siguen ocultas", () => {
+      renderTable(mixed, "v2");
+
+      expect(rowNames()).toEqual(["Vigente uno", "Vigente dos"]);
+      expect(screen.getByRole("button", { name: "Mostrar desactivadas (3)" })).toBeInTheDocument();
+    });
+
+    it("tras abrir por foco, el usuario puede volver a ocultarlas", async () => {
+      const user = userEvent.setup();
+      renderTable(mixed, "d1");
+
+      await user.click(screen.getByRole("button", { name: "Ocultar desactivadas" }));
+
+      expect(rowNames()).toEqual(["Vigente uno", "Vigente dos"]);
+    });
   });
 
   describe("D20: asignación enfocada", () => {
