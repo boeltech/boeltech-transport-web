@@ -33,6 +33,7 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  AlertWithIcon,
 } from "@shared/ui/alert";
 import {
   AlertCircle,
@@ -50,7 +51,14 @@ import {
   collectFieldErrorMessages,
   formatFormValidationToastDescription,
 } from "@shared/utils/formErrors";
+import {
+  classifyGenericRfc,
+  GENERIC_RECEIVER_TAX_REGIME,
+  type GenericRfcKind,
+} from "@boeltech/cfdi-domain";
+import { PUBLIC_GENERAL_LEGAL_NAME } from "@shared/cfdi/genericReceiverUx";
 import { RegimenFiscalSelect } from "@features/catalogs";
+import { useReceiverFiscalCatalogLabels } from "@features/catalogs/application";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
 import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
@@ -72,7 +80,9 @@ import {
 import { resolveClientCreateApiField, resolveClientEditApiField } from "../helpers/applyClientApiFieldErrors";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
 import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
+import { clientGenericRfcCopy } from "../copy/clientGenericRfcCopy";
 
+const genericCopy = clientGenericRfcCopy.form;
 const idCopy = clientDetailCopy.identification;
 const dispatchCopy = clientDetailCopy.invoiceDispatch;
 const profileCopy = cfdiReceptorProfileCopy;
@@ -224,6 +234,8 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
     trigger,
     setError,
     clearErrors,
+    setValue,
+    getValues,
     formState: { errors, isValid, isDirty },
   } = form;
   const showFormActions = Boolean(onCancel);
@@ -237,6 +249,76 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
     "receptor_cfdi";
   const isComercialOnly = cfdiReceptorProfile === "comercial_only";
   const taxRequired = !isComercialOnly;
+
+  // RFC genérico (XAXX / XEXX): tipo y régimen los fija el SAT; razón social libre (C2).
+  const genericKind = isComercialOnly
+    ? null
+    : classifyGenericRfc(formValues?.taxId);
+  const { taxRegimeLabel: catalogTaxRegimeLabel } =
+    useReceiverFiscalCatalogLabels(genericKind != null);
+  const buildGenericNotice = (kind: GenericRfcKind, isInitial: boolean) => {
+    const currentTaxRegime = getValues("taxRegime")?.trim() ?? "";
+    return {
+      kind,
+      previousTaxRegime:
+        currentTaxRegime && currentTaxRegime !== GENERIC_RECEIVER_TAX_REGIME
+          ? currentTaxRegime
+          : null,
+      correctedSaved: isInitial && mode === "edit",
+    };
+  };
+  // Se calcula en render (antes del efecto que corrige el régimen) para conservar el valor previo.
+  const [noticeKind, setNoticeKind] = useState<GenericRfcKind | null>(
+    genericKind,
+  );
+  const [genericNotice, setGenericNotice] = useState<{
+    kind: GenericRfcKind;
+    previousTaxRegime: string | null;
+    correctedSaved: boolean;
+  } | null>(() => (genericKind ? buildGenericNotice(genericKind, true) : null));
+  const [leftGenericNotice, setLeftGenericNotice] = useState(false);
+  if (noticeKind !== genericKind) {
+    setNoticeKind(genericKind);
+    setGenericNotice(genericKind ? buildGenericNotice(genericKind, false) : null);
+    setLeftGenericNotice(genericKind == null && noticeKind != null);
+  }
+  const previousTypeRef = useRef<ClientFormData["type"] | null>(null);
+  const previousGenericKindRef = useRef<GenericRfcKind | null | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    const previousKind = previousGenericKindRef.current;
+    previousGenericKindRef.current = genericKind;
+    if (previousKind === genericKind) return;
+    const opts = { shouldDirty: true, shouldValidate: true } as const;
+
+    if (genericKind) {
+      const currentType = getValues("type");
+      previousTypeRef.current = currentType;
+      if (currentType !== "individual") setValue("type", "individual", opts);
+      if (getValues("taxRegime")?.trim() !== GENERIC_RECEIVER_TAX_REGIME) {
+        setValue("taxRegime", GENERIC_RECEIVER_TAX_REGIME, opts);
+      }
+      if (genericKind === "national" && !getValues("legalName")?.trim()) {
+        setValue("legalName", PUBLIC_GENERAL_LEGAL_NAME, opts);
+      }
+      return;
+    }
+
+    if (!previousKind) return;
+    if (getValues("taxRegime") === GENERIC_RECEIVER_TAX_REGIME) {
+      setValue("taxRegime", "", opts);
+    }
+    const previousType = previousTypeRef.current;
+    if (previousType && previousType !== getValues("type")) {
+      setValue("type", previousType, opts);
+    }
+    if (getValues("legalName")?.trim() === PUBLIC_GENERAL_LEGAL_NAME) {
+      setValue("legalName", "", opts);
+    }
+    previousTypeRef.current = null;
+  }, [genericKind, getValues, setValue]);
 
   const [complianceDismissed, setComplianceDismissed] = useState(() => {
     try {
@@ -374,7 +456,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
                 key={mode === "edit" ? `type-${field.value}` : "type"}
                 value={field.value}
                 onValueChange={field.onChange}
-                disabled={disabled}
+                disabled={disabled || genericKind != null}
               >
                 <SelectTrigger
                   id="type"
@@ -394,6 +476,11 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
               </Select>
             )}
           />
+          {genericKind ? (
+            <p className="text-xs text-muted-foreground">
+              {genericCopy.lockedHelp(genericKind)}
+            </p>
+          ) : null}
           <FieldInlineError fieldId="type" message={errors.type?.message} />
         </div>
       </FormSectionCard>
@@ -560,7 +647,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
                 error={Boolean(fieldState.error)}
                 value={field.value || ""}
                 onValueChange={field.onChange}
-                disabled={disabled}
+                disabled={disabled || genericKind != null}
                 placeholder="Seleccione régimen"
                 {...getFieldErrorAriaProps(
                   "taxRegime",
@@ -569,8 +656,48 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
               />
             )}
           />
+          {genericKind ? (
+            <p className="text-xs text-muted-foreground">
+              {genericCopy.lockedHelp(genericKind)}
+            </p>
+          ) : null}
           <FieldInlineError fieldId="taxRegime" message={errors.taxRegime?.message} />
         </div>
+        {genericKind && genericNotice ? (
+          <div className="sm:col-span-2">
+            {genericNotice.correctedSaved && genericNotice.previousTaxRegime ? (
+              <AlertWithIcon
+                variant="warning"
+                title={genericCopy.editCorrectedTitle}
+              >
+                {genericCopy.editCorrectedBody(
+                  genericKind,
+                  genericNotice.previousTaxRegime,
+                  catalogTaxRegimeLabel(GENERIC_RECEIVER_TAX_REGIME),
+                )}
+              </AlertWithIcon>
+            ) : (
+              <AlertWithIcon variant="info" title={genericCopy.title(genericKind)}>
+                <p>
+                  {genericCopy.body(
+                    genericKind,
+                    catalogTaxRegimeLabel(GENERIC_RECEIVER_TAX_REGIME),
+                  )}
+                </p>
+                {genericNotice.previousTaxRegime ? (
+                  <p>
+                    {genericCopy.regimeChanged(genericNotice.previousTaxRegime)}
+                  </p>
+                ) : null}
+              </AlertWithIcon>
+            )}
+          </div>
+        ) : null}
+        {!genericKind && leftGenericNotice && !formValues?.taxRegime ? (
+          <div className="sm:col-span-2">
+            <AlertWithIcon variant="info">{genericCopy.leftGeneric}</AlertWithIcon>
+          </div>
+        ) : null}
         {mode === "edit" ? (
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="billingEmail">Correo de Facturación</Label>

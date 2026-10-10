@@ -43,6 +43,11 @@ export {
 } from "./entities";
 export { toInvoiceLike, toInvoiceLikeFromListItem } from "./invoiceLike";
 export {
+  resolveGenericReceiverAdjustment,
+  type GenericReceiverAdjustment,
+  type GenericReceiverFieldChange,
+} from "./genericReceiverAdjustment";
+export {
   getDisplayAmountsFromInvoiceFields,
   getInvoiceDisplayAmounts,
   getInvoiceListItemDisplayAmounts,

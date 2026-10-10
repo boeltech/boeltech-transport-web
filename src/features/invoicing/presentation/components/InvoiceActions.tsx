@@ -340,6 +340,7 @@ export function InvoiceActions({
           }
         : undefined,
     getStampErrorDescription: describeStampApiError,
+    invoiceReceiver: fullInvoice ?? null,
   });
 
   openSendDialogRef.current = () => setSendDialogOpen(true);

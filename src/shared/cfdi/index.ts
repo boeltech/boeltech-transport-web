@@ -12,6 +12,7 @@ export {
   validateClientFormPayload,
   validateClientFormUpdatePayload,
 } from "./clientPayloadBridge";
+export { PUBLIC_GENERAL_LEGAL_NAME } from "./genericReceiverUx";
 export {
   fetchRegulatoryFlagsForSatProductCp,
   SAT_CLAVE_PROD_SERV_CP_CATALOG_TYPE,

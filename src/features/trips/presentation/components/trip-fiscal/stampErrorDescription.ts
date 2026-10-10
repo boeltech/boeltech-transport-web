@@ -1,6 +1,7 @@
 import {
   getErrorMessage,
   isApiError,
+  RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE,
   type ApiError,
 } from "@shared/api/interceptors/error-handler";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
@@ -91,7 +92,8 @@ export function describeStampApiError(error: unknown): string {
   if (
     error.code === "STAMP_QUOTA_EXCEEDED" ||
     error.code === "TRIAL_ENDED" ||
-    error.code === "SUBSCRIPTION_INACTIVE"
+    error.code === "SUBSCRIPTION_INACTIVE" ||
+    error.code === RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE
   ) {
     return error.message;
   }

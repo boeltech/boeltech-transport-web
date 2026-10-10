@@ -35,7 +35,7 @@ describe("substituteInvoiceSheetSchema", () => {
       receiver_name: "PUBLICO EN GENERAL",
       receiver_tax_regime: "616",
       receiver_postal_code: "26015",
-      cfdi_usage: "G03",
+      cfdi_usage: "S01",
       payment_form: "99",
       payment_method: "PUE",
       subtotal: 1000,
@@ -49,6 +49,33 @@ describe("substituteInvoiceSheetSchema", () => {
       propagate_receiver_to_client: false,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rechaza RFC genérico con uso distinto de S01", () => {
+    const result = substituteInvoiceSheetSchema.safeParse({
+      cancellationReason: "Motivo",
+      receiver_rfc: "XAXX010101000",
+      receiver_name: "PUBLICO EN GENERAL",
+      receiver_tax_regime: "616",
+      receiver_postal_code: "26015",
+      cfdi_usage: "G03",
+      payment_form: "99",
+      payment_method: "PUE",
+      subtotal: 1000,
+      discount: 0,
+      total_tax: 160,
+      retained_tax: 0,
+      total: 1160,
+      apply_retained_tax: false,
+      concepts: [],
+      trip_corrections: [],
+      propagate_receiver_to_client: false,
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => issue.path.join("."))).toEqual([
+      "cfdi_usage",
+    ]);
   });
 });
 

@@ -265,6 +265,10 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
   CLIENT_NOT_ASSIGNABLE: "El cliente no puede asignarse a este viaje",
   RFC_EXISTS: "El RFC ya está registrado",
   CLIENT_CODE_EXISTS: "El código de cliente ya existe",
+  CLIENT_GENERIC_RFC_TAX_REGIME_INVALID:
+    "Con RFC de público en general (XAXX010101000) el régimen debe ser 616 · Sin obligaciones fiscales.",
+  RECEIVER_GENERIC_RFC_FISCAL_MISMATCH:
+    "Para público en general el SAT solo acepta régimen 616 (Sin obligaciones fiscales) y uso S01 (Sin efectos fiscales).",
 
   // ── Autenticación ──────────────────────────────────────────────────────────
   UNAUTHORIZED: "Sesión expirada. Por favor, inicia sesión nuevamente",
@@ -301,7 +305,23 @@ const PAC_USER_MESSAGES: Record<string, string> = {
     "El código postal fiscal del receptor no pertenece al domicilio registrado ante el SAT para ese RFC. Corrija el CP en el cliente (dirección de facturación) según la CSF, actualice los datos fiscales de la factura y vuelva a timbrar.",
   CFDI40158:
     "El régimen fiscal del receptor no corresponde al tipo de persona (física o moral) del RFC indicado.",
+  CFDI40159:
+    "El régimen del receptor no corresponde a su RFC. Si es público en general (XAXX010101000), debe ser 616 · Sin obligaciones fiscales. Corrígelo en «Revisar o corregir» de la factura y vuelve a timbrar.",
+  CFDI40161:
+    "El uso de la factura no es compatible con el régimen del receptor. Para público en general debe ser S01 · Sin efectos fiscales. Corrígelo en «Revisar o corregir» de la factura y vuelve a timbrar.",
 };
+
+/** Códigos API del pedido RFC genérico (régimen 616 / uso S01). */
+export const CLIENT_GENERIC_RFC_TAX_REGIME_INVALID_CODE =
+  "CLIENT_GENERIC_RFC_TAX_REGIME_INVALID";
+export const RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE =
+  "RECEIVER_GENERIC_RFC_FISCAL_MISMATCH";
+
+/** Errores cuyo `details` es un record plano `{ campo: mensaje }` (más `hint` opcional). */
+const FLAT_FIELD_DETAILS_CODES = new Set<string>([
+  CLIENT_GENERIC_RFC_TAX_REGIME_INVALID_CODE,
+  RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE,
+]);
 
 function normalizeApiErrorDetails(
   details?: ApiErrorDetails,
@@ -363,7 +383,7 @@ export class ApiError extends Error {
     const { status, data } = error.response;
     const code = data?.code;
     const details = data?.details;
-    const validationErrors = extractValidationErrors(details);
+    const validationErrors = extractValidationErrors(details, code);
     const message = getMessageForError(status, code, data, validationErrors);
 
     return new ApiError(
@@ -450,8 +470,33 @@ export class ApiError extends Error {
 // FUNCIONES AUXILIARES
 // ============================================================================
 
-function extractValidationErrors(details?: unknown): ValidationFieldError[] {
+function extractFlatFieldErrors(details: unknown): ValidationFieldError[] {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return [];
+  }
+  return Object.entries(details as Record<string, unknown>)
+    .filter(
+      (entry): entry is [string, string] =>
+        entry[0] !== "hint" &&
+        typeof entry[1] === "string" &&
+        entry[1].trim().length > 0,
+    )
+    .map(([field, message]) => ({
+      field,
+      label: getFieldLabel(field),
+      message,
+    }));
+}
+
+function extractValidationErrors(
+  details?: unknown,
+  code?: string,
+): ValidationFieldError[] {
   if (!details) return [];
+
+  if (code && FLAT_FIELD_DETAILS_CODES.has(code)) {
+    return extractFlatFieldErrors(details);
+  }
 
   if (Array.isArray(details)) {
     const fromZod = mapZodIssues(details);
@@ -670,6 +715,10 @@ function resolveProFactBodyMessage(errorBody: string): string | null {
 
   const [, ruleCode, description, detailPart] = match;
   const desc = description.trim();
+
+  if (ruleCode === "CFDI40159" || ruleCode === "CFDI40161") {
+    return PAC_USER_MESSAGES[ruleCode];
+  }
 
   if (ruleCode === "CFDI40158" || desc.includes("RegimenFiscalR")) {
     return buildCfdi40158OperationalMessage(detailPart?.trim());

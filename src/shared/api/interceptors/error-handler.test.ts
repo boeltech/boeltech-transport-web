@@ -152,6 +152,100 @@ describe("ApiError.fromAxiosError", () => {
     expect(error.message).not.toContain("ProFact");
   });
 
+  it.each([
+    ["CFDI40159", "616 · Sin obligaciones fiscales"],
+    ["CFDI40161", "S01 · Sin efectos fiscales"],
+  ])(
+    "traduce PAC_VALIDATION_ERROR %s con el valor correcto y dónde corregirlo",
+    (rule, expected) => {
+      const error = ApiError.fromAxiosError(
+        buildAxiosError({
+          error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
+          code: "PAC_VALIDATION_ERROR",
+          details: { pac_rule: rule, raw: { description: `${rule} - texto SAT` } },
+        }),
+      );
+
+      expect(error.message).toContain(expected);
+      expect(error.message).toContain("«Revisar o corregir»");
+      expect(error.message).not.toContain("validación fiscal/XSD");
+    },
+  );
+
+  it("CFDI40159 con hint de la API igual al copy no lo duplica", () => {
+    const hint =
+      "El régimen del receptor no corresponde a su RFC. Si es público en general (XAXX010101000), debe ser 616 · Sin obligaciones fiscales. Corrígelo en «Revisar o corregir» de la factura y vuelve a timbrar.";
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error: "El PAC rechazó el CFDI por validación fiscal/XSD.",
+        code: "PAC_VALIDATION_ERROR",
+        details: { pac_rule: "CFDI40159", hint },
+      }),
+    );
+
+    expect(error.message).toBe(hint);
+  });
+
+  it("traduce 502 con CFDI40161 crudo de ProFact antes que la regla de RegimenFiscalR", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError(
+        {
+          error:
+            "ProFact TimbraCFDI error [CFDI40161]: La clave del campo UsoCFDI debe corresponder con el RegimenFiscalR.",
+          code: "INTERNAL_ERROR",
+        },
+        502,
+      ),
+    );
+
+    expect(error.message).toContain("S01 · Sin efectos fiscales");
+    expect(error.message).not.toContain("ProFact");
+  });
+
+  it("RECEIVER_GENERIC_RFC_FISCAL_MISMATCH: conserva el mensaje de la API y mapea campos planos sin el hint", () => {
+    const apiMessage =
+      "Para el RFC XAXX010101000 el SAT solo acepta régimen 616 (Sin obligaciones fiscales) y uso S01 (Sin efectos fiscales). Esta factura tiene régimen 626 y uso G03.";
+    const error = ApiError.fromAxiosError(
+      buildAxiosError({
+        error: apiMessage,
+        code: "RECEIVER_GENERIC_RFC_FISCAL_MISMATCH",
+        details: {
+          receiver_tax_regime: "El régimen debe ser 616.",
+          cfdi_usage: "El uso debe ser S01.",
+          hint: "Ajusta el régimen a 616 y el uso a S01 en «Revisar o corregir» de la factura y vuelve a timbrar.",
+        },
+      }),
+    );
+
+    expect(error.message).toBe(apiMessage);
+    expect(error.validationErrors.map((entry) => entry.field)).toEqual([
+      "receiver_tax_regime",
+      "cfdi_usage",
+    ]);
+  });
+
+  it("CLIENT_GENERIC_RFC_TAX_REGIME_INVALID: details planos → error de campo tax_regime", () => {
+    const error = ApiError.fromAxiosError(
+      buildAxiosError(
+        {
+          error: "Datos del cliente inválidos",
+          code: "CLIENT_GENERIC_RFC_TAX_REGIME_INVALID",
+          details: {
+            tax_regime:
+              "Con RFC genérico (XAXX010101000 o XEXX010101000) el régimen debe ser 616 · Sin obligaciones fiscales.",
+          },
+        },
+        400,
+      ),
+    );
+
+    expect(error.hasValidationErrors()).toBe(true);
+    expect(error.getFieldErrors()).toEqual({
+      tax_regime:
+        "Con RFC genérico (XAXX010101000 o XEXX010101000) el régimen debe ser 616 · Sin obligaciones fiscales.",
+    });
+  });
+
   it("traduce PAC_VALIDATION_ERROR CFDI40147 con RFC+CP del XML prestamp", () => {
     const error = ApiError.fromAxiosError(
       buildAxiosError({

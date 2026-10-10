@@ -10,8 +10,12 @@
  */
 
 import { useMemo, type ReactElement } from "react";
-import { useParams } from "react-router-dom";
-import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
+import { useNavigate, useParams } from "react-router-dom";
+import { GENERIC_RECEIVER_TAX_REGIME } from "@boeltech/cfdi-domain";
+import {
+  useMasterActionFrom,
+  useMasterDetailWayfinding,
+} from "@shared/utils/masterWayfinding";
 import {
   Building2,
   AlertCircle,
@@ -32,6 +36,7 @@ import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { useRegimenFiscalLabel } from "@features/catalogs";
+import { useReceiverFiscalCatalogLabels } from "@features/catalogs/application";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
 import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
 import { useAuth } from "@features/auth";
@@ -70,7 +75,9 @@ import {
   ClientStatusBadge,
   operationalStatusFromClient,
 } from "../config/clientStatusConfig";
+import { clientGenericRfcCopy } from "../copy/clientGenericRfcCopy";
 import {
+  genericRfcTaxRegimeMismatch,
   isClientTaxIdFormatSuspicious,
   isCreditExposureUndefinable,
 } from "../helpers/clientDetailGuards";
@@ -90,6 +97,7 @@ const CLIENT_DETAIL_TABS = [
 ] as const;
 
 const copy = clientDetailCopy;
+const genericCopy = clientGenericRfcCopy.detail;
 
 // ============================================================================
 // HELPERS
@@ -183,6 +191,12 @@ export function ClientDetailPage() {
   const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime, {
     format: "name",
   });
+  const { taxRegimeLabel: taxRegimeCatalogLabel } =
+    useReceiverFiscalCatalogLabels(
+      client != null && genericRfcTaxRegimeMismatch(client) != null,
+    );
+  const navigate = useNavigate();
+  const fromState = useMasterActionFrom("/clients");
 
   const { data: billingSchemes = [] } = useBillingSchemes();
   const billingScheme = useMemo(() => {
@@ -278,6 +292,39 @@ export function ClientDetailPage() {
       );
     }
 
+    const genericMismatch = genericRfcTaxRegimeMismatch(client);
+    if (genericMismatch) {
+      cards.push(
+        <DetailAlertCard
+          key="generic-rfc-tax-regime"
+          severity="critical"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title={genericCopy.wrongRegimeTitle(genericMismatch.kind)}
+        >
+          <p>
+            {genericCopy.wrongRegimeText(
+              genericMismatch.currentTaxRegime,
+              taxRegimeCatalogLabel(GENERIC_RECEIVER_TAX_REGIME),
+            )}
+          </p>
+          {canUpdate ? (
+            <div className="mt-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  navigate(`/clients/${client.id}/edit`, { state: fromState })
+                }
+              >
+                {genericCopy.wrongRegimeCta}
+              </Button>
+            </div>
+          ) : null}
+        </DetailAlertCard>,
+      );
+    }
+
     if (
       client.cfdiReceptorProfile !== "comercial_only" &&
       isClientTaxIdFormatSuspicious(client)
@@ -333,6 +380,10 @@ export function ClientDetailPage() {
     addressQuery.data,
     creditSummaryQuery.data,
     setActiveTab,
+    canUpdate,
+    navigate,
+    fromState,
+    taxRegimeCatalogLabel,
   ]);
 
   if (isLoading) {

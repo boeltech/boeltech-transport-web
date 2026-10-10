@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Receipt, AlertCircle, FileText } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailAlertCard } from "@shared/ui/data-display";
@@ -16,6 +17,7 @@ import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
   parseInvoiceBillingScope,
+  resolveGenericReceiverAdjustment,
   type Invoice,
 } from "@features/invoicing/domain";
 import { useTrip } from "@features/trips/application";
@@ -80,6 +82,7 @@ export function InvoiceDetailPage() {
   // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
   const canExportFiles = hasPermission("invoices", "read");
   const canRetryRep = hasPermission("invoices", "execute");
+  const canEditInvoice = hasPermission("invoices", "update");
   const fromState = location.state?.from as string | undefined;
   const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(
     null,
@@ -348,10 +351,22 @@ export function InvoiceDetailPage() {
   const showClientDraftAlert =
     isClientPortal && invoice.status === "draft";
 
+  const genericReceiverMismatch =
+    !isClientPortal && invoice.status === "draft"
+      ? resolveGenericReceiverAdjustment({
+          receiverRfc: invoice.receiverRfc,
+          receiverTaxRegime: invoice.receiverTaxRegime,
+          cfdiUsage: invoice.cfdiUsage,
+        })
+      : null;
+  const showGenericReceiverAlert =
+    genericReceiverMismatch != null && genericReceiverMismatch.changes.length > 0;
+
   const hasAlerts =
     showClientDraftAlert ||
     (!isClientPortal &&
-      (isActiveSubstitute ||
+      (showGenericReceiverAlert ||
+        isActiveSubstitute ||
         showFilesReadyAlert ||
         showXmlMissingAlert ||
         showRepFiscalAlert ||
@@ -366,6 +381,33 @@ export function InvoiceDetailPage() {
         <AlertWithIcon variant="warning" title={copy.hint.clientDraftTitle}>
           <p>{copy.hint.clientDraftBody}</p>
         </AlertWithIcon>
+      ) : null}
+      {showGenericReceiverAlert && genericReceiverMismatch ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" />}
+          title={invoicingCopy.genericReceiver.detailTitle}
+        >
+          <p>
+            {invoicingCopy.genericReceiver.detailBody(
+              genericReceiverMismatch.kind,
+              invoice.receiverTaxRegime ?? "",
+              invoice.cfdiUsage ?? "",
+            )}
+          </p>
+          {canEditInvoice ? (
+            <div className="mt-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+              >
+                {invoicingCopy.genericReceiver.detailCta}
+              </Button>
+            </div>
+          ) : null}
+        </DetailAlertCard>
       ) : null}
       {showFalseTripCancelCfdi ? (
         <DetailAlertCard

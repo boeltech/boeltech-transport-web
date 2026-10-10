@@ -1,3 +1,12 @@
+import {
+  GENERIC_RECEIVER_CFDI_USAGE,
+  GENERIC_RECEIVER_TAX_REGIME,
+  type GenericRfcKind,
+} from "@boeltech/cfdi-domain";
+
+const genericAudience = (kind: GenericRfcKind) =>
+  kind === "foreign" ? "residentes en el extranjero" : "público en general";
+
 /**
  * Namespace: invoicing.copy.*
  */
@@ -196,6 +205,29 @@ export const invoicingCopy = {
     receiverNamePlaceholder: "Razón social o nombre completo",
     postalCodePlaceholder: "5 dígitos",
     selectPlaceholder: "Selecciona una opción",
+  },
+  /** Receptor con RFC genérico (XAXX / XEXX): régimen 616 y uso S01 los fija el SAT. */
+  genericReceiver: {
+    lockedHelp: (kind: GenericRfcKind) =>
+      `Fijado por el SAT para ${genericAudience(kind)}.`,
+    cardNote: (kind: GenericRfcKind) =>
+      `Régimen y uso fijados por el SAT para ${genericAudience(kind)}.`,
+    taxRegimeInvalid: (kind: GenericRfcKind) =>
+      `Para ${genericAudience(kind)} el régimen debe ser ${GENERIC_RECEIVER_TAX_REGIME} · Sin obligaciones fiscales.`,
+    cfdiUsageInvalid: (kind: GenericRfcKind) =>
+      `Para ${genericAudience(kind)} el uso debe ser ${GENERIC_RECEIVER_CFDI_USAGE} · Sin efectos fiscales.`,
+    changeTaxRegime: (from: string, to: string) => `Régimen ${from} → ${to}`,
+    changeCfdiUsage: (from: string, to: string) => `Uso ${from} → ${to}`,
+    editAdjusted: (kind: GenericRfcKind, changes: readonly string[]) =>
+      `Ajustamos los datos para ${genericAudience(kind)}: ${changes.join(" · ")}. Guarda para aplicarlos.`,
+    detailTitle: "Datos que el SAT rechazará",
+    detailBody: (
+      kind: GenericRfcKind,
+      taxRegime: string,
+      cfdiUsage: string,
+    ) =>
+      `Para ${genericAudience(kind)} el régimen debe ser ${GENERIC_RECEIVER_TAX_REGIME} y el uso ${GENERIC_RECEIVER_CFDI_USAGE}. Este borrador tiene régimen ${taxRegime || "—"} y uso ${cfdiUsage || "—"}.`,
+    detailCta: "Corregir datos",
   },
   /** Labels operativos + ancla SAT (copy dual para contadores y no contadores). */
   labelDual: {

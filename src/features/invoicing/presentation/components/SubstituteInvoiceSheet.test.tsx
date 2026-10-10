@@ -79,7 +79,7 @@ function buildInvoice(): Invoice {
     issueLocation: "26015",
     receiverRfc: "XAXX010101000",
     receiverName: "Cliente Demo SA",
-    cfdiUsage: "G03",
+    cfdiUsage: "S01",
     receiverTaxRegime: "616",
     receiverPostalCode: "26015",
     issuedAt: "2026-06-01T12:00:00.000Z",

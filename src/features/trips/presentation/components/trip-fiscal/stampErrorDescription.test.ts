@@ -97,6 +97,30 @@ describe("describeStampApiError", () => {
     expect(message).not.toContain("validación fiscal/XSD");
   });
 
+  it("RECEIVER_GENERIC_RFC_FISCAL_MISMATCH muestra el mensaje de la API sin viñetas por campo", () => {
+    const apiMessage =
+      "Para el RFC XAXX010101000 el SAT solo acepta régimen 616 (Sin obligaciones fiscales) y uso S01 (Sin efectos fiscales). Esta factura tiene régimen 626 y uso G03.";
+    const error = new ApiError(
+      apiMessage,
+      422,
+      "RECEIVER_GENERIC_RFC_FISCAL_MISMATCH",
+      {
+        receiver_tax_regime: "El régimen debe ser 616.",
+        cfdi_usage: "El uso debe ser S01.",
+      },
+      [
+        {
+          field: "receiver_tax_regime",
+          label: "receiver_tax_regime",
+          message: "El régimen debe ser 616.",
+        },
+        { field: "cfdi_usage", label: "cfdi_usage", message: "El uso debe ser S01." },
+      ],
+    );
+
+    expect(describeStampApiError(error)).toBe(apiMessage);
+  });
+
   it("incluye hint de PAC_ISSUED_AT_OUT_OF_RANGE cuando aporta reintento", () => {
     const hint =
       "Vuelve a intentar el timbrado; al timbrar se actualiza la fecha de emisión. Si el error persiste: (1) si Comprobante.Fecha va adelantada vs el reloj ProFact, ajusta PROFACT_FECHA_CLOCK_OFFSET_MINUTES (sandbox suele necesitar -60); (2) verifica la hora del servidor API.";

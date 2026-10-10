@@ -43,6 +43,8 @@ import {
 import { InvoiceConceptsEditor } from "../components/InvoiceConceptsEditor";
 import { InvoiceAmountsSummaryPanel } from "../components/InvoiceAmountsSummaryPanel";
 import { formatInvoiceApiErrorMessages } from "../validation/formatInvoiceApiErrors";
+import { classifyGenericRfc } from "@boeltech/cfdi-domain";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { FormSectionCard } from "@shared/ui/form-section-card";
@@ -62,6 +64,7 @@ import { useTrip, useTripRevenueSplit } from "@features/trips";
 import {
   isServiceOnlyBillingScope,
   parseInvoiceBillingScope,
+  resolveGenericReceiverAdjustment,
 } from "@features/invoicing/domain";
 import {
   invoiceCreateHydrationKey,
@@ -185,6 +188,18 @@ export function CreateInvoicePage() {
 
   const { clientType: receiverClientType, isResolving: isResolvingReceiverClientType } =
     useInvoiceReceiverClientType(isEditMode ? editableInvoice : undefined);
+
+  /** Receptor genérico cargado con régimen/uso que el SAT rechaza: el form se hidrata ya corregido. */
+  const genericAdjustmentSource = isEditMode ? editableInvoice : prefill;
+  const sourceGenericAdjustment = resolveGenericReceiverAdjustment({
+    receiverRfc: genericAdjustmentSource?.receiverRfc,
+    receiverTaxRegime: genericAdjustmentSource?.receiverTaxRegime,
+    cfdiUsage: genericAdjustmentSource?.cfdiUsage ?? "S01",
+  });
+  const genericAdjustment =
+    sourceGenericAdjustment && sourceGenericAdjustment.changes.length > 0
+      ? sourceGenericAdjustment
+      : null;
 
   const editBillingScope =
     editableInvoice?.trips[0]?.billingScope ?? "primary_transport";
@@ -417,12 +432,18 @@ export function CreateInvoicePage() {
                 retencionAplica: personaMoral,
               }),
             ];
+      const prefillGeneric = resolveGenericReceiverAdjustment({
+        receiverRfc: prefill.receiverRfc,
+        receiverTaxRegime: prefill.receiverTaxRegime,
+        cfdiUsage: prefill.cfdiUsage ?? "S01",
+      });
       form.reset({
         trip_ids: tripId ? [tripId] : [],
         receiver_rfc: prefill.receiverRfc ?? "",
         receiver_name: prefill.receiverName ?? "",
-        cfdi_usage: prefill.cfdiUsage ?? "S01",
-        receiver_tax_regime: prefill.receiverTaxRegime ?? "",
+        cfdi_usage: prefillGeneric?.cfdiUsage ?? prefill.cfdiUsage ?? "S01",
+        receiver_tax_regime:
+          prefillGeneric?.receiverTaxRegime ?? prefill.receiverTaxRegime ?? "",
         receiver_postal_code: prefill.receiverPostalCode ?? "",
         payment_form: prefill.paymentForm ?? "99",
         payment_method: prefill.paymentMethod as "PUE" | "PPD",
@@ -463,11 +484,17 @@ export function CreateInvoicePage() {
     });
 
     hydratedEditKeyRef.current = invoiceEditHydrationKey(editableInvoice.id);
+    const editGeneric = resolveGenericReceiverAdjustment({
+      receiverRfc: editableInvoice.receiverRfc,
+      receiverTaxRegime: editableInvoice.receiverTaxRegime,
+      cfdiUsage: editableInvoice.cfdiUsage ?? "S01",
+    });
     form.reset({
       receiver_rfc: editableInvoice.receiverRfc ?? "",
       receiver_name: editableInvoice.receiverName ?? "",
-      cfdi_usage: editableInvoice.cfdiUsage ?? "S01",
-      receiver_tax_regime: editableInvoice.receiverTaxRegime ?? "",
+      cfdi_usage: editGeneric?.cfdiUsage ?? editableInvoice.cfdiUsage ?? "S01",
+      receiver_tax_regime:
+        editGeneric?.receiverTaxRegime ?? editableInvoice.receiverTaxRegime ?? "",
       receiver_postal_code: editableInvoice.receiverPostalCode ?? "",
       payment_form: editableInvoice.paymentForm ?? "99",
       payment_method: (editableInvoice.paymentMethod ?? "PUE") as "PUE" | "PPD",
@@ -999,6 +1026,25 @@ export function CreateInvoicePage() {
                 />
               </div>
             </FormSectionCard>
+
+            {genericAdjustment && classifyGenericRfc(receiverRfc) ? (
+              <AlertWithIcon variant="info">
+                {copy.genericReceiver.editAdjusted(
+                  genericAdjustment.kind,
+                  genericAdjustment.changes.map((change) =>
+                    change.field === "receiver_tax_regime"
+                      ? copy.genericReceiver.changeTaxRegime(
+                          change.from || "—",
+                          change.to,
+                        )
+                      : copy.genericReceiver.changeCfdiUsage(
+                          change.from || "—",
+                          change.to,
+                        ),
+                  ),
+                )}
+              </AlertWithIcon>
+            ) : null}
 
             <InvoiceFiscalComprobanteCard
               control={control}

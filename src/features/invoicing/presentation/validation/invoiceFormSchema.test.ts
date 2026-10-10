@@ -26,7 +26,7 @@ describe("invoiceFormSchema", () => {
   it("requires trip_ids on create", () => {
     const values = {
       ...defaultInvoiceFormValues(),
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -45,7 +45,7 @@ describe("invoiceFormSchema", () => {
     const values = {
       ...defaultInvoiceFormValues(),
       trip_ids: ["550e8400-e29b-41d4-a716-446655440000"],
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -62,7 +62,7 @@ describe("invoiceFormSchema", () => {
   it("accepts shared form schema without trip_ids for edit UX", () => {
     const values = {
       ...defaultInvoiceFormValues(),
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -79,7 +79,7 @@ describe("invoiceFormSchema", () => {
   it("parseCreateInvoicePayload injects trip id from URL", () => {
     const values = {
       ...defaultInvoiceFormValues(),
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -100,7 +100,7 @@ describe("invoiceFormSchema", () => {
   it("parseCreateInvoicePayload injects billing_scope accessory", () => {
     const values = {
       ...defaultInvoiceFormValues(),
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -128,7 +128,7 @@ describe("invoiceFormSchema", () => {
   it("parseCreateInvoicePayload injects billing_scope false_trip", () => {
     const values = {
       ...defaultInvoiceFormValues(),
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -160,7 +160,7 @@ describe("invoiceFormSchema", () => {
     const result = invoiceCreateFormSchema.safeParse({
       ...defaultInvoiceFormValues(),
       trip_ids: ["550e8400-e29b-41d4-a716-446655440000"],
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -398,7 +398,7 @@ describe("invoiceFormSchema", () => {
     const values = {
       ...defaultInvoiceFormValues(),
       trip_ids: ["550e8400-e29b-41d4-a716-446655440000"],
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -426,7 +426,7 @@ describe("invoiceReceiverFormSchema", () => {
 
   it("acepta receptor válido", () => {
     const result = invoiceReceiverFormSchema.safeParse({
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "601",
       receiver_postal_code: "64000",
@@ -439,7 +439,7 @@ describe("invoiceReceiverFormSchema", () => {
 
   it("expone mensajes ES cuando faltan catálogos SAT", () => {
     const result = invoiceReceiverFormSchema.safeParse({
-      receiver_rfc: "XAXX010101000",
+      receiver_rfc: "CSA010101AB1",
       receiver_name: "Cliente SA de CV",
       receiver_tax_regime: "",
       receiver_postal_code: "64000",
@@ -458,6 +458,54 @@ describe("invoiceReceiverFormSchema", () => {
     expect(byPath.cfdi_usage).toBe(receiverCopy.cfdiUsageRequired);
     expect(byPath.payment_form).toBe(receiverCopy.paymentFormRequired);
     expect(Object.values(byPath).join(" ")).not.toMatch(/Too small/i);
+  });
+
+  it("RFC genérico con régimen y uso distintos de 616/S01 marca ambos campos", () => {
+    const genericCopy = invoicingCopy.genericReceiver;
+    const result = invoiceReceiverFormSchema.safeParse({
+      receiver_rfc: "XAXX010101000",
+      receiver_name: "PUBLICO EN GENERAL",
+      receiver_tax_regime: "626",
+      receiver_postal_code: "64000",
+      cfdi_usage: "G03",
+      payment_form: "99",
+      payment_method: "PUE",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const byPath = Object.fromEntries(
+      result.error.issues.map((issue) => [issue.path.join("."), issue.message]),
+    );
+    expect(byPath.receiver_tax_regime).toBe(
+      genericCopy.taxRegimeInvalid("national"),
+    );
+    expect(byPath.cfdi_usage).toBe(genericCopy.cfdiUsageInvalid("national"));
+  });
+
+  it("RFC genérico con 616/S01 y RFC normal con cualquier par pasan", () => {
+    const base = {
+      receiver_name: "Cliente",
+      receiver_postal_code: "64000",
+      payment_form: "99",
+      payment_method: "PUE" as const,
+    };
+    expect(
+      invoiceReceiverFormSchema.safeParse({
+        ...base,
+        receiver_rfc: "XEXX010101000",
+        receiver_tax_regime: "616",
+        cfdi_usage: "S01",
+      }).success,
+    ).toBe(true);
+    expect(
+      invoiceReceiverFormSchema.safeParse({
+        ...base,
+        receiver_rfc: "CSA010101AB1",
+        receiver_tax_regime: "626",
+        cfdi_usage: "G03",
+      }).success,
+    ).toBe(true);
   });
 });
 

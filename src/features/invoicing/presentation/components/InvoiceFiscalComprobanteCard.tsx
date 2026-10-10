@@ -7,6 +7,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useWatch, type Control } from "react-hook-form";
+import { classifyGenericRfc } from "@boeltech/cfdi-domain";
 import {
   CatalogTypeCode,
   useCatalogOptions,
@@ -81,6 +82,8 @@ export function InvoiceFiscalComprobanteCard({
   const cfdiUsage = useWatch({ control, name: "cfdi_usage" });
   const paymentForm = useWatch({ control, name: "payment_form" });
   const paymentMethod = useWatch({ control, name: "payment_method" });
+  const receiverRfc = useWatch({ control, name: "receiver_rfc" });
+  const genericKind = classifyGenericRfc(receiverRfc);
 
   const taxRegimeName = useCatalogName(
     CatalogTypeCode.SAT_REGIMEN_FISCAL as CatalogTypeCodeValue,
@@ -151,6 +154,11 @@ export function InvoiceFiscalComprobanteCard({
         <p className="mb-4 text-xs text-muted-foreground">
           {comprobanteCopy.description}
         </p>
+        {genericKind ? (
+          <p className="mb-4 text-xs font-medium text-foreground">
+            {invoicingCopy.genericReceiver.cardNote(genericKind)}
+          </p>
+        ) : null}
         <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
           <InfoRow
             className="min-w-0"

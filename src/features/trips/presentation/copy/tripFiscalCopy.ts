@@ -1,3 +1,8 @@
+import type { GenericRfcKind } from "@boeltech/cfdi-domain";
+
+const genericAudience = (kind: GenericRfcKind) =>
+  kind === "foreign" ? "residentes en el extranjero" : "público en general";
+
 export const tripFiscalCopy = {
   overlayErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
   correctionSheet: {
@@ -124,6 +129,21 @@ export const tripFiscalCopy = {
         "Datos del vehículo incompletos para Carta Porte 3.1.";
       return `${base} Abra Vehículos, edite la unidad asignada al viaje y complete los datos de Carta Porte; luego vuelva a timbrar.`;
     },
+  },
+  genericReceiverStamp: {
+    preflightTitle: (kind: GenericRfcKind) =>
+      `Antes de timbrar: ajustar datos de ${genericAudience(kind)}`,
+    errorTitle: (kind: GenericRfcKind) =>
+      `No se timbró: datos de ${genericAudience(kind)}`,
+    intro: (rfc: string) => `El SAT solo acepta estos valores para ${rfc}:`,
+    taxRegimeChange: (from: string, to: string) =>
+      `Régimen: ${from || "sin régimen"} → ${to}`,
+    cfdiUsageChange: (from: string, to: string) =>
+      `Uso: ${from || "sin uso"} → ${to}`,
+    confirm: "Ajustar y timbrar",
+    confirming: "Ajustando…",
+    cancel: "Cancelar",
+    updateFailedTitle: "No se pudieron ajustar los datos de la factura",
   },
   chip: {
     invalidRfc: "Domicilio inválido — Corregir",

@@ -6,9 +6,21 @@ import {
   type ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { StopRfcPreflightResult } from "@boeltech/cfdi-domain";
-import { useStampInvoice } from "@features/invoicing/application";
-import type { InvoiceTripRef } from "@features/invoicing/domain";
+import {
+  classifyGenericRfc,
+  GENERIC_RECEIVER_CFDI_USAGE,
+  GENERIC_RECEIVER_TAX_REGIME,
+  GENERIC_RFC_FOREIGN,
+  type StopRfcPreflightResult,
+} from "@boeltech/cfdi-domain";
+import {
+  useStampInvoice,
+  useUpdateInvoice,
+} from "@features/invoicing/application";
+import {
+  resolveGenericReceiverAdjustment,
+  type InvoiceTripRef,
+} from "@features/invoicing/domain";
 import { createGetTripByIdUseCase } from "@features/trips/application";
 import {
   tripQueryKeys,
@@ -18,11 +30,20 @@ import {
 } from "@features/trips/domain";
 import { tripRepository } from "@features/trips/infrastructure";
 import { parseInvalidRfcAtStopDetails } from "@shared/api/errors/invalidRfcAtStopError";
+import {
+  getErrorMessage,
+  isApiError,
+  RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE,
+} from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
 import { buildOverlayErrorToastDescription } from "@shared/utils/overlayErrorFeedback";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import { TripFiscalCorrectionSheet } from "./TripFiscalCorrectionSheet";
 import { PreflightBlockerSheet } from "./PreflightBlockerSheet";
+import {
+  GenericReceiverStampDialog,
+  type GenericReceiverStampDialogState,
+} from "./GenericReceiverStampDialog";
 import { StopPickerSheet } from "./StopPickerSheet";
 import { describeStampApiError } from "./stampErrorDescription";
 import {
@@ -51,6 +72,12 @@ type UseTripFiscalSheetsOptions = {
   /** Si se define, reemplaza el toast de éxito por defecto al timbrar. */
   onStampSuccessToast?: () => void;
   getStampErrorDescription?: (error: unknown) => string;
+  /** Receptor de la factura a timbrar; habilita el ajuste previo para RFC genérico. */
+  invoiceReceiver?: {
+    receiverRfc?: string | null;
+    receiverTaxRegime?: string | null;
+    cfdiUsage?: string | null;
+  } | null;
 };
 
 export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
@@ -61,6 +88,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     onStampSuccess,
     onStampSuccessToast,
     getStampErrorDescription = describeStampApiError,
+    invoiceReceiver,
   } = options;
 
   const queryClient = useQueryClient();
@@ -86,6 +114,13 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   );
   const [isPreparingStamp, setIsPreparingStamp] = useState(false);
   const preparingStampRef = useRef(false);
+  const [genericReceiverDialog, setGenericReceiverDialog] =
+    useState<GenericReceiverStampDialogState | null>(null);
+  const [genericReceiverError, setGenericReceiverError] = useState<
+    string | null
+  >(null);
+  const { mutate: updateInvoice, isPending: isAdjustingReceiver } =
+    useUpdateInvoice();
 
   const releasePreparingStamp = useCallback(() => {
     preparingStampRef.current = false;
@@ -256,6 +291,26 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
 
   const handleStampError = useCallback(
     (error: unknown, invoiceId?: string) => {
+      if (
+        invoiceId &&
+        isApiError(error) &&
+        error.code === RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE
+      ) {
+        setPendingStampInvoiceId(invoiceId);
+        setGenericReceiverError(null);
+        setGenericReceiverDialog({
+          mode: "error",
+          invoiceId,
+          kind:
+            classifyGenericRfc(invoiceReceiver?.receiverRfc) ??
+            (error.message.includes(GENERIC_RFC_FOREIGN)
+              ? "foreign"
+              : "national"),
+          message: error.message,
+        });
+        return;
+      }
+
       const parsed = parseInvalidRfcAtStopDetails(error);
       if (parsed) {
         if (invoiceId) setPendingStampInvoiceId(invoiceId);
@@ -306,6 +361,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
     [
       fixStopId,
       getStampErrorDescription,
+      invoiceReceiver?.receiverRfc,
       openFixSheet,
       pendingStampInvoiceId,
       toast,
@@ -359,6 +415,26 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
         setPreflightOpen(false);
         setPreflightResult(null);
         setPendingStampInvoiceId(invoiceId);
+
+        const receiverAdjustment = invoiceReceiver
+          ? resolveGenericReceiverAdjustment({
+              receiverRfc: invoiceReceiver.receiverRfc,
+              receiverTaxRegime: invoiceReceiver.receiverTaxRegime,
+              cfdiUsage: invoiceReceiver.cfdiUsage,
+            })
+          : null;
+        if (receiverAdjustment && receiverAdjustment.changes.length > 0) {
+          setGenericReceiverError(null);
+          setGenericReceiverDialog({
+            mode: "preflight",
+            invoiceId,
+            kind: receiverAdjustment.kind,
+            receiverRfc: invoiceReceiver?.receiverRfc?.trim().toUpperCase() ?? "",
+            changes: receiverAdjustment.changes,
+          });
+          return;
+        }
+
         handedOffToStamp = true;
         stamp(invoiceId);
       } finally {
@@ -367,8 +443,45 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
         }
       }
     },
-    [fetchTripsForStamp, isStamping, releasePreparingStamp, stamp, toast],
+    [
+      fetchTripsForStamp,
+      invoiceReceiver,
+      isStamping,
+      releasePreparingStamp,
+      stamp,
+      toast,
+    ],
   );
+
+  const closeGenericReceiverDialog = useCallback(() => {
+    setGenericReceiverDialog(null);
+    setGenericReceiverError(null);
+  }, []);
+
+  const confirmGenericReceiverAdjustment = useCallback(() => {
+    const target = genericReceiverDialog;
+    if (!target) return;
+    setGenericReceiverError(null);
+    updateInvoice(
+      {
+        id: target.invoiceId,
+        payload: {
+          receiverTaxRegime: GENERIC_RECEIVER_TAX_REGIME,
+          cfdiUsage: GENERIC_RECEIVER_CFDI_USAGE,
+        },
+      },
+      {
+        onSuccess: () => {
+          setGenericReceiverDialog(null);
+          setPendingStampInvoiceId(target.invoiceId);
+          stamp(target.invoiceId);
+        },
+        onError: (error) => {
+          setGenericReceiverError(getErrorMessage(error));
+        },
+      },
+    );
+  }, [genericReceiverDialog, stamp, updateInvoice]);
 
   const handleFiscalFixSuccess = useCallback(
     (result: PatchTripStopFiscalResult) => {
@@ -444,16 +557,27 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
           }
         />
       ) : null}
+
+      <GenericReceiverStampDialog
+        state={genericReceiverDialog}
+        isSubmitting={isAdjustingReceiver}
+        submitError={genericReceiverError}
+        onConfirm={confirmGenericReceiverAdjustment}
+        onCancel={closeGenericReceiverDialog}
+      />
     </>
   );
 
-  const isStampBusy = resolveIsStampBusy({
-    isPreparingStamp,
-    isStamping,
-    preflightOpen,
-    fixSheetOpen: fixStopId != null,
-    pickerOpen,
-  });
+  const isStampBusy =
+    resolveIsStampBusy({
+      isPreparingStamp,
+      isStamping,
+      preflightOpen,
+      fixSheetOpen: fixStopId != null,
+      pickerOpen,
+    }) ||
+    genericReceiverDialog != null ||
+    isAdjustingReceiver;
 
   return {
     sheets,

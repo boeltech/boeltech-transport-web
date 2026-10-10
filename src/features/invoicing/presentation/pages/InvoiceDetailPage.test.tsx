@@ -20,7 +20,9 @@ vi.mock("@features/invoicing/application", () => ({
   }),
 }));
 
-const mockHasPermission = vi.fn(() => false);
+const mockHasPermission = vi.fn<(resource?: string, action?: string) => boolean>(
+  () => false,
+);
 const mockUseRole = vi.fn(() => "accountant");
 
 vi.mock("@shared/permissions", () => ({
@@ -85,7 +87,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     issueLocation: "26015",
     receiverRfc: "XAXX010101000",
     receiverName: "Cliente",
-    cfdiUsage: "G03",
+    cfdiUsage: "S01",
     receiverTaxRegime: "616",
     receiverPostalCode: "26015",
     issuedAt: "2026-06-01T12:00:00.000Z",
@@ -150,6 +152,10 @@ function renderPage(
       >
         <Routes>
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+          <Route
+            path="/invoices/:id/edit"
+            element={<div data-testid="invoice-edit-page" />}
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -718,6 +724,103 @@ describe("InvoiceDetailPage", () => {
         name: invoicingCopy.detail.header.backToClientInvoices,
       }),
     ).toBeInTheDocument();
+  });
+
+  it("borrador XAXX con 626 / G03: alerta «Datos que el SAT rechazará» y «Corregir datos» abre la edición", async () => {
+    const user = userEvent.setup();
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "update",
+    );
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "draft",
+        cfdiUuid: null,
+        hasStampedXml: false,
+        stampedAt: null,
+        receiverTaxRegime: "626",
+        cfdiUsage: "G03",
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText(invoicingCopy.genericReceiver.detailTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        invoicingCopy.genericReceiver.detailBody("national", "626", "G03"),
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: invoicingCopy.genericReceiver.detailCta,
+      }),
+    );
+
+    expect(screen.getByTestId("invoice-edit-page")).toBeInTheDocument();
+  });
+
+  it("sin permiso de edición muestra la alerta sin «Corregir datos»", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "draft",
+        cfdiUuid: null,
+        hasStampedXml: false,
+        stampedAt: null,
+        receiverTaxRegime: "626",
+        cfdiUsage: "G03",
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText(invoicingCopy.genericReceiver.detailTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: invoicingCopy.genericReceiver.detailCta,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["borrador XAXX ya correcto", { receiverTaxRegime: "616", cfdiUsage: "S01" }],
+    [
+      "borrador con RFC normal",
+      { receiverRfc: "CSA010101AB1", receiverTaxRegime: "626", cfdiUsage: "G03" },
+    ],
+  ])("%s: sin alerta de RFC genérico", (_label, overrides) => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "draft",
+        cfdiUuid: null,
+        hasStampedXml: false,
+        stampedAt: null,
+        ...overrides,
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.queryByText(invoicingCopy.genericReceiver.detailTitle),
+    ).not.toBeInTheDocument();
   });
 
   it("retries load on server error", async () => {

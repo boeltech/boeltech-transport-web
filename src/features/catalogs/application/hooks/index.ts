@@ -92,3 +92,8 @@ export {
   useMetodoPagoLabel,
   type UseMetodoPagoLabelResult,
 } from "./useMetodoPagoLabel";
+
+export {
+  useReceiverFiscalCatalogLabels,
+  type ReceiverFiscalCatalogLabels,
+} from "./useReceiverFiscalCatalogLabels";

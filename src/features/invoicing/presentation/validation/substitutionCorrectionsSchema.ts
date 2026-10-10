@@ -21,6 +21,7 @@ import {
   inferRetentionRequired,
   mapFormConceptToPayload,
   mapInvoiceConceptToFormInput,
+  refineGenericReceiverFiscal,
   refinePersonaMoralRetention,
   type InvoiceConceptFormLine,
 } from "./invoiceFormSchema";
@@ -99,6 +100,13 @@ export const substituteInvoiceSheetSchema = (
         concepts: InvoiceConceptFormLine[];
         retained_tax: number;
       },
+      ctx,
+    );
+    refineGenericReceiverFiscal(
+      values as Pick<
+        SubstituteInvoiceSheetValues,
+        "receiver_rfc" | "receiver_tax_regime" | "cfdi_usage"
+      >,
       ctx,
     );
   }) as unknown as z.ZodType<SubstituteInvoiceSheetValues>;

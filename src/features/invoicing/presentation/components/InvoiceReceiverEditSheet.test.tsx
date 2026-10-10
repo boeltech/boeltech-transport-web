@@ -12,6 +12,7 @@ type CatalogSelectMockProps = {
   onValueChange?: (value: string) => void;
   placeholder?: string;
   error?: boolean;
+  disabled?: boolean;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
 };
@@ -25,6 +26,7 @@ function mockCatalogSelect(label: string) {
         onValueChange,
         placeholder,
         error,
+        disabled,
         "aria-invalid": ariaInvalid,
         "aria-describedby": ariaDescribedBy,
       },
@@ -35,6 +37,7 @@ function mockCatalogSelect(label: string) {
           type="button"
           ref={ref}
           id={triggerId}
+          disabled={disabled}
           aria-label={label}
           aria-invalid={ariaInvalid}
           aria-describedby={ariaDescribedBy}
@@ -70,7 +73,7 @@ const emptyValues: InvoiceReceiverFormValues = {
 };
 
 const validValues: InvoiceReceiverFormValues = {
-  receiver_rfc: "XAXX010101000",
+  receiver_rfc: "CDE010101AB1",
   receiver_name: "Cliente Demo SA",
   receiver_tax_regime: "601",
   receiver_postal_code: "64000",
@@ -140,6 +143,94 @@ describe("InvoiceReceiverEditSheet", () => {
     });
     expect(onApply).toHaveBeenCalledWith(validValues);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("RFC genérico: fija 616 y S01, bloquea los selects y aplica sin tocarlos", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+
+    render(
+      <InvoiceReceiverEditSheet
+        open
+        onOpenChange={vi.fn()}
+        values={{
+          ...validValues,
+          receiver_rfc: "XAXX010101000",
+          receiver_name: "",
+          receiver_tax_regime: "626",
+          cfdi_usage: "G03",
+        }}
+        onApply={onApply}
+      />,
+    );
+
+    const regime = screen.getByRole("button", { name: "Régimen del receptor" });
+    const usage = screen.getByRole("button", {
+      name: "Para qué se usa la factura",
+    });
+    await waitFor(() => {
+      expect(regime).toHaveAttribute("data-value", "616");
+    });
+    expect(usage).toHaveAttribute("data-value", "S01");
+    expect(regime).toBeDisabled();
+    expect(usage).toBeDisabled();
+    expect(
+      screen.getAllByText(invoicingCopy.genericReceiver.lockedHelp("national"))
+        .length,
+    ).toBe(2);
+
+    await user.click(screen.getByRole("button", { name: sheetCopy.apply }));
+
+    await waitFor(() => {
+      expect(onApply).toHaveBeenCalledTimes(1);
+    });
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        receiver_rfc: "XAXX010101000",
+        receiver_name: "PUBLICO EN GENERAL",
+        receiver_tax_regime: "616",
+        cfdi_usage: "S01",
+      }),
+    );
+  });
+
+  it("al salir de RFC genérico vacía régimen y uso y no aplica sin elegirlos", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+
+    render(
+      <InvoiceReceiverEditSheet
+        open
+        onOpenChange={vi.fn()}
+        values={{
+          ...validValues,
+          receiver_rfc: "XAXX010101000",
+          receiver_tax_regime: "616",
+          cfdi_usage: "S01",
+        }}
+        onApply={onApply}
+      />,
+    );
+
+    const rfcInput = screen.getByLabelText(/^RFC/);
+    await user.clear(rfcInput);
+    await user.type(rfcInput, "CDE010101AB1");
+
+    const regime = screen.getByRole("button", { name: "Régimen del receptor" });
+    await waitFor(() => {
+      expect(regime).toHaveAttribute("data-value", "");
+    });
+    expect(regime).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Para qué se usa la factura" }),
+    ).toHaveAttribute("data-value", "");
+
+    await user.click(screen.getByRole("button", { name: sheetCopy.apply }));
+
+    await waitFor(() => {
+      expect(screen.getByText(sheetCopy.validationSummary)).toBeInTheDocument();
+    });
+    expect(onApply).not.toHaveBeenCalled();
   });
 
   it("enfoca el campo de texto indicado en focusField", async () => {

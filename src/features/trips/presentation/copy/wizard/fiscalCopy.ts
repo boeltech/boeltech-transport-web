@@ -2,9 +2,10 @@
  * Namespace: trips.copy.wizard.fiscal.*
  * Copy contextual de quién entrega / recibe por parada.
  */
+import { GENERIC_RFC_NATIONAL } from "@boeltech/cfdi-domain";
 import type { StopTypeValue } from "@features/trips/domain";
 
-export const RFC_PUBLICO_GENERAL = "XAXX010101000";
+export const RFC_PUBLICO_GENERAL = GENERIC_RFC_NATIONAL;
 
 export type CfdiDocumentIntent = "ingreso" | "traslado";
 

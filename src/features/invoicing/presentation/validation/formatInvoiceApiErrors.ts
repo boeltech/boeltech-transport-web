@@ -1,6 +1,7 @@
 import {
   getErrorMessage,
   isApiError,
+  RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE,
   type ValidationFieldError,
 } from "@shared/api/interceptors/error-handler";
 
@@ -63,6 +64,10 @@ function fromDetailsArray(details: unknown[]): string[] {
  */
 export function formatInvoiceApiErrorMessages(error: unknown): string[] {
   if (isApiError(error)) {
+    // El mensaje de la API ya nombra valores actuales y esperados (616 / S01).
+    if (error.code === RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE && error.message) {
+      return [error.message];
+    }
     if (error.validationErrors.length > 0) {
       return fromValidationFieldErrors(error.validationErrors);
     }

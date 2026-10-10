@@ -1,6 +1,10 @@
 import { createInvoiceSchema, invoiceConceptSchema } from "@boeltech/cfdi-domain/validadores/invoice";
 import {
+  classifyGenericRfc,
+  GENERIC_RFC_CFDI_USAGE_INVALID_CODE,
+  GENERIC_RFC_TAX_REGIME_INVALID_CODE,
   PERSONA_MORAL_RETAINED_IVA_RATE,
+  validateGenericReceiverFiscal,
 } from "@boeltech/cfdi-domain";
 import type { InvoiceBillingScope, InvoiceConcept } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
@@ -8,6 +12,7 @@ import { z } from "zod";
 
 const conceptLineValidation =
   invoicingCopy.concepts.sheet.validation;
+const genericReceiverCopy = invoicingCopy.genericReceiver;
 
 /** Campo UX-only: deriva `retained_tax` en el payload API. */
 const retainedTaxUx = z.object({
@@ -149,6 +154,49 @@ export function refinePersonaMoralRetention(
   });
 }
 
+/**
+ * Receptor con RFC genérico: régimen 616 y uso S01 (regla del paquete,
+ * `validateGenericReceiverFiscal`); aquí solo se traduce a issues RHF.
+ */
+export function refineGenericReceiverFiscal(
+  values: {
+    receiver_rfc?: string | null;
+    receiver_tax_regime?: string | null;
+    cfdi_usage?: string | null;
+  },
+  ctx: {
+    addIssue: (issue: {
+      code: "custom";
+      message: string;
+      path: (string | number)[];
+    }) => void;
+  },
+): void {
+  const kind = classifyGenericRfc(values.receiver_rfc);
+  if (!kind) return;
+  const result = validateGenericReceiverFiscal({
+    receiverRfc: values.receiver_rfc,
+    receiverTaxRegime: values.receiver_tax_regime,
+    cfdiUsage: values.cfdi_usage,
+  });
+  if (result.ok) return;
+  for (const issue of result.error) {
+    if (issue.code === GENERIC_RFC_TAX_REGIME_INVALID_CODE) {
+      ctx.addIssue({
+        code: "custom",
+        message: genericReceiverCopy.taxRegimeInvalid(kind),
+        path: ["receiver_tax_regime"],
+      });
+    } else if (issue.code === GENERIC_RFC_CFDI_USAGE_INVALID_CODE) {
+      ctx.addIssue({
+        code: "custom",
+        message: genericReceiverCopy.cfdiUsageInvalid(kind),
+        path: ["cfdi_usage"],
+      });
+    }
+  }
+}
+
 const invoiceFormBase = createInvoiceSchema
   .omit({ trip_ids: true, concepts: true })
   .extend(retainedTaxUx.shape)
@@ -160,6 +208,7 @@ const invoiceFormBase = createInvoiceSchema
 /** Schema compartido create/edit en RHF (`trip_ids` opcional; obligatorio al crear vía URL). */
 export const invoiceFormSchema = invoiceFormBase.superRefine((values, ctx) => {
   refinePersonaMoralRetention(values, ctx);
+  refineGenericReceiverFiscal(values, ctx);
 });
 
 const receiverSheetValidation = invoicingCopy.comprobante.sheet.validation;
@@ -188,7 +237,7 @@ export const invoiceReceiverFormSchema = z.object({
   payment_method: z.enum(["PUE", "PPD"], {
     message: receiverSheetValidation.paymentMethodRequired,
   }),
-});
+}).superRefine(refineGenericReceiverFiscal);
 
 export type InvoiceReceiverFormValues = z.infer<typeof invoiceReceiverFormSchema>;
 
@@ -212,6 +261,7 @@ export const invoiceCreateFormSchema = createInvoiceSchema
   })
   .superRefine((values, ctx) => {
     refinePersonaMoralRetention(values, ctx);
+    refineGenericReceiverFiscal(values, ctx);
   });
 
 /** Edición de borrador (sin `trip_ids`). */
@@ -223,6 +273,7 @@ export const invoiceDraftFormSchema = createInvoiceSchema
   })
   .superRefine((values, ctx) => {
     refinePersonaMoralRetention(values, ctx);
+    refineGenericReceiverFiscal(values, ctx);
   });
 
 export type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;

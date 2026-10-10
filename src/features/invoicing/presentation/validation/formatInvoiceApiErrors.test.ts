@@ -90,6 +90,23 @@ describe("formatInvoiceApiErrorMessages", () => {
     ]);
   });
 
+  it("RECEIVER_GENERIC_RFC_FISCAL_MISMATCH usa el mensaje de la API (valores actuales y esperados)", () => {
+    const message =
+      "Para el RFC XAXX010101000 el SAT solo acepta régimen 616 (Sin obligaciones fiscales) y uso S01 (Sin efectos fiscales). Esta factura tiene régimen 626 y uso G03.";
+    const error = new ApiError(
+      message,
+      422,
+      "RECEIVER_GENERIC_RFC_FISCAL_MISMATCH",
+      { receiver_tax_regime: "626", cfdi_usage: "G03" },
+      [
+        { field: "receiver_tax_regime", label: "receiver_tax_regime", message: "626" },
+        { field: "cfdi_usage", label: "cfdi_usage", message: "G03" },
+      ],
+    );
+
+    expect(formatInvoiceApiErrorMessages(error)).toEqual([message]);
+  });
+
   it("falls back to message for unknown errors", () => {
     expect(formatInvoiceApiErrorMessages(new Error("Red caída"))).toEqual(["Red caída"]);
   });

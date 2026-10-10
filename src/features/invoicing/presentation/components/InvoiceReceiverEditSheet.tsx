@@ -1,7 +1,18 @@
-import { useEffect, useState } from "react";
-import { Controller, useForm, type Resolver } from "react-hook-form";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Controller,
+  useForm,
+  useWatch,
+  type Resolver,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  classifyGenericRfc,
+  resolveGenericReceiverDefaults,
+  type GenericRfcKind,
+} from "@boeltech/cfdi-domain";
 import { cn } from "@shared/lib/utils/cn";
+import { PUBLIC_GENERAL_LEGAL_NAME } from "@shared/cfdi/genericReceiverUx";
 import {
   FormaPagoSelect,
   MetodoPagoSelect,
@@ -83,12 +94,55 @@ export function InvoiceReceiverEditSheet({
     mode: "onChange",
   });
 
-  const { control, handleSubmit, reset, trigger, setFocus, formState } = form;
+  const {
+    control,
+    handleSubmit,
+    reset,
+    trigger,
+    setFocus,
+    setValue,
+    getValues,
+    formState,
+  } = form;
+
+  const watchedRfc = useWatch({ control, name: "receiver_rfc" });
+  const genericKind = classifyGenericRfc(watchedRfc);
+  const appliedGenericKindRef = useRef<GenericRfcKind | null>(null);
+
+  /** Receptor genérico: régimen y uso fijos; razón social sugerida solo si está vacía (C2). */
+  const syncGenericReceiver = useCallback(() => {
+    const rfc = getValues("receiver_rfc");
+    const kind = classifyGenericRfc(rfc);
+    const previousKind = appliedGenericKindRef.current;
+    appliedGenericKindRef.current = kind;
+    const opts = { shouldDirty: true, shouldValidate: true } as const;
+
+    const defaults = resolveGenericReceiverDefaults(rfc);
+    if (kind && defaults) {
+      if (getValues("receiver_tax_regime") !== defaults.taxRegime) {
+        setValue("receiver_tax_regime", defaults.taxRegime, opts);
+      }
+      if (getValues("cfdi_usage") !== defaults.cfdiUsage) {
+        setValue("cfdi_usage", defaults.cfdiUsage, opts);
+      }
+      if (kind === "national" && !getValues("receiver_name")?.trim()) {
+        setValue("receiver_name", PUBLIC_GENERAL_LEGAL_NAME, opts);
+      }
+      return;
+    }
+
+    if (previousKind) {
+      setValue("receiver_tax_regime", "", opts);
+      setValue("cfdi_usage", "", opts);
+    }
+  }, [getValues, setValue]);
 
   useEffect(() => {
     if (!open) return;
 
     reset(values);
+    appliedGenericKindRef.current = null;
+    syncGenericReceiver();
     setShowSummary(validateOnOpen);
 
     let cancelled = false;
@@ -118,6 +172,17 @@ export function InvoiceReceiverEditSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    if (
+      classifyGenericRfc(getValues("receiver_rfc")) ===
+      appliedGenericKindRef.current
+    ) {
+      return;
+    }
+    syncGenericReceiver();
+  }, [open, genericKind, getValues, syncGenericReceiver]);
+
   const handleClose = (next: boolean) => {
     if (!next) setShowSummary(false);
     onOpenChange(next);
@@ -134,6 +199,9 @@ export function InvoiceReceiverEditSheet({
   );
 
   const summaryMessages = collectFieldErrorMessages(formState.errors);
+  const genericLockedHelp = genericKind
+    ? copy.genericReceiver.lockedHelp(genericKind)
+    : undefined;
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
@@ -217,6 +285,7 @@ export function InvoiceReceiverEditSheet({
                       sat={dual.taxRegimeSat}
                     />
                   }
+                  description={genericLockedHelp}
                   required
                 >
                   {({ field, fieldState, resolvedId, errorMessage }) => (
@@ -225,6 +294,7 @@ export function InvoiceReceiverEditSheet({
                       triggerId={resolvedId}
                       value={field.value}
                       onValueChange={field.onChange}
+                      disabled={genericKind != null}
                       placeholder={comprobanteCopy.selectPlaceholder}
                       showCode={false}
                       displayFormat={CATALOG_DISPLAY_FORMAT}
@@ -242,6 +312,7 @@ export function InvoiceReceiverEditSheet({
                       sat={dual.cfdiUsageSat}
                     />
                   }
+                  description={genericLockedHelp}
                   required
                 >
                   {({ field, fieldState, resolvedId, errorMessage }) => (
@@ -250,6 +321,7 @@ export function InvoiceReceiverEditSheet({
                       triggerId={resolvedId}
                       value={field.value}
                       onValueChange={field.onChange}
+                      disabled={genericKind != null}
                       placeholder={comprobanteCopy.selectPlaceholder}
                       showCode={false}
                       displayFormat={CATALOG_DISPLAY_FORMAT}
