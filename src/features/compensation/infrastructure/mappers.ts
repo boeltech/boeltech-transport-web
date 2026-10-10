@@ -26,7 +26,9 @@ import type {
   BatchAssignmentResult,
   CompensationTemplate,
   CompensationTemplateEvent,
+  CompensationTemplateFamilySummary,
   CompensationTemplateRule,
+  CompensationTemplateVersionRef,
   FixedAllowanceOverride,
   FrequentCityPair,
   RouteCorridorTariff,
@@ -109,8 +111,22 @@ export interface ApiCompensationTemplateRaw {
   corridors: ApiRouteCorridorTariffRaw[];
   active_assignments_count?: number;
   scheduled_assignments_count?: number;
+  family?: ApiCompensationTemplateFamilySummaryRaw;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ApiCompensationTemplateVersionRef {
+  id: string;
+  version: number;
+}
+
+export interface ApiCompensationTemplateFamilySummaryRaw {
+  versions_count: number;
+  active_version: ApiCompensationTemplateVersionRef | null;
+  draft_version: ApiCompensationTemplateVersionRef | null;
+  superseded_active_assignments_count?: number;
+  superseded_scheduled_assignments_count?: number;
 }
 
 export interface ApiTemplateAssignmentRaw {
@@ -276,6 +292,18 @@ function mapVersionLifecycleFields(fields: {
   };
 }
 
+function mapVersionRef(
+  raw: ApiCompensationTemplateVersionRef | null | undefined,
+): CompensationTemplateVersionRef | null {
+  return raw ? { id: raw.id, version: Number(raw.version) } : null;
+}
+
+export function mapFamilySummary(
+  raw: ApiCompensationTemplateFamilySummaryRaw,
+): CompensationTemplateFamilySummary {
+  return mapFamilySummaryFromApi(deepToCamel(raw) as ApiCompensationTemplateFamilySummaryCamel);
+}
+
 export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTemplate {
   const status = resolveTemplateStatus(raw.status, raw.is_active);
   return {
@@ -304,6 +332,7 @@ export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTempla
     corridors: (raw.corridors ?? []).map(mapCorridor),
     activeAssignmentsCount: raw.active_assignments_count ?? 0,
     scheduledAssignmentsCount: raw.scheduled_assignments_count,
+    ...(raw.family ? { family: mapFamilySummary(raw.family) } : {}),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -441,8 +470,17 @@ export interface ApiCompensationTemplateCamel {
   corridors: ApiRouteCorridorTariffCamel[];
   activeAssignmentsCount?: number;
   scheduledAssignmentsCount?: number;
+  family?: ApiCompensationTemplateFamilySummaryCamel;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ApiCompensationTemplateFamilySummaryCamel {
+  versionsCount: number;
+  activeVersion: ApiCompensationTemplateVersionRef | null;
+  draftVersion: ApiCompensationTemplateVersionRef | null;
+  supersededActiveAssignmentsCount?: number;
+  supersededScheduledAssignmentsCount?: number;
 }
 
 export interface ApiCompensationTemplateEventCamel {
@@ -644,8 +682,22 @@ export function mapTemplateFromApi(raw: ApiCompensationTemplateCamel): Compensat
     corridors: (raw.corridors ?? []).map(mapCorridorFromApi),
     activeAssignmentsCount: raw.activeAssignmentsCount ?? 0,
     scheduledAssignmentsCount: raw.scheduledAssignmentsCount,
+    ...(raw.family ? { family: mapFamilySummaryFromApi(raw.family) } : {}),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
+  };
+}
+
+/** Conteos de reemplazadas ausentes cuentan como 0 (sin aviso de operadores en reemplazadas). */
+export function mapFamilySummaryFromApi(
+  raw: ApiCompensationTemplateFamilySummaryCamel,
+): CompensationTemplateFamilySummary {
+  return {
+    versionsCount: Number(raw.versionsCount ?? 1),
+    activeVersion: mapVersionRef(raw.activeVersion),
+    draftVersion: mapVersionRef(raw.draftVersion),
+    supersededActiveAssignmentsCount: Number(raw.supersededActiveAssignmentsCount ?? 0),
+    supersededScheduledAssignmentsCount: Number(raw.supersededScheduledAssignmentsCount ?? 0),
   };
 }
 

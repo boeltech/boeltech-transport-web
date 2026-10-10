@@ -99,7 +99,7 @@ function describeRuleForSimulation(
       return `Importe fijo (${routeLabel.toLowerCase()})`;
     case "none":
     default:
-      return `Sin pago extra (${routeLabel.toLowerCase()})`;
+      return `Sin pago por viaje (${routeLabel.toLowerCase()})`;
   }
 }
 
@@ -230,13 +230,13 @@ export function describeRuleProse(
       base = `El operador recibirá ${formatMxCurrency(amount)} por cada km recorrido en viaje ${routeLabel.toLowerCase()}`;
       break;
     case "percentage_of_freight":
-      base = `El operador recibirá el ${amount}% de lo que cobra el viaje ${routeLabel.toLowerCase()}`;
+      base = `El operador recibirá el ${amount}% del flete en viaje ${routeLabel.toLowerCase()}`;
       break;
     case "fixed_per_trip":
       base = `El operador recibirá ${formatMxCurrency(amount)} por cada viaje ${routeLabel.toLowerCase()}`;
       break;
     case "none":
-      return `Esta clase de ruta no genera pago extra. El sueldo y los pagos fijos se liquidan aparte.`;
+      return `Esta clase de ruta no tiene pago por viaje. El sueldo y los pagos fijos se liquidan aparte.`;
     default:
       return null;
   }

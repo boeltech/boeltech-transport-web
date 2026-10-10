@@ -208,7 +208,7 @@ describe("describeRuleProse", () => {
     const prose = describeRuleProse("long_haul", "percentage_of_freight", 8, 0);
 
     expect(prose).toContain("8%");
-    expect(prose).toContain("cobra el viaje");
+    expect(prose).toContain("del flete");
   });
 
   it("describes fixed_per_trip", () => {
@@ -223,7 +223,7 @@ describe("describeRuleProse", () => {
     const prose = describeRuleProse("local", "none", 0, 0);
 
     expect(prose).toContain("clase de ruta");
-    expect(prose).toContain("no genera pago extra");
+    expect(prose).toContain("no tiene pago por viaje");
   });
 
   it("labels Transfer / Patio (no Movimiento local)", () => {

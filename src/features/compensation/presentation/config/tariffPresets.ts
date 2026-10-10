@@ -83,7 +83,7 @@ export const TARIFF_PRESETS: TariffPreset[] = [
   {
     id: "percentage",
     name: "Operador Tractocamión",
-    description: "Porcentaje de lo que cobra el viaje + viáticos",
+    description: "Porcentaje del flete + viáticos",
     iconName: "container",
     suggestedName: "Operador Tractocamión Estándar",
     rules: [

@@ -4,11 +4,11 @@
  * Cubre:
  * 1. Hub de plantillas y corredores foráneos.
  * 1c. Alta de esquema → Builder (ADR-0091).
- * 1d. Editar abre Builder con prosa + puente preview.
+ * 1d. «Editar configuración» (menú ···) abre Builder con prosa + puente preview.
  * 2. Catálogo denso (sin master-detail); corredores en tab del hub.
  * 3. Redirect legacy /finance/agreements → hub de plantillas.
  * 4. Redirect legacy detalle → Sheet operadores.
- * 5. Sheet de asignación masiva desde CTA Operadores del catálogo.
+ * 5. Sheet de asignación masiva desde la fila del catálogo.
  * 6–7. Preview liquidación con plantilla, badge de corredor (E1) y prestaciones (E3).
  * 8–9. Versión reemplazada: catálogo → Builder bloqueado → versión activa; 409 en carrera (api#59 W5).
  * 10. Lote parcial: renglón con causa y salida antes y después de confirmar (api#63, criterios 1–4).
@@ -475,7 +475,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     expect(screen.getAllByText("Borrador").length).toBeGreaterThan(0);
   });
 
-  it("1d. Abre Builder desde Editar y muestra resumen en prosa", async () => {
+  it("1d. Abre Builder desde «Editar configuración» y muestra resumen en prosa", async () => {
     const user = userEvent.setup();
     renderWithRoutes(
       "/finance/compensation/templates",
@@ -486,7 +486,10 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(screen.getAllByText("Operador foráneo").length).toBeGreaterThan(0);
     });
 
-    await user.click(screen.getByRole("link", { name: /^Editar$/i }));
+    await user.click(
+      screen.getByRole("button", { name: compensationCopy.templateActions.openMenuSr }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Editar configuración" }));
 
     await waitFor(() => {
       expect(
@@ -508,7 +511,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       <Routes>{compensationRoutes}</Routes>,
     );
 
-    await user.click(screen.getByRole("tab", { name: /Tarifas por corredor/i }));
+    await user.click(screen.getByRole("tab", { name: /Rutas con tarifa fija/i }));
 
     await waitFor(() => {
       expect(screen.getByText("México → MTY")).toBeInTheDocument();
@@ -558,10 +561,17 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     expect(screen.getByRole("columnheader", { name: /^Operadores$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Uso" })).not.toBeInTheDocument();
     expect(screen.getByTestId("template-operators-count-trigger")).toHaveTextContent(/^1$/);
-    expect(screen.getByText(compensationCopy.templates.usage.ready)).toBeInTheDocument();
+    const summary = screen.getByTestId("template-summary");
+    expect(within(summary).getByText("Foráneo $3.00/km")).toBeInTheDocument();
+    expect(summary).toHaveTextContent("1 ruta fija $1,500.00 · +1 pago fijo");
+    expect(screen.queryByTestId("template-status-line")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: /^Editar$/i }));
+    await user.click(
+      screen.getByRole("button", { name: compensationCopy.templateActions.openMenuSr }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Editar configuración" }));
 
     await waitFor(() => {
       expect(
@@ -573,18 +583,18 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     expect(screen.getByText(/Pago fijo de tarifa Comidas/i)).toBeInTheDocument();
   });
 
-  it("5. Abre sheet de asignación masiva desde CTA Operadores", async () => {
+  it("5. Abre sheet de asignación masiva desde la fila del catálogo", async () => {
     const user = userEvent.setup();
     renderWithRoutes(
       "/finance/compensation/templates",
       <Routes>{compensationRoutes}</Routes>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^Operadores$/i })).toBeInTheDocument();
+    const rowName = await screen.findByRole("button", {
+      name: "Abrir operadores de Operador foráneo v1",
     });
 
-    await user.click(screen.getByRole("button", { name: /^Operadores$/i }));
+    await user.click(rowName);
 
     await waitFor(() => {
       expect(
@@ -678,7 +688,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       activeAssignmentsCount: 2,
     };
 
-    it("8. Catálogo → «Ver configuración» → aviso con versión activa → «Abrir versión 1»", async () => {
+    it("8. Catálogo → ··· «Ver configuración» → aviso con versión activa → «Abrir versión 1»", async () => {
       const user = userEvent.setup();
       mockListTemplates.mockResolvedValue({
         data: [supersededTemplate],
@@ -695,9 +705,14 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       );
 
       expect(await screen.findByText(compensationCopy.templates.status.superseded)).toBeInTheDocument();
-      expect(screen.getByText(compensationCopy.templates.usage.supersededPaying)).toBeInTheDocument();
+      expect(screen.getByTestId("template-status-line")).toHaveTextContent(
+        "Paga a 2 operadores hasta que los reasignes",
+      );
 
-      await user.click(screen.getByRole("link", { name: compensationCopy.templates.viewConfiguration }));
+      await user.click(
+        screen.getByRole("button", { name: compensationCopy.templateActions.openMenuSr }),
+      );
+      await user.click(screen.getByRole("menuitem", { name: "Ver configuración" }));
 
       const banner = await screen.findByTestId("builder-superseded-banner");
       expect(await within(banner).findByText("La versión activa hoy es la 1.")).toBeInTheDocument();
@@ -1080,7 +1095,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
 
       await user.click(
         within(catalogRow(compensationCopy.templates.versionLabel(1))).getByRole("button", {
-          name: /^Operadores$/,
+          name: /^Abrir operadores de /,
         }),
       );
       expect(await screen.findByRole("heading", { name: v1Title })).toBeInTheDocument();
@@ -1133,7 +1148,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
         ).toBeInTheDocument();
 
         // Criterio 11: filas «Vigente» = número de la columna; filas «Programada» = «+k».
-        await user.click(within(v2Row).getByRole("button", { name: /^Operadores$/ }));
+        await user.click(within(v2Row).getByRole("button", { name: /^Abrir operadores de / }));
         expect(
           await screen.findByRole("heading", { name: `Operadores — ${TEMPLATE_NAME} versión 2` }),
         ).toBeInTheDocument();
@@ -1148,7 +1163,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
         );
         await user.click(
           within(catalogRow(compensationCopy.templates.versionLabel(1))).getByRole("button", {
-            name: /^Operadores$/,
+            name: /^Abrir operadores de /,
           }),
         );
         const fernandoRow = (await within(operatorsTable()).findByText("Fernando Castillo")).closest(
@@ -1157,6 +1172,86 @@ describe("Smoke ADR-0089: Compensation templates", () => {
         expect(within(fernandoRow).getByText("Concluida")).toBeInTheDocument();
         expect(within(fernandoRow).queryByText("Vigente")).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe("F2b: una fila por familia", () => {
+    const familyV1 = {
+      ...mockTemplate,
+      id: "tpl-1",
+      familyId: "tpl-1",
+      isActive: false,
+      status: "inactive" as const,
+      version: 1,
+      lockedForEdit: true,
+      lockedReason: "superseded" as const,
+      inactiveReason: "superseded" as const,
+      activeAssignmentsCount: 2,
+    };
+    const familyV2 = {
+      ...mockTemplate,
+      id: "tpl-2",
+      familyId: "tpl-1",
+      version: 2,
+      activeAssignmentsCount: 1,
+    };
+
+    it("13. «Vigentes» agrupado → aviso de reemplazadas despliega la familia → panel de v1 → el foco vuelve a su sub-fila", async () => {
+      const user = userEvent.setup();
+      mockListTemplates.mockResolvedValue({
+        data: [
+          {
+            ...familyV2,
+            family: {
+              versionsCount: 2,
+              activeVersion: { id: "tpl-2", version: 2 },
+              draftVersion: null,
+              supersededActiveAssignmentsCount: 2,
+              supersededScheduledAssignmentsCount: 0,
+            },
+          },
+        ],
+        pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      });
+      mockListTemplateVersions.mockResolvedValue([familyV1, familyV2]);
+      mockGetTemplate.mockImplementation(async (id: string) =>
+        id === "tpl-1" ? familyV1 : familyV2,
+      );
+
+      renderWithRoutes(
+        "/finance/compensation/templates",
+        <Routes>{compensationRoutes}</Routes>,
+      );
+
+      const warning = await screen.findByTestId("template-family-superseded-operators");
+      expect(warning).toHaveTextContent("2 operadores siguen con una versión reemplazada");
+      const listParams = mockListTemplates.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(listParams).toMatchObject({ groupBy: "family", scope: "current" });
+      expect(listParams).not.toHaveProperty("isActive");
+      expect(listParams).not.toHaveProperty("status");
+
+      await user.click(warning);
+
+      const subRowName = await screen.findByRole("button", {
+        name: "Abrir operadores de Operador foráneo v1",
+      });
+      expect(mockListTemplateVersions).toHaveBeenCalledWith("tpl-2");
+      expect(screen.queryByRole("heading", { name: /^Operadores —/ })).not.toBeInTheDocument();
+
+      await user.click(subRowName);
+      expect(
+        await screen.findByRole("heading", { name: "Operadores — Operador foráneo versión 1" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Cerrar" }));
+      await waitFor(() =>
+        expect(screen.queryByRole("heading", { name: /^Operadores —/ })).not.toBeInTheDocument(),
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "Abrir operadores de Operador foráneo v1" }),
+        ).toHaveFocus(),
+      );
     });
   });
 });

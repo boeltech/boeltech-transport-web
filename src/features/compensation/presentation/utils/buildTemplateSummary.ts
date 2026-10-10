@@ -18,7 +18,7 @@ function formatRuleCommission(
     case "rate_per_km":
       return `${formatMxCurrency(amount)}/km`;
     case "percentage_of_freight":
-      return `${amount}% de lo que cobra el viaje`;
+      return `${amount}% del flete`;
     case "fixed_per_trip":
       return `${formatMxCurrency(amount)} por viaje`;
     case "none":

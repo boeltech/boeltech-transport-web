@@ -8,14 +8,14 @@ export const COMPENSATION_HUB_PATH = "/finance/compensation";
 export const COMPENSATION_TEMPLATES_PATH = "/finance/compensation/templates";
 export const COMPENSATION_CORRIDORS_PATH = "/finance/compensation/corridors";
 
-/** Query flag: abre Sheet de alta de ruta con tarifa fija en el tab de corredores. */
+/** Query flag: abre Sheet de alta de ruta con tarifa fija en el tab de rutas con tarifa fija. */
 export const COMPENSATION_CORRIDORS_CREATE_QUERY = "create";
 export const COMPENSATION_CORRIDORS_CREATE_VALUE = "1";
 
 /** Legacy agreements → hub plantillas. */
 export const LEGACY_AGREEMENTS_PATH = "/finance/agreements";
 
-/** Deep link: tab Tarifas por corredor con Sheet de alta abierto. */
+/** Deep link: tab Rutas con tarifa fija con Sheet de alta abierto. */
 export function compensationCorridorsCreatePath(): string {
   return `${COMPENSATION_CORRIDORS_PATH}?${COMPENSATION_CORRIDORS_CREATE_QUERY}=${COMPENSATION_CORRIDORS_CREATE_VALUE}`;
 }

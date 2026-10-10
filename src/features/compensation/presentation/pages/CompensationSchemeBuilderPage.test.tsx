@@ -181,7 +181,7 @@ describe("CompensationSchemeBuilderPage", () => {
       within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Tarifas por corredor/i }),
+      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText("Nombre")).toHaveValue("Operador foráneo");
@@ -235,7 +235,7 @@ describe("CompensationSchemeBuilderPage", () => {
     ).toBeInTheDocument();
 
     await user.click(
-      within(desktopNav).getByRole("tab", { name: /Tarifas por corredor/i }),
+      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
     );
 
     expect(

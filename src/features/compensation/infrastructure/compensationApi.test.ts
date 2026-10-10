@@ -118,6 +118,64 @@ describe("compensationApi", () => {
     expect(result.data[0]?.activeAssignmentsCount).toBe(2);
   });
 
+  it("listTemplates agrupado por familia: manda group_by/scope/inactive_reason sin is_active y mapea `family`", async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          id: "tpl-2",
+          family_id: "tpl-1",
+          name: "Operador foráneo",
+          status: "active",
+          version: 2,
+          is_active: true,
+          rules: [],
+          fixed_allowances: [],
+          corridor_ids: [],
+          corridors: [],
+          family: {
+            versions_count: 3,
+            active_version: { id: "tpl-2", version: 2 },
+            draft_version: { id: "tpl-3", version: 3 },
+            superseded_active_assignments_count: 4,
+            superseded_scheduled_assignments_count: 1,
+          },
+        },
+      ],
+      pagination: { page: 1, limit: 20, total: 1, total_pages: 1 },
+    });
+
+    const result = await compensationApi.listTemplates({
+      groupBy: "family",
+      scope: "current",
+      isActive: true,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const params = getMock.mock.calls[0]?.[1]?.params as Record<string, unknown>;
+    expect(params).toMatchObject({ group_by: "family", scope: "current", page: 1, page_size: 20 });
+    expect(params.is_active).toBeUndefined();
+    expect(params.status).toBeUndefined();
+    expect(result.data[0]?.family).toEqual({
+      versionsCount: 3,
+      activeVersion: { id: "tpl-2", version: 2 },
+      draftVersion: { id: "tpl-3", version: 3 },
+      supersededActiveAssignmentsCount: 4,
+      supersededScheduledAssignmentsCount: 1,
+    });
+
+    await compensationApi.listTemplates({
+      groupBy: "family",
+      status: "inactive",
+      inactiveReason: "superseded",
+    });
+    expect(getMock.mock.calls[1]?.[1]?.params).toMatchObject({
+      group_by: "family",
+      status: "inactive",
+      inactive_reason: "superseded",
+    });
+  });
+
   it("listAssignments maps snake_case pagination to camelCase", async () => {
     getMock.mockResolvedValue({
       data: [

@@ -1,5 +1,4 @@
 import {
-  AGREEMENT_COMMISSION_TYPE_LABELS,
   TRIP_ROUTE_TYPE_LABELS,
   type AgreementCommissionType,
 } from "@features/settlements";
@@ -22,11 +21,11 @@ function formatRuleCommission(
     case "rate_per_km":
       return `${formatMxCurrency(rateValue)}/km`;
     case "percentage_of_freight":
-      return `${rateValue}% sobre flete`;
+      return `${rateValue}% del flete`;
     case "fixed_per_trip":
       return `${formatMxCurrency(rateValue)} por viaje`;
     case "none":
-      return AGREEMENT_COMMISSION_TYPE_LABELS.none;
+      return compensationCopy.builder.commissionTypeLabels.none;
     default:
       return formatMxCurrency(rateValue);
   }

@@ -13,7 +13,7 @@ export const settlementsCopy = {
       porAutorizar: "Por autorizar",
       adelantos: "Anticipos",
       comoTePago: "Tarifas",
-      tablaRutas: "Tarifas por corredor",
+      tablaRutas: "Rutas con tarifa fija",
     },
     createCut: "Armar pago",
     operatorFilterPlaceholder: "Todos los operadores",

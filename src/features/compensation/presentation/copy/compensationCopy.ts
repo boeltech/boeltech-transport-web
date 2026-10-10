@@ -7,7 +7,7 @@ export const compensationCopy = {
     guideTitle: "Cómo dejar listo el pago a operadores",
     tabs: {
       templates: "Tarifas",
-      corridors: "Tarifas por corredor",
+      corridors: "Rutas con tarifa fija",
     },
     steps: [
       "Crea una tarifa",
@@ -18,7 +18,7 @@ export const compensationCopy = {
       ariaLabel: "Estado de configuración del módulo",
       templatesActiveLabel: "tarifas activas",
       templatesIncompleteLabel: "sin pago definido",
-      corridorsActiveLabel: "tarifas por corredor",
+      corridorsActiveLabel: "rutas con tarifa fija",
       assignmentsActiveLabel: "operadores con tarifa",
     },
     employeeAssignBanner: {
@@ -44,26 +44,82 @@ export const compensationCopy = {
     searchPlaceholder: "Buscar por nombre…",
     filters: {
       statusPlaceholder: "Estado",
-      all: "Todos los estados",
-      draft: "Borrador",
+      current: "Vigentes",
       active: "Activas",
-      inactive: "Inactivas",
+      draft: "Borradores",
+      superseded: "Reemplazadas",
+      deactivated: "Desactivadas",
+      all: "Todos los estados",
+      inactive: "Reemplazadas o desactivadas",
       chipLabel: (value: string) => `Estado: ${value}`,
+    },
+    currentEmpty: {
+      title: "No hay tarifas vigentes",
+      description:
+        "Las tarifas desactivadas y las reemplazadas sin operadores están en «Todos los estados».",
+      viewAll: "Ver todos los estados",
+    },
+    family: {
+      otherVersions: (count: number) => `Otras versiones (${count})`,
+      hideOtherVersions: "Ocultar otras versiones",
+      otherVersionsAria: (name: string, count: number) =>
+        `Ver otras versiones de ${name} (${count})`,
+      hideOtherVersionsAria: (name: string) => `Ocultar otras versiones de ${name}`,
+      supersededOperators: (count: number) =>
+        count === 1
+          ? "1 operador sigue con una versión reemplazada"
+          : `${count} operadores siguen con una versión reemplazada`,
+      supersededOperatorsTooltip: (current: number, scheduled: number) =>
+        `${current} cobran hoy${scheduled > 0 ? ` y ${scheduled} empiezan después` : ""} con una versión reemplazada. Para que cobren con esta versión, asígnalos aquí indicando desde qué fecha.`,
+      loadError: "No se pudieron cargar las versiones.",
+      retry: "Reintentar",
+      empty: "Sin otras versiones todavía.",
     },
     columns: {
       name: "Nombre",
       status: "Estado",
-      usage: "Uso",
       summary: "Cómo se paga",
       operators: "Operadores",
       actions: "Acciones",
     },
-    usage: {
-      ready: "Listo para usar en pagos",
-      readyToActivate: "Lista para activar",
+    statusLine: {
       needsPayment: "Falta definir el pago",
-      paused: "Pausada",
-      supersededPaying: "Sigue pagando a asignados",
+      readyToActivate: "Lista para activar",
+      supersededPaying: (count: number) =>
+        count === 1
+          ? "Paga a 1 operador hasta que lo reasignes"
+          : `Paga a ${count} operadores hasta que los reasignes`,
+      supersededNone: "Sin operadores asignados",
+      supersededScheduled: (count: number) =>
+        `${count} ${count === 1 ? "programado" : "programados"}`,
+      deactivated: "No calcula pagos",
+    },
+    rowAriaLabel: (name: string, version: number) =>
+      `Abrir operadores de ${name} v${version}`,
+    listSummary: {
+      perKm: (routeType: string, amount: string) => `${routeType} ${amount}/km`,
+      perTrip: (routeType: string, amount: string) => `${routeType} ${amount}/viaje`,
+      percentage: (routeType: string, percent: string) => `${routeType} ${percent}% del flete`,
+      noPay: (routeType: string) => `${routeType} sin pago por viaje`,
+      oneCorridor: (amount: string) => `1 ruta fija ${amount}`,
+      corridorRange: (count: number, min: string, max: string) =>
+        `${count} rutas fijas ${min}–${max}`,
+      corridorSame: (count: number, amount: string) => `${count} rutas fijas ${amount} c/u`,
+      allowances: (count: number) =>
+        `+${count} ${count === 1 ? "pago fijo" : "pagos fijos"}`,
+      deductions: (count: number) =>
+        `−${count} ${count === 1 ? "deducción" : "deducciones"}`,
+      tooltipTitle: "Cómo se paga",
+      tooltipMinimum: (amount: string) => `Mínimo garantizado ${amount}`,
+      tooltipCorridor: (name: string, route: string, amount: string) =>
+        `${name}: ${route} · ${amount}`,
+      tooltipCorridorInactive: "(inactiva)",
+      tooltipAllowance: (label: string, amount: string, period?: string) =>
+        period ? `${label}: ${amount} · ${period}` : `${label}: ${amount}`,
+      tooltipDeduction: (label: string, amount: string, period?: string) =>
+        period ? `${label}: −${amount} · ${period}` : `${label}: −${amount}`,
+      allowanceFallback: "Pago fijo",
+      deductionFallback: "Deducción",
     },
     status: {
       draft: "Borrador",
@@ -79,13 +135,6 @@ export const compensationCopy = {
         "No calcula pagos, ni siquiera de los operadores que sigan asignados a ella.",
     },
     versionLabel: (version: number) => `v${version}`,
-    completePayment: "Completar pago",
-    edit: "Editar",
-    viewConfiguration: "Ver configuración",
-    activate: "Activar",
-    deactivate: "Desactivar",
-    createVersion: "Crear nueva versión",
-    operators: "Operadores",
     operatorsScheduled: (count: number) =>
       `+${count} ${count === 1 ? "programada" : "programadas"}`,
     operatorsTooltip: (current: number, scheduled: number) => {
@@ -102,13 +151,13 @@ export const compensationCopy = {
     blocks: {
       rules: "Reglas por ruta",
       allowances: "Prestaciones fijas (opcional)",
-      corridors: "Tarifas por corredor",
+      corridors: "Rutas con tarifa fija",
     },
     emptyBlock: "Sin configurar",
     incompleteBadge: "Falta reglas o rutas",
     editingBadge: "Editando",
     incompleteTitle:
-      "Para armar el pago, agrega reglas por ruta o vincula una tarifa por corredor",
+      "Para armar el pago, agrega reglas por ruta o vincula una ruta con tarifa fija",
     missingSteps: {
       rules: "Agrega al menos una regla por tipo de ruta (opción A)",
       corridors: "Vincula al menos una ruta con tarifa fija (opción B)",
@@ -169,7 +218,7 @@ export const compensationCopy = {
     sections: {
       payment: "Pago por viaje",
       allowances: "Extras fijos",
-      corridors: "Tarifas por corredor",
+      corridors: "Rutas con tarifa fija",
     },
     paymentDescription:
       "Cada clase de ruta puede tener su propia regla de pago. Debe coincidir con la clase elegida al despachar el viaje. Ejemplo: Foráneo a $3.00 por km. Solo una regla por clase.",
@@ -261,9 +310,9 @@ export const compensationCopy = {
     },
     commissionTypeLabels: {
       rate_per_km: "Pago por kilómetro recorrido",
-      percentage_of_freight: "Porcentaje de lo que cobra el viaje",
+      percentage_of_freight: "Porcentaje del flete",
       fixed_per_trip: "Importe fijo por viaje",
-      none: "Sin pago extra",
+      none: "Sin pago por viaje",
     },
     allowanceTypeLabels: {
       meals: "Comidas",
@@ -289,11 +338,11 @@ export const compensationCopy = {
       none: "Monto",
     },
     localNoExtraPayNote:
-      "Esta clase de ruta no suma un pago extra (el sueldo y los pagos fijos se calculan aparte).",
+      "Esta clase de ruta no tiene pago por viaje (el sueldo y los pagos fijos se calculan aparte).",
     paymentSectionTitle: "Pago por viaje",
     allowancesSectionTitle: "Extras fijos",
     deductionsSectionTitle: "Descuentos",
-    corridorsSectionTitle: "Tarifas por corredor",
+    corridorsSectionTitle: "Rutas con tarifa fija",
     noPaymentRules: "Sin pagos por clase de ruta",
     noAllowances: "Sin pagos fijos",
     noDeductions: "Sin deducciones",
@@ -336,7 +385,7 @@ export const compensationCopy = {
     rulesTitle: "Pago por clase de ruta",
     allowancesTitle: "Pagos fijos adicionales",
     deductionsTitle: "Deducciones",
-    corridorsTitle: "Tarifas por corredor",
+    corridorsTitle: "Rutas con tarifa fija",
     noRules: "Sin pagos por clase de ruta",
     noAllowances: "Sin pagos fijos",
     noDeductions: "Sin deducciones",
@@ -353,11 +402,11 @@ export const compensationCopy = {
       "Puedes consultar la configuración; para editar necesitas permiso de actualización en pagos a operadores.",
   },
   corridors: {
-    title: "Tarifas por corredor",
+    title: "Rutas con tarifa fija",
     description:
       "Catálogo de tarifas por origen y destino. Vincúlalas al editar una tarifa.",
-    create: "Nueva tarifa por corredor",
-    emptyTitle: "Sin tarifas por corredor",
+    create: "Nueva ruta con tarifa fija",
+    emptyTitle: "Sin rutas con tarifa fija",
     emptyDescription:
       "Registra trayectos origen–destino cuando no usan comisión por kilómetro.",
     searchPlaceholder: "Buscar ruta…",
@@ -398,7 +447,14 @@ export const compensationCopy = {
   },
   templateActions: {
     openMenuSr: "Abrir menú de acciones de la tarifa",
+    viewOperators: "Ver operadores",
+    editConfiguration: "Editar configuración",
+    viewConfiguration: "Ver configuración",
+    completePayment: "Completar pago",
+    continueDraft: (version: number) => `Continuar borrador v${version}`,
+    activateShort: "Activar",
     activate: "Activar tarifa",
+    reactivateSuperseded: "Volver a activar esta versión",
     deactivate: "Desactivar tarifa",
     createVersion: "Crear nueva versión",
     delete: "Eliminar tarifa",
@@ -408,6 +464,15 @@ export const compensationCopy = {
         "Pasará a usarse en pagos. Si hay otra versión activa, quedará reemplazada.",
       reassignWarning:
         "Los operadores en versiones anteriores siguen cobrando con esa versión hasta que los reasignes.",
+      reactivateSupersededTitle: (version: number) => `¿Volver a activar v${version}?`,
+      reactivateSupersededDescription:
+        "Esta versión vuelve a usarse en pagos y la versión activa quedará reemplazada. Los operadores no cambian de versión.",
+      /** Con la versión activa de la familia conocida (listado agrupado). */
+      descriptionKnownFamily: "Pasará a usarse en pagos.",
+      reactivateSupersededDescriptionKnownFamily:
+        "Esta versión vuelve a usarse en pagos. Los operadores no cambian de versión.",
+      replacesActiveVersion: (version: number) =>
+        `La v${version}, que hoy está activa, quedará reemplazada.`,
       confirm: "Activar",
       pending: "Activando…",
       cancel: "Cancelar",
@@ -468,12 +533,12 @@ export const compensationCopy = {
       "Se crea como borrador. Después defines cómo se paga y la activas cuando esté lista.",
     templateEditTitle: "Editar configuración",
     templateEditHelp:
-      "Define reglas por clase de ruta, prestaciones fijas y rutas vinculadas. El sueldo se toma de la ficha del operador; crea rutas con tarifa fija en la pestaña Tarifas por corredor.",
+      "Define reglas por clase de ruta, prestaciones fijas y rutas vinculadas. El sueldo se toma de la ficha del operador; crea rutas con tarifa fija en la pestaña Rutas con tarifa fija.",
     schemaDataTitle: "Datos de la tarifa",
     corridorsSectionHelp:
       "Selecciona rutas del tabulador. Si el viaje coincide, se paga la tarifa fija en lugar del pago por viaje (la regla genérica no se aplica).",
     localNoCommissionNote:
-      "Esta clase de ruta no suma comisión adicional a la tarifa (el sueldo y prestaciones se calculan aparte).",
+      "Esta clase de ruta no tiene pago por viaje (el sueldo y las prestaciones se calculan aparte).",
     addRule: "Regla",
     addAllowance: "Prestación",
     addFixedPayment: "Pago fijo",
@@ -554,7 +619,7 @@ export const compensationCopy = {
     },
     ruleRateLabels: {
       rate_per_km: "Tarifa por km",
-      percentage_of_freight: "Porcentaje sobre flete",
+      percentage_of_freight: "Porcentaje del flete",
       fixed_per_trip: "Importe fijo por viaje",
       none: "Monto",
     },

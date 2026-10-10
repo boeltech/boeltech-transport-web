@@ -144,11 +144,11 @@ export function TariffPresetSelector({
             case "rate_per_km":
               return `Pago por km ${route.toLowerCase()} ($${rule.rateValue}/km)`;
             case "percentage_of_freight":
-              return `${rule.rateValue}% del ingreso (${route.toLowerCase()})`;
+              return `${rule.rateValue}% del flete (${route.toLowerCase()})`;
             case "fixed_per_trip":
               return `$${rule.rateValue} por viaje (${route.toLowerCase()})`;
             default:
-              return `Sin pago extra (${route.toLowerCase()})`;
+              return `Sin pago por viaje (${route.toLowerCase()})`;
           }
         }),
         ...selectedPreset.fixedAllowances.map(

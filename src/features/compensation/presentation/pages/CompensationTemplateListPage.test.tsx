@@ -4,7 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { BatchAssignmentConflict, TemplateAssignment } from "../../domain/entities";
+import { compensationCopy } from "../copy/compensationCopy";
+import { makeCompensationTemplate } from "../utils/makeCompensationTemplate";
 import { CompensationTemplateListPage } from "./CompensationTemplateListPage";
+
+const copy = compensationCopy.templates;
+
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.setPointerCapture ??= () => undefined;
+Element.prototype.releasePointerCapture ??= () => undefined;
 
 const mockNavigate = vi.fn();
 const mockBatchMutate = vi.fn();
@@ -15,11 +23,13 @@ const {
   mockUseCompensationTemplate,
   mockUsePreview,
   mockUseTemplateAssignments,
+  mockUseTemplateVersions,
 } = vi.hoisted(() => ({
   mockUseCompensationTemplates: vi.fn(),
   mockUseCompensationTemplate: vi.fn(),
   mockUsePreview: vi.fn(),
   mockUseTemplateAssignments: vi.fn(),
+  mockUseTemplateVersions: vi.fn(),
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -51,6 +61,7 @@ vi.mock("../../application/hooks", async (importOriginal) => {
     }),
     useTemplateAssignments: (...args: unknown[]) => mockUseTemplateAssignments(...args),
     useTemplateAssignment: () => ({ data: undefined, isError: false }),
+    useTemplateVersions: (...args: unknown[]) => mockUseTemplateVersions(...args),
   };
 });
 
@@ -118,6 +129,14 @@ function renderPage(initialPath = "/finance/compensation/templates") {
   );
 }
 
+/** Última consulta del listado (la de `page_size=1` es el conteo de D23). */
+function listQuery(): Record<string, unknown> | undefined {
+  const calls = mockUseCompensationTemplates.mock.calls.filter(
+    ([params]) => (params as { pageSize?: number } | undefined)?.pageSize !== 1,
+  );
+  return calls.at(-1)?.[0] as Record<string, unknown> | undefined;
+}
+
 function assignmentsPage(rows: TemplateAssignment[]) {
   return { data: { data: rows }, isLoading: false, isSuccess: true, isError: false, refetch: vi.fn() };
 }
@@ -139,6 +158,14 @@ describe("CompensationTemplateListPage", () => {
     mockUsePreview.mockReturnValue({ data: undefined, isError: false });
     mockUseTemplateAssignments.mockReset();
     mockUseTemplateAssignments.mockReturnValue(assignmentsPage([]));
+    mockUseTemplateVersions.mockReset();
+    mockUseTemplateVersions.mockReturnValue({
+      data: undefined,
+      isError: false,
+      isFetching: true,
+      refetch: vi.fn(),
+    });
+    mockUseCompensationTemplates.mockReset();
     mockUseCompensationTemplates.mockReturnValue({
       data: {
         data: [
@@ -190,24 +217,317 @@ describe("CompensationTemplateListPage", () => {
     });
   });
 
-  it("muestra catálogo con Uso, Cómo se paga y operadores", () => {
+  it("muestra catálogo con Estado, Cómo se paga y operadores, sin columna Uso", () => {
     renderPage();
 
     expect(screen.getByText("Página 1 de 2")).toBeInTheDocument();
     expect(screen.getByText("Operador foráneo")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Uso" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Uso" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Estado" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Cómo se paga" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Operadores" })).toBeInTheDocument();
     expect(screen.getAllByTestId("template-operators-count-trigger")[0]).toHaveTextContent(/^2$/);
     expect(screen.getByText("Falta definir el pago")).toBeInTheDocument();
-    expect(screen.getByText("Listo para usar en pagos")).toBeInTheDocument();
+    expect(screen.getByText("Local sin pago por viaje")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Completar pago/i }),
     ).toHaveAttribute("href", "/finance/compensation/templates/tpl-1/build");
-    expect(screen.getByRole("link", { name: /^Editar$/i })).toHaveAttribute(
-      "href",
-      "/finance/compensation/templates/tpl-2/build",
+    expect(screen.queryByRole("link", { name: /^Editar$/i })).not.toBeInTheDocument();
+  });
+
+  it("clic en la fila abre el panel de Operadores de esa versión", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByText("Local sin pago por viaje"));
+
+    expect(currentParams()).toEqual({ operators: "tpl-2" });
+    expect(
+      await screen.findByRole("heading", { name: /Operadores — Esquema local/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("D12/CA21: ?status=inactive se rotula «Reemplazadas o desactivadas» y filtra inactive sin motivo", async () => {
+    const user = userEvent.setup();
+    renderPage("/finance/compensation/templates?status=inactive");
+
+    expect(listQuery()).toEqual(
+      expect.objectContaining({ groupBy: "family", status: "inactive" }),
     );
+    expect(listQuery()).not.toHaveProperty("inactiveReason");
+    expect(listQuery()).not.toHaveProperty("scope");
+    expect(screen.getByRole("combobox", { name: "Estado" })).toHaveTextContent(
+      "Reemplazadas o desactivadas",
+    );
+    expect(screen.getByText("Estado: Reemplazadas o desactivadas")).toBeInTheDocument();
+    expect(currentParams()).toEqual({ status: "inactive" });
+
+    await user.click(screen.getByRole("combobox", { name: "Estado" }));
+    await user.click(await screen.findByRole("option", { name: "Activas" }));
+
+    expect(currentParams()).toEqual({ status: "active", page: "1" });
+    await user.click(screen.getByRole("combobox", { name: "Estado" }));
+    expect(await screen.findByRole("option", { name: "Activas" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Reemplazadas o desactivadas" }),
+    ).not.toBeInTheDocument();
+  });
+
+  describe("F2b: filtro por estado (PRD D22)", () => {
+    it("CA19: sin ?status → «Vigentes», sin chip, agrupado y sin is_active", () => {
+      renderPage();
+
+      expect(listQuery()).toEqual({
+        search: undefined,
+        groupBy: "family",
+        scope: "current",
+        page: 1,
+        pageSize: 20,
+      });
+      expect(screen.getByRole("combobox", { name: "Estado" })).toHaveTextContent("Vigentes");
+      expect(screen.queryByText(/^Estado: /)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Limpiar filtros" })).not.toBeInTheDocument();
+    });
+
+    it("las opciones van en el orden del PRD", async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole("combobox", { name: "Estado" }));
+
+      expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual([
+        "Vigentes",
+        "Activas",
+        "Borradores",
+        "Reemplazadas",
+        "Desactivadas",
+        "Todos los estados",
+      ]);
+    });
+
+    it.each([
+      ["superseded", "Reemplazadas", { status: "inactive", inactiveReason: "superseded" }],
+      ["deactivated", "Desactivadas", { status: "inactive", inactiveReason: "manual" }],
+      ["draft", "Borradores", { status: "draft" }],
+    ])("CA20: ?status=%s → «%s» con su motivo y chip", (status, label, query) => {
+      renderPage(`/finance/compensation/templates?status=${status}`);
+
+      expect(listQuery()).toEqual(expect.objectContaining({ groupBy: "family", ...query }));
+      expect(listQuery()).not.toHaveProperty("scope");
+      expect(screen.getByRole("combobox", { name: "Estado" })).toHaveTextContent(label);
+      expect(screen.getByText(`Estado: ${label}`)).toBeInTheDocument();
+    });
+
+    it("CA20: «Todos los estados» queda en la URL con chip, sin status ni scope; «Limpiar filtros» vuelve a «Vigentes»", async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole("combobox", { name: "Estado" }));
+      await user.click(await screen.findByRole("option", { name: "Todos los estados" }));
+
+      expect(currentParams()).toEqual({ status: "all", page: "1" });
+      expect(listQuery()).toEqual({
+        search: undefined,
+        groupBy: "family",
+        page: 1,
+        pageSize: 20,
+      });
+      expect(screen.getByText("Estado: Todos los estados")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+
+      expect(currentParams()).toEqual({});
+      expect(screen.getByRole("combobox", { name: "Estado" })).toHaveTextContent("Vigentes");
+      expect(listQuery()).toEqual(expect.objectContaining({ scope: "current" }));
+    });
+
+    it("un ?status desconocido equivale a «Vigentes» sin chip", () => {
+      renderPage("/finance/compensation/templates?status=bogus");
+
+      expect(listQuery()).toEqual(expect.objectContaining({ scope: "current" }));
+      expect(screen.queryByText(/^Estado: /)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Limpiar filtros" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("F2b: «Vigentes» vacío (PRD D23)", () => {
+    function emptyCurrentList(anyTotal: number) {
+      mockUseCompensationTemplates.mockImplementation((params?: { pageSize?: number }) =>
+        params?.pageSize === 1
+          ? {
+              data: {
+                data: [],
+                pagination: { page: 1, limit: 1, total: anyTotal, totalPages: anyTotal },
+              },
+              isLoading: false,
+            }
+          : {
+              data: { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
+              isLoading: false,
+              isFetching: false,
+              refetch: mockRefetchTemplates,
+            },
+      );
+    }
+
+    it("CA26: con tarifas en otros estados → «No hay tarifas vigentes» y «Ver todos los estados»", async () => {
+      const user = userEvent.setup();
+      emptyCurrentList(3);
+      renderPage();
+
+      expect(mockUseCompensationTemplates).toHaveBeenCalledWith(
+        { groupBy: "family", page: 1, pageSize: 1 },
+        { enabled: true },
+      );
+      expect(screen.getByText(copy.currentEmpty.title)).toBeInTheDocument();
+      expect(screen.getByText(copy.currentEmpty.description)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: copy.create })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: copy.currentEmpty.viewAll }));
+
+      expect(currentParams()).toEqual({ status: "all", page: "1" });
+    });
+
+    it("CA26: tenant sin tarifas → vacío actual", () => {
+      emptyCurrentList(0);
+      renderPage();
+
+      expect(screen.getByText(copy.emptyTitle)).toBeInTheDocument();
+      expect(screen.queryByText(copy.currentEmpty.title)).not.toBeInTheDocument();
+    });
+
+    it("con búsqueda o en otro filtro no consulta el total", () => {
+      emptyCurrentList(3);
+      renderPage("/finance/compensation/templates?status=active");
+
+      expect(mockUseCompensationTemplates).toHaveBeenCalledWith(
+        { groupBy: "family", page: 1, pageSize: 1 },
+        { enabled: false },
+      );
+      expect(screen.queryByText(copy.currentEmpty.title)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("F2b: enlace a una versión que no es fila (PRD D21)", () => {
+    const v1 = makeCompensationTemplate({
+      id: "tpl-v1",
+      familyId: "fam-1",
+      name: "Operador foráneo",
+      status: "inactive",
+      inactiveReason: "superseded",
+      version: 1,
+      activeAssignmentsCount: 2,
+    });
+    const v2 = makeCompensationTemplate({
+      id: "tpl-v2",
+      familyId: "fam-1",
+      name: "Operador foráneo",
+      status: "active",
+      version: 2,
+    });
+    const v2Row = {
+      ...v2,
+      family: {
+        versionsCount: 2,
+        activeVersion: { id: "tpl-v2", version: 2 },
+        draftVersion: null,
+        supersededActiveAssignmentsCount: 2,
+        supersededScheduledAssignmentsCount: 0,
+      },
+    };
+
+    beforeEach(() => {
+      mockUseCompensationTemplates.mockReturnValue({
+        data: { data: [v2Row], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } },
+        isLoading: false,
+        isFetching: false,
+        refetch: mockRefetchTemplates,
+      });
+      mockUseTemplateVersions.mockReturnValue({
+        data: [v1, v2],
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      mockUseCompensationTemplate.mockImplementation((id?: string) => ({
+        data: id === "tpl-v1" ? v1 : undefined,
+      }));
+    });
+
+    it("CA24: la familia abre por familyId y al cerrar el panel el foco vuelve a la sub-fila", async () => {
+      const user = userEvent.setup();
+      renderPage("/finance/compensation/templates?operators=tpl-v1");
+
+      expect(
+        await screen.findByRole("heading", { name: "Operadores — Operador foráneo versión 1" }),
+      ).toBeInTheDocument();
+      const toggle = screen.getByTestId("template-family-toggle");
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      const subRowName = screen.getByRole("button", {
+        name: "Abrir operadores de Operador foráneo v1",
+      });
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => expect(currentParams()).toEqual({}));
+      await waitFor(() => expect(subRowName).toHaveFocus());
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+    });
+
+    it("cerrar el panel de una fila devuelve el foco a su nombre", async () => {
+      const user = userEvent.setup();
+      renderPage("/finance/compensation/templates?operators=tpl-v2");
+
+      expect(
+        await screen.findByRole("heading", { name: /Operadores — Operador foráneo/ }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("template-family-toggle")).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "Abrir operadores de Operador foráneo v2" }),
+        ).toHaveFocus(),
+      );
+    });
+
+    it("si la familia no está en la página, el panel abre como hoy sin desplegar nada", async () => {
+      mockUseCompensationTemplate.mockImplementation((id?: string) => ({
+        data: id === "tpl-v1" ? { ...v1, familyId: "fam-other" } : undefined,
+      }));
+      renderPage("/finance/compensation/templates?operators=tpl-v1");
+
+      expect(
+        await screen.findByRole("heading", { name: "Operadores — Operador foráneo versión 1" }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("template-family-toggle")).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    });
+
+    it("D15: cambiar de filtro cierra las familias abiertas", async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByTestId("template-family-toggle"));
+      expect(screen.getByTestId("template-family-toggle")).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+
+      await user.click(screen.getByRole("combobox", { name: "Estado" }));
+      await user.click(await screen.findByRole("option", { name: "Activas" }));
+
+      expect(screen.getByTestId("template-family-toggle")).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    });
   });
 
   it("abre Sheet de operadores al asignar desde banner employeeId solo en esquemas listos", async () => {

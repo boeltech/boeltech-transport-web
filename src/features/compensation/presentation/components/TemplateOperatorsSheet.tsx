@@ -51,6 +51,11 @@ interface TemplateOperatorsSheetProps {
     link: BatchConflictLink,
     form: BatchAssignmentFormSnapshot,
   ) => void;
+  /**
+   * Dónde dejar el foco al cerrar. El panel suele abrirse desde la URL, sin disparador al que
+   * Radix pueda regresar; `null` = comportamiento por defecto.
+   */
+  getCloseFocusTarget?: (templateId: string) => HTMLElement | null;
 }
 
 function FocusNotice({
@@ -141,6 +146,7 @@ export function TemplateOperatorsSheet({
   onReturnToBatch,
   onDismissFocus,
   onOpenBlockingAssignment,
+  getCloseFocusTarget,
 }: TemplateOperatorsSheetProps) {
   const [batchOpen, setBatchOpen] = useState(false);
 
@@ -177,6 +183,12 @@ export function TemplateOperatorsSheet({
         side="right"
         className="flex w-full flex-col gap-0 p-0 sm:max-w-xl"
         onFocusOutside={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => {
+          const target = getCloseFocusTarget?.(template.id);
+          if (!target) return;
+          event.preventDefault();
+          target.focus();
+        }}
       >
         <SheetHeader className="border-b px-6 py-4 text-left">
           <SheetTitle className="flex items-center gap-2">

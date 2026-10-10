@@ -13,6 +13,7 @@ import type {
   BatchTemplateAssignmentPayload,
   CompensationTemplate,
   CompensationTemplateEvent,
+  CompensationTemplateListQuery,
   CreateCompensationTemplatePayload,
   CreateCorridorTariffPayload,
   FixedAllowanceOverride,
@@ -25,7 +26,6 @@ import type {
   UpdateTemplateAssignmentPayload,
   UpsertFixedAllowanceOverridePayload,
 } from "../domain/entities";
-import type { CompensationTemplateStatus } from "../domain/enums";
 import {
   mapAssignmentFromApi,
   mapBatchPreviewFromApi,
@@ -48,15 +48,8 @@ import {
 
 const BASE = "/compensation";
 
-export interface ListTemplatesParams {
-  search?: string;
-  /** Preferir `status` (draft|active|inactive). */
-  status?: CompensationTemplateStatus;
-  /** Compat: active → status=active; inactive → status≠active. */
-  isActive?: boolean;
-  page?: number;
-  pageSize?: number;
-}
+export type ListTemplatesParams = CompensationTemplateListQuery;
+
 export interface ListCorridorsParams {
   search?: string;
   isActive?: boolean;
@@ -214,7 +207,10 @@ export const compensationApi = {
         params: {
           search: params.search,
           status: params.status,
-          is_active: params.status ? undefined : params.isActive,
+          inactive_reason: params.inactiveReason,
+          scope: params.scope,
+          group_by: params.groupBy,
+          is_active: params.status || params.groupBy ? undefined : params.isActive,
           page: params.page ?? 1,
           page_size: params.pageSize ?? 50,
         },

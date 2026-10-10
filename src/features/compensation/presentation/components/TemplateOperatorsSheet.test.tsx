@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { formatDate } from "@shared/utils/dateUtils";
 import type { CompensationTemplate, TemplateAssignment } from "../../domain/entities";
@@ -343,6 +343,41 @@ describe("TemplateOperatorsSheet", () => {
       rerender(sheetElement({ open: false, batchInitialEmployeeIds: ids }));
       rerender(sheetElement({ open: true, batchInitialEmployeeIds: ids }));
       expect(batchOpen()).toBe("true");
+    });
+  });
+
+  describe("F2b §3.2: foco al cerrar un panel abierto desde la URL", () => {
+    function FocusHarness({ template, ...props }: SheetProps) {
+      return (
+        <>
+          <button type="button" data-testid="row-target">
+            Fila
+          </button>
+          {sheetElement(template === undefined ? props : { template, ...props })}
+        </>
+      );
+    }
+
+    it("el foco va al destino que devuelve `getCloseFocusTarget` para esa versión", async () => {
+      const getCloseFocusTarget = vi.fn<(templateId: string) => HTMLElement>(() =>
+        screen.getByTestId("row-target"),
+      );
+      const { rerender } = render(<FocusHarness getCloseFocusTarget={getCloseFocusTarget} />);
+
+      rerender(<FocusHarness template={null} open={false} getCloseFocusTarget={getCloseFocusTarget} />);
+
+      await waitFor(() => expect(screen.getByTestId("row-target")).toHaveFocus());
+      expect(getCloseFocusTarget).toHaveBeenCalledWith("tpl-v1");
+    });
+
+    it("sin destino deja el comportamiento por defecto", async () => {
+      const getCloseFocusTarget = vi.fn(() => null);
+      const { rerender } = render(<FocusHarness getCloseFocusTarget={getCloseFocusTarget} />);
+
+      rerender(<FocusHarness template={null} open={false} getCloseFocusTarget={getCloseFocusTarget} />);
+
+      await waitFor(() => expect(getCloseFocusTarget).toHaveBeenCalledWith("tpl-v1"));
+      expect(screen.getByTestId("row-target")).not.toHaveFocus();
     });
   });
 });

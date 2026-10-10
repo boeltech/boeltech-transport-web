@@ -76,9 +76,9 @@ export function TemplateRulesSection({
     ? builderCopy.commissionTypeLabels
     : {
         rate_per_km: "Tarifa por kilómetro",
-        percentage_of_freight: "Porcentaje sobre flete",
+        percentage_of_freight: "Porcentaje del flete",
         fixed_per_trip: "Importe fijo por viaje",
-        none: "Sin comisión (cubierto por sueldo base)",
+        none: "Sin pago por viaje",
       };
   const rateLabels = operationalLexicon
     ? builderCopy.ruleRateLabels

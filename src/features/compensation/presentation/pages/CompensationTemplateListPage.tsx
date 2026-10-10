@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, ListFilter, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
@@ -12,12 +12,14 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { useEmployee } from "@features/employees";
+import { BranchStatus, useBranches } from "@features/branches";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useMediaQuery, useToast } from "@shared/hooks";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
   useCompensationTemplate,
   useCompensationTemplates,
+  useCorridorBranchNameMap,
 } from "../../application/hooks";
 import {
   compensationTemplateBuildPath,
@@ -37,6 +39,15 @@ import {
 } from "../components";
 import type { BatchAssignmentFormSnapshot } from "../components/TemplateAssignmentBatchSheet";
 import type { BatchConflictLink } from "../utils/resolveBatchConflictView";
+import { findTemplateFocusTarget } from "../utils/templateListRow";
+import {
+  parseTemplateListStatusFilter,
+  TEMPLATE_LIST_STATUS_OPTIONS,
+  templateListStatusFilterLabel,
+  templateListStatusFilterToQuery,
+  templateListStatusFilterToUrl,
+  type TemplateListStatusFilter,
+} from "../utils/templateListStatusFilter";
 import { TariffPresetSelector } from "../components/TariffPresetSelector";
 import { useRegisterCompensationHubCreateAction } from "../hooks/useRegisterCompensationHubCreateAction";
 
@@ -45,11 +56,12 @@ const hubCopy = compensationCopy.hub;
 
 const LIST_PAGE_SIZE = 20;
 
-function parseStatusFilter(
-  raw: string,
-): "draft" | "active" | "inactive" | undefined {
-  if (raw === "draft" || raw === "active" || raw === "inactive") return raw;
-  return undefined;
+const NO_EXPANDED_FAMILIES: ReadonlySet<string> = new Set();
+
+interface FamilyExpansion {
+  /** Búsqueda + filtro + página: al cambiar, las familias desplegadas se cierran. */
+  contextKey: string;
+  familyIds: ReadonlySet<string>;
 }
 
 export function CompensationTemplateListPage() {
@@ -88,28 +100,92 @@ export function CompensationTemplateListPage() {
     chipLabels: {
       status: (value) =>
         copy.filters.chipLabel(
-          value === "draft"
-            ? copy.filters.draft
-            : value === "active"
-              ? copy.filters.active
-              : value === "inactive"
-                ? copy.filters.inactive
-                : value,
+          templateListStatusFilterLabel(parseTemplateListStatusFilter(value)),
         ),
     },
   });
 
-  const statusFilter = filters.filters.status;
-  const status = parseStatusFilter(statusFilter);
+  const statusFilter = parseTemplateListStatusFilter(filters.filters.status);
+  const searchTerm = filters.search.trim();
+
+  /** `useListingFilters` borra `all` de la URL; aquí `?status=all` sí es un valor. */
+  const setStatusFilter = useCallback(
+    (value: TemplateListStatusFilter) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        const urlValue = templateListStatusFilterToUrl(value);
+        if (urlValue) next.set("status", urlValue);
+        else next.delete("status");
+        next.set("page", "1");
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  /** Un valor de `?status=` desconocido equivale a «Vigentes»: sin chip. */
+  const activeFilterChips = useMemo(
+    () =>
+      statusFilter === "current"
+        ? filters.activeChips.filter((chip) => chip.id !== "status")
+        : filters.activeChips,
+    [filters.activeChips, statusFilter],
+  );
+  const hasFilters = Boolean(searchTerm) || statusFilter !== "current";
 
   const { data, isLoading, isFetching, refetch } = useCompensationTemplates({
-    search: filters.search.trim() || undefined,
-    status,
+    search: searchTerm || undefined,
+    ...templateListStatusFilterToQuery(statusFilter),
     page: filters.page,
     pageSize: LIST_PAGE_SIZE,
   });
 
   const templates = useMemo(() => data?.data ?? [], [data?.data]);
+
+  /** PRD D23: «Vigentes» vacío, pero el tenant sí tiene tarifas (desactivadas o reemplazadas). */
+  const isCurrentEmpty =
+    statusFilter === "current" && !searchTerm && data !== undefined && templates.length === 0;
+  const { data: anyTemplatesData, isLoading: isAnyTemplatesLoading } = useCompensationTemplates(
+    { groupBy: "family", page: 1, pageSize: 1 },
+    { enabled: isCurrentEmpty },
+  );
+  const showCurrentEmpty = isCurrentEmpty && (anyTemplatesData?.pagination.total ?? 0) > 0;
+
+  const expansionContextKey = `${searchTerm}|${statusFilter}|${filters.page}`;
+  const [expansion, setExpansion] = useState<FamilyExpansion>(() => ({
+    contextKey: expansionContextKey,
+    familyIds: NO_EXPANDED_FAMILIES,
+  }));
+  const expandedFamilyIds =
+    expansion.contextKey === expansionContextKey ? expansion.familyIds : NO_EXPANDED_FAMILIES;
+
+  const setFamilyExpanded = useCallback(
+    (familyId: string, expanded: boolean) => {
+      setExpansion((current) => {
+        const next = new Set(
+          current.contextKey === expansionContextKey ? current.familyIds : NO_EXPANDED_FAMILIES,
+        );
+        if (expanded) next.add(familyId);
+        else next.delete(familyId);
+        return { contextKey: expansionContextKey, familyIds: next };
+      });
+    },
+    [expansionContextKey],
+  );
+
+  const { data: branchesData } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+  });
+  const pageCorridors = useMemo(
+    () => templates.flatMap((template) => template.corridors ?? []),
+    [templates],
+  );
+  const branchNameMap = useCorridorBranchNameMap(pageCorridors, branchesData?.data ?? []);
 
   const listOperatorsTemplate = useMemo(
     () =>
@@ -125,6 +201,33 @@ export function CompensationTemplateListPage() {
 
   const operatorsTemplate =
     listOperatorsTemplate ?? fetchedOperatorsTemplate ?? null;
+
+  /**
+   * PRD D21: `?operators=` de una versión que no es fila despliega su familia si está en la
+   * página (se empata por `familyId`); una sola vez por versión abierta.
+   */
+  const [autoExpandedFor, setAutoExpandedFor] = useState<string | null>(null);
+  if (
+    operatorsTemplateId &&
+    operatorsTemplateId !== autoExpandedFor &&
+    !listOperatorsTemplate &&
+    data !== undefined &&
+    fetchedOperatorsTemplate?.id === operatorsTemplateId
+  ) {
+    setAutoExpandedFor(operatorsTemplateId);
+    const familyId = fetchedOperatorsTemplate.familyId;
+    if (
+      templates.some((template) => template.familyId === familyId) &&
+      !expandedFamilyIds.has(familyId)
+    ) {
+      setExpansion({
+        contextKey: expansionContextKey,
+        familyIds: new Set([...expandedFamilyIds, familyId]),
+      });
+    }
+  } else if (!operatorsTemplateId && autoExpandedFor) {
+    setAutoExpandedFor(null);
+  }
 
   const clearPendingEmployee = useCallback(() => {
     setSearchParams(
@@ -297,7 +400,7 @@ export function CompensationTemplateListPage() {
         title={copy.title}
         description={copy.description}
         items={templates}
-        isLoading={isLoading}
+        isLoading={isLoading || (isCurrentEmpty && isAnyTemplatesLoading)}
         entityLabelPlural="tarifas"
         pagination={
           data?.pagination
@@ -310,14 +413,29 @@ export function CompensationTemplateListPage() {
             : undefined
         }
         onPageChange={filters.setPage}
-        emptyState={{
-          icon: <Plus className="h-8 w-8 text-muted-foreground" />,
-          title: copy.emptyTitle,
-          description: copy.emptyDescription,
-          cta: canCreate
-            ? { label: copy.create, onClick: openCreate }
-            : undefined,
-        }}
+        emptyState={
+          showCurrentEmpty
+            ? {
+                icon: <ListFilter className="h-8 w-8 text-muted-foreground" />,
+                title: copy.currentEmpty.title,
+                description: copy.currentEmpty.description,
+                cta: {
+                  label: copy.currentEmpty.viewAll,
+                  onClick: () => setStatusFilter("all"),
+                },
+                secondaryCta: canCreate
+                  ? { label: copy.create, onClick: openCreate }
+                  : undefined,
+              }
+            : {
+                icon: <Plus className="h-8 w-8 text-muted-foreground" />,
+                title: copy.emptyTitle,
+                description: copy.emptyDescription,
+                cta: canCreate
+                  ? { label: copy.create, onClick: openCreate }
+                  : undefined,
+              }
+        }
         toolbar={{
           search: {
             ...filters.searchProps,
@@ -325,38 +443,46 @@ export function CompensationTemplateListPage() {
           },
           filters: (
             <Select
-              value={statusFilter || "all"}
+              value={statusFilter}
               onValueChange={(value) =>
-                filters.setFilter("status", value === "all" ? "" : value)
+                setStatusFilter(parseTemplateListStatusFilter(value))
               }
             >
               <SelectTrigger
-                className="w-44"
+                className="w-56"
                 aria-label={copy.filters.statusPlaceholder}
               >
                 <SelectValue placeholder={copy.filters.statusPlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{copy.filters.all}</SelectItem>
-                <SelectItem value="draft">{copy.filters.draft}</SelectItem>
-                <SelectItem value="active">{copy.filters.active}</SelectItem>
-                <SelectItem value="inactive">{copy.filters.inactive}</SelectItem>
+                {TEMPLATE_LIST_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {templateListStatusFilterLabel(option)}
+                  </SelectItem>
+                ))}
+                {statusFilter === "inactive" ? (
+                  <SelectItem value="inactive">
+                    {templateListStatusFilterLabel("inactive")}
+                  </SelectItem>
+                ) : null}
               </SelectContent>
             </Select>
           ),
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
-          activeFilterChips: filters.activeChips,
+          activeFilterChips,
           onClearFilters: filters.clearAll,
-          hasFilters: filters.hasFilters,
+          hasFilters,
         }}
         renderTable={() => (
           <CompensationTemplatesTable
             templates={templates}
             isLoading={isLoading}
-            canUpdate={canUpdate}
             pendingEmployeeId={pendingEmployeeId || undefined}
+            branchNameMap={branchNameMap}
             layout={isDesktop ? "table" : "cards"}
+            expandedFamilyIds={expandedFamilyIds}
+            onFamilyExpandedChange={setFamilyExpanded}
             onOpenOperators={openOperators}
             onDeleted={handleDeleted}
           />
@@ -380,6 +506,7 @@ export function CompensationTemplateListPage() {
         onReturnToBatch={returnToBatch}
         onDismissFocus={dismissFocus}
         onOpenBlockingAssignment={openBlockingAssignment}
+        getCloseFocusTarget={findTemplateFocusTarget}
       />
 
       <TariffPresetSelector

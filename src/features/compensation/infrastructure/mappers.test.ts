@@ -294,6 +294,70 @@ describe("compensation mappers", () => {
     });
   });
 
+  describe("F2b — bloque `family` del listado agrupado", () => {
+    const templateBase = {
+      id: "tpl-v2",
+      name: "Operador Foráneo Estándar",
+      description: null,
+      is_active: true,
+      rules: [],
+      fixed_allowances: [],
+      corridor_ids: [],
+      corridors: [],
+    };
+
+    it("mapTemplate convierte el bloque snake_case", () => {
+      expect(
+        mapTemplate({
+          ...templateBase,
+          family: {
+            versions_count: 3,
+            active_version: { id: "tpl-v2", version: 2 },
+            draft_version: null,
+            superseded_active_assignments_count: 2,
+            superseded_scheduled_assignments_count: 0,
+          },
+        }).family,
+      ).toEqual({
+        versionsCount: 3,
+        activeVersion: { id: "tpl-v2", version: 2 },
+        draftVersion: null,
+        supersededActiveAssignmentsCount: 2,
+        supersededScheduledAssignmentsCount: 0,
+      });
+    });
+
+    it("mapTemplateFromApi: conteos ausentes → 0", () => {
+      expect(
+        mapTemplateFromApi({
+          id: "tpl-v2",
+          name: "Operador Foráneo Estándar",
+          description: null,
+          isActive: true,
+          rules: [],
+          fixedAllowances: [],
+          corridorIds: [],
+          corridors: [],
+          family: {
+            versionsCount: 2,
+            activeVersion: null,
+            draftVersion: { id: "tpl-v3", version: 3 },
+          },
+        }).family,
+      ).toEqual({
+        versionsCount: 2,
+        activeVersion: null,
+        draftVersion: { id: "tpl-v3", version: 3 },
+        supersededActiveAssignmentsCount: 0,
+        supersededScheduledAssignmentsCount: 0,
+      });
+    });
+
+    it("sin `family` (listado sin agrupar) no agrega la clave", () => {
+      expect("family" in mapTemplate(templateBase)).toBe(false);
+    });
+  });
+
   describe("api#63 — conflictos del lote, vista previa y programadas", () => {
     const templateBase = {
       id: "tpl-v2",

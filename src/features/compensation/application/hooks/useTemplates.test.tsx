@@ -4,14 +4,15 @@ import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import { compensationQueryKeys } from "../compensationQueryKeys";
-import { useUpdateCompensationTemplate } from "./useTemplates";
+import { useDeleteCompensationTemplate, useUpdateCompensationTemplate } from "./useTemplates";
 
-const { mockUpdateTemplate } = vi.hoisted(() => ({
+const { mockUpdateTemplate, mockDeleteTemplate } = vi.hoisted(() => ({
   mockUpdateTemplate: vi.fn(),
+  mockDeleteTemplate: vi.fn(),
 }));
 
 vi.mock("../../infrastructure/compensationApi", () => ({
-  compensationApi: { updateTemplate: mockUpdateTemplate },
+  compensationApi: { updateTemplate: mockUpdateTemplate, deleteTemplate: mockDeleteTemplate },
 }));
 
 function setup() {
@@ -66,5 +67,50 @@ describe("useUpdateCompensationTemplate — 409 TEMPLATE_CONFIG_LOCKED (W5)", ()
     });
 
     expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("useDeleteCompensationTemplate — versiones de la borrada (F2b §3.2)", () => {
+  beforeEach(() => {
+    mockDeleteTemplate.mockReset();
+  });
+
+  it("quita del caché las versiones de la borrada antes de invalidar la lista", async () => {
+    mockDeleteTemplate.mockResolvedValue(undefined);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    queryClient.setQueryData(compensationQueryKeys.templateVersions("tpl-draft"), []);
+    queryClient.setQueryData(compensationQueryKeys.templateVersions("tpl-v1"), []);
+    const calls: string[] = [];
+    const removeSpy = vi
+      .spyOn(queryClient, "removeQueries")
+      .mockImplementation(function (this: QueryClient, ...args) {
+        calls.push("remove");
+        return QueryClient.prototype.removeQueries.apply(this, args);
+      });
+    vi.spyOn(queryClient, "invalidateQueries").mockImplementation(async () => {
+      calls.push("invalidate");
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useDeleteCompensationTemplate(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync("tpl-draft");
+    });
+
+    expect(removeSpy).toHaveBeenCalledWith({
+      queryKey: compensationQueryKeys.templateVersions("tpl-draft"),
+      exact: true,
+    });
+    expect(calls).toEqual(["remove", "invalidate"]);
+    expect(
+      queryClient.getQueryData(compensationQueryKeys.templateVersions("tpl-draft")),
+    ).toBeUndefined();
+    expect(queryClient.getQueryData(compensationQueryKeys.templateVersions("tpl-v1"))).toEqual(
+      [],
+    );
   });
 });

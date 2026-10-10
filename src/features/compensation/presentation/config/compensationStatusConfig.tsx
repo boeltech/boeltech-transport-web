@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   CalendarCheck,
   CalendarClock,
   CheckCircle2,
@@ -21,18 +20,16 @@ import {
 } from "@shared/ui/tooltip";
 import { formatDate } from "@shared/utils/dateUtils";
 import { compensationCopy } from "../copy/compensationCopy";
-import type { TemplateUsageStatus } from "../utils/templateCompositionTypes";
 import {
   type AssignmentDisplayStatus,
   getAssignmentDisplayStatus,
 } from "../utils/getAssignmentDisplayStatus";
-import { getTemplateUsageStatus } from "../utils/getTemplateCompleteness";
 import {
   TEMPLATE_DISPLAY_STATUS_LABELS,
   type TemplateDisplayStatus,
   getTemplateDisplayStatus,
 } from "../utils/getTemplateDisplayStatus";
-import type { CompensationTemplate, TemplateAssignment } from "../../domain/entities";
+import type { TemplateAssignment } from "../../domain/entities";
 import type { CompensationTemplateStatus } from "../../domain/enums";
 
 const copy = compensationCopy.templates;
@@ -256,58 +253,5 @@ export function AssignmentDisplayStatusBadge({
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  );
-}
-
-export const COMPENSATION_USAGE_STATUS_CONFIG: Record<
-  TemplateUsageStatus,
-  StatusConfig
-> = {
-  ready: createStatusConfig("success", {
-    label: copy.usage.ready,
-    icon: CheckCircle2,
-    description: "Se puede usar al armar el pago",
-    tone: "soft",
-  }),
-  ready_to_activate: createStatusConfig("info", {
-    label: copy.usage.readyToActivate,
-    icon: CheckCircle2,
-    description: "Configurada; falta activar",
-    tone: "soft",
-  }),
-  needs_payment: createStatusConfig("warning", {
-    label: copy.usage.needsPayment,
-    icon: AlertTriangle,
-    description: "Faltan reglas de pago o tarifas por corredor",
-    tone: "soft",
-  }),
-  superseded_paying: createStatusConfig("info", {
-    label: copy.usage.supersededPaying,
-    icon: History,
-    description: "Sigue calculando el pago de los operadores asignados",
-    tone: "soft",
-  }),
-  paused: createStatusConfig("neutral", {
-    label: copy.usage.paused,
-    icon: PauseCircle,
-    description: "No se usa al armar el pago",
-    tone: "soft",
-  }),
-};
-
-const CompensationUsageStatusBadgeBase = createStatusBadgeComponent(
-  COMPENSATION_USAGE_STATUS_CONFIG,
-);
-
-export function CompensationUsageStatusBadge({
-  template,
-}: {
-  template: Pick<
-    CompensationTemplate,
-    "status" | "isActive" | "rules" | "corridorIds" | "inactiveReason"
-  >;
-}) {
-  return (
-    <CompensationUsageStatusBadgeBase status={getTemplateUsageStatus(template)} />
   );
 }

@@ -96,8 +96,42 @@ export interface CompensationTemplate {
   activeAssignmentsCount: number;
   /** Activas que empiezan después de hoy (CDMX). `undefined` = la API aún no envía el campo. */
   scheduledAssignmentsCount?: number;
+  /** Solo en el listado agrupado por familia (`groupBy: "family"`). */
+  family?: CompensationTemplateFamilySummary;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CompensationTemplateVersionRef {
+  id: string;
+  version: number;
+}
+
+/** Resumen de la familia completa, sin los filtros del listado. */
+export interface CompensationTemplateFamilySummary {
+  versionsCount: number;
+  activeVersion: CompensationTemplateVersionRef | null;
+  /** Borrador de mayor versión de la familia, sin contar la fila. */
+  draftVersion: CompensationTemplateVersionRef | null;
+  /** Vigentes hoy (CDMX) en las otras versiones reemplazadas de la familia. */
+  supersededActiveAssignmentsCount: number;
+  /** Programadas (empiezan después de hoy) en las otras versiones reemplazadas. */
+  supersededScheduledAssignmentsCount: number;
+}
+
+export interface CompensationTemplateListQuery {
+  search?: string;
+  status?: CompensationTemplateStatus;
+  /** Compat sin agrupar: active → status=active. No se envía con `status` ni con `groupBy`. */
+  isActive?: boolean;
+  /** Implica `status=inactive`; `manual` incluye las desactivadas sin motivo. */
+  inactiveReason?: CompensationTemplateInactiveReason;
+  /** «Vigentes»: activas, borradores y reemplazadas con operadores vigentes o programados. */
+  scope?: "current";
+  /** Una fila por familia; la paginación cuenta familias. */
+  groupBy?: "family";
+  page?: number;
+  pageSize?: number;
 }
 
 export interface CompensationTemplateEvent {

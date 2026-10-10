@@ -1,15 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import { compensationApi } from "../../infrastructure/compensationApi";
 import { COMPENSATION_ERROR_CODES } from "../../domain/enums";
 import { compensationQueryKeys } from "../compensationQueryKeys";
 import type {
   ActivateCompensationTemplatePayload,
+  CompensationTemplateListQuery,
   CreateCompensationTemplatePayload,
   ReplaceTemplateConfigurationPayload,
   UpdateCompensationTemplatePayload,
 } from "../../domain/entities";
-import type { CompensationTemplateStatus } from "../../domain/enums";
 
 function invalidateTemplateFamily(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -27,16 +32,14 @@ function invalidateTemplateFamily(
   });
 }
 
-export function useCompensationTemplates(params?: {
-  search?: string;
-  status?: CompensationTemplateStatus;
-  isActive?: boolean;
-  page?: number;
-  pageSize?: number;
-}) {
+export function useCompensationTemplates(
+  params?: CompensationTemplateListQuery,
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
-    queryKey: compensationQueryKeys.templatesList(params),
+    queryKey: compensationQueryKeys.templatesList(params ? { ...params } : undefined),
     queryFn: () => compensationApi.listTemplates(params),
+    enabled: options.enabled ?? true,
   });
 }
 
@@ -48,11 +51,20 @@ export function useCompensationTemplate(id: string | undefined) {
   });
 }
 
-export function useTemplateVersions(id: string | undefined, enabled = true) {
+/**
+ * `keepPrevious`: al cambiar de id (otra versión pasa a ser la fila) se sigue mostrando la
+ * lista anterior mientras carga la nueva.
+ */
+export function useTemplateVersions(
+  id: string | undefined,
+  enabled = true,
+  options: { keepPrevious?: boolean } = {},
+) {
   return useQuery({
     queryKey: compensationQueryKeys.templateVersions(id ?? ""),
     queryFn: () => compensationApi.listTemplateVersions(id!),
     enabled: Boolean(id) && enabled,
+    placeholderData: options.keepPrevious ? keepPreviousData : undefined,
   });
 }
 
@@ -159,7 +171,12 @@ export function useDeleteCompensationTemplate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => compensationApi.deleteTemplate(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      // Las versiones de la borrada darían 404 al invalidar el prefijo.
+      queryClient.removeQueries({
+        queryKey: compensationQueryKeys.templateVersions(id),
+        exact: true,
+      });
       queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
     },
   });
