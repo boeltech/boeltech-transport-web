@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import {
+  isMissingDataAckRequiredError,
   parseNoRuleAckRequiredError,
   parsePeriodPartialOverlapError,
   parseTripInActiveSettlementError,
@@ -57,6 +58,19 @@ describe("settlementCreateConflicts", () => {
     });
 
     expect(parseNoRuleAckRequiredError(error)).toEqual(["TRP-1", "TRP-2"]);
+  });
+
+  it("ZERO_KM / ZERO_FREIGHT_ACK_REQUIRED → falta confirmar datos faltantes", () => {
+    expect(isMissingDataAckRequiredError(new ApiError("x", 422, "ZERO_KM_ACK_REQUIRED"))).toBe(true);
+    expect(
+      isMissingDataAckRequiredError(
+        new ApiError("x", 422, "ZERO_FREIGHT_ACK_REQUIRED", { trip_codes: ["TRP-1"] }),
+      ),
+    ).toBe(true);
+    expect(
+      isMissingDataAckRequiredError(new ApiError("x", 422, "NO_RULE_TRIPS_ACK_REQUIRED")),
+    ).toBe(false);
+    expect(isMissingDataAckRequiredError(new Error("x"))).toBe(false);
   });
 
   it("otro código o error genérico → null", () => {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { COMMISSION_GOLDEN_CASES } from "./commissionGoldenCases";
 import {
+  computeRuleCommission,
   simulateCompensation,
   describeRuleProse,
   describeAllowanceProse,
@@ -34,11 +36,11 @@ const fixedPerTripRule: CompensationTemplateRule = {
   minimumGuaranteedAmount: 0,
 };
 
-const noneRule: CompensationTemplateRule = {
+const noneRuleWithStaleMinimum: CompensationTemplateRule = {
   routeType: "local",
   commissionType: "none",
-  rateValue: 0,
-  minimumGuaranteedAmount: 0,
+  rateValue: 5,
+  minimumGuaranteedAmount: 500,
 };
 
 const mealsAllowance: TemplateFixedAllowance = {
@@ -140,16 +142,37 @@ describe("simulateCompensation", () => {
     expect(result.matchedRule).toBeNull();
   });
 
-  it("handles none commission type (zero pago)", () => {
+  it("none pays 0 even with a stored minimum guaranteed amount", () => {
     const input: SimulationInput = {
       routeType: "local",
       distanceKm: 50,
       freightRevenue: 5000,
     };
-    const result = simulateCompensation([noneRule], [], input);
+    const result = simulateCompensation([noneRuleWithStaleMinimum], [], input);
 
     expect(result.total).toBe(0);
     expect(result.items).toHaveLength(0);
+    expect(result.minimumApplied).toBe(false);
+  });
+
+  it("applies the minimum when the calculation is 0 km and labels it", () => {
+    const input: SimulationInput = {
+      routeType: "long_haul",
+      distanceKm: 0,
+      freightRevenue: 5000,
+    };
+    const result = simulateCompensation([ratePerKmRule], [], input);
+
+    expect(result.total).toBe(400);
+    expect(result.minimumApplied).toBe(true);
+    expect(result.items[0]?.label).toBe("Pago por km (foráneo) · mínimo garantizado");
+  });
+
+  it("does not label the rule when the calculation exceeds the minimum", () => {
+    const result = simulateCompensation([ratePerKmRule], [], defaultInput);
+
+    expect(result.minimumApplied).toBe(false);
+    expect(result.items[0]?.label).toBe("Pago por km (foráneo)");
   });
 
   it("skips allowances with zero or negative amount", () => {
@@ -191,6 +214,35 @@ describe("simulateCompensation", () => {
       /^-/,
     );
   });
+});
+
+describe("casos dorados (paridad con el API)", () => {
+  it("cubre los 14 casos de la contraparte API", () => {
+    expect(COMMISSION_GOLDEN_CASES).toHaveLength(14);
+  });
+
+  it.each(COMMISSION_GOLDEN_CASES.map((goldenCase) => [goldenCase.id, goldenCase] as const))(
+    "%s",
+    (_id, goldenCase) => {
+      const rules: CompensationTemplateRule[] = goldenCase.rule
+        ? [{ routeType: goldenCase.trip.routeType, ...goldenCase.rule }]
+        : [];
+
+      const result = simulateCompensation(rules, [], goldenCase.trip);
+
+      expect(result.total).toBe(goldenCase.expected.amount);
+      expect(result.minimumApplied).toBe(goldenCase.expected.minimumApplied);
+
+      const [rule] = rules;
+      if (rule) {
+        expect(computeRuleCommission(rule, goldenCase.trip)).toEqual({
+          amount: goldenCase.expected.amount,
+          minimumApplied: goldenCase.expected.minimumApplied,
+          calculationGap: goldenCase.expected.calculationGap,
+        });
+      }
+    },
+  );
 });
 
 describe("describeRuleProse", () => {

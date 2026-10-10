@@ -147,6 +147,14 @@ export interface SettlementItemCalculationDetails {
   readonly omittedAmount?: number;
   /** ADR-0085 E11 — comisión de viaje en $0: por qué quedó así. */
   readonly zeroReason?: ZeroCommissionReason | null;
+  /**
+   * ADR-0086 D1 (enmienda 2026-10-09). Sin `minimumGuaranteedApplied` la partida
+   * es anterior al mínimo en $0.
+   */
+  readonly commissionBeforeMinimum?: number | null;
+  readonly minimumGuaranteedAmount?: number | null;
+  readonly minimumGuaranteedApplied?: boolean;
+  readonly calculationGap?: CommissionCalculationGap | null;
   /** ADR-0085 E11 punto 7(b): el viaje del reembolso ya estaba en otro pago del operador. */
   readonly isLate?: boolean;
   /**
@@ -330,12 +338,24 @@ export interface EligibleTripPreview {
   readonly hasRevenueSplit?: boolean;
   readonly distanceBasis?: "executed_stops" | "odometer" | "unavailable";
   readonly requiresZeroKmAck?: boolean;
-  /** ADR-0085 E11 — por qué el viaje entra en $0; null si paga comisión. */
+  /** ADR-0085 E11.2: regla por porcentaje con flete en $0; se confirma al enviar. */
+  readonly requiresZeroFreightAck?: boolean;
+  /** ADR-0085 E11 — por qué el viaje entra en $0; null si paga comisión o aplicó el mínimo. */
   readonly zeroCommissionReason?: ZeroCommissionReason | null;
+  /** ADR-0086 D1: `null` con ruta fija o sin regla. */
+  readonly commissionBeforeMinimum?: number | null;
+  /** ADR-0086 D1: 0 con `none`; `null` con ruta fija o sin regla. */
+  readonly minimumGuaranteedAmount?: number | null;
+  readonly minimumGuaranteedApplied?: boolean;
+  /** Dato faltante (km o flete), haya aplicado o no el mínimo. */
+  readonly calculationGap?: CommissionCalculationGap | null;
 }
 
-/** ADR-0085 E11 — esquema en $0, sin km o sin regla para el tipo de ruta. */
-export type ZeroCommissionReason = "scheme" | "zero_km" | "no_rule";
+/** ADR-0085 E11 — esquema en $0, sin km, sin flete o sin regla para el tipo de ruta. */
+export type ZeroCommissionReason = "scheme" | "zero_km" | "zero_freight" | "no_rule";
+
+/** ADR-0085 E11.2 — tarifa por km sin distancia o porcentaje sin flete. */
+export type CommissionCalculationGap = "zero_km" | "zero_freight";
 
 /** Pago vivo que ya cubre (total o parcialmente) el bloque de periodo. */
 export interface PeriodicBlockSettlementRef {

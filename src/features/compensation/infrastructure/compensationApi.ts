@@ -14,6 +14,7 @@ import type {
   CompensationTemplate,
   CompensationTemplateEvent,
   CompensationTemplateListQuery,
+  CompensationTemplateRule,
   CreateCompensationTemplatePayload,
   CreateCorridorTariffPayload,
   FixedAllowanceOverride,
@@ -80,19 +81,25 @@ function mapDeductionToWire(deduction: TemplateDeduction) {
   };
 }
 
+/** Con `none` el editor oculta tarifa y mínimo, pero el valor viaja: se manda en 0 (ADR-0086 D1). */
+function mapRuleToWire(rule: CompensationTemplateRule) {
+  const isNone = rule.commissionType === "none";
+  return {
+    routeType: rule.routeType,
+    commissionType: rule.commissionType,
+    rateValue: isNone ? 0 : rule.rateValue,
+    minimumGuaranteedAmount: isNone ? 0 : rule.minimumGuaranteedAmount,
+    notes: rule.notes ?? null,
+    sortOrder: rule.sortOrder,
+  };
+}
+
 function toTemplatePayload(payload: CreateCompensationTemplatePayload) {
   return {
     name: payload.name,
     description: payload.description ?? null,
     midTripPayoutPolicy: payload.midTripPayoutPolicy,
-    rules: (payload.rules ?? []).map((rule) => ({
-      routeType: rule.routeType,
-      commissionType: rule.commissionType,
-      rateValue: rule.rateValue,
-      minimumGuaranteedAmount: rule.minimumGuaranteedAmount,
-      notes: rule.notes ?? null,
-      sortOrder: rule.sortOrder,
-    })),
+    rules: (payload.rules ?? []).map(mapRuleToWire),
     fixedAllowances: (payload.fixedAllowances ?? []).map((allowance) => ({
       allowanceType: allowance.allowanceType,
       label: allowance.label,
@@ -113,14 +120,7 @@ export interface ListAllowanceOverridesParams {
 
 function toConfigurationPayload(payload: ReplaceTemplateConfigurationPayload) {
   return {
-    rules: payload.rules.map((rule) => ({
-      routeType: rule.routeType,
-      commissionType: rule.commissionType,
-      rateValue: rule.rateValue,
-      minimumGuaranteedAmount: rule.minimumGuaranteedAmount,
-      notes: rule.notes ?? null,
-      sortOrder: rule.sortOrder,
-    })),
+    rules: payload.rules.map(mapRuleToWire),
     fixedAllowances: payload.fixedAllowances.map((allowance) => ({
       allowanceType: allowance.allowanceType,
       label: allowance.label,
@@ -144,14 +144,7 @@ function toPatchTemplatePayload(payload: UpdateCompensationTemplatePayload) {
   }
 
   if (payload.rules !== undefined) {
-    body.rules = payload.rules.map((rule) => ({
-      routeType: rule.routeType,
-      commissionType: rule.commissionType,
-      rateValue: rule.rateValue,
-      minimumGuaranteedAmount: rule.minimumGuaranteedAmount,
-      notes: rule.notes ?? null,
-      sortOrder: rule.sortOrder,
-    }));
+    body.rules = payload.rules.map(mapRuleToWire);
   }
 
   if (payload.fixedAllowances !== undefined) {

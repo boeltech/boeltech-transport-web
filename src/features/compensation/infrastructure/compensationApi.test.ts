@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getMock, postMock } = vi.hoisted(() => ({
+const { getMock, postMock, patchMock, putMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
   postMock: vi.fn(),
+  patchMock: vi.fn(),
+  putMock: vi.fn(),
 }));
 
 vi.mock("@shared/api", async (importOriginal) => {
@@ -12,10 +14,13 @@ vi.mock("@shared/api", async (importOriginal) => {
     apiClient: {
       get: getMock,
       post: postMock,
+      patch: patchMock,
+      put: putMock,
     },
   };
 });
 
+import type { CompensationTemplateRule } from "../domain/entities";
 import { compensationApi } from "./compensationApi";
 
 describe("compensationApi", () => {
@@ -220,6 +225,87 @@ describe("compensationApi", () => {
       totalPages: 2,
     });
     expect(result.data[0]?.employeeFullName).toBe("Juan Pérez");
+  });
+
+  describe("reglas «Sin pago extra» (none) viajan con tarifa y mínimo en 0", () => {
+    const rules: CompensationTemplateRule[] = [
+      {
+        routeType: "local",
+        commissionType: "none",
+        rateValue: 5,
+        minimumGuaranteedAmount: 500,
+        notes: "oculto en el editor",
+        sortOrder: 0,
+      },
+      {
+        routeType: "long_haul",
+        commissionType: "rate_per_km",
+        rateValue: 3,
+        minimumGuaranteedAmount: 400,
+        sortOrder: 1,
+      },
+    ];
+
+    const expectedRules = [
+      {
+        routeType: "local",
+        commissionType: "none",
+        rateValue: 0,
+        minimumGuaranteedAmount: 0,
+        notes: "oculto en el editor",
+        sortOrder: 0,
+      },
+      {
+        routeType: "long_haul",
+        commissionType: "rate_per_km",
+        rateValue: 3,
+        minimumGuaranteedAmount: 400,
+        notes: null,
+        sortOrder: 1,
+      },
+    ];
+
+    const templateResponse = {
+      data: {
+        id: "tpl-1",
+        name: "Operador",
+        description: null,
+        is_active: false,
+        rules: [],
+        fixed_allowances: [],
+        corridor_ids: [],
+        corridors: [],
+      },
+    };
+
+    it("createTemplate", async () => {
+      postMock.mockResolvedValue(templateResponse);
+
+      await compensationApi.createTemplate({ name: "Operador", rules });
+
+      expect(postMock.mock.calls[0]?.[1]).toMatchObject({ rules: expectedRules });
+    });
+
+    it("updateTemplate (PATCH)", async () => {
+      patchMock.mockResolvedValue(templateResponse);
+
+      await compensationApi.updateTemplate("tpl-1", { rules });
+
+      expect(patchMock.mock.calls[0]?.[1]).toEqual({ rules: expectedRules });
+    });
+
+    it("replaceTemplateConfiguration (PUT)", async () => {
+      putMock.mockResolvedValue(templateResponse);
+
+      await compensationApi.replaceTemplateConfiguration("tpl-1", {
+        rules,
+        fixedAllowances: [],
+        deductions: [],
+        corridorIds: [],
+      });
+
+      expect(putMock.mock.calls[0]?.[1]).toMatchObject({ rules: expectedRules });
+    });
   });
 
   describe("api#63 — vista previa del lote y asignación por id", () => {

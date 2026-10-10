@@ -483,6 +483,14 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.eligibleTrips[0].distanceBasis).toBe("unavailable");
     expect(mapped.eligibleTrips[0].requiresZeroKmAck).toBe(true);
     expect(mapped.eligibleTrips[0].zeroCommissionReason).toBe("zero_km");
+    // API previo al mínimo en $0: campos ausentes → valores neutros.
+    expect(mapped.eligibleTrips[0]).toMatchObject({
+      requiresZeroFreightAck: false,
+      commissionBeforeMinimum: null,
+      minimumGuaranteedAmount: null,
+      minimumGuaranteedApplied: false,
+      calculationGap: null,
+    });
     expect(mapped.periodicBlock).toEqual({
       status: "excluded_contained",
       settlement: {
@@ -505,6 +513,166 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.summary.totalBaseSalary).toBe(3000);
     expect(mapped.summary.totalDeductions).toBe(200);
     expect(mapped.summary.netAmount).toBe(5450);
+  });
+
+  describe("ADR-0086 D1 — mínimo garantizado con cálculo en $0", () => {
+    const previewTrip = {
+      trip_id: "trip-min",
+      trip_code: "TRP-MIN",
+      route_type: "long_haul",
+      scheduled_departure: "2026-10-02T08:00:00Z",
+      completed_at: "2026-10-03T18:00:00Z",
+      origin_city: "CDMX",
+      destination_city: "Puebla",
+      distance_km: 0,
+      freight_revenue: 0,
+      calculated_commission: 350,
+      approved_reimbursable_expenses: 0,
+    };
+    const previewBase = {
+      employee_id: "emp-1",
+      employee_name: "Pedro Infante",
+      period_start: "2026-10-01",
+      period_end: "2026-10-07",
+      agreement: {},
+      open_advances: [],
+      summary: {
+        total_commissions: 350,
+        total_base_salary: 0,
+        total_reimbursements: 0,
+        suggested_advance_deduction: 0,
+        gross_amount: 350,
+        net_amount: 350,
+      },
+    };
+
+    it("preview: mínimo aplicado con flete en $0 → campos de auditoría y ack de flete", () => {
+      const mapped = mapSettlementPreview({
+        ...previewBase,
+        eligible_trips: [
+          {
+            ...previewTrip,
+            requires_zero_km_ack: false,
+            requires_zero_freight_ack: true,
+            zero_commission_reason: null,
+            commission_before_minimum: 0,
+            minimum_guaranteed_amount: 350,
+            minimum_guaranteed_applied: true,
+            calculation_gap: "zero_freight",
+          },
+        ],
+      });
+
+      expect(mapped.eligibleTrips[0]).toMatchObject({
+        calculatedCommission: 350,
+        requiresZeroKmAck: false,
+        requiresZeroFreightAck: true,
+        zeroCommissionReason: null,
+        commissionBeforeMinimum: 0,
+        minimumGuaranteedAmount: 350,
+        minimumGuaranteedApplied: true,
+        calculationGap: "zero_freight",
+      });
+    });
+
+    it("preview: flete en $0 sin mínimo → motivo zero_freight", () => {
+      const mapped = mapSettlementPreview({
+        ...previewBase,
+        eligible_trips: [
+          {
+            ...previewTrip,
+            calculated_commission: 0,
+            requires_zero_freight_ack: true,
+            zero_commission_reason: "zero_freight",
+            commission_before_minimum: 0,
+            minimum_guaranteed_amount: 0,
+            minimum_guaranteed_applied: false,
+            calculation_gap: "zero_freight",
+          },
+        ],
+      });
+
+      expect(mapped.eligibleTrips[0]).toMatchObject({
+        calculatedCommission: 0,
+        zeroCommissionReason: "zero_freight",
+        minimumGuaranteedAmount: 0,
+        minimumGuaranteedApplied: false,
+      });
+    });
+
+    const commissionItem = (calculationDetails: Record<string, unknown>) => ({
+      id: "item-trip",
+      settlement_id: "st-min",
+      item_type: "trip_commission",
+      trip_id: "trip-min",
+      trip_expense_id: null,
+      advance_id: null,
+      description: "Comisión de viaje TRP-MIN (CDMX → Puebla · Foráneo)",
+      quantity: 1,
+      unit_rate: 350,
+      amount: 350,
+      is_deduction: false,
+      calculation_details: calculationDetails,
+      created_at: "2026-10-07T18:00:00Z",
+    });
+
+    it("partida: claves del mínimo en calculationDetails", () => {
+      const mapped = mapSettlement({
+        id: "st-min",
+        tenant_id: "tenant-1",
+        settlement_number: "LIQ-202610-0200",
+        employee_id: "emp-1",
+        agreement_snapshot: {},
+        period_start: "2026-10-01",
+        period_end: "2026-10-07",
+        status: "draft",
+        total_trips_commission: 350,
+        total_base_salary: 0,
+        total_reimbursable_expenses: 0,
+        total_bonuses: 0,
+        total_advances_deducted: 0,
+        total_other_deductions: 0,
+        gross_amount: 350,
+        net_amount: 350,
+        currency: "MXN",
+        disbursed_at: null,
+        disbursed_by: null,
+        disbursement_method: null,
+        disbursement_reference: null,
+        approved_at: null,
+        approved_by: null,
+        rejection_reason: null,
+        notes: null,
+        created_at: "2026-10-07T18:00:00Z",
+        updated_at: "2026-10-07T18:00:00Z",
+        items: [
+          commissionItem({
+            distance_km: 0,
+            commission_before_minimum: 0,
+            minimum_guaranteed_amount: 350,
+            minimum_guaranteed_applied: true,
+            calculation_gap: "zero_km",
+          }),
+          {
+            ...commissionItem({ distance_km: 120, applied_rule: "Tarifa por km" }),
+            id: "item-old",
+          },
+        ],
+      });
+
+      expect(mapped.items?.[0]?.calculationDetails).toMatchObject({
+        distanceKm: 0,
+        commissionBeforeMinimum: 0,
+        minimumGuaranteedAmount: 350,
+        minimumGuaranteedApplied: true,
+        calculationGap: "zero_km",
+      });
+      // Partida anterior al cambio: sin claves del mínimo.
+      const legacy = mapped.items?.[1]?.calculationDetails;
+      expect(legacy).toMatchObject({ distanceKm: 120 });
+      expect(legacy).not.toHaveProperty("minimumGuaranteedApplied");
+      expect(legacy).not.toHaveProperty("commissionBeforeMinimum");
+    });
   });
 
   describe("tope de descuentos contra el bruto", () => {

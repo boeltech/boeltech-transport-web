@@ -118,6 +118,14 @@ export function parseExpenseAlreadyPaidError(
   return { settlementNumber: folio || null };
 }
 
+/** 422 `ZERO_KM_ACK_REQUIRED` / `ZERO_FREIGHT_ACK_REQUIRED` al enviar: falta confirmar datos faltantes. */
+export function isMissingDataAckRequiredError(error: unknown): boolean {
+  return (
+    isApiError(error) &&
+    (error.code === "ZERO_KM_ACK_REQUIRED" || error.code === "ZERO_FREIGHT_ACK_REQUIRED")
+  );
+}
+
 /** 422 `NO_RULE_TRIPS_ACK_REQUIRED`: códigos de viaje que faltan por confirmar en $0. */
 export function parseNoRuleAckRequiredError(error: unknown): readonly string[] | null {
   const details = detailsOf(error, "NO_RULE_TRIPS_ACK_REQUIRED");

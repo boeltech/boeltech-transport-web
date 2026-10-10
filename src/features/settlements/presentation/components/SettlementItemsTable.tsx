@@ -77,9 +77,17 @@ export function formatItemTitleAndSubtitle(item: SettlementItem, copy: typeof se
       routeDesc = item.tripCode ? `Viaje ${item.tripCode}` : item.description;
     }
 
+    // ADR-0086 D1: sin `minimumGuaranteedApplied` la partida es anterior al cambio.
+    const minimumLegend =
+      details?.minimumGuaranteedApplied === true && item.amount > 0
+        ? typeof details.commissionBeforeMinimum === "number"
+          ? copy.minimumGuaranteedLegend(formatMxCurrency(details.commissionBeforeMinimum))
+          : copy.minimumGuaranteedLegendNoCalc
+        : null;
+
     return {
       title: copy.tripCommissionTitle,
-      subtitle: routeDesc,
+      subtitle: minimumLegend ? `${routeDesc} · ${minimumLegend}` : routeDesc,
       badgeTag: routeTypeLabel,
     };
   }

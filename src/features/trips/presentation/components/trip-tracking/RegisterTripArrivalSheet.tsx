@@ -13,6 +13,7 @@ import {
 } from "../../utils/tripSinCfdiCargoGating";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
@@ -35,6 +36,8 @@ import {
 
 import { formatStopActionShortLabel } from "../trackingActionLabels";
 import {
+  isZeroKmClose,
+  parseStartMileageInput,
   resolveSuggestedEndMileage,
   useSuggestedMileageField,
 } from "../startTripMileage";
@@ -77,6 +80,8 @@ export type RegisterTripArrivalSheetProps = {
   requiresFiscalAttention?: boolean;
   /** Soft-warn al finalizar con incidente en bitácora (solo aviso). */
   hasOpenIncident?: boolean;
+  /** Conductor: aviso de 0 km sin mencionar la liquidación. */
+  isDriverPortal?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -131,6 +136,7 @@ function RegisterTripArrivalSheetBody({
   cfdiEmissionIntent,
   requiresFiscalAttention = false,
   hasOpenIncident = false,
+  isDriverPortal = false,
   onOpenChange,
   onSuccess,
 }: RegisterTripArrivalSheetBodyProps) {
@@ -159,6 +165,10 @@ function RegisterTripArrivalSheetBody({
     totalDistanceKm,
   );
   const mileageField = useSuggestedMileageField(suggestedMileage);
+  const showZeroKmAlert = isZeroKmClose(
+    tripStartMileage,
+    parseStartMileageInput(mileageField.value),
+  );
   const suggestedMileageHint = useMemo(() => {
     if (suggestedMileage == null) return null;
     const fmt = (n: number) => n.toLocaleString("es-MX");
@@ -371,6 +381,22 @@ function RegisterTripArrivalSheetBody({
           {suggestedMileageHint ? (
             <p className="text-xs text-muted-foreground">{suggestedMileageHint}</p>
           ) : null}
+          {showZeroKmAlert ? (
+            <AlertWithIcon
+              variant="warning"
+              title={
+                isDriverPortal
+                  ? copy.sheet.closeZeroKmTitleDriver
+                  : copy.sheet.closeZeroKmTitle
+              }
+            >
+              <p>
+                {isDriverPortal
+                  ? copy.sheet.closeZeroKmBodyDriver
+                  : copy.sheet.closeZeroKmBody}
+              </p>
+            </AlertWithIcon>
+          ) : null}
         </div>
 
         <TrackingGpsCaptureSection
@@ -440,6 +466,7 @@ export function RegisterTripArrivalSheet({
   cfdiEmissionIntent,
   requiresFiscalAttention = false,
   hasOpenIncident = false,
+  isDriverPortal = false,
   open,
   onOpenChange,
   onSuccess,
@@ -471,6 +498,7 @@ export function RegisterTripArrivalSheet({
             cfdiEmissionIntent={cfdiEmissionIntent}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={hasOpenIncident}
+            isDriverPortal={isDriverPortal}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

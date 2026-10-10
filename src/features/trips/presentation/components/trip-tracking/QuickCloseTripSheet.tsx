@@ -8,6 +8,7 @@ import type {
 } from "@features/trips/domain";
 import { useRegisterTrackingEvent } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
@@ -29,6 +30,8 @@ import {
 } from "@shared/utils/dateUtils";
 
 import {
+  isZeroKmClose,
+  parseStartMileageInput,
   resolveSuggestedEndMileage,
   useSuggestedMileageField,
 } from "../startTripMileage";
@@ -75,6 +78,8 @@ export type QuickCloseTripSheetProps = {
   requiresFiscalAttention?: boolean;
   /** Soft-warn al completar con incidente en bitácora (solo aviso). */
   hasOpenIncident?: boolean;
+  /** Conductor: aviso de 0 km sin mencionar la liquidación. */
+  isDriverPortal?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -108,6 +113,7 @@ function QuickCloseTripSheetBody({
   cargos = [],
   requiresFiscalAttention = false,
   hasOpenIncident = false,
+  isDriverPortal = false,
   onOpenChange,
   onSuccess,
 }: QuickCloseTripSheetBodyProps) {
@@ -135,6 +141,10 @@ function QuickCloseTripSheetBody({
     totalDistanceKm,
   );
   const mileageField = useSuggestedMileageField(suggestedMileage);
+  const showZeroKmAlert = isZeroKmClose(
+    tripStartMileage,
+    parseStartMileageInput(mileageField.value),
+  );
   const suggestedMileageHint = useMemo(() => {
     if (suggestedMileage == null) return null;
     const fmt = (n: number) => n.toLocaleString("es-MX");
@@ -321,6 +331,22 @@ function QuickCloseTripSheetBody({
           {suggestedMileageHint ? (
             <p className="text-xs text-muted-foreground">{suggestedMileageHint}</p>
           ) : null}
+          {showZeroKmAlert ? (
+            <AlertWithIcon
+              variant="warning"
+              title={
+                isDriverPortal
+                  ? copy.sheet.closeZeroKmTitleDriver
+                  : copy.sheet.closeZeroKmTitle
+              }
+            >
+              <p>
+                {isDriverPortal
+                  ? copy.sheet.closeZeroKmBodyDriver
+                  : copy.sheet.closeZeroKmBody}
+              </p>
+            </AlertWithIcon>
+          ) : null}
         </div>
 
         <TrackingGpsCaptureSection
@@ -387,6 +413,7 @@ export function QuickCloseTripSheet({
   cargos,
   requiresFiscalAttention = false,
   hasOpenIncident = false,
+  isDriverPortal = false,
   open,
   onOpenChange,
   onSuccess,
@@ -417,6 +444,7 @@ export function QuickCloseTripSheet({
             cargos={cargos}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={hasOpenIncident}
+            isDriverPortal={isDriverPortal}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}
           />

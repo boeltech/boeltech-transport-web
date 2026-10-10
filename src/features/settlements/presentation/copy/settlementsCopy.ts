@@ -603,6 +603,10 @@ export const settlementsCopy = {
       linkedAdvanceFallback: "Anticipo vinculado",
       guaranteedBaseSalary: "Sueldo base garantizado",
       tripCommissionTitle: "Pago por viaje",
+      /** ADR-0086 D1: viaje pagado al mínimo de su regla. */
+      minimumGuaranteedLegend: (calculated: string) =>
+        `Mínimo garantizado (cálculo: ${calculated})`,
+      minimumGuaranteedLegendNoCalc: "Mínimo garantizado",
       reimbursementPrefix: "Reembolso",
       advanceDeductionTitle: "Descuento de anticipo",
       receiptPrefix: "Comprobante",
@@ -650,6 +654,7 @@ export const settlementsCopy = {
       zeroTripsReasons: {
         scheme: "La tarifa no paga comisión en este viaje",
         zero_km: "Pago por km sin distancia registrada",
+        zero_freight: "Sin flete capturado (regla por porcentaje)",
         no_rule: "La tarifa no tiene regla para este tipo de ruta",
       },
       zeroTripsReasonFallback: "Sin comisión",
@@ -785,7 +790,13 @@ export const settlementsCopy = {
       distanceOdometerSuffix: "por odómetro",
       distanceUnavailableLabel: "Sin km usable",
       distanceGapHint:
-        "Este viaje no tiene tramos con llegada ni odómetro; la comisión por km queda en $0.",
+        "Este viaje no tiene tramos con llegada ni odómetro; se paga el mínimo garantizado de la regla, o $0 si no tiene.",
+      freightGapHint:
+        "Este viaje no tiene flete capturado; se paga el mínimo garantizado de la regla, o $0 si no tiene.",
+      /** ADR-0086 D1: el cálculo quedó bajo el mínimo de la regla. */
+      minimumGuaranteedBadge: "Mínimo garantizado",
+      minimumGuaranteedBadgeTitle: (calculated: string, minimum: string) =>
+        `El cálculo dio ${calculated}; se paga el mínimo garantizado de ${minimum}.`,
       tripCol: "Viaje",
       routeCol: "Ruta / Tipo",
       payCol: "A pagar",
@@ -793,20 +804,30 @@ export const settlementsCopy = {
       ruleCol: "Regla de pago",
       opsDetailCol: "Detalle",
     },
-    zeroKmGate: {
-      alertTitle: "Viajes sin distancia usable",
+    /** ADR-0085 E11.2 — sin km usable o flete en $0: una sola confirmación al enviar. */
+    missingDataGate: {
+      alertTitle: "Viajes con datos faltantes",
       alertDescription: (count: number) =>
-        `Hay ${count} viaje(s) con tarifa por km y sin distancia usable. Corrige tramos u odómetro en el viaje, o confirma el pago en $0.`,
+        `Hay ${count} viaje(s) sin km usable o con flete en $0. Se pagará el mínimo garantizado de su regla (o $0 si no tiene). Si el viaje fue más largo o tiene flete, corrige el odómetro o la tarifa en el viaje antes de enviar.`,
       ackLabel: (count: number) =>
-        `Confirmo pago en $0 en ${count} viaje(s) sin km`,
-      submitBlockedHint: "No se puede enviar: hay viajes por km sin distancia",
+        `Confirmo enviar ${count} viaje(s) con datos faltantes`,
+      submitBlockedHint: "No se puede enviar: confirma los viajes con datos faltantes",
+      serverAckRequired:
+        "El pago se recalculó y hay viajes con datos faltantes. Revísalos y confirma para enviar.",
+      tripsListAriaLabel: "Viajes con datos faltantes",
+      missingKm: "sin km",
+      missingFreight: "sin flete",
+      moreTrips: (count: number) => `y ${count} más`,
     },
     /** ADR-0085 E11 — por qué un viaje entra en $0. */
     zeroReason: {
       scheme: "$0 por tarifa",
       zero_km: "Sin km",
+      zero_freight: "Sin flete",
       no_rule: "Sin regla de pago",
       schemeTitle: "La regla de la tarifa da $0 en este viaje. Entra a este pago sin comisión.",
+      zeroKmTitle: "El viaje no tiene tramos con llegada ni odómetro y la regla es por km.",
+      zeroFreightTitle: "El viaje no tiene flete capturado y la regla es por porcentaje.",
       noRuleTitle:
         "La tarifa no tiene regla para este tipo de ruta. Si lo incluyes, entra en $0 y no se vuelve a pagar.",
     },

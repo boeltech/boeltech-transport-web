@@ -1,5 +1,5 @@
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import type { AgreementCommissionType, TripRouteType } from "@features/settlements";
+import type { AgreementCommissionType, TripRouteType } from "@features/settlements/domain";
 import type {
   CompensationTemplateRule,
   TemplateDeduction,
@@ -36,7 +36,18 @@ export interface SimulationResult {
   total: number;
   formattedTotal: string;
   matchedRule: CompensationTemplateRule | null;
+  /** La regla pagó el mínimo garantizado en lugar del cálculo. */
+  minimumApplied: boolean;
   corridorMatchName: string | null;
+}
+
+/** Dato faltante para el cálculo, aunque haya aplicado el mínimo. */
+export type CommissionCalculationGap = "zero_km" | "zero_freight";
+
+export interface RuleCommissionBreakdown {
+  amount: number;
+  minimumApplied: boolean;
+  calculationGap: CommissionCalculationGap | null;
 }
 
 export const SIMULATION_DEFAULTS: SimulationInput = {
@@ -49,54 +60,65 @@ export const SIMULATION_DEFAULTS: SimulationInput = {
 // CALCULATION
 // ============================================================================
 
-function computeRuleCommission(
+/**
+ * Espejo de `computeTripCommissionBreakdown` del API (ADR-0086 D1, enmienda
+ * 2026-10-09): pago = máx(cálculo, mínimo) también con cálculo $0; con `none`
+ * el mínimo nunca aplica. Paridad cubierta por `commissionGoldenCases.ts`.
+ */
+export function computeRuleCommission(
   rule: CompensationTemplateRule,
   input: SimulationInput,
-): number {
+): RuleCommissionBreakdown {
   const commissionType = rule.commissionType as AgreementCommissionType;
   const rateValue = typeof rule.rateValue === "number" && Number.isFinite(rule.rateValue)
     ? rule.rateValue
     : 0;
 
-  let raw = 0;
+  let base = 0;
+  let calculationGap: CommissionCalculationGap | null = null;
 
   switch (commissionType) {
     case "rate_per_km":
-      raw = input.distanceKm * rateValue;
+      base = Math.round(input.distanceKm * rateValue * 100) / 100;
+      if (input.distanceKm <= 0) calculationGap = "zero_km";
       break;
     case "percentage_of_freight":
-      raw = input.freightRevenue * (rateValue / 100);
+      base = Math.round(((input.freightRevenue * rateValue) / 100) * 100) / 100;
+      if (input.freightRevenue <= 0) calculationGap = "zero_freight";
       break;
     case "fixed_per_trip":
-      raw = rateValue;
+      base = rateValue;
       break;
     case "none":
     default:
-      raw = 0;
-      break;
+      return { amount: 0, minimumApplied: false, calculationGap: null };
   }
 
-  const min = typeof rule.minimumGuaranteedAmount === "number"
-    ? rule.minimumGuaranteedAmount
-    : 0;
+  const min =
+    typeof rule.minimumGuaranteedAmount === "number" && rule.minimumGuaranteedAmount > 0
+      ? rule.minimumGuaranteedAmount
+      : 0;
+  const minimumApplied = min > 0 && base < min;
 
-  return Math.max(raw, min);
+  return { amount: minimumApplied ? min : base, minimumApplied, calculationGap };
 }
 
 function describeRuleForSimulation(
   rule: CompensationTemplateRule,
   routeLabels: Record<string, string>,
+  minimumApplied: boolean,
 ): string {
   const routeLabel = routeLabels[rule.routeType] ?? rule.routeType;
   const commissionType = rule.commissionType as AgreementCommissionType;
+  const suffix = minimumApplied ? " · mínimo garantizado" : "";
 
   switch (commissionType) {
     case "rate_per_km":
-      return `Pago por km (${routeLabel.toLowerCase()})`;
+      return `Pago por km (${routeLabel.toLowerCase()})${suffix}`;
     case "percentage_of_freight":
-      return `Comisión ${rule.rateValue}% (${routeLabel.toLowerCase()})`;
+      return `Comisión ${rule.rateValue}% (${routeLabel.toLowerCase()})${suffix}`;
     case "fixed_per_trip":
-      return `Importe fijo (${routeLabel.toLowerCase()})`;
+      return `Importe fijo (${routeLabel.toLowerCase()})${suffix}`;
     case "none":
     default:
       return `Sin pago por viaje (${routeLabel.toLowerCase()})`;
@@ -124,6 +146,7 @@ export function simulateCompensation(
   const items: SimulationLineItem[] = [];
   let gross = 0;
   let matchedRule: CompensationTemplateRule | null = null;
+  let minimumApplied = false;
   let corridorMatchName: string | null = null;
 
   if (corridorFixedAmount != null && corridorFixedAmount > 0) {
@@ -142,15 +165,16 @@ export function simulateCompensation(
     if (rule) {
       matchedRule = rule;
       const commission = computeRuleCommission(rule, input);
-      if (commission > 0) {
+      minimumApplied = commission.minimumApplied;
+      if (commission.amount > 0) {
         items.push({
           id: `rule-${rule.routeType}`,
-          label: describeRuleForSimulation(rule, ROUTE_LABELS),
-          amount: commission,
-          formattedAmount: formatMxCurrency(commission),
+          label: describeRuleForSimulation(rule, ROUTE_LABELS, commission.minimumApplied),
+          amount: commission.amount,
+          formattedAmount: formatMxCurrency(commission.amount),
           source: "rule",
         });
-        gross += commission;
+        gross += commission.amount;
       }
     }
   }
@@ -205,6 +229,7 @@ export function simulateCompensation(
     total,
     formattedTotal: formatMxCurrency(total),
     matchedRule,
+    minimumApplied,
     corridorMatchName,
   };
 }

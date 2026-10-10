@@ -281,6 +281,7 @@ export const createSettlementFormSchema = z
     notes: z.string().max(1000, "Máximo 1000 caracteres").optional().or(z.literal("")),
     submitForApproval: z.boolean().default(false),
     acknowledgeZeroKmTrips: z.boolean().default(false),
+    acknowledgeZeroFreightTrips: z.boolean().default(false),
     acknowledgeNoRuleTrips: z.boolean().default(false),
   })
   .refine((data) => data.periodStart <= data.periodEnd, {

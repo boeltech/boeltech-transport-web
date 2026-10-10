@@ -577,6 +577,7 @@ export function TripTrackingTab({
             cfdiEmissionIntent={cfdiEmissionIntent}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={timeline.trip.hasOpenIncident}
+            isDriverPortal={isDriverPortal}
             open={tripArrivalSheetOpen}
             onOpenChange={setTripArrivalSheetOpen}
           />
@@ -593,6 +594,7 @@ export function TripTrackingTab({
             cfdiEmissionIntent={cfdiEmissionIntent}
             requiresFiscalAttention={requiresFiscalAttention}
             hasOpenIncident={timeline.trip.hasOpenIncident}
+            isDriverPortal={isDriverPortal}
             open={quickCloseSheetOpen}
             onOpenChange={setQuickCloseSheetOpen}
           />

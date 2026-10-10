@@ -2,6 +2,7 @@ import { deepToCamel } from "@shared/api";
 import type { MappedPaginatedResult } from "@shared/api";
 import { mapApprovalBlock, type ApiApprovalBlockRaw } from "@features/approvals/infrastructure";
 import type {
+  CommissionCalculationGap,
   CompensationAgreement,
   CompensationAgreementRule,
   DriverAdvance,
@@ -320,7 +321,12 @@ export interface ApiSettlementPreviewRaw {
     has_revenue_split?: boolean;
     distance_basis?: "executed_stops" | "odometer" | "unavailable";
     requires_zero_km_ack?: boolean;
+    requires_zero_freight_ack?: boolean;
     zero_commission_reason?: ZeroCommissionReason | null;
+    commission_before_minimum?: number | null;
+    minimum_guaranteed_amount?: number | null;
+    minimum_guaranteed_applied?: boolean;
+    calculation_gap?: CommissionCalculationGap | null;
   }>;
   periodic_block?: {
     status: PeriodicBlockPreview["status"];
@@ -500,6 +506,13 @@ export function mapAdvance(raw: ApiDriverAdvanceRaw): DriverAdvance {
 const optionalNumber = (value: unknown): number | undefined =>
   value === undefined || value === null ? undefined : Number(value);
 
+const nullableNumber = (value: unknown): number | null =>
+  value === undefined || value === null ? null : Number(value);
+
+function mapCalculationGap(value: unknown): CommissionCalculationGap | null {
+  return value === "zero_km" || value === "zero_freight" ? value : null;
+}
+
 function mapCalculationDetails(
   raw: Record<string, unknown>,
 ): SettlementItem["calculationDetails"] {
@@ -510,6 +523,18 @@ function mapCalculationDetails(
     ...details,
     ...(requestedAmount !== undefined ? { requestedAmount } : {}),
     ...(omittedAmount !== undefined ? { omittedAmount } : {}),
+    ...("commission_before_minimum" in raw
+      ? { commissionBeforeMinimum: nullableNumber(raw.commission_before_minimum) }
+      : {}),
+    ...("minimum_guaranteed_amount" in raw
+      ? { minimumGuaranteedAmount: nullableNumber(raw.minimum_guaranteed_amount) }
+      : {}),
+    ...("minimum_guaranteed_applied" in raw
+      ? { minimumGuaranteedApplied: raw.minimum_guaranteed_applied === true }
+      : {}),
+    ...("calculation_gap" in raw
+      ? { calculationGap: mapCalculationGap(raw.calculation_gap) }
+      : {}),
   } as SettlementItem["calculationDetails"];
 }
 
@@ -821,7 +846,12 @@ export function mapSettlementPreview(raw: ApiSettlementPreviewRaw): SettlementPr
       hasRevenueSplit: Boolean(trip.has_revenue_split),
       distanceBasis: trip.distance_basis,
       requiresZeroKmAck: Boolean(trip.requires_zero_km_ack),
+      requiresZeroFreightAck: Boolean(trip.requires_zero_freight_ack),
       zeroCommissionReason: trip.zero_commission_reason ?? null,
+      commissionBeforeMinimum: nullableNumber(trip.commission_before_minimum),
+      minimumGuaranteedAmount: nullableNumber(trip.minimum_guaranteed_amount),
+      minimumGuaranteedApplied: Boolean(trip.minimum_guaranteed_applied),
+      calculationGap: mapCalculationGap(trip.calculation_gap),
     })),
     openAdvances: (raw.open_advances ?? []).map((adv) => ({
       advanceId: adv.advance_id,

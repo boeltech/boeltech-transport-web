@@ -119,6 +119,7 @@ import {
   resolveCreateCta,
 } from "../utils/settlementCta";
 import {
+  isMissingDataAckRequiredError,
   parseNoRuleAckRequiredError,
   parsePeriodPartialOverlapError,
   parseReimbursementCreateError,
@@ -141,11 +142,54 @@ import {
   type TripRouteType,
   type AdvanceCategory,
 } from "../../domain/enums";
+import type { EligibleTripPreview, ZeroCommissionReason } from "../../domain/entities";
 
 const copy = settlementsCopy;
 const createCopy = settlementsCopy.createPage;
 const governanceCopy = settlementsCopy.agreementGovernance;
 const capCopy = settlementsCopy.settlementFlow.deductionsCap;
+
+const ZERO_REASON_BADGES: Partial<
+  Record<ZeroCommissionReason, { variant: "warning" | "neutral"; label: string; title: string }>
+> = {
+  no_rule: {
+    variant: "warning",
+    label: createCopy.zeroReason.no_rule,
+    title: createCopy.zeroReason.noRuleTitle,
+  },
+  zero_km: {
+    variant: "warning",
+    label: createCopy.zeroReason.zero_km,
+    title: createCopy.zeroReason.zeroKmTitle,
+  },
+  zero_freight: {
+    variant: "warning",
+    label: createCopy.zeroReason.zero_freight,
+    title: createCopy.zeroReason.zeroFreightTitle,
+  },
+  scheme: {
+    variant: "neutral",
+    label: createCopy.zeroReason.scheme,
+    title: createCopy.zeroReason.schemeTitle,
+  },
+};
+
+const MISSING_DATA_TRIPS_LISTED = 5;
+
+/**
+ * «Cubierto por sueldo base» solo para un local en $0 por regla `none`; con dato
+ * faltante, sin regla o mínimo aplicado el viaje muestra su motivo o su insignia.
+ */
+function isLocalTripCoveredBySalary(
+  trip: EligibleTripPreview,
+  routeType: TripRouteType,
+): boolean {
+  if (routeType !== "local" || trip.calculatedCommission !== 0) return false;
+  if (trip.calculationGap || trip.minimumGuaranteedApplied) return false;
+  if (trip.zeroCommissionReason && trip.zeroCommissionReason !== "scheme") return false;
+  return Boolean(trip.appliedRule?.toLowerCase().includes("sueldo"));
+}
+
 const ADVANCES_FIELD_ID = "settlement-create-advances";
 const MANUAL_ITEMS_FIELD_ID = "settlement-create-manual-items";
 
@@ -206,7 +250,10 @@ export function SettlementCreatePage() {
   // Confirmation dialog pre-submit
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [showTripCalcDetail, setShowTripCalcDetail] = useState(false);
-  const [acknowledgeZeroKmTrips, setAcknowledgeZeroKmTrips] = useState(false);
+  // ADR-0085 E11.2: una sola confirmación para viajes sin km usable o con flete en $0.
+  const [acknowledgeMissingDataTrips, setAcknowledgeMissingDataTrips] = useState(false);
+  // 422 de datos faltantes al enviar: vigente mientras no cambien operador ni fechas.
+  const [missingDataAckErrorKey, setMissingDataAckErrorKey] = useState<string | null>(null);
   // ADR-0085 E11: viajes sin regla entran en $0 solo con confirmación explícita.
   const [acknowledgeNoRuleTrips, setAcknowledgeNoRuleTrips] = useState(false);
   const [noRuleDialog, setNoRuleDialog] = useState<{
@@ -264,7 +311,7 @@ export function SettlementCreatePage() {
     if (endChanged) setPeriodEnd(urlPeriodEnd);
     if (empChanged || startChanged || endChanged) {
       setAdvanceDeductions({});
-      setAcknowledgeZeroKmTrips(false);
+      setAcknowledgeMissingDataTrips(false);
     }
   }
 
@@ -592,7 +639,7 @@ export function SettlementCreatePage() {
       setPeriodStart(period.periodStart);
       setPeriodEnd(period.periodEnd);
       setAdvanceDeductions({});
-      setAcknowledgeZeroKmTrips(false);
+      setAcknowledgeMissingDataTrips(false);
     }
   }
 
@@ -603,11 +650,14 @@ export function SettlementCreatePage() {
     totalBaseSalary > 0 ||
     totalFixedAllowances > 0 ||
     totalReimbursements > 0;
-  const zeroKmTrips = useMemo(
-    () => (preview?.eligibleTrips ?? []).filter((trip) => trip.requiresZeroKmAck),
+  const missingDataTrips = useMemo(
+    () =>
+      (preview?.eligibleTrips ?? []).filter(
+        (trip) => trip.requiresZeroKmAck || trip.requiresZeroFreightAck,
+      ),
     [preview?.eligibleTrips],
   );
-  const hasZeroKmGaps = zeroKmTrips.length > 0;
+  const hasMissingDataGaps = missingDataTrips.length > 0;
   const noRuleTrips = (preview?.eligibleTrips ?? []).filter(
     (trip) => trip.zeroCommissionReason === "no_rule",
   );
@@ -638,7 +688,13 @@ export function SettlementCreatePage() {
     [preview?.eligibleTrips],
   );
   const canSubmitForApproval =
-    canProceedWithSave && !isPeriodBlocked && (!hasZeroKmGaps || acknowledgeZeroKmTrips);
+    canProceedWithSave &&
+    !isPeriodBlocked &&
+    (!hasMissingDataGaps || acknowledgeMissingDataTrips);
+  const missingDataAckError =
+    missingDataAckErrorKey === periodConflictKey && !acknowledgeMissingDataTrips
+      ? createCopy.missingDataGate.serverAckRequired
+      : undefined;
 
   const tripDetailReturnHref = useMemo(
     () =>
@@ -650,13 +706,13 @@ export function SettlementCreatePage() {
     [selectedEmployeeId, periodStart, periodEnd],
   );
 
-  // Reset ack de km=0 al cambiar preview / gaps (adjust state during render —
+  // Reset de confirmaciones al cambiar preview / gaps (adjust state during render —
   // evita react-hooks/set-state-in-effect).
-  const zeroKmAckSyncKey = `${preview?.employeeId ?? ""}|${preview?.periodStart ?? ""}|${preview?.periodEnd ?? ""}|${zeroKmTrips.length}|${noRuleTrips.length}`;
-  const [prevZeroKmAckSyncKey, setPrevZeroKmAckSyncKey] = useState(zeroKmAckSyncKey);
-  if (zeroKmAckSyncKey !== prevZeroKmAckSyncKey) {
-    setPrevZeroKmAckSyncKey(zeroKmAckSyncKey);
-    setAcknowledgeZeroKmTrips(false);
+  const ackSyncKey = `${preview?.employeeId ?? ""}|${preview?.periodStart ?? ""}|${preview?.periodEnd ?? ""}|${missingDataTrips.length}|${noRuleTrips.length}`;
+  const [prevAckSyncKey, setPrevAckSyncKey] = useState(ackSyncKey);
+  if (ackSyncKey !== prevAckSyncKey) {
+    setPrevAckSyncKey(ackSyncKey);
+    setAcknowledgeMissingDataTrips(false);
     setAcknowledgeNoRuleTrips(false);
   }
 
@@ -744,6 +800,10 @@ export function SettlementCreatePage() {
       return;
     }
 
+    // El API pide ambas confirmaciones por separado (primero km); la UI tiene una sola.
+    const missingDataAcknowledged =
+      submitForApproval && hasMissingDataGaps && acknowledgeMissingDataTrips;
+
     try {
       const openAdvancesMap = new Map(
         (preview?.openAdvances ?? []).map((adv) => [adv.advanceId, deductableAdvanceBalance(adv)]),
@@ -772,8 +832,8 @@ export function SettlementCreatePage() {
         customItems,
         notes: notes || undefined,
         submitForApproval,
-        acknowledgeZeroKmTrips:
-          submitForApproval && hasZeroKmGaps ? acknowledgeZeroKmTrips : false,
+        acknowledgeZeroKmTrips: missingDataAcknowledged,
+        acknowledgeZeroFreightTrips: missingDataAcknowledged,
         acknowledgeNoRuleTrips: noRuleAcknowledged,
       };
 
@@ -821,6 +881,13 @@ export function SettlementCreatePage() {
         setConfirmDialogOpen(false);
         setAcknowledgeNoRuleTrips(false);
         setNoRuleDialog({ submit: submitForApproval, tripCodes: missingNoRuleAck });
+        void refetchPreview();
+        return;
+      }
+      if (isMissingDataAckRequiredError(error)) {
+        setConfirmDialogOpen(false);
+        setAcknowledgeMissingDataTrips(false);
+        setMissingDataAckErrorKey(periodConflictKey);
         void refetchPreview();
         return;
       }
@@ -1179,10 +1246,12 @@ export function SettlementCreatePage() {
                           {preview.eligibleTrips.map((trip) => {
                             const routeType = (trip.routeType as TripRouteType) || "long_haul";
                             const routeTypeLabel = TRIP_ROUTE_TYPE_LABELS[routeType] ?? routeType;
-                            const isLocalCovered =
-                              routeType === "local" &&
-                              (trip.calculatedCommission === 0 ||
-                                (trip.appliedRule && trip.appliedRule.toLowerCase().includes("sueldo")));
+                            const isLocalCovered = isLocalTripCoveredBySalary(trip, routeType);
+                            const zeroReasonBadge = trip.zeroCommissionReason
+                              ? ZERO_REASON_BADGES[trip.zeroCommissionReason]
+                              : undefined;
+                            const hasMissingData =
+                              trip.requiresZeroKmAck || trip.requiresZeroFreightAck;
 
                             return (
                               <TableRow key={trip.tripId}>
@@ -1218,24 +1287,14 @@ export function SettlementCreatePage() {
                                         {createCopy.trips.corridorBadgeLabel}
                                       </Badge>
                                     ) : null}
-                                    {!isLocalCovered &&
-                                    (trip.zeroCommissionReason === "no_rule" ||
-                                      trip.zeroCommissionReason === "scheme") ? (
+                                    {!isLocalCovered && zeroReasonBadge ? (
                                       <Badge
-                                        variant={
-                                          trip.zeroCommissionReason === "no_rule"
-                                            ? "warning"
-                                            : "neutral"
-                                        }
+                                        variant={zeroReasonBadge.variant}
                                         tone="soft"
                                         className="text-[10px] py-0 px-1.5 h-4 font-normal"
-                                        title={
-                                          trip.zeroCommissionReason === "no_rule"
-                                            ? createCopy.zeroReason.noRuleTitle
-                                            : createCopy.zeroReason.schemeTitle
-                                        }
+                                        title={zeroReasonBadge.title}
                                       >
-                                        {createCopy.zeroReason[trip.zeroCommissionReason]}
+                                        {zeroReasonBadge.label}
                                       </Badge>
                                     ) : null}
                                   </div>
@@ -1307,7 +1366,15 @@ export function SettlementCreatePage() {
                                         </span>
                                       )}
                                       <span className="mx-1.5 opacity-40">·</span>
-                                      <span>Flete {formatMxCurrency(trip.freightRevenue)}</span>
+                                      <span
+                                        className={
+                                          trip.requiresZeroFreightAck
+                                            ? "text-warning font-medium"
+                                            : undefined
+                                        }
+                                      >
+                                        Flete {formatMxCurrency(trip.freightRevenue)}
+                                      </span>
                                       {trip.freightBase === "commercial_at_complete" ? (
                                         <span className="block text-[10px] opacity-80">
                                           al completar
@@ -1318,14 +1385,17 @@ export function SettlementCreatePage() {
                                           {createCopy.trips.distanceGapHint}
                                         </span>
                                       ) : null}
+                                      {trip.requiresZeroFreightAck ? (
+                                        <span className="block text-[10px] text-warning mt-0.5">
+                                          {createCopy.trips.freightGapHint}
+                                        </span>
+                                      ) : null}
                                     </TableCell>
                                   </>
                                 ) : null}
                                 <TableCell
                                   className={`min-w-[7.5rem] text-right tabular-nums font-bold ${
-                                    trip.requiresZeroKmAck
-                                      ? "text-warning"
-                                      : "text-foreground"
+                                    hasMissingData ? "text-warning" : "text-foreground"
                                   }`}
                                 >
                                   {isLocalCovered ? (
@@ -1335,6 +1405,22 @@ export function SettlementCreatePage() {
                                   ) : (
                                     <div className="flex flex-col items-end">
                                       {formatMxCurrency(trip.calculatedCommission)}
+                                      {trip.minimumGuaranteedApplied ? (
+                                        <Badge
+                                          variant="info"
+                                          tone="soft"
+                                          className="mt-0.5 h-auto shrink-0 whitespace-nowrap text-[10px] font-normal leading-4 px-1.5 py-0"
+                                          title={createCopy.trips.minimumGuaranteedBadgeTitle(
+                                            formatMxCurrency(trip.commissionBeforeMinimum ?? 0),
+                                            formatMxCurrency(
+                                              trip.minimumGuaranteedAmount ??
+                                                trip.calculatedCommission,
+                                            ),
+                                          )}
+                                        >
+                                          {createCopy.trips.minimumGuaranteedBadge}
+                                        </Badge>
+                                      ) : null}
                                       {typeof trip.participantCount === "number" &&
                                       trip.participantCount > 1 ? (
                                         <Badge
@@ -1808,29 +1894,65 @@ export function SettlementCreatePage() {
                             </AlertDescription>
                           </Alert>
                         ) : null}
-                        {hasZeroKmGaps ? (
-                          <div className="rounded-lg border border-warning/30 bg-warning-soft/40 p-3 space-y-2">
+                        {hasMissingDataGaps ? (
+                          <div
+                            className="rounded-lg border border-warning/30 bg-warning-soft/40 p-3 space-y-2"
+                            data-testid="missing-data-gate"
+                          >
                             <p className="text-xs font-medium text-foreground">
-                              {createCopy.zeroKmGate.alertTitle}
+                              {createCopy.missingDataGate.alertTitle}
                             </p>
                             <p className="text-[11px] text-muted-foreground leading-snug">
-                              {createCopy.zeroKmGate.alertDescription(zeroKmTrips.length)}
+                              {createCopy.missingDataGate.alertDescription(
+                                missingDataTrips.length,
+                              )}
                             </p>
+                            <ul
+                              className="text-[11px] text-foreground leading-snug space-y-0.5"
+                              aria-label={createCopy.missingDataGate.tripsListAriaLabel}
+                            >
+                              {missingDataTrips.slice(0, MISSING_DATA_TRIPS_LISTED).map((trip) => (
+                                <li key={trip.tripId}>
+                                  <span className="font-mono font-medium">{trip.tripCode}</span>{" "}
+                                  <span className="text-muted-foreground">
+                                    {trip.requiresZeroKmAck
+                                      ? createCopy.missingDataGate.missingKm
+                                      : createCopy.missingDataGate.missingFreight}
+                                  </span>
+                                </li>
+                              ))}
+                              {missingDataTrips.length > MISSING_DATA_TRIPS_LISTED ? (
+                                <li className="text-muted-foreground">
+                                  {createCopy.missingDataGate.moreTrips(
+                                    missingDataTrips.length - MISSING_DATA_TRIPS_LISTED,
+                                  )}
+                                </li>
+                              ) : null}
+                            </ul>
                             <div className="flex items-start gap-2 pt-1">
                               <Checkbox
-                                id="acknowledge-zero-km"
-                                checked={acknowledgeZeroKmTrips}
-                                onCheckedChange={(checked) =>
-                                  setAcknowledgeZeroKmTrips(checked === true)
-                                }
+                                id="acknowledge-missing-data"
+                                checked={acknowledgeMissingDataTrips}
+                                onCheckedChange={(checked) => {
+                                  setAcknowledgeMissingDataTrips(checked === true);
+                                  if (checked === true) setMissingDataAckErrorKey(null);
+                                }}
+                                {...getFieldErrorAriaProps(
+                                  "acknowledge-missing-data",
+                                  missingDataAckError,
+                                )}
                               />
                               <Label
-                                htmlFor="acknowledge-zero-km"
+                                htmlFor="acknowledge-missing-data"
                                 className="text-xs font-normal leading-snug cursor-pointer"
                               >
-                                {createCopy.zeroKmGate.ackLabel(zeroKmTrips.length)}
+                                {createCopy.missingDataGate.ackLabel(missingDataTrips.length)}
                               </Label>
                             </div>
+                            <FieldInlineError
+                              fieldId="acknowledge-missing-data"
+                              message={missingDataAckError}
+                            />
                           </div>
                         ) : null}
                         {createCta !== "guardar_borrador" ? (
@@ -1845,9 +1967,9 @@ export function SettlementCreatePage() {
                               <Send className="mr-2 h-4 w-4" />
                               {createCopy.summary.submitApprovalBtn}
                             </Button>
-                            {hasZeroKmGaps && !acknowledgeZeroKmTrips ? (
+                            {hasMissingDataGaps && !acknowledgeMissingDataTrips ? (
                               <p className="text-[11px] text-center text-warning leading-snug px-1">
-                                {createCopy.zeroKmGate.submitBlockedHint}
+                                {createCopy.missingDataGate.submitBlockedHint}
                               </p>
                             ) : (
                               <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">

@@ -56,6 +56,19 @@ export function resolveSuggestedEndMileage(
   return tripStartMileage;
 }
 
+/** Cierre con km final igual al de salida: 0 km recorridos (solo aviso, no bloquea). */
+export function isZeroKmClose(
+  tripStartMileage: number | null | undefined,
+  endMileage: number | null,
+): boolean {
+  return (
+    typeof tripStartMileage === "number" &&
+    Number.isFinite(tripStartMileage) &&
+    endMileage !== null &&
+    endMileage === tripStartMileage
+  );
+}
+
 export function parseStartMileageInput(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed === "") return null;

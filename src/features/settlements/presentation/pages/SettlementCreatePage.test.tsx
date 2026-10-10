@@ -515,19 +515,351 @@ describe("SettlementCreatePage Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Viajes sin distancia usable/i)).toBeInTheDocument();
+      expect(screen.getByText("Viajes con datos faltantes")).toBeInTheDocument();
     });
 
     const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
     expect(submitBtn).toBeDisabled();
     expect(
-      screen.getByText(/No se puede enviar: hay viajes por km sin distancia/i),
+      screen.getByText(/No se puede enviar: confirma los viajes con datos faltantes/i),
     ).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("checkbox", { name: /Confirmo pago en \$0 en 1 viaje/i }),
+      screen.getByRole("checkbox", {
+        name: /Confirmo enviar 1 viaje\(s\) con datos faltantes/i,
+      }),
     );
     expect(submitBtn).toBeEnabled();
+  });
+
+  describe("E11.2 / ADR-0086 D1 — datos faltantes y mínimo garantizado", () => {
+    const tripWithGap = (overrides: Record<string, unknown>) => ({
+      ...mockPreview.eligibleTrips[0],
+      hasRevenueSplit: false,
+      operationalOutcome: "standard",
+      requiresZeroKmAck: false,
+      requiresZeroFreightAck: false,
+      ...overrides,
+    });
+
+    const renderPage = () =>
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+            <SettlementCreatePage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+    it("un solo checkbox para 0 km y flete en $0; al enviar manda los dos flags", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            tripId: "trip-km",
+            tripCode: "TRP-KM",
+            distanceKm: 0,
+            distanceBasis: "unavailable",
+            calculatedCommission: 400,
+            requiresZeroKmAck: true,
+            calculationGap: "zero_km",
+            commissionBeforeMinimum: 0,
+            minimumGuaranteedAmount: 400,
+            minimumGuaranteedApplied: true,
+          }),
+          tripWithGap({
+            tripId: "trip-flete",
+            tripCode: "TRP-FLETE",
+            freightRevenue: 0,
+            calculatedCommission: 0,
+            requiresZeroFreightAck: true,
+            calculationGap: "zero_freight",
+            zeroCommissionReason: "zero_freight",
+            commissionBeforeMinimum: 0,
+            minimumGuaranteedAmount: 0,
+            minimumGuaranteedApplied: false,
+          }),
+        ],
+      });
+      renderPage();
+
+      const gate = await screen.findByTestId("missing-data-gate");
+      expect(gate).toHaveTextContent(
+        "Hay 2 viaje(s) sin km usable o con flete en $0. Se pagará el mínimo garantizado de su regla (o $0 si no tiene).",
+      );
+      expect(screen.getAllByRole("checkbox", { name: /con datos faltantes/i })).toHaveLength(1);
+      const freightBadge = screen.getByText("Sin flete");
+      expect(freightBadge).toHaveAttribute(
+        "title",
+        "El viaje no tiene flete capturado y la regla es por porcentaje.",
+      );
+
+      const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
+      expect(submitBtn).toBeDisabled();
+      await user.click(
+        screen.getByRole("checkbox", {
+          name: /Confirmo enviar 2 viaje\(s\) con datos faltantes/i,
+        }),
+      );
+      await user.click(submitBtn);
+      await user.click(screen.getByRole("button", { name: /Confirmar y enviar/i }));
+
+      await waitFor(() =>
+        expect(mockCreateSettlement).toHaveBeenCalledWith(
+          expect.objectContaining({
+            submitForApproval: true,
+            acknowledgeZeroKmTrips: true,
+            acknowledgeZeroFreightTrips: true,
+          }),
+        ),
+      );
+    });
+
+    it("solo flete en $0 también exige confirmación y manda ambos flags", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            tripCode: "TRP-FLETE",
+            freightRevenue: 0,
+            calculatedCommission: 350,
+            requiresZeroFreightAck: true,
+            calculationGap: "zero_freight",
+            commissionBeforeMinimum: 0,
+            minimumGuaranteedAmount: 350,
+            minimumGuaranteedApplied: true,
+          }),
+        ],
+      });
+      renderPage();
+
+      await screen.findByTestId("missing-data-gate");
+      const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
+      expect(submitBtn).toBeDisabled();
+      await user.click(
+        screen.getByRole("checkbox", {
+          name: /Confirmo enviar 1 viaje\(s\) con datos faltantes/i,
+        }),
+      );
+      await user.click(submitBtn);
+      await user.click(screen.getByRole("button", { name: /Confirmar y enviar/i }));
+
+      await waitFor(() =>
+        expect(mockCreateSettlement).toHaveBeenCalledWith(
+          expect.objectContaining({
+            acknowledgeZeroKmTrips: true,
+            acknowledgeZeroFreightTrips: true,
+          }),
+        ),
+      );
+    });
+
+    it("borrador con datos faltantes no manda confirmaciones", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            freightRevenue: 0,
+            calculatedCommission: 0,
+            requiresZeroFreightAck: true,
+            zeroCommissionReason: "zero_freight",
+          }),
+        ],
+      });
+      renderPage();
+
+      await screen.findByTestId("missing-data-gate");
+      await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
+
+      await waitFor(() =>
+        expect(mockCreateSettlement).toHaveBeenCalledWith(
+          expect.objectContaining({
+            submitForApproval: false,
+            acknowledgeZeroKmTrips: false,
+            acknowledgeZeroFreightTrips: false,
+          }),
+        ),
+      );
+    });
+
+    it("el aviso lista los códigos con el dato que falta (hasta 5 y «y N más»)", async () => {
+      const kmTrips = Array.from({ length: 5 }, (_, i) =>
+        tripWithGap({
+          tripId: `trip-km-${i}`,
+          tripCode: `TRP-KM${i}`,
+          distanceKm: 0,
+          distanceBasis: "unavailable",
+          calculatedCommission: 0,
+          requiresZeroKmAck: true,
+          calculationGap: "zero_km",
+          zeroCommissionReason: "zero_km",
+        }),
+      );
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            tripId: "trip-flete",
+            tripCode: "TRP-FLETE",
+            freightRevenue: 0,
+            calculatedCommission: 0,
+            requiresZeroFreightAck: true,
+            calculationGap: "zero_freight",
+            zeroCommissionReason: "zero_freight",
+          }),
+          ...kmTrips,
+        ],
+      });
+      renderPage();
+
+      const list = await screen.findByRole("list", { name: "Viajes con datos faltantes" });
+      const items = within(list).getAllByRole("listitem");
+      expect(items).toHaveLength(6);
+      expect(items[0]).toHaveTextContent("TRP-FLETE sin flete");
+      expect(items[1]).toHaveTextContent("TRP-KM0 sin km");
+      expect(items[4]).toHaveTextContent("TRP-KM3 sin km");
+      expect(items[5]).toHaveTextContent("y 1 más");
+      expect(within(list).queryByText("TRP-KM4")).not.toBeInTheDocument();
+    });
+
+    it("local con flete en $0 no se marca «Cubierto por sueldo» y muestra su motivo", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            tripCode: "TRP-LOC",
+            routeType: "local",
+            freightRevenue: 0,
+            calculatedCommission: 0,
+            appliedRule: "15% sobre flete",
+            requiresZeroFreightAck: true,
+            calculationGap: "zero_freight",
+            zeroCommissionReason: "zero_freight",
+          }),
+        ],
+      });
+      renderPage();
+
+      expect(await screen.findByText("Sin flete")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /Ver detalle de cálculo/i }));
+      expect(screen.queryByText("Cubierto por sueldo base")).not.toBeInTheDocument();
+      expect(screen.getByText("15% sobre flete")).toBeInTheDocument();
+    });
+
+    it("local con mínimo aplicado muestra «Mínimo garantizado», no «Cubierto por sueldo»", async () => {
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            routeType: "local",
+            distanceKm: 0,
+            distanceBasis: "unavailable",
+            calculatedCommission: 300,
+            appliedRule: "Tarifa por km ($3/km)",
+            requiresZeroKmAck: true,
+            calculationGap: "zero_km",
+            commissionBeforeMinimum: 0,
+            minimumGuaranteedAmount: 300,
+            minimumGuaranteedApplied: true,
+          }),
+        ],
+      });
+      renderPage();
+
+      expect(await screen.findByText("Mínimo garantizado")).toBeInTheDocument();
+      expect(screen.getAllByText("$300.00").length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("local con regla «Sin pago extra» (none) sigue «Cubierto por sueldo base»", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            routeType: "local",
+            calculatedCommission: 0,
+            appliedRule: "Sin comisión (Sueldo base)",
+            zeroCommissionReason: "scheme",
+            commissionBeforeMinimum: 0,
+            minimumGuaranteedAmount: 0,
+            minimumGuaranteedApplied: false,
+            calculationGap: null,
+          }),
+        ],
+      });
+      renderPage();
+
+      await screen.findByText("VIA-100");
+      expect(screen.queryByText("$0 por tarifa")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /Ver detalle de cálculo/i }));
+      expect(screen.getByText("Cubierto por sueldo base")).toBeInTheDocument();
+    });
+
+    it("insignia «Mínimo garantizado» con el cálculo y el mínimo en el title", async () => {
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            calculatedCommission: 500,
+            commissionBeforeMinimum: 320.5,
+            minimumGuaranteedAmount: 500,
+            minimumGuaranteedApplied: true,
+          }),
+        ],
+      });
+      renderPage();
+
+      const badge = await screen.findByText("Mínimo garantizado");
+      expect(badge).toHaveAttribute(
+        "title",
+        "El cálculo dio $320.50; se paga el mínimo garantizado de $500.00.",
+      );
+      expect(screen.queryByTestId("missing-data-gate")).not.toBeInTheDocument();
+    });
+
+    it("422 ZERO_FREIGHT_ACK_REQUIRED: cierra el diálogo, quita la confirmación y avisa inline", async () => {
+      const user = userEvent.setup();
+      mockPreviewSettlement.mockResolvedValue({
+        ...mockPreview,
+        eligibleTrips: [
+          tripWithGap({
+            freightRevenue: 0,
+            calculatedCommission: 0,
+            requiresZeroFreightAck: true,
+            zeroCommissionReason: "zero_freight",
+          }),
+        ],
+      });
+      mockCreateSettlement.mockRejectedValueOnce(
+        new ApiError("x", 422, "ZERO_FREIGHT_ACK_REQUIRED", { trip_codes: ["VIA-100"] }),
+      );
+      renderPage();
+
+      await screen.findByTestId("missing-data-gate");
+      const checkbox = screen.getByRole("checkbox", { name: /con datos faltantes/i });
+      await user.click(checkbox);
+      await user.click(screen.getByRole("button", { name: /Enviar a autorización/i }));
+      await user.click(screen.getByRole("button", { name: /Confirmar y enviar/i }));
+
+      expect(
+        await screen.findByText(
+          "El pago se recalculó y hay viajes con datos faltantes. Revísalos y confirma para enviar.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Confirmar y enviar/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: /con datos faltantes/i })).not.toBeChecked();
+      expect(screen.getByRole("checkbox", { name: /con datos faltantes/i })).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(mockToast).not.toHaveBeenCalledWith(
+        expect.objectContaining({ variant: "destructive" }),
+      );
+    });
   });
 
   it("muestra alerta de ambigüedad cuando hay varias asignaciones elegibles en la fecha fin", async () => {

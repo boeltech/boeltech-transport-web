@@ -35,11 +35,13 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
   ) {
     const copy = settlementsCopy.detailPage.items;
     const receiptCopy = settlementsCopy.detailPage.receipt;
-    const zeroReasonCopy = receiptCopy.zeroTripsReasons;
+    const zeroReasonCopy: Readonly<Record<string, string | undefined>> =
+      receiptCopy.zeroTripsReasons;
     const reimbursementCopy = settlementsCopy.reimbursements;
     const isReimbursementOnly = settlement.settlementKind === "reimbursement_only";
     const items = settlement.items ?? [];
     // ADR-0085 E11: los viajes en $0 se listan aparte para que el operador vea que ya se cerraron.
+    // Los pagados al mínimo garantizado (monto > 0) van en Percepciones.
     const isZeroTrip = (it: (typeof items)[number]) =>
       !it.isDeduction && it.itemType === "trip_commission" && it.amount === 0;
     const zeroTrips = items.filter(isZeroTrip);
@@ -251,7 +253,8 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                     <tr key={it.id ?? idx} className="text-[11px]">
                       <td className="border border-border p-1.5 font-mono">{it.tripCode ?? "—"}</td>
                       <td className="border border-border p-1.5">
-                        {reason ? zeroReasonCopy[reason] : receiptCopy.zeroTripsReasonFallback}
+                        {(reason ? zeroReasonCopy[reason] : undefined) ??
+                          receiptCopy.zeroTripsReasonFallback}
                       </td>
                     </tr>
                   );

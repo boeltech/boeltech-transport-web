@@ -110,6 +110,14 @@ export const trackingCopy = {
     /** Soft-warn al finalizar/completar con incidente en bitácora (solo aviso; no bloquea). */
     closeOpenIncidentWarning:
       "Este viaje tiene un incidente en bitácora. Al finalizar, la marca se limpia; no se registra una resolución aparte.",
+    /** Soft guard al cerrar: Alert cuando km final === km de salida (oficina). */
+    closeZeroKmTitle: "Kilometraje sin recorrido",
+    closeZeroKmBody:
+      "El km final es igual al de salida (0 km). Si la unidad se movió, captura el odómetro real; si no, la liquidación pagará solo el mínimo garantizado de la tarifa (o $0 si no tiene).",
+    /** Soft guard al cerrar (conductor). */
+    closeZeroKmTitleDriver: "Mismo kilometraje de salida",
+    closeZeroKmBodyDriver:
+      "Quedará sin kilómetros recorridos. Si la unidad sí se movió, corrige el km final antes de cerrar.",
     quickCloseOccurredAtLabel: "¿A qué hora terminó el viaje?",
     quickCloseNotesLabel: "Motivo (recomendado)",
     quickCloseNotesPlaceholder:
@@ -147,7 +155,7 @@ export const trackingCopy = {
     /** Soft guard: Alert cuando end === start (oficina). */
     declareFalseTripZeroKmTitle: "Kilometraje sin recorrido",
     declareFalseTripZeroKmBody:
-      "El km final es igual al de salida (0 km recorridos). Si hubo desplazamiento, súbelo al odómetro real; si no, el pago por km puede quedar en $0.",
+      "El km final es igual al de salida (0 km). Si la unidad se movió, captura el odómetro real; si no, la liquidación pagará solo el mínimo garantizado de la tarifa (o $0 si no tiene).",
     /** Soft guard: Alert cuando end === start (conductor). */
     declareFalseTripZeroKmTitleDriver: "Mismo kilometraje de salida",
     declareFalseTripZeroKmBodyDriver:

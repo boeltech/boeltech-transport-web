@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isZeroKmClose,
   parseStartMileageInput,
   resolveSuggestedEndMileage,
   resolveSuggestedStartMileage,
@@ -32,6 +33,20 @@ describe("resolveSuggestedEndMileage", () => {
   it("sin km inicial no sugiere", () => {
     expect(resolveSuggestedEndMileage(undefined, 100)).toBeUndefined();
     expect(resolveSuggestedEndMileage(null, 100)).toBeUndefined();
+  });
+});
+
+describe("isZeroKmClose", () => {
+  it("marca km final igual al de salida", () => {
+    expect(isZeroKmClose(3200, 3200)).toBe(true);
+    expect(isZeroKmClose(0, 0)).toBe(true);
+  });
+
+  it("no marca con recorrido, sin km de salida o sin km final", () => {
+    expect(isZeroKmClose(3200, 3201)).toBe(false);
+    expect(isZeroKmClose(null, 3200)).toBe(false);
+    expect(isZeroKmClose(undefined, 3200)).toBe(false);
+    expect(isZeroKmClose(3200, null)).toBe(false);
   });
 });
 

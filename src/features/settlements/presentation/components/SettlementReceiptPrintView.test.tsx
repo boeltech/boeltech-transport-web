@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SettlementReceiptPrintView } from "./SettlementReceiptPrintView";
-import type { DriverSettlement } from "../../domain/entities";
+import type { DriverSettlement, ZeroCommissionReason } from "../../domain/entities";
 
 const mockSettlement: DriverSettlement = {
   id: "settlement-uuid-1234",
@@ -248,6 +248,89 @@ describe("SettlementReceiptPrintView", () => {
       .parentElement?.querySelector("table");
     expect(earningsTable?.textContent).toContain("TRP-101");
     expect(earningsTable?.textContent).not.toContain("TRP-200");
+  });
+
+  it("E11.2: motivo zero_freight y respaldo para un motivo desconocido", () => {
+    const zeroTrip = (id: string, tripCode: string, zeroReason: ZeroCommissionReason) => ({
+      id,
+      settlementId: "settlement-uuid-1234",
+      itemType: "trip_commission" as const,
+      tripId: `trip-${id}`,
+      tripCode,
+      tripExpenseId: null,
+      advanceId: null,
+      description: `Comisión de viaje ${tripCode}`,
+      quantity: 1,
+      unitRate: 0,
+      amount: 0,
+      isDeduction: false,
+      calculationDetails: { zeroReason },
+      createdAt: "2026-08-15T12:00:00Z",
+    });
+    render(
+      <SettlementReceiptPrintView
+        settlement={{
+          ...mockSettlement,
+          items: [
+            ...(mockSettlement.items ?? []),
+            zeroTrip("z1", "TRP-300", "zero_freight"),
+            // API más nuevo que la web: motivo que esta versión no conoce.
+            zeroTrip("z2", "TRP-301", "motivo_futuro" as ZeroCommissionReason),
+          ],
+        }}
+      />,
+    );
+
+    const rows = screen.getByTestId("receipt-zero-trips").querySelectorAll("tbody tr");
+    expect(rows[0]).toHaveTextContent("TRP-300");
+    expect(rows[0]).toHaveTextContent("Sin flete capturado (regla por porcentaje)");
+    expect(rows[1]).toHaveTextContent("TRP-301");
+    expect(rows[1]?.lastElementChild?.textContent).toBe("Sin comisión");
+  });
+
+  it("ADR-0086 D1: viaje pagado al mínimo va en ingresos con la leyenda del cálculo", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={{
+          ...mockSettlement,
+          items: [
+            ...(mockSettlement.items ?? []),
+            {
+              id: "item-min",
+              settlementId: "settlement-uuid-1234",
+              itemType: "trip_commission",
+              tripId: "trip-min",
+              tripCode: "TRP-400",
+              tripExpenseId: null,
+              advanceId: null,
+              description: "Comisión de viaje TRP-400 (CDMX → Puebla · Foráneo)",
+              quantity: 1,
+              unitRate: 350,
+              amount: 350,
+              isDeduction: false,
+              calculationDetails: {
+                routeType: "long_haul",
+                commissionBeforeMinimum: 0,
+                minimumGuaranteedAmount: 350,
+                minimumGuaranteedApplied: true,
+                calculationGap: "zero_km",
+              },
+              createdAt: "2026-08-15T12:00:00Z",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("receipt-zero-trips")).not.toBeInTheDocument();
+    const minRow = screen.getByText("TRP-400").closest("tr");
+    expect(minRow).toHaveTextContent("Mínimo garantizado (cálculo: $0.00)");
+    expect(minRow?.lastElementChild?.textContent).toBe("$350.00");
+  });
+
+  it("ADR-0086 D1: partida anterior al cambio (sin claves del mínimo) no muestra leyenda", () => {
+    render(<SettlementReceiptPrintView settlement={mockSettlement} />);
+    expect(screen.queryByText(/Mínimo garantizado/)).not.toBeInTheDocument();
   });
 
   it("E11: sin viajes en $0 no muestra la sección", () => {

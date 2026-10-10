@@ -191,8 +191,18 @@ describe("trackingCopy — Declarar viaje en falso (ADR-0079)", () => {
       "Kilometraje sin recorrido",
     );
     expect(trackingCopy.sheet.declareFalseTripZeroKmBody).toMatch(/\$0/);
+    expect(trackingCopy.sheet.declareFalseTripZeroKmBody).toMatch(/mínimo garantizado/);
     expect(trackingCopy.sheet.declareFalseTripZeroKmBodyDriver).not.toMatch(
       /\$0|liquidación/i,
+    );
+  });
+
+  it("aviso de 0 km al cerrar: oficina nombra el mínimo, conductor no habla de pago", () => {
+    expect(trackingCopy.sheet.closeZeroKmTitle).toBe("Kilometraje sin recorrido");
+    expect(trackingCopy.sheet.closeZeroKmBody).toMatch(/mínimo garantizado/);
+    expect(trackingCopy.sheet.closeZeroKmTitleDriver).toBe("Mismo kilometraje de salida");
+    expect(trackingCopy.sheet.closeZeroKmBodyDriver).not.toMatch(
+      /\$0|liquidación|mínimo/i,
     );
   });
 });
