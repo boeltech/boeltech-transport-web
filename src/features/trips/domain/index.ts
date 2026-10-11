@@ -360,7 +360,6 @@ export {
   isTerminalStatus,
   isTripActive,
   validateDateRange,
-  validateDepartureNotInPast,
   validateMileageRange,
   validateStatusTransition,
 } from "./rules";

@@ -338,28 +338,6 @@ export function validateDateRange(
   return { success: true, data: true };
 }
 
-/**
- * Valida que la fecha de salida no sea en el pasado
- */
-export function validateDepartureNotInPast(
-  departureDate: Date,
-): ValidationResult {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  if (departureDate < now) {
-    return {
-      success: false,
-      error: {
-        code: "DEPARTURE_IN_PAST",
-        message: "La fecha de salida no puede ser en el pasado",
-      },
-    };
-  }
-
-  return { success: true };
-}
-
 // ============================================================================
 // HELPERS
 // ============================================================================

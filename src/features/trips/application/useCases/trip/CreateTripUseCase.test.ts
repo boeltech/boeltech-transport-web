@@ -33,6 +33,43 @@ function validCreateInput(): CreateTripInput {
   };
 }
 
+describe("CreateTripUseCase schedule validation", () => {
+  it("permite scheduledDeparture de un día calendario anterior a hoy", async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(12, 0, 0, 0);
+    const arrival = new Date(yesterday);
+    arrival.setHours(18, 0, 0, 0);
+
+    const createResult = {
+      trip: { id: "trip-1" },
+      summary: {
+        tripId: "trip-1",
+        tripCode: "V-001",
+        stopsCreated: 2,
+        cargosCreated: 0,
+        expensesCreated: 0,
+        finalStatus: "draft",
+      },
+    };
+    const repository = {
+      create: vi.fn().mockResolvedValue(createResult),
+    } as unknown as ITripRepository;
+    const useCase = new CreateTripUseCase(repository);
+
+    const input = {
+      ...validCreateInput(),
+      scheduledDeparture: yesterday.toISOString(),
+      scheduledArrival: arrival.toISOString(),
+    };
+    const result = await useCase.execute(input);
+
+    expect(result.success).toBe(true);
+    expect(repository.create).toHaveBeenCalledTimes(1);
+    expect(repository.create).toHaveBeenCalledWith(input);
+  });
+});
+
 describe("CreateTripUseCase route validation", () => {
   it("rechaza alta sin resumen de destino", async () => {
     const repository = {

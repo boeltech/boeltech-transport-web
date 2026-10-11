@@ -160,20 +160,9 @@ export class CreateTripUseCase implements ICreateTripUseCase {
     const routeError = validateCreateTripRoute(input);
     if (routeError) return routeError;
 
-    // Validar fecha de salida no sea en el pasado
-    const departureDate = new Date(input.scheduledDeparture);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (departureDate < today) {
-      return {
-        code: "INVALID_DEPARTURE_DATE",
-        message: "La fecha de salida no puede ser en el pasado",
-      };
-    }
-
     // Validar fecha de llegada posterior a salida
     if (input.scheduledArrival) {
+      const departureDate = new Date(input.scheduledDeparture);
       const arrivalDate = new Date(input.scheduledArrival);
       if (arrivalDate <= departureDate) {
         return {
