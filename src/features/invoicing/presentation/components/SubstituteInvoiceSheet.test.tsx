@@ -1,11 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Invoice } from "@features/invoicing/domain";
 import { tripQueryKeys, type Trip, type TripStop } from "@features/trips/domain";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
+
+/** Esperas puntuales bajo carga CI (no subir timeout global). */
+const UI_TIMEOUT_MS = 5_000;
 
 const { mutateMock, TRIP_ID, STOP_ID } = vi.hoisted(() => ({
   mutateMock: vi.fn(),
@@ -26,6 +29,11 @@ vi.mock("@features/invoicing/application", async (importOriginal) => {
       isPending: false,
     }),
     useInvoiceLinkedTripsLoading: () => false,
+    /** Evita reset del form cuando resuelve el tipo de cliente (carrera bajo carga). */
+    useInvoiceReceiverClientType: () => ({
+      clientType: null,
+      isResolving: false,
+    }),
     prefetchInvoiceLinkedTrips: vi.fn(
       async (
         queryClient: import("@tanstack/react-query").QueryClient,
@@ -63,6 +71,14 @@ vi.mock("@shared/permissions", () => ({
     hasPermission: () => true,
   }),
 }));
+
+vi.mock("@shared/hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/hooks")>();
+  return {
+    ...actual,
+    useToast: () => ({ toast: vi.fn() }),
+  };
+});
 
 function buildInvoice(): Invoice {
   return {
@@ -217,49 +233,66 @@ describe("SubstituteInvoiceSheet", () => {
     ).toBeInTheDocument();
   });
 
-  it("prefetches linked trip and includes trip corrections on submit", async () => {
-    const user = userEvent.setup();
-    renderSheet();
+  it(
+    "prefetches linked trip and includes trip corrections on submit",
+    async () => {
+      // Sin delay por tecla: el tipado por defecto (~50ms/char) empuja el caso
+      // por encima del testTimeout 5s cuando la máquina está cargada (web#53).
+      const user = userEvent.setup({ delay: null });
+      renderSheet();
 
-    await user.type(
-      screen.getByLabelText(/Motivo de la corrección/i),
-      "Corrección RFC parada origen",
-    );
+      await user.type(
+        screen.getByLabelText(/Motivo de la corrección/i),
+        "Corrección RFC parada origen",
+      );
 
-    await user.click(screen.getByRole("button", { name: /Paradas del viaje/i }));
+      await user.click(
+        screen.getByRole("button", { name: /Paradas del viaje/i }),
+      );
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Corregir RFC/i })).toBeInTheDocument();
-    });
+      const correctRfc = await screen.findByRole(
+        "button",
+        { name: /Corregir RFC/i },
+        { timeout: UI_TIMEOUT_MS },
+      );
+      await user.click(correctRfc);
 
-    await user.click(screen.getByRole("button", { name: /Corregir RFC/i }));
+      const rfcField = await screen.findByLabelText(/RFC remitente/i, undefined, {
+        timeout: UI_TIMEOUT_MS,
+      });
+      await user.clear(rfcField);
+      await user.type(rfcField, "XAXX010101000");
+      await user.type(
+        screen.getByLabelText(/Motivo del cambio/i),
+        "RFC incorrecto en parada",
+      );
 
-    await user.clear(screen.getByLabelText(/RFC remitente/i));
-    await user.type(screen.getByLabelText(/RFC remitente/i), "XAXX010101000");
-    await user.type(
-      screen.getByLabelText(/Motivo del cambio/i),
-      "RFC incorrecto en parada",
-    );
+      await user.click(
+        screen.getByRole("button", { name: /Incluir en sustitución/i }),
+      );
 
-    await user.click(
-      screen.getByRole("button", { name: /Incluir en sustitución/i }),
-    );
-
-    await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /Editar de nuevo/i }),
+        await screen.findByRole(
+          "button",
+          { name: /Editar de nuevo/i },
+          { timeout: UI_TIMEOUT_MS },
+        ),
       ).toBeInTheDocument();
-    });
 
-    await user.click(
-      screen.getByRole("button", { name: /^Sustituir factura$/i }),
-    );
+      await user.click(
+        screen.getByRole("button", { name: /^Sustituir factura$/i }),
+      );
 
-    await waitFor(() => {
-      expect(mutateMock).toHaveBeenCalled();
-    });
+      await vi.waitFor(
+        () => {
+          expect(mutateMock).toHaveBeenCalled();
+        },
+        { timeout: UI_TIMEOUT_MS },
+      );
 
-    const payload = mutateMock.mock.calls[0]?.[0];
-    expect(payload.corrections?.tripCorrections?.length).toBeGreaterThan(0);
-  });
+      const payload = mutateMock.mock.calls[0]?.[0];
+      expect(payload.corrections?.tripCorrections?.length).toBeGreaterThan(0);
+    },
+    15_000,
+  );
 });
