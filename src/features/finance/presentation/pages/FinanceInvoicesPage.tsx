@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { FileText, Plus } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Download, FileText, Plus } from "lucide-react";
 import { useAuth } from "@features/auth";
 import { isClientPortalRole } from "@shared/constants/roles";
 import { usePermissions } from "@shared/permissions";
 import { InvoiceableTripPickerSheet } from "@features/trips";
 import { useQueryErrorToast, useToast } from "@shared/hooks";
+import { Button } from "@shared/ui/button";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import {
@@ -25,13 +26,19 @@ import {
   type InvoicesWorkbenchBucketId,
 } from "../config/invoicesWorkbenchConfig";
 import { financeCopy } from "../copy";
-import { canShowInvoiceFromTripCta } from "@features/invoicing";
+import {
+  canShowInvoiceFromTripCta,
+  InvoiceBulkDownloadSheet,
+  invoiceBulkDownloadCopy,
+} from "@features/invoicing";
 import type { TripListItem } from "@features/trips/domain";
 import { resolveFinanceInvoicesTabTripTarget } from "../utils/financeInvoiceFromTripCta";
 import {
   countsFromFinanceSummary,
   mapInvoicesWorkbenchBuckets,
 } from "../utils/mapInvoicesWorkbenchBuckets";
+
+const DOWNLOAD_PARAM = "download";
 
 const INVOICES_PAGE_PATH = "/finance/invoices";
 
@@ -41,6 +48,7 @@ const newInvoiceCta = copy.newInvoiceCta;
 
 export function FinanceInvoicesPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isClientPortal = isClientPortalRole(user?.role);
   const { toast } = useToast();
@@ -51,7 +59,26 @@ export function FinanceInvoicesPage() {
   });
   const canInvoiceFromTrip =
     !isClientPortal && canShowInvoiceFromTripCta(hasPermission);
+  const canBulkDownload =
+    !isClientPortal && hasPermission("invoices", "execute");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [bulkSheetManualOpen, setBulkSheetManualOpen] = useState(false);
+  const downloadJobId = canBulkDownload
+    ? searchParams.get(DOWNLOAD_PARAM)
+    : null;
+  const bulkSheetOpen = bulkSheetManualOpen || Boolean(downloadJobId);
+
+  const handleBulkSheetOpenChange = useCallback(
+    (open: boolean) => {
+      setBulkSheetManualOpen(open);
+      if (!open && searchParams.has(DOWNLOAD_PARAM)) {
+        const next = new URLSearchParams(searchParams);
+        next.delete(DOWNLOAD_PARAM);
+        setSearchParams(next, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams],
+  );
 
   const filters = useFinanceListingFilters<"bucket">({
     filters: { bucket: {} },
@@ -173,6 +200,19 @@ export function FinanceInvoicesPage() {
           onClick: () => setPickerOpen(true),
           visible: canInvoiceFromTrip,
         }}
+        secondaryActions={
+          canBulkDownload ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkSheetManualOpen(true)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {invoiceBulkDownloadCopy.actionButton}
+            </Button>
+          ) : undefined
+        }
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.bucketsAriaLabel}
         bucketsLoading={summaryLoading || stampingLoading}
@@ -272,6 +312,13 @@ export function FinanceInvoicesPage() {
           open={pickerOpen}
           onOpenChange={setPickerOpen}
           onSelect={handleTripSelected}
+        />
+      ) : null}
+      {canBulkDownload ? (
+        <InvoiceBulkDownloadSheet
+          open={bulkSheetOpen}
+          onOpenChange={handleBulkSheetOpenChange}
+          initialJobId={downloadJobId}
         />
       ) : null}
     </>

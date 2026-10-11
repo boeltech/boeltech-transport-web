@@ -36,7 +36,7 @@ npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de e
 | `platform-tenant-activate` | ADR-0073 activación admin |
 | `platform-catalogs-import` | release kit SAT |
 | `billing-workflow` · `billing-ar` · `billing-stripe` | ADR-0064 plan/consumo · ADR-0072 saldo AR · ADR-0076 Stripe-A/B |
-| `billing-dispatch` · `invoice-auto-dispatch` · `finance-dispatch-workbench` | ADR-0082 corrida · ADR-0083 envío automático · workbench Finanzas |
+| `billing-dispatch` · `invoice-auto-dispatch` · `finance-dispatch-workbench` · `invoice-bulk-download` | ADR-0082 corrida · ADR-0083 envío automático · workbench Finanzas · ADR-0104 descarga masiva CFDI |
 | `auth-phase2` | ADR-0070 MFA/sesiones/cookies |
 | `catalogs-tenant` · `imports-workflow` | catálogos tenant · importaciones |
 | `credit-exposure` · `profitability-scope` | OP-L0.9 crédito · rentabilidad |
@@ -66,6 +66,8 @@ npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de e
 **Esquemas + corrida de despacho (ADR-0082, F0–F4):** catálogo `/settings/billing-schemes` · asignación en cliente · corridas en Finanzas · digest 1 email/cliente (sin stamp) · smoke `npm run test:smoke:billing-dispatch`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\corrida-despacho-esquemas-usuario.md` · SDD `design/sdd/billing-scheme-dispatch/`.
 
 **Envío automático de facturas (ADR-0083, F0–F3):** opt-in `invoice_auto_dispatch_enabled` + corrida `origin=scheduled` tras corte CDMX · badge Automática · alerta failed en factura · inbox `billing_dispatch` · smoke `npm run test:smoke:invoice-auto-dispatch`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\envio-automatico-facturas-usuario.md` · SDD `design/sdd/invoice-auto-dispatch/`. Local: worker (`npm run dev:worker`) + migr. **155**.
+
+**Descarga masiva de CFDI (ADR-0104):** botón **Descargar CFDI** en `/finance/invoices` → Sheet (periodo CDMX, cliente/RFC opcional, XML+PDF o solo XML, REP, canceladas); job asíncrono + campana `invoice_download_*` + deep link `?download=<id>`; RBAC `invoices.execute` (no portal ni dispatcher). Feature `@features/invoicing` (`InvoiceBulkDownloadSheet`). Smoke `npm run test:flows -- invoice-bulk-download`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\descarga-masiva-cfdi-usuario.md` · ADR: `…\design\adr\0104-descarga-masiva-cfdi-job-asincrono.md`. Requiere API migr. **220** + worker.
 
 **Viaje en falso (ADR-0079, Aceptado · F0–F3 código):** ingreso sin CP como único CFDI del mismo viaje (`billing_scope=false_trip`); no relaja D2 de 0068; start no exige cargas. UI `?scope=false_trip` · smoke `npm run test:smoke:trip-false-trip`. Guía: `D:\cowork\boeltech\erp-transport\docs\facturacion\viaje-en-falso-usuario.md`. Evidencia PAC V7-FALSO pendiente. PRD (job UX) en paralelo. Diseño: `D:\cowork\boeltech\erp-transport\design\adr\0079-viaje-en-falso-ingreso-sin-carta-porte.md` · SDD `design/sdd/trip-false-trip/`.
 

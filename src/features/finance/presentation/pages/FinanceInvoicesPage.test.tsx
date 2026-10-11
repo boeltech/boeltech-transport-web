@@ -35,6 +35,8 @@ vi.mock("@features/trips", () => ({
 
 vi.mock("@features/invoicing", () => ({
   canShowInvoiceFromTripCta: () => false,
+  InvoiceBulkDownloadSheet: () => null,
+  invoiceBulkDownloadCopy: { actionButton: "Descargar CFDI" },
 }));
 
 vi.mock("@features/finance/application", () => ({

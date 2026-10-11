@@ -3,7 +3,9 @@ import {
   Banknote,
   Bell,
   ClipboardCheck,
+  Download,
   FileCheck,
+  FileX,
   Info,
   MailWarning,
   Mail,
@@ -67,6 +69,14 @@ export const NOTIFICATION_TYPE_CONFIG: Record<
   dispatch_pending_stamp: {
     icon: Mail,
     badgeVariant: "warning",
+  },
+  invoice_download_ready: {
+    icon: Download,
+    badgeVariant: "info",
+  },
+  invoice_download_failed: {
+    icon: FileX,
+    badgeVariant: "destructive",
   },
 };
 

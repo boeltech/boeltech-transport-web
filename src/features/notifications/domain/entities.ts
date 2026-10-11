@@ -2,6 +2,7 @@ export const NOTIFICATION_SOURCES = [
   "approvals",
   "dashboard",
   "billing_dispatch",
+  "invoice_downloads",
 ] as const;
 export type NotificationSource = (typeof NOTIFICATION_SOURCES)[number];
 
@@ -17,6 +18,8 @@ export const NOTIFICATION_TYPES = [
   "dispatch_item_failed",
   "dispatch_run_failed",
   "dispatch_pending_stamp",
+  "invoice_download_ready",
+  "invoice_download_failed",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

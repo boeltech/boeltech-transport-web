@@ -71,3 +71,6 @@ export {
   FINANCE_INVOICE_FROM_TRIP_CTA,
   type FinanceHubTripInvoiceSource,
 } from "./presentation/financeInvoiceFromTripCta";
+
+export { InvoiceBulkDownloadSheet } from "./presentation/components/InvoiceBulkDownloadSheet";
+export { invoiceBulkDownloadCopy } from "./presentation/copy/invoiceBulkDownloadCopy";

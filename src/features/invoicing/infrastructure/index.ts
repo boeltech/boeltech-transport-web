@@ -9,3 +9,9 @@ export {
   toApiSubstituteStampedInvoice,
   toApiCreatePayment,
 } from "./mappers";
+export { invoiceBulkDownloadApi } from "./invoiceBulkDownloadApi";
+export {
+  mapInvoiceBulkDownloadJob,
+  mapInvoiceBulkDownloadPreview,
+  parseContentDispositionFileName,
+} from "./invoiceBulkDownloadMappers";

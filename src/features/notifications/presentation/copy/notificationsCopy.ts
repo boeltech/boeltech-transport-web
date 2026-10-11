@@ -23,6 +23,7 @@ export const NOTIFICATION_SOURCE_LABELS = {
   approvals: "Aprobaciones",
   dashboard: "Operación",
   billing_dispatch: "Envío de facturas",
+  invoice_downloads: "Descargas CFDI",
 } as const;
 
 export const NOTIFICATION_SEVERITY_LABELS = {
