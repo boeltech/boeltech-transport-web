@@ -123,6 +123,26 @@ describe("resolveDesignatedPerson", () => {
     });
   });
 
+  it("referenciado pending_activation = pending_activation (no «inactive»)", () => {
+    const withPending: PolicyCandidates = {
+      ...candidates,
+      referencedUsers: [
+        ...candidates.referencedUsers,
+        {
+          id: "r-pending",
+          fullName: "Paula Pendiente",
+          role: "manager",
+          status: "pending_activation",
+        },
+      ],
+    };
+    expect(resolveDesignatedPerson("r-pending", "settlement", withPending)).toEqual({
+      id: "r-pending",
+      fullName: "Paula Pendiente",
+      state: "pending_activation",
+    });
+  });
+
   it("borrado (en ninguna lista) = no disponible, sin nombre", () => {
     expect(resolveDesignatedPerson("u-gone", "settlement", candidates)).toEqual({
       id: "u-gone",

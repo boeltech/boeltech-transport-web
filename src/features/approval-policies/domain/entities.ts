@@ -191,7 +191,13 @@ export interface PolicyCandidates {
 }
 
 /** Cómo se muestra una persona designada en un paso. */
-export type DesignatedPersonState = "eligible" | "inactive" | "suspended" | "no_permission" | "unavailable";
+export type DesignatedPersonState =
+  | "eligible"
+  | "inactive"
+  | "pending_activation"
+  | "suspended"
+  | "no_permission"
+  | "unavailable";
 
 export interface DesignatedPerson {
   readonly id: string;

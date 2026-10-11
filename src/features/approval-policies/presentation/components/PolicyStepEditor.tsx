@@ -72,6 +72,12 @@ export function PolicyStepEditor({
   const users = people.status === "ready" ? people.users : null;
   const selectable = users ? ceilingUsers(concept, users) : [];
   const eligibleCount = users && step ? eligibleUsersForStep(step, concept, users).length : null;
+  /** En error de padrón aún resolvemos chips con referenciados conocidos (o «no disponible»). */
+  const designatedLookup = {
+    users: users ?? [],
+    referencedUsers: people.referencedUsers,
+  };
+  const showDesignatedChips = userIds.length > 0 && people.status !== "loading";
 
   const update = (next: PolicyFormStep) => {
     form.setValue(path, next, { shouldDirty: true });
@@ -123,68 +129,70 @@ export function PolicyStepEditor({
           <p className="text-xs font-medium">{copy.peopleLabel}</p>
           <Skeleton className="h-8 w-full" data-testid={`${fieldId}-people-loading`} />
         </div>
-      ) : users ? (
+      ) : users || showDesignatedChips ? (
         <div className="space-y-1.5">
           <p className="text-xs font-medium">{copy.peopleLabel}</p>
-          {selectable.length === 0 ? (
-            <p className="text-xs text-muted-foreground" data-testid={`${fieldId}-people-empty`}>
-              {copy.peopleNoneActive}
-            </p>
-          ) : (
-            <Popover open={peopleOpen} onOpenChange={setPeopleOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-between font-normal"
-                  aria-label={`${copy.peopleLabel} · ${copy.stepTitle(stepIndex + 1)}`}
-                >
-                  <span className="truncate text-muted-foreground">
-                    {userIds.length > 0 ? copy.peopleSelected(userIds.length) : copy.peoplePlaceholder}
-                  </span>
-                  <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-0" align="start">
-                <Command>
-                  <CommandInput placeholder={copy.peopleSearch} />
-                  <CommandList>
-                    <CommandEmpty>{copy.peopleEmpty}</CommandEmpty>
-                    <CommandGroup>
-                      {selectable.map((user) => (
-                        <CommandItem
-                          key={user.id}
-                          value={`${user.fullName} ${user.id}`}
-                          onSelect={() => toggleUser(user.id)}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              userIds.includes(user.id) ? "opacity-100" : "opacity-0",
-                            )}
-                          />
-                          <span className="truncate">{user.fullName}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {ROLE_LABELS[user.role] ?? user.role}
-                          </span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          )}
-          {userIds.length > 0 ? (
+          {users ? (
+            selectable.length === 0 ? (
+              <p className="text-xs text-muted-foreground" data-testid={`${fieldId}-people-empty`}>
+                {copy.peopleNoneActive}
+              </p>
+            ) : (
+              <Popover open={peopleOpen} onOpenChange={setPeopleOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-between font-normal"
+                    aria-label={`${copy.peopleLabel} · ${copy.stepTitle(stepIndex + 1)}`}
+                  >
+                    <span className="truncate text-muted-foreground">
+                      {userIds.length > 0
+                        ? copy.peopleSelected(userIds.length)
+                        : copy.peoplePlaceholder}
+                    </span>
+                    <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder={copy.peopleSearch} />
+                    <CommandList>
+                      <CommandEmpty>{copy.peopleEmpty}</CommandEmpty>
+                      <CommandGroup>
+                        {selectable.map((user) => (
+                          <CommandItem
+                            key={user.id}
+                            value={`${user.fullName} ${user.id}`}
+                            onSelect={() => toggleUser(user.id)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                userIds.includes(user.id) ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            <span className="truncate">{user.fullName}</span>
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {ROLE_LABELS[user.role] ?? user.role}
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )
+          ) : null}
+          {showDesignatedChips ? (
             <div className="flex flex-wrap gap-1.5">
               {userIds.map((id) => {
-                const person = resolveDesignatedPerson(id, concept, {
-                  users,
-                  referencedUsers: people.referencedUsers,
-                });
+                const person = resolveDesignatedPerson(id, concept, designatedLookup);
                 const name = person.fullName ?? copy.personUnavailable;
-                const stateLabel = person.state === "eligible" ? "" : copy.personState[person.state];
+                const stateLabel =
+                  person.state === "eligible" ? "" : copy.personState[person.state];
                 return (
                   <Badge
                     key={id}
@@ -192,7 +200,8 @@ export function PolicyStepEditor({
                     tone="soft"
                     className={cn(
                       "gap-1 text-xs",
-                      person.state !== "eligible" && "border-dashed font-normal text-muted-foreground",
+                      person.state !== "eligible" &&
+                        "border-dashed font-normal text-muted-foreground",
                     )}
                     data-testid={`${fieldId}-person-${id}`}
                     data-state={person.state}

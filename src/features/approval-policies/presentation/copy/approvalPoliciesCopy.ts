@@ -129,6 +129,7 @@ export const approvalPoliciesCopy = {
     personUnavailable: "Usuario no disponible",
     personState: {
       inactive: "Inactiva",
+      pending_activation: "Sin activar",
       suspended: "Suspendida",
       no_permission: "Sin permiso para autorizar",
       unavailable: "",

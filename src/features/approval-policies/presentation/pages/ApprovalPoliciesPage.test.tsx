@@ -117,6 +117,7 @@ describe("ApprovalPoliciesPage", () => {
   describe("personas designadas con el padrón de candidatos (web#45)", () => {
     const REFERENCED = [
       { id: "u-old", fullName: "Olga Antigua", role: "manager", status: "inactive" },
+      { id: "u-pending", fullName: "Paula Pendiente", role: "manager", status: "pending_activation" },
       { id: "u-disp", fullName: "Diego Despacho", role: "dispatcher", status: "active" },
     ];
 
@@ -159,6 +160,18 @@ describe("ApprovalPoliciesPage", () => {
       expect(within(chip).getByRole("button", { name: sheetCopy.removePerson("Olga Antigua") })).toBeInTheDocument();
     });
 
+    it("referenciado pending_activation: chip con nombre y «Sin activar» (web#49)", async () => {
+      mockApi.getOverview.mockResolvedValue(settlementNaming(["u-pending"]));
+      const step = await openSettlementStep();
+      const chip = await within(step).findByTestId("policy-tier-0-step-0-person-u-pending");
+      expect(chip).toHaveTextContent("Paula Pendiente");
+      expect(chip).toHaveTextContent(sheetCopy.personState.pending_activation);
+      expect(chip).not.toHaveTextContent(sheetCopy.personState.inactive);
+      expect(within(step).getByTestId("policy-tier-0-step-0-eligible")).toHaveTextContent(
+        sheetCopy.eligibleCount(1),
+      );
+    });
+
     it("referenciado activo con rol fuera del techo: «Sin permiso para autorizar» (no decide solo por status)", async () => {
       mockApi.getOverview.mockResolvedValue(settlementNaming(["u-disp"]));
       const step = await openSettlementStep();
@@ -184,7 +197,7 @@ describe("ApprovalPoliciesPage", () => {
       mockApi.listCandidateUsers
         .mockRejectedValueOnce(new ApiError("Falla", 500, "INTERNAL"))
         .mockResolvedValueOnce({ users: ACTIVE_USERS, referencedUsers: [] });
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       renderPage("/settings/approvals?concept=settlement");
       const dialog = await screen.findByRole("dialog");
       const alert = await within(dialog).findByTestId("policy-people-error");
@@ -197,6 +210,31 @@ describe("ApprovalPoliciesPage", () => {
         await within(dialog).findByRole("button", { name: `${sheetCopy.peopleLabel} · ${sheetCopy.stepTitle(1)}` }),
       ).toBeInTheDocument();
       expect(within(dialog).queryByTestId("policy-people-error")).not.toBeInTheDocument();
+    });
+
+    it("error al cargar personas: chips designados siguen visibles y se pueden quitar (web#49)", async () => {
+      mockApi.getOverview.mockResolvedValue(settlementNaming(["u-gone"]));
+      mockApi.listCandidateUsers.mockRejectedValue(new ApiError("Falla", 500, "INTERNAL"));
+      const user = userEvent.setup({ delay: null });
+      renderPage("/settings/approvals?concept=settlement");
+      const dialog = await screen.findByRole("dialog");
+      expect(await within(dialog).findByTestId("policy-people-error")).toBeInTheDocument();
+
+      const step = within(dialog).getByTestId("policy-tier-0-step-0");
+      const chip = await within(step).findByTestId("policy-tier-0-step-0-person-u-gone");
+      expect(chip).toHaveTextContent(sheetCopy.personUnavailable);
+      expect(
+        within(dialog).queryByRole("button", {
+          name: `${sheetCopy.peopleLabel} · ${sheetCopy.stepTitle(1)}`,
+        }),
+      ).not.toBeInTheDocument();
+
+      await user.click(
+        within(chip).getByRole("button", {
+          name: sheetCopy.removePerson(sheetCopy.personUnavailable),
+        }),
+      );
+      expect(within(step).queryByTestId("policy-tier-0-step-0-person-u-gone")).not.toBeInTheDocument();
     });
 
     it("sin autorizadores activos: «No hay autorizadores activos» en lugar del selector", async () => {

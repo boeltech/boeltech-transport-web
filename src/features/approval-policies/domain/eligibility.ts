@@ -92,7 +92,9 @@ export function resolveDesignatedPerson(
       ? "no_permission"
       : referenced.status === "suspended"
         ? "suspended"
-        : "inactive";
+        : referenced.status === "pending_activation"
+          ? "pending_activation"
+          : "inactive";
   return { id, fullName: referenced.fullName, state };
 }
 
