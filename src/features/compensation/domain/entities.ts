@@ -186,6 +186,14 @@ export interface AssignmentPeriodSettledError {
   suggestedEffectiveFrom: string | null;
 }
 
+/** Prestación o deducción fija desalineada vs `salary_type` (api#60). */
+export interface PeriodMismatchItem {
+  kind: "fixed_allowance" | "deduction";
+  id: string;
+  label: string;
+  period: FixedAllowancePeriod;
+}
+
 /**
  * Operador omitido por el lote o por su vista previa. Campos opcionales: la API
  * anterior a api#63 solo envía `employeeId`, `code` y a veces `message`.
@@ -209,6 +217,10 @@ export interface BatchAssignmentConflict {
   blockingSettlements?: AssignmentBlockingSettlement[];
   blockingSettlementsTotal?: number;
   minEffectiveTo?: string | null;
+  /** Solo `period_mismatch` (api#60): ritmo del operador. */
+  employeeSalaryType?: FixedAllowancePeriod | null;
+  /** Solo `period_mismatch` (api#60): prestaciones/deducciones ofensoras. */
+  mismatches?: PeriodMismatchItem[];
 }
 
 export interface BatchAssignmentResult {

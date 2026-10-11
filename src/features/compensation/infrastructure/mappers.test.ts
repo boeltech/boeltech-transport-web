@@ -518,6 +518,8 @@ describe("compensation mappers", () => {
         "blockingSettlements",
         "blockingSettlementsTotal",
         "minEffectiveTo",
+        "employeeSalaryType",
+        "mismatches",
       ] as const) {
         expect(mapped[key]).toBeUndefined();
       }
@@ -527,6 +529,71 @@ describe("compensation mappers", () => {
       expect(
         mapBatchConflict({ ...fullConflictSnake, reason: "ASSIGNMENT_PERIOD_SETTLED" }).reason,
       ).toBeUndefined();
+    });
+
+    it("api#60: period_mismatch mapea salary_type y mismatches", () => {
+      const mapped = mapBatchConflict({
+        employee_id: "emp-1",
+        code: "COMPENSATION_PERIOD_MISMATCH",
+        message: "No se puede usar esta tarifa…",
+        reason: "period_mismatch",
+        employee_full_name: "Ana López",
+        employee_salary_type: "weekly",
+        mismatches: [
+          {
+            kind: "fixed_allowance",
+            id: "all-1",
+            label: "Comida",
+            period: "monthly",
+          },
+          {
+            kind: "deduction",
+            id: "ded-1",
+            label: "Ahorro",
+            period: "biweekly",
+          },
+        ],
+      });
+
+      expect(mapped).toEqual({
+        employeeId: "emp-1",
+        code: "COMPENSATION_PERIOD_MISMATCH",
+        message: "No se puede usar esta tarifa…",
+        reason: "period_mismatch",
+        employeeFullName: "Ana López",
+        employeeSalaryType: "weekly",
+        mismatches: [
+          {
+            kind: "fixed_allowance",
+            id: "all-1",
+            label: "Comida",
+            period: "monthly",
+          },
+          {
+            kind: "deduction",
+            id: "ded-1",
+            label: "Ahorro",
+            period: "biweekly",
+          },
+        ],
+      });
+    });
+
+    it("api#60: employee_salary_type null y mismatch inválido se filtra", () => {
+      const mapped = mapBatchConflict({
+        employee_id: "emp-1",
+        code: "COMPENSATION_PERIOD_MISMATCH",
+        reason: "period_mismatch",
+        employee_salary_type: null,
+        mismatches: [
+          { kind: "fixed_allowance", id: "ok", label: "Viáticos", period: "monthly" },
+          { kind: "bonus", id: "bad", label: "X", period: "weekly" },
+        ],
+      });
+      expect(mapped.employeeSalaryType).toBeNull();
+      expect(mapped.mismatches).toEqual([
+        { kind: "fixed_allowance", id: "ok", label: "Viáticos", period: "monthly" },
+      ]);
     });
 
     it("mapBatchResultFromApi conserva los campos nuevos de cada conflicto", () => {

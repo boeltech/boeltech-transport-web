@@ -662,6 +662,14 @@ export const compensationCopy = {
         `Marca “Cerrar asignación anterior al iniciar la nueva” para que se cierre el ${closeOn}, o cambia las fechas para que no se crucen.`,
       settledCause: "Tiene días ya liquidados.",
       unknownMessage: "No se pudo asignar por un conflicto con otra asignación.",
+      /** api#60 — ritmo de prestaciones/deducciones ≠ salary_type. */
+      periodMismatchCause: (salaryLabel: string, mismatchLabels: string) =>
+        `El ritmo de pago del operador (${salaryLabel}) no coincide con el periodo de ${mismatchLabels}.`,
+      periodMismatchCauseUnknownSalary:
+        "El ritmo de pago del operador no coincide con el periodo de sus prestaciones o deducciones fijas.",
+      periodMismatchAction:
+        "Usa una tarifa del mismo ritmo o corrige el sueldo del operador en su ficha.",
+      goToEmployee: "Ver ficha del operador",
       assignFrom: (name: string, date: string) => `Asignar a ${name} desde el ${date}`,
       markClosePrevious: "Marcar cierre de la anterior",
       goToAssignment: (template: string) => `Ir a su asignación en ${template}`,

@@ -76,8 +76,10 @@ import {
 import { shouldShowSupportParticipationBadge } from "../utils/settlementParticipationHelpers";
 import {
   resolveMissingSchemeCopy,
+  resolvePeriodMismatchCopy,
   resolveSettlementCompensationReadiness,
 } from "../utils/settlementTemplateReadiness";
+import { COMPENSATION_ERROR_CODES } from "@features/compensation/domain";
 import { resolveTemplateChangeAlert } from "../utils/templateChangeNotice";
 import { resolveTemplateSupersededAlert } from "../utils/templateSupersededNotice";
 import { useTemplateAssignments } from "@features/compensation/application/hooks";
@@ -355,6 +357,10 @@ export function SettlementCreatePage() {
     isPreviewError &&
     isApiError(previewError) &&
     previewError.code === "MISSING_COMPENSATION_SCHEME";
+  const isPeriodMismatch =
+    isPreviewError &&
+    isApiError(previewError) &&
+    previewError.code === COMPENSATION_ERROR_CODES.COMPENSATION_PERIOD_MISMATCH;
 
   const totalCommissions = preview?.summary.totalCommissions ?? 0;
   const totalBaseSalary = preview?.summary.totalBaseSalary ?? 0;
@@ -580,16 +586,24 @@ export function SettlementCreatePage() {
       ? resolveTemplateSupersededAlert(preview.templateSuperseded)
       : null;
   const missingSchemeCopy = resolveMissingSchemeCopy(previewError);
+  const periodMismatchCopy = resolvePeriodMismatchCopy(previewError);
   // D9: sin tarifa válida, los reembolsos pendientes se pagan en un pago de reembolsos.
+  // api#60: con `COMPENSATION_PERIOD_MISMATCH` el operador sí tiene tarifa (mal ritmada) —
+  // no ofrecer «solo reembolsos»; esa alternativa queda solo para MISSING_* / incompleta.
   const { data: reimbursementOnlyPreview } = useReimbursementSettlementPreview(
-    selectedEmployeeId && (isMissingCompensationScheme || (preview && !isAgreementReady))
+    selectedEmployeeId &&
+      !isPeriodMismatch &&
+      (isMissingCompensationScheme ||
+        (preview && (readiness === "missing_scheme" || readiness === "incomplete")))
       ? selectedEmployeeId
       : null,
   );
   const canOfferReimbursementSettlement =
+    !isPeriodMismatch &&
+    readiness !== "period_mismatch" &&
     (reimbursementOnlyPreview?.reimbursements?.length ?? 0) +
       (reimbursementOnlyPreview?.reimbursementsRequiringPayee?.length ?? 0) >
-    0;
+      0;
   const previewAssignmentId = preview?.template?.assignmentId;
   const assignmentAmbiguity = useMemo(() => {
     if (!selectedEmployeeId || !periodEnd) {
@@ -1053,19 +1067,24 @@ export function SettlementCreatePage() {
                   </AlertDescription>
                 </Alert>
               )}
-            {(preview || isMissingCompensationScheme) && readiness !== "ready" && (
+            {(preview || isMissingCompensationScheme || isPeriodMismatch) &&
+              readiness !== "ready" && (
               <Alert variant="warning">
                 <AlertTriangle />
                 <AlertTitle>
                   {readiness === "incomplete"
                     ? createCopy.empty.incompleteAgreementTitle
-                    : missingSchemeCopy.title}
+                    : readiness === "period_mismatch"
+                      ? periodMismatchCopy.title
+                      : missingSchemeCopy.title}
                 </AlertTitle>
                 <AlertDescription className="space-y-3">
                   <p>
                     {readiness === "incomplete"
                       ? createCopy.empty.incompleteAgreementDescription
-                      : missingSchemeCopy.description}
+                      : readiness === "period_mismatch"
+                        ? periodMismatchCopy.description
+                        : missingSchemeCopy.description}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-1">
                     <Button type="button" size="sm" asChild>
@@ -1081,7 +1100,8 @@ export function SettlementCreatePage() {
                           : createCopy.empty.configureCompensationAction}
                       </Link>
                     </Button>
-                    {readiness === "incomplete" && selectedEmployeeId ? (
+                    {(readiness === "incomplete" || readiness === "period_mismatch") &&
+                    selectedEmployeeId ? (
                       <Button type="button" size="sm" variant="outline" asChild>
                         <Link to={`/employees/${selectedEmployeeId}/edit`}>
                           {createCopy.empty.configureEmployeeSalaryAction}
@@ -2053,6 +2073,23 @@ export function SettlementCreatePage() {
             icon={<AlertTriangle className="h-8 w-8 text-warning" />}
             title={missingSchemeCopy.title}
             description={missingSchemeCopy.description}
+            cta={{
+              label: createCopy.empty.configureCompensationAction,
+              onClick: () =>
+                navigate(
+                  settlementsAgreementsPath({
+                    employeeId: selectedEmployeeId,
+                    periodStart,
+                    periodEnd,
+                  }),
+                ),
+            }}
+          />
+        ) : isPeriodMismatch ? (
+          <EmptyState
+            icon={<AlertTriangle className="h-8 w-8 text-warning" />}
+            title={periodMismatchCopy.title}
+            description={periodMismatchCopy.description}
             cta={{
               label: createCopy.empty.configureCompensationAction,
               onClick: () =>

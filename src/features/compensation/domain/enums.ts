@@ -91,16 +91,18 @@ export const COMPENSATION_TEMPLATE_EVENT_ACTION_LABELS: Record<
 /** Tope de operadores por lote y por vista previa (la API responde 400 arriba de esto). */
 export const BATCH_ASSIGNMENT_MAX_EMPLOYEES = 100;
 
-/** Causa de un operador omitido en el lote de asignaciones (api#63). */
+/** Causa de un operador omitido en el lote de asignaciones (api#63 · api#60). */
 export type BatchAssignmentConflictReason =
   | "overlap_close_disabled"
   | "previous_starts_on_or_after"
-  | "period_settled";
+  | "period_settled"
+  | "period_mismatch";
 
 export const BATCH_ASSIGNMENT_CONFLICT_REASONS: readonly BatchAssignmentConflictReason[] = [
   "overlap_close_disabled",
   "previous_starts_on_or_after",
   "period_settled",
+  "period_mismatch",
 ];
 
 /** Estado de una liquidación que congela días de asignación (api#62). */
@@ -118,4 +120,6 @@ export const COMPENSATION_ERROR_CODES = {
   OVERLAPPING_ACTIVE_ASSIGNMENT: "OVERLAPPING_ACTIVE_ASSIGNMENT",
   ASSIGNMENT_PERIOD_SETTLED: "ASSIGNMENT_PERIOD_SETTLED",
   ASSIGNMENT_IN_USE: "ASSIGNMENT_IN_USE",
+  /** api#60: prestaciones/deducciones fijas con period ≠ salary_type. */
+  COMPENSATION_PERIOD_MISMATCH: "COMPENSATION_PERIOD_MISMATCH",
 } as const;

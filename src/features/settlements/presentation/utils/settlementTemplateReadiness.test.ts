@@ -3,10 +3,12 @@ import { ApiError } from "@shared/api/interceptors/error-handler";
 import {
   parseMissingCompensationSchemeError,
   resolveMissingSchemeCopy,
+  resolvePeriodMismatchCopy,
   resolveSettlementCompensationReadiness,
 } from "./settlementTemplateReadiness";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import type { SettlementPreview } from "../../domain/entities";
+import { COMPENSATION_ERROR_CODES } from "@features/compensation/domain";
 
 const basePreview: SettlementPreview = {
   employeeId: "emp-1",
@@ -79,6 +81,55 @@ describe("resolveSettlementCompensationReadiness", () => {
       reason: "template_deactivated",
     });
     expect(resolveSettlementCompensationReadiness(undefined, error)).toBe("missing_scheme");
+  });
+
+  it("api#60: 422 COMPENSATION_PERIOD_MISMATCH → period_mismatch (no missing_scheme)", () => {
+    const error = new ApiError(
+      "No se puede usar esta tarifa: el ritmo de pago del operador (semanal) no coincide con el periodo de Comida.",
+      422,
+      COMPENSATION_ERROR_CODES.COMPENSATION_PERIOD_MISMATCH,
+      {
+        employee_id: "emp-1",
+        employee_salary_type: "weekly",
+        template_id: "tpl-1",
+        template_name: "Foráneo",
+        mismatches: [{ kind: "fixed_allowance", id: "a1", label: "Comida", period: "monthly" }],
+      },
+    );
+    expect(resolveSettlementCompensationReadiness(undefined, error)).toBe("period_mismatch");
+    expect(resolveSettlementCompensationReadiness(basePreview, error)).toBe("period_mismatch");
+  });
+});
+
+describe("api#60 — 422 COMPENSATION_PERIOD_MISMATCH", () => {
+  const empty = settlementsCopy.createPage.empty;
+
+  it("usa el message del API cuando viene", () => {
+    const message =
+      "No se puede usar esta tarifa: el ritmo de pago del operador (semanal) no coincide con el periodo de Comida.";
+    const error = new ApiError(
+      message,
+      422,
+      COMPENSATION_ERROR_CODES.COMPENSATION_PERIOD_MISMATCH,
+    );
+    expect(resolvePeriodMismatchCopy(error)).toEqual({
+      title: empty.periodMismatchTitle,
+      description: message,
+    });
+  });
+
+  it("sin message cae al copy local (no genérico de preview)", () => {
+    const error = new ApiError(
+      "",
+      422,
+      COMPENSATION_ERROR_CODES.COMPENSATION_PERIOD_MISMATCH,
+    );
+    expect(resolvePeriodMismatchCopy(error)).toEqual({
+      title: empty.periodMismatchTitle,
+      description: empty.periodMismatchDescription,
+    });
+    expect(resolvePeriodMismatchCopy(error).title).not.toBe(empty.previewErrorTitle);
+    expect(resolvePeriodMismatchCopy(error).title).not.toBe(empty.missingSchemeTitle);
   });
 });
 

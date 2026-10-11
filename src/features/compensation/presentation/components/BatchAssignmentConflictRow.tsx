@@ -1,6 +1,11 @@
+import { Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import { formatDate } from "@shared/utils/dateUtils";
 import type { BatchAssignmentConflict } from "../../domain/entities";
+import {
+  FIXED_ALLOWANCE_PERIOD_LABELS,
+  type FixedAllowancePeriod,
+} from "../../domain/enums";
 import { compensationCopy } from "../copy/compensationCopy";
 import type {
   BatchConflictExisting,
@@ -32,13 +37,15 @@ export function BatchAssignmentConflictRow({
   const { cause, action } = describeConflict(view, conflict);
   const primaryAction = "primaryAction" in view ? view.primaryAction : undefined;
   const link = onOpenLink && "link" in view ? view.link : undefined;
+  const employeeHref =
+    view.kind === "D9-period" ? `/employees/${view.employeeId}/edit` : null;
 
   return (
     <li className="space-y-1" data-testid="batch-conflict-row" data-kind={view.kind}>
       <p className="font-semibold text-foreground">{employeeName}</p>
       {cause ? <p>{cause}</p> : null}
       {action ? <p>{action}</p> : null}
-      {primaryAction || link ? (
+      {primaryAction || link || employeeHref ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
           {primaryAction ? (
             <Button
@@ -65,6 +72,11 @@ export function BatchAssignmentConflictRow({
                     copy.templateVersion(link.templateName, link.templateVersion),
                   )
                 : conflictCopy.viewOwnAssignment}
+            </Button>
+          ) : null}
+          {employeeHref ? (
+            <Button type="button" variant="link" size="sm" className="h-auto px-0" asChild>
+              <Link to={employeeHref}>{conflictCopy.goToEmployee}</Link>
             </Button>
           ) : null}
         </div>
@@ -121,7 +133,32 @@ function describeConflict(
       return { cause: conflictCopy.settledCause, action: message };
     case "D8":
       return { cause: message ?? conflictCopy.unknownMessage };
+    case "D9-period":
+      return {
+        cause: periodMismatchCause(view.employeeSalaryType, view.mismatches),
+        action: conflictCopy.periodMismatchAction,
+      };
   }
+}
+
+function periodMismatchCause(
+  salaryType: FixedAllowancePeriod | null,
+  mismatches: ReadonlyArray<{ label: string }>,
+): string {
+  const labels = mismatches
+    .map((item) => item.label.trim())
+    .filter((label) => label !== "");
+  if (!salaryType || labels.length === 0) {
+    return conflictCopy.periodMismatchCauseUnknownSalary;
+  }
+  const shortList =
+    labels.length <= 3
+      ? labels.join(", ")
+      : `${labels.slice(0, 3).join(", ")} y ${labels.length - 3} más`;
+  return conflictCopy.periodMismatchCause(
+    FIXED_ALLOWANCE_PERIOD_LABELS[salaryType].toLowerCase(),
+    shortList,
+  );
 }
 
 function previousOpenAction(existing: BatchConflictExisting, newEffectiveFrom: string): string {

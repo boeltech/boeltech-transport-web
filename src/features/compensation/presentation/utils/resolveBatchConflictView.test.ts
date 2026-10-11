@@ -166,6 +166,52 @@ describe("resolveBatchConflictView", () => {
     ).toEqual({ kind: "D8" });
   });
 
+  it("D9-period: ritmo desalineado por reason o por code → sin existing_*", () => {
+    const mismatches = [
+      {
+        kind: "fixed_allowance" as const,
+        id: "all-1",
+        label: "Comida",
+        period: "monthly" as const,
+      },
+    ];
+    expect(
+      resolveBatchConflictView(
+        conflict({
+          reason: "period_mismatch",
+          code: "COMPENSATION_PERIOD_MISMATCH",
+          existingTemplateName: null,
+          existingTemplateId: null,
+          existingAssignmentId: null,
+          existingEffectiveFrom: null,
+          employeeSalaryType: "weekly",
+          mismatches,
+        }),
+        CONTEXT,
+      ),
+    ).toEqual({
+      kind: "D9-period",
+      employeeId: "emp-1",
+      employeeSalaryType: "weekly",
+      mismatches,
+    });
+    expect(
+      resolveBatchConflictView(
+        {
+          employeeId: "emp-2",
+          code: "COMPENSATION_PERIOD_MISMATCH",
+          message: "No se puede usar esta tarifa…",
+        },
+        CONTEXT,
+      ),
+    ).toEqual({
+      kind: "D9-period",
+      employeeId: "emp-2",
+      employeeSalaryType: null,
+      mismatches: [],
+    });
+  });
+
   describe("tabla D18: dónde va el enlace a la asignación que bloquea", () => {
     const cases: Array<[string, BatchAssignmentConflict, "other-template" | "same-template" | null]> = [
       ["D3", conflict(), "other-template"],
@@ -179,6 +225,15 @@ describe("resolveBatchConflictView", () => {
       ["D6-dates", conflict({ reason: "overlap_close_disabled" }), "other-template"],
       ["D7", conflict({ reason: "period_settled" }), null],
       ["D8", conflict({ reason: undefined }), null],
+      [
+        "D9-period",
+        conflict({
+          reason: "period_mismatch",
+          code: "COMPENSATION_PERIOD_MISMATCH",
+          existingTemplateName: null,
+        }),
+        null,
+      ],
     ];
 
     it.each(cases)("%s", (kind, input, expectedLink) => {

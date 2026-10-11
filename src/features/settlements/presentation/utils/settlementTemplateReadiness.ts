@@ -1,8 +1,13 @@
 import { isApiError } from "@shared/api/interceptors/error-handler";
+import { COMPENSATION_ERROR_CODES } from "@features/compensation/domain";
 import type { SettlementPreview } from "../../domain/entities";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
-export type SettlementCompensationReadiness = "ready" | "missing_scheme" | "incomplete";
+export type SettlementCompensationReadiness =
+  | "ready"
+  | "missing_scheme"
+  | "period_mismatch"
+  | "incomplete";
 
 /**
  * Readiness de compensación vía plantilla ADR-0089 (cutover D11 — sin fallback legacy).
@@ -11,6 +16,10 @@ export function resolveSettlementCompensationReadiness(
   preview: SettlementPreview | null | undefined,
   previewError?: unknown,
 ): SettlementCompensationReadiness {
+  if (isApiError(previewError) && previewError.code === COMPENSATION_ERROR_CODES.COMPENSATION_PERIOD_MISMATCH) {
+    return "period_mismatch";
+  }
+
   if (isApiError(previewError) && previewError.code === "MISSING_COMPENSATION_SCHEME") {
     return "missing_scheme";
   }
@@ -106,5 +115,29 @@ export function resolveMissingSchemeCopy(error: unknown): { title: string; descr
   return {
     title: emptyCopy.draftSchemeTitle,
     description: emptyCopy.draftSchemeDescription(named ?? emptyCopy.draftSchemeUnnamed),
+  };
+}
+
+/**
+ * api#60: 422 `COMPENSATION_PERIOD_MISMATCH` — tarifa existe pero el ritmo no calza.
+ * Prefiere el `message` del API; si falta, copy local.
+ */
+export function resolvePeriodMismatchCopy(error: unknown): {
+  title: string;
+  description: string;
+} {
+  if (
+    isApiError(error) &&
+    error.code === COMPENSATION_ERROR_CODES.COMPENSATION_PERIOD_MISMATCH
+  ) {
+    const message = error.message?.trim();
+    return {
+      title: emptyCopy.periodMismatchTitle,
+      description: message || emptyCopy.periodMismatchDescription,
+    };
+  }
+  return {
+    title: emptyCopy.periodMismatchTitle,
+    description: emptyCopy.periodMismatchDescription,
   };
 }

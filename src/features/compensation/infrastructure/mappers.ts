@@ -31,11 +31,14 @@ import type {
   CompensationTemplateVersionRef,
   FixedAllowanceOverride,
   FrequentCityPair,
+  PeriodMismatchItem,
   RouteCorridorTariff,
   TemplateAssignment,
   TemplateDeduction,
   TemplateFixedAllowance,
 } from "../domain/entities";
+
+const SALARY_PERIODS = new Set<string>(["weekly", "biweekly", "monthly"]);
 
 export interface ApiCompensationTemplateRuleRaw {
   id?: string;
@@ -154,6 +157,13 @@ export interface ApiAssignmentBlockingSettlementRaw {
   period_end: string;
 }
 
+export interface ApiPeriodMismatchItemRaw {
+  kind: string;
+  id: string;
+  label: string;
+  period: string;
+}
+
 export interface ApiBatchAssignmentConflictRaw {
   employee_id: string;
   code: string;
@@ -171,6 +181,9 @@ export interface ApiBatchAssignmentConflictRaw {
   blocking_settlements?: ApiAssignmentBlockingSettlementRaw[];
   blocking_settlements_total?: number;
   min_effective_to?: string | null;
+  /** api#60 `period_mismatch`. */
+  employee_salary_type?: string | null;
+  mismatches?: ApiPeriodMismatchItemRaw[];
 }
 
 export interface ApiBatchAssignmentResultRaw {
@@ -522,6 +535,13 @@ export interface ApiAssignmentBlockingSettlementCamel {
   periodEnd: string;
 }
 
+export interface ApiPeriodMismatchItemCamel {
+  kind: string;
+  id: string;
+  label: string;
+  period: string;
+}
+
 export interface ApiBatchAssignmentConflictCamel {
   employeeId: string;
   code: string;
@@ -539,6 +559,9 @@ export interface ApiBatchAssignmentConflictCamel {
   blockingSettlements?: ApiAssignmentBlockingSettlementCamel[];
   blockingSettlementsTotal?: number;
   minEffectiveTo?: string | null;
+  /** api#60 `period_mismatch`. */
+  employeeSalaryType?: string | null;
+  mismatches?: ApiPeriodMismatchItemCamel[];
 }
 
 export interface ApiBatchAssignmentResultCamel {
@@ -758,6 +781,33 @@ function resolveBatchConflictReason(
   return BATCH_ASSIGNMENT_CONFLICT_REASONS.find((reason) => reason === value);
 }
 
+function resolveSalaryPeriod(
+  value: string | null | undefined,
+): FixedAllowancePeriod | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return SALARY_PERIODS.has(value) ? (value as FixedAllowancePeriod) : null;
+}
+
+function mapPeriodMismatchItemFromApi(
+  raw: ApiPeriodMismatchItemCamel,
+): PeriodMismatchItem | null {
+  if (
+    (raw.kind !== "fixed_allowance" && raw.kind !== "deduction") ||
+    typeof raw.id !== "string" ||
+    typeof raw.label !== "string" ||
+    !SALARY_PERIODS.has(raw.period)
+  ) {
+    return null;
+  }
+  return {
+    kind: raw.kind,
+    id: raw.id,
+    label: raw.label,
+    period: raw.period as FixedAllowancePeriod,
+  };
+}
+
 export function mapBlockingSettlementFromApi(
   raw: ApiAssignmentBlockingSettlementCamel,
 ): AssignmentBlockingSettlement {
@@ -773,6 +823,13 @@ export function mapBlockingSettlementFromApi(
 export function mapBatchConflictFromApi(
   raw: ApiBatchAssignmentConflictCamel,
 ): BatchAssignmentConflict {
+  const mismatches =
+    raw.mismatches === undefined
+      ? undefined
+      : raw.mismatches
+          .map(mapPeriodMismatchItemFromApi)
+          .filter((item): item is PeriodMismatchItem => item !== null);
+
   return {
     employeeId: raw.employeeId,
     code: raw.code,
@@ -790,6 +847,10 @@ export function mapBatchConflictFromApi(
     blockingSettlements: raw.blockingSettlements?.map(mapBlockingSettlementFromApi),
     blockingSettlementsTotal: raw.blockingSettlementsTotal,
     minEffectiveTo: raw.minEffectiveTo,
+    ...(raw.employeeSalaryType !== undefined
+      ? { employeeSalaryType: resolveSalaryPeriod(raw.employeeSalaryType) ?? null }
+      : {}),
+    ...(mismatches !== undefined ? { mismatches } : {}),
   };
 }
 

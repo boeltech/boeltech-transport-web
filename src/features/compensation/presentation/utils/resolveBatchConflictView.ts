@@ -1,7 +1,19 @@
 import { COMPENSATION_ERROR_CODES } from "../../domain/enums";
-import type { BatchAssignmentConflict } from "../../domain/entities";
+import type {
+  BatchAssignmentConflict,
+  PeriodMismatchItem,
+} from "../../domain/entities";
+import type { FixedAllowancePeriod } from "../../domain/enums";
 
-export type BatchConflictKind = "D3" | "D4" | "D5" | "D6-close" | "D6-dates" | "D7" | "D8";
+export type BatchConflictKind =
+  | "D3"
+  | "D4"
+  | "D5"
+  | "D6-close"
+  | "D6-dates"
+  | "D7"
+  | "D8"
+  | "D9-period";
 
 /** Solo ajustan el formulario; nunca guardan (PRD D2). */
 export type BatchConflictPrimaryAction =
@@ -61,7 +73,13 @@ export type BatchConflictView =
       link?: OtherTemplateLink;
     }
   | { kind: "D7"; primaryAction?: AssignFromAction }
-  | { kind: "D8" };
+  | { kind: "D8" }
+  | {
+      kind: "D9-period";
+      employeeId: string;
+      employeeSalaryType: FixedAllowancePeriod | null;
+      mismatches: PeriodMismatchItem[];
+    };
 
 export interface BatchConflictViewContext {
   /** Versión en la que se está asignando el lote. */
@@ -70,7 +88,7 @@ export interface BatchConflictViewContext {
   newEffectiveFrom: string;
 }
 
-/** Elige el renglón (PRD D3–D8) y sus salidas (D18) para un operador omitido. */
+/** Elige el renglón (PRD D3–D8 · api#60 D9-period) y sus salidas (D18) para un operador omitido. */
 export function resolveBatchConflictView(
   conflict: BatchAssignmentConflict,
   { templateId, newEffectiveFrom }: BatchConflictViewContext,
@@ -104,6 +122,18 @@ export function resolveBatchConflictView(
     conflict.code === COMPENSATION_ERROR_CODES.ASSIGNMENT_PERIOD_SETTLED
   ) {
     return { kind: "D7", primaryAction: assignFrom };
+  }
+
+  if (
+    conflict.reason === "period_mismatch" ||
+    conflict.code === COMPENSATION_ERROR_CODES.COMPENSATION_PERIOD_MISMATCH
+  ) {
+    return {
+      kind: "D9-period",
+      employeeId: conflict.employeeId,
+      employeeSalaryType: conflict.employeeSalaryType ?? null,
+      mismatches: conflict.mismatches ?? [],
+    };
   }
 
   if (!existing) return { kind: "D8" };

@@ -889,6 +889,10 @@ export const settlementsCopy = {
       missingSchemeTitle: "Sin tarifa asignada",
       missingSchemeDescription:
         "Este operador no tiene una tarifa vigente para el período. Crea o asígnale una en Tarifas para poder calcular sueldo, pago por viajes y prestaciones.",
+      /** api#60 — 422 `COMPENSATION_PERIOD_MISMATCH` (ritmo ≠ salary_type). */
+      periodMismatchTitle: "Ritmo de pago no coincide",
+      periodMismatchDescription:
+        "La tarifa asignada tiene prestaciones o deducciones con un periodo distinto al ritmo de pago del operador. Usa una tarifa del mismo ritmo o corrige el sueldo del operador en su ficha.",
       /** api#59 V5 — 422 `MISSING_COMPENSATION_SCHEME` con `details.reason`. */
       deactivatedSchemeTitle: "Tarifa desactivada",
       deactivatedSchemeDescription: (template: string) =>
