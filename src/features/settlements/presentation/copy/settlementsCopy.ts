@@ -156,9 +156,9 @@ export const settlementsCopy = {
         severalWithTrips: (p: { n: number; first: string; closing: string }) =>
           `En este período el operador tuvo ${p.n} esquemas, de ${p.first} a ${p.closing}. Todos los viajes y conceptos del período se calculan con ${p.closing}, el vigente al cierre. Si debe reflejar la parte de los demás esquemas, agrega un ajuste manual.`,
         concurrent: (p: { a: string; b: string }) =>
-          `En este período el operador tuvo dos esquemas a la vez: ${p.a} y ${p.b}. El pago se calcula completo con ${p.b}, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
+          `En este período el operador tuvo dos esquemas a la vez: ${p.a} y ${p.b}. El pago se calcula completo con ${p.b}, el más reciente por vigencia. Revisa sus vigencias en Tarifas de pago; si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
         concurrentWithTrips: (p: { a: string; b: string }) =>
-          `En este período el operador tuvo dos esquemas a la vez: ${p.a} y ${p.b}. Todos los viajes y conceptos del período se calculan con ${p.b}, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
+          `En este período el operador tuvo dos esquemas a la vez: ${p.a} y ${p.b}. Todos los viajes y conceptos del período se calculan con ${p.b}, el más reciente por vigencia. Revisa sus vigencias en Tarifas de pago; si debe reflejar la parte de ${p.a}, agrega un ajuste manual.`,
       },
       alertTitle: {
         two: "Este período tiene dos esquemas",
@@ -175,9 +175,9 @@ export const settlementsCopy = {
         severalWithTrips: (p: { closing: string; periodEnd: string; startB: string }) =>
           `Se aplica ${p.closing} a todo el período porque es el vigente el ${p.periodEnd}, también a los viajes con salida antes del ${p.startB}. Las reglas de pago, corredores, prestaciones y deducciones de los demás esquemas no se consideran. Si corresponde, corrígelo con un ajuste manual (pedirá autorización).`,
         concurrent: (p: { a: string; b: string }) =>
-          `${p.a} y ${p.b} están vigentes al mismo tiempo. Se aplica ${p.b} a todo el período porque es el más reciente por vigencia. Las prestaciones y deducciones de ${p.a} no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).`,
+          `${p.a} y ${p.b} están vigentes al mismo tiempo. Se aplica ${p.b} a todo el período porque es el más reciente por vigencia. Las prestaciones y deducciones de ${p.a} no se consideran. Corrige las vigencias en Tarifas de pago o, si corresponde, agrega un ajuste manual (pedirá autorización).`,
         concurrentWithTrips: (p: { a: string; b: string }) =>
-          `${p.a} y ${p.b} están vigentes al mismo tiempo. Se aplica ${p.b} a todo el período, incluidos sus viajes, porque es el más reciente por vigencia. Las reglas de pago, corredores, prestaciones y deducciones de ${p.a} no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).`,
+          `${p.a} y ${p.b} están vigentes al mismo tiempo. Se aplica ${p.b} a todo el período, incluidos sus viajes, porque es el más reciente por vigencia. Las reglas de pago, corredores, prestaciones y deducciones de ${p.a} no se consideran. Corrige las vigencias en Tarifas de pago o, si corresponde, agrega un ajuste manual (pedirá autorización).`,
       },
     },
     /** ADR-0085 E11 — conflicto primario con folio («LIQ-… · Borrador · creado hace 3 días»). */
@@ -896,11 +896,11 @@ export const settlementsCopy = {
       /** api#59 V5 — 422 `MISSING_COMPENSATION_SCHEME` con `details.reason`. */
       deactivatedSchemeTitle: "Tarifa desactivada",
       deactivatedSchemeDescription: (template: string) =>
-        `${template} fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.`,
+        `${template} fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Tarifas de pago.`,
       deactivatedSchemeUnnamed: "La tarifa asignada",
       draftSchemeTitle: "Tarifa en borrador",
       draftSchemeDescription: (template: string) =>
-        `${template} está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.`,
+        `${template} está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Tarifas de pago.`,
       draftSchemeUnnamed: "La tarifa asignada",
       schemeWithVersion: (name: string, version: number) => `${name} versión ${version}`,
       incompleteAgreementTitle: "Tarifa incompleta",

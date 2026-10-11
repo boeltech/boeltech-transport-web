@@ -748,13 +748,13 @@ describe("SettlementBacklogTable — cambio de esquema en el período (D-1 C1)",
       "a la vez (anterior abierta) · sin viajes",
       concurrentOpen,
       false,
-      "En este período el operador tuvo dos esquemas a la vez: Norte y Sur. El pago se calcula completo con Sur, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de Norte, agrega un ajuste manual.",
+      "En este período el operador tuvo dos esquemas a la vez: Norte y Sur. El pago se calcula completo con Sur, el más reciente por vigencia. Revisa sus vigencias en Tarifas de pago; si debe reflejar la parte de Norte, agrega un ajuste manual.",
     ],
     [
       "a la vez (anterior traslapada) · con viajes",
       concurrentOverlap,
       true,
-      "En este período el operador tuvo dos esquemas a la vez: Norte y Sur. Todos los viajes y conceptos del período se calculan con Sur, el más reciente por vigencia. Revisa sus vigencias en Esquemas de compensación; si debe reflejar la parte de Norte, agrega un ajuste manual.",
+      "En este período el operador tuvo dos esquemas a la vez: Norte y Sur. Todos los viajes y conceptos del período se calculan con Sur, el más reciente por vigencia. Revisa sus vigencias en Tarifas de pago; si debe reflejar la parte de Norte, agrega un ajuste manual.",
     ],
   ] as const)("%s: insignia y tooltip de la variante", async (_label, tc, withTrips, expected) => {
     const user = userEvent.setup();

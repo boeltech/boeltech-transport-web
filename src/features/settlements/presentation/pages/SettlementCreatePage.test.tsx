@@ -1311,14 +1311,14 @@ describe("SettlementCreatePage Component", () => {
         concurrent,
         false,
         "Este período tiene dos esquemas a la vez",
-        "Norte y Sur están vigentes al mismo tiempo. Se aplica Sur a todo el período porque es el más reciente por vigencia. Las prestaciones y deducciones de Norte no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).",
+        "Norte y Sur están vigentes al mismo tiempo. Se aplica Sur a todo el período porque es el más reciente por vigencia. Las prestaciones y deducciones de Norte no se consideran. Corrige las vigencias en Tarifas de pago o, si corresponde, agrega un ajuste manual (pedirá autorización).",
       ],
       [
         "a la vez · con viajes",
         concurrent,
         true,
         "Este período tiene dos esquemas a la vez",
-        "Norte y Sur están vigentes al mismo tiempo. Se aplica Sur a todo el período, incluidos sus viajes, porque es el más reciente por vigencia. Las reglas de pago, corredores, prestaciones y deducciones de Norte no se consideran. Corrige las vigencias en Esquemas de compensación o, si corresponde, agrega un ajuste manual (pedirá autorización).",
+        "Norte y Sur están vigentes al mismo tiempo. Se aplica Sur a todo el período, incluidos sus viajes, porque es el más reciente por vigencia. Las reglas de pago, corredores, prestaciones y deducciones de Norte no se consideran. Corrige las vigencias en Tarifas de pago o, si corresponde, agrega un ajuste manual (pedirá autorización).",
       ],
     ] as const)("%s: título y cuerpo de la variante", async (_label, tc, withTrips, title, body) => {
       mockPreviewSettlement.mockResolvedValue(previewWith(tc, withTrips));
@@ -1605,7 +1605,7 @@ describe("SettlementCreatePage Component", () => {
           assignment_id: "asg-1",
         },
         "Tarifa desactivada",
-        "Operador foráneo versión 2 fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.",
+        "Operador foráneo versión 2 fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Tarifas de pago.",
       ],
       [
         "template_draft",
@@ -1617,7 +1617,7 @@ describe("SettlementCreatePage Component", () => {
           assignment_id: "asg-1",
         },
         "Tarifa en borrador",
-        "Operador foráneo versión 3 está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.",
+        "Operador foráneo versión 3 está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Tarifas de pago.",
       ],
       [
         "no_assignment",

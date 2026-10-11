@@ -154,7 +154,7 @@ describe("api#59 — 422 MISSING_COMPENSATION_SCHEME por motivo", () => {
     expect(resolveMissingSchemeCopy(error)).toEqual({
       title: "Tarifa desactivada",
       description:
-        "Operador foráneo versión 2 fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.",
+        "Operador foráneo versión 2 fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Tarifas de pago.",
     });
   });
 
@@ -167,7 +167,7 @@ describe("api#59 — 422 MISSING_COMPENSATION_SCHEME por motivo", () => {
     expect(resolveMissingSchemeCopy(error)).toEqual({
       title: "Tarifa en borrador",
       description:
-        "Operador foráneo versión 3 está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.",
+        "Operador foráneo versión 3 está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Tarifas de pago.",
     });
   });
 
@@ -177,10 +177,10 @@ describe("api#59 — 422 MISSING_COMPENSATION_SCHEME por motivo", () => {
         schemeError({ reason: "template_deactivated", template_name: "Operador foráneo" }),
       ).description,
     ).toBe(
-      "Operador foráneo fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Esquemas de compensación.",
+      "Operador foráneo fue desactivada y no se usa para calcular pagos. Reasigna al operador o corrige la vigencia en Tarifas de pago.",
     );
     expect(resolveMissingSchemeCopy(schemeError({ reason: "template_draft" })).description).toBe(
-      "La tarifa asignada está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Esquemas de compensación.",
+      "La tarifa asignada está en borrador y no se usa para calcular pagos. Actívala o reasigna al operador en Tarifas de pago.",
     );
   });
 

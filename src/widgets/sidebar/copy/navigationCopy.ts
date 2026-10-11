@@ -30,7 +30,7 @@ export const navigationCopy = {
     financeApprovals: "Aprobaciones",
     financeSettlements: "Liquidaciones",
     financeOperatorPayments: "Pagos a operadores",
-    financeAgreements: "Esquemas de compensación",
+    financeAgreements: "Tarifas de pago",
     /** Workbench unificado de envío de facturas (pendientes / enviadas / historial). */
     financeDispatch: "Envíos",
     /** /finance/analysis: vistas Mes a mes (por defecto), Rentabilidad y Gastos. */

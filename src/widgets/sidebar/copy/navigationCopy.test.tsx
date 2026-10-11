@@ -118,7 +118,7 @@ describe("navigationConfig", () => {
       "Cartera",
       "Aprobaciones",
       "Liquidaciones",
-      "Esquemas de compensación",
+      "Tarifas de pago",
       "Análisis",
     ]);
 
