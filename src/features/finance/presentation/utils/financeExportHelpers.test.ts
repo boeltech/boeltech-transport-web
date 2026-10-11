@@ -1,6 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProfitabilityAggregateItem } from "@features/finance/domain";
-import { buildProfitabilityAggregateCsv } from "./financeExportHelpers";
+import { financeCopy } from "../copy";
+import {
+  buildProfitabilityAggregateCsv,
+  exportProfitabilityTripsCsv,
+} from "./financeExportHelpers";
+
+const mockDownloadCsv = vi.fn();
+
+vi.mock("@shared/utils/exportCsv", () => ({
+  downloadCsv: (...args: unknown[]) => mockDownloadCsv(...args),
+}));
 
 function item(key: string, margin: number): ProfitabilityAggregateItem {
   return {
@@ -50,5 +60,25 @@ describe("buildProfitabilityAggregateCsv", () => {
       1000,
       50,
     ]);
+  });
+});
+
+describe("export filename date (día civil CDMX)", () => {
+  beforeEach(() => {
+    mockDownloadCsv.mockClear();
+    vi.useFakeTimers();
+    // 2026-10-11 23:30 CDMX — en UTC ya es 12 de octubre.
+    vi.setSystemTime(new Date("2026-10-12T05:30:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("names profitability CSV with Mexico civil day, not UTC", () => {
+    exportProfitabilityTripsCsv([]);
+    expect(mockDownloadCsv.mock.calls[0]?.[0]).toBe(
+      `${financeCopy.exports.files.profitability}-2026-10-11.csv`,
+    );
   });
 });

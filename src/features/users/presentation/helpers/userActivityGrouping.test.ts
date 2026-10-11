@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserManagementEvent } from "../../domain";
 import { groupUserActivityByDay } from "./userActivityGrouping";
 
@@ -65,5 +65,26 @@ describe("groupUserActivityByDay", () => {
     const groups = groupUserActivityByDay([buildEvent("a", "")], TODAY);
 
     expect(groups[0].label).toBe("Sin fecha");
+  });
+
+  describe("default today (getTodayString)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // 2026-04-10 23:30 CDMX — en UTC ya es 11 de abril.
+      vi.setSystemTime(new Date("2026-04-11T05:30:00.000Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("labels evening Mexico events as Hoy, not the UTC date", () => {
+      const groups = groupUserActivityByDay([
+        buildEvent("a", "2026-04-11T04:00:00.000Z"),
+      ]);
+
+      expect(groups[0].label).toBe("Hoy");
+      expect(groups[0].key).toBe("2026-04-10");
+    });
   });
 });

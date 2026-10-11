@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import {
   fetchAllBranchesForExport,
@@ -7,6 +7,9 @@ import {
 import { buildBranchListItem } from "../../test/branchTestFixtures";
 import { branchesCopy } from "../../presentation/copy/branchesCopy";
 import { getBranchExportHeaders } from "../utils/branchExportHelpers";
+
+/** 2026-10-11 23:30 CDMX — en UTC ya es 12 de octubre. */
+const LATE_EVENING_CDMX = "2026-10-12T05:30:00.000Z";
 
 const mockGetAll = vi.fn();
 const mockDownloadCsv = vi.fn();
@@ -71,6 +74,10 @@ describe("useExportBranches", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows empty toast when there are no branches to export", async () => {
     mockGetAll.mockResolvedValue({
       data: [],
@@ -115,5 +122,26 @@ describe("useExportBranches", () => {
       title: branchesCopy.list.export.toast.success,
       variant: "success",
     });
+  });
+
+  it("names the CSV with the Mexico civil day at 23:30 CDMX", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(LATE_EVENING_CDMX));
+
+    mockGetAll.mockResolvedValue({
+      data: [buildBranchListItem()],
+      pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },
+      meta: { activeCount: 1, maxBranches: 3, limitReached: false },
+    });
+
+    const { result } = renderHook(() => useExportBranches());
+
+    await act(async () => {
+      await result.current.exportBranches({ page: 1, limit: 10 });
+    });
+
+    expect(mockDownloadCsv.mock.calls[0]?.[0]).toBe(
+      `${branchesCopy.list.export.filePrefix}-2026-10-11.csv`,
+    );
   });
 });

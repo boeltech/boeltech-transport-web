@@ -4,6 +4,7 @@ import type { IGetTripsUseCase } from "@features/trips/application/useCases/trip
 import { tripRepository } from "@features/trips/infrastructure";
 import type { TripListItem, TripQueryParams } from "@features/trips/domain";
 import { downloadCsv } from "@shared/utils/exportCsv";
+import { getTodayString } from "@shared/utils/dateUtils";
 import { useToast } from "@shared/hooks";
 import { reportsCopy } from "../copy/reportsCopy";
 import {
@@ -58,7 +59,7 @@ export async function fetchAllTripsForExport(
 }
 
 function nowDateKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getTodayString();
 }
 
 export function useExportTrips() {

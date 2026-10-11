@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useToast } from "@shared/hooks";
 import { downloadCsv } from "@shared/utils/exportCsv";
+import { getTodayString } from "@shared/utils/dateUtils";
 import type { BranchQueryParams } from "../../domain";
 import { branchesApi } from "../../infrastructure";
 import { branchesCopy } from "../../presentation/copy/branchesCopy";
@@ -12,7 +13,7 @@ import {
 const EXPORT_PAGE_LIMIT = 100;
 
 function nowDateKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getTodayString();
 }
 
 export async function fetchAllBranchesForExport(

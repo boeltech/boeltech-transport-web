@@ -34,6 +34,7 @@ import {
   stripTrailingAsteriskFromLabel,
 } from "@shared/ui/form";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { getDefaultHireDate } from "../utils/defaultHireDate";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
 import {
   Select,
@@ -357,7 +358,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     }
     return {
       ...defaultEmployeeFormValues,
-      hire_date: new Date().toISOString().split("T")[0],
+      hire_date: getDefaultHireDate(),
       domicilio: defaultEmployeeDomicilio,
     };
   }, [isEditing, existing]);

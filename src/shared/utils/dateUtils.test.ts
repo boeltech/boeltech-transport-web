@@ -3,11 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatDateTime,
   formatDateTimeFromLocalInput,
+  getExpiryDateString,
+  getTodayString,
   isExpired,
   isExpiringSoon,
   isStrictlyPast,
   localInputToUtcIso,
 } from "./dateUtils";
+
+/** 2026-10-11 23:30 CDMX — en UTC ya es 12 de octubre. */
+const LATE_EVENING_CDMX = "2026-10-12T05:30:00.000Z";
 
 describe("formatDateTimeFromLocalInput", () => {
   it("muestra la misma hora civil que el input datetime-local del wizard", () => {
@@ -75,5 +80,39 @@ describe("isExpired / isExpiringSoon / isStrictlyPast", () => {
     for (const date of ["2026-09-07", "2026-09-08", "2026-09-09", "2026-10-01"]) {
       expect(isExpired(date) && isExpiringSoon(date)).toBe(false);
     }
+  });
+});
+
+describe("getTodayString / getExpiryDateString (día civil CDMX)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(LATE_EVENING_CDMX));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("getTodayString keeps the Mexico civil day after 18:00 CDMX", () => {
+    expect(new Date().toISOString().slice(0, 10)).toBe("2026-10-12");
+    expect(getTodayString()).toBe("2026-10-11");
+  });
+
+  it("getExpiryDateString(Date) uses Mexico civil day, not UTC", () => {
+    expect(getExpiryDateString(new Date(LATE_EVENING_CDMX), 180)).toBe(
+      "2027-04-09",
+    );
+    // UTC-day arithmetic would start from 2026-10-12 → 2027-04-10
+    expect(
+      (() => {
+        const d = new Date("2026-10-12T12:00:00Z");
+        d.setUTCDate(d.getUTCDate() + 180);
+        return d.toISOString().substring(0, 10);
+      })(),
+    ).toBe("2027-04-10");
+  });
+
+  it("getExpiryDateString(string) keeps calendar arithmetic on YYYY-MM-DD", () => {
+    expect(getExpiryDateString("2026-10-11", 180)).toBe("2027-04-09");
   });
 });

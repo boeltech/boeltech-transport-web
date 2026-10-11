@@ -251,7 +251,7 @@ export function getExpiryDateString(
 ): string {
   const dateString =
     date instanceof Date
-      ? date.toISOString().substring(0, 10) // extrae "YYYY-MM-DD" en UTC
+      ? (toMexicoDayKey(date.toISOString()) ?? getTodayString())
       : date;
 
   const d = new Date(dateString + "T12:00:00Z");
