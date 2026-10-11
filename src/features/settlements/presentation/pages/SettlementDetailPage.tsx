@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Banknote,
@@ -58,6 +58,7 @@ import {
   SettlementKindBadge,
   LateReimbursementsAlert,
 } from "../components";
+import { MissingDataAckGate } from "../components/MissingDataAckGate";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
@@ -81,8 +82,11 @@ import {
 import type { AgreementSnapshot } from "../../domain/entities";
 import { roundCents, uncoveredDeductionsAmount } from "../../domain/settlementTotals";
 import { isDeductionsExceedGrossError } from "../utils/settlementDeductionCapacity";
+import { isMissingDataAckRequiredError } from "../utils/settlementCreateConflicts";
+import { missingDataGapsFromItems } from "../utils/missingDataGapsFromItems";
 
 const copy = settlementsCopy;
+const missingDataGateCopy = settlementsCopy.createPage.missingDataGate;
 
 export function SettlementDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -118,6 +122,8 @@ export function SettlementDetailPage() {
   const submitMutation = useSubmitSettlement();
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [acknowledgeMissingData, setAcknowledgeMissingData] = useState(false);
+  const [missingDataAckError, setMissingDataAckError] = useState(false);
 
   const isReturned = settlement ? isSettlementReturned(settlement) : false;
   const canCorrect = Boolean(
@@ -125,14 +131,43 @@ export function SettlementDetailPage() {
   );
   const receiptSignable = settlement ? isReceiptSignable(settlement.status) : false;
   const flowCopy = copy.settlementFlow;
+  const missingDataGaps = useMemo(
+    () => missingDataGapsFromItems(settlement?.items),
+    [settlement?.items],
+  );
+  const hasMissingDataGaps = missingDataGaps.length > 0;
 
   const handleResubmitUnchanged = async () => {
     if (!settlement) return;
+    if (hasMissingDataGaps && !acknowledgeMissingData) {
+      setMissingDataAckError(true);
+      return;
+    }
     try {
-      await submitMutation.mutateAsync(settlement.id);
+      const vars =
+        hasMissingDataGaps && acknowledgeMissingData
+          ? {
+              id: settlement.id,
+              acknowledgeZeroKmTrips: true,
+              acknowledgeZeroFreightTrips: true,
+            }
+          : settlement.id;
+      await submitMutation.mutateAsync(vars);
+      setAcknowledgeMissingData(false);
+      setMissingDataAckError(false);
       toast({ title: flowCopy.toasts.resubmitted, variant: "success" });
       void refetch();
     } catch (error) {
+      if (isMissingDataAckRequiredError(error)) {
+        setAcknowledgeMissingData(false);
+        setMissingDataAckError(true);
+        toast({
+          title: copy.toasts.submitSettlementError,
+          description: missingDataGateCopy.serverAckRequired,
+          variant: "error",
+        });
+        return;
+      }
       const exceedsGross = isDeductionsExceedGrossError(error);
       toast({
         title: exceedsGross
@@ -296,30 +331,56 @@ export function SettlementDetailPage() {
         {settlement && (
           <div className="space-y-6">
             {isReturned ? (
-              <ReturnedAlert
-                approval={settlement.approval}
-                actions={
-                  canUpdate ? (
-                    <>
-                      {canCorrect ? (
-                        <Button size="sm" onClick={() => setCorrectionOpen(true)}>
-                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                          {flowCopy.returnedAlert.correctAndResubmit}
-                        </Button>
-                      ) : null}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={submitMutation.isPending}
-                        onClick={() => void handleResubmitUnchanged()}
-                      >
-                        <Send className="mr-1.5 h-3.5 w-3.5" />
-                        {flowCopy.returnedAlert.resubmitUnchanged}
-                      </Button>
-                    </>
-                  ) : undefined
-                }
-              />
+              <div className="space-y-3">
+                {canUpdate && hasMissingDataGaps ? (
+                  <MissingDataAckGate
+                    gaps={missingDataGaps}
+                    acknowledged={acknowledgeMissingData}
+                    onAcknowledgedChange={(value) => {
+                      setAcknowledgeMissingData(value);
+                      if (value) setMissingDataAckError(false);
+                    }}
+                    errorMessage={
+                      missingDataAckError ? missingDataGateCopy.submitBlockedHint : null
+                    }
+                    checkboxId="acknowledge-missing-data-detail"
+                  />
+                ) : null}
+                <ReturnedAlert
+                  approval={settlement.approval}
+                  actions={
+                    canUpdate ? (
+                      <>
+                        {canCorrect ? (
+                          <Button size="sm" onClick={() => setCorrectionOpen(true)}>
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                            {flowCopy.returnedAlert.correctAndResubmit}
+                          </Button>
+                        ) : null}
+                        <div className="flex flex-col items-start gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              submitMutation.isPending ||
+                              (hasMissingDataGaps && !acknowledgeMissingData)
+                            }
+                            onClick={() => void handleResubmitUnchanged()}
+                          >
+                            <Send className="mr-1.5 h-3.5 w-3.5" />
+                            {flowCopy.returnedAlert.resubmitUnchanged}
+                          </Button>
+                          {hasMissingDataGaps && !acknowledgeMissingData ? (
+                            <p className="text-[11px] leading-snug text-warning">
+                              {missingDataGateCopy.submitBlockedHint}
+                            </p>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : undefined
+                  }
+                />
+              </div>
             ) : null}
 
             <LateReimbursementsAlert settlement={settlement} canCreate={canCreate} />

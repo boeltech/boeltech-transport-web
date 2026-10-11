@@ -460,9 +460,29 @@ export const settlementsApi = {
     };
   },
 
-  submitSettlement: async (id: string): Promise<DriverSettlement> => {
+  /**
+   * Enviar borrador/devuelta a autorización.
+   * Body opcional H-2: ack de viajes con `calculation_gap` post-mínimo (defaults false).
+   */
+  submitSettlement: async (
+    id: string,
+    ack?: {
+      acknowledgeZeroKmTrips?: boolean;
+      acknowledgeZeroFreightTrips?: boolean;
+    },
+  ): Promise<DriverSettlement> => {
+    const body =
+      ack &&
+      (ack.acknowledgeZeroKmTrips !== undefined ||
+        ack.acknowledgeZeroFreightTrips !== undefined)
+        ? {
+            acknowledgeZeroKmTrips: ack.acknowledgeZeroKmTrips ?? false,
+            acknowledgeZeroFreightTrips: ack.acknowledgeZeroFreightTrips ?? false,
+          }
+        : undefined;
     const response = await apiClient.post<ApiSingleResponse<ApiDriverSettlementRaw>>(
       `${BASE_ENDPOINT}/${id}/submit`,
+      body,
     );
     return mapSettlement(response.data);
   },

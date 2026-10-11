@@ -66,11 +66,34 @@ export function useCreateReimbursementSettlement() {
   });
 }
 
+export type SubmitSettlementVariables =
+  | string
+  | {
+      id: string;
+      acknowledgeZeroKmTrips?: boolean;
+      acknowledgeZeroFreightTrips?: boolean;
+    };
+
 export function useSubmitSettlement() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => settlementsApi.submitSettlement(id),
+    mutationFn: (vars: SubmitSettlementVariables) => {
+      if (typeof vars === "string") {
+        return settlementsApi.submitSettlement(vars);
+      }
+      const { id, acknowledgeZeroKmTrips, acknowledgeZeroFreightTrips } = vars;
+      if (
+        acknowledgeZeroKmTrips === undefined &&
+        acknowledgeZeroFreightTrips === undefined
+      ) {
+        return settlementsApi.submitSettlement(id);
+      }
+      return settlementsApi.submitSettlement(id, {
+        acknowledgeZeroKmTrips,
+        acknowledgeZeroFreightTrips,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: settlementsQueryKeys.all,

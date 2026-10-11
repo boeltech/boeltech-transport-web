@@ -65,6 +65,7 @@ import {
   type SettlementCorrectionDiff,
 } from "../utils/settlementEditing";
 import { ManualItemsEditor } from "./ManualItemsEditor";
+import { MissingDataAckGate } from "./MissingDataAckGate";
 import {
   toManualItemRows,
   type ManualItemRow,
@@ -78,11 +79,14 @@ import {
   remainingAdvanceRoom,
   type DeductionCapacityErrors,
 } from "../utils/settlementDeductionCapacity";
+import { isMissingDataAckRequiredError } from "../utils/settlementCreateConflicts";
+import { missingDataGapsFromItems } from "../utils/missingDataGapsFromItems";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
 const copy = settlementsCopy.settlementFlow;
 const sheetCopy = copy.sheet;
 const capCopy = copy.deductionsCap;
+const missingDataGateCopy = settlementsCopy.createPage.missingDataGate;
 const ADVANCES_FIELD_ID = "settlement-correction-advances";
 const MANUAL_ITEMS_FIELD_ID = "settlement-correction-manual-items";
 
@@ -153,6 +157,8 @@ function SettlementCorrectionSheetSession({
   const [apiError, setApiError] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [pendingDiff, setPendingDiff] = useState<SettlementCorrectionDiff | null>(null);
+  const [acknowledgeMissingData, setAcknowledgeMissingData] = useState(false);
+  const [missingDataAckError, setMissingDataAckError] = useState(false);
   // 422 de tope de descuentos: vigente hasta que se editen anticipos o partidas.
   const [serverCapacityErrors, setServerCapacityErrors] = useState<{
     key: string;
@@ -165,6 +171,11 @@ function SettlementCorrectionSheetSession({
   const appliedAdvances = useMemo(() => appliedAdvancesFromSettlement(settlement), [settlement]);
   const tripOptions = useMemo(() => settlementTripOptions(settlement), [settlement]);
   const calculatedBase = useMemo(() => calculatedBaseFromStored(settlement), [settlement]);
+  const missingDataGaps = useMemo(
+    () => missingDataGapsFromItems(settlement.items),
+    [settlement.items],
+  );
+  const hasMissingDataGaps = missingDataGaps.length > 0;
 
   const isReimbursementOnly = settlement.settlementKind === "reimbursement_only";
   const regularPreview = useSettlementPreview(
@@ -287,7 +298,15 @@ function SettlementCorrectionSheetSession({
         effect = result.approvalEffect;
       }
       if (intent === "resubmit") {
-        await submitMutation.mutateAsync(settlement.id);
+        const vars =
+          hasMissingDataGaps && acknowledgeMissingData
+            ? {
+                id: settlement.id,
+                acknowledgeZeroKmTrips: true,
+                acknowledgeZeroFreightTrips: true,
+              }
+            : settlement.id;
+        await submitMutation.mutateAsync(vars);
         toast({ title: copy.toasts.resubmitted, variant: "success" });
       } else if (diff.payload) {
         toastForEffect(effect);
@@ -299,6 +318,12 @@ function SettlementCorrectionSheetSession({
       setPendingDiff(null);
       if (isSettlementStaleError(error)) {
         setStale(true);
+        return;
+      }
+      if (intent === "resubmit" && isMissingDataAckRequiredError(error)) {
+        setAcknowledgeMissingData(false);
+        setMissingDataAckError(true);
+        setApiError(missingDataGateCopy.serverAckRequired);
         return;
       }
       const exceedsGross = parseDeductionsExceedGrossError(error);
@@ -317,6 +342,10 @@ function SettlementCorrectionSheetSession({
 
   const onValid = (intent: SaveIntent) => (values: CorrectionFormState) => {
     setShowSummary(false);
+    if (intent === "resubmit" && hasMissingDataGaps && !acknowledgeMissingData) {
+      setMissingDataAckError(true);
+      return;
+    }
     const diff = diffSettlementCorrection(
       settlement,
       values as unknown as SettlementCorrectionFormValues,
@@ -441,6 +470,21 @@ function SettlementCorrectionSheetSession({
           ) : null}
 
           {isReturned ? <ReturnedAlert approval={settlement.approval} /> : null}
+
+          {isReturned && hasMissingDataGaps ? (
+            <MissingDataAckGate
+              gaps={missingDataGaps}
+              acknowledged={acknowledgeMissingData}
+              onAcknowledgedChange={(value) => {
+                setAcknowledgeMissingData(value);
+                if (value) setMissingDataAckError(false);
+              }}
+              errorMessage={
+                missingDataAckError ? missingDataGateCopy.submitBlockedHint : null
+              }
+              checkboxId="acknowledge-missing-data-correction"
+            />
+          ) : null}
 
           {apiError ? (
             <Alert variant="destructive">
@@ -680,9 +724,27 @@ function SettlementCorrectionSheetSession({
               {sheetCopy.saveDraft}
             </Button>
           ) : null}
-          <Button type="submit" disabled={isSaving || stale}>
-            {isSaving ? sheetCopy.saving : primaryLabel}
-          </Button>
+          <div className="flex flex-col items-stretch gap-1 sm:items-end">
+            <Button
+              type="submit"
+              disabled={
+                isSaving ||
+                stale ||
+                (primaryIntent === "resubmit" &&
+                  hasMissingDataGaps &&
+                  !acknowledgeMissingData)
+              }
+            >
+              {isSaving ? sheetCopy.saving : primaryLabel}
+            </Button>
+            {primaryIntent === "resubmit" &&
+            hasMissingDataGaps &&
+            !acknowledgeMissingData ? (
+              <p className="text-[11px] leading-snug text-warning">
+                {missingDataGateCopy.submitBlockedHint}
+              </p>
+            ) : null}
+          </div>
         </SheetFooter>
       </form>
 

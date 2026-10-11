@@ -644,4 +644,156 @@ describe("SettlementActions", () => {
       expect(screen.queryByText("Enviar a autorización")).not.toBeInTheDocument();
     });
   });
+
+  describe("H-2 / issue #69 — ack datos faltantes al enviar", () => {
+    const draftWithGaps: DriverSettlement = {
+      ...draftSettlement,
+      voboRequired: true,
+      createdBy: "user-creator-123",
+      items: [
+        {
+          id: "item-km",
+          settlementId: "set-1",
+          itemType: "trip_commission",
+          tripId: "trip-km",
+          tripCode: "TRP-KM",
+          tripExpenseId: null,
+          advanceId: null,
+          description: "Comisión",
+          quantity: 1,
+          unitRate: 400,
+          amount: 400,
+          isDeduction: false,
+          calculationDetails: {
+            minimumGuaranteedApplied: true,
+            calculationGap: "zero_km",
+          },
+          createdAt: "2026-08-15T10:00:00Z",
+        },
+        {
+          id: "item-flete",
+          settlementId: "set-1",
+          itemType: "trip_commission",
+          tripId: "trip-flete",
+          tripCode: "TRP-FLETE",
+          tripExpenseId: null,
+          advanceId: null,
+          description: "Comisión",
+          quantity: 1,
+          unitRate: 0,
+          amount: 0,
+          isDeduction: false,
+          calculationDetails: {
+            minimumGuaranteedApplied: false,
+            calculationGap: "zero_freight",
+          },
+          createdAt: "2026-08-15T10:00:00Z",
+        },
+      ],
+    };
+
+    it("bloquea Enviar hasta confirmar; un checkbox manda ambos flags", async () => {
+      const user = userEvent.setup();
+      mockSubmitSettlement.mockResolvedValue({
+        ...draftWithGaps,
+        status: "pending_approval",
+      });
+      renderWithProviders(
+        <SettlementActions variant="buttons" settlement={draftWithGaps} />,
+      );
+
+      expect(screen.getByTestId("missing-data-gate")).toHaveTextContent(
+        "Viajes con datos faltantes",
+      );
+      const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
+      expect(submitBtn).toBeDisabled();
+
+      await user.click(
+        screen.getByRole("checkbox", {
+          name: /Confirmo enviar 2 viaje\(s\) con datos faltantes/i,
+        }),
+      );
+      expect(submitBtn).toBeEnabled();
+      await user.click(submitBtn);
+
+      await waitFor(() =>
+        expect(mockSubmitSettlement).toHaveBeenCalledWith("set-1", {
+          acknowledgeZeroKmTrips: true,
+          acknowledgeZeroFreightTrips: true,
+        }),
+      );
+    });
+
+    it("sin gaps envía sin flags", async () => {
+      const user = userEvent.setup();
+      mockSubmitSettlement.mockResolvedValue({
+        ...draftSettlement,
+        voboRequired: true,
+        status: "pending_approval",
+      });
+      renderWithProviders(
+        <SettlementActions
+          variant="buttons"
+          settlement={{
+            ...draftSettlement,
+            voboRequired: true,
+            createdBy: "user-creator-123",
+            items: [
+              {
+                id: "item-ok",
+                settlementId: "set-1",
+                itemType: "trip_commission",
+                tripId: "trip-1",
+                tripCode: "TRP-OK",
+                tripExpenseId: null,
+                advanceId: null,
+                description: "Comisión",
+                quantity: 1,
+                unitRate: 500,
+                amount: 500,
+                isDeduction: false,
+                calculationDetails: {
+                  minimumGuaranteedApplied: false,
+                  calculationGap: null,
+                },
+                createdAt: "2026-08-15T10:00:00Z",
+              },
+            ],
+          }}
+        />,
+      );
+
+      expect(screen.queryByTestId("missing-data-gate")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /Enviar a autorización/i }));
+      await waitFor(() => expect(mockSubmitSettlement).toHaveBeenCalledWith("set-1"));
+    });
+
+    it("422 ZERO_KM_ACK_REQUIRED apaga el checkbox y muestra toast", async () => {
+      const user = userEvent.setup();
+      mockSubmitSettlement.mockRejectedValueOnce(
+        new ApiError("Falta confirmar", 422, "ZERO_KM_ACK_REQUIRED", {
+          trip_codes: ["TRP-KM"],
+        }),
+      );
+      renderWithProviders(
+        <SettlementActions variant="buttons" settlement={draftWithGaps} />,
+      );
+
+      const checkbox = screen.getByRole("checkbox", {
+        name: /Confirmo enviar 2 viaje\(s\) con datos faltantes/i,
+      });
+      await user.click(checkbox);
+      await user.click(screen.getByRole("button", { name: /Enviar a autorización/i }));
+
+      await waitFor(() =>
+        expect(mockToast.toast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variant: "error",
+            description: expect.stringMatching(/datos faltantes/i),
+          }),
+        ),
+      );
+      expect(checkbox).not.toBeChecked();
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Eye,
   Check,
@@ -76,6 +76,7 @@ import { settlementsCompensationApprovalsPath } from "../config/settlementWorkbe
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
 import { SettlementCancelDialog } from "./SettlementCancelDialog";
+import { MissingDataAckGate } from "./MissingDataAckGate";
 import {
   canDisburse,
   canSubmitVobo,
@@ -90,9 +91,12 @@ import {
 } from "../utils/settlementEditing";
 import { isDeductionsExceedGrossError } from "../utils/settlementDeductionCapacity";
 import { settlementToApprovableItem } from "../utils/settlementApprovableItem";
+import { isMissingDataAckRequiredError } from "../utils/settlementCreateConflicts";
+import { missingDataGapsFromItems } from "../utils/missingDataGapsFromItems";
 
 const copy = settlementsCopy;
 const flowCopy = settlementsCopy.settlementFlow;
+const missingDataGateCopy = settlementsCopy.createPage.missingDataGate;
 
 interface SettlementActionsProps {
   settlement: DriverSettlement;
@@ -133,6 +137,9 @@ export function SettlementActions({
   const [reasonMode, setReasonMode] = useState<DecisionReasonMode | null>(null);
   const [disburseDialogOpen, setDisburseDialogOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [acknowledgeMissingData, setAcknowledgeMissingData] = useState(false);
+  const [missingDataAckError, setMissingDataAckError] = useState(false);
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
 
   const submitMutation = useSubmitSettlement();
   const approveMutation = useApproveSettlement();
@@ -144,6 +151,11 @@ export function SettlementActions({
   const isDraft = settlement.status === "draft";
   const isApproved = settlement.status === "approved";
   const isReturned = isSettlementReturned(settlement);
+  const missingDataGaps = useMemo(
+    () => missingDataGapsFromItems(settlement.items),
+    [settlement.items],
+  );
+  const hasMissingDataGaps = missingDataGaps.length > 0;
   const isOwn = isSettlementMaker(settlement, user?.id);
   // ADR-0099: una sola función decide la acción (con o sin bloque `approval`).
   const approvalUi = resolveApprovalActionUi(settlement.approval, {
@@ -236,15 +248,40 @@ export function SettlementActions({
     return true;
   };
 
-  const handleSubmit = async () => {
+  const resetMissingDataAck = () => {
+    setAcknowledgeMissingData(false);
+    setMissingDataAckError(false);
+  };
+
+  const runSubmit = async () => {
     try {
-      await submitMutation.mutateAsync(settlement.id);
+      const vars =
+        hasMissingDataGaps && acknowledgeMissingData
+          ? {
+              id: settlement.id,
+              acknowledgeZeroKmTrips: true,
+              acknowledgeZeroFreightTrips: true,
+            }
+          : settlement.id;
+      await submitMutation.mutateAsync(vars);
+      setSubmitConfirmOpen(false);
+      resetMissingDataAck();
       toast({
         title: isReturned ? flowCopy.toasts.resubmitted : copy.toasts.submitSettlementSuccess,
         variant: "success",
       });
       onActionComplete?.();
     } catch (error) {
+      if (isMissingDataAckRequiredError(error)) {
+        setAcknowledgeMissingData(false);
+        setMissingDataAckError(true);
+        toast({
+          title: copy.toasts.submitSettlementError,
+          description: missingDataGateCopy.serverAckRequired,
+          variant: "error",
+        });
+        return;
+      }
       if (handleDeductionsExceedError(error)) return;
       toast({
         title: copy.toasts.submitSettlementError,
@@ -252,6 +289,18 @@ export function SettlementActions({
         variant: "destructive",
       });
     }
+  };
+
+  const handleSubmit = () => {
+    if (hasMissingDataGaps && !acknowledgeMissingData) {
+      if (variant === "dropdown") {
+        setSubmitConfirmOpen(true);
+        return;
+      }
+      setMissingDataAckError(true);
+      return;
+    }
+    void runSubmit();
   };
 
   const handleApprove = async () => {
@@ -470,6 +519,54 @@ export function SettlementActions({
           subtitle={settlement.settlementNumber}
         />
       ) : null}
+
+      <AlertDialog
+        open={submitConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open && !submitMutation.isPending) {
+            setSubmitConfirmOpen(false);
+            resetMissingDataAck();
+          }
+        }}
+      >
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{submitLabel}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <MissingDataAckGate
+                  gaps={missingDataGaps}
+                  acknowledged={acknowledgeMissingData}
+                  onAcknowledgedChange={(value) => {
+                    setAcknowledgeMissingData(value);
+                    if (value) setMissingDataAckError(false);
+                  }}
+                  errorMessage={
+                    missingDataAckError ? missingDataGateCopy.submitBlockedHint : null
+                  }
+                  checkboxId="acknowledge-missing-data-actions-menu"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitMutation.isPending}>
+              {copy.actions.cancel}
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              disabled={
+                submitMutation.isPending ||
+                (hasMissingDataGaps && !acknowledgeMissingData)
+              }
+              onClick={() => void runSubmit()}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {submitLabel}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 
@@ -477,7 +574,24 @@ export function SettlementActions({
     const showMoreMenu = canReject || canCancel;
     return (
       <>
-        <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
+        <div className="flex max-w-full flex-col items-end gap-2">
+          {canSubmit && !isReturned && hasMissingDataGaps ? (
+            <div className="w-full max-w-md">
+              <MissingDataAckGate
+                gaps={missingDataGaps}
+                acknowledged={acknowledgeMissingData}
+                onAcknowledgedChange={(value) => {
+                  setAcknowledgeMissingData(value);
+                  if (value) setMissingDataAckError(false);
+                }}
+                errorMessage={
+                  missingDataAckError ? missingDataGateCopy.submitBlockedHint : null
+                }
+                checkboxId="acknowledge-missing-data-actions"
+              />
+            </div>
+          ) : null}
+          <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
           {canCorrect && (
             <Button variant="outline" onClick={onCorrect}>
               <Pencil className="mr-2 h-4 w-4" />
@@ -486,13 +600,23 @@ export function SettlementActions({
           )}
           {/* D15: devuelta → reenviar desde la alerta del detalle. */}
           {canSubmit && !isReturned && (
-            <Button
-              onClick={handleSubmit}
-              disabled={submitMutation.isPending}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {submitLabel}
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                onClick={handleSubmit}
+                disabled={
+                  submitMutation.isPending ||
+                  (hasMissingDataGaps && !acknowledgeMissingData)
+                }
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {submitLabel}
+              </Button>
+              {hasMissingDataGaps && !acknowledgeMissingData ? (
+                <p className="max-w-[14rem] text-[11px] leading-snug text-warning">
+                  {missingDataGateCopy.submitBlockedHint}
+                </p>
+              ) : null}
+            </div>
           )}
           {canReject && (
             <div className="flex max-w-[14rem] flex-col items-stretch gap-1 sm:max-w-none sm:flex-row sm:items-center sm:gap-2">
@@ -567,6 +691,7 @@ export function SettlementActions({
               {copy.toasts.settingsUnavailable}
             </span>
           )}
+          </div>
         </div>
         {dialogs}
       </>
