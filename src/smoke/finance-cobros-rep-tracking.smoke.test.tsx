@@ -342,6 +342,63 @@ describe("smoke: finance-cobros-rep-tracking", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Ir a factura" }),
-    ).toHaveAttribute("href", "/invoices/inv-1");
+    ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
+  });
+
+  it("multi-invoice Cobros de hoy uses Ver en factura… without auto-nav to [0]", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-multi",
+          receiverRfc: "XAXX010101000",
+          amount: 2320,
+          paymentDate: "2026-10-10",
+          repStatus: "stamped",
+          invoices: [
+            { id: "inv-1", serie: "A", folio: 10, amount: 1160 },
+            { id: "inv-2", serie: "A", folio: 25, amount: 1160 },
+          ],
+          recordedAt: "2026-10-10T12:00:00.000Z",
+        },
+      ]),
+    );
+    repStatusByIds.data = [
+      {
+        paymentId: "pay-multi",
+        repStatus: "stamped",
+        repAttempts: 1,
+        repLastError: null,
+        repCfdiUuid: "uuid-multi",
+        repStampedAt: "2026-10-10T12:02:00.000Z",
+        repNextAttemptAt: null,
+        waitReason: null,
+        repErrorKind: null,
+        invoices: [
+          { id: "inv-1", serie: "A", folio: 10, amount: 1160 },
+          { id: "inv-2", serie: "A", folio: 25, amount: 1160 },
+        ],
+      },
+    ];
+
+    renderCobros();
+
+    expect(
+      screen.queryByRole("link", { name: "Ir a factura" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ver el cobro en una factura del lote",
+      }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", { name: "Abrir factura A-10" }),
+    ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
+    expect(
+      screen.getByRole("menuitem", { name: "Abrir factura A-25" }),
+    ).toHaveAttribute("href", "/invoices/inv-2#invoice-payments");
   });
 });

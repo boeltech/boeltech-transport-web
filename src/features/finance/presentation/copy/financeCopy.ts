@@ -95,6 +95,20 @@ const cobrosCopy = {
     hint: "Si el timbrado falla o se acerca el plazo, el cobro aparece en Comprobantes por atender.",
     dismissAriaLabel: "Cerrar bandeja de cobros de hoy",
   },
+  /**
+   * CTA N=1 / N>1 hacia detalle de factura (#invoice-payments).
+   * Shared by bandeja «Cobros de hoy» and excepciones REP (PRD opción E).
+   */
+  invoiceNav: {
+    goToInvoice: "Ir a factura",
+    viewInInvoice: "Ver en factura…",
+    viewInInvoiceAria: "Ver el cobro en una factura del lote",
+    pickerTitle: "Facturas de este cobro",
+    pickerHint:
+      "El comprobante de pago es uno; elige en qué factura abrirlo.",
+    moreInvoices: (n: number) => `+${n} más`,
+    openInvoice: (folio: string) => `Abrir factura ${folio}`,
+  },
   todayTray: {
     title: "Cobros de hoy",
     description:

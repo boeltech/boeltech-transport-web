@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
 import { Loader2, X } from "lucide-react";
 import {
   canRetryRepStamp,
@@ -27,12 +26,10 @@ import {
   type CobrosRepStage,
 } from "../utils/cobrosRepStage";
 import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
+import type { CobrosInvoiceNavTarget } from "../utils/cobrosInvoiceNav";
+import { CobrosInvoiceNavCta } from "./CobrosInvoiceNav";
 
 const copy = financeCopy.cobros.todayTray;
-
-function folio(serie: string, folioNumber: number): string {
-  return `${serie}-${folioNumber}`;
-}
 
 /** Hints for in-progress wait reasons that the stage chip alone does not explain. */
 function waitReasonHint(
@@ -176,9 +173,14 @@ export function FinanceCobrosTodayTray({
               const repErrorKind = live?.repErrorKind ?? null;
               const stage = resolveCobrosRepStage({ repStatus, waitReason });
               const amountLabel = formatMxCurrency(entry.amount);
-              const primaryInvoice = (live?.invoices?.[0] ?? entry.invoices[0]) as
-                | { id: string; serie: string; folio: number }
-                | undefined;
+              const navInvoices: CobrosInvoiceNavTarget[] = (
+                live?.invoices ?? entry.invoices
+              ).map((invoice) => ({
+                id: invoice.id,
+                serie: invoice.serie,
+                folio: invoice.folio,
+              }));
+              const primaryInvoice = navInvoices[0];
               const canRetry = canRetryRepStamp({
                 repStatus,
                 waitReason,
@@ -272,19 +274,10 @@ export function FinanceCobrosTodayTray({
                           )}
                         </Button>
                       ) : null}
-                      {primaryInvoice ? (
-                        <Button type="button" size="sm" variant="ghost" asChild>
-                          <Link
-                            to={`/invoices/${primaryInvoice.id}`}
-                            state={fromState}
-                            aria-label={copy.openInvoice(
-                              folio(primaryInvoice.serie, primaryInvoice.folio),
-                            )}
-                          >
-                            {copy.goToInvoice}
-                          </Link>
-                        </Button>
-                      ) : null}
+                      <CobrosInvoiceNavCta
+                        invoices={navInvoices}
+                        linkState={fromState}
+                      />
                       <Button
                         type="button"
                         size="icon"

@@ -333,8 +333,8 @@ describe("FinanceCobrosPage", () => {
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
     expect(screen.getByText("Esperando turno")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Abrir factura A-10" }),
-    ).toHaveAttribute("href", "/invoices/inv-1");
+      screen.getByRole("link", { name: "Ir a factura" }),
+    ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
   });
 
   it("dismisses the today tray and clears sessionStorage", async () => {
@@ -471,12 +471,75 @@ describe("FinanceCobrosPage", () => {
     expect(screen.getByText("Plazo vencido", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Abrir factura A-10" }),
-    ).toHaveAttribute("href", "/invoices/inv-1");
+    ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
+    const goToInvoiceLinks = screen.getAllByRole("link", {
+      name: "Ir a factura",
+    });
+    expect(goToInvoiceLinks).toHaveLength(2);
+    expect(goToInvoiceLinks[0]).toHaveAttribute(
+      "href",
+      "/invoices/inv-1#invoice-payments",
+    );
+    expect(goToInvoiceLinks[1]).toHaveAttribute(
+      "href",
+      "/invoices/inv-2#invoice-payments",
+    );
     expect(
       screen.getByRole("button", { name: "Reintentar timbrado" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE),
     ).toBeInTheDocument();
+  });
+
+  it("multi-invoice exception: no ghost Ir a factura; +N más lists the lote", async () => {
+    const user = userEvent.setup();
+    repExceptions.data = {
+      data: [
+        {
+          paymentId: "pay-multi",
+          paymentDate: "2026-08-01",
+          amount: 3000,
+          amountMxn: 3000,
+          paymentForm: "03",
+          receiverRfc: "XAXX010101000",
+          receiverName: "Cliente Demo",
+          repStatus: "failed",
+          repCfdiUuid: null,
+          repLastError: "Error de validación PAC",
+          allocations: [
+            { ingressInvoiceId: "inv-1", amount: 1000, serie: "A", folio: 10 },
+            { ingressInvoiceId: "inv-2", amount: 1000, serie: "A", folio: 11 },
+            { ingressInvoiceId: "inv-3", amount: 500, serie: "A", folio: 12 },
+            { ingressInvoiceId: "inv-4", amount: 500, serie: "A", folio: 13 },
+          ],
+          deadlineDate: "2026-09-05",
+          deadlineStatus: "ok",
+          daysUntilDeadline: 10,
+        },
+      ],
+      pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+    };
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
+
+    expect(
+      screen.queryByRole("link", { name: "Ir a factura" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("+1 más")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ver el cobro en una factura del lote",
+      }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", { name: "Abrir factura A-13" }),
+    ).toHaveAttribute("href", "/invoices/inv-4#invoice-payments");
   });
 });

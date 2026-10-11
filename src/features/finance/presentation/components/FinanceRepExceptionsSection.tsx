@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { FileWarning, Loader2 } from "lucide-react";
 import {
   useRepExceptions,
@@ -36,13 +35,14 @@ import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
+import { toInvoiceNavTargets } from "../utils/cobrosInvoiceNav";
+import {
+  CobrosInvoiceFolioChips,
+  CobrosInvoiceNavCta,
+} from "./CobrosInvoiceNav";
 
 const copy = financeCopy.cobros.exceptions;
 const PAGE_SIZE = 10;
-
-function folio(serie: string, folioNumber: number): string {
-  return `${serie}-${folioNumber}`;
-}
 
 function statusBadgeVariant(
   status: FinanceRepExceptionStatus,
@@ -243,22 +243,9 @@ export function FinanceRepExceptionsSection({
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-x-2 gap-y-1">
-                            {item.allocations.map((allocation) => {
-                              const label = folio(allocation.serie, allocation.folio);
-                              const invoiceHref = `/invoices/${allocation.ingressInvoiceId}`;
-                              return (
-                                <Link
-                                  key={allocation.ingressInvoiceId}
-                                  to={invoiceHref}
-                                  className="font-medium text-primary underline-offset-4 hover:underline"
-                                  aria-label={copy.openInvoice(label)}
-                                >
-                                  {label}
-                                </Link>
-                              );
-                            })}
-                          </div>
+                          <CobrosInvoiceFolioChips
+                            invoices={toInvoiceNavTargets(item.allocations)}
+                          />
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col items-start gap-1">
@@ -285,12 +272,11 @@ export function FinanceRepExceptionsSection({
                                 )}
                               </Button>
                             ) : null}
-                            {primary ? (
-                              <Button type="button" size="sm" variant="ghost" asChild>
-                                <Link to={`/invoices/${primary.ingressInvoiceId}`}>
-                                  {copy.goToInvoice}
-                                </Link>
-                              </Button>
+                            {/* N=1 only: N>1 uses folio chips + «+N más» / no ghost dueña. */}
+                            {item.allocations.length === 1 ? (
+                              <CobrosInvoiceNavCta
+                                invoices={toInvoiceNavTargets(item.allocations)}
+                              />
                             ) : null}
                           </div>
                         </TableCell>
