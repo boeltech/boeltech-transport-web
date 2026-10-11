@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import type { TripStop } from "@features/trips/domain";
 import { FixStopRfcSheet } from "./FixStopRfcSheet";
 
+/** Esperas puntuales bajo carga CI (no subir timeout global). */
+const UI_TIMEOUT_MS = 5_000;
+
 const mutate = vi.fn();
 const hasPermissionMock = vi.hoisted(() => vi.fn(() => true));
 
@@ -89,49 +92,65 @@ describe("FixStopRfcSheet", () => {
     hasPermissionMock.mockReturnValue(true);
   });
 
-  it("keeps submit enabled and shows validation when RFC or reason is incomplete", async () => {
-    const user = userEvent.setup();
+  it(
+    "keeps submit enabled and shows validation when RFC or reason is incomplete",
+    async () => {
+      // Sin delay por tecla: el tipado por defecto (~50ms/char) empuja el caso
+      // por encima del testTimeout 5s cuando la máquina está cargada (web#53).
+      const user = userEvent.setup({ delay: null });
 
-    render(
-      <FixStopRfcSheet
-        tripId="trip-1"
-        stop={stop}
-        open
-        onOpenChange={vi.fn()}
-      />,
-    );
+      render(
+        <FixStopRfcSheet
+          tripId="trip-1"
+          stop={stop}
+          open
+          onOpenChange={vi.fn()}
+        />,
+      );
 
-    const submitButton = screen.getByRole("button", {
-      name: "Validar y retimbrar",
-    });
-    expect(submitButton).toBeEnabled();
+      const submitButton = screen.getByRole("button", {
+        name: "Validar y retimbrar",
+      });
+      expect(submitButton).toBeEnabled();
 
-    await user.click(submitButton);
-    expect(
-      screen.getByText("El motivo debe tener al menos 5 caracteres"),
-    ).toBeInTheDocument();
+      await user.click(submitButton);
+      expect(
+        await screen.findByText(
+          "El motivo debe tener al menos 5 caracteres",
+          {},
+          { timeout: UI_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
 
-    const reasonInput = screen.getByLabelText("Motivo del cambio");
-    expect(reasonInput).toHaveAttribute("aria-invalid", "true");
-    expect(reasonInput).toHaveClass("border-destructive");
+      const reasonInput = screen.getByLabelText("Motivo del cambio");
+      expect(reasonInput).toHaveAttribute("aria-invalid", "true");
+      expect(reasonInput).toHaveClass("border-destructive");
 
-    const rfcInput = screen.getByLabelText("RFC remitente/destinatario");
-    await user.clear(rfcInput);
-    await user.type(rfcInput, "INVALID");
-    await user.click(submitButton);
-    expect(screen.getByText("Formato SAT inválido")).toBeInTheDocument();
-    expect(rfcInput).toHaveAttribute("aria-invalid", "true");
-    expect(rfcInput).toHaveAttribute(
-      "aria-describedby",
-      "fiscal-correction-rfc-error",
-    );
-    expect(rfcInput).toHaveClass("border-destructive");
+      const rfcInput = screen.getByLabelText("RFC remitente/destinatario");
+      await user.clear(rfcInput);
+      await user.type(rfcInput, "INVALID");
+      await user.click(submitButton);
+      expect(
+        await screen.findByText(
+          "Formato SAT inválido",
+          {},
+          { timeout: UI_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
+      expect(rfcInput).toHaveAttribute("aria-invalid", "true");
+      expect(rfcInput).toHaveAttribute(
+        "aria-describedby",
+        "fiscal-correction-rfc-error",
+      );
+      expect(rfcInput).toHaveClass("border-destructive");
 
-    await user.clear(rfcInput);
-    await user.type(rfcInput, "EKU9003173C9");
-    await user.type(screen.getByLabelText("Motivo del cambio"), "12345");
-    expect(submitButton).toBeEnabled();
-  });
+      await user.clear(rfcInput);
+      await user.type(rfcInput, "EKU9003173C9");
+      await user.type(screen.getByLabelText("Motivo del cambio"), "12345");
+      expect(submitButton).toBeEnabled();
+    },
+    15_000,
+  );
 
   it("shows propagation checkbox only when stop has clientAddressId", () => {
     const { rerender } = render(
@@ -188,7 +207,7 @@ describe("FixStopRfcSheet", () => {
   });
 
   it("updates reason counter while typing", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     render(
       <FixStopRfcSheet
@@ -200,6 +219,8 @@ describe("FixStopRfcSheet", () => {
     );
 
     await user.type(screen.getByLabelText("Motivo del cambio"), "abcde");
-    expect(screen.getByText("5/500")).toBeInTheDocument();
+    expect(
+      await screen.findByText("5/500", {}, { timeout: UI_TIMEOUT_MS }),
+    ).toBeInTheDocument();
   });
 });
