@@ -196,14 +196,15 @@ export const useInvoice = (id: string, options?: UseInvoiceOptions) => {
       ? false
       : devRefetchIntervalFn((query: Query<Invoice, Error>) => {
           const invoice = query.state.data;
-          const hasPendingRep = invoice?.payments.some(
+          // Poll only while REP may still change without user action.
+          // Permanent `failed` alone does not warrant polling (F1-Web W5).
+          const hasActiveRep = invoice?.payments.some(
             (p: Payment) =>
               p.repStatus === "pending" ||
-              p.repStatus === "failed" ||
               p.repStatus === "restamp_pending" ||
               p.repStatus === "cancelling",
           );
-          return hasPendingRep ? 5_000 : false;
+          return hasActiveRep ? 5_000 : false;
         }),
   });
 };

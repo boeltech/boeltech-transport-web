@@ -124,6 +124,10 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
   const hasPendingBalance = remainingBalance > 0;
   const exchangeRate = invoice.exchangeRate ?? 1;
   const isPpd = invoice.paymentMethod === "PPD";
+  const invoiceCurrency = (invoice.currency ?? "MXN").trim().toUpperCase() || "MXN";
+  /** PPD REP v1: solo MXN (API `REP_CURRENCY_NOT_SUPPORTED`). */
+  const isNonMxnPpd = isPpd && invoiceCurrency !== "MXN";
+  const canSubmitPayment = hasPendingBalance && !isNonMxnPpd;
   const clientName = invoice.receiverName?.trim() || "—";
 
   const form = useForm<FormValues, unknown, FormValues>({
@@ -145,6 +149,10 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
     onError: (err) => {
       if (err instanceof ApiError && err.code === "CHAIN_REORDER_REQUIRED") {
         setChainRepairOpen(true);
+        return;
+      }
+      if (err instanceof ApiError && err.code === "REP_CURRENCY_NOT_SUPPORTED") {
+        showOverlayError(formCopy.currencyNotSupportedMessage);
         return;
       }
       showOverlayError(getErrorMessage(err));
@@ -202,6 +210,13 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
         title: formCopy.noBalanceTitle,
         description: formCopy.noBalanceDescription,
       });
+      return;
+    }
+
+    if (isNonMxnPpd) {
+      showOverlayError(
+        formCopy.nonMxnBlockedDescription(invoiceCurrency),
+      );
       return;
     }
 
@@ -282,6 +297,15 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
         </p>
       ) : null}
 
+      {isNonMxnPpd ? (
+        <Alert variant="destructive" className="mb-2">
+          <AlertTitle>{formCopy.nonMxnBlockedTitle}</AlertTitle>
+          <AlertDescription>
+            {formCopy.nonMxnBlockedDescription(invoiceCurrency)}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <form onSubmit={handleFormSubmit} className="space-y-4">
         {submissionError ? (
           <Alert variant="destructive">
@@ -299,14 +323,14 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
             fieldId="amount"
             label={formCopy.amount}
             required
-            disabled={!hasPendingBalance}
+            disabled={!canSubmitPayment}
           />
           <RHFDateField
             control={form.control}
             name="payment_date"
             label={formCopy.paymentDate}
             required
-            disabled={!hasPendingBalance}
+            disabled={!canSubmitPayment}
           />
         </div>
 
@@ -322,7 +346,7 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
               value={field.value}
               onValueChange={field.onChange}
               placeholder={formCopy.paymentFormPlaceholder}
-              disabled={!hasPendingBalance}
+              disabled={!canSubmitPayment}
               error={Boolean(fieldState.error)}
               {...getFieldErrorAriaProps(resolvedId, errorMessage)}
             />
@@ -334,7 +358,7 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
           name="payment_time"
           label={formCopy.paymentTime}
           type="time"
-          disabled={!hasPendingBalance}
+          disabled={!canSubmitPayment}
           description={copy.hint.paymentTimeHint}
         />
 
@@ -357,14 +381,14 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
             name="reference"
             label={formCopy.reference}
             placeholder={formCopy.referencePlaceholder}
-            disabled={!hasPendingBalance}
+            disabled={!canSubmitPayment}
           />
           <RHFTextField
             control={form.control}
             name="notes"
             label={formCopy.notes}
             placeholder={formCopy.notesPlaceholder}
-            disabled={!hasPendingBalance}
+            disabled={!canSubmitPayment}
           />
         </div>
 
@@ -385,7 +409,7 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
           </Button>
           <Button
             type="submit"
-            disabled={isPending || !hasPendingBalance || chainRepairOpen}
+            disabled={isPending || !canSubmitPayment || chainRepairOpen}
           >
             {isPending ? formCopy.submitting : formCopy.submit}
           </Button>

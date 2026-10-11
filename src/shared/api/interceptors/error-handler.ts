@@ -229,6 +229,8 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
     "Ya existe una factura sustituta para esta factura. No sustituyas de nuevo; reintenta la cancelación del original si sigue activa.",
   INVOICE_HAS_PAYMENTS:
     "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar mientras haya cobros.",
+  REP_CURRENCY_NOT_SUPPORTED:
+    "Solo se admiten cobros y complementos de pago (REP) en MXN.",
   RATE_LIMIT_EXCEEDED:
     "Demasiados envíos en poco tiempo. Espera un momento e inténtalo de nuevo.",
 

@@ -114,7 +114,12 @@ describe("PaymentFormDialog", () => {
   });
 
   it("shows operative title, folio, client and balance without PPD/REP in the title", () => {
-    renderDialog();
+    renderDialog(
+      buildInvoice({
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
 
     expect(
       screen.getByRole("heading", { name: "Registrar pago" }),
@@ -128,19 +133,63 @@ describe("PaymentFormDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("submits invoice exchange rate and effective balance", async () => {
-    const user = userEvent.setup();
+  it("blocks PPD non-MXN before submit with clear message", () => {
     renderDialog();
+
+    expect(
+      screen.getByText("Solo MXN para comprobante de pago"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Esta factura está en USD/i),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /^Registrar pago$/i }),
+    ).toBeDisabled();
+    expect(mutateMock).not.toHaveBeenCalled();
+  });
+
+  it("submits invoice exchange rate and effective balance for MXN PPD", async () => {
+    const user = userEvent.setup();
+    renderDialog(
+      buildInvoice({
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
 
     await user.click(screen.getByRole("button", { name: /^Registrar pago$/i }));
 
     expect(mutateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        exchangeRate: 18.5,
-        currency: "USD",
+        exchangeRate: 1,
+        currency: "MXN",
         amount: 1160,
       }),
     );
+  });
+
+  it("maps REP_CURRENCY_NOT_SUPPORTED to clear Alert copy", () => {
+    renderDialog(
+      buildInvoice({
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
+    expect(registerPaymentOnError).toBeTypeOf("function");
+
+    act(() => {
+      registerPaymentOnError?.(
+        new ApiError("Moneda no soportada", 422, "REP_CURRENCY_NOT_SUPPORTED"),
+      );
+    });
+
+    expect(screen.getByText("Error al registrar pago")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Solo se admiten cobros y complementos de pago (REP) en MXN.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("allows PUE registration with financial balance and without PPD chain hint", async () => {
@@ -173,7 +222,12 @@ describe("PaymentFormDialog", () => {
   });
 
   it("shows Alert when API rejects overpayment (stale balance)", () => {
-    renderDialog();
+    renderDialog(
+      buildInvoice({
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
     expect(registerPaymentOnError).toBeTypeOf("function");
 
     const overpayMessage =
@@ -187,7 +241,12 @@ describe("PaymentFormDialog", () => {
   });
 
   it("disables submit while chain repair dialog is open", () => {
-    renderDialog();
+    renderDialog(
+      buildInvoice({
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
     expect(registerPaymentOnError).toBeTypeOf("function");
 
     act(() => {

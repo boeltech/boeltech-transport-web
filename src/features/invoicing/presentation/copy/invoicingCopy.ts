@@ -468,6 +468,12 @@ export const invoicingCopy = {
       paid: "Cobrado",
       settledMessage:
         "Esta factura ya está liquidada; no se pueden registrar más pagos.",
+      /** PPD no-MXN: bloqueo UX (paridad API REP_CURRENCY_NOT_SUPPORTED). */
+      nonMxnBlockedTitle: "Solo MXN para comprobante de pago",
+      nonMxnBlockedDescription: (currency: string) =>
+        `Esta factura está en ${currency}. En esta versión solo se admiten cobros y complementos de pago (REP) en MXN.`,
+      currencyNotSupportedMessage:
+        "Solo se admiten cobros y complementos de pago (REP) en MXN.",
       amount: "Monto",
       paymentDate: "Fecha del cobro",
       paymentTime: "Hora (opcional)",

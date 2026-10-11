@@ -1,7 +1,13 @@
 import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/domain";
 import type { RegisterFinancePaymentPayload } from "@features/finance/infrastructure/financePaymentsApi";
 
+/** Legacy single-cobro key (v1) — migrated into the today tray. */
 export const COBROS_FOLLOW_THROUGH_STORAGE_KEY = "finance.cobros.followThrough";
+
+/** Session tray of cobros registered in this browser tab (v2). */
+export const COBROS_TODAY_TRAY_STORAGE_KEY = "finance.cobros.todayTray.v2";
+
+export const COBROS_TODAY_TRAY_MAX_IDS = 50;
 
 export interface CobrosFollowThroughInvoice {
   readonly id: string;
@@ -10,16 +16,22 @@ export interface CobrosFollowThroughInvoice {
   readonly amount: number;
 }
 
-export interface CobrosFollowThrough {
+/** One cobro in the «Cobros de hoy» tray (session snapshot + optional live fields). */
+export interface CobrosTodayEntry {
   readonly paymentId: string;
   readonly receiverRfc: string;
   readonly amount: number;
   readonly paymentDate: string;
   readonly repStatus: string;
   readonly invoices: CobrosFollowThroughInvoice[];
-  /** ISO timestamp when the snapshot was written (F2 lifecycle). */
-  readonly recordedAt?: string;
+  /** ISO timestamp when the snapshot was written. */
+  readonly recordedAt: string;
 }
+
+/** @deprecated Prefer CobrosTodayEntry — kept for migration parsers. */
+export type CobrosFollowThrough = CobrosTodayEntry & {
+  readonly recordedAt?: string;
+};
 
 function isFollowThroughInvoice(value: unknown): value is CobrosFollowThroughInvoice {
   if (!value || typeof value !== "object") return false;
@@ -32,7 +44,7 @@ function isFollowThroughInvoice(value: unknown): value is CobrosFollowThroughInv
   );
 }
 
-export function parseCobrosFollowThrough(raw: unknown): CobrosFollowThrough | null {
+export function parseCobrosFollowThrough(raw: unknown): CobrosTodayEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
   if (
@@ -48,7 +60,9 @@ export function parseCobrosFollowThrough(raw: unknown): CobrosFollowThrough | nu
   const invoices = value.invoices.filter(isFollowThroughInvoice);
   if (invoices.length === 0) return null;
   const recordedAt =
-    typeof value.recordedAt === "string" ? value.recordedAt : undefined;
+    typeof value.recordedAt === "string"
+      ? value.recordedAt
+      : new Date(0).toISOString();
   return {
     paymentId: value.paymentId,
     receiverRfc: value.receiverRfc,
@@ -56,15 +70,25 @@ export function parseCobrosFollowThrough(raw: unknown): CobrosFollowThrough | nu
     paymentDate: value.paymentDate,
     repStatus: value.repStatus,
     invoices,
-    ...(recordedAt ? { recordedAt } : {}),
+    recordedAt,
   };
+}
+
+function parseCobrosTodayTray(raw: unknown): CobrosTodayEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const entries: CobrosTodayEntry[] = [];
+  for (const item of raw) {
+    const parsed = parseCobrosFollowThrough(item);
+    if (parsed) entries.push(parsed);
+  }
+  return entries;
 }
 
 export function buildCobrosFollowThrough(
   payment: FinancePayment,
   payload: RegisterFinancePaymentPayload,
   invoices: FinanceInvoiceListItem[],
-): CobrosFollowThrough {
+): CobrosTodayEntry {
   const amountByInvoiceId = new Map(
     payload.allocations.map((allocation) => [
       allocation.ingressInvoiceId,
@@ -87,56 +111,107 @@ export function buildCobrosFollowThrough(
   };
 }
 
-export function readCobrosFollowThrough(): CobrosFollowThrough | null {
-  if (typeof sessionStorage === "undefined") return null;
+function migrateV1FollowThrough(): CobrosTodayEntry[] {
+  if (typeof sessionStorage === "undefined") return [];
   try {
     const raw = sessionStorage.getItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
-    if (!raw) return null;
-    return parseCobrosFollowThrough(JSON.parse(raw) as unknown);
+    if (!raw) return [];
+    const parsed = parseCobrosFollowThrough(JSON.parse(raw) as unknown);
+    sessionStorage.removeItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
+    return parsed ? [parsed] : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-export function writeCobrosFollowThrough(value: CobrosFollowThrough): void {
+export function readCobrosTodayTray(): CobrosTodayEntry[] {
+  if (typeof sessionStorage === "undefined") return [];
+  try {
+    const raw = sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY);
+    if (raw) {
+      return parseCobrosTodayTray(JSON.parse(raw) as unknown);
+    }
+    const migrated = migrateV1FollowThrough();
+    if (migrated.length > 0) {
+      writeCobrosTodayTray(migrated);
+    }
+    return migrated;
+  } catch {
+    return migrateV1FollowThrough();
+  }
+}
+
+export function writeCobrosTodayTray(entries: readonly CobrosTodayEntry[]): void {
   if (typeof sessionStorage === "undefined") return;
   try {
+    const capped = entries.slice(0, COBROS_TODAY_TRAY_MAX_IDS);
     sessionStorage.setItem(
-      COBROS_FOLLOW_THROUGH_STORAGE_KEY,
-      JSON.stringify(value),
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify(capped),
     );
   } catch {
-    // Quota or private mode: the in-memory panel still covers this visit.
+    // Quota or private mode: in-memory state still covers this visit.
   }
 }
 
-export function clearCobrosFollowThrough(): void {
+export function appendCobrosTodayEntry(
+  current: readonly CobrosTodayEntry[],
+  entry: CobrosTodayEntry,
+): CobrosTodayEntry[] {
+  const withoutDup = current.filter((item) => item.paymentId !== entry.paymentId);
+  const next = [entry, ...withoutDup].slice(0, COBROS_TODAY_TRAY_MAX_IDS);
+  writeCobrosTodayTray(next);
+  return next;
+}
+
+export function removeCobrosTodayEntry(
+  current: readonly CobrosTodayEntry[],
+  paymentId: string,
+): CobrosTodayEntry[] {
+  const next = current.filter((item) => item.paymentId !== paymentId);
+  writeCobrosTodayTray(next);
+  return next;
+}
+
+export function clearCobrosTodayTray(): void {
   if (typeof sessionStorage === "undefined") return;
   try {
+    sessionStorage.removeItem(COBROS_TODAY_TRAY_STORAGE_KEY);
     sessionStorage.removeItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
   } catch {
     // Private mode: ignore; caller still clears React state.
   }
 }
 
-/** Grace before treating “absent from exceptions” as resolved (stale cache / indexing). */
+/** @deprecated Prefer readCobrosTodayTray. */
+export function readCobrosFollowThrough(): CobrosTodayEntry | null {
+  const tray = readCobrosTodayTray();
+  return tray[0] ?? null;
+}
+
+/** @deprecated Prefer appendCobrosTodayEntry. */
+export function writeCobrosFollowThrough(value: CobrosTodayEntry): void {
+  appendCobrosTodayEntry(readCobrosTodayTray(), value);
+}
+
+/** @deprecated Prefer clearCobrosTodayTray. */
+export function clearCobrosFollowThrough(): void {
+  clearCobrosTodayTray();
+}
+
+/** Grace before treating “absent from exceptions” as resolved (legacy F2). */
 export const COBROS_FOLLOW_THROUGH_ABSENCE_GRACE_MS = 3_000;
 
 /**
- * Banner lifecycle (issue #33 F2): clear when REP is stamped, or when the
- * payment left the exceptions bucket after we already observed it there, or
- * after a short grace when a return visit finds it gone (stamp completed).
+ * @deprecated Tray lifecycle is driven by live `rep-status` poll; kept for tests.
  */
 export function shouldClearCobrosFollowThrough(
-  followThrough: CobrosFollowThrough,
+  followThrough: CobrosTodayEntry,
   live: {
     readonly exceptionsFetched: boolean;
     readonly exceptionPaymentIds: ReadonlySet<string> | readonly string[];
-    /** True when the fetched page may omit the payment (pagination). */
     readonly exceptionsMayBeIncomplete?: boolean;
-    /** True once this paymentId appeared in a successful exceptions fetch. */
     readonly previouslySeenInExceptions: boolean;
-    /** Clock for grace window tests; defaults to Date.now(). */
     readonly nowMs?: number;
   },
 ): boolean {

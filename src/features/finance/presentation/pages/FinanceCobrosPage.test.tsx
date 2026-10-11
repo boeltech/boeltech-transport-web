@@ -10,55 +10,71 @@ import { renderWithTheme } from "@/test/renderWithTheme";
 import { FinanceCobrosPage } from "./FinanceCobrosPage";
 import {
   COBROS_FOLLOW_THROUGH_STORAGE_KEY,
+  COBROS_TODAY_TRAY_STORAGE_KEY,
 } from "../utils/cobrosFollowThrough";
+import { REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE } from "@features/finance/domain";
 
-const { openPpd, openPpdSummary, registerPayment, repExceptions } = vi.hoisted(
-  () => ({
-    openPpd: {
-      data: undefined as
-        | {
-            data: FinanceInvoiceListItem[];
-            pagination: {
-              page: number;
-              limit: number;
-              total: number;
-              totalPages: number;
-            };
-          }
-        | undefined,
-      isLoading: false,
-      isError: false,
-      isFetching: false,
-      refetch: vi.fn(),
-    },
-    openPpdSummary: {
-      data: undefined as FinanceOpenPpdSummary | undefined,
-      isLoading: false,
-      refetch: vi.fn(),
-    },
-    registerPayment: {
-      mutate: vi.fn(),
-      isPending: false,
-    },
-    repExceptions: {
-      data: undefined as
-        | {
-            data: FinanceRepExceptionItem[];
-            pagination: {
-              page: number;
-              limit: number;
-              total: number;
-              totalPages: number;
-            };
-          }
-        | undefined,
-      isLoading: false,
-      isFetched: true,
-      isError: false,
-      refetch: vi.fn(),
-    },
-  }),
-);
+const {
+  openPpd,
+  openPpdSummary,
+  registerPayment,
+  repExceptions,
+  repStatusByIds,
+  retryFinanceRepStamp,
+} = vi.hoisted(() => ({
+  openPpd: {
+    data: undefined as
+      | {
+          data: FinanceInvoiceListItem[];
+          pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      | undefined,
+    isLoading: false,
+    isError: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  },
+  openPpdSummary: {
+    data: undefined as FinanceOpenPpdSummary | undefined,
+    isLoading: false,
+    refetch: vi.fn(),
+  },
+  registerPayment: {
+    mutate: vi.fn(),
+    isPending: false,
+  },
+  repExceptions: {
+    data: undefined as
+      | {
+          data: FinanceRepExceptionItem[];
+          pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+          };
+        }
+      | undefined,
+    isLoading: false,
+    isFetched: true,
+    isError: false,
+    refetch: vi.fn(),
+  },
+  repStatusByIds: {
+    data: undefined as unknown,
+    isLoading: false,
+  },
+  retryFinanceRepStamp: {
+    mutate: vi.fn(),
+    isPending: false,
+    variables: undefined as { invoiceId: string; paymentId: string } | undefined,
+  },
+}));
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
@@ -92,6 +108,8 @@ vi.mock("@features/finance/application", async (importOriginal) => {
     useOpenPpdSummary: () => openPpdSummary,
     useRegisterFinancePayment: () => registerPayment,
     useRepExceptions: () => repExceptions,
+    useRepStatusByIds: () => repStatusByIds,
+    useRetryFinanceRepStamp: () => retryFinanceRepStamp,
   };
 });
 
@@ -135,7 +153,12 @@ describe("FinanceCobrosPage", () => {
     repExceptions.isLoading = false;
     repExceptions.isFetched = true;
     repExceptions.isError = false;
+    repStatusByIds.data = undefined;
+    retryFinanceRepStamp.mutate = vi.fn();
+    retryFinanceRepStamp.isPending = false;
+    retryFinanceRepStamp.variables = undefined;
     sessionStorage.removeItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
+    sessionStorage.removeItem(COBROS_TODAY_TRAY_STORAGE_KEY);
   });
 
   it("shows the actionable queue without requiring an RFC", () => {
@@ -273,80 +296,117 @@ describe("FinanceCobrosPage", () => {
     );
   });
 
-  it("keeps the last cobro lote visible after leaving open-ppd", () => {
+  it("keeps Cobros de hoy tray after leaving open-ppd (session v2)", () => {
     sessionStorage.setItem(
-      COBROS_FOLLOW_THROUGH_STORAGE_KEY,
-      JSON.stringify({
-        paymentId: "pay-1",
-        receiverRfc: "XAXX010101000",
-        amount: 1160,
-        paymentDate: "2026-08-18",
-        repStatus: "pending",
-        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
-      }),
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-1",
+          receiverRfc: "XAXX010101000",
+          amount: 1160,
+          paymentDate: "2026-08-18",
+          repStatus: "pending",
+          invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+          recordedAt: "2026-08-18T12:00:00.000Z",
+        },
+      ]),
     );
+    repStatusByIds.data = [
+      {
+        paymentId: "pay-1",
+        repStatus: "pending",
+        repAttempts: 0,
+        repLastError: null,
+        repCfdiUuid: null,
+        repStampedAt: null,
+        repNextAttemptAt: null,
+        waitReason: "queued",
+        repErrorKind: null,
+        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+      },
+    ];
 
     renderWithTheme(<FinanceCobrosPage />, {
       route: ["/finance/cobros"],
     });
 
-    expect(screen.getByText("Cobro registrado")).toBeInTheDocument();
+    expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
+    expect(screen.getByText("Esperando turno")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Abrir factura A-10" }),
     ).toHaveAttribute("href", "/invoices/inv-1");
   });
 
-  it("dismisses the follow-through banner and clears sessionStorage", async () => {
+  it("dismisses the today tray and clears sessionStorage", async () => {
     const user = userEvent.setup();
     sessionStorage.setItem(
-      COBROS_FOLLOW_THROUGH_STORAGE_KEY,
-      JSON.stringify({
-        paymentId: "pay-1",
-        receiverRfc: "XAXX010101000",
-        amount: 1160,
-        paymentDate: "2026-08-18",
-        repStatus: "pending",
-        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
-      }),
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-1",
+          receiverRfc: "XAXX010101000",
+          amount: 1160,
+          paymentDate: "2026-08-18",
+          repStatus: "pending",
+          invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+          recordedAt: "2026-08-18T12:00:00.000Z",
+        },
+      ]),
     );
 
     renderWithTheme(<FinanceCobrosPage />, {
       route: ["/finance/cobros"],
     });
 
-    expect(screen.getByText("Cobro registrado")).toBeInTheDocument();
+    expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "Cerrar aviso de cobro registrado" }),
+      screen.getByRole("button", { name: "Cerrar bandeja de cobros de hoy" }),
     );
 
-    expect(screen.queryByText("Cobro registrado")).not.toBeInTheDocument();
-    expect(sessionStorage.getItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY)).toBeNull();
+    expect(screen.queryByText("Cobros de hoy")).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).toBeNull();
   });
 
-  it("auto-clears the follow-through banner when REP is already stamped", async () => {
+  it("shows stamped stage in tray without auto-clearing the session entry", () => {
     sessionStorage.setItem(
-      COBROS_FOLLOW_THROUGH_STORAGE_KEY,
-      JSON.stringify({
-        paymentId: "pay-1",
-        receiverRfc: "XAXX010101000",
-        amount: 1160,
-        paymentDate: "2026-08-18",
-        repStatus: "stamped",
-        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
-      }),
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-1",
+          receiverRfc: "XAXX010101000",
+          amount: 1160,
+          paymentDate: "2026-08-18",
+          repStatus: "stamped",
+          invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+          recordedAt: "2026-08-18T12:00:00.000Z",
+        },
+      ]),
     );
+    repStatusByIds.data = [
+      {
+        paymentId: "pay-1",
+        repStatus: "stamped",
+        repAttempts: 1,
+        repLastError: null,
+        repCfdiUuid: "uuid-1",
+        repStampedAt: "2026-08-18T12:05:00.000Z",
+        repNextAttemptAt: null,
+        waitReason: null,
+        repErrorKind: null,
+        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+      },
+    ];
 
     renderWithTheme(<FinanceCobrosPage />, {
       route: ["/finance/cobros"],
     });
 
-    await waitFor(() => {
-      expect(screen.queryByText("Cobro registrado")).not.toBeInTheDocument();
-    });
-    expect(sessionStorage.getItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY)).toBeNull();
+    expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
+    expect(screen.getByText("Comprobante timbrado")).toBeInTheDocument();
+    expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).not.toBeNull();
   });
 
-  it("lists a failed REP as work in Cobros with a link to the invoice", async () => {
+  it("lists a failed REP with reason and retry CTA (not for manual_review)", async () => {
     const user = userEvent.setup();
     repExceptions.data = {
       data: [
@@ -360,7 +420,7 @@ describe("FinanceCobrosPage", () => {
           receiverName: "Cliente Demo",
           repStatus: "failed",
           repCfdiUuid: null,
-          repLastError: "PAC timeout",
+          repLastError: "Error de validación PAC",
           allocations: [
             {
               ingressInvoiceId: "inv-1",
@@ -373,8 +433,31 @@ describe("FinanceCobrosPage", () => {
           deadlineStatus: "overdue",
           daysUntilDeadline: -3,
         },
+        {
+          paymentId: "pay-exc-2",
+          paymentDate: "2026-08-02",
+          amount: 500,
+          amountMxn: 500,
+          paymentForm: "03",
+          receiverRfc: "XAXX010101000",
+          receiverName: "Cliente Demo",
+          repStatus: "failed",
+          repCfdiUuid: null,
+          repLastError: REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
+          allocations: [
+            {
+              ingressInvoiceId: "inv-2",
+              amount: 500,
+              serie: "A",
+              folio: 11,
+            },
+          ],
+          deadlineDate: "2026-09-05",
+          deadlineStatus: "ok",
+          daysUntilDeadline: 10,
+        },
       ],
-      pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      pagination: { page: 1, limit: 10, total: 2, totalPages: 1 },
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
@@ -383,11 +466,17 @@ describe("FinanceCobrosPage", () => {
 
     await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
 
-    expect(screen.getByText("Sello fallido")).toBeInTheDocument();
+    expect(screen.getAllByText("Timbrado fallido").length).toBeGreaterThan(0);
+    expect(screen.getByText("Error de validación PAC")).toBeInTheDocument();
     expect(screen.getByText("Plazo vencido", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Abrir factura A-10" }),
     ).toHaveAttribute("href", "/invoices/inv-1");
-    expect(screen.queryByRole("button", { name: /Reintentar sello/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reintentar timbrado" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE),
+    ).toBeInTheDocument();
   });
 });

@@ -41,6 +41,8 @@ export const financeQueryKeys = {
     limit: number,
   ) =>
     [...financeQueryKeys.all, "rep-exceptions", receiverRfc, page, limit] as const,
+  repStatusByIds: (idsKey: string) =>
+    [...financeQueryKeys.all, "rep-status", idsKey] as const,
   openPpdInvoices: (filters: {
     receiverRfc: string | null;
     search: string | null;

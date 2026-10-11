@@ -83,26 +83,77 @@ const cobrosCopy = {
   submitting: "Guardando…",
   toastSuccessTitle: "Cobro registrado",
   toastSuccessDescription: (total: string) =>
-    `Cobro de ${total} registrado. El comprobante de pago se genera en segundo plano.`,
+    `Cobro de ${total} registrado. El comprobante de pago (REP) se timbra en segundo plano.`,
+  /** @deprecated Prefer todayTray — kept for transitional copy refs. */
   followThrough: {
-    title: "Cobro registrado",
+    title: "Cobros de hoy",
     description: (total: string) =>
-      `Cobro de ${total}. Revisa el estado del comprobante y abre cada factura si hace falta.`,
+      `Cobro de ${total}. Revisa el estado del comprobante de pago (REP).`,
     invoicesTitle: "Facturas del cobro",
     openInvoice: (folio: string) => `Abrir factura ${folio}`,
     repStatusLabel: "Comprobante de pago",
-    hint: "Si el sello falla o se acerca el plazo, el cobro aparece abajo en Comprobantes por atender.",
-    dismissAriaLabel: "Cerrar aviso de cobro registrado",
+    hint: "Si el timbrado falla o se acerca el plazo, el cobro aparece en Comprobantes por atender.",
+    dismissAriaLabel: "Cerrar bandeja de cobros de hoy",
+  },
+  todayTray: {
+    title: "Cobros de hoy",
+    description:
+      "Progreso del comprobante de pago (REP) de cada cobro de esta sesión.",
+    summary: (ready: number, inProgress: number, needsAction: number) =>
+      `${ready} listo${ready === 1 ? "" : "s"} · ${inProgress} en proceso · ${needsAction} requieren atención`,
+    stages: {
+      queued: "Esperando turno",
+      stamping: "Timbrando…",
+      ready: "Comprobante timbrado",
+      needs_action: "Requiere atención",
+    },
+    waitReasons: {
+      pac_clock: "Esperando ventana de reloj del PAC…",
+      quota: "Esperando cuota de timbrado…",
+      blocked_by_prior: "Esperando un comprobante anterior…",
+      retry_scheduled: "Reintento programado…",
+      queued: "En cola de timbrado…",
+      manual_review: "Revisión manual requerida",
+    },
+    openInvoice: (folio: string) => `Abrir factura ${folio}`,
+    goToInvoice: "Ir a factura",
+    retryStamp: "Reintentar timbrado",
+    retrying: "Reencolando…",
+    manualReviewHint:
+      "Revise en el PAC antes de reintentar; no reintente a ciegas.",
+    permanentErrorHint:
+      "El PAC rechazó el comprobante de forma permanente; no reintente a ciegas.",
+    orphanHint:
+      "Hay un UUID de comprobante; revise en el PAC antes de actuar.",
+    dismissTrayAriaLabel: "Cerrar bandeja de cobros de hoy",
+    dismissRowAriaLabel: (amount: string) => `Quitar cobro de ${amount} de la bandeja`,
+    toastReadyTitle: "Comprobante de pago timbrado",
+    toastReadyDescription: (amount: string) =>
+      `El cobro de ${amount} ya tiene comprobante de pago (REP).`,
+    toastNeedsActionTitle: "Comprobante de pago requiere atención",
+    toastNeedsActionDescription: (amount: string) =>
+      `Revisa el cobro de ${amount} en la bandeja o en Comprobantes por atender.`,
+    toastRetrySuccess: "Timbrado reencolado",
+    toastRetryError: "No se pudo reencolar el timbrado",
   },
   exceptions: {
     title: "Comprobantes por atender",
     description:
-      "Pagos con comprobante pendiente, fallido, en reparación o con plazo por vencer. El reintento del sello se hace en el detalle de la factura.",
+      "Pagos con comprobante de pago (REP) fallido, en reparación o con plazo por vencer. Revisa el motivo y la acción en cada fila.",
     emptyTitle: "Sin comprobantes por atender",
-    empty: "No hay comprobantes de pago pendientes de sello para este alcance.",
+    empty: "No hay comprobantes de pago pendientes de timbrar para este alcance.",
     loadErrorTitle: "No se pudieron cargar los comprobantes",
     loadError: "Intenta de nuevo. Si persiste, abre el detalle de la factura.",
     retry: "Reintentar",
+    retryStamp: "Reintentar timbrado",
+    retrying: "Reencolando…",
+    goToInvoice: "Ir a factura",
+    reason: "Motivo",
+    action: "Acción",
+    manualReviewHint:
+      "Revise en el PAC antes de reintentar; no reintente a ciegas.",
+    orphanHint:
+      "Hay un UUID de comprobante; revise en el PAC antes de actuar.",
     entityLabelPlural: "comprobantes",
     openInvoice: (folio: string) => `Abrir factura ${folio}`,
     amount: "Importe",
@@ -119,11 +170,13 @@ const cobrosCopy = {
     daysOverdue: (days: number) =>
       days === 1 ? "vencido hace 1 día" : `vencido hace ${days} días`,
     statusLabels: {
-      pending: "Pendiente de sello",
-      failed: "Sello fallido",
-      restamp_pending: "Reparando sello",
+      pending: "En cola de timbrado",
+      failed: "Timbrado fallido",
+      restamp_pending: "Reparando comprobante",
       cancelling: "Cancelando comprobante",
     },
+    toastRetrySuccess: "Timbrado reencolado",
+    toastRetryError: "No se pudo reencolar el timbrado",
   },
   workbench: {
     title: "Cobros",

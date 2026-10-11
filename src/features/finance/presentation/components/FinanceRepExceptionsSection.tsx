@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FileWarning } from "lucide-react";
-import { useRepExceptions } from "@features/finance/application";
+import { FileWarning, Loader2 } from "lucide-react";
+import {
+  useRepExceptions,
+  useRetryFinanceRepStamp,
+} from "@features/finance/application";
 import type {
   FinanceRepDeadlineStatus,
   FinanceRepExceptionItem,
   FinanceRepExceptionStatus,
+} from "@features/finance/domain";
+import {
+  canRetryRepStamp,
+  isRepManualReview,
+  isRepOrphanParked,
+  REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
 } from "@features/finance/domain";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
@@ -22,6 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import { useToast } from "@shared/hooks";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
@@ -36,6 +47,7 @@ function folio(serie: string, folioNumber: number): string {
 function statusBadgeVariant(
   status: FinanceRepExceptionStatus,
 ): "warning" | "destructive" | "neutral" {
+  // pending stays warning (not destructive) — PRD D6
   if (status === "failed") return "destructive";
   if (status === "pending" || status === "restamp_pending" || status === "cancelling") {
     return "warning";
@@ -68,6 +80,7 @@ interface FinanceRepExceptionsSectionProps {
 export function FinanceRepExceptionsSection({
   receiverRfc,
 }: FinanceRepExceptionsSectionProps) {
+  const { toast } = useToast();
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useRepExceptions({
     page,
@@ -76,6 +89,20 @@ export function FinanceRepExceptionsSection({
   });
   const items = data?.data ?? [];
   const pagination = data?.pagination;
+
+  const retryMutation = useRetryFinanceRepStamp({
+    onSuccess: () => {
+      toast({ title: copy.toastRetrySuccess });
+      void refetch();
+    },
+    onError: (err) => {
+      toast({
+        variant: "error",
+        title: copy.toastRetryError,
+        description: getErrorMessage(err),
+      });
+    },
+  });
 
   return (
     <Card>
@@ -133,12 +160,36 @@ export function FinanceRepExceptionsSection({
                     <TableHead className="text-right">{copy.amount}</TableHead>
                     <TableHead>{copy.date}</TableHead>
                     <TableHead>{copy.status}</TableHead>
+                    <TableHead>{copy.reason}</TableHead>
                     <TableHead>{copy.deadline}</TableHead>
                     <TableHead>{copy.invoices}</TableHead>
+                    <TableHead>{copy.action}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((item) => {
+                    const primary = item.allocations[0];
+                    const canRetry = canRetryRepStamp({
+                      repStatus: item.repStatus,
+                      repLastError: item.repLastError,
+                      repCfdiUuid: item.repCfdiUuid,
+                    });
+                    const manualReview = isRepManualReview({
+                      repLastError: item.repLastError,
+                    });
+                    const orphan = isRepOrphanParked({
+                      repStatus: item.repStatus,
+                      repCfdiUuid: item.repCfdiUuid,
+                    });
+                    const retrying =
+                      retryMutation.isPending &&
+                      retryMutation.variables?.paymentId === item.paymentId;
+                    const reasonText =
+                      item.repLastError?.trim() ||
+                      (item.repStatus === "failed"
+                        ? copy.statusLabels.failed
+                        : "—");
+
                     return (
                       <TableRow key={item.paymentId}>
                         <TableCell>
@@ -162,6 +213,26 @@ export function FinanceRepExceptionsSection({
                           >
                             {copy.statusLabels[item.repStatus]}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[14rem]">
+                          <p
+                            className="truncate text-xs text-muted-foreground"
+                            title={reasonText}
+                          >
+                            {reasonText}
+                          </p>
+                          {manualReview &&
+                          item.repLastError !==
+                            REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {copy.manualReviewHint}
+                            </p>
+                          ) : null}
+                          {orphan && !manualReview ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {copy.orphanHint}
+                            </p>
+                          ) : null}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -187,6 +258,40 @@ export function FinanceRepExceptionsSection({
                                 </Link>
                               );
                             })}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col items-start gap-1">
+                            {canRetry && primary ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={retryMutation.isPending}
+                                onClick={() =>
+                                  retryMutation.mutate({
+                                    invoiceId: primary.ingressInvoiceId,
+                                    paymentId: item.paymentId,
+                                  })
+                                }
+                              >
+                                {retrying ? (
+                                  <>
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                    {copy.retrying}
+                                  </>
+                                ) : (
+                                  copy.retryStamp
+                                )}
+                              </Button>
+                            ) : null}
+                            {primary ? (
+                              <Button type="button" size="sm" variant="ghost" asChild>
+                                <Link to={`/invoices/${primary.ingressInvoiceId}`}>
+                                  {copy.goToInvoice}
+                                </Link>
+                              </Button>
+                            ) : null}
                           </div>
                         </TableCell>
                       </TableRow>

@@ -4,7 +4,11 @@ import type {
   FinanceInvoicePagination,
   FinanceOpenPpdSummary,
   FinancePayment,
+  FinanceRepErrorKind,
   FinanceRepExceptionItem,
+  FinanceRepLiveStatus,
+  FinanceRepStatusItem,
+  FinanceRepWaitReason,
   PaginatedFinanceInvoices,
   PaginatedFinanceRepExceptions,
 } from "@features/finance/domain";
@@ -150,6 +154,80 @@ function mapRepExceptionAllocation(
   };
 }
 
+const REP_WAIT_REASONS = new Set<FinanceRepWaitReason>([
+  "queued",
+  "retry_scheduled",
+  "blocked_by_prior",
+  "pac_clock",
+  "quota",
+  "manual_review",
+]);
+
+const REP_ERROR_KINDS = new Set<FinanceRepErrorKind>([
+  "permanent",
+  "temporary",
+  "manual_review",
+  "auth",
+  "quota",
+]);
+
+const REP_LIVE_STATUSES = new Set<FinanceRepLiveStatus>([
+  "not_required",
+  "pending",
+  "stamped",
+  "failed",
+  "restamp_pending",
+  "cancelling",
+  "cancelled",
+]);
+
+function mapRepWaitReason(raw: unknown): FinanceRepWaitReason | null {
+  if (raw == null || raw === "") return null;
+  const value = String(raw) as FinanceRepWaitReason;
+  return REP_WAIT_REASONS.has(value) ? value : null;
+}
+
+function mapRepErrorKind(raw: unknown): FinanceRepErrorKind | null {
+  if (raw == null || raw === "") return null;
+  const value = String(raw) as FinanceRepErrorKind;
+  return REP_ERROR_KINDS.has(value) ? value : null;
+}
+
+function mapRepLiveStatus(raw: unknown): FinanceRepLiveStatus {
+  const value = String(raw ?? "pending") as FinanceRepLiveStatus;
+  return REP_LIVE_STATUSES.has(value) ? value : "pending";
+}
+
+export function mapRepStatusItem(
+  raw: Record<string, unknown>,
+): FinanceRepStatusItem {
+  const invoices = Array.isArray(raw.invoices)
+    ? raw.invoices.map((item) => {
+        const row = item as Record<string, unknown>;
+        return {
+          id: String(row.id ?? ""),
+          serie: String(row.serie ?? ""),
+          folio: Number(row.folio ?? 0),
+          amount: Number(row.amount ?? 0),
+        };
+      })
+    : [];
+  return {
+    paymentId: String(raw.payment_id ?? ""),
+    repStatus: mapRepLiveStatus(raw.rep_status),
+    repAttempts: Number(raw.rep_attempts ?? 0),
+    repLastError: raw.rep_last_error == null ? null : String(raw.rep_last_error),
+    repCfdiUuid: raw.rep_cfdi_uuid == null ? null : String(raw.rep_cfdi_uuid),
+    repStampedAt:
+      raw.rep_stamped_at == null ? null : String(raw.rep_stamped_at),
+    repNextAttemptAt:
+      raw.rep_next_attempt_at == null ? null : String(raw.rep_next_attempt_at),
+    waitReason: mapRepWaitReason(raw.wait_reason),
+    repErrorKind: mapRepErrorKind(raw.rep_error_kind),
+    invoices,
+  };
+}
+
 export function mapRepExceptionItem(
   raw: Record<string, unknown>,
 ): FinanceRepExceptionItem {
@@ -253,6 +331,23 @@ export const financePaymentsApi = {
     return mapOpenPpdSummary(response.data as Record<string, unknown>);
   },
 
+  getRepStatusByIds: async (
+    paymentIds: readonly string[],
+  ): Promise<FinanceRepStatusItem[]> => {
+    const ids = paymentIds
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0)
+      .slice(0, 50);
+    if (ids.length === 0) return [];
+    const params = new URLSearchParams({ ids: ids.join(",") });
+    const response = await apiClient.get<{ data: unknown[] }>(
+      `/finance/payments/rep-status?${params.toString()}`,
+    );
+    return (response.data as unknown[]).map((item) =>
+      mapRepStatusItem(item as Record<string, unknown>),
+    );
+  },
+
   getRepExceptions: async (options?: {
     page?: number;
     limit?: number;
@@ -279,6 +374,19 @@ export const financePaymentsApi = {
         response.pagination as Record<string, unknown> | undefined,
       ),
     };
+  },
+
+  /**
+   * Reencola timbrado REP (mismo endpoint que detalle de factura).
+   * Vive en financePaymentsApi para no violar el muro FSD finance↛invoicing.
+   */
+  retryRepStamp: async (
+    invoiceId: string,
+    paymentId: string,
+  ): Promise<void> => {
+    await apiClient.post(
+      `/invoices/${invoiceId}/payments/${paymentId}/retry-rep`,
+    );
   },
 
   registerPayment: async (

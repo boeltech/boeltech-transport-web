@@ -35,5 +35,18 @@ export type {
   FinanceRepExceptionAllocation,
   FinanceRepExceptionItem,
   PaginatedFinanceRepExceptions,
+  FinanceRepWaitReason,
+  FinanceRepErrorKind,
+  FinanceRepLiveStatus,
+  FinanceRepStatusInvoice,
+  FinanceRepStatusItem,
   FinanceOpenPpdSummary,
 } from "./entities";
+export {
+  REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
+  isRepManualReview,
+  isRepPermanentError,
+  isRepOrphanParked,
+  canRetryRepStamp,
+  isRepStatusTerminal,
+} from "./repRetryGate";

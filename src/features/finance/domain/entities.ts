@@ -353,6 +353,53 @@ export interface PaginatedFinanceRepExceptions {
   readonly pagination: FinanceInvoicePagination;
 }
 
+/** `wait_reason` from `GET /finance/payments/rep-status`. */
+export type FinanceRepWaitReason =
+  | "queued"
+  | "retry_scheduled"
+  | "blocked_by_prior"
+  | "pac_clock"
+  | "quota"
+  | "manual_review";
+
+/** `rep_error_kind` from `GET /finance/payments/rep-status` (F2). */
+export type FinanceRepErrorKind =
+  | "permanent"
+  | "temporary"
+  | "manual_review"
+  | "auth"
+  | "quota";
+
+export type FinanceRepLiveStatus =
+  | "not_required"
+  | "pending"
+  | "stamped"
+  | "failed"
+  | "restamp_pending"
+  | "cancelling"
+  | "cancelled";
+
+export interface FinanceRepStatusInvoice {
+  readonly id: string;
+  readonly serie: string;
+  readonly folio: number;
+  readonly amount: number;
+}
+
+/** Item from `GET /finance/payments/rep-status?ids=`. */
+export interface FinanceRepStatusItem {
+  readonly paymentId: string;
+  readonly repStatus: FinanceRepLiveStatus;
+  readonly repAttempts: number;
+  readonly repLastError: string | null;
+  readonly repCfdiUuid: string | null;
+  readonly repStampedAt: string | null;
+  readonly repNextAttemptAt: string | null;
+  readonly waitReason: FinanceRepWaitReason | null;
+  readonly repErrorKind: FinanceRepErrorKind | null;
+  readonly invoices: FinanceRepStatusInvoice[];
+}
+
 /** Response `GET /finance/open-ppd-summary` (Cobros workbench variante A). */
 export interface FinanceOpenPpdSummary {
   readonly open: number;

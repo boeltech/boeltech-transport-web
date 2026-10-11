@@ -1,15 +1,17 @@
 import { describe, expect, it, afterEach } from "vitest";
 import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/domain";
 import {
+  appendCobrosTodayEntry,
   buildCobrosFollowThrough,
-  clearCobrosFollowThrough,
+  clearCobrosTodayTray,
   COBROS_FOLLOW_THROUGH_ABSENCE_GRACE_MS,
   COBROS_FOLLOW_THROUGH_STORAGE_KEY,
+  COBROS_TODAY_TRAY_STORAGE_KEY,
   parseCobrosFollowThrough,
-  readCobrosFollowThrough,
+  readCobrosTodayTray,
   shouldClearCobrosFollowThrough,
-  writeCobrosFollowThrough,
-  type CobrosFollowThrough,
+  writeCobrosTodayTray,
+  type CobrosTodayEntry,
 } from "./cobrosFollowThrough";
 
 function buildInvoice(): FinanceInvoiceListItem {
@@ -60,21 +62,19 @@ function buildPayment(overrides?: Partial<FinancePayment>): FinancePayment {
   };
 }
 
-const baseFollowThrough: CobrosFollowThrough = {
+const baseEntry: CobrosTodayEntry = {
   paymentId: "pay-1",
   receiverRfc: "XAXX010101000",
   amount: 1160,
   paymentDate: "2026-08-18",
   repStatus: "pending",
   invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+  recordedAt: "2026-08-18T12:00:00.000Z",
 };
 
 describe("parseCobrosFollowThrough", () => {
   it("keeps a valid snapshot so the cobro lote survives leaving open-ppd", () => {
-    const parsed = parseCobrosFollowThrough({
-      ...baseFollowThrough,
-      recordedAt: "2026-08-18T12:00:00.000Z",
-    });
+    const parsed = parseCobrosFollowThrough(baseEntry);
 
     expect(parsed?.invoices[0]?.id).toBe("inv-1");
     expect(parsed?.repStatus).toBe("pending");
@@ -85,7 +85,7 @@ describe("parseCobrosFollowThrough", () => {
     expect(parseCobrosFollowThrough(null)).toBeNull();
     expect(
       parseCobrosFollowThrough({
-        ...baseFollowThrough,
+        ...baseEntry,
         invoices: [],
       }),
     ).toBeNull();
@@ -114,30 +114,54 @@ describe("buildCobrosFollowThrough", () => {
   });
 });
 
-describe("clearCobrosFollowThrough / sessionStorage", () => {
+describe("cobros today tray sessionStorage v2", () => {
   afterEach(() => {
+    sessionStorage.removeItem(COBROS_TODAY_TRAY_STORAGE_KEY);
     sessionStorage.removeItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
   });
 
-  it("removes the snapshot so dismiss survives a tab refresh", () => {
-    writeCobrosFollowThrough({
-      ...baseFollowThrough,
-      recordedAt: "2026-08-18T12:00:00.000Z",
+  it("appends multiple cobros without overwriting the previous one", () => {
+    const first = appendCobrosTodayEntry([], baseEntry);
+    const second = appendCobrosTodayEntry(first, {
+      ...baseEntry,
+      paymentId: "pay-2",
+      amount: 2000,
+      recordedAt: "2026-08-18T12:01:00.000Z",
     });
-    expect(readCobrosFollowThrough()?.paymentId).toBe("pay-1");
 
-    clearCobrosFollowThrough();
+    expect(second.map((e) => e.paymentId)).toEqual(["pay-2", "pay-1"]);
+    expect(readCobrosTodayTray().map((e) => e.paymentId)).toEqual([
+      "pay-2",
+      "pay-1",
+    ]);
+  });
 
+  it("migrates v1 follow-through into the v2 tray", () => {
+    sessionStorage.setItem(
+      COBROS_FOLLOW_THROUGH_STORAGE_KEY,
+      JSON.stringify(baseEntry),
+    );
+
+    const tray = readCobrosTodayTray();
+    expect(tray).toHaveLength(1);
+    expect(tray[0]?.paymentId).toBe("pay-1");
     expect(sessionStorage.getItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY)).toBeNull();
-    expect(readCobrosFollowThrough()).toBeNull();
+    expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("clears the tray and legacy key on dismiss", () => {
+    writeCobrosTodayTray([baseEntry]);
+    clearCobrosTodayTray();
+    expect(readCobrosTodayTray()).toEqual([]);
+    expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).toBeNull();
   });
 });
 
-describe("shouldClearCobrosFollowThrough", () => {
+describe("shouldClearCobrosFollowThrough (legacy)", () => {
   it("clears when the snapshot already has stamped REP", () => {
     expect(
       shouldClearCobrosFollowThrough(
-        { ...baseFollowThrough, repStatus: "stamped" },
+        { ...baseEntry, repStatus: "stamped" },
         {
           exceptionsFetched: false,
           exceptionPaymentIds: [],
@@ -149,7 +173,7 @@ describe("shouldClearCobrosFollowThrough", () => {
 
   it("keeps the banner while the payment is still in exceptions", () => {
     expect(
-      shouldClearCobrosFollowThrough(baseFollowThrough, {
+      shouldClearCobrosFollowThrough(baseEntry, {
         exceptionsFetched: true,
         exceptionPaymentIds: ["pay-1", "pay-other"],
         previouslySeenInExceptions: true,
@@ -159,7 +183,7 @@ describe("shouldClearCobrosFollowThrough", () => {
 
   it("clears after the payment left exceptions once observed there", () => {
     expect(
-      shouldClearCobrosFollowThrough(baseFollowThrough, {
+      shouldClearCobrosFollowThrough(baseEntry, {
         exceptionsFetched: true,
         exceptionPaymentIds: ["pay-other"],
         previouslySeenInExceptions: true,
@@ -169,40 +193,30 @@ describe("shouldClearCobrosFollowThrough", () => {
 
   it("does not clear on absence before the payment was ever seen (stale cache)", () => {
     expect(
-      shouldClearCobrosFollowThrough(
-        {
-          ...baseFollowThrough,
-          recordedAt: "2026-08-18T12:00:00.000Z",
-        },
-        {
-          exceptionsFetched: true,
-          exceptionPaymentIds: [],
-          previouslySeenInExceptions: false,
-          nowMs: Date.parse("2026-08-18T12:00:01.000Z"),
-        },
-      ),
+      shouldClearCobrosFollowThrough(baseEntry, {
+        exceptionsFetched: true,
+        exceptionPaymentIds: [],
+        previouslySeenInExceptions: false,
+        nowMs: Date.parse("2026-08-18T12:00:01.000Z"),
+      }),
     ).toBe(false);
   });
 
   it("clears on absence after grace when returning to Cobros post-stamp", () => {
-    const recordedAt = "2026-08-18T12:00:00.000Z";
     expect(
-      shouldClearCobrosFollowThrough(
-        { ...baseFollowThrough, recordedAt },
-        {
-          exceptionsFetched: true,
-          exceptionPaymentIds: [],
-          previouslySeenInExceptions: false,
-          nowMs:
-            Date.parse(recordedAt) + COBROS_FOLLOW_THROUGH_ABSENCE_GRACE_MS,
-        },
-      ),
+      shouldClearCobrosFollowThrough(baseEntry, {
+        exceptionsFetched: true,
+        exceptionPaymentIds: [],
+        previouslySeenInExceptions: false,
+        nowMs:
+          Date.parse(baseEntry.recordedAt) + COBROS_FOLLOW_THROUGH_ABSENCE_GRACE_MS,
+      }),
     ).toBe(true);
   });
 
   it("does not clear when the exceptions page may be incomplete", () => {
     expect(
-      shouldClearCobrosFollowThrough(baseFollowThrough, {
+      shouldClearCobrosFollowThrough(baseEntry, {
         exceptionsFetched: true,
         exceptionPaymentIds: [],
         exceptionsMayBeIncomplete: true,

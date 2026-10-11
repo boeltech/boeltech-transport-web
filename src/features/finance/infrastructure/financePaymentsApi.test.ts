@@ -4,6 +4,7 @@ import {
   mapOpenPpdPagination,
   mapOpenPpdSummary,
   mapRepExceptionItem,
+  mapRepStatusItem,
 } from "./financePaymentsApi";
 
 const { getMock } = vi.hoisted(() => ({
@@ -177,6 +178,87 @@ describe("financePaymentsApi.getOpenPpdSummary", () => {
       repExceptions: 3,
       totalBalance: 125000.5,
     });
+  });
+});
+
+describe("mapRepStatusItem / getRepStatusByIds", () => {
+  it("maps snake_case rep-status payload to camelCase", () => {
+    const item = mapRepStatusItem({
+      payment_id: "pay-1",
+      rep_status: "pending",
+      rep_attempts: 2,
+      rep_last_error: null,
+      rep_cfdi_uuid: null,
+      rep_stamped_at: null,
+      rep_next_attempt_at: "2026-10-10T18:00:00.000Z",
+      wait_reason: "retry_scheduled",
+      rep_error_kind: null,
+      invoices: [
+        { id: "inv-1", serie: "A", folio: 10, amount: 1160 },
+      ],
+    });
+    expect(item.paymentId).toBe("pay-1");
+    expect(item.waitReason).toBe("retry_scheduled");
+    expect(item.repErrorKind).toBeNull();
+    expect(item.invoices[0]?.folio).toBe(10);
+  });
+
+  it("maps pac_clock / quota wait_reason and permanent rep_error_kind", () => {
+    const clock = mapRepStatusItem({
+      payment_id: "pay-2",
+      rep_status: "pending",
+      wait_reason: "pac_clock",
+      rep_error_kind: null,
+      invoices: [],
+    });
+    expect(clock.waitReason).toBe("pac_clock");
+
+    const quota = mapRepStatusItem({
+      payment_id: "pay-3",
+      rep_status: "pending",
+      wait_reason: "quota",
+      rep_error_kind: "quota",
+      invoices: [],
+    });
+    expect(quota.waitReason).toBe("quota");
+    expect(quota.repErrorKind).toBe("quota");
+
+    const permanent = mapRepStatusItem({
+      payment_id: "pay-4",
+      rep_status: "failed",
+      wait_reason: null,
+      rep_error_kind: "permanent",
+      invoices: [],
+    });
+    expect(permanent.repErrorKind).toBe("permanent");
+  });
+
+  it("calls GET /finance/payments/rep-status with comma-separated ids", async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          payment_id: "pay-1",
+          rep_status: "stamped",
+          rep_attempts: 1,
+          rep_last_error: null,
+          rep_cfdi_uuid: "uuid-1",
+          rep_stamped_at: "2026-10-10T12:00:00.000Z",
+          rep_next_attempt_at: null,
+          wait_reason: null,
+          invoices: [],
+        },
+      ],
+    });
+
+    const result = await financePaymentsApi.getRepStatusByIds([
+      "pay-1",
+      "pay-2",
+    ]);
+
+    expect(getMock).toHaveBeenCalledWith(
+      "/finance/payments/rep-status?ids=pay-1%2Cpay-2",
+    );
+    expect(result[0]?.repStatus).toBe("stamped");
   });
 });
 

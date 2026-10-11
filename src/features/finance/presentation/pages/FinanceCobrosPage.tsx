@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getTodayMexicoDateString } from "@boeltech/cfdi-domain";
 import { FileClock, Send } from "lucide-react";
@@ -20,13 +20,12 @@ import {
   useOpenPpdInvoices,
   useOpenPpdSummary,
   useRegisterFinancePayment,
-  useRepExceptions,
 } from "@features/finance/application";
 import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/domain";
 import type { RegisterFinancePaymentPayload } from "@features/finance/infrastructure/financePaymentsApi";
 import { FinanceChainRepairConfirmDialog } from "../components/FinanceChainRepairConfirmDialog";
 import { FinanceCobrosConfirmSheet } from "../components/FinanceCobrosConfirmSheet";
-import { FinanceCobrosFollowThroughAlert } from "../components/FinanceCobrosFollowThroughAlert";
+import { FinanceCobrosTodayTray } from "../components/FinanceCobrosTodayTray";
 import { FinanceCobrosInvoiceTable } from "../components/FinanceCobrosInvoiceTable";
 import { FinanceRepExceptionsSection } from "../components/FinanceRepExceptionsSection";
 import {
@@ -43,12 +42,13 @@ import { useHelpEmptySupport } from "@features/help-center";
 import { financeCopy } from "../copy";
 import { getChainRepairAffectedLabels } from "../utils/chainRepairPlanLabels";
 import {
+  appendCobrosTodayEntry,
   buildCobrosFollowThrough,
-  clearCobrosFollowThrough,
-  readCobrosFollowThrough,
-  shouldClearCobrosFollowThrough,
-  writeCobrosFollowThrough,
-  type CobrosFollowThrough,
+  clearCobrosTodayTray,
+  readCobrosTodayTray,
+  removeCobrosTodayEntry,
+  writeCobrosTodayTray,
+  type CobrosTodayEntry,
 } from "../utils/cobrosFollowThrough";
 import {
   cobrosInvoicesForPageToggle,
@@ -60,9 +60,6 @@ import {
   EMPTY_COBROS_BUCKET_COUNTS,
   mapCobrosWorkbenchBuckets,
 } from "../utils/mapCobrosWorkbenchBuckets";
-
-/** Enough rows to resolve a single-RFC follow-through without false clears. */
-const FOLLOW_THROUGH_EXCEPTIONS_LIMIT = 50;
 
 const copy = financeCopy.cobros;
 const workbenchCopy = financeCopy.cobros.workbench;
@@ -148,61 +145,37 @@ export function FinanceCobrosPage() {
     .toUpperCase();
 
   const [activeBucket, setActiveBucket] = useState<CobrosBucketId>(DEFAULT_COBROS_BUCKET);
-  const [followThrough, setFollowThrough] = useState<CobrosFollowThrough | null>(
-    () => readCobrosFollowThrough(),
+  const [todayTray, setTodayTray] = useState<CobrosTodayEntry[]>(() =>
+    readCobrosTodayTray(),
   );
 
-  const handlePaymentRegistered = (next: CobrosFollowThrough) => {
-    writeCobrosFollowThrough(next);
-    setFollowThrough(next);
-  };
-
-  const handleDismissFollowThrough = useCallback(() => {
-    clearCobrosFollowThrough();
-    setFollowThrough(null);
+  const handlePaymentRegistered = useCallback((next: CobrosTodayEntry) => {
+    setTodayTray((prev) => appendCobrosTodayEntry(prev, next));
   }, []);
 
-  // Auto-clear when REP leaves exceptions / stamped (#33 F2)
-  const seenFollowThroughInExceptionsRef = useRef<string | null>(null);
-  const { data: followThroughExceptions, isFetched: followThroughExceptionsFetched, isError: followThroughExceptionsError } =
-    useRepExceptions({
-      page: 1,
-      limit: FOLLOW_THROUGH_EXCEPTIONS_LIMIT,
-      receiverRfc: followThrough?.receiverRfc ?? null,
-      enabled: Boolean(followThrough),
-    });
+  const handleDismissTray = useCallback(() => {
+    clearCobrosTodayTray();
+    setTodayTray([]);
+  }, []);
 
-  useEffect(() => {
-    if (!followThrough) {
-      seenFollowThroughInExceptionsRef.current = null;
-      return;
-    }
-    if (followThroughExceptionsError) return;
-    const items = followThroughExceptions?.data ?? [];
-    const total = followThroughExceptions?.pagination?.total ?? items.length;
-    const paymentIds = items.map((item) => item.paymentId);
-    if (paymentIds.includes(followThrough.paymentId)) {
-      seenFollowThroughInExceptionsRef.current = followThrough.paymentId;
-    }
-    if (
-      !shouldClearCobrosFollowThrough(followThrough, {
-        exceptionsFetched: followThroughExceptionsFetched,
-        exceptionPaymentIds: paymentIds,
-        exceptionsMayBeIncomplete: total > items.length,
-        previouslySeenInExceptions:
-          seenFollowThroughInExceptionsRef.current === followThrough.paymentId,
-      })
-    ) {
-      return;
-    }
-    clearCobrosFollowThrough();
-    setFollowThrough(null);
-  }, [
-    followThrough,
-    followThroughExceptions,
-    followThroughExceptionsFetched,
-    followThroughExceptionsError,
-  ]);
+  const handleDismissEntry = useCallback((paymentId: string) => {
+    setTodayTray((prev) => removeCobrosTodayEntry(prev, paymentId));
+  }, []);
+
+  const handleEntryLiveUpdate = useCallback(
+    (paymentId: string, live: { repStatus: string }) => {
+      setTodayTray((prev) => {
+        const idx = prev.findIndex((e) => e.paymentId === paymentId);
+        if (idx < 0) return prev;
+        if (prev[idx].repStatus === live.repStatus) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], repStatus: live.repStatus };
+        writeCobrosTodayTray(next);
+        return next;
+      });
+    },
+    [],
+  );
 
   const handleRfcSearch = useCallback(
     (rfc: string) => {
@@ -248,12 +221,14 @@ export function FinanceCobrosPage() {
       rfcFromUrl={rfcFromUrl}
       activeBucket={activeBucket}
       onBucketChange={setActiveBucket}
-      followThrough={followThrough}
+      todayTray={todayTray}
       rfcChips={rfcChips}
       onRfcSearch={handleRfcSearch}
       onClearRfc={handleClearRfc}
       onPaymentRegistered={handlePaymentRegistered}
-      onDismissFollowThrough={handleDismissFollowThrough}
+      onDismissTray={handleDismissTray}
+      onDismissEntry={handleDismissEntry}
+      onEntryLiveUpdate={handleEntryLiveUpdate}
     />
   );
 }
@@ -266,22 +241,29 @@ function FinanceCobrosWorkbench({
   rfcFromUrl,
   activeBucket,
   onBucketChange,
-  followThrough,
+  todayTray,
   rfcChips,
   onRfcSearch,
   onClearRfc,
   onPaymentRegistered,
-  onDismissFollowThrough,
+  onDismissTray,
+  onDismissEntry,
+  onEntryLiveUpdate,
 }: {
   rfcFromUrl: string;
   activeBucket: CobrosBucketId;
   onBucketChange: (bucket: CobrosBucketId) => void;
-  followThrough: CobrosFollowThrough | null;
+  todayTray: readonly CobrosTodayEntry[];
   rfcChips: ActiveFilterChip[];
   onRfcSearch: (rfc: string) => void;
   onClearRfc: () => void;
-  onPaymentRegistered: (followThrough: CobrosFollowThrough) => void;
-  onDismissFollowThrough: () => void;
+  onPaymentRegistered: (entry: CobrosTodayEntry) => void;
+  onDismissTray: () => void;
+  onDismissEntry: (paymentId: string) => void;
+  onEntryLiveUpdate: (
+    paymentId: string,
+    live: { repStatus: string },
+  ) => void;
 }) {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
@@ -291,6 +273,7 @@ function FinanceCobrosWorkbench({
 
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [selectionBoundRfc, setSelectionBoundRfc] = useState(filterRfc);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [paymentDate, setPaymentDate] = useState(getTodayMexicoDateString);
   const [paymentTime, setPaymentTime] = useState(COBROS_PAYMENT_TIME_DEFAULT);
@@ -302,11 +285,12 @@ function FinanceCobrosWorkbench({
     useState<RegisterFinancePaymentPayload | null>(null);
   const loteSnapshotRef = useRef<FinanceInvoiceListItem[]>([]);
 
-  // Clear selection when RFC filter changes
-  useEffect(() => {
+  // Reset selection/page when RFC filter changes (render-time adjust, not effect).
+  if (selectionBoundRfc !== filterRfc) {
+    setSelectionBoundRfc(filterRfc);
     setSelected({});
     setPage(1);
-  }, [filterRfc]);
+  }
 
   const {
     data,
@@ -409,7 +393,10 @@ function FinanceCobrosWorkbench({
       setChainRepairOpen(true);
       return;
     }
-    const message = getErrorMessage(err);
+    const message =
+      err instanceof ApiError && err.code === "REP_CURRENCY_NOT_SUPPORTED"
+        ? "Solo se admiten cobros y complementos de pago (REP) en MXN."
+        : getErrorMessage(err);
     if (fromChainDialog) {
       setChainRepairError(message);
       return;
@@ -523,10 +510,12 @@ function FinanceCobrosWorkbench({
         title={workbenchCopy.title}
         description={workbenchCopy.description}
         beforeAwareness={
-          followThrough ? (
-            <FinanceCobrosFollowThroughAlert
-              followThrough={followThrough}
-              onDismiss={onDismissFollowThrough}
+          todayTray.length > 0 ? (
+            <FinanceCobrosTodayTray
+              entries={todayTray}
+              onDismissTray={onDismissTray}
+              onDismissEntry={onDismissEntry}
+              onEntryLiveUpdate={onEntryLiveUpdate}
             />
           ) : undefined
         }
