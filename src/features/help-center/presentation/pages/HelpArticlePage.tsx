@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { BookOpen, ChevronDown } from "lucide-react";
+import config from "@shared/config/env";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { DetailPageShell } from "@shared/ui/page-shells";
@@ -24,6 +25,7 @@ export function HelpArticlePage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const { user } = useAuth();
+  const ticketsEnabled = config.help.ticketsEnabled;
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
   const [showProblem, setShowProblem] = useState(false);
   const {
@@ -92,7 +94,9 @@ export function HelpArticlePage() {
             key={article.id}
             articleId={article.id}
             hasProblem={Boolean(article.problem)}
-            onRequestTicket={() => setTicketSheetOpen(true)}
+            onRequestTicket={
+              ticketsEnabled ? () => setTicketSheetOpen(true) : undefined
+            }
             onShowProblem={
               article.problem ? () => setShowProblem(true) : undefined
             }
@@ -120,25 +124,29 @@ export function HelpArticlePage() {
             </Collapsible>
           )}
 
-          <div className="border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setTicketSheetOpen(true)}
-            >
-              {copy.sendTicketAboutThis}
-            </Button>
-          </div>
+          {ticketsEnabled ? (
+            <div className="border-t pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setTicketSheetOpen(true)}
+              >
+                {copy.sendTicketAboutThis}
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
 
-      <CreateTicketSheet
-        open={ticketSheetOpen}
-        onOpenChange={setTicketSheetOpen}
-        articleId={article?.id}
-        articleTitle={article?.title}
-        route={location.pathname}
-        tenantName={user?.tenant?.name}
-      />
+      {ticketsEnabled ? (
+        <CreateTicketSheet
+          open={ticketSheetOpen}
+          onOpenChange={setTicketSheetOpen}
+          articleId={article?.id}
+          articleTitle={article?.title}
+          route={location.pathname}
+          tenantName={user?.tenant?.name}
+        />
+      ) : null}
     </DetailPageShell>
   );
 }

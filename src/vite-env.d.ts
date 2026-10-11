@@ -19,6 +19,8 @@ interface ImportMetaEnv {
   readonly VITE_AUTH_SESSION_MODE?: string;
   readonly VITE_SUPPORT_EMAIL?: string;
   readonly VITE_HELP_DOCS_URL?: string;
+  readonly VITE_HELP_SPOTLIGHT_ENABLED?: string;
+  readonly VITE_HELP_TICKETS_ENABLED?: string;
 }
 
 interface ImportMeta {

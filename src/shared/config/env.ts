@@ -50,6 +50,8 @@ interface AppConfig {
   help: {
     /** Kill-switch overlay A1; ausente = on (TEC §6). */
     spotlightEnabled: boolean;
+    /** Kill-switch tickets de soporte; ausente = on. */
+    ticketsEnabled: boolean;
   };
 }
 
@@ -109,6 +111,10 @@ const config: AppConfig = {
   help: {
     spotlightEnabled: parseEnvBool(
       import.meta.env.VITE_HELP_SPOTLIGHT_ENABLED,
+      true,
+    ),
+    ticketsEnabled: parseEnvBool(
+      import.meta.env.VITE_HELP_TICKETS_ENABLED,
       true,
     ),
   },

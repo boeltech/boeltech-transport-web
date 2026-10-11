@@ -115,4 +115,29 @@ describe("ArticleFeedback", () => {
       screen.getByRole("button", { name: copy.problemLink }),
     ).toBeInTheDocument();
   });
+
+  it("No without onRequestTicket hides ticket CTA and keeps problem link", async () => {
+    const user = userEvent.setup();
+    const onShowProblem = vi.fn();
+    render(
+      <MemoryRouter>
+        <ArticleFeedback
+          articleId={ARTICLE_ID}
+          hasProblem
+          onShowProblem={onShowProblem}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: copy.no }));
+
+    expect(
+      screen.queryByRole("button", { name: copy.sendTicketAboutThis }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: copy.problemLink }),
+    ).toBeInTheDocument();
+    expect(onShowProblem).toHaveBeenCalled();
+  });
 });
+

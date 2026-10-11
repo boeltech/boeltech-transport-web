@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Download, FileText, TicketPlus } from "lucide-react";
+import config from "@shared/config/env";
 import { Button } from "@shared/ui/button";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { useToast } from "@shared/hooks";
@@ -8,6 +9,7 @@ import { getRoleLabel, isValidRole } from "@shared/constants/roles";
 import { helpCenterApi } from "../../infrastructure";
 import { useHelpTicket } from "../../application";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
+import { HelpTicketsPausedView } from "../components/HelpTicketsPausedView";
 import { TicketStatusBadge } from "../components/TicketStatusBadge";
 
 const copy = helpCenterCopy.ticketDetail;
@@ -33,6 +35,13 @@ function formatFileSize(bytes: number): string {
 }
 
 export function HelpTicketDetailPage() {
+  if (!config.help.ticketsEnabled) {
+    return <HelpTicketsPausedView />;
+  }
+  return <HelpTicketDetailPageContent />;
+}
+
+function HelpTicketDetailPageContent() {
   const { id } = useParams<{ id: string }>();
   const { error: toastError } = useToast();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);

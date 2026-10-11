@@ -85,6 +85,17 @@ export const helpCenterCopy = {
       date: "Fecha",
     },
   },
+  /** UI pausa cuando VITE_HELP_TICKETS_ENABLED=false (escape = mailto). */
+  ticketsPaused: {
+    title: "Tickets de soporte temporalmente no disponibles.",
+    description:
+      "Mientras tanto, escribe a soporte por correo; incluye la pantalla donde estabas.",
+    deepLink:
+      "El envío de tickets está pausado mientras actualizamos las guías…",
+    panelHint:
+      "Estamos mejorando las guías. Mientras tanto, escríbenos por correo.",
+    backToHelp: "Volver a Ayuda",
+  },
   ticketDetail: {
     title: "Detalle del ticket",
     backLabel: "Mis tickets",

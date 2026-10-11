@@ -18,7 +18,8 @@ interface ArticleFeedbackProps {
   hasProblem?: boolean;
   /** Densidad del panel (~448px). */
   compact?: boolean;
-  onRequestTicket: () => void;
+  /** Ausente = tickets pausados (no mostrar CTA de ticket). */
+  onRequestTicket?: () => void;
   onShowProblem?: () => void;
 }
 
@@ -78,18 +79,25 @@ export const ArticleFeedback = memo(function ArticleFeedback({
   }
 
   if (phase === "not_helpful") {
+    const showTicket = Boolean(onRequestTicket);
+    const showProblem = Boolean(hasProblem && onShowProblem);
+    if (!showTicket && !showProblem) {
+      return null;
+    }
     return (
       <div className={compact ? "space-y-1.5" : "space-y-2"}>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={compact ? "h-7 text-xs" : undefined}
-          onClick={onRequestTicket}
-        >
-          {copy.sendTicketAboutThis}
-        </Button>
-        {hasProblem && onShowProblem && (
+        {showTicket ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={compact ? "h-7 text-xs" : undefined}
+            onClick={onRequestTicket}
+          >
+            {copy.sendTicketAboutThis}
+          </Button>
+        ) : null}
+        {showProblem ? (
           <button
             type="button"
             className="block text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -97,7 +105,7 @@ export const ArticleFeedback = memo(function ArticleFeedback({
           >
             {copy.problemLink}
           </button>
-        )}
+        ) : null}
       </div>
     );
   }

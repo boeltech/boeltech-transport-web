@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { TicketPlus } from "lucide-react";
+import config from "@shared/config/env";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
 import { useHelpTickets } from "../../application";
 import type { HelpTicketListItem } from "../../domain";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
+import { HelpTicketsPausedView } from "../components/HelpTicketsPausedView";
 import { TicketStatusBadge } from "../components/TicketStatusBadge";
 
 const copy = helpCenterCopy.tickets;
@@ -27,6 +29,13 @@ function formatDate(iso: string): string {
 }
 
 export function HelpTicketsPage() {
+  if (!config.help.ticketsEnabled) {
+    return <HelpTicketsPausedView />;
+  }
+  return <HelpTicketsPageContent />;
+}
+
+function HelpTicketsPageContent() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const filters = useMemo(() => ({ page, pageSize: 20 }), [page]);

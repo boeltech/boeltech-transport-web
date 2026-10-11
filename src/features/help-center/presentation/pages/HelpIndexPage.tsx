@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { BookOpen, Ticket } from "lucide-react";
+import config from "@shared/config/env";
 import { useDebounce } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells";
 import { useHelpArticles, useOpenTicketCount } from "../../application";
@@ -26,7 +27,10 @@ export function HelpIndexPage() {
   const location = useLocation();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const { data: openTicketCount = 0 } = useOpenTicketCount();
+  const ticketsEnabled = config.help.ticketsEnabled;
+  const { data: openTicketCount = 0 } = useOpenTicketCount({
+    enabled: ticketsEnabled,
+  });
 
   const isSearching = debouncedSearch.length >= 2;
 
@@ -56,17 +60,21 @@ export function HelpIndexPage() {
           <ArticleSearch value={search} onChange={setSearch} />
         </div>
       }
-      toolbar={{
-        extraActions: (
-          <Link
-            to="/ayuda/tickets"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary"
-          >
-            <Ticket className="h-4 w-4" />
-            {helpCenterCopy.panel.myTickets(openTicketCount)}
-          </Link>
-        ),
-      }}
+      toolbar={
+        ticketsEnabled
+          ? {
+              extraActions: (
+                <Link
+                  to="/ayuda/tickets"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary"
+                >
+                  <Ticket className="h-4 w-4" />
+                  {helpCenterCopy.panel.myTickets(openTicketCount)}
+                </Link>
+              ),
+            }
+          : undefined
+      }
       emptyState={{
         icon: <BookOpen className="h-10 w-10" />,
         title: search ? copy.searchNoResults : copy.emptyTitle,

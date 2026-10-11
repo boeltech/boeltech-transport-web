@@ -123,7 +123,7 @@ export const ArticleCard = memo(function ArticleCard({
             articleId={article.id}
             articleScreens={article.screens}
             pathname={location.pathname}
-            onRequestTicket={handleRequestTicket}
+            onRequestTicket={onOpenTicket ? handleRequestTicket : undefined}
             onShowProblem={
               article.problem && !guidePreview.truncated
                 ? handleShowProblem
@@ -137,7 +137,7 @@ export const ArticleCard = memo(function ArticleCard({
             articleId={article.id}
             hasProblem={Boolean(article.problem) && !guidePreview.truncated}
             compact
-            onRequestTicket={handleRequestTicket}
+            onRequestTicket={onOpenTicket ? handleRequestTicket : undefined}
             onShowProblem={
               article.problem && !guidePreview.truncated
                 ? handleShowProblem

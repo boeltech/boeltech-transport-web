@@ -27,6 +27,7 @@ import { ArticleSearch } from "./ArticleSearch";
 import { CreateTicketSheet } from "./CreateTicketSheet";
 
 const copy = helpCenterCopy.panel;
+const pausedCopy = helpCenterCopy.ticketsPaused;
 
 interface HelpPanelProps {
   open: boolean;
@@ -43,6 +44,7 @@ export const HelpPanel = memo(function HelpPanel({
   const location = useLocation();
   const { user } = useAuth();
   const currentPath = location.pathname;
+  const ticketsEnabled = config.help.ticketsEnabled;
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -88,7 +90,9 @@ export const HelpPanel = memo(function HelpPanel({
     expandArticleId ?? "",
     { enabled: open && Boolean(expandArticleId) && !isSearching },
   );
-  const { data: openTicketCount = 0 } = useOpenTicketCount({ enabled: open });
+  const { data: openTicketCount = 0 } = useOpenTicketCount({
+    enabled: open && ticketsEnabled,
+  });
 
   const frequentArticles = useMemo(() => {
     if (!allArticles || !screenArticles) return [];
@@ -122,12 +126,15 @@ export const HelpPanel = memo(function HelpPanel({
   const closePanel = () => onOpenChange(false);
 
   const openTicketSheet = (article?: HelpArticle) => {
+    if (!ticketsEnabled) return;
     setTicketArticle(
       article ? { id: article.id, title: article.title } : null,
     );
     closePanel();
     setTicketSheetOpen(true);
   };
+
+  const onOpenTicket = ticketsEnabled ? openTicketSheet : undefined;
 
   return (
     <>
@@ -165,7 +172,7 @@ export const HelpPanel = memo(function HelpPanel({
               articles={searchResults ?? []}
               emptyMessage={copy.noResults}
               onNavigate={closePanel}
-              onOpenTicket={openTicketSheet}
+              onOpenTicket={onOpenTicket}
               expandArticleId={expandArticleId}
             />
           )}
@@ -177,7 +184,7 @@ export const HelpPanel = memo(function HelpPanel({
                   <ArticleList
                     articles={[pinnedArticle]}
                     onNavigate={closePanel}
-                    onOpenTicket={openTicketSheet}
+                    onOpenTicket={onOpenTicket}
                     expandArticleId={expandArticleId}
                   />
                 </section>
@@ -189,7 +196,7 @@ export const HelpPanel = memo(function HelpPanel({
                   <ArticleList
                     articles={screenArticles!}
                     onNavigate={closePanel}
-                    onOpenTicket={openTicketSheet}
+                    onOpenTicket={onOpenTicket}
                     expandArticleId={expandArticleId}
                   />
                 </section>
@@ -201,7 +208,7 @@ export const HelpPanel = memo(function HelpPanel({
                   <ArticleList
                     articles={frequentArticles}
                     onNavigate={closePanel}
-                    onOpenTicket={openTicketSheet}
+                    onOpenTicket={onOpenTicket}
                     expandArticleId={expandArticleId}
                   />
                 ) : (
@@ -214,14 +221,16 @@ export const HelpPanel = memo(function HelpPanel({
           )}
 
           <nav className="flex flex-col gap-2 border-t pt-4">
-            <Link
-              to="/ayuda/tickets"
-              onClick={closePanel}
-              className="inline-flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary"
-            >
-              <Ticket className="h-4 w-4" />
-              {copy.myTickets(openTicketCount)}
-            </Link>
+            {ticketsEnabled ? (
+              <Link
+                to="/ayuda/tickets"
+                onClick={closePanel}
+                className="inline-flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary"
+              >
+                <Ticket className="h-4 w-4" />
+                {copy.myTickets(openTicketCount)}
+              </Link>
+            ) : null}
             <Link
               to="/ayuda"
               onClick={closePanel}
@@ -234,38 +243,56 @@ export const HelpPanel = memo(function HelpPanel({
         </div>
 
         <div className="shrink-0 space-y-2 border-t pt-4">
-          <p className="text-xs font-medium text-muted-foreground">
-            {copy.notFoundAnswer}
-          </p>
-          <Button
-            variant="default"
-            size="sm"
-            className="w-full"
-            onClick={() => openTicketSheet()}
-          >
-            <TicketPlus className="mr-2 h-4 w-4" />
-            {copy.sendTicket}
-          </Button>
-          <Button variant="outline" size="sm" className="w-full" asChild>
-            <a href={mailtoHref}>
-              <Mail className="mr-2 h-4 w-4" />
-              {copy.contactByEmail}
-            </a>
-          </Button>
+          {ticketsEnabled ? (
+            <>
+              <p className="text-xs font-medium text-muted-foreground">
+                {copy.notFoundAnswer}
+              </p>
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full"
+                onClick={() => openTicketSheet()}
+              >
+                <TicketPlus className="mr-2 h-4 w-4" />
+                {copy.sendTicket}
+              </Button>
+              <Button variant="outline" size="sm" className="w-full" asChild>
+                <a href={mailtoHref}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  {copy.contactByEmail}
+                </a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {pausedCopy.panelHint}
+              </p>
+              <Button variant="default" size="sm" className="w-full" asChild>
+                <a href={mailtoHref}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  {copy.contactByEmail}
+                </a>
+              </Button>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>
-    <CreateTicketSheet
-      open={ticketSheetOpen}
-      onOpenChange={(next) => {
-        setTicketSheetOpen(next);
-        if (!next) setTicketArticle(null);
-      }}
-      articleId={ticketArticle?.id}
-      articleTitle={ticketArticle?.title}
-      route={currentPath}
-      tenantName={user?.tenant?.name}
-    />
+    {ticketsEnabled ? (
+      <CreateTicketSheet
+        open={ticketSheetOpen}
+        onOpenChange={(next) => {
+          setTicketSheetOpen(next);
+          if (!next) setTicketArticle(null);
+        }}
+        articleId={ticketArticle?.id}
+        articleTitle={ticketArticle?.title}
+        route={currentPath}
+        tenantName={user?.tenant?.name}
+      />
+    ) : null}
     </>
   );
 });
@@ -286,7 +313,7 @@ function ArticleList({
 }: {
   articles: HelpArticle[];
   onNavigate: () => void;
-  onOpenTicket: (article: HelpArticle) => void;
+  onOpenTicket?: (article: HelpArticle) => void;
   expandArticleId?: string | null;
 }) {
   return (
@@ -314,7 +341,7 @@ function ArticleSection({
   articles: HelpArticle[];
   emptyMessage: string;
   onNavigate: () => void;
-  onOpenTicket: (article: HelpArticle) => void;
+  onOpenTicket?: (article: HelpArticle) => void;
   expandArticleId?: string | null;
 }) {
   if (articles.length === 0) {

@@ -62,3 +62,22 @@ describe("helpCenterCopy product labels (PRD D1–D5)", () => {
     );
   });
 });
+
+describe("helpCenterCopy.ticketsPaused", () => {
+  it("exposes B2B pause copy without flag jargon", () => {
+    expect(helpCenterCopy.ticketsPaused.title).toBe(
+      "Tickets de soporte temporalmente no disponibles.",
+    );
+    expect(helpCenterCopy.ticketsPaused.description).toBe(
+      "Mientras tanto, escribe a soporte por correo; incluye la pantalla donde estabas.",
+    );
+    expect(helpCenterCopy.ticketsPaused.deepLink).toBe(
+      "El envío de tickets está pausado mientras actualizamos las guías…",
+    );
+    expect(helpCenterCopy.ticketsPaused.panelHint).toMatch(/guías/i);
+    expect(helpCenterCopy.ticketsPaused.panelHint).not.toMatch(
+      /feature flag|kill-switch/i,
+    );
+  });
+});
+
