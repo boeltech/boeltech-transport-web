@@ -94,6 +94,8 @@ jobs:
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY_STAGING }}
           VITE_MAPBOX_PUBLIC_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN_STAGING }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY_STAGING }}
+          # Kill-switch tickets Centro de ayuda (GitHub env staging; vacía = on en runtime).
+          VITE_HELP_TICKETS_ENABLED: ${{ vars.VITE_HELP_TICKETS_ENABLED }}
           VITE_GEO_PROVIDER: mapbox
           VITE_ENVIRONMENT: staging
           VITE_GIT_SHA: ${{ github.sha }}

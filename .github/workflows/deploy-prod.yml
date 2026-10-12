@@ -37,6 +37,8 @@ jobs:
         env:
           VITE_API_URL: ${{ env.VITE_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN_PROD }}
+          # Kill-switch tickets Centro de ayuda (GitHub env prod; vacía = on en runtime).
+          VITE_HELP_TICKETS_ENABLED: ${{ vars.VITE_HELP_TICKETS_ENABLED }}
           VITE_ENVIRONMENT: production
           VITE_GIT_SHA: ${{ github.sha }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
