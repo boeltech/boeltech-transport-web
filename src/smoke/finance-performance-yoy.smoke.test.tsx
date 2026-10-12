@@ -47,6 +47,12 @@ function financials(
   revenue: number,
   cost: number,
   tripCount: number,
+  provisional: Partial<
+    Pick<
+      PeriodFinancials,
+      "incompleteTripCount" | "tripsWithPendingExpenses" | "provisional"
+    >
+  > = {},
 ): PeriodFinancials {
   return {
     period,
@@ -54,6 +60,9 @@ function financials(
     actualCost: cost,
     actualMargin: revenue - cost,
     tripCount,
+    incompleteTripCount: provisional.incompleteTripCount ?? 0,
+    tripsWithPendingExpenses: provisional.tripsWithPendingExpenses ?? 0,
+    provisional: provisional.provisional ?? false,
   };
 }
 

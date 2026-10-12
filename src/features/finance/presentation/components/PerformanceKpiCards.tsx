@@ -30,6 +30,11 @@ interface PerformanceKpiCardsProps {
   isLoading?: boolean;
   /** Rótulo de periodo siempre visible sobre los KPI (meses completos / en curso). */
   periodNote?: string;
+  /**
+   * Nota de rango cuando algún mes completo del summary es provisional.
+   * Nunca chips en las cards; nunca en modo «solo mes en curso».
+   */
+  provisionalNote?: string | null;
 }
 
 function KpiCard({
@@ -94,6 +99,7 @@ export function PerformanceKpiCards({
   compare,
   isLoading = false,
   periodNote,
+  provisionalNote,
 }: PerformanceKpiCardsProps) {
   const kpis: KpiDefinition[] = [
     {
@@ -133,6 +139,11 @@ export function PerformanceKpiCards({
     <div className="space-y-2">
       {periodNote && !isLoading ? (
         <p className="text-xs text-muted-foreground">{periodNote}</p>
+      ) : null}
+      {provisionalNote && !isLoading ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          {provisionalNote}
+        </p>
       ) : null}
       <section
         aria-label={copy.ariaLabel}

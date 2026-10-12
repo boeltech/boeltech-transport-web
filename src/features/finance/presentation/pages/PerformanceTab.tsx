@@ -25,6 +25,7 @@ import { exportMonthlyPerformanceCsv } from "../utils/financeExportHelpers";
 import {
   formatPerformanceMonth,
   formatPerformancePeriodNote,
+  formatPerformanceProvisionalKpiNote,
 } from "../utils/monthlyPerformanceFormat";
 
 const copy = financeCopy.performance;
@@ -96,6 +97,7 @@ export function PerformanceTab() {
         )
       : "";
   const periodNote = formatPerformancePeriodNote(summary);
+  const provisionalKpiNote = formatPerformanceProvisionalKpiNote(summary);
   const showNoPreviousNotice = showContent && compareUnavailable && !!previousRangeLabel;
 
   const handleExport = () => {
@@ -190,6 +192,7 @@ export function PerformanceTab() {
             compare={compare}
             isLoading={isLoading}
             periodNote={periodNote}
+            provisionalNote={provisionalKpiNote}
           />
           <PerformanceComparisonChart
             months={aligned}

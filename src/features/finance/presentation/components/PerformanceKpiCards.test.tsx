@@ -88,4 +88,19 @@ describe("PerformanceKpiCards", () => {
     expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
     expect(screen.queryByText(/año anterior/)).not.toBeInTheDocument();
   });
+
+  it("shows a range provisional note without chips on the KPI cards", () => {
+    const provisionalNote =
+      "Hay meses provisionales en el total: el margen puede bajar cuando terminen viajes o se aprueben gastos.";
+    render(
+      <PerformanceKpiCards
+        current={current}
+        previous={previous}
+        compare={false}
+        provisionalNote={provisionalNote}
+      />,
+    );
+    expect(screen.getByText(provisionalNote)).toBeInTheDocument();
+    expect(screen.queryByText("Provisional")).not.toBeInTheDocument();
+  });
 });

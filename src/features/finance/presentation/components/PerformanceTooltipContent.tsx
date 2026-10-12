@@ -28,6 +28,9 @@ export function PerformanceTooltipContent({
   /** El mes en curso nunca se compara: solo el año actual + nota. */
   const compare = compareRequested && !month.isInProgress;
   const showInProgressNote = compareRequested && month.isInProgress;
+  /** Mes cerrado provisional: aviso en tooltip; el mes en curso solo lleva N5. */
+  const showProvisionalNote =
+    current.provisional && !month.isInProgress;
   const amountRows = [
     { key: "revenue", label: copy.revenue, cur: current.actualRevenue, prev: previous.actualRevenue },
     { key: "cost", label: copy.cost, cur: current.actualCost, prev: previous.actualCost },
@@ -94,6 +97,11 @@ export function PerformanceTooltipContent({
       {showInProgressNote ? (
         <p className="max-w-[240px] text-xs text-muted-foreground">
           {copy.inProgressNote(formatPerformanceMonth(previous.period))}
+        </p>
+      ) : null}
+      {showProvisionalNote ? (
+        <p className="max-w-[240px] text-xs text-muted-foreground">
+          {copy.provisionalNote(formatPerformanceMonth(month.period))}
         </p>
       ) : null}
     </div>

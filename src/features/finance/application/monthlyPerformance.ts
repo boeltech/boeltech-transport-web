@@ -116,6 +116,9 @@ function emptyPeriod(period: string): PeriodFinancials {
     actualCost: 0,
     actualMargin: 0,
     tripCount: 0,
+    incompleteTripCount: 0,
+    tripsWithPendingExpenses: 0,
+    provisional: false,
   };
 }
 

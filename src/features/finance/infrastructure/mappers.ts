@@ -272,6 +272,9 @@ export function mapPeriodFinancials(raw: Record<string, unknown>): PeriodFinanci
     actualCost: asNumber(raw.actual_cost),
     actualMargin: asNumber(raw.actual_margin),
     tripCount: asNumber(raw.trip_count),
+    incompleteTripCount: asNumber(raw.incomplete_trip_count),
+    tripsWithPendingExpenses: asNumber(raw.trips_with_pending_expenses),
+    provisional: asBoolean(raw.provisional),
   };
 }
 

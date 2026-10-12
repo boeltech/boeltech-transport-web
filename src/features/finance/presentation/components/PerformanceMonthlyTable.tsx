@@ -5,6 +5,7 @@ import {
   computeVariation,
   type AlignedPerformanceMonth,
 } from "@features/finance/application";
+import { Badge } from "@shared/ui/badge";
 import {
   Card,
   CardContent,
@@ -20,20 +21,50 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
 import {
   formatPct,
+  formatPerformanceMonth,
   formatPerformanceMonthWithStatus,
 } from "../utils/monthlyPerformanceFormat";
 import { PerformanceVariation } from "./PerformanceVariation";
 
 const copy = financeCopy.performance.table;
+const provisionalCopy = financeCopy.performance.provisional;
 
 interface PerformanceMonthlyTableProps {
   months: AlignedPerformanceMonth[];
   compare: boolean;
+}
+
+function ProvisionalMonthChip({ monthLabel }: { monthLabel: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex items-center gap-1.5">
+          <Badge
+            variant="warning"
+            tone="soft"
+            className="text-xs font-normal"
+            aria-label={provisionalCopy.ariaLabel}
+          >
+            {provisionalCopy.chip}
+          </Badge>
+          <span className="text-xs text-warning">{provisionalCopy.hint}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs">
+        {provisionalCopy.chipTooltip(monthLabel)}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function PerformanceMonthlyTable({
@@ -69,21 +100,49 @@ export function PerformanceMonthlyTable({
             <TableBody>
               {months.map((month) => {
                 const { current, previous } = month;
+                const showProvisionalChip =
+                  current.provisional && !month.isInProgress;
+                const monthLabel = formatPerformanceMonth(month.period);
+                const countsLine = showProvisionalChip
+                  ? provisionalCopy.countsLine(
+                      current.incompleteTripCount,
+                      current.tripsWithPendingExpenses,
+                    )
+                  : "";
+
                 return (
                   <TableRow
                     key={month.period}
                     className={cn(month.isInProgress && "bg-muted/40")}
                   >
                     <TableCell className="whitespace-nowrap font-medium">
-                      <Link
-                        to={buildFinanceMarginMonthHref(month.period)}
-                        className="text-primary underline-offset-4 hover:underline"
-                        aria-label={copy.openMonthAria(
-                          formatPerformanceMonthWithStatus(month.period, month.isInProgress),
-                        )}
-                      >
-                        {formatPerformanceMonthWithStatus(month.period, month.isInProgress)}
-                      </Link>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <Link
+                            to={buildFinanceMarginMonthHref(month.period)}
+                            className="text-primary underline-offset-4 hover:underline"
+                            aria-label={copy.openMonthAria(
+                              formatPerformanceMonthWithStatus(
+                                month.period,
+                                month.isInProgress,
+                              ),
+                            )}
+                          >
+                            {formatPerformanceMonthWithStatus(
+                              month.period,
+                              month.isInProgress,
+                            )}
+                          </Link>
+                          {showProvisionalChip ? (
+                            <ProvisionalMonthChip monthLabel={monthLabel} />
+                          ) : null}
+                        </div>
+                        {countsLine ? (
+                          <p className="text-xs font-normal text-muted-foreground">
+                            {countsLine}
+                          </p>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatMxCurrency(current.actualRevenue)}

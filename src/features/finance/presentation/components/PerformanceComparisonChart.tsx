@@ -20,10 +20,12 @@ import { financeCopy } from "../copy";
 import {
   buildPerformanceChartRows,
   formatPerformanceMonth,
+  hasClosedProvisionalMonths,
 } from "../utils/monthlyPerformanceFormat";
 import { PerformanceTooltipContent } from "./PerformanceTooltipContent";
 
 const copy = financeCopy.performance.chart;
+const provisionalCopy = financeCopy.performance.provisional;
 
 /** Mismo ancho de eje en ambas gráficas para que los meses queden alineados. */
 const Y_AXIS_WIDTH = 64;
@@ -96,6 +98,7 @@ export function PerformanceComparisonChart({
   const amountSeries = useMemo(() => buildPerformanceAmountSeries(compare), [compare]);
   const marginSeries = useMemo(() => buildPerformanceMarginSeries(compare), [compare]);
   const inProgressMonth = months.find((month) => month.isInProgress);
+  const showProvisionalFooter = hasClosedProvisionalMonths(months);
 
   const renderTooltip = useCallback(
     ({ row }: ComboChartTooltipArgs) => {
@@ -115,6 +118,9 @@ export function PerformanceComparisonChart({
         <div className="space-y-1 text-xs text-muted-foreground">
           {inProgressMonth ? (
             <p>{copy.inProgressNote(formatPerformanceMonth(inProgressMonth.period))}</p>
+          ) : null}
+          {showProvisionalFooter ? (
+            <p>{provisionalCopy.chartFooter}</p>
           ) : null}
           <p>{financeCopy.performance.operationalNote}</p>
         </div>

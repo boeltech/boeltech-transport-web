@@ -167,11 +167,76 @@ describe("mapMonthlyPerformance", () => {
       actualCost: 600,
       actualMargin: 400,
       tripCount: 2,
+      incompleteTripCount: 0,
+      tripsWithPendingExpenses: 0,
+      provisional: false,
     });
     expect(result.current[1]?.actualRevenue).toBe(1500.5);
     expect(result.current[1]?.tripCount).toBe(3);
     expect(result.previous[0]?.period).toBe("2025-09");
     expect(result.previous[1]?.actualMargin).toBe(0);
+  });
+
+  it("maps provisional signals from the API without recalculating OR", () => {
+    const result = mapMonthlyPerformance({
+      periods: ["2026-09"],
+      current: [
+        {
+          period: "2026-09",
+          actual_revenue: 1000,
+          actual_cost: 600,
+          actual_margin: 400,
+          trip_count: 2,
+          incomplete_trip_count: 1,
+          trips_with_pending_expenses: 2,
+          provisional: true,
+        },
+      ],
+      previous: [
+        {
+          period: "2025-09",
+          actual_revenue: 800,
+          actual_cost: 500,
+          actual_margin: 300,
+          trip_count: 1,
+          incomplete_trip_count: 0,
+          trips_with_pending_expenses: 0,
+          provisional: false,
+        },
+      ],
+    });
+
+    expect(result.current[0]).toMatchObject({
+      incompleteTripCount: 1,
+      tripsWithPendingExpenses: 2,
+      provisional: true,
+    });
+    expect(result.previous[0]).toMatchObject({
+      incompleteTripCount: 0,
+      tripsWithPendingExpenses: 0,
+      provisional: false,
+    });
+  });
+
+  it("defaults provisional fields when the payload omits them", () => {
+    const result = mapMonthlyPerformance({
+      periods: ["2026-09"],
+      current: [
+        {
+          period: "2026-09",
+          actual_revenue: 100,
+          actual_cost: 40,
+          actual_margin: 60,
+          trip_count: 1,
+        },
+      ],
+      previous: [],
+    });
+    expect(result.current[0]).toMatchObject({
+      incompleteTripCount: 0,
+      tripsWithPendingExpenses: 0,
+      provisional: false,
+    });
   });
 
   it("returns empty arrays when the payload is incomplete", () => {

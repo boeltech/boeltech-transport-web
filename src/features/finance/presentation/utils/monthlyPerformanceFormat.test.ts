@@ -12,6 +12,7 @@ import {
   formatPerformanceMonth,
   formatPerformancePeriodNote,
   formatPerformanceMonthWithStatus,
+  formatPerformanceProvisionalKpiNote,
   formatVariationDetail,
   formatVariationPct,
 } from "./monthlyPerformanceFormat";
@@ -25,6 +26,7 @@ const data: MonthlyPerformance = {
       actualCost: 600,
       actualMargin: 400,
       tripCount: 2,
+    incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false,
     },
     {
       period: "2026-01",
@@ -32,6 +34,7 @@ const data: MonthlyPerformance = {
       actualCost: 0,
       actualMargin: 500,
       tripCount: 1,
+    incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false,
     },
   ],
   previous: [
@@ -41,6 +44,7 @@ const data: MonthlyPerformance = {
       actualCost: 500,
       actualMargin: 300,
       tripCount: 1,
+    incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false,
     },
     {
       period: "2025-01",
@@ -48,6 +52,7 @@ const data: MonthlyPerformance = {
       actualCost: 0,
       actualMargin: 0,
       tripCount: 0,
+    incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false,
     },
   ],
 };
@@ -136,6 +141,7 @@ describe("formatPerformancePeriodNote", () => {
           actualCost: 50,
           actualMargin: 50,
           tripCount: 1,
+        incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false,
         })),
         previous: [],
       }),
@@ -150,8 +156,8 @@ describe("formatPerformancePeriodNote", () => {
       alignPerformanceMonths({
         periods: ["2026-09", "2026-10"],
         current: [
-          { period: "2026-09", actualRevenue: 0, actualCost: 0, actualMargin: 0, tripCount: 0 },
-          { period: "2026-10", actualRevenue: 700, actualCost: 200, actualMargin: 500, tripCount: 2 },
+          { period: "2026-09", actualRevenue: 0, actualCost: 0, actualMargin: 0, tripCount: 0, incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false },
+          { period: "2026-10", actualRevenue: 700, actualCost: 200, actualMargin: 500, tripCount: 2, incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false },
         ],
         previous: [],
       }),
@@ -162,10 +168,84 @@ describe("formatPerformancePeriodNote", () => {
   });
 });
 
+describe("formatPerformanceProvisionalKpiNote", () => {
+  it("notes when a completed month is provisional", () => {
+    const summary = summarizePerformanceWindow(
+      alignPerformanceMonths({
+        periods: ["2026-09", "2026-10"],
+        current: [
+          {
+            period: "2026-09",
+            actualRevenue: 900,
+            actualCost: 300,
+            actualMargin: 600,
+            tripCount: 3,
+            incompleteTripCount: 1,
+            tripsWithPendingExpenses: 0,
+            provisional: true,
+          },
+          {
+            period: "2026-10",
+            actualRevenue: 100,
+            actualCost: 0,
+            actualMargin: 100,
+            tripCount: 1,
+            incompleteTripCount: 2,
+            tripsWithPendingExpenses: 1,
+            provisional: true,
+          },
+        ],
+        previous: [],
+      }),
+    );
+    expect(formatPerformanceProvisionalKpiNote(summary)).toBe(
+      "Hay meses provisionales en el total: el margen puede bajar cuando terminen viajes o se aprueben gastos.",
+    );
+  });
+
+  it("omits the note when no completed month is provisional", () => {
+    const summary = summarizePerformanceWindow(alignPerformanceMonths(data));
+    expect(formatPerformanceProvisionalKpiNote(summary)).toBeNull();
+  });
+
+  it("omits the note in inProgressOnly mode even if the open month is provisional", () => {
+    const summary = summarizePerformanceWindow(
+      alignPerformanceMonths({
+        periods: ["2026-09", "2026-10"],
+        current: [
+          {
+            period: "2026-09",
+            actualRevenue: 0,
+            actualCost: 0,
+            actualMargin: 0,
+            tripCount: 0,
+            incompleteTripCount: 0,
+            tripsWithPendingExpenses: 0,
+            provisional: false,
+          },
+          {
+            period: "2026-10",
+            actualRevenue: 700,
+            actualCost: 200,
+            actualMargin: 500,
+            tripCount: 2,
+            incompleteTripCount: 3,
+            tripsWithPendingExpenses: 1,
+            provisional: true,
+          },
+        ],
+        previous: [],
+      }),
+    );
+    expect(summary.inProgressOnly).toBe(true);
+    expect(formatPerformanceProvisionalKpiNote(summary)).toBeNull();
+  });
+});
+
 describe("buildMonthlyPerformanceCsv", () => {
   const months = alignPerformanceMonths(data);
 
-  it("exports the current range with an «estado» column when comparison is off", () => {
+  it("exports the current range with estado and provisional columns when comparison is off", () => {
     const csv = buildMonthlyPerformanceCsv(months, { compare: false });
     expect(csv.headers).toEqual([
       "mes",
@@ -175,14 +255,17 @@ describe("buildMonthlyPerformanceCsv", () => {
       "margen",
       "margen_pct",
       "viajes",
+      "provisional",
+      "viajes_sin_terminar",
+      "viajes_con_gastos_pendientes",
     ]);
     expect(csv.rows).toEqual([
-      ["2025-12", "completo", 1000, 600, 400, 40, 2],
-      ["2026-01", "en_curso", 500, 0, 500, 100, 1],
+      ["2025-12", "completo", 1000, 600, 400, 40, 2, "no", 0, 0],
+      ["2026-01", "en_curso", 500, 0, 500, 100, 1, "no", 0, 0],
     ]);
   });
 
-  it("adds previous-year columns and leaves variation empty for the month in progress", () => {
+  it("adds previous-year columns without provisional extras and leaves variation empty for the month in progress", () => {
     const csv = buildMonthlyPerformanceCsv(months, { compare: true });
     expect(csv.headers).toEqual([
       "mes",
@@ -192,6 +275,9 @@ describe("buildMonthlyPerformanceCsv", () => {
       "margen",
       "margen_pct",
       "viajes",
+      "provisional",
+      "viajes_sin_terminar",
+      "viajes_con_gastos_pendientes",
       "mes_anio_anterior",
       "ingreso_anio_anterior",
       "gasto_anio_anterior",
@@ -210,6 +296,9 @@ describe("buildMonthlyPerformanceCsv", () => {
       400,
       40,
       2,
+      "no",
+      0,
+      0,
       "2024-12",
       800,
       500,
@@ -228,6 +317,9 @@ describe("buildMonthlyPerformanceCsv", () => {
       500,
       100,
       1,
+      "no",
+      0,
+      0,
       "2025-01",
       0,
       0,
@@ -240,16 +332,59 @@ describe("buildMonthlyPerformanceCsv", () => {
     ]);
   });
 
+  it("exports provisional si/no and API counts for the current series", () => {
+    const provisionalMonths = alignPerformanceMonths({
+      periods: ["2026-09", "2026-10"],
+      current: [
+        {
+          period: "2026-09",
+          actualRevenue: 900,
+          actualCost: 300,
+          actualMargin: 600,
+          tripCount: 3,
+          incompleteTripCount: 2,
+          tripsWithPendingExpenses: 1,
+          provisional: true,
+        },
+        {
+          period: "2026-10",
+          actualRevenue: 100,
+          actualCost: 0,
+          actualMargin: 100,
+          tripCount: 1,
+          incompleteTripCount: 4,
+          tripsWithPendingExpenses: 0,
+          provisional: true,
+        },
+      ],
+      previous: [],
+    });
+    const csv = buildMonthlyPerformanceCsv(provisionalMonths, { compare: false });
+    expect(csv.rows[0]).toEqual([
+      "2026-09",
+      "completo",
+      900,
+      300,
+      600,
+      66.67,
+      3,
+      "si",
+      2,
+      1,
+    ]);
+    expect(csv.rows[1]?.slice(7, 10)).toEqual(["si", 4, 0]);
+  });
+
   it("never exports −100 % (or any variation) for the month in progress", () => {
     const inProgressWithPrevious = alignPerformanceMonths({
       periods: ["2026-09", "2026-10"],
       current: [
-        { period: "2026-09", actualRevenue: 900, actualCost: 300, actualMargin: 600, tripCount: 3 },
-        { period: "2026-10", actualRevenue: 0, actualCost: 0, actualMargin: 0, tripCount: 0 },
+        { period: "2026-09", actualRevenue: 900, actualCost: 300, actualMargin: 600, tripCount: 3, incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false },
+        { period: "2026-10", actualRevenue: 0, actualCost: 0, actualMargin: 0, tripCount: 0, incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false },
       ],
       previous: [
-        { period: "2025-09", actualRevenue: 800, actualCost: 200, actualMargin: 600, tripCount: 2 },
-        { period: "2025-10", actualRevenue: 1000, actualCost: 400, actualMargin: 600, tripCount: 4 },
+        { period: "2025-09", actualRevenue: 800, actualCost: 200, actualMargin: 600, tripCount: 2, incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false },
+        { period: "2025-10", actualRevenue: 1000, actualCost: 400, actualMargin: 600, tripCount: 4, incompleteTripCount: 0, tripsWithPendingExpenses: 0, provisional: false },
       ],
     });
     const csv = buildMonthlyPerformanceCsv(inProgressWithPrevious, { compare: true });

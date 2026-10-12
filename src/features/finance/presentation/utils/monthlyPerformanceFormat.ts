@@ -123,6 +123,27 @@ export function formatPerformancePeriodNote(
     : completedNote;
 }
 
+/**
+ * Nota bajo el rótulo de periodo cuando algún mes completo del summary es
+ * provisional. Nunca en modo «solo mes en curso».
+ */
+export function formatPerformanceProvisionalKpiNote(
+  summary: Pick<PerformanceWindowSummary, "completed" | "inProgressOnly">,
+): string | null {
+  if (summary.inProgressOnly) return null;
+  const hasProvisionalCompleted = summary.completed.some(
+    (month) => month.current.provisional,
+  );
+  return hasProvisionalCompleted ? copy.kpis.provisionalNote : null;
+}
+
+/** Hay meses cerrados (no en curso) con `provisional` del API. */
+export function hasClosedProvisionalMonths(
+  months: readonly AlignedPerformanceMonth[],
+): boolean {
+  return months.some((month) => !month.isInProgress && month.current.provisional);
+}
+
 function roundTo2(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -148,7 +169,12 @@ export function buildMonthlyPerformanceCsv(
 ): CsvTable {
   const c = copy.csv;
   const amountHeaders = [c.revenue, c.cost, c.margin, c.marginPct, c.trips];
-  const baseHeaders = [c.month, c.status, ...amountHeaders];
+  const provisionalHeaders = [
+    c.provisional,
+    c.incompleteTrips,
+    c.tripsWithPendingExpenses,
+  ];
+  const baseHeaders = [c.month, c.status, ...amountHeaders, ...provisionalHeaders];
   const headers = options.compare
     ? [
         ...baseHeaders,
@@ -169,6 +195,9 @@ export function buildMonthlyPerformanceCsv(
       current.actualMargin,
       csvPct(computeMarginPct(current.actualMargin, current.actualRevenue)),
       current.tripCount,
+      current.provisional ? c.provisionalYes : c.provisionalNo,
+      current.incompleteTripCount,
+      current.tripsWithPendingExpenses,
     ];
     if (!options.compare) return base;
     const variations = month.isInProgress

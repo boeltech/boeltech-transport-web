@@ -851,6 +851,33 @@ export const financeCopy = {
         `${count.toLocaleString("es-MX")} viaje${count === 1 ? "" : "s"} completado${count === 1 ? "" : "s"}`,
       versusPrevious: (amount: string) => `vs ${amount} año anterior`,
       previousMarginPct: (pct: string) => `Margen del año anterior: ${pct}`,
+      provisionalNote:
+        "Hay meses provisionales en el total: el margen puede bajar cuando terminen viajes o se aprueben gastos.",
+    },
+    provisional: {
+      chip: "Provisional",
+      hint: "Puede bajar",
+      chipTooltip: (month: string) =>
+        `${month} todavía puede cambiar: hay viajes sin terminar o gastos sin aprobar.`,
+      countsLine: (incompleteTripCount: number, tripsWithPendingExpenses: number) => {
+        const parts: string[] = [];
+        if (incompleteTripCount > 0) {
+          parts.push(
+            `${incompleteTripCount.toLocaleString("es-MX")} viaje${
+              incompleteTripCount === 1 ? "" : "s"
+            } sin terminar`,
+          );
+        }
+        if (tripsWithPendingExpenses > 0) {
+          parts.push(
+            `${tripsWithPendingExpenses.toLocaleString("es-MX")} con gastos sin aprobar`,
+          );
+        }
+        return parts.join(" · ");
+      },
+      chartFooter:
+        "Hay meses cerrados aún provisionales: el margen de esos meses puede bajar.",
+      ariaLabel: "Mes provisional: todavía puede cambiar",
     },
     variation: {
       new: "Nuevo",
@@ -888,6 +915,8 @@ export const financeCopy = {
       marginPct: "Margen %",
       inProgressNote: (previousMonth: string) =>
         `Se compara con ${previousMonth} cuando termine el mes.`,
+      provisionalNote: (month: string) =>
+        `${month} todavía puede cambiar: hay viajes sin terminar o gastos sin aprobar.`,
     },
     table: {
       title: "Cifras por mes",
@@ -926,6 +955,11 @@ export const financeCopy = {
       margin: "margen",
       marginPct: "margen_pct",
       trips: "viajes",
+      provisional: "provisional",
+      incompleteTrips: "viajes_sin_terminar",
+      tripsWithPendingExpenses: "viajes_con_gastos_pendientes",
+      provisionalYes: "si",
+      provisionalNo: "no",
       previousSuffix: "_anio_anterior",
       revenueVariationPct: "variacion_ingreso_pct",
       costVariationPct: "variacion_gasto_pct",

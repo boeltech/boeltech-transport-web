@@ -300,6 +300,15 @@ export interface PeriodFinancials {
   actualCost: number;
   actualMargin: number;
   tripCount: number;
+  /** Viajes con salida en el mes que aún no están `completed`. */
+  incompleteTripCount: number;
+  /** Viajes del mes con gastos en cola de aprobación. */
+  tripsWithPendingExpenses: number;
+  /**
+   * Flag del API: el mes todavía puede cambiar (viajes sin terminar o gastos
+   * sin aprobar). La UI lo lee; no lo recalcula.
+   */
+  provisional: boolean;
 }
 
 /**
