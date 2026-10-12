@@ -14,6 +14,8 @@ const { mockUseVehicle, mockHasPermission } = vi.hoisted(() => ({
 vi.mock("@features/vehicles/application", () => ({
   useVehicle: (...args: unknown[]) => mockUseVehicle(...args),
   useUpdateVehicle: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteVehicle: () => ({ mutate: vi.fn(), isPending: false }),
+  useRestoreVehicle: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("../../application", () => ({
