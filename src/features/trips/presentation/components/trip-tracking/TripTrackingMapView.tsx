@@ -152,6 +152,8 @@ export type TripTrackingMapViewProps = {
   routeGeojson: Record<string, unknown> | null;
   lastKnownPosition: TrackingTimelineMapPosition | null;
   className?: string;
+  /** F6: flyTo a parada seleccionada en el riel (lectura). */
+  focusStop?: { stopId: string; nonce: number } | null;
 };
 
 export function TripTrackingMapView({
@@ -161,6 +163,7 @@ export function TripTrackingMapView({
   routeGeojson,
   lastKnownPosition,
   className,
+  focusStop = null,
 }: TripTrackingMapViewProps) {
   const mapboxStyle = useMapboxStyle();
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -273,6 +276,18 @@ export function TripTrackingMapView({
 
     map.once("style.load", applyOverlays);
   }, [bounds, eventMarkers, isVisible, lastKnownPosition, overlayParams, routeGeojson, stopMarkers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isVisible || focusStop == null) return;
+    const marker = stopMarkers.find((stop) => stop.id === focusStop.stopId);
+    if (!marker) return;
+    map.flyTo({
+      center: [marker.longitude, marker.latitude],
+      zoom: Math.max(map.getZoom(), 12),
+      duration: 700,
+    });
+  }, [focusStop, isVisible, stopMarkers]);
 
   return (
     <div

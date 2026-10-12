@@ -35,6 +35,12 @@ export interface ApiVehicleRefResponse {
 export interface ApiDriverRefResponse {
   id: string;
   full_name: string;
+  /**
+   * Contacto operativo del API (celular del empleado si existe; si no, teléfono).
+   * Presente en detalle de viaje cuando el API lo envía.
+   */
+  phone?: string | null;
+  mobile_phone?: string | null;
 }
 
 /** Asignación remolque + snapshot CP (ADR-0077). */

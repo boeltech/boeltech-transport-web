@@ -131,6 +131,24 @@ export function shouldFetchTripTimelineForShell(
 }
 
 /**
+ * F5: banner ETA del shell apagado en Seguimiento (canónico = cabecera/semáforo del tab).
+ */
+export function shouldShowShellEtaPassedBanner(
+  activeTab: TripDetailTabValue,
+): boolean {
+  return activeTab !== "tracking";
+}
+
+/**
+ * F5: banner de incidente del shell apagado en Seguimiento (canónico = Z3a del tab).
+ */
+export function shouldShowShellOpenIncidentBanner(
+  activeTab: TripDetailTabValue,
+): boolean {
+  return activeTab !== "tracking";
+}
+
+/**
  * Timeline compartido (misma query que Seguimiento) para reflejar progreso en Ruta.
  */
 export function shouldFetchTripTimeline(

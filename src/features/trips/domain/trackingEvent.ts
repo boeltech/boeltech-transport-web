@@ -106,3 +106,15 @@ export interface StartTripTrackingInput {
   occurredAt?: string;
   idempotencyKey?: string;
 }
+
+/** Body UI → POST …/tracking/incidents/close (T4). */
+export interface CloseTrackingIncidentInput {
+  notes: string;
+  occurredAt?: string;
+  idempotencyKey?: string;
+}
+
+export interface CloseTrackingIncidentResult {
+  hasOpenIncident: false;
+  noteEvent: TrackingEvent;
+}

@@ -26,6 +26,7 @@ export {
   useDeleteExpense,
   useDeleteTrip,
   useRegisterTrackingEvent,
+  useCloseTrackingIncident,
   useRejectExpense,
   useReturnExpense,
   useReassignCargoMovementStop,

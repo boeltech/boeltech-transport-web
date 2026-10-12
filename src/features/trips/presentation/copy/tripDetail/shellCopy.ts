@@ -17,7 +17,9 @@ export const shellCopy = {
     costs: "Costos",
     history: "Historial",
     trackingLive: "En vivo",
+    /** Indicador discreto (punto); no compite con el CTA «Incidente» del feed. */
     trackingIncident: "Incidente",
+    trackingIncidentAria: "Con incidente abierto",
     openIncident: "Incidente",
   },
   stat: {
@@ -38,7 +40,7 @@ export const shellCopy = {
   alert: {
     openIncidentTitle: "Incidente registrado en el viaje",
     openIncidentBody:
-      "Quedó en la bitácora de Seguimiento. La marca se limpia al finalizar o cancelar el viaje.",
+      "Quedó en la bitácora de Seguimiento. Ciérralo con una nota desde Seguimiento, o la marca se limpia al finalizar o cancelar el viaje.",
     openIncidentCta: "Ir a Seguimiento",
     fiscalAttentionTitle: "Revisión de facturación pendiente",
     fiscalAttentionBody:

@@ -120,6 +120,8 @@ import {
   shouldFetchTripExpenses,
   shouldFetchTripExpensesSummary,
   shouldFetchTripTimeline,
+  shouldShowShellEtaPassedBanner,
+  shouldShowShellOpenIncidentBanner,
 } from "./tripDetailQueryGating";
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
 import { buildPostCancelFiscalAlertLines } from "../helpers/buildPostCancelFiscalAlertLines";
@@ -664,6 +666,7 @@ export function TripDetailPage() {
     }
 
     if (
+      shouldShowShellEtaPassedBanner(resolvedActiveTab) &&
       (displayStatus === TripStatus.SCHEDULED ||
         displayStatus === TripStatus.IN_PROGRESS) &&
       trip.scheduledArrival &&
@@ -716,7 +719,10 @@ export function TripDetailPage() {
       }
     }
 
-    if (hasOpenTrackingIncident) {
+    if (
+      hasOpenTrackingIncident &&
+      shouldShowShellOpenIncidentBanner(resolvedActiveTab)
+    ) {
       cards.push(
         <DetailAlertCard
           key="tracking-incident-open"
@@ -773,6 +779,7 @@ export function TripDetailPage() {
     invoicingConsoleVisible,
     revenueSplitForFiscalCta,
     revenueSplitForFiscalCtaFetched,
+    resolvedActiveTab,
   ]);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1274,9 +1281,12 @@ export function TripDetailPage() {
                   </Badge>
                 ) : null}
                 {hasOpenTrackingIncident ? (
-                  <Badge variant="destructive" className="ml-1 text-xs">
-                    {shell.tab.trackingIncident}
-                  </Badge>
+                  <span
+                    className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-destructive"
+                    role="status"
+                    title={shell.tab.trackingIncident}
+                    aria-label={shell.tab.trackingIncidentAria}
+                  />
                 ) : null}
               </span>
             ),
@@ -1295,6 +1305,15 @@ export function TripDetailPage() {
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
                   hasActiveSplit={trip.invoicing.hasActiveSplit}
                   requiresFiscalAttention={trip.requiresFiscalAttention}
+                  contact={{
+                    driverName: trip.driver?.fullName ?? null,
+                    driverPhone: trip.driver?.phone ?? null,
+                    vehicleLabel: trip.vehicle
+                      ? [trip.vehicle.unitNumber, trip.vehicle.licensePlate]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : null,
+                  }}
                 />
               </Suspense>
             ),

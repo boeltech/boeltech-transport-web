@@ -750,6 +750,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
       ? {
           id: api.driver.id,
           fullName: api.driver.full_name,
+          phone: api.driver.phone ?? null,
         }
       : undefined,
     client: api.client

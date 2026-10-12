@@ -14,6 +14,8 @@ import {
   buildTrackingItineraryRows,
   getTrackingNextActionLabel,
   getTrackingScopeAlertItems,
+  isTrackingCurrentStop,
+  resolveTrackingCurrentStopId,
   resolveTrackingNextAction,
 } from "./trackingOperationalHelpers";
 
@@ -95,6 +97,28 @@ describe("trackingOperationalHelpers", () => {
     expect(rows.find((r) => r.stop.id === "s2")?.visitLabel).toBe(
       progressCopy.label.stopAtWaypoint,
     );
+    expect(rows.find((r) => r.stop.id === "s2")?.waitingPhase).toBe(true);
+  });
+
+  it("exposes plan/real lines and waitingPhase on itinerary rows", () => {
+    const atScale = stop({
+      id: "s2",
+      sequenceOrder: 2,
+      stopType: [StopType.WAYPOINT],
+      status: "in_progress",
+      estimatedArrival: new Date("2026-01-01T11:30:00Z"),
+      actualArrival: new Date("2026-01-01T12:00:00Z"),
+      estimatedDeparture: new Date("2026-01-01T13:00:00Z"),
+      actualDeparture: null,
+    });
+    const rows = buildTrackingItineraryRows([origin, atScale, destination]);
+    const wp = rows.find((r) => r.stop.id === "s2");
+    expect(wp?.waitingPhase).toBe(true);
+    expect(wp?.planRealLines).toHaveLength(2);
+    expect(wp?.planRealLines[0]?.kind).toBe("arrival");
+    expect(wp?.planRealLines[1]?.kind).toBe("departure");
+    expect(wp?.planRealLines[1]?.realValue).toBe("—");
+    expect(rows.find((r) => r.stop.id === "s1")?.waitingPhase).toBe(false);
   });
 
   it("label for close_at_destination is Finalizar viaje", () => {
@@ -173,5 +197,25 @@ describe("trackingOperationalHelpers", () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.label).toBe(trackingCopy.hint.incidentLabel);
     expect(items[0]?.text).toBe(trackingCopy.hint.openIncident);
+  });
+
+  it("F6: resolveTrackingCurrentStopId = parada isActionTarget", () => {
+    const originAtDock = stop({
+      id: "s1",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN],
+      status: "in_progress",
+      actualArrival: new Date("2026-07-12T10:00:00.000Z"),
+      actualDeparture: null,
+    });
+    const rows = buildTrackingItineraryRows([
+      originAtDock,
+      waypoint,
+      destination,
+    ]);
+    const currentId = resolveTrackingCurrentStopId(rows);
+    expect(currentId).toBe("s1");
+    expect(isTrackingCurrentStop("s1", rows)).toBe(true);
+    expect(isTrackingCurrentStop("s2", rows)).toBe(false);
   });
 });

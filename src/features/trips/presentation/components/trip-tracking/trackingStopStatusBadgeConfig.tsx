@@ -9,7 +9,6 @@ import {
 import {
   StopStatus,
   type StopStatusValue,
-  STOP_STATUS_LABELS,
 } from "@features/trips/domain";
 import { createStatusConfig, type StatusConfig } from "@shared/config/status/types";
 import {
@@ -18,24 +17,25 @@ import {
 } from "@shared/components/StatusBadge";
 import { trackingCopy } from "../../copy";
 
+/** Labels PRD del riel (Pendiente / En sitio / Completada / Omitida). */
 export const TRACKING_STOP_STATUS_CONFIG = {
   [StopStatus.PENDING]: createStatusConfig("neutral", {
-    label: STOP_STATUS_LABELS[StopStatus.PENDING],
+    label: trackingCopy.label.stopStatus.pending,
     icon: Circle,
     description: "Parada pendiente de visita",
   }),
   [StopStatus.IN_PROGRESS]: createStatusConfig("info", {
-    label: STOP_STATUS_LABELS[StopStatus.IN_PROGRESS],
+    label: trackingCopy.label.stopStatus.in_progress,
     icon: CircleCheck,
-    description: "Parada en curso",
+    description: "Parada en sitio",
   }),
   [StopStatus.COMPLETED]: createStatusConfig("success", {
-    label: STOP_STATUS_LABELS[StopStatus.COMPLETED],
+    label: trackingCopy.label.stopStatus.completed,
     icon: CheckCircle2,
     description: "Parada completada",
   }),
   [StopStatus.SKIPPED]: createStatusConfig("warning", {
-    label: trackingCopy.state.skippedNotVisited,
+    label: trackingCopy.label.stopStatus.skipped,
     icon: SkipForward,
     description: "Parada omitida — no se visitó",
   }),

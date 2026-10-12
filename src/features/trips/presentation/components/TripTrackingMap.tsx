@@ -21,6 +21,15 @@ interface TripTrackingMapProps {
   events?: TrackingEvent[];
   routeGeojson?: Record<string, unknown> | null;
   lastKnownPosition: TrackingTimelineMapPosition | null;
+  /** Altura útil del canvas Mapbox (F5/F6 mapa protagonista). */
+  mapClassName?: string;
+  /**
+   * F6: al elegir una parada del riel (no workbench), alinear el mapa.
+   * `nonce` fuerza un flyTo aunque el stopId se repita.
+   */
+  focusStop?: { stopId: string; nonce: number } | null;
+  /** Km recorridos en overlay del mapa (P1; no reimprime status/semáforo del header). */
+  distanceActualKm?: number | null;
 }
 
 function TripTrackingMapFallbackList({
@@ -94,6 +103,9 @@ export function TripTrackingMap({
   events = [],
   routeGeojson = null,
   lastKnownPosition,
+  mapClassName,
+  focusStop = null,
+  distanceActualKm = null,
 }: TripTrackingMapProps) {
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const hasMapData = useMemo(() => {
@@ -106,9 +118,14 @@ export function TripTrackingMap({
     );
   }, [stops, events, lastKnownPosition, routeGeojson]);
 
+  const distanceMeta =
+    distanceActualKm != null && Number.isFinite(distanceActualKm)
+      ? `${distanceActualKm.toLocaleString("es-MX", { maximumFractionDigits: 1 })} km`
+      : null;
+
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <MapPinned className="h-4 w-4 text-primary" />
           Mapa operativo
@@ -116,11 +133,21 @@ export function TripTrackingMap({
         <CardDescription>
           Ubicación de paradas y eventos con GPS.
         </CardDescription>
+        {distanceMeta ? (
+          <p className="text-xs text-muted-foreground" data-tracking-map-meta>
+            {distanceMeta}
+          </p>
+        ) : null}
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {mapboxToken && hasMapData ? (
           <Suspense
-            fallback={<Skeleton className="h-72 w-full rounded-md" aria-label="Cargando mapa" />}
+            fallback={
+              <Skeleton
+                className={mapClassName ?? "h-72 w-full rounded-md"}
+                aria-label="Cargando mapa"
+              />
+            }
           >
             <TripTrackingMapView
               token={mapboxToken}
@@ -128,6 +155,8 @@ export function TripTrackingMap({
               events={events}
               routeGeojson={routeGeojson}
               lastKnownPosition={lastKnownPosition}
+              className={mapClassName}
+              focusStop={focusStop}
             />
           </Suspense>
         ) : null}

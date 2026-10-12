@@ -6,6 +6,8 @@ import {
   getFalseTripDeclaredTimelineMeta,
   getTrackingEventTimelineBody,
   getTrackingIncidentTimelineMeta,
+  resolveLatestIncidentDetail,
+  shouldShowIncidentClosedChip,
 } from "./trackingEventDisplay";
 import { trackingCopy } from "../../copy";
 
@@ -62,6 +64,39 @@ describe("trackingEventDisplay", () => {
         }),
       ),
     ).toEqual(["Severidad alta", "Requiere asistencia"]);
+  });
+
+  it("resolveLatestIncidentDetail toma el incidente más reciente (F7.6)", () => {
+    expect(
+      resolveLatestIncidentDetail([
+        event({
+          id: "old",
+          eventType: "incident",
+          occurredAt: new Date("2026-07-12T10:00:00.000Z"),
+          payload: { description: "Viejo" },
+        }),
+        event({
+          id: "note",
+          eventType: "note",
+          notes: "Ignorar",
+          occurredAt: new Date("2026-07-12T11:00:00.000Z"),
+        }),
+        event({
+          id: "new",
+          eventType: "incident",
+          occurredAt: new Date("2026-07-12T12:00:00.000Z"),
+          payload: { description: "Pinchadura en km 120" },
+        }),
+      ]),
+    ).toBe("Pinchadura en km 120");
+  });
+
+  it("chip Cerrado solo en incident cuando !hasOpenIncident (T5)", () => {
+    expect(shouldShowIncidentClosedChip("incident", false)).toBe(true);
+    expect(shouldShowIncidentClosedChip("incident", true)).toBe(false);
+    expect(shouldShowIncidentClosedChip("note", false)).toBe(false);
+    expect(trackingCopy.hint.incidentClosedChip).toBe("Cerrado");
+    expect(trackingCopy.hint.incidentClosedChip).not.toMatch(/resuelto/i);
   });
 
   it("omits notes body for false_trip_declared and lists cause, km and actor", () => {

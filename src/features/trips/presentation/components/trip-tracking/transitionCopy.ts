@@ -41,8 +41,9 @@ export const legendCopy = {
     title: "Estados de parada",
     expand: "Estados de parada",
     collapse: "Ocultar",
-    flow: ["Pendiente", "En curso", "Completado"] as const,
-    alternate: "Omitido",
+    /** Catálogo canónico (F2 / PRD); «En espera» es fase derivada aparte. */
+    flow: ["Pendiente", "En sitio", "Completada"] as const,
+    alternate: "Omitida",
   },
   cargo: {
     title: "Estados de carga",

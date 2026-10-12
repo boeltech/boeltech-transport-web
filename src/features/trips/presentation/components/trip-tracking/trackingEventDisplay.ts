@@ -17,6 +17,29 @@ function readPayloadString(
   return trimmed.length > 0 ? trimmed : null;
 }
 
+/**
+ * F7.6: descripción del incidente más reciente en timeline (sin endpoint nuevo).
+ * Solo lectura de eventos ya cargados; no inventa cierre.
+ */
+export function resolveLatestIncidentDetail(
+  events: readonly Pick<
+    TrackingEvent,
+    "eventType" | "notes" | "payload" | "occurredAt"
+  >[],
+): string | null {
+  let latest: (typeof events)[number] | null = null;
+  for (const event of events) {
+    if (event.eventType !== "incident") continue;
+    if (
+      latest == null ||
+      event.occurredAt.getTime() > latest.occurredAt.getTime()
+    ) {
+      latest = event;
+    }
+  }
+  return latest ? getTrackingEventTimelineBody(latest) : null;
+}
+
 /** Texto principal del evento en timeline (notas e incidentes). */
 export function getTrackingEventTimelineBody(
   event: Pick<TrackingEvent, "eventType" | "notes" | "payload">,
@@ -52,6 +75,17 @@ export function getTrackingIncidentTimelineMeta(
     lines.push("Requiere asistencia");
   }
   return lines;
+}
+
+/**
+ * T5: chip «Cerrado» = proyección UI desde `!hasOpenIncident`.
+ * No muta eventos `incident` ni inventa `incident_resolved`.
+ */
+export function shouldShowIncidentClosedChip(
+  eventType: Pick<TrackingEvent, "eventType">["eventType"],
+  hasOpenIncident: boolean,
+): boolean {
+  return eventType === "incident" && !hasOpenIncident;
 }
 
 /** PD7: causa, km, actor del evento `false_trip_declared`. */

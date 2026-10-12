@@ -129,17 +129,32 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     );
   });
 
-  it("usa soft-warn de incidente en bitácora sin resolución aparte (T4-039)", () => {
+  it("usa soft-warn de incidente en bitácora sin resolución aparte (T4-039 / F3)", () => {
     expect(trackingCopy.sheet.closeOpenIncidentWarning).toBe(
-      "Este viaje tiene un incidente en bitácora. Al finalizar, la marca se limpia; no se registra una resolución aparte.",
+      "Este viaje tiene un incidente en bitácora. Puedes cerrarlo con una nota en Seguimiento; al finalizar, la marca también se limpia. El incidente permanece en la bitácora.",
     );
     expect(trackingCopy.sheet.closeOpenIncidentWarning).not.toMatch(
-      /sin cerrar|atender|resolver/i,
+      /sin cerrar|atender|resolver|borrar/i,
     );
     expect(trackingCopy.hint.openIncident).toBe(
-      "Hay un incidente en bitácora. Revísalo antes de cerrar el viaje.",
+      "Hay un incidente en bitácora. Ciérralo con una nota o revísalo antes de finalizar el viaje.",
     );
-    expect(trackingCopy.hint.openIncident).not.toMatch(/sin cerrar|abierto/i);
+    expect(trackingCopy.hint.openIncident).not.toMatch(/sin cerrar|abierto|resuelto/i);
+    expect(trackingCopy.hint.openIncidentTitle).toBe("Incidente abierto");
+    expect(trackingCopy.hint.openIncidentSummary("Pinchadura")).toBe(
+      "Pinchadura",
+    );
+    expect(trackingCopy.hint.openIncidentSummary(null)).toBe(
+      trackingCopy.hint.openIncident,
+    );
+    expect(trackingCopy.label.onSite).toBe("En sitio");
+    expect(trackingCopy.label.trafficLightAria).toBe("Semáforo operativo");
+    expect(trackingCopy.action.closeIncident).toBe("Cerrar incidente");
+    expect(trackingCopy.sheet.closeIncidentTitle).toBe("Cerrar incidente");
+    expect(trackingCopy.sheet.closeIncidentDescription).not.toMatch(
+      /resuelto|borrar|elimin/i,
+    );
+    expect(trackingCopy.hint.incidentClosedChip).toBe("Cerrado");
   });
 });
 
@@ -239,5 +254,18 @@ describe("trackingCopy — léxico operativo (Capa 1 D8)", () => {
     expect(trackingCopy.label.hazardous).toBe("Peligroso");
     expect(trackingCopy.hint.stopRoleOrigin).not.toMatch(/arribo/i);
     expect(trackingCopy.format.cargoFacts(120, 10)).toBe("120 kg · 10 uds");
+  });
+});
+
+describe("trackingCopy — semáforo F1-B", () => {
+  it("usa etiquetas PRD y no conserva «Va tarde»", () => {
+    expect(trackingCopy.label.trafficLight).toEqual({
+      on_time: "A tiempo",
+      at_risk: "En riesgo",
+      delayed: "Retrasado",
+      stopped: "Detenido",
+      "n/a": "No aplica",
+    });
+    expect(flattenCopy(trackingCopy)).not.toMatch(/Va tarde/);
   });
 });

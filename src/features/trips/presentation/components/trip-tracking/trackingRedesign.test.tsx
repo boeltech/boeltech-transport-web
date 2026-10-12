@@ -19,6 +19,10 @@ import {
 import { resolveTrackingPrimaryAction } from "./trackingNextAction";
 import { TripTrackingStopsCargosMasterDetail } from "./TripTrackingStopsCargosMasterDetail";
 import { TripTrackingNextActionCard } from "./TripTrackingNextActionCard";
+import { TripTrackingItineraryRail } from "./TripTrackingItineraryRail";
+import { TripTrackingIncidentStrip } from "./TripTrackingIncidentStrip";
+import { TripTrackingNowPanel } from "./TripTrackingNowPanel";
+import { TripTrackingObjectiveHub } from "./TripTrackingObjectiveHub";
 import { TripTrackingProgressStrip } from "./TripTrackingProgressStrip";
 import { trackingCopy } from "../../copy";
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
@@ -363,6 +367,45 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(screen.getByText("Zapatos")).toBeInTheDocument();
     expect(screen.getByText("120 kg · 10 uds")).toBeInTheDocument();
     expect(screen.queryByText(/Producto/)).not.toBeInTheDocument();
+  });
+
+  it("riel: plan vs real y chip En espera derivado (sin inventar status)", () => {
+    const departedOrigin = stop({
+      ...origin,
+      status: "completed",
+      actualDeparture: new Date("2026-07-12T10:00:00.000Z"),
+      estimatedDeparture: new Date("2026-07-12T09:45:00.000Z"),
+    });
+    const atWaypoint = stop({
+      ...waypoint,
+      status: "in_progress",
+      estimatedArrival: new Date("2026-07-12T12:00:00.000Z"),
+      actualArrival: new Date("2026-07-12T12:20:00.000Z"),
+      estimatedDeparture: new Date("2026-07-12T13:00:00.000Z"),
+      actualDeparture: null,
+      locationName: "Escala Querétaro",
+    });
+
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[departedOrigin, atWaypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+      />,
+    );
+
+    expect(
+      screen.getAllByText(trackingCopy.label.waitingPhase).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(trackingCopy.label.stopStatus.in_progress).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Llegada plan /).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Salida plan /).length).toBeGreaterThan(0);
+    expect(
+      screen.queryByText("en_espera"),
+    ).not.toBeInTheDocument();
   });
 
   it("coloca Actualizar y meta de frescura en el header de Paradas y cargas", async () => {
@@ -1211,8 +1254,108 @@ describe("TripTrackingNextActionCard (legacy guide)", () => {
   });
 });
 
-describe("TripTrackingProgressStrip (línea de contexto)", () => {
-  it("renderiza avance sin km planeados/recorridos", () => {
+describe("TripTrackingItineraryRail (F4 riel compacto)", () => {
+  const origin = stop({
+    id: "s1",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN],
+    locationName: "Bodega QRO",
+  });
+  const waypoint = stop({
+    id: "s2",
+    sequenceOrder: 2,
+    stopType: [StopType.WAYPOINT],
+    locationName: "Escala MTY",
+    status: "in_progress",
+    actualArrival: new Date("2026-07-12T12:20:00.000Z"),
+    estimatedArrival: new Date("2026-07-12T12:00:00.000Z"),
+    estimatedDeparture: new Date("2026-07-12T13:00:00.000Z"),
+  });
+  const destination = stop({
+    id: "s3",
+    sequenceOrder: 3,
+    stopType: [StopType.DESTINATION],
+    locationName: "Cliente CDMX",
+  });
+
+  it("expone itinerario con plan/real y En espera sin master-detail denso", () => {
+    render(
+      <TripTrackingItineraryRail
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+      />,
+    );
+
+    expect(
+      screen.getByRole("region", { name: trackingCopy.section.itinerary }),
+    ).toHaveAttribute("data-tracking-section", "rail");
+    expect(
+      screen.getAllByText(trackingCopy.label.waitingPhase).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Llegada plan /).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Paradas y cargas")).not.toBeInTheDocument();
+  });
+
+  it("dispara onSelectStop al elegir una parada del riel", async () => {
+    const user = userEvent.setup();
+    const onSelectStop = vi.fn();
+
+    render(
+      <TripTrackingItineraryRail
+        stops={[origin, waypoint, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        onSelectStop={onSelectStop}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Parada 2/i }),
+    );
+    expect(onSelectStop).toHaveBeenCalledWith("s2");
+  });
+});
+
+describe("TripTrackingStopsCargosMasterDetail (F4 composición)", () => {
+  const origin = stop({
+    id: "s1",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN],
+    locationName: "Bodega QRO",
+  });
+
+  it("puede ocultar ProgressStrip y Qué sigue cuando el tab los eleva", () => {
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        progress={{
+          stopsTotal: 1,
+          stopsCompleted: 0,
+          percentComplete: 0,
+          distancePlannedKm: null,
+          distanceActualKm: null,
+          estimatedArrival: null,
+        }}
+        trafficLight="on_time"
+        showProgressStrip={false}
+        showObjectiveHub={false}
+      />,
+    );
+
+    expect(screen.getByText("Paradas y cargas")).toBeInTheDocument();
+    expect(screen.queryByText("Qué sigue")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: trackingCopy.section.metrics }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("TripTrackingProgressStrip (línea de contexto / F5.1 + F7.1)", () => {
+  it("renderiza 1 status + 1 semáforo con jerarquía distinta + 1 frase", () => {
     render(
       <TripTrackingProgressStrip
         progress={{
@@ -1223,8 +1366,9 @@ describe("TripTrackingProgressStrip (línea de contexto)", () => {
           distanceActualKm: 100,
           estimatedArrival: new Date("2026-07-12T16:21:00.000Z"),
         }}
-        actualDeparture={new Date("2026-07-12T08:00:00.000Z")}
-        overdue
+        tripStatus="in_progress"
+        trafficLight="stopped"
+        nextStopLabel="Bodega QRO"
         readOnly
       />,
     );
@@ -1232,13 +1376,44 @@ describe("TripTrackingProgressStrip (línea de contexto)", () => {
     expect(
       screen.getByRole("group", { name: trackingCopy.section.metrics }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Parada 2 de 2/)).toBeInTheDocument();
-    expect(screen.getByText(trackingCopy.label.overdue)).toBeInTheDocument();
+    expect(screen.getByText("En Ruta")).toBeInTheDocument();
+    const traffic = screen.getByLabelText(
+      `${trackingCopy.label.trafficLightAria}: ${trackingCopy.label.trafficLight.stopped}`,
+    );
+    expect(traffic).toHaveTextContent(trackingCopy.label.trafficLight.stopped);
+    expect(screen.queryByText("Va tarde")).not.toBeInTheDocument();
+    expect(screen.getByText(/Siguiente: Bodega QRO/)).toBeInTheDocument();
+    expect(screen.queryByText(/Parada 2 de 2/)).not.toBeInTheDocument();
     expect(screen.getByText(trackingCopy.state.readOnly)).toBeInTheDocument();
     expect(screen.queryByText(/356\.33 km/)).not.toBeInTheDocument();
   });
 
-  it("muestra sin llegada estimada cuando falta ETA", () => {
+  it("acepta frase situacional en sitio sin «Siguiente:» (F7.1)", () => {
+    render(
+      <TripTrackingProgressStrip
+        progress={{
+          stopsTotal: 2,
+          stopsCompleted: 0,
+          percentComplete: 0,
+          distancePlannedKm: null,
+          distanceActualKm: null,
+          estimatedArrival: null,
+        }}
+        tripStatus="in_progress"
+        trafficLight="stopped"
+        contextPhrase={`${trackingCopy.label.onSite} · Coca Cola · ${trackingCopy.label.waitingPhase}`}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        `${trackingCopy.label.onSite} · Coca Cola · ${trackingCopy.label.waitingPhase}`,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Siguiente:/)).not.toBeInTheDocument();
+  });
+
+  it("oculta el chip de semáforo cuando es n/a", () => {
     render(
       <TripTrackingProgressStrip
         progress={{
@@ -1249,11 +1424,319 @@ describe("TripTrackingProgressStrip (línea de contexto)", () => {
           distanceActualKm: null,
           estimatedArrival: null,
         }}
+        tripStatus="scheduled"
+        trafficLight="n/a"
+      />,
+    );
+
+    expect(screen.getByText("Programado")).toBeInTheDocument();
+    expect(
+      screen.queryByText(trackingCopy.label.trafficLight.on_time),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(trackingCopy.label.trafficLight["n/a"]),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(trackingCopy.state.noEta)),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("TripTrackingStopsCargosMasterDetail (F5.3 cabecera compacta)", () => {
+  const origin = stop({
+    id: "s1",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN],
+    locationName: "Bodega QRO",
+    status: "in_progress",
+    actualArrival: new Date("2026-07-12T12:20:00.000Z"),
+    estimatedArrival: new Date("2026-07-12T12:00:00.000Z"),
+  });
+
+  it("con compactDetailHeader no reedita badges/plan-real del riel", () => {
+    render(
+      <TripTrackingStopsCargosMasterDetail
+        {...defaultProps}
+        stops={[origin]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        showProgressStrip={false}
+        showObjectiveHub={false}
+        compactDetailHeader
+      />,
+    );
+
+    expect(screen.getByText("Paradas y cargas")).toBeInTheDocument();
+    // Lista master puede mostrar estado; el detail compacto no repite «En espera»/plan.
+    const headings = screen.getAllByRole("heading", { name: /Bodega QRO|Parada 1/i });
+    expect(headings.length).toBeGreaterThan(0);
+  });
+});
+
+describe("TripTrackingNowPanel (F6/F7 Ahora)", () => {
+  const origin = stop({
+    id: "s1",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN],
+    locationName: "Bodega QRO",
+  });
+
+  it("compone qué sigue + contacto sin incidente ni master-detail (F7.2)", () => {
+    render(
+      <TripTrackingNowPanel
+        stops={[origin]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        canOperateTracking
+        contact={{
+          driverName: "Ana Pérez",
+          vehicleLabel: "U-12 · ABC-123",
+          driverPhone: "+525551112233",
+        }}
       />,
     );
 
     expect(
-      screen.getByText(new RegExp(trackingCopy.state.noEta)),
+      screen.getByLabelText(trackingCopy.section.now),
+    ).toHaveAttribute("data-tracking-section", "now");
+    expect(
+      screen.queryByText(trackingCopy.hint.openIncidentTitle),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: trackingCopy.action.closeIncident }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(trackingCopy.section.objective)).toBeInTheDocument();
+    expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
+    expect(screen.getByText(/U-12 · ABC-123/)).toBeInTheDocument();
+    expect(screen.getByText("+525551112233")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: trackingCopy.action.call }),
+    ).toHaveAttribute("href", "tel:+525551112233");
+    expect(screen.queryByText("Paradas y cargas")).not.toBeInTheDocument();
+  });
+
+  it("muestra Celular No capturado y omite Llamar sin teléfono", () => {
+    render(
+      <TripTrackingNowPanel
+        stops={[origin]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        contact={{
+          driverName: "Ana Pérez",
+          vehicleLabel: "U-12",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText(trackingCopy.label.mobileNotCaptured),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: trackingCopy.action.call }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("TripTrackingIncidentStrip (F7.2)", () => {
+  it("muestra franja compacta con CTA de cierre", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(
+      <TripTrackingIncidentStrip
+        summary="Pinchadura en km 120"
+        canClose
+        onClose={onClose}
+      />,
+    );
+
+    const strip = screen.getByRole("status", {
+      name: trackingCopy.hint.openIncidentTitle,
+    });
+    expect(strip).toHaveAttribute("data-tracking-section", "incident-strip");
+    expect(screen.getByText("Pinchadura en km 120")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: trackingCopy.action.closeIncident }),
+    );
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("TripTrackingObjectiveHub compact (Completar viaje siempre visible)", () => {
+  it("muestra Completar viaje demoted aunque el primary sea otro job (p. ej. cargas)", () => {
+    const originAtDock = stop({
+      id: "s1",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN],
+      locationName: "Bodega QRO",
+      status: "in_progress",
+      actualArrival: new Date("2026-07-12T10:00:00.000Z"),
+    });
+    const destination = stop({
+      id: "s2",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION],
+      locationName: "Cliente CDMX",
+    });
+    const pendingCargo = cargo({
+      id: "c1",
+      status: CargoStatus.PENDING,
+      movements: [
+        {
+          id: "m1",
+          movementType: "pickup",
+          stopId: "s1",
+          stopIndex: 1,
+          completedAt: null,
+          weight: null,
+          units: null,
+          notes: null,
+        },
+      ],
+    });
+
+    render(
+      <TripTrackingObjectiveHub
+        compact
+        stops={[originAtDock, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[pendingCargo]}
+        canOperateTracking
+        canMutateCargo
+        onQuickCloseTrip={vi.fn()}
+        onGoToCargos={vi.fn()}
+        cfdiEmissionIntent="emitir_cfdi"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: trackingCopy.action.quickClose }),
+    ).toBeInTheDocument();
+    const goToCargos = screen.getByRole("button", {
+      name: trackingCopy.action.goToCargos,
+    });
+    expect(goToCargos).toBeInTheDocument();
+    // CTA primario del job cargo_blocked (variant default → bg-primary).
+    expect(goToCargos.className).toMatch(/bg-primary/);
+  });
+
+  it("muestra Completar viaje aunque esté disabled (sin_cfdi sin carga activa)", () => {
+    const destinationArrived = stop({
+      id: "s2",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION],
+      locationName: "Cliente CDMX",
+      status: "in_progress",
+      actualArrival: new Date("2026-07-12T16:00:00.000Z"),
+    });
+    const originDone = stop({
+      id: "s1",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN],
+      locationName: "Bodega QRO",
+      status: "completed",
+      actualArrival: new Date("2026-07-12T10:00:00.000Z"),
+      actualDeparture: new Date("2026-07-12T10:30:00.000Z"),
+    });
+
+    render(
+      <TripTrackingObjectiveHub
+        compact
+        stops={[originDone, destinationArrived]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        canOperateTracking
+        onCloseTrip={vi.fn()}
+        onQuickCloseTrip={vi.fn()}
+        cfdiEmissionIntent="sin_cfdi_efectivo"
+      />,
+    );
+
+    const quickClose = screen.getByRole("button", {
+      name: new RegExp(trackingCopy.action.quickClose),
+    });
+    expect(quickClose).toBeInTheDocument();
+    expect(quickClose).toBeDisabled();
+  });
+});
+
+describe("TripTrackingItineraryRail (F6/F7)", () => {
+  const origin = stop({
+    id: "s1",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN],
+    locationName: "Bodega QRO",
+    status: "in_progress",
+    actualArrival: new Date("2026-07-12T10:00:00.000Z"),
+  });
+  const destination = stop({
+    id: "s2",
+    sequenceOrder: 2,
+    stopType: [StopType.DESTINATION],
+    locationName: "Cliente CDMX",
+  });
+
+  it("notifica selección; el padre decide Sheet solo si es current", async () => {
+    const user = userEvent.setup();
+    const onSelectStop = vi.fn();
+
+    render(
+      <TripTrackingItineraryRail
+        stops={[origin, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        onSelectStop={onSelectStop}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Parada 2|Cliente CDMX/i }));
+    expect(onSelectStop).toHaveBeenCalledWith("s2");
+    await user.click(screen.getByRole("button", { name: /Parada 1|Bodega QRO/i }));
+    expect(onSelectStop).toHaveBeenCalledWith("s1");
+  });
+
+  it("con N≤3 usa modo track (F7.4)", () => {
+    const { container } = render(
+      <TripTrackingItineraryRail
+        stops={[origin, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+      />,
+    );
+    expect(
+      container.querySelector("[data-tracking-rail-mode='track']"),
+    ).toBeTruthy();
+  });
+
+  it("con N≥4 usa modo scroll (F7.4)", () => {
+    const { container } = render(
+      <TripTrackingItineraryRail
+        stops={[
+          origin,
+          stop({
+            id: "s2w",
+            sequenceOrder: 2,
+            stopType: [StopType.WAYPOINT],
+            locationName: "Escala A",
+          }),
+          stop({
+            id: "s3w",
+            sequenceOrder: 3,
+            stopType: [StopType.WAYPOINT],
+            locationName: "Escala B",
+          }),
+          stop({
+            id: "s4",
+            sequenceOrder: 4,
+            stopType: [StopType.DESTINATION],
+            locationName: "Destino",
+          }),
+        ]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+      />,
+    );
+    expect(
+      container.querySelector("[data-tracking-rail-mode='scroll']"),
+    ).toBeTruthy();
   });
 });

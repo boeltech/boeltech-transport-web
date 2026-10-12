@@ -92,6 +92,11 @@ export interface VehicleRef {
 export interface DriverRef {
   readonly id: string;
   readonly fullName: string;
+  /**
+   * Contacto operativo (API `driver.phone` = celular si existe, si no fijo).
+   * Opcional si el listado no lo trae.
+   */
+  readonly phone?: string | null;
 }
 
 /**

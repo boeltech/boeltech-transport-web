@@ -170,6 +170,8 @@ export type {
 export { mapSnapshotToCreateStops } from "./canvas";
 
 export type {
+  CloseTrackingIncidentInput,
+  CloseTrackingIncidentResult,
   CreateTrackingEventInput,
   StartTripTrackingInput,
   TrackingCapturedVia,

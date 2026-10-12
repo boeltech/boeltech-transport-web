@@ -7,6 +7,9 @@ export const trackingCopy = {
     status: "Estado operativo",
     actions: "Acciones de seguimiento",
     objective: "Qué sigue",
+    /** F6: panel izquierdo (excepción + qué sigue + contacto). */
+    now: "Ahora",
+    contact: "Contacto",
     metrics: "Avance del viaje",
     itinerary: "Itinerario operativo",
     stopsAndCargos: "Paradas y cargas",
@@ -30,6 +33,8 @@ export const trackingCopy = {
     declareFalseTrip: "Declarar viaje en falso",
     note: "Nota",
     incident: "Incidente",
+    /** Cierre operativo v1 (bandera + nota); no «Resolver». */
+    closeIncident: "Cerrar incidente",
     refresh: "Actualizar",
     retry: "Reintentar",
     cancel: "Cancelar",
@@ -39,6 +44,8 @@ export const trackingCopy = {
     confirmArrival: "Registrar llegada",
     confirmDeparture: "Registrar salida",
     timelineMore: "Ver más",
+    /** F6: tel: del operador cuando hay teléfono en el viaje. */
+    call: "Llamar",
   },
   label: {
     departureAt: "Fecha y hora de salida",
@@ -54,7 +61,50 @@ export const trackingCopy = {
       total === 1 ? "1 parada completada" : `${total} paradas completadas`,
     departedAt: (time: string) => `Salió ${time}`,
     arrivesAt: (time: string) => `Llega ~${time}`,
-    overdue: "Va tarde",
+    /** Cabecera Z1: siguiente hito (no duplicar «Parada N de M» del riel). */
+    nextStop: (label: string) => `Siguiente: ${label}`,
+    /** Cabecera Z1 (F7): unidad ya en la parada (no «Siguiente:»). */
+    onSite: "En sitio",
+    /**
+     * Semáforo operativo derivado (F1-B / PRD). Sustituye el chip binario «Va tarde».
+     * Códigos: on_time · at_risk · delayed · stopped · n/a.
+     */
+    trafficLightAria: "Semáforo operativo",
+    trafficLight: {
+      on_time: "A tiempo",
+      at_risk: "En riesgo",
+      delayed: "Retrasado",
+      stopped: "Detenido",
+      "n/a": "No aplica",
+    },
+    /** Resumen Z6 bajo fold (1 línea). */
+    cargoSummary: (count: number, facts: string | null) =>
+      facts
+        ? count === 1
+          ? `1 carga · ${facts}`
+          : `${count} cargas · ${facts}`
+        : count === 1
+          ? "1 carga"
+          : `${count} cargas`,
+    /**
+     * Estados canónicos de parada en el riel (F2 / PRD).
+     * Códigos: pending | in_progress | completed | skipped — no inventar otros.
+     */
+    stopStatus: {
+      pending: "Pendiente",
+      in_progress: "En sitio",
+      completed: "Completada",
+      skipped: "Omitida",
+    },
+    /**
+     * Fase derivada (T6): andén / at_stop — llegada real sin salida.
+     * No es status de BD.
+     */
+    waitingPhase: "En espera",
+    planVsRealArrival: (plan: string, real: string) =>
+      `Llegada plan ${plan} · real ${real}`,
+    planVsRealDeparture: (plan: string, real: string) =>
+      `Salida plan ${plan} · real ${real}`,
     cargoCount: (count: number) =>
       count === 1 ? "1 carga" : `${count} cargas`,
     evidenceAtStop: "Nota o incidente",
@@ -65,8 +115,18 @@ export const trackingCopy = {
     occurredAtArrival: "¿A qué hora llegó?",
     occurredAtDeparture: "¿A qué hora salió?",
     occurredAtDeclare: "¿A qué hora ocurrió?",
+    /** F6 contacto flota. */
+    operator: "Operador",
+    mobile: "Celular",
+    /** Vacío de celular en Contacto (PRD F8 — muted, no warning). */
+    mobileNotCaptured: "No capturado",
+    unit: "Unidad",
   },
   sheet: {
+    /** F6: Sheet workbench de la parada en curso. */
+    stopWorkbenchTitle: "Parada en curso",
+    stopWorkbenchDescription:
+      "Opera las cargas de esta parada. Las demás paradas son solo lectura en el mapa.",
     /** Confirmación de arranque: una línea; sin itinerario futuro. */
     startDescription: "Confirma hora y kilometraje. El viaje pasará a «En Ruta».",
     startMileagePlaceholder: "Ej: 150000",
@@ -109,7 +169,17 @@ export const trackingCopy = {
       "Hay atención fiscal pendiente. Puedes cerrar el viaje; sustituye la factura al cobrar el ajuste.",
     /** Soft-warn al finalizar/completar con incidente en bitácora (solo aviso; no bloquea). */
     closeOpenIncidentWarning:
-      "Este viaje tiene un incidente en bitácora. Al finalizar, la marca se limpia; no se registra una resolución aparte.",
+      "Este viaje tiene un incidente en bitácora. Puedes cerrarlo con una nota en Seguimiento; al finalizar, la marca también se limpia. El incidente permanece en la bitácora.",
+    closeIncidentTitle: "Cerrar incidente",
+    closeIncidentDescription:
+      "Apaga la marca de incidente abierto y deja una nota en la bitácora. El incidente registrado no se borra.",
+    closeIncidentNotesLabel: "Nota de cierre",
+    closeIncidentNotesPlaceholder:
+      "Qué se hizo o por qué se cierra la marca del incidente…",
+    closeIncidentNotesHint:
+      "Obligatoria. Queda como nota en la bitácora; el incidente no se elimina.",
+    closeIncidentNotesRequired: "Indica una nota de cierre.",
+    closeIncidentNotesMax: "La nota no puede superar 1000 caracteres.",
     /** Soft guard al cerrar: Alert cuando km final === km de salida (oficina). */
     closeZeroKmTitle: "Kilometraje sin recorrido",
     closeZeroKmBody:
@@ -187,6 +257,8 @@ export const trackingCopy = {
     departureRegistered: (stopLabel: string) =>
       `Salida registrada · ${stopLabel}`,
     registerFailed: "No se pudo registrar",
+    incidentClosed: "Incidente cerrado",
+    incidentCloseFailed: "No se pudo cerrar el incidente",
     tripClosed: "Viaje finalizado",
     tripClosedDescription: (tripCode: string) =>
       `${tripCode} quedó completado`,
@@ -233,7 +305,7 @@ export const trackingCopy = {
   },
   hint: {
     map: "Ubicación de paradas y eventos con GPS.",
-    itinerary: "Progreso por parada.",
+    itinerary: "Progreso por parada con plan y hora real.",
     objectiveGuide: "La siguiente operación y el botón para registrarla.",
     readOnlyGuide:
       "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, bitácora y mapa abajo.",
@@ -260,9 +332,23 @@ export const trackingCopy = {
     clientCancelledBody: "Este envío fue cancelado.",
     clientDraftTitle: "En preparación",
     clientDraftBody: "Este envío aún no está programado. Consulta a tu oficina.",
+    /** Título Z3a (F5/F7): no «Estado operativo» genérico. */
+    openIncidentTitle: "Incidente abierto",
     openIncident:
-      "Hay un incidente en bitácora. Revísalo antes de cerrar el viaje.",
+      "Hay un incidente en bitácora. Ciérralo con una nota o revísalo antes de finalizar el viaje.",
+    /**
+     * F7.6: cuerpo de la franja; usa detalle del último incidente en timeline
+     * cuando existe (sin endpoint nuevo).
+     */
+    openIncidentSummary: (detail?: string | null) => {
+      const trimmed = detail?.trim();
+      return trimmed && trimmed.length > 0
+        ? trimmed
+        : "Hay un incidente en bitácora. Ciérralo con una nota o revísalo antes de finalizar el viaje.";
+    },
     incidentLabel: "Incidente",
+    /** Chip de proyección T5 en eventos incident cuando ya no hay marca abierta. */
+    incidentClosedChip: "Cerrado",
     timelineHasEvents: "Registro de operaciones del viaje.",
     stopRoleOrigin: "Llegada, cargas y salida de origen",
     stopRoleWaypoint: "Llegada y salida",

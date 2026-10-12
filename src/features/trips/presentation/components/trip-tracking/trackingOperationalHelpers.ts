@@ -26,6 +26,11 @@ import {
   isOriginStop,
   isTrackingEscalaStop,
 } from "../trackingStopEligibility";
+import {
+  buildStopPlanRealLines,
+  isStopWaitingPhase,
+  type StopPlanRealLine,
+} from "./trackingItineraryRail";
 import { trackingCopy } from "./trackingCopy";
 
 export type TrackingStopNextAction =
@@ -98,6 +103,10 @@ export type TrackingItineraryRow = {
   category: RouteStopCategory;
   visitState: StopOperationalVisitState;
   visitLabel: string;
+  /** T6: fase derivada «En espera» (andén), no status BD. */
+  waitingPhase: boolean;
+  /** Plan vs real compacto para el riel. */
+  planRealLines: StopPlanRealLine[];
   nextAction: TrackingStopNextAction;
   isActionTarget: boolean;
 };
@@ -193,6 +202,20 @@ export function getTrackingNextActionLabel(action: TrackingStopNextAction): stri
   return null;
 }
 
+/** Parada en curso (hub / riel): la que tiene la siguiente acción operativa. */
+export function resolveTrackingCurrentStopId(
+  rows: readonly TrackingItineraryRow[],
+): string | null {
+  return rows.find((row) => row.isActionTarget)?.stop.id ?? null;
+}
+
+export function isTrackingCurrentStop(
+  stopId: string,
+  rows: readonly TrackingItineraryRow[],
+): boolean {
+  return resolveTrackingCurrentStopId(rows) === stopId;
+}
+
 export function buildTrackingItineraryRows(
   stops: readonly TripStop[],
   tripTimes?: TripScheduleTimes,
@@ -241,6 +264,8 @@ export function buildTrackingItineraryRows(
       category,
       visitState,
       visitLabel: getStopOperationalVisitLabel(visitState, category),
+      waitingPhase: isStopWaitingPhase(stop, category, tripTimes),
+      planRealLines: buildStopPlanRealLines(stop, category, tripTimes),
       nextAction,
       isActionTarget: nextAction != null,
     };

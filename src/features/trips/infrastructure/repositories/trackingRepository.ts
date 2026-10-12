@@ -1,5 +1,7 @@
 import { apiClient, type ApiSingleResponse } from "@shared/api";
 import type {
+  CloseTrackingIncidentInput,
+  CloseTrackingIncidentResult,
   CreateTrackingEventInput,
   StartTripTrackingInput,
   TrackingEvent,
@@ -15,6 +17,11 @@ import {
 } from "../api/tracking-mappers";
 
 const TRIPS_ENDPOINT = "/trips";
+
+type ApiCloseTrackingIncidentResponse = {
+  has_open_incident: false;
+  note_event: ApiTrackingEventResponse;
+};
 
 function toApiCreatePayload(input: CreateTrackingEventInput) {
   return {
@@ -37,6 +44,14 @@ function toApiStartPayload(input: StartTripTrackingInput) {
     mileage: input.mileage,
     latitude: input.latitude,
     longitude: input.longitude,
+    notes: input.notes,
+    occurred_at: input.occurredAt,
+    idempotency_key: input.idempotencyKey,
+  };
+}
+
+function toApiCloseIncidentPayload(input: CloseTrackingIncidentInput) {
+  return {
     notes: input.notes,
     occurred_at: input.occurredAt,
     idempotency_key: input.idempotencyKey,
@@ -86,6 +101,26 @@ export class TrackingRepository {
     );
     return {
       data: mapApiTrackingEvent(response.data),
+      message: response.message,
+    };
+  }
+
+  /** T4: apaga bandera + append note. No emite incident_resolved. */
+  async closeIncident(
+    tripId: string,
+    input: CloseTrackingIncidentInput,
+  ): Promise<{ data: CloseTrackingIncidentResult; message?: string }> {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiCloseTrackingIncidentResponse>
+    >(
+      `${TRIPS_ENDPOINT}/${tripId}/tracking/incidents/close`,
+      toApiCloseIncidentPayload(input),
+    );
+    return {
+      data: {
+        hasOpenIncident: response.data.has_open_incident,
+        noteEvent: mapApiTrackingEvent(response.data.note_event),
+      },
       message: response.message,
     };
   }

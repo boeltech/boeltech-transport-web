@@ -14,6 +14,7 @@ export { RegisterStopTrackingEventSheet } from "./RegisterStopTrackingEventSheet
 export type { StopTrackingEventMode } from "./RegisterStopTrackingEventSheet";
 export { RegisterTrackingNoteSheet } from "./RegisterTrackingNoteSheet";
 export { RegisterTrackingIncidentSheet } from "./RegisterTrackingIncidentSheet";
+export { CloseTrackingIncidentSheet } from "./CloseTrackingIncidentSheet";
 export { TripTrackingStopsCargosMasterDetail } from "./TripTrackingStopsCargosMasterDetail";
 export type { TripTrackingStopsCargosMasterDetailProps } from "./TripTrackingStopsCargosMasterDetail";
 export { TripCargoTimelineSummary } from "./TripCargoTimelineSummary";
@@ -30,6 +31,37 @@ export { TrackingEvidenceActions } from "./TrackingEvidenceActions";
 export type { TrackingEvidenceActionsProps } from "./TrackingEvidenceActions";
 export { TripTrackingProgressStrip } from "./TripTrackingProgressStrip";
 export type { TripTrackingProgressStripProps } from "./TripTrackingProgressStrip";
+export {
+  buildTrackingHeaderContextPhrase,
+  TRACKING_ON_SITE_PRIMARY_KINDS,
+} from "./trackingHeaderContext";
+export type { TrackingHeaderSituation } from "./trackingHeaderContext";
+export { TripTrackingItineraryRail } from "./TripTrackingItineraryRail";
+export type { TripTrackingItineraryRailProps } from "./TripTrackingItineraryRail";
+export { TripTrackingIncidentStrip } from "./TripTrackingIncidentStrip";
+export type { TripTrackingIncidentStripProps } from "./TripTrackingIncidentStrip";
+export { TripTrackingObjectiveHub } from "./TripTrackingObjectiveHub";
+export type { TripTrackingObjectiveHubProps } from "./TripTrackingObjectiveHub";
+export { TripTrackingNowPanel } from "./TripTrackingNowPanel";
+export type {
+  TrackingContactInfo,
+  TripTrackingNowPanelProps,
+} from "./TripTrackingNowPanel";
+export { TripTrackingStopWorkbenchSheet } from "./TripTrackingStopWorkbenchSheet";
+export type { TripTrackingStopWorkbenchSheetProps } from "./TripTrackingStopWorkbenchSheet";
+export { TripTrackingStopOperationDetail } from "./TripTrackingStopOperationDetail";
+export type { TripTrackingStopOperationDetailProps } from "./TripTrackingStopOperationDetail";
+export {
+  findStopAtDock,
+  resolveTrackingTrafficLight,
+  trackingTrafficLightBadgeVariant,
+  trackingTrafficLightLabel,
+} from "./trackingTrafficLight";
+export type {
+  ResolveTrackingTrafficLightInput,
+  TrackingTrafficLight,
+  TrackingTrafficLightBadgeVariant,
+} from "./trackingTrafficLight";
 export {
   STOP_TRANSITION_COPY,
   CARGO_TRANSITION_COPY,
@@ -58,9 +90,19 @@ export {
   buildTrackingItineraryRows,
   getTrackingNextActionLabel,
   getTrackingScopeAlertItems,
+  isTrackingCurrentStop,
   resolveInlineStopAction,
+  resolveTrackingCurrentStopId,
   resolveTrackingNextAction,
 } from "./trackingOperationalHelpers";
+export {
+  buildStopPlanRealLines,
+  isStopWaitingPhase,
+} from "./trackingItineraryRail";
+export type {
+  StopPlanRealKind,
+  StopPlanRealLine,
+} from "./trackingItineraryRail";
 export { formatAccLine, trackingCopy } from "../../copy";
 export type { CopyAcc as TrackingCopyAcc } from "../../copy";
 export {
@@ -75,4 +117,6 @@ export {
   getTrackingEventTimelineBody,
   getTrackingIncidentTimelineMeta,
   getFalseTripDeclaredTimelineMeta,
+  resolveLatestIncidentDetail,
+  shouldShowIncidentClosedChip,
 } from "./trackingEventDisplay";

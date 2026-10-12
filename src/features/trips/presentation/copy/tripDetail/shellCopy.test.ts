@@ -134,10 +134,12 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
       "Incidente registrado en el viaje",
     );
     expect(shellCopy.alert.openIncidentBody).toBe(
-      "Quedó en la bitácora de Seguimiento. La marca se limpia al finalizar o cancelar el viaje.",
+      "Quedó en la bitácora de Seguimiento. Ciérralo con una nota desde Seguimiento, o la marca se limpia al finalizar o cancelar el viaje.",
     );
+    expect(shellCopy.alert.openIncidentBody).not.toMatch(/resuelto|borrar/i);
     expect(shellCopy.alert.openIncidentCta).toBe("Ir a Seguimiento");
     expect(shellCopy.tab.trackingIncident).toBe("Incidente");
+    expect(shellCopy.tab.trackingIncidentAria).toBe("Con incidente abierto");
     expect(shellCopy.alert.openIncidentTitle).not.toMatch(/sin cerrar/i);
     expect(shellCopy.alert.openIncidentBody).not.toMatch(/sin cerrar/i);
     expect(shellCopy.alert.openIncidentBody).not.toMatch(/pendiente de atención/i);

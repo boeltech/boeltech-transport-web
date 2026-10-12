@@ -10,6 +10,8 @@ import {
   shouldFetchTripExpensesSummary,
   shouldFetchTripTimeline,
   shouldFetchTripTimelineForShell,
+  shouldShowShellEtaPassedBanner,
+  shouldShowShellOpenIncidentBanner,
   tripStatusNeedsTrackingContext,
 } from "./tripDetailQueryGating";
 
@@ -194,5 +196,13 @@ describe("tripDetailQueryGating", () => {
     expect(tripStatusNeedsTrackingContext(TripStatus.IN_PROGRESS)).toBe(true);
     expect(tripStatusNeedsTrackingContext(TripStatus.COMPLETED)).toBe(true);
     expect(tripStatusNeedsTrackingContext(TripStatus.DRAFT)).toBe(false);
+  });
+
+  it("F5: silencia banners ETA e incidente del shell en tab tracking", () => {
+    expect(shouldShowShellEtaPassedBanner("tracking")).toBe(false);
+    expect(shouldShowShellEtaPassedBanner("overview")).toBe(true);
+    expect(shouldShowShellEtaPassedBanner("cargo")).toBe(true);
+    expect(shouldShowShellOpenIncidentBanner("tracking")).toBe(false);
+    expect(shouldShowShellOpenIncidentBanner("route")).toBe(true);
   });
 });
