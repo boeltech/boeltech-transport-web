@@ -4,11 +4,12 @@
  *
  * Tarjeta para mostrar información resumida de un vehículo.
  * Usado en la vista de cards del listado.
+ * Menú ⋯ vía EntityListCard (usable sin hover — D4).
  *
  * Ubicación: src/features/vehicles/presentation/components/VehicleCard.tsx
  */
 
-import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
+import { CardContent, CardFooter, CardHeader } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
+import {
+  EntityListCard,
+  entityListCardMenuTriggerClassName,
+} from "@shared/ui/listing";
 import {
   Truck,
   MoreVertical,
@@ -35,6 +40,9 @@ import {
   VehicleStatusBadge,
 } from "../config/vehicleStatusConfig";
 import { vehiclesCopy } from "../copy";
+
+const formatMileage = vehiclesCopy.detail.format.statMileage;
+const cardCopy = vehiclesCopy.list.card;
 
 // ============================================================================
 // TYPES
@@ -69,10 +77,7 @@ export function VehicleCard({
   const hasActions = editAction || deactivateAction || restoreAction;
 
   return (
-    <Card
-      className="group cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
-      onClick={() => onView(vehicle.id)}
-    >
+    <EntityListCard onClick={() => onView(vehicle.id)}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           {/* Vehicle Icon & Unit Number */}
@@ -90,17 +95,17 @@ export function VehicleCard({
             </div>
           </div>
 
-          {/* Actions Menu */}
+          {/* Actions Menu — visible en touch sin hover (EntityListCard) */}
           {hasActions && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className={entityListCardMenuTriggerClassName}
                 >
                   <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Acciones</span>
+                  <span className="sr-only">{cardCopy.actionsAria}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -182,7 +187,7 @@ export function VehicleCard({
           {/* Mileage */}
           <div className="flex items-center gap-2 text-muted-foreground">
             <Gauge className="h-4 w-4 shrink-0" />
-            <span>{vehicle.currentMileage.toLocaleString("es-MX")} km</span>
+            <span>{formatMileage(vehicle.currentMileage)}</span>
           </div>
         </div>
       </CardContent>
@@ -207,11 +212,11 @@ export function VehicleCard({
               onView(vehicle.id);
             }}
           >
-            Ver más
+            {cardCopy.viewMore}
             <Eye className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </CardFooter>
-    </Card>
+    </EntityListCard>
   );
 }

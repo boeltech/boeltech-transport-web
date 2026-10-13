@@ -4,6 +4,8 @@
  *
  * Componente de tabla para listar vehículos.
  * Homologado con TripTable y DriverTable.
+ * Empty state: solo vía ListPageShell (contrato EntityListTable / D5) —
+ * este componente no renderiza empty local; con items=[] retorna null.
  *
  * Ubicación: src/features/vehicles/presentation/components/VehicleTable.tsx
  */
@@ -17,7 +19,7 @@ import {
   TableRow,
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
-import type { VehicleListItem, VehicleStatusType } from "../../domain";
+import type { VehicleListItem } from "../../domain";
 import { VEHICLE_TYPE_LABELS } from "../../domain";
 import {
   VehicleLifecycleBadge,
@@ -28,6 +30,7 @@ import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import { vehiclesCopy } from "../copy";
 
 const listCopy = vehiclesCopy.list.table;
+const formatMileage = vehiclesCopy.detail.format.statMileage;
 
 // ============================================================================
 // TYPES
@@ -40,24 +43,21 @@ interface VehicleTableProps {
   onEdit?: (id: string) => void;
   onDeactivate?: (id: string) => void;
   onRestore?: (id: string) => void;
-  onChangeStatus?: (id: string, status: VehicleStatusType) => void;
-  onMaintenance?: (id: string) => void;
-  onDocuments?: (id: string) => void;
 }
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const TABLE_HEADERS = [
-  { key: "unit", label: "Unidad" },
-  { key: "brand", label: "Marca / Modelo" },
-  { key: "year", label: "Año" },
-  { key: "type", label: "Tipo" },
-  { key: "plate", label: "Placa" },
+const TABLE_HEADERS: { key: string; label: string; className?: string }[] = [
+  { key: "unit", label: listCopy.unit },
+  { key: "brand", label: listCopy.brandModel },
+  { key: "year", label: listCopy.year },
+  { key: "type", label: listCopy.type },
+  { key: "plate", label: listCopy.plate },
   { key: "branch", label: listCopy.branch },
-  { key: "mileage", label: "Kilometraje", className: "text-right" },
-  { key: "status", label: "Estado" },
+  { key: "mileage", label: listCopy.mileage, className: "text-right" },
+  { key: "status", label: listCopy.status },
   { key: "actions", label: "", className: "w-12" },
 ];
 
@@ -117,18 +117,6 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
-          No se encontraron vehículos.
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
-}
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -140,11 +128,7 @@ export function VehicleTable({
   onEdit,
   onDeactivate,
   onRestore,
-  onChangeStatus,
-  onMaintenance,
-  onDocuments,
 }: VehicleTableProps) {
-  // Loading state
   if (isLoading) {
     return (
       <div className="rounded-md border">
@@ -156,19 +140,11 @@ export function VehicleTable({
     );
   }
 
-  // Empty state
+  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D5).
   if (vehicles.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeaderRow />
-          <EmptyState />
-        </Table>
-      </div>
-    );
+    return null;
   }
 
-  // Data table
   return (
     <div className="rounded-md border">
       <Table>
@@ -180,40 +156,38 @@ export function VehicleTable({
               className="cursor-pointer hover:bg-muted/50"
               onClick={() => onView(vehicle.id)}
             >
-              {/* Unidad */}
               <TableCell className="font-medium">
                 {vehicle.unitNumber}
               </TableCell>
 
-              {/* Marca / Modelo */}
               <TableCell>
                 {vehicle.brand} {vehicle.model}
               </TableCell>
 
-              {/* Año */}
               <TableCell>{vehicle.year}</TableCell>
 
-              {/* Tipo */}
               <TableCell>{VEHICLE_TYPE_LABELS[vehicle.type]}</TableCell>
 
-              {/* Placa */}
               <TableCell className="font-mono">
                 {vehicle.licensePlate}
               </TableCell>
 
               <TableCell className="text-muted-foreground">
-                {formatBranchLabel(vehicle.branchName, vehicle.branchCode) ?? "—"}
+                {formatBranchLabel(vehicle.branchName, vehicle.branchCode) ??
+                  "—"}
               </TableCell>
 
-              {/* Kilometraje */}
               <TableCell className="text-right">
-                {vehicle.currentMileage} km
+                {formatMileage(vehicle.currentMileage)}
               </TableCell>
 
-              {/* Estado */}
               <TableCell>
                 {vehicle.isActive === false ? (
-                  <VehicleLifecycleBadge status="deactivated" size="sm" showIcon />
+                  <VehicleLifecycleBadge
+                    status="deactivated"
+                    size="sm"
+                    showIcon
+                  />
                 ) : (
                   <VehicleStatusBadge
                     status={vehicle.status}
@@ -223,7 +197,6 @@ export function VehicleTable({
                 )}
               </TableCell>
 
-              {/* Acciones */}
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <VehicleActions
                   vehicle={vehicle}
@@ -231,9 +204,6 @@ export function VehicleTable({
                   onEdit={onEdit}
                   onDeactivate={onDeactivate}
                   onRestore={onRestore}
-                  onChangeStatus={onChangeStatus}
-                  onMaintenance={onMaintenance}
-                  onDocuments={onDocuments}
                 />
               </TableCell>
             </TableRow>

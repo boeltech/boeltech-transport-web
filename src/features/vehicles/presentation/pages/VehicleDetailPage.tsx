@@ -5,12 +5,13 @@
  * Detalle de vehículo: capacidades, ficha operativa y documentación.
  */
 
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
 import { cn } from "@shared/lib/utils/cn";
 import { useTabParam } from "@shared/hooks";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import { Button } from "@shared/ui/button";
 import {
   Truck,
   Gauge,
@@ -41,6 +42,7 @@ import {
   isExpired,
   isExpiringSoon,
 } from "@shared/utils/dateUtils";
+import { usePermissions } from "@shared/permissions";
 
 const copy = vehiclesCopy.detail;
 
@@ -98,6 +100,8 @@ export function VehicleDetailPage() {
     copy.state.backToList,
   );
   const { activeTab, setActiveTab } = useTabParam(VEHICLE_DETAIL_TABS, "unit");
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission("vehicles", "update");
 
   const {
     data: vehicle,
@@ -210,6 +214,25 @@ export function VehicleDetailPage() {
                 : copy.alert.documentsExpiringTitle
             }
             items={documentAlertItems}
+            action={
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab("documents")}
+                >
+                  {copy.alert.goToDocuments}
+                </Button>
+                {canEdit ? (
+                  <Button type="button" size="sm" variant="outline" asChild>
+                    <Link to={`/vehicles/${vehicle.id}/edit`}>
+                      {copy.alert.goToEdit}
+                    </Link>
+                  </Button>
+                ) : null}
+              </>
+            }
           />
         ) : null
       }

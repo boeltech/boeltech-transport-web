@@ -195,7 +195,7 @@ describe("VehicleDetailPage — unidad dada de baja (D4)", () => {
     );
   });
 
-  it("una unidad activa conserva estado, alertas de documentos y «Dar de baja»", () => {
+  it("una unidad activa conserva estado, alertas de documentos con CTA y «Dar de baja»", () => {
     mockUseVehicle.mockReturnValue({
       data: buildVehicle(),
       isLoading: false,
@@ -210,6 +210,14 @@ describe("VehicleDetailPage — unidad dada de baja (D4)", () => {
     expect(
       screen.getByText(vehiclesCopy.detail.alert.documentsExpiredTitle),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: vehiclesCopy.detail.alert.goToDocuments,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: vehiclesCopy.detail.alert.goToEdit }),
+    ).toHaveAttribute("href", "/vehicles/v-1/edit");
     expect(
       screen.getByRole("button", { name: vehiclesCopy.deactivate.action }),
     ).toBeInTheDocument();

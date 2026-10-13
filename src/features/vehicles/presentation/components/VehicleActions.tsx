@@ -5,13 +5,14 @@
  * Menú de acciones para un vehículo individual.
  * Soporta dos modos de uso:
  *
- * 1. Con objeto vehicle (para VehicleTable):
+ * 1. Con objeto vehicle (para VehicleTable / VehicleCard):
  *    <VehicleActions vehicle={vehicle} onView={...} onEdit={...} />
  *
  * 2. Con props individuales (para VehicleDetailPage):
  *    <VehicleActions vehicleId={id} vehicleName={name} status={status} variant="buttons" />
  *
  * Unidad dada de baja (`isActive === false`): solo «Ver detalles» y «Restaurar».
+ * Cambio de estado operativo: solo en detalle (`variant="buttons"`) — D1′.
  *
  * Ubicación: src/features/vehicles/presentation/components/VehicleActions.tsx
  */
@@ -28,8 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@shared/ui/dialog";
-import { Label } from "@shared/ui/label";
-import { Textarea } from "@shared/ui/text-area";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,7 +60,6 @@ import {
   Archive,
   RotateCcw,
   Wrench,
-  FileText,
   CheckCircle,
   XCircle,
   Loader2,
@@ -107,12 +106,6 @@ interface CommonProps {
   onDeactivate?: (id: string) => void;
   /** Callback para restaurar una unidad dada de baja (solo en modo dropdown) */
   onRestore?: (id: string) => void;
-  /** Callback para cambio de estado (solo en modo dropdown desde tabla) */
-  onChangeStatus?: (id: string, status: VehicleStatusType) => void;
-  /** Callback para historial de mantenimiento */
-  onMaintenance?: (id: string) => void;
-  /** Callback para documentos */
-  onDocuments?: (id: string) => void;
   /** Callback después de una acción exitosa (usado en VehicleDetailPage) */
   onActionComplete?: () => void;
 }
@@ -161,6 +154,8 @@ const STATUS_ACTION_CONFIG: Record<
   },
 };
 
+const statusCopy = vehiclesCopy.detail.statusChange;
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -172,9 +167,6 @@ export function VehicleActions(props: VehicleActionsProps) {
     onEdit,
     onDeactivate,
     onRestore,
-    onChangeStatus,
-    onMaintenance,
-    onDocuments,
     onActionComplete,
   } = props;
 
@@ -211,12 +203,11 @@ export function VehicleActions(props: VehicleActionsProps) {
   const [statusDialog, setStatusDialog] = useState<{
     open: boolean;
     targetStatus: VehicleStatusType | null;
-    reason: string;
   }>({
     open: false,
     targetStatus: null,
-    reason: "",
   });
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // ══════════════════════════════════════════════════════════════════════════
   // MUTATIONS (solo para variant="buttons")
@@ -224,20 +215,21 @@ export function VehicleActions(props: VehicleActionsProps) {
 
   const updateMutation = useUpdateVehicle({
     onSuccess: () => {
+      const target = statusDialog.targetStatus;
       toast({
-        title: "Estado actualizado",
-        description: `${name} ahora está ${VEHICLE_STATUS_LABELS[statusDialog.targetStatus!] || statusDialog.targetStatus}`,
+        title: statusCopy.successTitle,
+        description: statusCopy.successDescription(
+          name,
+          (target && VEHICLE_STATUS_LABELS[target]) || target || "",
+        ),
         variant: "success",
       });
-      setStatusDialog({ open: false, targetStatus: null, reason: "" });
+      setStatusError(null);
+      setStatusDialog({ open: false, targetStatus: null });
       onActionComplete?.();
     },
     onError: (error) => {
-      toast({
-        title: "Error al actualizar estado",
-        description: error.message,
-        variant: "destructive",
-      });
+      setStatusError(error.message);
     },
   });
 
@@ -265,6 +257,7 @@ export function VehicleActions(props: VehicleActionsProps) {
 
   const handleStatusConfirm = () => {
     if (!statusDialog.targetStatus) return;
+    setStatusError(null);
     updateMutation.mutate({
       id,
       data: {
@@ -274,11 +267,17 @@ export function VehicleActions(props: VehicleActionsProps) {
   };
 
   const openStatusDialog = (targetStatus: VehicleStatusType) => {
-    setStatusDialog({ open: true, targetStatus, reason: "" });
+    setStatusError(null);
+    setStatusDialog({ open: true, targetStatus });
+  };
+
+  const closeStatusDialog = () => {
+    setStatusError(null);
+    setStatusDialog({ open: false, targetStatus: null });
   };
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: DROPDOWN MODE (para VehicleTable)
+  // RENDER: DROPDOWN MODE (para VehicleTable) — sin cambio de estado (D1′)
   // ══════════════════════════════════════════════════════════════════════════
 
   if (variant === "dropdown") {
@@ -309,10 +308,6 @@ export function VehicleActions(props: VehicleActionsProps) {
       );
     }
 
-    const hasStatusActions =
-      canUpdate && onChangeStatus && availableTransitions.length > 0;
-    const hasSecondaryActions = onMaintenance || onDocuments;
-
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -322,7 +317,6 @@ export function VehicleActions(props: VehicleActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          {/* Ver detalles */}
           {onView && (
             <DropdownMenuItem onClick={() => onView(id)}>
               <Eye className="mr-2 h-4 w-4" />
@@ -330,7 +324,6 @@ export function VehicleActions(props: VehicleActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {/* Editar */}
           {canUpdate && onEdit && (
             <DropdownMenuItem onClick={() => onEdit(id)}>
               <Pencil className="mr-2 h-4 w-4" />
@@ -338,52 +331,6 @@ export function VehicleActions(props: VehicleActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {/* Acciones secundarias */}
-          {hasSecondaryActions && (
-            <>
-              <DropdownMenuSeparator />
-
-              {onMaintenance && (
-                <DropdownMenuItem onClick={() => onMaintenance(id)}>
-                  <Wrench className="mr-2 h-4 w-4" />
-                  Historial mantenimiento
-                </DropdownMenuItem>
-              )}
-
-              {onDocuments && (
-                <DropdownMenuItem onClick={() => onDocuments(id)}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Documentos
-                </DropdownMenuItem>
-              )}
-            </>
-          )}
-
-          {/* Acciones de cambio de estado */}
-          {hasStatusActions && (
-            <>
-              <DropdownMenuSeparator />
-              {availableTransitions.map((targetStatus) => {
-                const config = STATUS_ACTION_CONFIG[targetStatus];
-                if (!config) return null;
-
-                const Icon = config.icon;
-                return (
-                  <DropdownMenuItem
-                    key={targetStatus}
-                    onClick={() =>
-                      onChangeStatus(id, targetStatus as VehicleStatusType)
-                    }
-                  >
-                    <Icon className={`mr-2 h-4 w-4 ${config.colorClass}`} />
-                    {config.label}
-                  </DropdownMenuItem>
-                );
-              })}
-            </>
-          )}
-
-          {/* Dar de baja */}
           {canDeactivateVehicle && onDeactivate && (
             <>
               <DropdownMenuSeparator />
@@ -432,13 +379,17 @@ export function VehicleActions(props: VehicleActionsProps) {
     return null;
   }
 
+  const targetLabel = statusDialog.targetStatus
+    ? VEHICLE_STATUS_LABELS[statusDialog.targetStatus]
+    : "";
+
   return (
     <>
       <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
-        {/* Editar */}
+        {/* Primaria del header = Editar (D7) */}
         {canUpdate && (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={() =>
               navigate(`/vehicles/${id}/edit`, { state: fromState })
@@ -450,7 +401,6 @@ export function VehicleActions(props: VehicleActionsProps) {
           </Button>
         )}
 
-        {/* Cambiar Estado (dropdown dentro del modo buttons) */}
         {canUpdate && availableTransitions.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -460,7 +410,7 @@ export function VehicleActions(props: VehicleActionsProps) {
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                Cambiar Estado
+                Cambiar estado
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -485,23 +435,20 @@ export function VehicleActions(props: VehicleActionsProps) {
           </DropdownMenu>
         )}
 
-        {/* Dar de baja */}
+        {/* Dar de baja: outline, no primaria sólida (D7) */}
         {canDeactivateVehicle && (
           <Button
-            variant="destructive"
+            variant="outline"
             size="sm"
             onClick={() => setDeactivateOpen(true)}
             disabled={isLoading}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             <Archive className="mr-2 h-4 w-4" />
             {vehiclesCopy.deactivate.action}
           </Button>
         )}
       </div>
-
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* DIALOGS                                                              */}
-      {/* ════════════════════════════════════════════════════════════════════ */}
 
       <VehicleDeactivateDialog
         vehicle={lifecycleTarget}
@@ -510,25 +457,22 @@ export function VehicleActions(props: VehicleActionsProps) {
         onDeactivated={() => navigate("/vehicles")}
       />
 
-      {/* Status Change Dialog */}
       <Dialog
         open={statusDialog.open}
-        onOpenChange={(open) =>
-          setStatusDialog({ ...statusDialog, open, reason: "" })
-        }
+        onOpenChange={(open) => {
+          if (!open) closeStatusDialog();
+          else setStatusDialog((prev) => ({ ...prev, open }));
+        }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cambiar Estado del Vehículo</DialogTitle>
+            <DialogTitle>{statusCopy.title}</DialogTitle>
             <DialogDescription>
-              El vehículo <strong>{name}</strong> pasará de{" "}
-              <strong>{VEHICLE_STATUS_LABELS[currentStatus]}</strong> a{" "}
-              <strong>
-                {statusDialog.targetStatus
-                  ? VEHICLE_STATUS_LABELS[statusDialog.targetStatus]
-                  : ""}
-              </strong>
-              .
+              {statusCopy.description(
+                name,
+                VEHICLE_STATUS_LABELS[currentStatus],
+                targetLabel,
+              )}
               {billableNow &&
               statusDialog.targetStatus === VehicleStatus.OUT_OF_SERVICE ? (
                 <>
@@ -538,28 +482,17 @@ export function VehicleActions(props: VehicleActionsProps) {
               ) : null}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div>
-              <Label htmlFor="status-reason">Motivo (opcional)</Label>
-              <Textarea
-                id="status-reason"
-                placeholder="Ingrese el motivo del cambio de estado..."
-                value={statusDialog.reason}
-                onChange={(e) =>
-                  setStatusDialog({ ...statusDialog, reason: e.target.value })
-                }
-                className="mt-2"
-              />
-            </div>
-          </div>
+          {statusError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{statusCopy.errorTitle}</AlertTitle>
+              <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                {statusError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setStatusDialog({ open: false, targetStatus: null, reason: "" })
-              }
-            >
-              Cancelar
+            <Button variant="outline" onClick={closeStatusDialog}>
+              {statusCopy.cancel}
             </Button>
             <Button
               onClick={handleStatusConfirm}
@@ -568,7 +501,7 @@ export function VehicleActions(props: VehicleActionsProps) {
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Confirmar Cambio
+              {statusCopy.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>

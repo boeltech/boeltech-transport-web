@@ -44,6 +44,7 @@ npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de e
 | `trip-multi-invoice` · `trip-false-trip` · `trip-revenue-split` · `trip-sin-cfdi` | ADR-0068 · ADR-0079 · ADR-0081 · viaje sin CFDI |
 | `trip-trailers` · `trip-canvas` · `trip-mid-trip` | ADR-0077 remolques · ADR-0078 canvas · ADR-0093 E1 mid-trip |
 | `trip-fleet-snapshot` | Datos para Carta Porte del viaje (tarjeta en Operación + refresco desde el catálogo) |
+| `trip-order` | Orden de viaje operativa (card en Operación: generar / descargar / regenerar PDF) |
 | `settlements-workflow` · `compensation-templates` · `drivers-workflow` | ADR-0085 liquidaciones · ADR-0089 plantillas · alta conductor |
 | `dark.smoke` | smokes de tema oscuro (ya corren en `npm run test`) |
 
@@ -173,7 +174,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 
 **Skills versionadas (Cloud Agents y `/frontend-senior`):** `.agents/skills/` — `design-system`, `frontend-component`, `frontend-module-scaffold`, `vitest-testing-patterns`, `detail-sheet-master-detail`.
 
-**Skills locales (gitignored):** `.agents/skills/` y `.claude/skills/` — `frontend-design`, `vercel-react-best-practices`, `neversight-skills_feed-tremor-design-system` (`tremor-design-system`, dashboards/charts vía LobeHub).
+**Skills locales (gitignored):** `.agents/skills/` y `.claude/skills/` — `frontend-design`, `web-design-guidelines`, `vercel-react-best-practices`, `impeccable`, `design-taste-frontend`, `neversight-skills_feed-tremor-design-system` (`tremor-design-system`, dashboards/charts vía LobeHub). Subordinadas al `design-system` versionado: DS gana ante taste/impeccable. `design-taste-frontend` no aplica a tablas ni wizards densos.
 
 ## Git
 

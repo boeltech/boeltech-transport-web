@@ -8,13 +8,8 @@ import {
 } from "@features/finance";
 import { canAccessFinanceSummaryRoute } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
+import { Card, CardContent } from "@shared/ui/card";
+import { DetailSection } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { vehiclesCopy } from "../copy";
@@ -49,35 +44,33 @@ export function VehicleOperationalExpenseCard({
     `&from=${period.from}&to=${period.to}`;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ReceiptText className="h-4 w-4 shrink-0 text-primary" />
-          {copy.title}
-        </CardTitle>
-        <CardDescription>{copy.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-0 sm:flex-row sm:items-end sm:justify-between">
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-36" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-        ) : (
-          <div>
-            <p className="text-2xl font-semibold tabular-nums">
-              {formatMxCurrency(row?.totalExpenses ?? 0)}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {row ? copy.trips(row.tripCount) : copy.empty}
-            </p>
-          </div>
-        )}
-        <Button asChild variant="outline" size="sm">
-          <Link to={financeHref}>{copy.viewAnalysis}</Link>
-        </Button>
-      </CardContent>
-    </Card>
+    <DetailSection
+      icon={<ReceiptText className="h-4 w-4" />}
+      title={copy.title}
+      description={copy.description}
+    >
+      <Card>
+        <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-end sm:justify-between">
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-36" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+          ) : (
+            <div>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatMxCurrency(row?.totalExpenses ?? 0)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {row ? copy.trips(row.tripCount) : copy.empty}
+              </p>
+            </div>
+          )}
+          <Button asChild variant="outline" size="sm">
+            <Link to={financeHref}>{copy.viewAnalysis}</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </DetailSection>
   );
 }
-
