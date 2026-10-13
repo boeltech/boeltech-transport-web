@@ -110,6 +110,81 @@ Doc: [`src/shared/ui/toast/README.md`](../../../src/shared/ui/toast/README.md) �
 
 ---
 
+## Formularios largos (edit) — sticky + section rail + unsaved
+
+Enmiendas DS **D5 / D6 / D11** (pedido `vehiculos-form-crud-ds`). Aplican a edición
+padre en `FormPageShell` con muchas secciones (flota, maestros densos). **No**
+sustituyen `WizardPageShell` (alta por pasos) ni `BuilderPageShell` (nav no lineal
++ inspector).
+
+| Primitivo | Path | Rol |
+|---|---|---|
+| `FormStickyActions` | `@shared/ui/form` | Pie sticky Cancelar / Guardar (visible sin scroll al fondo en desktop) |
+| `LongFormSectionNav` | `@shared/ui/form` | Rail de secciones; badge destructivo si hay errores en esa sección |
+| `LongFormEditLayout` | `@shared/ui/form` | Grid `lg:grid-cols-[280px_1fr]` (rail + canvas) |
+| `useUnsavedChangesGuard` | `@shared/hooks` | Bloquea navegación data-router + `beforeunload` si dirty |
+| `UnsavedChangesDialog` | `@shared/ui/form` | Confirmación al salir; copy en `UNSAVED_CHANGES_COPY` |
+
+```tsx
+import { useUnsavedChangesGuard } from "@shared/hooks";
+import {
+  FormStickyActions,
+  LongFormEditLayout,
+  LongFormSectionNav,
+  UnsavedChangesDialog,
+} from "@shared/ui/form";
+
+const [isDirty, setIsDirty] = useState(false);
+const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({ isDirty });
+
+// En submit válido: allowLeave() antes de mutate.
+// Si la mutación falla (isPending → false): resetAllowLeave().
+
+<form className="space-y-6" onSubmit={…}>
+  <LongFormEditLayout
+    nav={
+      <LongFormSectionNav
+        sections={sections} // { id, label, icon }[]
+        activeSectionId={activeId}
+        errorCountBySection={errorCounts}
+        onSelectSection={(id) => {
+          setActiveId(id);
+          document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      />
+    }
+  >
+    <div id="section-a" className="scroll-mt-28">…</div>
+    <div id="section-b" className="scroll-mt-28">…</div>
+  </LongFormEditLayout>
+
+  <FormStickyActions sticky>
+    <Button type="button" variant="outline">Cancelar</Button>
+    <Button type="submit" disabled={!isDirty}>Guardar</Button>
+  </FormStickyActions>
+</form>
+<UnsavedChangesDialog blocker={blocker} />
+```
+
+**Reglas:**
+
+- Edit largo = `FormPageShell` + estos primitivos; **no** Sheet para el padre.
+- Cada sección ancla con `id` estable + `scroll-mt-*` (compensa header).
+- `errorCountBySection` lo calcula la feature (mapa campo→sección); el rail solo pinta.
+- `FormStickyActions sticky={false}` si el form es corto (mismo chrome de fila, sin sticky).
+- Guardar **disabled** si `!isDirty`; con dirty, Cancelar / back / link disparan el diálogo.
+- `useUnsavedChangesGuard` **exige data router** (`createBrowserRouter` / `createMemoryRouter`). En tests de página usar `createMemoryRouter`, no `MemoryRouter`.
+- Tras submit OK: `allowLeave()` y luego `navigate`. Tras error de mutación: `resetAllowLeave()`.
+- Primera instancia canónica: **vehicles** (`EditVehiclePage` + wizard create dirty).
+- Branch edit ya usa `FormStickyActions`. Employee usa adapters finos sobre `LongFormSectionNav` / `LongFormEditLayout`.
+- Demo viva: `/design-system` → **Form largo**.
+
+Tests: `FormStickyActions.test.tsx`, `LongFormSectionNav.test.tsx`,
+`useUnsavedChangesGuard.test.tsx`, `UnsavedChangesDialog.test.tsx`.
+README: `src/shared/ui/form/README.md` · `src/shared/ui/page-shells/README.md`.
+
+---
+
 ## Tokens de color — sistema OKLCH
 
 Todos en `src/app/styles/index.css`. Tailwind los expone como utilidades vía `@theme inline`.
@@ -203,7 +278,7 @@ Utilidades: `bg-success-soft`, `text-success-soft-foreground`, etc.
 |---|---|---|
 | `ListPageShell` | CRUD / registry: búsqueda, filtros, paginación | `VehicleListPage`, `SettlementsRegistryPage` |
 | `DetailPageShell` | Detalle de entidad con tabs y KPIs; header canónico = patrón **Detail header** en `docs/design-system/patterns.md` | `InvoiceDetailPage`, `ClientDetailPage` |
-| `FormPageShell` | Edición simple (un formulario, sin pasos) | `EmployeeFormPage` |
+| `FormPageShell` | Edición simple (un formulario, sin pasos) | `EditVehiclePage`, `EmployeeFormPage` |
 | `WizardPageShell` | Creación/edición por pasos con validación incremental | `TripFormPage` |
 | `HubPageShell` | Landing de módulo: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation` |
 | `BuilderPageShell` | Construcción no lineal: section nav + canvas + inspector (ADR-0091) | `CompensationSchemeBuilderPage` |
@@ -276,6 +351,64 @@ ADR-0090: `design/adr/0090-…` · ADR-0091: `design/adr/0091-…` · Hub SDD: `
   emptyState={{ icon: <Truck />, title: "Sin vehículos", cta: { label: "Nuevo", onClick } }}
 />
 ```
+
+### Listado — empty, filtros y cards (padrón canónico)
+
+**Empty (contrato EntityListTable):** el `EmptyState` lo monta **solo** `ListPageShell`
+vía `emptyState`. La tabla/feature **no** debe renderizar un empty local: con
+`items.length === 0` retornar `null` (o no filas). Canónico: `VehicleTable` +
+`VehicleListPage`.
+
+**Filtros — `ListingFilterPanel`** (`@shared/ui/listing`):
+
+```tsx
+import { ListingFilterPanel } from "@shared/ui/listing";
+
+// En toolbar.filters:
+<ListingFilterPanel
+  triggerLabel="Filtros"
+  activeCount={activePanelFilterCount}
+  contentClassName="lg:grid-cols-3" // columnas según campos visibles
+>
+  {/* Selects / DateRange del dominio */}
+</ListingFilterPanel>
+```
+
+- Badge «n» solo si `activeCount > 0` (recortes del panel; no search ni vista).
+- Abierto por defecto con recortes; cerrado si idle (el usuario puede expandir/colapsar).
+- Instancias: `VehicleListFilters`, `DriverListFilters`. Otros padrones
+  (trips/employees/…) migran cuando toque — no clonar Collapsible+Card a mano.
+
+**Cards — `EntityListCard`** (`@shared/ui/listing`):
+
+```tsx
+import {
+  EntityListCard,
+  entityListCardMenuTriggerClassName,
+} from "@shared/ui/listing";
+
+<EntityListCard onClick={() => onView(id)}>
+  <CardHeader>
+    …
+    <Button
+      variant="ghost"
+      size="icon"
+      className={entityListCardMenuTriggerClassName}
+    >
+      <MoreVertical />
+    </Button>
+  </CardHeader>
+  …
+</EntityListCard>
+```
+
+- Menú ⋯ **usable sin hover** (touch: siempre visible; hover: aparece al
+  `group-hover` / `focus-visible` / menú abierto).
+- Primera instancia: `VehicleCard`.
+
+**Mutaciones de estado operativo:** solo en **detalle** (`*Actions` variant
+`buttons`). El listado es lookup (+ restaurar en vista baja). No
+`onChangeStatus` en tabla/card.
 
 ### `WizardPageShell` — props esenciales
 
@@ -405,6 +538,52 @@ import { StatCard } from "@shared/ui/data-display/StatCard";
 
 Tones: `primary` (neutral), `success` (positivo), `warning` (atención), `info`, `destructive`, `neutral`.
 
+### DetailAlertCard (banner de detalle)
+
+```tsx
+import { DetailAlertCard } from "@shared/ui/data-display";
+
+<DetailAlertCard
+  severity="warning" // critical | warning | info
+  icon={<AlertTriangle className="h-5 w-5" />}
+  title="Documentos próximos a vencer"
+  items={[
+    { label: "Seguro", text: "Vence en 12 días" },
+  ]}
+  action={
+    <Button size="sm" variant="outline" onClick={…}>Ver documentos</Button>
+  }
+/>
+```
+
+- Slot opcional `action` (alias `cta`) para CTA del banner — preferir sobre
+  meter botones en `children`.
+- Alerta que exige acción del operador → siempre CTA (≤1 clic al destino).
+- Canónico con CTA: alerta de docs en `VehicleDetailPage`.
+
+### DetailSection (sub-secciones en tabs de detalle)
+
+```tsx
+import { DetailSection } from "@shared/ui/data-display";
+import { Card, CardContent } from "@shared/ui/card";
+
+<DetailSection
+  icon={<Truck className="h-4 w-4" />}
+  title="Datos de la unidad"
+  description="Identificación y capacidades"
+>
+  <Card>
+    <CardContent className="pt-6">{/* InfoRows / contenido */}</CardContent>
+  </Card>
+</DetailSection>
+```
+
+**Receta — una superficie por sección:**
+- Header (icono + título + descripción + `actions?`) fuera del Card → `DetailSection`.
+- Body en **un** Card (o grid/lista) como hijo. No anidar Card dentro de Card.
+- No duplicar el título con `CardHeader`/`CardTitle` si ya usas `DetailSection`.
+- Canónico: `VehicleDetailUnitTab` (Unidad / gastos / permiso). Demo: `/design-system` → Padrón.
+
 ### Alert vs Toast
 
 - `Alert`: mensajes estáticos en pantalla (info persistente, advertencia de dominio).
@@ -507,6 +686,15 @@ Demo viva: `/design-system` → sección Charts (`ChartPaletteSection.tsx`).
 ❌ Lista de rutas duplicada fuera de `navigation.ts` / `useNavigation`.
 
 ❌ Badge de notificaciones hardcodeado en header — usar API `unread-count`.
+
+❌ Empty local en tabla de listado — empty solo vía `ListPageShell.emptyState`.
+
+❌ Menú ⋯ de card con `opacity-0 group-hover:opacity-100` sin media hover —
+usar `entityListCardMenuTriggerClassName` (touch no ve el menú).
+
+❌ Clonar Collapsible+Card «Filtros (n)» en cada feature — usar `ListingFilterPanel`.
+
+❌ Card-en-Card en tabs de detalle — usar `DetailSection` + un solo Card de body.
 
 ---
 

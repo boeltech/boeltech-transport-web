@@ -4,12 +4,14 @@
  * Edición de vehículo existente (FormPageShell + VehicleForm).
  */
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { Truck } from "lucide-react";
-import { useToast } from "@shared/hooks";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
+import { UnsavedChangesDialog } from "@shared/ui/form";
 import { VehicleForm } from "../components/VehicleForm";
 import { useVehicle, useUpdateVehicle } from "@features/vehicles/application";
 import type { CreateVehicleFormData } from "../validation";
@@ -33,6 +35,11 @@ export function EditVehiclePage() {
   const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const vehicleId = id ?? "";
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const { data: vehicle, isLoading, isError } = useVehicle(vehicleId);
 
@@ -62,20 +69,35 @@ export function EditVehiclePage() {
     },
   });
 
-  const handleSubmit = (data: CreateVehicleFormData) => {
-    const rest = { ...data } as Record<string, unknown>;
-    delete rest.unitNumber;
-    rest.remolques = [];
-    const payload: UpdateVehiclePayload = {};
-
-    for (const [key, value] of Object.entries(rest)) {
-      if (value !== "" && value !== undefined) {
-        (payload as Record<string, unknown>)[key] = value;
-      }
+  useEffect(() => {
+    if (updateVehicle.isPending) {
+      wasSubmittingRef.current = true;
+      return;
     }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [updateVehicle.isPending, resetAllowLeave]);
 
-    updateVehicle.mutate({ id: vehicleId, data: payload });
-  };
+  const handleSubmit = useCallback(
+    (data: CreateVehicleFormData) => {
+      const rest = { ...data } as Record<string, unknown>;
+      delete rest.unitNumber;
+      rest.remolques = [];
+      const payload: UpdateVehiclePayload = {};
+
+      for (const [key, value] of Object.entries(rest)) {
+        if (value !== "" && value !== undefined) {
+          (payload as Record<string, unknown>)[key] = value;
+        }
+      }
+
+      allowLeave();
+      updateVehicle.mutate({ id: vehicleId, data: payload });
+    },
+    [allowLeave, updateVehicle, vehicleId],
+  );
 
   const handleCancel = () => {
     navigatePreservingFrom(navigate, `/vehicles/${vehicleId}`, incomingFrom);
@@ -132,9 +154,11 @@ export function EditVehiclePage() {
           vehicle={vehicle}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          onDirtyChange={setIsDirty}
           isSubmitting={updateVehicle.isPending}
         />
       ) : null}
+      <UnsavedChangesDialog blocker={blocker} />
     </FormPageShell>
   );
 }

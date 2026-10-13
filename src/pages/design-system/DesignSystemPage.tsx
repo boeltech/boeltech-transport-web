@@ -28,6 +28,8 @@ import {
   LayoutTemplate,
   PanelLeft,
   Map,
+  Truck,
+  AlignLeft,
 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -43,6 +45,8 @@ import { FeedbackSection } from "./sections/FeedbackSection";
 import { StatusSection } from "./sections/StatusSection";
 import { ChartPaletteSection } from "./sections/ChartPaletteSection";
 import { PatternsSection } from "./sections/PatternsSection";
+import { PadronCanonicalSection } from "./sections/PadronCanonicalSection";
+import { LongFormCanonicalSection } from "./sections/LongFormCanonicalSection";
 import { AppShellSection } from "./sections/AppShellSection";
 import { MapsEmbedsSection } from "./sections/MapsEmbedsSection";
 
@@ -57,6 +61,8 @@ type SectionKey =
   | "charts"
   | "app-shell"
   | "patterns"
+  | "padron"
+  | "long-form"
   | "maps-embeds";
 
 interface SectionConfig {
@@ -139,6 +145,22 @@ const SECTIONS: readonly SectionConfig[] = [
     icon: LayoutTemplate,
     description:
       "Page shells, jerarquía tipográfica, spacing y master-detail",
+    group: "Patterns",
+  },
+  {
+    key: "padron",
+    label: "Padrón",
+    icon: Truck,
+    description:
+      "Listado canónico (filtros, chips, empty, cards) y detalle (alerta+CTA, stats, tabs)",
+    group: "Patterns",
+  },
+  {
+    key: "long-form",
+    label: "Form largo",
+    icon: AlignLeft,
+    description:
+      "Edit long-form: rail de secciones, sticky actions y aviso unsaved (D5/D6/D11)",
     group: "Patterns",
   },
   {
@@ -252,6 +274,8 @@ export function DesignSystemPage() {
         {activeSection === "charts" && <ChartPaletteSection />}
         {activeSection === "app-shell" && <AppShellSection />}
         {activeSection === "patterns" && <PatternsSection />}
+        {activeSection === "padron" && <PadronCanonicalSection />}
+        {activeSection === "long-form" && <LongFormCanonicalSection />}
         {activeSection === "maps-embeds" && <MapsEmbedsSection />}
       </div>
     </div>

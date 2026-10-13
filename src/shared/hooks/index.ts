@@ -32,3 +32,12 @@ export { useBodyScrollLock } from "./useBodyScrollLock";
 export { usePrintIframe } from "./usePrintIframe";
 export type { UsePrintIframeResult } from "./usePrintIframe";
 
+export {
+  useUnsavedChangesGuard,
+  UNSAVED_CHANGES_COPY,
+} from "./useUnsavedChangesGuard";
+export type {
+  UseUnsavedChangesGuardOptions,
+  UseUnsavedChangesGuardResult,
+} from "./useUnsavedChangesGuard";
+
