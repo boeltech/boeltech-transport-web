@@ -12,6 +12,8 @@ Copia extendida (design system): `D:\cowork\boeltech\erp-transport\docs\design-s
 |-------|-----|----------|
 | `WizardPageShell` | Alta por pasos (create) con navegación Siguiente/Anterior y revisión final | `DriverCreatePage`, `CreateVehiclePage`, `BranchCreatePage`, `ClientCreatePage`, `EmployeeFormPage`, `TripFormPage` (create/edit) |
 | `FormPageShell` | Edición en una sola vista (sin pasos) | `DriverEditPage`, `EmployeeEditPage`, `ClientEditPage`, `EditVehiclePage` |
+
+**Formularios largos (edit):** con `FormPageShell`, usar `FormStickyActions` + `LongFormSectionNav` / `LongFormEditLayout` + `useUnsavedChangesGuard` / `UnsavedChangesDialog` (D5/D6/D11). Canónico: `EditVehiclePage` / `VehicleForm`. Demo viva: `/design-system` → Form largo.
 | `ListPageShell` | CRUD / registry: búsqueda, filtros, tabla/cards, paginación | Vehículos, clientes, registry de liquidaciones |
 | `HubPageShell` | Landing de módulo de config: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation` |
 | `BuilderPageShell` | Construcción no lineal: section nav + canvas + inspector + footer (ADR-0091) | `CompensationSchemeBuilderPage` |

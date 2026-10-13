@@ -23,6 +23,7 @@ import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
   FormFieldShell,
+  FormStickyActions,
   FormValidationSummary,
   getFieldErrorAriaProps,
   RHFSelectField,
@@ -844,13 +845,7 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
         ) : null}
 
         {!wizardActive ? (
-          <div
-            className={cn(
-              "flex items-center justify-end gap-3 border-t pt-4",
-              editLayout &&
-                "sticky bottom-0 z-20 -mx-4 mt-6 border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6",
-            )}
-          >
+          <FormStickyActions sticky={editLayout}>
             {onCancel ? (
               <Button
                 type="button"
@@ -879,7 +874,7 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
                 </>
               )}
             </Button>
-          </div>
+          </FormStickyActions>
         ) : null}
       </form>
       </FormProvider>

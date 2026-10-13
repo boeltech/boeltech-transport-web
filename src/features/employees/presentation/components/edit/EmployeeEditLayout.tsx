@@ -1,4 +1,9 @@
+/**
+ * EmployeeEditLayout — thin adapter over LongFormEditLayout (DS F3).
+ */
+
 import type { ReactNode } from "react";
+import { LongFormEditLayout } from "@shared/ui/form";
 
 interface EmployeeEditLayoutProps {
   sidebar: ReactNode;
@@ -7,9 +12,8 @@ interface EmployeeEditLayoutProps {
 
 export function EmployeeEditLayout({ sidebar, children }: EmployeeEditLayoutProps) {
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-      {sidebar}
-      <div className="space-y-4">{children}</div>
-    </div>
+    <LongFormEditLayout nav={sidebar} contentClassName="space-y-4">
+      {children}
+    </LongFormEditLayout>
   );
 }
