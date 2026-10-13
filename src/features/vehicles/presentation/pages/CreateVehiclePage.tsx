@@ -6,11 +6,12 @@
  * Ubicación: src/features/vehicles/presentation/pages/CreateVehiclePage.tsx
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
-import { useToast } from "@shared/hooks";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
+import { UnsavedChangesDialog } from "@shared/ui/form";
 import {
   VehicleForm,
   type VehicleFormRef,
@@ -18,64 +19,61 @@ import {
 import { useCreateVehicle } from "@features/vehicles/application";
 import type { CreateVehiclePayload } from "@features/vehicles/domain";
 import type { CreateVehicleFormData } from "../validation";
+import { vehiclesCopy } from "../copy";
 import {
   getErrorMessage,
   isApiError,
 } from "@shared/api/interceptors/error-handler";
 
-const WIZARD_STEPS = [
-  {
-    id: "ident",
-    title: "Identificación",
-    description: "Unidad, placa y datos del vehículo",
-  },
-  {
-    id: "docs",
-    title: "Capacidad y documentación",
-    description: "Cargas, seguros y permiso SCT",
-  },
-  {
-    id: "carta",
-    title: "Carta Porte",
-    description: "Autotransporte SAT",
-  },
-  {
-    id: "review",
-    title: "Revisión",
-    description: "Confirmar antes de crear",
-  },
-];
+const copy = vehiclesCopy.form.create;
+const WIZARD_STEPS = [...copy.wizard.steps];
 
 export function CreateVehiclePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const formRef = useRef<VehicleFormRef>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const createVehicle = useCreateVehicle({
     onSuccess: (data) => {
       toast({
-        title: "Vehículo creado",
-        description: `${data.unitNumber} registrado exitosamente`,
+        title: copy.toastSuccessTitle,
+        description: copy.toastSuccessDescription(data.unitNumber),
         variant: "success",
       });
-      navigate("/vehicles");
+      navigate(`/vehicles/${data.id}`);
     },
     onError: (error) => {
       if (isApiError(error)) {
         toast({
-          title: "Error al crear vehículo",
+          title: copy.toastErrorTitle,
           description: error.getDetailedMessage(3),
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Error al crear vehículo",
+          title: copy.toastErrorTitle,
           description: getErrorMessage(error),
           variant: "destructive",
         });
       }
     },
   });
+
+  useEffect(() => {
+    if (createVehicle.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [createVehicle.isPending, resetAllowLeave]);
 
   const handleSubmit = useCallback(
     (data: CreateVehicleFormData) => {
@@ -84,9 +82,10 @@ export function CreateVehiclePage() {
         remolques: [],
         currentMileage: data.currentMileage ?? 0,
       };
+      allowLeave();
       createVehicle.mutate(payload);
     },
-    [createVehicle],
+    [allowLeave, createVehicle],
   );
 
   const isSubmitting = createVehicle.isPending;
@@ -96,12 +95,13 @@ export function CreateVehiclePage() {
       <div className="space-y-3">
         {currentStep < WIZARD_STEPS.length - 1 ? (
           <p className="max-w-md text-sm text-muted-foreground">
-            Completa los campos obligatorios del paso para continuar.
+            {copy.stepHelp}
           </p>
         ) : null}
         <VehicleForm
           ref={formRef}
           onSubmit={handleSubmit}
+          onDirtyChange={setIsDirty}
           isSubmitting={isSubmitting}
           wizardMode
           wizardStepIndex={currentStep}
@@ -112,22 +112,25 @@ export function CreateVehiclePage() {
   );
 
   return (
-    <WizardPageShell
-      steps={WIZARD_STEPS}
-      formRef={formRef}
-      header={{
-        backHref: "/vehicles",
-        backLabel: "Volver a la lista de vehículos",
-        icon: <Truck className="h-5 w-5" />,
-        title: "Nuevo Vehículo",
-        subtitle: "Completa los pasos para registrar un vehículo en la flota",
-      }}
-      renderStep={renderStep}
-      isSubmitting={isSubmitting}
-      submitLabel="Crear vehículo"
-      submittingLabel="Creando..."
-      stepsAriaLabel="Pasos para registrar un vehículo"
-      onCancel={() => navigate("/vehicles")}
-    />
+    <>
+      <WizardPageShell
+        steps={WIZARD_STEPS}
+        formRef={formRef}
+        header={{
+          backHref: "/vehicles",
+          backLabel: copy.backLabel,
+          icon: <Truck className="h-5 w-5" />,
+          title: copy.title,
+          subtitle: copy.subtitle,
+        }}
+        renderStep={renderStep}
+        isSubmitting={isSubmitting}
+        submitLabel={copy.submit}
+        submittingLabel={copy.submitting}
+        stepsAriaLabel={copy.stepsAriaLabel}
+        onCancel={() => navigate("/vehicles")}
+      />
+      <UnsavedChangesDialog blocker={blocker} />
+    </>
   );
 }

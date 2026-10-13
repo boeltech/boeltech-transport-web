@@ -21,8 +21,13 @@ vi.mock("@features/branches", () => ({
 }));
 
 vi.mock("@features/catalogs", () => ({
+  CatalogTypeCode: {
+    SAT_TIPO_PERMISO: "sat_tipo_permiso",
+    SAT_CONFIG_AUTOTRANSPORTE: "sat_config_autotransporte",
+  },
   TipoPermisoSelect: () => <div />,
   ConfigAutotransporteSelect: () => <div />,
+  useCatalogOptions: () => ({ data: [], isLoading: false }),
 }));
 
 function renderForm(wizardStepIndex = 0) {

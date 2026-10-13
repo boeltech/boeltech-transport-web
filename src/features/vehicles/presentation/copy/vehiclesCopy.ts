@@ -56,6 +56,23 @@ export const vehiclesCopy = {
       sctLabel: "Permiso SCT",
       expired: "Vencido",
       expiresIn: (days: number) => `Vence en ${days} días`,
+      goToDocuments: "Ir a Documentos",
+      goToEdit: "Editar unidad",
+    },
+    statusChange: {
+      title: "Cambiar estado del vehículo",
+      description: (
+        unitNumber: string,
+        fromLabel: string,
+        toLabel: string,
+      ) =>
+        `El vehículo ${unitNumber} pasará de ${fromLabel} a ${toLabel}.`,
+      cancel: "Cancelar",
+      confirm: "Confirmar cambio",
+      errorTitle: "No se pudo cambiar el estado",
+      successTitle: "Estado actualizado",
+      successDescription: (unitNumber: string, statusLabel: string) =>
+        `${unitNumber} ahora está ${statusLabel}`,
     },
     section: {
       unitData: {
@@ -153,7 +170,18 @@ export const vehiclesCopy = {
       typeAll: "Todos",
     },
     table: {
+      unit: "Unidad",
+      brandModel: "Marca / Modelo",
+      year: "Año",
+      type: "Tipo",
+      plate: "Placa",
       branch: "Sucursal",
+      mileage: "Kilometraje",
+      status: "Estado",
+    },
+    card: {
+      viewMore: "Ver más",
+      actionsAria: "Acciones",
     },
     filters: {
       branch: "Sucursal",
@@ -257,6 +285,12 @@ export const vehiclesCopy = {
         successDescription: "Los cambios se guardaron correctamente.",
         errorTitle: "No se pudo guardar",
       },
+      sidebar: {
+        title: "Secciones",
+        errorsTitle: (count: number, label: string) =>
+          `${count} error${count === 1 ? "" : "es"} en ${label}`,
+        errorsAria: (count: number) => `${count} errores`,
+      },
       identityBanner: {
         title: "Número de unidad fijo",
         description:
@@ -265,22 +299,62 @@ export const vehiclesCopy = {
       },
     },
     create: {
+      title: "Nuevo vehículo",
+      subtitle: "Completa los pasos para registrar un vehículo en la flota",
       submit: "Registrar vehículo",
+      submitting: "Registrando…",
+      backLabel: "Volver a la lista de vehículos",
+      stepsAriaLabel: "Pasos para registrar un vehículo",
+      stepHelp: "Completa los campos obligatorios del paso para continuar.",
+      toastSuccessTitle: "Vehículo registrado",
+      toastSuccessDescription: (unitNumber: string) =>
+        `${unitNumber} quedó en la flota.`,
+      toastErrorTitle: "No se pudo registrar el vehículo",
+      wizard: {
+        steps: [
+          {
+            id: "ident",
+            title: "Identificación",
+            description: "Unidad, placa y datos del vehículo",
+          },
+          {
+            id: "docs",
+            title: "Documentación",
+            description: "Seguros, permiso SCT y capacidades opcionales",
+          },
+          {
+            id: "carta",
+            title: "Carta Porte",
+            description: "Autotransporte SAT",
+          },
+          {
+            id: "review",
+            title: "Revisión",
+            description: "Confirmar antes de registrar",
+          },
+        ],
+      },
     },
     section: {
       identification: {
+        nav: "Identificación",
         title: "Identificación",
         description: "Placa, VIN y datos básicos de la unidad en flota.",
       },
       characteristics: {
+        nav: "Características",
         title: "Características",
         description: "Marca, modelo, tipo y odómetro registrado en sistema.",
       },
       capacities: {
+        nav: "Capacidades",
         title: "Capacidades",
         description: "Carga útil, volumen, tanque y rendimiento de referencia.",
+        optionalHint:
+          "Opcional — referencia operativa; no bloquea el alta.",
       },
       documentation: {
+        nav: "Documentación",
         title: "Documentación y seguros",
         description:
           "Póliza RC, permiso SCT y vencimientos para operación y Carta Porte.",
@@ -288,12 +362,13 @@ export const vehiclesCopy = {
         groupSct: "Permiso SCT",
       },
       cartaPorte: {
+        nav: "Carta Porte",
         title: "Carta Porte 3.1 — Autotransporte",
         description:
           "Datos SAT base del autotransporte; la operación puede ajustarlos por viaje.",
         groupVehicleId: "Identificación vehicular",
-        groupOptionalInsurance:
-          "Seguros adicionales predeterminados (opcionales)",
+        groupOptionalInsurance: "Seguros adicionales",
+        optionalInsuranceLabel: "Opcional",
         optionalInsuranceHint:
           "Valores base del vehículo; un viaje o carga puede usar otro seguro.",
         cargoInsuranceFootnote:
@@ -335,8 +410,12 @@ export const vehiclesCopy = {
       reviewPlate: "Placa",
       reviewBrandModel: "Marca / modelo / año",
       reviewType: "Tipo",
+      reviewBranch: "Sucursal base",
       reviewMileage: "Odómetro actual",
+      reviewRc: "Responsabilidad civil",
       reviewSct: "Permiso SCT / número",
+      reviewConfig: "Configuración vehicular",
+      reviewPeso: "Peso bruto vehicular",
     },
     placeholder: {
       unitNumber: "Ej. U-001",
@@ -369,6 +448,11 @@ export const vehiclesCopy = {
       trailerCatalogLink: "Flota → Remolques",
       noBranches:
         "No hay sucursales activas. Crea una sucursal para asignar la unidad a una base operativa.",
+      branchOverQuotaLead:
+        "La sucursal actual excede la capacidad de tu plan.",
+      branchOverQuotaAdjust: "Ajusta sucursales",
+      branchOverQuotaTail:
+        "o elige una sucursal incluida en el plan al guardar cambios.",
     },
     alert: {
       cartaPorteCreate:

@@ -7,13 +7,21 @@
  * Ubicación: src/features/vehicles/presentation/components/VehicleForm.tsx
  */
 
-import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
 import {
   Controller,
   FormProvider,
   useForm,
   useFormContext,
+  type Control,
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,13 +35,25 @@ import {
   ShieldCheck,
   FileText,
   ClipboardCheck,
+  ChevronDown,
 } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Input } from "@shared/ui/input";
-import { FormValidationSummary, getFieldErrorAriaProps } from "@shared/ui/form";
+import {
+  FormStickyActions,
+  FormValidationSummary,
+  LongFormEditLayout,
+  LongFormSectionNav,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
+import {
+  VEHICLE_EDIT_SECTION_IDS,
+  VEHICLE_EDIT_SECTIONS,
+  countVehicleEditSectionErrors,
+} from "./vehicleEditSections";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { SatFieldLabel } from "@shared/ui/data-display";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
@@ -43,6 +63,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import { BranchStatus, useBranches } from "@features/branches";
 import { buildBranchSelectOptionsWithEligibility } from "@shared/utils/branchSelectUtils";
 
@@ -77,6 +102,7 @@ import {
 } from "./VehicleFormFields";
 import { VehicleEditIdentityBanner } from "./VehicleEditIdentityBanner";
 import { VehicleBillingPolicyNote } from "./VehicleBillingPolicyNote";
+import { useVehicleCatalogLabels } from "../hooks/useVehicleCatalogLabels";
 import { vehiclesCopy } from "../copy";
 
 const fc = vehiclesCopy.form;
@@ -103,6 +129,8 @@ interface VehicleFormProps {
   wizardMode?: boolean;
   /** Índice de paso visible (0–3). El 3 es revisión. */
   wizardStepIndex?: number;
+  /** Notifica dirty a la página para `useUnsavedChangesGuard` (D11). */
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 // ============================================================================
@@ -164,10 +192,105 @@ function formDataFromVehicle(vehicle: Vehicle): CreateVehicleFormData {
 // DEFAULT VALUES
 // ============================================================================
 
+function VehicleOptionalInsuranceFields({
+  control,
+}: {
+  control: Control<CreateVehicleFormData>;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="space-y-3">
+      <CollapsibleTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-auto w-full justify-between px-0 py-1 text-left hover:bg-transparent"
+        >
+          <span className="text-sm font-medium">
+            {fc.section.cartaPorte.optionalInsuranceLabel}
+          </span>
+          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            {fc.section.cartaPorte.groupOptionalInsurance}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 transition-transform",
+                open && "rotate-180",
+              )}
+            />
+          </span>
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          {fc.section.cartaPorte.optionalInsuranceHint}
+        </p>
+        <div className="grid items-start gap-4 sm:grid-cols-2">
+          <VehicleGridInput
+            control={control}
+            name="aseguraMedioAmbiente"
+            label={
+              <SatFieldLabel
+                label={fc.label.aseguraMedioAmbiente}
+                satCode="AseguraMedioAmbiente"
+                showSatCode={false}
+              />
+            }
+            placeholder={fc.placeholder.optionalInsurer}
+          />
+          <VehicleGridInput
+            control={control}
+            name="polizaMedioAmbiente"
+            label={
+              <SatFieldLabel
+                label={fc.label.polizaMedioAmbiente}
+                satCode="PolizaMedioAmbiente"
+                showSatCode={false}
+              />
+            }
+            placeholder={fc.placeholder.optionalPolicy}
+          />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function VehicleCreateWizardSummary() {
   const form = useFormContext<CreateVehicleFormData>();
   const v = form.watch();
   const showBillingNotice = isBillableMotrizType(v.type);
+  const { tipoPermisoLabel, configVehicularLabel, isLoading } =
+    useVehicleCatalogLabels();
+  const { data: branchesResult } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+    sort: {
+      field: "name",
+      direction: "asc",
+    },
+  });
+  const branchLabel = v.branchId
+    ? (branchesResult?.data ?? []).find((b) => b.id === v.branchId)?.name
+    : undefined;
+  const permisoLabel =
+    tipoPermisoLabel(v.satTipoPermisoCode) ?? v.satTipoPermisoCode;
+  const configLabel =
+    configVehicularLabel(v.satConfigAutotransporteCode) ??
+    v.satConfigAutotransporteCode;
+  const rcLine = [v.insuranceCompany, v.insurancePolicy]
+    .filter(Boolean)
+    .join(" · ");
+  const sctLine = [permisoLabel, v.sctPermitNumber].filter(Boolean).join(" · ");
+  const pesoLabel =
+    typeof v.pesoBrutoVehicular === "number"
+      ? vehiclesCopy.detail.format.pesoBruto(v.pesoBrutoVehicular)
+      : fc.hint.reviewEmpty;
+
   return (
     <div className="space-y-4">
       <FormSectionCard
@@ -194,8 +317,14 @@ function VehicleCreateWizardSummary() {
           <div>
             <p className="text-muted-foreground">{fc.label.reviewType}</p>
             <p className="font-medium">
-              {v.type ? VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue] : fc.hint.reviewEmpty}
+              {v.type
+                ? VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue]
+                : fc.hint.reviewEmpty}
             </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewBranch}</p>
+            <p className="font-medium">{branchLabel || fc.hint.reviewEmpty}</p>
           </div>
           <div>
             <p className="text-muted-foreground">{fc.label.reviewMileage}</p>
@@ -205,12 +334,31 @@ function VehicleCreateWizardSummary() {
                 : fc.hint.reviewMileageDefault}
             </p>
           </div>
-          <div className="sm:col-span-2">
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewRc}</p>
+            <p className="font-medium">{rcLine || fc.hint.reviewEmpty}</p>
+          </div>
+          <div>
             <p className="text-muted-foreground">{fc.label.reviewSct}</p>
             <p className="font-medium">
-              {[v.satTipoPermisoCode, v.sctPermitNumber].filter(Boolean).join(" · ") ||
-                fc.hint.reviewEmpty}
+              {sctLine ||
+                (isLoading
+                  ? vehiclesCopy.detail.hint.catalogLoading
+                  : fc.hint.reviewEmpty)}
             </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewConfig}</p>
+            <p className="font-medium">
+              {configLabel ||
+                (isLoading
+                  ? vehiclesCopy.detail.hint.catalogLoading
+                  : fc.hint.reviewEmpty)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{fc.label.reviewPeso}</p>
+            <p className="font-medium">{pesoLabel}</p>
           </div>
       </FormSectionCard>
       {showBillingNotice ? (
@@ -269,6 +417,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
       isSubmitting = false,
       wizardMode = false,
       wizardStepIndex = 0,
+      onDirtyChange,
     },
     ref,
   ) {
@@ -294,6 +443,11 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     const { control, handleSubmit: rhfHandleSubmit, trigger, formState, watch } =
       form;
     const { errors, isDirty } = formState;
+
+    useEffect(() => {
+      onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+
     const selectedType = watch("type");
     const typeBillingHint = isBillableMotrizType(selectedType)
       ? vehiclesCopy.billingPolicy.create
@@ -368,13 +522,24 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     const shouldShowValidationSummary =
       showValidationSummary && validationMessages.length > 0;
 
-    return (
-      <FormProvider {...form}>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {isEditMode && vehicle ? (
-            <VehicleEditIdentityBanner vehicle={vehicle} />
-          ) : null}
+    const [activeSectionId, setActiveSectionId] = useState<string>(
+      VEHICLE_EDIT_SECTION_IDS.identification,
+    );
 
+    const errorCountBySection = useMemo(
+      () => countVehicleEditSectionErrors(errors),
+      [errors],
+    );
+
+    const handleEditSectionSelect = useCallback((sectionId: string) => {
+      setActiveSectionId(sectionId);
+      document
+        .getElementById(sectionId)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, []);
+
+    const sectionPanels = (
+      <>
           <div
             className={cn(
               "space-y-6",
@@ -386,6 +551,14 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* IDENTIFICACIÓN */}
         {/* ════════════════════════════════════════════════════════════════ */}
+        <div
+          id={
+            isEditMode
+              ? VEHICLE_EDIT_SECTION_IDS.identification
+              : undefined
+          }
+          className={isEditMode ? "scroll-mt-28" : undefined}
+        >
         <FormSectionCard
           title={fc.section.identification.title}
           icon={<Truck className="h-4 w-4" />}
@@ -441,7 +614,16 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               placeholder={fc.placeholder.vin}
             />
         </FormSectionCard>
+        </div>
 
+        <div
+          id={
+            isEditMode
+              ? VEHICLE_EDIT_SECTION_IDS.characteristics
+              : undefined
+          }
+          className={isEditMode ? "scroll-mt-28" : undefined}
+        >
         <FormSectionCard
           title={fc.section.characteristics.title}
           icon={<Settings className="h-4 w-4" />}
@@ -521,11 +703,11 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 )}
                 {currentBranchOutsidePlan ? (
                   <p className="text-xs text-destructive">
-                    La sucursal actual excede la capacidad de tu plan.{" "}
+                    {fc.hint.branchOverQuotaLead}{" "}
                     <Link to="/branches" className="underline underline-offset-4">
-                      Ajusta sucursales
+                      {fc.hint.branchOverQuotaAdjust}
                     </Link>{" "}
-                    o elige una sucursal incluida en el plan al guardar cambios.
+                    {fc.hint.branchOverQuotaTail}
                   </p>
                 ) : null}
               </div>
@@ -538,6 +720,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               placeholder={fc.placeholder.currentMileage}
             />
         </FormSectionCard>
+        </div>
           </div>
 
           <div
@@ -548,60 +731,73 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             data-wizard-panel="1"
             aria-hidden={wizardActive && ws !== 1}
           >
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* CAPACIDADES */}
-        {/* ════════════════════════════════════════════════════════════════ */}
-        <FormSectionCard
-          title={fc.section.capacities.title}
-          icon={<Gauge className="h-4 w-4" />}
-          description={fc.section.capacities.description}
-          contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        >
-            <VehicleGridNumberInput
-              control={control}
-              name="loadCapacity"
-              label={fc.label.loadCapacity}
-              step="0.01"
-              min={0}
-              placeholder={fc.placeholder.loadCapacity}
-              parse={(val) => parseFloat(val)}
-            />
-            <VehicleGridNumberInput
-              control={control}
-              name="volumeCapacity"
-              label={fc.label.volumeCapacity}
-              step="0.01"
-              min={0}
-              placeholder={fc.placeholder.volumeCapacity}
-              parse={(val) => parseFloat(val)}
-            />
-            <VehicleGridNumberInput
-              control={control}
-              name="fuelTankCapacity"
-              label={fc.label.fuelTankCapacity}
-              step="0.01"
-              min={0}
-              placeholder={fc.placeholder.fuelTankCapacity}
-              parse={(val) => parseFloat(val)}
-            />
-            <VehicleGridNumberInput
-              control={control}
-              name="expectedFuelEfficiency"
-              label={fc.label.expectedFuelEfficiency}
-              step="0.01"
-              min={0}
-              placeholder={fc.placeholder.expectedFuelEfficiency}
-              parse={(val) => parseFloat(val)}
-            />
-        </FormSectionCard>
+        {/* D7 edit: Capacidades antes de Documentación; wizard las deja sub-bloque en docs (D9). */}
+        {!wizardActive ? (
+          <div
+            id={VEHICLE_EDIT_SECTION_IDS.capacities}
+            className="scroll-mt-28"
+          >
+          <FormSectionCard
+            title={fc.section.capacities.title}
+            icon={<Gauge className="h-4 w-4" />}
+            description={fc.section.capacities.description}
+            contentClassName="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          >
+              <VehicleGridNumberInput
+                control={control}
+                name="loadCapacity"
+                label={fc.label.loadCapacity}
+                step="0.01"
+                min={0}
+                placeholder={fc.placeholder.loadCapacity}
+                parse={(val) => parseFloat(val)}
+              />
+              <VehicleGridNumberInput
+                control={control}
+                name="volumeCapacity"
+                label={fc.label.volumeCapacity}
+                step="0.01"
+                min={0}
+                placeholder={fc.placeholder.volumeCapacity}
+                parse={(val) => parseFloat(val)}
+              />
+              <VehicleGridNumberInput
+                control={control}
+                name="fuelTankCapacity"
+                label={fc.label.fuelTankCapacity}
+                step="0.01"
+                min={0}
+                placeholder={fc.placeholder.fuelTankCapacity}
+                parse={(val) => parseFloat(val)}
+              />
+              <VehicleGridNumberInput
+                control={control}
+                name="expectedFuelEfficiency"
+                label={fc.label.expectedFuelEfficiency}
+                step="0.01"
+                min={0}
+                placeholder={fc.placeholder.expectedFuelEfficiency}
+                parse={(val) => parseFloat(val)}
+              />
+          </FormSectionCard>
+          </div>
+        ) : null}
 
+        <div
+          id={
+            isEditMode
+              ? VEHICLE_EDIT_SECTION_IDS.documentation
+              : undefined
+          }
+          className={isEditMode ? "scroll-mt-28" : undefined}
+        >
         <FormSectionCard
           title={fc.section.documentation.title}
           icon={<ShieldCheck className="h-4 w-4" />}
           description={fc.section.documentation.description}
           contentClassName="space-y-4"
         >
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">
               {fc.section.documentation.groupRc}
             </p>
             <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -643,7 +839,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               />
             </div>
 
-            <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="pt-1 text-sm font-medium text-muted-foreground">
               {fc.section.documentation.groupSct}
             </p>
             <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -694,7 +890,59 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                 }
               />
             </div>
+
+            {wizardActive ? (
+              <div className="space-y-3 border-t pt-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    {fc.section.capacities.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {fc.section.capacities.optionalHint}
+                  </p>
+                </div>
+                <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <VehicleGridNumberInput
+                    control={control}
+                    name="loadCapacity"
+                    label={fc.label.loadCapacity}
+                    step="0.01"
+                    min={0}
+                    placeholder={fc.placeholder.loadCapacity}
+                    parse={(val) => parseFloat(val)}
+                  />
+                  <VehicleGridNumberInput
+                    control={control}
+                    name="volumeCapacity"
+                    label={fc.label.volumeCapacity}
+                    step="0.01"
+                    min={0}
+                    placeholder={fc.placeholder.volumeCapacity}
+                    parse={(val) => parseFloat(val)}
+                  />
+                  <VehicleGridNumberInput
+                    control={control}
+                    name="fuelTankCapacity"
+                    label={fc.label.fuelTankCapacity}
+                    step="0.01"
+                    min={0}
+                    placeholder={fc.placeholder.fuelTankCapacity}
+                    parse={(val) => parseFloat(val)}
+                  />
+                  <VehicleGridNumberInput
+                    control={control}
+                    name="expectedFuelEfficiency"
+                    label={fc.label.expectedFuelEfficiency}
+                    step="0.01"
+                    min={0}
+                    placeholder={fc.placeholder.expectedFuelEfficiency}
+                    parse={(val) => parseFloat(val)}
+                  />
+                </div>
+              </div>
+            ) : null}
         </FormSectionCard>
+        </div>
           </div>
 
           <div
@@ -708,6 +956,12 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* CARTA PORTE 3.1 — AUTOTRANSPORTE */}
         {/* ════════════════════════════════════════════════════════════════ */}
+        <div
+          id={
+            isEditMode ? VEHICLE_EDIT_SECTION_IDS.cartaPorte : undefined
+          }
+          className={isEditMode ? "scroll-mt-28" : undefined}
+        >
         <FormSectionCard
           title={
             <span className="inline-flex items-center gap-2">
@@ -791,46 +1045,13 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
               </div>
             </div>
 
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {fc.section.cartaPorte.groupOptionalInsurance}
-              </p>
-              <p className="mb-4 text-xs text-muted-foreground">
-                {fc.section.cartaPorte.optionalInsuranceHint}
-              </p>
+            <VehicleOptionalInsuranceFields control={control} />
 
-              <div className="mb-4 grid items-start gap-4 sm:grid-cols-2">
-                <VehicleGridInput
-                  control={control}
-                  name="aseguraMedioAmbiente"
-                  label={
-                    <SatFieldLabel
-                      label={fc.label.aseguraMedioAmbiente}
-                      satCode="AseguraMedioAmbiente"
-                      showSatCode={false}
-                    />
-                  }
-                  placeholder={fc.placeholder.optionalInsurer}
-                />
-                <VehicleGridInput
-                  control={control}
-                  name="polizaMedioAmbiente"
-                  label={
-                    <SatFieldLabel
-                      label={fc.label.polizaMedioAmbiente}
-                      satCode="PolizaMedioAmbiente"
-                      showSatCode={false}
-                    />
-                  }
-                  placeholder={fc.placeholder.optionalPolicy}
-                />
-              </div>
-
-              <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                {fc.section.cartaPorte.cargoInsuranceFootnote}
-              </div>
+            <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              {fc.section.cartaPorte.cargoInsuranceFootnote}
             </div>
         </FormSectionCard>
+        </div>
           </div>
 
           <div
@@ -840,6 +1061,35 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
           >
             <VehicleCreateWizardSummary />
           </div>
+      </>
+    );
+
+    return (
+      <FormProvider {...form}>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {isEditMode && vehicle ? (
+            <VehicleEditIdentityBanner vehicle={vehicle} />
+          ) : null}
+
+          {isEditMode ? (
+            <LongFormEditLayout
+              nav={
+                <LongFormSectionNav
+                  sections={VEHICLE_EDIT_SECTIONS}
+                  activeSectionId={activeSectionId}
+                  errorCountBySection={errorCountBySection}
+                  onSelectSection={handleEditSectionSelect}
+                  title={fc.edit.sidebar.title}
+                  errorsTitle={fc.edit.sidebar.errorsTitle}
+                  errorsAria={fc.edit.sidebar.errorsAria}
+                />
+              }
+            >
+              {sectionPanels}
+            </LongFormEditLayout>
+          ) : (
+            sectionPanels
+          )}
 
           {shouldShowValidationSummary ? (
             <FormValidationSummary
@@ -852,42 +1102,39 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
             />
           ) : null}
 
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* SUBMIT (solo edición o formulario completo sin wizard) */}
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {!wizardActive && (
-          <div className="flex items-center justify-end gap-4 border-t pt-4">
-            {isEditMode && onCancel ? (
+          {!wizardActive ? (
+            <FormStickyActions sticky={isEditMode}>
+              {isEditMode && onCancel ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancel}
+                  disabled={isSubmitting}
+                >
+                  {fc.action.cancel}
+                </Button>
+              ) : null}
               <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-                disabled={isSubmitting}
+                type="submit"
+                disabled={isSubmitting || (isEditMode && !isDirty)}
               >
-                {fc.action.cancel}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {fc.action.saving}
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    {isEditMode ? fc.action.save : fc.create.submit}
+                  </>
+                )}
               </Button>
-            ) : null}
-            <Button
-              type="submit"
-              disabled={isSubmitting || (isEditMode && !isDirty)}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {fc.action.saving}
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  {isEditMode ? fc.action.save : fc.create.submit}
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-      </form>
+            </FormStickyActions>
+          ) : null}
+        </form>
       </FormProvider>
-  );
+    );
   },
 );
 
