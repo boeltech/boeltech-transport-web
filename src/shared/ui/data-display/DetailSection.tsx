@@ -6,10 +6,12 @@
  * Encapsula el patrón "encabezado con icon + título + descripción +
  * contenido (cards, grid, lista)".
  *
- * Útil cuando un tab necesita varias agrupaciones lógicas internas
- * (ej. tab "Información" en Driver con sub-secciones de "Datos personales"
- * y "Datos del empleado", o el tab "Documentos" de Vehicle con
- * "Documentación vigente" + "Documentos cargados").
+ * Receta (una superficie por sección):
+ * - El header vive fuera del Card (este componente).
+ * - El body va en **un** Card (o lista/grid) como hijo — no Card dentro de Card.
+ * - No uses CardHeader/CardTitle para el título de sección si ya usas DetailSection.
+ *
+ * Canónico: tab Unidad de vehículo (`VehicleDetailUnitTab`).
  *
  * @example
  * <DetailSection
@@ -17,7 +19,9 @@
  *   title="Documentación vigente"
  *   description="Pólizas y permisos requeridos"
  * >
- *   <Card>...</Card>
+ *   <Card>
+ *     <CardContent className="pt-6">…</CardContent>
+ *   </Card>
  * </DetailSection>
  */
 

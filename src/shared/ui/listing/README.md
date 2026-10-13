@@ -9,6 +9,20 @@ Patrón reusable para pantallas de listado (clientes, viajes, vehículos, conduc
 - `ActiveFilterChips`: chips de filtros activos con acción de remover
 - `ListingResultsSummary`: texto de rango mostrado y total
 - `ListingPagination`: paginación estándar (Primera/Anterior/números/Siguiente/Última)
+- `ListingFilterPanel`: trigger «Filtros (n)» + Collapsible + Card/grid (recortes del padrón)
+- `EntityListCard` + `entityListCardMenuTriggerClassName`: card de listado; menú ⋯ usable sin hover
+
+### Empty state (contrato)
+
+El empty del padrón vive **solo** en `ListPageShell` (`emptyState`). Las tablas
+(`VehicleTable`, etc.) deben devolver `null` (o no montar filas) cuando
+`items.length === 0` — **no** renderizar un segundo `EmptyState` local.
+
+### Mutaciones de estado operativo
+
+Cambio de estado de dominio (`available` / `maintenance` / …) = **detalle**
+(`DetailPageShell` + `*Actions` variant buttons). El listado es lookup
+(+ restaurar en vista baja si aplica). No cablear `onChangeStatus` en cards/tabla.
 
 ## Hook recomendado
 

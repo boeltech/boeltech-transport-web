@@ -3,10 +3,9 @@
  * Shared UI - Data Display
  *
  * Card de alerta con border-l-4 + icon + título + items o children.
- * Reemplaza el patrón duplicado en VehicleDetailPage y DriverDetailPage,
- * y queda disponible para Trip, Client, Employee.
+ * Slot opcional `action` / `cta` para botones o links de seguimiento (D3).
  *
- * Uso típico — items:
+ * Uso típico — items + action:
  *   <DetailAlertCard
  *     severity="warning"
  *     icon={<AlertTriangle />}
@@ -15,6 +14,9 @@
  *       { label: "Seguro", text: "Vence en 12 días" },
  *       { label: "Permiso SCT", text: "Vence en 28 días" },
  *     ]}
+ *     action={
+ *       <Button size="sm" variant="outline" onClick={…}>Ver documentos</Button>
+ *     }
  *   />
  *
  * Uso libre — children:
@@ -54,6 +56,13 @@ export interface DetailAlertCardProps {
   items?: DetailAlertCardItem[];
   /** Contenido libre que sobreescribe `items`. */
   children?: ReactNode;
+  /**
+   * CTA / acciones del banner (botones, links).
+   * Preferir este slot sobre meter botones en `children`.
+   */
+  action?: ReactNode;
+  /** Alias de `action` (mismo slot). Si ambos existen, gana `action`. */
+  cta?: ReactNode;
   /** Clases extra. */
   className?: string;
 }
@@ -93,9 +102,12 @@ export function DetailAlertCard({
   title,
   items,
   children,
+  action,
+  cta,
   className,
 }: DetailAlertCardProps) {
   const styles = severityClasses[severity];
+  const actionSlot = action ?? cta;
 
   return (
     <Card className={cn("border-l-4", styles.border, styles.bg, className)}>
@@ -125,6 +137,9 @@ export function DetailAlertCard({
                 </li>
               ))}
             </ul>
+          ) : null}
+          {actionSlot ? (
+            <div className="mt-2 flex flex-wrap gap-2">{actionSlot}</div>
           ) : null}
         </div>
       </CardContent>
