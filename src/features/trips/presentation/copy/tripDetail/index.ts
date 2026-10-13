@@ -7,6 +7,7 @@ import { progressCopy } from "./progressCopy";
 import { routeCopy } from "./routeCopy";
 import { shellCopy } from "./shellCopy";
 import { trackingCopy } from "./trackingCopy";
+import { tripOrderCopy } from "./tripOrderCopy";
 
 /**
  * Agregador del detalle de viaje.
@@ -16,6 +17,7 @@ export const tripDetailCopy = {
   tracking: trackingCopy,
   operation: operationCopy,
   fleetSnapshot: fleetSnapshotCopy,
+  tripOrder: tripOrderCopy,
   route: routeCopy,
   progress: progressCopy,
   cargo: cargoCopy,
@@ -34,4 +36,5 @@ export {
   routeCopy,
   shellCopy,
   trackingCopy,
+  tripOrderCopy,
 };

@@ -58,6 +58,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Datos para Carta Porte del viaje — lockstep API trips_fleet_snapshot
       "trips_fleet_snapshot.read",
       "trips_fleet_snapshot.execute",
+      // Orden de viaje operativa — lockstep API trips_trip_order
+      "trips_trip_order.read",
+      "trips_trip_order.execute",
 
       // Vehículos - Control total
       "vehicles.read",
@@ -238,6 +241,8 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips_fiscal_edit.execute",
       // Datos para Carta Porte del viaje — lockstep API (refresco: admin/manager)
       "trips_fleet_snapshot.read",
+      // Orden de viaje operativa — lockstep API (execute: no accountant)
+      "trips_trip_order.read",
 
       // Configuración - Lectura (incluye settings/billing GET)
       "settings.read",
@@ -306,6 +311,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.export",
       // Datos para Carta Porte del viaje — lockstep API (refresco: admin/manager)
       "trips_fleet_snapshot.read",
+      // Orden de viaje operativa — lockstep API trips_trip_order
+      "trips_trip_order.read",
+      "trips_trip_order.execute",
 
       // Vehículos - Lectura y disponibilidad
       "vehicles.read",
@@ -351,6 +359,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips.updateStatus",
       "trips.execute", // ADR-0079: lockstep API tracking (false_trip_declared)
       "trips.export",
+      // Orden de viaje operativa — lockstep API trips_trip_order
+      "trips_trip_order.read",
+      "trips_trip_order.execute",
 
       // Vehículos - Lectura
       "vehicles.read",

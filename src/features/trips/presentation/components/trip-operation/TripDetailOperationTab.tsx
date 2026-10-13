@@ -33,6 +33,7 @@ import { TripRouteTypeInlineEditor } from "./TripRouteTypeInlineEditor";
 import { TripDetailStatusHistory } from "./TripDetailStatusHistory";
 import { TripFleetAssignmentSheet } from "../trip-fleet-assignment";
 import { TripFleetSnapshotCard } from "../trip-fleet-snapshot";
+import { TripOrderCard } from "../trip-order";
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.operation;
@@ -70,6 +71,8 @@ export interface TripDetailOperationTabProps {
   showMileage?: boolean;
   /** Portal cliente: oculta asignación, staff interno y notas operativas. */
   isClientPortalView?: boolean;
+  /** Portal conductor: oculta Orden de viaje (documento de despacho). */
+  isDriverPortalView?: boolean;
   /** Administrador o gerente: «Sustituir factura» en el aviso de datos para Carta Porte. */
   canSubstituteInvoice?: boolean;
   statusHistory?: readonly TripStatusHistory[];
@@ -147,6 +150,7 @@ export function TripDetailOperationTab({
   showClientLink = true,
   showMileage = true,
   isClientPortalView = false,
+  isDriverPortalView = false,
   canSubstituteInvoice = false,
   statusHistory,
 }: TripDetailOperationTabProps) {
@@ -399,6 +403,12 @@ export function TripDetailOperationTab({
           </Card>
         ) : null}
       </div>
+
+      <TripOrderCard
+        trip={trip}
+        isClientPortalView={isClientPortalView}
+        isDriverPortalView={isDriverPortalView}
+      />
 
       <TripFleetSnapshotCard
         trip={trip}

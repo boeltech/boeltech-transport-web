@@ -149,6 +149,10 @@ export const tripQueryKeys = {
   fleetSnapshot: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "fleet-snapshot"] as const,
 
+  /** Orden de viaje operativa (PDF versionado — no CP31). */
+  tripOrder: (tripId: string) =>
+    [...tripQueryKeys.detail(tripId), "trip-order"] as const,
+
   /** ADR-0096 addendum — ledger de abonos operativos. */
   operationalCashReceipts: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "operational-cash-receipts"] as const,

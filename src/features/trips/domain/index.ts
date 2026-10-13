@@ -315,6 +315,16 @@ export type {
   TripFleetWarningCode,
 } from "./tripFleetSnapshot.types";
 
+export type {
+  GenerateTripOrderResult,
+  TripOrderEligibility,
+  TripOrderEmission,
+  TripOrderReasonCode,
+  TripOrderStatus,
+  TripOrderThreshold,
+  TripOrderThresholdMissing,
+} from "./tripOrder.types";
+
 // ============================================================================
 // ROUTE VALIDATION
 // ============================================================================

@@ -1243,6 +1243,7 @@ export function TripDetailPage() {
                 showClientLink={!isLeanTripPortal}
                 showMileage={!isClientPortal}
                 isClientPortalView={isClientPortal}
+                isDriverPortalView={isDriverPortal}
                 canSubstituteInvoice={canSubstituteFiscal}
                 statusHistory={trip.statusHistory}
               />
