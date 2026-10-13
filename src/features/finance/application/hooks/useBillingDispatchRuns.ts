@@ -45,6 +45,7 @@ export const billingDispatchRunKeys = {
   list: (params?: {
     status?: DispatchRunStatus;
     billingSchemeId?: string;
+    excludeEmptyScheduled?: boolean;
     page?: number;
     limit?: number;
   }) => [...billingDispatchRunKeys.all, "list", params ?? {}] as const,
@@ -57,6 +58,7 @@ export const billingDispatchRunKeys = {
 export function useBillingDispatchRuns(params?: {
   status?: DispatchRunStatus;
   billingSchemeId?: string;
+  excludeEmptyScheduled?: boolean;
   page?: number;
   limit?: number;
   enabled?: boolean;

@@ -72,6 +72,7 @@ export function FinanceDispatchPage() {
   const { data: periodMeta } = useBillingDispatchRuns({
     page: 1,
     limit: 1,
+    excludeEmptyScheduled: true,
   });
   const periodCount = periodMeta?.pagination?.total ?? 0;
 

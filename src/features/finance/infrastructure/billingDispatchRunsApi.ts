@@ -290,6 +290,8 @@ export function mapBillingDispatchPeriodPreview(
 export async function fetchBillingDispatchRuns(params?: {
   status?: DispatchRunStatus;
   billingSchemeId?: string;
+  /** UI default on: excludes scheduled+cancelled empty evaluations (API opt-in). */
+  excludeEmptyScheduled?: boolean;
   page?: number;
   limit?: number;
 }): Promise<{
@@ -305,6 +307,9 @@ export async function fetchBillingDispatchRuns(params?: {
     params: {
       status: params?.status,
       billing_scheme_id: params?.billingSchemeId,
+      ...(params?.excludeEmptyScheduled === true
+        ? { exclude_empty_scheduled: true }
+        : {}),
       page: params?.page ?? 1,
       limit: params?.limit ?? 20,
     },

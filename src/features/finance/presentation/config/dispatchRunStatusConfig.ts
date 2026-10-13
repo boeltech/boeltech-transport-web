@@ -11,7 +11,6 @@ import {
   type StatusConfig,
   createStatusConfig,
 } from "@shared/config/status/types";
-import { createStatusBadgeComponent } from "@shared/components/StatusBadge";
 import type { DispatchRunStatus } from "../../domain/billingDispatchRun.types";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 
@@ -56,12 +55,4 @@ export const DISPATCH_RUN_STATUS_CONFIG: Record<
   }),
 };
 
-export const DispatchRunStatusBadge = createStatusBadgeComponent(
-  DISPATCH_RUN_STATUS_CONFIG,
-);
-
-export function getDispatchRunStatusLabel(status: string): string {
-  return (
-    dispatchRunsCopy.status[status as DispatchRunStatus] ?? status
-  );
-}
+export { getDispatchRunStatusLabel } from "../utils/dispatchRunStatusPresentation";

@@ -83,6 +83,11 @@ describe("FinanceDispatchPeriodPage", () => {
       screen.getByText(dispatchRunsCopy.tab.subtitle),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.tab.filters.hideEmptyScheduledAria,
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
       screen.getAllByRole("button", {
         name: dispatchRunsCopy.tab.executeCta,
       }).length,

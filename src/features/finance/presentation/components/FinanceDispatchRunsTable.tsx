@@ -14,7 +14,7 @@ import {
 import { formatDate } from "@shared/utils/dateUtils";
 import type { BillingDispatchRunListItem } from "../../domain/billingDispatchRun.types";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
-import { DispatchRunStatusBadge } from "../config/dispatchRunStatusConfig";
+import { DispatchRunStatusBadge } from "./DispatchRunStatusBadge";
 import { formatDispatchPeriodListLabel } from "../utils/formatDispatchPeriod";
 import { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
 import { DispatchRunActions } from "./DispatchRunActions";
@@ -91,7 +91,10 @@ export function FinanceDispatchRunsTable({
                     <DispatchRunOriginBadge origin={run.origin} />
                   </TableCell>
                   <TableCell>
-                    <DispatchRunStatusBadge status={run.status} />
+                    <DispatchRunStatusBadge
+                      status={run.status}
+                      origin={run.origin}
+                    />
                   </TableCell>
                   <TableCell>{formatDate(run.createdAt)}</TableCell>
                   <TableCell

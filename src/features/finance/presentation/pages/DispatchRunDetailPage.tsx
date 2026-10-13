@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Loader2,
   Mail,
+  Plus,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -53,10 +54,12 @@ import {
   DispatchRunRecipientsEditor,
   DispatchRunRecipientsReadOnly,
 } from "../components";
-import { DispatchRunStatusBadge } from "../config/dispatchRunStatusConfig";
+import { DispatchRunStatusBadge } from "../components/DispatchRunStatusBadge";
 import { DispatchRunOriginBadge } from "../components/DispatchRunOriginBadge";
 import { DispatchRunActions } from "../components/DispatchRunActions";
+import { FinanceDispatchCreateRunDialog } from "../components/FinanceDispatchCreateRunDialog";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
+import { isEmptyScheduledCancelled } from "../utils/dispatchRunStatusPresentation";
 import {
   buildClientSendResults,
   buildPendingStampInvoicePath,
@@ -295,6 +298,7 @@ export function DispatchRunDetailPage() {
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resendOpen, setResendOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
   const [selection, setSelection] = useState<RecipientSelectionState>({});
@@ -546,8 +550,12 @@ export function DispatchRunDetailPage() {
   const resendDisabled =
     isPending || invoiceSelection.length < 1 || hasResendZeroSelected;
   const alreadySentCount = alreadySent.length;
+  const showEmptyScheduledAlert =
+    isEmptyScheduledCancelled(run.origin, run.status) &&
+    counts.readyToSendCount === 0;
 
   return (
+    <>
     <DetailPageShell
       isLoading={false}
       header={{
@@ -558,7 +566,12 @@ export function DispatchRunDetailPage() {
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span>{periodTitle}</span>
-            <DispatchRunStatusBadge status={run.status} showIcon size="sm" />
+            <DispatchRunStatusBadge
+              status={run.status}
+              origin={run.origin}
+              showIcon
+              size="sm"
+            />
             <DispatchRunOriginBadge
               origin={run.origin}
               className="text-xs font-medium"
@@ -628,6 +641,26 @@ export function DispatchRunDetailPage() {
         <p className="text-sm font-medium text-foreground">
           {decisionSummaryText}
         </p>
+
+        {showEmptyScheduledAlert ? (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>{copy.emptyScheduledAlert.title}</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p>{copy.emptyScheduledAlert.body}</p>
+              {canExecute ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+                  {copy.emptyScheduledAlert.cta}
+                </Button>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         {inFlight ? (
           <Alert>
@@ -938,5 +971,13 @@ export function DispatchRunDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
     </DetailPageShell>
+
+    <FinanceDispatchCreateRunDialog
+      open={createOpen}
+      onOpenChange={setCreateOpen}
+      alreadyOpenSource="list"
+      returnTo={backHref}
+    />
+    </>
   );
 }

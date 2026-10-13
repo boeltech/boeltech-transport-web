@@ -22,6 +22,7 @@ export { FinanceDispatchSentPanel } from "./FinanceDispatchSentPanel";
 export { FinanceDispatchSentTable } from "./FinanceDispatchSentTable";
 export { FinanceDispatchConfirmSheet } from "./FinanceDispatchConfirmSheet";
 export { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
+export { DispatchRunStatusBadge } from "./DispatchRunStatusBadge";
 export { DispatchRunActions } from "./DispatchRunActions";
 export { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
 export { FinanceSectionHeader } from "./FinanceSectionHeader";

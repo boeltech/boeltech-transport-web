@@ -15,7 +15,7 @@ export const dispatchRunsCopy = {
     bucketDescriptions: {
       pending: "Facturas por mandar o reenviar",
       sent: "Ya se mandaron por correo",
-      period: "Lotes agrupados · un correo por cliente",
+      period: "Envíos armados o enviados del corte",
     },
     periodLinkAria: "Ver envíos del periodo",
     pending: {
@@ -174,7 +174,7 @@ export const dispatchRunsCopy = {
   tab: {
     title: "Envíos del periodo",
     subtitle:
-      "Revisa el lote, confirma y manda un correo por cliente. No genera facturas nuevas.",
+      "Revisa el lote, confirma y manda un correo por cliente. No genera facturas nuevas. Si el automático no encontró listos, arma el envío cuando ya haya facturas listas.",
     executeCta: "Armar envío del periodo",
     backToWorkbench: "Volver a envíos",
     entityLabelPlural: "envíos",
@@ -190,6 +190,10 @@ export const dispatchRunsCopy = {
       all: "Todos",
       chipStatus: (label: string) => `Estado: ${label}`,
       chipScheme: (name: string) => `Frecuencia: ${name}`,
+      /** Default on: oculta scheduled+cancelled (evaluación sin envío). */
+      hideEmptyScheduledOn: "Ocultar evaluaciones sin envío",
+      hideEmptyScheduledOff: "Incluir evaluaciones sin envío",
+      hideEmptyScheduledAria: "Ocultar evaluaciones automáticas sin envío",
     },
     empty: {
       title: "Aún no hay envíos del periodo",
@@ -244,7 +248,7 @@ export const dispatchRunsCopy = {
     createDialog: {
       title: "Armar envío del periodo",
       description:
-        "Se arma el último corte ya cerrado de esa frecuencia. No es el periodo en curso y las fechas no se eligen a mano.",
+        "Se arma el último corte ya cerrado de esa frecuencia. No es el periodo en curso y las fechas no se eligen a mano. Tras una evaluación automática sin listos, este es el camino si generaste las facturas después. En semanal, el siguiente viernes no rescata el periodo previo.",
       schemeLabel: "Frecuencia de envío",
       schemeHint:
         "Semanal, cortes del mes o mensual. El lote usa el corte que ya cerró, no el que está corriendo.",
@@ -277,6 +281,12 @@ export const dispatchRunsCopy = {
     failed: "Envío con errores",
     cancelled: "Cancelada",
   } satisfies Record<DispatchRunStatus, string>,
+  /** Presentación: origin=scheduled + status=cancelled (sin status API nuevo). */
+  emptyScheduled: {
+    label: "Sin facturas listas",
+    tooltip:
+      "Evaluación automática: no había facturas listas al corte",
+  },
   itemStatus: {
     listed: "En lista",
     skipped: "Omitido",
@@ -291,6 +301,11 @@ export const dispatchRunsCopy = {
     titleEvent: (hours: number) => `Envío de las últimas ${hours} h`,
     subtitleClosedCut: (schemeName: string) =>
       `Último corte cerrado · ${schemeName}`,
+    emptyScheduledAlert: {
+      title: "No había facturas listas al corte",
+      body: "El automático ya evaluó este periodo. Si generas las facturas después el mismo día, arma un envío del periodo. En corte semanal, el siguiente corte no incluye este periodo.",
+      cta: "Armar envío del periodo",
+    },
     periodCalendar: (
       inclusiveStart: string,
       inclusiveEnd: string,

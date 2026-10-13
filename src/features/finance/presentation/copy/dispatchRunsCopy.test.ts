@@ -65,6 +65,19 @@ describe("dispatchRunsCopy glossary", () => {
     expect(dispatchRunsCopy.status.sending).toBe("Enviando");
     expect(dispatchRunsCopy.tab.origin.scheduled).toBe("Automático");
     expect(dispatchRunsCopy.tab.origin.manual).toBe("Manual");
+    expect(dispatchRunsCopy.emptyScheduled.label).toBe("Sin facturas listas");
+    expect(dispatchRunsCopy.tab.filters.hideEmptyScheduledOn).toMatch(
+      /Ocultar evaluaciones sin envío/,
+    );
+    expect(dispatchRunsCopy.workbench.bucketDescriptions.period).toMatch(
+      /Envíos armados o enviados del corte/,
+    );
+    expect(dispatchRunsCopy.tab.subtitle).toMatch(
+      /Si el automático no encontró listos/,
+    );
+    expect(dispatchRunsCopy.detail.emptyScheduledAlert.cta).toBe(
+      "Armar envío del periodo",
+    );
   });
 
   it("copy del corte cerrado y del lote habla de enlace ZIP, no adjuntos", () => {

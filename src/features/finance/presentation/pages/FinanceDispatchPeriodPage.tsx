@@ -97,6 +97,8 @@ export function FinanceDispatchPeriodPage() {
 
   const { data: schemes = [] } = useBillingSchemes();
   const [createOpen, setCreateOpen] = useState(false);
+  /** PRD D4: default on — exclude scheduled+cancelled via API (not client-only). */
+  const [excludeEmptyScheduled, setExcludeEmptyScheduled] = useState(true);
 
   const filters = useFinanceListingFilters<"status" | "billingSchemeId">({
     filters: {
@@ -137,6 +139,7 @@ export function FinanceDispatchPeriodPage() {
       limit: DISPATCH_RUNS_PAGE_SIZE,
       status: statusFilter,
       billingSchemeId: schemeFilter,
+      excludeEmptyScheduled,
     });
 
   const runs = data?.data ?? [];
@@ -201,6 +204,8 @@ export function FinanceDispatchPeriodPage() {
               billingSchemeId={schemeFilter ?? ""}
               schemes={schemes}
               activePanelFilterCount={activePanelFilterCount}
+              excludeEmptyScheduled={excludeEmptyScheduled}
+              onExcludeEmptyScheduledChange={setExcludeEmptyScheduled}
               onStatusChange={(value) => filters.setFilter("status", value)}
               onSchemeChange={(value) =>
                 filters.setFilter("billingSchemeId", value)

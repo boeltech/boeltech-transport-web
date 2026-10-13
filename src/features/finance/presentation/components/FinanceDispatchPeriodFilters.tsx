@@ -37,6 +37,9 @@ export interface FinanceDispatchPeriodFiltersProps {
   billingSchemeId: string;
   schemes: readonly FinanceDispatchPeriodSchemeOption[];
   activePanelFilterCount: number;
+  /** Default on: API exclude_empty_scheduled. */
+  excludeEmptyScheduled: boolean;
+  onExcludeEmptyScheduledChange: (value: boolean) => void;
   onStatusChange: (value: string) => void;
   onSchemeChange: (value: string) => void;
 }
@@ -50,6 +53,8 @@ export function FinanceDispatchPeriodFilters({
   billingSchemeId,
   schemes,
   activePanelFilterCount,
+  excludeEmptyScheduled,
+  onExcludeEmptyScheduledChange,
   onStatusChange,
   onSchemeChange,
 }: FinanceDispatchPeriodFiltersProps) {
@@ -70,6 +75,19 @@ export function FinanceDispatchPeriodFilters({
   };
 
   return (
+    <>
+      <Button
+        type="button"
+        variant={excludeEmptyScheduled ? "secondary" : "outline"}
+        size="sm"
+        onClick={() => onExcludeEmptyScheduledChange(!excludeEmptyScheduled)}
+        aria-pressed={excludeEmptyScheduled}
+        aria-label={copy.hideEmptyScheduledAria}
+      >
+        {excludeEmptyScheduled
+          ? copy.hideEmptyScheduledOn
+          : copy.hideEmptyScheduledOff}
+      </Button>
     <Collapsible
       open={open}
       onOpenChange={handleOpenChange}
@@ -150,5 +168,6 @@ export function FinanceDispatchPeriodFilters({
         </Card>
       </CollapsibleContent>
     </Collapsible>
+    </>
   );
 }
