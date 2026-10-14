@@ -13,9 +13,23 @@ vi.mock("../../application", async () => {
   );
   return {
     ...actual,
-    useHelpArticles: () => ({ data: [], isLoading: false }),
+    useHelpArticles: () => ({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }),
     useOpenTicketCount: () => ({ data: 0 }),
-    useHelpArticle: () => ({ data: undefined, isLoading: false }),
+    useHelpArticle: () => ({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }),
+    useCreateHelpTicket: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
   };
 });
 

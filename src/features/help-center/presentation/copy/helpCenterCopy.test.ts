@@ -61,6 +61,21 @@ describe("helpCenterCopy product labels (PRD D1–D5)", () => {
       "Error al crear el ticket",
     );
   });
+
+  it("exposes F1 load-error / clear-search strings", () => {
+    expect(helpCenterCopy.index.clearSearch).toBe("Limpiar búsqueda");
+    expect(helpCenterCopy.index.loadErrorRetry).toBe("Reintentar");
+    expect(helpCenterCopy.detail.loadErrorRetry).toBe("Reintentar");
+    expect(helpCenterCopy.tickets.loadErrorRetry).toBe("Reintentar");
+    expect(helpCenterCopy.ticketDetail.loadErrorRetry).toBe("Reintentar");
+  });
+
+  it("exposes F3 D14 mínimo (Reintentar, Limpiar, Nuevo ticket)", () => {
+    expect(helpCenterCopy.index.clearSearch).toBe("Limpiar búsqueda");
+    expect(helpCenterCopy.index.loadErrorRetry).toBe("Reintentar");
+    expect(helpCenterCopy.createTicket.title).toBe("Nuevo ticket");
+    expect(helpCenterCopy.tickets.entityLabel).toBe("tickets");
+  });
 });
 
 describe("helpCenterCopy.ticketsPaused", () => {

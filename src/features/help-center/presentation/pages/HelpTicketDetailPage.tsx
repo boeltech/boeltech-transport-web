@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Download, FileText, TicketPlus } from "lucide-react";
+import { AlertCircle, Download, FileText, TicketPlus } from "lucide-react";
 import config from "@shared/config/env";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { useToast } from "@shared/hooks";
 import { getRoleLabel, isValidRole } from "@shared/constants/roles";
+import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { helpCenterApi } from "../../infrastructure";
 import { useHelpTicket } from "../../application";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
@@ -49,9 +51,26 @@ function HelpTicketDetailPageContent() {
     data: ticket,
     isLoading,
     isError,
+    error,
+    refetch,
   } = useHelpTicket(id!);
 
-  const notFound = !isLoading && (isError || !ticket);
+  const queryState = resolveDetailQueryErrorState({
+    missingId: !id,
+    isError,
+    error,
+    hasData: Boolean(ticket),
+  });
+
+  const isLoadError =
+    queryState === "serverError" ||
+    queryState === "unknownError" ||
+    queryState === "missingId";
+  const isNotFound =
+    !isLoading &&
+    (queryState === "notFound" ||
+      queryState === "forbidden" ||
+      (!ticket && !isError));
 
   const handleDownload = async (
     attachmentId: string,
@@ -68,10 +87,45 @@ function HelpTicketDetailPageContent() {
     }
   };
 
+  if (!isLoading && isLoadError) {
+    return (
+      <DetailPageShell
+        isLoading={false}
+        header={{
+          backHref: "/ayuda/tickets",
+          backLabel: copy.backLabel,
+          icon: <TicketPlus className="h-6 w-6" />,
+          title: copy.backLabel,
+        }}
+        alerts={
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+            title={copy.loadErrorTitle}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
+                {copy.loadErrorRetry}
+              </Button>
+            }
+          >
+            <p>{copy.loadErrorDescription}</p>
+          </DetailAlertCard>
+        }
+      />
+    );
+  }
+
   return (
     <DetailPageShell
       isLoading={isLoading}
-      notFound={notFound}
+      notFound={isNotFound}
       notFoundConfig={{
         icon: <TicketPlus className="h-10 w-10" />,
         title: copy.notFoundTitle,
@@ -92,7 +146,6 @@ function HelpTicketDetailPageContent() {
     >
       {ticket && (
         <div className="space-y-6">
-          {/* Context */}
           <section className="space-y-2">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {copy.contextSection}
@@ -126,7 +179,6 @@ function HelpTicketDetailPageContent() {
             </dl>
           </section>
 
-          {/* Messages */}
           {ticket.messages.map((msg) => (
             <section key={msg.id} className="space-y-2">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">

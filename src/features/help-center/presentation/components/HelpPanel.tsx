@@ -1,9 +1,11 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, Mail, Ticket, TicketPlus } from "lucide-react";
+import { AlertCircle, BookOpen, Mail, Search, Ticket, TicketPlus } from "lucide-react";
 import { useDebounce } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { BRAND } from "@shared/ui/brand";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { EmptyState } from "@shared/ui/feedback-states";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +29,7 @@ import { ArticleSearch } from "./ArticleSearch";
 import { CreateTicketSheet } from "./CreateTicketSheet";
 
 const copy = helpCenterCopy.panel;
+const indexCopy = helpCenterCopy.index;
 const pausedCopy = helpCenterCopy.ticketsPaused;
 
 interface HelpPanelProps {
@@ -61,9 +64,10 @@ export const HelpPanel = memo(function HelpPanel({
     trackHelpSearchPerformed(debouncedSearch, "panel", currentPath);
   }, [open, isSearching, debouncedSearch, currentPath]);
 
-  useEffect(() => {
-    if (!open) setSearch("");
-  }, [open]);
+  const handlePanelOpenChange = (next: boolean) => {
+    if (!next) setSearch("");
+    onOpenChange(next);
+  };
 
   const screenFilters = useMemo(
     () => ({ screen: currentPath }),
@@ -74,25 +78,24 @@ export const HelpPanel = memo(function HelpPanel({
     [isSearching, debouncedSearch],
   );
 
-  const { data: screenArticles, isLoading: screenLoading } = useHelpArticles(
-    screenFilters,
-    { enabled: open && !isSearching },
-  );
-  const { data: allArticles, isLoading: allLoading } = useHelpArticles(
-    {},
-    { enabled: open && !isSearching },
-  );
-  const { data: searchResults, isLoading: searchLoading } = useHelpArticles(
-    searchFilters,
-    { enabled: open && isSearching },
-  );
-  const { data: pinnedArticle, isLoading: pinnedLoading } = useHelpArticle(
-    expandArticleId ?? "",
-    { enabled: open && Boolean(expandArticleId) && !isSearching },
-  );
+  const screenQuery = useHelpArticles(screenFilters, {
+    enabled: open && !isSearching,
+  });
+  const allQuery = useHelpArticles({}, { enabled: open && !isSearching });
+  const searchQuery = useHelpArticles(searchFilters, {
+    enabled: open && isSearching,
+  });
+  const pinnedQuery = useHelpArticle(expandArticleId ?? "", {
+    enabled: open && Boolean(expandArticleId) && !isSearching,
+  });
   const { data: openTicketCount = 0 } = useOpenTicketCount({
     enabled: open && ticketsEnabled,
   });
+
+  const screenArticles = screenQuery.data;
+  const allArticles = allQuery.data;
+  const searchResults = searchQuery.data;
+  const pinnedArticle = pinnedQuery.data;
 
   const frequentArticles = useMemo(() => {
     if (!allArticles || !screenArticles) return [];
@@ -106,12 +109,33 @@ export const HelpPanel = memo(function HelpPanel({
     return screenArticles.some((a) => a.id === expandArticleId);
   }, [expandArticleId, screenArticles]);
 
-  const isLoading =
-    isSearching
-      ? searchLoading
-      : screenLoading ||
-        allLoading ||
-        (Boolean(expandArticleId) && pinnedLoading && !pinnedInScreen);
+  const isLoading = isSearching
+    ? searchQuery.isLoading
+    : screenQuery.isLoading ||
+      allQuery.isLoading ||
+      (Boolean(expandArticleId) &&
+        pinnedQuery.isLoading &&
+        !pinnedInScreen);
+
+  const showLoadError =
+    !isLoading &&
+    (isSearching
+      ? searchQuery.isError
+      : screenQuery.isError ||
+        allQuery.isError ||
+        (Boolean(expandArticleId) &&
+          pinnedQuery.isError &&
+          !pinnedInScreen));
+
+  const handleRetry = () => {
+    if (isSearching) {
+      void searchQuery.refetch();
+      return;
+    }
+    void screenQuery.refetch();
+    void allQuery.refetch();
+    if (expandArticleId) void pinnedQuery.refetch();
+  };
 
   const mailtoHref = buildSupportMailto({
     supportEmail: config.support.email,
@@ -123,7 +147,7 @@ export const HelpPanel = memo(function HelpPanel({
     release: config.observability.release,
   });
 
-  const closePanel = () => onOpenChange(false);
+  const closePanel = () => handlePanelOpenChange(false);
 
   const openTicketSheet = (article?: HelpArticle) => {
     if (!ticketsEnabled) return;
@@ -138,7 +162,7 @@ export const HelpPanel = memo(function HelpPanel({
 
   return (
     <>
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handlePanelOpenChange}>
       <SheetContent
         side="right"
         data-help-panel=""
@@ -167,7 +191,27 @@ export const HelpPanel = memo(function HelpPanel({
             </div>
           )}
 
-          {!isLoading && isSearching && (
+          {showLoadError ? (
+            <DetailAlertCard
+              severity="critical"
+              icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+              title={indexCopy.loadErrorTitle}
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                >
+                  {indexCopy.loadErrorRetry}
+                </Button>
+              }
+            >
+              <p>{indexCopy.loadErrorDescription}</p>
+            </DetailAlertCard>
+          ) : null}
+
+          {!isLoading && !showLoadError && isSearching && (
             <ArticleSection
               articles={searchResults ?? []}
               emptyMessage={copy.noResults}
@@ -177,7 +221,7 @@ export const HelpPanel = memo(function HelpPanel({
             />
           )}
 
-          {!isLoading && !isSearching && (
+          {!isLoading && !showLoadError && !isSearching && (
             <>
               {expandArticleId && pinnedArticle && !pinnedInScreen ? (
                 <section>
@@ -212,9 +256,11 @@ export const HelpPanel = memo(function HelpPanel({
                     expandArticleId={expandArticleId}
                   />
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {copy.noResults}
-                  </p>
+                  <EmptyState
+                    size="sm"
+                    icon={<BookOpen />}
+                    title={copy.noResults}
+                  />
                 )}
               </section>
             </>
@@ -346,7 +392,11 @@ function ArticleSection({
 }) {
   if (articles.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      <EmptyState
+        size="sm"
+        icon={<Search />}
+        title={emptyMessage}
+      />
     );
   }
   return (

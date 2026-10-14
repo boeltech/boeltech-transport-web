@@ -1,8 +1,8 @@
-import { Link, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Mail, TicketPlus } from "lucide-react";
 import config from "@shared/config/env";
-import { Button } from "@shared/ui/button";
 import { BRAND } from "@shared/ui/brand";
+import { EmptyState } from "@shared/ui/feedback-states";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { buildSupportMailto } from "@widgets/header/lib/buildSupportMailto";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
@@ -16,6 +16,7 @@ const panelCopy = helpCenterCopy.panel;
  */
 export function HelpTicketsPausedView() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const mailtoHref = buildSupportMailto({
@@ -29,31 +30,29 @@ export function HelpTicketsPausedView() {
   });
 
   return (
-    <div
-      className="flex flex-col items-center justify-center py-12"
-      data-testid="help-tickets-paused"
-    >
-      <div className="mb-4 text-muted-foreground/50 [&_svg]:h-16 [&_svg]:w-16">
-        <TicketPlus />
-      </div>
-      <h1 className="mb-2 text-center text-xl font-semibold">{copy.title}</h1>
-      <p className="mb-2 max-w-md text-center text-muted-foreground">
-        {copy.deepLink}
-      </p>
-      <p className="mb-6 max-w-md text-center text-sm text-muted-foreground">
-        {copy.description}
-      </p>
-      <div className="flex flex-col items-center gap-3 sm:flex-row">
-        <Button asChild>
-          <a href={mailtoHref}>
-            <Mail className="mr-2 h-4 w-4" />
-            {panelCopy.contactByEmail}
-          </a>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link to="/ayuda">{copy.backToHelp}</Link>
-        </Button>
-      </div>
+    <div data-testid="help-tickets-paused">
+      <EmptyState
+        icon={<TicketPlus />}
+        title={copy.title}
+        description={
+          <div className="mx-auto max-w-md space-y-2">
+            <p>{copy.deepLink}</p>
+            <p className="text-sm">{copy.description}</p>
+          </div>
+        }
+        cta={{
+          label: panelCopy.contactByEmail,
+          icon: <Mail className="h-4 w-4" />,
+          onClick: () => {
+            window.location.href = mailtoHref;
+          },
+        }}
+        secondaryCta={{
+          label: copy.backToHelp,
+          onClick: () => navigate("/ayuda"),
+          variant: "outline",
+        }}
+      />
     </div>
   );
 }

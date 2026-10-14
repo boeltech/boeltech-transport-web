@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { BookOpen, ChevronDown } from "lucide-react";
+import { AlertCircle, BookOpen, ChevronDown } from "lucide-react";
 import config from "@shared/config/env";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
+import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useHelpArticle } from "../../application";
 import { trackHelpEvent } from "../../application/trackHelpEvent";
@@ -32,6 +34,8 @@ export function HelpArticlePage() {
     data: article,
     isLoading,
     isError,
+    error,
+    refetch,
   } = useHelpArticle(id!, { enabled: Boolean(id) });
 
   useEffect(() => {
@@ -46,15 +50,64 @@ export function HelpArticlePage() {
     });
   }, [article?.id, location.pathname]);
 
-  const notFound = !isLoading && (isError || !article);
+  const queryState = resolveDetailQueryErrorState({
+    missingId: !id,
+    isError,
+    error,
+    hasData: Boolean(article),
+  });
+
+  const isLoadError =
+    queryState === "serverError" ||
+    queryState === "unknownError" ||
+    queryState === "missingId";
+  const isNotFound =
+    !isLoading &&
+    (queryState === "notFound" || queryState === "forbidden" || (!article && !isError));
+
   const groupLabel = article
     ? (helpCenterCopy.groups[article.group] ?? article.group)
     : "";
 
+  if (!isLoading && isLoadError) {
+    return (
+      <DetailPageShell
+        isLoading={false}
+        header={{
+          backHref: "/ayuda",
+          backLabel: copy.backLabel,
+          icon: <BookOpen className="h-6 w-6" />,
+          title: copy.backLabel,
+        }}
+        alerts={
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+            title={copy.loadErrorTitle}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
+                {copy.loadErrorRetry}
+              </Button>
+            }
+          >
+            <p>{copy.loadErrorDescription}</p>
+          </DetailAlertCard>
+        }
+      />
+    );
+  }
+
   return (
     <DetailPageShell
       isLoading={isLoading}
-      notFound={notFound}
+      notFound={isNotFound}
       notFoundConfig={{
         icon: <BookOpen className="h-10 w-10" />,
         title: copy.notFoundTitle,

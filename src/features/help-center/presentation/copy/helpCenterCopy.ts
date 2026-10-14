@@ -20,9 +20,14 @@ export const helpCenterCopy = {
     title: "Ayuda",
     description: "Guías y artículos para operar día a día",
     entityLabel: "artículos",
+    searchPlaceholder: "Buscar en ayuda…",
     emptyTitle: "Sin artículos",
     emptyDescription: "No hay artículos de ayuda disponibles.",
     searchNoResults: "No se encontraron artículos para tu búsqueda.",
+    clearSearch: "Limpiar búsqueda",
+    loadErrorTitle: "No pudimos cargar los artículos",
+    loadErrorDescription: "Revisa tu conexión y vuelve a intentarlo.",
+    loadErrorRetry: "Reintentar",
   },
   detail: {
     backLabel: "Ayuda",
@@ -34,6 +39,9 @@ export const helpCenterCopy = {
     notFoundDescription:
       "El artículo que buscas no existe o no está disponible para tu rol.",
     notFoundAction: "Volver a Ayuda",
+    loadErrorTitle: "No pudimos cargar este artículo",
+    loadErrorDescription: "Revisa tu conexión y vuelve a intentarlo.",
+    loadErrorRetry: "Reintentar",
   },
   /** PRD Ola A §F / TEC §5.5 — feedback «¿Te sirvió?» */
   feedback: {
@@ -76,8 +84,12 @@ export const helpCenterCopy = {
   tickets: {
     title: "Mis tickets",
     description: "Tickets de soporte que has enviado",
+    entityLabel: "tickets",
     emptyTitle: "Sin tickets",
     emptyDescription: "No has enviado ningún ticket aún.",
+    loadErrorTitle: "No pudimos cargar tus tickets",
+    loadErrorDescription: "Revisa tu conexión y vuelve a intentarlo.",
+    loadErrorRetry: "Reintentar",
     columns: {
       description: "Descripción",
       article: "Artículo",
@@ -110,6 +122,9 @@ export const helpCenterCopy = {
     notFoundTitle: "Ticket no encontrado",
     notFoundDescription: "El ticket no existe o no tienes acceso.",
     notFoundAction: "Volver a Mis tickets",
+    loadErrorTitle: "No pudimos cargar este ticket",
+    loadErrorDescription: "Revisa tu conexión y vuelve a intentarlo.",
+    loadErrorRetry: "Reintentar",
   },
   createTicket: {
     title: "Nuevo ticket",
