@@ -51,4 +51,42 @@ export const clientsCopy = {
     descriptionFiltered:
       "Nada coincide. Prueba otro nombre o RFC, o limpia los recortes.",
   },
+
+  card: {
+    actionsAria: "Abrir menú de acciones",
+  },
+
+  table: {
+    code: "Código",
+    legalName: "Razón social",
+    taxId: "RFC",
+    type: "Tipo",
+    payment: "Pago",
+    contact: "Contacto",
+    status: "Estado",
+  },
+
+  /** Copy del form largo de edición (D8/D9). */
+  form: {
+    action: {
+      cancel: "Cancelar",
+      save: "Guardar Cambios",
+      saving: "Guardando...",
+    },
+    edit: {
+      sidebar: {
+        title: "Secciones",
+        errorsTitle: (count: number, label: string) =>
+          `${count} error${count === 1 ? "" : "es"} en ${label}`,
+        errorsAria: (count: number) => `${count} errores`,
+      },
+    },
+    section: {
+      type: { nav: "Tipo" },
+      fiscal: { nav: "Fiscal" },
+      dispatch: { nav: "Envío" },
+      commercial: { nav: "Comercial" },
+      notes: { nav: "Notas" },
+    },
+  },
 } as const;

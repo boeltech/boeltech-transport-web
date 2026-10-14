@@ -1,6 +1,7 @@
 import {
   startTransition,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -12,8 +13,10 @@ import {
   type WizardFormRef,
 } from "@shared/ui/page-shells/WizardPageShell";
 import { AlertWithIcon } from "@shared/ui/alert";
+import { UnsavedChangesDialog } from "@shared/ui/form";
 import { cn } from "@shared/lib/utils/cn";
 import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
+import { useUnsavedChangesGuard } from "@shared/hooks";
 import {
   getErrorMessage,
   isApiError,
@@ -103,6 +106,11 @@ export function ClientCreatePage() {
   const visitedStepsRef = useRef<Set<number>>(new Set([0]));
   /** Cierra la ventana entre validación del shell y `isPending` de la mutación. */
   const [isCreateBusy, setIsCreateBusy] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const [clientData, setClientData] = useState<ClientFormData | null>(null);
   const [addressData, setAddressData] = useState<ClientAddressFormData | null>(
@@ -285,6 +293,7 @@ export function ClientCreatePage() {
     setPageApiAlertMessages([]);
     clientFormRef.current?.clearApiErrors();
     addressFormRef.current?.clearApiFieldErrors();
+    allowLeave();
 
     createClientMutation.mutate(
       {
@@ -317,12 +326,25 @@ export function ClientCreatePage() {
       },
     );
   }, [
+    allowLeave,
     clientData,
     addressData,
     createClientMutation,
     navigate,
     applyCreateApiError,
   ]);
+
+  useEffect(() => {
+    const pending = createClientMutation.isPending || isCreateBusy;
+    if (pending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [createClientMutation.isPending, isCreateBusy, resetAllowLeave]);
 
   const validateWizardStep = useCallback(
     async (stepIndex: number): Promise<boolean> => {
@@ -403,6 +425,7 @@ export function ClientCreatePage() {
               ref={clientFormRef}
               defaultValues={clientData ?? undefined}
               onChange={handleClientChange}
+              onDirtyChange={setIsDirty}
               disabled={isSubmitting}
             />
           </div>
@@ -496,18 +519,21 @@ export function ClientCreatePage() {
   );
 
   return (
-    <WizardPageShell
-      steps={WIZARD_STEPS}
-      formRef={formRef}
-      header={shellHeader}
-      renderStep={renderStep}
-      isSubmitting={isSubmitting}
-      submitLabel="Crear Cliente"
-      submittingLabel="Creando..."
-      stepsAriaLabel="Pasos para dar de alta un cliente"
-      headerBackMode="wizard"
-      onCancel={handleCancel}
-    />
+    <>
+      <WizardPageShell
+        steps={WIZARD_STEPS}
+        formRef={formRef}
+        header={shellHeader}
+        renderStep={renderStep}
+        isSubmitting={isSubmitting}
+        submitLabel="Crear Cliente"
+        submittingLabel="Creando..."
+        stepsAriaLabel="Pasos para dar de alta un cliente"
+        headerBackMode="wizard"
+        onCancel={handleCancel}
+      />
+      <UnsavedChangesDialog blocker={blocker} />
+    </>
   );
 }
 

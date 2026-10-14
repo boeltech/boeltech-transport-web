@@ -202,7 +202,7 @@ export function ClientDetailPage() {
   const billingScheme = useMemo(() => {
     if (!client?.billingSchemeId) return null;
     return billingSchemes.find((s) => s.id === client.billingSchemeId) ?? null;
-  }, [billingSchemes, client?.billingSchemeId]);
+  }, [billingSchemes, client]);
   const billingSchemeLabel = billingScheme?.name ?? null;
   const billingSchemeCadence = billingScheme
     ? formatBillingSchemeCadenceSummary(billingScheme)
@@ -230,11 +230,38 @@ export function ClientDetailPage() {
     return buildClientStats(summaryQuery.data, summaryQuery.isLoading);
   }, [client, summaryQuery.data, summaryQuery.isLoading]);
 
+  const collectHref = useMemo(() => {
+    if (!client) return undefined;
+    const rfcValue = (client.taxId ?? "").trim().toUpperCase();
+    return canCollect && rfcValue
+      ? `/finance/cobros?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfcValue)}`
+      : undefined;
+  }, [client, canCollect]);
+
   const clientAlerts = useMemo(() => {
     if (!client) return undefined;
 
     const cards: ReactElement[] = [];
     const creditSummary = creditSummaryQuery.data;
+    const goToEdit = () =>
+      navigate(`/clients/${client.id}/edit`, { state: fromState });
+    const editAction = canUpdate ? (
+      <Button type="button" size="sm" variant="outline" onClick={goToEdit}>
+        {copy.actions.edit}
+      </Button>
+    ) : null;
+    const creditRiskAction = collectHref ? (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => navigate(collectHref)}
+      >
+        {creditExposureCopy.collectCta}
+      </Button>
+    ) : (
+      editAction
+    );
 
     const addressesReady =
       addressQuery.isSuccess && addressQuery.data !== undefined;
@@ -253,9 +280,8 @@ export function ClientDetailPage() {
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
           title={copy.alerts.missingBillingCp.title}
-        >
-          <p>{copy.alerts.missingBillingCp.text}</p>
-          <div className="mt-2">
+          items={[{ text: copy.alerts.missingBillingCp.text }]}
+          action={
             <Button
               type="button"
               size="sm"
@@ -264,8 +290,8 @@ export function ClientDetailPage() {
             >
               {copy.alerts.missingBillingCp.goToAddresses}
             </Button>
-          </div>
-        </DetailAlertCard>,
+          }
+        />,
       );
     }
 
@@ -276,9 +302,8 @@ export function ClientDetailPage() {
           severity="warning"
           icon={<AlertTriangle className="h-5 w-5" />}
           title={copy.alerts.noTripPlaces.title}
-        >
-          <p>{copy.alerts.noTripPlaces.text}</p>
-          <div className="mt-2">
+          items={[{ text: copy.alerts.noTripPlaces.text }]}
+          action={
             <Button
               type="button"
               size="sm"
@@ -287,8 +312,8 @@ export function ClientDetailPage() {
             >
               {copy.alerts.noTripPlaces.goToAddresses}
             </Button>
-          </div>
-        </DetailAlertCard>,
+          }
+        />,
       );
     }
 
@@ -300,28 +325,27 @@ export function ClientDetailPage() {
           severity="critical"
           icon={<AlertTriangle className="h-5 w-5" />}
           title={genericCopy.wrongRegimeTitle(genericMismatch.kind)}
-        >
-          <p>
-            {genericCopy.wrongRegimeText(
-              genericMismatch.currentTaxRegime,
-              taxRegimeCatalogLabel(GENERIC_RECEIVER_TAX_REGIME),
-            )}
-          </p>
-          {canUpdate ? (
-            <div className="mt-2">
+          items={[
+            {
+              text: genericCopy.wrongRegimeText(
+                genericMismatch.currentTaxRegime,
+                taxRegimeCatalogLabel(GENERIC_RECEIVER_TAX_REGIME),
+              ),
+            },
+          ]}
+          action={
+            canUpdate ? (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  navigate(`/clients/${client.id}/edit`, { state: fromState })
-                }
+                onClick={goToEdit}
               >
                 {genericCopy.wrongRegimeCta}
               </Button>
-            </div>
-          ) : null}
-        </DetailAlertCard>,
+            ) : null
+          }
+        />,
       );
     }
 
@@ -336,6 +360,7 @@ export function ClientDetailPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           title={copy.alerts.rfcSuspicious.title}
           items={[{ text: copy.alerts.rfcSuspicious.text }]}
+          action={editAction}
         />,
       );
     }
@@ -348,6 +373,7 @@ export function ClientDetailPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           title={copy.alerts.creditNoLimit.title}
           items={[{ text: copy.alerts.creditNoLimit.text }]}
+          action={editAction}
         />,
       );
     } else if (creditSummary?.status === "warn") {
@@ -358,6 +384,7 @@ export function ClientDetailPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           title={creditExposureCopy.alerts.warnTitle}
           items={[{ text: creditExposureCopy.alerts.warnBody }]}
+          action={creditRiskAction}
         />,
       );
     } else if (creditSummary?.status === "exceeded") {
@@ -368,6 +395,7 @@ export function ClientDetailPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           title={creditExposureCopy.alerts.exceededTitle}
           items={[{ text: creditExposureCopy.alerts.exceededBody }]}
+          action={creditRiskAction}
         />,
       );
     }
@@ -384,6 +412,7 @@ export function ClientDetailPage() {
     navigate,
     fromState,
     taxRegimeCatalogLabel,
+    collectHref,
   ]);
 
   if (isLoading) {
@@ -428,10 +457,6 @@ export function ClientDetailPage() {
   const PaymentIcon = paymentConfig.icon;
   const rfc = (client.taxId ?? "").trim().toUpperCase();
   const isComercialOnly = client.cfdiReceptorProfile === "comercial_only";
-  const collectHref =
-    canCollect && rfc
-      ? `/finance/cobros?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfc)}`
-      : undefined;
 
   return (
     <DetailPageShell

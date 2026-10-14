@@ -16,7 +16,15 @@ import {
   type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FieldInlineError, MoneyInput, getFieldErrorAriaProps } from "@shared/ui/form";
+import {
+  FieldInlineError,
+  FormStickyActions,
+  FormValidationSummary,
+  LongFormEditLayout,
+  LongFormSectionNav,
+  MoneyInput,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area";
@@ -44,6 +52,7 @@ import {
   Landmark,
   Loader2,
   Mail,
+  Save,
 } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { useToast } from "@shared/hooks";
@@ -62,7 +71,6 @@ import { useReceiverFiscalCatalogLabels } from "@features/catalogs/application";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
 import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
-import { FormValidationSummary } from "@shared/ui/form";
 import { Switch } from "@shared/ui/switch";
 
 import {
@@ -81,11 +89,18 @@ import { resolveClientCreateApiField, resolveClientEditApiField } from "../helpe
 import { clientDetailCopy } from "../copy/clientDetailCopy";
 import { cfdiReceptorProfileCopy } from "../copy/cfdiReceptorProfileCopy";
 import { clientGenericRfcCopy } from "../copy/clientGenericRfcCopy";
+import { clientsCopy } from "../copy/clientsCopy";
+import {
+  CLIENT_EDIT_SECTION_IDS,
+  countClientEditSectionErrors,
+  getClientEditSections,
+} from "./clientEditSections";
 
 const genericCopy = clientGenericRfcCopy.form;
 const idCopy = clientDetailCopy.identification;
 const dispatchCopy = clientDetailCopy.invoiceDispatch;
 const profileCopy = cfdiReceptorProfileCopy;
+const formCopy = clientsCopy.form;
 
 const COMPLIANCE_SESSION_KEY = "adr0096.compliance.dismissed";
 
@@ -113,6 +128,8 @@ export interface ClientFormProps {
   mode?: "create" | "edit";
   disabled?: boolean;
   className?: string;
+  /** Notifica dirty a la página para `useUnsavedChangesGuard` (D9). */
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 /** Firma rápida (evita `JSON.stringify` en cada tecla al notificar al padre). */
@@ -167,7 +184,8 @@ function clientFormOuterPropsAreEqual(
     prev.isSubmitting === next.isSubmitting &&
     prev.mode === next.mode &&
     prev.client?.id === next.client?.id &&
-    prev.className === next.className
+    prev.className === next.className &&
+    prev.onDirtyChange === next.onDirtyChange
   );
 }
 
@@ -183,14 +201,19 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       mode = "create",
       disabled = false,
       className,
+      onDirtyChange,
     },
     ref,
   ) {
   const { toast } = useToast();
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [apiAlertMessages, setApiAlertMessages] = useState<string[]>([]);
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    CLIENT_EDIT_SECTION_IDS.type,
+  );
   /** Wizard (onChange sin footer): validación solo inline/summary, sin toast. */
   const isWizardMode = Boolean(onChange) && !onSubmit;
+  const isEditMode = mode === "edit";
 
   /**
    * En edición el contenedor monta el formulario solo cuando `client` existe.
@@ -343,6 +366,35 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
   }, [onChange]);
   const lastParentNotifyKey = useRef("");
 
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  const showDispatchSection = isEditMode && !isComercialOnly;
+  const editSections = useMemo(
+    () => getClientEditSections(showDispatchSection),
+    [showDispatchSection],
+  );
+  const errorCountBySection = useMemo(
+    () => countClientEditSectionErrors(errors, showDispatchSection),
+    [errors, showDispatchSection],
+  );
+
+  const handleEditSectionSelect = useCallback((sectionId: string) => {
+    setActiveSectionId(sectionId);
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const editSectionAnchor = useCallback(
+    (sectionId: string) =>
+      isEditMode
+        ? { id: sectionId, className: "scroll-mt-28" as const }
+        : {},
+    [isEditMode],
+  );
+
   const validationMessages = collectFieldErrorMessages(errors);
   const shouldShowValidationSummary = showValidationSummary && !isValid;
 
@@ -421,25 +473,9 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
     onChangeRef.current?.(formValues, isValid);
   }, [formValues, isValid, onChange]);
 
-  return (
-    <form
-      onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)}
-      className={cn("space-y-6", className)}
-    >
-      {apiAlertMessages.length > 0 ? (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No se pudo guardar el cliente</AlertTitle>
-          <AlertDescription>
-            <ul className="mt-1 list-disc space-y-1 pl-4">
-              {apiAlertMessages.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
+  const sectionPanels = (
+    <>
+      <div {...editSectionAnchor(CLIENT_EDIT_SECTION_IDS.type)}>
       <FormSectionCard
         title="Tipo de Cliente"
         icon={<Building2 className="h-4 w-4" />}
@@ -484,7 +520,9 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <FieldInlineError fieldId="type" message={errors.type?.message} />
         </div>
       </FormSectionCard>
+      </div>
 
+      <div {...editSectionAnchor(CLIENT_EDIT_SECTION_IDS.fiscal)}>
       <FormSectionCard
         title="Información Fiscal"
         icon={<Landmark className="h-4 w-4" />}
@@ -719,8 +757,10 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           </div>
         ) : null}
       </FormSectionCard>
+      </div>
 
-      {mode === "edit" && !isComercialOnly ? (
+      {showDispatchSection ? (
+        <div {...editSectionAnchor(CLIENT_EDIT_SECTION_IDS.dispatch)}>
         <FormSectionCard
           title={dispatchCopy.title}
           description={dispatchCopy.description}
@@ -778,6 +818,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
             ) : null}
           </div>
         </FormSectionCard>
+        </div>
       ) : null}
       {mode !== "edit" ? (
       <FormSectionCard
@@ -872,6 +913,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       </FormSectionCard>
       ) : null}
 
+      <div {...editSectionAnchor(CLIENT_EDIT_SECTION_IDS.commercial)}>
       <FormSectionCard
         title="Términos Comerciales"
         icon={<CreditCard className="h-4 w-4" />}
@@ -969,7 +1011,9 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <p className="text-xs text-muted-foreground">Dejar vacío para sin límite</p>
         </div>
       </FormSectionCard>
+      </div>
 
+      <div {...editSectionAnchor(CLIENT_EDIT_SECTION_IDS.notes)}>
       <FormSectionCard title="Notas" icon={<FileText className="h-4 w-4" />}>
         <div className="space-y-2">
           <Label htmlFor="notes">Notas Adicionales</Label>
@@ -984,6 +1028,48 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <FieldInlineError fieldId="notes" message={errors.notes?.message} />
         </div>
       </FormSectionCard>
+      </div>
+    </>
+  );
+
+  return (
+    <form
+      onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)}
+      className={cn("space-y-6", className)}
+    >
+      {apiAlertMessages.length > 0 ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No se pudo guardar el cliente</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {apiAlertMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {isEditMode ? (
+        <LongFormEditLayout
+          nav={
+            <LongFormSectionNav
+              sections={editSections}
+              activeSectionId={activeSectionId}
+              errorCountBySection={errorCountBySection}
+              onSelectSection={handleEditSectionSelect}
+              title={formCopy.edit.sidebar.title}
+              errorsTitle={formCopy.edit.sidebar.errorsTitle}
+              errorsAria={formCopy.edit.sidebar.errorsAria}
+            />
+          }
+        >
+          {sectionPanels}
+        </LongFormEditLayout>
+      ) : (
+        sectionPanels
+      )}
 
       {shouldShowValidationSummary ? (
         <FormValidationSummary
@@ -995,29 +1081,32 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       ) : null}
 
       {showFormActions ? (
-        <div className="flex items-center justify-end gap-4 border-t pt-4">
+        <FormStickyActions sticky={isEditMode}>
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting || disabled}
           >
-            Cancelar
+            {formCopy.action.cancel}
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting || disabled || (!isDirty && mode === "edit")}
+            disabled={isSubmitting || disabled || (isEditMode && !isDirty)}
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Guardando...
+                {formCopy.action.saving}
               </>
             ) : (
-              "Guardar Cambios"
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                {formCopy.action.save}
+              </>
             )}
           </Button>
-        </div>
+        </FormStickyActions>
       ) : null}
     </form>
   );

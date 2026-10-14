@@ -71,7 +71,7 @@ function ClientAddressReviewBlock({ data }: { data: ClientAddressFormData }) {
           <TypeIcon className={cn("h-5 w-5", typeConfig.color)} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium text-muted-foreground">
             Dirección fiscal
           </p>
           <h3 className="font-semibold text-foreground truncate">
@@ -196,7 +196,7 @@ export function ClientCreateReviewSummary({
           <Icon className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium text-muted-foreground">
             Cliente
           </p>
           <p className="font-semibold text-foreground">{clientData.legalName}</p>

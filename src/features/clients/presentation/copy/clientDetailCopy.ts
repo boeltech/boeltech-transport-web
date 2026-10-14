@@ -248,8 +248,20 @@ export const clientDetailCopy = {
   actions: {
     edit: "Editar",
     editTitle: "Editar datos generales del cliente",
+    activate: "Activar",
+    deactivate: "Desactivar",
+    delete: "Eliminar",
+    cancel: "Cancelar",
+    activateTitle: "¿Activar cliente?",
+    activateDescription: (name: string) =>
+      `El cliente ${name} volverá a estar disponible para nuevos viajes y operaciones.`,
+    deactivateTitle: "¿Desactivar cliente?",
+    deactivateDescription: (name: string) =>
+      `El cliente ${name} seguirá en el catálogo, pero quedará inactivo (no podrá asignarse a nuevos viajes). Podrás reactivarlo cuando quieras. No elimina el registro del sistema.`,
     deleteTitle: "¿Eliminar cliente?",
     deleteDescription: (name: string) =>
       `Se dará de baja a ${name}. Dejará de mostrarse en el listado y no podrás seguir operando su ficha como hasta ahora.`,
+    lifecycleErrorTitle: "No se pudo completar",
+    deleteErrorTitle: "No se pudo eliminar",
   },
 } as const;

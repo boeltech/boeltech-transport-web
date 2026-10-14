@@ -11,13 +11,14 @@
  * Ubicación: src/features/clients/presentation/pages/ClientEditPage.tsx
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { AlertCircle, Building2 } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
-import { useToast } from "@shared/hooks";
+import { UnsavedChangesDialog } from "@shared/ui/form";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import {
   getErrorMessage,
   isApiError,
@@ -38,6 +39,11 @@ export function ClientEditPage() {
   const { toast } = useToast();
   const formRef = useRef<ClientFormRef>(null);
   const clientId = id ?? "";
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const { data: client, isLoading, isError } = useClient(clientId || undefined);
 
@@ -79,18 +85,30 @@ export function ClientEditPage() {
     },
   });
 
+  useEffect(() => {
+    if (updateMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [updateMutation.isPending, resetAllowLeave]);
+
   const clientUnavailable = !client;
 
   const handleSubmit = useCallback(
     (data: ClientFormData) => {
       if (!clientId || clientUnavailable) return;
       formRef.current?.clearApiErrors();
+      allowLeave();
       updateMutation.mutate({
         clientId,
         data: clientFormDataToUpdateDto(data),
       });
     },
-    [clientId, clientUnavailable, updateMutation],
+    [allowLeave, clientId, clientUnavailable, updateMutation],
   );
 
   const handleCancel = useCallback(() => {
@@ -125,10 +143,12 @@ export function ClientEditPage() {
           client={client}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          onDirtyChange={setIsDirty}
           isSubmitting={updateMutation.isPending}
           disabled={updateMutation.isPending}
         />
       ) : null}
+      <UnsavedChangesDialog blocker={blocker} />
     </FormPageShell>
   );
 }

@@ -38,4 +38,18 @@ describe("clientsCopy", () => {
     expect(clientsCopy.empty.descriptionReadonly).not.toMatch(/primer cliente/i);
     expect(clientsCopy.empty.descriptionReadonly).not.toMatch(/agrega/i);
   });
+
+  it("F3 D14: headers de tabla viven en clientsCopy.table (sentence case)", () => {
+    expect(clientsCopy.table).toEqual({
+      code: "Código",
+      legalName: "Razón social",
+      taxId: "RFC",
+      type: "Tipo",
+      payment: "Pago",
+      contact: "Contacto",
+      status: "Estado",
+    });
+    expect(clientsCopy.table.legalName).not.toBe("Razón Social");
+  });
 });
+

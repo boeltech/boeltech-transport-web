@@ -71,17 +71,21 @@ export function useUpdateClient(
 }
 
 /**
- * Hook mutation para activar un cliente
+ * Hook mutation para activar un cliente.
+ * Toast de éxito por defecto; si se pasa `onError`, el caller muestra el error
+ * (p. ej. Alert inline en Dialog — D11).
  */
-export function useActivateClient() {
+export function useActivateClient(
+  options?: Omit<UseMutationOptions<Client, Error, string>, "mutationFn">,
+) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<Client, Error, string>({
-    mutationFn: (clientId) =>
+  return useMutation({
+    mutationFn: (clientId: string) =>
       clientRepository.update(clientId, { isActive: true }),
 
-    onSuccess: (client) => {
+    onSuccess: (client, variables, onMutateResult, context) => {
       queryClient.setQueryData(clientQueryKeys.detail(client.id), client);
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.active() });
@@ -90,30 +94,40 @@ export function useActivateClient() {
         title: "Cliente activado",
         description: "El cliente ha sido activado exitosamente.",
       });
+      options?.onSuccess?.(client, variables, onMutateResult, context);
     },
 
-    onError: (error) => {
+    onError: (error, variables, onMutateResult, context) => {
+      if (options?.onError) {
+        options.onError(error, variables, onMutateResult, context);
+        return;
+      }
       toast({
         title: "Error al activar",
         description: error.message || "Ocurrió un error al activar el cliente.",
         variant: "destructive",
       });
     },
+    onSettled: options?.onSettled,
   });
 }
 
 /**
- * Hook mutation para desactivar un cliente
+ * Hook mutation para desactivar un cliente.
+ * Toast de éxito por defecto; si se pasa `onError`, el caller muestra el error
+ * (p. ej. Alert inline en Dialog — D11).
  */
-export function useDeactivateClient() {
+export function useDeactivateClient(
+  options?: Omit<UseMutationOptions<Client, Error, string>, "mutationFn">,
+) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<Client, Error, string>({
-    mutationFn: (clientId) =>
+  return useMutation({
+    mutationFn: (clientId: string) =>
       clientRepository.update(clientId, { isActive: false }),
 
-    onSuccess: (client) => {
+    onSuccess: (client, variables, onMutateResult, context) => {
       queryClient.setQueryData(clientQueryKeys.detail(client.id), client);
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.active() });
@@ -122,9 +136,14 @@ export function useDeactivateClient() {
         title: "Cliente desactivado",
         description: "El cliente ha sido desactivado exitosamente.",
       });
+      options?.onSuccess?.(client, variables, onMutateResult, context);
     },
 
-    onError: (error) => {
+    onError: (error, variables, onMutateResult, context) => {
+      if (options?.onError) {
+        options.onError(error, variables, onMutateResult, context);
+        return;
+      }
       toast({
         title: "Error al desactivar",
         description:
@@ -132,6 +151,7 @@ export function useDeactivateClient() {
         variant: "destructive",
       });
     },
+    onSettled: options?.onSettled,
   });
 }
 

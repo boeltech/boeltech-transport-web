@@ -3,20 +3,23 @@
  * Clean Architecture - Application Layer
  *
  * Hook mutation para eliminar un cliente (soft delete).
+ * Toast de éxito por defecto; si se pasa `onError`, el caller muestra el error
+ * (p. ej. Alert inline en Dialog — D11).
  *
  * @example
- * const { mutate, isPending } = useDeleteClient();
- *
- * const handleDelete = () => {
- *   mutate(clientId, {
- *     onSuccess: () => navigate("/clients"),
- *   });
- * };
+ * const { mutate, isPending } = useDeleteClient({
+ *   onSuccess: () => navigate("/clients"),
+ *   onError: (error) => setDeleteError(error.message),
+ * });
  *
  * Ubicación: src/features/clients/application/hooks/useDeleteClient.ts
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  type UseMutationOptions,
+} from "@tanstack/react-query";
 import { useToast } from "@shared/hooks";
 import { clientRepository } from "../../infrastructure";
 import {
@@ -32,14 +35,16 @@ import {
 /**
  * Hook mutation para eliminar un cliente
  */
-export function useDeleteClient() {
+export function useDeleteClient(
+  options?: Omit<UseMutationOptions<void, Error, string>, "mutationFn">,
+) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  return useMutation<void, Error, string>({
-    mutationFn: (clientId) => clientRepository.delete(clientId),
+  return useMutation({
+    mutationFn: (clientId: string) => clientRepository.delete(clientId),
 
-    onSuccess: (_, clientId) => {
+    onSuccess: (_, clientId, onMutateResult, context) => {
       queryClient.removeQueries({ queryKey: clientQueryKeys.detail(clientId) });
 
       // Quitar el cliente de los listados en caché sin refetch inmediato: un
@@ -68,14 +73,18 @@ export function useDeleteClient() {
 
       queryClient.invalidateQueries({ queryKey: clientQueryKeys.active() });
 
-      // Notificar éxito
       toast({
         title: "Cliente eliminado",
         description: "El cliente ha sido eliminado exitosamente.",
       });
+      options?.onSuccess?.(_, clientId, onMutateResult, context);
     },
 
-    onError: (error) => {
+    onError: (error, variables, onMutateResult, context) => {
+      if (options?.onError) {
+        options.onError(error, variables, onMutateResult, context);
+        return;
+      }
       toast({
         title: "Error al eliminar",
         description:
@@ -83,6 +92,7 @@ export function useDeleteClient() {
         variant: "destructive",
       });
     },
+    onSettled: options?.onSettled,
   });
 }
 

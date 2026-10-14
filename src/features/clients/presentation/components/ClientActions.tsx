@@ -3,7 +3,9 @@
  * Clean Architecture - Presentation Layer
  *
  * Menú de acciones para cliente: editar, activar/desactivar, eliminar.
- * Soporta dos variantes: dropdown (tabla) y buttons (detalle).
+ * - dropdown (lista): ver / editar / eliminar — sin Activar/Desactivar (D1).
+ * - buttons (detalle): Editar primaria; Activar/Desactivar outline; Eliminar outline (D7).
+ * Errores de lifecycle/delete: Alert inline en Dialog (D11).
  *
  * Ubicación: src/features/clients/presentation/components/ClientActions.tsx
  */
@@ -20,15 +22,14 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@shared/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@shared/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   MoreHorizontal,
   Eye,
@@ -36,8 +37,9 @@ import {
   Power,
   PowerOff,
   Trash2,
+  Loader2,
 } from "lucide-react";
-// import { usePermissions } from "@shared/hooks/use-permissions";
+import { cn } from "@shared/lib/utils/cn";
 import { usePermissions } from "@shared/permissions";
 
 import type { ClientListItem } from "../../domain";
@@ -47,6 +49,8 @@ import {
   useDeleteClient,
 } from "../../application";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
+
+const actionsCopy = clientDetailCopy.actions;
 
 // ============================================================================
 // TYPES
@@ -61,6 +65,10 @@ export interface ClientActionsProps {
    * Si se pasa, se usa este callback en lugar de navegar a `/clients/:id/edit`.
    */
   onEdit?: () => void;
+  /** Clase del trigger ⋯ (p. ej. entityListCardMenuTriggerClassName en cards). */
+  menuTriggerClassName?: string;
+  /** aria-label del trigger ⋯. */
+  menuAriaLabel?: string;
 }
 
 // ============================================================================
@@ -72,25 +80,55 @@ export function ClientActions({
   variant = "dropdown",
   showView = false,
   onEdit,
+  menuTriggerClassName,
+  menuAriaLabel = "Abrir menú",
 }: ClientActionsProps) {
   const navigate = useNavigate();
   const fromState = useMasterActionFrom("/clients");
   const { hasPermission } = usePermissions();
 
-  // Mutations
-  const activateMutation = useActivateClient();
-  const deactivateMutation = useDeactivateClient();
-  const deleteMutation = useDeleteClient();
-
-  // Dialogs state
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Permissions
+  const activateMutation = useActivateClient({
+    onSuccess: () => {
+      setLifecycleError(null);
+      setShowActivateDialog(false);
+    },
+    onError: (error) => {
+      setLifecycleError(error.message);
+    },
+  });
+
+  const deactivateMutation = useDeactivateClient({
+    onSuccess: () => {
+      setLifecycleError(null);
+      setShowDeactivateDialog(false);
+    },
+    onError: (error) => {
+      setLifecycleError(error.message);
+    },
+  });
+
+  const deleteMutation = useDeleteClient({
+    onSuccess: () => {
+      setDeleteError(null);
+      setShowDeleteDialog(false);
+      if (variant === "buttons") {
+        navigate(fromState?.from ?? "/clients", { replace: true });
+      }
+    },
+    onError: (error) => {
+      setDeleteError(error.message);
+    },
+  });
+
   const canEdit = hasPermission("clients", "update");
   const canDelete = hasPermission("clients", "delete");
 
-  // Handlers
   const handleView = () => {
     navigate(`/clients/${client.id}`, { state: fromState });
   };
@@ -103,25 +141,55 @@ export function ClientActions({
     navigate(`/clients/${client.id}/edit`, { state: fromState });
   };
 
+  const openActivateDialog = () => {
+    setLifecycleError(null);
+    setShowActivateDialog(true);
+  };
+
+  const openDeactivateDialog = () => {
+    setLifecycleError(null);
+    setShowDeactivateDialog(true);
+  };
+
+  const openDeleteDialog = () => {
+    setDeleteError(null);
+    setShowDeleteDialog(true);
+  };
+
+  const closeActivateDialog = () => {
+    if (activateMutation.isPending) return;
+    setLifecycleError(null);
+    setShowActivateDialog(false);
+  };
+
+  const closeDeactivateDialog = () => {
+    if (deactivateMutation.isPending) return;
+    setLifecycleError(null);
+    setShowDeactivateDialog(false);
+  };
+
+  const closeDeleteDialog = () => {
+    if (deleteMutation.isPending) return;
+    setDeleteError(null);
+    setShowDeleteDialog(false);
+  };
+
   const handleActivate = () => {
+    if (activateMutation.isPending) return;
+    setLifecycleError(null);
     activateMutation.mutate(client.id);
   };
 
   const handleDeactivate = () => {
+    if (deactivateMutation.isPending) return;
+    setLifecycleError(null);
     deactivateMutation.mutate(client.id);
-    setShowDeactivateDialog(false);
   };
 
   const handleDelete = () => {
-    deleteMutation.mutate(client.id, {
-      onSuccess: () => {
-        setShowDeleteDialog(false);
-        // Si estamos en el detalle, navegar a la lista
-        if (variant === "buttons") {
-          navigate(fromState?.from ?? "/clients", { replace: true });
-        }
-      },
-    });
+    if (deleteMutation.isPending) return;
+    setDeleteError(null);
+    deleteMutation.mutate(client.id);
   };
 
   const isLoading =
@@ -129,8 +197,144 @@ export function ClientActions({
     deactivateMutation.isPending ||
     deleteMutation.isPending;
 
+  const lifecycleDialogs = (
+    <>
+      <Dialog
+        open={showActivateDialog}
+        onOpenChange={(open) => {
+          if (!open) closeActivateDialog();
+          else openActivateDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{actionsCopy.activateTitle}</DialogTitle>
+            <DialogDescription>
+              {actionsCopy.activateDescription(client.legalName)}
+            </DialogDescription>
+          </DialogHeader>
+          {lifecycleError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{actionsCopy.lifecycleErrorTitle}</AlertTitle>
+              <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                {lifecycleError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeActivateDialog}
+              disabled={activateMutation.isPending}
+            >
+              {actionsCopy.cancel}
+            </Button>
+            <Button
+              onClick={handleActivate}
+              disabled={activateMutation.isPending}
+            >
+              {activateMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {actionsCopy.activate}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showDeactivateDialog}
+        onOpenChange={(open) => {
+          if (!open) closeDeactivateDialog();
+          else openDeactivateDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{actionsCopy.deactivateTitle}</DialogTitle>
+            <DialogDescription>
+              {actionsCopy.deactivateDescription(client.legalName)}
+            </DialogDescription>
+          </DialogHeader>
+          {lifecycleError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{actionsCopy.lifecycleErrorTitle}</AlertTitle>
+              <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                {lifecycleError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeDeactivateDialog}
+              disabled={deactivateMutation.isPending}
+            >
+              {actionsCopy.cancel}
+            </Button>
+            <Button
+              onClick={handleDeactivate}
+              disabled={deactivateMutation.isPending}
+            >
+              {deactivateMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {actionsCopy.deactivate}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
+  const deleteDialog = (
+    <Dialog
+      open={showDeleteDialog}
+      onOpenChange={(open) => {
+        if (!open) closeDeleteDialog();
+        else openDeleteDialog();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{actionsCopy.deleteTitle}</DialogTitle>
+          <DialogDescription>
+            {actionsCopy.deleteDescription(client.legalName)}
+          </DialogDescription>
+        </DialogHeader>
+        {deleteError ? (
+          <Alert variant="destructive">
+            <AlertTitle>{actionsCopy.deleteErrorTitle}</AlertTitle>
+            <AlertDescription className="select-text whitespace-pre-wrap break-words">
+              {deleteError}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={closeDeleteDialog}
+            disabled={deleteMutation.isPending}
+          >
+            {actionsCopy.cancel}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            {actionsCopy.delete}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Dropdown variant (para tabla)
+  // RENDER: Dropdown variant (lista) — sin Activar/Desactivar (D1)
   // ══════════════════════════════════════════════════════════════════════════
   if (variant === "dropdown") {
     return (
@@ -140,11 +344,11 @@ export function ClientActions({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className={cn("h-8 w-8", menuTriggerClassName)}
               disabled={isLoading}
             >
               <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Abrir menú</span>
+              <span className="sr-only">{menuAriaLabel}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -153,72 +357,38 @@ export function ClientActions({
               Ver detalle
             </DropdownMenuItem>
 
-            {canEdit && (
+            {canEdit ? (
               <DropdownMenuItem
                 onClick={handleEdit}
-                title={clientDetailCopy.actions.editTitle}
+                title={actionsCopy.editTitle}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                {clientDetailCopy.actions.edit}
+                {actionsCopy.edit}
               </DropdownMenuItem>
-            )}
+            ) : null}
 
-            {canEdit && (
-              <>
-                <DropdownMenuSeparator />
-                {client.isActive ? (
-                  <DropdownMenuItem
-                    onClick={() => setShowDeactivateDialog(true)}
-                  >
-                    <PowerOff className="mr-2 h-4 w-4" />
-                    Desactivar
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={handleActivate}>
-                    <Power className="mr-2 h-4 w-4" />
-                    Activar
-                  </DropdownMenuItem>
-                )}
-              </>
-            )}
-
-            {canDelete && (
+            {canDelete ? (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => setShowDeleteDialog(true)}
+                  onClick={openDeleteDialog}
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar
+                  {actionsCopy.delete}
                 </DropdownMenuItem>
               </>
-            )}
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Dialogs */}
-        <DeactivateDialog
-          open={showDeactivateDialog}
-          onOpenChange={setShowDeactivateDialog}
-          onConfirm={handleDeactivate}
-          clientName={client.legalName}
-          isLoading={deactivateMutation.isPending}
-        />
-
-        <DeleteDialog
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
-          onConfirm={handleDelete}
-          clientName={client.legalName}
-          isLoading={deleteMutation.isPending}
-        />
+        {deleteDialog}
       </>
     );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Buttons variant (para detalle — alineado con DriverActions / Employee)
+  // RENDER: Buttons variant (detalle — D7)
   // ══════════════════════════════════════════════════════════════════════════
   if (!canEdit && !canDelete && !showView) {
     return null;
@@ -227,162 +397,67 @@ export function ClientActions({
   return (
     <>
       <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
-        {showView && (
+        {showView ? (
           <Button variant="outline" size="sm" onClick={handleView}>
             <Eye className="mr-2 h-4 w-4" />
             Ver
           </Button>
-        )}
+        ) : null}
 
-        {canEdit && (
+        {canEdit ? (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={handleEdit}
-            title={clientDetailCopy.actions.editTitle}
+            title={actionsCopy.editTitle}
+            disabled={isLoading}
           >
             <Pencil className="mr-2 h-4 w-4" />
-            {clientDetailCopy.actions.edit}
+            {actionsCopy.edit}
           </Button>
-        )}
+        ) : null}
 
-        {canEdit && client.isActive && (
+        {canEdit && client.isActive ? (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowDeactivateDialog(true)}
+            onClick={openDeactivateDialog}
             disabled={isLoading}
           >
             <PowerOff className="mr-2 h-4 w-4" />
-            Desactivar
+            {actionsCopy.deactivate}
           </Button>
-        )}
+        ) : null}
 
-        {canEdit && !client.isActive && (
+        {canEdit && !client.isActive ? (
           <Button
             variant="outline"
             size="sm"
-            onClick={handleActivate}
+            onClick={openActivateDialog}
             disabled={isLoading}
           >
             <Power className="mr-2 h-4 w-4" />
-            Activar
+            {actionsCopy.activate}
           </Button>
-        )}
+        ) : null}
 
-        {canDelete && (
+        {canDelete ? (
           <Button
-            variant="destructive"
+            variant="outline"
             size="sm"
-            onClick={() => setShowDeleteDialog(true)}
+            onClick={openDeleteDialog}
             disabled={isLoading}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
+            {actionsCopy.delete}
           </Button>
-        )}
+        ) : null}
       </div>
 
-      {/* Dialogs */}
-      <DeactivateDialog
-        open={showDeactivateDialog}
-        onOpenChange={setShowDeactivateDialog}
-        onConfirm={handleDeactivate}
-        clientName={client.legalName}
-        isLoading={deactivateMutation.isPending}
-      />
-
-      <DeleteDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        onConfirm={handleDelete}
-        clientName={client.legalName}
-        isLoading={deleteMutation.isPending}
-      />
+      {lifecycleDialogs}
+      {deleteDialog}
     </>
-  );
-}
-
-// ============================================================================
-// DIALOGS
-// ============================================================================
-
-interface DeactivateDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  clientName: string;
-  isLoading: boolean;
-}
-
-function DeactivateDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  clientName,
-  isLoading,
-}: DeactivateDialogProps) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Desactivar cliente?</AlertDialogTitle>
-          <AlertDialogDescription>
-            El cliente <strong>{clientName}</strong> seguirá en el catálogo, pero
-            quedará <strong>inactivo</strong> (no podrá asignarse a nuevos
-            viajes). Podrás reactivarlo cuando quieras. No elimina el registro
-            del sistema.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={isLoading}>
-            {isLoading ? "Desactivando..." : "Desactivar"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-interface DeleteDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  clientName: string;
-  isLoading: boolean;
-}
-
-function DeleteDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  clientName,
-  isLoading,
-}: DeleteDialogProps) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {clientDetailCopy.actions.deleteTitle}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {clientDetailCopy.actions.deleteDescription(clientName)}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            {isLoading ? "Eliminando..." : "Eliminar"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 

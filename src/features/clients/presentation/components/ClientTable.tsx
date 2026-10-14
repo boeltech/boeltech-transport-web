@@ -29,7 +29,10 @@ import {
   formatCreditDays,
 } from "../config/clientConfig";
 import { ClientStatusBadge, operationalStatusFromClient } from "../config/clientStatusConfig";
+import { clientsCopy } from "../copy/clientsCopy";
 import { ClientActions } from "./ClientActions";
+
+const tableCopy = clientsCopy.table;
 
 // ============================================================================
 // TYPES
@@ -99,33 +102,9 @@ export function ClientTable({
     return <ClientTableSkeleton />;
   }
 
-  // Empty state
+  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D4).
   if (clients.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {renderSortableHeader("client_code", "Código", "w-24")}
-              {renderSortableHeader("legal_name", "Razón Social")}
-              <TableHead className="w-32">RFC</TableHead>
-              {renderSortableHeader("type", "Tipo", "w-28")}
-              <TableHead className="w-24">Pago</TableHead>
-              <TableHead className="w-36">Contacto</TableHead>
-              <TableHead className="w-24">Estado</TableHead>
-              <TableHead className="w-16"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell colSpan={8} className="h-24 text-center">
-                No se encontraron clientes.
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -133,13 +112,13 @@ export function ClientTable({
       <Table>
         <TableHeader>
           <TableRow>
-            {renderSortableHeader("client_code", "Código", "w-24")}
-            {renderSortableHeader("legal_name", "Razón Social")}
-            <TableHead className="w-32">RFC</TableHead>
-            {renderSortableHeader("type", "Tipo", "w-28")}
-            <TableHead className="w-24">Pago</TableHead>
-            <TableHead className="w-36">Contacto</TableHead>
-            <TableHead className="w-24">Estado</TableHead>
+            {renderSortableHeader("client_code", tableCopy.code, "w-24")}
+            {renderSortableHeader("legal_name", tableCopy.legalName)}
+            <TableHead className="w-32">{tableCopy.taxId}</TableHead>
+            {renderSortableHeader("type", tableCopy.type, "w-28")}
+            <TableHead className="w-24">{tableCopy.payment}</TableHead>
+            <TableHead className="w-36">{tableCopy.contact}</TableHead>
+            <TableHead className="w-24">{tableCopy.status}</TableHead>
             <TableHead className="w-16"></TableHead>
           </TableRow>
         </TableHeader>
@@ -261,13 +240,13 @@ function ClientTableSkeleton() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-24">Código</TableHead>
-            <TableHead>Razón Social</TableHead>
-            <TableHead className="w-32">RFC</TableHead>
-            <TableHead className="w-28">Tipo</TableHead>
-            <TableHead className="w-24">Pago</TableHead>
-            <TableHead className="w-36">Contacto</TableHead>
-            <TableHead className="w-24">Estado</TableHead>
+            <TableHead className="w-24">{tableCopy.code}</TableHead>
+            <TableHead>{tableCopy.legalName}</TableHead>
+            <TableHead className="w-32">{tableCopy.taxId}</TableHead>
+            <TableHead className="w-28">{tableCopy.type}</TableHead>
+            <TableHead className="w-24">{tableCopy.payment}</TableHead>
+            <TableHead className="w-36">{tableCopy.contact}</TableHead>
+            <TableHead className="w-24">{tableCopy.status}</TableHead>
             <TableHead className="w-16"></TableHead>
           </TableRow>
         </TableHeader>
