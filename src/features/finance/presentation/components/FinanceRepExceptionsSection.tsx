@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileWarning, Loader2 } from "lucide-react";
+import { AlertCircle, FileWarning, Loader2 } from "lucide-react";
 import {
   useRepExceptions,
   useRetryFinanceRepStamp,
@@ -15,10 +15,9 @@ import {
   isRepOrphanParked,
   REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
 } from "@features/finance/domain";
-import { AlertWithIcon } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { ListingPagination, ListingResultsSummary } from "@shared/ui/listing";
 import { Skeleton } from "@shared/ui/skeleton";
@@ -104,198 +103,200 @@ export function FinanceRepExceptionsSection({
     },
   });
 
+  // Workbench bucket already owns the section chrome (D10) — no Card+CardHeader.
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <FileWarning className="h-4 w-4" aria-hidden />
-          {copy.title}
-        </CardTitle>
-        <CardDescription>{copy.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isError ? (
-          <AlertWithIcon variant="destructive" title={copy.loadErrorTitle}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <span>{copy.loadError}</span>
-              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
-                {copy.retry}
-              </Button>
-            </div>
-          </AlertWithIcon>
-        ) : null}
+    <div className="space-y-4">
+      {isError ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={copy.loadErrorTitle}
+          items={[{ text: copy.loadError }]}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              {copy.retry}
+            </Button>
+          }
+        />
+      ) : null}
 
-        {isLoading && items.length === 0 ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : null}
+      {isLoading && items.length === 0 ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : null}
 
-        {!isLoading && !isError && items.length === 0 ? (
-          <EmptyState
-            icon={<FileWarning className="h-8 w-8 text-muted-foreground" />}
-            title={copy.emptyTitle}
-            description={copy.empty}
-            size="sm"
-          />
-        ) : null}
+      {!isLoading && !isError && items.length === 0 ? (
+        <EmptyState
+          icon={<FileWarning className="h-8 w-8 text-muted-foreground" />}
+          title={copy.emptyTitle}
+          description={copy.empty}
+          size="sm"
+        />
+      ) : null}
 
-        {items.length > 0 ? (
-          <>
-            {pagination && pagination.total > 0 ? (
-              <ListingResultsSummary
-                entityLabelPlural={copy.entityLabelPlural}
-                total={pagination.total}
-                page={pagination.page}
-                limit={pagination.limit}
-              />
-            ) : null}
-            <div className="overflow-hidden rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{copy.client}</TableHead>
-                    <TableHead className="text-right">{copy.amount}</TableHead>
-                    <TableHead>{copy.date}</TableHead>
-                    <TableHead>{copy.status}</TableHead>
-                    <TableHead>{copy.reason}</TableHead>
-                    <TableHead>{copy.deadline}</TableHead>
-                    <TableHead>{copy.invoices}</TableHead>
-                    <TableHead>{copy.action}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => {
-                    const primary = item.allocations[0];
-                    const canRetry = canRetryRepStamp({
-                      repStatus: item.repStatus,
-                      repLastError: item.repLastError,
-                      repCfdiUuid: item.repCfdiUuid,
-                    });
-                    const manualReview = isRepManualReview({
-                      repLastError: item.repLastError,
-                    });
-                    const orphan = isRepOrphanParked({
-                      repStatus: item.repStatus,
-                      repCfdiUuid: item.repCfdiUuid,
-                    });
-                    const retrying =
-                      retryMutation.isPending &&
-                      retryMutation.variables?.paymentId === item.paymentId;
-                    const reasonText =
-                      item.repLastError?.trim() ||
-                      (item.repStatus === "failed"
-                        ? copy.statusLabels.failed
-                        : "—");
+      {items.length > 0 ? (
+        <>
+          {pagination && pagination.total > 0 ? (
+            <ListingResultsSummary
+              entityLabelPlural={copy.entityLabelPlural}
+              total={pagination.total}
+              page={pagination.page}
+              limit={pagination.limit}
+            />
+          ) : null}
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{copy.client}</TableHead>
+                  <TableHead className="text-right">{copy.amount}</TableHead>
+                  <TableHead>{copy.date}</TableHead>
+                  <TableHead>{copy.status}</TableHead>
+                  <TableHead>{copy.reason}</TableHead>
+                  <TableHead>{copy.deadline}</TableHead>
+                  <TableHead>{copy.invoices}</TableHead>
+                  <TableHead>{copy.action}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => {
+                  const primary = item.allocations[0];
+                  const canRetry = canRetryRepStamp({
+                    repStatus: item.repStatus,
+                    repLastError: item.repLastError,
+                    repCfdiUuid: item.repCfdiUuid,
+                  });
+                  const manualReview = isRepManualReview({
+                    repLastError: item.repLastError,
+                  });
+                  const orphan = isRepOrphanParked({
+                    repStatus: item.repStatus,
+                    repCfdiUuid: item.repCfdiUuid,
+                  });
+                  const retrying =
+                    retryMutation.isPending &&
+                    retryMutation.variables?.paymentId === item.paymentId;
+                  const reasonText =
+                    item.repLastError?.trim() ||
+                    (item.repStatus === "failed"
+                      ? copy.statusLabels.failed
+                      : "—");
 
-                    return (
-                      <TableRow key={item.paymentId}>
-                        <TableCell>
-                          <div className="min-w-0">
-                            <p className="font-medium">{item.receiverName || item.receiverRfc}</p>
-                            <p className="font-mono text-xs text-muted-foreground">
-                              {item.receiverRfc}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatMxCurrency(item.amountMxn)}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(item.paymentDate)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={statusBadgeVariant(item.repStatus)}
-                            tone="soft"
-                          >
-                            {copy.statusLabels[item.repStatus]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[14rem]">
-                          <p
-                            className="truncate text-xs text-muted-foreground"
-                            title={reasonText}
-                          >
-                            {reasonText}
+                  return (
+                    <TableRow key={item.paymentId}>
+                      <TableCell>
+                        <div className="min-w-0">
+                          <p className="font-medium">{item.receiverName || item.receiverRfc}</p>
+                          <p className="font-mono text-xs text-muted-foreground">
+                            {item.receiverRfc}
                           </p>
-                          {manualReview &&
-                          item.repLastError !==
-                            REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {copy.manualReviewHint}
-                            </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMxCurrency(item.amountMxn)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(item.paymentDate)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={statusBadgeVariant(item.repStatus)}
+                          tone="soft"
+                        >
+                          {copy.statusLabels[item.repStatus]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[14rem]">
+                        <p
+                          className="truncate text-xs text-muted-foreground"
+                          title={reasonText}
+                        >
+                          {reasonText}
+                        </p>
+                        {manualReview &&
+                        item.repLastError !==
+                          REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {copy.manualReviewHint}
+                          </p>
+                        ) : null}
+                        {orphan && !manualReview ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {copy.orphanHint}
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={deadlineBadgeVariant(item.deadlineStatus)}
+                          tone="soft"
+                        >
+                          {deadlineLabel(item)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <CobrosInvoiceFolioChips
+                          invoices={toInvoiceNavTargets(item.allocations)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col items-start gap-1">
+                          {canRetry && primary ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={retryMutation.isPending}
+                              onClick={() =>
+                                retryMutation.mutate({
+                                  invoiceId: primary.ingressInvoiceId,
+                                  paymentId: item.paymentId,
+                                })
+                              }
+                            >
+                              {retrying ? (
+                                <>
+                                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  {copy.retrying}
+                                </>
+                              ) : (
+                                copy.retryStamp
+                              )}
+                            </Button>
                           ) : null}
-                          {orphan && !manualReview ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {copy.orphanHint}
-                            </p>
+                          {/* N=1 only: N>1 uses folio chips + «+N más» / no ghost dueña. */}
+                          {item.allocations.length === 1 ? (
+                            <CobrosInvoiceNavCta
+                              invoices={toInvoiceNavTargets(item.allocations)}
+                            />
                           ) : null}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={deadlineBadgeVariant(item.deadlineStatus)}
-                            tone="soft"
-                          >
-                            {deadlineLabel(item)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <CobrosInvoiceFolioChips
-                            invoices={toInvoiceNavTargets(item.allocations)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col items-start gap-1">
-                            {canRetry && primary ? (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={retryMutation.isPending}
-                                onClick={() =>
-                                  retryMutation.mutate({
-                                    invoiceId: primary.ingressInvoiceId,
-                                    paymentId: item.paymentId,
-                                  })
-                                }
-                              >
-                                {retrying ? (
-                                  <>
-                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                                    {copy.retrying}
-                                  </>
-                                ) : (
-                                  copy.retryStamp
-                                )}
-                              </Button>
-                            ) : null}
-                            {/* N=1 only: N>1 uses folio chips + «+N más» / no ghost dueña. */}
-                            {item.allocations.length === 1 ? (
-                              <CobrosInvoiceNavCta
-                                invoices={toInvoiceNavTargets(item.allocations)}
-                              />
-                            ) : null}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            {pagination && pagination.totalPages > 1 ? (
-              <ListingPagination
-                page={page}
-                totalPages={pagination.totalPages}
-                onPageChange={setPage}
-              />
-            ) : null}
-          </>
-        ) : null}
-      </CardContent>
-    </Card>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          {pagination && pagination.totalPages > 1 ? (
+            <ListingPagination
+              page={page}
+              totalPages={pagination.totalPages}
+              onPageChange={setPage}
+            />
+          ) : null}
+        </>
+      ) : null}
+    </div>
   );
 }

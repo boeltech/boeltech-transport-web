@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, Download, TrendingUp } from "lucide-react";
+import { AlertCircle, ChevronDown, Download, TrendingUp } from "lucide-react";
 import {
   DEFAULT_MARGIN_DIMENSION,
   DEFAULT_PROFITABILITY_SCOPE,
@@ -18,6 +18,7 @@ import {
 } from "@features/finance/application";
 import type { ProfitabilityScope } from "@features/finance/domain";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,12 +26,12 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import { EmptyState } from "@shared/ui/feedback-states";
+import { ActiveFilterChips } from "@shared/ui/listing";
 import { useToast } from "@shared/hooks";
 import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import {
   AnalysisPeriodCaption,
   AnalysisPeriodSelector,
-  FinanceTabFiltersBar,
   ProfitabilityKpiCards,
   ProfitabilityMasterDetailTable,
   ProfitabilityScopeToolbar,
@@ -198,9 +199,12 @@ export function ProfitabilityTab() {
     [from, scope, to],
   );
 
-  const { data: trips, isLoading: tripsLoading } = useProfitabilityTrips(
-    tripFilters,
-  );
+  const {
+    data: trips,
+    isLoading: tripsLoading,
+    isError: tripsError,
+    refetch: refetchTrips,
+  } = useProfitabilityTrips(tripFilters);
 
   const aggregateFilters = useMemo(
     () => ({
@@ -214,8 +218,18 @@ export function ProfitabilityTab() {
     [dimension, from, scope, to],
   );
 
-  const { data: aggregate, isLoading: aggregateLoading } =
-    useProfitabilityAggregate(aggregateFilters);
+  const {
+    data: aggregate,
+    isLoading: aggregateLoading,
+    isError: aggregateError,
+    refetch: refetchAggregate,
+  } = useProfitabilityAggregate(aggregateFilters);
+
+  const isLoadError = tripsError || aggregateError;
+  const handleRetry = useCallback(() => {
+    void refetchTrips();
+    void refetchAggregate();
+  }, [refetchAggregate, refetchTrips]);
 
   const dimensionLabel = copy.filters.dimensions[dimension];
 
@@ -283,42 +297,70 @@ export function ProfitabilityTab() {
         </DropdownMenu>
       </div>
 
-      <FinanceTabFiltersBar
-        chips={filters.activeChips}
-        hasFilters={filters.hasFilters}
-        onClearFilters={handleClearFilters}
-      />
+      {filters.hasFilters ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <ActiveFilterChips chips={filters.activeChips} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClearFilters}
+          >
+            {financeCopy.page.clearFilters}
+          </Button>
+        </div>
+      ) : null}
 
-      <div className="space-y-2">
-        <AnalysisPeriodCaption period={period} today={today} />
-        <ProfitabilityKpiCards
-          scope={scope}
-          trips={trips}
-          isLoading={tripsLoading}
-          lossOnly={lossOnly}
-          onLossOnlyChange={handleLossOnlyChange}
+      <AnalysisPeriodCaption period={period} today={today} />
+
+      {isLoadError ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={copy.error.title}
+          items={[{ text: copy.error.description }]}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+            >
+              {copy.error.retry}
+            </Button>
+          }
         />
-      </div>
-
-      <ProfitabilityMasterDetailTable
-        scope={scope}
-        dimension={dimension}
-        onDimensionChange={handleDimensionChange}
-        from={from}
-        to={to}
-        lossOnly={lossOnly}
-        aggregate={aggregate}
-        aggregateLoading={aggregateLoading}
-        emptyState={
-          <ProfitabilityEmptyState
+      ) : (
+        <>
+          <ProfitabilityKpiCards
             scope={scope}
-            period={period}
-            onWidenPeriod={() => handlePeriodChange({ from: "", to: "" })}
+            trips={trips}
+            isLoading={tripsLoading}
+            lossOnly={lossOnly}
+            onLossOnlyChange={handleLossOnlyChange}
           />
-        }
-        expandedKey={expandedKey}
-        onExpandedKeyChange={setExpandedKey}
-      />
+
+          <ProfitabilityMasterDetailTable
+            scope={scope}
+            dimension={dimension}
+            onDimensionChange={handleDimensionChange}
+            from={from}
+            to={to}
+            lossOnly={lossOnly}
+            aggregate={aggregate}
+            aggregateLoading={aggregateLoading}
+            emptyState={
+              <ProfitabilityEmptyState
+                scope={scope}
+                period={period}
+                onWidenPeriod={() => handlePeriodChange({ from: "", to: "" })}
+              />
+            }
+            expandedKey={expandedKey}
+            onExpandedKeyChange={setExpandedKey}
+          />
+        </>
+      )}
     </div>
   );
 }

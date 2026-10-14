@@ -104,6 +104,7 @@ export {
   type ExpenseGranularity,
 } from "./financeListingFilters";
 export {
+  buildFinanceAnalysisHref,
   buildFinanceAnalysisSearchParams,
   buildFinanceCobrosPath,
   buildFinanceMarginMonthHref,

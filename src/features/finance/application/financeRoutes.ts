@@ -103,6 +103,15 @@ export function buildFinanceAnalysisSearchParams(
   return params;
 }
 
+/** Path + query de una vista de Análisis (nav Hub / deep-links). */
+export function buildFinanceAnalysisHref(
+  view: FinanceAnalysisView,
+  options?: { preserveFrom?: URLSearchParams },
+): string {
+  const params = buildFinanceAnalysisSearchParams(view, options);
+  return `/finance/analysis?${params.toString()}`;
+}
+
 /** Rentabilidad de un mes de negocio (`YYYY-MM`), p. ej. desde «Cifras por mes». */
 export function buildFinanceMarginMonthHref(monthKey: string): string {
   const { from, to } = monthPeriodDateRange(monthKey);

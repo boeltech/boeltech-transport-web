@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Receipt, X } from "lucide-react";
 import {
   canRetryRepStamp,
   isRepManualReview,
@@ -13,7 +13,7 @@ import {
   useRepStatusByIds,
   useRetryFinanceRepStamp,
 } from "@features/finance/application";
-import { AlertWithIcon } from "@shared/ui/alert";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { useToast } from "@shared/hooks";
@@ -55,10 +55,18 @@ function stageBadgeVariant(
   return "neutral";
 }
 
+function traySeverity(
+  needsAction: number,
+): "info" | "warning" {
+  return needsAction >= 1 ? "warning" : "info";
+}
+
 interface FinanceCobrosTodayTrayProps {
   entries: readonly CobrosTodayEntry[];
   onDismissTray: () => void;
   onDismissEntry: (paymentId: string) => void;
+  /** Switch workbench to Excepciones REP (tray-level CTA when needs_action). */
+  onViewExceptions?: () => void;
   onEntryLiveUpdate?: (
     paymentId: string,
     live: Pick<FinanceRepStatusItem, "repStatus">,
@@ -69,6 +77,7 @@ export function FinanceCobrosTodayTray({
   entries,
   onDismissTray,
   onDismissEntry,
+  onViewExceptions,
   onEntryLiveUpdate,
 }: FinanceCobrosTodayTrayProps) {
   const { toast } = useToast();
@@ -151,161 +160,178 @@ export function FinanceCobrosTodayTray({
 
   if (entries.length === 0) return null;
 
-  return (
-    <div className="relative">
-      <AlertWithIcon variant="info" title={copy.title}>
-        <div className="space-y-3 pr-8">
-          <p className="text-sm">{copy.description}</p>
-          <p className="text-xs text-muted-foreground">
-            {copy.summary(
-              summary.ready,
-              summary.inProgress,
-              summary.needsAction,
-            )}
-          </p>
-          <ul className="space-y-2">
-            {entries.map((entry) => {
-              const live = liveById.get(entry.paymentId);
-              const repStatus = live?.repStatus ?? entry.repStatus;
-              const waitReason = live?.waitReason ?? null;
-              const repLastError = live?.repLastError ?? null;
-              const repCfdiUuid = live?.repCfdiUuid ?? null;
-              const repErrorKind = live?.repErrorKind ?? null;
-              const stage = resolveCobrosRepStage({ repStatus, waitReason });
-              const amountLabel = formatMxCurrency(entry.amount);
-              const navInvoices: CobrosInvoiceNavTarget[] = (
-                live?.invoices ?? entry.invoices
-              ).map((invoice) => ({
-                id: invoice.id,
-                serie: invoice.serie,
-                folio: invoice.folio,
-              }));
-              const primaryInvoice = navInvoices[0];
-              const canRetry = canRetryRepStamp({
-                repStatus,
-                waitReason,
-                repLastError,
-                repCfdiUuid,
-                repErrorKind,
-              });
-              const manualReview = isRepManualReview({
-                waitReason,
-                repLastError,
-                repErrorKind,
-              });
-              const permanent = isRepPermanentError({ repErrorKind });
-              const orphan = isRepOrphanParked({ repStatus, repCfdiUuid });
-              const waitHint =
-                stage === "stamping" ? waitReasonHint(waitReason) : null;
-              const retrying =
-                retryMutation.isPending &&
-                retryMutation.variables?.paymentId === entry.paymentId;
+  const severity = traySeverity(summary.needsAction);
 
-              return (
-                <li
-                  key={entry.paymentId}
-                  className="rounded-md border bg-background/60 px-3 py-2"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium tabular-nums">
-                          {amountLabel}
-                        </span>
-                        <Badge variant="secondary" className="font-mono text-xs">
-                          {entry.receiverRfc}
-                        </Badge>
-                        <Badge
-                          variant={stageBadgeVariant(stage)}
-                          tone="soft"
-                        >
-                          {copy.stages[stage]}
-                        </Badge>
-                      </div>
-                      {waitHint ? (
-                        <p className="text-xs text-muted-foreground">{waitHint}</p>
-                      ) : null}
-                      {stage === "needs_action" && repLastError ? (
-                        <p
-                          className="text-xs text-destructive"
-                          title={repLastError}
-                        >
-                          {repLastError}
-                        </p>
-                      ) : null}
-                      {manualReview &&
-                      repLastError !== REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE ? (
-                        <p className="text-xs text-muted-foreground">
-                          {copy.manualReviewHint}
-                        </p>
-                      ) : null}
-                      {permanent && !manualReview ? (
-                        <p className="text-xs text-muted-foreground">
-                          {copy.permanentErrorHint}
-                        </p>
-                      ) : null}
-                      {orphan && !manualReview && !permanent ? (
-                        <p className="text-xs text-muted-foreground">
-                          {copy.orphanHint}
-                        </p>
-                      ) : null}
-                    </div>
+  return (
+    <DetailAlertCard
+      severity={severity}
+      icon={<Receipt className="h-5 w-5" aria-hidden />}
+      title={copy.title}
+      action={
+        <>
+          {summary.needsAction >= 1 && onViewExceptions ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onViewExceptions}
+            >
+              {copy.viewExceptions}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={onDismissTray}
+            aria-label={copy.dismissTrayAriaLabel}
+          >
+            {copy.dismissTray}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p>{copy.description}</p>
+        <p className="text-xs">
+          {copy.summary(
+            summary.ready,
+            summary.inProgress,
+            summary.needsAction,
+          )}
+        </p>
+        <ul className="space-y-2 text-foreground">
+          {entries.map((entry) => {
+            const live = liveById.get(entry.paymentId);
+            const repStatus = live?.repStatus ?? entry.repStatus;
+            const waitReason = live?.waitReason ?? null;
+            const repLastError = live?.repLastError ?? null;
+            const repCfdiUuid = live?.repCfdiUuid ?? null;
+            const repErrorKind = live?.repErrorKind ?? null;
+            const stage = resolveCobrosRepStage({ repStatus, waitReason });
+            const amountLabel = formatMxCurrency(entry.amount);
+            const navInvoices: CobrosInvoiceNavTarget[] = (
+              live?.invoices ?? entry.invoices
+            ).map((invoice) => ({
+              id: invoice.id,
+              serie: invoice.serie,
+              folio: invoice.folio,
+            }));
+            const primaryInvoice = navInvoices[0];
+            const canRetry = canRetryRepStamp({
+              repStatus,
+              waitReason,
+              repLastError,
+              repCfdiUuid,
+              repErrorKind,
+            });
+            const manualReview = isRepManualReview({
+              waitReason,
+              repLastError,
+              repErrorKind,
+            });
+            const permanent = isRepPermanentError({ repErrorKind });
+            const orphan = isRepOrphanParked({ repStatus, repCfdiUuid });
+            const waitHint =
+              stage === "stamping" ? waitReasonHint(waitReason) : null;
+            const retrying =
+              retryMutation.isPending &&
+              retryMutation.variables?.paymentId === entry.paymentId;
+
+            return (
+              <li
+                key={entry.paymentId}
+                className="rounded-md border bg-background/60 px-3 py-2"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      {canRetry && primaryInvoice ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={retryMutation.isPending}
-                          onClick={() =>
-                            retryMutation.mutate({
-                              invoiceId: primaryInvoice.id,
-                              paymentId: entry.paymentId,
-                            })
-                          }
-                        >
-                          {retrying ? (
-                            <>
-                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                              {copy.retrying}
-                            </>
-                          ) : (
-                            copy.retryStamp
-                          )}
-                        </Button>
-                      ) : null}
-                      <CobrosInvoiceNavCta
-                        invoices={navInvoices}
-                        linkState={fromState}
-                      />
+                      <span className="font-medium tabular-nums">
+                        {amountLabel}
+                      </span>
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        {entry.receiverRfc}
+                      </Badge>
+                      <Badge
+                        variant={stageBadgeVariant(stage)}
+                        tone="soft"
+                      >
+                        {copy.stages[stage]}
+                      </Badge>
+                    </div>
+                    {waitHint ? (
+                      <p className="text-xs text-muted-foreground">{waitHint}</p>
+                    ) : null}
+                    {stage === "needs_action" && repLastError ? (
+                      <p
+                        className="text-xs text-destructive"
+                        title={repLastError}
+                      >
+                        {repLastError}
+                      </p>
+                    ) : null}
+                    {manualReview &&
+                    repLastError !== REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE ? (
+                      <p className="text-xs text-muted-foreground">
+                        {copy.manualReviewHint}
+                      </p>
+                    ) : null}
+                    {permanent && !manualReview ? (
+                      <p className="text-xs text-muted-foreground">
+                        {copy.permanentErrorHint}
+                      </p>
+                    ) : null}
+                    {orphan && !manualReview && !permanent ? (
+                      <p className="text-xs text-muted-foreground">
+                        {copy.orphanHint}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canRetry && primaryInvoice ? (
                       <Button
                         type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground"
-                        onClick={() => onDismissEntry(entry.paymentId)}
-                        aria-label={copy.dismissRowAriaLabel(amountLabel)}
+                        size="sm"
+                        variant="outline"
+                        disabled={retryMutation.isPending}
+                        onClick={() =>
+                          retryMutation.mutate({
+                            invoiceId: primaryInvoice.id,
+                            paymentId: entry.paymentId,
+                          })
+                        }
                       >
-                        <X className="h-3.5 w-3.5" aria-hidden />
+                        {retrying ? (
+                          <>
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            {copy.retrying}
+                          </>
+                        ) : (
+                          copy.retryStamp
+                        )}
                       </Button>
-                    </div>
+                    ) : null}
+                    <CobrosInvoiceNavCta
+                      invoices={navInvoices}
+                      linkState={fromState}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={() => onDismissEntry(entry.paymentId)}
+                      aria-label={copy.dismissRowAriaLabel(amountLabel)}
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </Button>
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </AlertWithIcon>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-foreground"
-        onClick={onDismissTray}
-        aria-label={copy.dismissTrayAriaLabel}
-      >
-        <X className="h-4 w-4" aria-hidden />
-      </Button>
-    </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </DetailAlertCard>
   );
 }

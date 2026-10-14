@@ -1,12 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, Download } from "lucide-react";
+import { AlertCircle, Download, Info, Receipt } from "lucide-react";
 import { Button } from "@shared/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { EmptyState } from "@shared/ui/feedback-states";
+import { ActiveFilterChips } from "@shared/ui/listing";
 import {
   Select,
   SelectContent,
@@ -15,7 +13,6 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { useToast } from "@shared/hooks";
-import { cn } from "@shared/lib/utils/cn";
 import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import {
   parseExpenseDimension,
@@ -33,7 +30,6 @@ import {
   ExpenseAnalysisCharts,
   ExpenseAnalysisKpiCards,
   ExpenseDimensionTableSection,
-  FinanceTabFiltersBar,
 } from "../components";
 import { exportExpensesByDimensionCsv } from "../utils/financeExportHelpers";
 import { formatFinancePeriodLabel } from "../utils/financeChartHelpers";
@@ -43,7 +39,6 @@ const DEFAULT_GRANULARITY = "month";
 
 export function ExpenseAnalysisTab() {
   const { toast } = useToast();
-  const [includesOpen, setIncludesOpen] = useState(false);
   const [today] = useState(getTodayString);
 
   const filters = useFinanceListingFilters<
@@ -123,12 +118,25 @@ export function ExpenseAnalysisTab() {
     [dimension, from, to, vehicleId],
   );
 
-  const { data: byCategory, isLoading: byCategoryLoading } = useExpensesByCategory(
-    byCategoryFilters,
-  );
-  const { data: byDimension, isLoading: byDimensionLoading } = useExpensesByDimension(
-    byDimensionFilters,
-  );
+  const {
+    data: byCategory,
+    isLoading: byCategoryLoading,
+    isError: byCategoryError,
+    refetch: refetchByCategory,
+  } = useExpensesByCategory(byCategoryFilters);
+  const {
+    data: byDimension,
+    isLoading: byDimensionLoading,
+    isError: byDimensionError,
+    refetch: refetchByDimension,
+  } = useExpensesByDimension(byDimensionFilters);
+
+  const isLoading = byCategoryLoading || byDimensionLoading;
+  const isLoadError = byCategoryError || byDimensionError;
+  const handleRetry = useCallback(() => {
+    void refetchByCategory();
+    void refetchByDimension();
+  }, [refetchByCategory, refetchByDimension]);
 
   const latestPeriod = byCategory?.periods.at(-1);
   const latestPeriodIndex = latestPeriod && byCategory
@@ -153,45 +161,34 @@ export function ExpenseAnalysisTab() {
       : formatDate(latestPeriod)
     : "";
 
+  const hasExpenseData =
+    (byCategory?.total.some((value) => value > 0) ?? false) ||
+    dimensionRows.length > 0;
+  const isEmpty = !isLoading && !isLoadError && !hasExpenseData;
+
   const alertCopy = financeCopy.expenses.alert;
+  const errorCopy = financeCopy.expenses.error;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-sm text-muted-foreground">{alertCopy.summary}</p>
-          <Collapsible open={includesOpen} onOpenChange={setIncludesOpen}>
-            <CollapsibleTrigger
-              type="button"
-              className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-              aria-expanded={includesOpen}
-            >
-              {includesOpen ? alertCopy.includesHide : alertCopy.includesShow}
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0 transition-transform",
-                  includesOpen && "rotate-180",
-                )}
-                aria-hidden
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
-              <div className="space-y-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                <p>{alertCopy.body}</p>
-                <p>
-                  {alertCopy.bodyRoutePrefix}{" "}
-                  <Link
-                    to="/trips"
-                    className="font-medium text-foreground underline underline-offset-2"
-                  >
-                    {alertCopy.bodyRouteLink}
-                  </Link>
-                  {alertCopy.bodyRouteSuffix}
-                </p>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+        <DetailAlertCard
+          severity="info"
+          icon={<Info className="h-5 w-5" aria-hidden />}
+          title={alertCopy.includesShow}
+          items={[
+            { text: alertCopy.summary },
+            { text: alertCopy.body },
+            {
+              text: `${alertCopy.bodyRoutePrefix} ${alertCopy.bodyRouteLink}${alertCopy.bodyRouteSuffix}`,
+            },
+          ]}
+          action={
+            <Button asChild type="button" size="sm" variant="outline">
+              <Link to="/trips">{alertCopy.goToTrips}</Link>
+            </Button>
+          }
+        />
         <Button
           type="button"
           size="sm"
@@ -251,39 +248,73 @@ export function ExpenseAnalysisTab() {
             </Select>
           </div>
         </div>
-        <FinanceTabFiltersBar
-          chips={filters.activeChips}
-          hasFilters={filters.hasFilters}
-          onClearFilters={filters.clearAll}
-        />
+        {filters.hasFilters ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <ActiveFilterChips chips={filters.activeChips} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={filters.clearAll}
+            >
+              {financeCopy.page.clearFilters}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      <div className="space-y-2">
-        <AnalysisPeriodCaption period={period} today={today} />
-        <ExpenseAnalysisKpiCards
-          byCategory={byCategory}
-          dimensionLabel={dimensionLabel}
-          dimensionRows={dimensionRows}
-          isLoading={byCategoryLoading}
-          isDimensionLoading={byDimensionLoading}
+      <AnalysisPeriodCaption period={period} today={today} />
+
+      {isLoadError ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={errorCopy.title}
+          items={[{ text: errorCopy.description }]}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+            >
+              {errorCopy.retry}
+            </Button>
+          }
         />
-      </div>
+      ) : isEmpty ? (
+        <EmptyState
+          icon={<Receipt className="h-10 w-10 text-muted-foreground" />}
+          title={financeCopy.expenses.empty.title}
+          description={financeCopy.expenses.empty.description}
+        />
+      ) : (
+        <>
+          <ExpenseAnalysisKpiCards
+            byCategory={byCategory}
+            dimensionLabel={dimensionLabel}
+            dimensionRows={dimensionRows}
+            isLoading={byCategoryLoading}
+            isDimensionLoading={byDimensionLoading}
+          />
 
-      <ExpenseAnalysisCharts
-        byCategory={byCategory}
-        categorySummary={categorySummary}
-        latestPeriodIndex={latestPeriodIndex}
-        latestPeriod={latestPeriod}
-        periodLabel={latestBucketLabel}
-        isLoading={byCategoryLoading}
-      />
+          <ExpenseAnalysisCharts
+            byCategory={byCategory}
+            categorySummary={categorySummary}
+            latestPeriodIndex={latestPeriodIndex}
+            latestPeriod={latestPeriod}
+            periodLabel={latestBucketLabel}
+            isLoading={byCategoryLoading}
+          />
 
-      <ExpenseDimensionTableSection
-        dimension={dimension}
-        onDimensionChange={handleDimensionChange}
-        rows={dimensionRows}
-        isLoading={byDimensionLoading}
-      />
+          <ExpenseDimensionTableSection
+            dimension={dimension}
+            onDimensionChange={handleDimensionChange}
+            rows={dimensionRows}
+            isLoading={byDimensionLoading}
+          />
+        </>
+      )}
     </div>
   );
 }

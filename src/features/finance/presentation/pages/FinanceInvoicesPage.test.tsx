@@ -7,9 +7,18 @@ import { financeCopy } from "../copy";
 import { CLIENT_PORTAL_INVOICES_ORIENTATION_STORAGE_KEY } from "../components/ClientPortalInvoicesOrientationAlert";
 import { FinanceInvoicesPage } from "./FinanceInvoicesPage";
 
-const { mockUseAuth, mockHasPermission } = vi.hoisted(() => ({
+const {
+  mockUseAuth,
+  mockHasPermission,
+  mockCanShowInvoiceFromTripCta,
+  mockIsFinanceAnalyticsEnabled,
+  mockUseFinanceSummary,
+} = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockHasPermission: vi.fn(() => false),
+  mockCanShowInvoiceFromTripCta: vi.fn(() => false),
+  mockIsFinanceAnalyticsEnabled: vi.fn(() => false),
+  mockUseFinanceSummary: vi.fn(() => ({ data: undefined, isLoading: false })),
 }));
 
 vi.mock("@features/auth", () => ({
@@ -34,13 +43,15 @@ vi.mock("@features/trips", () => ({
 }));
 
 vi.mock("@features/invoicing", () => ({
-  canShowInvoiceFromTripCta: () => false,
+  canShowInvoiceFromTripCta: (...args: unknown[]) =>
+    mockCanShowInvoiceFromTripCta(...args),
   InvoiceBulkDownloadSheet: () => null,
   invoiceBulkDownloadCopy: { actionButton: "Descargar CFDI" },
 }));
 
 vi.mock("@features/finance/application", () => ({
-  isFinanceAnalyticsEnabled: () => false,
+  isFinanceAnalyticsEnabled: (...args: unknown[]) =>
+    mockIsFinanceAnalyticsEnabled(...args),
   useFinanceInvoicesList: () => ({
     data: {
       data: [],
@@ -52,7 +63,7 @@ vi.mock("@features/finance/application", () => ({
     refetch: vi.fn(),
     isFetching: false,
   }),
-  useFinanceSummary: () => ({ data: undefined, isLoading: false }),
+  useFinanceSummary: () => mockUseFinanceSummary(),
   useFinanceListingFilters: () => ({
     search: "",
     page: 1,
@@ -86,6 +97,9 @@ describe("FinanceInvoicesPage — orientación client", () => {
       CLIENT_PORTAL_INVOICES_ORIENTATION_STORAGE_KEY,
     );
     mockHasPermission.mockReturnValue(false);
+    mockCanShowInvoiceFromTripCta.mockReturnValue(false);
+    mockIsFinanceAnalyticsEnabled.mockReturnValue(false);
+    mockUseFinanceSummary.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it("titula Mis facturas, muestra L1b y no pide Nueva factura", () => {
@@ -105,5 +119,76 @@ describe("FinanceInvoicesPage — orientación client", () => {
         name: financeCopy.invoices.newInvoiceCta.label,
       }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Descargar CFDI/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("FinanceInvoicesPage — Workbench F1", () => {
+  beforeEach(() => {
+    mockHasPermission.mockImplementation(
+      (resource: string, action: string) =>
+        (resource === "finance" && action === "read") ||
+        (resource === "invoices" && action === "execute"),
+    );
+    mockCanShowInvoiceFromTripCta.mockReturnValue(true);
+    mockIsFinanceAnalyticsEnabled.mockReturnValue(true);
+    mockUseFinanceSummary.mockReturnValue({
+      data: {
+        totalReceivable: 0,
+        collectedThisMonth: 0,
+        totalOverdue: 0,
+        expensesThisMonth: 0,
+        invoicesByStatus: {
+          draft: 2,
+          stamped: 5,
+          cancellationPending: 0,
+          cancelled: 1,
+        },
+      },
+      isLoading: false,
+    });
+  });
+
+  it("usa shell EmptyState, primary Nueva factura y Descargar CFDI outline", () => {
+    renderPage("admin");
+
+    expect(
+      screen.getByRole("heading", { name: financeCopy.invoices.title }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(financeCopy.invoices.newInvoiceCta.emptyDescription),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", {
+        name: financeCopy.invoices.newInvoiceCta.label,
+      }).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByRole("button", { name: /Descargar CFDI/i }),
+    ).toBeInTheDocument();
+    // No empty local de tabla (celda "No se encontraron…").
+    expect(
+      screen.queryByText("No se encontraron facturas."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra buckets de estado y buscar en el workbench", () => {
+    renderPage("admin");
+
+    expect(
+      screen.getByRole("tablist", {
+        name: financeCopy.invoices.workbench.bucketsAriaLabel,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", {
+        name: new RegExp(financeCopy.invoices.statusLabels.draft, "i"),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(financeCopy.invoices.searchPlaceholder),
+    ).toBeInTheDocument();
   });
 });

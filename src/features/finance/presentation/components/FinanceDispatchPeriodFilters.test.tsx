@@ -24,13 +24,16 @@ function renderFilters(
 }
 
 describe("FinanceDispatchPeriodFilters", () => {
-  it("muestra Filtros sin badge ni labels cuando no hay recortes", () => {
+  it("usa ListingFilterPanel: Filtros sin badge ni labels cuando no hay recortes", () => {
     renderFilters();
 
     expect(screen.getByRole("button", { name: /Filtros/ })).toBeInTheDocument();
     expect(screen.queryByText("1")).not.toBeInTheDocument();
     expect(screen.queryByText(copy.statusLabel)).not.toBeInTheDocument();
     expect(screen.queryByText(copy.schemeLabel)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.hideEmptyScheduledAria }),
+    ).not.toBeInTheDocument();
   });
 
   it("abre el panel con badge y labels cuando hay recortes", () => {

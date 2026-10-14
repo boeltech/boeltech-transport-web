@@ -91,7 +91,7 @@ describe("FinanceCobrosConfirmSheet", () => {
     expect(onPaymentDateChange).toHaveBeenCalledWith("2026-08-20");
   });
 
-  it("shows late REP registration hint when payment date is overdue", () => {
+  it("shows late REP registration as warning alert when payment date is overdue", () => {
     render(
       <FinanceCobrosConfirmSheet
         {...baseProps}
@@ -99,11 +99,12 @@ describe("FinanceCobrosConfirmSheet", () => {
       />,
     );
 
-    expect(
-      screen.getByText(
-        /La fecha del cobro ya superó el 5\.º día del mes siguiente/,
-      ),
-    ).toBeInTheDocument();
+    const lateHint =
+      /La fecha del cobro ya superó el 5\.º día del mes siguiente/;
+    const lateAlert = screen
+      .getAllByRole("alert")
+      .find((el) => lateHint.test(el.textContent ?? ""));
+    expect(lateAlert).toBeTruthy();
   });
 
   it("disables confirm when payment date is invalid", () => {

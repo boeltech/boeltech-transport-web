@@ -25,8 +25,6 @@ export { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
 export { DispatchRunStatusBadge } from "./DispatchRunStatusBadge";
 export { DispatchRunActions } from "./DispatchRunActions";
 export { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
-export { FinanceSectionHeader } from "./FinanceSectionHeader";
-export { FinanceTabFiltersBar } from "./FinanceTabFiltersBar";
 export {
   DispatchRunClientReceipts,
   DispatchRunRecipientsEditor,

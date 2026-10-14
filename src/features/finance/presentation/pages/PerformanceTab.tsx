@@ -10,7 +10,7 @@ import {
   type MonthlyPerformanceMonths,
 } from "@features/finance/application";
 import { Button } from "@shared/ui/button";
-import { Card, CardContent } from "@shared/ui/card";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { Label } from "@shared/ui/label";
 import { Switch } from "@shared/ui/switch";
@@ -160,30 +160,30 @@ export function PerformanceTab() {
       </div>
 
       {isError ? (
-        <Card>
-          <CardContent>
-            <EmptyState
-              icon={<AlertCircle className="h-10 w-10 text-destructive" />}
-              title={copy.error.title}
-              description={copy.error.description}
-              cta={{
-                label: copy.error.retry,
-                variant: "outline",
-                onClick: () => void refetch(),
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={copy.error.title}
+          items={[{ text: copy.error.description }]}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void refetch();
               }}
-            />
-          </CardContent>
-        </Card>
+            >
+              {copy.error.retry}
+            </Button>
+          }
+        />
       ) : isEmpty ? (
-        <Card>
-          <CardContent>
-            <EmptyState
-              icon={<TrendingUp className="h-10 w-10 text-muted-foreground" />}
-              title={copy.empty.title}
-              description={copy.empty.description}
-            />
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<TrendingUp className="h-10 w-10 text-muted-foreground" />}
+          title={copy.empty.title}
+          description={copy.empty.description}
+        />
       ) : (
         <>
           <PerformanceKpiCards

@@ -119,32 +119,9 @@ export function FinanceInvoiceListTable({
     );
   }
 
+  // WorkbenchPageShell owns empty (EmptyState); avoid a second empty in the table.
   if (invoices.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map((header) => (
-                <TableHead key={header.key} className={header.className}>
-                  {header.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell
-                colSpan={headers.length}
-                className="h-24 text-center"
-              >
-                {copy.table.empty}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
-    );
+    return null;
   }
 
   return (

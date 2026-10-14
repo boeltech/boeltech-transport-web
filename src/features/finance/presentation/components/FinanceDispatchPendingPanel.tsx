@@ -6,11 +6,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Mail, Send } from "lucide-react";
-import { useQueryErrorToast } from "@shared/hooks";
+import { AlertCircle, Mail, Send } from "lucide-react";
 import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useFinanceListingFilters } from "@features/finance/application";
 import { useInvoices } from "@features/invoicing";
@@ -81,7 +81,7 @@ export function FinanceDispatchPendingPanel({
     setSelected({});
   }, [selectionResetKey]);
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useInvoices({
+  const { data, isLoading, isError, refetch, isFetching } = useInvoices({
     status: "stamped",
     emailDispatch: "unsent",
     search: filters.search || undefined,
@@ -96,12 +96,6 @@ export function FinanceDispatchPendingPanel({
   useEffect(() => {
     onPendingTotalChange?.(pendingTotal);
   }, [onPendingTotalChange, pendingTotal]);
-
-  useQueryErrorToast({
-    isError,
-    error,
-    title: copy.loadError,
-  });
 
   const selectedInvoices = useMemo(
     () => invoices.filter((invoice) => selected[invoice.id]),
@@ -160,6 +154,29 @@ export function FinanceDispatchPendingPanel({
   }, [requestSend, selectedInvoices]);
 
   const hasSearch = Boolean(filters.search.trim());
+
+  if (isError) {
+    return (
+      <DetailAlertCard
+        severity="critical"
+        icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+        title={copy.loadErrorTitle}
+        items={[{ text: copy.loadError }]}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refetch();
+            }}
+          >
+            {copy.retry}
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
     <ListPageShell<InvoiceListItem>

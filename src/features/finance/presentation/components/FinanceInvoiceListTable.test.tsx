@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
+import { financeCopy } from "../copy";
 import { FinanceInvoiceListTable } from "./FinanceInvoiceListTable";
 
 function buildInvoice(
@@ -25,6 +26,21 @@ function buildInvoice(
 }
 
 describe("FinanceInvoiceListTable", () => {
+  it("does not render a local empty row (shell owns EmptyState)", () => {
+    const { container } = render(
+      <FinanceInvoiceListTable
+        invoices={[]}
+        isLoading={false}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(
+      screen.queryByText(financeCopy.invoices.empty.title),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps stamped PUE outstanding balance when no payment registered (T5-031)", () => {
     render(
       <FinanceInvoiceListTable

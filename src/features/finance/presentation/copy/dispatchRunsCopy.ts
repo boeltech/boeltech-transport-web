@@ -21,7 +21,9 @@ export const dispatchRunsCopy = {
     pending: {
       searchPlaceholder: "Buscar por folio o cliente…",
       entityLabelPlural: "facturas",
+      loadErrorTitle: "No se pudo cargar la cola",
       loadError: "Error al cargar las facturas pendientes de envío",
+      retry: "Reintentar",
       selectAllAria: "Seleccionar todas las facturas de esta página",
       selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
       columns: {
@@ -54,7 +56,9 @@ export const dispatchRunsCopy = {
     sent: {
       searchPlaceholder: "Buscar por folio o cliente…",
       entityLabelPlural: "facturas",
+      loadErrorTitle: "No se pudo cargar la cola",
       loadError: "Error al cargar las facturas enviadas",
+      retry: "Reintentar",
       selectAllAria: "Seleccionar todas las facturas de esta página",
       selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
       rowActionsAria: (folio: string) => `Acciones de factura ${folio}`,
@@ -301,6 +305,9 @@ export const dispatchRunsCopy = {
     titleEvent: (hours: number) => `Envío de las últimas ${hours} h`,
     subtitleClosedCut: (schemeName: string) =>
       `Último corte cerrado · ${schemeName}`,
+    loadErrorTitle: "No se pudo cargar el envío",
+    loadError: "Intenta de nuevo. Si persiste, vuelve a envíos del periodo.",
+    retry: "Reintentar",
     emptyScheduledAlert: {
       title: "No había facturas listas al corte",
       body: "El automático ya evaluó este periodo. Si generas las facturas después el mismo día, arma un envío del periodo. En corte semanal, el siguiente corte no incluye este periodo.",

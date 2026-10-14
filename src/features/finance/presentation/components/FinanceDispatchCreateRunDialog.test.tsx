@@ -98,6 +98,8 @@ describe("FinanceDispatchCreateRunDialog", () => {
     renderDialog();
     const copy = dispatchRunsCopy.tab.createDialog;
 
+    // D11: create run = Dialog (no Sheet).
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: copy.title })).toBeInTheDocument();
     expect(screen.getByText(copy.description)).toBeInTheDocument();
     expect(screen.getByText(copy.schemeHint)).toBeInTheDocument();
@@ -117,6 +119,25 @@ describe("FinanceDispatchCreateRunDialog", () => {
     expect(
       screen.getByRole("button", { name: copy.cancel }),
     ).toBeInTheDocument();
+  });
+
+  it("muestra Alert inline si falla armar el lote", async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValueOnce(new Error("boom"));
+    renderDialog();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.tab.createDialog.submit,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        dispatchRunsCopy.toast.error,
+      );
+    });
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it("al armar un lote nuevo no manda reference_at y abre el detalle", async () => {

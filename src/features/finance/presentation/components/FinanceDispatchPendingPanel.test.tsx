@@ -13,14 +13,6 @@ vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
 }));
 
-vi.mock("@shared/hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@shared/hooks")>();
-  return {
-    ...actual,
-    useQueryErrorToast: vi.fn(),
-  };
-});
-
 vi.mock("@features/invoicing", () => ({
   useInvoices: (...args: unknown[]) => mockUseInvoices(...args),
 }));
@@ -72,16 +64,28 @@ function renderPanel(
       receiverRfc: "XEXX010101000",
     }),
   ],
+  queryOverrides: {
+    isError?: boolean;
+    refetch?: ReturnType<typeof vi.fn>;
+  } = {},
 ) {
+  const refetch = queryOverrides.refetch ?? vi.fn();
   mockUseInvoices.mockReturnValue({
-    data: {
-      data: invoices,
-      pagination: { page: 1, limit: 25, total: invoices.length, totalPages: 1 },
-    },
+    data: queryOverrides.isError
+      ? undefined
+      : {
+          data: invoices,
+          pagination: {
+            page: 1,
+            limit: 25,
+            total: invoices.length,
+            totalPages: 1,
+          },
+        },
     isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
+    isError: queryOverrides.isError ?? false,
+    error: queryOverrides.isError ? new Error("load failed") : null,
+    refetch,
     isFetching: false,
   });
 
@@ -91,6 +95,7 @@ function renderPanel(
 
   return {
     requestSend,
+    refetch,
     ...render(
       <QueryClientProvider client={qc}>
         <MemoryRouter initialEntries={["/finance/dispatch"]}>
@@ -125,6 +130,7 @@ describe("FinanceDispatchPendingPanel", () => {
       name: "Enviar 2 facturas",
     });
     expect(sendButton).toBeInTheDocument();
+    expect(sendButton.closest(".sticky")).toBeTruthy();
 
     await user.click(sendButton);
     expect(requestSend).toHaveBeenCalledTimes(1);
@@ -140,6 +146,22 @@ describe("FinanceDispatchPendingPanel", () => {
     expect(
       screen.getByRole("button", { name: "Ver facturas enviadas" }),
     ).toBeInTheDocument();
+  });
+
+  it("queue load error uses DetailAlertCard with Reintentar in action", async () => {
+    const user = userEvent.setup();
+    const { refetch } = renderPanel(vi.fn(), [], {
+      isError: true,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(screen.getByText("No se pudo cargar la cola")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Error al cargar las facturas pendientes de envío/),
+    ).toBeInTheDocument();
+    const retry = screen.getByRole("button", { name: "Reintentar" });
+    await user.click(retry);
+    expect(refetch).toHaveBeenCalled();
   });
 
   it("hides selection and CTA without invoices.execute", () => {

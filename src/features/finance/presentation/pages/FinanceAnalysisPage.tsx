@@ -1,47 +1,43 @@
-import { useCallback } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BarChart3 } from "lucide-react";
 import {
-  buildFinanceAnalysisSearchParams,
+  buildFinanceAnalysisHref,
+  FINANCE_ANALYSIS_VIEWS,
   resolveFinanceAnalysisView,
-  type FinanceAnalysisView,
 } from "@features/finance/application";
-import {
-  REPORTS_WAYFINDING_COPY,
-  useReportsReturnHref,
-} from "@shared/utils/reportsWayfinding";
-import { FinanceSectionHeader } from "../components";
+import { HubPageShell } from "@shared/ui/page-shells";
+import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
 import { financeCopy } from "../copy";
 import { FinanceAnalysisContent } from "./FinanceAnalysisContent";
 
 export function FinanceAnalysisPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const reportsBackHref = useReportsReturnHref();
-
+  const [searchParams] = useSearchParams();
   const view = resolveFinanceAnalysisView(searchParams.get("view"));
+  const labels = financeCopy.page.analysisViews;
+  const section = financeCopy.page.sections.analysis;
 
-  const handleViewChange = useCallback(
-    (nextView: FinanceAnalysisView) => {
-      setSearchParams(
-        buildFinanceAnalysisSearchParams(nextView, {
-          preserveFrom: searchParams,
-        }),
-        { replace: true },
-      );
-    },
-    [searchParams, setSearchParams],
+  const nav = useMemo(
+    () =>
+      FINANCE_ANALYSIS_VIEWS.map((id) => ({
+        id,
+        label: labels[id],
+        href: buildFinanceAnalysisHref(id, { preserveFrom: searchParams }),
+      })),
+    [labels, searchParams],
   );
 
   return (
-    <div className="space-y-6">
-      <FinanceSectionHeader
-        icon={<BarChart3 className="h-5 w-5" />}
-        title={financeCopy.page.sections.analysis.title}
-        subtitle={financeCopy.page.sections.analysis.subtitle}
-        backHref={reportsBackHref}
-        backLabel={REPORTS_WAYFINDING_COPY.backToReports}
-      />
-      <FinanceAnalysisContent view={view} onViewChange={handleViewChange} />
+    <div className="space-y-4">
+      <ReportsReturnLink />
+      <HubPageShell
+        title={section.title}
+        description={section.subtitle}
+        nav={nav}
+        activeNavId={view}
+        navAriaLabel={labels.ariaLabel}
+      >
+        <FinanceAnalysisContent view={view} />
+      </HubPageShell>
     </div>
   );
 }

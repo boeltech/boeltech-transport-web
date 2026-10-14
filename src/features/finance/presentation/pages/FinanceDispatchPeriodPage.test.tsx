@@ -93,7 +93,9 @@ describe("FinanceDispatchPeriodPage", () => {
       }).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getByText(dispatchRunsCopy.tab.empty.onboardingTitle),
+      screen.getByRole("heading", {
+        name: dispatchRunsCopy.tab.empty.onboardingTitle,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(dispatchRunsCopy.tab.empty.onboardingSteps[0]!.label),
@@ -107,6 +109,17 @@ describe("FinanceDispatchPeriodPage", () => {
     expect(
       screen.getByText(dispatchRunsCopy.tab.empty.onboardingSteps[2]!.label),
     ).toBeInTheDocument();
+    // D10: onboarding XOR EmptyState filtrado — un solo empty.
+    expect(
+      screen.queryByRole("heading", {
+        name: dispatchRunsCopy.tab.empty.title,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: dispatchRunsCopy.tab.empty.recorteTitle,
+      }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /pendientes/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Filtros$/ })).toBeInTheDocument();
     expect(screen.queryByText("Todos")).not.toBeInTheDocument();

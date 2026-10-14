@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
+import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
 import { useInvoices } from "@features/invoicing";
 import type { InvoiceListItem } from "@features/invoicing";
@@ -139,12 +140,19 @@ export function FinanceDispatchPage() {
       <WorkbenchPageShell
         title={copy.title}
         description={copy.description}
-        primaryAction={{
-          label: copy.armPeriodCta,
-          icon: <Plus className="h-4 w-4" />,
-          onClick: () => setCreateRunOpen(true),
-          visible: canExecute,
-        }}
+        secondaryActions={
+          canExecute ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCreateRunOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+              {copy.armPeriodCta}
+            </Button>
+          ) : undefined
+        }
         buckets={buckets}
         bucketsAriaLabel={copy.bucketsAriaLabel}
         renderContent={() => {

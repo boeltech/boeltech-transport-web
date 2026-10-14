@@ -89,7 +89,7 @@ export function FinanceCobrosConfirmSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {/* Overlay de lote: Sheet (excepción DS vs Dialog de pago 1:1; Capa 1 D9). */}
+      {/* Overlay de lote: Sheet (D11; Dialog queda para chain repair). */}
       <SheetContent className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
         <SheetHeader className="shrink-0 space-y-1 border-b px-6 py-4 text-left">
           <SheetTitle>{copy.sheetTitle}</SheetTitle>
@@ -158,7 +158,9 @@ export function FinanceCobrosConfirmSheet({
           </div>
 
           {lateRegistrationHint ? (
-            <p className="text-xs text-warning">{lateRegistrationHint}</p>
+            <AlertWithIcon variant="warning">
+              {lateRegistrationHint}
+            </AlertWithIcon>
           ) : null}
 
           <div className="space-y-2">

@@ -85,6 +85,10 @@ export function DispatchRunActions({
   const showResend =
     canExecute && canConfirmForceResend(status, selectedResendCount);
   const busy = isPending || cancelMutation.isPending;
+  /** D13: una sola primaria sólida — Enviar, o Reenviar si no hay envío normal. */
+  const primaryIsResend = !showConfirm && showResend;
+  const menuHasResend = showResend && showConfirm;
+  const hasMore = showRefresh || showCancel || menuHasResend;
 
   const handleCancelConfirm = async () => {
     await cancelMutation.mutateAsync(runId);
@@ -159,8 +163,7 @@ export function DispatchRunActions({
     );
   }
 
-  const hasMore = showRefresh || showCancel || showResend;
-  if (!showConfirm && !hasMore) {
+  if (!showConfirm && !primaryIsResend && !hasMore) {
     return null;
   }
 
@@ -175,6 +178,16 @@ export function DispatchRunActions({
             onClick={onConfirm}
           >
             {copy.sendCta}
+          </Button>
+        ) : null}
+        {primaryIsResend ? (
+          <Button
+            type="button"
+            size="sm"
+            disabled={busy || hasResendZeroSelected}
+            onClick={onResend}
+          >
+            {copy.resendCta}
           </Button>
         ) : null}
         {hasMore ? (
@@ -204,7 +217,7 @@ export function DispatchRunActions({
                   {copy.refreshPreview}
                 </DropdownMenuItem>
               ) : null}
-              {showResend ? (
+              {menuHasResend ? (
                 <DropdownMenuItem
                   disabled={busy || hasResendZeroSelected}
                   onSelect={() => onResend?.()}
@@ -214,7 +227,9 @@ export function DispatchRunActions({
               ) : null}
               {showCancel ? (
                 <>
-                  {showRefresh || showResend ? <DropdownMenuSeparator /> : null}
+                  {showRefresh || menuHasResend ? (
+                    <DropdownMenuSeparator />
+                  ) : null}
                   <DropdownMenuItem
                     className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                     disabled={busy}

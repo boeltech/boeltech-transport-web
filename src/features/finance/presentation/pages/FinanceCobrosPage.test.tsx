@@ -6,6 +6,7 @@ import type {
   FinanceOpenPpdSummary,
   FinanceRepExceptionItem,
 } from "@features/finance/domain";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { FinanceCobrosPage } from "./FinanceCobrosPage";
 import {
@@ -13,6 +14,7 @@ import {
   COBROS_TODAY_TRAY_STORAGE_KEY,
 } from "../utils/cobrosFollowThrough";
 import { REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE } from "@features/finance/domain";
+import { financeCopy } from "../copy";
 
 const {
   openPpd,
@@ -236,14 +238,118 @@ describe("FinanceCobrosPage", () => {
     await user.click(
       screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
     );
-    expect(
-      screen.getAllByRole("button", { name: /Registrar cobro · 1 factura/ }),
-    ).toHaveLength(1);
+    const registerButtons = screen.getAllByRole("button", {
+      name: /Registrar cobro · 1 factura/,
+    });
+    expect(registerButtons).toHaveLength(1);
+    expect(registerButtons[0]!.closest(".sticky")).toBeTruthy();
 
     const otherRfc = screen.getAllByRole("checkbox", {
       name: /No seleccionable: factura A-11/,
     })[0]!;
     expect(otherRfc).toBeDisabled();
+    expect(
+      screen.getByText(financeCopy.cobros.sameRfcOnlyHint),
+    ).toBeInTheDocument();
+  });
+
+  it("clears selection when changing page (lote = página actual)", async () => {
+    const user = userEvent.setup();
+    openPpd.data = {
+      data: [buildInvoice()],
+      pagination: { page: 1, limit: 50, total: 100, totalPages: 2 },
+    };
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
+    );
+    expect(
+      screen.getAllByRole("button", { name: /Registrar cobro · 1 factura/ }),
+    ).toHaveLength(1);
+    expect(
+      screen.getByText(financeCopy.cobros.selectedHint),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Siguiente" }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: /Registrar cobro · 1 factura/ }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("opens chain repair as Dialog and shows Alert inline on error", async () => {
+    const user = userEvent.setup();
+    openPpd.data = {
+      data: [buildInvoice()],
+      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+    };
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("button", { name: /Registrar cobro · 1 factura/ })[0]!,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Confirmar cobro" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Registrar cobro de $1,160.00" }),
+    );
+
+    const mutateCall = registerPayment.mutate.mock.calls.at(-1);
+    expect(mutateCall).toBeTruthy();
+    const onError = mutateCall?.[1]?.onError as
+      | ((err: Error) => void)
+      | undefined;
+    expect(onError).toBeTypeOf("function");
+
+    onError?.(
+      new ApiError("Cadena requiere reparación", 409, "CHAIN_REORDER_REQUIRED", {
+        affected_payments: [{ serie: "A", folio: 1 }],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", {
+          name: financeCopy.cobros.chainRepair.title,
+        }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("heading", { name: "Confirmar cobro" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: financeCopy.cobros.chainRepair.confirm,
+      }),
+    );
+
+    const chainMutateCall = registerPayment.mutate.mock.calls.at(-1);
+    const chainOnError = chainMutateCall?.[1]?.onError as
+      | ((err: Error) => void)
+      | undefined;
+    chainOnError?.(new ApiError("Fallo al reparar cadena", 500, "PAC_ERROR"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Fallo al reparar cadena")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(financeCopy.cobros.toastError),
+    ).toBeInTheDocument();
   });
 
   it("submits the confirm sheet with the chosen payment date and default midday time", async () => {
@@ -367,6 +473,53 @@ describe("FinanceCobrosPage", () => {
     expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).toBeNull();
   });
 
+  it("shows Ver excepciones in the today tray when a cobro needs action", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-needs",
+          receiverRfc: "XAXX010101000",
+          amount: 1160,
+          paymentDate: "2026-08-18",
+          repStatus: "failed",
+          invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+          recordedAt: "2026-08-18T12:00:00.000Z",
+        },
+      ]),
+    );
+    repStatusByIds.data = [
+      {
+        paymentId: "pay-needs",
+        repStatus: "failed",
+        repAttempts: 1,
+        repLastError: "Error de validación PAC",
+        repCfdiUuid: null,
+        repStampedAt: null,
+        repNextAttemptAt: null,
+        waitReason: null,
+        repErrorKind: "validation",
+        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+      },
+    ];
+    openPpd.data = {
+      data: [buildInvoice()],
+      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+    };
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
+    expect(screen.getByText("Requiere atención")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ver excepciones" }));
+    expect(
+      screen.getByRole("tab", { name: /Excepciones REP/i }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
   it("shows stamped stage in tray without auto-clearing the session entry", () => {
     sessionStorage.setItem(
       COBROS_TODAY_TRAY_STORAGE_KEY,
@@ -404,6 +557,51 @@ describe("FinanceCobrosPage", () => {
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
     expect(screen.getByText("Comprobante timbrado")).toBeInTheDocument();
     expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("queue load error uses DetailAlertCard with Reintentar in action", async () => {
+    const user = userEvent.setup();
+    openPpd.isError = true;
+    openPpd.refetch = vi.fn().mockResolvedValue(undefined);
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    expect(screen.getByText("No se pudo consultar")).toBeInTheDocument();
+    expect(
+      screen.getByText(/No se pudieron cargar las facturas/),
+    ).toBeInTheDocument();
+    const retry = screen.getByRole("button", { name: "Reintentar" });
+    expect(retry).toBeInTheDocument();
+
+    await user.click(retry);
+    expect(openPpd.refetch).toHaveBeenCalled();
+  });
+
+  it("exceptions load error uses DetailAlertCard without Card+header chrome", async () => {
+    const user = userEvent.setup();
+    repExceptions.isError = true;
+    repExceptions.refetch = vi.fn().mockResolvedValue(undefined);
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
+
+    expect(
+      screen.getByText("No se pudieron cargar los comprobantes"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Intenta de nuevo\. Si persiste/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reintentar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Comprobantes por atender" }),
+    ).not.toBeInTheDocument();
   });
 
   it("lists a failed REP with reason and retry CTA (not for manual_review)", async () => {

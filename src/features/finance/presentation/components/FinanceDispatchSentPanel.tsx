@@ -8,11 +8,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Mail, Send } from "lucide-react";
-import { useQueryErrorToast } from "@shared/hooks";
+import { AlertCircle, Mail, Send } from "lucide-react";
 import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { ListingDateRangeFilter } from "@shared/ui/listing";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useFinanceListingFilters } from "@features/finance/application";
@@ -95,7 +95,7 @@ export function FinanceDispatchSentPanel({
     setSelected({});
   }, [selectionResetKey]);
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useInvoices({
+  const { data, isLoading, isError, refetch, isFetching } = useInvoices({
     status: "stamped",
     emailDispatch: "sent",
     search: filters.search || undefined,
@@ -112,12 +112,6 @@ export function FinanceDispatchSentPanel({
   useEffect(() => {
     onSentTotalChange?.(sentTotal);
   }, [onSentTotalChange, sentTotal]);
-
-  useQueryErrorToast({
-    isError,
-    error,
-    title: copy.loadError,
-  });
 
   const selectedInvoices = useMemo(
     () => invoices.filter((invoice) => selected[invoice.id]),
@@ -197,6 +191,29 @@ export function FinanceDispatchSentPanel({
   const hasDateFilter =
     Boolean(filters.filters.dateFrom) || Boolean(filters.filters.dateTo);
   const hasActiveFilters = hasSearch || hasDateFilter;
+
+  if (isError) {
+    return (
+      <DetailAlertCard
+        severity="critical"
+        icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+        title={copy.loadErrorTitle}
+        items={[{ text: copy.loadError }]}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refetch();
+            }}
+          >
+            {copy.retry}
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
     <>

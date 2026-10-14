@@ -1,16 +1,10 @@
-import { cn } from "@shared/lib/utils/cn";
-import {
-  FINANCE_ANALYSIS_VIEWS,
-  type FinanceAnalysisView,
-} from "@features/finance/application";
-import { financeCopy } from "../copy";
+import type { FinanceAnalysisView } from "@features/finance/application";
 import { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
 import { PerformanceTab } from "./PerformanceTab";
 import { ProfitabilityTab } from "./ProfitabilityTab";
 
 interface FinanceAnalysisContentProps {
   view: FinanceAnalysisView;
-  onViewChange: (view: FinanceAnalysisView) => void;
 }
 
 function renderView(view: FinanceAnalysisView) {
@@ -24,40 +18,7 @@ function renderView(view: FinanceAnalysisView) {
   }
 }
 
-export function FinanceAnalysisContent({
-  view,
-  onViewChange,
-}: FinanceAnalysisContentProps) {
-  const labels = financeCopy.page.analysisViews;
-
-  return (
-    <div className="space-y-6">
-      <div
-        className="inline-flex items-center rounded-lg border border-border bg-muted/80 p-1 text-muted-foreground"
-        role="radiogroup"
-        aria-label={labels.ariaLabel}
-      >
-        {FINANCE_ANALYSIS_VIEWS.map((option) => (
-          <button
-            key={option}
-            type="button"
-            role="radio"
-            aria-checked={view === option}
-            onClick={() => onViewChange(option)}
-            className={cn(
-              "inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition-all",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              view === option
-                ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
-                : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
-            )}
-          >
-            {labels[option]}
-          </button>
-        ))}
-      </div>
-
-      {renderView(view)}
-    </div>
-  );
+/** Children del hub Análisis: solo la vista activa (nav vive en HubPageShell). */
+export function FinanceAnalysisContent({ view }: FinanceAnalysisContentProps) {
+  return renderView(view);
 }

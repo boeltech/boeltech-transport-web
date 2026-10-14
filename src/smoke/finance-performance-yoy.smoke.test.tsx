@@ -112,14 +112,15 @@ describe("finance performance YoY smoke", () => {
     mockGetMonthlyPerformance.mockResolvedValue(performanceWithPreviousYear());
     renderPage("/finance/analysis");
 
+    const nav = screen.getByRole("tablist", { name: "Tipo de análisis" });
     expect(
-      screen.getByRole("radio", { name: "Mes a mes", checked: true }),
+      screen.getByRole("tab", { name: "Mes a mes", selected: true }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("radio").map((radio) => radio.textContent)).toEqual([
-      "Mes a mes",
-      "Rentabilidad",
-      "Gastos",
-    ]);
+    expect(
+      within(nav)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Mes a mes", "Rentabilidad", "Gastos"]);
     expect(await screen.findByText("Ingreso, gasto y margen mes a mes")).toBeInTheDocument();
   });
 
@@ -128,7 +129,7 @@ describe("finance performance YoY smoke", () => {
     renderPage();
 
     expect(
-      screen.getByRole("radio", { name: "Mes a mes", checked: true }),
+      screen.getByRole("tab", { name: "Mes a mes", selected: true }),
     ).toBeInTheDocument();
 
     const kpis = screen.getByRole("region", { name: "Totales del rango" });

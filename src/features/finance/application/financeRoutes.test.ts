@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildFinanceAnalysisHref,
   buildFinanceAnalysisSearchParams,
   buildFinanceMarginMonthHref,
   resolveLegacyFinanceLocation,
@@ -39,6 +40,28 @@ describe("financeRoutes", () => {
       preserveFrom: new URLSearchParams({ dimension: "month" }),
     });
     expect(result.get("dimension")).toBeNull();
+  });
+
+  it("buildFinanceAnalysisHref preserves from/to between margin and expenses", () => {
+    const current = new URLSearchParams({
+      view: "margin",
+      from: "2026-07-01",
+      to: "2026-09-30",
+      scope: "pipeline",
+      status: "loss",
+    });
+    expect(buildFinanceAnalysisHref("expenses", { preserveFrom: current })).toBe(
+      "/finance/analysis?from=2026-07-01&to=2026-09-30&view=expenses",
+    );
+    const fromExpenses = new URLSearchParams({
+      view: "expenses",
+      from: "2026-07-01",
+      to: "2026-09-30",
+      vehicleId: "veh-1",
+    });
+    expect(buildFinanceAnalysisHref("margin", { preserveFrom: fromExpenses })).toBe(
+      "/finance/analysis?from=2026-07-01&to=2026-09-30&view=margin",
+    );
   });
 
   it("buildFinanceMarginMonthHref opens Rentabilidad with that whole month as the period", () => {

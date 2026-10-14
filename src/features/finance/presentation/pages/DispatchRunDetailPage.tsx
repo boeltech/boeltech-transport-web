@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import {
+  AlertCircle,
   AlertTriangle,
   CheckCircle2,
   Loader2,
@@ -25,6 +26,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { usePermissions } from "@shared/permissions";
 import { isClientPortalRole } from "@shared/constants/roles";
@@ -53,6 +55,7 @@ import {
   DispatchRunItemStatusBadge,
   DispatchRunRecipientsEditor,
   DispatchRunRecipientsReadOnly,
+  DispatchRunSendResults,
 } from "../components";
 import { DispatchRunStatusBadge } from "../components/DispatchRunStatusBadge";
 import { DispatchRunOriginBadge } from "../components/DispatchRunOriginBadge";
@@ -65,6 +68,7 @@ import {
   buildPendingStampInvoicePath,
   canConfirmForceResend,
   canConfirmSend,
+  canRefreshPreview,
   clientDisplayName,
   clientIdsFromItems,
   countDispatchPreviewBuckets,
@@ -539,7 +543,24 @@ export function DispatchRunDetailPage() {
           title: copy.titleFallback,
         }}
         alerts={
-          <p className="text-sm text-destructive">{dispatchRunsCopy.toast.error}</p>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+            title={copy.loadErrorTitle}
+            items={[{ text: copy.loadError }]}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
+                {copy.retry}
+              </Button>
+            }
+          />
         }
       />
     );
@@ -643,90 +664,139 @@ export function DispatchRunDetailPage() {
         </p>
 
         {showEmptyScheduledAlert ? (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>{copy.emptyScheduledAlert.title}</AlertTitle>
-            <AlertDescription className="space-y-3">
-              <p>{copy.emptyScheduledAlert.body}</p>
-              {canExecute ? (
+          <DetailAlertCard
+            severity="warning"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.emptyScheduledAlert.title}
+            action={
+              canExecute ? (
                 <Button
                   type="button"
                   size="sm"
+                  variant="outline"
                   onClick={() => setCreateOpen(true)}
                 >
                   <Plus className="mr-1.5 h-4 w-4" aria-hidden />
                   {copy.emptyScheduledAlert.cta}
                 </Button>
-              ) : null}
-            </AlertDescription>
-          </Alert>
+              ) : null
+            }
+          >
+            <p>{copy.emptyScheduledAlert.body}</p>
+          </DetailAlertCard>
         ) : null}
 
         {inFlight ? (
-          <Alert>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <AlertTitle>{copy.result.title}</AlertTitle>
-            <AlertDescription>{copy.sendingBanner}</AlertDescription>
-          </Alert>
+          <DetailAlertCard
+            severity="info"
+            icon={<Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
+            title={copy.result.title}
+          >
+            <p>{copy.sendingBanner}</p>
+          </DetailAlertCard>
         ) : null}
 
         {editableRecipients && hasZeroSelected ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>{copy.recipients.zeroSelected}</AlertTitle>
-          </Alert>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.recipients.zeroSelected}
+          />
         ) : null}
 
         {editableResend &&
         invoiceSelection.length > 0 &&
         hasResendZeroSelected ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>{copy.resendConfirm.zeroSelected}</AlertTitle>
-          </Alert>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.resendConfirm.zeroSelected}
+          />
         ) : null}
 
-        {!showConfirm && counts.readyToSendCount === 0 && !terminal ? (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>{copy.confirm.noReady}</AlertTitle>
-          </Alert>
+        {!showConfirm &&
+        counts.readyToSendCount === 0 &&
+        !terminal &&
+        !showEmptyScheduledAlert ? (
+          <DetailAlertCard
+            severity="warning"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.confirm.noReady}
+            action={
+              canExecute && canRefreshPreview(run.status) ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => {
+                    void handleRefresh();
+                  }}
+                >
+                  {previewMutation.isPending ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+                  ) : null}
+                  {copy.refreshPreview}
+                </Button>
+              ) : null
+            }
+          />
         ) : null}
 
         {run.status === "completed" && failedClientCount > 0 ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>
-              {copy.result.completedWithErrors(
-                failedClientCount,
-                sendResultRows.length,
-              )}
-            </AlertTitle>
-            {run.errorSummary ? (
-              <AlertDescription>{run.errorSummary}</AlertDescription>
-            ) : null}
-          </Alert>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.result.completedWithErrors(
+              failedClientCount,
+              sendResultRows.length,
+            )}
+          >
+            {run.errorSummary ? <p>{run.errorSummary}</p> : null}
+          </DetailAlertCard>
         ) : null}
 
         {run.status === "completed" && failedClientCount === 0 ? (
-          <Alert>
-            <AlertTitle>{copy.result.completed}</AlertTitle>
-          </Alert>
+          <DetailAlertCard
+            severity="info"
+            icon={<CheckCircle2 className="h-5 w-5" aria-hidden />}
+            title={copy.result.completed}
+          />
         ) : null}
 
         {run.status === "failed" ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>{copy.result.error}</AlertTitle>
-            <AlertDescription>
-              {run.errorSummary ?? copy.result.errorHint}
-            </AlertDescription>
-          </Alert>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.result.error}
+            action={
+              canExecute ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+                  {copy.emptyScheduledAlert.cta}
+                </Button>
+              ) : null
+            }
+          >
+            <p>{run.errorSummary ?? copy.result.errorHint}</p>
+          </DetailAlertCard>
         ) : run.errorSummary && run.status !== "completed" ? (
-          <Alert variant="destructive">
-            <AlertTitle>{copy.result.error}</AlertTitle>
-            <AlertDescription>{run.errorSummary}</AlertDescription>
-          </Alert>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.result.error}
+          >
+            <p>{run.errorSummary}</p>
+          </DetailAlertCard>
+        ) : null}
+
+        {sendResultRows.length > 0 ? (
+          <DispatchRunSendResults rows={sendResultRows} />
         ) : null}
 
         <Card>

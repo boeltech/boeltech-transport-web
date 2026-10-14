@@ -92,6 +92,9 @@ export function FinanceCobrosInvoiceTable({
     : someSelected
       ? "indeterminate"
       : false;
+  const showSameRfcHint =
+    Boolean(anchorRfc) &&
+    invoices.some((invoice) => !isCobrosInvoiceSelectable(invoice, anchorRfc));
 
   if (isLoading) {
     return (
@@ -149,6 +152,11 @@ export function FinanceCobrosInvoiceTable({
 
   return (
     <>
+      {showSameRfcHint ? (
+        <p className="mb-3 text-sm text-muted-foreground" role="status">
+          {copy.sameRfcOnlyHint}
+        </p>
+      ) : null}
       <div className="hidden md:block">
         <Table>
           <TableHeader>

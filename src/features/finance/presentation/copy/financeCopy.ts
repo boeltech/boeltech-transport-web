@@ -24,44 +24,22 @@ const exportCopy = {
 } as const;
 
 const cobrosCopy = {
-  taskTitle: "Registrar un cobro",
-  taskDescription:
-    "Cola de cartera PPD con saldo. Elige facturas del mismo RFC que cubre el depósito. Aquí cada factura se cobra por el saldo completo. Un cobro parcial de una sola factura se registra en su detalle.",
   receiverRfcLabel: "RFC del cliente",
-  rfcPlaceholder: "XAXX010101000",
   search: "Filtrar",
-  changeRfc: "Cambiar RFC",
-  rfcChip: (rfc: string) => `RFC ${rfc}`,
-  summaryLink:
-    "Si buscas un cliente concreto, ábrelo desde Cartera → estado de cuenta → Cobrar.",
-  summaryLinkCta: "Ir a Cartera",
   retry: "Reintentar",
   loadErrorTitle: "No se pudo consultar",
   loadError: "No se pudieron cargar las facturas.",
-  emptyTitle: "Sin facturas abiertas",
-  empty: "No hay facturas a crédito con saldo pendiente en la cola.",
-  emptyWithRfc: "No hay facturas a crédito con saldo pendiente para este RFC.",
-  metrics: {
-    openInvoices: "Facturas abiertas",
-    openBalance: "Por cobrar",
-    pendingCredit: "A crédito con saldo pendiente",
-    thisPage: "En esta página",
-  },
-  tableTitle: "Facturas abiertas a crédito",
-  tableDescription:
-    "Selecciona facturas del mismo RFC que cubre el depósito. Se aplicará el por cobrar completo de cada una (no una parcialidad).",
   selectAllAria: "Seleccionar todas las facturas del mismo RFC en esta página",
   sameRfcOnlyHint:
-    "Solo puedes registrar un cobro con facturas del mismo RFC.",
-  register: "Registrar cobro",
+    "Solo puedes registrar un cobro con facturas del mismo RFC. Filtra por RFC para reunir varias en esta página.",
   registerCta: (count: number, total: string) =>
     `Registrar cobro · ${count} factura${count === 1 ? "" : "s"} · ${total}`,
   selectedHint:
-    "El cobro aplicará el por cobrar completo de cada factura seleccionada. Para una parcialidad, abre el detalle de esa factura.",
+    "El lote es la selección de esta página. Se cobra el saldo completo de cada factura. Para una parcialidad, abre el detalle.",
   entityLabelPlural: "facturas",
   sheetTitle: "Confirmar cobro",
   sheetDescription:
-    "Se registrará un cobro por el total y se aplicará el por cobrar completo de cada factura. No es un cobro parcial.",
+    "Se registrará un cobro por el total de las facturas seleccionadas en esta página. Se aplica el por cobrar completo de cada una; no es un cobro parcial.",
   sheetTotal: "Total a cobrar",
   sheetClient: "Cliente",
   sheetPaymentDate: "Fecha del cobro",
@@ -84,17 +62,6 @@ const cobrosCopy = {
   toastSuccessTitle: "Cobro registrado",
   toastSuccessDescription: (total: string) =>
     `Cobro de ${total} registrado. El comprobante de pago (REP) se timbra en segundo plano.`,
-  /** @deprecated Prefer todayTray — kept for transitional copy refs. */
-  followThrough: {
-    title: "Cobros de hoy",
-    description: (total: string) =>
-      `Cobro de ${total}. Revisa el estado del comprobante de pago (REP).`,
-    invoicesTitle: "Facturas del cobro",
-    openInvoice: (folio: string) => `Abrir factura ${folio}`,
-    repStatusLabel: "Comprobante de pago",
-    hint: "Si el timbrado falla o se acerca el plazo, el cobro aparece en Comprobantes por atender.",
-    dismissAriaLabel: "Cerrar bandeja de cobros de hoy",
-  },
   /**
    * CTA N=1 / N>1 hacia detalle de factura (#invoice-payments).
    * Shared by bandeja «Cobros de hoy» and excepciones REP (PRD opción E).
@@ -139,7 +106,9 @@ const cobrosCopy = {
       "El PAC rechazó el comprobante de forma permanente; no reintente a ciegas.",
     orphanHint:
       "Hay un UUID de comprobante; revise en el PAC antes de actuar.",
+    dismissTray: "Cerrar",
     dismissTrayAriaLabel: "Cerrar bandeja de cobros de hoy",
+    viewExceptions: "Ver excepciones",
     dismissRowAriaLabel: (amount: string) => `Quitar cobro de ${amount} de la bandeja`,
     toastReadyTitle: "Comprobante de pago timbrado",
     toastReadyDescription: (amount: string) =>
@@ -195,7 +164,7 @@ const cobrosCopy = {
   workbench: {
     title: "Cobros",
     description:
-      "Cola de cartera a crédito: registra depósitos por el mismo RFC y revisa comprobantes de pago pendientes.",
+      "Cola de cartera a crédito: registra depósitos por el mismo RFC (el lote es la página actual) y revisa comprobantes de pago pendientes.",
     bucketsAriaLabel: "Estado de cobranza",
     rfcFilterPlaceholder: "Filtrar por RFC…",
     rfcChipLabel: (rfc: string) => `RFC: ${rfc}`,
@@ -242,7 +211,6 @@ const cobrosCopy = {
     },
   },
   toastError: "No se pudo registrar el cobro",
-  overlayErrorSeeInline: "Revisa el mensaje detallado en el diálogo.",
   chainRepair: {
     title: "Actualizar comprobantes de pago anteriores",
     description:
@@ -460,7 +428,6 @@ export const financeCopy = {
       dispatch: "Envío",
       status: "Estado",
       paid: "Pagado",
-      empty: "No se encontraron facturas.",
     },
     fromTripCta: {
       label: "Facturar desde viaje",
@@ -690,6 +657,11 @@ export const financeCopy = {
       widenPeriod: "Ampliar a 12 meses",
       viewPerformance: "Ver mes a mes",
     },
+    error: {
+      title: "No se pudieron cargar las cifras",
+      description: "Revisa tu conexión e intenta de nuevo.",
+      retry: "Reintentar",
+    },
     statuses: {
       high: "Alta",
       medium: "Media",
@@ -737,6 +709,12 @@ export const financeCopy = {
       bodyRouteLink: "Viajes → detalle → Costos",
       bodyRouteSuffix:
         ". La tarifa base y los costos presupuestados no alimentan este análisis.",
+      goToTrips: "Ir a Viajes",
+    },
+    error: {
+      title: "No se pudieron cargar los gastos",
+      description: "Revisa tu conexión e intenta de nuevo.",
+      retry: "Reintentar",
     },
     metrics: {
       totalExpense: "Gasto total",

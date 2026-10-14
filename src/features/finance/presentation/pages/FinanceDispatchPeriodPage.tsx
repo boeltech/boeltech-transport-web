@@ -2,19 +2,13 @@
  * Envíos del periodo: listado de lotes + frecuencias de envío (`ListPageShell`).
  *
  * Dictamen toolbar: sin search (el API no busca); estado y frecuencia en
- * «Filtros (n)». Card de frecuencias y Armar no son recortes.
+ * `ListingFilterPanel`. Hide-empty fuera del panel. Card de frecuencias y
+ * Armar no son recortes. Empty: onboarding XOR EmptyState filtrado (D10).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, History, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
 import { ListPageShell } from "@shared/ui/page-shells";
 import { useQueryErrorToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
@@ -43,6 +37,7 @@ import { resolvePeriodListBackHref } from "../utils/dispatchWayfinding";
 
 const copy = dispatchRunsCopy.tab;
 const emptyCopy = dispatchRunsCopy.tab.empty;
+const filterCopy = dispatchRunsCopy.tab.filters;
 
 function parseDispatchRunStatus(
   value: string | undefined,
@@ -53,37 +48,35 @@ function parseDispatchRunStatus(
     : undefined;
 }
 
-function DispatchPeriodOnboardingChecklist() {
+/** Checklist de primer uso — va dentro del EmptyState (D10), no junto a él. */
+function DispatchPeriodOnboardingBody() {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">{emptyCopy.onboardingTitle}</CardTitle>
-        <CardDescription>{emptyCopy.description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ol className="list-decimal space-y-3 pl-5 text-sm">
-          {emptyCopy.onboardingSteps.map((step) => (
-            <li key={step.label}>
-              <span className="text-foreground">{step.label}</span>
-              {"href" in step &&
-              step.href &&
-              "linkLabel" in step &&
-              step.linkLabel ? (
-                <>
-                  {" "}
-                  <Link
-                    to={step.href}
-                    className="text-primary underline underline-offset-2"
-                  >
-                    {step.linkLabel}
-                  </Link>
-                </>
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      </CardContent>
-    </Card>
+    <div className="mx-auto max-w-md text-left">
+      <p className="mb-3 text-sm text-muted-foreground">
+        {emptyCopy.description}
+      </p>
+      <ol className="list-decimal space-y-3 pl-5 text-sm">
+        {emptyCopy.onboardingSteps.map((step) => (
+          <li key={step.label}>
+            <span className="text-foreground">{step.label}</span>
+            {"href" in step &&
+            step.href &&
+            "linkLabel" in step &&
+            step.linkLabel ? (
+              <>
+                {" "}
+                <Link
+                  to={step.href}
+                  className="text-primary underline underline-offset-2"
+                >
+                  {step.linkLabel}
+                </Link>
+              </>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -143,7 +136,7 @@ export function FinanceDispatchPeriodPage() {
     });
 
   const runs = data?.data ?? [];
-  const showOnboarding =
+  const showOnboardingEmpty =
     !isLoading && !filters.hasFilters && runs.length === 0;
 
   useQueryErrorToast({
@@ -190,27 +183,36 @@ export function FinanceDispatchPeriodPage() {
           onClick: handleOpenCreate,
           visible: canExecute,
         }}
-        beforeToolbar={
-          <div className="space-y-6">
-            <BillingSchemesCompactCard />
-            {showOnboarding ? <DispatchPeriodOnboardingChecklist /> : null}
-          </div>
-        }
+        beforeToolbar={<BillingSchemesCompactCard />}
         toolbar={{
           filters: (
-            <FinanceDispatchPeriodFilters
-              key={hasPanelFilters ? "filters-active" : "filters-idle"}
-              status={statusFilter ?? ""}
-              billingSchemeId={schemeFilter ?? ""}
-              schemes={schemes}
-              activePanelFilterCount={activePanelFilterCount}
-              excludeEmptyScheduled={excludeEmptyScheduled}
-              onExcludeEmptyScheduledChange={setExcludeEmptyScheduled}
-              onStatusChange={(value) => filters.setFilter("status", value)}
-              onSchemeChange={(value) =>
-                filters.setFilter("billingSchemeId", value)
-              }
-            />
+            <>
+              <Button
+                type="button"
+                variant={excludeEmptyScheduled ? "secondary" : "outline"}
+                size="sm"
+                onClick={() =>
+                  setExcludeEmptyScheduled(!excludeEmptyScheduled)
+                }
+                aria-pressed={excludeEmptyScheduled}
+                aria-label={filterCopy.hideEmptyScheduledAria}
+              >
+                {excludeEmptyScheduled
+                  ? filterCopy.hideEmptyScheduledOn
+                  : filterCopy.hideEmptyScheduledOff}
+              </Button>
+              <FinanceDispatchPeriodFilters
+                key={hasPanelFilters ? "filters-active" : "filters-idle"}
+                status={statusFilter ?? ""}
+                billingSchemeId={schemeFilter ?? ""}
+                schemes={schemes}
+                activePanelFilterCount={activePanelFilterCount}
+                onStatusChange={(value) => filters.setFilter("status", value)}
+                onSchemeChange={(value) =>
+                  filters.setFilter("billingSchemeId", value)
+                }
+              />
+            </>
           ),
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
@@ -240,30 +242,50 @@ export function FinanceDispatchPeriodPage() {
             onView={handleView}
           />
         )}
-        emptyState={{
-          icon: <History className="h-10 w-10 text-muted-foreground" />,
-          title: filters.hasFilters
-            ? copy.empty.recorteTitle
-            : copy.empty.title,
-          description: filters.hasFilters
-            ? copy.empty.withFilters
-            : copy.empty.description,
-          cta:
-            canExecute && !filters.hasFilters
-              ? {
-                  label: copy.executeCta,
-                  icon: <Plus className="h-4 w-4" />,
-                  onClick: handleOpenCreate,
-                }
-              : undefined,
-          secondaryCta: filters.hasFilters
+        emptyState={
+          showOnboardingEmpty
             ? {
-                label: copy.empty.clearFilters,
-                onClick: filters.clearAll,
-                variant: "outline",
+                // D10: onboarding (único empty sin recortes).
+                icon: (
+                  <History className="h-10 w-10 text-muted-foreground" />
+                ),
+                title: emptyCopy.onboardingTitle,
+                description: <DispatchPeriodOnboardingBody />,
+                cta: canExecute
+                  ? {
+                      label: copy.executeCta,
+                      icon: <Plus className="h-4 w-4" />,
+                      onClick: handleOpenCreate,
+                    }
+                  : undefined,
               }
-            : undefined,
-        }}
+            : {
+                icon: (
+                  <History className="h-10 w-10 text-muted-foreground" />
+                ),
+                title: filters.hasFilters
+                  ? emptyCopy.recorteTitle
+                  : emptyCopy.title,
+                description: filters.hasFilters
+                  ? emptyCopy.withFilters
+                  : emptyCopy.description,
+                cta:
+                  canExecute && !filters.hasFilters
+                    ? {
+                        label: copy.executeCta,
+                        icon: <Plus className="h-4 w-4" />,
+                        onClick: handleOpenCreate,
+                      }
+                    : undefined,
+                secondaryCta: filters.hasFilters
+                  ? {
+                      label: emptyCopy.clearFilters,
+                      onClick: filters.clearAll,
+                      variant: "outline",
+                    }
+                  : undefined,
+              }
+        }
       />
 
       <FinanceDispatchCreateRunDialog

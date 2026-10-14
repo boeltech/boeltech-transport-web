@@ -114,6 +114,28 @@ describe("FinanceCobrosInvoiceTable", () => {
         name: "No seleccionable: factura A-11 es de otro RFC",
       })[0],
     ).toBeDisabled();
+    expect(
+      screen.getByText(
+        "Solo puedes registrar un cobro con facturas del mismo RFC. Filtra por RFC para reunir varias en esta página.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the same-RFC hint when every row is selectable", () => {
+    renderTable({
+      invoices: [
+        buildInvoice(),
+        buildInvoice({ id: "inv-2", folio: 11 }),
+      ],
+      selected: { "inv-1": true },
+      anchorRfc: "XAXX010101000",
+    });
+
+    expect(
+      screen.queryByText(
+        "Solo puedes registrar un cobro con facturas del mismo RFC.",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("selects the current page from the header checkbox", async () => {

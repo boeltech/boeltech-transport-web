@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getTodayMexicoDateString } from "@boeltech/cfdi-domain";
-import { FileClock, Send } from "lucide-react";
+import { AlertCircle, FileClock, Send } from "lucide-react";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -515,6 +516,7 @@ function FinanceCobrosWorkbench({
               entries={todayTray}
               onDismissTray={onDismissTray}
               onDismissEntry={onDismissEntry}
+              onViewExceptions={() => handleBucketChange("rep_exceptions")}
               onEntryLiveUpdate={onEntryLiveUpdate}
             />
           ) : undefined
@@ -560,20 +562,24 @@ function FinanceCobrosWorkbench({
 
           if (isError) {
             return (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-destructive">{copy.loadError}</p>
+              <DetailAlertCard
+                severity="critical"
+                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                title={copy.loadErrorTitle}
+                items={[{ text: copy.loadError }]}
+                action={
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="mt-3"
-                    onClick={() => refetch()}
+                    onClick={() => {
+                      void refetch();
+                    }}
                   >
                     {copy.retry}
                   </Button>
-                </CardContent>
-              </Card>
+                }
+              />
             );
           }
 
@@ -626,7 +632,7 @@ function FinanceCobrosWorkbench({
                 onTogglePage={togglePage}
               />
               {showRegisterBar ? (
-                <Card className="border-primary/30 bg-primary/5">
+                <Card className="sticky bottom-4 border-primary/30 bg-primary/5 shadow-md">
                   <CardContent className="p-4">
                     <CobrosRegisterBar
                       count={selectedInvoices.length}

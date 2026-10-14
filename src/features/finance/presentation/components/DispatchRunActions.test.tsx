@@ -143,4 +143,31 @@ describe("DispatchRunActions", () => {
     );
     expect(onResend).toHaveBeenCalled();
   });
+
+  it("sin listas para enviar, Reenviar es la única primaria sólida", () => {
+    const onResend = vi.fn();
+    renderActions({
+      variant: "buttons",
+      readyCount: 0,
+      selectedResendCount: 2,
+      onResend,
+      onRefresh: vi.fn(),
+    });
+
+    expect(
+      screen.queryByRole("button", {
+        name: dispatchRunsCopy.detail.sendCta,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.resendCta,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", {
+        name: dispatchRunsCopy.detail.resendCta,
+      }),
+    ).not.toBeInTheDocument();
+  });
 });

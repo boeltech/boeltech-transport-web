@@ -1,3 +1,7 @@
+/**
+ * Resultado por cliente tras confirmar envío.
+ * Montado en `DispatchRunDetailPage` cuando hay filas de envío (terminal o con receipts).
+ */
 import { useState } from "react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
