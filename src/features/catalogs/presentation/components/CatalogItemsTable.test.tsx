@@ -33,14 +33,11 @@ function buildItem(overrides: Partial<CatalogItem> = {}): CatalogItem {
 }
 
 describe("CatalogItemsTable", () => {
-  it("distingue búsqueda sin coincidencias de catálogo vacío en modo embedded", () => {
-    const { rerender } = render(
-      <CatalogItemsTable embedded isFiltered items={[]} />,
+  it("retorna null cuando no hay valores (EmptyState lo posee el padre — D6)", () => {
+    const { container } = render(
+      <CatalogItemsTable embedded items={[]} />,
     );
-    expect(screen.getByText(catalogsCopy.table.emptySearch)).toBeInTheDocument();
-
-    rerender(<CatalogItemsTable embedded isFiltered={false} items={[]} />);
-    expect(screen.getByText(catalogsCopy.table.emptyAll)).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("oculta la columna de estado cuando todos los valores están activos", () => {
@@ -56,7 +53,12 @@ describe("CatalogItemsTable", () => {
         embedded
         items={[
           buildItem(),
-          buildItem({ id: "item-2", code: "KGM", name: "Kilogramo", isActive: false }),
+          buildItem({
+            id: "item-2",
+            code: "KGM",
+            name: "Kilogramo",
+            isActive: false,
+          }),
         ]}
       />,
     );

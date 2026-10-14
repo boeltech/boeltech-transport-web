@@ -7,14 +7,17 @@
  */
 
 import { memo, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { ChevronRight, Database } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AlertCircle, ChevronRight, Database } from "lucide-react";
 
-import { ListingSearchInput } from "@shared/ui/listing";
+import { Button } from "@shared/ui/button";
+import { CardContent, CardHeader } from "@shared/ui/card";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { ListingSearchInput, EntityListCard } from "@shared/ui/listing";
 import { EmptyState } from "@shared/ui/feedback-states";
+import { SettingsPageShell } from "@shared/ui/page-shells";
 import { Skeleton } from "@shared/ui/skeleton";
 
-import { SettingsLayout } from "@features/settings/presentation/components/SettingsLayout";
 import { useCatalogTypes, useCatalogStatistics } from "../../application/hooks";
 import { CatalogGlobalReadOnlyBanner } from "../components/CatalogGlobalReadOnlyBanner";
 import { catalogsCopy } from "../copy/catalogsCopy";
@@ -40,13 +43,23 @@ interface CatalogThemeGroup {
 }
 
 export const CatalogsPage = memo(function CatalogsPage() {
-  const { data: types, isLoading: isLoadingTypes } = useCatalogTypes();
-  const { data: statistics, isLoading: isLoadingStats } =
-    useCatalogStatistics();
+  const {
+    data: types,
+    isLoading: isLoadingTypes,
+    isError: isErrorTypes,
+    refetch: refetchTypes,
+  } = useCatalogTypes();
+  const {
+    data: statistics,
+    isLoading: isLoadingStats,
+    isError: isErrorStats,
+    refetch: refetchStats,
+  } = useCatalogStatistics();
 
   const [searchQuery, setSearchQuery] = useState("");
 
   const isLoading = isLoadingTypes || isLoadingStats;
+  const isError = isErrorTypes || isErrorStats;
 
   const catalogsWithStats = useMemo<CatalogTypeWithStats[]>(() => {
     if (!types) return [];
@@ -89,57 +102,88 @@ export const CatalogsPage = memo(function CatalogsPage() {
     })).filter((group) => group.catalogs.length > 0);
   }, [filteredCatalogs]);
 
+  const handleRetry = () => {
+    void refetchTypes();
+    void refetchStats();
+  };
+
   return (
-    <SettingsLayout
+    <SettingsPageShell
       sectionTitle={copy.page.sectionTitle}
       title={copy.page.title}
       description={copy.page.description}
     >
       <div className="space-y-6">
-        <ListingSearchInput
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={copy.page.searchPlaceholder}
-          className="w-full sm:max-w-md"
-        />
-
-        <CatalogGlobalReadOnlyBanner variant="list" />
-
-        {isLoading ? (
-          <CatalogListSkeleton />
-        ) : groups.length === 0 ? (
-          <EmptyState
-            icon={<Database />}
-            title={
-              searchQuery ? copy.page.emptySearchTitle : copy.page.emptyAllTitle
+        {isError ? (
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+            title={copy.state.loadErrorTitle}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRetry}
+              >
+                {copy.state.loadErrorRetry}
+              </Button>
             }
-            description={
-              searchQuery
-                ? copy.page.emptySearchDescription(searchQuery.trim())
-                : copy.page.emptyAllDescription
-            }
-          />
-        ) : (
-          groups.map((group) => (
-            <section key={group.theme} className="space-y-3">
-              <div>
-                <h2 className="text-lg font-semibold">
-                  {catalogThemeCopy[group.theme].title}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {catalogThemeCopy[group.theme].description}
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {group.catalogs.map((catalog) => (
-                  <CatalogCard key={catalog.code} catalog={catalog} />
-                ))}
-              </div>
-            </section>
-          ))
-        )}
+          >
+            <p>{copy.state.loadErrorDescription}</p>
+          </DetailAlertCard>
+        ) : null}
+
+        {!isError ? (
+          <>
+            <ListingSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={copy.page.searchPlaceholder}
+              className="w-full sm:max-w-md"
+            />
+
+            <CatalogGlobalReadOnlyBanner variant="list" />
+
+            {isLoading ? (
+              <CatalogListSkeleton />
+            ) : groups.length === 0 ? (
+              <EmptyState
+                icon={<Database />}
+                title={
+                  searchQuery
+                    ? copy.page.emptySearchTitle
+                    : copy.page.emptyAllTitle
+                }
+                description={
+                  searchQuery
+                    ? copy.page.emptySearchDescription(searchQuery.trim())
+                    : copy.page.emptyAllDescription
+                }
+              />
+            ) : (
+              groups.map((group) => (
+                <section key={group.theme} className="space-y-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      {catalogThemeCopy[group.theme].title}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      {catalogThemeCopy[group.theme].description}
+                    </p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.catalogs.map((catalog) => (
+                      <CatalogCard key={catalog.code} catalog={catalog} />
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
+          </>
+        ) : null}
       </div>
-    </SettingsLayout>
+    </SettingsPageShell>
   );
 });
 
@@ -152,31 +196,36 @@ interface CatalogCardProps {
 }
 
 const CatalogCard = memo(function CatalogCard({ catalog }: CatalogCardProps) {
+  const navigate = useNavigate();
   const examples = getCatalogExamples(catalog.code);
 
   return (
-    <Link
-      to={`/settings/catalogs/${catalog.code}`}
-      className="group flex flex-col rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    <EntityListCard
+      onClick={() => navigate(`/settings/catalogs/${catalog.code}`)}
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium">{catalog.name}</h3>
-        <ChevronRight
-          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-          aria-hidden="true"
-        />
-      </div>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-medium">{catalog.name}</h3>
+          <ChevronRight
+            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+            aria-hidden="true"
+          />
+        </div>
+      </CardHeader>
 
-      {examples.length > 0 ? (
-        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-          {copy.card.examplesPrefix} {examples.join(", ")}
+      <CardContent className="pt-0">
+        {examples.length > 0 ? (
+          <p className="line-clamp-2 text-sm text-muted-foreground">
+            {copy.card.examplesPrefix} {examples.join(", ")}
+          </p>
+        ) : null}
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          {copy.valuesCount(catalog.itemCount)} ·{" "}
+          {resolveCatalogPublisher(catalog)}
         </p>
-      ) : null}
-
-      <p className="mt-3 text-xs text-muted-foreground">
-        {copy.valuesCount(catalog.itemCount)} · {resolveCatalogPublisher(catalog)}
-      </p>
-    </Link>
+      </CardContent>
+    </EntityListCard>
   );
 });
 

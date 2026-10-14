@@ -57,7 +57,11 @@ export function CatalogItemRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {canUpdate ? (
-            <DropdownMenuItem onClick={() => onEdit(item)}>
+            <DropdownMenuItem
+              onSelect={() => {
+                setTimeout(() => onEdit(item), 0);
+              }}
+            >
               <Pencil className="mr-2 h-4 w-4" />
               {catalogsCopy.itemActions.edit}
             </DropdownMenuItem>
@@ -65,7 +69,9 @@ export function CatalogItemRowActions({
           {canDelete ? (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              onClick={() => setDeleteOpen(true)}
+              onSelect={() => {
+                setTimeout(() => setDeleteOpen(true), 0);
+              }}
             >
               <Trash2 className="mr-2 h-4 w-4" />
               {catalogsCopy.itemActions.delete}

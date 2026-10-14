@@ -1,4 +1,6 @@
-import { AlertWithIcon } from "@shared/ui/alert";
+import { Info } from "lucide-react";
+
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { catalogsCopy } from "../copy/catalogsCopy";
 
 interface CatalogGlobalReadOnlyBannerProps {
@@ -17,19 +19,29 @@ export function CatalogGlobalReadOnlyBanner({
 
   if (variant === "detail") {
     return (
-      <AlertWithIcon variant="info" title={copy.detailTitle}>
-        {scope === "internal"
-          ? copy.detailInternalDescription
-          : copy.detailOfficialDescription(
-              sourceLabel ?? catalogsCopy.publisher.sat,
-            )}
-      </AlertWithIcon>
+      <DetailAlertCard
+        severity="info"
+        icon={<Info className="h-5 w-5" aria-hidden />}
+        title={copy.detailTitle}
+      >
+        <p>
+          {scope === "internal"
+            ? copy.detailInternalDescription
+            : copy.detailOfficialDescription(
+                sourceLabel ?? catalogsCopy.publisher.sat,
+              )}
+        </p>
+      </DetailAlertCard>
     );
   }
 
   return (
-    <AlertWithIcon variant="info" title={copy.listTitle}>
-      {copy.listDescription}
-    </AlertWithIcon>
+    <DetailAlertCard
+      severity="info"
+      icon={<Info className="h-5 w-5" aria-hidden />}
+      title={copy.listTitle}
+    >
+      <p>{copy.listDescription}</p>
+    </DetailAlertCard>
   );
 }

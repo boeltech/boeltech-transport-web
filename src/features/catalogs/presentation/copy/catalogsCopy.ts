@@ -56,6 +56,13 @@ export const catalogsCopy = {
     searchPlaceholder: "Buscar por nombre o código",
     resultsLabel: "valores",
     addRecord: "Agregar registro",
+    clearSearch: "Limpiar búsqueda",
+  },
+  state: {
+    loadErrorTitle: "No pudimos cargar los catálogos",
+    loadErrorDescription: "Revisa tu conexión y vuelve a intentarlo.",
+    loadErrorDetailTitle: "No pudimos cargar este catálogo",
+    loadErrorRetry: "Reintentar",
   },
   table: {
     code: "Código",
@@ -71,6 +78,11 @@ export const catalogsCopy = {
     copyError: "No se pudo copiar el código",
     emptySearch: "Ningún valor coincide con tu búsqueda",
     emptyAll: "Este catálogo todavía no tiene valores",
+    emptySearchTitle: "Sin coincidencias",
+    emptySearchDescription:
+      "Ningún valor coincide con tu búsqueda. Prueba con otro nombre o código.",
+    emptyAllTitle: "Sin valores",
+    emptyAllDescription: "Este catálogo todavía no tiene valores para consultar.",
   },
   itemForm: {
     createTitle: "Nuevo registro",

@@ -69,8 +69,8 @@ export function CatalogTypeCard({
               className={cn(
                 "p-2 rounded-lg",
                 isSat
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                  : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                  ? "bg-info-soft text-info-soft-foreground"
+                  : "bg-muted text-muted-foreground",
               )}
             >
               <Database className="h-4 w-4" />

@@ -141,7 +141,11 @@ export function CatalogItemFormSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-lg">
+      <SheetContent
+        className="flex w-full flex-col sm:max-w-lg"
+        side="right"
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{isEdit ? copy.editTitle : copy.createTitle}</SheetTitle>
           <SheetDescription>{typeCode}</SheetDescription>

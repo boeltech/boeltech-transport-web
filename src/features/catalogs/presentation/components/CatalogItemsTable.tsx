@@ -45,11 +45,6 @@ export interface CatalogItemsTableProps {
   className?: string;
   /** Si true, el padre controla búsqueda y paginación. */
   embedded?: boolean;
-  /**
-   * Solo en modo `embedded`: indica que el padre aplicó un filtro de búsqueda,
-   * para distinguir "sin coincidencias" de "catálogo vacío".
-   */
-  isFiltered?: boolean;
   /** Columna de acciones por fila (permisos resueltos en el padre). */
   renderRowActions?: (item: CatalogItem) => ReactNode;
 }
@@ -66,7 +61,6 @@ export function CatalogItemsTable({
   pageSize = 20,
   className,
   embedded = false,
-  isFiltered = false,
   renderRowActions,
 }: CatalogItemsTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -115,7 +109,10 @@ export function CatalogItemsTable({
     );
   }
 
-  const hasActiveSearch = embedded ? isFiltered : Boolean(searchTerm.trim());
+  // El padre (CatalogDetailPage) posee EmptyState único — D6.
+  if (paginatedItems.length === 0) {
+    return null;
+  }
 
   return (
     <div className={cn(embedded ? undefined : "space-y-4", className)}>
@@ -142,7 +139,6 @@ export function CatalogItemsTable({
         showParentCode={showParentCode}
         showStatus={showStatusColumn}
         renderRowActions={renderRowActions}
-        emptyMessage={hasActiveSearch ? copy.emptySearch : copy.emptyAll}
       />
 
       {!embedded && totalPages > 1 ? (
@@ -165,7 +161,6 @@ interface CatalogItemsTableBodyProps {
   showDescription: boolean;
   showParentCode: boolean;
   showStatus: boolean;
-  emptyMessage: string;
   renderRowActions?: (item: CatalogItem) => ReactNode;
 }
 
@@ -174,16 +169,8 @@ function CatalogItemsTableBody({
   showDescription,
   showParentCode,
   showStatus,
-  emptyMessage,
   renderRowActions,
 }: CatalogItemsTableBodyProps) {
-  const colSpan =
-    2 +
-    (showDescription ? 1 : 0) +
-    (showParentCode ? 1 : 0) +
-    (showStatus ? 1 : 0) +
-    (renderRowActions ? 1 : 0);
-
   return (
     <div className="border rounded-lg overflow-hidden">
       <Table>
@@ -212,52 +199,44 @@ function CatalogItemsTableBody({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={colSpan} className="h-24 text-center">
-                {emptyMessage}
+          {items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>
+                <CopyableCode code={item.code} />
               </TableCell>
-            </TableRow>
-          ) : (
-            items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <CopyableCode code={item.code} />
+              <TableCell className="font-medium">{item.name}</TableCell>
+              {showDescription ? (
+                <TableCell className="hidden md:table-cell text-muted-foreground max-w-[300px] truncate">
+                  {item.description || "—"}
                 </TableCell>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                {showDescription ? (
-                  <TableCell className="hidden md:table-cell text-muted-foreground max-w-[300px] truncate">
-                    {item.description || "—"}
-                  </TableCell>
-                ) : null}
-                {showParentCode ? (
-                  <TableCell className="font-mono text-sm">
-                    {item.parentCode || "—"}
-                  </TableCell>
-                ) : null}
-                {showStatus ? (
-                  <TableCell className="text-center">
-                    {item.isActive ? (
-                      <Badge variant="success" tone="soft">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        {copy.active}
-                      </Badge>
-                    ) : (
-                      <Badge variant="neutral" tone="soft">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        {copy.inactive}
-                      </Badge>
-                    )}
-                  </TableCell>
-                ) : null}
-                {renderRowActions ? (
-                  <TableCell className="text-right">
-                    {renderRowActions(item)}
-                  </TableCell>
-                ) : null}
-              </TableRow>
-            ))
-          )}
+              ) : null}
+              {showParentCode ? (
+                <TableCell className="font-mono text-sm">
+                  {item.parentCode || "—"}
+                </TableCell>
+              ) : null}
+              {showStatus ? (
+                <TableCell className="text-center">
+                  {item.isActive ? (
+                    <Badge variant="success" tone="soft">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      {copy.active}
+                    </Badge>
+                  ) : (
+                    <Badge variant="neutral" tone="soft">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      {copy.inactive}
+                    </Badge>
+                  )}
+                </TableCell>
+              ) : null}
+              {renderRowActions ? (
+                <TableCell className="text-right">
+                  {renderRowActions(item)}
+                </TableCell>
+              ) : null}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

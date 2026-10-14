@@ -8,22 +8,27 @@
 import { memo, useState, useCallback, useMemo } from "react";
 import { useDebounce } from "@shared/hooks/use-debounce";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Plus, Database, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Plus,
+  Database,
+  Loader2,
+} from "lucide-react";
 
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
-import { NotFoundState } from "@shared/ui/feedback-states";
+import { EmptyState, NotFoundState } from "@shared/ui/feedback-states";
 import {
   ListingSearchInput,
   ListingPagination,
   ListingResultsSummary,
 } from "@shared/ui/listing";
+import { SettingsPageShell } from "@shared/ui/page-shells";
 
 import { usePermissions } from "@shared/permissions";
-import {
-  SettingsLayout,
-  SettingsCard,
-} from "@features/settings/presentation/components/SettingsLayout";
+import { SettingsCard } from "@features/settings/presentation/components/SettingsLayout";
 import {
   useCatalogTypes,
   useCatalogItems,
@@ -80,16 +85,22 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     ? KNOWN_LARGE_CATALOGS.includes(typeCode)
     : false;
 
-  const { data: types, isLoading: isLoadingTypes } = useCatalogTypes();
+  const {
+    data: types,
+    isLoading: isLoadingTypes,
+    isError: isErrorTypes,
+    refetch: refetchTypes,
+  } = useCatalogTypes();
   const { data: statistics } = useCatalogStatistics();
 
-  const { data: allItems, isLoading: isLoadingAllItems } = useCatalogItems(
-    typeCode ?? "",
-    undefined,
-    {
-      enabled: !!typeCode && !isKnownLargeCatalog,
-    },
-  );
+  const {
+    data: allItems,
+    isLoading: isLoadingAllItems,
+    isError: isErrorAllItems,
+    refetch: refetchAllItems,
+  } = useCatalogItems(typeCode ?? "", undefined, {
+    enabled: !!typeCode && !isKnownLargeCatalog,
+  });
 
   const catalogType = useMemo(
     () => types?.find((t) => t.code === typeCode),
@@ -123,6 +134,8 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     data: searchResult,
     isLoading: isLoadingSearch,
     isFetching: isFetchingSearch,
+    isError: isErrorSearch,
+    refetch: refetchSearch,
   } = useCatalogSearch(typeCode ?? "", {
     query: debouncedSearch || " ",
     limit: DEFAULT_PAGE_SIZE,
@@ -171,8 +184,17 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
 
   const showParentColumn = isHierarchical || hasParentCodes;
 
+  const isFiltered = debouncedSearch.trim().length > 0;
+  const isLoadingItems = isLargeCatalog ? isLoadingSearch : isLoadingAllItems;
+  const isErrorItems = isLargeCatalog ? isErrorSearch : isErrorAllItems;
+
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchTerm("");
     setCurrentPage(1);
   }, []);
 
@@ -197,17 +219,73 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
     }
   }, []);
 
+  /** D10: montar Sheet si puede crear o hay ítem en edición (no solo canCreate). */
+  const showItemFormSheet = Boolean(typeCode && (canCreate || editingItem));
+
+  const handleRetryTypes = useCallback(() => {
+    void refetchTypes();
+  }, [refetchTypes]);
+
+  const handleRetryItems = useCallback(() => {
+    if (isLargeCatalog) {
+      void refetchSearch();
+      return;
+    }
+    void refetchAllItems();
+  }, [isLargeCatalog, refetchSearch, refetchAllItems]);
+
   if (isLoadingTypes) {
     return (
-      <SettingsLayout sectionTitle={copy.detail.loadingSectionTitle}>
+      <SettingsPageShell
+        sectionTitle={copy.detail.loadingSectionTitle}
+        hideSidebar
+      >
         <CatalogDetailSkeleton />
-      </SettingsLayout>
+      </SettingsPageShell>
+    );
+  }
+
+  if (isErrorTypes) {
+    return (
+      <SettingsPageShell
+        sectionTitle={copy.page.sectionTitle}
+        hideSidebar
+      >
+        <div className="space-y-6">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/settings/catalogs">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {copy.detail.back}
+            </Link>
+          </Button>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+            title={copy.state.loadErrorDetailTitle}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRetryTypes}
+              >
+                {copy.state.loadErrorRetry}
+              </Button>
+            }
+          >
+            <p>{copy.state.loadErrorDescription}</p>
+          </DetailAlertCard>
+        </div>
+      </SettingsPageShell>
     );
   }
 
   if (!catalogType) {
     return (
-      <SettingsLayout sectionTitle={copy.detail.notFoundSectionTitle}>
+      <SettingsPageShell
+        sectionTitle={copy.detail.notFoundSectionTitle}
+        hideSidebar
+      >
         <NotFoundState
           icon={<Database />}
           title={copy.detail.notFoundTitle}
@@ -215,7 +293,7 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
           backHref="/settings/catalogs"
           backLabel={copy.detail.back}
         />
-      </SettingsLayout>
+      </SettingsPageShell>
     );
   }
 
@@ -232,11 +310,15 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
       : null,
   ].filter(Boolean);
 
+  const showEmptyValues =
+    !isLoadingItems && !isErrorItems && displayItems.length === 0;
+
   return (
-    <SettingsLayout
+    <SettingsPageShell
       sectionTitle={catalogType.name}
       title={catalogType.name}
       description={purpose}
+      hideSidebar
     >
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -291,35 +373,82 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
               />
             </div>
 
-            <CatalogItemsTable
-              embedded
-              items={displayItems}
-              isLoading={isLargeCatalog ? isLoadingSearch : isLoadingAllItems}
-              isFiltered={debouncedSearch.trim().length > 0}
-              showParentCode={showParentColumn}
-              showDescription={!isLargeCatalog}
-              renderRowActions={
-                canMutate && typeCode
-                  ? (item) => (
-                      <CatalogItemRowActions
-                        typeCode={typeCode}
-                        item={item}
-                        onEdit={handleEditItem}
-                      />
-                    )
-                  : undefined
-              }
-            />
+            {isErrorItems ? (
+              <DetailAlertCard
+                severity="critical"
+                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                title={copy.state.loadErrorDetailTitle}
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetryItems}
+                  >
+                    {copy.state.loadErrorRetry}
+                  </Button>
+                }
+              >
+                <p>{copy.state.loadErrorDescription}</p>
+              </DetailAlertCard>
+            ) : null}
 
-            <ListingPagination
-              page={currentPage}
-              totalPages={listTotalPages}
-              onPageChange={handlePageChange}
-            />
+            {showEmptyValues ? (
+              <EmptyState
+                icon={<Database />}
+                title={
+                  isFiltered
+                    ? copy.table.emptySearchTitle
+                    : copy.table.emptyAllTitle
+                }
+                description={
+                  isFiltered
+                    ? copy.table.emptySearchDescription
+                    : copy.table.emptyAllDescription
+                }
+                cta={
+                  isFiltered
+                    ? {
+                        label: copy.detail.clearSearch,
+                        onClick: handleClearSearch,
+                        variant: "outline",
+                      }
+                    : undefined
+                }
+                size="md"
+              />
+            ) : !isErrorItems ? (
+              <CatalogItemsTable
+                embedded
+                items={displayItems}
+                isLoading={isLoadingItems}
+                showParentCode={showParentColumn}
+                showDescription={!isLargeCatalog}
+                renderRowActions={
+                  canMutate && typeCode
+                    ? (item) => (
+                        <CatalogItemRowActions
+                          typeCode={typeCode}
+                          item={item}
+                          onEdit={handleEditItem}
+                        />
+                      )
+                    : undefined
+                }
+              />
+            ) : null}
+
+            {!showEmptyValues && !isErrorItems ? (
+              <ListingPagination
+                page={currentPage}
+                totalPages={listTotalPages}
+                onPageChange={handlePageChange}
+              />
+            ) : null}
           </div>
         </SettingsCard>
 
-        {canCreate && typeCode ? (
+        {showItemFormSheet && typeCode ? (
           <CatalogItemFormSheet
             typeCode={typeCode}
             open={formOpen}
@@ -329,7 +458,7 @@ export const CatalogDetailPage = memo(function CatalogDetailPage() {
           />
         ) : null}
       </div>
-    </SettingsLayout>
+    </SettingsPageShell>
   );
 });
 
