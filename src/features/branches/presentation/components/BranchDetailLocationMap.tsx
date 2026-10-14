@@ -125,7 +125,7 @@ export function BranchDetailLocationMap({
           fallback={
             <Skeleton
               className="h-52 w-full rounded-md"
-              aria-label="Cargando mapa"
+              aria-label={mapCopy.loadingAria}
             />
           }
         >

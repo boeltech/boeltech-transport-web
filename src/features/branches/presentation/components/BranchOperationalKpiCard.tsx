@@ -78,7 +78,7 @@ export function BranchOperationalKpiCard({ branchId }: BranchOperationalKpiCardP
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {copy.periodLabel(data?.period.label ?? "Mes actual")}
+                {copy.periodLabel(data?.period.label ?? copy.periodFallback)}
               </p>
               <p className="text-sm text-muted-foreground">{copy.periodHint}</p>
               <Button variant="link" size="sm" className="h-auto p-0" asChild>

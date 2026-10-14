@@ -218,6 +218,7 @@ export const branchesCopy = {
         "El mapa interactivo no está disponible. Puedes abrir la ubicación en un mapa externo.",
       completeLocationCta: "Completar ubicación",
       openExternal: "Abrir en mapa",
+      loadingAria: "Cargando mapa",
     },
     activity: {
       title: "Historial de cambios",
@@ -227,21 +228,31 @@ export const branchesCopy = {
       loadMore: "Cargar más",
       refresh: "Actualizar historial",
       error: "No se pudo cargar el historial de la sucursal.",
+      loading: "Cargando…",
+      updating: "Actualizando…",
+      systemActor: "Sistema",
+      eventsTotal: (total: number) =>
+        `${total} evento${total === 1 ? "" : "s"}.`,
+      eventsPartial: (shown: number, total: number) =>
+        `Mostrando ${shown} de ${total} eventos.`,
     },
     alerts: {
       inactiveMain: {
         title: "Principal inactiva",
         text: "Esta sucursal es la matriz pero está inactiva. Revisa su estado.",
+        editAction: "Editar",
       },
       missingContact: {
         title: "Sin contacto",
         text: "No hay teléfono ni correo registrados.",
+        editAction: "Editar",
       },
     },
     kpis: {
       title: "Desempeño operativo",
       compareCta: "Comparar en panel",
       periodLabel: (label: string) => `Período: ${label}`,
+      periodFallback: "Mes actual",
       periodHint:
         "Cambia el período, revisa la tendencia o abre los viajes de esta sucursal.",
       loading: "Cargando indicadores…",
@@ -264,7 +275,10 @@ export const branchesCopy = {
     toasts: {
       deleteSuccess: "Sucursal eliminada",
       deleteError: "Error al eliminar sucursal",
+      addressCopied: "Dirección copiada",
+      addressCopyFailed: "No se pudo copiar",
     },
+    copyAddressAria: "Copiar dirección",
   },
   create: {
     title: "Nueva sucursal",
@@ -325,6 +339,20 @@ export const branchesCopy = {
     validationSummaryWizard: "Revisa la información de la sucursal",
     validationSummaryEdit: "Revisa los datos marcados",
     validationAddressSummary: "Revisa la ubicación antes de guardar.",
+    /** Copy del form largo de edición (D8). */
+    edit: {
+      sidebar: {
+        title: "Secciones",
+        errorsTitle: (count: number, label: string) =>
+          `${count} error${count === 1 ? "" : "es"} en ${label}`,
+        errorsAria: (count: number) => `${count} errores`,
+      },
+    },
+    section: {
+      general: { nav: "General" },
+      contact: { nav: "Contacto" },
+      location: { nav: "Ubicación" },
+    },
     sections: {
       general: {
         title: "Datos generales",
@@ -442,13 +470,16 @@ export const branchesCopy = {
     deleteTitle: "¿Eliminar sucursal?",
     deleteDescription: (name: string) =>
       `Esta acción eliminará la sucursal ${name}. Esta acción no se puede deshacer.`,
+    deleteErrorTitle: "No se pudo eliminar",
     restoreTitle: "¿Restaurar sucursal?",
     restoreDescription: (name: string) =>
       `La sucursal ${name} volverá a estar activa en el catálogo.`,
+    restoreErrorTitle: "No se pudo restaurar",
     mainDeleteDisabled: "Designa otra matriz antes de eliminar esta sucursal",
     viewMore: "Ver más",
   },
   card: {
     mainBadge: "Matriz",
+    actionsAria: "Abrir menú de acciones",
   },
 } as const;

@@ -1,10 +1,12 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { Building2 } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
-import { useToast } from "@shared/hooks";
+import { UnsavedChangesDialog } from "@shared/ui/form";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import {
   getErrorMessage,
   isApiError,
@@ -22,6 +24,11 @@ export function BranchEditPage() {
   const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const branchId = id ?? "";
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const { data: branch, isLoading, isError } = useBranch(branchId);
 
@@ -55,21 +62,36 @@ export function BranchEditPage() {
     },
   });
 
-  const handleSubmit = (values: BranchFormData) => {
-    if (!branchId) return;
-    updateMutation.mutate({
-      id: branchId,
-      data: branchFormToUpdateDTO(values),
-    });
-  };
+  useEffect(() => {
+    if (updateMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [updateMutation.isPending, resetAllowLeave]);
 
-  const handleCancel = () => {
+  const handleSubmit = useCallback(
+    (values: BranchFormData) => {
+      if (!branchId) return;
+      allowLeave();
+      updateMutation.mutate({
+        id: branchId,
+        data: branchFormToUpdateDTO(values),
+      });
+    },
+    [allowLeave, branchId, updateMutation],
+  );
+
+  const handleCancel = useCallback(() => {
     navigatePreservingFrom(navigate, `/branches/${branchId}`, incomingFrom);
-  };
+  }, [navigate, branchId, incomingFrom]);
 
   return (
     <FormPageShell
-      className="mx-auto max-w-4xl p-4 sm:p-6"
+      className="p-4 sm:p-6"
       isLoading={isLoading}
       notFound={!isLoading && (isError || !branch)}
       notFoundConfig={{
@@ -108,9 +130,11 @@ export function BranchEditPage() {
           branch={branch}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          onDirtyChange={setIsDirty}
           isSubmitting={updateMutation.isPending}
         />
       ) : null}
+      <UnsavedChangesDialog blocker={blocker} />
     </FormPageShell>
   );
 }

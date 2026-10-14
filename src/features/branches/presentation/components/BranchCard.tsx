@@ -1,9 +1,20 @@
+/**
+ * BranchCard
+ *
+ * Tarjeta de sucursal para vista en grid.
+ * Menú ⋯ vía EntityListCard (usable sin hover — D3).
+ */
+
 import { useNavigate } from "react-router-dom";
 import { useListQueueFromState } from "@shared/utils/listQueueFrom";
-import { Building2, Eye, MapPin, Phone } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
+import { Building2, MapPin, Phone } from "lucide-react";
+import { CardContent, CardFooter, CardHeader } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
+import {
+  EntityListCard,
+  entityListCardMenuTriggerClassName,
+} from "@shared/ui/listing";
+import { cn } from "@shared/lib/utils/cn";
 import type { BranchListItem } from "../../domain";
 import { BranchStatusBadge } from "../config/branchStatusConfig";
 import { formatBranchListLocation } from "../utils/branchAddressFormatters";
@@ -13,41 +24,35 @@ import { BranchActions } from "./BranchActions";
 interface BranchCardProps {
   branch: BranchListItem;
   showDeleted?: boolean;
-  onDelete?: (id: string) => void;
-  onRestore?: (id: string) => void;
-  isDeleting?: boolean;
-  isRestoring?: boolean;
 }
 
 export function BranchCard({
   branch,
   showDeleted = false,
-  onDelete,
-  onRestore,
-  isDeleting,
-  isRestoring,
 }: BranchCardProps) {
   const navigate = useNavigate();
   const fromState = useListQueueFromState();
-  const hasActions = Boolean(onDelete || onRestore);
+  const isActive = !showDeleted && branch.isActive;
 
   const handleView = () =>
     navigate(`/branches/${branch.id}`, { state: fromState });
 
   return (
-    <Card
-      className="group cursor-pointer transition-all hover:border-primary/50 hover:shadow-md"
+    <EntityListCard
+      className={cn(!isActive && "opacity-60")}
       onClick={handleView}
     >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Building2 className="h-5 w-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold leading-none">{branch.name}</h3>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="truncate text-lg font-semibold leading-none">
+                  {branch.name}
+                </h3>
                 {branch.isMain ? (
                   <Badge
                     variant="outline"
@@ -61,21 +66,17 @@ export function BranchCard({
             </div>
           </div>
 
-          {hasActions ? (
-            <div onClick={(e) => e.stopPropagation()}>
-              <BranchActions
-                branchId={branch.id}
-                branchName={branch.name}
-                fromState={fromState}
-                isActive={!showDeleted && branch.isActive}
-                isMain={branch.isMain}
-                onDelete={onDelete}
-                onRestore={onRestore}
-                isDeleting={isDeleting}
-                isRestoring={isRestoring}
-              />
-            </div>
-          ) : null}
+          <div onClick={(e) => e.stopPropagation()}>
+            <BranchActions
+              branchId={branch.id}
+              branchName={branch.name}
+              fromState={fromState}
+              isActive={isActive}
+              isMain={branch.isMain}
+              menuTriggerClassName={entityListCardMenuTriggerClassName}
+              menuAriaLabel={branchesCopy.card.actionsAria}
+            />
+          </div>
         </div>
       </CardHeader>
 
@@ -95,22 +96,8 @@ export function BranchCard({
       </CardContent>
 
       <CardFooter className="border-t pt-3">
-        <div className="flex w-full items-center justify-between">
-          <BranchStatusBadge status={branch.status} size="sm" showIcon />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary hover:text-primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleView();
-            }}
-          >
-            {branchesCopy.actions.viewMore}
-            <Eye className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
+        <BranchStatusBadge status={branch.status} size="sm" showIcon />
       </CardFooter>
-    </Card>
+    </EntityListCard>
   );
 }

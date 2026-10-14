@@ -3,28 +3,22 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@shared/ui/tooltip";
 import { BranchesListPage } from "./BranchesListPage";
 import { branchesCopy } from "../copy/branchesCopy";
 
 const copy = branchesCopy.list;
 
-const {
-  mockUseBranches,
-  mockUseDeleteBranch,
-  mockUseRestoreBranch,
-  mockUseExportBranches,
-} = vi.hoisted(() => ({
+const { mockUseBranches, mockUseExportBranches } = vi.hoisted(() => ({
   mockUseBranches: vi.fn(),
-  mockUseDeleteBranch: vi.fn(),
-  mockUseRestoreBranch: vi.fn(),
   mockUseExportBranches: vi.fn(),
 }));
 
 vi.mock("../../application", () => ({
   useBranches: (...args: unknown[]) => mockUseBranches(...args),
-  useDeleteBranch: (...args: unknown[]) => mockUseDeleteBranch(...args),
-  useRestoreBranch: (...args: unknown[]) => mockUseRestoreBranch(...args),
   useExportBranches: (...args: unknown[]) => mockUseExportBranches(...args),
+  useDeleteBranch: () => ({ mutate: vi.fn(), isPending: false }),
+  useRestoreBranch: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@shared/permissions", () => ({
@@ -47,9 +41,11 @@ function renderPage(initialUrl = "/branches") {
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[initialUrl]}>
-        <BranchesListPage />
-      </MemoryRouter>
+      <TooltipProvider>
+        <MemoryRouter initialEntries={[initialUrl]}>
+          <BranchesListPage />
+        </MemoryRouter>
+      </TooltipProvider>
     </QueryClientProvider>,
   );
 }
@@ -64,14 +60,6 @@ describe("BranchesListPage toolbar", () => {
       isLoading: false,
       isFetching: false,
       refetch: vi.fn(),
-    });
-    mockUseDeleteBranch.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-    });
-    mockUseRestoreBranch.mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
     });
     mockUseExportBranches.mockReturnValue({
       exportBranches: vi.fn(),
@@ -142,5 +130,35 @@ describe("BranchesListPage toolbar", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Filtros$/ })).toBeInTheDocument();
     expect(screen.queryByText(copy.actions.create)).not.toBeInTheDocument();
+  });
+
+  it("empty tope plan no muestra CTA de alta no-op (D10)", () => {
+    mockUseBranches.mockReturnValue({
+      data: {
+        data: [],
+        pagination: { page: 1, totalPages: 1, total: 0, limit: 10 },
+        meta: {
+          activeCount: 2,
+          maxBranches: 2,
+          limitReached: true,
+          overQuota: false,
+          overQuotaCount: 0,
+          planEligibleBranchIds: [],
+        },
+      },
+      isLoading: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText(copy.empty.descriptionClear)).toBeInTheDocument();
+    // Primary toolbar CTA queda disabled; el empty no ofrece alta muerta.
+    const createButtons = screen.getAllByRole("button", {
+      name: copy.actions.create,
+    });
+    expect(createButtons).toHaveLength(1);
+    expect(createButtons[0]).toBeDisabled();
   });
 });

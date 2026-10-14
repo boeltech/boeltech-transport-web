@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
 import type { WizardStepRenderHelpers } from "@shared/ui/page-shells/WizardPageShell";
-import { useToast } from "@shared/hooks";
+import { UnsavedChangesDialog } from "@shared/ui/form";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import {
   getErrorMessage,
   isApiError,
@@ -17,6 +18,11 @@ export function BranchCreatePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const formRef = useRef<BranchFormRef>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const createMutation = useCreateBranch({
     onSuccess: (data) => {
@@ -67,12 +73,26 @@ export function BranchCreatePage() {
     },
   });
 
+  useEffect(() => {
+    if (createMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [createMutation.isPending, resetAllowLeave]);
+
   const handleSubmit = useCallback(
     (values: BranchFormData) => {
+      allowLeave();
       createMutation.mutate(branchFormToCreateDTO(values));
     },
-    [createMutation],
+    [allowLeave, createMutation],
   );
+
+  const handleCancel = useCallback(() => navigate("/branches"), [navigate]);
 
   const shellHeader = useMemo(
     () => ({
@@ -110,6 +130,7 @@ export function BranchCreatePage() {
             wizardMode
             wizardStepIndex={currentStep}
             onEditStep={helpers?.goToStep}
+            onDirtyChange={setIsDirty}
           />
         </>
       );
@@ -118,17 +139,20 @@ export function BranchCreatePage() {
   );
 
   return (
-    <WizardPageShell
-      steps={[...branchesCopy.create.steps]}
-      formRef={formRef}
-      header={shellHeader}
-      headerBackMode="wizard"
-      renderStep={renderStep}
-      isSubmitting={isSubmitting}
-      submitLabel={branchesCopy.create.submitLabel}
-      submittingLabel={branchesCopy.create.submittingLabel}
-      onCancel={() => navigate("/branches")}
-      stepsAriaLabel={branchesCopy.create.stepsAriaLabel}
-    />
+    <>
+      <WizardPageShell
+        steps={[...branchesCopy.create.steps]}
+        formRef={formRef}
+        header={shellHeader}
+        headerBackMode="wizard"
+        renderStep={renderStep}
+        isSubmitting={isSubmitting}
+        submitLabel={branchesCopy.create.submitLabel}
+        submittingLabel={branchesCopy.create.submittingLabel}
+        onCancel={handleCancel}
+        stepsAriaLabel={branchesCopy.create.stepsAriaLabel}
+      />
+      <UnsavedChangesDialog blocker={blocker} />
+    </>
   );
 }

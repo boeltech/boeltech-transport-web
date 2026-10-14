@@ -3,6 +3,7 @@
  *
  * Dictamen toolbar: search = lookup; estado / tipo / fecha de alta en
  * «Filtros (n)»; Eliminadas = toggle de vista (no badge); Exportar = acción.
+ * Baja solo en detalle (D1). Empty tope plan sin CTA no-op (D10).
  */
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -14,21 +15,12 @@ import { Button } from "@shared/ui/button";
 import type { ActiveFilterChip } from "@shared/ui/listing";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
-  getErrorMessage,
-  isApiError,
-} from "@shared/api/interceptors/error-handler";
-import {
   BRANCH_STATUS_LABELS,
   type BranchQueryParams,
   type BranchSortOptions,
   type BranchStatusType,
 } from "../../domain";
-import {
-  useBranches,
-  useDeleteBranch,
-  useExportBranches,
-  useRestoreBranch,
-} from "../../application";
+import { useBranches, useExportBranches } from "../../application";
 import {
   BranchCapacityBanner,
   BranchCard,
@@ -40,7 +32,6 @@ import {
   BranchTable,
 } from "../components";
 import { branchesCopy } from "../copy/branchesCopy";
-import { getBranchMutationErrorToast } from "../utils/branchMutationErrors";
 import { countBranchPanelFilters } from "../utils/branchListFilters";
 
 const DEFAULT_SORT_FIELD: BranchSortOptions["field"] = "name";
@@ -82,7 +73,6 @@ export function BranchesListPage() {
     createdFrom,
     createdTo,
   });
-  const hasPanelFilters = activePanelFilterCount > 0;
   const hasDateFilter = Boolean(createdFrom || createdTo);
 
   const listParams = useMemo<BranchQueryParams>(
@@ -118,60 +108,10 @@ export function BranchesListPage() {
   const { data, isLoading, isFetching, refetch } = useBranches(listParams);
   const { exportBranches, isExporting } = useExportBranches();
 
-  const showBranchErrorToast = useCallback(
-    (error: Error, fallbackTitle: string) => {
-      const known = getBranchMutationErrorToast(error);
-      if (known) {
-        toast({
-          title: known.title,
-          description: known.description,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: fallbackTitle,
-        description: isApiError(error)
-          ? error.getDetailedMessage(3)
-          : getErrorMessage(error),
-        variant: "destructive",
-      });
-    },
-    [toast],
-  );
-
-  const deleteMutation = useDeleteBranch({
-    onSuccess: () => {
-      toast({
-        title: copy.toasts.deleteSuccess,
-        variant: "success",
-      });
-      void refetch();
-    },
-    onError: (error) => {
-      showBranchErrorToast(error, copy.toasts.deleteError);
-    },
-  });
-
-  const restoreMutation = useRestoreBranch({
-    onSuccess: () => {
-      toast({
-        title: copy.toasts.restoreSuccess,
-        variant: "success",
-      });
-      void refetch();
-    },
-    onError: (error) => {
-      showBranchErrorToast(error, copy.toasts.restoreError);
-    },
-  });
-
   const branches = data?.data ?? [];
   const canCreate = hasPermission("branches", "create");
   const canDelete = hasPermission("branches", "delete");
   const canExport = hasPermission("branches", "export");
-  const canRestore = hasPermission("branches", "update");
   const branchLimitReached = !showDeleted && (data?.meta?.limitReached ?? false);
   const hasListFilters = filters.hasFilters || showDeleted;
 
@@ -193,22 +133,6 @@ export function BranchesListPage() {
       variant: "success",
     });
   }, [refetch, toast]);
-
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (!canDelete || showDeleted) return;
-      deleteMutation.mutate(id);
-    },
-    [canDelete, deleteMutation, showDeleted],
-  );
-
-  const handleRestore = useCallback(
-    (id: string) => {
-      if (!canRestore || !showDeleted) return;
-      restoreMutation.mutate(id);
-    },
-    [canRestore, restoreMutation, showDeleted],
-  );
 
   const handleExport = useCallback(() => {
     void exportBranches(listParams);
@@ -283,6 +207,15 @@ export function BranchesListPage() {
       : branchesCopy.limitReached.createDisabled
     : undefined;
 
+  const emptyCta =
+    canCreate && !showDeleted && !branchLimitReached
+      ? {
+          label: copy.actions.create,
+          icon: <Building2 className="h-4 w-4" />,
+          onClick: handleCreate,
+        }
+      : undefined;
+
   return (
     <>
       <ListPageShell
@@ -328,7 +261,6 @@ export function BranchesListPage() {
                 </Button>
               ) : null}
               <BranchListFilters
-                key={hasPanelFilters ? "filters-active" : "filters-idle"}
                 status={statusFilter}
                 isMain={mainFilter}
                 createdFrom={createdFrom}
@@ -384,10 +316,6 @@ export function BranchesListPage() {
             branches={branches}
             isLoading={isLoading}
             showDeleted={showDeleted}
-            onDelete={canDelete && !showDeleted ? handleDelete : undefined}
-            onRestore={canRestore && showDeleted ? handleRestore : undefined}
-            isDeleting={deleteMutation.isPending}
-            isRestoring={restoreMutation.isPending}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSort={handleSortChange}
@@ -399,10 +327,6 @@ export function BranchesListPage() {
               key={branch.id}
               branch={branch}
               showDeleted={showDeleted}
-              onDelete={canDelete && !showDeleted ? handleDelete : undefined}
-              onRestore={canRestore && showDeleted ? handleRestore : undefined}
-              isDeleting={deleteMutation.isPending}
-              isRestoring={restoreMutation.isPending}
             />
           ))
         }
@@ -413,16 +337,7 @@ export function BranchesListPage() {
           description: hasListFilters
             ? copy.empty.descriptionFiltered
             : copy.empty.descriptionClear,
-          cta:
-            canCreate && !showDeleted
-              ? {
-                  label: branchLimitReached
-                    ? branchesCopy.limitReached.createDisabled
-                    : copy.actions.create,
-                  icon: <Building2 className="h-4 w-4" />,
-                  onClick: branchLimitReached ? () => undefined : handleCreate,
-                }
-              : undefined,
+          cta: emptyCta,
           secondaryCta: hasListFilters
             ? {
                 label: copy.actions.clearFilters,

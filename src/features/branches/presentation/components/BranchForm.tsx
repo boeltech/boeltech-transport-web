@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
@@ -25,11 +26,18 @@ import {
   FormFieldShell,
   FormStickyActions,
   FormValidationSummary,
+  LongFormEditLayout,
+  LongFormSectionNav,
   getFieldErrorAriaProps,
   RHFSelectField,
   RHFTextField,
   RHFTextareaField,
 } from "@shared/ui/form";
+import {
+  BRANCH_EDIT_SECTION_IDS,
+  BRANCH_EDIT_SECTIONS,
+  countBranchEditSectionErrors,
+} from "./branchEditSections";
 import {
   Select,
   SelectContent,
@@ -84,6 +92,8 @@ interface BranchFormProps {
   wizardStepIndex?: number;
   /** Navega a un paso del wizard (usado por el resumen para «Editar»). */
   onEditStep?: (stepIndex: number) => void;
+  /** Notifica dirty a la página para `useUnsavedChangesGuard` (D8/D13). */
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 const WIZARD_ADDRESS_STEP_INDEX = 1;
@@ -243,7 +253,7 @@ function BranchContactFields({
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="font-medium">{value}</p>
     </div>
   );
@@ -364,10 +374,10 @@ function BranchWizardSummary({
       values.address.postalCode,
     ]
       .filter(Boolean)
-      .join(", ") || "—";
+      .join(", ") || review.empty;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="branch-wizard-review">
       <p className="text-sm text-muted-foreground">{review.hint}</p>
 
       <FormSectionCard
@@ -420,7 +430,9 @@ function BranchWizardSummary({
           )}
         />
         <div>
-          <p className="text-muted-foreground">{review.notes}</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            {review.notes}
+          </p>
           <p className="font-medium">{values.notes || review.notesEmpty}</p>
         </div>
         <SummaryEditButton onClick={onEditStep ? () => onEditStep(1) : undefined} />
@@ -439,14 +451,19 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
       wizardMode = false,
       wizardStepIndex = 0,
       onEditStep,
+      onDirtyChange,
     },
     ref,
   ) {
     const wizardActive = Boolean(wizardMode && !branch);
     const editLayout = Boolean(branch) && !wizardActive;
     const fieldCopy = branchesCopy.form.fields;
+    const formCopy = branchesCopy.form;
     const { toast } = useToast();
     const [showValidationSummary, setShowValidationSummary] = useState(false);
+    const [activeSectionId, setActiveSectionId] = useState<string>(
+      BRANCH_EDIT_SECTION_IDS.general,
+    );
 
     const form = useForm<BranchFormData, unknown, BranchFormData>({
       resolver: zodResolver(branchFormSchema) as Resolver<BranchFormData>,
@@ -467,6 +484,30 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
     const validationMessages = collectFieldErrorMessages(errors);
     const shouldShowValidationSummary =
       showValidationSummary && !isValid;
+
+    useEffect(() => {
+      onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+
+    const errorCountBySection = useMemo(
+      () => countBranchEditSectionErrors(errors),
+      [errors],
+    );
+
+    const handleEditSectionSelect = useCallback((sectionId: string) => {
+      setActiveSectionId(sectionId);
+      document
+        .getElementById(sectionId)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, []);
+
+    const editSectionAnchor = useCallback(
+      (sectionId: string) =>
+        editLayout
+          ? { id: sectionId, className: "scroll-mt-28" as const }
+          : {},
+      [editLayout],
+    );
 
     const applyAddressFieldErrors = useCallback(
       (fieldErrors: Record<string, string>) => {
@@ -626,212 +667,262 @@ export const BranchForm = forwardRef<BranchFormRef, BranchFormProps>(
       [handleInvalidSubmit, handleSubmit, handleValidSubmit, runStepValidation],
     );
 
+    const generalSection = (
+      <div {...editSectionAnchor(BRANCH_EDIT_SECTION_IDS.general)}>
+        <FormSectionCard
+          title={
+            editLayout
+              ? branchesCopy.form.sections.general.editTitle
+              : branchesCopy.form.sections.general.title
+          }
+          icon={<Building2 className="h-4 w-4" />}
+          description={
+            editLayout
+              ? branchesCopy.form.sections.general.editDescription
+              : branchesCopy.form.sections.general.description
+          }
+          contentClassName="grid gap-4 sm:grid-cols-2"
+        >
+          <RHFTextField
+            control={control}
+            name="code"
+            label={fieldCopy.code.label}
+            required
+            placeholder={fieldCopy.code.placeholder}
+            description={
+              branch ? fieldCopy.code.hintLocked : fieldCopy.code.hint
+            }
+            autoComplete="off"
+            maxLength={20}
+            disabled={Boolean(branch)}
+          />
+          <RHFTextField
+            control={control}
+            name="name"
+            label={fieldCopy.name.label}
+            required
+            placeholder={fieldCopy.name.placeholder}
+            maxLength={120}
+          />
+          <RHFSelectField
+            control={control}
+            name="status"
+            label={fieldCopy.status.label}
+            required
+            placeholder={fieldCopy.status.placeholder}
+            options={[
+              {
+                value: BranchStatus.ACTIVE,
+                label: BRANCH_STATUS_LABELS[BranchStatus.ACTIVE],
+              },
+              {
+                value: BranchStatus.INACTIVE,
+                label: BRANCH_STATUS_LABELS[BranchStatus.INACTIVE],
+              },
+            ]}
+          />
+          <Controller
+            control={control}
+            name="isMain"
+            render={({ field, fieldState }) => {
+              const errorMessage = fieldState.error?.message;
+              return (
+                <FormFieldShell
+                  fieldId="isMain"
+                  label={fieldCopy.isMain.label}
+                  description={fieldCopy.isMain.description}
+                  errorMessage={errorMessage}
+                >
+                  <Select
+                    value={field.value ? "true" : "false"}
+                    onValueChange={(value) => field.onChange(value === "true")}
+                  >
+                    <SelectTrigger
+                      id="isMain"
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps("isMain", errorMessage)}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">
+                        {fieldCopy.isMain.yes}
+                      </SelectItem>
+                      <SelectItem value="false">
+                        {fieldCopy.isMain.no}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormFieldShell>
+              );
+            }}
+          />
+          {!editLayout ? (
+            <BranchContactFields control={control} fieldCopy={fieldCopy} />
+          ) : null}
+          <MainInactiveWarning control={control} isEditing={editLayout} />
+        </FormSectionCard>
+      </div>
+    );
+
+    const contactSection = editLayout ? (
+      <div {...editSectionAnchor(BRANCH_EDIT_SECTION_IDS.contact)}>
+        <FormSectionCard
+          title={branchesCopy.form.sections.contact.title}
+          icon={<Phone className="h-4 w-4" />}
+          description={branchesCopy.form.sections.contact.description}
+          contentClassName="grid gap-4 sm:grid-cols-2"
+        >
+          <BranchContactFields control={control} fieldCopy={fieldCopy} />
+        </FormSectionCard>
+      </div>
+    ) : null;
+
+    const locationSection = (
+      <div {...editSectionAnchor(BRANCH_EDIT_SECTION_IDS.location)}>
+        <FormSectionCard
+          title={
+            editLayout
+              ? branchesCopy.form.sections.address.editTitle
+              : branchesCopy.form.sections.address.title
+          }
+          icon={<MapPin className="h-4 w-4" />}
+          description={
+            editLayout
+              ? branchesCopy.form.sections.address.editDescription
+              : wizardActive
+                ? ADDRESS_FORM_COPY.branchOperational.globalInfoMessage
+                : branchesCopy.form.sections.address.description
+          }
+          contentClassName="grid gap-4 sm:grid-cols-2"
+        >
+          <div className="sm:col-span-2 space-y-4">
+            <LocationField
+              context="operational"
+              value={locationFieldValue}
+              onChange={handleLocationChange}
+              label={branchesCopy.form.sections.address.locationSearchLabel}
+              placeholder={
+                branchesCopy.form.sections.address.locationSearchPlaceholder
+              }
+              disabled={isSubmitting}
+              ownerTypes={["branch", "tenant"]}
+              includeInternal={false}
+            />
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  {LOCATION_FIELD_COPY.satDetailTitle}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {LOCATION_FIELD_COPY.satDetailHint}
+                </p>
+              </div>
+              <AddressInput<BranchFormData>
+                variant="carta-porte"
+                formContext="branchOperational"
+                addressType="branch"
+                control={control}
+                setValue={setValue}
+                namePrefix="address"
+                layout="compact"
+                showLatLng={false}
+                showPrimaryToggle={false}
+                hideInformativeAlerts={false}
+                embedded
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <BranchAddressGeocodingSection
+              disabled={isSubmitting}
+              embedded
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <RHFTextareaField
+              control={control}
+              name="notes"
+              label={fieldCopy.notes.label}
+              description={
+                editLayout
+                  ? branchesCopy.form.sections.notes.description
+                  : undefined
+              }
+              rows={editLayout ? 3 : 4}
+              placeholder={fieldCopy.notes.placeholder}
+              maxLength={1000}
+            />
+          </div>
+        </FormSectionCard>
+      </div>
+    );
+
+    const editSections = (
+      <>
+        {generalSection}
+        {contactSection}
+        {locationSection}
+      </>
+    );
+
     return (
       <FormProvider {...form}>
       <form
         onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)}
         className="space-y-6"
       >
-        <div
-          className={cn("space-y-6", wizardActive && wizardStepIndex !== 0 && "hidden")}
-          data-wizard-panel="0"
-          aria-hidden={wizardActive && wizardStepIndex !== 0}
-        >
-          <FormSectionCard
-            title={
-              editLayout
-                ? branchesCopy.form.sections.general.editTitle
-                : branchesCopy.form.sections.general.title
-            }
-            icon={<Building2 className="h-4 w-4" />}
-            description={
-              editLayout
-                ? branchesCopy.form.sections.general.editDescription
-                : branchesCopy.form.sections.general.description
-            }
-            contentClassName="grid gap-4 sm:grid-cols-2"
-          >
-            <RHFTextField
-              control={control}
-              name="code"
-              label={fieldCopy.code.label}
-              required
-              placeholder={fieldCopy.code.placeholder}
-              description={
-                branch ? fieldCopy.code.hintLocked : fieldCopy.code.hint
-              }
-              autoComplete="off"
-              maxLength={20}
-              disabled={Boolean(branch)}
-            />
-            <RHFTextField
-              control={control}
-              name="name"
-              label={fieldCopy.name.label}
-              required
-              placeholder={fieldCopy.name.placeholder}
-              maxLength={120}
-            />
-            <RHFSelectField
-              control={control}
-              name="status"
-              label={fieldCopy.status.label}
-              required
-              placeholder={fieldCopy.status.placeholder}
-              options={[
-                {
-                  value: BranchStatus.ACTIVE,
-                  label: BRANCH_STATUS_LABELS[BranchStatus.ACTIVE],
-                },
-                {
-                  value: BranchStatus.INACTIVE,
-                  label: BRANCH_STATUS_LABELS[BranchStatus.INACTIVE],
-                },
-              ]}
-            />
-            <Controller
-              control={control}
-              name="isMain"
-              render={({ field, fieldState }) => {
-                const errorMessage = fieldState.error?.message;
-                return (
-                  <FormFieldShell
-                    fieldId="isMain"
-                    label={fieldCopy.isMain.label}
-                    description={fieldCopy.isMain.description}
-                    errorMessage={errorMessage}
-                  >
-                    <Select
-                      value={field.value ? "true" : "false"}
-                      onValueChange={(value) => field.onChange(value === "true")}
-                    >
-                      <SelectTrigger
-                        id="isMain"
-                        error={Boolean(fieldState.error)}
-                        {...getFieldErrorAriaProps("isMain", errorMessage)}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">
-                          {fieldCopy.isMain.yes}
-                        </SelectItem>
-                        <SelectItem value="false">
-                          {fieldCopy.isMain.no}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormFieldShell>
-                );
-              }}
-            />
-            {!editLayout ? (
-              <BranchContactFields control={control} fieldCopy={fieldCopy} />
-            ) : null}
-            <MainInactiveWarning control={control} isEditing={editLayout} />
-          </FormSectionCard>
-        </div>
-
         {editLayout ? (
-          <FormSectionCard
-            title={branchesCopy.form.sections.contact.title}
-            icon={<Phone className="h-4 w-4" />}
-            description={branchesCopy.form.sections.contact.description}
-            contentClassName="grid gap-4 sm:grid-cols-2"
-          >
-            <BranchContactFields control={control} fieldCopy={fieldCopy} />
-          </FormSectionCard>
-        ) : null}
-
-        <div
-          className={cn("space-y-6", wizardActive && wizardStepIndex !== 1 && "hidden")}
-          data-wizard-panel="1"
-          aria-hidden={wizardActive && wizardStepIndex !== 1}
-        >
-          <FormSectionCard
-            title={
-              editLayout
-                ? branchesCopy.form.sections.address.editTitle
-                : branchesCopy.form.sections.address.title
+          <LongFormEditLayout
+            nav={
+              <LongFormSectionNav
+                sections={BRANCH_EDIT_SECTIONS}
+                activeSectionId={activeSectionId}
+                errorCountBySection={errorCountBySection}
+                onSelectSection={handleEditSectionSelect}
+                title={formCopy.edit.sidebar.title}
+                errorsTitle={formCopy.edit.sidebar.errorsTitle}
+                errorsAria={formCopy.edit.sidebar.errorsAria}
+              />
             }
-            icon={<MapPin className="h-4 w-4" />}
-            description={
-              editLayout
-                ? branchesCopy.form.sections.address.editDescription
-                : wizardActive
-                  ? ADDRESS_FORM_COPY.branchOperational.globalInfoMessage
-                  : branchesCopy.form.sections.address.description
-            }
-            contentClassName="grid gap-4 sm:grid-cols-2"
           >
-            <div className="sm:col-span-2 space-y-4">
-              <LocationField
-                context="operational"
-                value={locationFieldValue}
-                onChange={handleLocationChange}
-                label={branchesCopy.form.sections.address.locationSearchLabel}
-                placeholder={
-                  branchesCopy.form.sections.address.locationSearchPlaceholder
-                }
-                disabled={isSubmitting}
-                ownerTypes={["branch", "tenant"]}
-                includeInternal={false}
-              />
-              <div className="space-y-3 border-t border-border pt-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">
-                    {LOCATION_FIELD_COPY.satDetailTitle}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {LOCATION_FIELD_COPY.satDetailHint}
-                  </p>
-                </div>
-                <AddressInput<BranchFormData>
-                  variant="carta-porte"
-                  formContext="branchOperational"
-                  addressType="branch"
-                  control={control}
-                  setValue={setValue}
-                  namePrefix="address"
-                  layout="compact"
-                  showLatLng={false}
-                  showPrimaryToggle={false}
-                  hideInformativeAlerts={false}
-                  embedded
-                  disabled={isSubmitting}
-                />
-              </div>
+            {editSections}
+          </LongFormEditLayout>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "space-y-6",
+                wizardActive && wizardStepIndex !== 0 && "hidden",
+              )}
+              data-wizard-panel="0"
+              aria-hidden={wizardActive && wizardStepIndex !== 0}
+            >
+              {generalSection}
             </div>
-            <div className="sm:col-span-2">
-              <BranchAddressGeocodingSection
-                disabled={isSubmitting}
-                embedded
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <RHFTextareaField
-                control={control}
-                name="notes"
-                label={fieldCopy.notes.label}
-                description={
-                  editLayout
-                    ? branchesCopy.form.sections.notes.description
-                    : undefined
-                }
-                rows={editLayout ? 3 : 4}
-                placeholder={fieldCopy.notes.placeholder}
-                maxLength={1000}
-              />
-            </div>
-          </FormSectionCard>
-        </div>
 
-        <div
-          className={cn(!wizardActive || wizardStepIndex !== 2 ? "hidden" : undefined)}
-          aria-hidden={!wizardActive || wizardStepIndex !== 2}
-        >
-          <BranchWizardSummary onEditStep={onEditStep} />
-        </div>
+            <div
+              className={cn(
+                "space-y-6",
+                wizardActive && wizardStepIndex !== 1 && "hidden",
+              )}
+              data-wizard-panel="1"
+              aria-hidden={wizardActive && wizardStepIndex !== 1}
+            >
+              {locationSection}
+            </div>
+
+            <div
+              className={cn(
+                !wizardActive || wizardStepIndex !== 2 ? "hidden" : undefined,
+              )}
+              aria-hidden={!wizardActive || wizardStepIndex !== 2}
+            >
+              <BranchWizardSummary onEditStep={onEditStep} />
+            </div>
+          </>
+        )}
 
         {shouldShowValidationSummary ? (
           <FormValidationSummary

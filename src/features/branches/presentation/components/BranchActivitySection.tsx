@@ -61,7 +61,9 @@ export function BranchActivitySection({ branchId }: BranchActivitySectionProps) 
             {copy.title}
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Cargando…</CardContent>
+        <CardContent className="text-sm text-muted-foreground">
+          {copy.loading}
+        </CardContent>
       </Card>
     );
   }
@@ -89,7 +91,7 @@ export function BranchActivitySection({ branchId }: BranchActivitySectionProps) 
               const actorName =
                 [event.actorFirstName, event.actorLastName].filter(Boolean).join(" ").trim() ||
                 event.actorEmail ||
-                "Sistema";
+                copy.systemActor;
               const summary = summarizeBranchActivityPayload(event.action, event.payload);
               const isSynthetic = event.payload.synthetic === true;
 
@@ -121,8 +123,8 @@ export function BranchActivitySection({ branchId }: BranchActivitySectionProps) 
         {total > 0 ? (
           <p className="text-xs text-muted-foreground">
             {events.length === total
-              ? `${total} evento${total === 1 ? "" : "s"}.`
-              : `Mostrando ${events.length} de ${total} eventos.`}
+              ? copy.eventsTotal(total)
+              : copy.eventsPartial(events.length, total)}
           </p>
         ) : null}
 
@@ -134,7 +136,7 @@ export function BranchActivitySection({ branchId }: BranchActivitySectionProps) 
             disabled={isFetchingNextPage}
             onClick={() => void fetchNextPage()}
           >
-            {isFetchingNextPage ? "Cargando…" : copy.loadMore}
+            {isFetchingNextPage ? copy.loading : copy.loadMore}
           </Button>
         ) : null}
 
@@ -146,7 +148,7 @@ export function BranchActivitySection({ branchId }: BranchActivitySectionProps) 
             disabled={isFetching}
             onClick={() => void refetch()}
           >
-            {isFetching ? "Actualizando…" : copy.refresh}
+            {isFetching ? copy.updating : copy.refresh}
           </Button>
         ) : null}
       </CardContent>
