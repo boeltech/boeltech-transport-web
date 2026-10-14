@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { TrailerStatus, type TrailerStatusType } from "../../domain";
 import { TrailerActions } from "./TrailerActions";
 import { trailersCopy } from "../copy/trailersCopy";
 
@@ -27,13 +28,21 @@ vi.mock("../../application", () => ({
     mutate,
     isPending: false,
   }),
+  useUpdateTrailerStatus: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
 }));
 
-function renderActions(onEdit?: () => void) {
+function renderActions(
+  onEdit?: () => void,
+  status: TrailerStatusType = TrailerStatus.AVAILABLE,
+) {
   return render(
     <TrailerActions
       trailerId="trailer-1"
       licensePlate="REM1234"
+      status={status}
       onEdit={onEdit}
     />,
   );
@@ -55,13 +64,15 @@ describe("TrailerActions", () => {
     );
   });
 
-  it("shows edit as a row button and delete inside the menu", async () => {
+  it("shows edit as a row button and delete inside the menu (D7)", async () => {
     const user = userEvent.setup();
     renderActions(vi.fn());
 
-    expect(
-      screen.getByRole("button", { name: trailersCopy.actions.edit }),
-    ).toBeInTheDocument();
+    const editButton = screen.getByRole("button", {
+      name: trailersCopy.actions.edit,
+    });
+    expect(editButton).toBeInTheDocument();
+    expect(editButton).not.toHaveClass("bg-primary");
     expect(
       screen.queryByRole("button", { name: trailersCopy.actions.delete }),
     ).not.toBeInTheDocument();
@@ -110,11 +121,11 @@ describe("TrailerActions", () => {
     expect(mutate).toHaveBeenCalledWith("trailer-1");
   });
 
-  it("hides the menu without trailers.delete", () => {
+  it("hides the menu without trailers.delete when status has no UI transition", () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "update",
     );
-    renderActions(vi.fn());
+    renderActions(vi.fn(), TrailerStatus.RESERVED);
 
     expect(
       screen.queryByRole("button", { name: trailersCopy.actions.menu }),

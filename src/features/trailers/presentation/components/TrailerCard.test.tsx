@@ -6,10 +6,23 @@ import { TrailerStatus } from "../../domain";
 import { TrailerCard } from "./TrailerCard";
 
 vi.mock("./TrailerActions", () => ({
-  TrailerActions: ({ licensePlate }: { licensePlate: string }) => (
-    <button type="button">{`acciones-${licensePlate}`}</button>
+  TrailerActions: ({
+    licensePlate,
+    menuTriggerClassName,
+  }: {
+    licensePlate: string;
+    menuTriggerClassName?: string;
+  }) => (
+    <button
+      type="button"
+      className={menuTriggerClassName}
+      data-testid="trailer-card-actions"
+    >
+      {`acciones-${licensePlate}`}
+    </button>
   ),
 }));
+
 
 function buildTrailer(
   overrides: Partial<TrailerListItem> = {},
@@ -32,7 +45,7 @@ function buildTrailer(
 }
 
 describe("TrailerCard", () => {
-  it("shows plate, type name, status and row actions without Ver más", () => {
+  it("shows plate, type name, status and touch menu actions without Ver más", () => {
     render(
       <TrailerCard
         trailer={buildTrailer()}
@@ -46,8 +59,12 @@ describe("TrailerCard", () => {
     expect(screen.getByText("Reservado")).toBeInTheDocument();
     expect(screen.queryByText("CTR001")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /ver más/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "acciones-REM1234" })).toBeInTheDocument();
+    const actions = screen.getByTestId("trailer-card-actions");
+    expect(actions).toHaveTextContent("acciones-REM1234");
+    // EntityListCard menú touch: opacity-100 sin hover (D4).
+    expect(actions.className).toMatch(/opacity-100/);
   });
+
 
   it("does not call onEdit when clicking the card body", async () => {
     const user = userEvent.setup();

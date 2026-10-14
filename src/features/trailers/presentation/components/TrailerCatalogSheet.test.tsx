@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { UNSAVED_CHANGES_COPY } from "@shared/hooks/useUnsavedChangesGuard";
 import { TrailerCatalogSheet } from "./TrailerCatalogSheet";
 import { trailersCopy } from "../copy/trailersCopy";
 import { TrailerStatus, type Trailer } from "../../domain";
@@ -151,5 +152,61 @@ describe("TrailerCatalogSheet", () => {
       },
     });
     expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it("dirty cancel: confirms discard before closing", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+
+    render(<TrailerCatalogSheet open onOpenChange={onOpenChange} />);
+
+    await user.type(
+      screen.getByPlaceholderText(trailersCopy.form.placeholder.licensePlate),
+      "ABC1234",
+    );
+    await user.click(
+      screen.getByRole("button", { name: trailersCopy.form.cancel }),
+    );
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(
+      screen.getByRole("alertdialog", { name: UNSAVED_CHANGES_COPY.title }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: UNSAVED_CHANGES_COPY.confirmLabel }),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("dirty cancel: keep editing dismisses dialog without closing", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+
+    render(<TrailerCatalogSheet open onOpenChange={onOpenChange} />);
+
+    await user.type(
+      screen.getByPlaceholderText(trailersCopy.form.placeholder.licensePlate),
+      "XYZ9999",
+    );
+    await user.click(
+      screen.getByRole("button", { name: trailersCopy.form.cancel }),
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: UNSAVED_CHANGES_COPY.keepEditingLabel,
+      }),
+    );
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(
+      screen.queryByRole("alertdialog", { name: UNSAVED_CHANGES_COPY.title }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: trailersCopy.catalogSheet.createTitle,
+      }),
+    ).toBeInTheDocument();
   });
 });

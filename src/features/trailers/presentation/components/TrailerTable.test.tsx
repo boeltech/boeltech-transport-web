@@ -95,4 +95,19 @@ describe("TrailerTable", () => {
     await user.click(screen.getByText("REM1234"));
     expect(onEdit).not.toHaveBeenCalled();
   });
+
+  it("returns null when empty so ListPageShell owns EmptyState (D3)", () => {
+    const { container } = render(
+      <TrailerTable
+        trailers={[]}
+        isLoading={false}
+        typeLabelFor={() => null}
+        onEdit={vi.fn()}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText(copy.empty)).not.toBeInTheDocument();
+  });
 });
+

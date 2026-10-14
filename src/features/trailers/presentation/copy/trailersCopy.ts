@@ -52,6 +52,19 @@ export const trailersCopy = {
     deleteTitle: (plate: string) => `¿Eliminar el remolque ${plate}?`,
     deleteDescription:
       "Dejará de estar en el catálogo y no se podrá asignar a viajes.",
+    markOutOfService: "Fuera de servicio",
+    markAvailable: "Marcar disponible",
+  },
+  statusChange: {
+    title: "Cambiar estado del remolque",
+    description: (plate: string, fromLabel: string, toLabel: string) =>
+      `El remolque ${plate} pasará de ${fromLabel} a ${toLabel}.`,
+    cancel: "Cancelar",
+    confirm: "Confirmar cambio",
+    errorTitle: "No se pudo cambiar el estado",
+    successTitle: "Estado actualizado",
+    successDescription: (plate: string, statusLabel: string) =>
+      `${plate} ahora está ${statusLabel}`,
   },
   form: {
     createTitle: "Nuevo remolque",

@@ -3,10 +3,14 @@
  * Clean Architecture - Presentation Layer (Components)
  *
  * Tarjeta de remolque para la vista cards del listado.
- * Acciones Editar/Eliminar en el footer; sin hop a detalle (Capa 1 D1').
+ * EntityListCard + menú ⋯ touch canónico (D4). Sin hop a detalle (Capa 1 D1').
  */
 
-import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
+import { CardContent, CardFooter, CardHeader } from "@shared/ui/card";
+import {
+  EntityListCard,
+  entityListCardMenuTriggerClassName,
+} from "@shared/ui/listing";
 import { Container } from "lucide-react";
 import type { TrailerListItem } from "../../domain";
 import { TrailerStatusBadge } from "../config/trailerStatusConfig";
@@ -22,15 +26,25 @@ export function TrailerCard({ trailer, typeLabel, onEdit }: TrailerCardProps) {
   const notes = trailer.notes?.trim() ?? "";
 
   return (
-    <Card>
+    <EntityListCard className="cursor-default">
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Container className="h-5 w-5" />
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Container className="h-5 w-5" />
+            </div>
+            <h3 className="truncate font-mono text-lg font-semibold leading-none">
+              {trailer.licensePlate}
+            </h3>
           </div>
-          <h3 className="font-semibold text-lg leading-none font-mono truncate">
-            {trailer.licensePlate}
-          </h3>
+
+          <TrailerActions
+            trailerId={trailer.id}
+            licensePlate={trailer.licensePlate}
+            status={trailer.status}
+            onEdit={() => onEdit(trailer.id)}
+            menuTriggerClassName={entityListCardMenuTriggerClassName}
+          />
         </div>
       </CardHeader>
 
@@ -46,16 +60,9 @@ export function TrailerCard({ trailer, typeLabel, onEdit }: TrailerCardProps) {
         ) : null}
       </CardContent>
 
-      <CardFooter className="pt-3 border-t">
-        <div className="flex w-full items-center justify-between gap-2">
-          <TrailerStatusBadge status={trailer.status} size="sm" showIcon />
-          <TrailerActions
-            trailerId={trailer.id}
-            licensePlate={trailer.licensePlate}
-            onEdit={() => onEdit(trailer.id)}
-          />
-        </div>
+      <CardFooter className="border-t pt-3">
+        <TrailerStatusBadge status={trailer.status} size="sm" showIcon />
       </CardFooter>
-    </Card>
+    </EntityListCard>
   );
 }

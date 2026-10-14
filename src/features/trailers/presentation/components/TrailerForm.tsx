@@ -32,6 +32,7 @@ export interface TrailerFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   submitLabel?: string;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 export function TrailerForm({
@@ -40,6 +41,7 @@ export function TrailerForm({
   onCancel,
   isSubmitting,
   submitLabel,
+  onDirtyChange,
 }: TrailerFormProps) {
   const form = useForm<CreateTrailerFormData>({
     resolver: zodResolver(
@@ -55,9 +57,13 @@ export function TrailerForm({
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitted },
+    formState: { errors, isSubmitted, isDirty },
     reset,
   } = form;
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
     reset({

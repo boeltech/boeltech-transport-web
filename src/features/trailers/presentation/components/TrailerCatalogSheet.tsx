@@ -3,6 +3,7 @@
  * No usar para el wizard de viaje (CreateTrailerSheet).
  */
 
+import { useCallback, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -10,6 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
+import { UnsavedChangesDialog } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import {
   getErrorMessage,
@@ -38,6 +40,40 @@ export function TrailerCatalogSheet({
 }: TrailerCatalogSheetProps) {
   const { toast } = useToast();
   const isEdit = Boolean(trailer);
+  const [isDirty, setIsDirty] = useState(false);
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
+
+  // Reset local overlay state when the parent closes the sheet (props → state).
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) {
+      setIsDirty(false);
+      setConfirmCloseOpen(false);
+    }
+  }
+
+  const requestClose = useCallback(() => {
+    if (isDirty) {
+      setConfirmCloseOpen(true);
+      return;
+    }
+    onOpenChange(false);
+  }, [isDirty, onOpenChange]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true);
+      return;
+    }
+    requestClose();
+  };
+
+  const handleConfirmDiscard = () => {
+    setConfirmCloseOpen(false);
+    setIsDirty(false);
+    onOpenChange(false);
+  };
 
   const createTrailer = useCreateTrailer({
     onSuccess: (data) => {
@@ -46,6 +82,7 @@ export function TrailerCatalogSheet({
         description: data.licensePlate,
         variant: "success",
       });
+      setIsDirty(false);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -65,6 +102,7 @@ export function TrailerCatalogSheet({
         title: formCopy.toast.updateSuccess,
         variant: "success",
       });
+      setIsDirty(false);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -92,29 +130,38 @@ export function TrailerCatalogSheet({
   const isSubmitting = createTrailer.isPending || updateTrailer.isPending;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col overflow-y-auto sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>
-            {isEdit ? sheetCopy.editTitle : sheetCopy.createTitle}
-          </SheetTitle>
-          <SheetDescription>
-            {isEdit && trailer
-              ? sheetCopy.editDescription(trailer.licensePlate)
-              : sheetCopy.createDescription}
-          </SheetDescription>
-        </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={handleOpenChange}>
+        <SheetContent className="flex flex-col overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>
+              {isEdit ? sheetCopy.editTitle : sheetCopy.createTitle}
+            </SheetTitle>
+            <SheetDescription>
+              {isEdit && trailer
+                ? sheetCopy.editDescription(trailer.licensePlate)
+                : sheetCopy.createDescription}
+            </SheetDescription>
+          </SheetHeader>
 
-        {open ? (
-          <TrailerForm
-            key={trailer?.id ?? "create"}
-            trailer={trailer}
-            onSubmit={handleSubmit}
-            onCancel={() => onOpenChange(false)}
-            isSubmitting={isSubmitting}
-          />
-        ) : null}
-      </SheetContent>
-    </Sheet>
+          {open ? (
+            <TrailerForm
+              key={trailer?.id ?? "create"}
+              trailer={trailer}
+              onSubmit={handleSubmit}
+              onCancel={requestClose}
+              onDirtyChange={setIsDirty}
+              isSubmitting={isSubmitting}
+            />
+          ) : null}
+        </SheetContent>
+      </Sheet>
+
+      <UnsavedChangesDialog
+        open={confirmCloseOpen}
+        onConfirm={handleConfirmDiscard}
+        onDismiss={() => setConfirmCloseOpen(false)}
+      />
+    </>
   );
 }

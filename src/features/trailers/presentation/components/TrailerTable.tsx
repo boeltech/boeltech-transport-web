@@ -78,18 +78,6 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
-          {listCopy.empty}
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
-}
-
 function NotesCell({ notes }: { notes: string | null }) {
   const trimmed = notes?.trim() ?? "";
   if (!trimmed) {
@@ -122,15 +110,9 @@ export function TrailerTable({
     );
   }
 
+  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D3).
   if (trailers.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeaderRow />
-          <EmptyState />
-        </Table>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -162,6 +144,7 @@ export function TrailerTable({
                 <TrailerActions
                   trailerId={trailer.id}
                   licensePlate={trailer.licensePlate}
+                  status={trailer.status}
                   onEdit={() => onEdit(trailer.id)}
                 />
               </TableCell>
