@@ -30,20 +30,22 @@ AppLayout (providers) → LayoutShell → Sidebar + Header + main → Outlet →
 | Pieza | Ruta | Notas |
 |---|---|---|
 | Providers | `src/widgets/layout/ui/AppLayout.tsx` | Query → Auth → Permission → Theme → Toast → Sidebar → LayoutShell |
-| Layout | `src/widgets/layout/ui/LayoutShell.tsx` | Sidebar 260/70px, header h-16, main `pt-20` + `max-w-7xl` |
-| Sidebar | `src/widgets/sidebar/` | `navigation.ts` + RBAC via `useNavigation`; badges via `useNavigationWithBadges`. Active: `bg-primary/10 text-primary` + barra 2px. Sin user/logout en footer (solo collapse). |
-| Header | `src/widgets/header/ui/Header.tsx` | Search pill ⌘K (`GlobalCommandMenu`), campana inbox, tema, menú usuario (logout aquí) |
+| Layout | `src/widgets/layout/ui/LayoutShell.tsx` | Sidebar **240/56px**, header **h-14** solid, skip link → `#contenido`, main `pt-16` + `max-w-7xl`. Un solo landmark `<aside>` (desktop). |
+| Sidebar | `src/widgets/sidebar/` | `navigation.ts` + RBAC via `useNavigation`; badges via `useNavigationWithBadges`. Active: `bg-sidebar-accent` + `text-sidebar-primary` + riel **3px** `bg-sidebar-primary` + `aria-current="page"`. Badge visible en colapsado (número o dot). Labels de grupo sentence-case (`text-sidebar-foreground/60`). Sin user/logout en footer (solo collapse). |
+| Header | `src/widgets/header/ui/Header.tsx` | Solid `bg-background` (sin glass/blur). Search `rounded-md` ⌘K (`GlobalCommandMenu`); **lupa móvil** `<md` abre el mismo menú. Campana inbox, tema, menú usuario (logout aquí; nombre/rol `lg+`). |
 | Estado sidebar | `src/app/providers/SidebarProvider.tsx` | Colapso persistido en localStorage |
+| Anchos | `sidebarLayout.ts` | `SIDEBAR_WIDTH_PX=240` / `SIDEBAR_COLLAPSED_WIDTH_PX=56` — alinear Header left + main margin |
 
-**Tokens sidebar:** `bg-sidebar`, `text-sidebar-foreground`, `border-sidebar-border` — ver `tokens.md`. No usar `--background` en el sidebar.
+**Tokens sidebar:** `bg-sidebar`, `text-sidebar-foreground`, `bg-sidebar-primary` (ámbar en v2 Patio), `bg-sidebar-accent`, `border-sidebar-border` — ver `tokens.md`. No usar `--background` ni `bg-primary/10` en el ítem activo.
 
 **Superficies:** light `--background` off-white (hue 250) vs `--card` blanco puro. `Card` default: `rounded-xl border shadow-sm`.
 
 **Al agregar ruta al menú:** ítem en `navigation.ts` (con `module`/`roles`) + ruta en `routes.tsx`. Badge dinámico → `enrichNavigationWithBadges`, no hardcode en JSX.
 
 **Header — reglas:**
-- Izquierda: menú móvil + search pill / command palette (misma nav filtrada que sidebar).
+- Izquierda: menú móvil + search (desktop) / lupa (móvil) → command palette (misma nav filtrada que sidebar).
 - Derecha: notificaciones, ciclo de tema (system → light → dark), menú usuario.
+- Solid (sin `backdrop-blur` / glass).
 - **No** poner títulos de página (`text-2xl`) en el header global — van en el page shell.
 - **No** duplicar bloque de usuario en el sidebar.
 
@@ -189,7 +191,25 @@ README: `src/shared/ui/form/README.md` · `src/shared/ui/page-shells/README.md`.
 
 Todos en `src/app/styles/index.css`. Tailwind los expone como utilidades vía `@theme inline`.
 
-**Brand primario (azul-tinta, hue 250):**
+### Paletas conmutables (light/dark × v1/v2)
+
+Independiente del modo light/dark. Atributo `data-palette` en `<html>`, persistido en
+`localStorage` (`boeltech-palette`). API: `useTheme().colorPalette` /
+`setColorPalette` / `PaletteSegmented` en `/design-system`.
+
+| Id | Nombre | Default producto | Idea |
+|---|---|---|---|
+| `v1` | Azul-tinta | Alternativa (`/design-system`) | Primary hue 250; sidebar claro (light) |
+| `v2` | Patio (ink + ámbar + brand) | **Sí** (`COLOR_PALETTE_DEFAULT`) | Triad Operate: ink estructura; ámbar señala (no CTA); brand Teal Operate = `--primary` (hue 205) |
+
+v2 anclas (fuente de verdad; no utilidades Tailwind aún): `--palette-ink`,
+`--palette-amber`, `--palette-brand` (Teal Operate ≈ `#0F6F82` /
+`oklch(0.48 0.10 205)` light), `--palette-concrete`, `--palette-elevated`,
+`--palette-muted`, más derivados `--palette-amber-soft`, `--palette-ink-raised`,
+`--palette-hairline`. Neutros en hue 256. Chrome activo = `sidebar-primary`
+(ámbar). CTAs = `--primary` → brand (nunca ámbar).
+
+**Brand primario (Teal Operate en v2):**
 
 | Utilidad Tailwind | Token | Uso típico |
 |---|---|---|
@@ -202,7 +222,8 @@ Todos en `src/app/styles/index.css`. Tailwind los expone como utilidades vía `@
 
 `--success` `--warning` `--info` `--destructive` `--neutral`
 
-Utilidades: `bg-success`, `text-warning-foreground`, etc.
+En v2, `--info` comparte familia hue 205 con brand (un solo teal de marca; sin
+azul cielo aparte). Utilidades: `bg-success`, `text-warning-foreground`, etc.
 
 **Semánticos soft** (para chips de estado en listas, backgrounds de mensajes):
 
@@ -210,7 +231,9 @@ Utilidades: `bg-success`, `text-warning-foreground`, etc.
 
 Utilidades: `bg-success-soft`, `text-success-soft-foreground`, etc.
 
-**Charts:** 5 series — `--chart-1` (azul primary) al `--chart-5` (verde bosque). Usar en gráficas del dashboard y módulo de finanzas.
+**Charts (v2 familia Patio):** `--chart-1` brand · `--chart-2` slate ink ·
+`--chart-3` ámbar · `--chart-4` ink muted · `--chart-5` success. Usar en
+gráficas del dashboard y módulo de finanzas.
 
 **Surfaces clave:**
 
@@ -223,7 +246,7 @@ Utilidades: `bg-success-soft`, `text-success-soft-foreground`, etc.
 | `--input` | Bordes de form inputs |
 | `--ring` | Focus ring |
 
-**Regla:** nunca `bg-red-500`, `bg-green-100`, etc. Si necesitas un nuevo color, primero agrega el token a `:root` y `.dark`, luego mapéalo en `@theme inline`.
+**Regla:** nunca `bg-red-500`, `bg-green-100`, etc. Si necesitas un nuevo color, primero agrega el token en v1 (`:root` / `.dark`) y el override v2 si aplica, luego mapéalo en `@theme inline`. Contraste AA: `contrastPairs.test.ts` (v1 + v2).
 
 ---
 
@@ -276,14 +299,16 @@ Utilidades: `bg-success-soft`, `text-success-soft-foreground`, etc.
 
 | Shell | Cuándo usar | Ejemplo real |
 |---|---|---|
-| `ListPageShell` | CRUD / registry: búsqueda, filtros, paginación | `VehicleListPage`, `SettlementsRegistryPage` |
+| `ListPageShell` | CRUD / registry: búsqueda, filtros, paginación | `VehicleListPage`, `SettlementsRegistryPage`, **`/notifications`** (Ola 2 #3 inbox) |
 | `DetailPageShell` | Detalle de entidad con tabs y KPIs; header canónico = patrón **Detail header** en `docs/design-system/patterns.md` | `InvoiceDetailPage`, `ClientDetailPage` |
 | `FormPageShell` | Edición simple (un formulario, sin pasos) | `EditVehiclePage`, `EmployeeFormPage` |
 | `WizardPageShell` | Creación/edición por pasos con validación incremental | `TripFormPage` |
-| `HubPageShell` | Landing de módulo: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation` |
+| `HubPageShell` | Landing de módulo: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation`, **`/finance/analysis`** (Ola 3 #5) |
 | `BuilderPageShell` | Construcción no lineal: section nav + canvas + inspector (ADR-0091) | `CompensationSchemeBuilderPage` |
-| `WorkbenchPageShell` | Centro operativo: triage por buckets (ADR-0090) | `SettlementsListPage`, `ApprovalInboxPage` |
+| `WorkbenchPageShell` | Centro operativo: triage por buckets (ADR-0090) | `SettlementsListPage`, **`/finance/approvals`** (Ola 2 #2), **`/trips`** (Ola 2 #1), **`/finance/invoices`** (Ola 3 #1), **`/finance/cobros`** (Ola 3 #2) |
 | `SettingsPageShell` | Configuración con sidebar de secciones | `GeneralSettingsPage` |
+
+**Maestros cortos vs largos:** catálogo corto (pocos campos, sin ficha) → `ListPageShell` + Sheet (`TrailerCatalogSheet`); maestro denso con secciones → `FormPageShell` (+ sticky/rail si aplica; vehicles/drivers/clients/branches). No inventar Detail/FormPageShell para el corto.
 
 **Nunca** importar primitivas de layout sueltas directamente en una página — usar siempre el shell correspondiente.
 
@@ -304,6 +329,22 @@ Anatomía Workbench: Header → Awareness strip → Toolbar → `renderContent()
 Empty/error **por bucket** en la feature. No ampliar `ListPageShell` ni fusionar Hub con Workbench.
 
 **No confundir:** Hub `readiness` = chips de salud de **configuración** (no filtran children). Workbench awareness = buckets de **cola operativa** (sí filtran).
+
+**Viajes (Ola 2 #1):** `/trips` = **Workbench** (buckets de triage; no `ListPageShell`). Tab **Operación** del detalle = ficha **patio-first**: Flota y tripulación → Programación → Cliente/contrato → staff → Orden de viaje → Datos Carta Porte → km/notas/historial. CTAs de flota en el bloque Flota; no FormSticky / LongForm de padrón.
+
+**Aprobaciones (Ola 2 #2):** `/finance/approvals` = cola **Workbench** (buckets de tipo; no `ListPageShell`). Filtros = `ListingFilterPanel` (queue toggle y operador fuera del panel). `ReturnedAlert` CTAs solo en `DetailAlertCard.action`. Con tipo fijo (bucket activo / `lockedType`): sin columna Tipo. No EntityListCard / FormSticky / LongForm.
+
+**Notificaciones (Ola 2 #3):** `/notifications` = inbox/feed **`ListPageShell`** (no Workbench). Filtros = `ListingFilterPanel`; empty filtrado + Limpiar; error = `DetailAlertCard` + Reintentar (no EmptyState «Sin notificaciones»). Campana (Panel/Sheet): preview no leídas, `EmptyState` size `sm`, error con reintento, «Ver todas» intacto; overlays DS. Deep-link = clic fila (+ chevron/Abrir). No EntityListCard / FormSticky / LongForm. **Ola 2 cerrada** (viajes Workbench + aprobaciones cola + notificaciones inbox).
+
+**Facturas (Ola 3 #1):** `/finance/invoices` = **Workbench** (buckets de estado; no `ListPageShell`; no inventar `ListingFilterPanel` vacío — solo search + buckets). Empty solo shell. Primary Nueva factura + Descargar CFDI outline → Sheet (`?download=` intacto; portal client sin bulk/CTAs staff). Detalle `/invoices/:id`: alertas con job vía **`DetailAlertCard.action`** (follow-through Enviar/Cobrar abre el mismo overlay que la toolbar). Toolbar: **una sola primaria sólida**; pago outline si hay elevación fiscal (Sustituir/Cancelar). Overlays: Sustituir=`Sheet`; Cancel/Pago=`Dialog`; Enviar=`AlertDialog` (confirmación + destinatarios); delete borrador=`AlertDialog`. No EntityListCard / FormSticky / LongForm.
+
+**Cobros (Ola 3 #2):** `/finance/cobros` = **Workbench** (buckets Por cobrar / Pago parcial / Excepciones REP; no `ListPageShell`; no inventar `ListingFilterPanel` — RFC toolbar + chip). Empty solo shell. Bandeja «Cobros de hoy» = `DetailAlertCard` + severidad + dismiss/`Ver excepciones` en `action`. Sticky «Registrar cobro» (patrón Dispatch). Lote = selección de la página actual; filtrar RFC para reunir varias. Overlays: Confirm=`Sheet`; chain repair=`Dialog` + Alert inline; late REP hint en Sheet = warning. Error carga → `DetailAlertCard` + Reintentar en `action`. Excepciones sin Card+header duplicado. No EntityListCard / FormSticky / LongForm.
+
+**Dispatch (Ola 3 #3):** `/finance/dispatch` = **Workbench** (Pendientes/Enviadas; no `ListPageShell` de página). Sticky Enviar = única sólida de cola; Armar = outline. Empty cola solo shell. Error carga → `DetailAlertCard` + Reintentar en `action`. Confirm batch = Sheet. Periodo `/finance/dispatch/period` = `ListPageShell` + `ListingFilterPanel`; empty onboarding XOR filtrado. Create run = Dialog + Alert inline. Detalle `/finance/dispatch/:id`: alertas con job vía **`DetailAlertCard.action`** (empty-scheduled Armar; fallido Armar; no-ready Actualizar lista; error carga Reintentar). Confirm/Reenviar = `AlertDialog`; toolbar **una sola primaria** Enviar o Reenviar. `DispatchRunSendResults` montado en detalle tras envío. No EntityListCard / FormSticky / LongForm.
+
+**Pagos a operadores (Ola 3 #4):** Hub `HubPageShell` (5 tabs). Por pagar = **Workbench** `showHeader=false` (`ListingFilterPanel` sucursal; contratistas fuera). Anticipos / Tarifas / Rutas = `ListPageShell` `showHeader=false` bajo hub; **1 filtro toolbar** OK (no inventar panel vacío). Historial = **List deep-link** (`/finance/settlements/registry`, no tab) con status+operador en `ListingFilterPanel`. Empty único shell; error → `DetailAlertCard` + Reintentar en `action`. Banners compensación (assign / duplicados) → `DetailAlertCard.action` cuando hay job. **Sin sticky de cola** (no hay lote multi-select). Overlays: Dialog disburse/VoBo; Sheet corregir. No EntityListCard / FormSticky / LongForm.
+
+**Análisis (Ola 3 #5 — cierre ola):** `/finance/analysis` = **Hub** `HubPageShell` (Mes a mes / Rentabilidad / Gastos; `?view=` + preserve periodo). **No** Workbench ni `ListPageShell`. Controles en toolbar (periodo, alcance, meses, YoY, granularidad); **no** inventar `ListingFilterPanel` vacío. Chips = `ActiveFilterChips` + Limpiar. Empty único por vista; error/alerta con job → `DetailAlertCard.action`. Export outline. No EntityListCard / FormSticky / LongForm / sticky cola. **Ola 3 cerrada** (facturas · cobros · dispatch · liquidaciones · análisis).
 
 **Builder** — usar si **≥ 4 de 6**: (1) múltiples secciones, (2) navegación no lineal, (3) inspector/resumen, (4) construcción iterativa, (5) lenguaje de negocio, (6) completitud progresiva. No extender Wizard con “navegación libre”.
 
@@ -376,7 +417,7 @@ import { ListingFilterPanel } from "@shared/ui/listing";
 
 - Badge «n» solo si `activeCount > 0` (recortes del panel; no search ni vista).
 - Abierto por defecto con recortes; cerrado si idle (el usuario puede expandir/colapsar).
-- Instancias: `VehicleListFilters`, `DriverListFilters`. Otros padrones
+- Instancias: `VehicleListFilters`, `DriverListFilters`, `ClientListFilters`. Otros padrones
   (trips/employees/…) migran cuando toque — no clonar Collapsible+Card a mano.
 
 **Cards — `EntityListCard`** (`@shared/ui/listing`):
@@ -405,10 +446,19 @@ import {
 - Menú ⋯ **usable sin hover** (touch: siempre visible; hover: aparece al
   `group-hover` / `focus-visible` / menú abierto).
 - Primera instancia: `VehicleCard`.
+- Segunda instancia padrón (list+form): **drivers**.
+- Tercera instancia padrón: **clients** — maestro largo (`FormPageShell` edit + sticky/rail/unsaved) y master-detail de hijos (direcciones/contactos) en el detalle; no Sheet del padre.
+- Cuarta instancia padrón: **branches** — maestro largo (`FormPageShell` edit + sticky + rail + unsaved); list/detail canónico; lifecycle baja solo en detalle (+ restaurar en Eliminadas).
+- Quinta instancia padrón (cierra Ola 1): **employees** — list+detail+create+edit canónico; `FormPageShell` edit con rail + sticky + unsaved; baja solo en detalle (API sin restore).
+- **Usuarios (Ola 4 #1):** `/users` = padrón admin `ListPageShell` (no Workbench). Filtros = `ListingFilterPanel`; `EntityListCard` touch; cupo → `DetailAlertCard.action` («Ver Tu plan»); edit corto `FormStickyActions` `sticky={false}` + unsaved (sin `LongFormSectionNav`); alta canónica = `AddUserSheet` (`/users/new` → `/users?create=1`). **Excepción lifecycle (D1):** Activar/Desactivar en menú lista + detalle (acceso), a diferencia del padrón Ola 1. Activity = `ListPageShell`; invitaciones en `beforeToolbar` (no EntityListCard).
+- **Settings (Ola 4 #2):** chrome = `SettingsPageShell` (no `SettingsLayout` desde pages). General: load/domicilio legado → `DetailAlertCard.action`. Forms: Billing `FormStickyActions sticky` + unsaved; Avisos `sticky={false}` + unsaved. Dashboard layouts: shell + title/description desde copy; `DashboardCustomizePanel` intacto. Integrations oculto del nav. Sin Hub/Workbench/`ListingFilterPanel`. Catálogos = Ola 4 #3.
+- **Catálogos (Ola 4 #3):** `/settings/catalogs*` = Settings admin (`SettingsPageShell`; list tabs ON; detail `hideSidebar`). Directorio = `EntityListCard` sin ⋯; **solo search** (no `ListingFilterPanel` / Workbench / Hub). Empty = `EmptyState` (directorio + valores + filtrado). Solo-lectura → `DetailAlertCard` info sin CTA; error carga → `DetailAlertCard` + Reintentar. Ítem mutable → Sheet; delete → Dialog. Platform / `CatalogImportWizard` / `CatalogSearchInput` fuera. Temas/copy consulta intactos.
+- **Help (Ola 4 #4):** `/ayuda*` = `ListPageShell` índice + tickets; `DetailPageShell` artículo + ticket; alta = `CreateTicketSheet`. Índice = `EntityListCard` sin ⋯ (cards-only; **solo search** `toolbar.search` / `ListingSearchInput`; no `ListingFilterPanel` / Workbench / Hub). Empty = `EmptyState` (filtrado + Limpiar; tickets vacíos → Nuevo ticket si on; pausa → mailto + Volver a Ayuda). Error carga → `DetailAlertCard` + Reintentar en `action` (≠ notFound). Panel/Spotlight: empty `EmptyState` size `sm`; error + Reintentar; `ArticleCard` accordion ≠ `EntityListCard`; **sin rediseñar** modelo ADR-0100. CreateTicketSheet: `FieldInlineError` + toast. Platform / API / CMS / flags fuera. No elevar DS.
+- **Platform (Ola 4 #5 — cierre ola):** `/platform/*` = chrome **aislado** (`PlatformShell` / `PlatformPageShell`; **nunca** `AppLayout` / sidebar ERP / `SettingsPageShell`). Isolation ADR-0062 non-negotiable (sesión ≠ ERP; link ERP → `/login`). Listados densos = `ListingFilterPanel` + `EntityListCard` touch + empty shell; AR chips de vista **fuera** del panel; catálogos platform = search-only + `EntityListCard` (wizard import intacto). Alertas con job → `DetailAlertCard.action` (audit/AR/pulse/detalle past_due/security MFA). Alta empresa = `FormStickyActions` sticky + unsaved; Security pie = `sticky={false}`. Reader (`platform_support`): sin CTAs de mutación. **Sin** rediseñar lifecycle/billing/pricing/impersonation. No elevar DS. **Ola 4 cerrada** (usuarios · settings · catálogos · help · platform).
 
 **Mutaciones de estado operativo:** solo en **detalle** (`*Actions` variant
 `buttons`). El listado es lookup (+ restaurar en vista baja). No
-`onChangeStatus` en tabla/card.
+`onChangeStatus` en tabla/card. **Excepción documentada:** Usuarios (Ola 4 #1) — Activar/Desactivar también en lista.
 
 ### `WizardPageShell` — props esenciales
 
@@ -559,7 +609,9 @@ import { DetailAlertCard } from "@shared/ui/data-display";
 - Slot opcional `action` (alias `cta`) para CTA del banner — preferir sobre
   meter botones en `children`.
 - Alerta que exige acción del operador → siempre CTA (≤1 clic al destino).
-- Canónico con CTA: alerta de docs en `VehicleDetailPage`.
+- Canónico con CTA: alerta de docs en `VehicleDetailPage`; follow-through fiscal
+  (Enviar/Cobrar / auto-dispatch failed) en `InvoiceDetailPage` (Ola 3 #1);
+  empty-scheduled / errores recuperables en `DispatchRunDetailPage` (Ola 3 #3).
 
 ### DetailSection (sub-secciones en tabs de detalle)
 
