@@ -8,24 +8,24 @@
  *
  * Consume el SidebarProvider para manejar el estado.
  *
- * Ubicación: src/app/layouts/LayoutShell.tsx
+ * Ubicación: src/widgets/layout/ui/LayoutShell.tsx
  */
 
 import { Outlet } from "react-router-dom";
 
 import { cn } from "@shared/lib/utils/cn";
 import { useSidebar } from "@/app/providers/SidebarProvider";
-import { Sidebar, MobileSidebar } from "@/widgets/sidebar";
+import {
+  MobileSidebar,
+  Sidebar,
+  SIDEBAR_COLLAPSED_WIDTH_PX,
+  SIDEBAR_MAIN_OFFSET_CLASS,
+  SIDEBAR_MAIN_OFFSET_COLLAPSED_CLASS,
+  SIDEBAR_WIDTH_PX,
+} from "@widgets/sidebar";
 import { Header } from "@/widgets/header";
 import { EmailVerificationBanner } from "@features/auth";
 import { HelpPanelProvider } from "@features/help-center";
-
-// ============================================
-// Constantes
-// ============================================
-
-const SIDEBAR_WIDTH = 260; // px
-const SIDEBAR_COLLAPSED_WIDTH = 70; // px
 
 /**
  * LayoutShell
@@ -39,8 +39,19 @@ export function LayoutShell() {
   return (
     <HelpPanelProvider>
       <div className="min-h-screen bg-background">
+        <a
+          href="#contenido"
+          className={cn(
+            "sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50",
+            "focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium",
+            "focus:text-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-ring",
+          )}
+        >
+          Saltar al contenido
+        </a>
+
         {/* ==========================================
-            Sidebar Desktop
+            Sidebar Desktop (único landmark aside)
             ========================================== */}
         <aside
           className={cn(
@@ -48,14 +59,15 @@ export function LayoutShell() {
             "hidden lg:block",
           )}
           style={{
-            width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+            width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_PX : SIDEBAR_WIDTH_PX,
           }}
+          aria-label="Navegación principal"
         >
           <Sidebar />
         </aside>
 
         {/* ==========================================
-            Sidebar Mobile (Drawer)
+            Sidebar Mobile (Drawer — Sheet modal)
             ========================================== */}
         <MobileSidebar />
 
@@ -68,21 +80,19 @@ export function LayoutShell() {
             Main Content
             ========================================== */}
         <main
+          id="contenido"
           className={cn("min-h-screen transition-all duration-300 ease-in-out")}
-          style={{
-            marginLeft: 0,
-            // Solo aplicar margin en desktop (lg+)
-          }}
+          tabIndex={-1}
         >
-          {/* Wrapper con margin responsive */}
           <div
             className={cn(
               "min-h-screen transition-all duration-300 ease-in-out",
-              isCollapsed ? "lg:ml-[70px]" : "lg:ml-[260px]",
+              isCollapsed
+                ? SIDEBAR_MAIN_OFFSET_COLLAPSED_CLASS
+                : SIDEBAR_MAIN_OFFSET_CLASS,
             )}
           >
-            {/* Content wrapper con padding */}
-            <div className="pt-20 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
+            <div className="px-4 pb-4 pt-16 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
               <div className="mx-auto max-w-7xl">
                 <EmailVerificationBanner />
                 <Outlet />

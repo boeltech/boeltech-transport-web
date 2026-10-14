@@ -3,7 +3,7 @@
  *
  * Barra superior con:
  * - Botón de menú móvil
- * - Buscador global (placeholder)
+ * - Buscador global / lupa móvil → GlobalCommandMenu
  * - Notificaciones
  * - Theme toggle
  * - Menú de usuario
@@ -38,6 +38,10 @@ import { useAuth } from "@/shared/hooks/useAuth";
 import { usePermissions } from "@shared/permissions";
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { getUserFullName, getUserInitials } from "@/shared/lib/userHelpers";
+import {
+  SIDEBAR_HEADER_LEFT_CLASS,
+  SIDEBAR_HEADER_LEFT_COLLAPSED_CLASS,
+} from "@widgets/sidebar";
 import { headerCopy } from "../copy/headerCopy";
 import { GlobalCommandMenu } from "./GlobalCommandMenu";
 import { NotificationInboxButton } from "@features/notifications";
@@ -74,19 +78,19 @@ export const Header = memo(function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "fixed top-0 right-0 z-30 flex h-16 items-center justify-between border-b",
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        "fixed top-0 right-0 z-30 flex h-14 items-center justify-between border-b border-border",
+        "bg-background",
         "px-4 transition-all duration-300 ease-in-out",
-        // Ancho dinámico basado en el sidebar
-        "left-0 lg:left-[260px]",
-        isCollapsed && "lg:left-[70px]",
+        "left-0",
+        SIDEBAR_HEADER_LEFT_CLASS,
+        isCollapsed && SIDEBAR_HEADER_LEFT_COLLAPSED_CLASS,
         className,
       )}
     >
       {/* ==========================================
           Lado izquierdo
           ========================================== */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Botón de menú (móvil) */}
         <Button
           variant="ghost"
@@ -98,15 +102,27 @@ export const Header = memo(function Header({ className }: HeaderProps) {
           <span className="sr-only">Abrir menú</span>
         </Button>
 
+        {/* Lupa móvil → mismo command menu */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={() => setCommandOpen(true)}
+          aria-label={headerCopy.commandMenu.title}
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+
         {/* Navegación rápida (misma data filtrada que el sidebar) */}
         <div className="hidden md:flex">
           <Button
             type="button"
             variant="ghost"
             className={cn(
-              "relative h-9 w-72 justify-start rounded-full text-muted-foreground",
-              "border-0 bg-muted/60 pl-10 pr-14 font-normal shadow-none",
-              "hover:bg-muted hover:text-muted-foreground",
+              "relative h-9 w-72 justify-start rounded-md text-muted-foreground",
+              "border border-border bg-background pl-10 pr-14 font-normal shadow-none",
+              "hover:bg-muted/60 hover:text-muted-foreground",
             )}
             onClick={() => setCommandOpen(true)}
             aria-label={headerCopy.commandMenu.title}
@@ -115,7 +131,7 @@ export const Header = memo(function Header({ className }: HeaderProps) {
             <span className="truncate text-sm">
               {headerCopy.commandMenu.trigger}
             </span>
-            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded-md border border-border/60 bg-background/80 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
               ⌘K
             </kbd>
           </Button>
@@ -127,7 +143,7 @@ export const Header = memo(function Header({ className }: HeaderProps) {
       {/* ==========================================
           Lado derecho
           ========================================== */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3">
         <HelpPanelButton />
         <NotificationInboxButton />
         <ThemeCycleButton />
@@ -161,8 +177,8 @@ const UserMenu = memo(function UserMenu({ user, onLogout }: UserMenuProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
               {getUserInitials(user)}
             </div>
-            {/* Info (solo desktop) */}
-            <div className="hidden flex-col items-start text-left md:flex">
+            {/* Info (solo desktop amplio) */}
+            <div className="hidden flex-col items-start text-left lg:flex">
               <span className="text-sm font-medium">{getUserFullName(user)}</span>
               <span className="text-xs text-muted-foreground capitalize">
                 {user?.role || menuCopy.userFallback}

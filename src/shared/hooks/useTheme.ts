@@ -45,4 +45,5 @@ export type {
   ThemeMode,
   ResolvedTheme,
   ThemeContextValue,
+  ColorPaletteId,
 } from "@/shared/ui/theme/types";

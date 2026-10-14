@@ -59,4 +59,40 @@ describe("contrastPairs", () => {
       expect.fail(`Light contrast failures:\n${summary}`);
     }
   });
+
+  it("palette v2 light tokens meet WCAG AA for all contrast pairs", () => {
+    const css = readFileSync(CSS_PATH, "utf8");
+    const { lightV2 } = parseCssTokenBlocks(css);
+    expect(Object.keys(lightV2).length).toBeGreaterThan(20);
+    const results = auditContrastPairs(lightV2, CONTRAST_PAIRS);
+    const failures = results.filter((result) => !result.pass);
+
+    if (failures.length > 0) {
+      const summary = failures
+        .map(
+          (f) =>
+            `${f.pair.fg}/${f.pair.bg}: ${f.ratio.toFixed(2)}:1 (need ${f.pair.min}:1)`,
+        )
+        .join("\n");
+      expect.fail(`Palette v2 light contrast failures:\n${summary}`);
+    }
+  });
+
+  it("palette v2 dark tokens meet WCAG AA for all contrast pairs", () => {
+    const css = readFileSync(CSS_PATH, "utf8");
+    const { darkV2 } = parseCssTokenBlocks(css);
+    expect(Object.keys(darkV2).length).toBeGreaterThan(20);
+    const results = auditContrastPairs(darkV2, CONTRAST_PAIRS);
+    const failures = results.filter((result) => !result.pass);
+
+    if (failures.length > 0) {
+      const summary = failures
+        .map(
+          (f) =>
+            `${f.pair.fg}/${f.pair.bg}: ${f.ratio.toFixed(2)}:1 (need ${f.pair.min}:1)`,
+        )
+        .join("\n");
+      expect.fail(`Palette v2 dark contrast failures:\n${summary}`);
+    }
+  });
 });

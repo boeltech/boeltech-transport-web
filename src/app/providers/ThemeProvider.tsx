@@ -2,8 +2,8 @@
 /**
  * ThemeProvider
  *
- * Provider que gestiona el tema (dark/light mode) de la aplicación.
- * Persiste la preferencia en localStorage y escucha cambios del sistema.
+ * Provider que gestiona el tema (dark/light mode) y la paleta de color del DS.
+ * Persiste preferencias en localStorage y escucha cambios del sistema.
  *
  * Ubicación: src/app/providers/ThemeProvider.tsx
  *
@@ -22,6 +22,7 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  ColorPaletteId,
   ThemeMode,
   ResolvedTheme,
   ThemeContextValue,
@@ -36,6 +37,14 @@ import {
   THEME_STORAGE_KEY,
   writeStoredThemeMode,
 } from "@/shared/ui/theme/themeRuntime";
+import {
+  applyColorPaletteToDocument,
+  COLOR_PALETTE_DEFAULT,
+  COLOR_PALETTE_STORAGE_KEY,
+  cycleColorPalette as nextColorPalette,
+  readStoredColorPalette,
+  writeStoredColorPalette,
+} from "@/shared/ui/theme/paletteRuntime";
 
 // ============================================
 // Context
@@ -58,6 +67,8 @@ export function ThemeProvider({
   defaultMode = THEME_DEFAULT_MODE,
   storageKey = THEME_STORAGE_KEY,
   attribute = "class",
+  defaultColorPalette = COLOR_PALETTE_DEFAULT,
+  colorPaletteStorageKey = COLOR_PALETTE_STORAGE_KEY,
 }: ThemeProviderProps) {
   const [mode, setModeState] = useState<ThemeMode>(() => {
     return readStoredThemeMode(storageKey) ?? defaultMode;
@@ -65,6 +76,12 @@ export function ThemeProvider({
 
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
     return resolveThemeFromMode(readStoredThemeMode(storageKey) ?? defaultMode);
+  });
+
+  const [colorPalette, setColorPaletteState] = useState<ColorPaletteId>(() => {
+    return (
+      readStoredColorPalette(colorPaletteStorageKey) ?? defaultColorPalette
+    );
   });
 
   useLayoutEffect(() => {
@@ -88,12 +105,24 @@ export function ThemeProvider({
     return () => mediaQuery.removeEventListener("change", handleSystemChange);
   }, [mode, attribute]);
 
+  useLayoutEffect(() => {
+    applyColorPaletteToDocument(colorPalette);
+  }, [colorPalette]);
+
   const setMode = useCallback(
     (newMode: ThemeMode) => {
       writeStoredThemeMode(newMode, storageKey);
       setModeState(newMode);
     },
     [storageKey],
+  );
+
+  const setColorPalette = useCallback(
+    (palette: ColorPaletteId) => {
+      writeStoredColorPalette(palette, colorPaletteStorageKey);
+      setColorPaletteState(palette);
+    },
+    [colorPaletteStorageKey],
   );
 
   const toggleTheme = useCallback(() => {
@@ -105,6 +134,10 @@ export function ThemeProvider({
     setMode(cycleThemeMode(mode));
   }, [mode, setMode]);
 
+  const cycleColorPalette = useCallback(() => {
+    setColorPalette(nextColorPalette(colorPalette));
+  }, [colorPalette, setColorPalette]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
       mode,
@@ -114,8 +147,20 @@ export function ThemeProvider({
       setMode,
       toggleTheme,
       cycleMode,
+      colorPalette,
+      setColorPalette,
+      cycleColorPalette,
     }),
-    [mode, resolvedTheme, setMode, toggleTheme, cycleMode],
+    [
+      mode,
+      resolvedTheme,
+      setMode,
+      toggleTheme,
+      cycleMode,
+      colorPalette,
+      setColorPalette,
+      cycleColorPalette,
+    ],
   );
 
   return (

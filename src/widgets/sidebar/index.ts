@@ -58,8 +58,19 @@ export {
   publicRoutes,
   defaultAuthenticatedRoute,
   loginRoute,
+  SIDEBAR_COLLAPSED_WIDTH_PX,
+  SIDEBAR_WIDTH_PX,
   type UseNavigationReturn,
 } from "./model";
+
+export {
+  SIDEBAR_COLLAPSED_WIDTH_CLASS,
+  SIDEBAR_HEADER_LEFT_CLASS,
+  SIDEBAR_HEADER_LEFT_COLLAPSED_CLASS,
+  SIDEBAR_MAIN_OFFSET_CLASS,
+  SIDEBAR_MAIN_OFFSET_COLLAPSED_CLASS,
+  SIDEBAR_WIDTH_CLASS,
+} from "./model/sidebarLayout";
 
 // Types
 export type {

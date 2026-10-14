@@ -13,6 +13,7 @@ export {
   ThemeSegmented,
   ThemeCycleButton,
 } from "./ThemeToggle";
+export { PaletteSegmented } from "./PaletteSwitch";
 
 // Types
 export type {
@@ -20,6 +21,7 @@ export type {
   ResolvedTheme,
   ThemeContextValue,
   ThemeProviderConfig,
+  ColorPaletteId,
 } from "./types";
 
 // Runtime (storage key, theme resolution)
@@ -32,6 +34,17 @@ export {
   parseStoredThemeMode,
   resolveThemeMode,
 } from "./themeRuntime";
+
+export {
+  COLOR_PALETTE_ATTR,
+  COLOR_PALETTE_CYCLE,
+  COLOR_PALETTE_DEFAULT,
+  COLOR_PALETTE_META,
+  COLOR_PALETTE_STORAGE_KEY,
+  applyColorPaletteToDocument,
+  cycleColorPalette,
+  parseStoredColorPalette,
+} from "./paletteRuntime";
 
 export { CONTRAST_PAIRS } from "./contrastPairs";
 export type { ContrastPair } from "./contrastPairs";

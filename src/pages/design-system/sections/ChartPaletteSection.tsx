@@ -20,11 +20,11 @@ import {
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 const CHART_PALETTE = [
-  { token: "chart-1", label: "Azul primary", value: 84, note: "Serie principal" },
-  { token: "chart-2", label: "Teal", value: 62, note: "Complemento frío" },
-  { token: "chart-3", label: "Ámbar", value: 47, note: "Contraste cálido" },
-  { token: "chart-4", label: "Magenta", value: 38, note: "Split-complementary" },
-  { token: "chart-5", label: "Verde bosque", value: 27, note: "Estabilidad" },
+  { token: "chart-1", label: "Brand teal", value: 84, note: "Serie principal" },
+  { token: "chart-2", label: "Slate ink", value: 62, note: "Complemento neutro" },
+  { token: "chart-3", label: "Ámbar", value: 47, note: "Señal / contraste" },
+  { token: "chart-4", label: "Ink muted", value: 38, note: "Serie secundaria" },
+  { token: "chart-5", label: "Success", value: 27, note: "Estabilidad" },
 ] as const;
 
 const MONTHLY_REVENUE = [

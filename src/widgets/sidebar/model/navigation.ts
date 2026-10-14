@@ -79,13 +79,6 @@ export const navigationConfig: NavGroup[] = [
         icon: Route,
         module: "trips",
       },
-      {
-        id: "branches",
-        label: copy.item.branches,
-        path: "/branches",
-        icon: GitBranch,
-        module: "branches",
-      },
     ],
   },
   {
@@ -112,13 +105,6 @@ export const navigationConfig: NavGroup[] = [
         path: "/drivers",
         icon: Users,
         module: "drivers",
-      },
-      {
-        id: "employees",
-        label: copy.item.employees,
-        path: "/employees",
-        icon: UsersRound,
-        module: "employees",
       },
     ],
   },
@@ -212,12 +198,6 @@ export const navigationConfig: NavGroup[] = [
         icon: BarChart3,
         module: "finance",
       },
-    ],
-  },
-  {
-    id: "reports",
-    title: copy.group.reports,
-    items: [
       {
         id: "reports-list",
         label: copy.item.reportsList,
@@ -231,6 +211,20 @@ export const navigationConfig: NavGroup[] = [
     id: "admin",
     title: copy.group.admin,
     items: [
+      {
+        id: "branches",
+        label: copy.item.branches,
+        path: "/branches",
+        icon: GitBranch,
+        module: "branches",
+      },
+      {
+        id: "employees",
+        label: copy.item.employees,
+        path: "/employees",
+        icon: UsersRound,
+        module: "employees",
+      },
       {
         id: "users",
         label: copy.item.users,

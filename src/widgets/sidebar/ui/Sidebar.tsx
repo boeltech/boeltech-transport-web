@@ -4,10 +4,13 @@
  * Menú lateral de navegación con soporte para:
  * - Colapsar/expandir
  * - Filtrado por permisos
- * - Indicador de ruta activa (soft tint + barra)
+ * - Indicador de ruta activa (tokens sidebar + riel 3px)
+ * - Badge visible en colapsado
  * - Tooltips cuando está colapsado
  *
  * Ubicación: src/widgets/sidebar/ui/Sidebar.tsx
+ *
+ * Nota: el landmark `<aside>` vive en LayoutShell; aquí solo el chrome interno.
  */
 
 import { memo } from "react";
@@ -27,7 +30,14 @@ import {
 
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { useNavigationWithBadges } from "../model/useNavigationWithBadges";
+import {
+  SIDEBAR_COLLAPSED_WIDTH_CLASS,
+  SIDEBAR_WIDTH_CLASS,
+} from "../model/sidebarLayout";
 import type { NavGroup, NavItem } from "../model/types";
+import { NavActiveRail } from "./NavActiveRail";
+import { NavBadge } from "./NavBadge";
+import { navGroupLabelClassName, navItemClassName } from "./navItemStyles";
 
 // ============================================
 // MAIN COMPONENT
@@ -39,14 +49,14 @@ export const Sidebar = memo(function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside
+      <div
         className={cn(
           "flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
-          isCollapsed ? "w-[70px]" : "w-[260px]",
+          isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_WIDTH_CLASS,
         )}
       >
         {/* Brand row + collapse/expand — always at top (never footer) */}
-        <div className="flex h-16 items-center border-b border-sidebar-border px-3">
+        <div className="flex h-14 items-center border-b border-sidebar-border px-3">
           <div
             className={cn(
               "flex w-full items-center",
@@ -55,12 +65,12 @@ export const Sidebar = memo(function Sidebar() {
           >
             <Link
               to="/dashboard"
-              className="flex items-center overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+              className="flex items-center overflow-hidden rounded-md text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
               aria-label={`Ir al dashboard de ${BRAND.productName}`}
             >
               <BrandLockup
                 compact={isCollapsed}
-                variant="brand"
+                variant="current"
                 decorative
                 markSize={isCollapsed ? 32 : 30}
               />
@@ -69,7 +79,7 @@ export const Sidebar = memo(function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 shrink-0 text-muted-foreground"
+                className="size-8 shrink-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 onClick={toggle}
                 aria-label="Colapsar menú"
               >
@@ -86,7 +96,7 @@ export const Sidebar = memo(function Sidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8 shrink-0 text-muted-foreground"
+                  className="size-8 shrink-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   onClick={toggle}
                   aria-label="Expandir menú"
                 >
@@ -99,7 +109,7 @@ export const Sidebar = memo(function Sidebar() {
         )}
 
         <ScrollArea className="min-h-0 flex-1">
-          <nav className="p-2">
+          <nav className="p-2" aria-label="Navegación principal">
             {navigation.map((group) => (
               <NavGroupComponent
                 key={group.id}
@@ -110,7 +120,7 @@ export const Sidebar = memo(function Sidebar() {
             ))}
           </nav>
         </ScrollArea>
-      </aside>
+      </div>
     </TooltipProvider>
   );
 });
@@ -131,15 +141,13 @@ const NavGroupComponent = memo(function NavGroupComponent({
   isItemActive,
 }: NavGroupComponentProps) {
   return (
-    <div className="mb-5">
+    <div className="mb-3">
       {group.title && !isCollapsed && (
-        <h3 className="mb-2.5 px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/80">
-          {group.title}
-        </h3>
+        <h3 className={navGroupLabelClassName()}>{group.title}</h3>
       )}
 
       {group.title && isCollapsed && (
-        <div className="mx-2 mb-2.5 border-t border-sidebar-border" />
+        <div className="mx-2 mb-2 border-t border-sidebar-border" />
       )}
 
       <div className="space-y-0.5">
@@ -172,26 +180,27 @@ const NavItemLink = memo(function NavItemLink({
   isActive,
 }: NavItemLinkProps) {
   const Icon = item.icon;
+  const hasBadge =
+    item.badge !== undefined && item.badge !== 0 && item.badge !== "";
 
   const content = (
     <Link
       to={item.path}
-      className={cn(
-        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        isActive &&
-          "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-        isCollapsed && "justify-center px-2",
-        item.disabled && "opacity-50 pointer-events-none",
-      )}
+      aria-current={isActive ? "page" : undefined}
+      aria-label={isCollapsed ? item.label : undefined}
+      className={navItemClassName({
+        isActive,
+        isCollapsed,
+        disabled: item.disabled,
+      })}
     >
-      {isActive && !isCollapsed && (
-        <span
-          aria-hidden
-          className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary"
-        />
-      )}
-      <Icon className="h-5 w-5 shrink-0" strokeWidth={1.5} />
+      <NavActiveRail visible={isActive} />
+      <span className="relative inline-flex shrink-0">
+        <Icon className="h-5 w-5" strokeWidth={1.5} />
+        {isCollapsed && hasBadge && (
+          <NavBadge value={item.badge!} collapsed />
+        )}
+      </span>
       {!isCollapsed && (
         <>
           <span className="flex-1 truncate">{item.label}</span>
@@ -207,9 +216,11 @@ const NavItemLink = memo(function NavItemLink({
         <TooltipTrigger asChild>{content}</TooltipTrigger>
         <TooltipContent side="right" className="flex items-center gap-2">
           {item.label}
-          {item.badge !== undefined && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
-              {item.badge}
+          {hasBadge && (
+            <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-medium leading-none text-destructive-foreground">
+              {typeof item.badge === "number" && item.badge > 99
+                ? "99+"
+                : item.badge}
             </span>
           )}
         </TooltipContent>
@@ -218,31 +229,4 @@ const NavItemLink = memo(function NavItemLink({
   }
 
   return content;
-});
-
-// ============================================
-// NAV BADGE
-// ============================================
-
-interface NavBadgeProps {
-  value: number | string;
-}
-
-const NavBadge = memo(function NavBadge({ value }: NavBadgeProps) {
-  if (value === 0 || value === "") return null;
-
-  if (typeof value === "string") {
-    return (
-      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
-        {value}
-      </span>
-    );
-  }
-
-  const displayValue = value > 99 ? "99+" : value;
-  return (
-    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
-      {displayValue}
-    </span>
-  );
 });

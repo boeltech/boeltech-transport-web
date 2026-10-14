@@ -11,6 +11,10 @@ export {
   loginRoute,
 } from "./navigation";
 export { useNavigation, type UseNavigationReturn } from "./useNavigation";
+export {
+  SIDEBAR_COLLAPSED_WIDTH_PX,
+  SIDEBAR_WIDTH_PX,
+} from "./sidebarLayout";
 export type {
   NavItem,
   NavGroup,

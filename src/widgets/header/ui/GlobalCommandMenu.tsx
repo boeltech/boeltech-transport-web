@@ -5,6 +5,9 @@
  * así RBAC y reglas por rol (p. ej. Finanzas vs Facturas) permanecen alineadas
  * con la API.
  *
+ * Con query vacía: grupo «Frecuentes» (≤6 destinos permitidos) y el resto de
+ * páginas sin duplicar esos ids. Con query: búsqueda actual (páginas + entidades + help).
+ *
  * Entidades: reutiliza el search de los listados de viajes y facturas, para
  * abrir un viaje por folio desde cualquier pantalla.
  */
@@ -21,6 +24,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { CircleHelp, FileText, Route } from "lucide-react";
 
 import { useNavigation } from "@widgets/sidebar";
+import type { NavItem } from "@widgets/sidebar";
 import { useDebounce } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { useTrips } from "@features/trips";
@@ -49,10 +53,41 @@ const MIN_QUERY_LENGTH = 2;
 const ENTITY_RESULTS_LIMIT = 5;
 const HELP_RESULTS_LIMIT = 8;
 
+/** Destinos frecuentes (orden fijo). Solo se muestran si están en la nav filtrada. */
+const FREQUENT_NAV_IDS = [
+  "trips",
+  "finance-invoiceable",
+  "finance-invoices",
+  "finance-approvals",
+  "clients-list",
+  "vehicles",
+] as const;
+
 export interface GlobalCommandMenuProps {
   open: boolean;
   /** Comparte estado con el padre; permite toggle ⌘K con actualizador funcional. */
   onOpenChange: Dispatch<SetStateAction<boolean>>;
+}
+
+function NavCommandItem({
+  item,
+  groupTitle,
+  onSelect,
+}: {
+  item: NavItem;
+  groupTitle: string;
+  onSelect: (path: string) => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <CommandItem
+      value={`${item.label} ${groupTitle} ${item.path}`}
+      onSelect={() => onSelect(item.path)}
+    >
+      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <span className="truncate">{item.label}</span>
+    </CommandItem>
+  );
 }
 
 export function GlobalCommandMenu({
@@ -68,10 +103,36 @@ export function GlobalCommandMenu({
   const debouncedQuery = useDebounce(query, 300);
 
   const search = debouncedQuery.trim();
+  const isEmptyQuery = query.trim().length === 0;
   const searchEntities = open && search.length >= MIN_QUERY_LENGTH;
   const helpSearchFilters = useMemo(
     () => (search.length >= MIN_QUERY_LENGTH ? { q: search } : {}),
     [search],
+  );
+
+  const navItemsById = useMemo(() => {
+    const map = new Map<string, NavItem>();
+    for (const group of navigation) {
+      for (const item of group.items) {
+        if (!item.disabled) map.set(item.id, item);
+      }
+    }
+    return map;
+  }, [navigation]);
+
+  const frequentItems = useMemo(() => {
+    const items: NavItem[] = [];
+    for (const id of FREQUENT_NAV_IDS) {
+      const item = navItemsById.get(id);
+      if (item) items.push(item);
+      if (items.length >= 6) break;
+    }
+    return items;
+  }, [navItemsById]);
+
+  const frequentIds = useMemo(
+    () => new Set(frequentItems.map((item) => item.id)),
+    [frequentItems],
   );
 
   useEffect(() => {
@@ -160,28 +221,43 @@ export function GlobalCommandMenu({
       <CommandList>
         <CommandEmpty>{isSearching ? copy.searching : copy.empty}</CommandEmpty>
 
-        {navigation.map((group) => (
-          <CommandGroup
-            key={group.id}
-            heading={group.title.trim().length > 0 ? group.title : undefined}
-          >
-            {group.items
-              .filter((item) => !item.disabled)
-              .map((item) => {
-                const Icon = item.icon;
-                return (
-                  <CommandItem
-                    key={`${group.id}-${item.id}`}
-                    value={`${item.label} ${group.title} ${item.path}`}
-                    onSelect={() => runNavigate(item.path)}
-                  >
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{item.label}</span>
-                  </CommandItem>
-                );
-              })}
+        {isEmptyQuery && frequentItems.length > 0 ? (
+          <CommandGroup heading={copy.groups.frequent}>
+            {frequentItems.map((item) => (
+              <NavCommandItem
+                key={`frequent-${item.id}`}
+                item={item}
+                groupTitle={copy.groups.frequent}
+                onSelect={runNavigate}
+              />
+            ))}
           </CommandGroup>
-        ))}
+        ) : null}
+
+        {navigation.map((group) => {
+          const items = group.items.filter((item) => {
+            if (item.disabled) return false;
+            if (isEmptyQuery && frequentIds.has(item.id)) return false;
+            return true;
+          });
+          if (items.length === 0) return null;
+
+          const heading =
+            group.title.trim().length > 0 ? group.title : copy.groups.pages;
+
+          return (
+            <CommandGroup key={group.id} heading={heading}>
+              {items.map((item) => (
+                <NavCommandItem
+                  key={`${group.id}-${item.id}`}
+                  item={item}
+                  groupTitle={group.title}
+                  onSelect={runNavigate}
+                />
+              ))}
+            </CommandGroup>
+          );
+        })}
 
         {trips.length > 0 ? (
           <CommandGroup heading={copy.groups.trips}>

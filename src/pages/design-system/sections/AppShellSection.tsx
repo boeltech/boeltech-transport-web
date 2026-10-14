@@ -17,9 +17,9 @@ function AppShellMockup() {
       aria-hidden
     >
       <div className="flex h-48">
-        {/* Sidebar — active soft tint, sin user footer */}
+        {/* Sidebar — riel ink + active ámbar, sin user footer */}
         <div className="flex w-16 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground sm:w-20">
-          <div className="flex h-10 items-center justify-center border-b border-sidebar-border">
+          <div className="flex h-9 items-center justify-center border-b border-sidebar-border">
             <div className="h-3 w-3 rounded-sm bg-sidebar-primary" />
           </div>
           <div className="flex flex-1 flex-col gap-1 p-1.5">
@@ -28,21 +28,21 @@ function AppShellMockup() {
                 key={i}
                 className={`relative h-6 rounded-md ${
                   i === 0
-                    ? "bg-primary/10 before:absolute before:left-0 before:top-1/2 before:h-3 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary"
+                    ? "bg-sidebar-accent before:absolute before:left-0 before:top-1/2 before:h-3 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-sidebar-primary"
                     : "bg-sidebar-accent/40"
                 }`}
               />
             ))}
           </div>
           <div className="border-t border-sidebar-border p-1.5">
-            <div className="mx-auto h-5 w-5 rounded bg-muted/50" />
+            <div className="mx-auto h-5 w-5 rounded bg-sidebar-accent" />
           </div>
         </div>
 
         {/* Main + header */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex h-10 items-center justify-between border-b bg-background/95 px-2">
-            <div className="h-5 w-24 rounded-full bg-muted/60" />
+          <div className="flex h-9 items-center justify-between border-b bg-background px-2">
+            <div className="h-5 w-24 rounded-md border border-border bg-background" />
             <div className="flex gap-1.5">
               <div className="h-5 w-5 rounded bg-muted/60" />
               <div className="h-5 w-5 rounded bg-muted/60" />
@@ -59,8 +59,8 @@ function AppShellMockup() {
         </div>
       </div>
       <p className="border-t bg-muted/30 px-3 py-2 text-[10px] text-muted-foreground">
-        Active soft (primary/10) · Search pill ⌘K · Card shadow-sm · Logout solo
-        en header
+        Active sidebar-primary 3px · Header solid · Search rounded-md ⌘K · Logout
+        solo en header
       </p>
     </div>
   );
@@ -136,10 +136,12 @@ export function AppShellSection() {
                 <code className="font-mono text-xs">@shared/ui/page-shells</code>
               </p>
               <ul className="list-inside list-disc space-y-1 text-muted-foreground">
-                <li>Sidebar: 260px / 70px colapsado (lg+)</li>
-                <li>Nav activa: soft tint primary/10 + barra 2px</li>
-                <li>Header fijo: h-16, search pill ⌘K</li>
-                <li>Main: pt-20, max-w-7xl · canvas off-white vs card blanco</li>
+                <li>Sidebar: 240px / 56px colapsado (lg+)</li>
+                <li>
+                  Nav activa: sidebar-accent + text-sidebar-primary + riel 3px
+                </li>
+                <li>Header fijo: h-14 solid, search rounded-md ⌘K + lupa móvil</li>
+                <li>Main: pt-16, max-w-7xl · skip link → #contenido</li>
                 <li>Usuario / logout solo en menú del header</li>
               </ul>
             </div>

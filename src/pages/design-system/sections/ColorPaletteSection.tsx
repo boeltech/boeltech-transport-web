@@ -2,8 +2,10 @@
  * ColorPaletteSection
  *
  * Muestra:
+ *   - Switch paleta v1 ↔ v2
+ *   - Anclas Patio (solo v2)
  *   - Escala primary 50→950
- *   - Tokens semánticos (solid + soft) con contraste anotado
+ *   - Tokens semánticos (solid + soft)
  *   - Surfaces y neutrals
  *   - Sidebar tokens
  *
@@ -13,6 +15,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { useTheme } from "@/shared/hooks/useTheme";
+import {
+  COLOR_PALETTE_META,
+  PaletteSegmented,
+} from "@shared/ui/theme";
 
 interface SwatchProps {
   label: string;
@@ -78,17 +84,124 @@ const SEMANTIC_TOKENS = [
   { name: "neutral", label: "Neutral", note: "Borrador, inactivo, archivado" },
 ] as const;
 
+const PATIO_ANCHORS = [
+  {
+    token: "palette-ink",
+    label: "ink",
+    note: "Estructura / chrome",
+    textToken: "palette-on-dark",
+  },
+  {
+    token: "palette-amber",
+    label: "ámbar",
+    note: "Señal",
+    textToken: "palette-on-amber",
+  },
+  {
+    token: "palette-brand",
+    label: "brand",
+    note: "Teal Operate / marca",
+    textToken: "primary-foreground",
+  },
+  {
+    token: "palette-concrete",
+    label: "concrete",
+    note: "Superficie",
+    textToken: "foreground",
+  },
+  {
+    token: "palette-elevated",
+    label: "elevated",
+    note: "Canvas",
+    textToken: "foreground",
+  },
+  {
+    token: "palette-muted",
+    label: "muted",
+    note: "Texto secundario",
+    textToken: "foreground",
+  },
+  {
+    token: "palette-amber-soft",
+    label: "ámbar soft",
+    note: "Lavado / hover",
+    textToken: "palette-amber-soft-foreground",
+  },
+  {
+    token: "palette-ink-raised",
+    label: "ink raised",
+    note: "Hover sidebar",
+    textToken: "palette-on-dark",
+  },
+  {
+    token: "palette-hairline",
+    label: "hairline",
+    note: "Bordes",
+    textToken: "foreground",
+  },
+] as const;
+
 export function ColorPaletteSection() {
-  const { isDark } = useTheme();
+  const { isDark, colorPalette } = useTheme();
   /** Semantic `--primary` target step (light → 600, dark → 500). */
   const primarySemanticStep = isDark ? "500" : "600";
+  const paletteMeta = COLOR_PALETTE_META[colorPalette];
+  const isV2 = colorPalette === "v2";
 
   return (
     <div className="space-y-8">
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0">
+          <div className="space-y-1">
+            <CardTitle>Paleta activa</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {paletteMeta.description} Persistido en{" "}
+              <code className="font-mono text-xs">boeltech-palette</code>.
+              Default de producto: v2 Patio (triad ink / ámbar / brand).
+            </p>
+          </div>
+          <PaletteSegmented />
+        </CardHeader>
+      </Card>
+
+      {isV2 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Anclas Patio</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5">
+              {PATIO_ANCHORS.map((a) => (
+                <Swatch
+                  key={a.token}
+                  label={a.label}
+                  token={a.token}
+                  textToken={a.textToken}
+                  note={a.note}
+                />
+              ))}
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Triad Operate:{" "}
+              <code className="font-mono text-xs">--primary</code> → brand Teal
+              Operate (hue 205, ≈ #0F6F82),{" "}
+              <code className="font-mono text-xs">--warning</code> / riel → ámbar
+              (señal, no CTA),{" "}
+              <code className="font-mono text-xs">--sidebar</code> → ink.
+              Neutros en hue 256. Ámbar ERP es un poco más claro que el landing
+              (#d58a17 vs #c98512) para señal en UI densa.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Primary scale */}
       <Card>
         <CardHeader>
-          <CardTitle>Primary scale — azul-tinta</CardTitle>
+          <CardTitle>
+            Primary scale —{" "}
+            {isV2 ? "Teal Operate / brand (hue 205)" : "azul-tinta (hue 250)"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11">
@@ -99,7 +212,9 @@ export function ColorPaletteSection() {
                   key={step}
                   label={step}
                   token={`primary-${step}`}
-                  textToken={Number(step) >= 500 ? "primary-foreground" : "foreground"}
+                  textToken={
+                    Number(step) >= 500 ? "primary-foreground" : "foreground"
+                  }
                   note={
                     isSemanticBase
                       ? isDark
@@ -135,8 +250,16 @@ export function ColorPaletteSection() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <Swatch label="background" token="background" />
             <Swatch label="card" token="card" textToken="card-foreground" />
-            <Swatch label="popover" token="popover" textToken="popover-foreground" />
-            <Swatch label="secondary" token="secondary" textToken="secondary-foreground" />
+            <Swatch
+              label="popover"
+              token="popover"
+              textToken="popover-foreground"
+            />
+            <Swatch
+              label="secondary"
+              token="secondary"
+              textToken="secondary-foreground"
+            />
             <Swatch label="muted" token="muted" textToken="muted-foreground" />
             <Swatch label="accent" token="accent" textToken="accent-foreground" />
           </div>
@@ -178,7 +301,9 @@ export function ColorPaletteSection() {
       {/* Sidebar tokens */}
       <Card>
         <CardHeader>
-          <CardTitle>Sidebar palette</CardTitle>
+          <CardTitle>
+            Sidebar palette{isV2 ? " — ink + ámbar" : ""}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -199,6 +324,15 @@ export function ColorPaletteSection() {
             />
             <Swatch label="sidebar-border" token="sidebar-border" />
           </div>
+          {isV2 ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              En v2 el marco es ink; el activo / riel usan ámbar (
+              <code className="font-mono text-xs">--sidebar-primary</code>
+              ). CTAs y{" "}
+              <code className="font-mono text-xs">bg-primary</code> son brand
+              Teal Operate — el ámbar no sustituye al primary.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </div>

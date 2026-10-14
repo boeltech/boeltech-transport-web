@@ -53,18 +53,17 @@ describe("navigationCopy", () => {
 });
 
 describe("navigationConfig", () => {
-  it("shows the seven group headers in semantic order", () => {
+  it("shows the six group headers in semantic order", () => {
     const groupTitles = navigationConfig
       .map((group) => group.title)
       .filter((title) => title !== "");
 
     expect(groupTitles).toEqual([
       "Operación",
-      "Flota y personal",
+      "Flota",
       "Comercial",
       "Facturación",
       "Finanzas",
-      "Reportes",
       "Administración",
     ]);
   });
@@ -76,21 +75,37 @@ describe("navigationConfig", () => {
     expect(items.filter((item) => typeof item.badge === "string")).toEqual([]);
   });
 
-  it("keeps employees inside the fleet and staff group", () => {
+  it("keeps fleet to vehicles, trailers and drivers only", () => {
     const fleet = navigationConfig.find((group) => group.id === "fleet");
+    const operations = navigationConfig.find(
+      (group) => group.id === "operations",
+    );
 
+    expect(operations?.items.map((item) => item.id)).toEqual(["trips"]);
     expect(fleet?.items.map((item) => item.id)).toEqual([
       "vehicles",
       "trailers",
       "drivers",
-      "employees",
     ]);
   });
 
-  it("exposes billing, finance and reports groups with the agreed order and labels", () => {
+  it("places branches and employees under Administración", () => {
+    const admin = navigationConfig.find((group) => group.id === "admin");
+
+    expect(admin?.items.map((item) => item.id)).toEqual([
+      "branches",
+      "employees",
+      "users",
+      "users-activity",
+      "settings",
+    ]);
+  });
+
+  it("exposes billing and finance groups with the agreed order and labels", () => {
     const billing = navigationConfig.find((group) => group.id === "billing");
     const finance = navigationConfig.find((group) => group.id === "finance");
-    const reports = navigationConfig.find((group) => group.id === "reports");
+
+    expect(navigationConfig.find((group) => group.id === "reports")).toBeUndefined();
 
     expect(billing?.title).toBe("Facturación");
     expect(billing?.items.map((item) => item.id)).toEqual([
@@ -113,6 +128,7 @@ describe("navigationConfig", () => {
       "finance-settlements",
       "finance-agreements",
       "finance-analysis",
+      "reports-list",
     ]);
     expect(finance?.items.map((item) => item.label)).toEqual([
       "Cartera",
@@ -120,16 +136,13 @@ describe("navigationConfig", () => {
       "Liquidaciones",
       "Tarifas de pago",
       "Análisis",
+      "Reportes",
     ]);
-
-    expect(reports?.title).toBe("Reportes");
-    expect(reports?.items.map((item) => item.id)).toEqual(["reports-list"]);
-    expect(reports?.items.map((item) => item.label)).toEqual(["Reportes"]);
   });
 
-  it("uses distinct Lucide icons across billing, finance and reports", () => {
+  it("uses distinct Lucide icons across billing and finance", () => {
     const relevantItems = navigationConfig
-      .filter((group) => ["billing", "finance", "reports"].includes(group.id))
+      .filter((group) => ["billing", "finance"].includes(group.id))
       .flatMap((group) => group.items);
 
     const icons = relevantItems.map((item) => item.icon);

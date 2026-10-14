@@ -130,30 +130,30 @@ describe("filterNavigation", () => {
     };
   };
 
-  it("allows dispatcher to see reports group and read-only invoices without finance group", () => {
+  it("allows dispatcher to see Reportes under finance and read-only invoices in billing", () => {
     const hasPermission = createPermissionChecker("dispatcher");
     const filtered = filterNavigation(navigationConfig, hasPermission, ROLES.DISPATCHER);
     const groupIds = filtered.map((g) => g.id);
 
-    expect(groupIds).toContain("reports");
+    expect(groupIds).not.toContain("reports");
     expect(groupIds).toContain("billing");
-    expect(groupIds).not.toContain("finance");
+    expect(groupIds).toContain("finance");
 
-    const reportsGroup = filtered.find((g) => g.id === "reports");
-    expect(reportsGroup?.items.map((i) => i.id)).toEqual(["reports-list"]);
+    const financeGroup = filtered.find((g) => g.id === "finance");
+    expect(financeGroup?.items.map((i) => i.id)).toEqual(["reports-list"]);
 
     const billingGroup = filtered.find((g) => g.id === "billing");
     expect(billingGroup?.items.map((i) => i.id)).toEqual(["finance-invoices"]);
   });
 
-  it("allows accountant to see billing, finance and reports groups", () => {
+  it("allows accountant to see billing and finance (Reportes as finance item)", () => {
     const hasPermission = createPermissionChecker("accountant");
     const filtered = filterNavigation(navigationConfig, hasPermission, ROLES.ACCOUNTANT);
     const groupIds = filtered.map((g) => g.id);
 
     expect(groupIds).toContain("billing");
     expect(groupIds).toContain("finance");
-    expect(groupIds).toContain("reports");
+    expect(groupIds).not.toContain("reports");
 
     const billingGroup = filtered.find((g) => g.id === "billing");
     expect(billingGroup?.items.map((i) => i.id)).toEqual([
@@ -170,6 +170,7 @@ describe("filterNavigation", () => {
       "finance-settlements",
       "finance-agreements",
       "finance-analysis",
+      "reports-list",
     ]);
   });
 });

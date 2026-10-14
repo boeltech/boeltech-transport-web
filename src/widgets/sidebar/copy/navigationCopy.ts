@@ -5,7 +5,7 @@
 export const navigationCopy = {
   group: {
     operations: "Operación",
-    fleet: "Flota y personal",
+    fleet: "Flota",
     commercial: "Comercial",
     billing: "Facturación",
     finance: "Finanzas",
@@ -37,7 +37,7 @@ export const navigationCopy = {
     financeAnalysis: "Análisis",
     /** Listado de facturas (staff con invoices.read y portal client). */
     financeInvoices: "Facturas",
-    /** Hub de reportes de negocio (/reports). Promovido como grupo independiente. */
+    /** Hub de reportes de negocio (/reports). Ítem bajo Finanzas. */
     reportsList: "Reportes",
     users: "Usuarios",
     /** Movimientos de las cuentas del equipo, no auditoría de todo el sistema. */

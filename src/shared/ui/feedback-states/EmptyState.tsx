@@ -31,8 +31,8 @@ export interface EmptyStateProps {
   icon: ReactNode;
   /** Título principal (h3). */
   title: string;
-  /** Descripción complementaria. */
-  description?: string;
+  /** Descripción complementaria (texto o bloque rico, p. ej. pasos). */
+  description?: ReactNode;
   /** Botón de acción primario (CTA). */
   cta?: EmptyStateCta;
   /** CTA secundario (ej. "Limpiar filtros"). */
@@ -75,7 +75,7 @@ export function EmptyState({
       </div>
       <h3 className="text-lg font-medium mb-1">{title}</h3>
       {description ? (
-        <p className="text-muted-foreground mb-4">{description}</p>
+        <div className="mb-4 text-muted-foreground">{description}</div>
       ) : null}
       {(cta || secondaryCta) ? (
         <div className="flex flex-wrap items-center justify-center gap-2">

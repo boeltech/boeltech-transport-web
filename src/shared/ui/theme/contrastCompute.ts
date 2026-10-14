@@ -3,29 +3,62 @@ import type { ContrastPair } from "./contrastPairs";
 
 export type CssTokenMap = Record<string, string>;
 
+type TokenBlockId = "light" | "dark" | "lightV2" | "darkV2";
+
+const BLOCK_SELECTORS: { id: TokenBlockId; pattern: string }[] = [
+  { id: "light", pattern: ":root" },
+  { id: "dark", pattern: "\\.dark" },
+  {
+    id: "lightV2",
+    pattern: 'html\\[data-palette="v2"\\]:not\\(\\.dark\\)',
+  },
+  {
+    id: "darkV2",
+    pattern: 'html\\.dark\\[data-palette="v2"\\]',
+  },
+];
+
+function extractDecls(body: string): CssTokenMap {
+  const tokens: CssTokenMap = {};
+  let decl: RegExpExecArray | null;
+  const declRe = /--([a-z0-9-]+)\s*:\s*([^;]+);/gi;
+  while ((decl = declRe.exec(body)) !== null) {
+    tokens[decl[1]] = decl[2].trim();
+  }
+  return tokens;
+}
+
+/**
+ * Parsea bloques de tokens en index.css.
+ * v2 se mergea sobre v1 (overrides) para auditar el estado efectivo al switchear.
+ */
 export function parseCssTokenBlocks(css: string): {
   light: CssTokenMap;
   dark: CssTokenMap;
+  lightV2: CssTokenMap;
+  darkV2: CssTokenMap;
 } {
-  const light: CssTokenMap = {};
-  const dark: CssTokenMap = {};
+  const raw: Record<TokenBlockId, CssTokenMap> = {
+    light: {},
+    dark: {},
+    lightV2: {},
+    darkV2: {},
+  };
 
-  let match: RegExpExecArray | null;
-  const blockRe = /(:root|\.dark)\s*\{([^}]*)\}/g;
-
-  while ((match = blockRe.exec(css)) !== null) {
-    const selector = match[1];
-    const body = match[2];
-    const target = selector === ":root" ? light : dark;
-
-    let decl: RegExpExecArray | null;
-    const declRe = /--([a-z0-9-]+)\s*:\s*([^;]+);/gi;
-    while ((decl = declRe.exec(body)) !== null) {
-      target[decl[1]] = decl[2].trim();
+  for (const { id, pattern } of BLOCK_SELECTORS) {
+    const blockRe = new RegExp(`${pattern}\\s*\\{([^}]*)\\}`, "g");
+    let match: RegExpExecArray | null;
+    while ((match = blockRe.exec(css)) !== null) {
+      Object.assign(raw[id], extractDecls(match[1]));
     }
   }
 
-  return { light, dark };
+  return {
+    light: raw.light,
+    dark: raw.dark,
+    lightV2: { ...raw.light, ...raw.lightV2 },
+    darkV2: { ...raw.dark, ...raw.darkV2 },
+  };
 }
 
 export function resolveCssVar(

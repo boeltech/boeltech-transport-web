@@ -278,6 +278,9 @@ describe("LandingPage /welcome polish", () => {
     expect(container.querySelector(".landing-plan-table")).toBeTruthy();
     expect(container.querySelector(".landing-plan-col.is-popular")).toBeTruthy();
     expect(container.querySelector(".landing-cta-band")).toBeTruthy();
+    // Brand = Teal Operate (ERP --palette-brand), not blueprint blue
+    expect(container.innerHTML).toContain("var(--landing-brand)");
+    expect(container.innerHTML).not.toContain("var(--landing-blueprint)");
     const heroPhoto = container.querySelector(
       "img.landing-hero-photo",
     ) as HTMLImageElement | null;

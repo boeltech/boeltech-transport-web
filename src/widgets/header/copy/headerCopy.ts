@@ -8,6 +8,8 @@ export const headerCopy = {
     empty: "Sin coincidencias.",
     searching: "Buscando…",
     groups: {
+      frequent: "Frecuentes",
+      pages: "Páginas",
       trips: "Viajes",
       invoices: "Facturas",
     },

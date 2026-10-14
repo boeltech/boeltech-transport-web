@@ -35,7 +35,7 @@ import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { BrandLockup } from "@shared/ui/brand";
-import { ThemeCycleButton } from "@shared/ui/theme";
+import { PaletteSegmented, ThemeCycleButton } from "@shared/ui/theme";
 import { ColorPaletteSection } from "./sections/ColorPaletteSection";
 import { TypographySection } from "./sections/TypographySection";
 import { ComponentsSection } from "./sections/ComponentsSection";
@@ -209,7 +209,10 @@ export function DesignSystemPage() {
               .
             </p>
           </div>
-          <ThemeCycleButton variant="outline" />
+          <div className="flex flex-wrap items-center gap-2">
+            <PaletteSegmented compact />
+            <ThemeCycleButton variant="outline" />
+          </div>
         </div>
       </header>
 

@@ -100,7 +100,7 @@ function LandingProductPreviewMock({
 
       <div className="flex min-h-[220px] sm:min-h-[280px]">
         <aside className="border-r border-[color:var(--landing-hairline)] bg-[color:var(--landing-ink)] text-[color:var(--landing-on-dark)] hidden w-40 shrink-0 flex-col gap-2.5 p-3 sm:flex">
-          <div className="mb-1 h-7 w-full rounded bg-[color:var(--landing-blueprint)]/40" />
+          <div className="mb-1 h-7 w-full rounded bg-[color:var(--landing-brand)]/40" />
           {preview.navItems.map((item, i) => (
             <div
               key={item}

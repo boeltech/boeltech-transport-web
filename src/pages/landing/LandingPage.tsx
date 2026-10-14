@@ -407,7 +407,7 @@ const PricingSection = () => {
                     className={cn(
                       "landing-price-amount",
                       isFleetMatch
-                        ? "text-[color:var(--landing-blueprint)]"
+                        ? "text-[color:var(--landing-brand)]"
                         : "text-[color:var(--landing-ink)]",
                     )}
                   >
@@ -527,7 +527,7 @@ const PricingSection = () => {
             {pricing.optionalsNote}{" "}
             <a
               href={`#${landingCopy.optionals.id}`}
-              className="font-medium text-[color:var(--landing-blueprint)] hover:underline"
+              className="font-medium text-[color:var(--landing-brand)] hover:underline"
             >
               {pricing.optionalsLink}
             </a>
