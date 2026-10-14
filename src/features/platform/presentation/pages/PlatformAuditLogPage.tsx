@@ -1,20 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ClipboardList } from "lucide-react";
+import { AlertCircle, ClipboardList, Info } from "lucide-react";
 import { PlatformPageShell } from "../layout/PlatformPageShell";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { DateField } from "@shared/ui/form";
-import { Label } from "@shared/ui/label";
-import { AlertWithIcon } from "@shared/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   Table,
   TableBody,
@@ -23,14 +14,15 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import { formatListingDateRangeLabel } from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { formatDateTime } from "@shared/utils/dateUtils";
-import { PlatformAuditAction } from "../../domain/entities";
 import { usePlatformAuditLog } from "../../application/hooks/usePlatformAuditLog";
 import {
   usePlatformPlans,
   usePlatformTenant,
 } from "../../application/hooks/usePlatformTenants";
+import { PlatformAuditListFilters } from "../components/PlatformAuditListFilters";
 import { platformCopy } from "../copy/platformCopy";
 import {
   getAuditActionLabel,
@@ -65,10 +57,6 @@ export function PlatformAuditLogPage() {
 
   const createdFromParam = searchParams.get("createdFrom") || "";
   const createdToParam = searchParams.get("createdTo") || "";
-  const [dateDraft, setDateDraft] = useState({
-    from: createdFromParam,
-    to: createdToParam,
-  });
 
   const { data: tenantFilter } = usePlatformTenant(targetTenantId);
 
@@ -98,6 +86,41 @@ export function PlatformAuditLogPage() {
   const entries = data?.data ?? [];
   const pagination = data?.pagination;
 
+  const applyDateRange = useCallback(
+    (fromDate: string, toDate: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (fromDate) next.set("createdFrom", fromDate);
+        else next.delete("createdFrom");
+        if (toDate) next.set("createdTo", toDate);
+        else next.delete("createdTo");
+        next.set("page", "1");
+        return next;
+      });
+      filters.setPage(1);
+    },
+    [filters, setSearchParams],
+  );
+
+  const clearDateRange = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("createdFrom");
+      next.delete("createdTo");
+      next.set("page", "1");
+      return next;
+    });
+    filters.setPage(1);
+  }, [filters, setSearchParams]);
+
+  const clearTenantScope = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("targetTenantId");
+      return next;
+    });
+  }, [setSearchParams]);
+
   const activeChips = useMemo(() => {
     const chips = [...filters.activeChips];
     if (targetTenantId) {
@@ -106,35 +129,20 @@ export function PlatformAuditLogPage() {
         label: copy.filters.tenantChip(
           tenantFilter?.subdomain ?? targetTenantId.slice(0, 8),
         ),
-        onRemove: () => {
-          const next = new URLSearchParams(searchParams);
-          next.delete("targetTenantId");
-          setSearchParams(next);
-        },
+        onRemove: clearTenantScope,
       });
     }
-    if (createdFromParam) {
+    if (createdFromParam || createdToParam) {
       chips.push({
-        id: "createdFrom",
-        label: copy.filters.dateFromChip(createdFromParam),
-        onRemove: () => {
-          const next = new URLSearchParams(searchParams);
-          next.delete("createdFrom");
-          setSearchParams(next);
-          setDateDraft((draft) => ({ ...draft, from: "" }));
-        },
-      });
-    }
-    if (createdToParam) {
-      chips.push({
-        id: "createdTo",
-        label: copy.filters.dateToChip(createdToParam),
-        onRemove: () => {
-          const next = new URLSearchParams(searchParams);
-          next.delete("createdTo");
-          setSearchParams(next);
-          setDateDraft((draft) => ({ ...draft, to: "" }));
-        },
+        id: "date",
+        label: copy.filters.dateChip(
+          formatListingDateRangeLabel(
+            createdFromParam,
+            createdToParam,
+            copy.filters.datePlaceholder,
+          ),
+        ),
+        onRemove: clearDateRange,
       });
     }
     return chips;
@@ -144,16 +152,33 @@ export function PlatformAuditLogPage() {
     tenantFilter?.subdomain,
     createdFromParam,
     createdToParam,
-    searchParams,
-    setSearchParams,
+    clearTenantScope,
+    clearDateRange,
     copy.filters,
   ]);
+
+  const activePanelFilterCount =
+    Number(!!filters.filters.action) +
+    Number(!!createdFromParam || !!createdToParam);
+  const hasPanelFilters = activePanelFilterCount > 0;
 
   const hasFilters =
     filters.hasFilters ||
     !!targetTenantId ||
     !!createdFromParam ||
     !!createdToParam;
+
+  const clearAllFilters = useCallback(() => {
+    filters.clearAll();
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("createdFrom");
+      next.delete("createdTo");
+      next.delete("targetTenantId");
+      next.set("page", "1");
+      return next;
+    });
+  }, [filters, setSearchParams]);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -163,55 +188,54 @@ export function PlatformAuditLogPage() {
     });
   }, [refetch, toast, copy.refreshSuccess]);
 
-  const applyDateFilters = useCallback(() => {
-    const next = new URLSearchParams(searchParams);
-    if (dateDraft.from) next.set("createdFrom", dateDraft.from);
-    else next.delete("createdFrom");
-    if (dateDraft.to) next.set("createdTo", dateDraft.to);
-    else next.delete("createdTo");
-    next.set("page", "1");
-    setSearchParams(next);
-    filters.setPage(1);
-  }, [dateDraft.from, dateDraft.to, filters, searchParams, setSearchParams]);
-
-  const clearAllFilters = useCallback(() => {
-    setDateDraft({ from: "", to: "" });
-    filters.clearAll();
-  }, [filters]);
-
   const tenantFilterLabel = tenantFilter?.subdomain ?? null;
 
   return (
     <PlatformPageShell title={copy.title} description={copy.description}>
       {isError ? (
-        <AlertWithIcon variant="destructive" title={copy.error.title}>
-          {copy.error.description}
-        </AlertWithIcon>
-      ) : null}
-
-      {targetTenantId ? (
-        <AlertWithIcon variant="info" title={copy.tenantFilter.title}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              {copy.tenantFilter.description(
-                tenantFilterLabel ?? targetTenantId.slice(0, 8),
-              )}
-            </span>
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={copy.error.title}
+          action={
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="shrink-0"
               onClick={() => {
-                const next = new URLSearchParams(searchParams);
-                next.delete("targetTenantId");
-                setSearchParams(next);
+                void refetch();
               }}
+            >
+              {copy.error.retry}
+            </Button>
+          }
+        >
+          <p>{copy.error.description}</p>
+        </DetailAlertCard>
+      ) : null}
+
+      {targetTenantId ? (
+        <DetailAlertCard
+          severity="info"
+          icon={<Info className="h-5 w-5" aria-hidden />}
+          title={copy.tenantFilter.title}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={clearTenantScope}
             >
               {copy.tenantFilter.clear}
             </Button>
-          </div>
-        </AlertWithIcon>
+          }
+        >
+          <p>
+            {copy.tenantFilter.description(
+              tenantFilterLabel ?? targetTenantId.slice(0, 8),
+            )}
+          </p>
+        </DetailAlertCard>
       ) : null}
 
       <ListPageShell
@@ -233,70 +257,16 @@ export function PlatformAuditLogPage() {
         onPageChange={filters.setPage}
         toolbar={{
           filters: (
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="audit-action" className="text-xs">
-                  {copy.filters.action}
-                </Label>
-                <Select
-                  value={filters.filters.action || "all"}
-                  onValueChange={(value) =>
-                    filters.setFilter("action", value === "all" ? "" : value)
-                  }
-                >
-                  <SelectTrigger id="audit-action" className="w-[220px]">
-                    <SelectValue placeholder={copy.filters.action} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{copy.filters.allActions}</SelectItem>
-                    {Object.values(PlatformAuditAction).map((action) => (
-                      <SelectItem key={action} value={action}>
-                        {getAuditActionLabel(action)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="audit-date-from" className="text-xs">
-                  {copy.filters.dateFrom}
-                </Label>
-                <DateField
-                  id="audit-date-from"
-                  value={dateDraft.from}
-                  onChange={(from) =>
-                    setDateDraft((draft) => ({
-                      ...draft,
-                      from,
-                    }))
-                  }
-                  className="w-[160px]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="audit-date-to" className="text-xs">
-                  {copy.filters.dateTo}
-                </Label>
-                <DateField
-                  id="audit-date-to"
-                  min={dateDraft.from || undefined}
-                  value={dateDraft.to}
-                  onChange={(to) =>
-                    setDateDraft((draft) => ({
-                      ...draft,
-                      to,
-                    }))
-                  }
-                  className="w-[160px]"
-                />
-              </div>
-
-              <Button type="button" variant="outline" onClick={applyDateFilters}>
-                {copy.filters.applyDates}
-              </Button>
-            </div>
+            <PlatformAuditListFilters
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
+              action={filters.filters.action}
+              dateFrom={createdFromParam}
+              dateTo={createdToParam}
+              activePanelFilterCount={activePanelFilterCount}
+              onActionChange={(value) => filters.setFilter("action", value)}
+              onApplyDateRange={applyDateRange}
+              onClearDateRange={clearDateRange}
+            />
           ),
           onRefresh: handleRefresh,
           isRefreshing: isFetching,

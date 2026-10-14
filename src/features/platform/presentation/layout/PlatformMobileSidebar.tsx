@@ -11,6 +11,8 @@ import {
   isPlatformNavItemActive,
   PLATFORM_NAV_ITEMS,
 } from "./platformNavigation";
+import { PlatformNavActiveRail } from "./PlatformNavActiveRail";
+import { platformNavItemClassName } from "./platformNavItemStyles";
 
 export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
   const location = useLocation();
@@ -63,7 +65,7 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
         aria-modal="true"
         aria-label={platformCopy.shell.openMenu}
       >
-        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+        <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
           <Link
             to="/platform"
             className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
@@ -83,7 +85,7 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
         </div>
 
         <ScrollArea className="min-h-0 flex-1">
-          <nav className="space-y-1 p-3">
+          <nav className="space-y-0.5 p-3">
             {PLATFORM_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isPlatformNavItemActive(location.pathname, item.href);
@@ -93,20 +95,11 @@ export const PlatformMobileSidebar = memo(function PlatformMobileSidebar() {
                   key={item.id}
                   to={item.href}
                   onClick={handleNavClick}
-                  className={cn(
-                    "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    active &&
-                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-                  )}
+                  aria-current={active ? "page" : undefined}
+                  className={platformNavItemClassName({ isActive: active })}
                 >
-                  {active ? (
-                    <span
-                      aria-hidden
-                      className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary"
-                    />
-                  ) : null}
-                  <Icon className="h-5 w-5 shrink-0" />
+                  <PlatformNavActiveRail visible={active} />
+                  <Icon className="h-5 w-5 shrink-0" strokeWidth={1.5} />
                   {item.label}
                 </Link>
               );

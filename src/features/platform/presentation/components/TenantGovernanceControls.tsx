@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { AlertTriangle, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { AlertWithIcon } from "@shared/ui/alert";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
-import { InfoRow } from "@shared/ui/data-display";
+import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { resolvePastDueGraceDeadline } from "@features/billing/presentation/utils/billingGrace";
@@ -158,7 +157,22 @@ export function TenantGovernanceControls({
         />
 
         {isPastDue ? (
-          <AlertWithIcon variant="warning" title={copy.grace.title}>
+          <DetailAlertCard
+            severity="warning"
+            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+            title={copy.grace.title}
+            action={
+              canMutate ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onManageSubscription}
+                >
+                  {copy.grace.openSubscription}
+                </Button>
+              ) : undefined
+            }
+          >
             <p className="text-sm">
               {graceDeadlineLabel
                 ? copy.grace.orientation(graceDeadlineLabel)
@@ -169,18 +183,12 @@ export function TenantGovernanceControls({
               <li>{copy.grace.itemPause}</li>
               <li>{copy.grace.itemActive}</li>
             </ul>
-            {canMutate ? (
-              <div className="mt-3">
-                <Button size="sm" variant="outline" onClick={onManageSubscription}>
-                  {copy.grace.openSubscription}
-                </Button>
-              </div>
-            ) : (
+            {!canMutate ? (
               <p className="mt-3 text-xs text-muted-foreground">
                 {copy.grace.readOnlyHint}
               </p>
-            )}
-          </AlertWithIcon>
+            ) : null}
+          </DetailAlertCard>
         ) : null}
       </CardContent>
     </Card>

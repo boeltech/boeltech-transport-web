@@ -7,13 +7,6 @@ import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -23,10 +16,7 @@ import {
 } from "@shared/ui/table";
 import { useListingFilters, useToast } from "@shared/hooks";
 import {
-  PLATFORM_LIFECYCLE_STAGE_VALUES,
-  PLATFORM_SUBSCRIPTION_STATUS_VALUES,
   PLATFORM_TENANT_STATUS_LABELS,
-  PlatformTenantStatus,
   isPlatformOwner,
   type PlatformLifecycleStageType,
   type PlatformSubscriptionStatusType,
@@ -43,11 +33,11 @@ import {
   TenantLifecycleBadge,
 } from "../config/platformLifecycleConfig";
 import { TenantHealthDot } from "../components/TenantHealthDot";
+import { PlatformTenantCard } from "../components/PlatformTenantCard";
+import { PlatformTenantListFilters } from "../components/PlatformTenantListFilters";
 import { platformCopy } from "../copy/platformCopy";
 import { resolvePlanDisplayName } from "../utils/formatPlanLabel";
 import { getPlatformSubscriptionStatusLabel } from "../utils/platformBillingFormatters";
-
-type HealthBand = "healthy" | "watch" | "risk";
 
 function resolveHealthBand(band: string): {
   healthMin?: number;
@@ -65,6 +55,24 @@ function healthBandLabel(band: string): string {
   if (band === "watch") return copy.healthWatch;
   if (band === "risk") return copy.healthRisk;
   return band;
+}
+
+function countTenantPanelFilters(filters: {
+  access: string;
+  commercial: string;
+  plan: string;
+  stage: string;
+  atRisk: string;
+  health: string;
+}): number {
+  return (
+    Number(!!filters.access) +
+    Number(!!filters.commercial) +
+    Number(!!filters.plan) +
+    Number(!!filters.stage) +
+    Number(!!filters.atRisk) +
+    Number(!!filters.health)
+  );
 }
 
 export function PlatformTenantsListPage() {
@@ -110,6 +118,9 @@ export function PlatformTenantsListPage() {
     () => resolveHealthBand(filters.filters.health),
     [filters.filters.health],
   );
+
+  const activePanelFilterCount = countTenantPanelFilters(filters.filters);
+  const hasPanelFilters = activePanelFilterCount > 0;
 
   const { data, isLoading, isFetching, refetch } = usePlatformTenants({
     page: filters.page,
@@ -170,119 +181,25 @@ export function PlatformTenantsListPage() {
             placeholder: copy.searchPlaceholder,
           },
           filters: (
-            <>
-              <Select
-                value={filters.filters.access || "all"}
-                onValueChange={(value) =>
-                  filters.setFilter("access", value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder={copy.filters.access} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.allAccess}</SelectItem>
-                  {Object.values(PlatformTenantStatus).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {PLATFORM_TENANT_STATUS_LABELS[status]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={filters.filters.commercial || "all"}
-                onValueChange={(value) =>
-                  filters.setFilter("commercial", value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder={copy.filters.commercial} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.allCommercial}</SelectItem>
-                  {PLATFORM_SUBSCRIPTION_STATUS_VALUES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {getPlatformSubscriptionStatusLabel(status)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={filters.filters.stage || "all"}
-                onValueChange={(value) =>
-                  filters.setFilter("stage", value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder={copy.filters.stage} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.allStages}</SelectItem>
-                  {PLATFORM_LIFECYCLE_STAGE_VALUES.map((stage) => (
-                    <SelectItem key={stage} value={stage}>
-                      {getLifecycleStageLabel(stage)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={filters.filters.atRisk || "all"}
-                onValueChange={(value) =>
-                  filters.setFilter("atRisk", value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder={copy.filters.atRisk} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.allRisk}</SelectItem>
-                  <SelectItem value="true">{copy.filters.atRiskOnly}</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={filters.filters.health || "all"}
-                onValueChange={(value) =>
-                  filters.setFilter("health", value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder={copy.filters.health} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.allHealth}</SelectItem>
-                  {(
-                    ["healthy", "watch", "risk"] as HealthBand[]
-                  ).map((band) => (
-                    <SelectItem key={band} value={band}>
-                      {healthBandLabel(band)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={filters.filters.plan || "all"}
-                onValueChange={(value) =>
-                  filters.setFilter("plan", value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder={copy.filters.plan} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.filters.allPlans}</SelectItem>
-                  {(plans ?? []).map((plan) => (
-                    <SelectItem key={plan.code} value={plan.code}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
+            <PlatformTenantListFilters
+              key={hasPanelFilters ? "filters-active" : "filters-idle"}
+              access={filters.filters.access}
+              commercial={filters.filters.commercial}
+              plan={filters.filters.plan}
+              stage={filters.filters.stage}
+              atRisk={filters.filters.atRisk}
+              health={filters.filters.health}
+              plans={plans ?? []}
+              activePanelFilterCount={activePanelFilterCount}
+              onAccessChange={(value) => filters.setFilter("access", value)}
+              onCommercialChange={(value) =>
+                filters.setFilter("commercial", value)
+              }
+              onPlanChange={(value) => filters.setFilter("plan", value)}
+              onStageChange={(value) => filters.setFilter("stage", value)}
+              onAtRiskChange={(value) => filters.setFilter("atRisk", value)}
+              onHealthChange={(value) => filters.setFilter("health", value)}
+            />
           ),
           extraActions: canMutate ? (
             <Button onClick={() => navigate("/platform/tenants/new")}>
@@ -390,37 +307,7 @@ export function PlatformTenantsListPage() {
             <ul className="space-y-3 md:hidden">
               {tenants.map((tenant) => (
                 <li key={tenant.id}>
-                  <Link
-                    to={`/platform/tenants/${tenant.id}`}
-                    className="block w-full rounded-lg border p-4 text-left transition-colors hover:bg-muted/40"
-                    aria-label={copy.openTenantAria(tenant.name)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium">{tenant.name}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {tenant.subdomain}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <TenantHealthDot score={tenant.healthScore} />
-                        <TenantLifecycleBadge status={tenant.lifecycleStage} />
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      <PlatformTenantStatusBadge status={tenant.status} />
-                      {tenant.subscriptionStatus ? (
-                        <Badge variant="secondary" tone="soft">
-                          {getPlatformSubscriptionStatusLabel(
-                            tenant.subscriptionStatus,
-                          )}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {tenant.planName ?? tenant.planCode ?? "—"}
-                    </p>
-                  </Link>
+                  <PlatformTenantCard tenant={tenant} />
                 </li>
               ))}
             </ul>

@@ -583,10 +583,27 @@ describe("PlatformArLedgerPage P2 polish", () => {
     ).toBeInTheDocument();
   });
 
-  it("labels the period filter and keeps refresh in the filter row", () => {
+  it("keeps view chips outside ListingFilterPanel; period/tenant live inside", async () => {
+    const user = userEvent.setup();
     renderPage();
 
-    const periodField = screen.getByLabelText(platformCopy.ar.filters.periodKey);
+    const views = platformCopy.ar.views;
+    expect(
+      screen.getByRole("button", { name: views.chipAria(views.pending, 4) }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(platformCopy.ar.filters.periodKey),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(platformCopy.ar.filters.showFilters, "i"),
+      }),
+    );
+
+    const periodField = screen.getByLabelText(
+      platformCopy.ar.filters.periodKey,
+    );
     expect(periodField).toHaveTextContent(
       platformCopy.ar.filters.periodKeyPlaceholder,
     );
@@ -594,9 +611,42 @@ describe("PlatformArLedgerPage P2 polish", () => {
     expect(
       screen.getByRole("button", { name: platformCopy.ar.refreshAria }),
     ).toBeInTheDocument();
-    expect(document.querySelector('label[for="ar-tenant-filter"]')).toHaveTextContent(
-      platformCopy.ar.filters.tenant,
+    expect(
+      document.querySelector('label[for="ar-tenant-filter"]'),
+    ).toHaveTextContent(platformCopy.ar.filters.tenant);
+  });
+
+  it("close-run CTA uses DetailAlertCard action slot", async () => {
+    const user = userEvent.setup();
+    mockUsePlatformArCloseRun.mockReturnValue(
+      closeRunResult({
+        actionable: 1,
+        items: [
+          {
+            tenantId: "t1",
+            tenantName: "Demo",
+            subdomain: "demo",
+            skipReason: "VOID_HOLD",
+            skipGroup: "actionable",
+          },
+        ],
+      }),
     );
+    renderPage();
+
+    const cta = screen.getByRole("button", {
+      name: platformCopy.ar.closeRun.viewExceptions,
+    });
+    expect(cta.closest("[class*='border-l-']")).toBeTruthy();
+    await user.click(cta);
+    expect(
+      screen.getByRole("button", {
+        name: platformCopy.ar.views.chipAria(
+          platformCopy.ar.views.exceptions,
+          1,
+        ),
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("shows Auto-emitido badge on auto-issued rows without an origin filter", () => {

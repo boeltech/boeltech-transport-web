@@ -10,6 +10,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@shared/ui/tooltip";
+import {
+  SIDEBAR_COLLAPSED_WIDTH_CLASS,
+  SIDEBAR_WIDTH_CLASS,
+} from "@widgets/sidebar";
 import { usePlatformSidebar } from "../providers/PlatformSidebarProvider";
 import { platformCopy } from "../copy/platformCopy";
 import { PlatformBrandMark } from "./PlatformBrandMark";
@@ -17,6 +21,8 @@ import {
   isPlatformNavItemActive,
   PLATFORM_NAV_ITEMS,
 } from "./platformNavigation";
+import { PlatformNavActiveRail } from "./PlatformNavActiveRail";
+import { platformNavItemClassName } from "./platformNavItemStyles";
 
 export const PlatformSidebar = memo(function PlatformSidebar() {
   const location = useLocation();
@@ -25,13 +31,13 @@ export const PlatformSidebar = memo(function PlatformSidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside
+      <div
         className={cn(
           "flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300",
-          isCollapsed ? "w-[70px]" : "w-[260px]",
+          isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_WIDTH_CLASS,
         )}
       >
-        <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-4">
+        <div className="flex h-14 items-center justify-center border-b border-sidebar-border px-3">
           <Link
             to="/platform"
             className={cn(
@@ -45,7 +51,7 @@ export const PlatformSidebar = memo(function PlatformSidebar() {
         </div>
 
         <ScrollArea className="min-h-0 flex-1">
-          <nav className="space-y-1 p-2">
+          <nav className="space-y-0.5 p-2" aria-label="Navegación de plataforma">
             {PLATFORM_NAV_ITEMS.map((item) => {
               const active = isPlatformNavItemActive(location.pathname, item.href);
               const Icon = item.icon;
@@ -53,22 +59,18 @@ export const PlatformSidebar = memo(function PlatformSidebar() {
               const content = (
                 <Link
                   to={item.href}
-                  className={cn(
-                    "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    active &&
-                      "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
-                    isCollapsed && "justify-center px-2",
-                  )}
+                  aria-current={active ? "page" : undefined}
+                  aria-label={isCollapsed ? item.label : undefined}
+                  className={platformNavItemClassName({
+                    isActive: active,
+                    isCollapsed,
+                  })}
                 >
-                  {active && !isCollapsed ? (
-                    <span
-                      aria-hidden
-                      className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary"
-                    />
+                  <PlatformNavActiveRail visible={active} />
+                  <Icon className="h-5 w-5 shrink-0" strokeWidth={1.5} />
+                  {!isCollapsed ? (
+                    <span className="flex-1 truncate">{item.label}</span>
                   ) : null}
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {!isCollapsed ? <span className="flex-1 truncate">{item.label}</span> : null}
                 </Link>
               );
 
@@ -97,7 +99,10 @@ export const PlatformSidebar = memo(function PlatformSidebar() {
           <Button
             variant="ghost"
             size="sm"
-            className={cn("mt-1 w-full justify-center", isCollapsed && "px-0")}
+            className={cn(
+              "mt-1 w-full justify-center text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              isCollapsed && "px-0",
+            )}
             onClick={toggle}
             aria-label={platformCopy.shell.collapseSidebar}
           >
@@ -111,7 +116,7 @@ export const PlatformSidebar = memo(function PlatformSidebar() {
             )}
           </Button>
         </div>
-      </aside>
+      </div>
     </TooltipProvider>
   );
 });

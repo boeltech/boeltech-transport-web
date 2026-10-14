@@ -9,8 +9,11 @@ export interface PlatformPageShellProps {
 }
 
 /**
- * Shell de contenido para rutas `/platform/*`.
- * Sin sidebar de settings tenant ni PermissionProvider.
+ * Contenedor de título opcional para rutas `/platform/*` dentro de PlatformShell.
+ *
+ * D3: ListPageShell / DetailPageShell / FormPageShell compartidos son OK aquí
+ * (p. ej. ListPageShell con `showHeader={false}`). No usar SettingsPageShell
+ * (chrome de settings tenant + PermissionProvider).
  */
 export const PlatformPageShell = memo(function PlatformPageShell({
   title,

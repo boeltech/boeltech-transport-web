@@ -13,6 +13,10 @@ import {
 } from "@shared/ui/dropdown-menu";
 import { ThemeCycleButton } from "@shared/ui/theme";
 import { getUserFullName, getUserInitials } from "@shared/lib/userHelpers";
+import {
+  SIDEBAR_HEADER_LEFT_CLASS,
+  SIDEBAR_HEADER_LEFT_COLLAPSED_CLASS,
+} from "@widgets/sidebar";
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { usePlatformSidebar } from "../providers/PlatformSidebarProvider";
 import { platformCopy } from "../copy/platformCopy";
@@ -32,11 +36,12 @@ export const PlatformHeader = memo(function PlatformHeader({
   return (
     <header
       className={cn(
-        "fixed top-0 right-0 z-30 flex h-16 items-center justify-between border-b",
-        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        "fixed top-0 right-0 z-30 flex h-14 items-center justify-between border-b border-border",
+        "bg-background",
         "px-4 transition-all duration-300 ease-in-out",
-        "left-0 lg:left-[260px]",
-        isCollapsed && "lg:left-[70px]",
+        "left-0",
+        SIDEBAR_HEADER_LEFT_CLASS,
+        isCollapsed && SIDEBAR_HEADER_LEFT_COLLAPSED_CLASS,
         className,
       )}
     >
@@ -121,6 +126,7 @@ const PlatformUserMenu = memo(function PlatformUserMenu({
         ) : null}
         <DropdownMenuSeparator />
 
+        {/* Isolation D1: ERP entry is login plane, never a deep ERP route with session mix. */}
         <DropdownMenuItem asChild>
           <Link to="/login">{platformCopy.nav.erpLink}</Link>
         </DropdownMenuItem>

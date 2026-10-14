@@ -26,10 +26,12 @@ import {
 import { InfoRow } from "@shared/ui/data-display";
 import {
   FieldInlineError,
+  FormStickyActions,
   FormValidationSummary,
+  UnsavedChangesDialog,
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
-import { useToast } from "@shared/hooks";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { generateSecurePassword } from "@shared/utils/generateSecurePassword";
@@ -67,6 +69,7 @@ export function PlatformTenantCreatePage() {
   const { user } = usePlatformAuth();
   const { data: plans, isLoading: plansLoading } = usePlatformPlans();
   const planManuallyOverridden = useRef(false);
+  const wasSubmittingRef = useRef(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const canCreate = Boolean(user && isPlatformOwner(user.platformRole));
@@ -84,7 +87,7 @@ export function PlatformTenantCreatePage() {
     setValue,
     setError,
     clearErrors,
-    formState: { errors, isSubmitted },
+    formState: { errors, isSubmitted, isDirty },
   } = useForm<CreatePlatformTenantFormData, unknown, CreatePlatformTenantFormData>({
     resolver: zodResolver(createPlatformTenantSchema) as Resolver<
       CreatePlatformTenantFormData
@@ -100,6 +103,10 @@ export function PlatformTenantCreatePage() {
       planCode: DEFAULT_OPERATIONAL_PLAN_CODE,
       declaredFleetBand: null,
     },
+  });
+
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
   });
 
   const subdomainValue = useWatch({ control, name: "subdomain" }) ?? "";
@@ -135,6 +142,7 @@ export function PlatformTenantCreatePage() {
 
   const createMutation = useCreatePlatformTenant({
     onSuccess: (result) => {
+      allowLeave();
       const activationStatus = result.data.adminActivation?.status;
       if (activationStatus === "email_failed") {
         toast({
@@ -156,6 +164,17 @@ export function PlatformTenantCreatePage() {
       navigate(`/platform/tenants/${result.data.tenant.id}`);
     },
   });
+
+  useEffect(() => {
+    if (createMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [createMutation.isPending, resetAllowLeave]);
 
   const handleFleetBandChange = (value: string) => {
     const band =
@@ -241,6 +260,7 @@ export function PlatformTenantCreatePage() {
   }
 
   return (
+    <>
     <FormPageShell
       isLoading={false}
       header={{
@@ -585,7 +605,7 @@ export function PlatformTenantCreatePage() {
             messages={summaryErrors}
           />
 
-          <div className="flex justify-end gap-2">
+          <FormStickyActions sticky>
             <Button
               type="button"
               variant="outline"
@@ -600,9 +620,11 @@ export function PlatformTenantCreatePage() {
             >
               {createMutation.isPending ? copy.submitting : copy.submit}
             </Button>
-          </div>
+          </FormStickyActions>
         </form>
       </div>
     </FormPageShell>
+    <UnsavedChangesDialog blocker={blocker} />
+    </>
   );
 }

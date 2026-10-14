@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import { PlatformPageShell } from "../layout/PlatformPageShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import { AlertWithIcon } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { FormStickyActions } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { platformApi } from "../../infrastructure/platformApi";
@@ -95,6 +97,7 @@ export function PlatformSecurityPage() {
   };
 
   const enabled = statusQuery.data?.enabled ?? user?.mfaEnabled === true;
+  const showInlineSetup = !enabled && !setup && !mustEnroll;
 
   return (
     <PlatformPageShell
@@ -102,14 +105,31 @@ export function PlatformSecurityPage() {
       description={copy.description}
     >
       {mustEnroll ? (
-        <AlertWithIcon variant="warning" className="mb-4">
+        <DetailAlertCard
+          className="mb-4"
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+          title={copy.mfaRequiredTitle}
+          action={
+            !setup ? (
+              <Button size="sm" onClick={onSetup} isLoading={busy}>
+                {copy.setup}
+              </Button>
+            ) : undefined
+          }
+        >
           {copy.mfaRequiredBanner}
-        </AlertWithIcon>
+        </DetailAlertCard>
       ) : null}
       {error ? (
-        <AlertWithIcon variant="destructive" className="mb-4">
+        <DetailAlertCard
+          className="mb-4"
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={copy.errorTitle}
+        >
           {error}
-        </AlertWithIcon>
+        </DetailAlertCard>
       ) : null}
 
       <Card>
@@ -126,7 +146,7 @@ export function PlatformSecurityPage() {
             </p>
           ) : null}
 
-          {!enabled && !setup ? (
+          {showInlineSetup ? (
             <Button onClick={onSetup} isLoading={busy}>
               {copy.setup}
             </Button>
@@ -151,13 +171,15 @@ export function PlatformSecurityPage() {
                   autoComplete="one-time-code"
                 />
               </div>
-              <Button
-                onClick={onConfirm}
-                isLoading={busy}
-                disabled={confirmCode.trim().length < 6}
-              >
-                {copy.confirm}
-              </Button>
+              <FormStickyActions sticky={false}>
+                <Button
+                  onClick={onConfirm}
+                  isLoading={busy}
+                  disabled={confirmCode.trim().length < 6}
+                >
+                  {copy.confirm}
+                </Button>
+              </FormStickyActions>
             </div>
           ) : null}
 
@@ -194,18 +216,20 @@ export function PlatformSecurityPage() {
                   autoComplete="one-time-code"
                 />
               </div>
-              <Button
-                variant="destructive"
-                onClick={onDisable}
-                isLoading={busy}
-                disabled={
-                  !disablePassword ||
-                  disableCode.trim().length < 6 ||
-                  mustEnroll
-                }
-              >
-                {copy.disable}
-              </Button>
+              <FormStickyActions sticky={false}>
+                <Button
+                  variant="destructive"
+                  onClick={onDisable}
+                  isLoading={busy}
+                  disabled={
+                    !disablePassword ||
+                    disableCode.trim().length < 6 ||
+                    mustEnroll
+                  }
+                >
+                  {copy.disable}
+                </Button>
+              </FormStickyActions>
             </div>
           ) : null}
         </CardContent>

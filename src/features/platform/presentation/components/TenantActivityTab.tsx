@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { ClipboardList } from "lucide-react";
+import { AlertCircle, ClipboardList } from "lucide-react";
 import { Button } from "@shared/ui/button";
-import { AlertWithIcon } from "@shared/ui/alert";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
@@ -27,7 +27,7 @@ interface TenantActivityTabProps {
 
 export function TenantActivityTab({ tenantId }: TenantActivityTabProps) {
   const copy = platformCopy.tenants.detail.activity;
-  const { data, isLoading, isError } = usePlatformAuditLog({
+  const { data, isLoading, isError, refetch } = usePlatformAuditLog({
     page: 1,
     limit: 20,
     targetTenantId: tenantId,
@@ -46,9 +46,18 @@ export function TenantActivityTab({ tenantId }: TenantActivityTabProps) {
 
   if (isError) {
     return (
-      <AlertWithIcon variant="destructive" title={copy.error.title}>
+      <DetailAlertCard
+        severity="critical"
+        icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+        title={copy.error.title}
+        action={
+          <Button size="sm" variant="outline" onClick={() => void refetch()}>
+            {copy.error.retry}
+          </Button>
+        }
+      >
         {copy.error.description}
-      </AlertWithIcon>
+      </DetailAlertCard>
     );
   }
 

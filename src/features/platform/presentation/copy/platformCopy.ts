@@ -50,8 +50,10 @@ export const platformCopy = {
     title: "Seguridad",
     description:
       "Protege la consola de plataforma con autenticación en dos pasos (TOTP).",
+    mfaRequiredTitle: "MFA obligatorio",
     mfaRequiredBanner:
       "Los propietarios de plataforma deben activar MFA antes de continuar.",
+    errorTitle: "No se pudo completar la acción",
     statusEnabled: "MFA activo",
     statusDisabled: "MFA inactivo",
     setup: "Configurar MFA",
@@ -126,6 +128,7 @@ export const platformCopy = {
       title: "No se pudo cargar el Pulso",
       description:
         "Revisa la conexión con la API de plataforma e intenta recargar la página.",
+      retry: "Reintentar",
     },
   },
   lifecycle: {
@@ -225,6 +228,7 @@ export const platformCopy = {
         "Tu rol es de soporte: puedes consultar empresas, pero no crear ni cambiar su estado.",
       readOnlyTitle: "Solo lectura",
       filters: {
+        showFilters: "Filtros",
         access: "Acceso",
         commercial: "Suscripción",
         plan: "Plan",
@@ -290,6 +294,7 @@ export const platformCopy = {
         error: {
           title: "No se pudo cargar la actividad",
           description: "Intenta recargar o abre el historial completo.",
+          retry: "Reintentar",
         },
         viewAll: "Ver en historial",
         columns: {
@@ -397,6 +402,7 @@ export const platformCopy = {
         graceRef: (deadlineLabel: string) =>
           `Referencia de gracia: ${deadlineLabel}`,
         graceMissing: "Referencia de gracia no disponible",
+        viewAr: "Ver en Cobros",
         trialEnds: (dateLabel: string) => `Fin de prueba: ${dateLabel}`,
         lifecycleLabel: "Etapa",
         lifecycleTooltip: (stageLabel: string) =>
@@ -910,8 +916,12 @@ export const platformCopy = {
     },
     refreshSuccess: "Historial actualizado",
     filters: {
+      showFilters: "Filtros",
       action: "Acción",
       allActions: "Todas las acciones",
+      date: "Fecha",
+      dateHeading: "Filtrar por fecha",
+      datePlaceholder: "Filtrar por fecha",
       dateFrom: "Desde",
       dateTo: "Hasta",
       applyDates: "Aplicar fechas",
@@ -919,6 +929,7 @@ export const platformCopy = {
       actionChip: (label: string) => `Acción: ${label}`,
       dateFromChip: (label: string) => `Desde: ${label}`,
       dateToChip: (label: string) => `Hasta: ${label}`,
+      dateChip: (label: string) => `Fecha: ${label}`,
     },
     columns: {
       date: "Fecha",
@@ -966,6 +977,7 @@ export const platformCopy = {
       title: "No se pudo cargar el historial",
       description:
         "Revisa la conexión con la API de plataforma e intenta recargar.",
+      retry: "Reintentar",
     },
     metadata: {
       statusChanged: (
@@ -1200,10 +1212,12 @@ export const platformCopy = {
       },
     },
     filters: {
+      showFilters: "Filtros",
       status: "Estado",
       statusAll: "Todos",
       periodKey: "Mes de cobro",
       periodKeyPlaceholder: "Elegir mes",
+      periodChip: (label: string) => `Mes: ${label}`,
       minDaysOverdue: "Días de atraso mín.",
       overdueNone: "Sin mínimo",
       tenant: "Empresa",
@@ -1211,6 +1225,7 @@ export const platformCopy = {
       tenantEmpty: "No hay empresas con ese nombre",
       tenantClear: "Quitar filtro de empresa",
       tenantSearching: "Buscando…",
+      tenantChip: (label: string) => `Empresa: ${label}`,
     },
     actions: {
       issue: "Nuevo cobro",

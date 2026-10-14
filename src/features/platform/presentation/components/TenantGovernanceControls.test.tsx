@@ -147,4 +147,31 @@ describe("TenantGovernanceControls", () => {
       }),
     ).not.toBeInTheDocument();
   });
+
+  it("past_due owner: CTA Gestionar suscripción en DetailAlertCard.action", async () => {
+    const onManage = vi.fn();
+    mockedApi.getTenantSubscription.mockResolvedValue({
+      ...subscription,
+      status: "past_due",
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TenantGovernanceControls
+          tenant={{ ...baseTenant, subscriptionStatus: "past_due" }}
+          canMutate
+          onManageSubscription={onManage}
+        />
+      </QueryClientProvider>,
+    );
+
+    const cta = await screen.findByRole("button", {
+      name: platformCopy.tenants.detail.governance.grace.openSubscription,
+    });
+    cta.click();
+    expect(onManage).toHaveBeenCalled();
+  });
 });

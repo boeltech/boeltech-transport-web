@@ -1,13 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { RefreshCw, Wallet } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  Wallet,
+} from "lucide-react";
 import { PlatformPageShell } from "../layout/PlatformPageShell";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { MonthField } from "@shared/ui/form";
-import { Label } from "@shared/ui/label";
 import { AlertWithIcon } from "@shared/ui/alert";
+import {
+  DetailAlertCard,
+  type DetailAlertSeverity,
+} from "@shared/ui/data-display";
 import {
   Table,
   TableBody,
@@ -16,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@shared/ui/table";
+import type { ActiveFilterChip } from "@shared/ui/listing";
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
@@ -41,7 +49,7 @@ import {
   formatBillingPriceCents,
 } from "../utils/platformBillingFormatters";
 import { resolveClosedPeriodKeyForCloseRun } from "../utils/billingPeriod";
-import { ArTenantFilter } from "../components/ArTenantFilter";
+import { PlatformArListFilters } from "../components/PlatformArListFilters";
 import { PlatformArRowActions } from "../components/PlatformArRowActions";
 import { IssueSaasInvoiceSheet } from "../components/IssueSaasInvoiceSheet";
 import { MarkSaasInvoicePaidSheet } from "../components/MarkSaasInvoicePaidSheet";
@@ -53,6 +61,38 @@ import {
   chargeRunNeedsAttention,
   resolveAutoChargeChip,
 } from "../utils/autoChargeChip";
+
+function ArJobBanner({
+  severity,
+  title,
+  children,
+  action,
+}: {
+  severity: DetailAlertSeverity;
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
+  const icon =
+    severity === "critical" ? (
+      <AlertCircle className="h-5 w-5" aria-hidden />
+    ) : severity === "warning" ? (
+      <AlertTriangle className="h-5 w-5" aria-hidden />
+    ) : (
+      <Info className="h-5 w-5" aria-hidden />
+    );
+  return (
+    <DetailAlertCard
+      className="mb-4"
+      severity={severity}
+      icon={icon}
+      title={title}
+      action={action}
+    >
+      {children}
+    </DetailAlertCard>
+  );
+}
 
 type ArView = "pending" | "overdue" | "all" | "exceptions";
 
@@ -372,6 +412,62 @@ export function PlatformArLedgerPage() {
     });
   };
 
+  const activePanelFilterCount =
+    Number(!!periodKeyParam) + Number(!!tenantIdParam);
+  const hasPanelFilters = activePanelFilterCount > 0;
+
+  const tenantChipLabel = (() => {
+    if (!tenantIdParam) return "";
+    const fromInvoice = invoiceRows.find(
+      (row) => row.tenantId === tenantIdParam,
+    );
+    if (fromInvoice) return fromInvoice.tenantName;
+    const fromException = closeRunItems.find(
+      (item) => item.tenantId === tenantIdParam,
+    );
+    if (fromException) return fromException.tenantName;
+    return tenantIdParam.slice(0, 8);
+  })();
+
+  const activeFilterChips: ActiveFilterChip[] = [];
+  if (periodKeyParam) {
+    activeFilterChips.push({
+      id: "period",
+      label: copy.filters.periodChip(formatBillingPeriodKey(periodKeyParam)),
+      onRemove: () => setParam("period_key", ""),
+    });
+  }
+  if (tenantIdParam) {
+    activeFilterChips.push({
+      id: "tenant",
+      label: copy.filters.tenantChip(tenantChipLabel),
+      onRemove: () => setParam("tenant_id", ""),
+    });
+  }
+
+  const handleRefresh = () => {
+    void Promise.all([
+      refetch(),
+      viewCounts.refetch(),
+      closeRunQuery.refetch(),
+      chargeRunQuery.refetch(),
+    ]).then(() => toast({ title: copy.refreshToast, variant: "success" }));
+  };
+
+  const closeRunMeta = closeRun
+    ? [
+        copy.closeRun.periodLabel(
+          formatBillingPeriodKey(closeRun.periodKey),
+        ),
+        closeRun.run.ranAt
+          ? copy.closeRun.ranAt(formatDateTime(closeRun.run.ranAt))
+          : null,
+        copy.closeRun.csvCaption,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+
   return (
     <PlatformPageShell title={copy.title} description={copy.description}>
       {!canMutate ? (
@@ -383,27 +479,18 @@ export function PlatformArLedgerPage() {
       ) : null}
 
       {closeRunQuery.isLoading ? (
-        <AlertWithIcon
-          className="mb-4"
-          variant="info"
-          title={copy.closeRun.loading}
-        />
+        <ArJobBanner severity="info" title={copy.closeRun.loading} />
       ) : closeRunQuery.isError ? (
-        <AlertWithIcon
-          className="mb-4"
-          variant="warning"
-          title={copy.closeRun.errorTitle}
-        >
-          {copy.closeRun.errorDescription}
-        </AlertWithIcon>
+        <ArJobBanner severity="warning" title={copy.closeRun.errorTitle}>
+          <p>{copy.closeRun.errorDescription}</p>
+        </ArJobBanner>
       ) : closeRun ? (
-        <AlertWithIcon
-          className="mb-4"
-          variant={
+        <ArJobBanner
+          severity={
             !closeRun.run.ran
               ? "info"
               : closeRun.counts.actionable === 0
-                ? "success"
+                ? "info"
                 : "warning"
           }
           title={
@@ -412,6 +499,20 @@ export function PlatformArLedgerPage() {
               : closeRun.counts.actionable === 0
                 ? copy.closeRun.zeroTitle
                 : copy.closeRun.actionableTitle(closeRun.counts.actionable)
+          }
+          action={
+            closeRun.run.ran &&
+            closeRun.counts.actionable > 0 &&
+            !isExceptionsView ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setView("exceptions")}
+              >
+                {copy.closeRun.viewExceptions}
+              </Button>
+            ) : undefined
           }
         >
           <p>
@@ -423,69 +524,47 @@ export function PlatformArLedgerPage() {
                   ? copy.closeRun.actionableOnExceptions
                   : copy.closeRun.actionableDescription}
           </p>
-          {closeRun.run.ran &&
-          closeRun.counts.actionable > 0 &&
-          !isExceptionsView ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="mt-2"
-              onClick={() => setView("exceptions")}
-            >
-              {copy.closeRun.viewExceptions}
-            </Button>
+          {closeRunMeta ? (
+            <p className="mt-1 text-xs text-muted-foreground">{closeRunMeta}</p>
           ) : null}
-          <p className="mt-1 text-xs text-muted-foreground">
-            {[
-              copy.closeRun.periodLabel(
-                formatBillingPeriodKey(closeRun.periodKey),
-              ),
-              closeRun.run.ranAt
-                ? copy.closeRun.ranAt(formatDateTime(closeRun.run.ranAt))
-                : null,
-              copy.closeRun.csvCaption,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        </AlertWithIcon>
+        </ArJobBanner>
       ) : (
-        <AlertWithIcon
-          className="mb-4"
-          variant="info"
-          title={copy.closeHint}
-        />
+        <ArJobBanner severity="info" title={copy.closeHint} />
       )}
 
       {chargeRunQuery.isLoading ? (
-        <AlertWithIcon
-          className="mb-4"
-          variant="info"
-          title={copy.chargeRun.loading}
-        />
+        <ArJobBanner severity="info" title={copy.chargeRun.loading} />
       ) : chargeRunQuery.isError ? (
-        <AlertWithIcon
-          className="mb-4"
-          variant="warning"
-          title={copy.chargeRun.errorTitle}
-        >
-          {copy.chargeRun.errorDescription}
-        </AlertWithIcon>
+        <ArJobBanner severity="warning" title={copy.chargeRun.errorTitle}>
+          <p>{copy.chargeRun.errorDescription}</p>
+        </ArJobBanner>
       ) : chargeRun ? (
-        <AlertWithIcon
-          className="mb-4"
-          variant={
+        <ArJobBanner
+          severity={
             !chargeRun.run.ran
               ? "info"
               : chargeNeedsAttention
                 ? "warning"
-                : "success"
+                : "info"
           }
           title={
             !chargeRun.run.ran
               ? copy.chargeRun.notYetTitle
               : copy.chargeRun.ranTitle
+          }
+          action={
+            chargeRun.run.ran &&
+            chargeNeedsAttention &&
+            activeView !== "pending" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setView("pending")}
+              >
+                {copy.chargeRun.viewPending}
+              </Button>
+            ) : undefined
           }
         >
           <p>
@@ -500,23 +579,12 @@ export function PlatformArLedgerPage() {
           {chargeRun.run.ran ? (
             <p className="mt-1">{copy.chargeRun.countsLine(chargeRun.counts)}</p>
           ) : null}
-          {chargeRun.run.ran && chargeNeedsAttention && !activeView.startsWith("pending") ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="mt-2"
-              onClick={() => setView("pending")}
-            >
-              {copy.chargeRun.viewPending}
-            </Button>
-          ) : null}
           {chargeRun.run.ranAt ? (
             <p className="mt-1 text-xs text-muted-foreground">
               {copy.chargeRun.ranAt(formatDateTime(chargeRun.run.ranAt))}
             </p>
           ) : null}
-        </AlertWithIcon>
+        </ArJobBanner>
       ) : null}
 
       <ListPageShell<PlatformCloseRunItem | PlatformSaasArRow>
@@ -540,16 +608,16 @@ export function PlatformArLedgerPage() {
         onPageChange={(nextPage) => setParam("page", String(nextPage))}
         toolbar={{
           extraActions: showToolbarIssue ? (
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => setIssueTenantId(tenantIdParam)}
-              >
-                {copy.actions.issue}
-              </Button>
-            ) : undefined,
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setIssueTenantId(tenantIdParam)}
+            >
+              {copy.actions.issue}
+            </Button>
+          ) : undefined,
           filters: (
-            <div className="flex w-full min-w-0 flex-col gap-3">
+            <>
               <div
                 className="flex flex-wrap gap-1"
                 role="group"
@@ -574,88 +642,61 @@ export function PlatformArLedgerPage() {
                     typeof count === "number" &&
                     count > 0;
                   return (
-                  <Button
-                    key={view}
-                    type="button"
-                    size="sm"
-                    variant={
-                      exceptionsNeedAttention
-                        ? "warning"
-                        : activeView === view
-                          ? "default"
-                          : "outline"
-                    }
-                    className={cn(activeView === view && "pointer-events-none")}
-                    aria-pressed={activeView === view}
-                    aria-label={
-                      count == null
+                    <Button
+                      key={view}
+                      type="button"
+                      size="sm"
+                      variant={
+                        exceptionsNeedAttention
+                          ? "warning"
+                          : activeView === view
+                            ? "default"
+                            : "outline"
+                      }
+                      className={cn(
+                        activeView === view && "pointer-events-none",
+                      )}
+                      aria-pressed={activeView === view}
+                      aria-label={
+                        count == null
+                          ? label
+                          : copy.views.chipAria(label, count)
+                      }
+                      onClick={() => setView(view)}
+                    >
+                      {count == null
                         ? label
-                        : copy.views.chipAria(label, count)
-                    }
-                    onClick={() => setView(view)}
-                  >
-                    {count == null
-                      ? label
-                      : copy.views.chipWithCount(label, count)}
-                  </Button>
+                        : copy.views.chipWithCount(label, count)}
+                    </Button>
                   );
                 })}
               </div>
-              <div className="flex w-full min-w-0 flex-wrap items-end gap-3">
-                <div className="flex min-w-[12rem] flex-col gap-1.5">
-                  <Label htmlFor="ar-period-key">{copy.filters.periodKey}</Label>
-                  <MonthField
-                    id="ar-period-key"
-                    className="h-9 w-[12rem]"
-                    placeholder={copy.filters.periodKeyPlaceholder}
-                    value={periodKeyParam}
-                    onChange={(next) => setParam("period_key", next)}
-                    clearable
-                  />
-                </div>
-                <div className="flex min-w-[13.75rem] flex-col gap-1.5">
-                  <Label htmlFor="ar-tenant-filter">{copy.filters.tenant}</Label>
-                  <ArTenantFilter
-                    id="ar-tenant-filter"
-                    value={tenantIdParam}
-                    onChange={(id) => setParam("tenant_id", id)}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="ml-auto h-9 w-9 shrink-0"
-                  onClick={() => {
-                    void Promise.all([
-                      refetch(),
-                      viewCounts.refetch(),
-                      closeRunQuery.refetch(),
-                      chargeRunQuery.refetch(),
-                    ]).then(() =>
-                      toast({ title: copy.refreshToast, variant: "success" }),
-                    );
-                  }}
-                  disabled={
-                    isFetching ||
-                    closeRunQuery.isFetching ||
-                    chargeRunQuery.isFetching
-                  }
-                  aria-label={copy.refreshAria}
-                >
-                  <RefreshCw
-                    className={cn(
-                      "h-4 w-4",
-                      (isFetching ||
-                        closeRunQuery.isFetching ||
-                        chargeRunQuery.isFetching) &&
-                        "animate-spin",
-                    )}
-                  />
-                </Button>
-              </div>
-            </div>
+              <PlatformArListFilters
+                key={hasPanelFilters ? "filters-active" : "filters-idle"}
+                periodKey={periodKeyParam}
+                tenantId={tenantIdParam}
+                activePanelFilterCount={activePanelFilterCount}
+                onPeriodKeyChange={(next) => setParam("period_key", next)}
+                onTenantIdChange={(id) => setParam("tenant_id", id)}
+              />
+            </>
           ),
+          onRefresh: handleRefresh,
+          isRefreshing:
+            isFetching ||
+            closeRunQuery.isFetching ||
+            chargeRunQuery.isFetching,
+          activeFilterChips,
+          hasFilters: hasPanelFilters,
+          onClearFilters: () => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete("period_key");
+              next.delete("tenant_id");
+              next.delete("page");
+              return next;
+            });
+          },
         }}
         emptyState={{
           icon: <Wallet className="h-10 w-10" />,

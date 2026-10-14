@@ -199,6 +199,7 @@ export function PlatformTenantDetailPage() {
         alerts={
           tenant ? (
             <TenantCommercialStatusStrip
+              tenantId={tenant.id}
               accessStatus={tenant.status}
               subscriptionStatus={
                 subscription?.status ?? tenant.subscriptionStatus

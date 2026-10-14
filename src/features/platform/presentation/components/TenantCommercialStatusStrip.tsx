@@ -1,6 +1,8 @@
-import { Info } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, Info } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
-import { AlertWithIcon } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   Tooltip,
   TooltipContent,
@@ -22,6 +24,7 @@ import { platformCopy } from "../copy/platformCopy";
 import { getPlatformSubscriptionStatusLabel } from "../utils/platformBillingFormatters";
 
 export interface TenantCommercialStatusStripProps {
+  tenantId: string;
   accessStatus: PlatformTenantStatusType;
   subscriptionStatus: string | null;
   planName: string | null;
@@ -36,6 +39,7 @@ export interface TenantCommercialStatusStripProps {
  * Acceso = tenants.status; Suscripción = subscription.status; lifecycle = tooltip only.
  */
 export function TenantCommercialStatusStrip({
+  tenantId,
   accessStatus,
   subscriptionStatus,
   planName,
@@ -116,13 +120,26 @@ export function TenantCommercialStatusStrip({
       </div>
 
       {isPastDue ? (
-        <AlertWithIcon variant="warning" title={copy.pastDueOperating}>
+        <DetailAlertCard
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+          title={copy.pastDueOperating}
+          action={
+            <Button size="sm" variant="outline" asChild>
+              <Link
+                to={`/platform/billing/ar?tenant_id=${encodeURIComponent(tenantId)}`}
+              >
+                {copy.viewAr}
+              </Link>
+            </Button>
+          }
+        >
           <p className="text-sm">
             {graceDeadlineLabel
               ? copy.graceRef(graceDeadlineLabel)
               : copy.graceMissing}
           </p>
-        </AlertWithIcon>
+        </DetailAlertCard>
       ) : null}
 
       {isTrialing && trialEndsAt ? (

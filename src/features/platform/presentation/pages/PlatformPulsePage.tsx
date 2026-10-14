@@ -1,13 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
 import {
+  AlertCircle,
   AlertTriangle,
   Building2,
   CircleDollarSign,
   FlaskConical,
   Wallet,
 } from "lucide-react";
-import { StatCard } from "@shared/ui/data-display";
+import { DetailAlertCard, StatCard } from "@shared/ui/data-display";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import {
   Card,
   CardContent,
@@ -16,7 +18,6 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
-import { AlertWithIcon } from "@shared/ui/alert";
 import { EmptyState } from "@shared/ui/feedback-states";
 import {
   Table,
@@ -42,16 +43,32 @@ function reasonLabel(code: string): string {
 export function PlatformPulsePage() {
   const copy = platformCopy.pulse;
   const navigate = useNavigate();
-  const { data: pulse, isLoading, isError } = usePlatformPulse();
+  const { data: pulse, isLoading, isError, refetch } = usePlatformPulse();
 
   const kpis = pulse?.kpis;
 
   return (
     <PlatformPageShell title={copy.title} description={copy.description}>
       {isError ? (
-        <AlertWithIcon variant="destructive" title={copy.error.title}>
-          {copy.error.description}
-        </AlertWithIcon>
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={copy.error.title}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              {copy.error.retry}
+            </Button>
+          }
+        >
+          <p>{copy.error.description}</p>
+        </DetailAlertCard>
       ) : null}
 
       {pulse?.generatedAt ? (

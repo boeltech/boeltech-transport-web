@@ -3,9 +3,9 @@ import { Database, Upload } from "lucide-react";
 import { PlatformPageShell } from "../layout/PlatformPageShell";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
-import { Card, CardContent } from "@shared/ui/card";
+import { Card, CardContent, CardHeader } from "@shared/ui/card";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { ListingSearchInput } from "@shared/ui/listing";
+import { EntityListCard, ListingSearchInput } from "@shared/ui/listing";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
   Table,
@@ -119,14 +119,16 @@ function CatalogRows({
         {types.map((type) => {
           const meta = metaByCode.get(type.code);
           return (
-            <li key={type.code} className="rounded-lg border p-4">
-              <div className="space-y-3">
-                <div>
+            <li key={type.code}>
+              <EntityListCard className="cursor-default">
+                <CardHeader className="pb-2">
                   <p className="font-medium">{getCatalogDisplayName(type)}</p>
                   <p className="font-mono text-xs text-muted-foreground">
                     {type.code}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  <p className="text-xs text-muted-foreground">
                     {copy.table.columns.version}:{" "}
                     {meta?.version ?? copy.table.versionEmpty}
                     {" · "}
@@ -135,18 +137,18 @@ function CatalogRows({
                       ? meta.itemCount.toLocaleString("es-MX")
                       : copy.table.itemsEmpty}
                   </p>
-                </div>
-                {canImport ? (
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    onClick={() => onImport(type.code)}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {copy.import}
-                  </Button>
-                ) : null}
-              </div>
+                  {canImport ? (
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => onImport(type.code)}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {copy.import}
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </EntityListCard>
             </li>
           );
         })}
