@@ -4,11 +4,12 @@
  *
  * Tarjeta para mostrar información resumida de un conductor.
  * Usado en la vista de cards del listado.
+ * Menú ⋯ vía EntityListCard (usable sin hover — D4).
  *
  * Ubicación: src/features/drivers/presentation/components/DriverCard.tsx
  */
 
-import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
+import { CardContent, CardFooter, CardHeader } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
+import {
+  EntityListCard,
+  entityListCardMenuTriggerClassName,
+} from "@shared/ui/listing";
 import {
   User,
   MoreVertical,
@@ -29,7 +34,7 @@ import {
   Truck,
   AlertTriangle,
 } from "lucide-react";
-import type { DriverListItem, DriverStatusType } from "../../domain";
+import type { DriverListItem } from "../../domain";
 import {
   getDriverLicenseJurisdiction,
   getDriverPrimaryLicenseExpiry,
@@ -44,6 +49,7 @@ import { driversCopy } from "../copy";
 
 const rfcMissingChip = driversCopy.detail.alert.rfcMissing.chip;
 const jurisdictionCopy = driversCopy.list.jurisdiction;
+const cardCopy = driversCopy.list.card;
 
 // ============================================================================
 // TYPES
@@ -54,7 +60,6 @@ interface DriverCardProps {
   onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onChangeStatus?: (id: string, status: DriverStatusType) => void;
 }
 
 // ============================================================================
@@ -87,10 +92,7 @@ export function DriverCard({
     : false;
 
   return (
-    <Card
-      className="group cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
-      onClick={() => onView(driver.id)}
-    >
+    <EntityListCard onClick={() => onView(driver.id)}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           {/* Avatar & Name */}
@@ -115,17 +117,17 @@ export function DriverCard({
             </div>
           </div>
 
-          {/* Actions Menu */}
+          {/* Actions Menu — visible en touch sin hover (EntityListCard) */}
           {hasActions && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className={entityListCardMenuTriggerClassName}
                 >
                   <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Acciones</span>
+                  <span className="sr-only">{cardCopy.actionsAria}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -243,11 +245,11 @@ export function DriverCard({
               onView(driver.id);
             }}
           >
-            Ver más
+            {cardCopy.viewMore}
             <Eye className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </CardFooter>
-    </Card>
+    </EntityListCard>
   );
 }

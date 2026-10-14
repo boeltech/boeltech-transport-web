@@ -5,13 +5,14 @@
  * Edición de conductor existente (FormPageShell + DriverForm).
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
+import { UnsavedChangesDialog } from "@shared/ui/form";
 import { UserCog, User } from "lucide-react";
-import { useToast } from "@shared/hooks";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import {
   getErrorMessage,
   isApiError,
@@ -42,6 +43,11 @@ export function DriverEditPage() {
   const { toast } = useToast();
   const formRef = useRef<DriverFormRef>(null);
   const driverId = id || "";
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const { data: driver, isLoading, isError } = useDriver(driverId);
 
@@ -84,16 +90,28 @@ export function DriverEditPage() {
     },
   });
 
+  useEffect(() => {
+    if (updateMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [updateMutation.isPending, resetAllowLeave]);
+
   const handleSubmit = useCallback(
     (data: DriverFormData) => {
       if (!driver) return;
       formRef.current?.clearApiErrors();
+      allowLeave();
       updateMutation.mutate({
         id: driverId,
         data: driverFormDataToUpdateDriverDTO(data),
       });
     },
-    [driver, driverId, updateMutation],
+    [allowLeave, driver, driverId, updateMutation],
   );
 
   const handleCancel = useCallback(() => {
@@ -147,9 +165,11 @@ export function DriverEditPage() {
           driver={driver}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          onDirtyChange={setIsDirty}
           isSubmitting={updateMutation.isPending}
         />
       ) : null}
+      <UnsavedChangesDialog blocker={blocker} />
     </FormPageShell>
   );
 }

@@ -65,6 +65,8 @@ export const driversCopy = {
       stateLicenseLabel: "Licencia estatal",
       medicalLabel: "Certificado médico",
       viewDocuments: "Ver documentación",
+      goToDocuments: "Ir a Documentos",
+      goToEdit: "Editar conductor",
       rfcMissing: {
         title: "RFC del empleado pendiente",
         body: "El conductor puede asignarse a un viaje. Al timbrar Carta Porte se exige el RFC en el expediente del empleado.",
@@ -102,6 +104,17 @@ export const driversCopy = {
         expiringBody: (examDate: string, daysLeft: number) =>
           `Quedan ${daysLeft} días antes de superar el periodo de 180 días desde el último examen (${examDate}).`,
       },
+    },
+    statusChange: {
+      title: "Cambiar estado del conductor",
+      description: (driverName: string, fromLabel: string, toLabel: string) =>
+        `El conductor ${driverName} pasará de ${fromLabel} a ${toLabel}.`,
+      cancel: "Cancelar",
+      confirm: "Confirmar cambio",
+      errorTitle: "No se pudo cambiar el estado",
+      successTitle: "Estado actualizado",
+      successDescription: (driverName: string, statusLabel: string) =>
+        `${driverName} ahora está ${statusLabel}`,
     },
     section: {
       contact: {
@@ -241,6 +254,10 @@ export const driversCopy = {
     table: {
       branch: "Sucursal",
     },
+    card: {
+      viewMore: "Ver más",
+      actionsAria: "Acciones",
+    },
     filters: {
       branch: "Sucursal",
       allBranches: "Todas las sucursales",
@@ -283,13 +300,20 @@ export const driversCopy = {
         successDescription: "Los cambios se guardaron correctamente.",
         errorTitle: "No se pudo guardar",
       },
+      sidebar: {
+        title: "Secciones",
+        errorsTitle: (count: number, label: string) =>
+          `${count} error${count === 1 ? "" : "es"} en ${label}`,
+        errorsAria: (count: number) => `${count} errores`,
+      },
       employeeBanner: {
-        title: "Empleado vinculado",
+        title: "Empleado vinculado (no editable aquí)",
         description:
-          "Nombre, contacto y datos fiscales se editan en el perfil del empleado, no en este formulario.",
+          "Nombre, contacto y datos fiscales se editan en el perfil del empleado.",
         viewProfile: "Ver perfil del empleado",
       },
     },
+
     create: {
       title: "Registrar Conductor",
       subtitle:
@@ -345,6 +369,7 @@ export const driversCopy = {
     section: {
       employee: {
         title: "Empleado",
+        nav: "Empleado",
         description: "Selecciona el colaborador que operará unidades en campo.",
       },
       license: {
@@ -354,37 +379,45 @@ export const driversCopy = {
       },
       licenseFederal: {
         title: "Licencia federal (SICT)",
+        nav: "Lic. federal",
         description:
           "Número, categoría A–F y vencimiento. Es el NumLicencia de Carta Porte. Completa las tres o déjalas vacías.",
       },
       licenseState: {
         title: "Licencia estatal (opcional)",
+        nav: "Lic. estatal",
         description:
           "Complemento para operación local. Completa número, vencimiento y estado emisor, o déjalas vacías.",
       },
       medical: {
         title: "Certificado médico (opcional)",
+        nav: "Médico",
         description:
           "Examen de aptitud física. Opcional; no bloquea el alta ni el despacho.",
       },
       psychometric: {
         title: "Examen psicométrico (opcional)",
+        nav: "Psicométrico",
         description: "Evaluación psicológica y de aptitudes al volante.",
       },
       drugTest: {
         title: "Examen antidoping (opcional)",
+        nav: "Antidoping",
         description:
           "Última prueba registrada; vigencia estimada de 180 días.",
       },
       device: {
         title: "Dispositivo GPS",
+        nav: "Dispositivo",
         description: "Identificador del rastreador o telemetría asignado.",
       },
       notes: {
         title: "Notas internas",
+        nav: "Notas",
         description:
           "Restricciones operativas, observaciones o certificaciones adicionales.",
       },
+
       review: {
         title: "Revisión",
         description: "Confirma los datos antes de registrar al conductor.",
@@ -434,10 +467,12 @@ export const driversCopy = {
     action: {
       cancel: "Cancelar",
       save: "Guardar cambios",
+      saving: "Guardando…",
       register: "Registrar conductor",
       clearFederal: "Quitar licencia federal",
       clearState: "Quitar licencia estatal",
     },
+
     validation: {
       summaryEdit: "Revisa los siguientes campos",
       summaryWizard: "Revisa la información del conductor",

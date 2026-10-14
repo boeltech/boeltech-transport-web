@@ -17,6 +17,7 @@ import {
   DetailAlertCard,
   type DetailAlertCardItem,
 } from "@shared/ui/data-display";
+import { Button } from "@shared/ui/button";
 import type { MappedPaginatedResult } from "@shared/api";
 import {
   User,
@@ -56,6 +57,7 @@ import {
   getDaysUntilDateString,
   getExpiryDateString,
 } from "@shared/utils/dateUtils";
+import { usePermissions } from "@shared/permissions";
 
 const copy = driversCopy.detail;
 
@@ -67,10 +69,6 @@ function isEmployeeRfcMissing(rfc: string | null | undefined): boolean {
   return !rfc?.trim();
 }
 
-function documentsTabHref(driverId: string): string {
-  return `/drivers/${driverId}?tab=documents`;
-}
-
 export function DriverDetailPage() {
   const { id } = useParams<{ id: string }>();
   const driverId = id || "";
@@ -79,6 +77,8 @@ export function DriverDetailPage() {
     copy.state.backToList,
   );
   const { activeTab, setActiveTab } = useTabParam(DRIVER_DETAIL_TABS, "driver");
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission("drivers", "update");
 
   const {
     data: driver,
@@ -221,16 +221,23 @@ export function DriverDetailPage() {
   const rfcMissing = isEmployeeRfcMissing(driver.employee?.rfc);
   const showAlerts = hasDocumentAlerts || rfcMissing;
 
-  const viewDocumentsCta: DetailAlertCardItem = {
-    text: (
-      <Link
-        to={documentsTabHref(driver.id)}
-        className="font-medium text-primary underline-offset-4 hover:underline"
+  const documentsAlertAction = (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => setActiveTab("documents")}
       >
-        {copy.alert.viewDocuments}
-      </Link>
-    ),
-  };
+        {copy.alert.goToDocuments}
+      </Button>
+      {canEdit ? (
+        <Button type="button" size="sm" variant="outline" asChild>
+          <Link to={`/drivers/${driver.id}/edit`}>{copy.alert.goToEdit}</Link>
+        </Button>
+      ) : null}
+    </>
+  );
 
   const licenseMedicalAlertItems: DetailAlertCardItem[] = [];
   if (isFederalLicenseExpired || isFederalLicenseExpiringSoon) {
@@ -274,9 +281,6 @@ export function DriverDetailPage() {
             formatDate(driver.medicalCertificateExpiry!),
           ),
     });
-  }
-  if (licenseMedicalAlertItems.length > 0) {
-    licenseMedicalAlertItems.push(viewDocumentsCta);
   }
 
   const licenseMedicalAlertSeverity: "critical" | "warning" =
@@ -349,21 +353,8 @@ export function DriverDetailPage() {
                 severity="info"
                 icon={<Info className="h-5 w-5" />}
                 title={copy.alert.rfcMissing.title}
-                items={[
-                  { text: copy.alert.rfcMissing.body },
-                  {
-                    text: (
-                      <>
-                        <Link
-                          to={`/employees/${driver.employeeId}`}
-                          className="font-medium text-primary underline-offset-4 hover:underline"
-                        >
-                          {copy.alert.rfcMissing.editEmployee}
-                        </Link>
-                      </>
-                    ),
-                  },
-                ]}
+                items={[{ text: copy.alert.rfcMissing.body }]}
+                action={documentsAlertAction}
               />
             ) : null}
 
@@ -373,6 +364,7 @@ export function DriverDetailPage() {
                 icon={<ClipboardCheck className="h-5 w-5" />}
                 title={licenseMedicalAlertTitle}
                 items={licenseMedicalAlertItems}
+                action={documentsAlertAction}
               />
             ) : null}
 
@@ -407,8 +399,8 @@ export function DriverDetailPage() {
                           daysUntilDrugEstimatedExpiry!,
                         ),
                   },
-                  viewDocumentsCta,
                 ]}
+                action={documentsAlertAction}
               />
             ) : null}
           </div>

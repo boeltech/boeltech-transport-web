@@ -18,7 +18,7 @@ import {
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
 import { AlertTriangle } from "lucide-react";
-import type { DriverListItem, DriverStatusType } from "../../domain";
+import type { DriverListItem } from "../../domain";
 import {
   LICENSE_TYPE_LABELS,
   getDriverLicenseJurisdiction,
@@ -48,7 +48,6 @@ interface DriverTableProps {
   onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onChangeStatus?: (id: string, status: DriverStatusType) => void;
 }
 
 // ============================================================================
@@ -122,18 +121,6 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center">
-          No se encontraron conductores.
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
-}
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -144,7 +131,6 @@ export function DriverTable({
   onView,
   onEdit,
   onDelete,
-  onChangeStatus,
 }: DriverTableProps) {
   // Loading state
   if (isLoading) {
@@ -158,16 +144,9 @@ export function DriverTable({
     );
   }
 
-  // Empty state
+  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D5).
   if (drivers.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeaderRow />
-          <EmptyState />
-        </Table>
-      </div>
-    );
+    return null;
   }
 
   // Data table
@@ -312,7 +291,6 @@ export function DriverTable({
                     onView={onView}
                     onEdit={onEdit}
                     onDelete={onDelete}
-                    onChangeStatus={onChangeStatus}
                   />
                 </TableCell>
               </TableRow>

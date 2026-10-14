@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { VehicleDetailPage } from "./VehicleDetailPage";
 import { EditVehiclePage } from "./EditVehiclePage";
 import { vehiclesCopy } from "../copy/vehiclesCopy";
@@ -103,14 +103,15 @@ const inactiveVehicle = () =>
   });
 
 function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/vehicles/:id" element={<VehicleDetailPage />} />
-        <Route path="/vehicles/:id/edit" element={<EditVehiclePage />} />
-      </Routes>
-    </MemoryRouter>,
+  // Data router required: EditVehiclePage uses useUnsavedChangesGuard → useBlocker.
+  const router = createMemoryRouter(
+    [
+      { path: "/vehicles/:id", element: <VehicleDetailPage /> },
+      { path: "/vehicles/:id/edit", element: <EditVehiclePage /> },
+    ],
+    { initialEntries: [path] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 const dCopy = vehiclesCopy.detail.deactivated;

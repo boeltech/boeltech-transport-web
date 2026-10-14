@@ -5,11 +5,13 @@
  * Menú de acciones para un conductor individual.
  * Soporta dos modos de uso:
  *
- * 1. Con objeto driver (para DriverTable):
+ * 1. Con objeto driver (para DriverTable / DriverCard):
  *    <DriverActions driver={driver} onView={...} onEdit={...} />
  *
  * 2. Con props individuales (para DriverDetailPage):
  *    <DriverActions driverId={id} driverName={name} status={status} variant="buttons" />
+ *
+ * Cambio de estado operativo: solo en detalle (`variant="buttons"`) — D1.
  *
  * Ubicación: src/features/drivers/presentation/components/DriverActions.tsx
  */
@@ -36,8 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@shared/ui/dialog";
-import { Label } from "@shared/ui/label";
-import { Textarea } from "@shared/ui/text-area";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,13 +46,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@shared/ui/select";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import { useUpdateDriverStatus, useDeleteDriver } from "../../application";
@@ -63,6 +57,7 @@ import {
   type Driver,
   type DriverStatusType,
 } from "../../domain";
+import { driversCopy } from "../copy";
 import {
   MoreHorizontal,
   Eye,
@@ -113,8 +108,6 @@ interface CommonProps {
   onEdit?: (id: string) => void;
   /** Callback para eliminar (solo en modo dropdown desde tabla) */
   onDelete?: (id: string) => void;
-  /** Callback para cambio de estado (solo en modo dropdown desde tabla) */
-  onChangeStatus?: (id: string, status: DriverStatusType) => void;
   /** Callback después de una acción exitosa (usado en DriverDetailPage) */
   onActionComplete?: () => void;
 }
@@ -157,6 +150,8 @@ const STATUS_ACTION_CONFIG: Record<
   },
 };
 
+const statusCopy = driversCopy.detail.statusChange;
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -167,7 +162,6 @@ export function DriverActions(props: DriverActionsProps) {
     onView,
     onEdit,
     onDelete,
-    onChangeStatus,
     onActionComplete,
   } = props;
 
@@ -196,12 +190,11 @@ export function DriverActions(props: DriverActionsProps) {
   const [statusDialog, setStatusDialog] = useState<{
     open: boolean;
     targetStatus: DriverStatusType | null;
-    reason: string;
   }>({
     open: false,
     targetStatus: null,
-    reason: "",
   });
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // ══════════════════════════════════════════════════════════════════════════
   // MUTATIONS (solo para variant="buttons")
@@ -209,20 +202,21 @@ export function DriverActions(props: DriverActionsProps) {
 
   const updateStatusMutation = useUpdateDriverStatus({
     onSuccess: () => {
+      const target = statusDialog.targetStatus;
       toast({
-        title: "Estado actualizado",
-        description: `${name} ahora está ${DRIVER_STATUS_LABELS[statusDialog.targetStatus!] || statusDialog.targetStatus}`,
+        title: statusCopy.successTitle,
+        description: statusCopy.successDescription(
+          name,
+          (target && DRIVER_STATUS_LABELS[target]) || target || "",
+        ),
         variant: "success",
       });
-      setStatusDialog({ open: false, targetStatus: null, reason: "" });
+      setStatusError(null);
+      setStatusDialog({ open: false, targetStatus: null });
       onActionComplete?.();
     },
     onError: (error) => {
-      toast({
-        title: "Error al actualizar estado",
-        description: error.message,
-        variant: "destructive",
-      });
+      setStatusError(error.message);
     },
   });
 
@@ -265,27 +259,30 @@ export function DriverActions(props: DriverActionsProps) {
 
   const handleStatusConfirm = () => {
     if (!statusDialog.targetStatus) return;
+    setStatusError(null);
     updateStatusMutation.mutate({
       id,
       data: {
         status: statusDialog.targetStatus,
-        reason: statusDialog.reason || undefined,
       },
     });
   };
 
   const openStatusDialog = (targetStatus: DriverStatusType) => {
-    setStatusDialog({ open: true, targetStatus, reason: "" });
+    setStatusError(null);
+    setStatusDialog({ open: true, targetStatus });
+  };
+
+  const closeStatusDialog = () => {
+    setStatusError(null);
+    setStatusDialog({ open: false, targetStatus: null });
   };
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: DROPDOWN MODE (para DriverTable)
+  // RENDER: DROPDOWN MODE (para DriverTable) — sin cambio de estado (D1)
   // ══════════════════════════════════════════════════════════════════════════
 
   if (variant === "dropdown") {
-    const hasStatusActions =
-      canUpdate && onChangeStatus && availableTransitions.length > 0;
-
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -295,7 +292,6 @@ export function DriverActions(props: DriverActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {/* Ver detalles */}
           {onView && (
             <DropdownMenuItem onClick={() => onView(id)}>
               <Eye className="mr-2 h-4 w-4" />
@@ -303,7 +299,6 @@ export function DriverActions(props: DriverActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {/* Editar */}
           {canUpdate && onEdit && (
             <DropdownMenuItem onClick={() => onEdit(id)}>
               <Pencil className="mr-2 h-4 w-4" />
@@ -311,29 +306,6 @@ export function DriverActions(props: DriverActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {/* Acciones de cambio de estado */}
-          {hasStatusActions && (
-            <>
-              <DropdownMenuSeparator />
-              {availableTransitions.map((targetStatus) => {
-                const config = STATUS_ACTION_CONFIG[targetStatus];
-                if (!config) return null;
-
-                const Icon = config.icon;
-                return (
-                  <DropdownMenuItem
-                    key={targetStatus}
-                    onClick={() => onChangeStatus(id, targetStatus)}
-                  >
-                    <Icon className={`mr-2 h-4 w-4 ${config.colorClass}`} />
-                    {config.label}
-                  </DropdownMenuItem>
-                );
-              })}
-            </>
-          )}
-
-          {/* Eliminar */}
           {canDeleteDriver && onDelete && (
             <>
               <DropdownMenuSeparator />
@@ -362,13 +334,17 @@ export function DriverActions(props: DriverActionsProps) {
     return null;
   }
 
+  const targetLabel = statusDialog.targetStatus
+    ? DRIVER_STATUS_LABELS[statusDialog.targetStatus]
+    : "";
+
   return (
     <>
       <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
-        {/* Editar */}
+        {/* Primaria del header = Editar (D7) */}
         {canUpdate && (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={() =>
               navigate(`/drivers/${id}/edit`, { state: fromState })
@@ -380,7 +356,6 @@ export function DriverActions(props: DriverActionsProps) {
           </Button>
         )}
 
-        {/* Cambiar Estado (dropdown dentro del modo buttons) */}
         {canUpdate && availableTransitions.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -390,7 +365,7 @@ export function DriverActions(props: DriverActionsProps) {
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                Cambiar Estado
+                Cambiar estado
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -413,13 +388,14 @@ export function DriverActions(props: DriverActionsProps) {
           </DropdownMenu>
         )}
 
-        {/* Eliminar */}
+        {/* Eliminar: outline, no primaria sólida (D7) */}
         {canDeleteDriver && (
           <Button
-            variant="destructive"
+            variant="outline"
             size="sm"
             onClick={() => setDeleteDialog({ open: true })}
             disabled={isLoading}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Eliminar
@@ -427,11 +403,6 @@ export function DriverActions(props: DriverActionsProps) {
         )}
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════════ */}
-      {/* DIALOGS                                                              */}
-      {/* ════════════════════════════════════════════════════════════════════ */}
-
-      {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={deleteDialog.open}
         onOpenChange={(open) => setDeleteDialog({ open })}
@@ -461,49 +432,35 @@ export function DriverActions(props: DriverActionsProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Status Change Dialog */}
       <Dialog
         open={statusDialog.open}
-        onOpenChange={(open) =>
-          setStatusDialog({ ...statusDialog, open, reason: "" })
-        }
+        onOpenChange={(open) => {
+          if (!open) closeStatusDialog();
+          else setStatusDialog((prev) => ({ ...prev, open }));
+        }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cambiar Estado del Conductor</DialogTitle>
+            <DialogTitle>{statusCopy.title}</DialogTitle>
             <DialogDescription>
-              El conductor <strong>{name}</strong> pasará de{" "}
-              <strong>{DRIVER_STATUS_LABELS[currentStatus]}</strong> a{" "}
-              <strong>
-                {statusDialog.targetStatus
-                  ? DRIVER_STATUS_LABELS[statusDialog.targetStatus]
-                  : ""}
-              </strong>
-              .
+              {statusCopy.description(
+                name,
+                DRIVER_STATUS_LABELS[currentStatus],
+                targetLabel,
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div>
-              <Label htmlFor="status-reason">Motivo (opcional)</Label>
-              <Textarea
-                id="status-reason"
-                placeholder="Ingrese el motivo del cambio de estado..."
-                value={statusDialog.reason}
-                onChange={(e) =>
-                  setStatusDialog({ ...statusDialog, reason: e.target.value })
-                }
-                className="mt-2"
-              />
-            </div>
-          </div>
+          {statusError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{statusCopy.errorTitle}</AlertTitle>
+              <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                {statusError}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setStatusDialog({ open: false, targetStatus: null, reason: "" })
-              }
-            >
-              Cancelar
+            <Button variant="outline" onClick={closeStatusDialog}>
+              {statusCopy.cancel}
             </Button>
             <Button
               onClick={handleStatusConfirm}
@@ -512,7 +469,7 @@ export function DriverActions(props: DriverActionsProps) {
               {updateStatusMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Confirmar Cambio
+              {statusCopy.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>

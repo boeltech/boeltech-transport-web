@@ -17,7 +17,9 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
+  useMemo,
   useState,
   type FormEvent,
 } from "react";
@@ -38,6 +40,7 @@ import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   Loader2,
+  Save,
   User,
   CreditCard,
   Stethoscope,
@@ -54,7 +57,10 @@ import {
 import { cn } from "@shared/lib/utils/cn";
 import {
   FormFieldShell,
+  FormStickyActions,
   FormValidationSummary,
+  LongFormEditLayout,
+  LongFormSectionNav,
   RHFDateField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
@@ -63,6 +69,11 @@ import { useEmployeeBasic } from "@features/employees";
 import type { Driver } from "../../domain";
 import { EmployeeSelector } from "./EmployeeSelector";
 import { DriverEditEmployeeBanner } from "./DriverEditEmployeeBanner";
+import {
+  DRIVER_EDIT_SECTION_IDS,
+  DRIVER_EDIT_SECTIONS,
+  countDriverEditSectionErrors,
+} from "./driverEditSections";
 import { driversCopy, DRIVER_ELIGIBLE_POSITION } from "../copy";
 import { resolveDriverFormField } from "../helpers/applyDriverApiFieldErrors";
 import {
@@ -109,6 +120,8 @@ interface DriverFormProps {
   /** Wizard de alta (solo creación) */
   wizardMode?: boolean;
   wizardStepIndex?: number;
+  /** Notifica dirty a la página para `useUnsavedChangesGuard` (D9). */
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 function reviewLine(label: string, value: string) {
@@ -148,14 +161,14 @@ function DriverReviewSummary({
       contentClassName="space-y-6 text-sm"
     >
       <div className="space-y-2 border-b pb-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground">
           {fc.section.review.groupEmployee}
         </p>
         {reviewLine(fc.label.employeeId, employeeLabel)}
       </div>
 
       <div className="space-y-3 border-b pb-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground">
           {fc.section.review.groupLicenseMedical}
         </p>
         <div className="space-y-4">
@@ -209,7 +222,7 @@ function DriverReviewSummary({
       </div>
 
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground">
           {fc.section.review.groupExamsDevice}
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -244,13 +257,18 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
       mode,
       wizardMode = false,
       wizardStepIndex = 0,
+      onDirtyChange,
     },
     ref,
   ) {
+  const isEditMode = mode === "edit";
   const wizardActive = Boolean(wizardMode && mode === "create");
   const ws = wizardStepIndex;
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [apiAlertMessages, setApiAlertMessages] = useState<string[]>([]);
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    DRIVER_EDIT_SECTION_IDS.employee,
+  );
 
   const {
     register,
@@ -271,9 +289,33 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
     mode: "onChange",
   });
 
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  const errorCountBySection = useMemo(
+    () => countDriverEditSectionErrors(errors),
+    [errors],
+  );
+
+  const handleEditSectionSelect = useCallback((sectionId: string) => {
+    setActiveSectionId(sectionId);
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const validationMessages = collectFieldErrorMessages(errors);
   const shouldShowValidationSummary =
     showValidationSummary && validationMessages.length > 0;
+
+  const editSectionAnchor = useCallback(
+    (sectionId: string) =>
+      isEditMode
+        ? { id: sectionId, className: "scroll-mt-28" as const }
+        : {},
+    [isEditMode],
+  );
 
   const handleFormSubmit = useCallback(
     (data: DriverFormData) => {
@@ -425,36 +467,21 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
     setValue(field, value as never, { shouldValidate: true, shouldDirty: true });
   };
 
-  return (
-    <form onSubmit={handleNativeSubmit} className="space-y-6">
-      {apiAlertMessages.length > 0 ? (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{fc.validation.apiAlertTitle}</AlertTitle>
-          <AlertDescription>
-            <ul className="mt-1 list-disc space-y-1 pl-4">
-              {apiAlertMessages.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
+  const sectionPanels = (
+    <>
+      {/* Alta: vínculo a empleado. En edición: banner inmutable (D12). */}
+      {isEditMode && driver ? (
+        <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.employee)}>
+          <DriverEditEmployeeBanner driver={driver} />
+        </div>
       ) : null}
 
-      {mode === "edit" && driver ? (
-        <DriverEditEmployeeBanner driver={driver} />
-      ) : null}
-
-      {/* Alta: vínculo a empleado. En edición el empleado no cambia (no hay selector). */}
-      {mode !== "edit" ? (
+      {!isEditMode ? (
       <div
         className={cn("space-y-6", wizardActive && ws !== 0 && "hidden")}
         data-wizard-panel="0"
         aria-hidden={wizardActive && ws !== 0}
       >
-      {/* ================================================================== */}
-      {/* INFO BANNER - Solo en modo crear                                   */}
-      {/* ================================================================== */}
       {mode === "create" && (
         <Alert>
           <Info className="h-4 w-4" />
@@ -471,9 +498,6 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         </Alert>
       )}
 
-      {/* ================================================================== */}
-      {/* SECCIÓN: EMPLEADO                                                  */}
-      {/* ================================================================== */}
       <FormSectionCard
         title={fc.section.employee.title}
         icon={<User className="h-4 w-4" />}
@@ -482,7 +506,10 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
           <EmployeeSelector
             value={watchedEmployeeId || ""}
             onChange={(value) =>
-              setValue("employeeId", value, { shouldValidate: true })
+              setValue("employeeId", value, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
             }
             error={errors.employeeId?.message}
             positionEquals={mode === "create" ? DRIVER_ELIGIBLE_POSITION : undefined}
@@ -496,9 +523,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         data-wizard-panel="1"
         aria-hidden={wizardActive && ws !== 1}
       >
-      {/* ================================================================== */}
-      {/* SECCIÓN: LICENCIA                                                  */}
-      {/* ================================================================== */}
+      <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.licenseFederal)}>
       <FormSectionCard
         title={fc.section.licenseFederal.title}
         icon={<CreditCard className="h-4 w-4" />}
@@ -590,7 +615,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
             />
           </div>
       </FormSectionCard>
+      </div>
 
+      <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.licenseState)}>
       <FormSectionCard
         title={fc.section.licenseState.title}
         icon={<CreditCard className="h-4 w-4" />}
@@ -680,10 +707,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
             </FormFieldShell>
           </div>
       </FormSectionCard>
+      </div>
 
-      {/* ================================================================== */}
-      {/* SECCIÓN: CERTIFICADO MÉDICO                                        */}
-      {/* ================================================================== */}
+      <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.medical)}>
       <FormSectionCard
         title={fc.section.medical.title}
         icon={<Stethoscope className="h-4 w-4" />}
@@ -735,15 +761,14 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
           </div>
       </FormSectionCard>
       </div>
+      </div>
 
       <div
         className={cn("space-y-6", wizardActive && ws !== 2 && "hidden")}
         data-wizard-panel="2"
         aria-hidden={wizardActive && ws !== 2}
       >
-      {/* ================================================================== */}
-      {/* SECCIÓN: EXAMEN PSICOMÉTRICO                                       */}
-      {/* ================================================================== */}
+      <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.psychometric)}>
       <FormSectionCard
         title={fc.section.psychometric.title}
         icon={<Brain className="h-4 w-4" />}
@@ -803,10 +828,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
             </FormFieldShell>
           </div>
       </FormSectionCard>
+      </div>
 
-      {/* ================================================================== */}
-      {/* SECCIÓN: EXAMEN ANTIDOPING                                         */}
-      {/* ================================================================== */}
+      <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.drugTest)}>
       <FormSectionCard
         title={fc.section.drugTest.title}
         icon={<FlaskConical className="h-4 w-4" />}
@@ -866,10 +890,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
             </FormFieldShell>
           </div>
       </FormSectionCard>
+      </div>
 
-      {/* ================================================================== */}
-      {/* SECCIÓN: DISPOSITIVO GPS/TELEMETRÍA                                */}
-      {/* ================================================================== */}
+      <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.device)}>
       <FormSectionCard
         title={fc.section.device.title}
         icon={<Cpu className="h-4 w-4" />}
@@ -895,10 +918,9 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
             </FormFieldShell>
           </div>
       </FormSectionCard>
+      </div>
 
-      {/* ================================================================== */}
-      {/* SECCIÓN: NOTAS                                                     */}
-      {/* ================================================================== */}
+      <div {...editSectionAnchor(DRIVER_EDIT_SECTION_IDS.notes)}>
       <FormSectionCard
         title={fc.section.notes.title}
         icon={<FileText className="h-4 w-4" />}
@@ -920,6 +942,7 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
           </FormFieldShell>
       </FormSectionCard>
       </div>
+      </div>
 
       <div
         className={cn(!wizardActive || ws !== 3 ? "hidden" : undefined)}
@@ -931,6 +954,44 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
           employeeLabel={employeeReviewLabel}
         />
       </div>
+    </>
+  );
+
+  return (
+    <form onSubmit={handleNativeSubmit} className="space-y-6">
+      {apiAlertMessages.length > 0 ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{fc.validation.apiAlertTitle}</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {apiAlertMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {isEditMode ? (
+        <LongFormEditLayout
+          nav={
+            <LongFormSectionNav
+              sections={DRIVER_EDIT_SECTIONS}
+              activeSectionId={activeSectionId}
+              errorCountBySection={errorCountBySection}
+              onSelectSection={handleEditSectionSelect}
+              title={fc.edit.sidebar.title}
+              errorsTitle={fc.edit.sidebar.errorsTitle}
+              errorsAria={fc.edit.sidebar.errorsAria}
+            />
+          }
+        >
+          {sectionPanels}
+        </LongFormEditLayout>
+      ) : (
+        sectionPanels
+      )}
 
       {shouldShowValidationSummary ? (
         <FormValidationSummary
@@ -943,11 +1004,8 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
         />
       ) : null}
 
-      {/* ================================================================== */}
-      {/* ACCIONES                                                           */}
-      {/* ================================================================== */}
-      {!wizardActive && (
-        <div className="flex items-center justify-end gap-4 border-t pt-4">
+      {!wizardActive ? (
+        <FormStickyActions sticky={isEditMode}>
           <Button
             type="button"
             variant="outline"
@@ -958,13 +1016,22 @@ export const DriverForm = forwardRef<DriverFormRef, DriverFormProps>(
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting || (!isDirty && mode === "edit")}
+            disabled={isSubmitting || (isEditMode && !isDirty)}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === "create" ? fc.action.register : fc.action.save}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isEditMode ? fc.action.saving : fc.action.register}
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                {isEditMode ? fc.action.save : fc.action.register}
+              </>
+            )}
           </Button>
-        </div>
-      )}
+        </FormStickyActions>
+      ) : null}
     </form>
   );
   },

@@ -5,11 +5,12 @@
  * Página para registrar un nuevo conductor (wizard con WizardPageShell).
  */
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
-import { useToast } from "@shared/hooks";
+import { UnsavedChangesDialog } from "@shared/ui/form";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import { useCreateDriver } from "../../application";
 import {
   DriverForm,
@@ -55,6 +56,11 @@ export function DriverCreatePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const formRef = useRef<DriverFormRef>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
 
   const createMutation = useCreateDriver({
     onSuccess: (driver) => {
@@ -95,11 +101,23 @@ export function DriverCreatePage() {
     },
   });
 
+  useEffect(() => {
+    if (createMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [createMutation.isPending, resetAllowLeave]);
+
   const handleSubmit = useCallback(
     (data: DriverFormData) => {
+      allowLeave();
       createMutation.mutate(driverFormDataToCreateDriverDTO(data));
     },
-    [createMutation],
+    [allowLeave, createMutation],
   );
 
   const isSubmitting = createMutation.isPending;
@@ -118,6 +136,7 @@ export function DriverCreatePage() {
           mode="create"
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          onDirtyChange={setIsDirty}
           isSubmitting={isSubmitting}
           wizardMode
           wizardStepIndex={currentStep}
@@ -139,17 +158,20 @@ export function DriverCreatePage() {
   );
 
   return (
-    <WizardPageShell
-      steps={WIZARD_STEPS}
-      formRef={formRef}
-      header={shellHeader}
-      renderStep={renderStep}
-      isSubmitting={isSubmitting}
-      submitLabel={driversCopy.form.action.register}
-      submittingLabel="Registrando..."
-      stepsAriaLabel="Pasos para registrar un conductor"
-      onCancel={handleCancel}
-    />
+    <>
+      <WizardPageShell
+        steps={WIZARD_STEPS}
+        formRef={formRef}
+        header={shellHeader}
+        renderStep={renderStep}
+        isSubmitting={isSubmitting}
+        submitLabel={driversCopy.form.action.register}
+        submittingLabel="Registrando..."
+        stepsAriaLabel="Pasos para registrar un conductor"
+        onCancel={handleCancel}
+      />
+      <UnsavedChangesDialog blocker={blocker} />
+    </>
   );
 }
 
