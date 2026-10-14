@@ -2,8 +2,10 @@
  * ApprovalInboxPage — bandeja de VoBo (WorkbenchPageShell ADR-0090).
  *
  * Dictamen toolbar: el scorecard es dueño del TIPO; pending es la cola
- * implícita (sin chip); estado ≠ pending, categoría y fecha van en «Filtros»;
- * el search es lookup; deep-links muestran nombre, no UUID.
+ * implícita (sin chip); estado ≠ pending, categoría y fecha van en
+ * `ApprovalFilters` (`ListingFilterPanel`); cola «Me toca · Todas» y filtro
+ * de operador viven fuera del panel; el search es lookup; deep-links
+ * muestran nombre, no UUID. Vacío = `EmptyState` (incl. emptyMine / host).
  *
  * ADR-0099 (handoff F6a): cola «Me toca · Todas» (`queue`), flujo por pasos
  * en la celda «Estado», ⋯ con Devolver/Rechazar/historial, guardas sin
@@ -1072,6 +1074,7 @@ export function ApprovalInboxPage({
                 canUpdate={canUpdate}
                 currentUserId={currentUserId}
                 selfApprovalPolicy={selfApprovalPolicy}
+                hideTypeColumn={Boolean(lockedType || approvalType)}
                 onToggleItem={handleToggleItem}
                 onToggleAll={handleToggleAll}
                 onApprove={(item) => setApproveTarget(item)}

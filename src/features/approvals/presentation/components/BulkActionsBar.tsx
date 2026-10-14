@@ -30,7 +30,10 @@ export function BulkActionsBar({
   const atLimit = selectedCount >= maxSelection;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+    <div
+      data-testid="approvals-bulk-actions-bar"
+      className="sticky top-16 z-10 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/95 px-4 py-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-muted/80"
+    >
       <span className="text-sm font-medium">{copy.selected(selectedCount)}</span>
       {atLimit ? (
         <span className="text-xs text-muted-foreground">{copy.maxSelection}</span>

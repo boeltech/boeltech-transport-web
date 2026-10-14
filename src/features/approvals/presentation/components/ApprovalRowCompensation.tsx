@@ -25,6 +25,7 @@ export interface ApprovalRowCompensationProps extends ApprovalRowDecisionProps {
   selected: boolean;
   selectable: boolean;
   onSelectChange: (checked: boolean) => void;
+  hideTypeColumn?: boolean;
 }
 
 export function ApprovalRowCompensation({
@@ -32,6 +33,7 @@ export function ApprovalRowCompensation({
   selected,
   selectable,
   onSelectChange,
+  hideTypeColumn = true,
   ...decision
 }: ApprovalRowCompensationProps) {
   const location = useLocation();
@@ -70,15 +72,17 @@ export function ApprovalRowCompensation({
           />
         ) : null}
       </TableCell>
-      <TableCell>
-        <Badge
-          variant={typeConfig.badge.variant}
-          tone={typeConfig.badge.tone ?? "soft"}
-        >
-          <TypeIcon className="mr-1 h-3 w-3" />
-          {typeConfig.label}
-        </Badge>
-      </TableCell>
+      {hideTypeColumn ? null : (
+        <TableCell>
+          <Badge
+            variant={typeConfig.badge.variant}
+            tone={typeConfig.badge.tone ?? "soft"}
+          >
+            <TypeIcon className="mr-1 h-3 w-3" />
+            {typeConfig.label}
+          </Badge>
+        </TableCell>
+      )}
       <TableCell>
         <Link
           to={targetLink}

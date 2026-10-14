@@ -1,16 +1,6 @@
-import { useState } from "react";
-import { cn } from "@shared/lib/utils/cn";
-import { Badge } from "@shared/ui/badge";
-import { Button } from "@shared/ui/button";
-import { Card, CardContent } from "@shared/ui/card";
 import { Checkbox } from "@shared/ui/checkbox";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
 import { Label } from "@shared/ui/label";
-import { ListingDateRangeFilter } from "@shared/ui/listing";
+import { ListingDateRangeFilter, ListingFilterPanel } from "@shared/ui/listing";
 import {
   Select,
   SelectContent,
@@ -18,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import {
   EXPENSE_CATEGORY_LABELS,
   type ExpenseCategoryType,
@@ -49,7 +38,9 @@ export interface ApprovalFiltersProps {
 
 /**
  * Recortes de la bandeja (estado, categoría, fecha).
- * El tipo vive en el scorecard; pending es la cola implícita; el lookup, en el search.
+ * Shell canónico: `ListingFilterPanel`. El tipo vive en el scorecard;
+ * pending es la cola implícita; el lookup, en el search. La cola «Me toca · Todas»
+ * y el filtro de operador viven fuera del panel (toolbar del workbench).
  */
 export function ApprovalFilters({
   status,
@@ -65,141 +56,93 @@ export function ApprovalFilters({
   selfApproved = false,
   onSelfApprovedChange,
 }: ApprovalFiltersProps) {
-  const [userCollapsedWhileActive, setUserCollapsedWhileActive] = useState(false);
-  const [userExpandedWhileIdle, setUserExpandedWhileIdle] = useState(false);
-
-  const hasActiveFilters = activePanelFilterCount > 0;
-  const open = hasActiveFilters
-    ? !userCollapsedWhileActive
-    : userExpandedWhileIdle;
-
-  const handleOpenChange = (next: boolean) => {
-    if (hasActiveFilters) {
-      setUserCollapsedWhileActive(!next);
-      return;
-    }
-    setUserExpandedWhileIdle(next);
-  };
-
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={handleOpenChange}
-      className="contents"
+    <ListingFilterPanel
+      triggerLabel={copy.showFilters}
+      activeCount={activePanelFilterCount}
+      contentClassName="lg:grid-cols-3"
     >
-      <CollapsibleTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          aria-expanded={open}
+      <div className="space-y-1.5">
+        <Label htmlFor="approvals-filter-status">{copy.status}</Label>
+        <Select
+          value={
+            status === "" || status === APPROVAL_STATUS_ALL ? "all" : status
+          }
+          onValueChange={onStatusChange}
         >
-          <SlidersHorizontal className="h-4 w-4" />
-          {copy.showFilters}
-          {activePanelFilterCount > 0 ? (
-            <Badge variant="secondary" className="h-5 min-w-5 px-1.5 tabular-nums">
-              {activePanelFilterCount}
-            </Badge>
-          ) : null}
-          <ChevronDown
-            className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
+          <SelectTrigger
+            id="approvals-filter-status"
+            className="w-full"
+            aria-label={copy.status}
+          >
+            <SelectValue placeholder={copy.status} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{copy.statusAll}</SelectItem>
+            {(Object.keys(APPROVAL_STATUS_LABELS) as ApprovalStatus[]).map(
+              (key) => (
+                <SelectItem key={key} value={key}>
+                  {APPROVAL_STATUS_LABELS[key]}
+                </SelectItem>
+              ),
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {showCategory ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="approvals-filter-category">{copy.category}</Label>
+          <Select value={category || "all"} onValueChange={onCategoryChange}>
+            <SelectTrigger
+              id="approvals-filter-category"
+              className="w-full"
+              aria-label={copy.category}
+            >
+              <SelectValue placeholder={copy.category} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{copy.categoryAll}</SelectItem>
+              {(
+                Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategoryType[]
+              ).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {EXPENSE_CATEGORY_LABELS[key]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+
+      <div className="space-y-1.5">
+        <Label>{copy.dateLabel}</Label>
+        <ListingDateRangeFilter
+          fromDate={fromDate}
+          toDate={toDate}
+          onApply={onApplyDateRange}
+          onClear={onClearDateRange}
+          heading={copy.dateFilterHeading}
+          placeholder={copy.dateFilterPlaceholder}
+          idPrefix="approvals-date"
+          triggerClassName="w-full"
+        />
+      </div>
+
+      {onSelfApprovedChange ? (
+        <div className="flex items-center gap-2 self-end pb-2">
+          <Checkbox
+            id="approvals-filter-self-approved"
+            checked={selfApproved}
+            onCheckedChange={(checked) =>
+              onSelfApprovedChange(checked === true)
+            }
           />
-        </Button>
-      </CollapsibleTrigger>
-
-      <CollapsibleContent className="order-last w-full basis-full">
-        <Card className="bg-muted/30">
-          <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="approvals-filter-status">{copy.status}</Label>
-              <Select
-                value={
-                  status === "" || status === APPROVAL_STATUS_ALL
-                    ? "all"
-                    : status
-                }
-                onValueChange={onStatusChange}
-              >
-                <SelectTrigger
-                  id="approvals-filter-status"
-                  className="w-full"
-                  aria-label={copy.status}
-                >
-                  <SelectValue placeholder={copy.status} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.statusAll}</SelectItem>
-                  {(Object.keys(APPROVAL_STATUS_LABELS) as ApprovalStatus[]).map(
-                    (key) => (
-                      <SelectItem key={key} value={key}>
-                        {APPROVAL_STATUS_LABELS[key]}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {showCategory ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="approvals-filter-category">{copy.category}</Label>
-                <Select
-                  value={category || "all"}
-                  onValueChange={onCategoryChange}
-                >
-                  <SelectTrigger
-                    id="approvals-filter-category"
-                    className="w-full"
-                    aria-label={copy.category}
-                  >
-                    <SelectValue placeholder={copy.category} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{copy.categoryAll}</SelectItem>
-                    {(
-                      Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategoryType[]
-                    ).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {EXPENSE_CATEGORY_LABELS[key]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-
-            <div className="space-y-1.5">
-              <Label>{copy.dateLabel}</Label>
-              <ListingDateRangeFilter
-                fromDate={fromDate}
-                toDate={toDate}
-                onApply={onApplyDateRange}
-                onClear={onClearDateRange}
-                heading={copy.dateFilterHeading}
-                placeholder={copy.dateFilterPlaceholder}
-                idPrefix="approvals-date"
-                triggerClassName="w-full"
-              />
-            </div>
-
-            {onSelfApprovedChange ? (
-              <div className="flex items-center gap-2 self-end pb-2">
-                <Checkbox
-                  id="approvals-filter-self-approved"
-                  checked={selfApproved}
-                  onCheckedChange={(checked) =>
-                    onSelfApprovedChange(checked === true)
-                  }
-                />
-                <Label htmlFor="approvals-filter-self-approved">
-                  {approvalsCopy.selfApproval.filterChip}
-                </Label>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </CollapsibleContent>
-    </Collapsible>
+          <Label htmlFor="approvals-filter-self-approved">
+            {approvalsCopy.selfApproval.filterChip}
+          </Label>
+        </div>
+      ) : null}
+    </ListingFilterPanel>
   );
 }

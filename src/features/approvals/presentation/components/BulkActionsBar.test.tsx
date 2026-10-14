@@ -19,7 +19,7 @@ describe("BulkActionsBar", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders bulk actions when items are selected", async () => {
+  it("renders sticky bulk actions with short approve label when items are selected", async () => {
     const user = userEvent.setup();
     const onApproveSelected = vi.fn();
 
@@ -34,8 +34,10 @@ describe("BulkActionsBar", () => {
       />,
     );
 
+    const bar = screen.getByTestId("approvals-bulk-actions-bar");
+    expect(bar.className).toMatch(/sticky/);
     expect(screen.getByText("3 seleccionado(s)")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Aprobar seleccionados" }));
+    await user.click(screen.getByRole("button", { name: "Aprobar" }));
     expect(onApproveSelected).toHaveBeenCalledTimes(1);
   });
 });

@@ -22,6 +22,7 @@ export interface ApprovalRowAdvanceProps extends ApprovalRowDecisionProps {
   selected: boolean;
   selectable: boolean;
   onSelectChange: (checked: boolean) => void;
+  hideTypeColumn?: boolean;
 }
 
 export function ApprovalRowAdvance({
@@ -29,6 +30,7 @@ export function ApprovalRowAdvance({
   selected,
   selectable,
   onSelectChange,
+  hideTypeColumn = true,
   ...decision
 }: ApprovalRowAdvanceProps) {
   const location = useLocation();
@@ -58,15 +60,17 @@ export function ApprovalRowAdvance({
           />
         ) : null}
       </TableCell>
-      <TableCell>
-        <Badge
-          variant={typeConfig.badge.variant}
-          tone={typeConfig.badge.tone ?? "soft"}
-        >
-          <TypeIcon className="mr-1 h-3 w-3" />
-          {typeConfig.label}
-        </Badge>
-      </TableCell>
+      {hideTypeColumn ? null : (
+        <TableCell>
+          <Badge
+            variant={typeConfig.badge.variant}
+            tone={typeConfig.badge.tone ?? "soft"}
+          >
+            <TypeIcon className="mr-1 h-3 w-3" />
+            {typeConfig.label}
+          </Badge>
+        </TableCell>
+      )}
       <TableCell>
         <span className="font-semibold text-primary font-mono">
           {ctx.folio || "Anticipo"}

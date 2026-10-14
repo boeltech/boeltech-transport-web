@@ -20,7 +20,7 @@ import { ApprovalRow } from "./ApprovalRow";
 
 const copy = approvalsCopy.inbox.table;
 
-const TABLE_HEADERS = [
+const TABLE_HEADERS: Array<{ key: string; label: string; className?: string }> = [
   { key: "select", label: copy.select, className: "w-10" },
   { key: "type", label: copy.type },
   { key: "trip", label: copy.trip },
@@ -32,6 +32,12 @@ const TABLE_HEADERS = [
   { key: "actions", label: copy.actions, className: "text-right" },
 ];
 
+function visibleHeaders(hideTypeColumn: boolean) {
+  return hideTypeColumn
+    ? TABLE_HEADERS.filter((header) => header.key !== "type")
+    : TABLE_HEADERS;
+}
+
 export interface ApprovalInboxProps {
   items: ApprovableItem[];
   isLoading: boolean;
@@ -41,6 +47,11 @@ export interface ApprovalInboxProps {
   currentUserId?: string | null;
   /** Capacidades de autoacción del API (ADR-0098); sin cargar = fail-closed. */
   selfApprovalPolicy?: SelfApprovalPolicy | null;
+  /**
+   * D7: con tipo fijo (bucket activo / lockedType) no gastar ancho en columna Tipo.
+   * Default true — la cola Workbench siempre está acotada a un tipo.
+   */
+  hideTypeColumn?: boolean;
   onToggleItem: (item: ApprovableItem, checked: boolean) => void;
   onToggleAll: (checked: boolean) => void;
   onApprove: (item: ApprovableItem) => void;
@@ -59,6 +70,7 @@ export function ApprovalInbox({
   canUpdate,
   currentUserId,
   selfApprovalPolicy,
+  hideTypeColumn = true,
   onToggleItem,
   onToggleAll,
   onApprove,
@@ -75,6 +87,7 @@ export function ApprovalInbox({
     selectableItems.every((item) => selectedIds.has(item.id));
   const someSelected =
     selectableItems.some((item) => selectedIds.has(item.id)) && !allSelected;
+  const headers = visibleHeaders(hideTypeColumn);
 
   if (isLoading) {
     return (
@@ -82,7 +95,7 @@ export function ApprovalInbox({
         <Table>
           <TableHeader>
             <TableRow>
-              {TABLE_HEADERS.map((header) => (
+              {headers.map((header) => (
                 <TableHead key={header.key} className={header.className}>
                   {header.label}
                 </TableHead>
@@ -92,7 +105,7 @@ export function ApprovalInbox({
           <TableBody>
             {Array.from({ length: 5 }).map((_, index) => (
               <TableRow key={index}>
-                <TableCell colSpan={TABLE_HEADERS.length}>
+                <TableCell colSpan={headers.length}>
                   <Skeleton className="h-6 w-full" />
                 </TableCell>
               </TableRow>
@@ -117,7 +130,7 @@ export function ApprovalInbox({
                 />
               ) : null}
             </TableHead>
-            {TABLE_HEADERS.slice(1).map((header) => (
+            {headers.slice(1).map((header) => (
               <TableHead key={header.key} className={header.className}>
                 {header.label}
               </TableHead>
@@ -148,6 +161,7 @@ export function ApprovalInbox({
                 selected={selectedIds.has(item.id)}
                 selectable={selectable}
                 canUpdate={canUpdate}
+                hideTypeColumn={hideTypeColumn}
                 selfActionUi={selfActionUi}
                 actionUi={actionUi}
                 onSelectChange={(checked) => onToggleItem(item, checked)}

@@ -28,10 +28,12 @@ function renderFilters(
 }
 
 describe("ApprovalFilters", () => {
-  it("muestra Filtros sin badge cuando no hay recortes", () => {
+  it("muestra Filtros sin badge cuando no hay recortes (ListingFilterPanel)", () => {
     renderFilters();
 
-    expect(screen.getByRole("button", { name: /Filtros/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: copy.showFilters }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("1")).not.toBeInTheDocument();
     expect(screen.queryByText(copy.status)).not.toBeInTheDocument();
   });
@@ -61,5 +63,18 @@ describe("ApprovalFilters", () => {
     expect(screen.getByText(copy.status)).toBeInTheDocument();
     expect(screen.queryByText(copy.category)).not.toBeInTheDocument();
     expect(screen.getByText(copy.dateLabel)).toBeInTheDocument();
+  });
+
+  it("incluye autoaprobados en el panel cuando hay callback", () => {
+    renderFilters({
+      status: "approved",
+      activePanelFilterCount: 1,
+      selfApproved: true,
+      onSelfApprovedChange: vi.fn(),
+    });
+
+    expect(
+      screen.getByLabelText(approvalsCopy.selfApproval.filterChip),
+    ).toBeChecked();
   });
 });

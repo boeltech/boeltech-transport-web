@@ -245,7 +245,8 @@ export const approvalsCopy = {
     bulk: {
       selected: (count: number) => `${count} seleccionado(s)`,
       clearSelection: "Quitar selección",
-      approve: "Aprobar seleccionados",
+      /** B3: label corto — el conteo ya va en «N seleccionado(s)». */
+      approve: "Aprobar",
       reject: "Rechazar seleccionados",
       maxSelection: "Máximo 50 elementos por operación masiva",
       approveConfirmTitle: (type?: ApprovableType) => {
