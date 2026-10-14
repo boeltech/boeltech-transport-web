@@ -97,6 +97,32 @@ vi.mock("./CancelInvoiceDialog", () => ({
     ) : null,
 }));
 
+vi.mock("./SendInvoiceDialog", () => ({
+  SendInvoiceDialog: ({
+    open,
+  }: {
+    open: boolean;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Enviar factura por correo">
+        Send dialog open
+      </div>
+    ) : null,
+}));
+
+vi.mock("./PaymentFormDialog", () => ({
+  PaymentFormDialog: ({
+    open,
+  }: {
+    open: boolean;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Registrar pago">
+        Payment dialog open
+      </div>
+    ) : null,
+}));
+
 function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
   return {
     id: "inv-1",
@@ -834,6 +860,123 @@ describe("InvoiceActions RBAC execute/delete", () => {
 
     expect(
       await screen.findByRole("dialog", { name: "Cancelar factura" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens send dialog when openSendRequestKey increments", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+
+    const invoice = buildInvoice({ status: "stamped" });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openSendRequestKey={0}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.queryByRole("dialog", { name: "Enviar factura por correo" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openSendRequestKey={1}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Enviar factura por correo" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens payment dialog when openPaymentRequestKey increments", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+
+    const invoice = buildInvoice({
+      status: "stamped",
+      paymentMethod: "PPD",
+      totalPaid: 0,
+      balanceDue: 1160,
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openPaymentRequestKey={0}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.queryByRole("dialog", { name: "Registrar pago" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <MemoryRouter>
+            <InvoiceActions
+              variant="buttons"
+              invoiceId={invoice.id}
+              invoiceSerie={invoice.serie}
+              invoiceFolio={invoice.folio}
+              invoiceStatus={invoice.status}
+              fullInvoice={invoice}
+              openPaymentRequestKey={1}
+            />
+          </MemoryRouter>
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "Registrar pago" }),
     ).toBeInTheDocument();
   });
 

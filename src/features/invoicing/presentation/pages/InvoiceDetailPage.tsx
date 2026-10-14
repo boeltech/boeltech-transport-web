@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { Receipt, AlertCircle, FileText } from "lucide-react";
+import { canRegisterFinancialPayment } from "@boeltech/cfdi-domain";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { AlertWithIcon } from "@shared/ui/alert";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { NotFoundState } from "@shared/ui/feedback-states";
@@ -18,6 +18,7 @@ import {
   getInvoiceDisplayAmounts,
   parseInvoiceBillingScope,
   resolveGenericReceiverAdjustment,
+  toInvoiceLike,
   type Invoice,
 } from "@features/invoicing/domain";
 import { useTrip } from "@features/trips/application";
@@ -81,7 +82,8 @@ export function InvoiceDetailPage() {
     role === ROLES.ADMIN || role === ROLES.MANAGER;
   // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
   const canExportFiles = hasPermission("invoices", "read");
-  const canRetryRep = hasPermission("invoices", "execute");
+  const canExecuteInvoice = hasPermission("invoices", "execute");
+  const canRetryRep = canExecuteInvoice;
   const canEditInvoice = hasPermission("invoices", "update");
   const fromState = location.state?.from as string | undefined;
   const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(
@@ -90,6 +92,8 @@ export function InvoiceDetailPage() {
   const [interactionBusy, setInteractionBusy] = useState(false);
   const [openSubstituteRequestKey, setOpenSubstituteRequestKey] = useState(0);
   const [openCancelRequestKey, setOpenCancelRequestKey] = useState(0);
+  const [openSendRequestKey, setOpenSendRequestKey] = useState(0);
+  const [openPaymentRequestKey, setOpenPaymentRequestKey] = useState(0);
 
   const filesReadyStorageKey = getInvoiceFilesReadyStorageKey(id ?? "");
   const [filesReadyCollapsed, setFilesReadyCollapsed] = useState(() =>
@@ -347,6 +351,17 @@ export function InvoiceDetailPage() {
   const showFollowThrough =
     !isClientPortal &&
     (followThrough.showSend || followThrough.showCollect);
+  const canFollowThroughSend =
+    followThrough.showSend && canExecuteInvoice && invoice.status === "stamped";
+  const canFollowThroughCollect =
+    followThrough.showCollect &&
+    canExecuteInvoice &&
+    canRegisterFinancialPayment(toInvoiceLike(invoice));
+  const canSendFromAlert =
+    canExecuteInvoice && invoice.status === "stamped";
+  const sendAlertLabel = invoice.dispatchSentAt
+    ? copy.actions.resendByEmail
+    : copy.actions.sendByEmail;
 
   const showClientDraftAlert =
     isClientPortal && invoice.status === "draft";
@@ -361,6 +376,12 @@ export function InvoiceDetailPage() {
       : null;
   const showGenericReceiverAlert =
     genericReceiverMismatch != null && genericReceiverMismatch.changes.length > 0;
+
+  const scrollToInvoicePayments = () => {
+    document
+      .getElementById("invoice-payments")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const hasAlerts =
     showClientDraftAlert ||
@@ -378,25 +399,21 @@ export function InvoiceDetailPage() {
   const alerts = hasAlerts ? (
     <div className="space-y-3">
       {showClientDraftAlert ? (
-        <AlertWithIcon variant="warning" title={copy.hint.clientDraftTitle}>
+        <DetailAlertCard
+          severity="warning"
+          icon={<AlertCircle className="h-5 w-5" />}
+          title={copy.hint.clientDraftTitle}
+        >
           <p>{copy.hint.clientDraftBody}</p>
-        </AlertWithIcon>
+        </DetailAlertCard>
       ) : null}
       {showGenericReceiverAlert && genericReceiverMismatch ? (
         <DetailAlertCard
           severity="critical"
           icon={<AlertCircle className="h-5 w-5" />}
           title={invoicingCopy.genericReceiver.detailTitle}
-        >
-          <p>
-            {invoicingCopy.genericReceiver.detailBody(
-              genericReceiverMismatch.kind,
-              invoice.receiverTaxRegime ?? "",
-              invoice.cfdiUsage ?? "",
-            )}
-          </p>
-          {canEditInvoice ? (
-            <div className="mt-2">
+          action={
+            canEditInvoice ? (
               <Button
                 type="button"
                 size="sm"
@@ -405,8 +422,16 @@ export function InvoiceDetailPage() {
               >
                 {invoicingCopy.genericReceiver.detailCta}
               </Button>
-            </div>
-          ) : null}
+            ) : null
+          }
+        >
+          <p>
+            {invoicingCopy.genericReceiver.detailBody(
+              genericReceiverMismatch.kind,
+              invoice.receiverTaxRegime ?? "",
+              invoice.cfdiUsage ?? "",
+            )}
+          </p>
         </DetailAlertCard>
       ) : null}
       {showFalseTripCancelCfdi ? (
@@ -420,33 +445,32 @@ export function InvoiceDetailPage() {
                 ? copy.hint.falseTripCancelCfdiTitle
                 : copy.hint.satHoleTitle
           }
-        >
-          {falseTripCancelBlockedByPayments ? (
-            <p>
-              {copy.hint.falseTripCancelCfdiBlockedBody}{" "}
-              <button
+          action={
+            falseTripCancelBlockedByPayments ? (
+              <Button
                 type="button"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-                onClick={() => {
-                  document
-                    .getElementById("invoice-payments")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
+                size="sm"
+                variant="outline"
+                onClick={scrollToInvoicePayments}
               >
                 {copy.hint.falseTripCancelCfdiBlockedLink}
-              </button>
-            </p>
-          ) : canAdminManagerFiscal ? (
-            <p>
-              {copy.hint.falseTripCancelCfdiBody}{" "}
-              <button
+              </Button>
+            ) : canAdminManagerFiscal ? (
+              <Button
                 type="button"
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                size="sm"
+                variant="outline"
                 onClick={() => setOpenCancelRequestKey((key) => key + 1)}
               >
                 {copy.hint.falseTripCancelCfdiLink}
-              </button>
-            </p>
+              </Button>
+            ) : null
+          }
+        >
+          {falseTripCancelBlockedByPayments ? (
+            <p>{copy.hint.falseTripCancelCfdiBlockedBody}</p>
+          ) : canAdminManagerFiscal ? (
+            <p>{copy.hint.falseTripCancelCfdiBody}</p>
           ) : (
             <p>{copy.hint.satHoleBody}</p>
           )}
@@ -463,33 +487,32 @@ export function InvoiceDetailPage() {
                 ? copy.hint.postCancelCancelCfdiTitle
                 : copy.hint.satHoleTitle
           }
-        >
-          {postCancelCancelBlockedByPayments ? (
-            <p>
-              {copy.hint.postCancelCancelCfdiBlockedBody}{" "}
-              <button
+          action={
+            postCancelCancelBlockedByPayments ? (
+              <Button
                 type="button"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-                onClick={() => {
-                  document
-                    .getElementById("invoice-payments")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
+                size="sm"
+                variant="outline"
+                onClick={scrollToInvoicePayments}
               >
                 {copy.hint.postCancelCancelCfdiBlockedLink}
-              </button>
-            </p>
-          ) : canAdminManagerFiscal ? (
-            <p>
-              {copy.hint.postCancelCancelCfdiBody}{" "}
-              <button
+              </Button>
+            ) : canAdminManagerFiscal ? (
+              <Button
                 type="button"
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                size="sm"
+                variant="outline"
                 onClick={() => setOpenCancelRequestKey((key) => key + 1)}
               >
                 {copy.hint.postCancelCancelCfdiLink}
-              </button>
-            </p>
+              </Button>
+            ) : null
+          }
+        >
+          {postCancelCancelBlockedByPayments ? (
+            <p>{copy.hint.postCancelCancelCfdiBlockedBody}</p>
+          ) : canAdminManagerFiscal ? (
+            <p>{copy.hint.postCancelCancelCfdiBody}</p>
           ) : (
             <p>{copy.hint.satHoleBody}</p>
           )}
@@ -500,25 +523,56 @@ export function InvoiceDetailPage() {
           severity="warning"
           icon={<Receipt className="h-5 w-5" />}
           title={copy.hint.fiscalAttentionTitle}
-        >
-          {canAdminManagerFiscal ? (
-            <p>
-              {copy.hint.fiscalAttentionBody}{" "}
-              <button
+          action={
+            canAdminManagerFiscal ? (
+              <Button
                 type="button"
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                size="sm"
+                variant="outline"
                 onClick={() => setOpenSubstituteRequestKey((key) => key + 1)}
               >
                 {copy.hint.fiscalAttentionLink}
-              </button>
-            </p>
+              </Button>
+            ) : null
+          }
+        >
+          {canAdminManagerFiscal ? (
+            <p>{copy.hint.fiscalAttentionBody}</p>
           ) : (
             <p>{copy.hint.fiscalAttentionAskManagerBody}</p>
           )}
         </DetailAlertCard>
       ) : null}
       {showFollowThrough ? (
-        <AlertWithIcon variant="info" title={copy.hint.followThroughTitle}>
+        <DetailAlertCard
+          severity="info"
+          icon={<Receipt className="h-5 w-5" />}
+          title={copy.hint.followThroughTitle}
+          action={
+            <>
+              {canFollowThroughSend ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenSendRequestKey((key) => key + 1)}
+                >
+                  {copy.actions.sendByEmail}
+                </Button>
+              ) : null}
+              {canFollowThroughCollect ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenPaymentRequestKey((key) => key + 1)}
+                >
+                  {copy.actions.registerPayment}
+                </Button>
+              ) : null}
+            </>
+          }
+        >
           {followThrough.showSend ? (
             <p>
               {followThrough.showCollect
@@ -533,46 +587,70 @@ export function InvoiceDetailPage() {
                 : copy.hint.followThroughCollect}
             </p>
           ) : null}
-        </AlertWithIcon>
+        </DetailAlertCard>
       ) : null}
       {autoDispatchFailed ? (
-        <AlertWithIcon
-          variant="destructive"
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" />}
           title={invoicingCopy.send.autoDispatchFailedTitle}
+          action={
+            <>
+              {canSendFromAlert ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setOpenSendRequestKey((key) => key + 1)}
+                >
+                  {sendAlertLabel}
+                </Button>
+              ) : null}
+              {invoice.autoDispatch?.lastScheduledRunId ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link
+                    to={`/finance/dispatch/${invoice.autoDispatch.lastScheduledRunId}`}
+                    state={{ from: `${location.pathname}${location.search}` }}
+                  >
+                    {invoicingCopy.send.autoDispatchFailedLink}
+                  </Link>
+                </Button>
+              ) : null}
+            </>
+          }
         >
-          <span className="block">
-            {invoicingCopy.send.autoDispatchFailedBody}
-          </span>
-          {invoice.autoDispatch?.lastScheduledRunId ? (
-            <Link
-              to={`/finance/dispatch/${invoice.autoDispatch.lastScheduledRunId}`}
-              state={{ from: `${location.pathname}${location.search}` }}
-              className="mt-1 inline-block font-medium text-primary underline-offset-4 hover:underline"
-            >
-              {invoicingCopy.send.autoDispatchFailedLink}
-            </Link>
-          ) : null}
-        </AlertWithIcon>
+          <p>{invoicingCopy.send.autoDispatchFailedBody}</p>
+        </DetailAlertCard>
       ) : null}
       {showRepFiscalAlert && repFiscalWorstStatus ? (
-        <AlertWithIcon variant="warning" title={copy.label.repFiscalDeadline}>
-          {repFiscalWorstStatus === "overdue"
-            ? copy.hint.repFiscalDeadlineOverdue(repFiscalDeadlineLabel)
-            : copy.hint.repFiscalDeadlineApproaching(repFiscalDeadlineLabel)}
-        </AlertWithIcon>
+        <DetailAlertCard
+          severity="warning"
+          icon={<AlertCircle className="h-5 w-5" />}
+          title={copy.label.repFiscalDeadline}
+        >
+          <p>
+            {repFiscalWorstStatus === "overdue"
+              ? copy.hint.repFiscalDeadlineOverdue(repFiscalDeadlineLabel)
+              : copy.hint.repFiscalDeadlineApproaching(repFiscalDeadlineLabel)}
+          </p>
+        </DetailAlertCard>
       ) : null}
       {isActiveSubstitute ? (
-        <AlertWithIcon variant="info">
-          {copy.hint.substitutionPrefix}{" "}
-          <Link
-            to={`/invoices/${invoice.parentInvoiceId}`}
-            state={{ from: location.pathname }}
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            {copy.hint.substitutionLink}
-          </Link>
-          {copy.hint.substitutionSuffix}
-        </AlertWithIcon>
+        <DetailAlertCard
+          severity="info"
+          icon={<Receipt className="h-5 w-5" />}
+          title={copy.hint.substitutionPrefix}
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link
+                to={`/invoices/${invoice.parentInvoiceId}`}
+                state={{ from: location.pathname }}
+              >
+                {copy.hint.substitutionLink}
+              </Link>
+            </Button>
+          }
+        />
       ) : null}
       {showFilesReadyAlert ? (
         <InvoiceFilesReadyAlert
@@ -582,12 +660,13 @@ export function InvoiceDetailPage() {
         />
       ) : null}
       {showXmlMissingAlert ? (
-        <AlertWithIcon
-          variant="warning"
+        <DetailAlertCard
+          severity="warning"
+          icon={<AlertCircle className="h-5 w-5" />}
           title={copy.hint.xmlMissingTitle}
         >
-          {copy.hint.xmlMissingDescription}
-        </AlertWithIcon>
+          <p>{copy.hint.xmlMissingDescription}</p>
+        </DetailAlertCard>
       ) : null}
     </div>
   ) : undefined;
@@ -646,6 +725,8 @@ export function InvoiceDetailPage() {
             onBusyChange={setInteractionBusy}
             openSubstituteRequestKey={openSubstituteRequestKey}
             openCancelRequestKey={openCancelRequestKey}
+            openSendRequestKey={openSendRequestKey}
+            openPaymentRequestKey={openPaymentRequestKey}
           />
         ),
       }}

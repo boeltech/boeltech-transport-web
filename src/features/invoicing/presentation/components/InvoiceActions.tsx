@@ -113,6 +113,16 @@ interface InvoiceActionsProps {
    * web #34) para abrir CancelInvoiceDialog cuando la acción está permitida.
    */
   openCancelRequestKey?: number;
+  /**
+   * Incrementar desde follow-through / auto-dispatch failed para abrir
+   * el mismo Dialog de envío que la toolbar.
+   */
+  openSendRequestKey?: number;
+  /**
+   * Incrementar desde follow-through para abrir el mismo Dialog de pago
+   * que la toolbar.
+   */
+  openPaymentRequestKey?: number;
 }
 
 export function InvoiceActions({
@@ -128,6 +138,8 @@ export function InvoiceActions({
   onBusyChange,
   openSubstituteRequestKey = 0,
   openCancelRequestKey = 0,
+  openSendRequestKey = 0,
+  openPaymentRequestKey = 0,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -148,6 +160,8 @@ export function InvoiceActions({
   const lastBusyRef = useRef(false);
   const lastOpenSubstituteKeyRef = useRef(0);
   const lastOpenCancelKeyRef = useRef(0);
+  const lastOpenSendKeyRef = useRef(0);
+  const lastOpenPaymentKeyRef = useRef(0);
 
   // ── Mutations (solo usadas en variant="buttons") ──────────────────────────
 
@@ -439,6 +453,31 @@ export function InvoiceActions({
     fullInvoice,
     toast,
   ]);
+
+  useEffect(() => {
+    if (variant !== "buttons") return;
+    if (!openSendRequestKey || openSendRequestKey === lastOpenSendKeyRef.current) {
+      return;
+    }
+    lastOpenSendKeyRef.current = openSendRequestKey;
+    if (canShowSendByEmail) {
+      setSendDialogOpen(true);
+    }
+  }, [variant, openSendRequestKey, canShowSendByEmail]);
+
+  useEffect(() => {
+    if (variant !== "buttons") return;
+    if (
+      !openPaymentRequestKey ||
+      openPaymentRequestKey === lastOpenPaymentKeyRef.current
+    ) {
+      return;
+    }
+    lastOpenPaymentKeyRef.current = openPaymentRequestKey;
+    if (canShowRegisterPayment && fullInvoice) {
+      openOverlayWithSnapshot(fullInvoice, "payment");
+    }
+  }, [variant, openPaymentRequestKey, canShowRegisterPayment, fullInvoice]);
 
   const folioCombined = `${invoiceSerie}-${invoiceFolio}`;
 

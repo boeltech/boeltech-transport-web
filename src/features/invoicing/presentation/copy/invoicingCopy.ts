@@ -540,7 +540,7 @@ export const invoicingCopy = {
       fiscalAttentionTitle: "Revisión de facturación pendiente",
       fiscalAttentionBody:
         "Hubo cambios operativos en el viaje después de facturar. Si la flota no es asignable (docs vencidos), reasigna en Operación del viaje; luego sustituye esta factura al cerrar o antes de cobrar el ajuste.",
-      /** Link textual en el banner (CTA elevado vive en el header). */
+      /** CTA en DetailAlertCard.action (abre Sustituir del header). */
       fiscalAttentionLink: "Sustituir",
       fiscalAttentionAskManagerBody:
         "Hubo cambios en el viaje después de facturar. Pide a un gerente cancelar o sustituir esta factura.",
@@ -550,12 +550,11 @@ export const invoicingCopy = {
       satHoleBody:
         "Cancelar o sustituir esta factura lo hace un gerente. Tú puedes enviar el XML/PDF y registrar el cobro.",
       followThroughTitle: "Siguiente paso",
-      /** Solo falta enviar (acción Enviar en el header). */
-      followThroughSend:
-        "Mándale la factura al cliente por correo. Usa Enviar arriba.",
-      /** Solo falta cobrar (acción Registrar pago en el header). */
+      /** Solo falta enviar — CTA Enviar en action abre el Dialog del header. */
+      followThroughSend: "Mándale la factura al cliente por correo.",
+      /** Solo falta cobrar — CTA Registrar pago en action abre el Dialog del header. */
       followThroughCollect:
-        "Aún te deben. Anota el pago cuando te lo depositen o te lo entreguen. Usa Registrar pago arriba.",
+        "Aún te deben. Anota el pago cuando te lo depositen o te lo entreguen.",
       /** Ambos pendientes: checklist numerada (envío primero). */
       followThroughSendBoth: "1. Mándale la factura al cliente.",
       followThroughCollectBoth: "2. Cuando paguen, anota el cobro aquí.",
@@ -563,7 +562,7 @@ export const invoicingCopy = {
       falseTripCancelCfdiTitle: "Cancela la factura de flete",
       falseTripCancelCfdiBody:
         "En la factura usa el motivo de operación no realizada. No conserves ni sustituyas esa factura.",
-      /** Link textual en el banner (CTA elevado vive en el header). */
+      /** CTA en DetailAlertCard.action (abre Cancelar del header). */
       falseTripCancelCfdiLink: "Cancelar",
       /** CA-06 / PD1: falso + cobros — copy de callejón, sin CTA de cancel viable. */
       falseTripCancelCfdiBlockedTitle: "No se puede cancelar con cobros",

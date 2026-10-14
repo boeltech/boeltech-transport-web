@@ -47,7 +47,7 @@ describe("resolveInvoiceFollowThrough", () => {
     ).toEqual({ showSend: false, showCollect: true });
   });
 
-  it("copy de follow-through es llano y apunta al header", () => {
+  it("copy de follow-through es llano (CTAs Enviar/Cobrar viven en action)", () => {
     const { hint } = invoicingCopy.detail;
     for (const text of [
       hint.followThroughSend,
@@ -57,8 +57,8 @@ describe("resolveInvoiceFollowThrough", () => {
     ]) {
       expect(text).not.toMatch(BANNED_FOLLOW_THROUGH);
     }
-    expect(hint.followThroughSend).toMatch(/Enviar/i);
-    expect(hint.followThroughCollect).toMatch(/Registrar pago/i);
+    expect(hint.followThroughSend).toMatch(/correo/i);
+    expect(hint.followThroughCollect).toMatch(/pago/i);
     expect(hint.followThroughSendBoth).toMatch(/^1\./);
     expect(hint.followThroughCollectBoth).toMatch(/^2\./);
   });

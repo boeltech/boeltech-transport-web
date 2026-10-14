@@ -33,7 +33,20 @@ vi.mock("@shared/permissions", () => ({
 }));
 
 vi.mock("../components/InvoiceActions", () => ({
-  InvoiceActions: () => <div data-testid="invoice-actions" />,
+  InvoiceActions: (props: {
+    openSendRequestKey?: number;
+    openPaymentRequestKey?: number;
+    openSubstituteRequestKey?: number;
+    openCancelRequestKey?: number;
+  }) => (
+    <div
+      data-testid="invoice-actions"
+      data-open-send={String(props.openSendRequestKey ?? 0)}
+      data-open-payment={String(props.openPaymentRequestKey ?? 0)}
+      data-open-substitute={String(props.openSubstituteRequestKey ?? 0)}
+      data-open-cancel={String(props.openCancelRequestKey ?? 0)}
+    />
+  ),
 }));
 
 vi.mock("../components/InvoiceDetailFiscalLabels", () => ({
@@ -331,6 +344,59 @@ describe("InvoiceDetailPage", () => {
     expect(screen.queryByText(/emitir/i)).not.toBeInTheDocument();
   });
 
+  it("follow-through Enviar en action incrementa openSendRequestKey del toolbar", async () => {
+    const user = userEvent.setup();
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
+    renderPage();
+
+    const actions = screen.getByTestId("invoice-actions");
+    expect(actions).toHaveAttribute("data-open-send", "0");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: invoicingCopy.detail.actions.sendByEmail,
+      }),
+    );
+
+    expect(actions).toHaveAttribute("data-open-send", "1");
+  });
+
+  it("follow-through Registrar pago en action incrementa openPaymentRequestKey", async () => {
+    const user = userEvent.setup();
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        paymentMethod: "PPD",
+        totalPaid: 0,
+        balanceDue: 1160,
+        dispatchSentAt: "2026-09-11T12:00:00.000Z",
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    const actions = screen.getByTestId("invoice-actions");
+    expect(actions).toHaveAttribute("data-open-payment", "0");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: invoicingCopy.detail.actions.registerPayment,
+      }),
+    );
+
+    expect(actions).toHaveAttribute("data-open-payment", "1");
+  });
+
   it("shows numbered checklist when send and collect are both pending", () => {
     useInvoiceMock.mockReturnValue({
       data: buildInvoice({
@@ -359,6 +425,50 @@ describe("InvoiceDetailPage", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ir a Envíos/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ir a Cobros/i })).not.toBeInTheDocument();
+  });
+
+  it("auto-dispatch failed: DetailAlertCard con Enviar y Ver este lote", async () => {
+    const user = userEvent.setup();
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        dispatchSentAt: null,
+        autoDispatch: {
+          enabledForClient: true,
+          lastScheduledRunId: "run-99",
+          lastItemStatus: "failed",
+          lastError: "smtp timeout",
+        },
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText(invoicingCopy.send.autoDispatchFailedTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: invoicingCopy.send.autoDispatchFailedLink,
+      }),
+    ).toHaveAttribute("href", "/finance/dispatch/run-99");
+
+    const actions = screen.getByTestId("invoice-actions");
+    expect(actions).toHaveAttribute("data-open-send", "0");
+    // Follow-through + auto-dispatch pueden mostrar ambos «Enviar»; cualquiera cablea el toolbar.
+    const sendButtons = screen.getAllByRole("button", {
+      name: invoicingCopy.detail.actions.sendByEmail,
+    });
+    expect(sendButtons.length).toBeGreaterThanOrEqual(1);
+    await user.click(sendButtons[0]!);
+    expect(actions).toHaveAttribute("data-open-send", "1");
   });
 
   it("shows fiscal attention banner with textual Sustituir link for manager", () => {

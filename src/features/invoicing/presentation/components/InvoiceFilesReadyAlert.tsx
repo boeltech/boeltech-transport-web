@@ -1,13 +1,14 @@
 /**
  * Banner «Archivos listos para descargar» en detalle de factura.
  * Dismiss = localStorage por factura (collapsed = "true").
+ * CTA de dismiss en DetailAlertCard.action (D5).
  */
 
 import { useEffect, useState } from "react";
 import { FileDown } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 
 import { invoicingCopy } from "../copy/invoicingCopy";
 
@@ -65,17 +66,17 @@ export function InvoiceFilesReadyAlert({
   };
 
   return (
-    <Alert variant="info">
-      <FileDown className="h-4 w-4" />
-      <AlertTitle>{copy.filesAlertTitle}</AlertTitle>
-      <AlertDescription>
-        <p>{copy.filesAlertDescription}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
-            {copy.filesAlertDismiss}
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
+    <DetailAlertCard
+      severity="info"
+      icon={<FileDown className="h-5 w-5" />}
+      title={copy.filesAlertTitle}
+      action={
+        <Button type="button" variant="outline" size="sm" onClick={dismiss}>
+          {copy.filesAlertDismiss}
+        </Button>
+      }
+    >
+      <p>{copy.filesAlertDescription}</p>
+    </DetailAlertCard>
   );
 }
