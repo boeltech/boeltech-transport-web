@@ -29,6 +29,7 @@ export const compensationCopy = {
         "{{name}} no tiene una tarifa de pago vigente. Elige abajo una tarifa lista para armar el pago y asígnala, o crea una nueva.",
       assignAction: "Asignar a esta tarifa",
       createAction: "Crear tarifa primero",
+      dismissAction: "Cerrar aviso",
       periodContextHint: (periodStart: string, periodEnd: string) =>
         `Período del pago a cubrir: ${periodStart} – ${periodEnd}. Al asignar, la vigencia debe iniciar en o antes del inicio de ese período.`,
     },
@@ -41,6 +42,9 @@ export const compensationCopy = {
     emptyTitle: "Aún no hay tarifas de pago",
     emptyDescription:
       "Crea la primera, define cómo se paga y asígnala a operadores.",
+    loadErrorTitle: "No se pudieron cargar las tarifas",
+    loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
+    retry: "Reintentar",
     searchPlaceholder: "Buscar por nombre…",
     filters: {
       statusPlaceholder: "Estado",
@@ -425,8 +429,12 @@ export const compensationCopy = {
       actions: "Acciones",
     },
     duplicateBadge: "Duplicado",
+    duplicateBannerTitle: "Rutas duplicadas",
     duplicateBanner:
       "Hay rutas con el mismo origen y destino. Solo una se aplicará en el pago (la más reciente).",
+    loadErrorTitle: "No se pudieron cargar las rutas",
+    loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
+    retry: "Reintentar",
   },
   corridorActions: {
     openMenuSr: "Abrir menú de acciones de ruta",

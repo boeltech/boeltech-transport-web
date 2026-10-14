@@ -530,6 +530,47 @@ describe("CompensationTemplateListPage", () => {
     });
   });
 
+  describe("F3 hub list (D4/D6/D7)", () => {
+    it("mantiene un filtro toolbar (estado) sin ListingFilterPanel vacío", () => {
+      renderPage();
+
+      expect(
+        screen.getByRole("combobox", { name: copy.filters.statusPlaceholder }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^Filtros/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("error de carga usa DetailAlertCard con Reintentar en action", () => {
+      mockUseCompensationTemplates.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isFetching: false,
+        isError: true,
+        refetch: mockRefetchTemplates,
+      });
+
+      renderPage();
+
+      expect(screen.getByText(copy.loadErrorTitle)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: copy.retry }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(copy.emptyTitle)).not.toBeInTheDocument();
+    });
+
+    it("banner assign: CTAs en DetailAlertCard.action", () => {
+      renderPage("/finance/compensation/templates?employeeId=emp-1");
+
+      expect(
+        screen.getByRole("button", {
+          name: compensationCopy.hub.employeeAssignBanner.dismissAction,
+        }),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("abre Sheet de operadores al asignar desde banner employeeId solo en esquemas listos", async () => {
     const user = userEvent.setup();
     renderPage("/finance/compensation/templates?employeeId=emp-1");
@@ -539,6 +580,11 @@ describe("CompensationTemplateListPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Juan Pérez no tiene una tarifa de pago vigente/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: compensationCopy.hub.employeeAssignBanner.dismissAction,
+      }),
     ).toBeInTheDocument();
 
     expect(screen.getAllByRole("button", { name: /Asignar a esta tarifa/i })).toHaveLength(

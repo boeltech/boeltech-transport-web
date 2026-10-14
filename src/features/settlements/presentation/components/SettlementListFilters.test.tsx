@@ -20,7 +20,7 @@ describe("SettlementListFilters", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("muestra Filtros y el recorte de sucursal cuando hay sucursales y recorte activo", () => {
+  it("usa ListingFilterPanel con el recorte de sucursal (contratistas fuera)", () => {
     render(
       <SettlementListFilters
         branchId="b1"
@@ -35,6 +35,7 @@ describe("SettlementListFilters", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.getByText(copy.branchLabel)).toBeInTheDocument();
+    expect(screen.queryByText("Incluir contratistas")).not.toBeInTheDocument();
     expect(screen.queryByText("Todos los operadores")).not.toBeInTheDocument();
   });
 });

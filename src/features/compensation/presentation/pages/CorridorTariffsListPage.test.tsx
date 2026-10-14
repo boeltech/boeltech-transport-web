@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { compensationCopy } from "../copy/compensationCopy";
 import { CorridorTariffsListPage } from "./CorridorTariffsListPage";
 
 const {
@@ -123,13 +124,47 @@ describe("CorridorTariffsListPage", () => {
     expect(screen.getByText("Ciudad de México → Monterrey")).toBeInTheDocument();
   });
 
-  it("muestra badge de duplicado cuando hay rutas equivalentes", () => {
+  it("mantiene un filtro toolbar (estado) sin ListingFilterPanel vacío", () => {
+    renderPage();
+
+    expect(
+      screen.getByRole("combobox", {
+        name: compensationCopy.corridors.filters.statusPlaceholder,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Filtros/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra badge de duplicado y DetailAlertCard cuando hay rutas equivalentes", () => {
     renderPage();
 
     expect(screen.getAllByText("Duplicado")).toHaveLength(2);
+    expect(screen.getByText("Rutas duplicadas")).toBeInTheDocument();
     expect(
       screen.getByText(/Hay rutas con el mismo origen y destino/i),
     ).toBeInTheDocument();
+  });
+
+  it("error de carga usa DetailAlertCard con Reintentar en action", () => {
+    mockUseCorridorTariffs.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isFetching: false,
+      isError: true,
+      refetch: vi.fn(),
+    });
+    mockUseCorridorDuplicateCatalog.mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("No se pudieron cargar las rutas")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+    expect(screen.queryByText("Rutas duplicadas")).not.toBeInTheDocument();
   });
 
   it("oculta la columna Acciones sin permisos de gestión", () => {

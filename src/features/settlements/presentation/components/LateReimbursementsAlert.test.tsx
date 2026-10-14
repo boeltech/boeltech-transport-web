@@ -83,7 +83,7 @@ describe("LateReimbursementsAlert", () => {
     mockNavigate.mockReset();
   });
 
-  it("autorizado: muestra el texto literal con la frase del siguiente pago", () => {
+  it("autorizado: DetailAlertCard con CTA en action y frase del siguiente pago", () => {
     renderAlert(baseSettlement);
     const alert = screen.getByTestId("late-reimbursements-alert");
     expect(within(alert).getByText(copy.lateAlert.title)).toBeInTheDocument();
@@ -92,6 +92,10 @@ describe("LateReimbursementsAlert", () => {
     ).toBeInTheDocument();
     expect(
       within(alert).getByText(/Si no armas un pago aparte, se sumarán al siguiente pago del operador\./),
+    ).toBeInTheDocument();
+    expect(within(alert).getByRole("button", { name: copy.createAction })).toBeInTheDocument();
+    expect(
+      within(alert).getByRole("button", { name: copy.lateAlert.viewExpenses }),
     ).toBeInTheDocument();
     expect(within(alert).queryByText(/Cancelar/)).not.toBeInTheDocument();
   });

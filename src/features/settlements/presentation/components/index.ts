@@ -18,6 +18,7 @@ export * from "./ManualItemsEditor";
 export * from "./SettlementWorkbenchKpiStrip";
 export * from "./SettlementBacklogTable";
 export * from "./SettlementListFilters";
+export * from "./SettlementRegistryFilters";
 export * from "./SettlementPipelineQueue";
 export * from "./SettlementsSetupChecklist";
 export * from "./OperatorPaymentsHubLayout";

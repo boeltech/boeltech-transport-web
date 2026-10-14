@@ -1,18 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Download, Plus } from "lucide-react";
+import { AlertCircle, ArrowLeft, Download, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
-import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { useSettlements } from "../../application/hooks";
 import {
@@ -26,6 +19,7 @@ import {
   SettlementCard,
   SettlementCardSkeleton,
   DisburseSettlementDialog,
+  SettlementRegistryFilters,
 } from "../components";
 import { exportSettlementsCsv } from "../utils/settlementExportHelpers";
 import {
@@ -36,9 +30,10 @@ import type { DriverSettlement } from "../../domain/entities";
 
 const copy = settlementsCopy;
 const workbenchCopy = settlementsCopy.workbench;
+const registryCopy = settlementsCopy.registry;
 
 /**
- * Registry histórico de pagos — ListPageShell bajo el hub (sin segundo H1).
+ * Registry histórico de pagos — List deep-link bajo el hub (sin tab; sin segundo H1).
  */
 export function SettlementsRegistryPage() {
   const navigate = useNavigate();
@@ -64,11 +59,14 @@ export function SettlementsRegistryPage() {
 
   const statusFilter = (filters.filters.status as SettlementStatus | "") || "";
   const employeeIdFilter = filters.filters.employeeId || "";
+  const activePanelFilterCount =
+    (statusFilter ? 1 : 0) + (employeeIdFilter ? 1 : 0);
 
   const {
     data: settlementsData,
     isLoading,
     isFetching,
+    isError,
     refetch,
   } = useSettlements({
     status: statusFilter || undefined,
@@ -78,9 +76,10 @@ export function SettlementsRegistryPage() {
     pageSize: 20,
   });
 
-  const settlementsList = settlementsData?.data ?? [];
+  const showLoadError = isError && !isLoading;
 
   const filteredSettlements = useMemo(() => {
+    const settlementsList = settlementsData?.data ?? [];
     if (!filters.search.trim()) return settlementsList;
     const q = filters.search.toLowerCase();
     return settlementsList.filter(
@@ -88,7 +87,7 @@ export function SettlementsRegistryPage() {
         s.settlementNumber.toLowerCase().includes(q) ||
         (s.employeeFullName && s.employeeFullName.toLowerCase().includes(q)),
     );
-  }, [settlementsList, filters.search]);
+  }, [settlementsData?.data, filters.search]);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -109,31 +108,32 @@ export function SettlementsRegistryPage() {
     [fromState, navigate],
   );
 
-  const pagination = settlementsData?.pagination
-    ? {
-        page: filters.page,
-        totalPages: settlementsData.pagination.totalPages,
-        total: settlementsData.pagination.total,
-        limit: settlementsData.pagination.limit,
-      }
-    : undefined;
+  const pagination =
+    !showLoadError && settlementsData?.pagination
+      ? {
+          page: filters.page,
+          totalPages: settlementsData.pagination.totalPages,
+          total: settlementsData.pagination.total,
+          limit: settlementsData.pagination.limit,
+        }
+      : undefined;
 
   return (
     <>
       <ListPageShell
-        title={copy.registry.title}
-        description={copy.registry.description}
+        title={registryCopy.title}
+        description={registryCopy.description}
         showHeader={false}
         items={filteredSettlements}
-        isLoading={isLoading}
+        isLoading={isLoading || showLoadError}
         pagination={pagination}
         onPageChange={filters.setPage}
-        entityLabelPlural={copy.registry.entityLabelPlural}
+        entityLabelPlural={registryCopy.entityLabelPlural}
         emptyState={{
           icon: <Plus className="h-8 w-8 text-muted-foreground" />,
           title: copy.empty.settlementsTitle,
           description: filters.hasFilters
-            ? "Intenta ajustar los filtros de búsqueda"
+            ? copy.empty.withFiltersDescription
             : copy.empty.settlements,
           cta: canCreate
             ? {
@@ -144,19 +144,47 @@ export function SettlementsRegistryPage() {
             : undefined,
           secondaryCta: filters.hasFilters
             ? {
-                label: "Limpiar filtros",
+                label: copy.empty.clearFilters,
                 onClick: filters.clearAll,
                 variant: "outline",
               }
             : undefined,
         }}
         beforeToolbar={
-          <Button asChild type="button" variant="link" size="sm" className="h-auto px-0">
-            <Link to={SETTLEMENTS_LIST_PATH}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              {workbenchCopy.actions.backToWorkbench}
-            </Link>
-          </Button>
+          <>
+            <Button
+              asChild
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto px-0"
+            >
+              <Link to={SETTLEMENTS_LIST_PATH}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
+                {workbenchCopy.actions.backToWorkbench}
+              </Link>
+            </Button>
+            {showLoadError ? (
+              <DetailAlertCard
+                severity="critical"
+                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                title={registryCopy.loadErrorTitle}
+                items={[{ text: registryCopy.loadError }]}
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void refetch();
+                    }}
+                  >
+                    {registryCopy.retry}
+                  </Button>
+                }
+              />
+            ) : null}
+          </>
         }
         toolbar={{
           search: {
@@ -175,7 +203,7 @@ export function SettlementsRegistryPage() {
               variant="outline"
               size="sm"
               onClick={handleExport}
-              disabled={filteredSettlements.length === 0}
+              disabled={filteredSettlements.length === 0 || showLoadError}
               className="gap-2"
             >
               <Download className="h-4 w-4" />
@@ -183,60 +211,44 @@ export function SettlementsRegistryPage() {
             </Button>
           ) : null,
           filters: (
-            <>
-              <EmployeeAsyncCombobox
-                id="settlements-registry-employee-filter"
-                className="w-48"
-                value={employeeIdFilter}
-                onChange={(employeeId) =>
-                  filters.setFilter("employeeId", employeeId)
-                }
-                placeholder="Todos los operadores"
-                allowClear
-              />
-              <Select
-                value={statusFilter || "all"}
-                onValueChange={(val) =>
-                  filters.setFilter("status", val === "all" ? "" : val)
-                }
-              >
-                <SelectTrigger className="w-48" aria-label="Filtrar por estado">
-                  <SelectValue placeholder={copy.fields.status} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{copy.fields.allStatuses}</SelectItem>
-                  {(
-                    Object.keys(SETTLEMENT_STATUS_LABELS) as SettlementStatus[]
-                  ).map((st) => (
-                    <SelectItem key={st} value={st}>
-                      {SETTLEMENT_STATUS_LABELS[st]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
+            <SettlementRegistryFilters
+              key={
+                activePanelFilterCount > 0 ? "filters-active" : "filters-idle"
+              }
+              status={statusFilter}
+              employeeId={employeeIdFilter}
+              activePanelFilterCount={activePanelFilterCount}
+              onStatusChange={(value) => filters.setFilter("status", value)}
+              onEmployeeChange={(employeeId) =>
+                filters.setFilter("employeeId", employeeId)
+              }
+            />
           ),
         }}
-        renderTable={() => (
-          <SettlementsTable
-            settlements={filteredSettlements}
-            isLoading={isLoading}
-            onView={handleViewSettlement}
-            onDisburse={setDisburseSettlement}
-            onActionComplete={refetch}
-            columnMode="registry"
-          />
-        )}
-        renderCards={() =>
-          filteredSettlements.map((st) => (
-            <SettlementCard
-              key={st.id}
-              settlement={st}
+        renderTable={() =>
+          showLoadError ? null : (
+            <SettlementsTable
+              settlements={filteredSettlements}
+              isLoading={isLoading}
               onView={handleViewSettlement}
               onDisburse={setDisburseSettlement}
               onActionComplete={refetch}
+              columnMode="registry"
             />
-          ))
+          )
+        }
+        renderCards={() =>
+          showLoadError
+            ? null
+            : filteredSettlements.map((st) => (
+                <SettlementCard
+                  key={st.id}
+                  settlement={st}
+                  onView={handleViewSettlement}
+                  onDisburse={setDisburseSettlement}
+                  onActionComplete={refetch}
+                />
+              ))
         }
         renderCardSkeleton={() => <SettlementCardSkeleton />}
       />

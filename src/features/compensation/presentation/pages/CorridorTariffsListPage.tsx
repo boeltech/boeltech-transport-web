@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { AlertCircle, AlertTriangle, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { AlertWithIcon } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,10 @@ function parseActiveFilter(raw: string): boolean | undefined {
   return undefined;
 }
 
+/**
+ * Rutas con tarifa fija — ListPageShell showHeader=false bajo el hub.
+ * Un filtro toolbar (estado); banner duplicados → DetailAlertCard.
+ */
 export function CorridorTariffsListPage() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -76,7 +81,7 @@ export function CorridorTariffsListPage() {
     },
   });
 
-  const { data, isLoading, isFetching, refetch } = useCorridorTariffs({
+  const { data, isLoading, isFetching, isError, refetch } = useCorridorTariffs({
     search: filters.search.trim() || undefined,
     isActive,
     page: filters.page,
@@ -84,6 +89,7 @@ export function CorridorTariffsListPage() {
   });
 
   const corridors = useMemo(() => data?.data ?? [], [data?.data]);
+  const showLoadError = isError && !isLoading;
 
   const branchNameMap = useCorridorBranchNameMap(
     corridors,
@@ -113,6 +119,8 @@ export function CorridorTariffsListPage() {
   useEffect(() => {
     if (!isCompensationCorridorsCreateQuery(createQuery)) return;
     if (canCreate) {
+      // Deep-link ?create=1: abrir sheet una vez y limpiar query.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-shot from URL
       openCreate();
     }
     setSearchParams(
@@ -147,16 +155,42 @@ export function CorridorTariffsListPage() {
         beforeToolbar={
           <>
             <p className="mb-4 text-sm text-muted-foreground">{copy.description}</p>
-            {hasDuplicates ? (
-              <AlertWithIcon variant="warning">{copy.duplicateBanner}</AlertWithIcon>
+            {showLoadError ? (
+              <DetailAlertCard
+                severity="critical"
+                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                title={copy.loadErrorTitle}
+                items={[{ text: copy.loadError }]}
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void refetch();
+                    }}
+                  >
+                    {copy.retry}
+                  </Button>
+                }
+              />
+            ) : null}
+            {hasDuplicates && !showLoadError ? (
+              <DetailAlertCard
+                severity="warning"
+                icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                title={copy.duplicateBannerTitle}
+              >
+                <p>{copy.duplicateBanner}</p>
+              </DetailAlertCard>
             ) : null}
           </>
         }
         items={corridors}
-        isLoading={isLoading}
+        isLoading={isLoading || showLoadError}
         entityLabelPlural="rutas con tarifa fija"
         pagination={
-          data?.pagination
+          !showLoadError && data?.pagination
             ? {
                 page: data.pagination.page,
                 totalPages: data.pagination.totalPages,
@@ -171,6 +205,13 @@ export function CorridorTariffsListPage() {
           title: copy.emptyTitle,
           description: copy.emptyDescription,
           cta: canCreate ? { label: copy.create, onClick: openCreate } : undefined,
+          secondaryCta: filters.hasFilters
+            ? {
+                label: "Limpiar filtros",
+                onClick: filters.clearAll,
+                variant: "outline",
+              }
+            : undefined,
         }}
         toolbar={{
           search: {
@@ -203,19 +244,21 @@ export function CorridorTariffsListPage() {
           onClearFilters: filters.clearAll,
           hasFilters: filters.hasFilters,
         }}
-        renderTable={() => (
-          <CorridorTariffsTable
-            corridors={corridors}
-            isLoading={isLoading}
-            branchNameMap={branchNameMap}
-            duplicateIds={duplicateIndex.duplicateIds}
-            showActions={canManageCorridors}
-            onEdit={canCreate ? openEdit : undefined}
-            onActionComplete={() => {
-              void refetch();
-            }}
-          />
-        )}
+        renderTable={() =>
+          showLoadError ? null : (
+            <CorridorTariffsTable
+              corridors={corridors}
+              isLoading={isLoading}
+              branchNameMap={branchNameMap}
+              duplicateIds={duplicateIndex.duplicateIds}
+              showActions={canManageCorridors}
+              onEdit={canCreate ? openEdit : undefined}
+              onActionComplete={() => {
+                void refetch();
+              }}
+            />
+          )
+        }
       />
 
       <CorridorTariffSheet

@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AlertTriangle, ListFilter, Plus } from "lucide-react";
+import { AlertCircle, AlertTriangle, ListFilter, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   Select,
   SelectContent,
@@ -133,14 +133,16 @@ export function CompensationTemplateListPage() {
   );
   const hasFilters = Boolean(searchTerm) || statusFilter !== "current";
 
-  const { data, isLoading, isFetching, refetch } = useCompensationTemplates({
-    search: searchTerm || undefined,
-    ...templateListStatusFilterToQuery(statusFilter),
-    page: filters.page,
-    pageSize: LIST_PAGE_SIZE,
-  });
+  const { data, isLoading, isFetching, isError, refetch } =
+    useCompensationTemplates({
+      search: searchTerm || undefined,
+      ...templateListStatusFilterToQuery(statusFilter),
+      page: filters.page,
+      pageSize: LIST_PAGE_SIZE,
+    });
 
   const templates = useMemo(() => data?.data ?? [], [data?.data]);
+  const showLoadError = isError && !isLoading;
 
   /** PRD D23: «Vigentes» vacío, pero el tenant sí tiene tarifas (desactivadas o reemplazadas). */
   const isCurrentEmpty =
@@ -326,7 +328,7 @@ export function CompensationTemplateListPage() {
     toast({ title: compensationCopy.toasts.dataRefreshed, variant: "success" });
   }, [refetch, toast]);
 
-  const openCreate = useCallback(() => setDialogOpen(true), []);
+  const openCreate = useCallback(() => setDialogOpen(true), [setDialogOpen]);
 
   const hubCreateAction = useMemo(
     () =>
@@ -362,48 +364,19 @@ export function CompensationTemplateListPage() {
 
   return (
     <>
-      {pendingEmployeeId ? (
-        <Alert variant="warning" className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{hubCopy.employeeAssignBanner.title}</AlertTitle>
-          <AlertDescription className="space-y-3">
-            <p>{assignBannerDescription}</p>
-            {paymentPeriodStart && paymentPeriodEnd ? (
-              <p className="text-xs opacity-90">
-                {hubCopy.employeeAssignBanner.periodContextHint(
-                  formatDate(paymentPeriodStart),
-                  formatDate(paymentPeriodEnd),
-                )}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              {templates.length === 0 && canCreate ? (
-                <Button type="button" size="sm" onClick={openCreate}>
-                  {hubCopy.employeeAssignBanner.createAction}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={clearPendingEmployee}
-              >
-                Cerrar aviso
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <ListPageShell
         showHeader={false}
         title={copy.title}
         description={copy.description}
         items={templates}
-        isLoading={isLoading || (isCurrentEmpty && isAnyTemplatesLoading)}
+        isLoading={
+          isLoading ||
+          showLoadError ||
+          (isCurrentEmpty && isAnyTemplatesLoading)
+        }
         entityLabelPlural="tarifas"
         pagination={
-          data?.pagination
+          !showLoadError && data?.pagination
             ? {
                 page: data.pagination.page,
                 totalPages: data.pagination.totalPages,
@@ -413,6 +386,64 @@ export function CompensationTemplateListPage() {
             : undefined
         }
         onPageChange={filters.setPage}
+        beforeToolbar={
+          <>
+            {showLoadError ? (
+              <DetailAlertCard
+                severity="critical"
+                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                title={copy.loadErrorTitle}
+                items={[{ text: copy.loadError }]}
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void refetch();
+                    }}
+                  >
+                    {copy.retry}
+                  </Button>
+                }
+              />
+            ) : null}
+            {pendingEmployeeId && !showLoadError ? (
+              <DetailAlertCard
+                severity="warning"
+                icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                title={hubCopy.employeeAssignBanner.title}
+                action={
+                  <>
+                    {templates.length === 0 && canCreate ? (
+                      <Button type="button" size="sm" onClick={openCreate}>
+                        {hubCopy.employeeAssignBanner.createAction}
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={clearPendingEmployee}
+                    >
+                      {hubCopy.employeeAssignBanner.dismissAction}
+                    </Button>
+                  </>
+                }
+              >
+                <p>{assignBannerDescription}</p>
+                {paymentPeriodStart && paymentPeriodEnd ? (
+                  <p className="text-xs text-muted-foreground">
+                    {hubCopy.employeeAssignBanner.periodContextHint(
+                      formatDate(paymentPeriodStart),
+                      formatDate(paymentPeriodEnd),
+                    )}
+                  </p>
+                ) : null}
+              </DetailAlertCard>
+            ) : null}
+          </>
+        }
         emptyState={
           showCurrentEmpty
             ? {
@@ -433,6 +464,13 @@ export function CompensationTemplateListPage() {
                 description: copy.emptyDescription,
                 cta: canCreate
                   ? { label: copy.create, onClick: openCreate }
+                  : undefined,
+                secondaryCta: hasFilters
+                  ? {
+                      label: "Limpiar filtros",
+                      onClick: filters.clearAll,
+                      variant: "outline",
+                    }
                   : undefined,
               }
         }
@@ -474,19 +512,21 @@ export function CompensationTemplateListPage() {
           onClearFilters: filters.clearAll,
           hasFilters,
         }}
-        renderTable={() => (
-          <CompensationTemplatesTable
-            templates={templates}
-            isLoading={isLoading}
-            pendingEmployeeId={pendingEmployeeId || undefined}
-            branchNameMap={branchNameMap}
-            layout={isDesktop ? "table" : "cards"}
-            expandedFamilyIds={expandedFamilyIds}
-            onFamilyExpandedChange={setFamilyExpanded}
-            onOpenOperators={openOperators}
-            onDeleted={handleDeleted}
-          />
-        )}
+        renderTable={() =>
+          showLoadError ? null : (
+            <CompensationTemplatesTable
+              templates={templates}
+              isLoading={isLoading}
+              pendingEmployeeId={pendingEmployeeId || undefined}
+              branchNameMap={branchNameMap}
+              layout={isDesktop ? "table" : "cards"}
+              expandedFamilyIds={expandedFamilyIds}
+              onFamilyExpandedChange={setFamilyExpanded}
+              onOpenOperators={openOperators}
+              onDeleted={handleDeleted}
+            />
+          )
+        }
       />
 
       <TemplateOperatorsSheet

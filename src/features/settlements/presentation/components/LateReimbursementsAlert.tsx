@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Info } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   Sheet,
   SheetContent,
@@ -46,23 +46,27 @@ export function LateReimbursementsAlert({ settlement, canCreate }: LateReimburse
 
   return (
     <>
-      <Alert variant="info" data-testid="late-reimbursements-alert">
-        <Info />
-        <AlertTitle>{copy.lateAlert.title}</AlertTitle>
-        <AlertDescription className="space-y-2">
-          <p>{body}</p>
-          <div className="flex flex-wrap gap-2">
-            {canCreate ? (
-              <Button type="button" size="sm" variant="outline" onClick={goToReimbursementSettlement}>
-                {copy.createAction}
+      <div data-testid="late-reimbursements-alert">
+        <DetailAlertCard
+          severity="info"
+          icon={<Info className="h-5 w-5" aria-hidden />}
+          title={copy.lateAlert.title}
+          action={
+            <>
+              {canCreate ? (
+                <Button type="button" size="sm" variant="outline" onClick={goToReimbursementSettlement}>
+                  {copy.createAction}
+                </Button>
+              ) : null}
+              <Button type="button" size="sm" variant="ghost" onClick={() => setSheetOpen(true)}>
+                {copy.lateAlert.viewExpenses}
               </Button>
-            ) : null}
-            <Button type="button" size="sm" variant="ghost" onClick={() => setSheetOpen(true)}>
-              {copy.lateAlert.viewExpenses}
-            </Button>
-          </div>
-        </AlertDescription>
-      </Alert>
+            </>
+          }
+        >
+          <p>{body}</p>
+        </DetailAlertCard>
+      </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent

@@ -119,18 +119,6 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell colSpan={TABLE_HEADERS.length} className="h-24 text-center text-muted-foreground text-sm">
-          {copy.empty.advances}
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
-}
-
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -147,15 +135,9 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
     );
   }
 
+  // Empty lo resuelve SettlementsAdvancesPage (EmptyState único del shell).
   if (advances.length === 0) {
-    return (
-      <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de anticipos">
-          <TableHeaderRow />
-          <EmptyState />
-        </Table>
-      </div>
-    );
+    return null;
   }
 
   return (

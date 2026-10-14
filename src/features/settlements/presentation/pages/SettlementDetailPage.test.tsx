@@ -455,6 +455,77 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
   });
 });
 
+describe("SettlementDetailPage F2 DetailAlertCard.action (D7)", () => {
+  function CreateProbe() {
+    const location = useLocation();
+    return <div data-testid="create-probe">{`${location.pathname}${location.search}`}</div>;
+  }
+
+  function renderDetail() {
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+          <Routes>
+            <Route path="/finance/settlements/new" element={<CreateProbe />} />
+            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-approver-999", fullName: "Auditor", tenant: { name: "Tenant" } },
+      isAuthenticated: true,
+    });
+  });
+
+  it("cancelado: CTA en DetailAlertCard.action arma pago nuevo", async () => {
+    const user = userEvent.setup();
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "cancelled",
+    });
+    renderDetail();
+
+    const alert = await screen.findByTestId("settlement-cancelled-alert");
+    expect(alert).toHaveTextContent("Pago cancelado");
+    expect(alert).toHaveTextContent(
+      "Sus viajes, sueldo y reembolsos quedaron libres para armar un pago nuevo.",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Armar pago nuevo con este período/i }),
+    );
+
+    const target = screen.getByTestId("create-probe").textContent ?? "";
+    expect(target).toContain("/finance/settlements/new?");
+    expect(target).toContain("employeeId=emp-1");
+    expect(target).toContain("periodStart=2026-09-01");
+    expect(target).toContain("periodEnd=2026-09-15");
+  });
+
+  it("rechazado: CTA en DetailAlertCard.action (job) sin tocar ReturnedAlert", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "rejected",
+      rejectionReason: "Montos incorrectos",
+    });
+    renderDetail();
+
+    const alert = await screen.findByTestId("settlement-rejected-alert");
+    expect(alert).toHaveTextContent("Pago rechazado por gerencia");
+    expect(alert).toHaveTextContent("Montos incorrectos");
+    expect(
+      screen.getByRole("button", { name: /Armar pago nuevo con este periodo/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Devuelta para corregir/i)).not.toBeInTheDocument();
+  });
+});
+
 describe("SettlementDetailPage franja Lo ganado − Descuentos = A pagar", () => {
   function settlementItem(
     overrides: Partial<NonNullable<DriverSettlement["items"]>[number]>,

@@ -32,6 +32,9 @@ export const settlementsCopy = {
     description:
       "Anticipos en gestión: en Aprobaciones, por entregar o con saldo pendiente de descontar.",
     deductInPayment: "Descontar en pago",
+    loadErrorTitle: "No se pudieron cargar los anticipos",
+    loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
+    retry: "Reintentar",
   },
   workbench: {
     buckets: {
@@ -205,11 +208,19 @@ export const settlementsCopy = {
       pipelineTitle: "Sin pagos en esta etapa",
       pipelineDescription:
         "No hay pagos en esta etapa. Prueba otra o consulta el historial.",
+      withFiltersTitle: "Sin resultados con estos filtros",
+      withFiltersDescription:
+        "Prueba otra sucursal, quita «Incluir contratistas» o limpia la búsqueda.",
+      clearFilters: "Limpiar filtros",
       schemesBridgeTitle: "¿Listo para armar un pago?",
       schemesBridgeDescription:
         "Si aún no hay operadores por pagar, verifica que tengan tarifa asignada y sueldo configurado en Empleados.",
       schemesBridgeAction: "Ir a Tarifas",
     },
+    loadErrorTitle: "No se pudo cargar la cola",
+    loadError:
+      "Intenta de nuevo. Si persiste, consulta el historial de pagos.",
+    retry: "Reintentar",
     readiness: {
       title: "Antes de armar un pago, verifica que la configuración esté completa.",
       ariaLabel: "Prerrequisitos para pagar a operadores",
@@ -499,6 +510,16 @@ export const settlementsCopy = {
     title: "Historial",
     description: "Pagos registrados de operadores.",
     entityLabelPlural: "pagos",
+    loadErrorTitle: "No se pudo cargar el historial",
+    loadError: "Intenta de nuevo. Si persiste, vuelve a por pagar.",
+    retry: "Reintentar",
+    filters: {
+      showFilters: "Filtros",
+      statusLabel: "Estado",
+      statusAll: "Todos los estados",
+      operatorLabel: "Operador",
+      operatorAll: "Todos los operadores",
+    },
   },
   empty: {
     settlements: "No hay pagos registrados en este período.",
@@ -511,6 +532,8 @@ export const settlementsCopy = {
     settlementsTitle: "No hay pagos registrados",
     advancesTitle: "Sin anticipos abiertos",
     agreementsTitle: "Sin asignaciones de tarifa",
+    withFiltersDescription: "Intenta ajustar los filtros de búsqueda",
+    clearFilters: "Limpiar filtros",
   },
   agreementsPage: {
     title: "Tarifas de operadores",

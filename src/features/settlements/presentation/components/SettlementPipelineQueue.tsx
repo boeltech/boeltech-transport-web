@@ -1,11 +1,8 @@
 import type { DriverSettlement } from "../../domain/entities";
 import type { SettlementWorkbenchNavBucket } from "../config/settlementWorkbenchConfig";
-import { settlementsCopy } from "../copy/settlementsCopy";
 import { SettlementsTable } from "./SettlementsTable";
 import { SettlementCard } from "./SettlementCard";
 import { SettlementCardSkeleton } from "./SettlementCard";
-
-const copy = settlementsCopy.workbench;
 
 interface SettlementPipelineQueueProps {
   bucket: SettlementWorkbenchNavBucket;
@@ -29,14 +26,8 @@ export function SettlementPipelineQueue({
   const hideDisburse = bucket !== "payable";
   const showRejectedCorrection = bucket === "draft";
 
-  if (!isLoading && settlements.length === 0) {
-    return (
-      <div className="rounded-md border bg-card p-8 text-center space-y-2">
-        <p className="text-sm font-medium">{copy.empty.pipelineTitle}</p>
-        <p className="text-sm text-muted-foreground">{copy.empty.pipelineDescription}</p>
-      </div>
-    );
-  }
+  // Empty lo resuelve SettlementsListPage (EmptyState único).
+  if (!isLoading && settlements.length === 0) return null;
 
   if (viewMode === "cards") {
     if (isLoading) {
@@ -73,7 +64,6 @@ export function SettlementPipelineQueue({
       onDisburse={hideDisburse ? undefined : onDisburse}
       onActionComplete={onActionComplete}
       showRejectedCorrection={showRejectedCorrection}
-      emptyMessage={copy.empty.pipelineDescription}
       columnMode="pipeline"
     />
   );

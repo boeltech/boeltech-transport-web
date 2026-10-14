@@ -59,7 +59,7 @@ import {
   LateReimbursementsAlert,
 } from "../components";
 import { MissingDataAckGate } from "../components/MissingDataAckGate";
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
   isReceiptSignable,
@@ -348,7 +348,7 @@ export function SettlementDetailPage() {
                 ) : null}
                 <ReturnedAlert
                   approval={settlement.approval}
-                  actions={
+                  action={
                     canUpdate ? (
                       <>
                         {canCorrect ? (
@@ -386,26 +386,30 @@ export function SettlementDetailPage() {
             <LateReimbursementsAlert settlement={settlement} canCreate={canCreate} />
 
             {settlement.status === "cancelled" ? (
-              <Alert variant="info" data-testid="settlement-cancelled-alert">
-                <AlertCircle />
-                <AlertTitle>{copy.reimbursements.cancelled.title}</AlertTitle>
-                <AlertDescription className="space-y-2">
+              <div data-testid="settlement-cancelled-alert">
+                <DetailAlertCard
+                  severity="info"
+                  icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                  title={copy.reimbursements.cancelled.title}
+                  action={
+                    canCreate ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(rebuildPath)}
+                      >
+                        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                        {isReimbursementOnly
+                          ? copy.reimbursements.createAction
+                          : copy.reimbursements.cancelled.rebuildAction}
+                      </Button>
+                    ) : null
+                  }
+                >
                   <p>{copy.reimbursements.cancelled.body}</p>
-                  {canCreate ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate(rebuildPath)}
-                    >
-                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                      {isReimbursementOnly
-                        ? copy.reimbursements.createAction
-                        : copy.reimbursements.cancelled.rebuildAction}
-                    </Button>
-                  ) : null}
-                </AlertDescription>
-              </Alert>
+                </DetailAlertCard>
+              </div>
             ) : null}
 
             {/* D2: strip 3 celdas — grossAmount ya incluye reembolsos */}
@@ -464,29 +468,34 @@ export function SettlementDetailPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               <div className="lg:col-span-8 space-y-6">
-                {settlement.status === "rejected" && (
-                  <div className="rounded-xl border bg-destructive/10 border-destructive/20 p-4 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 font-semibold text-destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>{dCopy.rejection.title}</span>
-                      </div>
-                      <p className="text-foreground text-xs">
-                        <span className="font-medium text-muted-foreground">{dCopy.rejection.reasonLabel} </span>
+                {settlement.status === "rejected" ? (
+                  <div data-testid="settlement-rejected-alert">
+                    <DetailAlertCard
+                      severity="critical"
+                      icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                      title={dCopy.rejection.title}
+                      action={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(rebuildPath)}
+                          className="gap-1.5"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          {dCopy.rejection.reopenDraftBtn}
+                        </Button>
+                      }
+                    >
+                      <p>
+                        <span className="font-medium text-foreground/80">
+                          {dCopy.rejection.reasonLabel}{" "}
+                        </span>
                         {settlement.rejectionReason || "Sin motivo especificado."}
                       </p>
-                    </div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => navigate(rebuildPath)}
-                      className="shrink-0 gap-1.5"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      {dCopy.rejection.reopenDraftBtn}
-                    </Button>
+                    </DetailAlertCard>
                   </div>
-                )}
+                ) : null}
 
                 {/* D3: desglose colapsable según estado */}
                 <Collapsible defaultOpen={expandItemsByDefault} className="group">

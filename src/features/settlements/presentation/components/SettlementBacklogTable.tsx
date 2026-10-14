@@ -20,7 +20,6 @@ import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { usePermissions } from "@shared/permissions";
-import { useHelpEmptySupport } from "@features/help-center/presentation";
 import type { SettlementBacklogRow } from "../../domain/entities";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { resolveBacklogPeriodTooltip } from "../utils/backlogPeriodTooltip";
@@ -37,12 +36,10 @@ import { resolveTemplateSupersededText } from "../utils/templateSupersededNotice
 const copy = settlementsCopy.workbench;
 const fieldsCopy = settlementsCopy.fields;
 const reimbursementCopy = settlementsCopy.reimbursements;
-const SETTLEMENTS_PATH = "/finance/settlements";
 
 interface SettlementBacklogTableProps {
   rows: readonly SettlementBacklogRow[];
   isLoading: boolean;
-  apiUnavailable?: boolean;
   viewMode: "table" | "cards";
   onNavigateCreate: (path: string) => void;
 }
@@ -328,35 +325,9 @@ function LoadingSkeleton() {
   );
 }
 
-function BacklogEmpty({ apiUnavailable }: { apiUnavailable: boolean }) {
-  const helpEmpty = useHelpEmptySupport(SETTLEMENTS_PATH, !apiUnavailable);
-  return (
-    <div className="rounded-md border bg-card p-8 text-center space-y-3">
-      <p className="text-base font-semibold text-foreground">
-        {apiUnavailable
-          ? copy.empty.backlogApiPendingTitle
-          : copy.empty.backlogTitle}
-      </p>
-      <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-        {!apiUnavailable && helpEmpty
-          ? helpEmpty.phrase
-          : apiUnavailable
-            ? copy.empty.backlogApiPendingDescription
-            : copy.empty.backlogDescription}
-      </p>
-      {helpEmpty ? (
-        <Button variant="outline" onClick={helpEmpty.viewHelpCta.onClick}>
-          {helpEmpty.viewHelpCta.label}
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
 export function SettlementBacklogTable({
   rows,
   isLoading,
-  apiUnavailable = false,
   viewMode,
   onNavigateCreate,
 }: SettlementBacklogTableProps) {
@@ -384,9 +355,8 @@ export function SettlementBacklogTable({
       );
     }
 
-    if (rows.length === 0) {
-      return <BacklogEmpty apiUnavailable={apiUnavailable} />;
-    }
+    // Empty lo resuelve SettlementsListPage (EmptyState XOR checklist/bridge).
+    if (rows.length === 0) return null;
 
     return (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -469,9 +439,8 @@ export function SettlementBacklogTable({
     );
   }
 
-  if (rows.length === 0) {
-    return <BacklogEmpty apiUnavailable={apiUnavailable} />;
-  }
+  // Empty lo resuelve SettlementsListPage (EmptyState XOR checklist/bridge).
+  if (rows.length === 0) return null;
 
   return (
     <div className="rounded-md border bg-card overflow-x-auto">

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { History, ArrowUpRight } from "lucide-react";
+import {
+  AlertCircle,
+  History,
+  ArrowUpRight,
+  Wallet,
+} from "lucide-react";
 import {
   WorkbenchPageShell,
   type WorkbenchBucket,
@@ -8,11 +13,13 @@ import {
 import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Label } from "@shared/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { EmptyState } from "@shared/ui/feedback-states";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { useBranches } from "@features/branches";
+import { useHelpEmptySupport } from "@features/help-center/presentation";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
@@ -24,6 +31,7 @@ import {
 import {
   resolveSettlementsListRedirect,
   settlementDetailPath,
+  SETTLEMENTS_LIST_PATH,
   settlementsAdvancesPath,
   settlementsRegistryPath,
 } from "../../application/settlementsRoutes";
@@ -72,7 +80,10 @@ export function SettlementsListPage() {
     limit: 100,
     filters: { isActive: true },
   });
-  const branches = branchesData?.data ?? [];
+  const branches = useMemo(
+    () => branchesData?.data ?? [],
+    [branchesData?.data],
+  );
 
   const branchLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -121,6 +132,7 @@ export function SettlementsListPage() {
     data: workbenchData,
     isLoading: workbenchLoading,
     isFetching: workbenchFetching,
+    isError: isWorkbenchError,
     refetch: refetchWorkbench,
   } = useSettlementWorkbench(workbenchParams);
 
@@ -162,6 +174,7 @@ export function SettlementsListPage() {
     data: pipelineData,
     isLoading: isPipelineLoading,
     isFetching: isPipelineFetching,
+    isError: isPipelineError,
     refetch: refetchPipelinePrimary,
   } = useSettlements({
     status: pipelineStatus,
@@ -175,6 +188,7 @@ export function SettlementsListPage() {
     data: rejectedPipelineData,
     isLoading: isRejectedPipelineLoading,
     isFetching: isRejectedPipelineFetching,
+    isError: isRejectedPipelineError,
     refetch: refetchRejectedPipeline,
   } = useSettlements({
     status: "rejected",
@@ -217,6 +231,22 @@ export function SettlementsListPage() {
     toast,
   ]);
 
+  const handleRetryLoad = useCallback(() => {
+    if (activeBucket === "pending") {
+      void refetchWorkbench();
+      void refetchWorkbenchCounts();
+      return;
+    }
+    void refetchPipelinePrimary();
+    if (activeBucket === "draft") void refetchRejectedPipeline();
+  }, [
+    activeBucket,
+    refetchPipelinePrimary,
+    refetchRejectedPipeline,
+    refetchWorkbench,
+    refetchWorkbenchCounts,
+  ]);
+
   const handleBucketChange = useCallback(
     (bucket: SettlementWorkbenchNavBucket) => {
       // Una sola llamada a setSearchParams: setFilters ya resetea page=1.
@@ -253,6 +283,22 @@ export function SettlementsListPage() {
     workbenchLoading,
   ]);
 
+  const activeError = useMemo(() => {
+    if (activeBucket === "pending") {
+      return isWorkbenchError || !isWorkbenchAvailable;
+    }
+    if (activeBucket === "draft") {
+      return isPipelineError || isRejectedPipelineError;
+    }
+    return isPipelineError;
+  }, [
+    activeBucket,
+    isPipelineError,
+    isRejectedPipelineError,
+    isWorkbenchAvailable,
+    isWorkbenchError,
+  ]);
+
   const activePagination = useMemo(() => {
     if (activeBucket === "pending") return undefined;
 
@@ -279,12 +325,7 @@ export function SettlementsListPage() {
       };
     }
     return undefined;
-  }, [
-    activeBucket,
-    filters.page,
-    pipelineData?.pagination,
-    rejectedPipelineData?.pagination,
-  ]);
+  }, [activeBucket, filters.page, pipelineData, rejectedPipelineData]);
 
   const handleViewSettlement = useCallback(
     (id: string) => navigate(settlementDetailPath(id), { state: fromState }),
@@ -297,15 +338,16 @@ export function SettlementsListPage() {
     workbenchCountsFetching ||
     workbenchFetching;
 
-  const isDegraded = !isWorkbenchAvailable;
-
   const {
     items: readinessItems,
     isReady: isSettlementsReady,
     isLoading: readinessLoading,
   } = useSettlementsReadiness();
 
-  const backlogRows = workbenchData?.backlog ?? [];
+  const backlogRows = useMemo(
+    () => workbenchData?.backlog ?? [],
+    [workbenchData?.backlog],
+  );
   const visibleBacklogRows = useMemo(
     () => filterSettlementBacklog(backlogRows, filters.search),
     [backlogRows, filters.search],
@@ -336,14 +378,40 @@ export function SettlementsListPage() {
         ]
       : []),
   ];
-  const showChecklist = !readinessLoading && !isSettlementsReady;
-  // F4: una sola franja — checklist de setup XOR bridge vacío (no ambos).
+
+  const isPendingBucket = activeBucket === "pending";
+  const isSurfaceEmpty = isPendingBucket
+    ? visibleBacklogRows.length === 0
+    : pipelineSettlements.length === 0;
+
+  // D5: checklist XOR bridge XOR EmptyState — solo cuando la cola está vacía.
+  const showChecklist =
+    isPendingBucket &&
+    isSurfaceEmpty &&
+    !activeLoading &&
+    !activeError &&
+    !readinessLoading &&
+    !isSettlementsReady;
   const showSchemesBridge =
+    isPendingBucket &&
+    isSurfaceEmpty &&
+    !activeLoading &&
+    !activeError &&
     !readinessLoading &&
     !showChecklist &&
-    activeBucket === "pending" &&
-    backlogRows.length === 0;
-  const showBeforeAwareness = showChecklist || showSchemesBridge;
+    backlogRows.length === 0 &&
+    !hasToolbarFilters;
+
+  const helpEmpty = useHelpEmptySupport(
+    SETTLEMENTS_LIST_PATH,
+    isPendingBucket &&
+      isSurfaceEmpty &&
+      !activeLoading &&
+      !activeError &&
+      !showChecklist &&
+      !showSchemesBridge &&
+      !hasToolbarFilters,
+  );
 
   if (listRedirect) {
     return <Navigate to={listRedirect} replace />;
@@ -355,37 +423,10 @@ export function SettlementsListPage() {
         title={hubCopy.title}
         description={hubCopy.description}
         showHeader={false}
-        beforeAwareness={
-          showBeforeAwareness ? (
-            <div className="space-y-3">
-              <SettlementsSetupChecklist
-                items={readinessItems}
-                isReady={isSettlementsReady}
-                isLoading={readinessLoading}
-              />
-              {showSchemesBridge ? (
-                <Alert variant="info">
-                  <AlertTitle>{workbenchCopy.empty.schemesBridgeTitle}</AlertTitle>
-                  <AlertDescription className="space-y-2">
-                    <p>{workbenchCopy.empty.schemesBridgeDescription}</p>
-                    <p>
-                      <Link
-                        to={COMPENSATION_TEMPLATES_PATH}
-                        className="font-medium text-foreground underline underline-offset-4"
-                      >
-                        {workbenchCopy.empty.schemesBridgeAction}
-                      </Link>
-                    </p>
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-            </div>
-          ) : undefined
-        }
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.scorecards.settlements.ariaLabel}
         bucketsLoading={workbenchCountsLoading}
-        isDegraded={isDegraded}
+        isDegraded={activeError && !activeLoading}
         degradedHref={settlementsRegistryPath()}
         degradedLinkLabel={workbenchCopy.actions.viewFullHistory}
         degradedMessage={workbenchCopy.empty.backlogApiPendingDescription}
@@ -467,12 +508,116 @@ export function SettlementsListPage() {
             </>
           ),
         }}
-        renderContent={() =>
-          activeBucket === "pending" ? (
+        renderContent={() => {
+          if (activeLoading) {
+            return isPendingBucket ? (
+              <SettlementBacklogTable
+                rows={[]}
+                isLoading
+                viewMode={filters.viewMode}
+                onNavigateCreate={(path) =>
+                  navigate(path, { state: fromState })
+                }
+              />
+            ) : (
+              <SettlementPipelineQueue
+                bucket={activeBucket}
+                settlements={[]}
+                isLoading
+                viewMode={filters.viewMode}
+                onView={handleViewSettlement}
+              />
+            );
+          }
+
+          if (activeError) {
+            return (
+              <DetailAlertCard
+                severity="critical"
+                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                title={workbenchCopy.loadErrorTitle}
+                items={[{ text: workbenchCopy.loadError }]}
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetryLoad}
+                  >
+                    {workbenchCopy.retry}
+                  </Button>
+                }
+              />
+            );
+          }
+
+          if (isSurfaceEmpty) {
+            if (showChecklist) {
+              return (
+                <SettlementsSetupChecklist
+                  items={readinessItems}
+                  isReady={isSettlementsReady}
+                  isLoading={readinessLoading}
+                />
+              );
+            }
+
+            if (showSchemesBridge) {
+              return (
+                <DetailAlertCard
+                  severity="info"
+                  icon={<Wallet className="h-5 w-5" aria-hidden />}
+                  title={workbenchCopy.empty.schemesBridgeTitle}
+                  items={[{ text: workbenchCopy.empty.schemesBridgeDescription }]}
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(COMPENSATION_TEMPLATES_PATH)}
+                    >
+                      {workbenchCopy.empty.schemesBridgeAction}
+                    </Button>
+                  }
+                />
+              );
+            }
+
+            const emptyTitle = hasToolbarFilters
+              ? workbenchCopy.empty.withFiltersTitle
+              : isPendingBucket
+                ? workbenchCopy.empty.backlogTitle
+                : workbenchCopy.empty.pipelineTitle;
+            const emptyDescription = hasToolbarFilters
+              ? workbenchCopy.empty.withFiltersDescription
+              : isPendingBucket
+                ? helpEmpty?.phrase ?? workbenchCopy.empty.backlogDescription
+                : workbenchCopy.empty.pipelineDescription;
+
+            return (
+              <EmptyState
+                icon={<Wallet className="h-10 w-10 text-muted-foreground" />}
+                title={emptyTitle}
+                description={emptyDescription}
+                cta={
+                  hasToolbarFilters
+                    ? {
+                        label: workbenchCopy.empty.clearFilters,
+                        onClick: filters.clearAll,
+                        variant: "outline",
+                      }
+                    : helpEmpty
+                      ? helpEmpty.viewHelpCta
+                      : undefined
+                }
+              />
+            );
+          }
+
+          return isPendingBucket ? (
             <SettlementBacklogTable
               rows={visibleBacklogRows}
-              isLoading={workbenchLoading}
-              apiUnavailable={!isWorkbenchAvailable}
+              isLoading={false}
               viewMode={filters.viewMode}
               onNavigateCreate={(path) =>
                 navigate(path, { state: fromState })
@@ -482,7 +627,7 @@ export function SettlementsListPage() {
             <SettlementPipelineQueue
               bucket={activeBucket}
               settlements={pipelineSettlements}
-              isLoading={activeLoading}
+              isLoading={false}
               viewMode={filters.viewMode}
               onView={handleViewSettlement}
               onDisburse={setDisburseSettlement}
@@ -492,8 +637,8 @@ export function SettlementsListPage() {
                 void refetchWorkbenchCounts();
               }}
             />
-          )
-        }
+          );
+        }}
         pagination={activePagination}
         onPageChange={filters.setPage}
       />
