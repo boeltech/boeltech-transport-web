@@ -38,6 +38,9 @@ export const employeesCopy = {
       descriptionFiltered:
         "Nada coincide. Prueba otro nombre, RFC o número, o limpia los recortes.",
     },
+    card: {
+      actionsAria: "Abrir menú de acciones",
+    },
   },
   detail: {
     title: {
@@ -77,7 +80,32 @@ export const employeesCopy = {
       employment: "Laboral",
       compensation: "Compensación",
     },
+    actions: {
+      viewDetail: "Ver detalle",
+      edit: "Editar",
+      terminate: "Dar de baja",
+      terminating: "Dando de baja…",
+      cancel: "Cancelar",
+      terminateTitle: "¿Dar de baja a este empleado?",
+      terminateDescription: (name: string) =>
+        `El empleado ${name} quedará marcado como dado de baja. Esta acción no se puede deshacer desde el padrón.`,
+      terminateDriverNote:
+        "Si está registrado como conductor y no tiene viajes activos ni está en viaje, su rol de conductor se dará de baja automáticamente.",
+      terminateTripsHintPrefix: "Si la baja falla por viajes pendientes, revise",
+      terminateTripsHintOr: "o",
+      linkTrips: "Viajes",
+      linkDrivers: "Conductores",
+      terminateErrorTitle: "No se pudo dar de baja",
+      terminateErrorDriverHint:
+        "Puede revisar el módulo Conductores o la lista de Viajes.",
+      terminateSuccess: "Empleado dado de baja correctamente",
+      terminationDate: "Fecha de baja *",
+      terminationReason: "Motivo (opcional)",
+      terminationReasonPlaceholder: "Renuncia voluntaria, fin de contrato...",
+    },
     alert: {
+      goToEdit: "Editar",
+      goToDriver: "Ver conductor",
       nssMissing: {
         title: "NSS sin registrar",
         body: "No hay número de seguridad social capturado. Es obligatorio para nómina e IMSS.",
@@ -268,7 +296,11 @@ export const employeesCopy = {
       },
     },
     create: {
+      title: "Nuevo empleado",
+      subtitle: "Completa los pasos para registrar un empleado",
+      backLabel: "Volver al listado",
       submit: "Registrar empleado",
+      submittingLabel: "Registrando...",
       toast: {
         successTitle: "Empleado registrado",
         addressPartialTitle: "Empleado creado, pero falló el domicilio",

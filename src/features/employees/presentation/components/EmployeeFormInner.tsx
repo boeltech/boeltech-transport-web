@@ -28,6 +28,7 @@ import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
   DateField,
   FormFieldShell,
+  FormStickyActions,
   FormValidationSummary,
   MoneyInput,
   getFieldErrorAriaProps,
@@ -93,6 +94,7 @@ import {
 import {
   GENDER_OPTIONS,
   MARITAL_STATUS_OPTIONS,
+  EMPLOYMENT_TYPE_LABELS,
   EMPLOYMENT_TYPE_OPTIONS,
   SALARY_TYPE_OPTIONS,
   PAYMENT_METHOD_OPTIONS,
@@ -231,6 +233,10 @@ function EmployeeWizardReview({
   ]
     .filter(Boolean)
     .join(", ");
+  const employmentTypeLabel =
+    EMPLOYMENT_TYPE_LABELS[
+      values.employment_type as keyof typeof EMPLOYMENT_TYPE_LABELS
+    ] ?? values.employment_type;
   return (
     <FormSectionCard
       title={fc.section.review.title}
@@ -239,7 +245,7 @@ function EmployeeWizardReview({
       contentClassName="space-y-3 text-sm"
     >
       <div>
-        <p className="text-muted-foreground">{fc.label.reviewName}</p>
+        <p className="text-sm text-muted-foreground">{fc.label.reviewName}</p>
         <p className="font-medium">
           {[values.first_name, values.last_name, values.second_last_name]
             .filter(Boolean)
@@ -247,17 +253,17 @@ function EmployeeWizardReview({
         </p>
       </div>
       <div>
-        <p className="text-muted-foreground">{fc.label.reviewHire}</p>
+        <p className="text-sm text-muted-foreground">{fc.label.reviewHire}</p>
         <p className="font-medium">
-          {values.hire_date} · {values.employment_type}
+          {values.hire_date} · {employmentTypeLabel}
         </p>
       </div>
       <div>
-        <p className="text-muted-foreground">{fc.label.reviewEmail}</p>
+        <p className="text-sm text-muted-foreground">{fc.label.reviewEmail}</p>
         <p className="font-medium">{values.email || fc.hint.reviewEmpty}</p>
       </div>
       <div>
-        <p className="text-muted-foreground">{fc.label.reviewAddress}</p>
+        <p className="text-sm text-muted-foreground">{fc.label.reviewAddress}</p>
         <p className="font-medium">{addressLine || fc.hint.reviewEmpty}</p>
       </div>
     </FormSectionCard>
@@ -322,6 +328,10 @@ interface EmployeeFormInnerProps {
   wizardStepIndex?: number;
   /** Notifica al contenedor estado de submit (para deshabilitar navegación shell). */
   onSubmittingChange?: (isSubmitting: boolean) => void;
+  /** Notifica dirty a la página para `useUnsavedChangesGuard` (D8). */
+  onDirtyChange?: (isDirty: boolean) => void;
+  /** Permite salir del guard antes de mutate/navigate exitoso. */
+  onAllowLeave?: () => void;
 }
 
 export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProps>(function EmployeeFormInner({
@@ -333,6 +343,8 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
   embeddedInWizardShell = false,
   wizardStepIndex = 0,
   onSubmittingChange,
+  onDirtyChange,
+  onAllowLeave,
 }, ref) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -411,6 +423,11 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
   useEffect(() => {
     onSubmittingChange?.(form.formState.isSubmitting);
   }, [form.formState.isSubmitting, onSubmittingChange]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
   const watchedFormValues = useWatch({ control: form.control });
 
   const watchedDepartment = useWatch({ control: form.control, name: "department" });
@@ -665,6 +682,8 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     const addressCreateDto = employeePersonalFormToCreateDto(domicilio);
     const addressUpdateDto = employeePersonalFormToUpdateDto(domicilio);
 
+    onAllowLeave?.();
+
     try {
       if (isEditing) {
         const dto: UpdateEmployeeDTO = cleaned as UpdateEmployeeDTO;
@@ -752,6 +771,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     id,
     isEditing,
     navigate,
+    onAllowLeave,
     onSaveSuccess,
     queryClient,
     scrollToEditSection,
@@ -787,7 +807,11 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     <>
         <div
           id="employee-edit-personal"
-          className={cn("space-y-4", stepPanelClass(0))}
+          className={cn(
+            "space-y-4",
+            isEditing && "scroll-mt-28",
+            stepPanelClass(0),
+          )}
           aria-hidden={!isEditing && activeWizardStep !== 0}
         >
           <FormSectionCard
@@ -921,7 +945,11 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
 
         <div
           id="employee-edit-contact"
-          className={cn("space-y-4", stepPanelClass(1))}
+          className={cn(
+            "space-y-4",
+            isEditing && "scroll-mt-28",
+            stepPanelClass(1),
+          )}
           aria-hidden={!isEditing && activeWizardStep !== 1}
         >
           <FormSectionCard
@@ -1015,7 +1043,11 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
 
         <div
           id="employee-edit-employment"
-          className={cn("space-y-4", stepPanelClass(2))}
+          className={cn(
+            "space-y-4",
+            isEditing && "scroll-mt-28",
+            stepPanelClass(2),
+          )}
           aria-hidden={!isEditing && activeWizardStep !== 2}
         >
           <FormSectionCard
@@ -1139,7 +1171,11 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
 
         <div
           id="employee-edit-compensation"
-          className={cn("space-y-4", stepPanelClass(3))}
+          className={cn(
+            "space-y-4",
+            isEditing && "scroll-mt-28",
+            stepPanelClass(3),
+          )}
           aria-hidden={!isEditing && activeWizardStep !== 3}
         >
           <FormSectionCard
@@ -1269,7 +1305,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
         ) : null}
 
         {showEditFormActions ? (
-          <div className="flex items-center justify-end gap-4 border-t pt-4">
+          <FormStickyActions sticky>
             <Button
               type="button"
               variant="outline"
@@ -1291,7 +1327,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
                 fc.action.save
               )}
             </Button>
-          </div>
+          </FormStickyActions>
         ) : null}
 
         {!isEditing && !wizardControlledByShell && (

@@ -3,30 +3,53 @@
  * Alta de empleado (wizard canónico con WizardPageShell).
  */
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import {
   WizardPageShell,
   type WizardFormRef,
 } from "@shared/ui/page-shells/WizardPageShell";
+import { UnsavedChangesDialog } from "@shared/ui/form";
+import { useUnsavedChangesGuard } from "@shared/hooks";
 import {
   EmployeeFormInner,
 } from "../components/EmployeeFormInner";
 import { EMPLOYEE_WIZARD_STEPS } from "../components/employeeWizardSteps";
+import { employeesCopy } from "../copy";
+
+const fc = employeesCopy.form;
 
 export function EmployeeFormPage() {
   const navigate = useNavigate();
   const formRef = useRef<WizardFormRef | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    if (isSubmitting) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [isSubmitting, resetAllowLeave]);
+
+  const handleCancel = useCallback(() => navigate("/employees"), [navigate]);
 
   const shellHeader = useMemo(
     () => ({
       backHref: "/employees",
-      backLabel: "Volver al listado",
+      backLabel: fc.create.backLabel,
       icon: <UserPlus className="h-5 w-5" />,
-      title: "Nuevo Empleado",
-      subtitle: "Completa los pasos para registrar un empleado",
+      title: fc.create.title,
+      subtitle: fc.create.subtitle,
     }),
     [],
   );
@@ -40,25 +63,30 @@ export function EmployeeFormPage() {
         embeddedInWizardShell
         wizardStepIndex={currentStep}
         onSubmittingChange={setIsSubmitting}
+        onDirtyChange={setIsDirty}
+        onAllowLeave={allowLeave}
       />
     ),
-    [],
+    [allowLeave],
   );
 
   return (
-    <WizardPageShell
-      steps={EMPLOYEE_WIZARD_STEPS}
-      formRef={formRef}
-      header={shellHeader}
-      renderStep={renderStep}
-      isSubmitting={isSubmitting}
-      submitLabel="Registrar empleado"
-      submittingLabel="Registrando..."
-      stepsAriaLabel="Pasos para registrar un empleado"
-      onCancel={() => navigate("/employees")}
-      headerBackMode="wizard"
-      className="pb-8"
-    />
+    <>
+      <WizardPageShell
+        steps={EMPLOYEE_WIZARD_STEPS}
+        formRef={formRef}
+        header={shellHeader}
+        renderStep={renderStep}
+        isSubmitting={isSubmitting}
+        submitLabel={fc.create.submit}
+        submittingLabel={fc.create.submittingLabel}
+        stepsAriaLabel={fc.create.wizardAriaLabel}
+        onCancel={handleCancel}
+        headerBackMode="wizard"
+        className="pb-8"
+      />
+      <UnsavedChangesDialog blocker={blocker} />
+    </>
   );
 }
 

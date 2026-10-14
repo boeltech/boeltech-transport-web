@@ -1,10 +1,7 @@
 /**
  * EmployeeCardSkeleton
- * Clean Architecture - Presentation Layer (Components)
  *
  * Skeleton loader para EmployeeCard.
- *
- * Ubicación: src/features/employees/presentation/components/EmployeeCardSkeleton.tsx
  */
 
 import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
@@ -37,11 +34,8 @@ export function EmployeeCardSkeleton() {
         </div>
       </CardContent>
 
-      <CardFooter className="pt-3 border-t">
-        <div className="flex w-full items-center justify-between">
-          <Skeleton className="h-6 w-20 rounded-full" />
-          <Skeleton className="h-8 w-20" />
-        </div>
+      <CardFooter className="border-t pt-3">
+        <Skeleton className="h-6 w-20 rounded-full" />
       </CardFooter>
     </Card>
   );

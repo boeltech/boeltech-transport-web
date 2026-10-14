@@ -3,12 +3,14 @@
  * Edición de empleado — patrón DriverEditPage / EditVehiclePage.
  */
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
 import { User, UserCog } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
-import { useToast } from "@shared/hooks";
+import { UnsavedChangesDialog } from "@shared/ui/form";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 
 import { useEmployee } from "../../application/hooks/useEmployees";
 import { EmployeeFormInner } from "../components/EmployeeFormInner";
@@ -23,6 +25,12 @@ export function EmployeeEditPage() {
   const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const employeeId = id ?? "";
+  const [isDirty, setIsDirty] = useState(false);
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+  });
+  const wasSubmittingRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: response, isLoading, isError } = useEmployee(
     employeeId,
@@ -30,9 +38,20 @@ export function EmployeeEditPage() {
   );
   const employee = response?.data;
 
-  const handleCancel = () => {
+  useEffect(() => {
+    if (isSubmitting) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [isSubmitting, resetAllowLeave]);
+
+  const handleCancel = useCallback(() => {
     navigatePreservingFrom(navigate, `/employees/${employeeId}`, incomingFrom);
-  };
+  }, [navigate, employeeId, incomingFrom]);
 
   return (
     <FormPageShell
@@ -69,6 +88,9 @@ export function EmployeeEditPage() {
           isEditing
           existing={employee}
           onCancel={handleCancel}
+          onDirtyChange={setIsDirty}
+          onAllowLeave={allowLeave}
+          onSubmittingChange={setIsSubmitting}
           onSaveSuccess={() => {
             toast({
               title: copy.edit.toast.successTitle,
@@ -83,6 +105,7 @@ export function EmployeeEditPage() {
           }}
         />
       ) : null}
+      <UnsavedChangesDialog blocker={blocker} />
     </FormPageShell>
   );
 }

@@ -106,17 +106,12 @@ export function EmployeesListPage() {
   const employees = data?.data ?? [];
 
   const canCreate = hasPermission("employees", "create");
-  const canEdit = hasPermission("employees", "update");
   const canImport =
     hasPermission("imports", "execute") && hasPermission("employees", "create");
   const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const handleView = useCallback(
     (id: string) => navigate(`/employees/${id}`, { state: fromState }),
-    [fromState, navigate],
-  );
-  const handleEdit = useCallback(
-    (id: string) => navigate(`/employees/${id}/edit`, { state: fromState }),
     [fromState, navigate],
   );
   const handleCreate = useCallback(() => {
@@ -196,8 +191,6 @@ export function EmployeesListPage() {
             employees={employees}
             isLoading={isLoading}
             onView={handleView}
-            onEdit={canEdit ? handleEdit : undefined}
-            onTerminate={undefined}
             sortField={sort.field}
             sortDirection={sort.direction}
             onSortChange={handleSortChange}
@@ -209,8 +202,6 @@ export function EmployeesListPage() {
               key={emp.id}
               employee={emp}
               onView={handleView}
-              onEdit={canEdit ? handleEdit : undefined}
-              onTerminate={undefined}
             />
           ))
         }

@@ -2,10 +2,7 @@
  * EmployeeTable
  * Clean Architecture - Presentation Layer (Components)
  *
- * Componente de tabla para listar empleados.
- * Homologado con DriverTable, VehicleTable y UserTable (ordenación + responsive).
- *
- * Ubicación: src/features/employees/presentation/components/EmployeeTable.tsx
+ * Tabla del listado de empleados. Empty lo posee ListPageShell (D4).
  */
 
 import {
@@ -26,24 +23,14 @@ import { EmployeeActions } from "./EmployeeActions";
 
 export type EmployeeSortableColumn = EmployeeSortOptions["field"];
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 interface EmployeeTableProps {
   employees: EmployeeListItem[];
   isLoading: boolean;
   onView: (id: string) => void;
-  onEdit?: (id: string) => void;
-  onTerminate?: (id: string) => void;
   sortField?: EmployeeSortableColumn;
   sortDirection?: "asc" | "desc";
   onSortChange?: (field: EmployeeSortableColumn) => void;
 }
-
-// ============================================================================
-// HEADER (ordenación + misma grilla responsive que las celdas)
-// ============================================================================
 
 function EmployeeTableHeaderRow({
   sortField,
@@ -141,28 +128,10 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell colSpan={7} className="h-24 text-center">
-          No se encontraron empleados.
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
-}
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 export function EmployeeTable({
   employees,
   isLoading,
   onView,
-  onEdit,
-  onTerminate,
   sortField,
   sortDirection,
   onSortChange,
@@ -182,19 +151,9 @@ export function EmployeeTable({
     );
   }
 
+  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D4).
   if (employees.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <EmployeeTableHeaderRow
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSortChange={onSortChange}
-          />
-          <EmptyState />
-        </Table>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -215,7 +174,7 @@ export function EmployeeTable({
               <TableCell>
                 <div className="space-y-0.5">
                   <p className="font-medium">{emp.fullName}</p>
-                  <p className="text-sm text-muted-foreground font-mono">
+                  <p className="font-mono text-sm text-muted-foreground">
                     {emp.employeeNumber}
                   </p>
                 </div>
@@ -235,11 +194,11 @@ export function EmployeeTable({
                 </div>
               </TableCell>
 
-              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+              <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
                 {EMPLOYMENT_TYPE_LABELS[emp.employmentType]}
               </TableCell>
 
-              <TableCell className="hidden xl:table-cell text-sm text-muted-foreground">
+              <TableCell className="hidden text-sm text-muted-foreground xl:table-cell">
                 {formatDate(emp.hireDate)}
               </TableCell>
 
@@ -248,12 +207,7 @@ export function EmployeeTable({
               </TableCell>
 
               <TableCell onClick={(e) => e.stopPropagation()}>
-                <EmployeeActions
-                  employee={emp}
-                  onView={onView}
-                  onEdit={onEdit}
-                  onTerminate={onTerminate}
-                />
+                <EmployeeActions employee={emp} />
               </TableCell>
             </TableRow>
           ))}

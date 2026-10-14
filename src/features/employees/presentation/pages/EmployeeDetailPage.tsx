@@ -18,8 +18,10 @@ import {
   Truck,
 } from "lucide-react";
 import { useTabParam } from "@shared/hooks";
+import { Button } from "@shared/ui/button";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
+import { usePermissions } from "@shared/permissions";
 
 import { useEmployee } from "../../application/hooks/useEmployees";
 import { EMPLOYMENT_TYPE_LABELS } from "../config/employeeConfig";
@@ -65,6 +67,8 @@ export function EmployeeDetailPage() {
     EMPLOYEE_DETAIL_TABS,
     "personal",
   );
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission("employees", "update");
   const {
     data: result,
     isLoading,
@@ -138,7 +142,12 @@ export function EmployeeDetailPage() {
 
     const terminated = employee.status === "terminated";
     const cards: ReactElement[] = [];
-    const driverAlertCopy = copy.alert.driverRole;
+    const editHref = `/employees/${employee.id}/edit`;
+    const editAction = canEdit ? (
+      <Button type="button" size="sm" variant="outline" asChild>
+        <Link to={editHref}>{copy.alert.goToEdit}</Link>
+      </Button>
+    ) : undefined;
 
     if (!terminated && isNssMissing(employee)) {
       cards.push(
@@ -148,6 +157,7 @@ export function EmployeeDetailPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           title={copy.alert.nssMissing.title}
           items={[{ text: copy.alert.nssMissing.body }]}
+          action={editAction}
         />,
       );
     }
@@ -160,6 +170,7 @@ export function EmployeeDetailPage() {
           icon={<Info className="h-5 w-5" />}
           title={copy.alert.rfcMissing.title}
           items={[{ text: copy.alert.rfcMissing.body }]}
+          action={editAction}
         />,
       );
     }
@@ -176,6 +187,7 @@ export function EmployeeDetailPage() {
           icon={<FileWarning className="h-5 w-5" />}
           title={copy.alert.terminationPlanned.title}
           items={[{ text: copy.alert.terminationPlanned.body(untilTerm) }]}
+          action={editAction}
         />,
       );
     }
@@ -194,6 +206,13 @@ export function EmployeeDetailPage() {
 
     if (!terminated && employee.driverRole) {
       const driverAlert = buildEmployeeDriverRoleAlert(employee.driverRole);
+      const driverAction = (
+        <Button type="button" size="sm" variant="outline" asChild>
+          <Link to={`/drivers/${employee.driverRole.driverId}`}>
+            {copy.alert.goToDriver}
+          </Link>
+        </Button>
+      );
       cards.push(
         <DetailAlertCard
           key="driver-role"
@@ -206,42 +225,15 @@ export function EmployeeDetailPage() {
             )
           }
           title={driverAlert.title}
-          items={[
-            ...driverAlert.items,
-            {
-              text: (
-                <>
-                  {driverAlertCopy.footerPrefix}{" "}
-                  <Link
-                    to={`/drivers/${employee.driverRole.driverId}`}
-                    className="font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    {driverAlertCopy.linkConductores}
-                  </Link>
-                  {employee.driverRole.activeTripCount > 0 ? (
-                    <>
-                      {" "}
-                      {driverAlertCopy.footerOrTrips}{" "}
-                      <Link
-                        to="/trips"
-                        className="font-medium text-primary underline-offset-4 hover:underline"
-                      >
-                        {driverAlertCopy.linkViajes}
-                      </Link>
-                    </>
-                  ) : null}
-                  .
-                </>
-              ),
-            },
-          ]}
+          items={driverAlert.items}
+          action={driverAction}
         />,
       );
     }
 
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
-  }, [employee, comparisonNowMs]);
+  }, [employee, comparisonNowMs, canEdit]);
 
   if (isLoading) {
     return (
