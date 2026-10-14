@@ -1,4 +1,5 @@
 import { createElement, memo } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
 import type { UserNotification } from "../../domain";
@@ -6,6 +7,10 @@ import {
   getNotificationFallbackIconForSeverity,
   NOTIFICATION_TYPE_CONFIG,
 } from "../config/notificationTypeConfig";
+import {
+  NOTIFICATION_SOURCE_LABELS,
+  notificationsCopy,
+} from "../copy/notificationsCopy";
 
 interface NotificationRowProps {
   notification: UserNotification;
@@ -89,10 +94,15 @@ export const NotificationRow = memo(function NotificationRow({
           </span>
           {!compact && (
             <Badge variant="neutral" tone="soft" className="text-[10px]">
-              {notification.source}
+              {NOTIFICATION_SOURCE_LABELS[notification.source]}
             </Badge>
           )}
         </div>
+      </div>
+
+      <div className="mt-0.5 flex shrink-0 items-center self-center text-muted-foreground">
+        <span className="sr-only">{notificationsCopy.open}</span>
+        <ChevronRight className="h-4 w-4" aria-hidden />
       </div>
     </button>
   );

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import { isTenantPortalRole } from "@shared/constants/roles";
 import { useRole } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
+import { EmptyState } from "@shared/ui/feedback-states";
 import {
   Sheet,
   SheetContent,
@@ -29,7 +30,7 @@ export function NotificationInboxSheet({
 }: NotificationInboxSheetProps) {
   const role = useRole();
   const isPortal = isTenantPortalRole(role);
-  const { data, isLoading, isError } = useNotificationsList(
+  const { data, isLoading, isError, refetch } = useNotificationsList(
     {
       status: "unread",
       page: 1,
@@ -53,13 +54,28 @@ export function NotificationInboxSheet({
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : isError ? (
-            <p className="px-4 py-6 text-sm text-destructive">
-              {notificationsCopy.loadError}
-            </p>
+            <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+              <p className="text-sm text-destructive">
+                {notificationsCopy.loadError}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
+                {notificationsCopy.retry}
+              </Button>
+            </div>
           ) : items.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              {notificationsCopy.panelEmpty}
-            </p>
+            <EmptyState
+              icon={<Bell />}
+              title={notificationsCopy.panelEmpty}
+              size="sm"
+              className="px-4"
+            />
           ) : (
             <ScrollArea className="flex-1 px-2 py-2">
               <div className="space-y-1">
