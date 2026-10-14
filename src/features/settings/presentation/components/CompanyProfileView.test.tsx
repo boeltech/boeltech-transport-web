@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ClientAddress } from "@features/clients/domain";
 
 import { CompanyProfileView } from "./CompanyProfileView";
 import { generalSettingsCopy } from "../copy/generalSettingsCopy";
-import type { CompanySettings } from "../../domain";
+import type { CompanyAddress, CompanySettings } from "../../domain";
 
 vi.mock("@features/catalogs/application/hooks/useRegimenFiscalLabel", () => ({
   useRegimenFiscalLabel: () => ({
@@ -26,6 +27,27 @@ vi.mock(
     resolveAddressCatalogLabel: () => null,
   }),
 );
+
+vi.mock("./CompanyFiscalAddressSheet", () => ({
+  CompanyFiscalAddressSheet: ({ open }: { open: boolean }) =>
+    open ? (
+      <div role="dialog" aria-label="Editar domicilio">
+        address-sheet
+      </div>
+    ) : null,
+}));
+
+vi.mock("./CompanyIdentitySheet", () => ({
+  CompanyIdentitySheet: () => null,
+}));
+
+vi.mock("./CompanyContactSheet", () => ({
+  CompanyContactSheet: () => null,
+}));
+
+vi.mock("./CompanyLogoField", () => ({
+  CompanyLogoField: () => null,
+}));
 
 const fiscalAddress = {
   id: "addr-1",
@@ -131,6 +153,43 @@ describe("CompanyProfileView", () => {
       screen.getByText(
         `CP 64000 · ${generalSettingsCopy.address.issuedFromDifferent}`,
       ),
+    ).toBeInTheDocument();
+  });
+
+  it("con domicilio legado ofrece Completar domicilio y abre el sheet (D7)", async () => {
+    const user = userEvent.setup();
+    const legacyCompanyAddress = {
+      street: "Calle Legacy",
+      exteriorNumber: "10",
+      interiorNumber: null,
+      neighborhood: "Centro",
+      city: "CDMX",
+      municipality: "Cuauhtémoc",
+      state: "Ciudad de México",
+      stateCode: "CMX",
+      postalCode: "06000",
+      country: "MEX",
+    } satisfies CompanyAddress;
+
+    renderView(true, {
+      fiscalAddress: null,
+      legacyCompanyAddress,
+    });
+
+    expect(
+      screen.getByText(generalSettingsCopy.state.pendingAddressTitle),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: generalSettingsCopy.state.pendingAddressAction,
+      }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", {
+        name: generalSettingsCopy.address.sheetTitle,
+      }),
     ).toBeInTheDocument();
   });
 });

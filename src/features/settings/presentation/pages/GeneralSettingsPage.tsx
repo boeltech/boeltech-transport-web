@@ -8,7 +8,8 @@
 import { memo, useState } from "react";
 import { AlertCircle } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
 import { SettingsPageShell } from "@shared/ui/page-shells";
 import { usePermissions } from "@shared/permissions";
@@ -24,7 +25,7 @@ import { CompanyLogoMark } from "../components/CompanyLogoMark";
 const copy = generalSettingsCopy;
 
 export const GeneralSettingsPage = memo(function GeneralSettingsPage() {
-  const { data: settings, isLoading, isError } = useCompanySettings();
+  const { data: settings, isLoading, isError, refetch } = useCompanySettings();
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission("settings", "update");
 
@@ -49,11 +50,25 @@ export const GeneralSettingsPage = memo(function GeneralSettingsPage() {
       {isLoading ? <CompanyProfileSkeleton /> : null}
 
       {isError || (!isLoading && !settings) ? (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{copy.state.loadErrorTitle}</AlertTitle>
-          <AlertDescription>{copy.state.loadErrorDescription}</AlertDescription>
-        </Alert>
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+          title={copy.state.loadErrorTitle}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              {copy.state.loadErrorRetry}
+            </Button>
+          }
+        >
+          <p>{copy.state.loadErrorDescription}</p>
+        </DetailAlertCard>
       ) : null}
 
       {settings ? (

@@ -6,7 +6,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
-import { SettingsLayout } from "../components/SettingsLayout";
+import { SettingsPageShell } from "@shared/ui/page-shells";
 import { TenantLocationMasterDetail } from "../components/TenantLocationMasterDetail";
 import { tenantLocationsCopy } from "../copy/tenantLocationsCopy";
 
@@ -16,7 +16,7 @@ export function TenantLocationsPage() {
   const [guideOpen, setGuideOpen] = useState(false);
 
   return (
-    <SettingsLayout
+    <SettingsPageShell
       sectionTitle={copy.page.breadcrumb}
       title={copy.page.title}
       description={copy.page.description}
@@ -66,6 +66,6 @@ export function TenantLocationsPage() {
         </Collapsible>
         <TenantLocationMasterDetail />
       </div>
-    </SettingsLayout>
+    </SettingsPageShell>
   );
 }

@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
-import { SettingsLayout } from "../components/SettingsLayout";
+import { SettingsPageShell } from "@shared/ui/page-shells";
 import { BillingServiceConceptMasterDetail } from "../components/BillingServiceConceptMasterDetail";
 import { billingServiceConceptsCopy } from "../copy/billingServiceConceptsCopy";
 
 export function BillingServiceConceptsPage() {
   return (
-    <SettingsLayout sectionTitle={billingServiceConceptsCopy.page.title}>
+    <SettingsPageShell sectionTitle={billingServiceConceptsCopy.page.title}>
       <div className="space-y-2">
         <p className="text-sm text-muted-foreground">
           {billingServiceConceptsCopy.page.description}{" "}
@@ -18,6 +18,6 @@ export function BillingServiceConceptsPage() {
         </p>
         <BillingServiceConceptMasterDetail />
       </div>
-    </SettingsLayout>
+    </SettingsPageShell>
   );
 }

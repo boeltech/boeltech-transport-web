@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
@@ -72,8 +72,12 @@ vi.mock("../../application/hooks", () => ({
   useUploadCertificate: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-vi.mock("../components/SettingsLayout", () => ({
-  SettingsLayout: ({ children }: { children: unknown }) => <div>{children}</div>,
+vi.mock("@shared/ui/page-shells", () => ({
+  SettingsPageShell: ({
+    children,
+  }: {
+    children: import("react").ReactNode;
+  }) => <div>{children}</div>,
 }));
 
 vi.mock("../components/BillingReadinessCard", () => ({
@@ -110,17 +114,25 @@ vi.mock("../components/BillingServiceConceptsCard", () => ({
   BillingServiceConceptsCard: () => null,
 }));
 
+// Data router required: BillingSettingsPage uses useUnsavedChangesGuard → useBlocker.
 function renderPage() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <BillingSettingsPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/settings/billing",
+        element: (
+          <QueryClientProvider client={client}>
+            <BillingSettingsPage />
+          </QueryClientProvider>
+        ),
+      },
+    ],
+    { initialEntries: ["/settings/billing"] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 describe("BillingSettingsPage — orientación admin", () => {

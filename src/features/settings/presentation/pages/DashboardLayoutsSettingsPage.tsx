@@ -5,7 +5,6 @@
  */
 
 import { memo, useState } from "react";
-import { LayoutDashboard } from "lucide-react";
 
 import {
   useDashboardLayout,
@@ -25,8 +24,10 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { Label } from "@shared/ui/label";
-import { Button } from "@/shared/ui/button";
-import { SettingsLayout } from "../components/SettingsLayout";
+import { Button } from "@shared/ui/button";
+import { SettingsPageShell } from "@shared/ui/page-shells";
+
+const copy = dashboardCopy.customize;
 
 export const DashboardLayoutsSettingsPage = memo(
   function DashboardLayoutsSettingsPage() {
@@ -39,23 +40,14 @@ export const DashboardLayoutsSettingsPage = memo(
     });
 
     return (
-      <SettingsLayout sectionTitle={dashboardCopy.customize.roleSettingsTitle}>
+      <SettingsPageShell
+        sectionTitle={copy.roleSettingsTitle}
+        title={copy.roleSettingsTitle}
+        description={copy.roleSettingsDescription}
+      >
         <div className="max-w-lg space-y-6">
-          <p className="text-sm text-muted-foreground">
-            {dashboardCopy.customize.roleSettingsDescription}
-          </p>
-          <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-4">
-            <LayoutDashboard className="h-8 w-8 text-primary shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              Los cambios se guardan al mover u ocultar widgets. El usuario puede
-              personalizar después; hereda este default si no tiene override propio.
-            </p>
-          </div>
-
           <div className="space-y-2">
-            <Label htmlFor="dashboard-role-select">
-              {dashboardCopy.customize.selectRole}
-            </Label>
+            <Label htmlFor="dashboard-role-select">{copy.selectRole}</Label>
             <Select
               value={selectedRole}
               onValueChange={(v) => setSelectedRole(v as UserRole)}
@@ -74,7 +66,7 @@ export const DashboardLayoutsSettingsPage = memo(
           </div>
 
           <Button type="button" onClick={() => setPanelOpen(true)}>
-            {dashboardCopy.customize.saveRoleLayout}
+            {copy.saveRoleLayout}
           </Button>
         </div>
 
@@ -84,7 +76,7 @@ export const DashboardLayoutsSettingsPage = memo(
           layoutApi={layoutApi}
           showUserResetActions={false}
         />
-      </SettingsLayout>
+      </SettingsPageShell>
     );
   },
 );

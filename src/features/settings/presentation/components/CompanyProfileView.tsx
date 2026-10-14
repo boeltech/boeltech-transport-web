@@ -6,13 +6,12 @@
  */
 
 import { memo, useState } from "react";
-import { Building2, Info, MapPin, Pencil, Phone } from "lucide-react";
+import { AlertTriangle, Building2, Info, MapPin, Pencil, Phone } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { FormSectionCard } from "@shared/ui/form-section-card";
-import { InfoRow } from "@shared/ui/data-display";
+import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
 import { useRegimenFiscalLabel } from "@features/catalogs";
 import { useClientAddressLocationLabels } from "@features/clients/presentation/hooks/useClientAddressLocationLabels";
 
@@ -104,21 +103,33 @@ export const CompanyProfileView = memo(function CompanyProfileView({
   return (
     <div className="space-y-6">
       {!canEdit ? (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>{copy.state.readOnlyTitle}</AlertTitle>
-          <AlertDescription>{copy.state.readOnlyDescription}</AlertDescription>
-        </Alert>
+        <DetailAlertCard
+          severity="info"
+          icon={<Info className="h-5 w-5" aria-hidden />}
+          title={copy.state.readOnlyTitle}
+        >
+          <p>{copy.state.readOnlyDescription}</p>
+        </DetailAlertCard>
       ) : null}
 
       {canEdit && hasPendingLegacyAddress ? (
-        <Alert variant="warning">
-          <Info className="h-4 w-4" />
-          <AlertTitle>{copy.state.pendingAddressTitle}</AlertTitle>
-          <AlertDescription>
-            {copy.state.pendingAddressDescription}
-          </AlertDescription>
-        </Alert>
+        <DetailAlertCard
+          severity="warning"
+          icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+          title={copy.state.pendingAddressTitle}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpenSheet("address")}
+            >
+              {copy.state.pendingAddressAction}
+            </Button>
+          }
+        >
+          <p>{copy.state.pendingAddressDescription}</p>
+        </DetailAlertCard>
       ) : null}
 
       <FormSectionCard

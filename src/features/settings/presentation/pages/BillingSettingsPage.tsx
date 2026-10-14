@@ -16,14 +16,19 @@ import { AlertTriangle, Info, Loader2, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { FormValidationSummary } from "@shared/ui/form";
+import {
+  FormStickyActions,
+  FormValidationSummary,
+  UnsavedChangesDialog,
+} from "@shared/ui/form";
 import { Skeleton } from "@shared/ui/skeleton";
+import { useUnsavedChangesGuard } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { ROLES } from "@shared/constants/roles";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
+import { SettingsPageShell } from "@shared/ui/page-shells";
 import { AdminBillingOrientationAlert } from "../components/AdminBillingOrientationAlert";
-import { SettingsLayout } from "../components/SettingsLayout";
 import { BillingCertificateCard } from "../components/BillingCertificateCard";
 import { BillingDefaultsCard } from "../components/BillingDefaultsCard";
 import { BillingNumberingCard } from "../components/BillingNumberingCard";
@@ -76,11 +81,17 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const canUploadCertificate = hasRole(ROLES.ADMIN);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const hydratedKeyRef = useRef<string | null>(null);
-  const lastHydratedFormRef = useRef<BillingSettingsFormData | null>(null);
+  const wasSubmittingRef = useRef(false);
 
   const form = useForm<BillingSettingsFormData>({
     resolver: zodResolver(billingSettingsSchema),
     defaultValues: { pacProvider: PacProviders.PROFACT },
+  });
+  const { handleSubmit, reset, formState } = form;
+  const isDirty = formState.isDirty;
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+    enabled: canUpdateSettings,
   });
 
   useEffect(() => {
@@ -89,10 +100,24 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
       return;
     }
     const next = mapSettingsToForm(settings);
-    form.reset(next);
-    lastHydratedFormRef.current = next;
+    reset(next);
     hydratedKeyRef.current = billingSettingsHydrationKey(settings.id);
-  }, [settings, form]);
+  }, [settings, reset]);
+
+  useEffect(() => {
+    if (updateMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [updateMutation.isPending, resetAllowLeave]);
+
+  const onInvalid = useCallback(() => {
+    setShowValidationSummary(true);
+  }, []);
 
   const onSubmit = useCallback(
     (data: BillingSettingsFormData) => {
@@ -121,16 +146,14 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         if (data.pacPassword) dto.pacPassword = data.pacPassword;
       }
 
+      allowLeave();
       updateMutation.mutate(dto, {
         onSuccess: (result) => {
-          const next = mapSettingsToForm(result.data);
-          form.reset(next);
-          lastHydratedFormRef.current = next;
-          hydratedKeyRef.current = billingSettingsHydrationKey(result.data.id);
+          reset(mapSettingsToForm(result.data));
         },
       });
     },
-    [canUpdateSettings, form, updateMutation],
+    [allowLeave, canUpdateSettings, reset, updateMutation],
   );
 
   const handleTestConnection = useCallback(() => {
@@ -161,19 +184,19 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
 
   if (isLoading) {
     return (
-      <SettingsLayout
+      <SettingsPageShell
         sectionTitle={copy.page.sectionTitle}
         title={copy.page.title}
         description={copy.page.description}
       >
         <BillingSettingsPageSkeleton />
-      </SettingsLayout>
+      </SettingsPageShell>
     );
   }
 
   if (isError || !settings) {
     return (
-      <SettingsLayout
+      <SettingsPageShell
         sectionTitle={copy.page.sectionTitle}
         title={copy.page.title}
         description={copy.page.description}
@@ -188,7 +211,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
             onClick: () => void refetch(),
           }}
         />
-      </SettingsLayout>
+      </SettingsPageShell>
     );
   }
 
@@ -197,7 +220,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
     : [];
 
   return (
-    <SettingsLayout
+    <SettingsPageShell
       sectionTitle={copy.page.sectionTitle}
       title={copy.page.title}
       description={copy.page.description}
@@ -238,9 +261,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         />
 
         <form
-          onSubmit={form.handleSubmit(onSubmit, () =>
-            setShowValidationSummary(true),
-          )}
+          onSubmit={handleSubmit(onSubmit, onInvalid)}
           className="space-y-6"
           noValidate
         >
@@ -263,25 +284,21 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                 title={copy.validation.summaryTitle}
                 className="mb-0"
               />
-              <div className="flex justify-end gap-4">
+              <FormStickyActions sticky>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
                     setShowValidationSummary(false);
-                    if (lastHydratedFormRef.current) {
-                      form.reset(lastHydratedFormRef.current);
-                    } else {
-                      form.reset();
-                    }
+                    reset();
                   }}
-                  disabled={!form.formState.isDirty || updateMutation.isPending}
+                  disabled={!isDirty || updateMutation.isPending}
                 >
                   {copy.action.cancel}
                 </Button>
                 <Button
                   type="submit"
-                  disabled={!form.formState.isDirty || updateMutation.isPending}
+                  disabled={!isDirty || updateMutation.isPending}
                 >
                   {updateMutation.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -290,7 +307,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
                     ? copy.action.saving
                     : copy.action.save}
                 </Button>
-              </div>
+              </FormStickyActions>
             </div>
           )}
         </form>
@@ -308,7 +325,8 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
 
         <BillingServiceConceptsCard />
       </div>
-    </SettingsLayout>
+      <UnsavedChangesDialog blocker={blocker} />
+    </SettingsPageShell>
   );
 });
 

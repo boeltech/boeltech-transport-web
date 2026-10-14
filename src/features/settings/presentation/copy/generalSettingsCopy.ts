@@ -14,12 +14,14 @@ export const generalSettingsCopy = {
   state: {
     loadErrorTitle: "No pudimos cargar los datos de la empresa",
     loadErrorDescription: "Revisa tu conexión y vuelve a intentarlo.",
+    loadErrorRetry: "Reintentar",
     readOnlyTitle: "Modo solo lectura",
     readOnlyDescription:
       "Tu rol puede consultar los datos de la empresa, pero no editarlos.",
     pendingAddressTitle: "Falta completar el domicilio",
     pendingAddressDescription:
       "El domicilio viene de un formato anterior. Ábrelo y confirma estado, municipio y colonia para dejarlo al día.",
+    pendingAddressAction: "Completar domicilio",
   },
   action: {
     edit: "Editar",
