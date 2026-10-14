@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@shared/ui/tooltip";
 import { UsersListPage } from "./UsersListPage";
 import { usersCopy } from "../copy/usersCopy";
 import { ADMIN_USERS_ORIENTATION_STORAGE_KEY } from "../components/AdminUsersOrientationAlert";
@@ -25,7 +26,8 @@ vi.mock("../components/PendingInvitationsPanel", () => ({
 }));
 
 vi.mock("../components/AddUserSheet", () => ({
-  AddUserSheet: () => null,
+  AddUserSheet: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="add-user-sheet">Sheet abierto</div> : null,
 }));
 
 vi.mock("@shared/permissions", () => ({
@@ -48,9 +50,11 @@ function renderPage(initialUrl = "/users") {
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[initialUrl]}>
-        <UsersListPage />
-      </MemoryRouter>
+      <TooltipProvider delayDuration={0}>
+        <MemoryRouter initialEntries={[initialUrl]}>
+          <UsersListPage />
+        </MemoryRouter>
+      </TooltipProvider>
     </QueryClientProvider>,
   );
 }
@@ -137,5 +141,45 @@ describe("UsersListPage toolbar", () => {
       screen.getByText(usersCopy.adminOrientation.body),
     ).toBeInTheDocument();
     expect(screen.getByText(copy.description)).toBeInTheDocument();
+  });
+
+  it("abre AddUserSheet con ?create=1 (D9/D10)", async () => {
+    renderPage("/users?create=1");
+
+    expect(await screen.findByTestId("add-user-sheet")).toBeInTheDocument();
+  });
+
+  it("con cupo lleno el empty no ofrece CTA Sumar persona (D4)", () => {
+    mockUseUsers.mockReturnValue({
+      data: {
+        data: [],
+        pagination: { page: 1, totalPages: 1, total: 0, limit: 10 },
+        meta: {
+          activeCount: 3,
+          maxUsers: 3,
+          limitReached: true,
+          overQuota: false,
+          overQuotaCount: 0,
+        },
+      },
+      isLoading: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText(copy.empty.descriptionClear)).toBeInTheDocument();
+    // Header puede seguir con el primary disabled; el empty no duplica el CTA.
+    const createButtons = screen.getAllByRole("button", {
+      name: copy.actions.create,
+    });
+    expect(createButtons).toHaveLength(1);
+    expect(createButtons[0]).toBeDisabled();
+    expect(
+      screen.getByRole("link", {
+        name: usersCopy.list.limitNotice.billingCta,
+      }),
+    ).toBeInTheDocument();
   });
 });

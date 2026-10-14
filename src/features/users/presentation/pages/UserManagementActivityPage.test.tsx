@@ -106,4 +106,38 @@ describe("UserManagementActivityPage toolbar", () => {
     expect(screen.queryByText(copy.filters.clearRecortes)).not.toBeInTheDocument();
     expect(screen.queryByText(copy.filters.viewAllHistory)).not.toBeInTheDocument();
   });
+
+  it("error con filas usa DetailAlertCard.action Reintentar (D11)", () => {
+    const refetch = vi.fn();
+    mockUseUserManagementActivity.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "evt-1",
+            subjectUserId: "u1",
+            actorUserId: "u1",
+            actorEmail: "ana@example.com",
+            actorFirstName: "Ana",
+            actorLastName: "López",
+            action: "user_created",
+            payload: {},
+            createdAt: "2026-10-01T12:00:00.000Z",
+          },
+        ],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 25 },
+      },
+      isLoading: false,
+      isFetching: false,
+      isError: true,
+      error: new Error("boom"),
+      refetch,
+    });
+
+    renderPage();
+
+    expect(screen.getByText(copy.page.errorTitle)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: copy.page.retry }),
+    ).toBeInTheDocument();
+  });
 });

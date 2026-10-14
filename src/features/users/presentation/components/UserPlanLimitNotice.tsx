@@ -1,6 +1,12 @@
+/**
+ * Alerta de cupo de usuarios del plan.
+ * DetailAlertCard + action «Ver Tu plan» (D5).
+ */
+
 import { Link } from "react-router-dom";
-import { AlertWithIcon } from "@shared/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { usersCopy } from "../copy/usersCopy";
 import type { UserPlanCapacity } from "../helpers/userPlanCapacity";
 
@@ -25,13 +31,17 @@ export function UserPlanLimitNotice({ capacity }: UserPlanLimitNoticeProps) {
     : copy.reachedDescription(capacity.maxUsers);
 
   return (
-    <AlertWithIcon variant="destructive" title={title}>
-      <div className="space-y-3">
-        <p>{description}</p>
+    <DetailAlertCard
+      severity={capacity.overQuota ? "critical" : "warning"}
+      icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+      title={title}
+      action={
         <Button type="button" size="sm" variant="outline" asChild>
           <Link to="/settings/subscription">{copy.billingCta}</Link>
         </Button>
-      </div>
-    </AlertWithIcon>
+      }
+    >
+      <p>{description}</p>
+    </DetailAlertCard>
   );
 }

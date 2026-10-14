@@ -4,8 +4,8 @@
  * Dictamen toolbar: search = lookup; estado / rol / alta / último acceso
  * en «Filtros (n)». Cupo e invitaciones se quedan encima del riel.
  */
-import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, UserPlus } from "lucide-react";
@@ -41,11 +41,16 @@ import { AdminUsersOrientationAlert } from "../components/AdminUsersOrientationA
 import { usersCopy } from "../copy/usersCopy";
 import { capacityFromUserListMeta } from "../helpers/userPlanCapacity";
 import { countUserPanelFilters } from "../utils/userListFilters";
+import {
+  USERS_CREATE_QUERY,
+  isUsersCreateQuery,
+} from "../utils/userWayfinding";
 
 const copy = usersCopy.list;
 
 export function UsersListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const fromState = useListQueueFromState();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -93,6 +98,26 @@ export function UsersListPage() {
     direction: "desc",
   });
   const [addUserSheetOpen, setAddUserSheetOpen] = useState(false);
+  const openAddUserSheet = useCallback(() => setAddUserSheetOpen(true), []);
+  const canCreate = hasPermission("users", "create");
+
+  const createQuery = searchParams.get(USERS_CREATE_QUERY);
+  useEffect(() => {
+    if (!isUsersCreateQuery(createQuery)) return;
+    if (canCreate) {
+      // Deep-link ?create=1 (/users/new → redirect): abrir Sheet una vez y limpiar query.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-shot from URL
+      openAddUserSheet();
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(USERS_CREATE_QUERY);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [canCreate, createQuery, openAddUserSheet, setSearchParams]);
 
   const handleSortChange = useCallback(
     (field: UserSortableColumn) => {
@@ -122,7 +147,6 @@ export function UsersListPage() {
     sort,
   });
 
-  const canCreate = hasPermission("users", "create");
   const capacity = capacityFromUserListMeta(data?.meta);
   const userLimitReached = !capacity.canAdd;
 
@@ -240,7 +264,7 @@ export function UsersListPage() {
         primaryAction={{
           label: copy.actions.create,
           icon: <UserPlus className="h-4 w-4" />,
-          onClick: () => setAddUserSheetOpen(true),
+          onClick: openAddUserSheet,
           visible: canCreate,
           disabled: userLimitReached,
           disabledTitle: userLimitReached
@@ -336,17 +360,15 @@ export function UsersListPage() {
           description: filters.hasFilters
             ? copy.empty.descriptionFiltered
             : copy.empty.descriptionClear,
-          cta: canCreate
-            ? {
-                label: userLimitReached
-                  ? usersCopy.limitReached.inviteDisabled
-                  : copy.actions.create,
-                icon: <UserPlus className="h-4 w-4" />,
-                onClick: userLimitReached
-                  ? () => undefined
-                  : () => setAddUserSheetOpen(true),
-              }
-            : undefined,
+          // D4: sin CTA create si !canAdd (cupo); billing vive en UserPlanLimitNotice.
+          cta:
+            canCreate && capacity.canAdd
+              ? {
+                  label: copy.actions.create,
+                  icon: <UserPlus className="h-4 w-4" />,
+                  onClick: openAddUserSheet,
+                }
+              : undefined,
           secondaryCta: filters.hasFilters
             ? {
                 label: copy.actions.clearFilters,

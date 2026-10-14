@@ -632,10 +632,3 @@ export function AddUserSheet({
     </Sheet>
   );
 }
-
-/** @deprecated Prefer `AddUserSheet`. */
-export const AddUserDialog = AddUserSheet;
-/** @deprecated Prefer `AddUserSheet`. */
-export const InviteUserDialog = AddUserSheet;
-export type AddUserDialogMode = AddUserSheetMode;
-export type AddUserDialogProps = AddUserSheetProps;

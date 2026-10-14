@@ -2,12 +2,8 @@ export { invitationsPendingQueryKey } from "./invitationsPendingQueryKey";
 export { PendingInvitationsPanel } from "./PendingInvitationsPanel";
 export {
   AddUserSheet,
-  AddUserDialog,
-  InviteUserDialog,
   type AddUserSheetMode,
   type AddUserSheetProps,
-  type AddUserDialogMode,
-  type AddUserDialogProps,
 } from "./AddUserSheet";
 export { UserActions } from "./UserActions";
 export { UserActivityFeed, UserActivityFeedSkeleton } from "./UserActivityFeed";

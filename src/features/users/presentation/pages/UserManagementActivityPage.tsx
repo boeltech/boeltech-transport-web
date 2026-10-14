@@ -7,9 +7,10 @@
  */
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { History } from "lucide-react";
+import { AlertCircle, History } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
-import { AlertWithIcon } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   ListingDateRangeFilter,
   LISTING_DATE_RANGE_QUICK_PRESETS,
@@ -233,11 +234,26 @@ export function UserManagementActivityPage() {
       title={copy.page.title}
       description={copy.page.description}
       beforeToolbar={
-        // Con datos previos en pantalla el fallo no llega al estado vacío: se avisa arriba.
+        // Con datos previos en pantalla el fallo no llega al estado vacío: se avisa arriba (D11).
         isError && events.length > 0 ? (
-          <AlertWithIcon variant="destructive">
-            {errorMessage || copy.page.error}
-          </AlertWithIcon>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+            title={copy.page.errorTitle}
+            items={[{ text: errorMessage || copy.page.error }]}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
+                {copy.page.retry}
+              </Button>
+            }
+          />
         ) : undefined
       }
       toolbar={{

@@ -31,10 +31,7 @@ export function UserCardSkeleton() {
       </CardContent>
 
       <CardFooter className="border-t pt-3">
-        <div className="flex w-full items-center justify-between">
-          <Skeleton className="h-6 w-24 rounded-full" />
-          <Skeleton className="h-8 w-24" />
-        </div>
+        <Skeleton className="h-6 w-24 rounded-full" />
       </CardFooter>
     </Card>
   );

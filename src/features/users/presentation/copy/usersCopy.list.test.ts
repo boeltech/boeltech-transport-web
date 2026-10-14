@@ -56,4 +56,15 @@ describe("usersCopy.addUser", () => {
     expect(usersCopy.addUser.link.clientEmpty).not.toMatch(/\/clients\/new/);
     expect(usersCopy.addUser.link.driverEmpty).not.toMatch(/\/drivers\/new/);
   });
+
+  it("CTAs y título en sentence case (alta canónica Sheet)", () => {
+    expect(usersCopy.addUser.title).toBe("Sumar persona");
+    expect(usersCopy.addUser.submitInvite).toBe("Enviar invitación");
+    expect(usersCopy.addUser.submitRegister).toBe("Dar acceso");
+    expect(usersCopy.list.primaryAction).toBe("Sumar persona");
+    expect(usersCopy.list.actions.create).toBe("Sumar persona");
+    // Sin Title Case en CTAs visibles
+    expect(usersCopy.addUser.title).not.toMatch(/Sumar Persona|Nuevo Usuario/);
+    expect(usersCopy.addUser.submitInvite).not.toMatch(/Enviar Invitación/);
+  });
 });

@@ -34,7 +34,7 @@ describe("UserCapacityBanner", () => {
 });
 
 describe("UserPlanLimitNotice", () => {
-  it("avisa al llegar al tope con enlace a Plan y consumo", () => {
+  it("avisa al llegar al tope con action Ver Tu plan (D5)", () => {
     render(
       <MemoryRouter>
         <UserPlanLimitNotice capacity={resolveUserPlanCapacity(3, 3)} />
@@ -47,11 +47,12 @@ describe("UserPlanLimitNotice", () => {
     expect(
       screen.getByText(usersCopy.list.limitNotice.reachedDescription(3)),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", {
-        name: usersCopy.list.limitNotice.billingCta,
-      }),
-    ).toHaveAttribute("href", "/settings/subscription");
+    const billingLink = screen.getByRole("link", {
+      name: usersCopy.list.limitNotice.billingCta,
+    });
+    expect(billingLink).toHaveAttribute("href", "/settings/subscription");
+    // Slot action de DetailAlertCard (no children suelto).
+    expect(billingLink.closest(".mt-2.flex.flex-wrap.gap-2")).toBeTruthy();
   });
 
   it("no se muestra con plazas libres", () => {

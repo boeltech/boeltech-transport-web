@@ -1,7 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { Copy, Eye, EyeOff, Save, Shield, Sparkles, UserPlus } from "lucide-react";
+import {
+  Copy,
+  Eye,
+  EyeOff,
+  Loader2,
+  Save,
+  Shield,
+  Sparkles,
+  UserPlus,
+} from "lucide-react";
 import { useAuth } from "@features/auth";
 import { useToast } from "@shared/hooks";
 import { copyToClipboard } from "@shared/utils/copyToClipboard";
@@ -19,6 +28,7 @@ import { Input } from "@shared/ui/input";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
   FormFieldShell,
+  FormStickyActions,
   FormValidationSummary,
   RHFSelectField,
   RHFTextField,
@@ -44,6 +54,9 @@ interface UserFormProps {
   mode: UserFormMode;
   user?: User;
   onSubmit: (values: UserFormData) => void;
+  onCancel?: () => void;
+  /** Notifica dirty a la página para `useUnsavedChangesGuard` (D8). */
+  onDirtyChange?: (isDirty: boolean) => void;
   isSubmitting?: boolean;
 }
 
@@ -62,9 +75,12 @@ export function UserForm({
   mode,
   user,
   onSubmit,
+  onCancel,
+  onDirtyChange,
   isSubmitting = false,
 }: UserFormProps) {
   const isCreate = mode === "create";
+  const isEditMode = mode === "edit";
   const { toast } = useToast();
   const { user: authUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -110,6 +126,11 @@ export function UserForm({
   });
 
   const { control } = form;
+  const isDirty = form.formState.isDirty;
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const watchedRole = useWatch({ control, name: "role" }) as UserRole | undefined;
   const isRoleDowngrade =
@@ -400,12 +421,41 @@ export function UserForm({
         />
       ) : null}
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting}>
-          <Save className="mr-2 h-4 w-4" />
-          {isCreate ? formCopy.submitCreate : formCopy.submitEdit}
-        </Button>
-      </div>
+      {isEditMode && onCancel ? (
+        <FormStickyActions sticky={false}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            {formCopy.cancel}
+          </Button>
+          <Button
+            type="submit"
+            disabled={isSubmitting || !isDirty}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {formCopy.saving}
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                {formCopy.submitEdit}
+              </>
+            )}
+          </Button>
+        </FormStickyActions>
+      ) : (
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isSubmitting}>
+            <Save className="mr-2 h-4 w-4" />
+            {isCreate ? formCopy.submitCreate : formCopy.submitEdit}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

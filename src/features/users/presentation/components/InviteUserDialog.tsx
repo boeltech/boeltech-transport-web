@@ -1,7 +1,0 @@
-/** @deprecated Prefer `AddUserSheet`. */
-export {
-  AddUserSheet as InviteUserDialog,
-  AddUserSheet,
-  type AddUserSheetMode,
-  type AddUserSheetProps,
-} from "./AddUserSheet";

@@ -37,6 +37,9 @@ export const usersCopy = {
       descriptionFiltered:
         "Nada coincide. Prueba otro nombre o correo, o limpia los recortes.",
     },
+    card: {
+      actionsAria: "Abrir menú de acciones",
+    },
     chip: {
       status: (label: string) => `Estado: ${label}`,
       role: (label: string) => `Rol: ${label}`,
@@ -191,6 +194,8 @@ export const usersCopy = {
       "Puedes copiarla o cambiarla antes de guardar.",
     passwordCopied: "Contraseña copiada",
     validationSummary: "Revisa los datos",
+    cancel: "Cancelar",
+    saving: "Guardando…",
     submitCreate: "Dar acceso",
     submitEdit: "Guardar cambios",
   },
