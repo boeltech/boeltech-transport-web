@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CheckCircle, UserPlus } from "lucide-react";
+import { ChevronRight, UserPlus } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { BrandLockup, Wordmark } from "@shared/ui/brand";
 import { cn } from "@shared/lib/utils/cn";
@@ -9,23 +10,26 @@ import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServ
 import { LandingReveal } from "./LandingReveal";
 import { LandingHeroVisual } from "./LandingHeroVisual";
 import { LandingProductPreview } from "./LandingProductPreview";
+import { LandingFleetSizeSelector } from "./LandingFleetSizeSelector";
+import { LandingFaq } from "./LandingFaq";
 import "./landing.css";
 
+function planCodeForFleetOption(optionId: string): string {
+  const match = landingCopy.pricing.fleetSelector.options.find(
+    (o) => o.id === optionId,
+  );
+  return match?.planCode ?? landingCopy.pricing.popularCode;
+}
+
 /**
- * Landing pública (`/welcome`): embudo D1–D12 (Capa 1).
- * Look: «Industrial confiable / blueprint elevado» (landing-visual-polish).
- * Banding: primary(+trust) → surface → secondary → surface → secondary(+primary CTA).
- * Ver `.landing-band-*` en landing.css (par background / secondary).
+ * Landing pública (`/welcome`): embudo D1–D12 · look «Señal de patio» (F2+F3).
+ * Secuencia F3: Hero(+UI) → Trust → Evidencia → Precios → FAQ → CTA → Opcionales → Footer.
+ * Máx. 3 LandingReveal: hero copy (eager), preview, CTA cierre.
+ * Path-draw SVG en hero: omitido (F2 truck/route bastan; reduced-motion ya cubierto).
  */
 const LandingPage = () => {
   return (
-    <div className="bg-background relative min-h-screen overflow-x-hidden">
-      <div className="landing-mesh pointer-events-none absolute inset-0 -z-10" aria-hidden />
-      <div
-        className="landing-grain pointer-events-none absolute inset-0 -z-10"
-        aria-hidden
-      />
-
+    <div className="landing-root relative min-h-screen overflow-x-hidden">
       <a href="#contenido" className="landing-skip sr-only focus:not-sr-only">
         {landingCopy.skipLink}
       </a>
@@ -33,12 +37,14 @@ const LandingPage = () => {
       <Header />
       <main id="contenido">
         <HeroSection />
-        <ProductSection />
+        <EvidenceSection />
         <PricingSection />
-        <OptionalsSection />
+        <LandingFaq />
         <CTASection />
+        <OptionalsSection />
       </main>
       <Footer />
+      <StickyMobileCta />
     </div>
   );
 };
@@ -48,13 +54,12 @@ const Header = () => {
   const { open: registrationOpen } = usePublicSelfServeRegister();
 
   const navLinks = [
-    { href: `#${landingCopy.product.id}`, label: nav.product },
+    { href: `#${landingCopy.evidence.id}`, label: nav.product },
     { href: `#${landingCopy.pricing.id}`, label: nav.pricing },
-    { href: `#${landingCopy.optionals.id}`, label: nav.optionals },
   ];
 
   return (
-    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/85 sticky top-0 z-50 border-b">
+    <header className="landing-header sticky top-0 z-50">
       <div className="landing-shell flex h-16 items-center justify-between gap-3">
         <Link
           to="/welcome"
@@ -70,14 +75,14 @@ const Header = () => {
         </Link>
 
         <nav
-          className="hidden items-center gap-6 md:flex"
+          className="landing-header-nav hidden items-center gap-6 md:flex"
           aria-label="Secciones"
         >
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+              className="text-sm font-medium"
             >
               {link.label}
             </a>
@@ -87,22 +92,32 @@ const Header = () => {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <a
             href={`#${landingCopy.pricing.id}`}
-            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors md:hidden"
+            className="landing-muted-text hover:text-[color:var(--landing-ink)] text-sm font-medium transition-colors md:hidden"
           >
             {nav.pricing}
           </a>
-          <Button variant="ghost" size="sm" asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="landing-btn-ghost-ink"
+          >
             <Link to="/login">{nav.login}</Link>
           </Button>
           {registrationOpen ? (
-            <Button asChild size="sm">
+            <Button asChild size="sm" className="landing-cta-amber">
               <Link to="/register">
                 <UserPlus className="mr-2 hidden h-4 w-4 sm:inline" />
                 {nav.register}
               </Link>
             </Button>
           ) : (
-            <Button asChild size="sm" variant="outline">
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="landing-btn-outline-ink"
+            >
               <a href="mailto:ventas@boeltech.com">{nav.contactSales}</a>
             </Button>
           )}
@@ -117,92 +132,92 @@ const HeroSection = () => {
   const { open: registrationOpen } = usePublicSelfServeRegister();
 
   return (
-    <section className="landing-hero relative overflow-hidden">
-      {/* Banda sólida primary (DS) — copy + visual + trust fiscal */}
-      <div className="landing-hero-band bg-primary text-primary-foreground">
-        <div className="landing-shell pt-12 pb-10 md:pt-16 md:pb-12 lg:pt-20 lg:pb-14">
-          <div className="grid items-center gap-8 md:gap-10 lg:grid-cols-2 lg:gap-10 xl:gap-14">
-            <div className="landing-hero-copy relative z-10 mx-auto w-full max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
-              <LandingReveal delayMs={0}>
-                <h1 className="landing-display text-primary-foreground">
-                  {hero.title}
-                </h1>
-                <p className="landing-hero-support text-primary-foreground/80 mx-auto mt-6 text-base md:text-lg lg:mx-0">
-                  {hero.subtitle}
-                </p>
-              </LandingReveal>
+    <section className="landing-hero is-visual-ready relative" data-landing-hero>
+      <LandingHeroVisual />
+      <div className="landing-hero-scrim" aria-hidden />
 
-              <LandingReveal delayMs={90}>
-                <div className="mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5 lg:justify-start">
-                  {registrationOpen ? (
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      asChild
-                      className="landing-hero-cta min-w-[210px]"
-                    >
-                      <Link to="/register">
-                        {hero.ctaPrimaryOpen}
-                        <ChevronRight className="ml-2 h-5 w-5" />
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      asChild
-                      className="landing-hero-cta min-w-[210px]"
-                    >
-                      <a href="mailto:ventas@boeltech.com">
-                        {hero.ctaPrimaryClosed}
-                        <ChevronRight className="ml-2 h-5 w-5" />
-                      </a>
-                    </Button>
-                  )}
-                  <Link
-                    to="/login"
-                    className="landing-link-onbrand text-primary-foreground/85 hover:text-primary-foreground text-sm font-medium underline-offset-4 transition-colors hover:underline"
+      <div className="landing-shell landing-hero-content">
+        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+          <div className="landing-hero-copy relative z-10 mx-auto w-full max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
+            <LandingReveal eager>
+              <div className="landing-hero-brand mb-6 flex flex-col items-center gap-0 lg:items-start">
+                <BrandLockup
+                  variant="onBrand"
+                  markSize={40}
+                  wordmarkClassName="text-2xl sm:text-3xl"
+                />
+                <span className="landing-hero-brand-rule" aria-hidden />
+              </div>
+
+              <h1 className="landing-display text-[color:var(--landing-on-dark)]">
+                {hero.title}
+              </h1>
+              <p className="landing-hero-support mx-auto mt-6 text-base md:text-lg lg:mx-0">
+                {hero.subtitle}
+              </p>
+
+              <div className="mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5 lg:justify-start">
+                {registrationOpen ? (
+                  <Button
+                    size="lg"
+                    asChild
+                    className="landing-hero-cta landing-cta-amber min-w-[210px]"
                   >
-                    {hero.ctaLogin}
-                  </Link>
-                </div>
-                <p className="text-primary-foreground/70 mt-4 flex items-center justify-center gap-2 text-sm lg:justify-start">
-                  {registrationOpen ? (
-                    <>
-                      <span
-                        className="bg-primary-foreground/80 inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                        aria-hidden
-                      />
-                      {hero.trialHint}
-                    </>
-                  ) : (
-                    hero.badgeClosed
-                  )}
-                </p>
-              </LandingReveal>
-            </div>
-
-            <LandingReveal
-              className="landing-preview-rise landing-hero-visual-wrap"
-              delayMs={120}
-            >
-              <LandingHeroVisual />
+                    <Link to="/register">
+                      {hero.ctaPrimaryOpen}
+                      <ChevronRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    asChild
+                    className="landing-hero-cta landing-cta-amber min-w-[210px]"
+                  >
+                    <a href="mailto:ventas@boeltech.com">
+                      {hero.ctaPrimaryClosed}
+                      <ChevronRight className="ml-2 h-5 w-5" />
+                    </a>
+                  </Button>
+                )}
+                <Link
+                  to="/login"
+                  className="landing-link-onbrand text-sm font-medium text-[color:var(--landing-on-dark)]/85 underline-offset-4 transition-colors hover:underline"
+                >
+                  {hero.ctaLogin}
+                </Link>
+              </div>
+              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-[color:var(--landing-on-dark)]/70 lg:justify-start">
+                {registrationOpen ? (
+                  <>
+                    <span
+                      className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--landing-amber)]"
+                      aria-hidden
+                    />
+                    {hero.trialHint}
+                  </>
+                ) : (
+                  hero.badgeClosed
+                )}
+              </p>
             </LandingReveal>
           </div>
-        </div>
 
-        {/* Trust fiscal — misma banda primary (contraste onBrand) */}
-        <div className="landing-hero-trust landing-shell">
-          <LandingReveal delayMs={40}>
-            <TrustStrip />
+          {/* Preview junto al hero (prueba visual near fold) */}
+          <LandingReveal className="landing-preview-rise relative z-10">
+            <LandingProductPreview backdrop={false} />
           </LandingReveal>
         </div>
+      </div>
+
+      <div className="landing-hero-trust landing-shell">
+        <TrustStrip />
       </div>
     </section>
   );
 };
 
-/** Trust fiscal tipográfico (D4); pie de la banda primary del hero. */
+/** Trust fiscal tipográfico (D4); pie del hero full-bleed. Labels SAT intactos. */
 const TrustStrip = () => {
   const { trust } = landingCopy;
   return (
@@ -217,9 +232,7 @@ const TrustStrip = () => {
               ·
             </span>
           ) : null}
-          <span className="landing-hero-trust-label font-medium">
-            {item.label}
-          </span>
+          <span className="landing-hero-trust-label">{item.label}</span>
           <span className="landing-hero-trust-hint"> {item.hint}</span>
         </span>
       ))}
@@ -227,86 +240,119 @@ const TrustStrip = () => {
   );
 };
 
-const ProductSection = () => {
-  const { product } = landingCopy;
+/** F3: tabs + mock narrado (A3 placeholder = preview/mock actual). */
+const EvidenceSection = () => {
+  const { evidence, product } = landingCopy;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = product.items[activeIndex] ?? product.items[0]!;
+  const tablistId = "landing-evidence-tabs";
+
   return (
     <section
-      id={product.id}
-      className="landing-band landing-band-surface scroll-mt-20 py-16 md:py-20"
+      id={evidence.id}
+      className="landing-band landing-band-surface landing-evidence scroll-mt-20 py-16 md:py-20"
     >
       <div className="landing-shell">
-        <LandingReveal className="mx-auto max-w-2xl text-center">
-          <h2 className="landing-section-title text-foreground">
-            {product.title}
-          </h2>
-          <p className="text-muted-foreground mt-4">{product.subtitle}</p>
-        </LandingReveal>
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="landing-section-title">{evidence.title}</h2>
+          <p className="landing-muted-text mt-4">{evidence.subtitle}</p>
+        </div>
 
-        <div className="landing-panel landing-reveal-stagger border-border/60 mt-12 overflow-hidden rounded-2xl border">
-          <div className="grid md:grid-cols-2">
-            {product.items.map((module, index) => {
-              const n = String(index + 1).padStart(2, "0");
+        <div className="landing-evidence-layout mt-10 md:mt-12">
+          <div
+            className="landing-evidence-tabs"
+            role="tablist"
+            aria-label={evidence.tablistLabel}
+            id={tablistId}
+          >
+            {product.items.map((beat, index) => {
+              const selected = index === activeIndex;
               return (
-                <LandingReveal
-                  key={module.title}
+                <button
+                  key={beat.title}
+                  type="button"
+                  role="tab"
+                  id={`${tablistId}-tab-${index}`}
+                  aria-selected={selected}
+                  aria-controls={`${tablistId}-panel`}
+                  tabIndex={selected ? 0 : -1}
                   className={cn(
-                    "border-border/50 p-6 md:p-8",
-                    index % 2 === 1 && "md:border-l",
-                    index >= 2 && "border-t",
+                    "landing-evidence-tab",
+                    selected && "is-active",
                   )}
+                  onClick={() => setActiveIndex(index)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+                      return;
+                    }
+                    event.preventDefault();
+                    const delta = event.key === "ArrowRight" ? 1 : -1;
+                    const next =
+                      (index + delta + product.items.length) %
+                      product.items.length;
+                    setActiveIndex(next);
+                    requestAnimationFrame(() => {
+                      document
+                        .getElementById(`${tablistId}-tab-${next}`)
+                        ?.focus();
+                    });
+                  }}
                 >
-                  <div className="mb-4 flex items-baseline justify-between gap-3">
-                    <span className="text-primary/70 font-mono text-xs font-medium tracking-widest">
-                      {n}
-                    </span>
-                    <span className="text-primary bg-primary/8 rounded px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase">
-                      {product.includedBadge}
-                    </span>
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold tracking-tight">
-                    {module.title}
-                  </h3>
-                  <p className="text-muted-foreground mb-4 text-base leading-relaxed">
-                    {module.description}
-                  </p>
-                  <ul className="space-y-2">
-                    {module.bullets.map((bullet) => (
-                      <li
-                        key={bullet}
-                        className="flex items-center gap-2 text-base"
-                      >
-                        <CheckCircle className="text-primary h-4 w-4 shrink-0" />
-                        {bullet}
-                      </li>
-                    ))}
-                  </ul>
-                </LandingReveal>
+                  {beat.title}
+                </button>
               );
             })}
           </div>
-        </div>
 
-        <LandingReveal className="mt-12">
-          <LandingProductPreview />
-        </LandingReveal>
+          <div
+            className="landing-evidence-panel"
+            role="tabpanel"
+            id={`${tablistId}-panel`}
+            aria-labelledby={`${tablistId}-tab-${activeIndex}`}
+          >
+            <div className="landing-evidence-copy">
+              <h3 className="landing-evidence-beat-title">{active.title}</h3>
+              <p className="landing-muted-text mt-3 text-base leading-relaxed">
+                {active.description}
+              </p>
+              <ul className="mt-5 space-y-2">
+                {active.bullets.map((bullet) => (
+                  <li
+                    key={bullet}
+                    className="flex items-start gap-2 text-base"
+                  >
+                    <span
+                      className="landing-check mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-current"
+                      aria-hidden
+                    />
+                    {bullet}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="landing-evidence-preview">
+              {/* A3: sin crops reales — mismo mock narrado por beat */}
+              <LandingProductPreview
+                backdrop={false}
+                activeNavIndex={active.previewNavIndex}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
 };
 
-function planCardBorderClass(index: number): string {
-  return cn(
-    index > 0 && "border-t",
-    index === 1 && "md:border-t-0 md:border-l",
-    index === 2 && "xl:border-t-0 xl:border-l",
-    index === 3 && "md:border-l xl:border-t-0",
-  );
-}
-
 const PricingSection = () => {
   const { pricing, brand } = landingCopy;
   const { plans } = usePublicOperationalPlans();
   const { open: registrationOpen } = usePublicSelfServeRegister();
+  const [fleetOptionId, setFleetOptionId] = useState<string>(
+    pricing.fleetSelector.defaultOptionId,
+  );
+  const highlightedCode = planCodeForFleetOption(fleetOptionId);
 
   return (
     <section
@@ -314,429 +360,404 @@ const PricingSection = () => {
       className="landing-band landing-band-muted scroll-mt-20 py-16 md:py-24"
     >
       <div className="landing-shell">
-        <LandingReveal className="mx-auto max-w-2xl text-center">
-          <h2 className="landing-section-title text-foreground">
-            {pricing.title}
-          </h2>
-          <p className="text-muted-foreground mt-4 text-base md:text-lg">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="landing-section-title">{pricing.title}</h2>
+          <p className="landing-muted-text mt-4 text-base md:text-lg">
             {pricing.subtitle}
           </p>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <p className="landing-muted-text mt-2 text-sm">
             {registrationOpen ? pricing.priceHint : pricing.priceHintClosed}
           </p>
-        </LandingReveal>
+        </div>
 
-        <div className="landing-panel landing-reveal-stagger border-border/60 mt-14 grid overflow-hidden rounded-2xl border md:grid-cols-2 xl:grid-cols-4">
-          {plans.map((plan, index) => {
+        <LandingFleetSizeSelector
+          value={fleetOptionId}
+          onChange={(optionId) => setFleetOptionId(optionId)}
+        />
+
+        <div className="landing-plan-table" role="list">
+          {plans.map((plan) => {
             const isPopular = plan.code === pricing.popularCode;
+            const isFleetMatch = plan.code === highlightedCode;
             const audience = pricing.audiences[plan.code] ?? plan.unitsLabel;
-            /** Grande / sin P de lista: CTA cotización, no «empezar prueba». */
             const isQuote =
               plan.code === "operacion_grande" ||
               plan.priceAmount === "Cotización" ||
               !plan.pricePeriod;
 
             return (
-              <LandingReveal key={plan.code}>
-                <article
-                  className={cn(
-                    "landing-plan relative flex h-full flex-col border-border/50 p-6 md:p-7",
-                    planCardBorderClass(index),
-                    isPopular &&
-                      "landing-plan-popular bg-primary/[0.04] ring-primary/25 xl:z-[1] xl:ring-2",
-                  )}
-                >
-                  {isPopular ? (
-                    <p className="text-primary mb-3 text-[11px] font-semibold tracking-[0.14em] uppercase">
-                      {pricing.popularBadge}
-                    </p>
-                  ) : (
-                    <p className="text-muted-foreground mb-3 text-[11px] font-medium tracking-[0.14em] uppercase">
-                      {pricing.familyLabel}
-                    </p>
-                  )}
+              <article
+                key={plan.code}
+                role="listitem"
+                data-plan-code={plan.code}
+                className={cn(
+                  "landing-plan-col",
+                  isPopular && "is-popular",
+                  isFleetMatch && "is-fleet-match",
+                )}
+              >
+                <p className="landing-plan-eyebrow">
+                  {isPopular ? pricing.popularBadge : pricing.familyLabel}
+                </p>
 
-                  <h3
+                <h3 className="landing-plan-name">{plan.shortName}</h3>
+
+                <p className="mt-4 flex flex-wrap items-baseline gap-1.5">
+                  <span
                     className={cn(
-                      "text-xl font-bold tracking-tight",
-                      isPopular ? "text-primary" : "text-foreground",
+                      "landing-price-amount",
+                      isFleetMatch
+                        ? "text-[color:var(--landing-blueprint)]"
+                        : "text-[color:var(--landing-ink)]",
                     )}
                   >
-                    {plan.shortName}
-                  </h3>
-
-                  <p className="mt-4 flex flex-wrap items-baseline gap-1">
-                    <span
-                      className={cn(
-                        "landing-price-amount",
-                        isPopular ? "text-primary" : "text-foreground",
-                      )}
-                    >
-                      {plan.priceAmount}
+                    {plan.priceAmount}
+                  </span>
+                  {plan.pricePeriod ? (
+                    <span className="landing-plan-period">
+                      {plan.pricePeriod}
                     </span>
-                    {plan.pricePeriod ? (
-                      <span className="text-muted-foreground text-sm font-medium">
-                        {plan.pricePeriod}
-                      </span>
-                    ) : null}
-                  </p>
+                  ) : null}
+                </p>
 
-                  <p className="text-muted-foreground mt-3 min-h-[2.75rem] text-sm leading-relaxed">
-                    {audience}
-                  </p>
+                <p className="landing-plan-audience">{audience}</p>
 
-                  <div className="bg-border my-5 h-px w-full" />
+                <dl className="landing-plan-specs">
+                  <div className="landing-plan-spec">
+                    <dt className="landing-plan-spec-label">
+                      {pricing.featureLabels.fleet}
+                    </dt>
+                    <dd className="landing-plan-spec-value">
+                      {plan.unitsLabel}
+                    </dd>
+                  </div>
+                  <div className="landing-plan-spec">
+                    <dt className="landing-plan-spec-label">
+                      {pricing.featureLabels.users}
+                    </dt>
+                    <dd className="landing-plan-spec-value">
+                      {plan.usersBadge}
+                    </dd>
+                  </div>
+                  <div className="landing-plan-spec">
+                    <dt className="landing-plan-spec-label">
+                      {pricing.featureLabels.branches}
+                    </dt>
+                    <dd className="landing-plan-spec-value">
+                      {plan.branchesBadge}
+                    </dd>
+                  </div>
+                  {plan.stampsBadge ? (
+                    <div className="landing-plan-spec">
+                      <dt className="landing-plan-spec-label">
+                        {pricing.featureLabels.stamps}
+                      </dt>
+                      <dd className="landing-plan-spec-value">
+                        {plan.stampsBadge}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {plan.historyLabel ? (
+                    <div className="landing-plan-spec">
+                      <dt className="landing-plan-spec-label">
+                        {pricing.featureLabels.history}
+                      </dt>
+                      <dd className="landing-plan-spec-value">
+                        {plan.historyLabel}
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div className="landing-plan-spec">
+                    <dt className="landing-plan-spec-label">
+                      {pricing.featureLabels.l0}
+                    </dt>
+                    <dd className="landing-plan-spec-value">Incluido</dd>
+                  </div>
+                </dl>
 
-                  <ul className="flex-1 space-y-3 text-sm">
-                    <li className="flex items-start gap-2.5">
-                      <CheckCircle className="text-primary mt-0.5 h-4 w-4 shrink-0" />
-                      <span>
-                        <span className="text-muted-foreground">
-                          {pricing.featureLabels.fleet}:{" "}
-                        </span>
-                        <span className="font-medium">{plan.unitsLabel}</span>
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground flex items-center gap-2.5">
-                        <CheckCircle className="text-primary h-4 w-4 shrink-0" />
-                        {pricing.featureLabels.users}
-                      </span>
-                      <span className="text-foreground text-sm font-medium tabular-nums">
-                        {plan.usersBadge}
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground flex items-center gap-2.5">
-                        <CheckCircle className="text-primary h-4 w-4 shrink-0" />
-                        {pricing.featureLabels.branches}
-                      </span>
-                      <span className="text-foreground text-sm font-medium tabular-nums">
-                        {plan.branchesBadge}
-                      </span>
-                    </li>
-                    {plan.stampsBadge ? (
-                      <li className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground flex items-center gap-2.5">
-                          <CheckCircle className="text-primary h-4 w-4 shrink-0" />
-                          {pricing.featureLabels.stamps}
-                        </span>
-                        <span className="text-foreground text-sm font-medium tabular-nums">
-                          {plan.stampsBadge}
-                        </span>
-                      </li>
-                    ) : null}
-                    {plan.historyLabel ? (
-                      <li className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground flex items-center gap-2.5">
-                          <CheckCircle className="text-primary h-4 w-4 shrink-0" />
-                          {pricing.featureLabels.history}
-                        </span>
-                        <span className="text-foreground text-sm font-medium tabular-nums">
-                          {plan.historyLabel}
-                        </span>
-                      </li>
-                    ) : null}
-                    <li className="flex items-start gap-2.5 pt-1">
-                      <CheckCircle className="text-primary mt-0.5 h-4 w-4 shrink-0" />
-                      <span className="text-foreground text-sm">
-                        {pricing.featureLabels.l0}
-                      </span>
-                    </li>
-                  </ul>
-
-                  <div className="mt-6 space-y-2">
+                <div className="landing-plan-actions">
+                  <Button
+                    className={cn(
+                      "w-full",
+                      isPopular || isFleetMatch
+                        ? "landing-cta-amber"
+                        : "landing-btn-outline-ink",
+                    )}
+                    size="lg"
+                    variant={isPopular || isFleetMatch ? "default" : "outline"}
+                    asChild
+                  >
+                    {isQuote ? (
+                      <a href="mailto:ventas@boeltech.com">
+                        {pricing.ctaQuote}
+                      </a>
+                    ) : registrationOpen ? (
+                      <Link to="/register">{pricing.cta}</Link>
+                    ) : (
+                      <a href="mailto:ventas@boeltech.com">
+                        {landingCopy.nav.contactSales}
+                      </a>
+                    )}
+                  </Button>
+                  {registrationOpen && !isQuote ? (
                     <Button
-                      className="w-full"
-                      size="lg"
-                      variant={isPopular ? "default" : "outline"}
+                      className="landing-btn-ghost-ink w-full"
+                      size="sm"
+                      variant="ghost"
                       asChild
                     >
-                      {isQuote ? (
-                        <a href="mailto:ventas@boeltech.com">
-                          {pricing.ctaQuote}
-                        </a>
-                      ) : registrationOpen ? (
-                        <Link to="/register">{pricing.cta}</Link>
-                      ) : (
-                        <a href="mailto:ventas@boeltech.com">
-                          {landingCopy.nav.contactSales}
-                        </a>
-                      )}
+                      <a href="mailto:ventas@boeltech.com">
+                        {pricing.ctaSecondary}
+                      </a>
                     </Button>
-                    {registrationOpen && !isQuote ? (
-                      <Button
-                        className="w-full"
-                        size="sm"
-                        variant="ghost"
-                        asChild
-                      >
-                        <a href="mailto:ventas@boeltech.com">
-                          {pricing.ctaSecondary}
-                        </a>
-                      </Button>
-                    ) : null}
-                  </div>
+                  ) : null}
+                </div>
 
-                  <p className="text-muted-foreground mt-4 text-center text-[11px] leading-snug">
-                    {brand} · {plan.name}
-                  </p>
-                </article>
-              </LandingReveal>
+                <p className="landing-plan-footnote">
+                  {brand} · {plan.name}
+                </p>
+              </article>
             );
           })}
         </div>
 
-        <LandingReveal className="text-muted-foreground mx-auto mt-10 max-w-2xl space-y-2 text-center text-sm">
+        <div className="landing-muted-text mx-auto mt-10 max-w-2xl space-y-2 text-center text-sm">
           <p>{pricing.annualNote}</p>
           <p>
             {pricing.optionalsNote}{" "}
             <a
               href={`#${landingCopy.optionals.id}`}
-              className="text-primary font-medium hover:underline"
+              className="font-medium text-[color:var(--landing-blueprint)] hover:underline"
             >
               {pricing.optionalsLink}
             </a>
           </p>
-        </LandingReveal>
+        </div>
       </div>
     </section>
   );
 };
-
-function optionalCardBorderClass(index: number): string {
-  return cn(
-    index > 0 && "border-t",
-    index === 1 && "md:border-t-0 md:border-l",
-    index === 2 && "lg:border-t-0 lg:border-l",
-  );
-}
 
 const OptionalsSection = () => {
   const { optionals } = landingCopy;
   return (
     <section
       id={optionals.id}
-      className="landing-band landing-band-surface scroll-mt-20 py-16 md:py-20"
+      className="landing-optionals scroll-mt-20"
     >
       <div className="landing-shell">
-        <LandingReveal className="mx-auto max-w-2xl text-center">
-          <h2 className="landing-section-title text-foreground">
-            {optionals.title}
-          </h2>
-          <p className="text-muted-foreground mt-4">{optionals.subtitle}</p>
-        </LandingReveal>
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="landing-optionals-badge">{optionals.badge}</p>
+          <h2 className="landing-section-title">{optionals.title}</h2>
+          <p className="landing-muted-text mt-4 text-base leading-relaxed">
+            {optionals.subtitle}
+          </p>
+        </div>
 
-        <LandingReveal className="mt-12">
-          <div className="landing-panel border-border/60 overflow-hidden rounded-2xl border">
-            <div className="landing-reveal-stagger grid md:grid-cols-2 lg:grid-cols-3">
-              {optionals.items.map((item, index) => {
-                const n = String(index + 1).padStart(2, "0");
-                return (
-                  <LandingReveal
-                    key={item.title}
-                    className={cn(
-                      "border-border/50 p-6",
-                      optionalCardBorderClass(index),
-                    )}
-                  >
-                    <div className="mb-3 flex items-baseline justify-between gap-2">
-                      <span className="text-muted-foreground/70 font-mono text-xs tracking-widest">
-                        {n}
-                      </span>
-                      <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-                        {optionals.badge}
-                      </span>
-                    </div>
-                    <h3 className="mb-2 font-semibold tracking-tight">
-                      {item.title}
-                    </h3>
-                    <p className="text-muted-foreground text-base leading-relaxed">
-                      {item.description}
-                    </p>
-                  </LandingReveal>
-                );
-              })}
+        <div className="landing-optionals-strip mx-auto max-w-5xl">
+          {optionals.items.map((item) => (
+            <div key={item.title} className="landing-optionals-item">
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="landing-optionals-footnote">{optionals.footnote}</p>
+      </div>
+    </section>
+  );
+};
+
+const CTASection = () => {
+  const { cta } = landingCopy;
+  const { open: registrationOpen } = usePublicSelfServeRegister();
+  return (
+    <section className="landing-cta-band">
+      <div className="landing-shell">
+        <LandingReveal>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="landing-section-title">
+              {registrationOpen ? cta.title : cta.closedTitle}
+            </h2>
+            <p className="landing-cta-support mx-auto mt-4 max-w-2xl">
+              {registrationOpen ? cta.subtitle : cta.closedSubtitle}
+            </p>
+            {registrationOpen ? (
+              <p className="landing-cta-hint mt-2 text-sm">{cta.trialHint}</p>
+            ) : null}
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+              {registrationOpen ? (
+                <Button
+                  size="lg"
+                  asChild
+                  className="landing-cta-amber"
+                >
+                  <Link to="/register">
+                    {cta.primary}
+                    <ChevronRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  asChild
+                  className="landing-cta-amber"
+                >
+                  <a href="mailto:ventas@boeltech.com">
+                    {cta.closedPrimary}
+                    <ChevronRight className="ml-2 h-5 w-5" />
+                  </a>
+                </Button>
+              )}
+              <Button
+                size="lg"
+                variant="outline"
+                className="landing-btn-outline-on-ink"
+                asChild
+              >
+                {registrationOpen ? (
+                  <a href="mailto:ventas@boeltech.com">{cta.secondary}</a>
+                ) : (
+                  <Link to="/login">{landingCopy.nav.login}</Link>
+                )}
+              </Button>
             </div>
           </div>
-        </LandingReveal>
-
-        <LandingReveal>
-          <p className="text-muted-foreground mx-auto mt-8 max-w-2xl text-center text-xs">
-            {optionals.footnote}
-          </p>
         </LandingReveal>
       </div>
     </section>
   );
 };
 
-const CTA_OUTLINE_ON_BRAND =
-  "border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground";
-
-const CTASection = () => {
-  const { cta } = landingCopy;
+/** Sticky CTA mobile post-hero (F3). No cuenta como LandingReveal. */
+const StickyMobileCta = () => {
+  const { stickyCta, nav, hero } = landingCopy;
   const { open: registrationOpen } = usePublicSelfServeRegister();
+  const [visible, setVisible] = useState(false);
+  const shownOnce = useRef(false);
+
+  useEffect(() => {
+    const heroEl = document.querySelector("[data-landing-hero]");
+    if (!heroEl) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const pastHero = entry ? !entry.isIntersecting : false;
+        setVisible(pastHero);
+        if (pastHero) shownOnce.current = true;
+      },
+      { threshold: 0.08, rootMargin: "0px" },
+    );
+
+    observer.observe(heroEl);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="landing-band landing-band-muted py-16 md:py-20">
-      <div className="landing-shell">
-        <LandingReveal>
-          <div className="bg-primary text-primary-foreground relative overflow-hidden rounded-2xl px-6 py-14 text-center md:px-12 md:py-16">
-            <div
-              className="pointer-events-none absolute inset-0 opacity-30"
-              aria-hidden
-              style={{
-                backgroundImage: `
-                  radial-gradient(ellipse 55% 45% at 100% 0%, color-mix(in oklch, var(--primary-foreground) 16%, transparent), transparent 55%),
-                  radial-gradient(ellipse 40% 35% at 0% 100%, color-mix(in oklch, var(--primary-foreground) 10%, transparent), transparent 50%)
-                `,
-              }}
-            />
-            <div className="relative z-10">
-              <h2 className="landing-section-title text-primary-foreground">
-                {registrationOpen ? cta.title : cta.closedTitle}
-              </h2>
-              <p className="text-primary-foreground/80 mx-auto mt-4 max-w-2xl">
-                {registrationOpen ? cta.subtitle : cta.closedSubtitle}
-              </p>
-              {registrationOpen ? (
-                <p className="text-primary-foreground/70 mt-2 text-sm">
-                  {cta.trialHint}
-                </p>
-              ) : null}
-              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-                {registrationOpen ? (
-                  <Button size="lg" variant="secondary" asChild>
-                    <Link to="/register">
-                      {cta.primary}
-                      <ChevronRight className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button size="lg" variant="secondary" asChild>
-                    <a href="mailto:ventas@boeltech.com">
-                      {cta.closedPrimary}
-                      <ChevronRight className="ml-2 h-5 w-5" />
-                    </a>
-                  </Button>
-                )}
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className={CTA_OUTLINE_ON_BRAND}
-                  asChild
-                >
-                  {registrationOpen ? (
-                    <a href="mailto:ventas@boeltech.com">{cta.secondary}</a>
-                  ) : (
-                    <Link to="/login">{landingCopy.nav.login}</Link>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </LandingReveal>
+    <div
+      className={cn(
+        "landing-sticky-cta",
+        visible && "is-visible",
+      )}
+      data-landing-sticky-cta
+      aria-hidden={!visible}
+    >
+      <div
+        className="landing-sticky-cta-inner"
+        role="region"
+        aria-label={stickyCta.ariaLabel}
+      >
+        {registrationOpen ? (
+          <Button asChild size="sm" className="landing-cta-amber flex-1">
+            <Link to="/register">{nav.register}</Link>
+          </Button>
+        ) : (
+          <Button asChild size="sm" className="landing-cta-amber flex-1">
+            <a href="mailto:ventas@boeltech.com">{nav.contactSales}</a>
+          </Button>
+        )}
+        <a
+          href={`#${landingCopy.pricing.id}`}
+          className="landing-sticky-cta-pricing"
+        >
+          {stickyCta.pricingLink}
+        </a>
+        <span className="sr-only">
+          {registrationOpen ? hero.ctaPrimaryOpen : hero.ctaPrimaryClosed}
+        </span>
       </div>
-    </section>
+    </div>
   );
 };
 
 const Footer = () => {
   const { brandByline, footer, nav } = landingCopy;
   return (
-    <footer className="landing-band landing-band-surface pb-10 pt-10 md:pt-12">
+    <footer className="landing-footer pb-10 pt-10 md:pt-12">
       <div className="landing-shell">
-        <LandingReveal>
-          <div className="grid gap-10 border-b pb-10 md:grid-cols-4">
-            <div className="md:col-span-1">
-              <div className="flex flex-col gap-1.5">
-                <Wordmark variant="brand" className="text-xl" />
-                <p className="text-muted-foreground text-xs">{brandByline}</p>
-              </div>
-              <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-                {footer.tagline}
-              </p>
+        <div className="grid gap-10 border-b border-[color:var(--landing-hairline)] pb-10 md:grid-cols-4">
+          <div className="md:col-span-1">
+            <div className="flex flex-col gap-1.5">
+              <Wordmark variant="brand" className="text-xl" />
+              <p className="landing-muted-text text-xs">{brandByline}</p>
             </div>
-
-            <div>
-              <p className="text-foreground mb-3 text-sm font-semibold">
-                {footer.product}
-              </p>
-              <nav className="flex flex-col gap-2" aria-label="Producto">
-                <a
-                  href={`#${landingCopy.product.id}`}
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {nav.product}
-                </a>
-                <a
-                  href={`#${landingCopy.pricing.id}`}
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {nav.pricing}
-                </a>
-                <a
-                  href={`#${landingCopy.optionals.id}`}
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {nav.optionals}
-                </a>
-              </nav>
-            </div>
-
-            <div>
-              <p className="text-foreground mb-3 text-sm font-semibold">
-                {footer.legal}
-              </p>
-              <nav className="flex flex-col gap-2" aria-label="Legal">
-                <Link
-                  to="/terms"
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {footer.terms}
-                </Link>
-                <Link
-                  to="/privacy"
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {footer.privacy}
-                </Link>
-              </nav>
-            </div>
-
-            <div>
-              <p className="text-foreground mb-3 text-sm font-semibold">
-                {footer.company}
-              </p>
-              <nav className="flex flex-col gap-2" aria-label="Empresa">
-                <a
-                  href="mailto:soporte@boeltech.com"
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {footer.support}
-                </a>
-                <a
-                  href="mailto:ventas@boeltech.com"
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {nav.contactSales}
-                </a>
-                <Link
-                  to="/login"
-                  className="text-muted-foreground hover:text-foreground text-sm"
-                >
-                  {nav.login}
-                </Link>
-              </nav>
-            </div>
-          </div>
-
-          <div className="mt-6 border-t pt-6 text-center sm:text-left">
-            <p className="text-muted-foreground text-xs sm:text-sm">
-              {footer.copyright(new Date().getFullYear())}
+            <p className="landing-muted-text mt-3 text-sm leading-relaxed">
+              {footer.tagline}
             </p>
           </div>
-        </LandingReveal>
+
+          <div>
+            <p className="landing-footer-heading">{footer.product}</p>
+            <nav className="flex flex-col gap-2" aria-label="Producto">
+              <a
+                href={`#${landingCopy.evidence.id}`}
+                className="text-sm"
+              >
+                {nav.product}
+              </a>
+              <a
+                href={`#${landingCopy.pricing.id}`}
+                className="text-sm"
+              >
+                {nav.pricing}
+              </a>
+            </nav>
+          </div>
+
+          <div>
+            <p className="landing-footer-heading">{footer.legal}</p>
+            <nav className="flex flex-col gap-2" aria-label="Legal">
+              <Link to="/terms" className="text-sm">
+                {footer.terms}
+              </Link>
+              <Link to="/privacy" className="text-sm">
+                {footer.privacy}
+              </Link>
+            </nav>
+          </div>
+
+          <div>
+            <p className="landing-footer-heading">{footer.company}</p>
+            <nav className="flex flex-col gap-2" aria-label="Empresa">
+              <a href="mailto:soporte@boeltech.com" className="text-sm">
+                {footer.support}
+              </a>
+              <a href="mailto:ventas@boeltech.com" className="text-sm">
+                {nav.contactSales}
+              </a>
+              <Link to="/login" className="text-sm">
+                {nav.login}
+              </Link>
+            </nav>
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-[color:var(--landing-hairline)] pt-6 text-center sm:text-left">
+          <p className="landing-muted-text text-xs sm:text-sm">
+            {footer.copyright(new Date().getFullYear())}
+          </p>
+        </div>
       </div>
     </footer>
   );

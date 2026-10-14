@@ -1,5 +1,6 @@
 /**
  * Reveal al entrar en viewport (IntersectionObserver, once).
+ * `eager`: visible de inmediato (above-fold) sin opacity:0 ni IO.
  */
 import {
   useEffect,
@@ -15,6 +16,11 @@ type LandingRevealProps = {
   /** Retraso en ms aplicado cuando la animación corre */
   delayMs?: number;
   style?: CSSProperties;
+  /**
+   * Above-fold: monta ya visible (sin gate de opacity).
+   * No usa IntersectionObserver.
+   */
+  eager?: boolean;
 };
 
 export function LandingReveal({
@@ -22,10 +28,13 @@ export function LandingReveal({
   className,
   delayMs = 0,
   style,
+  eager = false,
 }: LandingRevealProps) {
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (eager) return;
+
     const el = ref.current;
     if (!el) return;
 
@@ -45,12 +54,16 @@ export function LandingReveal({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [eager]);
 
   return (
     <div
       ref={ref}
-      className={cn("landing-reveal", className)}
+      className={cn(
+        "landing-reveal",
+        eager && "is-visible is-eager",
+        className,
+      )}
       style={{
         ...style,
         ...(delayMs > 0
