@@ -62,6 +62,7 @@ import {
   type StopTypeValue,
   TripStatus,
   CargoStatus,
+  canReassignTripFleet,
   getOrderedStops,
   resolveOperationalCashSummary,
 } from "@features/trips/domain";
@@ -112,6 +113,7 @@ import { formatDateTime } from "@shared/utils/dateUtils";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { getTripDetailAccess } from "./tripDetailAccess";
+import { applyOpenAssignFleetSearchParams } from "./tripDetailAssignFleetParams";
 import {
   parseTripDetailTab,
   resolveCargoCountForDefaultTab,
@@ -451,15 +453,17 @@ export function TripDetailPage() {
             severity="critical"
             icon={<Receipt className="h-5 w-5" />}
             title={shell.alert.falseTripCancelCfdiTitle}
+            action={
+              cancelInvoiceId ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/invoices/${cancelInvoiceId}`}>
+                    {shell.alert.falseTripCancelCfdiCta}
+                  </Link>
+                </Button>
+              ) : null
+            }
           >
             <p>{shell.alert.falseTripCancelCfdiBody}</p>
-            {cancelInvoiceId ? (
-              <Button variant="outline" size="sm" className="mt-2" asChild>
-                <Link to={`/invoices/${cancelInvoiceId}`}>
-                  {shell.alert.falseTripCancelCfdiCta}
-                </Link>
-              </Button>
-            ) : null}
           </DetailAlertCard>,
         );
       } else if (
@@ -635,10 +639,8 @@ export function TripDetailPage() {
       }
     }
 
-    if (
-      displayStatus === TripStatus.SCHEDULED &&
-      !showReadinessRail
-    ) {
+    // D6: banner aunque haya readiness rail — en SCHEDULED el rail no muestra flota.
+    if (displayStatus === TripStatus.SCHEDULED) {
       const missing: { label?: string; text: string }[] = [];
       if (!trip.vehicle) {
         missing.push({
@@ -653,6 +655,10 @@ export function TripDetailPage() {
         });
       }
       if (missing.length > 0) {
+        const canAssignFleetFromAlert =
+          !isLeanTripPortal &&
+          canUpdateTrip &&
+          canReassignTripFleet(trip.status);
         cards.push(
           <DetailAlertCard
             key="assignment-incomplete"
@@ -660,6 +666,23 @@ export function TripDetailPage() {
             icon={<AlertTriangle className="h-5 w-5" />}
             title={shell.alert.assignmentIncompleteTitle}
             items={missing}
+            action={
+              canAssignFleetFromAlert ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSearchParams(
+                      (prev) => applyOpenAssignFleetSearchParams(prev),
+                      { replace: true },
+                    );
+                  }}
+                >
+                  {tripDetailCopy.operation.action.assignFleet}
+                </Button>
+              ) : null
+            }
           />,
         );
       }
@@ -707,6 +730,10 @@ export function TripDetailPage() {
         });
       }
       if (missing.length > 0) {
+        const canAssignFleetFromAlert =
+          !isLeanTripPortal &&
+          canUpdateTrip &&
+          canReassignTripFleet(trip.status);
         cards.push(
           <DetailAlertCard
             key="operation-missing"
@@ -714,6 +741,23 @@ export function TripDetailPage() {
             icon={<AlertTriangle className="h-5 w-5" />}
             title={shell.alert.operationIncompleteTitle}
             items={missing}
+            action={
+              canAssignFleetFromAlert ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSearchParams(
+                      (prev) => applyOpenAssignFleetSearchParams(prev),
+                      { replace: true },
+                    );
+                  }}
+                >
+                  {tripDetailCopy.operation.action.assignFleet}
+                </Button>
+              ) : null
+            }
           />,
         );
       }
@@ -776,6 +820,10 @@ export function TripDetailPage() {
     tripReadiness,
     setSearchParams,
     isLeanTripPortal,
+    canUpdateTrip,
+    canSubstituteFiscal,
+    isDispatcher,
+    isManager,
     invoicingConsoleVisible,
     revenueSplitForFiscalCta,
     revenueSplitForFiscalCtaFetched,

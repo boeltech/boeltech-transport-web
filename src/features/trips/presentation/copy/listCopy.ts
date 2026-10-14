@@ -32,6 +32,10 @@ export const tripsListCopy = {
     clearFilters: "Limpiar filtros",
   },
 
+  card: {
+    actionsAria: "Acciones",
+  },
+
   reserve: {
     hintTitle: "Reservar viaje",
     hintBody:

@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
+import { cn } from "@shared/lib/utils/cn";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import {
@@ -113,6 +114,10 @@ interface CommonProps {
   onCancel?: (id: string) => void;
   /** Callback después de una acción exitosa; recibe el viaje actualizado cuando aplique. */
   onActionComplete?: (trip?: Trip) => void;
+  /** Clase del trigger ⋯ (p. ej. entityListCardMenuTriggerClassName en cards). */
+  menuTriggerClassName?: string;
+  /** aria-label / sr-only del trigger ⋯. */
+  menuAriaLabel?: string;
 }
 
 type TripActionsProps = CommonProps & (TripObjectProps | TripIndividualProps);
@@ -142,6 +147,8 @@ export function TripActions(props: TripActionsProps) {
     onActionComplete,
     hasRealArrival = false,
     hasDeliveredCargo = false,
+    menuTriggerClassName,
+    menuAriaLabel = "Abrir menú de acciones",
   } = props;
 
   // Extraer valores del trip o de props individuales
@@ -374,9 +381,13 @@ export function TripActions(props: TripActionsProps) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-8 w-8", menuTriggerClassName)}
+          >
             <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">Abrir menú de acciones</span>
+            <span className="sr-only">{menuAriaLabel}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -397,7 +408,7 @@ export function TripActions(props: TripActionsProps) {
                   className="text-warning focus:text-warning"
                 >
                   <XCircle className="mr-2 h-4 w-4" />
-                  Cancelar viaje
+                  Cancelar
                 </DropdownMenuItem>
               )}
             </>

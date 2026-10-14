@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Banknote,
@@ -20,7 +20,6 @@ import {
   settlementCreatePath,
 } from "@features/settlements/application";
 import { usePermissions } from "@shared/permissions";
-import { cn } from "@shared/lib/utils/cn";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -35,6 +34,10 @@ import { TripFleetAssignmentSheet } from "../trip-fleet-assignment";
 import { TripFleetSnapshotCard } from "../trip-fleet-snapshot";
 import { TripOrderCard } from "../trip-order";
 import { tripDetailCopy } from "../../copy";
+import {
+  clearAssignFleetSearchParams,
+  wantsOpenAssignFleetSheet,
+} from "../../pages/tripDetailAssignFleetParams";
 
 const copy = tripDetailCopy.operation;
 
@@ -142,6 +145,10 @@ function ClientContractCard({
   );
 }
 
+/**
+ * Tab Operación — ficha patio-first (Ola 2 #1 / D7):
+ * Flota → Programación → Cliente → staff → Orden → Datos CP → km/notas/historial.
+ */
 export function TripDetailOperationTab({
   trip,
   canEditStructural,
@@ -154,13 +161,27 @@ export function TripDetailOperationTab({
   canSubstituteInvoice = false,
   statusHistory,
 }: TripDetailOperationTabProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isFleetAssignmentSheetOpen, setIsFleetAssignmentSheetOpen] =
     useState(false);
+  const openAssignFleetFromAlert =
+    canReassignFleet && wantsOpenAssignFleetSheet(searchParams);
+  const isFleetSheetOpen =
+    isFleetAssignmentSheetOpen || openAssignFleetFromAlert;
   const { hasPermission } = usePermissions();
   const canCreateSettlement = hasPermission("settlements", "create");
   const canReadSettlements = hasPermission("settlements", "read");
   const isCompleted = trip.status === TripStatus.COMPLETED;
   const showSettlementActions = isCompleted && !isClientPortalView;
+
+  const handleFleetAssignmentSheetOpenChange = (open: boolean) => {
+    setIsFleetAssignmentSheetOpen(open);
+    if (!open && openAssignFleetFromAlert) {
+      setSearchParams((prev) => clearAssignFleetSearchParams(prev), {
+        replace: true,
+      });
+    }
+  };
 
   const resolvedDriverId = trip.driverId || trip.driver?.id;
 
@@ -174,63 +195,22 @@ export function TripDetailOperationTab({
     },
   );
 
+  const driversData = driversPage?.data;
   const titularEmployeeId = useMemo(() => {
-    if (!resolvedDriverId || !driversPage?.data) return null;
+    if (!resolvedDriverId || !driversData) return null;
     return (
-      driversPage.data.find((driver) => driver.id === resolvedDriverId)?.employeeId ??
+      driversData.find((driver) => driver.id === resolvedDriverId)?.employeeId ??
       null
     );
-  }, [resolvedDriverId, driversPage?.data]);
+  }, [resolvedDriverId, driversData]);
 
   const tripSettlementsSearchHref = `${SETTLEMENTS_LIST_PATH}?search=${encodeURIComponent(trip.tripCode)}`;
 
   return (
-    <div className="space-y-6">
-      <ClientContractCard
-        trip={trip}
-        showClientLink={showClientLink}
-        canEditRouteType={canEditRouteType && !isClientPortalView}
-      />
-
-      <div
-        className={cn(
-          "grid grid-cols-1 gap-6",
-          isClientPortalView
-            ? "lg:grid-cols-1"
-            : "lg:grid-cols-2",
-        )}
-      >
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="h-4 w-4 shrink-0 text-primary" />
-              {copy.section.schedule}
-            </CardTitle>
-            <CardDescription>
-              {copy.hint.schedule}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <TripScheduleInlineEditor trip={trip} readOnly={!canEditStructural} />
-            {trip.actualDeparture ? (
-              <InfoRow
-                variant="inline"
-                label={copy.label.actualDeparture}
-                value={formatDateTime(trip.actualDeparture.toISOString())}
-              />
-            ) : null}
-            {trip.actualArrival ? (
-              <InfoRow
-                variant="inline"
-                label={copy.label.actualArrival}
-                value={formatDateTime(trip.actualArrival.toISOString())}
-              />
-            ) : null}
-          </CardContent>
-        </Card>
-
-        {!isClientPortalView ? (
-        <Card>
+    <div className="space-y-6" data-testid="trip-detail-operation-tab">
+      {/* D7 — 1. Flota y tripulación (oculta en portal cliente) */}
+      {!isClientPortalView ? (
+        <Card data-testid="trip-operation-fleet-card">
           <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
             <div className="space-y-1">
               <CardTitle className="text-base flex items-center gap-2">
@@ -243,12 +223,12 @@ export function TripDetailOperationTab({
             </div>
             {canReassignFleet ? (
               <Button
-                variant="outline"
+                type="button"
                 size="sm"
                 onClick={() => setIsFleetAssignmentSheetOpen(true)}
                 className="gap-1.5 shrink-0"
               >
-                <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                <Truck className="h-3.5 w-3.5" />
                 {trip.vehicle || trip.driver
                   ? copy.action.reassignFleet
                   : copy.action.assignFleet}
@@ -315,10 +295,50 @@ export function TripDetailOperationTab({
             </div>
           </CardContent>
         </Card>
-        ) : null}
+      ) : null}
 
-        {!isClientPortalView ? (
-        <Card>
+      {/* D7 — 2. Programación */}
+      <Card data-testid="trip-operation-schedule-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Calendar className="h-4 w-4 shrink-0 text-primary" />
+            {copy.section.schedule}
+          </CardTitle>
+          <CardDescription>
+            {copy.hint.schedule}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <TripScheduleInlineEditor trip={trip} readOnly={!canEditStructural} />
+          {trip.actualDeparture ? (
+            <InfoRow
+              variant="inline"
+              label={copy.label.actualDeparture}
+              value={formatDateTime(trip.actualDeparture.toISOString())}
+            />
+          ) : null}
+          {trip.actualArrival ? (
+            <InfoRow
+              variant="inline"
+              label={copy.label.actualArrival}
+              value={formatDateTime(trip.actualArrival.toISOString())}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {/* D7 — 3. Cliente / contrato */}
+      <div data-testid="trip-operation-client-card">
+        <ClientContractCard
+          trip={trip}
+          showClientLink={showClientLink}
+          canEditRouteType={canEditRouteType && !isClientPortalView}
+        />
+      </div>
+
+      {/* D7 — 4. Staff interno (oculta en portal cliente) */}
+      {!isClientPortalView ? (
+        <Card data-testid="trip-operation-staff-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Users className="h-4 w-4 shrink-0 text-primary" />
@@ -383,27 +403,9 @@ export function TripDetailOperationTab({
             ) : null}
           </CardContent>
         </Card>
-        ) : null}
+      ) : null}
 
-        {showMileage ? (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Gauge className="h-4 w-4 shrink-0 text-primary" />
-                {copy.section.mileage}
-              </CardTitle>
-              <CardDescription>
-                {copy.hint.mileage}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <InfoRow variant="inline" label={copy.label.mileageStart} value={formatMileage(trip.mileage.start)} />
-              <InfoRow variant="inline" label={copy.label.mileageEnd} value={formatMileage(trip.mileage.end)} />
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
-
+      {/* D7 — 5. Orden de viaje · 6. Datos Carta Porte (una Card cada una; D9) */}
       <TripOrderCard
         trip={trip}
         isClientPortalView={isClientPortalView}
@@ -416,8 +418,27 @@ export function TripDetailOperationTab({
         canSubstituteInvoice={canSubstituteInvoice}
       />
 
+      {/* D7 — 7. km / notas / historial */}
+      {showMileage ? (
+        <Card data-testid="trip-operation-mileage-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Gauge className="h-4 w-4 shrink-0 text-primary" />
+              {copy.section.mileage}
+            </CardTitle>
+            <CardDescription>
+              {copy.hint.mileage}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <InfoRow variant="inline" label={copy.label.mileageStart} value={formatMileage(trip.mileage.start)} />
+            <InfoRow variant="inline" label={copy.label.mileageEnd} value={formatMileage(trip.mileage.end)} />
+          </CardContent>
+        </Card>
+      ) : null}
+
       {!isClientPortalView && trip.notes ? (
-        <Card>
+        <Card data-testid="trip-operation-notes-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{copy.section.notes}</CardTitle>
             <CardDescription>{copy.hint.notes}</CardDescription>
@@ -435,8 +456,8 @@ export function TripDetailOperationTab({
       {!isClientPortalView && canReassignFleet ? (
         <TripFleetAssignmentSheet
           trip={trip}
-          open={isFleetAssignmentSheetOpen}
-          onOpenChange={setIsFleetAssignmentSheetOpen}
+          open={isFleetSheetOpen}
+          onOpenChange={handleFleetAssignmentSheetOpenChange}
         />
       ) : null}
     </div>

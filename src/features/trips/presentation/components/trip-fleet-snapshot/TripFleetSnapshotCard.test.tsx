@@ -330,4 +330,10 @@ describe("TripFleetSnapshotCard", () => {
     expect(screen.getByText("18.00 t")).toBeInTheDocument();
     expect(screen.getByText("RC-001")).toBeInTheDocument();
   });
+
+  it("una sola Card raíz sin Card anidada (D9)", async () => {
+    renderCard();
+    const root = await screen.findByTestId("trip-fleet-snapshot-card");
+    expect(root.querySelectorAll(".rounded-xl.border.bg-card").length).toBe(0);
+  });
 });

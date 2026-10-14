@@ -2,8 +2,8 @@
  * TripCard Component
  * Clean Architecture - Presentation Layer
  *
- * Tarjeta de listado alineada al patrón de VehicleCard:
- * cabecera con icono + título/subtítulo, rejilla de hechos, footer con estado y "Ver más".
+ * Tarjeta de listado: EntityListCard + menú ⋯ vía TripActions (usable sin hover — D4/D5).
+ * Solo cancel/delete en fila; asignar/iniciar/timbrar viven en el detalle.
  */
 
 import { memo } from "react";
@@ -12,22 +12,16 @@ import { Card, CardContent, CardFooter, CardHeader } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@shared/ui/dropdown-menu";
-import { TripStatus, type TripListItem } from "@features/trips/domain";
-import { canDeleteTrip } from "../../domain/rules";
+  EntityListCard,
+  entityListCardMenuTriggerClassName,
+} from "@shared/ui/listing";
+import type { TripListItem } from "@features/trips/domain";
 import { TripListRouteLabel } from "./TripListRouteLabel";
+import { TripActions } from "./TripActions";
 import {
-  MoreVertical,
   Calendar,
   Truck,
   User,
-  XCircle,
-  Trash2,
   Eye,
   Navigation,
   Receipt,
@@ -60,15 +54,6 @@ export const TripCard = memo(function TripCard({
   className,
   hideClient = false,
 }: TripCardProps) {
-  const canDelete = canDeleteTrip(trip.status);
-  const canCancel =
-    trip.status === TripStatus.SCHEDULED ||
-    trip.status === TripStatus.IN_PROGRESS;
-
-  const showCancel = canCancel && Boolean(onCancel);
-  const showDelete = canDelete && Boolean(onDelete);
-  const showActionsMenu = showCancel || showDelete;
-
   const invoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
     invoicing: trip.invoicing,
@@ -80,9 +65,9 @@ export const TripCard = memo(function TripCard({
   };
 
   return (
-    <Card
+    <EntityListCard
       className={cn(
-        "group relative cursor-pointer transition-all hover:shadow-md hover:border-primary/50",
+        "relative",
         isSelected && "ring-2 ring-primary border-primary",
         className,
       )}
@@ -120,57 +105,17 @@ export const TripCard = memo(function TripCard({
             </div>
           </div>
 
-          {showActionsMenu ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Acciones</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onView?.(trip.id);
-                  }}
-                >
-                  <Eye className="mr-2 h-4 w-4" /> Ver detalles
-                </DropdownMenuItem>
-                {showCancel && onCancel ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCancel(trip.id);
-                      }}
-                    >
-                      <XCircle className="mr-2 h-4 w-4 text-warning" /> Cancelar
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-                {showDelete && onDelete ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(trip.id);
-                      }}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
+          <div onClick={(e) => e.stopPropagation()}>
+            <TripActions
+              trip={trip}
+              variant="dropdown"
+              onView={onView}
+              onDelete={onDelete}
+              onCancel={onCancel}
+              menuTriggerClassName={entityListCardMenuTriggerClassName}
+              menuAriaLabel={tripsListCopy.card.actionsAria}
+            />
+          </div>
         </div>
       </CardHeader>
 
@@ -245,7 +190,7 @@ export const TripCard = memo(function TripCard({
           </Button>
         </div>
       </CardFooter>
-    </Card>
+    </EntityListCard>
   );
 });
 

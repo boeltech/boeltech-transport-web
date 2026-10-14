@@ -55,6 +55,7 @@ import { BranchStatus, useBranches } from "@features/branches";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { EmptyState } from "@shared/ui/feedback-states";
 
 import {
   useTrips,
@@ -700,56 +701,68 @@ export function TripsListPage() {
           }
 
           if (trips.length === 0) {
-            return (
-              <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-                <Search className="h-10 w-10 text-muted-foreground" />
-                <div className="space-y-1.5">
-                  <p className="text-lg font-semibold">{emptyTitle}</p>
-                  {showJobEmpty ? (
-                    <div className="text-sm text-muted-foreground">
-                      <p>{copy.empty.jobLead}</p>
-                      <ol className="mx-auto mt-1.5 max-w-sm list-decimal space-y-0.5 pl-5 text-left">
-                        {copy.orientation.steps.map((step) => (
-                          <li key={step}>{step}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  ) : emptyDescription ? (
-                    <p className="text-sm text-muted-foreground">
-                      {emptyDescription}
-                    </p>
-                  ) : null}
-                  {helpEmpty ? (
-                    <p className="text-sm text-muted-foreground">
-                      {helpEmpty.phrase}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {canCreate ? (
-                    <Button
-                      onClick={goCreateReserve}
-                      leftIcon={<CalendarPlus className="h-4 w-4" />}
-                      data-help-anchor="trip-reservar-cta"
-                    >
-                      {copy.actions.create}
-                    </Button>
-                  ) : null}
-                  {hasFilters ? (
-                    <Button variant="outline" onClick={clearAllTripsFilters}>
-                      {copy.actions.clearFilters}
-                    </Button>
-                  ) : null}
-                  {helpEmpty ? (
-                    <Button
-                      variant="outline"
-                      onClick={helpEmpty.viewHelpCta.onClick}
-                    >
-                      {helpEmpty.viewHelpCta.label}
-                    </Button>
-                  ) : null}
-                </div>
+            const emptyDescriptionNode = showJobEmpty ? (
+              <div className="space-y-1.5">
+                <p>{copy.empty.jobLead}</p>
+                <ol className="mx-auto mt-1.5 max-w-sm list-decimal space-y-0.5 pl-5 text-left">
+                  {copy.orientation.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+                {helpEmpty ? <p className="mt-2">{helpEmpty.phrase}</p> : null}
               </div>
+            ) : (
+              <>
+                {emptyDescription ? <p>{emptyDescription}</p> : null}
+                {helpEmpty ? (
+                  <p className={emptyDescription ? "mt-2" : undefined}>
+                    {helpEmpty.phrase}
+                  </p>
+                ) : null}
+              </>
+            );
+
+            const clearFiltersCta = hasFilters
+              ? {
+                  label: copy.actions.clearFilters,
+                  onClick: clearAllTripsFilters,
+                  variant: "outline" as const,
+                }
+              : undefined;
+            const helpCta = helpEmpty
+              ? {
+                  label: helpEmpty.viewHelpCta.label,
+                  onClick: helpEmpty.viewHelpCta.onClick,
+                  variant: "outline" as const,
+                }
+              : undefined;
+
+            return (
+              <EmptyState
+                icon={<Search />}
+                title={emptyTitle}
+                description={
+                  emptyDescription || showJobEmpty || helpEmpty
+                    ? emptyDescriptionNode
+                    : undefined
+                }
+                cta={
+                  canCreate
+                    ? {
+                        label: copy.actions.create,
+                        onClick: goCreateReserve,
+                        icon: <CalendarPlus className="h-4 w-4" />,
+                      }
+                    : clearFiltersCta ?? helpCta
+                }
+                secondaryCta={
+                  canCreate
+                    ? (clearFiltersCta ?? helpCta)
+                    : clearFiltersCta && helpCta
+                      ? helpCta
+                      : undefined
+                }
+              />
             );
           }
 

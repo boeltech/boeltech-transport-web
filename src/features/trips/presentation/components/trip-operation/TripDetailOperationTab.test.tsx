@@ -123,7 +123,12 @@ function renderTab(
   {
     canEditStructural = false,
     canReassignFleet = false,
-  }: { canEditStructural?: boolean; canReassignFleet?: boolean } = {},
+    initialEntries = ["/trips/trip-1"],
+  }: {
+    canEditStructural?: boolean;
+    canReassignFleet?: boolean;
+    initialEntries?: string[];
+  } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -131,7 +136,7 @@ function renderTab(
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <TripDetailOperationTab
           trip={trip}
           canEditStructural={canEditStructural}
@@ -142,12 +147,62 @@ function renderTab(
   );
 }
 
-describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
+describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7–D9)", () => {
   beforeEach(() => {
     mockHasPermission.mockImplementation(
       (module: string, action: string) =>
         module === "settlements" && (action === "create" || action === "read"),
     );
+  });
+
+  it("ordena bloques patio-first: Flota → Programación → Cliente → staff → km (D7)", () => {
+    renderTab(makeTrip({ notes: "Nota al final" }));
+
+    const fleet = screen.getByTestId("trip-operation-fleet-card");
+    const schedule = screen.getByTestId("trip-operation-schedule-card");
+    const client = screen.getByTestId("trip-operation-client-card");
+    const staff = screen.getByTestId("trip-operation-staff-card");
+    const mileage = screen.getByTestId("trip-operation-mileage-card");
+    const notes = screen.getByTestId("trip-operation-notes-card");
+
+    const following = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(fleet.compareDocumentPosition(schedule) & following).toBeTruthy();
+    expect(schedule.compareDocumentPosition(client) & following).toBeTruthy();
+    expect(client.compareDocumentPosition(staff) & following).toBeTruthy();
+    expect(staff.compareDocumentPosition(mileage) & following).toBeTruthy();
+    expect(mileage.compareDocumentPosition(notes) & following).toBeTruthy();
+  });
+
+  it("CTA Asignar/Reasignar flota es primaria; Ver cliente es secundaria (D8)", () => {
+    renderTab(
+      makeTrip({ status: TripStatus.SCHEDULED }),
+      { canReassignFleet: true },
+    );
+
+    const reassign = screen.getByRole("button", { name: copy.action.reassignFleet });
+    expect(reassign.className).toMatch(/bg-primary/);
+    expect(reassign.className).not.toMatch(/border-input/);
+
+    const viewClient = screen.getByRole("link", { name: copy.action.viewClient });
+    expect(viewClient.className).toMatch(/border/);
+    expect(viewClient.className).not.toMatch(/bg-primary/);
+  });
+
+  it("muestra Asignar flota cuando no hay unidad ni conductor", () => {
+    renderTab(
+      makeTrip({
+        status: TripStatus.SCHEDULED,
+        vehicle: undefined,
+        driver: undefined,
+        driverId: undefined,
+        trailers: [],
+      }),
+      { canReassignFleet: true },
+    );
+
+    expect(
+      screen.getByRole("button", { name: copy.action.assignFleet }),
+    ).toBeInTheDocument();
   });
 
   it("muestra cliente, unidad, conductor, placa de remolque y facturación del viaje", () => {
@@ -241,7 +296,7 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     expect(screen.getByText(copy.state.clientUnavailable)).toBeInTheDocument();
   });
 
-  it("oculta asignación y datos internos en portal cliente", () => {
+  it("oculta asignación y datos internos en portal cliente (D7 lean / CA6)", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -263,6 +318,7 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
               ],
             })}
             canEditStructural={false}
+            canReassignFleet
             isClientPortalView
             showMileage={false}
             showClientLink={false}
@@ -272,6 +328,14 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     );
 
     expect(screen.getByText("Transportes Alfa")).toBeInTheDocument();
+    expect(screen.queryByTestId("trip-operation-fleet-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("trip-operation-staff-card")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.action.reassignFleet }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.action.assignFleet }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("U-12")).not.toBeInTheDocument();
     expect(screen.queryByText("Ana Lopez")).not.toBeInTheDocument();
     expect(screen.queryByText("Nota interna del viaje")).not.toBeInTheDocument();
@@ -309,6 +373,38 @@ describe("TripDetailOperationTab — ficha operativa (Capa 1 D8 / D11)", () => {
     expect(
       screen.getByRole("button", { name: copy.fleetAssignment.saveButton }),
     ).toBeInTheDocument();
+  });
+
+  it("abre el sheet de flota con ?assignFleet=1 (D6 chrome alertas)", () => {
+    renderTab(
+      makeTrip({ status: TripStatus.SCHEDULED }),
+      {
+        canEditStructural: true,
+        canReassignFleet: true,
+        initialEntries: ["/trips/trip-1?tab=overview&assignFleet=1"],
+      },
+    );
+
+    expect(
+      screen.getByText(copy.fleetAssignment.sheetDescription),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: copy.fleetAssignment.saveButton }),
+    ).toBeInTheDocument();
+  });
+
+  it("no abre el sheet por ?assignFleet=1 si canReassignFleet es false", () => {
+    renderTab(
+      makeTrip({ status: TripStatus.SCHEDULED }),
+      {
+        canReassignFleet: false,
+        initialEntries: ["/trips/trip-1?tab=overview&assignFleet=1"],
+      },
+    );
+
+    expect(
+      screen.queryByText(copy.fleetAssignment.sheetDescription),
+    ).not.toBeInTheDocument();
   });
 
   it("muestra reasignar flota mid-trip con canReassignFleet aunque canEditStructural sea false (ADR-0093)", async () => {

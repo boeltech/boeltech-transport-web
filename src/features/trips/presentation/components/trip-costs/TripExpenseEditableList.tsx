@@ -352,7 +352,7 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
         <ReturnedAlert
           className="mt-2"
           approval={expense.approval}
-          actions={
+          action={
             showCorrect ? (
               <Button
                 type="button"

@@ -1,11 +1,31 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
 
 import { TripStatus, type TripListItem } from "@features/trips/domain";
+import { tripsListCopy } from "../copy/listCopy";
 import { TripCard } from "./TripCard";
+
+const mockHasPermission = vi.fn();
+
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({
+    hasPermission: (module: string, action: string) =>
+      mockHasPermission(module, action),
+  }),
+}));
+
+vi.mock("@shared/hooks", () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("../../application", () => ({
+  useCancelTrip: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteTrip: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 
 function listTrip(
   overrides: Partial<TripListItem> & Pick<TripListItem, "id" | "status">,
@@ -47,11 +67,18 @@ function renderWithQuery(ui: ReactNode) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
 describe("TripCard RBAC cancel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHasPermission.mockReturnValue(true);
+  });
+
   it("no muestra menú Acciones cuando solo hay onView (read-only / portal)", () => {
     renderWithQuery(
       <TripCard
@@ -61,7 +88,7 @@ describe("TripCard RBAC cancel", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: /Acciones/i }),
+      screen.queryByRole("button", { name: tripsListCopy.card.actionsAria }),
     ).not.toBeInTheDocument();
   });
 
@@ -75,7 +102,16 @@ describe("TripCard RBAC cancel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /Acciones/i }));
+    const trigger = screen.getByRole("button", {
+      name: tripsListCopy.card.actionsAria,
+    });
+    // EntityListCard menú touch: opacity-100 sin hover (D5 / CA5).
+    expect(trigger.className).toMatch(/opacity-100/);
+
+    await user.click(trigger);
     expect(screen.getByText("Cancelar")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /asignar|iniciar|timbrar/i }),
+    ).not.toBeInTheDocument();
   });
 });

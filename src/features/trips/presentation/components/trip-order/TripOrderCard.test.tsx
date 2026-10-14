@@ -251,4 +251,10 @@ describe("TripOrderCard", () => {
     expect(screen.getByText(copy.title).textContent).toBe("Orden de viaje");
     expect(screen.getByText(copy.description).textContent).toMatch(/No es CFDI ni Carta Porte/);
   });
+
+  it("una sola Card raíz sin Card anidada (D9)", async () => {
+    renderCard();
+    const root = await screen.findByTestId("trip-order-card");
+    expect(root.querySelectorAll(".rounded-xl.border.bg-card").length).toBe(0);
+  });
 });
