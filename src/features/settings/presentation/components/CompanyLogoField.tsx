@@ -205,7 +205,7 @@ export const CompanyLogoField = memo(function CompanyLogoField({
           ) : null}
         </div>
 
-        <FieldInlineError fieldId="company-logo" message={error} />
+        <FieldInlineError fieldId="company-logo" message={error ?? undefined} />
 
         <p className="text-xs text-muted-foreground">{copy.hint}</p>
       </div>

@@ -3,6 +3,7 @@
  * Las rutas públicas de cada sección se preservan.
  */
 
+import type { Action, Module } from "@shared/permissions";
 import {
   SettingsSection,
   type SettingsSectionValue,
@@ -91,7 +92,7 @@ export function getSettingsNavItemsForGroup(
 
 export function filterSettingsNavItemsByPermission(
   items: readonly SettingsNavItem[],
-  hasPermission: (module: string, action: string) => boolean,
+  hasPermission: (module: Module, action: Action) => boolean,
 ): SettingsNavItem[] {
   return items.filter((item) => {
     if (!item.permission) return true;
