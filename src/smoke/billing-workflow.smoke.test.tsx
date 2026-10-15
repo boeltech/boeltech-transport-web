@@ -272,6 +272,7 @@ describe("billing workflow smoke (Imp-v1d)", () => {
   });
 
   it("renders subscription page with plan, usage and modules", async () => {
+    const user = userEvent.setup();
     mockGetEntitlements.mockResolvedValue(MOCK_ENTITLEMENTS_WITH);
 
     render(
@@ -284,31 +285,39 @@ describe("billing workflow smoke (Imp-v1d)", () => {
       expect(screen.getAllByText("Operación Esencial").length).toBeGreaterThan(0);
     });
 
-    // Nivel de rentabilidad: etiqueta comercial (sin código Lx en esta superficie).
+    // Resumen above-the-fold: bolsa + estimado (D1).
+    expect(screen.getAllByText(/45 de 120 timbres usados/).length).toBeGreaterThan(0);
+    expect(screen.getByText(billingCopy.planSummary.estimatedLabel)).toBeInTheDocument();
+    expect(screen.getAllByText(/\$1,041|\$1041/).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByRole("link", { name: billingCopy.contact.cta }),
+    ).toHaveAttribute("href", "mailto:billing@boeltech.com");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(billingCopy.sections.planDetail.title),
+      }),
+    );
+
+    // Detalle colapsable: extras / rentabilidad / desglose (asunción 2).
     expect(screen.getByText(billingCopy.modules.level.label)).toBeInTheDocument();
     expect(screen.getByText("Margen operativo")).toBeInTheDocument();
     expect(
       screen.getByText(PROFITABILITY_LEVEL_COPY.L0.includes),
     ).toBeInTheDocument();
-
-    expect(screen.getAllByText(/45 de 120 timbres usados/).length).toBeGreaterThan(0);
     expect(screen.getByText("Rastreo GPS en tiempo real")).toBeInTheDocument();
-    expect(screen.getByText(billingCopy.costs.totalLabel)).toBeInTheDocument();
-    expect(screen.getAllByText(/\$1,041|\$1041/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(billingCopy.costs.title)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.modules.eaBadge)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: billingCopy.modules.level.profitabilityLink }),
     ).toHaveAttribute("href", "/finance/analysis?view=margin");
-    expect(
-      screen.getByRole("link", { name: billingCopy.contact.cta }),
-    ).toHaveAttribute("href", "mailto:billing@boeltech.com");
 
-    // El precio del plan aparece una sola vez: ya no se duplica en KPIs (D3).
+    // El precio del plan aparece una sola vez en el desglose (D3).
     expect(screen.getAllByText("$749.00")).toHaveLength(1);
   });
 
   it("renders SoT v5 motriz semantics (piloto 14 × $319)", async () => {
+    const user = userEvent.setup();
     mockGetSubscription.mockResolvedValue({
       ...MOCK_SUBSCRIPTION,
       planCode: "operacion_pequena",
@@ -363,23 +372,31 @@ describe("billing workflow smoke (Imp-v1d)", () => {
       expect(screen.getAllByText("Operación Pequeña").length).toBeGreaterThan(0);
     });
 
+    // Resumen: $/motriz + Q + estimado (D1).
+    expect(screen.getByText(/\$319\.00 \/ motriz \/ mes/)).toBeInTheDocument();
+    expect(screen.getByText(/14 motrizes este periodo/)).toBeInTheDocument();
+    expect(screen.getByText(/\$5,180\.56/)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(billingCopy.sections.planDetail.title),
+      }),
+    );
+
     expect(
       screen.getAllByText(billingCopy.plan.bandLabels.pequena).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(/\$319\.00 \/ motriz \/ mes/)).toBeInTheDocument();
-    expect(screen.getByText(/14 motrizes este periodo/)).toBeInTheDocument();
-    expect(screen.getByText("420 timbres")).toBeInTheDocument();
     expect(screen.getByText(billingCopy.stamps.title)).toBeInTheDocument();
     expect(screen.getByText(/Bolsa = 30 × 14 motrizes/)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.costs.rows.motrizCargo)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.plan.noFeeNote)).toBeInTheDocument();
-    // Cargo plan 14×319 = $4,466 desde summary API; estimado + IVA = $5,180.56
+    // Cargo plan 14×319 = $4,466 en desglose del detalle.
     expect(screen.getAllByText(/\$4,466\.00/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/\$5,180\.56/)).toBeInTheDocument();
   });
 
   /** DoD piloto CEO (F4): Q=4 Micro · 4×$389=$1,556 · bolsa 120 · total c/IVA ~$1,804.96 */
   it("renders SoT v5 motriz semantics (piloto CEO 4 × $389)", async () => {
+    const user = userEvent.setup();
     mockGetSubscription.mockResolvedValue({
       ...MOCK_SUBSCRIPTION,
       planCode: "operacion_micro",
@@ -433,17 +450,23 @@ describe("billing workflow smoke (Imp-v1d)", () => {
       expect(screen.getAllByText("Operación Micro").length).toBeGreaterThan(0);
     });
 
+    expect(screen.getByText(/\$389\.00 \/ motriz \/ mes/)).toBeInTheDocument();
+    expect(screen.getByText(/4 motrizes este periodo/)).toBeInTheDocument();
+    expect(screen.getByText(/\$1,804\.96/)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(billingCopy.sections.planDetail.title),
+      }),
+    );
+
     expect(
       screen.getAllByText(billingCopy.plan.bandLabels.micro).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(/\$389\.00 \/ motriz \/ mes/)).toBeInTheDocument();
-    expect(screen.getByText(/4 motrizes este periodo/)).toBeInTheDocument();
-    expect(screen.getByText("120 timbres")).toBeInTheDocument();
     expect(screen.getByText(/Bolsa = 30 × 4 motrizes/)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.costs.rows.motrizCargo)).toBeInTheDocument();
-    // Cargo 4×389 = $1,556; estimado + IVA = $1,804.96
+    // Cargo 4×389 = $1,556 en desglose del detalle.
     expect(screen.getAllByText(/\$1,556\.00/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/\$1,804\.96/)).toBeInTheDocument();
   });
 
   it("shows a single notice when stamps run out (D5)", async () => {

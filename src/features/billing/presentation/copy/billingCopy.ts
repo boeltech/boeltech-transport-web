@@ -3,7 +3,44 @@ export const billingCopy = {
     sectionTitle: "Tu plan",
     title: "Tu plan",
     description:
-      "Cobro por motriz, bolsa de timbres del mes y si hay algo por pagar. Sin fee de plataforma ni mínimo de cuenta.",
+      "Cobro por motriz, bolsa del mes y saldo pendiente, si hay.",
+  },
+  /** Secciones colapsables bajo el resumen (D4). */
+  sections: {
+    paymentMethod: {
+      title: "Método de cobro",
+      expand: "Mostrar",
+      collapse: "Ocultar",
+    },
+    planDetail: {
+      title: "Detalle del plan",
+      description: "Cupos, extras y desglose del mes.",
+      expand: "Mostrar",
+      collapse: "Ocultar",
+    },
+    history: {
+      title: "Cargos anteriores",
+      description: "Meses ya cobrados de tu suscripción.",
+      expand: "Mostrar",
+      collapse: "Ocultar",
+    },
+  },
+  /**
+   * Disclaimer único SaaS ≠ CFDI (D5) — solo en zona pagar
+   * (arrears open o falta método predeterminado).
+   */
+  payZone: {
+    saasDisclaimer:
+      "Estos cargos son de tu suscripción Tlamx (SaaS), no de facturas CFDI de flete.",
+  },
+  /** Resumen unificado above-the-fold (D1). */
+  planSummary: {
+    loading: "Cargando plan…",
+    /** Misma etiqueta operativa que costs.totalLabel (hero del estimado). */
+    estimatedLabel: "Estimado a pagar",
+    estimatedHint: "Incluye impuestos",
+    quotePending: "Pendiente de cotización Boeltech",
+    stampsLabel: "Bolsa de timbres",
   },
   /** Aviso único de la parte superior: se muestra solo el primero que aplique. */
   notices: {
@@ -308,8 +345,8 @@ export const billingCopy = {
     autoChargeRequiresAction: "Tu banco pide confirmación",
     autoChargeRequiresActionHint:
       "Pulsa Pagar ahora para confirmar el cargo de suscripción Tlamx.",
-    footer:
-      "Estos cargos son de tu suscripción Boeltech (SaaS), no de facturas CFDI de flete. El estimado del mes actual está más abajo, en Este mes.",
+    /** Orientación de estimado; el disclaimer SaaS≠CFDI vive en payZone (D5). */
+    footer: "El estimado del mes en curso aparece en el resumen de arriba.",
     contactCta: "Escribir a Boeltech",
   },
   saasInvoiceHistory: {
@@ -339,13 +376,13 @@ export const billingCopy = {
     methodUnknown: "—",
     emptyTitle: "Aún no hay cargos cobrados",
     empty: "El estimado de este mes está arriba.",
-    footer:
-      "Estos cargos son de tu suscripción Tlamx, no de facturas de flete.",
+    /** Sin disclaimer CFDI aquí — único en payZone (D5). */
+    footer: "Historial de cargos de tu suscripción Tlamx.",
   },
   paymentMethods: {
     title: "Métodos de pago",
     description:
-      "Tarjeta para cargos de tu suscripción Boeltech. No se usa para pagar facturas CFDI de viajes.",
+      "Tarjeta para el cargo mensual de tu suscripción Tlamx.",
     loading: "Cargando métodos de pago…",
     empty: "Aún no hay una tarjeta guardada para la suscripción.",
     autoChargeHint:
@@ -398,10 +435,13 @@ export const billingCopy = {
     },
   },
   contact: {
+    /** Link mailto (D5) — sin Card. */
+    prompt: "¿Necesitas ajustar flota, banda o cobro?",
+    cta: "Escribir a Boeltech",
+    email: "billing@boeltech.com",
+    /** @deprecated Retenido por compat de tests; la UI usa prompt + cta. */
     title: "¿Necesitas ajustar tu flota o banda?",
     description:
-      "Escríbenos para revisar motrizes cobrables, módulos adicionales o dudas de cobro. El precio es por motriz; sin fee ni mínimo.",
-    cta: "Contactar a Boeltech",
-    email: "billing@boeltech.com",
+      "Escríbenos para revisar motrizes cobrables, módulos adicionales o dudas de cobro.",
   },
 } as const;

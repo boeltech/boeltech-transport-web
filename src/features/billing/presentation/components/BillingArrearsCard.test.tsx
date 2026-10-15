@@ -98,10 +98,11 @@ describe("BillingArrearsCard", () => {
     expect(screen.getByText(billingCopy.arrears.payNeedsCard)).toBeInTheDocument();
   });
 
-  it("uses SaaS subscription copy, not CFDI freight wording", () => {
+  it("points to the summary estimate without CFDI freight wording (D5)", () => {
     render(<BillingArrearsCard data={ARREARS} />);
-    expect(screen.getByText(/suscripción Boeltech/i)).toBeInTheDocument();
-    expect(screen.getByText(/facturas CFDI de flete/i)).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.arrears.footer)).toBeInTheDocument();
+    expect(screen.queryByText(/CFDI/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/flete/i)).not.toBeInTheDocument();
   });
 
   it("shows grace deadline orientation when label is provided", () => {

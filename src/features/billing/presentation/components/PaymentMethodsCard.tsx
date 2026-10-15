@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   CardElement,
   Elements,
@@ -9,6 +9,7 @@ import { CreditCard, Trash2 } from "lucide-react";
 import { getErrorMessage, isApiError } from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
+import { AlertWithIcon } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
@@ -78,9 +79,10 @@ function SetupCardForm({
   const copy = billingCopy.paymentMethods;
   const stripe = useStripe();
   const elements = useElements();
-  const { success: toastSuccess, error: toastError } = useToast();
+  const { success: toastSuccess } = useToast();
   const confirmMutation = useConfirmSetupIntent();
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -90,20 +92,21 @@ function SetupCardForm({
     if (!card) return;
 
     setSubmitting(true);
+    setFormError(null);
     try {
       const result = await stripe.confirmCardSetup(clientSecret, {
         payment_method: { card },
       });
 
       if (result.error) {
-        toastError(result.error.message ?? copy.setupError);
+        setFormError(result.error.message ?? copy.setupError);
         return;
       }
 
       const intentId =
         result.setupIntent?.id?.trim() || setupIntentId.trim();
       if (!intentId) {
-        toastError(copy.setupError);
+        setFormError(copy.setupError);
         return;
       }
 
@@ -113,10 +116,9 @@ function SetupCardForm({
     } catch (error) {
       if (isSaasStripeNotConfiguredError(error)) {
         onGatewayUnavailable?.();
-        toastError(copy.gatewayUnavailable);
         return;
       }
-      toastError(getErrorMessage(error));
+      setFormError(getErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -139,6 +141,9 @@ function SetupCardForm({
           }}
         />
       </div>
+      {formError ? (
+        <AlertWithIcon variant="destructive">{formError}</AlertWithIcon>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" disabled={!stripe || submitting}>
           {submitting ? copy.saving : copy.saveCard}
@@ -180,11 +185,22 @@ export function PaymentMethodsCard({
     null,
   );
   const [gatewayDown, setGatewayDown] = useState(false);
+  const [cardActionError, setCardActionError] = useState<string | null>(null);
 
   const stripePromise = useMemo(
     () => (stripeReady ? getStripePromise() : null),
     [stripeReady],
   );
+
+  const listGatewayDown =
+    methodsQuery.isError && isSaasStripeNotConfiguredError(methodsQuery.error);
+  const gatewayUnavailable = gatewayDown || listGatewayDown;
+
+  useEffect(() => {
+    if (listGatewayDown) {
+      onGatewayUnavailable?.();
+    }
+  }, [listGatewayDown, onGatewayUnavailable]);
 
   if (!stripeReady) {
     return null;
@@ -194,10 +210,12 @@ export function PaymentMethodsCard({
     setGatewayDown(true);
     setSetupClientSecret(null);
     setSetupIntentId(null);
+    setCardActionError(null);
     onGatewayUnavailable?.();
   };
 
   const handleStartSetup = async () => {
+    setCardActionError(null);
     try {
       const intent = await createSetup.mutateAsync();
       setSetupClientSecret(intent.clientSecret);
@@ -205,10 +223,9 @@ export function PaymentMethodsCard({
     } catch (error) {
       if (isSaasStripeNotConfiguredError(error)) {
         markGatewayDown();
-        toastError(copy.gatewayUnavailable);
         return;
       }
-      toastError(getErrorMessage(error));
+      setCardActionError(getErrorMessage(error));
     }
   };
 
@@ -219,7 +236,6 @@ export function PaymentMethodsCard({
     } catch (error) {
       if (isSaasStripeNotConfiguredError(error)) {
         markGatewayDown();
-        toastError(copy.gatewayUnavailable);
         return;
       }
       toastError(getErrorMessage(error));
@@ -235,7 +251,6 @@ export function PaymentMethodsCard({
     } catch (error) {
       if (isSaasStripeNotConfiguredError(error)) {
         markGatewayDown();
-        toastError(copy.gatewayUnavailable);
         return;
       }
       toastError(getErrorMessage(error));
@@ -243,9 +258,11 @@ export function PaymentMethodsCard({
   };
 
   const methods = methodsQuery.data ?? [];
-  const showMutations = canUpdate && !gatewayDown;
+  const showMutations = canUpdate && !gatewayUnavailable;
   const listError =
-    methodsQuery.isError && isApiError(methodsQuery.error)
+    methodsQuery.isError &&
+    !listGatewayDown &&
+    isApiError(methodsQuery.error)
       ? getErrorMessage(methodsQuery.error)
       : null;
 
@@ -260,70 +277,82 @@ export function PaymentMethodsCard({
           <CardDescription>{copy.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {gatewayDown ? (
-            <p className="text-sm text-muted-foreground">
+          {gatewayUnavailable ? (
+            <AlertWithIcon variant="destructive">
               {copy.gatewayUnavailable}
-            </p>
+            </AlertWithIcon>
           ) : methodsQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">{copy.loading}</p>
           ) : listError ? (
-            <p className="text-sm text-destructive">{listError}</p>
+            <AlertWithIcon variant="destructive">{listError}</AlertWithIcon>
           ) : methods.length === 0 ? (
             <p className="text-sm text-muted-foreground">{copy.empty}</p>
           ) : (
             <>
-            <p className="text-sm text-muted-foreground">{copy.autoChargeHint}</p>
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {methods.map((pm) => {
-                const expiry = formatExpiry(pm);
-                return (
-                  <li
-                    key={pm.id}
-                    className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{formatCardLabel(pm)}</p>
-                        {pm.isDefault ? (
-                          <Badge variant="secondary">{copy.defaultBadge}</Badge>
+              <p className="text-sm text-muted-foreground">
+                {copy.autoChargeHint}
+              </p>
+              <ul className="divide-y divide-border rounded-lg border border-border">
+                {methods.map((pm) => {
+                  const expiry = formatExpiry(pm);
+                  return (
+                    <li
+                      key={pm.id}
+                      className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{formatCardLabel(pm)}</p>
+                          {pm.isDefault ? (
+                            <Badge variant="secondary">
+                              {copy.defaultBadge}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        {expiry ? (
+                          <p className="text-xs text-muted-foreground">
+                            {expiry}
+                          </p>
                         ) : null}
                       </div>
-                      {expiry ? (
-                        <p className="text-xs text-muted-foreground">{expiry}</p>
-                      ) : null}
-                    </div>
-                    {showMutations ? (
-                      <div className="flex flex-wrap gap-2">
-                        {!pm.isDefault ? (
+                      {showMutations ? (
+                        <div className="flex flex-wrap gap-2">
+                          {!pm.isDefault ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={setDefault.isPending}
+                              onClick={() => void handleSetDefault(pm)}
+                            >
+                              {copy.setDefault}
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
-                            disabled={setDefault.isPending}
-                            onClick={() => void handleSetDefault(pm)}
+                            variant="ghost"
+                            className="text-destructive"
+                            disabled={deletePm.isPending}
+                            onClick={() => setDeleteTarget(pm)}
                           >
-                            {copy.setDefault}
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            {copy.delete}
                           </Button>
-                        ) : null}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          disabled={deletePm.isPending}
-                          onClick={() => setDeleteTarget(pm)}
-                        >
-                          <Trash2 className="mr-1 h-4 w-4" />
-                          {copy.delete}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
             </>
           )}
+
+          {cardActionError && !gatewayUnavailable ? (
+            <AlertWithIcon variant="destructive">
+              {cardActionError}
+            </AlertWithIcon>
+          ) : null}
 
           {showMutations && !setupClientSecret ? (
             <Button
@@ -336,7 +365,10 @@ export function PaymentMethodsCard({
             </Button>
           ) : null}
 
-          {showMutations && setupClientSecret && setupIntentId && stripePromise ? (
+          {showMutations &&
+          setupClientSecret &&
+          setupIntentId &&
+          stripePromise ? (
             <Elements stripe={stripePromise}>
               <SetupCardForm
                 clientSecret={setupClientSecret}

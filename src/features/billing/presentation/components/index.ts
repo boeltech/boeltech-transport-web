@@ -2,10 +2,12 @@ export { BillingStatusNotice } from "./BillingStatusNotice";
 export { BillingStampsCard } from "./BillingStampsCard";
 export { BillingPlanCard } from "./BillingPlanCard";
 export { BillingPlanStatusStrip } from "./BillingPlanStatusStrip";
+export { BillingPlanSummary } from "./BillingPlanSummary";
 export { BillingCostsCard } from "./BillingCostsCard";
 export { BillingArrearsCard } from "./BillingArrearsCard";
 export { BillingModulesCard } from "./BillingModulesCard";
 export { BillingContactCard } from "./BillingContactCard";
+export { BillingContactLink } from "./BillingContactLink";
+export { BillingCollapsibleSection } from "./BillingCollapsibleSection";
 export { PaymentMethodsCard } from "./PaymentMethodsCard";
 export { BillingSaasInvoiceHistoryCard } from "./BillingSaasInvoiceHistoryCard";
-

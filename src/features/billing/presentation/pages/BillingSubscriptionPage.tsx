@@ -27,11 +27,12 @@ import {
 } from "../../infrastructure/stripeClient";
 import {
   BillingArrearsCard,
-  BillingContactCard,
+  BillingCollapsibleSection,
+  BillingContactLink,
   BillingCostsCard,
   BillingModulesCard,
   BillingPlanCard,
-  BillingPlanStatusStrip,
+  BillingPlanSummary,
   BillingSaasInvoiceHistoryCard,
   BillingStampsCard,
   BillingStatusNotice,
@@ -159,15 +160,15 @@ export function BillingSubscriptionPage() {
       );
     }
 
-  const notice = resolveBillingNotice({
-    isSubscriptionResolved: !access.isLoading && !access.isError,
-    status: access.data?.subscriptionStatus,
-    trialEndsAt: access.data?.trialEndsAt,
-    usagePercent: 0,
-    branchesOverQuota: false,
-    usersOverQuota: false,
-    hasOpenArrears: false,
-  });
+    const notice = resolveBillingNotice({
+      isSubscriptionResolved: !access.isLoading && !access.isError,
+      status: access.data?.subscriptionStatus,
+      trialEndsAt: access.data?.trialEndsAt,
+      usagePercent: 0,
+      branchesOverQuota: false,
+      usersOverQuota: false,
+      hasOpenArrears: false,
+    });
 
     return (
       <SettingsPageShell
@@ -184,7 +185,7 @@ export function BillingSubscriptionPage() {
             graceDeadlineLabel=""
             quotaPolicy=""
           />
-          <BillingContactCard />
+          <BillingContactLink />
         </div>
       </SettingsPageShell>
     );
@@ -241,6 +242,16 @@ export function BillingSubscriptionPage() {
     ? copy.planStatusStrip.periodUntil(formatDate(sub.currentPeriodEnd))
     : null;
 
+  /**
+   * Zona PAGAR (asunción 1): PM visible arriba si hay deuda open o no hay
+   * método predeterminado. Si al corriente + hay default → disclosure colapsado.
+   */
+  const showPayZonePm =
+    stripeConfigured && (hasOpenArrears || !hasDefaultPaymentMethod);
+  const showPaymentMethodDisclosure =
+    stripeConfigured && !hasOpenArrears && hasDefaultPaymentMethod;
+  const showPayZoneDisclaimer = showPayZonePm || hasOpenArrears;
+
   return (
     <SettingsPageShell
       sectionTitle={copy.page.sectionTitle}
@@ -257,7 +268,7 @@ export function BillingSubscriptionPage() {
           </AlertWithIcon>
         ) : (
           <>
-            {/* Zona 1 — Avisos críticos (saldo open → card, no notice) */}
+            {/* Notice + Arrears (D6) */}
             <BillingStatusNotice
               notice={notice}
               includedStamps={use?.includedStamps ?? 0}
@@ -287,65 +298,106 @@ export function BillingSubscriptionPage() {
               />
             ) : null}
 
-            {/* Zona 2 — Above-the-fold: estado/plan (D1) + cupo + estimado */}
-            <BillingPlanStatusStrip
-              subscription={sub}
-              isLoading={subscription.isLoading}
-              periodLabel={periodUntilLabel}
-              chargedLabel={resolveAutoChargeChargedLabel(
-                arrearsData?.invoices,
-                formatBillingPeriodKey,
-              )}
-            />
-
-            <div className="grid gap-6 xl:grid-cols-2">
-              <BillingStampsCard
-                usage={use}
-                isLoading={usage.isLoading}
-                usagePercent={usagePercent}
-                stampsRemaining={stampsRemaining}
-                stampsPerMotriz={sub?.stampsPerMotriz}
-                qFact={sub?.qFact}
-              />
-              <BillingCostsCard
-                summary={ent?.commercialSummary}
-                isLoading={entitlements.isLoading}
-                billingCycle={sub?.billingCycle}
-                periodKey={periodKey}
-                subscription={sub}
-              />
-            </div>
-
-            {/* Zona 3 — Detalle: plan, extras */}
-            <div className="grid gap-6 xl:grid-cols-2">
-              <BillingPlanCard
-                subscription={sub}
-                isLoading={subscription.isLoading}
-                includedStamps={use?.includedStamps}
-              />
-              <BillingModulesCard
-                entitlements={ent}
-                isLoading={entitlements.isLoading}
-                planName={sub?.planName}
-                profitabilityLevel={sub?.profitabilityLevel}
-              />
-            </div>
-
-            {/* Zona 4 — Métodos de pago (secundarios: no empujan plan/timbres) */}
-            {stripeConfigured ? (
+            {/* Zona PAGAR: métodos visibles sin scroll por Detalle/Historial (D2) */}
+            {showPayZonePm ? (
               <PaymentMethodsCard
                 enabled={canReadBilling}
                 onGatewayUnavailable={() => setStripeGatewayDown(true)}
               />
             ) : null}
 
-            <BillingSaasInvoiceHistoryCard
-              invoices={saasInvoices.data ?? []}
-              isLoading={saasInvoices.isLoading}
-              isError={saasInvoices.isError}
+            {showPayZoneDisclaimer ? (
+              <p className="text-xs text-muted-foreground">
+                {copy.payZone.saasDisclaimer}
+              </p>
+            ) : null}
+
+            {/* Resumen unificado (D1) */}
+            <BillingPlanSummary
+              subscription={sub}
+              isLoadingSubscription={subscription.isLoading}
+              periodLabel={periodUntilLabel}
+              chargedLabel={resolveAutoChargeChargedLabel(
+                arrearsData?.invoices,
+                formatBillingPeriodKey,
+              )}
+              commercialSummary={ent?.commercialSummary}
+              isLoadingCosts={entitlements.isLoading}
+              usage={use}
+              isLoadingUsage={usage.isLoading}
+              usagePercent={usagePercent}
+              stampsRemaining={stampsRemaining}
             />
 
-            <BillingContactCard />
+            {/* Método de cobro colapsado si al corriente + default (asunción 1) */}
+            {showPaymentMethodDisclosure ? (
+              <BillingCollapsibleSection
+                title={copy.sections.paymentMethod.title}
+                expandLabel={copy.sections.paymentMethod.expand}
+                collapseLabel={copy.sections.paymentMethod.collapse}
+              >
+                <PaymentMethodsCard
+                  enabled={canReadBilling}
+                  onGatewayUnavailable={() => setStripeGatewayDown(true)}
+                />
+              </BillingCollapsibleSection>
+            ) : null}
+
+            {/* Detalle del plan — cerrado (D4); extras/rentabilidad aquí (asunción 2) */}
+            <BillingCollapsibleSection
+              title={copy.sections.planDetail.title}
+              description={copy.sections.planDetail.description}
+              expandLabel={copy.sections.planDetail.expand}
+              collapseLabel={copy.sections.planDetail.collapse}
+            >
+              <div className="space-y-6">
+                <BillingPlanCard
+                  subscription={sub}
+                  isLoading={subscription.isLoading}
+                  includedStamps={use?.includedStamps}
+                  variant="detail"
+                />
+                <BillingModulesCard
+                  entitlements={ent}
+                  isLoading={entitlements.isLoading}
+                  planName={sub?.planName}
+                  profitabilityLevel={sub?.profitabilityLevel}
+                />
+                <div className="grid gap-6 xl:grid-cols-2">
+                  <BillingStampsCard
+                    usage={use}
+                    isLoading={usage.isLoading}
+                    usagePercent={usagePercent}
+                    stampsRemaining={stampsRemaining}
+                    stampsPerMotriz={sub?.stampsPerMotriz}
+                    qFact={sub?.qFact}
+                  />
+                  <BillingCostsCard
+                    summary={ent?.commercialSummary}
+                    isLoading={entitlements.isLoading}
+                    billingCycle={sub?.billingCycle}
+                    periodKey={periodKey}
+                    subscription={sub}
+                  />
+                </div>
+              </div>
+            </BillingCollapsibleSection>
+
+            {/* Cargos anteriores — cerrado (D4 / F1) */}
+            <BillingCollapsibleSection
+              title={copy.sections.history.title}
+              description={copy.sections.history.description}
+              expandLabel={copy.sections.history.expand}
+              collapseLabel={copy.sections.history.collapse}
+            >
+              <BillingSaasInvoiceHistoryCard
+                invoices={saasInvoices.data ?? []}
+                isLoading={saasInvoices.isLoading}
+                isError={saasInvoices.isError}
+              />
+            </BillingCollapsibleSection>
+
+            <BillingContactLink />
           </>
         )}
       </div>

@@ -65,18 +65,26 @@ describe("billingCopy saasInvoiceHistory", () => {
     expect(copy.emptyTitle).toBe("Aún no hay cargos cobrados");
     expect(copy.empty).toMatch(/estimado de este mes/i);
     expect(copy.footer).toMatch(/Tlamx/);
-    expect(copy.footer).toMatch(/flete/);
+    expect(copy.footer).not.toMatch(/flete|CFDI/i);
 
     const body = [
       copy.title,
       copy.description,
       copy.emptyTitle,
       copy.empty,
+      copy.footer,
       ...Object.values(copy.columns),
       ...Object.values(copy.status),
     ].join(" ");
     expect(body).not.toMatch(/CFDI/i);
     expect(body).not.toMatch(/flete/i);
+  });
+
+  it("keeps a single SaaS≠CFDI disclaimer in payZone (D5)", () => {
+    expect(billingCopy.payZone.saasDisclaimer).toMatch(/Tlamx/);
+    expect(billingCopy.payZone.saasDisclaimer).toMatch(/CFDI/);
+    expect(billingCopy.paymentMethods.description).not.toMatch(/CFDI|flete/i);
+    expect(billingCopy.arrears.footer).not.toMatch(/CFDI|flete/i);
   });
 });
 

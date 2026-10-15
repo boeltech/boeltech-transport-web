@@ -34,13 +34,20 @@ interface BillingPlanCardProps {
   isLoading: boolean;
   /** Cupo del periodo según `GET /billing/usage` (en prueba no es el del plan). */
   includedStamps?: number;
+  /**
+   * En `detail` (bajo el resumen) no repite nombre+badge, hero $/motriz ni bolsa
+   * (D3 — ya viven en BillingPlanSummary).
+   */
+  variant?: "full" | "detail";
 }
 
 export function BillingPlanCard({
   subscription,
   isLoading,
   includedStamps,
+  variant = "full",
 }: BillingPlanCardProps) {
+  const isDetail = variant === "detail";
   const copy = billingCopy.plan;
   const trialEnded = isTrialDateReached(subscription?.trialEndsAt);
   const motriz = subscription ? isMotrizPricing(subscription) : false;
@@ -94,32 +101,42 @@ export function BillingPlanCard({
       : null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <CreditCard className="h-4 w-4" />
-          {copy.title}
-        </CardTitle>
-        <CardDescription>{copy.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Card className={isDetail ? "border-0 shadow-none" : undefined}>
+      {isDetail ? null : (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4" />
+            {copy.title}
+          </CardTitle>
+          <CardDescription>{copy.description}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent className={isDetail ? "space-y-3 p-0" : "space-y-3"}>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{copy.loading}</p>
         ) : subscription ? (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-lg font-semibold tracking-tight">
-                {subscription.planName || copy.planFallback}
-              </p>
-              <Badge variant="neutral" tone="soft">
-                {getSubscriptionStatusLabel(subscription.status)}
-              </Badge>
-              {bandLabel ? (
+            {isDetail ? (
+              bandLabel ? (
                 <Badge variant="info" tone="soft">
                   {bandLabel}
                 </Badge>
-              ) : null}
-            </div>
+              ) : null
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-lg font-semibold tracking-tight">
+                  {subscription.planName || copy.planFallback}
+                </p>
+                <Badge variant="neutral" tone="soft">
+                  {getSubscriptionStatusLabel(subscription.status)}
+                </Badge>
+                {bandLabel ? (
+                  <Badge variant="info" tone="soft">
+                    {bandLabel}
+                  </Badge>
+                ) : null}
+              </div>
+            )}
 
             {capacityPitch ? (
               <p className="text-xs text-muted-foreground">{capacityPitch}</p>
@@ -131,7 +148,7 @@ export function BillingPlanCard({
               </p>
             ) : null}
 
-            {motriz ? (
+            {!isDetail && motriz ? (
               <div className="space-y-1 rounded-lg border bg-muted/40 px-3 py-3">
                 {isQuote ? (
                   <>
@@ -170,6 +187,10 @@ export function BillingPlanCard({
               </div>
             ) : null}
 
+            {isDetail && motriz ? (
+              <p className="text-xs text-muted-foreground">{copy.noFeeNote}</p>
+            ) : null}
+
             {motriz && bandLabel && bandRange ? (
               <InfoRow
                 variant="inline"
@@ -190,7 +211,7 @@ export function BillingPlanCard({
               />
             ) : null}
 
-            {motriz && bolsa != null ? (
+            {!isDetail && motriz && bolsa != null ? (
               <InfoRow
                 variant="inline"
                 label={copy.fields.bolsa}

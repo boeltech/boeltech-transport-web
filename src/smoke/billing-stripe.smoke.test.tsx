@@ -403,10 +403,7 @@ describe("billing-stripe smoke (Stripe-A WS-E)", () => {
       screen.getByText(billingCopy.paymentMethods.defaultBadge),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByText(/suscripción Boeltech/i).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getByText(/facturas CFDI de flete/i),
+      screen.getByText(billingCopy.payZone.saasDisclaimer),
     ).toBeInTheDocument();
 
     const payBtn = await screen.findByRole("button", {

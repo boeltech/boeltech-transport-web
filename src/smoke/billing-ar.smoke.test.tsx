@@ -5,6 +5,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BillingSubscriptionPage } from "@features/billing/presentation/pages/BillingSubscriptionPage";
@@ -205,6 +206,7 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
   });
 
   it("S2: shows July open balance while August is current and status active", async () => {
+    const user = userEvent.setup();
     mockGetArrears.mockResolvedValue(JULY_OPEN_ARREARS);
 
     render(
@@ -224,12 +226,23 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
     );
     expect(screen.getAllByText(/\$2,154\.24/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/jul 2026/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(billingCopy.costs.title)).toBeInTheDocument();
+    // Resumen above-the-fold (D1); historial colapsado (D4).
     expect(
-      screen.getByText(billingCopy.saasInvoiceHistory.title),
+      screen.getByText(billingCopy.planSummary.estimatedLabel),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(billingCopy.saasInvoiceHistory.emptyTitle),
+      screen.getByRole("button", {
+        name: new RegExp(billingCopy.sections.history.title),
+      }),
+    ).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(billingCopy.sections.history.title),
+      }),
+    );
+    expect(
+      await screen.findByText(billingCopy.saasInvoiceHistory.emptyTitle),
     ).toBeInTheDocument();
     expect(
       screen.queryByText(billingCopy.saasInvoiceHistory.status.paid),
@@ -246,7 +259,9 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(billingCopy.costs.title)).toBeInTheDocument();
+      expect(
+        screen.getByText(billingCopy.planSummary.estimatedLabel),
+      ).toBeInTheDocument();
     });
 
     expect(
@@ -258,6 +273,7 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
   });
 
   it("S5: paid history row appears from GET saas-invoices, not arrears", async () => {
+    const user = userEvent.setup();
     mockGetArrears.mockResolvedValue(EMPTY_ARREARS);
     mockListSaasInvoices.mockResolvedValue([
       {
@@ -281,6 +297,20 @@ describe("billing AR smoke (ADR-0072 WS-D)", () => {
       <TestProviders>
         <BillingSubscriptionPage />
       </TestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: new RegExp(billingCopy.sections.history.title),
+        }),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(billingCopy.sections.history.title),
+      }),
     );
 
     await waitFor(() => {

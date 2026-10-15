@@ -3,7 +3,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 import type { BillingPaymentMethod } from "../../domain/entities";
+import {
+  isSaasStripeNotConfiguredError,
+  SAAS_STRIPE_NOT_CONFIGURED,
+} from "../../infrastructure/stripeClient";
 import { billingCopy } from "../copy/billingCopy";
 import { PaymentMethodsCard } from "./PaymentMethodsCard";
 
@@ -36,12 +41,15 @@ vi.mock("@features/auth", () => ({
   }),
 }));
 
-vi.mock("../../infrastructure/stripeClient", () => ({
-  isStripePublishableConfigured: () => true,
-  getStripePromise: () => Promise.resolve(null),
-  isSaasStripeNotConfiguredError: () => false,
-  SAAS_STRIPE_NOT_CONFIGURED: "SAAS_STRIPE_NOT_CONFIGURED",
-}));
+vi.mock("../../infrastructure/stripeClient", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../infrastructure/stripeClient")>();
+  return {
+    ...actual,
+    isStripePublishableConfigured: () => true,
+    getStripePromise: () => Promise.resolve(null),
+  };
+});
 
 vi.mock("../../infrastructure/billingApi", () => ({
   billingApi: {
@@ -101,11 +109,12 @@ describe("PaymentMethodsCard", () => {
       screen.getByRole("button", { name: billingCopy.paymentMethods.addCard }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/suscripción Boeltech/i),
+      screen.getByText(billingCopy.paymentMethods.description),
     ).toBeInTheDocument();
     expect(
       screen.getByText(billingCopy.paymentMethods.autoChargeHint),
     ).toBeInTheDocument();
+    expect(billingCopy.paymentMethods.description).not.toMatch(/CFDI|flete/i);
     expect(billingCopy.paymentMethods.autoChargeHint).not.toMatch(/CFDI|flete/i);
     expect(
       screen.queryByRole("switch"),
@@ -171,6 +180,71 @@ describe("PaymentMethodsCard", () => {
 
     await waitFor(() => {
       expect(mockCreateSetupIntent).toHaveBeenCalled();
+    });
+  });
+
+  it("shows a persistent alert when listing payment methods fails", async () => {
+    mockListPaymentMethods.mockRejectedValue(
+      new ApiError("No se pudieron cargar los métodos", 500, "INTERNAL_ERROR"),
+    );
+
+    wrap(<PaymentMethodsCard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("alert"),
+      ).toHaveTextContent(/No se pudieron cargar los métodos/i);
+    });
+    expect(
+      screen.queryByRole("button", { name: billingCopy.paymentMethods.addCard }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a persistent gateway alert and hides add-card when Stripe is not configured", async () => {
+    const gatewayError = new ApiError(
+      "Gateway down",
+      503,
+      SAAS_STRIPE_NOT_CONFIGURED,
+    );
+    expect(isSaasStripeNotConfiguredError(gatewayError)).toBe(true);
+    mockListPaymentMethods.mockRejectedValue(gatewayError);
+
+    const onGatewayUnavailable = vi.fn();
+    wrap(<PaymentMethodsCard onGatewayUnavailable={onGatewayUnavailable} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        billingCopy.paymentMethods.gatewayUnavailable,
+      );
+    });
+    expect(
+      screen.queryByRole("button", { name: billingCopy.paymentMethods.addCard }),
+    ).not.toBeInTheDocument();
+    expect(onGatewayUnavailable).toHaveBeenCalled();
+  });
+
+  it("keeps setup-start failure visible as an alert on the card", async () => {
+    const user = userEvent.setup();
+    mockCreateSetupIntent.mockRejectedValue(
+      new ApiError("No se pudo iniciar el alta", 502, "STRIPE_SETUP_FAILED"),
+    );
+
+    wrap(<PaymentMethodsCard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: billingCopy.paymentMethods.addCard }),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: billingCopy.paymentMethods.addCard }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        /No se pudo iniciar el alta/i,
+      );
     });
   });
 });
