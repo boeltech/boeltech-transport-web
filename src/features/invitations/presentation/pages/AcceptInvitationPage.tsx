@@ -1,15 +1,8 @@
 import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  Eye,
-  EyeOff,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Mail,
-} from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowLeft, CheckCircle, AlertCircle, Mail } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
@@ -17,7 +10,9 @@ import { Label } from "@shared/ui/label";
 import { AlertWithIcon } from "@shared/ui/alert";
 import {
   FieldInlineError,
+  FormValidationSummary,
   getRegisterFieldErrorProps,
+  PasswordRequirementsList,
 } from "@shared/ui/form";
 import { invitationsApi } from "../../infrastructure/invitationsApi";
 import { useVerifyInvitation } from "../../application/hooks/useVerifyInvitation";
@@ -25,19 +20,23 @@ import {
   acceptInvitationFormSchema,
   type AcceptInvitationFormData,
 } from "../validation/acceptInvitationSchema";
+import { acceptInvitationCopy as copy } from "../copy/acceptInvitationCopy";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import { ROLE_LABELS } from "@shared/constants/roles";
 import type { UserRole } from "@shared/constants/roles";
 import { AuthFunnelFormHeader } from "@pages/auth/AuthFunnelFormHeader";
+import { AuthFunnelStatusBlock } from "@pages/auth/AuthFunnelStatusBlock";
+import { PasswordVisibilityToggle } from "@pages/auth/PasswordVisibilityToggle";
+import { authFunnelCopy } from "@pages/auth/authFunnelCopy";
 
 type PageState = "loading" | "valid" | "invalid" | "success";
 
 /**
  * Aceptar invitación: token en query `?token=` (mismo patrón que reset-password).
+ * F1 Operate: StatusBlock en loading/error/success; sin auto-redirect a login.
  */
 export function AcceptInvitationPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const token = searchParams.get("token");
 
   const {
@@ -49,21 +48,35 @@ export function AcceptInvitationPage() {
   } = useVerifyInvitation(token);
 
   const [isSuccess, setIsSuccess] = useState(false);
+  const [acceptedSubdomain, setAcceptedSubdomain] = useState<string | null>(
+    null,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFieldSummary, setShowFieldSummary] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<AcceptInvitationFormData, unknown, AcceptInvitationFormData>({
     resolver: zodResolver(
       acceptInvitationFormSchema,
     ) as Resolver<AcceptInvitationFormData>,
   });
+
+  const watchPassword = watch("password") ?? "";
+
+  const fieldSummaryMessages = [
+    errors.firstName?.message,
+    errors.lastName?.message,
+    errors.password?.message,
+    errors.confirmPassword?.message,
+  ].filter((m): m is string => Boolean(m));
 
   useEffect(() => {
     if (!verifyData?.valid) return;
@@ -85,12 +98,14 @@ export function AcceptInvitationPage() {
           ? "valid"
           : "loading";
 
-  const tokenError =
-    verifyErrorMessage || "No se proporcionó un enlace válido";
+  const tokenError = isMissingToken
+    ? copy.invalid.missingToken
+    : verifyErrorMessage || copy.invalid.missingToken;
 
   const onSubmit = async (form: AcceptInvitationFormData) => {
     if (!token) return;
     setError(null);
+    setShowFieldSummary(false);
     setIsSubmitting(true);
 
     try {
@@ -102,26 +117,8 @@ export function AcceptInvitationPage() {
         lastName: form.lastName.trim(),
       });
 
+      setAcceptedSubdomain(acceptResult.data.tenantSubdomain ?? null);
       setIsSuccess(true);
-
-      const sub = acceptResult.data.tenantSubdomain;
-      const emailHint = verifyData?.email ?? "";
-
-      setTimeout(() => {
-        navigate(
-          {
-            pathname: "/login",
-            search: sub ? `?subdomain=${encodeURIComponent(sub)}` : "",
-          },
-          {
-            replace: true,
-            state: {
-              fromInvite: true,
-              inviteEmail: emailHint,
-            },
-          },
-        );
-      }, 1600);
     } catch (err: unknown) {
       setError(mapBackendError(err).message);
     } finally {
@@ -131,42 +128,43 @@ export function AcceptInvitationPage() {
 
   if (pageState === "loading") {
     return (
-      <div className="flex w-full flex-col items-center gap-3 py-8">
-        <Loader2 className="text-primary h-10 w-10 animate-spin" />
-        <p className="text-muted-foreground text-sm">Validando invitación…</p>
-      </div>
+      <AuthFunnelStatusBlock variant="loading" loadingLabel={copy.loading} />
     );
   }
 
   if (pageState === "invalid") {
     return (
-      <div className="flex w-full flex-col items-center text-center">
-        <div className="bg-destructive/10 mb-4 flex h-14 w-14 items-center justify-center rounded-2xl">
-          <AlertCircle className="text-destructive h-8 w-8" />
-        </div>
-        <AuthFunnelFormHeader
-          title="Invitación no disponible"
-          description={tokenError}
-        />
+      <AuthFunnelStatusBlock
+        variant="error"
+        icon={<AlertCircle className="h-8 w-8" aria-hidden />}
+        title={copy.invalid.title}
+        description={tokenError}
+      >
         <Button asChild variant="outline" size="lg" className="w-full">
-          <Link to="/login">Ir al inicio de sesión</Link>
+          <Link to="/login">{copy.invalid.goLogin}</Link>
         </Button>
-      </div>
+      </AuthFunnelStatusBlock>
     );
   }
 
   if (pageState === "success") {
+    const sub = acceptedSubdomain ?? "";
+    const loginSearch = sub
+      ? `?subdomain=${encodeURIComponent(sub)}`
+      : "";
     return (
-      <div className="flex w-full flex-col items-center text-center">
-        <div className="bg-primary/10 mb-4 flex h-14 w-14 items-center justify-center rounded-2xl">
-          <CheckCircle className="text-primary h-8 w-8" />
-        </div>
-        <AuthFunnelFormHeader
-          title="Listo"
-          description="Tu cuenta fue creada. Te llevamos al inicio de sesión…"
-        />
-        <Loader2 className="text-primary h-8 w-8 animate-spin" />
-      </div>
+      <AuthFunnelStatusBlock
+        variant="success"
+        icon={<CheckCircle className="h-8 w-8" aria-hidden />}
+        title={copy.success.title}
+        description={copy.success.body}
+      >
+        <Button asChild size="lg" className="w-full">
+          <Link to={{ pathname: "/login", search: loginSearch }}>
+            {copy.success.goLogin}
+          </Link>
+        </Button>
+      </AuthFunnelStatusBlock>
     );
   }
 
@@ -177,36 +175,49 @@ export function AcceptInvitationPage() {
   return (
     <div className="w-full">
       <AuthFunnelFormHeader
-        title="Aceptar invitación"
+        title={copy.title}
         description={
           tenantName
-            ? `Te invitaron a ${tenantName}. Completa tus datos y define una contraseña.`
-            : "Completa tus datos y define una contraseña."
+            ? copy.descriptionWithTenant(tenantName)
+            : copy.descriptionFallback
         }
       />
 
-      {email && (
+      {email ? (
         <div className="bg-muted/50 mb-6 flex items-start gap-2 rounded-lg border p-3 text-sm">
           <Mail className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-medium">{email}</p>
-            {role && (
+            {role ? (
               <p className="text-muted-foreground">
-                Rol: {ROLE_LABELS[role] ?? role}
+                {copy.fields.rolePrefix} {ROLE_LABELS[role] ?? role}
               </p>
-            )}
+            ) : null}
           </div>
         </div>
-      )}
+      ) : null}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {error ? (
+        <AlertWithIcon
+          variant="destructive"
+          title={copy.submitErrorTitle}
+          className="mb-6"
+        >
+          {error}
+        </AlertWithIcon>
+      ) : null}
+
+      <form
+        onSubmit={handleSubmit(onSubmit, () => setShowFieldSummary(true))}
+        className="space-y-4"
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="firstName">Nombre</Label>
+            <Label htmlFor="firstName">{copy.fields.firstName}</Label>
             <Input
               id="firstName"
               autoComplete="given-name"
-              placeholder="Tu nombre"
+              placeholder={copy.fields.firstNamePlaceholder}
               {...register("firstName")}
               {...getRegisterFieldErrorProps(
                 "firstName",
@@ -219,11 +230,11 @@ export function AcceptInvitationPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lastName">Apellido</Label>
+            <Label htmlFor="lastName">{copy.fields.lastName}</Label>
             <Input
               id="lastName"
               autoComplete="family-name"
-              placeholder="Tus apellidos"
+              placeholder={copy.fields.lastNamePlaceholder}
               {...register("lastName")}
               {...getRegisterFieldErrorProps(
                 "lastName",
@@ -238,68 +249,57 @@ export function AcceptInvitationPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Contraseña</Label>
+          <Label htmlFor="password">{copy.fields.password}</Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Mínimo 8 caracteres"
+              placeholder={copy.fields.passwordPlaceholder}
+              className="pr-10"
               {...register("password")}
               {...getRegisterFieldErrorProps(
                 "password",
                 errors.password?.message,
               )}
             />
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={
-                showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-              }
-            >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </button>
+            <PasswordVisibilityToggle
+              visible={showPassword}
+              onToggle={() => setShowPassword((v) => !v)}
+              showLabel={authFunnelCopy.showPassword}
+              hideLabel={authFunnelCopy.hidePassword}
+            />
           </div>
           <FieldInlineError
             fieldId="password"
             message={errors.password?.message}
           />
+          <PasswordRequirementsList password={watchPassword} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+          <Label htmlFor="confirmPassword">
+            {copy.fields.confirmPassword}
+          </Label>
           <div className="relative">
             <Input
               id="confirmPassword"
               type={showConfirm ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Repite tu contraseña"
+              placeholder={copy.fields.confirmPasswordPlaceholder}
+              className="pr-10"
               {...register("confirmPassword")}
               {...getRegisterFieldErrorProps(
                 "confirmPassword",
                 errors.confirmPassword?.message,
               )}
             />
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
-              onClick={() => setShowConfirm((v) => !v)}
-              aria-label={
-                showConfirm ? "Ocultar confirmación" : "Mostrar confirmación"
-              }
-            >
-              {showConfirm ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </button>
+            <PasswordVisibilityToggle
+              visible={showConfirm}
+              onToggle={() => setShowConfirm((v) => !v)}
+              showLabel={authFunnelCopy.showPassword}
+              hideLabel={authFunnelCopy.hidePassword}
+            />
           </div>
           <FieldInlineError
             fieldId="confirmPassword"
@@ -307,14 +307,12 @@ export function AcceptInvitationPage() {
           />
         </div>
 
-        {error && (
-          <AlertWithIcon
-            variant="destructive"
-            title="No se pudo crear la cuenta"
-          >
-            {error}
-          </AlertWithIcon>
-        )}
+        {showFieldSummary && fieldSummaryMessages.length > 0 ? (
+          <FormValidationSummary
+            title={copy.validationSummaryTitle}
+            messages={fieldSummaryMessages}
+          />
+        ) : null}
 
         <Button
           type="submit"
@@ -323,19 +321,19 @@ export function AcceptInvitationPage() {
           disabled={isSubmitting}
           isLoading={isSubmitting}
         >
-          {isSubmitting ? "Creando cuenta…" : "Crear cuenta y continuar"}
+          {isSubmitting ? copy.submitting : copy.submit}
         </Button>
       </form>
 
-      <p className="text-muted-foreground mt-8 text-center text-sm">
-        ¿Ya tienes cuenta?{" "}
+      <div className="mt-8 text-center">
         <Link
           to="/login"
-          className="text-primary font-medium underline-offset-4 hover:underline"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm transition-colors"
         >
-          Iniciar sesión
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          {copy.backToLogin}
         </Link>
-      </p>
+      </div>
     </div>
   );
 }

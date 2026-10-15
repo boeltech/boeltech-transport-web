@@ -1,6 +1,7 @@
 /**
  * Copy del embudo público de activación del admin inicial (ADR-0073).
  * Plano tenant/auth — no PlatformLayout ni storage platform.
+ * F1 Operate: StatusBlock + CTA login con subdomain.
  */
 export const tenantActivationCopy = {
   verifying: "Validando enlace de activación…",
@@ -20,7 +21,8 @@ export const tenantActivationCopy = {
     subdomain
       ? `Ya puedes iniciar sesión en el ERP con el identificador «${subdomain}» y tu contraseña.`
       : "Ya puedes iniciar sesión en el ERP con tu contraseña.",
-  successCta: "Ir al inicio de sesión",
+  successCta: "Iniciar sesión",
   passwordHint:
     "Usa la contraseña que te entregaron por un canal seguro (no llega en este correo).",
+  backToLogin: "Volver a iniciar sesión",
 };

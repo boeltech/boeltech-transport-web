@@ -5,7 +5,7 @@
  */
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertCircle, CheckCircle, Building2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle, Building2 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { InfoRow } from "@shared/ui/data-display";
@@ -158,12 +158,23 @@ export function ActivateTenantPage() {
         size="lg"
         className="w-full"
         disabled={isSubmitting}
+        isLoading={isSubmitting}
         onClick={() => void handleAccept()}
       >
         {isSubmitting
           ? tenantActivationCopy.activating
           : tenantActivationCopy.activate}
       </Button>
+
+      <div className="text-center">
+        <Link
+          to="/login"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm transition-colors"
+        >
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          {tenantActivationCopy.backToLogin}
+        </Link>
+      </div>
     </div>
   );
 }

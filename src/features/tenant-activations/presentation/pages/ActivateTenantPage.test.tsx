@@ -69,6 +69,17 @@ describe("ActivateTenantPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows StatusBlock loading while verifying", async () => {
+    mockedApi.verify.mockImplementation(
+      () => new Promise(() => undefined) as never,
+    );
+    renderPage("?token=pending");
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+    expect(
+      screen.getByText(tenantActivationCopy.verifying),
+    ).toBeInTheDocument();
+  });
+
   it("accepts valid token and does not write platform storage", async () => {
     const user = userEvent.setup();
     mockedApi.verify.mockResolvedValue({
@@ -90,6 +101,9 @@ describe("ActivateTenantPage", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("Transportes Ejemplo")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: tenantActivationCopy.backToLogin }),
+    ).toHaveAttribute("href", "/login");
 
     await user.click(
       screen.getByRole("button", { name: tenantActivationCopy.activate }),
