@@ -38,6 +38,8 @@ export interface HubNavItem {
   label: string;
   href: string;
   badge?: ReactNode;
+  /** `location.state` al navegar (p. ej. preservar `from` de Reportes). */
+  state?: { from?: string };
 }
 
 export interface HubOrientation {
@@ -50,6 +52,8 @@ export interface HubRelatedConfig {
   label: string;
   href: string;
   description?: string;
+  /** `location.state` al navegar (p. ej. preservar `from` de Reportes). */
+  state?: { from?: string };
 }
 
 export interface HubGuide {
@@ -395,7 +399,11 @@ export const HubPageShell = memo(function HubPageShell({
           <TabsList aria-label={navAriaLabel}>
             {nav.map((item) => (
               <TabsTrigger key={item.id} value={item.id} asChild>
-                <NavLink to={item.href} className="inline-flex items-center gap-1.5">
+                <NavLink
+                  to={item.href}
+                  state={item.state}
+                  className="inline-flex items-center gap-1.5"
+                >
                   {item.label}
                   {item.badge}
                 </NavLink>
@@ -411,6 +419,7 @@ export const HubPageShell = memo(function HubPageShell({
         <div className="border-t pt-4">
           <Link
             to={relatedConfig.href}
+            state={relatedConfig.state}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
           >
             {relatedConfig.label}

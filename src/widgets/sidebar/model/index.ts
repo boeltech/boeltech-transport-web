@@ -4,12 +4,7 @@
  * Ubicación: src/widgets/sidebar/model/index.ts
  */
 
-export {
-  navigationConfig,
-  publicRoutes,
-  defaultAuthenticatedRoute,
-  loginRoute,
-} from "./navigation";
+export { navigationConfig } from "./navigation";
 export { useNavigation, type UseNavigationReturn } from "./useNavigation";
 export {
   SIDEBAR_COLLAPSED_WIDTH_PX,

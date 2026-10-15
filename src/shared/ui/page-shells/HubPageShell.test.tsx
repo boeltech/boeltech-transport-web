@@ -1,6 +1,6 @@
 import { type ComponentProps } from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HubPageShell } from "./HubPageShell";
@@ -243,6 +243,59 @@ describe("HubPageShell", () => {
     expect(
       screen.getByText("Al liquidar se usa el esquema asignado al operador."),
     ).toBeInTheDocument();
+  });
+
+  it("passes state on nav tabs and relatedConfig when provided", async () => {
+    const user = userEvent.setup();
+    function StateProbe() {
+      const location = useLocation();
+      const from = (location.state as { from?: unknown } | null)?.from;
+      return (
+        <div data-testid="hub-from">
+          {typeof from === "string" ? from : ""}
+        </div>
+      );
+    }
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          { pathname: "/hub/a", state: { from: "/reports" } },
+        ]}
+      >
+        <HubPageShell
+          title="Hub"
+          activeNavId="a"
+          nav={[
+            {
+              id: "a",
+              label: "A",
+              href: "/hub/a",
+              state: { from: "/reports" },
+            },
+            {
+              id: "b",
+              label: "B",
+              href: "/hub/b",
+              state: { from: "/reports" },
+            },
+          ]}
+          relatedConfig={{
+            label: "Cartera",
+            href: "/finance",
+            state: { from: "/reports" },
+          }}
+        >
+          <StateProbe />
+        </HubPageShell>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("tab", { name: "B" }));
+    expect(screen.getByTestId("hub-from")).toHaveTextContent("/reports");
+
+    await user.click(screen.getByRole("link", { name: /Cartera/i }));
+    expect(screen.getByTestId("hub-from")).toHaveTextContent("/reports");
   });
 
   it("places readiness strip before orientation", () => {

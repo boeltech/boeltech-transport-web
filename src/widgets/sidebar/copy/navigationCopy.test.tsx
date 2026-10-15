@@ -126,15 +126,13 @@ describe("navigationConfig", () => {
       "finance-hub",
       "finance-approvals",
       "finance-settlements",
-      "finance-agreements",
       "finance-analysis",
       "reports-list",
     ]);
     expect(finance?.items.map((item) => item.label)).toEqual([
       "Cartera",
       "Aprobaciones",
-      "Liquidaciones",
-      "Tarifas de pago",
+      "Pagos a operadores",
       "Análisis",
       "Reportes",
     ]);

@@ -568,11 +568,13 @@ function DetailMockup() {
           </div>
         ))}
       </div>
-      {/* Tabs */}
-      <div className="flex gap-3 border-b pb-1 pt-2">
-        <MockBar width="50px" className="h-2 bg-primary" />
-        <MockBar width="60px" className="h-2" />
-        <MockBar width="55px" className="h-2" />
+      {/* Tabs — soft/segmented (canónico; no underline ni primary filled) */}
+      <div className="pt-2">
+        <div className="inline-flex w-max items-center gap-1 rounded-md border border-border bg-muted p-0.5">
+          <div className="h-4 w-12 rounded-sm bg-background shadow-sm ring-1 ring-border/50" />
+          <div className="h-4 w-14 rounded-sm bg-transparent" />
+          <div className="h-4 w-12 rounded-sm bg-transparent" />
+        </div>
       </div>
       {/* Content */}
       <div className="space-y-1.5 pt-1">
@@ -722,10 +724,10 @@ function HubMockup() {
       </div>
       {/* Orientation */}
       <MockBar width="70%" className="h-1.5 bg-primary/30" />
-      {/* Nav tabs */}
-      <div className="flex gap-1.5">
-        <div className="h-5 w-16 rounded bg-primary/20" />
-        <div className="h-5 w-20 rounded bg-muted" />
+      {/* Nav tabs — soft/segmented (misma familia que Tabs; no primary tint) */}
+      <div className="inline-flex w-max items-center gap-1 rounded-md border border-border bg-muted p-0.5">
+        <div className="h-5 w-16 rounded-sm bg-background shadow-sm ring-1 ring-border/50" />
+        <div className="h-5 w-20 rounded-sm bg-transparent" />
       </div>
       {/* Guide */}
       <div className="rounded border border-dashed p-1.5 space-y-1">

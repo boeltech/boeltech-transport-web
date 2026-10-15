@@ -2,10 +2,14 @@ import type { NavigateFunction } from "react-router-dom";
 import { resolveInternalAppHref } from "./resolveInternalAppHref";
 import { useIncomingFrom, useListQueueFromState } from "./listQueueFrom";
 
+export const BRANCHES_LIST_PATH = "/branches";
+export const EMPLOYEES_LIST_PATH = "/employees";
+
 export const MASTER_WAYFINDING_COPY = {
   backToDashboard: "Volver al inicio",
   backToTrip: "Volver al viaje",
   backToBranch: "Volver a la sucursal",
+  backToEmployee: "Volver al empleado",
 } as const;
 
 function hrefPath(href: string): string {
@@ -30,10 +34,17 @@ export function resolveMasterBackLabel(
     return MASTER_WAYFINDING_COPY.backToTrip;
   }
   if (
-    listPath !== "/branches" &&
-    (path === "/branches" || path.startsWith("/branches/"))
+    listPath !== BRANCHES_LIST_PATH &&
+    (path === BRANCHES_LIST_PATH || path.startsWith(`${BRANCHES_LIST_PATH}/`))
   ) {
     return MASTER_WAYFINDING_COPY.backToBranch;
+  }
+  if (
+    listPath !== EMPLOYEES_LIST_PATH &&
+    (path === EMPLOYEES_LIST_PATH ||
+      path.startsWith(`${EMPLOYEES_LIST_PATH}/`))
+  ) {
+    return MASTER_WAYFINDING_COPY.backToEmployee;
   }
   return listLabel;
 }

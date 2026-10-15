@@ -1,6 +1,6 @@
 import { cn } from "@shared/lib/utils/cn";
 
-/** Ítem de nav: base + estado activo con tokens sidebar (riel ámbar en v2). */
+/** Ítem de nav: activo = accent + tipografía foreground; riel ámbar (sidebar-primary). */
 export function navItemClassName(options: {
   isActive: boolean;
   isCollapsed?: boolean;
@@ -12,7 +12,7 @@ export function navItemClassName(options: {
     "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
     "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
     isActive &&
-      "bg-sidebar-accent text-sidebar-primary hover:bg-sidebar-accent hover:text-sidebar-primary",
+      "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
     isCollapsed && "justify-center px-2",
     disabled && "pointer-events-none opacity-50",
     className,

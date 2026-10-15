@@ -55,9 +55,6 @@ export { Sidebar, MobileSidebar } from "./ui";
 export {
   useNavigation,
   navigationConfig,
-  publicRoutes,
-  defaultAuthenticatedRoute,
-  loginRoute,
   SIDEBAR_COLLAPSED_WIDTH_PX,
   SIDEBAR_WIDTH_PX,
   type UseNavigationReturn,

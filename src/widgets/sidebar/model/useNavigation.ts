@@ -22,9 +22,6 @@ import {
 import type { NavGroup, NavItem } from "./types";
 import type { UserRole } from "@shared/constants/roles";
 import type { Module, Action } from "@shared/permissions/domain/entities";
-import { navigationCopy } from "../copy/navigationCopy";
-import { COMPENSATION_HUB_PATH } from "@features/compensation/application/compensationRoutes";
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -213,26 +210,6 @@ export function filterNavigation(
   return filtered;
 }
 
-export function applyOperatorPaymentsNav(groups: NavGroup[]): NavGroup[] {
-  return groups.map((group) => {
-    if (group.id !== "finance") return group;
-    return {
-      ...group,
-      items: group.items
-        .filter((item) => item.id !== "finance-agreements")
-        .map((item) =>
-          item.id === "finance-settlements"
-            ? {
-                ...item,
-                label: navigationCopy.item.financeOperatorPayments,
-                activePathPrefixes: [COMPENSATION_HUB_PATH],
-              }
-            : item,
-        ),
-    };
-  });
-}
-
 /**
  * Encuentra el breadcrumb actual basado en el path
  */
@@ -268,7 +245,6 @@ function findNavItemByPath(
 
 /**
  * Navegación filtrada por permisos.
- * El relabel “Pagos a operadores” y el hub (D-P1) se aplican siempre.
  * No consultar settings aquí: varios tests montan el hook sin QueryClient.
  */
 export function useNavigation(): UseNavigationReturn {
@@ -288,9 +264,7 @@ export function useNavigation(): UseNavigationReturn {
       : isDriverPortalRole(role)
         ? driverPortalNavigationConfig
         : navigationConfig;
-    return applyOperatorPaymentsNav(
-      filterNavigation(config, hasPermission, role),
-    );
+    return filterNavigation(config, hasPermission, role);
   }, [hasPermission, role]);
 
   /**

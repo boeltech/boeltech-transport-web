@@ -5,9 +5,9 @@ import { ROLE_DEFINITIONS } from "@shared/permissions/domain/rolePermissions";
 import type { Module, Action } from "@shared/permissions/domain/entities";
 import type { NavItem } from "./types";
 import { navigationConfig } from "./navigation";
-import { applyOperatorPaymentsNav, filterNavigation, findActiveNavItem } from "./useNavigation";
+import { filterNavigation, findActiveNavItem } from "./useNavigation";
 import { navigationCopy } from "../copy/navigationCopy";
-import { COMPENSATION_HUB_PATH } from "@features/compensation/application/compensationRoutes";
+import { COMPENSATION_HUB_PATH } from "@features/compensation/application";
 
 const hub: NavItem = {
   id: "finance-hub",
@@ -168,21 +168,32 @@ describe("filterNavigation", () => {
       "finance-hub",
       "finance-approvals",
       "finance-settlements",
-      "finance-agreements",
       "finance-analysis",
       "reports-list",
     ]);
   });
-});
 
-describe("applyOperatorPaymentsNav", () => {
-  it("relabel Pagos a operadores, oculta Esquemas y cubre compensation (D-P1)", () => {
-    const result = applyOperatorPaymentsNav(navigationConfig);
-    const finance = result.find((g) => g.id === "finance");
-    const ids = finance?.items.map((i) => i.id) ?? [];
-    expect(ids).not.toContain("finance-agreements");
-    const settlements = finance?.items.find((i) => i.id === "finance-settlements");
+  it("declara Pagos a operadores directo con cobertura del hub compensación", () => {
+    const settlements = navigationConfig
+      .find((g) => g.id === "finance")
+      ?.items.find((i) => i.id === "finance-settlements");
     expect(settlements?.label).toBe(navigationCopy.item.financeOperatorPayments);
     expect(settlements?.activePathPrefixes).toEqual([COMPENSATION_HUB_PATH]);
+    expect(
+      navigationConfig
+        .find((g) => g.id === "finance")
+        ?.items.some((i) => i.id === "finance-agreements"),
+    ).toBe(false);
+  });
+
+  it("oculta Envíos (dispatch) al dispatcher — alineado al RoleRoute", () => {
+    const hasPermission = createPermissionChecker("dispatcher");
+    const filtered = filterNavigation(
+      navigationConfig,
+      hasPermission,
+      ROLES.DISPATCHER,
+    );
+    const billing = filtered.find((g) => g.id === "billing");
+    expect(billing?.items.map((i) => i.id)).not.toContain("finance-dispatch");
   });
 });

@@ -117,6 +117,8 @@ export function AppShellSection() {
             Marco fijo alrededor del contenido. Las features renderizan dentro del{" "}
             <code className="font-mono text-xs">&lt;Outlet /&gt;</code> usando page
             shells — no reimplementar layout de sidebar/header en módulos.
+            Orden de barrido: chrome → query keys → rutas/nav → hubs → workbenches →
+            hojas.
           </p>
           <div className="grid gap-6 lg:grid-cols-2">
             <AppShellMockup />
@@ -138,7 +140,8 @@ export function AppShellSection() {
               <ul className="list-inside list-disc space-y-1 text-muted-foreground">
                 <li>Sidebar: 240px / 56px colapsado (lg+)</li>
                 <li>
-                  Nav activa: sidebar-accent + text-sidebar-primary + riel 3px
+                  Nav activa: sidebar-accent + text-sidebar-foreground + riel
+                  3px sidebar-primary
                 </li>
                 <li>Header fijo: h-14 solid, search rounded-md ⌘K + lupa móvil</li>
                 <li>Main: pt-16, max-w-7xl · skip link → #contenido</li>

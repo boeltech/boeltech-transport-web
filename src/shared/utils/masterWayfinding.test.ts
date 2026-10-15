@@ -45,5 +45,12 @@ describe("masterWayfinding", () => {
     expect(
       resolveMasterBackLabel("/branches/br-1", "/employees", "Volver a empleados"),
     ).toBe(MASTER_WAYFINDING_COPY.backToBranch);
+    expect(
+      resolveMasterBackLabel(
+        "/employees/emp-1",
+        "/drivers",
+        "Volver a conductores",
+      ),
+    ).toBe(MASTER_WAYFINDING_COPY.backToEmployee);
   });
 });

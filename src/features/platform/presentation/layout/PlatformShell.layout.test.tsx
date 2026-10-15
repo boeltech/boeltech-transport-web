@@ -91,13 +91,15 @@ describe("PlatformShell layout (F1 chrome + isolation)", () => {
     expect(activeLinks.length).toBeGreaterThanOrEqual(1);
     for (const tenantsLink of activeLinks) {
       expect(tenantsLink.className).toMatch(/bg-sidebar-accent/);
-      expect(tenantsLink.className).toMatch(/text-sidebar-primary/);
+      expect(tenantsLink.className).toMatch(/text-sidebar-foreground/);
+      expect(tenantsLink.className).not.toMatch(/text-sidebar-primary/);
       expect(tenantsLink.className).not.toMatch(/bg-primary\/10/);
     }
 
     const activeClasses = platformNavItemClassName({ isActive: true });
     expect(activeClasses).toContain("bg-sidebar-accent");
-    expect(activeClasses).toContain("text-sidebar-primary");
+    expect(activeClasses).toContain("text-sidebar-foreground");
+    expect(activeClasses).not.toContain("text-sidebar-primary");
     expect(activeClasses).not.toContain("bg-primary/10");
   });
 

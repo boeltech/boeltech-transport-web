@@ -44,7 +44,7 @@ describe("useNavigationWithBadges", () => {
     pendingCount.mockReturnValue({ data: 3 });
   });
 
-  it("relabels Pagos a operadores and hides Esquemas (D-P1 hub always)", () => {
+  it("exposes Pagos a operadores and hides Esquemas (D-P1 hub always)", () => {
     const { result } = renderNavigation("/finance/settlements");
     const settlements = itemById(result.current.navigation, "finance-settlements");
     const agreements = itemById(result.current.navigation, "finance-agreements");
@@ -53,7 +53,6 @@ describe("useNavigationWithBadges", () => {
     expect(agreements).toBeUndefined();
     expect(result.current.isItemActive(settlements!)).toBe(true);
   });
-
   it("marks the badged approvals item as active on its route", () => {
     const { result } = renderNavigation("/finance/approvals?status=pending");
     const approvals = itemById(result.current.navigation, "finance-approvals");

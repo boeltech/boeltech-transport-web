@@ -7,7 +7,9 @@ export interface UsePrintIframeResult {
 }
 
 /**
- * Hook to print a referenced DOM node via an invisible sandboxed iframe,
+ * Hook to print a referenced DOM node via an invisible sandboxed iframe
+ * (`sandbox="allow-same-origin allow-modals"` — same-origin for srcdoc access;
+ * modals so `contentWindow.print()` can open the print dialog),
  * avoiding popup blockers, window.open security risks, and cross-screen print bugs.
  */
 export function usePrintIframe(
@@ -49,6 +51,9 @@ export function usePrintIframe(
       if (!iframe || !iframe.parentNode) {
         iframe = document.createElement("iframe");
         iframe.setAttribute("aria-hidden", "true");
+        // allow-same-origin: parent can read contentWindow after srcdoc inject.
+        // allow-modals: required for contentWindow.print() dialog in Chromium.
+        iframe.setAttribute("sandbox", "allow-same-origin allow-modals");
         iframe.style.position = "fixed";
         iframe.style.right = "0";
         iframe.style.bottom = "0";
@@ -81,7 +86,10 @@ export function usePrintIframe(
         .join("\n");
 
       const rawHtml = contentEl.outerHTML;
-      const safeTitle = documentTitle ? escapeHtml(documentTitle) : "Impresión";
+      // Chromium "Guardar como PDF" often uses the *parent* document.title (app = "tlamx"),
+      // not the iframe <title>. Keep both in sync and restore after print.
+      const plainTitle = documentTitle?.trim() || "Impresión";
+      const safeTitle = escapeHtml(plainTitle);
 
       const htmlDocument = `<!DOCTYPE html>
 <html lang="es">
@@ -110,17 +118,35 @@ export function usePrintIframe(
 </html>`;
 
       const performPrint = () => {
+        const previousTitle = document.title;
+        let restored = false;
+        const restoreTitle = () => {
+          if (restored) return;
+          restored = true;
+          document.title = previousTitle;
+          window.removeEventListener("afterprint", restoreTitle);
+          iframe?.contentWindow?.removeEventListener("afterprint", restoreTitle);
+        };
+
         try {
+          document.title = plainTitle;
           const win = iframe?.contentWindow;
           if (win) {
+            win.addEventListener("afterprint", restoreTitle);
+            window.addEventListener("afterprint", restoreTitle);
             win.focus();
             win.print();
+          } else {
+            restoreTitle();
           }
         } catch {
-          // Fallback to global print if iframe print fails
+          restoreTitle();
           window.print();
         } finally {
           setIsPrinting(false);
+          // print() returns before Save-as closes; afterprint restores title.
+          // Safety net if afterprint never fires (some embedded WebViews).
+          setTimeout(restoreTitle, 60_000);
         }
       };
 

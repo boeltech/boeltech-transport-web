@@ -70,7 +70,8 @@ export const Sidebar = memo(function Sidebar() {
             >
               <BrandLockup
                 compact={isCollapsed}
-                variant="current"
+                variant="onInk"
+                markVariant="brand"
                 decorative
                 markSize={isCollapsed ? 32 : 30}
               />

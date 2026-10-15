@@ -10,9 +10,13 @@
  * - FormPageShell      → edición simple (no wizard)
  * - WizardPageShell    → creación por pasos
  * - SettingsPageShell  → wrapper sobre SettingsLayout
- * - HubPageShell       → hubs de configuración (orientar / nav / guía / lanzar) — ADR-0091 Hub v2
+ * - HubPageShell       → hubs de módulo (orientar / readiness / nav / guía / lanzar) — ADR-0091 Hub v2
+ *                        También landing sin nav (p. ej. Dashboard) cuando no hay tabs.
  * - BuilderPageShell   → construcción no lineal (canvas + inspector) — ADR-0091
  * - WorkbenchPageShell → centros operativos (triage + buckets) — ADR-0090
+ *
+ * Orden de barrido UI: estabilizar estos shells → hubs → workbenches → hojas/detalle.
+ * Platform usa PlatformPageShell (no SettingsPageShell).
  *
  * Guía wizards: ./README.md
  * ADR workbench: D:\cowork\boeltech\erp-transport\design\adr\0090-workbench-page-shell-taxonomia-pantallas.md

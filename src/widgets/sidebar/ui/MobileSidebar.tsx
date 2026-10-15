@@ -72,7 +72,12 @@ export const MobileSidebar = memo(function MobileSidebar() {
             onClick={handleNavClick}
             aria-label={`Ir al dashboard de ${BRAND.productName}`}
           >
-            <BrandLockup variant="current" decorative markSize={30} />
+            <BrandLockup
+              variant="onInk"
+              markVariant="brand"
+              decorative
+              markSize={30}
+            />
           </Link>
           <Button
             ref={closeButtonRef}

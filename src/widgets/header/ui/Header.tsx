@@ -121,8 +121,9 @@ export const Header = memo(function Header({ className }: HeaderProps) {
             variant="ghost"
             className={cn(
               "relative h-9 w-72 justify-start rounded-md text-muted-foreground",
-              "border border-border bg-background pl-10 pr-14 font-normal shadow-none",
-              "hover:bg-muted/60 hover:text-muted-foreground",
+              /* Operate cool: muted + hairline; sin warm wash de --accent */
+              "border border-border bg-muted pl-10 pr-14 font-normal shadow-none",
+              "hover:bg-muted hover:text-muted-foreground",
             )}
             onClick={() => setCommandOpen(true)}
             aria-label={headerCopy.commandMenu.title}
@@ -131,7 +132,7 @@ export const Header = memo(function Header({ className }: HeaderProps) {
             <span className="truncate text-sm">
               {headerCopy.commandMenu.trigger}
             </span>
-            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded-md border border-border bg-background/60 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
               ⌘K
             </kbd>
           </Button>

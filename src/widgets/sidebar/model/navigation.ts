@@ -14,9 +14,8 @@
  */
 
 import { ROLES } from "@shared/constants/roles";
-import { FINANCE_SUMMARY_ROUTE_ROLES } from "@shared/permissions";
 import { SETTLEMENTS_LIST_PATH } from "@features/settlements/application";
-import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
+import { COMPENSATION_HUB_PATH } from "@features/compensation/application";
 import {
   LayoutDashboard,
   Truck,
@@ -38,7 +37,6 @@ import {
   ClipboardCheck,
   Mail,
   Banknote,
-  BadgePercent,
 } from "lucide-react";
 import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
@@ -167,7 +165,7 @@ export const navigationConfig: NavGroup[] = [
         label: copy.item.financeHub,
         path: "/finance",
         icon: CircleDollarSign,
-        roles: [...FINANCE_SUMMARY_ROUTE_ROLES],
+        module: "finance",
         exactPath: true,
       },
       {
@@ -179,17 +177,12 @@ export const navigationConfig: NavGroup[] = [
       },
       {
         id: "finance-settlements",
-        label: copy.item.financeSettlements,
+        label: copy.item.financeOperatorPayments,
         path: SETTLEMENTS_LIST_PATH,
         icon: Banknote,
         module: "settlements",
-      },
-      {
-        id: "finance-agreements",
-        label: copy.item.financeAgreements,
-        path: COMPENSATION_TEMPLATES_PATH,
-        icon: BadgePercent,
-        module: "settlements",
+        // Hub Pagos a operadores: listado + compensación bajo el mismo ítem.
+        activePathPrefixes: [COMPENSATION_HUB_PATH],
       },
       {
         id: "finance-analysis",
@@ -311,17 +304,3 @@ export const driverPortalNavigationConfig: NavGroup[] = [
     ],
   },
 ];
-
-/** Rutas que no requieren autenticación */
-export const publicRoutes = [
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/reset-password",
-];
-
-/** Ruta por defecto después del login */
-export const defaultAuthenticatedRoute = "/dashboard";
-
-/** Ruta de login */
-export const loginRoute = "/login";

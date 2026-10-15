@@ -6,7 +6,7 @@
  * Overflow horizontal vía ScrollArea (mismo thumb fino que el sidebar).
  */
 
-import { memo, type ReactNode } from "react";
+import { memo, useEffect, useRef, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
@@ -33,10 +33,18 @@ export type RouteTabsNavItem = {
   title?: string;
 };
 
+/** Ancho del track en RouteTabsNav. Default `hug` = contenido; `stretch` = min-w-full. */
+export type RouteTabsNavTrackFit = "hug" | "stretch";
+
 export type RouteTabsNavProps = {
   items: readonly RouteTabsNavItem[];
   "aria-label": string;
   className?: string;
+  /**
+   * Ancho del track. Default `"hug"` (w-max al contenido).
+   * `"stretch"` reaplica `min-w-full` — escape hatch; no toca `tabsListClassName`.
+   */
+  trackFit?: RouteTabsNavTrackFit;
   /**
    * Override de activo. Por defecto: path exacto o prefijo `to/`.
    * Con `end: true` en el ítem, solo match exacto.
@@ -57,6 +65,7 @@ export const RouteTabsNav = memo(function RouteTabsNav({
   items,
   "aria-label": ariaLabel,
   className,
+  trackFit = "hug",
   isItemActive = defaultIsItemActive,
 }: RouteTabsNavProps) {
   const { pathname } = useLocation();
@@ -70,7 +79,8 @@ export const RouteTabsNav = memo(function RouteTabsNav({
       <nav
         className={cn(
           tabsListClassName,
-          "h-auto min-h-10 w-max min-w-full justify-start gap-1",
+          "h-auto min-h-10 w-max justify-start gap-1",
+          trackFit === "stretch" && "min-w-full",
         )}
         aria-label={ariaLabel}
       >
@@ -90,6 +100,16 @@ type RouteTabProps = {
 
 const RouteTab = memo(function RouteTab({ item, isActive }: RouteTabProps) {
   const Icon = item.icon;
+  const linkRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (!isActive) return;
+    linkRef.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: "smooth",
+    });
+  }, [isActive]);
 
   const content: ReactNode = (
     <>
@@ -125,6 +145,7 @@ const RouteTab = memo(function RouteTab({ item, isActive }: RouteTabProps) {
 
   return (
     <NavLink
+      ref={linkRef}
       to={item.to}
       end={item.end}
       title={item.title}

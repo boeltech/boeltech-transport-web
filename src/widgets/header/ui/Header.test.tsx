@@ -108,4 +108,16 @@ describe("Header", () => {
     expect(header?.className).not.toMatch(/backdrop-blur/);
     expect(header?.className).toContain("h-14");
   });
+
+  it("renders ⌘K trigger with cool Operate surface (muted + hairline)", () => {
+    renderHeader();
+    const triggers = screen.getAllByRole("button", {
+      name: headerCopy.commandMenu.title,
+    });
+    const desktop = triggers.find((el) => el.className.includes("w-72"));
+    expect(desktop).toBeTruthy();
+    expect(desktop?.className).toContain("bg-muted");
+    expect(desktop?.className).toContain("border-border");
+    expect(desktop?.className).not.toMatch(/hover:bg-accent/);
+  });
 });

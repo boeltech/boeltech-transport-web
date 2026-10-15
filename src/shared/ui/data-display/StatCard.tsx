@@ -9,7 +9,7 @@
  *   - Nuevo prop `tone` para colorear el ícono y el fondo según el carácter
  *     del KPI (success para "viajes completados", warning para "pendientes",
  *     destructive para "cancelados", etc.).
- *   - Default tone: "primary" (azul-tinta de marca, comportamiento histórico).
+ *   - Default tone: "primary" (brand de marca, comportamiento histórico).
  */
 
 import type { ReactNode } from "react";
@@ -29,11 +29,11 @@ import { cn } from "@shared/lib/utils/cn";
 /**
  * Tono semántico del KPI.
  *
- * - `primary` (default): azul-tinta de marca. Para KPIs neutros (totales,
- *   conteos generales).
+ * - `primary` (default): brand de marca (teal Patio / azul-tinta v1). Para KPIs
+ *   neutros (totales, conteos generales).
  * - `success`: verde. Para KPIs positivos (completados, ingresos).
  * - `warning`: ámbar. Para KPIs de atención (pendientes, por vencer).
- * - `info`: azul informativo. Para KPIs informativos no críticos.
+ * - `info`: familia brand / teal (menos chroma). Para KPIs informativos no críticos.
  * - `destructive`: rojo. Para KPIs negativos (cancelados, vencidos).
  * - `neutral`: gris. Para KPIs sin connotación (borradores, inactivos).
  */

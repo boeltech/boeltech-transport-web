@@ -4,12 +4,14 @@
  * Showcase de los componentes base del DS post-Fase 0:
  *   - Button (todas las variantes y tamaños, con/sin iconos, loading)
  *   - Badge (variantes semánticas en solid y soft)
+ *   - Tabs (soft/segmented — nav local canónica)
  */
 
 import { Plus, Trash2, Save, Download } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
 
 export function ComponentsSection() {
   return (
@@ -105,6 +107,49 @@ export function ComponentsSection() {
             (bg-green-500, text-yellow-700, etc.) para chips de estado. Si
             necesitas un estado nuevo, agrega un token semántico primero en{" "}
             <code className="font-mono text-xs">index.css</code>.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Tabs — soft/segmented */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tabs — soft / segmented</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Nav local canónica de página/ruta: track{" "}
+            <code className="font-mono text-xs">bg-muted</code> + píldora
+            activa <code className="font-mono text-xs">bg-background</code>{" "}
+            elevada. Misma familia que{" "}
+            <code className="font-mono text-xs">ThemeSegmented</code>. No
+            underline, no primary filled, no riel ámbar (el ámbar es chrome del
+            sidebar).
+          </p>
+          <Tabs defaultValue="general">
+            <TabsList>
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="bodegas">Bodegas</TabsTrigger>
+              <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
+            </TabsList>
+            <TabsContent value="general" className="text-sm text-muted-foreground">
+              Panel de ejemplo — Detail/Hub usan este primitivo vía{" "}
+              <code className="font-mono text-xs">TabsList</code>.
+            </TabsContent>
+            <TabsContent value="bodegas" className="text-sm text-muted-foreground">
+              Segundo panel — mismo set de clases exportadas.
+            </TabsContent>
+            <TabsContent value="fiscal" className="text-sm text-muted-foreground">
+              Tercer panel.
+            </TabsContent>
+          </Tabs>
+          <p className="text-xs text-muted-foreground">
+            Settings / Cuenta usan{" "}
+            <code className="font-mono">RouteTabsNav</code> con las mismas
+            clases; track por defecto{" "}
+            <code className="font-mono">trackFit=&quot;hug&quot;</code> (no
+            estira a full width). Escape:{" "}
+            <code className="font-mono">trackFit=&quot;stretch&quot;</code>.
           </p>
         </CardContent>
       </Card>
