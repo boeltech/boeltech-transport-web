@@ -16,6 +16,10 @@ export type CommercialAssetKind = (typeof COMMERCIAL_ASSET_KINDS)[number];
 
 export const COMMERCIAL_ASSET_IDS = [
   "product-preview-dashboard",
+  "product-preview-fleet",
+  "product-preview-trips",
+  "product-preview-clients",
+  "product-preview-billing",
   "og-default",
 ] as const;
 
@@ -36,15 +40,50 @@ export type CommercialAsset = {
   enabled: boolean;
 };
 
+/** Dimensiones de los crops A3 actuales (recaptura staging pendiente). */
+const A3_PREVIEW = { width: 1024, height: 510 } as const;
+
 export const commercialAssets: Record<CommercialAssetId, CommercialAsset> = {
+  /** Hero / fallback genérico — mismo crop que Viajes hasta recaptura. */
   "product-preview-dashboard": {
     id: "product-preview-dashboard",
-    src: "/commercial/product/product-preview-dashboard.webp",
-    alt: "Vista de operaciones en tlamx: viajes recientes y señal de timbrado fiscal",
-    width: 1200,
-    height: 750,
+    src: "/commercial/product/product-preview-trips.png",
+    alt: "Detalle de viaje en tlamx: flota, ruta y operación",
+    ...A3_PREVIEW,
     kind: "product-preview",
-    enabled: false,
+    enabled: true,
+  },
+  "product-preview-fleet": {
+    id: "product-preview-fleet",
+    src: "/commercial/product/product-preview-fleet.png",
+    alt: "Listado de vehículos en tlamx: flota e inventario operativo",
+    ...A3_PREVIEW,
+    kind: "product-preview",
+    enabled: true,
+  },
+  "product-preview-trips": {
+    id: "product-preview-trips",
+    src: "/commercial/product/product-preview-trips.png",
+    alt: "Detalle de viaje en tlamx: unidad, operador y seguimiento",
+    ...A3_PREVIEW,
+    kind: "product-preview",
+    enabled: true,
+  },
+  "product-preview-clients": {
+    id: "product-preview-clients",
+    src: "/commercial/product/product-preview-clients.png",
+    alt: "Directorio de clientes en tlamx",
+    ...A3_PREVIEW,
+    kind: "product-preview",
+    enabled: true,
+  },
+  "product-preview-billing": {
+    id: "product-preview-billing",
+    src: "/commercial/product/product-preview-billing.png",
+    alt: "Viajes por facturar en tlamx: ciclo fiscal ligado a la operación",
+    ...A3_PREVIEW,
+    kind: "product-preview",
+    enabled: true,
   },
   "og-default": {
     id: "og-default",

@@ -40,10 +40,16 @@ Ejemplos:
 
 Fuente de verdad tipada: `src/shared/commercial/assets/commercialAssets.ts`.
 
-| id | kind | enabled (inicial) | path esperado |
-|----|------|-------------------|---------------|
-| `product-preview-dashboard` | `product-preview` | `false` hasta drop-in | `/commercial/product/product-preview-dashboard.webp` |
+| id | kind | enabled | path esperado |
+|----|------|---------|---------------|
+| `product-preview-dashboard` | `product-preview` | `true` (alias Viajes) | `/commercial/product/product-preview-trips.png` |
+| `product-preview-fleet` | `product-preview` | `true` | `/commercial/product/product-preview-fleet.png` |
+| `product-preview-trips` | `product-preview` | `true` | `/commercial/product/product-preview-trips.png` |
+| `product-preview-clients` | `product-preview` | `true` | `/commercial/product/product-preview-clients.png` |
+| `product-preview-billing` | `product-preview` | `true` | `/commercial/product/product-preview-billing.png` |
 | `og-default` | `og` | `false` | `/commercial/og/og-default.webp` |
+
+Crops A3 actuales: PNG ~1024×510. Recaptura en staging (unread 0, sin badges ruidosos) → reemplazar mismos filenames o pasar a WebP y actualizar `src` en el catálogo.
 
 ## Fuera de alcance (L0/L1)
 

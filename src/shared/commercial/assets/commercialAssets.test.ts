@@ -16,8 +16,17 @@ describe("commercialAssets", () => {
     expect(asset.alt.length).toBeGreaterThan(0);
   });
 
-  it("mantiene product-preview desactivado hasta drop-in del archivo", () => {
-    expect(isCommercialAssetEnabled("product-preview-dashboard")).toBe(false);
+  it("activa crops A3 de evidencia (fleet/trips/clients/billing + dashboard)", () => {
+    for (const id of [
+      "product-preview-dashboard",
+      "product-preview-fleet",
+      "product-preview-trips",
+      "product-preview-clients",
+      "product-preview-billing",
+    ] as const) {
+      expect(isCommercialAssetEnabled(id)).toBe(true);
+      expect(commercialAssets[id].src).toMatch(/\.png$/);
+    }
     expect(commercialAssets["og-default"].enabled).toBe(false);
   });
 });

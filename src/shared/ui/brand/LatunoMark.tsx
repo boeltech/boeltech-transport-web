@@ -4,6 +4,11 @@
  * Fuente: public/brand/latuno-mark-b-portal*.svg
  * viewBox ceñido al ink para paridad óptica. Preferir este componente en UI;
  * los SVG en /public son assets estáticos (favicon, export, docs).
+ *
+ * Color (`onBrand` ≠ tipografía sobre ink):
+ *   - `onBrand` / `tile`: solo sobre `bg-primary` (paths en primary-foreground).
+ *   - Sobre chrome ink/sidebar: usar `brand` (teal). El wordmark on-ink va en
+ *     Wordmark/BrandLockup `variant="onInk"`, no aquí.
  */
 
 import { memo } from "react";
@@ -12,8 +17,8 @@ import { BRAND } from "./brandIdentity";
 
 export interface LatunoMarkProps {
   /**
-   * - "brand":   paths en primary (fondos claros)
-   * - "onBrand": paths en primary-foreground (fondos primary)
+   * - "brand":   paths en primary (fondos claros o chrome ink — mark teal)
+   * - "onBrand": paths en primary-foreground — solo sobre `bg-primary`
    * - "tile":    tile primary + paths blancos
    * - "current": hereda currentColor
    */

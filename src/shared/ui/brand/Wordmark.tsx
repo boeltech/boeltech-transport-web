@@ -5,14 +5,18 @@
  * En BrandLockup se aplica además `.brand-wordmark-thick`.
  * El isotipo vive en LatunoMark / BrandLockup.
  *
- * Variantes:
+ * Variantes tipográficas:
  *   - default:  "tlamx" completo
  *   - compact:  monograma tipográfico (preferir LatunoMark en chrome)
  *
- * Reglas de uso:
+ * Reglas de color (onBrand ≠ onInk):
  *   - Lockup icono + nombre: BrandLockup (gap 0.5 × mark)
- *   - Color por default: --primary
- *   - Fondos primary/oscuros: variant="onBrand"
+ *   - Color por default: --primary (`brand`)
+ *   - `onBrand`: solo tipografía sobre `bg-primary` (avatar, tile, botón, banda brand).
+ *     Usa `text-primary-foreground` — no usar sobre ink/sidebar.
+ *   - `onInk`: tipografía sobre chrome ink (`bg-sidebar` / superficies ink).
+ *     Usa `text-palette-brand-on-ink` (teal-light tipográfico hue 205) —
+ *     no blanco plano ni `text-primary` del CTA/mark.
  *   - Consola platform NO usa este wordmark; usa PlatformBrandMark
  */
 
@@ -30,11 +34,12 @@ export interface WordmarkProps {
   /**
    * Variante de color del wordmark.
    * - "brand":   color primary (default; sobre fondos claros)
-   * - "onBrand": color primary-foreground (sobre fondos primary)
+   * - "onBrand": color primary-foreground — solo sobre `bg-primary`
+   * - "onInk":   color palette-brand-on-ink (teal-light) — sobre chrome ink / sidebar
    * - "muted":   color muted-foreground (estados deshabilitados)
    * - "current": hereda currentColor del padre
    */
-  variant?: "brand" | "onBrand" | "muted" | "current";
+  variant?: "brand" | "onBrand" | "onInk" | "muted" | "current";
 
   className?: string;
   style?: CSSProperties;
@@ -44,6 +49,7 @@ export interface WordmarkProps {
 const VARIANT_CLASSES: Record<NonNullable<WordmarkProps["variant"]>, string> = {
   brand: "text-primary",
   onBrand: "text-primary-foreground",
+  onInk: "text-palette-brand-on-ink",
   muted: "text-muted-foreground",
   current: "text-current",
 };
