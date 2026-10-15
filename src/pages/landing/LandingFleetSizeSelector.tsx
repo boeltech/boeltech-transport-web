@@ -1,5 +1,5 @@
 /**
- * Selector tipográfico de banda por # motrices (F3).
+ * Selector tipográfico de banda por # motrices (F2: idioma tabs evidencia).
  * Solo highlight UI — no muta precios SoT.
  */
 import { cn } from "@shared/lib/utils/cn";

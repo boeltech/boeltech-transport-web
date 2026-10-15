@@ -1,5 +1,5 @@
 /**
- * Landing pública `/welcome` — look «Señal de patio» (F2+F3).
+ * Landing pública `/welcome` — look «Señal de patio» (F1 atmósfera + chrome en hero; F2 sticky).
  * Namespace: `.landing-root` / `.landing-*`
  *
  * Fonts marketing (self-host @fontsource, importadas solo desde este CSS):
@@ -12,8 +12,13 @@
  *
  * Assets fotográficos:
  *   A1 — `/brand/tlama-landing-hero-yard.png` (flota/patio, copy space izq.).
- *   A3 — mock CSS / product-preview-dashboard si enabled (evidencia por beat).
- *   A4 — banda CTA patio ink sólida.
+ *   A3 — crops en public/commercial/product/product-preview-{fleet,trips,clients,billing}.png.
+ *   A4 — banda CTA: degradado teal↔ink (eco auth brand panel; F2 stops).
+ *
+ * F2 — Paridad anclas con DS Patio v2 (F1 Teal Operate):
+ *   --landing-brand = oklch light --palette-brand (≈ #008292), no #0F6F82.
+ *   --landing-ink   = oklch light --palette-ink.
+ *   CTA ámbar = excepción marketing permanente (ver --landing-amber).
  */
 
 /* ── Fonts (scoped load via LandingPage import) ─────────── */
@@ -34,19 +39,48 @@
 
 /* ── Tokens patio ──────────────────────────────────────── */
 .landing-root {
-  --landing-brand: #0F6F82;
-  --landing-amber: #c98512;
-  --landing-ink: #121820;
+  /*
+   * Brand = ancla light DS Teal Operate (F1): oklch(0.54 0.13 205) ≈ #008292.
+   * Literal (no var(--palette-brand)): /welcome es canvas claro siempre;
+   * no seguir dark/v1. Antes #0F6F82 (legado divergente).
+   */
+  --landing-brand: oklch(0.54 0.13 205);
+  /*
+   * Excepción marketing permanente (CEO): CTAs de conversión /welcome
+   * (`.landing-cta-amber`) usan ámbar más vivo/chroma que --palette-amber
+   * DS (≈ #d58a17). No migrar esos botones a teal / --primary.
+   * Ámbar = señal tip/riel + CTA marketing; nunca en el lavado del degradado brand.
+   */
+  --landing-amber: #f0a820;
+  --landing-amber-deep: #e09410;
+  /* Ink = ancla light --palette-ink (antes #121820; drift vs ≈ #10161f) */
+  --landing-ink: oklch(0.20 0.02 256);
   --landing-concrete: #e6e9ee;
   --landing-elevated: #f4f6f8;
   --landing-muted: #6b7380;
   --landing-on-dark: #f4f6f8;
-  --landing-on-amber: #121820;
+  /* Wordmark tipográfico sobre foto ink = ancla light --palette-brand-on-ink */
+  --landing-brand-on-ink: oklch(0.84 0.055 205);
+  --landing-on-amber: var(--landing-ink);
   --landing-hairline: color-mix(in srgb, var(--landing-ink) 14%, transparent);
+
+  /* F1 atmósfera (puente + wash low-dose); F3 reutiliza wash en CTA/footer */
+  --landing-wash-teal: color-mix(in srgb, var(--landing-brand) 14%, transparent);
+  --landing-wash-ink: color-mix(in srgb, var(--landing-ink) 10%, transparent);
+  /* Puente corto: dissolve limpio sin “niebla” alta bajo el trust */
+  --landing-bridge-height: clamp(2.5rem, 4.5vw, 3.75rem);
 
   --landing-font-display: "Schibsted Grotesk", ui-sans-serif, sans-serif;
   --landing-font-body: "IBM Plex Sans", ui-sans-serif, sans-serif;
   --landing-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* F1/F2 motion ceilings */
+  --landing-motion-signal: 220ms;
+  --landing-motion-band: 260ms;
+  --landing-motion-crossfade: 380ms;
+  --landing-motion-enter: 560ms;
+  --landing-motion-hero-photo: 1400ms;
+  --landing-motion-preview-rise: 720ms;
 
   font-family: var(--landing-font-body);
   color: var(--landing-ink);
@@ -133,35 +167,116 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Header ────────────────────────────────────────────── */
-.landing-header {
+/* ── Hero chrome (F1 on-dark; F2 sticky elevated vía .is-stuck) ── */
+.landing-hero-chrome {
+  position: relative;
+  z-index: 50;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.landing-hero-chrome.is-stuck {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   background: color-mix(in srgb, var(--landing-elevated) 92%, transparent);
-  border-bottom: 1px solid var(--landing-hairline);
+  border-bottom-color: var(--landing-hairline);
   backdrop-filter: blur(10px);
 }
 
-.landing-header-nav a {
-  color: var(--landing-muted);
+/* D9: mark brand + wordmark brand-on-ink locked a tokens landing (foto ink, no bg-primary). */
+.landing-hero-chrome:not(.is-stuck) [data-landing-lockup="hero-mixed"] .text-primary {
+  color: var(--landing-brand);
+}
+
+.landing-hero-chrome:not(.is-stuck) [data-landing-lockup="hero-mixed"] .text-palette-brand-on-ink {
+  color: var(--landing-brand-on-ink);
+}
+
+.landing-hero-chrome-nav a {
+  color: color-mix(in srgb, var(--landing-on-dark) 78%, transparent);
   transition: color 160ms ease;
 }
 
-.landing-header-nav a:hover {
+.landing-hero-chrome-nav a:hover {
+  color: var(--landing-on-dark);
+}
+
+.landing-hero-chrome.is-stuck .landing-hero-chrome-nav a {
+  color: var(--landing-muted);
+}
+
+.landing-hero-chrome.is-stuck .landing-hero-chrome-nav a:hover {
   color: var(--landing-ink);
 }
 
-/* CTAs ámbar (conversión en superficies claras) */
+.landing-root .landing-btn-ghost-on-dark {
+  color: color-mix(in srgb, var(--landing-on-dark) 85%, transparent) !important;
+}
+
+.landing-root .landing-btn-ghost-on-dark:hover {
+  color: var(--landing-on-dark) !important;
+  background: color-mix(in srgb, var(--landing-on-dark) 10%, transparent) !important;
+}
+
+.landing-root .landing-btn-outline-on-dark {
+  border-color: color-mix(in srgb, var(--landing-on-dark) 42%, transparent) !important;
+  background: transparent !important;
+  color: var(--landing-on-dark) !important;
+}
+
+.landing-root .landing-btn-outline-on-dark:hover {
+  background: color-mix(in srgb, var(--landing-on-dark) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--landing-on-dark) 55%, transparent) !important;
+  color: var(--landing-on-dark) !important;
+}
+
+/* CTAs ámbar — excepción marketing /welcome (no teal Operate; ver --landing-amber) */
 .landing-root .landing-cta-amber {
   background-color: var(--landing-amber) !important;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--landing-amber) 78%, white) 0%,
+    var(--landing-amber) 42%,
+    var(--landing-amber-deep) 100%
+  ) !important;
   color: var(--landing-on-amber) !important;
   border-color: transparent !important;
+  font-weight: 600 !important;
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 28%, transparent) inset,
-    0 8px 22px -10px color-mix(in srgb, var(--landing-amber) 55%, transparent);
+    0 1px 0 color-mix(in srgb, white 42%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--landing-amber-deep) 35%, transparent),
+    0 10px 28px -8px color-mix(in srgb, var(--landing-amber) 75%, transparent),
+    0 4px 12px -4px color-mix(in srgb, var(--landing-amber-deep) 45%, transparent);
 }
 
 .landing-root .landing-cta-amber:hover {
-  background-color: color-mix(in srgb, var(--landing-amber) 90%, var(--landing-ink)) !important;
+  background-color: color-mix(in srgb, var(--landing-amber) 70%, white) !important;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--landing-amber) 55%, white) 0%,
+    var(--landing-amber) 55%,
+    color-mix(in srgb, var(--landing-amber) 88%, var(--landing-amber-deep)) 100%
+  ) !important;
   color: var(--landing-on-amber) !important;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 50%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--landing-amber) 40%, transparent),
+    0 14px 32px -8px color-mix(in srgb, var(--landing-amber) 85%, transparent),
+    0 6px 14px -4px color-mix(in srgb, var(--landing-amber-deep) 50%, transparent);
+}
+
+.landing-root .landing-cta-amber:active {
+  background-image: none !important;
+  background-color: var(--landing-amber-deep) !important;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, black 12%, transparent) inset,
+    0 4px 12px -6px color-mix(in srgb, var(--landing-amber-deep) 55%, transparent);
 }
 
 .landing-root .landing-cta-brand {
@@ -196,7 +311,8 @@
 /* ── Hero full-bleed + scrim ───────────────────────────── */
 .landing-hero {
   position: relative;
-  overflow: hidden;
+  /* overflow en el visual: el chrome fixed (.is-stuck) no debe quedar clippeado. */
+  overflow: visible;
   color: var(--landing-on-dark);
   background-color: var(--landing-ink);
 }
@@ -206,6 +322,7 @@
   inset: 0;
   z-index: 0;
   min-height: 100%;
+  overflow: hidden;
   isolation: isolate;
 }
 
@@ -225,8 +342,22 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* Scrim más fuerte a la izq. (copy); tractos a la der. quedan visibles. */
+  /*
+   * L-A2: profundidad fotográfica — viñeta ink en zona copy + toque brand ≤8%
+   * en sombra del patio. Lineales vigentes: copy izq. legible, tractos der. visibles.
+   * Estático (D5): no animar wash/scrim.
+   */
   background:
+    radial-gradient(
+      ellipse 70% 55% at 15% 40%,
+      color-mix(in srgb, var(--landing-ink) 52%, transparent) 0%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 55% 48% at 85% 70%,
+      color-mix(in srgb, var(--landing-brand) 8%, transparent) 0%,
+      transparent 68%
+    ),
     linear-gradient(
       105deg,
       color-mix(in srgb, var(--landing-ink) 82%, transparent) 0%,
@@ -275,17 +406,9 @@
 .landing-hero-content {
   position: relative;
   z-index: 2;
-  padding-top: clamp(2.5rem, 4vw, 4.5rem);
+  /* Chrome ya aporta h-16; copy arranca en H1 (sin lockup duplicado). */
+  padding-top: clamp(1.25rem, 2.5vw, 2.75rem);
   padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
-}
-
-.landing-hero-brand-rule {
-  display: block;
-  width: 2.75rem;
-  height: 2px;
-  margin-top: 0.85rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--landing-amber) 85%, white);
 }
 
 .landing-hero-support {
@@ -301,6 +424,15 @@
     box-shadow 180ms ease;
 }
 
+.landing-hero-cta.landing-cta-amber {
+  /* Extra bloom sobre hero oscuro — el ámbar debe saltar */
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 42%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--landing-amber-deep) 35%, transparent),
+    0 12px 36px -6px color-mix(in srgb, var(--landing-amber) 80%, transparent),
+    0 0 48px -8px color-mix(in srgb, var(--landing-amber) 55%, transparent);
+}
+
 .landing-hero-cta:hover {
   transform: translateY(-1px);
 }
@@ -313,8 +445,25 @@
 .landing-hero-trust {
   position: relative;
   z-index: 2;
-  border-top: 1px solid color-mix(in srgb, var(--landing-on-dark) 18%, transparent);
+  border-top: none;
   padding-block: 1.15rem 1.35rem;
+}
+
+/* Hairline superior con fade lateral — sin línea inferior (el puente hace el cierre) */
+.landing-hero-trust::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--landing-on-dark) 18%, transparent) 16%,
+    color-mix(in srgb, var(--landing-on-dark) 18%, transparent) 84%,
+    transparent 100%
+  );
 }
 
 @media (min-width: 768px) {
@@ -343,14 +492,35 @@
   color: color-mix(in srgb, var(--landing-on-dark) 32%, transparent);
 }
 
-@keyframes landing-truck-rise {
+/*
+ * L-A1: puente hero/trust → evidencia.
+ * Dissolve corto elevated sobre la foto (sin fill ink / sin gris lodoso).
+ */
+.landing-hero::after {
+  content: "";
+  display: block;
+  position: relative;
+  z-index: 2;
+  height: var(--landing-bridge-height);
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--landing-elevated) 35%, transparent) 45%,
+    color-mix(in srgb, var(--landing-elevated) 82%, transparent) 78%,
+    var(--landing-elevated) 100%
+  );
+}
+
+/* F2 D1: foto más larga + Ken Burns ≤2% una sola vez (no loop). */
+@keyframes landing-hero-photo-enter {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.985);
+    transform: scale(1);
   }
   to {
-    opacity: 0.88;
-    transform: translateY(0) scale(1);
+    opacity: 1;
+    transform: scale(1.02);
   }
 }
 
@@ -363,13 +533,33 @@
   }
 }
 
+@keyframes landing-trust-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .landing-hero.is-visual-ready .landing-hero-photo {
-  animation: landing-stage-in 900ms ease both;
+  animation: landing-hero-photo-enter var(--landing-motion-hero-photo) ease both;
+  transform-origin: 72% 45%;
+  will-change: transform, opacity;
 }
 
 .landing-hero.is-visual-ready .landing-hero-route {
-  animation: landing-stage-in 640ms ease both;
+  animation: landing-stage-in 720ms ease both;
   animation-delay: 120ms;
+}
+
+.landing-hero.is-visual-ready .landing-hero-trust {
+  opacity: 0;
+  animation: landing-trust-in var(--landing-motion-enter)
+    cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 700ms;
 }
 
 /* ── Preview frame patio ───────────────────────────────── */
@@ -382,6 +572,90 @@
     0 1px 0 color-mix(in srgb, white 8%, transparent),
     0 16px 40px -12px color-mix(in srgb, black 45%, transparent),
     0 0 0 1px color-mix(in srgb, var(--landing-brand) 25%, transparent);
+}
+
+/* Crop stack: frame quieto; solo capas internas crossfadean */
+.landing-preview-crop-stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1024 / 510;
+  background: var(--landing-concrete);
+}
+
+.landing-preview-crop {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 0.75rem;
+  transition: opacity var(--landing-motion-crossfade) ease;
+}
+
+.landing-preview-crop.is-settled {
+  position: relative;
+  opacity: 1;
+}
+
+.landing-preview-crop.is-under,
+.landing-preview-crop.is-enter {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-preview-crop.is-under {
+  opacity: 1;
+  z-index: 1;
+}
+
+.landing-preview-crop.is-enter {
+  z-index: 2;
+  animation: landing-crop-enter var(--landing-motion-crossfade) ease both;
+}
+
+@keyframes landing-crop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Carrusel evidencia: fade + slide horizontal (entrante der. / saliente izq.) */
+.landing-preview-crop-stack.is-carousel-slide {
+  overflow: hidden;
+}
+
+.landing-preview-crop-stack.is-carousel-slide .landing-preview-crop.is-under {
+  animation: landing-crop-slide-exit var(--landing-motion-crossfade) ease both;
+}
+
+.landing-preview-crop-stack.is-carousel-slide .landing-preview-crop.is-enter {
+  animation: landing-crop-slide-enter var(--landing-motion-crossfade)
+    cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landing-crop-slide-enter {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes landing-crop-slide-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
 }
 
 .landing-hero .landing-preview-frame {
@@ -487,8 +761,10 @@
 .landing-evidence-tabs {
   display: flex;
   flex-wrap: nowrap;
+  align-items: flex-end;
   gap: 0.25rem;
   overflow-x: auto;
+  overflow-y: hidden; /* evita scrollbar vertical en Win al haber overflow-x */
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   border-bottom: 1px solid var(--landing-hairline);
@@ -546,11 +822,25 @@
   }
 }
 
+.landing-evidence-copy {
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.landing-evidence-copy.is-fading {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
 .landing-evidence-beat-title {
   font-family: var(--landing-font-display);
-  font-size: 1.35rem;
+  font-size: clamp(1.2rem, 1.1rem + 0.35vw, 1.4rem);
   font-weight: 700;
   letter-spacing: -0.025em;
+  line-height: 1.2;
   color: var(--landing-ink);
 }
 
@@ -565,15 +855,21 @@
 }
 
 @media (min-width: 1024px) {
+  .landing-evidence-copy {
+    padding-top: 0.15rem;
+  }
+}
+
+@media (min-width: 1024px) {
   .landing-evidence-preview .landing-preview-frame {
     margin-inline: 0;
   }
 }
 
-/* ── Fleet selector (F3) ──────────────────────────────── */
+/* ── Fleet selector (F2: mismo idioma que tabs evidencia) ─ */
 .landing-fleet-selector {
-  margin: 2rem auto 0;
-  max-width: 32rem;
+  margin: 1.75rem auto 0;
+  max-width: 36rem;
   text-align: center;
 }
 
@@ -592,56 +888,75 @@
 }
 
 .landing-fleet-selector-options {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.4rem;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.25rem;
   margin-top: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--landing-hairline);
+  padding-bottom: 0;
+  margin-inline: -0.25rem;
+  padding-inline: 0.25rem;
 }
 
 .landing-fleet-selector-option {
+  flex: 0 0 auto;
   appearance: none;
-  border: 1px solid var(--landing-hairline);
-  background: var(--landing-elevated);
-  color: var(--landing-ink);
-  font-family: var(--landing-font-mono);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  padding: 0.65rem 0.35rem;
+  border: none;
+  background: transparent;
   cursor: pointer;
+  font-family: var(--landing-font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--landing-muted);
+  padding: 0.65rem 0.9rem 0.75rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    border-color 160ms ease;
 }
 
 .landing-fleet-selector-option:hover {
-  border-color: color-mix(in srgb, var(--landing-brand) 45%, transparent);
+  color: var(--landing-ink);
 }
 
 .landing-fleet-selector-option.is-selected {
-  background: color-mix(in srgb, var(--landing-brand) 10%, var(--landing-elevated));
-  border-color: var(--landing-brand);
-  color: var(--landing-brand);
-  box-shadow: inset 0 -2px 0 0 var(--landing-amber);
+  color: var(--landing-ink);
+  border-bottom-color: var(--landing-amber);
+  background: transparent;
+  box-shadow: none;
 }
 
 .landing-fleet-selector-option:focus-visible {
   outline: 2px solid var(--landing-brand);
   outline-offset: 2px;
+  border-radius: 2px;
 }
 
-/* ── Pricing: tabla tipográfica ────────────────────────── */
+/* ── Pricing: banda muted (concrete) + tabla tipográfica ──
+ * Fondo/borde: .landing-band-muted (--landing-concrete + hairline).
+ */
+
 .landing-plan-table {
   display: grid;
   gap: 0;
-  margin-top: 3rem;
-  border-top: 1px solid var(--landing-ink);
-  border-bottom: 1px solid var(--landing-ink);
-  background: var(--landing-elevated);
+  margin-top: 2.25rem;
+  /* F1: marco hairline; F2: sin caja elevated sobre concrete. */
+  border-top: 1px solid var(--landing-hairline);
+  border-bottom: 1px solid var(--landing-hairline);
+  background: transparent;
 }
 
 @media (min-width: 1024px) {
   .landing-plan-table {
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
@@ -649,16 +964,23 @@
 .landing-plan-col {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 1.25rem 1.75rem;
+  /* F2 D6: compactar padding sin tocar cupos SoT. */
+  padding: 1.25rem 1.15rem 1.5rem;
   border-bottom: 1px solid var(--landing-hairline);
   position: relative;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    background-color var(--landing-motion-band) ease,
+    box-shadow var(--landing-motion-band) ease,
+    z-index 0s linear var(--landing-motion-band);
 }
 
 @media (min-width: 1024px) {
   .landing-plan-col {
     border-bottom: none;
     border-right: 1px solid var(--landing-hairline);
-    padding: 1.75rem 1.35rem 2rem;
+    padding: 1.45rem 1.25rem 1.65rem;
   }
 
   .landing-plan-col:last-child {
@@ -666,26 +988,31 @@
   }
 }
 
-/* «Más elegido» solo compite visualmente cuando también es el match del selector. */
-.landing-plan-col.is-popular.is-fleet-match {
+/* D7: en stack mobile, match sube al tope del listado tipográfico. */
+@media (max-width: 1023px) {
+  .landing-plan-table {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .landing-plan-col.is-fleet-match {
+    order: -1;
+  }
+}
+
+/* F1: fleet-match = único protagonista (fondo + barra). Popular sin match = solo badge. */
+.landing-plan-col.is-fleet-match {
   background: color-mix(in srgb, var(--landing-brand) 9%, var(--landing-elevated));
   box-shadow: inset 0 3px 0 0 var(--landing-amber);
 }
 
-.landing-plan-col.is-fleet-match:not(.is-popular) {
-  background: color-mix(in srgb, var(--landing-brand) 9%, var(--landing-elevated));
-  box-shadow: inset 0 3px 0 0 var(--landing-amber);
-}
-
-/* Popular sin match: badge tipográfico, sin barra/fondo que compita. */
 .landing-plan-col.is-popular:not(.is-fleet-match) {
   background: transparent;
   box-shadow: none;
 }
 
 @media (min-width: 1024px) {
-  .landing-plan-col.is-popular.is-fleet-match,
-  .landing-plan-col.is-fleet-match:not(.is-popular) {
+  .landing-plan-col.is-fleet-match {
     z-index: 2;
     box-shadow:
       inset 0 3px 0 0 var(--landing-amber),
@@ -703,16 +1030,19 @@
   color: var(--landing-brand);
 }
 
+/* F3 P-05: sentence-case patio (no ALL-CAPS SaaS). */
 .landing-plan-eyebrow {
   font-family: var(--landing-font-mono);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  margin-bottom: 0.5rem;
   color: var(--landing-muted);
+  transition: color var(--landing-motion-signal) ease;
 }
 
+/* Badge «Más elegido»: tipográfico; ámbar pleno solo si también es match. */
 .landing-plan-col.is-popular.is-fleet-match .landing-plan-eyebrow {
   color: var(--landing-amber);
 }
@@ -727,6 +1057,7 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--landing-ink);
+  transition: color var(--landing-motion-band) ease;
 }
 
 .landing-plan-period {
@@ -736,21 +1067,21 @@
 }
 
 .landing-plan-audience {
-  margin-top: 0.85rem;
-  min-height: 2.75rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  margin-top: 0.65rem;
+  min-height: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
   color: var(--landing-muted);
 }
 
 .landing-plan-specs {
-  margin-top: 1.25rem;
-  padding-top: 1.15rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
   border-top: 1px solid var(--landing-hairline);
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.45rem;
   font-size: 0.8125rem;
 }
 
@@ -759,10 +1090,15 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .landing-plan-spec-label {
   color: var(--landing-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .landing-plan-spec-value {
@@ -770,38 +1106,64 @@
   font-weight: 500;
   color: var(--landing-ink);
   text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .landing-plan-actions {
-  margin-top: 1.5rem;
+  margin-top: 1.15rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.landing-plan-footnote {
-  margin-top: 0.85rem;
+/* F3 D6: footnote único de sección (sin marca · plan por columna). */
+.landing-pricing-footnote {
+  margin-top: 1.75rem;
+  margin-inline: auto;
+  max-width: 40rem;
   text-align: center;
-  font-family: var(--landing-font-mono);
-  font-size: 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
   color: var(--landing-muted);
 }
 
-/* ── CTA cierre full-bleed patio ink ───────────────────── */
+/* ── CTA cierre full-bleed: degradado teal↔ink (eco auth brand panel) ─ */
 .landing-cta-band {
+  /*
+   * F2: brand Operate más claro → más % teal + mid más bajo para leer
+   * atmósfera patio (no mancha cool-dark única). Solo brand↔ink; sin ámbar.
+   */
+  --landing-cta-bottom: color-mix(
+    in oklch,
+    var(--landing-brand) 86%,
+    var(--landing-ink)
+  );
+  --landing-cta-mid: color-mix(
+    in oklch,
+    var(--landing-brand) 48%,
+    var(--landing-ink)
+  );
+  --landing-cta-wash-teal: color-mix(
+    in oklch,
+    var(--landing-brand) 62%,
+    transparent
+  );
+
   background-color: var(--landing-ink);
   color: var(--landing-on-dark);
-  /* A4 placeholder: wash sutil; sustituible por foto de sesión */
+  /* Misma familia que .auth-funnel-brand: teal nace abajo → ink arriba; sin ámbar. */
   background-image:
     radial-gradient(
-      ellipse 50% 40% at 85% 0%,
-      color-mix(in srgb, var(--landing-brand) 28%, transparent),
-      transparent 55%
+      ellipse 130% 58% at 50% 122%,
+      var(--landing-cta-wash-teal),
+      transparent 68%
     ),
-    radial-gradient(
-      ellipse 40% 35% at 10% 100%,
-      color-mix(in srgb, var(--landing-amber) 12%, transparent),
-      transparent 50%
+    linear-gradient(
+      to top,
+      var(--landing-cta-bottom) 0%,
+      var(--landing-cta-mid) 26%,
+      var(--landing-ink) 100%
     );
   padding-block: clamp(3.5rem, 6vw, 5.5rem);
 }
@@ -842,7 +1204,7 @@
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--landing-muted);
+  color: color-mix(in srgb, var(--landing-muted) 78%, var(--landing-elevated));
   margin-bottom: 0.75rem;
 }
 
@@ -883,24 +1245,24 @@
 
 .landing-optionals-item h3 {
   font-family: var(--landing-font-display);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: -0.015em;
-  color: var(--landing-ink);
+  color: color-mix(in srgb, var(--landing-ink) 82%, var(--landing-muted));
   margin-bottom: 0.4rem;
 }
 
 .landing-optionals-item p {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.55;
-  color: var(--landing-muted);
+  color: color-mix(in srgb, var(--landing-muted) 88%, var(--landing-elevated));
   max-width: 28ch;
 }
 
 .landing-optionals-footnote {
   margin-top: 1.5rem;
   font-size: 0.75rem;
-  color: var(--landing-muted);
+  color: color-mix(in srgb, var(--landing-muted) 80%, var(--landing-elevated));
   text-align: center;
   max-width: 40rem;
   margin-inline: auto;
@@ -1007,7 +1369,8 @@
       0.5rem 0.75rem
       calc(0.5rem + env(safe-area-inset-bottom, 0px));
     background: color-mix(in srgb, var(--landing-elevated) 94%, transparent);
-    border-top: 1px solid var(--landing-hairline);
+    /* L-E1: hairline brand; sin glow ámbar full-bleed */
+    border-top: 1px solid color-mix(in srgb, var(--landing-brand) 20%, transparent);
     backdrop-filter: blur(10px);
   }
 
@@ -1044,9 +1407,13 @@
   }
 }
 
-/* ── Footer ────────────────────────────────────────────── */
+/* ── Footer (F3 L-D2: cierre suave, no segunda CTA band) ─ */
 .landing-footer {
-  background: var(--landing-concrete);
+  background: linear-gradient(
+    180deg,
+    var(--landing-concrete),
+    color-mix(in srgb, var(--landing-ink) 6%, var(--landing-concrete))
+  );
   border-top: 1px solid var(--landing-hairline);
   color: var(--landing-ink);
 }
@@ -1072,7 +1439,7 @@
 @keyframes landing-fade-up {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -1083,7 +1450,7 @@
 @keyframes landing-preview-rise {
   from {
     opacity: 0;
-    transform: translateY(28px) perspective(900px) rotateX(4deg);
+    transform: translateY(22px) perspective(900px) rotateX(4deg);
   }
   to {
     opacity: 1;
@@ -1093,29 +1460,58 @@
 
 .landing-reveal {
   opacity: 0;
-  transform: translateY(16px);
+  transform: translateY(12px);
 }
 
 .landing-reveal.is-visible {
-  animation: landing-fade-up 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: landing-fade-up var(--landing-motion-enter) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
   animation-delay: var(--landing-delay, 0ms);
 }
 
-.landing-reveal.is-eager,
-.landing-reveal.is-eager.is-visible {
+/* Eager: wrapper quieto; stagger en .landing-hero-enter-item */
+.landing-reveal.is-eager {
   opacity: 1;
   transform: none;
   animation: none;
 }
 
+.landing-reveal.is-eager .landing-hero-enter-item {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.landing-reveal.is-eager.is-visible .landing-hero-enter-item {
+  animation: landing-fade-up var(--landing-motion-enter) cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+/* F1: H1 → sub → CTAs → trust hint (brand vive en chrome; preview vía delayMs). */
+.landing-reveal.is-eager.is-visible .landing-hero-enter-item:nth-child(1) {
+  animation-delay: 180ms;
+}
+
+.landing-reveal.is-eager.is-visible .landing-hero-enter-item:nth-child(2) {
+  animation-delay: 300ms;
+}
+
+.landing-reveal.is-eager.is-visible .landing-hero-enter-item:nth-child(3) {
+  animation-delay: 420ms;
+}
+
+.landing-reveal.is-eager.is-visible .landing-hero-enter-item:nth-child(4) {
+  animation-delay: 540ms;
+}
+
 .landing-reveal.landing-preview-rise {
-  transform: translateY(28px) perspective(900px) rotateX(4deg);
+  transform: translateY(22px) perspective(900px) rotateX(4deg);
   transform-origin: 50% 100%;
 }
 
 .landing-reveal.landing-preview-rise.is-visible {
-  animation: landing-preview-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--landing-delay, 120ms);
+  animation: landing-preview-rise var(--landing-motion-preview-rise)
+    cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--landing-delay, 780ms);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1132,13 +1528,60 @@
     animation: none;
   }
 
+  .landing-reveal.is-eager .landing-hero-enter-item,
+  .landing-reveal.is-eager.is-visible .landing-hero-enter-item {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
   .landing-preview-frame {
     transform: none;
   }
 
-  .landing-hero.is-visual-ready .landing-hero-photo,
-  .landing-hero.is-visual-ready .landing-hero-route {
+  .landing-preview-crop,
+  .landing-preview-crop.is-enter,
+  .landing-preview-crop.is-under {
+    transition: none;
     animation: none;
+    opacity: 1;
+  }
+
+  /* Carrusel evidencia: mantiene fade+slide corto (pedido producto) */
+  .landing-preview-crop-stack.is-carousel-slide .landing-preview-crop.is-under {
+    animation: landing-crop-slide-exit 280ms ease both;
+  }
+
+  .landing-preview-crop-stack.is-carousel-slide .landing-preview-crop.is-enter {
+    animation: landing-crop-slide-enter 280ms cubic-bezier(0.22, 1, 0.36, 1)
+      both;
+  }
+
+  .landing-evidence-copy {
+    transition:
+      opacity 220ms ease,
+      transform 220ms ease;
+  }
+
+  .landing-evidence-copy.is-fading {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+
+  .landing-plan-col,
+  .landing-plan-name,
+  .landing-plan-eyebrow,
+  .landing-fleet-selector-option {
+    transition: none;
+  }
+
+  .landing-hero.is-visual-ready .landing-hero-photo,
+  .landing-hero.is-visual-ready .landing-hero-route,
+  .landing-hero.is-visual-ready .landing-hero-trust {
+    opacity: 1;
+    transform: none;
+    animation: none;
+    will-change: auto;
   }
 
   .landing-hero-cta:hover {

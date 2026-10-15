@@ -114,8 +114,10 @@ export const landingCopy = {
           "Asignación a viajes",
           "Estatus operativo",
         ],
-        /** Índice en preview.navItems para resaltar el mock. */
+        /** Índice en preview.navItems para resaltar el mock (fallback). */
         previewNavIndex: 2,
+        /** Crop A3 — `public/commercial/product/…` */
+        previewAssetId: "product-preview-fleet" as const,
       },
       {
         title: "Viajes",
@@ -128,6 +130,7 @@ export const landingCopy = {
           "Equipo de apoyo y su compensación",
         ],
         previewNavIndex: 1,
+        previewAssetId: "product-preview-trips" as const,
       },
       {
         title: "Clientes y personal",
@@ -139,6 +142,7 @@ export const landingCopy = {
           "Roles y permisos para oficina, patio y finanzas",
         ],
         previewNavIndex: 3,
+        previewAssetId: "product-preview-clients" as const,
       },
       {
         title: "Facturación y finanzas",
@@ -150,6 +154,7 @@ export const landingCopy = {
           "Exposición de crédito (sin bloqueo)",
         ],
         previewNavIndex: 4,
+        previewAssetId: "product-preview-billing" as const,
       },
     ],
   },
@@ -193,13 +198,17 @@ export const landingCopy = {
 
   pricing: {
     id: "pricing",
-    title: "Planes Operación",
+    /** F3 D8: voz patio (capacidad de flota), no catálogo SaaS. */
+    title: "Tu banda de flota",
     subtitle:
-      "Pagas por motriz. Cada banda incluye cupo de usuarios, sucursales e historial consultable — sin cargo fijo de cuenta.",
-    /** Footnote suave: sin promesa de descuento anual como SoT. */
+      "Pagas por motriz según el tamaño de tu flota. Cada banda trae cupos de usuarios, sucursales e historial — sin cargo fijo de cuenta.",
+    /**
+     * Footnote de sección (D6): anual + opcionales se renderizan juntos.
+     * Sin promesa de descuento anual como SoT.
+     */
     annualNote: "¿Facturación anual? Consulta con ventas.",
     optionalsNote:
-      "Opcionales y packs se contratan aparte y no incluyen capacidad extra del plan.",
+      "Opcionales y packs se contratan aparte; no suman capacidad a la banda.",
     optionalsLink: "Ver opcionales",
     priceHint:
       "Precios MXN por motriz · mes · sin IVA · sin cargo fijo de cuenta · prueba 14 días sin tarjeta",
@@ -213,12 +222,12 @@ export const landingCopy = {
     popularBadge: "Más elegido",
     popularCode: "operacion_pequena",
     featureLabels: {
-      fleet: "Motrices (rango de la banda)",
+      fleet: "Motrices",
       users: "Usuarios",
       branches: "Sucursales",
       stamps: "Timbres / motriz",
       history: "Historial",
-      l0: "Núcleo incluido (CFDI, Carta Porte, REP)",
+      l0: "Núcleo incluido",
     },
     audiences: {
       operacion_micro:
@@ -227,10 +236,10 @@ export const landingCopy = {
       operacion_mediana: "31 a 100 motrices: varias sucursales y más equipo.",
       operacion_grande: "Más de 100 motrices: precio y cupos a medida.",
     } as Record<string, string>,
-    /** F3: solo highlight UI; no muta precios SoT. */
+    /** Selector: solo highlight UI; no muta precios SoT. */
     fleetSelector: {
       label: "¿Cuántas motrices?",
-      hint: "Resalta la banda que te corresponde. Los precios no cambian.",
+      hint: "Marca tu flota y vemos la banda que te queda.",
       options: [
         {
           id: "1-5",

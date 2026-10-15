@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, UserPlus } from "lucide-react";
 import { Button } from "@shared/ui/button";
@@ -12,6 +12,7 @@ import { LandingHeroVisual } from "./LandingHeroVisual";
 import { LandingProductPreview } from "./LandingProductPreview";
 import { LandingFleetSizeSelector } from "./LandingFleetSizeSelector";
 import { LandingFaq } from "./LandingFaq";
+import { prefetchCommercialAsset } from "./landingPrefetch";
 import "./landing.css";
 
 function planCodeForFleetOption(optionId: string): string {
@@ -22,10 +23,10 @@ function planCodeForFleetOption(optionId: string): string {
 }
 
 /**
- * Landing pública (`/welcome`): embudo D1–D12 · look «Señal de patio» (F2+F3).
- * Secuencia F3: Hero(+UI) → Trust → Evidencia → Precios → FAQ → CTA → Opcionales → Footer.
+ * Landing pública (`/welcome`): embudo D1–D12 · look «Señal de patio».
+ * Secuencia: Hero(+chrome+UI) → Trust → Evidencia → Precios → FAQ → CTA → Opcionales → Footer.
  * Máx. 3 LandingReveal: hero copy (eager), preview, CTA cierre.
- * Path-draw SVG en hero: omitido (F2 truck/route bastan; reduced-motion ya cubierto).
+ * F1: chrome on-dark dentro del hero. F2: sticky elevated + lockup al salir del hero.
  */
 const LandingPage = () => {
   return (
@@ -34,7 +35,6 @@ const LandingPage = () => {
         {landingCopy.skipLink}
       </a>
 
-      <Header />
       <main id="contenido">
         <HeroSection />
         <EvidenceSection />
@@ -49,9 +49,29 @@ const LandingPage = () => {
   );
 };
 
-const Header = () => {
+/**
+ * Chrome único (F1+F2): on-dark en hero; `is-stuck` elevated al cruzar el umbral
+ * del hero (IntersectionObserver sobre `[data-landing-hero]`). Sin nav duplicado.
+ */
+const HeroChrome = () => {
   const { brand, nav } = landingCopy;
   const { open: registrationOpen } = usePublicSelfServeRegister();
+  const [stuck, setStuck] = useState(false);
+
+  useEffect(() => {
+    const heroEl = document.querySelector("[data-landing-hero]");
+    if (!heroEl || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setStuck(entry ? !entry.isIntersecting : false);
+      },
+      { threshold: 0, rootMargin: "0px" },
+    );
+
+    observer.observe(heroEl);
+    return () => observer.disconnect();
+  }, []);
 
   const navLinks = [
     { href: `#${landingCopy.evidence.id}`, label: nav.product },
@@ -59,15 +79,22 @@ const Header = () => {
   ];
 
   return (
-    <header className="landing-header sticky top-0 z-50">
+    <header
+      className={cn("landing-hero-chrome", stuck && "is-stuck")}
+      data-landing-hero-chrome
+      data-stuck={stuck ? "true" : "false"}
+    >
       <div className="landing-shell flex h-16 items-center justify-between gap-3">
         <Link
           to="/welcome"
           className="flex shrink-0 items-center gap-2"
           aria-label={brand}
+          data-landing-lockup={stuck ? "brand" : "hero-mixed"}
         >
           <BrandLockup
-            variant="brand"
+            /* D9: hero (foto ink) = mark teal + wordmark onInk; stuck (elevated) = brand. */
+            variant={stuck ? "brand" : "onInk"}
+            markVariant="brand"
             decorative
             markSize={32}
             wordmarkClassName="text-xl sm:text-2xl"
@@ -75,7 +102,7 @@ const Header = () => {
         </Link>
 
         <nav
-          className="landing-header-nav hidden items-center gap-6 md:flex"
+          className="landing-hero-chrome-nav hidden items-center gap-6 md:flex"
           aria-label="Secciones"
         >
           {navLinks.map((link) => (
@@ -90,17 +117,13 @@ const Header = () => {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <a
-            href={`#${landingCopy.pricing.id}`}
-            className="landing-muted-text hover:text-[color:var(--landing-ink)] text-sm font-medium transition-colors md:hidden"
-          >
-            {nav.pricing}
-          </a>
           <Button
             variant="ghost"
             size="sm"
             asChild
-            className="landing-btn-ghost-ink"
+            className={
+              stuck ? "landing-btn-ghost-ink" : "landing-btn-ghost-on-dark"
+            }
           >
             <Link to="/login">{nav.login}</Link>
           </Button>
@@ -116,7 +139,11 @@ const Header = () => {
               asChild
               size="sm"
               variant="outline"
-              className="landing-btn-outline-ink"
+              className={
+                stuck
+                  ? "landing-btn-outline-ink"
+                  : "landing-btn-outline-on-dark"
+              }
             >
               <a href="mailto:ventas@boeltech.com">{nav.contactSales}</a>
             </Button>
@@ -136,27 +163,20 @@ const HeroSection = () => {
       <LandingHeroVisual />
       <div className="landing-hero-scrim" aria-hidden />
 
+      <HeroChrome />
+
       <div className="landing-shell landing-hero-content">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
           <div className="landing-hero-copy relative z-10 mx-auto w-full max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
             <LandingReveal eager>
-              <div className="landing-hero-brand mb-6 flex flex-col items-center gap-0 lg:items-start">
-                <BrandLockup
-                  variant="onBrand"
-                  markSize={40}
-                  wordmarkClassName="text-2xl sm:text-3xl"
-                />
-                <span className="landing-hero-brand-rule" aria-hidden />
-              </div>
-
-              <h1 className="landing-display text-[color:var(--landing-on-dark)]">
+              <h1 className="landing-hero-enter-item landing-display text-[color:var(--landing-on-dark)]">
                 {hero.title}
               </h1>
-              <p className="landing-hero-support mx-auto mt-6 text-base md:text-lg lg:mx-0">
+              <p className="landing-hero-enter-item landing-hero-support mx-auto mt-6 text-base md:text-lg lg:mx-0">
                 {hero.subtitle}
               </p>
 
-              <div className="mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5 lg:justify-start">
+              <div className="landing-hero-enter-item mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5 lg:justify-start">
                 {registrationOpen ? (
                   <Button
                     size="lg"
@@ -187,7 +207,7 @@ const HeroSection = () => {
                   {hero.ctaLogin}
                 </Link>
               </div>
-              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-[color:var(--landing-on-dark)]/70 lg:justify-start">
+              <p className="landing-hero-enter-item mt-4 flex items-center justify-center gap-2 text-sm text-[color:var(--landing-on-dark)]/70 lg:justify-start">
                 {registrationOpen ? (
                   <>
                     <span
@@ -203,8 +223,11 @@ const HeroSection = () => {
             </LandingReveal>
           </div>
 
-          {/* Preview junto al hero (prueba visual near fold) */}
-          <LandingReveal className="landing-preview-rise relative z-10">
+          {/* Preview al final de la orquestación hero (F2) */}
+          <LandingReveal
+            className="landing-preview-rise relative z-10"
+            delayMs={780}
+          >
             <LandingProductPreview backdrop={false} />
           </LandingReveal>
         </div>
@@ -240,17 +263,103 @@ const TrustStrip = () => {
   );
 };
 
-/** F3: tabs + mock narrado (A3 placeholder = preview/mock actual). */
+/** Intervalo autoplay carrusel evidencia (ms). */
+const EVIDENCE_AUTOPLAY_MS = 5500;
+/** Tras elegir un tab a mano, reinicia el reloj (ms). */
+const EVIDENCE_AUTOPLAY_RESUME_MS = 8000;
+/** Fade+slide del copy al cambiar beat (alineado a crossfade crop). */
+const EVIDENCE_COPY_FADE_MS = 280;
+
+/** F3: tabs + crops A3 por beat (fallback mock si asset disabled). F1: fade copy + crossfade crop. F2: prefetch crops. */
 const EvidenceSection = () => {
   const { evidence, product } = landingCopy;
   const [activeIndex, setActiveIndex] = useState(0);
-  const active = product.items[activeIndex] ?? product.items[0]!;
+  const [displayedIndex, setDisplayedIndex] = useState(0);
+  const [copyFading, setCopyFading] = useState(false);
+  const [sectionInView, setSectionInView] = useState(true);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeIndexRef = useRef(0);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const resumeAtRef = useRef(0);
+  const active = product.items[displayedIndex] ?? product.items[0]!;
   const tablistId = "landing-evidence-tabs";
+  const beatCount = product.items.length;
+
+  activeIndexRef.current = activeIndex;
+
+  useEffect(() => {
+    return () => {
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
+  }, []);
+
+  /* F2 D2: al montar, prefetch del siguiente beat (index+1). */
+  useEffect(() => {
+    const nextBeat = product.items[1];
+    if (nextBeat) prefetchCommercialAsset(nextBeat.previewAssetId);
+  }, [product.items]);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setSectionInView(Boolean(entry?.isIntersecting)),
+      { threshold: 0.12 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  const selectBeat = useCallback((next: number) => {
+    if (next === activeIndexRef.current) return;
+    setActiveIndex(next);
+
+    /* Siempre fade+slide del copy (carrusel); el crop usa carouselMotion. */
+    setCopyFading(true);
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    fadeTimerRef.current = setTimeout(() => {
+      setDisplayedIndex(next);
+      setCopyFading(false);
+      fadeTimerRef.current = null;
+    }, EVIDENCE_COPY_FADE_MS);
+  }, []);
+
+  const selectBeatManual = useCallback(
+    (next: number) => {
+      resumeAtRef.current = Date.now() + EVIDENCE_AUTOPLAY_RESUME_MS;
+      selectBeat(next);
+    },
+    [selectBeat],
+  );
+
+  /*
+   * Carrusel: avanza en vista; fade+slide en copy/crop (carouselMotion).
+   * No pausa en hover. Tras click manual espera EVIDENCE_AUTOPLAY_RESUME_MS.
+   */
+  useEffect(() => {
+    if (!sectionInView || beatCount < 2) return;
+
+    const id = window.setInterval(() => {
+      if (Date.now() < resumeAtRef.current) return;
+      const next = (activeIndexRef.current + 1) % beatCount;
+      prefetchCommercialAsset(product.items[next]!.previewAssetId);
+      selectBeat(next);
+    }, EVIDENCE_AUTOPLAY_MS);
+
+    return () => window.clearInterval(id);
+  }, [sectionInView, beatCount, product.items, selectBeat]);
+
+  const prefetchBeat = (index: number) => {
+    const beat = product.items[index];
+    if (beat) prefetchCommercialAsset(beat.previewAssetId);
+  };
 
   return (
     <section
+      ref={sectionRef}
       id={evidence.id}
       className="landing-band landing-band-surface landing-evidence scroll-mt-20 py-16 md:py-20"
+      data-landing-evidence-autoplay={sectionInView ? "on" : "offscreen"}
     >
       <div className="landing-shell">
         <div className="mx-auto max-w-2xl text-center">
@@ -280,7 +389,9 @@ const EvidenceSection = () => {
                     "landing-evidence-tab",
                     selected && "is-active",
                   )}
-                  onClick={() => setActiveIndex(index)}
+                  onClick={() => selectBeatManual(index)}
+                  onMouseEnter={() => prefetchBeat(index)}
+                  onFocus={() => prefetchBeat(index)}
                   onKeyDown={(event) => {
                     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
                       return;
@@ -290,7 +401,7 @@ const EvidenceSection = () => {
                     const next =
                       (index + delta + product.items.length) %
                       product.items.length;
-                    setActiveIndex(next);
+                    selectBeatManual(next);
                     requestAnimationFrame(() => {
                       document
                         .getElementById(`${tablistId}-tab-${next}`)
@@ -310,7 +421,12 @@ const EvidenceSection = () => {
             id={`${tablistId}-panel`}
             aria-labelledby={`${tablistId}-tab-${activeIndex}`}
           >
-            <div className="landing-evidence-copy">
+            <div
+              className={cn(
+                "landing-evidence-copy",
+                copyFading && "is-fading",
+              )}
+            >
               <h3 className="landing-evidence-beat-title">{active.title}</h3>
               <p className="landing-muted-text mt-3 text-base leading-relaxed">
                 {active.description}
@@ -332,10 +448,15 @@ const EvidenceSection = () => {
             </div>
 
             <div className="landing-evidence-preview">
-              {/* A3: sin crops reales — mismo mock narrado por beat */}
               <LandingProductPreview
                 backdrop={false}
-                activeNavIndex={active.previewNavIndex}
+                carouselMotion
+                activeNavIndex={
+                  (product.items[activeIndex] ?? active).previewNavIndex
+                }
+                assetId={
+                  (product.items[activeIndex] ?? active).previewAssetId
+                }
               />
             </div>
           </div>
@@ -346,18 +467,33 @@ const EvidenceSection = () => {
 };
 
 const PricingSection = () => {
-  const { pricing, brand } = landingCopy;
+  const { pricing } = landingCopy;
   const { plans } = usePublicOperationalPlans();
   const { open: registrationOpen } = usePublicSelfServeRegister();
   const [fleetOptionId, setFleetOptionId] = useState<string>(
     pricing.fleetSelector.defaultOptionId,
   );
   const highlightedCode = planCodeForFleetOption(fleetOptionId);
+  const matchColRef = useRef<HTMLElement | null>(null);
+  const skipMatchScrollRef = useRef(true);
+
+  /* D7: en stack mobile, anclar la banda match al cambiar flota (no en mount). */
+  useEffect(() => {
+    if (skipMatchScrollRef.current) {
+      skipMatchScrollRef.current = false;
+      return;
+    }
+    const col = matchColRef.current;
+    if (!col || typeof window === "undefined") return;
+    const mobile = window.matchMedia("(max-width: 1023px)").matches;
+    if (!mobile) return;
+    col.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [highlightedCode]);
 
   return (
     <section
       id={pricing.id}
-      className="landing-band landing-band-muted scroll-mt-20 py-16 md:py-24"
+      className="landing-band landing-band-muted landing-pricing scroll-mt-20 py-16 md:py-20"
     >
       <div className="landing-shell">
         <div className="mx-auto max-w-2xl text-center">
@@ -388,6 +524,7 @@ const PricingSection = () => {
             return (
               <article
                 key={plan.code}
+                ref={isFleetMatch ? matchColRef : undefined}
                 role="listitem"
                 data-plan-code={plan.code}
                 className={cn(
@@ -476,15 +613,18 @@ const PricingSection = () => {
                 </dl>
 
                 <div className="landing-plan-actions">
+                  {/* F1: CTA ámbar solo en fleet-match; cotización Grande siempre outline. */}
                   <Button
                     className={cn(
                       "w-full",
-                      isPopular || isFleetMatch
+                      isFleetMatch && !isQuote
                         ? "landing-cta-amber"
                         : "landing-btn-outline-ink",
                     )}
                     size="lg"
-                    variant={isPopular || isFleetMatch ? "default" : "outline"}
+                    variant={
+                      isFleetMatch && !isQuote ? "default" : "outline"
+                    }
                     asChild
                   >
                     {isQuote ? (
@@ -512,27 +652,21 @@ const PricingSection = () => {
                     </Button>
                   ) : null}
                 </div>
-
-                <p className="landing-plan-footnote">
-                  {brand} · {plan.name}
-                </p>
               </article>
             );
           })}
         </div>
 
-        <div className="landing-muted-text mx-auto mt-10 max-w-2xl space-y-2 text-center text-sm">
-          <p>{pricing.annualNote}</p>
-          <p>
-            {pricing.optionalsNote}{" "}
-            <a
-              href={`#${landingCopy.optionals.id}`}
-              className="font-medium text-[color:var(--landing-brand)] hover:underline"
-            >
-              {pricing.optionalsLink}
-            </a>
-          </p>
-        </div>
+        {/* F3 D6: un solo footnote de sección (anual + opcionales + link). */}
+        <p className="landing-pricing-footnote">
+          {pricing.annualNote} {pricing.optionalsNote}{" "}
+          <a
+            href={`#${landingCopy.optionals.id}`}
+            className="font-medium text-[color:var(--landing-brand)] hover:underline"
+          >
+            {pricing.optionalsLink}
+          </a>
+        </p>
       </div>
     </section>
   );

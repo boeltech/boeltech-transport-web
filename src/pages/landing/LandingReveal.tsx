@@ -1,6 +1,6 @@
 /**
  * Reveal al entrar en viewport (IntersectionObserver, once).
- * `eager`: visible de inmediato (above-fold) sin opacity:0 ni IO.
+ * `eager`: above-fold — sin IO; en motion corre enter en mount; reduced-motion = visible frame 0.
  */
 import {
   useEffect,
@@ -17,11 +17,17 @@ type LandingRevealProps = {
   delayMs?: number;
   style?: CSSProperties;
   /**
-   * Above-fold: monta ya visible (sin gate de opacity).
-   * No usa IntersectionObserver.
+   * Above-fold: sin IntersectionObserver.
+   * Con motion: monta oculto y entra en el siguiente frame.
+   * Con reduced-motion: visible de inmediato (sin opacity:0 persistente).
    */
   eager?: boolean;
 };
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 export function LandingReveal({
   children,
@@ -33,12 +39,21 @@ export function LandingReveal({
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (eager) return;
-
     const el = ref.current;
     if (!el) return;
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (eager) {
+      if (prefersReducedMotion()) {
+        el.classList.add("is-visible");
+        return;
+      }
+      const id = window.requestAnimationFrame(() => {
+        el.classList.add("is-visible");
+      });
+      return () => window.cancelAnimationFrame(id);
+    }
+
+    if (prefersReducedMotion()) {
       el.classList.add("is-visible");
       return;
     }
@@ -59,11 +74,7 @@ export function LandingReveal({
   return (
     <div
       ref={ref}
-      className={cn(
-        "landing-reveal",
-        eager && "is-visible is-eager",
-        className,
-      )}
+      className={cn("landing-reveal", eager && "is-eager", className)}
       style={{
         ...style,
         ...(delayMs > 0

@@ -119,7 +119,7 @@ describe("landing pricing catalog consumer (F1 formatter shape)", () => {
 
 describe("landingCopy visitor MX (D6–D13)", () => {
   it("uses tuteo Pagas, not voseo Pagás", () => {
-    expect(landingCopy.pricing.subtitle).toMatch(/^Pagas /);
+    expect(landingCopy.pricing.subtitle).toMatch(/Pagas /);
     expect(allCopyBlob).not.toMatch(/Pagás/);
   });
 
@@ -199,9 +199,18 @@ describe("landingCopy visitor MX (D6–D13)", () => {
     expect(bullets).toContain("Alta de viaje por pasos");
     expect(bullets).toContain("Roles y permisos para oficina, patio y finanzas");
     expect(bullets).toContain("Aprobaciones de gastos y operación");
-    expect(landingCopy.pricing.featureLabels.fleet).toBe(
-      "Motrices (rango de la banda)",
+    expect(landingCopy.pricing.featureLabels.fleet).toBe("Motrices");
+    expect(landingCopy.pricing.featureLabels.l0).toBe("Núcleo incluido");
+  });
+
+  it("F3 pricing: patio frame copy without catalog SaaS tone", () => {
+    expect(landingCopy.pricing.title.toLowerCase()).toMatch(/flota|motriz|banda/);
+    expect(landingCopy.pricing.subtitle.toLowerCase()).toMatch(/flota/);
+    expect(landingCopy.pricing.fleetSelector.hint.toLowerCase()).toMatch(
+      /flota|banda/,
     );
+    expect(landingCopy.pricing.familyLabel).toBe("Operación");
+    expect(landingCopy.pricing.popularBadge).toBe("Más elegido");
   });
 });
 
