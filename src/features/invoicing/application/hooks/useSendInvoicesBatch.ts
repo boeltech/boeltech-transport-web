@@ -13,7 +13,7 @@ import type {
   SendInvoiceBatchGroupStatus,
 } from "@features/invoicing/domain";
 import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
-import { invoiceQueryKeys } from "./useInvoices";
+import { invoiceQueryKeys } from "../invoiceQueryKeys";
 import {
   invalidateDispatchLists,
   pollSendBatchUntilSettled,

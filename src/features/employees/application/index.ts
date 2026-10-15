@@ -1,3 +1,4 @@
+export { employeeQueryKeys } from "./employeeQueryKeys";
 export {
   useEmployees,
   useEmployee,
@@ -6,5 +7,4 @@ export {
   useTerminateEmployee,
   useAvailableEmployeesForDriver,
   useEmployeeBasic,
-  employeeQueryKeys,
 } from "./hooks/useEmployees";

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateApprovalsRelatedQueries } from "@features/approvals/application";
 import type {
   ApprovalGuards,
@@ -10,12 +10,15 @@ import {
   type ListSettlementsParams,
   type UpdateSettlementPayload,
 } from "../../infrastructure/settlementsApi";
+import { invalidateSettlementQueries } from "../invalidateSettlementsQueries";
 import { settlementsQueryKeys } from "../settlementsQueryKeys";
 import type { SettlementStatus } from "../../domain/enums";
 import type {
   CreateSettlementFormData,
   DisburseSettlementFormData,
 } from "../../presentation/validation/settlementSchemas";
+
+export { invalidateSettlementQueries } from "../invalidateSettlementsQueries";
 
 export function useSettlements(
   params: ListSettlementsParams & { enabled?: boolean } = {},
@@ -101,22 +104,6 @@ export function useSubmitSettlement() {
       invalidateApprovalsRelatedQueries(queryClient);
     },
   });
-}
-
-/** Liquidaciones, detalle, anticipos y bandeja (guardas ADR-0099: recargar, no reintentar). */
-export function invalidateSettlementQueries(queryClient: QueryClient, id?: string) {
-  if (id) {
-    queryClient.invalidateQueries({
-      queryKey: settlementsQueryKeys.settlementDetail(id),
-    });
-  }
-  queryClient.invalidateQueries({
-    queryKey: settlementsQueryKeys.settlements(),
-  });
-  queryClient.invalidateQueries({
-    queryKey: settlementsQueryKeys.advances(),
-  });
-  invalidateApprovalsRelatedQueries(queryClient);
 }
 
 type SettlementDecisionVariables = string | { id: string; guards?: ApprovalGuards };

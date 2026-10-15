@@ -5,6 +5,18 @@
  * Exporta todos los casos de uso
  */
 
+export {
+  tripQueryKeys,
+  cargoQueryKeys,
+  expenseQueryKeys,
+} from "./tripsQueryKeys";
+
+export {
+  TRIPS_LIST_PATH,
+  TRIPS_FISCAL_ATTENTION_PARAM,
+  buildTripsFiscalAttentionHref,
+} from "./tripsRoutes";
+
 // React Query hooks
 export {
   CargoError,

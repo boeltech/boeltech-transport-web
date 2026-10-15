@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import { settlementsQueryKeys } from "@features/settlements/application";
-import { tripQueryKeys } from "@features/trips/domain";
+import { tripQueryKeys } from "@features/trips/application/tripsQueryKeys";
 import { approvalsQueryKeys } from "./approvalsQueryKeys";
 import { invalidateApprovalsRelatedQueries } from "./invalidateApprovalsQueries";
 

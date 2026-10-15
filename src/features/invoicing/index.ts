@@ -64,6 +64,11 @@ export {
 } from "./presentation/components";
 
 export {
+  buildInvoiceCreateHref,
+  type InvoiceCreateHrefParams,
+} from "./application/invoiceCreateHref";
+
+export {
   buildInvoiceCreatePathFromTrip,
   buildTripInvoicingHubPath,
   shouldOpenInvoiceCreateFromFinanceHub,

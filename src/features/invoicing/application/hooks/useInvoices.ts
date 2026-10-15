@@ -14,7 +14,7 @@ import { useRef } from "react";
 import { devRefetchIntervalFn } from "@/shared/config/devPolling";
 import { useToast } from "@shared/hooks";
 import { invoicingApi } from "@features/invoicing/infrastructure";
-import { tripQueryKeys } from "@features/trips/domain";
+import { tripQueryKeys } from "@features/trips/application/tripsQueryKeys";
 import type {
   Invoice,
   Payment,
@@ -31,31 +31,11 @@ import type {
   SendInvoiceBatchResult,
 } from "@features/invoicing/domain";
 import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
+import { invoiceQueryKeys } from "../invoiceQueryKeys";
 import { invalidateFiscalCorrectionResources } from "../invalidateFiscalCorrectionResources";
 import { pollSendBatchUntilSettled } from "./sendBatchPoll";
 
-// ============================================================================
-// QUERY KEYS
-// ============================================================================
-
-export const invoiceQueryKeys = {
-  all: ["invoices"] as const,
-  lists: () => [...invoiceQueryKeys.all, "list"] as const,
-  list: (filters?: InvoiceFilters) =>
-    [...invoiceQueryKeys.lists(), filters] as const,
-  details: () => [...invoiceQueryKeys.all, "detail"] as const,
-  detail: (id: string) => [...invoiceQueryKeys.details(), id] as const,
-  payments: (id: string) =>
-    [...invoiceQueryKeys.detail(id), "payments"] as const,
-  prefills: () => [...invoiceQueryKeys.all, "prefill"] as const,
-  prefill: (
-    tripId: string,
-    scope: InvoiceBillingScope = "primary_transport",
-    legId?: string | null,
-  ) => [...invoiceQueryKeys.prefills(), tripId, scope, legId ?? null] as const,
-  sendRecipients: (id: string) =>
-    [...invoiceQueryKeys.detail(id), "send-recipients"] as const,
-};
+export { invoiceQueryKeys };
 
 /** Prefix for every trip+scope prefill. Client fiscal edits must evict this. */
 const invoicePrefillQueriesKey = invoiceQueryKeys.prefills();

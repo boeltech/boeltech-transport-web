@@ -1,7 +1,5 @@
 import { useCallback, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { approvalsQueryKeys } from "@features/approvals/application/approvalsQueryKeys";
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import type {
   ApprovalConcept,
   ApprovalRules,
@@ -11,6 +9,7 @@ import type {
 import { getPolicyOrphanGuardError } from "../../domain/policyErrors";
 import { approvalPoliciesApi, type SavePolicyInput } from "../../infrastructure/approvalPoliciesApi";
 import { approvalPoliciesQueryKeys } from "../approvalPoliciesQueryKeys";
+import { invalidateApprovalPoliciesQueries } from "../invalidateApprovalPoliciesQueries";
 
 export function useApprovalPolicies() {
   return useQuery({
@@ -46,9 +45,7 @@ export function usePolicyVersions(concept: ApprovalConcept | null, page: number)
 function useInvalidateAfterPolicyChange() {
   const queryClient = useQueryClient();
   return useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: approvalPoliciesQueryKeys.all });
-    void queryClient.invalidateQueries({ queryKey: approvalsQueryKeys.all });
-    void queryClient.invalidateQueries({ queryKey: settlementsQueryKeys.settings() });
+    invalidateApprovalPoliciesQueries(queryClient);
   }, [queryClient]);
 }
 
