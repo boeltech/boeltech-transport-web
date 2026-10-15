@@ -51,13 +51,29 @@ describe("LoginPage MFA challenge clear", () => {
     });
   });
 
+  it("keeps password visibility toggle in the tab order (F1)", () => {
+    renderPage();
+    const toggle = screen.getByRole("button", { name: /Mostrar contraseña/i });
+    expect(toggle).not.toHaveAttribute("tabindex", "-1");
+  });
+
+  it("left-aligns the form heading (F1)", () => {
+    renderPage();
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading.closest("header")).toHaveClass("text-left");
+  });
+
   async function reachMfaStep(user: ReturnType<typeof userEvent.setup>) {
     renderPage();
     await user.type(screen.getByLabelText(/Empresa/i), "acme");
     await user.type(screen.getByLabelText(/Correo electrónico/i), "a@b.com");
     await user.type(screen.getByLabelText(/^Contraseña$/i), "password1");
     await user.click(screen.getByRole("button", { name: /^Entrar$/i }));
-    await screen.findByText(/Verificación en dos pasos/i);
+    // Heading (no getByText: aria-live también menciona «verificación en dos pasos»).
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /Verificación en dos pasos/i,
+    });
   }
 
   it("clears MFA step on MFA_CHALLENGE_EXPIRED", async () => {
@@ -76,7 +92,10 @@ describe("LoginPage MFA challenge clear", () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByText(/Verificación en dos pasos/i),
+        screen.queryByRole("heading", {
+          level: 1,
+          name: /Verificación en dos pasos/i,
+        }),
       ).not.toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: /^Entrar$/i })).toBeInTheDocument();
@@ -95,6 +114,30 @@ describe("LoginPage MFA challenge clear", () => {
     await waitFor(() => {
       expect(verifyMfaLogin).toHaveBeenCalled();
     });
-    expect(screen.getByText(/Verificación en dos pasos/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: /Verificación en dos pasos/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("announces MFA step 2 (aria-live) and focuses the code field (F3)", async () => {
+    const user = userEvent.setup();
+    await reachMfaStep(user);
+
+    const live = screen.getByText(
+      /Paso 2 de 2: verificación en dos pasos\. Ingresa el código/i,
+    );
+    expect(live).toHaveAttribute("aria-live", "polite");
+    expect(
+      screen.getByText(/Paso 2 de 2\. Ingresa el código de 6 dígitos/i),
+    ).toBeInTheDocument();
+
+    const code = screen.getByLabelText(/^Código$/i);
+    expect(code).toHaveAttribute("id", "mfa-code");
+    await waitFor(() => {
+      expect(code).toHaveFocus();
+    });
   });
 });

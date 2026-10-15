@@ -29,7 +29,10 @@ export const loginCopy = {
   mfa: {
     title: "Verificación en dos pasos",
     description:
-      "Ingresa el código de 6 dígitos de tu app de autenticación, o un código de recuperación.",
+      "Paso 2 de 2. Ingresa el código de 6 dígitos de tu app de autenticación, o un código de recuperación.",
+    /** aria-live al entrar al paso MFA (inline, misma página). */
+    stepAnnouncement:
+      "Paso 2 de 2: verificación en dos pasos. Ingresa el código de tu app de autenticación.",
     codeLabel: "Código",
     codePlaceholder: "000000",
     codeRequired: "Ingresa el código de 6 dígitos.",

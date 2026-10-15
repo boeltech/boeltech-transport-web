@@ -27,6 +27,8 @@ import {
   PrivateRoute,
   ModuleRoute,
   PermissionRoute,
+  RoleRoute,
+  DenyRolesRoute,
   AdminRoute,
   PlatformRoute,
 } from "./guards";
@@ -37,6 +39,8 @@ import {
 import { AppLayout } from "@widgets/layout";
 import { SettingsRoutes } from "@features/settings";
 import { StaffFinanceRoute } from "@features/finance";
+import { FINANCE_DISPATCH_PERIOD_PATH } from "@features/finance/application";
+import { ROLES } from "@shared/constants/roles";
 const AuthLayout = lazyWithRetry(() => import("@widgets/layout/ui/AuthLayout"));
 
 // ============================================
@@ -660,6 +664,13 @@ export const router = createBrowserRouter([
             path: "/settings/subscription",
             element: withSuspense(BillingSubscriptionPage),
           },
+          // Legacy billing-schemes → fuera de ModuleRoute settings (evita forbidden)
+          {
+            path: "/settings/billing-schemes",
+            element: (
+              <Navigate to={FINANCE_DISPATCH_PERIOD_PATH} replace />
+            ),
+          },
 
           // ========================================
           // Módulo: Trips (Viajes)
@@ -679,6 +690,11 @@ export const router = createBrowserRouter([
                 path: "/trips",
                 element: withSuspense(TripsListPage),
               },
+              // Legacy finish → Seguimiento; read basta (driver no tiene update).
+              {
+                path: "/trips/:id/finish",
+                element: withSuspense(FinishTripRedirect),
+              },
             ],
           },
           // Trips - Create (requiere permiso)
@@ -691,83 +707,85 @@ export const router = createBrowserRouter([
               },
             ],
           },
-          // Trips - Finish (requiere permiso)
-          {
-            element: <PermissionRoute module="trips" action="update" />,
-            children: [
-              {
-                path: "/trips/:id/finish",
-                element: withSuspense(FinishTripRedirect),
-              },
-            ],
-          },
 
           // ========================================
           // Módulo: Vehicles (Vehículos)
+          // Ola 9: driver denegado en web (permisos API/mobile intactos)
           // ========================================
           {
-            element: <ModuleRoute module="vehicles" />,
+            element: <DenyRolesRoute roles={[ROLES.DRIVER]} />,
             children: [
               {
-                path: "/vehicles",
-                element: withSuspense(VehicleListPage),
+                element: <ModuleRoute module="vehicles" />,
+                children: [
+                  {
+                    path: "/vehicles",
+                    element: withSuspense(VehicleListPage),
+                  },
+                  {
+                    path: "/vehicles/:id",
+                    element: withSuspense(VehicleDetailPage),
+                  },
+                ],
               },
               {
-                path: "/vehicles/:id",
-                element: withSuspense(VehicleDetailPage),
+                element: <PermissionRoute module="vehicles" action="create" />,
+                children: [
+                  {
+                    path: "/vehicles/new",
+                    element: withSuspense(CreateVehiclePage),
+                  },
+                ],
               },
-            ],
-          },
-          {
-            element: <PermissionRoute module="vehicles" action="create" />,
-            children: [
               {
-                path: "/vehicles/new",
-                element: withSuspense(CreateVehiclePage),
-              },
-            ],
-          },
-          {
-            element: <PermissionRoute module="vehicles" action="update" />,
-            children: [
-              {
-                path: "/vehicles/:id/edit",
-                element: withSuspense(EditVehiclePage),
+                element: <PermissionRoute module="vehicles" action="update" />,
+                children: [
+                  {
+                    path: "/vehicles/:id/edit",
+                    element: withSuspense(EditVehiclePage),
+                  },
+                ],
               },
             ],
           },
 
           // ========================================
           // Módulo: Trailers (Remolques) — ADR-0077
+          // Ola 9: driver denegado en web (permisos API/mobile intactos)
           // ========================================
           {
-            element: <ModuleRoute module="trailers" />,
+            element: <DenyRolesRoute roles={[ROLES.DRIVER]} />,
             children: [
               {
-                path: "/trailers",
-                element: withSuspense(TrailerListPage),
+                element: <ModuleRoute module="trailers" />,
+                children: [
+                  {
+                    path: "/trailers",
+                    element: withSuspense(TrailerListPage),
+                  },
+                  {
+                    path: "/trailers/:id",
+                    element: withSuspense(TrailerDetailPage), // redirect → /trailers
+                  },
+                ],
               },
               {
-                path: "/trailers/:id",
-                element: withSuspense(TrailerDetailPage), // redirect → /trailers
+                element: <PermissionRoute module="trailers" action="create" />,
+                children: [
+                  {
+                    path: "/trailers/new",
+                    element: withSuspense(CreateTrailerPage),
+                  },
+                ],
               },
-            ],
-          },
-          {
-            element: <PermissionRoute module="trailers" action="create" />,
-            children: [
               {
-                path: "/trailers/new",
-                element: withSuspense(CreateTrailerPage),
-              },
-            ],
-          },
-          {
-            element: <PermissionRoute module="trailers" action="update" />,
-            children: [
-              {
-                path: "/trailers/:id/edit",
-                element: withSuspense(EditTrailerPage),
+                element: <PermissionRoute module="trailers" action="update" />,
+                children: [
+                  {
+                    path: "/trailers/:id/edit",
+                    element: withSuspense(EditTrailerPage),
+                  },
+                ],
               },
             ],
           },
@@ -1007,7 +1025,12 @@ export const router = createBrowserRouter([
                 ],
               },
               {
-                element: <ModuleRoute module="invoices" />,
+                // Alineado al sidebar: admin / manager / accountant (no dispatcher).
+                element: (
+                  <RoleRoute
+                    roles={[ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT]}
+                  />
+                ),
                 children: [
                   {
                     path: "/finance/dispatch",
@@ -1186,8 +1209,14 @@ export const router = createBrowserRouter([
                 element: withSuspense(UsersListPage),
               },
               {
-                path: "/users/activity",
-                element: withSuspense(UserManagementActivityPage),
+                // Lockstep sidebar `users-activity` (roles: ADMIN only).
+                element: <RoleRoute roles={[ROLES.ADMIN]} />,
+                children: [
+                  {
+                    path: "/users/activity",
+                    element: withSuspense(UserManagementActivityPage),
+                  },
+                ],
               },
               {
                 path: "/users/:id",

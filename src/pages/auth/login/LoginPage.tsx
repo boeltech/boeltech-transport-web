@@ -24,9 +24,11 @@ import {
   tokenStorage,
   markFreshLoginSession,
   isMfaChallenge,
+  type UserJSON,
 } from "@features/auth";
 import { loginSchema, type LoginFormData } from "@features/auth";
 import { mapBackendError } from "@shared/utils/errorMapper";
+import { resolvePostLoginHref } from "@shared/utils/resolvePostLoginHref";
 import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
 import { AuthFunnelFormHeader } from "../AuthFunnelFormHeader";
 import { PasswordVisibilityToggle } from "../PasswordVisibilityToggle";
@@ -54,6 +56,7 @@ const LoginPage = () => {
   const [mfaCode, setMfaCode] = useState("");
   const [mfaFieldError, setMfaFieldError] = useState<string | null>(null);
   const [pendingSubdomain, setPendingSubdomain] = useState("");
+  const mfaCodeInputRef = useRef<HTMLInputElement>(null);
 
   const locationState =
     location.state as { from?: { pathname: string }; sessionExpired?: boolean } | null;
@@ -80,6 +83,13 @@ const LoginPage = () => {
     },
   });
 
+  // Ola 9: bounce si ya hay sesión ERP (paridad platform login; sin loop con PrivateRoute).
+  useEffect(() => {
+    if (!tokenStorage.hasSession()) return;
+    const role = tokenStorage.getUser()?.role;
+    navigate(resolvePostLoginHref(from, role), { replace: true });
+  }, [navigate, from]);
+
   useEffect(() => {
     reset({
       email: inviteEmail,
@@ -87,6 +97,12 @@ const LoginPage = () => {
       subdomain: subdomainFromQuery || savedSubdomain,
     });
   }, [inviteEmail, subdomainFromQuery, savedSubdomain, reset]);
+
+  // F3: al pasar al paso MFA, anunciar (aria-live) y enfocar el código.
+  useEffect(() => {
+    if (!mfaChallengeToken) return;
+    mfaCodeInputRef.current?.focus();
+  }, [mfaChallengeToken]);
 
   const fieldSummaryMessages = [
     errors.subdomain?.message,
@@ -97,9 +113,8 @@ const LoginPage = () => {
   const finishLogin = (response: {
     accessToken?: string;
     refreshToken?: string;
-    user: {
-      onboardingCompletedAt?: string | null;
-    };
+    user: Pick<UserJSON, "role" | "onboardingCompletedAt"> &
+      Parameters<typeof tokenStorage.setUser>[0];
   }, subdomain: string) => {
     if (response.accessToken && response.refreshToken) {
       tokenStorage.setToken(response.accessToken);
@@ -108,7 +123,7 @@ const LoginPage = () => {
       tokenStorage.removeToken();
       tokenStorage.removeRefreshToken();
     }
-    tokenStorage.setUser(response.user as Parameters<typeof tokenStorage.setUser>[0]);
+    tokenStorage.setUser(response.user);
     tokenStorage.setSubdomain(subdomain);
     markFreshLoginSession();
 
@@ -117,7 +132,7 @@ const LoginPage = () => {
       return;
     }
 
-    navigate(from, { replace: true });
+    navigate(resolvePostLoginHref(from, response.user.role), { replace: true });
   };
 
   const onSubmit = async (data: LoginFormData) => {
@@ -220,10 +235,14 @@ const LoginPage = () => {
 
       {mfaChallengeToken ? (
         <form onSubmit={onMfaSubmit} className="space-y-4">
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {copy.mfa.stepAnnouncement}
+          </p>
           <div className="space-y-2">
             <Label htmlFor="mfa-code">{copy.mfa.codeLabel}</Label>
             <Input
               id="mfa-code"
+              ref={mfaCodeInputRef}
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -233,7 +252,6 @@ const LoginPage = () => {
                 setMfaCode(ev.target.value);
                 if (mfaFieldError) setMfaFieldError(null);
               }}
-              autoFocus
               error={Boolean(mfaFieldError)}
               aria-invalid={Boolean(mfaFieldError)}
               aria-describedby={mfaFieldError ? "mfa-code-error" : undefined}

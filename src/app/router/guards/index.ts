@@ -7,6 +7,7 @@
 export { PrivateRoute } from "./PrivateRoute";
 export { PermissionRoute } from "./PermissionRoute";
 export { RoleRoute } from "./RoleRoute";
+export { DenyRolesRoute } from "./DenyRolesRoute";
 export { AdminRoute } from "./AdminRoute";
 export { ModuleRoute } from "./ModuleRoute";
 export { PlatformRoute } from "./PlatformRoute";

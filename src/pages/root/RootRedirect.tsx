@@ -9,24 +9,16 @@ import { tokenStorage } from "@features/auth";
  * Componente que maneja la ruta raíz ("/").
  *
  * Estrategia:
- * - Si hay token → asume autenticado → Dashboard
- * - Si no hay token → Login
+ * - Si hay marcador de sesión (`hasSession`, paridad PrivateRoute) → Dashboard
+ * - Si no → welcome / funnel
  *
- * La validación real del token la hace PrivateRoute/AuthProvider
- * cuando el usuario llegue al Dashboard. Si el token es inválido,
- * será redirigido a Login desde ahí.
- *
- * Ventajas:
- * - No hace llamada API innecesaria
- * - Redirect instantáneo
- * - La validación real ocurre una sola vez en AuthProvider
- *
- * La Landing Page tiene botones para ir al Login.
+ * En modo cookies no hay access token en localStorage; `hasSession` usa `erp_user`.
+ * La validación real la hace PrivateRoute/AuthProvider en el destino.
  */
 const RootRedirect = () => {
-  const hasToken = !!tokenStorage.getToken();
+  const hasSession = tokenStorage.hasSession();
 
-  if (hasToken) {
+  if (hasSession) {
     return <Navigate to="/dashboard" replace />;
   }
 
