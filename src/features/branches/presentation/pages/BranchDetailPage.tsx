@@ -405,6 +405,7 @@ export function BranchDetailPage() {
                                 branch.address.geolocationPending
                               }
                               editHref={`/branches/${branch.id}/edit`}
+                              editState={fromState}
                               canEdit={canUpdateBranch}
                               addressSummary={{
                                 postalCode: branch.address.postalCode,
@@ -439,7 +440,10 @@ export function BranchDetailPage() {
                   label: copy.tabs.team,
                   content: (
                     <div className="space-y-4">
-                      <BranchAssignedEmployeesCard branchId={branch.id} />
+                      <BranchAssignedEmployeesCard
+                        branchId={branch.id}
+                        fromState={fromState}
+                      />
                       <BranchAssignedVehiclesCard branchId={branch.id} />
                     </div>
                   ),

@@ -152,7 +152,12 @@ export const shellCopy = {
     backToList: "Volver a Viajes",
     backToListDriver: "Volver a Mis viajes",
     backToListClient: "Volver a Mis envíos",
+    /** Desde detalle de factura (`/invoices/:id`). */
+    backToInvoice: "Volver a la factura",
+    /** Desde listado Finanzas facturas. */
+    backToInvoices: "Volver a facturas",
     backToApprovals: "Volver a aprobaciones",
+    backToInvoiceable: "Volver a Por facturar",
     backToDispatch: "Volver a envíos",
     backToDispatchPeriod: "Volver a envíos del periodo",
     backToDispatchRun: "Volver al envío",

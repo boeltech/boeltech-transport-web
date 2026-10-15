@@ -11,6 +11,7 @@ import { AlertTriangle, CheckCircle2, FileKey, Loader2, Upload } from "lucide-re
 
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import { FieldInlineError } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
@@ -47,9 +48,34 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
   const [certificate, setCertificate] = useState<File | null>(null);
   const [privateKey, setPrivateKey] = useState<File | null>(null);
   const [password, setPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{
+    certificate?: string;
+    privateKey?: string;
+    password?: string;
+  }>({});
 
   const handleUpload = useCallback(() => {
-    if (!canUpload || !certificate || !privateKey || !password) return;
+    if (!canUpload) return;
+
+    const nextErrors: typeof fieldErrors = {};
+    if (!certificate) {
+      nextErrors.certificate = copy.validation.certificateRequired;
+    } else if (!certificate.name.toLowerCase().endsWith(".cer")) {
+      nextErrors.certificate = copy.validation.extensionCer;
+    }
+    if (!privateKey) {
+      nextErrors.privateKey = copy.validation.privateKeyRequired;
+    } else if (!privateKey.name.toLowerCase().endsWith(".key")) {
+      nextErrors.privateKey = copy.validation.extensionKey;
+    }
+    if (!password.trim()) {
+      nextErrors.password = copy.validation.passwordRequired;
+    }
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0 || !certificate || !privateKey) {
+      return;
+    }
+
     uploadMutation.mutate(
       { certificate, privateKey, password },
       {
@@ -57,6 +83,7 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
           setCertificate(null);
           setPrivateKey(null);
           setPassword("");
+          setFieldErrors({});
         },
       },
     );
@@ -68,12 +95,12 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
   return (
     <section
       id={BILLING_ANCHORS.certificate}
-      className="scroll-mt-24 rounded-lg border bg-card text-card-foreground shadow-sm"
+      className="scroll-mt-24 rounded-xl border bg-card text-card-foreground shadow-sm"
     >
       <div className="space-y-4 p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="font-medium">{copy.title}</h2>
+            <h2 className="text-base font-semibold">{copy.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {copy.description}
             </p>
@@ -128,7 +155,11 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
               accept=".cer"
               icon={<Upload className="mr-2 h-4 w-4" />}
               fileName={certificate?.name}
-              onChange={setCertificate}
+              errorMessage={fieldErrors.certificate}
+              onChange={(file) => {
+                setCertificate(file);
+                setFieldErrors((prev) => ({ ...prev, certificate: undefined }));
+              }}
             />
             <CertificateFileField
               inputId="privatekey-file"
@@ -136,18 +167,33 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
               accept=".key"
               icon={<FileKey className="mr-2 h-4 w-4" />}
               fileName={privateKey?.name}
-              onChange={setPrivateKey}
+              errorMessage={fieldErrors.privateKey}
+              onChange={(file) => {
+                setPrivateKey(file);
+                setFieldErrors((prev) => ({ ...prev, privateKey: undefined }));
+              }}
             />
 
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 space-y-1.5">
               <Label htmlFor="cert-password">{copy.password}</Label>
               <Input
                 id="cert-password"
                 type="password"
                 autoComplete="off"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby={
+                  fieldErrors.password ? "cert-password-error" : undefined
+                }
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                }}
                 placeholder={copy.passwordPlaceholder}
+              />
+              <FieldInlineError
+                fieldId="cert-password"
+                message={fieldErrors.password}
               />
             </div>
 
@@ -155,12 +201,7 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
               <Button
                 type="button"
                 onClick={handleUpload}
-                disabled={
-                  !certificate ||
-                  !privateKey ||
-                  !password ||
-                  uploadMutation.isPending
-                }
+                disabled={uploadMutation.isPending}
               >
                 {uploadMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -196,6 +237,7 @@ interface CertificateFileFieldProps {
   accept: string;
   icon: ReactNode;
   fileName?: string;
+  errorMessage?: string;
   onChange: (file: File | null) => void;
 }
 
@@ -205,17 +247,20 @@ function CertificateFileField({
   accept,
   icon,
   fileName,
+  errorMessage,
   onChange,
 }: CertificateFileFieldProps) {
   return (
-    <div>
+    <div className="space-y-1.5">
       <Label htmlFor={inputId}>{label}</Label>
-      <div className="mt-1">
+      <div>
         <input
           type="file"
           accept={accept}
           id={inputId}
           className="sr-only"
+          aria-invalid={Boolean(errorMessage)}
+          aria-describedby={errorMessage ? `${inputId}-error` : undefined}
           onChange={(event) => onChange(event.target.files?.[0] ?? null)}
         />
         <Button type="button" variant="outline" className="w-full justify-start" asChild>
@@ -225,6 +270,7 @@ function CertificateFileField({
           </label>
         </Button>
       </div>
+      <FieldInlineError fieldId={inputId} message={errorMessage} />
     </div>
   );
 }

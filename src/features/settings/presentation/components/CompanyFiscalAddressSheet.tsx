@@ -326,7 +326,11 @@ export const CompanyFiscalAddressSheet = memo(
 
     return (
       <Sheet open={open} onOpenChange={handleClose}>
-        <SheetContent className={SETTINGS_SHEET_WIDE_CONTENT_CLASS} side="right">
+        <SheetContent
+          className={SETTINGS_SHEET_WIDE_CONTENT_CLASS}
+          side="right"
+          onFocusOutside={(event) => event.preventDefault()}
+        >
           <SheetHeader className={SETTINGS_SHEET_HEADER_CLASS}>
             <SheetTitle>{copy.sheetTitle}</SheetTitle>
             <SheetDescription>{copy.sheetDescription}</SheetDescription>

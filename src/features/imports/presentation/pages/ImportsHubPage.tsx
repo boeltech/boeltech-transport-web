@@ -5,8 +5,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Upload } from "lucide-react";
-import { SettingsPageShell } from "@shared/ui/page-shells/SettingsPageShell";
-import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import { ListPageShell, SettingsPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import {
   Select,
@@ -148,7 +147,10 @@ export function ImportsHubPage() {
                 value={entityTypeFilter || "all"}
                 onValueChange={(value) => setFilter("entity_type", value)}
               >
-                <SelectTrigger className="w-44">
+                <SelectTrigger
+                  className="w-44"
+                  aria-label={copy.filters.entityType}
+                >
                   <SelectValue placeholder={copy.filters.entityType} />
                 </SelectTrigger>
                 <SelectContent>
@@ -165,7 +167,10 @@ export function ImportsHubPage() {
                 value={statusFilter || "all"}
                 onValueChange={(value) => setFilter("status", value)}
               >
-                <SelectTrigger className="w-44">
+                <SelectTrigger
+                  className="w-44"
+                  aria-label={copy.filters.status}
+                >
                   <SelectValue placeholder={copy.filters.status} />
                 </SelectTrigger>
                 <SelectContent>

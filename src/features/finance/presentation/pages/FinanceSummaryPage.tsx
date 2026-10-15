@@ -124,35 +124,33 @@ export function FinanceSummaryPage() {
   const hub = financeCopy.page.hub;
 
   return (
-    <div className="space-y-4">
+    <HubPageShell
+      title={hub.title}
+      description={hub.description}
+      orientation={{
+        text:
+          user?.role === ROLES.ACCOUNTANT
+            ? hub.orientationAccountant
+            : user?.role === ROLES.MANAGER
+              ? hub.orientationManager
+              : hub.orientation,
+      }}
+    >
       <ReportsReturnLink />
-      <HubPageShell
-        title={hub.title}
-        description={hub.description}
-        orientation={{
-          text:
-            user?.role === ROLES.ACCOUNTANT
-              ? hub.orientationAccountant
-              : user?.role === ROLES.MANAGER
-                ? hub.orientationManager
-                : hub.orientation,
-        }}
-      >
-        <FinanceCycleStepper steps={cycleSteps} />
-        <FinanceSummaryCards summary={summary} isLoading={isLoading} />
+      <FinanceCycleStepper steps={cycleSteps} />
+      <FinanceSummaryCards summary={summary} isLoading={isLoading} />
 
-        <FinanceAgingChart
-          agingSummary={agingSummary}
-          isLoading={agingLoading}
-          exportAction={agingExportAction}
-        />
+      <FinanceAgingChart
+        agingSummary={agingSummary}
+        isLoading={agingLoading}
+        exportAction={agingExportAction}
+      />
 
-        <FinanceAccountStatementSection
-          rows={rows}
-          isLoading={stmtLoading}
-          onCollectClient={handleCollectClient}
-        />
-      </HubPageShell>
-    </div>
+      <FinanceAccountStatementSection
+        rows={rows}
+        isLoading={stmtLoading}
+        onCollectClient={handleCollectClient}
+      />
+    </HubPageShell>
   );
 }

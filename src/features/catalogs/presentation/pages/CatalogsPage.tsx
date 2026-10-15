@@ -7,7 +7,6 @@
  */
 
 import { memo, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { AlertCircle, ChevronRight, Database } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
@@ -196,13 +195,10 @@ interface CatalogCardProps {
 }
 
 const CatalogCard = memo(function CatalogCard({ catalog }: CatalogCardProps) {
-  const navigate = useNavigate();
   const examples = getCatalogExamples(catalog.code);
 
   return (
-    <EntityListCard
-      onClick={() => navigate(`/settings/catalogs/${catalog.code}`)}
-    >
+    <EntityListCard to={`/settings/catalogs/${catalog.code}`}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-sm font-medium">{catalog.name}</h3>

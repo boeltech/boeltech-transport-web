@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation } from "react-router-dom";
 import type {
   FinanceInvoiceListItem,
   FinanceOpenPpdSummary,
@@ -136,6 +137,13 @@ function buildInvoice(
   };
 }
 
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <div data-testid="location-probe">{`${location.pathname}${location.search}`}</div>
+  );
+}
+
 describe("FinanceCobrosPage", () => {
   beforeEach(() => {
     openPpd.data = undefined;
@@ -213,6 +221,48 @@ describe("FinanceCobrosPage", () => {
 
     await waitFor(() => {
       expect(screen.queryByText("RFC: XAXX010101000")).not.toBeInTheDocument();
+    });
+  });
+
+  it("restaura bucket y rfc desde la URL (F5 / deep link)", () => {
+    openPpd.data = {
+      data: [buildInvoice()],
+      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+    };
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros?bucket=partial&rfc=XAXX010101000"],
+    });
+
+    expect(screen.getByRole("tab", { name: /Pago parcial/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText("RFC: XAXX010101000")).toBeInTheDocument();
+  });
+
+  it("al cambiar bucket preserva ?rfc= en la URL", async () => {
+    const user = userEvent.setup();
+    openPpd.data = {
+      data: [buildInvoice()],
+      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
+    };
+
+    renderWithTheme(
+      <>
+        <FinanceCobrosPage />
+        <LocationProbe />
+      </>,
+      { route: ["/finance/cobros?rfc=XAXX010101000"] },
+    );
+
+    await user.click(screen.getByRole("tab", { name: /Pago parcial/i }));
+
+    await waitFor(() => {
+      const href = screen.getByTestId("location-probe").textContent ?? "";
+      expect(href).toContain("rfc=XAXX010101000");
+      expect(href).toContain("bucket=partial");
+      expect(href.startsWith("/finance/cobros?")).toBe(true);
     });
   });
 

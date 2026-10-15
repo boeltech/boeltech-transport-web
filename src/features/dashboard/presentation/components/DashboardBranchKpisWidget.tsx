@@ -34,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@shared/ui/tooltip";
 import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
 import { type ChartSeries } from "@shared/ui/data-display/charts/chartTokens";
 
 const copy = dashboardCopy.branchKpis;
@@ -76,14 +77,17 @@ function defaultCompareSelection(
 interface DashboardBranchKpisWidgetProps {
   showFinance: boolean;
   navigate: NavigateFunction;
+  fromHref?: string;
   initialCompareBranchIds?: string[];
 }
 
 export function DashboardBranchKpisWidget({
   showFinance,
   navigate,
+  fromHref = DASHBOARD_PATH,
   initialCompareBranchIds,
 }: DashboardBranchKpisWidgetProps) {
+  const navState = { from: fromHref };
   const { data: branchesData, isLoading: branchesLoading } = useBranches({
     filters: { isActive: true },
     limit: 100,
@@ -182,7 +186,7 @@ export function DashboardBranchKpisWidget({
           description={copy.noBranches.description}
           cta={{
             label: copy.noBranches.cta,
-            onClick: () => navigate("/branches"),
+            onClick: () => navigate("/branches", { state: navState }),
             variant: "outline",
           }}
         />
@@ -322,7 +326,10 @@ export function DashboardBranchKpisWidget({
                       ) : null}
                       <TableCell className="text-right">
                         <Button variant="link" size="sm" asChild>
-                          <Link to={buildTripsHref(rowToken(row))}>
+                          <Link
+                            to={buildTripsHref(rowToken(row))}
+                            state={navState}
+                          >
                             {copy.table.viewTrips}
                           </Link>
                         </Button>

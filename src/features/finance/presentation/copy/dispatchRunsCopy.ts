@@ -18,6 +18,10 @@ export const dispatchRunsCopy = {
       period: "Envíos armados o enviados del corte",
     },
     periodLinkAria: "Ver envíos del periodo",
+    relatedConfig: {
+      label: "Ver registro de facturas",
+      description: "Listado completo de facturas emitidas.",
+    },
     pending: {
       searchPlaceholder: "Buscar por folio o cliente…",
       entityLabelPlural: "facturas",

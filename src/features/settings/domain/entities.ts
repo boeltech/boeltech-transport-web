@@ -252,7 +252,7 @@ export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
   [SettingsSection.SUBSCRIPTION]: "Tu plan",
   [SettingsSection.APPROVALS]: "Reglas de autorización",
   [SettingsSection.NOTIFICATIONS]: "Avisos de la empresa",
-  [SettingsSection.DASHBOARD_LAYOUTS]: "Inicio",
+  [SettingsSection.DASHBOARD_LAYOUTS]: "Widgets de Inicio",
   [SettingsSection.SECURITY]: "Seguridad",
   [SettingsSection.INTEGRATIONS]: "Integraciones",
 };

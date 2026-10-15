@@ -1,5 +1,8 @@
 import type { DashboardWidgetContext } from "./types";
 import {
+  buildFinanceAnalysisHref,
+} from "@features/finance/application";
+import {
   DashboardAlertsPanel,
   DashboardFinancialComparisonChart,
   DashboardFleetDriversCharts,
@@ -23,6 +26,7 @@ export function renderMetricTrends(ctx: DashboardWidgetContext) {
       data={ctx.data}
       isLoading={ctx.isLoading}
       navigate={ctx.navigate}
+      fromHref={ctx.fromHref}
       financeLoading={ctx.financeLoading}
       financeSummary={ctx.financeSummary}
     />
@@ -37,6 +41,7 @@ export function renderAlerts(ctx: DashboardWidgetContext) {
       isError={ctx.isError}
       onRetry={ctx.onRetry}
       navigate={ctx.navigate}
+      fromHref={ctx.fromHref}
     />
   );
 }
@@ -47,6 +52,7 @@ export function renderRecentTrips(ctx: DashboardWidgetContext) {
       trips={ctx.data?.recent_trips}
       isLoading={ctx.isLoading}
       navigate={ctx.navigate}
+      fromHref={ctx.fromHref}
     />
   );
 }
@@ -77,6 +83,7 @@ export function renderFinancialComparison(ctx: DashboardWidgetContext) {
       trendLoading={ctx.financialTrendLoading}
       months={ctx.financialTrendMonths}
       onMonthsChange={ctx.setFinancialTrendMonths}
+      fromHref={ctx.fromHref}
     />
   );
 }
@@ -87,10 +94,14 @@ export function renderVehicleExpenseRanking(ctx: DashboardWidgetContext) {
       rows={ctx.vehicleExpenseRanking}
       isLoading={ctx.vehicleExpenseRankingLoading}
       onViewAnalysis={() =>
-        ctx.navigate("/finance/analysis?view=expenses")
+        ctx.navigate(buildFinanceAnalysisHref("expenses"), {
+          state: { from: ctx.fromHref },
+        })
       }
       onViewVehicle={(vehicleId) =>
-        ctx.navigate(`/vehicles/${vehicleId}`, { state: { from: "/dashboard" } })
+        ctx.navigate(`/vehicles/${vehicleId}`, {
+          state: { from: ctx.fromHref },
+        })
       }
     />
   );
@@ -101,6 +112,7 @@ export function renderBranchKpis(ctx: DashboardWidgetContext) {
     <DashboardBranchKpisWidget
       showFinance={ctx.showFinance}
       navigate={ctx.navigate}
+      fromHref={ctx.fromHref}
       initialCompareBranchIds={ctx.compareBranchIds}
     />
   );

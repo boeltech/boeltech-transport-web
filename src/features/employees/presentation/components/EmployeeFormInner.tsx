@@ -12,6 +12,9 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
+import { EMPLOYEES_LIST_PATH } from "@shared/utils/masterWayfinding";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import {
   useForm,
   useWatch,
@@ -326,6 +329,11 @@ interface EmployeeFormInnerProps {
   embeddedInWizardShell?: boolean;
   /** Índice de paso del shell externo (create). */
   wizardStepIndex?: number;
+  /**
+   * Create: cola del listado (o origen) para cancel/éxito.
+   * Si falta, se usa `EMPLOYEES_LIST_PATH`.
+   */
+  createReturnFrom?: string;
   /** Notifica al contenedor estado de submit (para deshabilitar navegación shell). */
   onSubmittingChange?: (isSubmitting: boolean) => void;
   /** Notifica dirty a la página para `useUnsavedChangesGuard` (D8). */
@@ -342,11 +350,17 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
   onSaveSuccess,
   embeddedInWizardShell = false,
   wizardStepIndex = 0,
+  createReturnFrom,
   onSubmittingChange,
   onDirtyChange,
   onAllowLeave,
 }, ref) {
   const navigate = useNavigate();
+  const listQueueFrom = useListQueueFromState();
+  const createCancelHref = resolveInternalAppHref(
+    createReturnFrom,
+    EMPLOYEES_LIST_PATH,
+  );
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -740,7 +754,9 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
           queryKey: employeeQueryKeys.detail(newId),
         });
         toast({ title: fc.create.toast.successTitle });
-        navigate(`/employees/${newId}`);
+        navigate(`${EMPLOYEES_LIST_PATH}/${newId}`, {
+          state: { from: createCancelHref },
+        });
       } catch (addressError) {
         const message =
           addressError instanceof Error ? addressError.message : undefined;
@@ -750,7 +766,9 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
             message ?? fc.create.toast.addressPartialDescription,
           variant: "destructive",
         });
-        navigate(`/employees/${newId}/edit`);
+        navigate(`${EMPLOYEES_LIST_PATH}/${newId}/edit`, {
+          state: { from: createCancelHref },
+        });
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
@@ -773,6 +791,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     navigate,
     onAllowLeave,
     onSaveSuccess,
+    createCancelHref,
     queryClient,
     scrollToEditSection,
     toast,
@@ -1124,7 +1143,9 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
                     </Select>
                     <p className="text-xs text-muted-foreground">{fc.hint.noBranches}</p>
                     <Button variant="link" className="h-auto p-0" asChild>
-                      <Link to="/branches/new">{fc.action.createBranch}</Link>
+                      <Link to="/branches/new" state={listQueueFrom}>
+                        {fc.action.createBranch}
+                      </Link>
                     </Button>
                   </>
                 )}
@@ -1335,7 +1356,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
             canGoBack={activeWizardStep > 0}
             isLastStep={isWizardLastStep}
             onPrevious={handleWizardPrevious}
-            onCancel={() => navigate("/employees")}
+            onCancel={() => navigate(createCancelHref)}
             onNext={handleWizardNext}
             onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
             isSubmitting={form.formState.isSubmitting}

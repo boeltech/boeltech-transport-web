@@ -22,6 +22,7 @@ export interface BranchDetailLocationMapProps {
   readonly longitude?: number | null;
   readonly geolocationPending?: boolean;
   readonly editHref?: string;
+  readonly editState?: { from: string };
   readonly canEdit?: boolean;
   /** D5: address text shown below coordinates for cross-referencing with pin. */
   readonly addressSummary?: {
@@ -65,6 +66,7 @@ export function BranchDetailLocationMap({
   longitude,
   geolocationPending = false,
   editHref,
+  editState,
   canEdit = false,
   addressSummary,
 }: BranchDetailLocationMapProps) {
@@ -95,7 +97,9 @@ export function BranchDetailLocationMap({
           </div>
           {canEdit && editHref ? (
             <Button asChild variant="outline" size="sm">
-              <Link to={editHref}>{mapCopy.completeLocationCta}</Link>
+              <Link to={editHref} state={editState}>
+                {mapCopy.completeLocationCta}
+              </Link>
             </Button>
           ) : null}
         </div>

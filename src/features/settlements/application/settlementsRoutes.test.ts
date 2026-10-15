@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   SETTLEMENTS_ADVANCES_PATH,
-  SETTLEMENTS_AGREEMENTS_PATH,
   SETTLEMENTS_CREATE_PATH,
   SETTLEMENTS_LIST_PATH,
   SETTLEMENTS_REGISTRY_PATH,
@@ -10,12 +9,12 @@ import {
   settlementCreatePath,
   settlementDetailPath,
   settlementsAgreementsPath,
-  settlementsAgreementsTabPath,
   settlementsAdvancesPath,
   settlementsRegistryPath,
   settlementsPendingApprovalPath,
   settlementsWorkbenchBucketPath,
   resolveOperatorPaymentsHubTab,
+  isOperatorPaymentsRegistryPath,
   SETTLEMENTS_PENDING_APPROVAL_PATH,
 } from "./settlementsRoutes";
 
@@ -28,7 +27,6 @@ describe("settlementsRoutes", () => {
     expect(SETTLEMENTS_PENDING_APPROVAL_PATH).toBe(
       "/finance/settlements/pending-approval",
     );
-    expect(SETTLEMENTS_AGREEMENTS_PATH).toBe("/finance/agreements");
   });
 
   it("builds detail path from id", () => {
@@ -66,9 +64,6 @@ describe("settlementsRoutes", () => {
       }),
     ).toBe(
       "/finance/compensation/templates?employeeId=emp-1&periodStart=2026-09-09&periodEnd=2026-09-26",
-    );
-    expect(settlementsAgreementsTabPath({ employeeId: "emp-1" })).toBe(
-      "/finance/compensation/templates?employeeId=emp-1",
     );
   });
 
@@ -116,6 +111,13 @@ describe("settlementsRoutes", () => {
     );
   });
 
+  it("detecta historial bajo el hub", () => {
+    expect(isOperatorPaymentsRegistryPath("/finance/settlements/registry")).toBe(
+      true,
+    );
+    expect(isOperatorPaymentsRegistryPath("/finance/settlements")).toBe(false);
+  });
+
   it("resuelve tabs del hub Pagos a operadores", () => {
     expect(resolveOperatorPaymentsHubTab("/finance/settlements")).toBe(
       "por-pagar",
@@ -132,6 +134,9 @@ describe("settlementsRoutes", () => {
     expect(
       resolveOperatorPaymentsHubTab("/finance/compensation/templates"),
     ).toBe("como-te-pago");
+    expect(resolveOperatorPaymentsHubTab("/finance/agreements")).toBe(
+      "como-te-pago",
+    );
     expect(
       resolveOperatorPaymentsHubTab("/finance/compensation/corridors"),
     ).toBe("tabla-de-rutas");

@@ -11,10 +11,10 @@ import { Link } from "react-router-dom";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertTriangle, Bell, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, Bell, Loader2 } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
-import { EmptyState } from "@shared/ui/feedback-states";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   FormFieldShell,
   FormStickyActions,
@@ -41,14 +41,39 @@ import { SettingsCard } from "./SettingsLayout";
 
 const copy = notificationSettingsCopy;
 
-const notificationSettingsSchema = z.object({
-  documentExpiryAlerts: z.boolean(),
-  documentExpiryDays: z
-    .number({ message: copy.validation.daysRequired })
-    .int()
-    .min(1, copy.validation.daysMin)
-    .max(365, copy.validation.daysMax),
-});
+const notificationSettingsSchema = z
+  .object({
+    documentExpiryAlerts: z.boolean(),
+    documentExpiryDays: z.number({ message: copy.validation.daysRequired }),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.documentExpiryAlerts) return;
+    if (
+      !Number.isInteger(data.documentExpiryDays) ||
+      Number.isNaN(data.documentExpiryDays)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["documentExpiryDays"],
+        message: copy.validation.daysRequired,
+      });
+      return;
+    }
+    if (data.documentExpiryDays < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["documentExpiryDays"],
+        message: copy.validation.daysMin,
+      });
+    }
+    if (data.documentExpiryDays > 365) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["documentExpiryDays"],
+        message: copy.validation.daysMax,
+      });
+    }
+  });
 
 type NotificationSettingsFormData = z.infer<typeof notificationSettingsSchema>;
 
@@ -61,6 +86,10 @@ function mapSettingsToForm(
   };
 }
 
+function notificationHydrationKey(settings: NotificationSettings): string {
+  return `${settings.id}:${settings.updatedAt}`;
+}
+
 export const NotificationSettingsForm = memo(
   function NotificationSettingsForm() {
     const { data: settings, isLoading, isError, refetch } =
@@ -68,19 +97,28 @@ export const NotificationSettingsForm = memo(
     const updateMutation = useUpdateNotificationSettings();
     const [showValidationSummary, setShowValidationSummary] = useState(false);
     const wasSubmittingRef = useRef(false);
+    const hydratedKeyRef = useRef<string | null>(null);
 
     const form = useForm<NotificationSettingsFormData>({
       resolver: zodResolver(notificationSettingsSchema),
+      mode: "onChange",
       defaultValues: {
         documentExpiryAlerts: true,
         documentExpiryDays: 30,
       },
-      values: settings ? mapSettingsToForm(settings) : undefined,
     });
     const isDirty = form.formState.isDirty;
     const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
       isDirty,
     });
+
+    useEffect(() => {
+      if (!settings) return;
+      const key = notificationHydrationKey(settings);
+      if (hydratedKeyRef.current === key) return;
+      form.reset(mapSettingsToForm(settings));
+      hydratedKeyRef.current = key;
+    }, [settings, form]);
 
     useEffect(() => {
       if (updateMutation.isPending) {
@@ -90,8 +128,11 @@ export const NotificationSettingsForm = memo(
       if (wasSubmittingRef.current) {
         wasSubmittingRef.current = false;
         resetAllowLeave();
+        if (settings) {
+          hydratedKeyRef.current = notificationHydrationKey(settings);
+        }
       }
-    }, [updateMutation.isPending, resetAllowLeave]);
+    }, [updateMutation.isPending, resetAllowLeave, settings]);
 
     const documentExpiryAlerts = useWatch({
       control: form.control,
@@ -121,16 +162,23 @@ export const NotificationSettingsForm = memo(
 
     if (isError || !settings) {
       return (
-        <EmptyState
-          icon={<AlertTriangle />}
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
           title={copy.state.loadErrorTitle}
-          description={copy.state.loadErrorDescription}
-          cta={{
-            label: copy.state.retry,
-            icon: <RefreshCw />,
-            onClick: () => void refetch(),
-          }}
-        />
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+            >
+              {copy.state.retry}
+            </Button>
+          }
+        >
+          <p>{copy.state.loadErrorDescription}</p>
+        </DetailAlertCard>
       );
     }
 

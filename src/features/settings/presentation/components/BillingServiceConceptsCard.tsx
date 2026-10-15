@@ -1,20 +1,16 @@
 /**
- * Acceso a los servicios de cobro reutilizables.
- *
- * Deja de ser un enlace escondido en un aviso: es un bloque con su conteo y
- * su acceso, al final de la pantalla porque no bloquea la primera factura.
+ * Teaser a servicios de cobro (hija). No forma parte del path crítico de timbre.
  */
 
 import { memo } from "react";
 import { Link } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 
 import { usePermissions } from "@shared/permissions";
-import { Button } from "@shared/ui/button";
 import { Skeleton } from "@shared/ui/skeleton";
 
 import { useBillingServiceConcepts } from "../../application/hooks";
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
-import { SettingsCard } from "./SettingsLayout";
 
 const copy = billingSettingsCopy.serviceConcepts;
 
@@ -30,23 +26,26 @@ export const BillingServiceConceptsCard = memo(
     }
 
     return (
-      <SettingsCard
-        title={copy.title}
-        description={copy.description}
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/settings/billing/service-concepts">{copy.manage}</Link>
-          </Button>
-        }
+      <Link
+        to="/settings/billing/service-concepts"
+        className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm transition-colors hover:bg-muted/40"
       >
-        {isLoading ? (
-          <Skeleton className="h-5 w-40" />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {total > 0 ? copy.count(total) : copy.empty}
-          </p>
-        )}
-      </SettingsCard>
+        <div className="min-w-0">
+          <p className="font-medium text-foreground">{copy.title}</p>
+          <p className="text-xs text-muted-foreground">{copy.description}</p>
+          {isLoading ? (
+            <Skeleton className="mt-1 h-4 w-36" />
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {total > 0 ? copy.count(total) : copy.empty}
+            </p>
+          )}
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
+          {copy.manage}
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+        </span>
+      </Link>
     );
   },
 );

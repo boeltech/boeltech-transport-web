@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { BRANCHES_LIST_PATH } from "@shared/utils/masterWayfinding";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { Building2 } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
 import type { WizardStepRenderHelpers } from "@shared/ui/page-shells/WizardPageShell";
@@ -16,6 +19,8 @@ import { branchFormToCreateDTO, type BranchFormData } from "../validation/branch
 
 export function BranchCreatePage() {
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
+  const cancelHref = resolveInternalAppHref(incomingFrom, BRANCHES_LIST_PATH);
   const { toast } = useToast();
   const formRef = useRef<BranchFormRef>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -31,7 +36,9 @@ export function BranchCreatePage() {
         description: branchesCopy.create.toasts.success(data.name),
         variant: "success",
       });
-      navigate(`/branches/${data.id}`);
+      navigate(`${BRANCHES_LIST_PATH}/${data.id}`, {
+        state: { from: cancelHref },
+      });
     },
     onError: (error) => {
       if (isApiError(error) && error.code === "BRANCH_LIMIT_REACHED") {
@@ -92,17 +99,20 @@ export function BranchCreatePage() {
     [allowLeave, createMutation],
   );
 
-  const handleCancel = useCallback(() => navigate("/branches"), [navigate]);
+  const handleCancel = useCallback(
+    () => navigate(cancelHref),
+    [navigate, cancelHref],
+  );
 
   const shellHeader = useMemo(
     () => ({
-      backHref: "/branches",
+      backHref: cancelHref,
       backLabel: branchesCopy.create.backLabel,
       icon: <Building2 className="h-5 w-5" />,
       title: branchesCopy.create.title,
       subtitle: branchesCopy.create.subtitle,
     }),
-    [],
+    [cancelHref],
   );
 
   const isSubmitting = createMutation.isPending;

@@ -627,6 +627,50 @@ describe("SettlementActions", () => {
       expect(screen.queryByRole("button", { name: "Corregir" })).not.toBeInTheDocument();
     });
 
+    it("H1/H2/H3: sin hint entre CTAs; overflow 2xl; recibo en el cluster", async () => {
+      const user = userEvent.setup();
+      const onReceiptClick = vi.fn();
+      const onCorrect = vi.fn();
+      renderWithProviders(
+        <SettlementActions
+          variant="buttons"
+          settlement={withApproval()}
+          onCorrect={onCorrect}
+          onReceiptClick={onReceiptClick}
+        />,
+      );
+
+      expect(
+        screen.queryByText(/Si solo hay un error corregible, devuelve el pago/i),
+      ).not.toBeInTheDocument();
+
+      const previewBtn = screen.getByRole("button", { name: /Vista previa del recibo/i });
+      expect(previewBtn.className).toMatch(/hidden/);
+      expect(previewBtn.className).toMatch(/2xl:inline-flex/);
+      expect(screen.getByRole("button", { name: "Corregir" }).className).toMatch(
+        /2xl:inline-flex/,
+      );
+      expect(
+        screen.getByRole("button", { name: /Devolver para corregir/i }).className,
+      ).toMatch(/2xl:inline-flex/);
+      expect(screen.getByRole("button", { name: /Autorizar/i }).className).not.toMatch(
+        /2xl:inline-flex/,
+      );
+
+      await user.click(previewBtn);
+      expect(onReceiptClick).toHaveBeenCalledTimes(1);
+
+      await user.click(screen.getByRole("button", { name: /Más acciones/i }));
+      expect(
+        await screen.findByRole("menuitem", { name: /Vista previa del recibo/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Corregir" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("menuitem", { name: /Devolver para corregir/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: /Rechazar/i })).toBeInTheDocument();
+    });
+
     it("devuelta en menú: «Reenviar sin cambios» en lugar de «Enviar a autorización»", async () => {
       const user = userEvent.setup();
       renderWithProviders(

@@ -19,7 +19,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
+import { DetailPageShell } from "@shared/ui/page-shells";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
@@ -94,6 +94,7 @@ import { TripLiquidacionChip } from "../components/TripLiquidacionChip";
 import { canEditTripLiquidacionIntent } from "../utils/tripLiquidacionMutability";
 import {
   resolveTripAccessDeniedCopy,
+  resolveTripBackHref,
   resolveTripWayfindingBackLabel,
 } from "../utils/tripWayfinding";
 import { TripDetailOperationTab } from "../components/trip-operation";
@@ -110,7 +111,6 @@ import {
   operationalCashStatusLabel,
 } from "../utils/operationalCashUi";
 import { formatDateTime } from "@shared/utils/dateUtils";
-import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { getTripDetailAccess } from "./tripDetailAccess";
 import { applyOpenAssignFleetSearchParams } from "./tripDetailAssignFleetParams";
@@ -157,9 +157,8 @@ export function TripDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = parseTripDetailTab(searchParams.get("tab"));
   /** Origen real (bandeja de aprobaciones, factura…) o el listado de viajes. */
-  const backHref = resolveInternalAppHref(
+  const backHref = resolveTripBackHref(
     location.state?.from as string | undefined,
-    "/trips",
   );
   const backLabel = resolveTripWayfindingBackLabel(backHref);
   const { hasPermission } = usePermissions();
@@ -168,6 +167,8 @@ export function TripDetailPage() {
   const isDriverPortal = isDriverPortalRole(role);
   const isLeanTripPortal = isClientPortal || isDriverPortal;
   const tripId = id || "";
+  /** `state.from` al abrir una factura desde este viaje (chevron de vuelta). */
+  const tripDetailFromHref = `/trips/${tripId}`;
   const canUpdateTrip = hasPermission("trips", "update");
   const canReadExpenses = hasPermission("expenses", "read");
   const canCreateExpense = hasPermission("expenses", "create");
@@ -456,7 +457,10 @@ export function TripDetailPage() {
             action={
               cancelInvoiceId ? (
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={`/invoices/${cancelInvoiceId}`}>
+                  <Link
+                    to={`/invoices/${cancelInvoiceId}`}
+                    state={{ from: tripDetailFromHref }}
+                  >
                     {shell.alert.falseTripCancelCfdiCta}
                   </Link>
                 </Button>
@@ -497,6 +501,7 @@ export function TripDetailPage() {
             cta = (
               <Link
                 to={`/invoices/${fiscalCta.invoiceId}`}
+                state={{ from: tripDetailFromHref }}
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
                 {shell.alert.fiscalAttentionOpenInvoiceCta}
@@ -511,6 +516,7 @@ export function TripDetailPage() {
               cta = (
                 <Link
                   to={`/invoices/${legs[0].invoiceId}`}
+                  state={{ from: tripDetailFromHref }}
                   className="font-medium text-primary underline-offset-4 hover:underline"
                 >
                   {shell.alert.fiscalAttentionOpenInvoiceCta}
@@ -532,7 +538,10 @@ export function TripDetailPage() {
                   <DropdownMenuContent align="start" className="w-64">
                     {legs.map((leg) => (
                       <DropdownMenuItem key={leg.invoiceId} asChild>
-                        <Link to={`/invoices/${leg.invoiceId}`}>
+                        <Link
+                          to={`/invoices/${leg.invoiceId}`}
+                          state={{ from: tripDetailFromHref }}
+                        >
                           {shell.alert.fiscalAttentionSplitLegCta(leg.label)}
                         </Link>
                       </DropdownMenuItem>
@@ -557,6 +566,7 @@ export function TripDetailPage() {
             cta = (
               <Link
                 to={`/invoices/${fiscalCta.invoiceId}`}
+                state={{ from: tripDetailFromHref }}
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
                 {isPostCancel
@@ -583,6 +593,7 @@ export function TripDetailPage() {
               cta = (
                 <Link
                   to={`/invoices/${legs[0].invoiceId}`}
+                  state={{ from: tripDetailFromHref }}
                   className="font-medium text-primary underline-offset-4 hover:underline"
                 >
                   {isPostCancel
@@ -608,7 +619,10 @@ export function TripDetailPage() {
                   <DropdownMenuContent align="start" className="w-64">
                     {legs.map((leg) => (
                       <DropdownMenuItem key={leg.invoiceId} asChild>
-                        <Link to={`/invoices/${leg.invoiceId}`}>
+                        <Link
+                          to={`/invoices/${leg.invoiceId}`}
+                          state={{ from: tripDetailFromHref }}
+                        >
                           {shell.alert.fiscalAttentionSplitLegCta(leg.label)}
                         </Link>
                       </DropdownMenuItem>
@@ -828,6 +842,7 @@ export function TripDetailPage() {
     revenueSplitForFiscalCta,
     revenueSplitForFiscalCtaFetched,
     resolvedActiveTab,
+    tripDetailFromHref,
   ]);
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1093,6 +1108,11 @@ export function TripDetailPage() {
                       trip.invoicing.invoiceId
                         ? `/invoices/${trip.invoicing.invoiceId}`
                         : "/finance/invoices"
+                    }
+                    state={
+                      trip.invoicing.invoiceId
+                        ? { from: tripDetailFromHref }
+                        : undefined
                     }
                   >
                     <Receipt className="mr-1.5 h-4 w-4" />

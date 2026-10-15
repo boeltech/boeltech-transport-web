@@ -49,7 +49,7 @@ export const BillingStampingCard = memo(function BillingStampingCard({
   const environment = connectionResult?.environment;
 
   return (
-    <div id={BILLING_ANCHORS.stamping} className="scroll-mt-24">
+    <div id={BILLING_ANCHORS.diagnostics} className="scroll-mt-24">
       <SettingsCard title={copy.title} description={copy.description}>
         <div className="space-y-4">
           <div>

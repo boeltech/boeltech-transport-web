@@ -86,7 +86,6 @@ export {
   // Navigation
   settingsNavItems,
   getSettingsNavItem,
-  getActiveSettingsNavItem,
   // Layout components
   SettingsLayout,
   SettingsSection as SettingsSectionComponent,

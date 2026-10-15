@@ -59,6 +59,7 @@ export const approvalPoliciesCopy = {
     title: "Reglas de autorización",
     description:
       "Define quién autoriza anticipos, gastos de viaje, liquidaciones y dispersión según el monto y la situación.",
+    backToOperatorPayments: "Volver a Pagos a operadores",
     loadError: "No pudimos cargar las reglas de autorización.",
     retry: "Reintentar",
     readOnlyViewer: "Solo un administrador puede cambiar estas reglas. Puedes consultarlas y probarlas.",

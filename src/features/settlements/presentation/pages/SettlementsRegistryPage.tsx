@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, Archive, ArrowLeft, Download, Search } from "lucide-react";
-import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import { useNavigate } from "react-router-dom";
+import { AlertCircle, Archive, Download, Search } from "lucide-react";
+import { ListPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { type ActiveFilterChip } from "@shared/ui/listing";
@@ -10,7 +10,6 @@ import { useListingFilters, useToast } from "@shared/hooks";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { useSettlements } from "../../application/hooks";
 import {
-  SETTLEMENTS_LIST_PATH,
   settlementCreatePath,
   settlementDetailPath,
 } from "../../application/settlementsRoutes";
@@ -31,7 +30,6 @@ import {
 import type { DriverSettlement } from "../../domain/entities";
 
 const copy = settlementsCopy;
-const workbenchCopy = settlementsCopy.workbench;
 const registryCopy = settlementsCopy.registry;
 
 /**
@@ -175,40 +173,26 @@ export function SettlementsRegistryPage() {
             : undefined,
         }}
         beforeToolbar={
-          <>
-            <Button
-              asChild
-              type="button"
-              variant="link"
-              size="sm"
-              className="h-auto px-0"
-            >
-              <Link to={SETTLEMENTS_LIST_PATH}>
-                <ArrowLeft className="mr-1.5 h-4 w-4" />
-                {workbenchCopy.actions.backToWorkbench}
-              </Link>
-            </Button>
-            {showLoadError ? (
-              <DetailAlertCard
-                severity="critical"
-                icon={<AlertCircle className="h-5 w-5" aria-hidden />}
-                title={registryCopy.loadErrorTitle}
-                items={[{ text: registryCopy.loadError }]}
-                action={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      void refetch();
-                    }}
-                  >
-                    {registryCopy.retry}
-                  </Button>
-                }
-              />
-            ) : null}
-          </>
+          showLoadError ? (
+            <DetailAlertCard
+              severity="critical"
+              icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+              title={registryCopy.loadErrorTitle}
+              items={[{ text: registryCopy.loadError }]}
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void refetch();
+                  }}
+                >
+                  {registryCopy.retry}
+                </Button>
+              }
+            />
+          ) : undefined
         }
         toolbar={{
           search: {

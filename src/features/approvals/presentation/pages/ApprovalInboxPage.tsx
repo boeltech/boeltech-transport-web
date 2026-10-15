@@ -111,6 +111,7 @@ import {
   mapApprovalWorkbenchBuckets,
   type ApprovalWorkbenchType,
 } from "../utils/mapApprovalWorkbenchBuckets";
+import { resolveApprovalInboxRelatedConfig } from "../utils/approvalInboxRelatedConfig";
 import { formatListingDateRangeLabel } from "@shared/ui/listing";
 
 const copy = approvalsCopy.inbox;
@@ -181,6 +182,7 @@ export function ApprovalInboxPage({
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("finance_approvals", "update");
+  const canReadSettlements = hasPermission("settlements", "read");
   const currentUserId = user?.id;
   const queryClient = useQueryClient();
   const { data: selfApprovalPolicy } = useSelfApprovalPolicy();
@@ -662,6 +664,11 @@ export function ApprovalInboxPage({
     return <div className="space-y-4">{parts}</div>;
   }, [canUpdate, embedded, lockedType]);
 
+  const relatedConfig = useMemo(() => {
+    if (embedded || !canReadSettlements) return undefined;
+    return resolveApprovalInboxRelatedConfig(approvalType);
+  }, [approvalType, canReadSettlements, embedded]);
+
   const selectedItems = useMemo(
     () => items.filter((item) => selectedIds.has(item.id)),
     [items, selectedIds],
@@ -1097,6 +1104,7 @@ export function ApprovalInboxPage({
             : undefined
         }
         onPageChange={filters.setPage}
+        relatedConfig={relatedConfig}
       />
 
       <AlertDialog

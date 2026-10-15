@@ -120,6 +120,7 @@ export const billingSchemesCopy = {
     save: "Guardar",
     cancel: "Cancelar",
     validation: {
+      summaryTitle: "Revisa estos campos",
       nameRequired: "Indica un nombre para la frecuencia",
       windowHoursRequired: "Indica las horas tras cerrar el viaje",
       weekdaysRequired: "Selecciona al menos un día de corte",

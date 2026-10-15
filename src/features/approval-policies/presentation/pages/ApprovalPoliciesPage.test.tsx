@@ -79,11 +79,21 @@ function overview(editEnabled: boolean, settlement: Partial<ConceptPolicy> = {})
   };
 }
 
-function renderPage(path = "/settings/approvals") {
+function renderPage(
+  path: string | { pathname: string; search?: string; state?: unknown } = "/settings/approvals",
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const entry =
+    typeof path === "string"
+      ? path
+      : {
+          pathname: path.pathname,
+          search: path.search ?? "",
+          state: path.state,
+        };
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter initialEntries={[entry]}>
         <ApprovalPoliciesPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -112,6 +122,30 @@ describe("ApprovalPoliciesPage", () => {
     vi.clearAllMocks();
     mockPermissions.granted = new Set(["approval_policies.read", "approval_policies.update"]);
     mockApi.listCandidateUsers.mockResolvedValue({ users: ACTIVE_USERS, referencedUsers: [] });
+    mockApi.getOverview.mockResolvedValue(overview(true));
+  });
+
+  it("muestra Volver a Pagos a operadores cuando state.from es cola del hub", async () => {
+    renderPage({
+      pathname: "/settings/approvals",
+      state: { from: "/finance/settlements/advances" },
+    });
+    const link = await screen.findByRole("link", {
+      name: approvalPoliciesCopy.page.backToOperatorPayments,
+    });
+    expect(link).toHaveAttribute("href", "/finance/settlements/advances");
+  });
+
+  it("no muestra Volver cuando state.from es externo o inseguro", () => {
+    renderPage({
+      pathname: "/settings/approvals",
+      state: { from: "/trips" },
+    });
+    expect(
+      screen.queryByRole("link", {
+        name: approvalPoliciesCopy.page.backToOperatorPayments,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   describe("personas designadas con el padrón de candidatos (web#45)", () => {

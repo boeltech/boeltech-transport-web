@@ -14,9 +14,13 @@ const PAGE_SIZE = 20;
 
 interface UserActivitySectionProps {
   userId: string;
+  fromState?: { from: string };
 }
 
-export function UserActivitySection({ userId }: UserActivitySectionProps) {
+export function UserActivitySection({
+  userId,
+  fromState,
+}: UserActivitySectionProps) {
   const copy = userActivityPageCopy.card;
   const {
     data,
@@ -53,7 +57,10 @@ export function UserActivitySection({ userId }: UserActivitySectionProps) {
       </CardTitle>
       <Button asChild variant="link" size="sm" className="h-auto p-0">
         {/* `period=all` evita heredar el filtro de fecha por defecto de la página. */}
-        <Link to={`/users/activity?subjectUserId=${userId}&period=all`}>
+        <Link
+          to={`/users/activity?subjectUserId=${userId}&period=all`}
+          state={fromState}
+        >
           {copy.fullHistory}
         </Link>
       </Button>

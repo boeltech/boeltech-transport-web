@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { User, UserCog } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UnsavedChangesDialog } from "@shared/ui/form";
@@ -38,6 +38,9 @@ export function EmployeeEditPage() {
   );
   const employee = response?.data;
 
+  const detailFallback = employeeId ? `/employees/${employeeId}` : "/employees";
+  const backHref = resolveInternalAppHref(incomingFrom, detailFallback);
+
   useEffect(() => {
     if (isSubmitting) {
       wasSubmittingRef.current = true;
@@ -50,8 +53,8 @@ export function EmployeeEditPage() {
   }, [isSubmitting, resetAllowLeave]);
 
   const handleCancel = useCallback(() => {
-    navigatePreservingFrom(navigate, `/employees/${employeeId}`, incomingFrom);
-  }, [navigate, employeeId, incomingFrom]);
+    navigate(backHref);
+  }, [navigate, backHref]);
 
   return (
     <FormPageShell
@@ -65,7 +68,7 @@ export function EmployeeEditPage() {
         backLabel: copy.state.backToList,
       }}
       header={{
-        backHref: employeeId ? `/employees/${employeeId}` : "/employees",
+        backHref,
         icon: <UserCog className="h-5 w-5" />,
         title: copy.edit.title,
         subtitle: employee
@@ -97,11 +100,7 @@ export function EmployeeEditPage() {
               description: copy.edit.toast.successDescription,
               variant: "success",
             });
-            navigatePreservingFrom(
-              navigate,
-              `/employees/${employeeId}`,
-              incomingFrom,
-            );
+            navigate(backHref);
           }}
         />
       ) : null}

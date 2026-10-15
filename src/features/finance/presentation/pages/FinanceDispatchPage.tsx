@@ -27,6 +27,7 @@ import { FinanceDispatchPendingPanel } from "../components/FinanceDispatchPendin
 import { FinanceDispatchSentPanel } from "../components/FinanceDispatchSentPanel";
 import {
   FINANCE_DISPATCH_PERIOD_PATH,
+  FINANCE_INVOICES_PATH,
 } from "../../application/financeRoutes";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { mapDispatchWorkbenchBuckets } from "../utils/mapDispatchWorkbenchBuckets";
@@ -175,9 +176,9 @@ export function FinanceDispatchPage() {
           );
         }}
         relatedConfig={{
-          label: "Ver registro de facturas",
-          href: "/finance/invoices",
-          description: "Listado completo de facturas emitidas.",
+          label: copy.relatedConfig.label,
+          href: FINANCE_INVOICES_PATH,
+          description: copy.relatedConfig.description,
         }}
       />
 

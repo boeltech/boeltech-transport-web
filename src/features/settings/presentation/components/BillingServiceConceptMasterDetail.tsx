@@ -15,10 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
+import { z } from "zod";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { Checkbox } from "@shared/ui/checkbox";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { FormFieldShell } from "@shared/ui/form";
+import { FormFieldShell, FormValidationSummary } from "@shared/ui/form";
 import { MoneyInput } from "@shared/ui/form/MoneyInput";
 import { Input } from "@shared/ui/input";
 import { cn } from "@shared/lib/utils/cn";
@@ -79,21 +80,40 @@ function serviceToForm(service: BillingServiceConcept): FormState {
   };
 }
 
+const billingServiceConceptFormSchema = z.object({
+  name: z.string().trim().min(1, copy.form.validation.nameRequired),
+  claveProdServ: z
+    .string()
+    .trim()
+    .min(1, copy.form.validation.claveProdServRequired),
+  claveUnidad: z
+    .string()
+    .trim()
+    .min(1, copy.form.validation.claveUnidadRequired),
+  unidad: z.string().trim().min(1, copy.form.validation.unidadRequired),
+  defaultUnitPrice: z.number().optional(),
+  objectImp: z.enum(["01", "02", "03", "04"]),
+  ivaAplica: z.boolean(),
+  retencionAplica: z.boolean(),
+});
+
 function validateForm(form: FormState): FieldErrors {
+  const parsed = billingServiceConceptFormSchema.safeParse(form);
+  if (parsed.success) return {};
   const errors: FieldErrors = {};
-  if (!form.name.trim()) {
-    errors.name = copy.form.validation.nameRequired;
-  }
-  if (!form.claveProdServ.trim()) {
-    errors.claveProdServ = copy.form.validation.claveProdServRequired;
-  }
-  if (!form.claveUnidad.trim()) {
-    errors.claveUnidad = copy.form.validation.claveUnidadRequired;
-  }
-  if (!form.unidad.trim()) {
-    errors.unidad = copy.form.validation.unidadRequired;
+  for (const issue of parsed.error.issues) {
+    const key = issue.path[0];
+    if (typeof key === "string" && !(key in errors)) {
+      errors[key as keyof FormState] = issue.message;
+    }
   }
   return errors;
+}
+
+function fieldErrorMessages(errors: FieldErrors): string[] {
+  return Object.values(errors).filter((message): message is string =>
+    Boolean(message),
+  );
 }
 
 interface ServiceListRowProps {
@@ -190,9 +210,18 @@ function BillingServiceConceptFormPanel({
     await onSave(form);
   };
 
+  const summaryMessages = fieldErrorMessages(fieldErrors);
+
   return (
     <div className="space-y-4">
       <h3 className="font-medium">{formTitle}</h3>
+
+      {summaryMessages.length > 0 ? (
+        <FormValidationSummary
+          title={copy.form.validation.summaryTitle}
+          messages={summaryMessages}
+        />
+      ) : null}
 
       <FormFieldShell
         fieldId="billing-service-name"
@@ -206,6 +235,9 @@ function BillingServiceConceptFormPanel({
           value={form.name}
           disabled={isPending || readOnly}
           aria-invalid={Boolean(fieldErrors.name)}
+          aria-describedby={
+            fieldErrors.name ? "billing-service-name-error" : undefined
+          }
           onChange={(event) => {
             setForm((prev) => ({ ...prev, name: event.target.value }));
             if (fieldErrors.name) {
@@ -224,8 +256,16 @@ function BillingServiceConceptFormPanel({
           errorMessage={fieldErrors.claveProdServ}
         >
           <ProductoServicioSearch
+            id="billing-service-clave-prod"
             value={form.claveProdServ}
             disabled={isPending || readOnly}
+            error={Boolean(fieldErrors.claveProdServ)}
+            aria-invalid={Boolean(fieldErrors.claveProdServ)}
+            aria-describedby={
+              fieldErrors.claveProdServ
+                ? "billing-service-clave-prod-error"
+                : undefined
+            }
             onSelect={(item) => {
               setForm((prev) => ({ ...prev, claveProdServ: item.code }));
               if (fieldErrors.claveProdServ) {
@@ -244,8 +284,16 @@ function BillingServiceConceptFormPanel({
           errorMessage={fieldErrors.claveUnidad}
         >
           <UnidadMedidaSearch
+            id="billing-service-clave-unidad"
             value={form.claveUnidad}
             disabled={isPending || readOnly}
+            error={Boolean(fieldErrors.claveUnidad)}
+            aria-invalid={Boolean(fieldErrors.claveUnidad)}
+            aria-describedby={
+              fieldErrors.claveUnidad
+                ? "billing-service-clave-unidad-error"
+                : undefined
+            }
             onSelect={(item) => {
               setForm((prev) => ({
                 ...prev,

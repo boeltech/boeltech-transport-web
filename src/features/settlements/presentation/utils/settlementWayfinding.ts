@@ -1,5 +1,14 @@
 import { useLocation } from "react-router-dom";
 import {
+  COMPENSATION_HUB_PATH,
+  LEGACY_AGREEMENTS_PATH,
+} from "@features/compensation/application";
+import { FINANCE_APPROVALS_PATH } from "@features/finance/application";
+import {
+  canonicalizeSettlementReturnHref,
+  isSafeSettlementReturnHref,
+} from "../../application/settlementReturnHref";
+import {
   SETTLEMENTS_ADVANCES_PATH,
   SETTLEMENTS_CREATE_PATH,
   SETTLEMENTS_LIST_PATH,
@@ -7,6 +16,8 @@ import {
   SETTLEMENTS_REGISTRY_PATH,
 } from "../../application/settlementsRoutes";
 import { settlementsCopy } from "../copy/settlementsCopy";
+
+export { isSafeSettlementReturnHref };
 
 /** `location.state.from` = cola actual (pathname + query). */
 export function useSettlementQueueFromState(): { from: string } {
@@ -23,24 +34,15 @@ function hrefSearch(href: string): string {
   return q >= 0 ? href.slice(q + 1) : "";
 }
 
-/** Solo colas internas de pagos / aprobaciones / esquemas. */
-export function isSafeSettlementReturnHref(href: string): boolean {
-  const path = hrefPath(href);
-  if (path === SETTLEMENTS_CREATE_PATH) return false;
-  if (path === "/finance/approvals" || path.startsWith("/finance/approvals/")) {
-    return true;
-  }
-  if (path === "/finance/compensation" || path.startsWith("/finance/compensation/")) {
-    return true;
-  }
-  if (path === SETTLEMENTS_LIST_PATH || path.startsWith(`${SETTLEMENTS_LIST_PATH}/`)) {
-    return true;
-  }
-  return false;
+/** Alta de pago: destino válido de `state.from` al salir a Tarifas / empleado. */
+export function isSettlementCreateHref(href: string): boolean {
+  return hrefPath(href) === SETTLEMENTS_CREATE_PATH;
 }
 
 export function resolveSettlementBackHref(from: string | undefined): string {
-  if (from && isSafeSettlementReturnHref(from)) return from;
+  if (from && isSafeSettlementReturnHref(from)) {
+    return canonicalizeSettlementReturnHref(from);
+  }
   return SETTLEMENTS_LIST_PATH;
 }
 
@@ -58,8 +60,18 @@ export function resolveSettlementWayfindingBackLabel(href: string): string {
   }
   if (path === SETTLEMENTS_REGISTRY_PATH) return copy.backToRegistry;
   if (path === SETTLEMENTS_ADVANCES_PATH) return copy.backToAdvances;
-  if (path === "/finance/approvals" || path.startsWith("/finance/approvals/")) {
+  if (
+    path === FINANCE_APPROVALS_PATH ||
+    path.startsWith(`${FINANCE_APPROVALS_PATH}/`)
+  ) {
     return copy.backToApprovals;
+  }
+  if (
+    path === COMPENSATION_HUB_PATH ||
+    path.startsWith(`${COMPENSATION_HUB_PATH}/`) ||
+    path === LEGACY_AGREEMENTS_PATH
+  ) {
+    return copy.backToAgreements;
   }
   if (path === SETTLEMENTS_LIST_PATH) return copy.backToWorkbench;
   return copy.backToList;

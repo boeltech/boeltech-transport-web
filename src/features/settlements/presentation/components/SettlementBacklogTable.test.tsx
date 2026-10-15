@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import type {
   SettlementBacklogRow,
@@ -71,6 +71,7 @@ function renderTable(
   rows: readonly SettlementBacklogRow[],
   viewMode: "table" | "cards" = "table",
   onNavigateCreate = vi.fn(),
+  fromState?: { from: string },
 ) {
   return render(
     <MemoryRouter>
@@ -80,6 +81,7 @@ function renderTable(
           isLoading={false}
           viewMode={viewMode}
           onNavigateCreate={onNavigateCreate}
+          fromState={fromState}
         />
       </TooltipProvider>
     </MemoryRouter>,
@@ -494,6 +496,57 @@ describe("SettlementBacklogTable period_overlap CTA (F2)", () => {
     expect(overlapLink).toHaveAttribute(
       "href",
       settlementsRegistryPath({ employeeId: "emp-55" }),
+    );
+  });
+
+  it("propaga state.from al detalle del solape (S5-02)", async () => {
+    const user = userEvent.setup();
+    const queueFrom = "/finance/settlements?bucket=pending";
+    function DetailProbe() {
+      const location = useLocation();
+      return <div data-testid="location-state">{JSON.stringify(location.state)}</div>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={[queueFrom]}>
+        <TooltipProvider delayDuration={0}>
+          <Routes>
+            <Route
+              path="/finance/settlements"
+              element={
+                <SettlementBacklogTable
+                  rows={[
+                    makeRow("trips_pending", {
+                      warnings: ["period_overlap"],
+                      periodOverlap: makeOverlap({
+                        settlementId: "stl-detail-9",
+                        conflictsCount: 1,
+                      }),
+                    }),
+                  ]}
+                  isLoading={false}
+                  viewMode="table"
+                  onNavigateCreate={vi.fn()}
+                  fromState={{ from: queueFrom }}
+                />
+              }
+            />
+            <Route
+              path="/finance/settlements/:id"
+              element={<DetailProbe />}
+            />
+          </Routes>
+        </TooltipProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("link", {
+        name: settlementsCopy.workbench.warnings.period_overlap_cta,
+      }),
+    );
+    expect(screen.getByTestId("location-state")).toHaveTextContent(
+      JSON.stringify({ from: queueFrom }),
     );
   });
 });

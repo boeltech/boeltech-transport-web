@@ -9,12 +9,11 @@ import {
   Check,
   X,
   ChevronDown,
-  Eye,
   History,
   Pencil,
   Send,
 } from "lucide-react";
-import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
+import { DetailPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@shared/ui/card";
 import {
@@ -26,13 +25,13 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@shared/ui/dialog";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { escapeHtml } from "@shared/utils/escapeHtml";
 import { usePrintIframe, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -48,7 +47,11 @@ import {
   ReturnedAlert,
   SelfApprovedBadge,
 } from "@features/approvals/presentation/components";
-import { useCompanySettings } from "@features/settings/application";
+import {
+  useCompanyLogoObjectUrl,
+  useCompanySettings,
+} from "@features/settings/application";
+import { resolveCompanyLogoSrc } from "@features/settings/presentation/components";
 import {
   SettlementStatusBadge,
   SettlementItemsTable,
@@ -114,6 +117,20 @@ export function SettlementDetailPage() {
 
   const { user } = useAuth();
   const { data: companySettings } = useCompanySettings();
+  // Estable durante la sesión: solo se usa si el API no expone `updatedAt`.
+  const [logoFallbackVersion] = useState(() => Date.now());
+  const versionedLogoSrc = resolveCompanyLogoSrc(
+    companySettings?.logoUrl,
+    companySettings?.updatedAt,
+    logoFallbackVersion,
+  );
+  const logoVersion =
+    companySettings?.updatedAt?.getTime?.() ?? logoFallbackVersion;
+  // Bearer no viaja en <img src>; object URL vía GET autenticado (misma pista que settings).
+  const { logoSrc: receiptLogoSrc } = useCompanyLogoObjectUrl(
+    Boolean(versionedLogoSrc),
+    logoVersion,
+  );
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
@@ -130,6 +147,23 @@ export function SettlementDetailPage() {
     settlement && canUpdate && isSettlementCorrectable(settlement.status),
   );
   const receiptSignable = settlement ? isReceiptSignable(settlement.status) : false;
+  const receiptDialogCopy = copy.detailPage.receiptDialog;
+  const receiptDialogMode = !settlement
+    ? null
+    : !receiptSignable
+      ? {
+          title: receiptDialogCopy.previewTitle,
+          description: receiptDialogCopy.previewDescription,
+        }
+      : settlement.status === "disbursed"
+        ? {
+            title: receiptDialogCopy.paidTitle,
+            description: receiptDialogCopy.paidDescription,
+          }
+        : {
+            title: receiptDialogCopy.signableTitle,
+            description: receiptDialogCopy.signableDescription,
+          };
   const flowCopy = copy.settlementFlow;
   const missingDataGaps = useMemo(
     () => missingDataGapsFromItems(settlement?.items),
@@ -190,10 +224,9 @@ export function SettlementDetailPage() {
   const companyRfc = companySettings?.rfc || undefined;
 
   const handlePrint = () => {
-    const title = `${escapeHtml(companyDisplayName)} - ${escapeHtml(
-      settlement?.settlementNumber || dCopy.fallbacks.paymentTitle,
-    )}`;
-    triggerPrint(title);
+    const folio =
+      settlement?.settlementNumber || dCopy.fallbacks.paymentTitle;
+    triggerPrint(dCopy.receiptDialog.printDocumentTitle(folio));
   };
 
   const agreement = settlement?.agreementSnapshot as AgreementSnapshot | undefined;
@@ -300,34 +333,16 @@ export function SettlementDetailPage() {
             </div>
           ) : undefined,
           actions: settlement ? (
-            <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPrintDialogOpen(true)}
-                className="gap-1.5"
-              >
-                {receiptSignable ? (
-                  <Printer className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-                <span>
-                  {receiptSignable
-                    ? flowCopy.header.printReceipt
-                    : flowCopy.header.previewReceipt}
-                </span>
-              </Button>
-              <SettlementActions
-                variant="buttons"
-                settlement={settlement}
-                onCorrect={() => setCorrectionOpen(true)}
-                onOpenHistory={() => setHistoryOpen(true)}
-                onActionComplete={() => {
-                  void refetch();
-                }}
-              />
-            </div>
+            <SettlementActions
+              variant="buttons"
+              settlement={settlement}
+              onReceiptClick={() => setPrintDialogOpen(true)}
+              onCorrect={() => setCorrectionOpen(true)}
+              onOpenHistory={() => setHistoryOpen(true)}
+              onActionComplete={() => {
+                void refetch();
+              }}
+            />
           ) : undefined,
         }}
       >
@@ -828,21 +843,13 @@ export function SettlementDetailPage() {
 
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0 print:border-none print:shadow-none">
-          <DialogHeader className="p-4 border-b print:hidden">
-            <div className="flex justify-between items-center pr-6">
-              <div>
-                <DialogTitle>{dCopy.receiptDialog.title}</DialogTitle>
-                <DialogDescription>
-                  {receiptSignable
-                    ? dCopy.receiptDialog.previewDescription
-                    : dCopy.receipt.previewDialogDescription}
-                </DialogDescription>
-              </div>
-              <Button onClick={handlePrint} disabled={isPrinting} className="gap-1.5">
-                <Printer className="h-4 w-4" />
-                <span>{isPrinting ? dCopy.receiptDialog.preparing : dCopy.receiptDialog.print}</span>
-              </Button>
-            </div>
+          <DialogHeader className="space-y-1.5 p-4 pr-12 text-left border-b print:hidden">
+            <DialogTitle>
+              {receiptDialogMode?.title ?? receiptDialogCopy.previewTitle}
+            </DialogTitle>
+            <DialogDescription>
+              {receiptDialogMode?.description ?? receiptDialogCopy.previewDescription}
+            </DialogDescription>
           </DialogHeader>
           <div className="p-4 bg-muted/10">
             {settlement && (
@@ -851,9 +858,16 @@ export function SettlementDetailPage() {
                 settlement={settlement}
                 companyName={companyDisplayName}
                 rfc={companyRfc}
+                logoSrc={receiptLogoSrc}
               />
             )}
           </div>
+          <DialogFooter className="border-t p-4 print:hidden sm:space-x-2">
+            <Button onClick={handlePrint} disabled={isPrinting} className="gap-1.5">
+              <Printer className="h-4 w-4" />
+              <span>{isPrinting ? receiptDialogCopy.preparing : receiptDialogCopy.print}</span>
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

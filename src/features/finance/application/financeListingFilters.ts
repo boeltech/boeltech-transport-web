@@ -12,6 +12,8 @@ import type {
 export const FINANCE_ANALYSIS_VIEW_PARAM = "view";
 /** RFC precargado al abrir Cobros desde Cartera. */
 export const FINANCE_COBROS_RFC_PARAM = "rfc";
+/** Bucket del workbench Cobros (`?bucket=open|partial|rep_exceptions`). */
+export const FINANCE_COBROS_BUCKET_PARAM = "bucket";
 
 /** Query param del workbench Envío de facturas (`?tab=`). */
 export const FINANCE_DISPATCH_TAB_PARAM = "tab";

@@ -5,6 +5,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { EMPLOYEES_LIST_PATH } from "@shared/utils/masterWayfinding";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { UserPlus } from "lucide-react";
 import {
   WizardPageShell,
@@ -22,6 +25,8 @@ const fc = employeesCopy.form;
 
 export function EmployeeFormPage() {
   const navigate = useNavigate();
+  const incomingFrom = useIncomingFrom();
+  const cancelHref = resolveInternalAppHref(incomingFrom, EMPLOYEES_LIST_PATH);
   const formRef = useRef<WizardFormRef | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -41,17 +46,20 @@ export function EmployeeFormPage() {
     }
   }, [isSubmitting, resetAllowLeave]);
 
-  const handleCancel = useCallback(() => navigate("/employees"), [navigate]);
+  const handleCancel = useCallback(
+    () => navigate(cancelHref),
+    [navigate, cancelHref],
+  );
 
   const shellHeader = useMemo(
     () => ({
-      backHref: "/employees",
+      backHref: cancelHref,
       backLabel: fc.create.backLabel,
       icon: <UserPlus className="h-5 w-5" />,
       title: fc.create.title,
       subtitle: fc.create.subtitle,
     }),
-    [],
+    [cancelHref],
   );
 
   const renderStep = useCallback(
@@ -62,12 +70,13 @@ export function EmployeeFormPage() {
         isEditing={false}
         embeddedInWizardShell
         wizardStepIndex={currentStep}
+        createReturnFrom={cancelHref}
         onSubmittingChange={setIsSubmitting}
         onDirtyChange={setIsDirty}
         onAllowLeave={allowLeave}
       />
     ),
-    [allowLeave],
+    [allowLeave, cancelHref],
   );
 
   return (

@@ -23,21 +23,18 @@ export function TenantLocationsPage() {
     >
       <div className="space-y-4">
         <Collapsible open={guideOpen} onOpenChange={setGuideOpen}>
-          <div className="rounded-lg border border-info/40 bg-info-soft text-info-soft-foreground">
+          <div className="rounded-xl border border-info/40 bg-info-soft text-info-soft-foreground">
             <CollapsibleTrigger
               type="button"
               className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-info/5"
             >
-              <Info
-                className="h-4 w-4 shrink-0 text-info"
-                aria-hidden
-              />
+              <Info className="h-4 w-4 shrink-0 text-info" aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium leading-none tracking-tight">
                   {copy.guide.title}
                 </span>
                 {!guideOpen ? (
-                  <span className="mt-1 block text-xs text-muted-foreground">
+                  <span className="mt-1 block text-xs text-info-soft-foreground/80">
                     {copy.guide.collapsedHint}
                   </span>
                 ) : null}

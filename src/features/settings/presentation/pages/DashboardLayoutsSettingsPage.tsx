@@ -2,6 +2,7 @@
  * DashboardLayoutsSettingsPage
  *
  * Admin: layout por defecto del dashboard por rol (localStorage → API futura).
+ * Flujo: elegir rol → abrir editor → Listo (cambios se persisten al editar).
  */
 
 import { memo, useState } from "react";
@@ -32,12 +33,17 @@ const copy = dashboardCopy.customize;
 export const DashboardLayoutsSettingsPage = memo(
   function DashboardLayoutsSettingsPage() {
     const [selectedRole, setSelectedRole] = useState<UserRole>(ROLES.ADMIN);
-    const [panelOpen, setPanelOpen] = useState(true);
+    const [panelOpen, setPanelOpen] = useState(false);
 
     const layoutApi = useDashboardLayout({
       persistMode: "role",
       roleForEdit: selectedRole,
     });
+
+    const handleRoleChange = (value: string) => {
+      setSelectedRole(value as UserRole);
+      setPanelOpen(false);
+    };
 
     return (
       <SettingsPageShell
@@ -46,12 +52,11 @@ export const DashboardLayoutsSettingsPage = memo(
         description={copy.roleSettingsDescription}
       >
         <div className="max-w-lg space-y-6">
-          <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">{copy.roleSettingsSteps}</p>
+
+          <div className="space-y-1.5">
             <Label htmlFor="dashboard-role-select">{copy.selectRole}</Label>
-            <Select
-              value={selectedRole}
-              onValueChange={(v) => setSelectedRole(v as UserRole)}
-            >
+            <Select value={selectedRole} onValueChange={handleRoleChange}>
               <SelectTrigger id="dashboard-role-select">
                 <SelectValue />
               </SelectTrigger>
@@ -66,7 +71,7 @@ export const DashboardLayoutsSettingsPage = memo(
           </div>
 
           <Button type="button" onClick={() => setPanelOpen(true)}>
-            {copy.saveRoleLayout}
+            {copy.editRoleLayout}
           </Button>
         </div>
 

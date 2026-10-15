@@ -3,6 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
 import { renderWithTheme } from "@/test/renderWithTheme";
+import { FINANCE_HUB_PATH } from "@features/finance/application";
 import { financeCopy } from "../copy";
 import { FinanceAnalysisPage } from "./FinanceAnalysisPage";
 
@@ -12,32 +13,41 @@ vi.mock("./FinanceAnalysisContent", () => ({
   ),
 }));
 
-vi.mock("@shared/utils/reportsWayfinding", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@shared/utils/reportsWayfinding")>();
-  return {
-    ...actual,
-    useReportsReturnHref: () => "/reports",
-  };
-});
-
 function LocationProbe() {
   const location = useLocation();
+  const from = (location.state as { from?: unknown } | null)?.from;
   return (
-    <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+    <>
+      <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+      <div data-testid="location-from">
+        {typeof from === "string" ? from : ""}
+      </div>
+    </>
   );
 }
 
 const section = financeCopy.page.sections.analysis;
 const labels = financeCopy.page.analysisViews;
 
-function renderPage(path: string) {
+function renderPage(
+  route:
+    | string
+    | { pathname: string; search?: string; state?: { from?: string } },
+) {
+  const entry =
+    typeof route === "string"
+      ? route
+      : {
+          pathname: route.pathname,
+          search: route.search,
+          state: route.state,
+        };
   return renderWithTheme(
     <>
       <FinanceAnalysisPage />
       <LocationProbe />
     </>,
-    { route: [path], resolvedTheme: "light" },
+    { route: [entry], resolvedTheme: "light" },
   );
 }
 
@@ -95,10 +105,44 @@ describe("FinanceAnalysisPage — hub shell F1", () => {
   });
 
   it("shows Reports wayfinding when coming from the catalog", () => {
-    renderPage("/finance/analysis");
+    renderPage({
+      pathname: "/finance/analysis",
+      state: { from: "/reports" },
+    });
     expect(
       screen.getByRole("link", { name: /Volver a reportes/i }),
     ).toHaveAttribute("href", "/reports");
+  });
+
+  it("preserves location.state.from when switching analysis views", async () => {
+    const user = userEvent.setup();
+    renderPage({
+      pathname: "/finance/analysis",
+      state: { from: "/reports" },
+    });
+
+    await user.click(screen.getByRole("tab", { name: labels.margin }));
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/finance/analysis?view=margin",
+    );
+    expect(screen.getByTestId("location-from")).toHaveTextContent("/reports");
+    expect(
+      screen.getByRole("link", { name: /Volver a reportes/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("relatedConfig to Cartera keeps reports return state", async () => {
+    const user = userEvent.setup();
+    renderPage({
+      pathname: "/finance/analysis",
+      state: { from: "/reports" },
+    });
+
+    await user.click(
+      screen.getByRole("link", { name: financeCopy.page.hub.title }),
+    );
+    expect(screen.getByTestId("location")).toHaveTextContent(FINANCE_HUB_PATH);
+    expect(screen.getByTestId("location-from")).toHaveTextContent("/reports");
   });
 
   it("does not render the local radiogroup or ListingFilterPanel vacío", () => {

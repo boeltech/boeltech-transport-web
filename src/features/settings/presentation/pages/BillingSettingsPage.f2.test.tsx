@@ -5,7 +5,6 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
-import { ADMIN_BILLING_ORIENTATION_STORAGE_KEY } from "../components/AdminBillingOrientationAlert";
 import { BillingSettingsPage } from "./BillingSettingsPage";
 
 const { mockHasPermission, mockHasRole } = vi.hoisted(() => ({
@@ -81,7 +80,11 @@ vi.mock("@shared/ui/page-shells", () => ({
 
 vi.mock("../components/BillingReadinessCard", () => ({
   BillingReadinessCard: () => <div>readiness</div>,
-  BILLING_ANCHORS: { certificate: "sello", numbering: "folio" },
+  BILLING_ANCHORS: {
+    certificate: "sello",
+    numbering: "folio",
+    diagnostics: "diag",
+  },
 }));
 
 vi.mock("../components/BillingCertificateCard", () => ({
@@ -96,15 +99,14 @@ vi.mock("../components/BillingDefaultsCard", () => ({
   BillingDefaultsCard: () => <div>defaults</div>,
 }));
 
-vi.mock("../components/BillingStampingCard", () => ({
-  BillingStampingCard: () => <div>stamping</div>,
-}));
-
 vi.mock("../components/BillingServiceConceptsCard", () => ({
   BillingServiceConceptsCard: () => <div>service-concepts</div>,
 }));
 
-// Data router required: useUnsavedChangesGuard → useBlocker.
+vi.mock("../components/BillingDispatchSchemesCard", () => ({
+  BillingDispatchSchemesCard: () => <div>dispatch-schemes</div>,
+}));
+
 function renderPage() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -125,22 +127,18 @@ function renderPage() {
   return render(<RouterProvider router={router} />);
 }
 
-describe("BillingSettingsPage F2 (D8–D10)", () => {
+describe("BillingSettingsPage hub operate", () => {
   beforeEach(() => {
-    window.localStorage.removeItem(ADMIN_BILLING_ORIENTATION_STORAGE_KEY);
     mockHasPermission.mockReturnValue(true);
     mockHasRole.mockImplementation((role: string) => role === "admin");
   });
 
-  it("monta FormSticky sticky, Guardar disabled sin dirty, sin LongForm; stamping y conceptos fuera del form", () => {
+  it("monta sticky Guardar; defaults en form; teasers fuera del form; sin alerta admin", () => {
     const { container } = renderPage();
     const form = container.querySelector("form");
 
     expect(form).not.toBeNull();
     expect(container.querySelector(".sticky.bottom-0")).not.toBeNull();
-    expect(
-      screen.queryByRole("navigation", { name: /secciones/i }),
-    ).toBeNull();
     expect(
       screen.getByRole("button", { name: billingSettingsCopy.action.cancel }),
     ).toBeInTheDocument();
@@ -148,15 +146,15 @@ describe("BillingSettingsPage F2 (D8–D10)", () => {
       screen.getByRole("button", { name: billingSettingsCopy.action.save }),
     ).toBeDisabled();
 
+    expect(screen.getByText("readiness")).toBeInTheDocument();
     expect(screen.getByText("defaults")).toBeInTheDocument();
-    expect(screen.getByText("stamping")).toBeInTheDocument();
     expect(screen.getByText("service-concepts")).toBeInTheDocument();
-    expect(form?.textContent).toContain("defaults");
-    expect(form?.textContent).not.toContain("stamping");
-    expect(form?.textContent).not.toContain("service-concepts");
+    expect(screen.getByText("dispatch-schemes")).toBeInTheDocument();
+    expect(screen.getByText(billingSettingsCopy.extrasHeading)).toBeInTheDocument();
 
-    expect(
-      screen.getByText(billingSettingsCopy.adminOrientation.title),
-    ).toBeInTheDocument();
+    expect(form?.textContent).toContain("defaults");
+    expect(form?.textContent).not.toContain("service-concepts");
+    expect(form?.textContent).not.toContain("dispatch-schemes");
+    expect(form?.textContent).not.toContain("readiness");
   });
 });

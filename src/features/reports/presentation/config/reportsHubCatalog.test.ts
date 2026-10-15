@@ -70,7 +70,10 @@ describe("reportsHubCatalog", () => {
       "Ver cartera",
     );
     expect(items.find((item) => item.id === "operations")?.cta).toBe(
-      "Ver dashboard",
+      "Ver Inicio",
+    );
+    expect(items.find((item) => item.id === "branches")?.cta).toBe(
+      "Ver comparativa en Inicio",
     );
   });
 });

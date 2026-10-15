@@ -1,13 +1,16 @@
 /**
  * Estado de preparación para facturar.
  *
- * El sello y la numeración se derivan de GET /settings/billing, así que su
- * estado es real al abrir la pantalla. La conexión y el alta ante el timbrador
- * son mutaciones bajo demanda sin persistencia en el contrato actual: se
- * reportan como comprobaciones de la sesión, nunca como estado recordado.
+ * Identidad, sello y numeración se derivan de GET settings (persistidos).
+ * Conexión y alta ante el timbrador son mutaciones de sesión: nunca se
+ * presentan como estado recordado.
  */
 
 import type { BillingSettings } from "../../domain";
+import {
+  isCompanyIdentityReady,
+  type CompanyIdentitySource,
+} from "./companyIdentityReadiness";
 
 /** Días de anticipación con los que se avisa el vencimiento del sello. */
 export const CERTIFICATE_EXPIRY_WARNING_DAYS = 60;
@@ -30,7 +33,23 @@ export interface NumberingReadiness {
   serie: string | null;
 }
 
+export interface IdentityReadiness {
+  status: Extract<BillingRequirementStatus, "ready" | "pending" | "unknown">;
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function resolveIdentityReadiness(
+  settings: CompanyIdentitySource | undefined,
+  opts?: { known: boolean },
+): IdentityReadiness {
+  if (!opts?.known || settings === undefined) {
+    return { status: "unknown" };
+  }
+  return {
+    status: isCompanyIdentityReady(settings) ? "ready" : "pending",
+  };
+}
 
 export function resolveCertificateReadiness(
   settings: Pick<BillingSettings, "certificateConfigured" | "certificateExpiry">,
@@ -78,19 +97,28 @@ export function resolveNumberingReadiness(
   return { status: "ready", serie };
 }
 
-export type BillingReadinessTone = "ready" | "readyUnverified" | "attention" | "pending";
+export type BillingReadinessTone =
+  | "ready"
+  | "readyUnverified"
+  | "attention"
+  | "pending";
 
 /**
- * Titular de la ficha. "Listo para facturar" exige que además de los dos
- * requisitos, las dos comprobaciones se hayan ejecutado con éxito en la sesión.
+ * Titular de la ficha. Núcleo = identidad + sello + numeración.
+ * "Listo para facturar" exige además las comprobaciones PAC de la sesión.
  */
 export function resolveReadinessTone(input: {
+  identity: BillingRequirementStatus;
   certificate: BillingRequirementStatus;
   numbering: BillingRequirementStatus;
   connection: BillingRequirementStatus;
   emitter: BillingRequirementStatus;
 }): BillingReadinessTone {
-  if (input.certificate === "pending" || input.numbering === "pending") {
+  if (
+    input.identity === "pending" ||
+    input.certificate === "pending" ||
+    input.numbering === "pending"
+  ) {
     return "pending";
   }
   if (input.connection === "pending" || input.emitter === "pending") {
@@ -103,4 +131,17 @@ export function resolveReadinessTone(input: {
     return "ready";
   }
   return "readyUnverified";
+}
+
+/** Núcleo listo (sin exigir checks PAC de sesión). */
+export function isBillingCoreReady(input: {
+  identity: BillingRequirementStatus;
+  certificate: BillingRequirementStatus;
+  numbering: BillingRequirementStatus;
+}): boolean {
+  return (
+    input.identity === "ready" &&
+    (input.certificate === "ready" || input.certificate === "warning") &&
+    input.numbering === "ready"
+  );
 }

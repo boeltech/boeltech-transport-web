@@ -1,3 +1,9 @@
+import {
+  FINANCE_APPROVALS_PATH,
+  FINANCE_COBROS_PATH,
+  FINANCE_DISPATCH_PATH,
+  FINANCE_INVOICEABLE_PATH,
+} from "../../application/financeRoutes";
 import { financeCopy } from "../copy";
 
 export type FinanceCycleStepId =
@@ -22,10 +28,10 @@ export interface FinanceCycleStep {
 }
 
 const CYCLE_HREFS: Record<FinanceCycleStepId, string> = {
-  invoiceable: "/finance/invoiceable",
-  dispatch: "/finance/dispatch",
-  cobros: "/finance/cobros",
-  approvals: "/finance/approvals",
+  invoiceable: FINANCE_INVOICEABLE_PATH,
+  dispatch: FINANCE_DISPATCH_PATH,
+  cobros: FINANCE_COBROS_PATH,
+  approvals: FINANCE_APPROVALS_PATH,
 };
 
 /** Pasos del ciclo del dinero. Sin Cartera ni Facturas; se encoge por permiso. */

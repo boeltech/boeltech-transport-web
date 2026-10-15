@@ -79,6 +79,21 @@ export const approvalsCopy = {
       settlement: "Pagos a operadores",
     },
     searchPlaceholder: "Viaje, operador o folio",
+    related: {
+      advances: {
+        label: "Anticipos",
+        description: "Anticipos en gestión en Pagos a operadores.",
+      },
+      pendingApproval: {
+        label: "En autorización",
+        description: "Cortes esperando autorización en Pagos a operadores.",
+      },
+      operatorPayments: {
+        label: "Pagos a operadores",
+        description:
+          "Cortes y anticipos que suelen generar solicitudes de autorización.",
+      },
+    },
     empty: {
       titleClear: "Bandeja al día",
       descriptionClear:

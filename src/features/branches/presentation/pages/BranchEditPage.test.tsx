@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BranchEditPage } from "./BranchEditPage";
@@ -37,7 +38,10 @@ vi.mock("@shared/ui/location", async (importOriginal) => {
 });
 
 // Data router required: BranchEditPage uses useUnsavedChangesGuard → useBlocker.
-function renderEditPage(path = "/branches/22222222-2222-4222-8222-222222222222/edit") {
+function renderEditPage(
+  path = "/branches/22222222-2222-4222-8222-222222222222/edit",
+  state?: { from?: string },
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -57,10 +61,16 @@ function renderEditPage(path = "/branches/22222222-2222-4222-8222-222222222222/e
         path: "/branches/:id",
         element: <div>Detalle</div>,
       },
+      {
+        path: "/branches",
+        element: <div data-testid="branches-list">Listado</div>,
+      },
     ],
-    { initialEntries: [path] },
+    {
+      initialEntries: [state ? { pathname: path, state } : path],
+    },
   );
-  return render(<RouterProvider router={router} />);
+  return { ...render(<RouterProvider router={router} />), router };
 }
 
 describe("BranchEditPage F2 (D8 unsaved + rail)", () => {
@@ -97,5 +107,16 @@ describe("BranchEditPage F2 (D8 unsaved + rail)", () => {
     expect(
       screen.getByRole("button", { name: fc.submit.saveChanges }),
     ).toBeDisabled();
+  });
+
+  it("W7-01: con state.from, Volver y Cancelar usan la misma cola", async () => {
+    const user = userEvent.setup();
+    renderEditPage(
+      "/branches/22222222-2222-4222-8222-222222222222/edit",
+      { from: "/branches?status=inactive" },
+    );
+
+    await user.click(screen.getByRole("button", { name: /Volver/i }));
+    expect(screen.getByTestId("branches-list")).toBeInTheDocument();
   });
 });

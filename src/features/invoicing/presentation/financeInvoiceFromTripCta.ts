@@ -1,4 +1,5 @@
 import type { Action, Module } from "@shared/permissions";
+import { buildInvoiceCreateHref } from "../application/invoiceCreateHref";
 
 export { invoiceFromTripCta as FINANCE_INVOICE_FROM_TRIP_CTA } from "./copy/invoicingCopy";
 
@@ -40,11 +41,11 @@ export function buildInvoiceCreatePathFromTrip(trip: {
   id: string;
   operationalOutcome?: string | null;
 }): string {
-  const params = new URLSearchParams({ trip_id: trip.id });
-  if (trip.operationalOutcome === "false_trip") {
-    params.set("scope", "false_trip");
-  }
-  return `/invoices/new?${params.toString()}`;
+  return buildInvoiceCreateHref({
+    tripId: trip.id,
+    scope:
+      trip.operationalOutcome === "false_trip" ? "false_trip" : undefined,
+  });
 }
 
 /** Mismo criterio que `TripInvoiceActions`: crear factura requiere alta en facturas y ver viajes. */

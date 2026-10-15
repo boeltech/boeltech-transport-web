@@ -154,6 +154,8 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
       /administración/i,
     );
     expect(shellCopy.state.backToListClient).toBe("Volver a Mis envíos");
+    expect(shellCopy.state.backToInvoice).toBe("Volver a la factura");
+    expect(shellCopy.state.backToInvoices).toBe("Volver a facturas");
     expect(shellCopy.state.accessDeniedDescriptionClient).not.toBe(
       shellCopy.state.accessDeniedDescriptionDriver,
     );

@@ -20,7 +20,7 @@ import { type ActiveFilterChip } from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { useBranches } from "@features/branches";
 import { useHelpEmptySupport } from "@features/help-center/presentation";
-import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application/compensationRoutes";
+import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
   useSettlements,
@@ -154,6 +154,8 @@ export function SettlementsListPage() {
   }, [activeBucket, employeeIdFilter, filters]);
 
   useEffect(() => {
+    // Evitar flicker de bucket default cuando hay redirect legacy (?tab= / ?view=).
+    if (listRedirect) return;
     if (defaultsAppliedRef.current) return;
     if (filters.filters.bucket) {
       defaultsAppliedRef.current = true;
@@ -163,7 +165,7 @@ export function SettlementsListPage() {
 
     defaultsAppliedRef.current = true;
     filters.setFilter("bucket", resolveDefaultWorkbenchBucket());
-  }, [filters, workbenchCountsLoading]);
+  }, [filters, workbenchCountsLoading, listRedirect]);
 
   const [disburseSettlement, setDisburseSettlement] =
     useState<DriverSettlement | null>(null);
@@ -451,7 +453,6 @@ export function SettlementsListPage() {
     <TooltipProvider delayDuration={0}>
       <WorkbenchPageShell
         title={hubCopy.title}
-        description={hubCopy.description}
         showHeader={false}
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.scorecards.settlements.ariaLabel}
@@ -541,6 +542,7 @@ export function SettlementsListPage() {
                 rows={[]}
                 isLoading
                 viewMode={filters.viewMode}
+                fromState={fromState}
                 onNavigateCreate={(path) =>
                   navigate(path, { state: fromState })
                 }
@@ -645,6 +647,7 @@ export function SettlementsListPage() {
               rows={visibleBacklogRows}
               isLoading={false}
               viewMode={filters.viewMode}
+              fromState={fromState}
               onNavigateCreate={(path) =>
                 navigate(path, { state: fromState })
               }

@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
+import { buildInvoiceCreateHref } from "@features/invoicing/application";
 import { TripStatus, type Trip } from "@features/trips/domain";
 import { getTripInvoicingBadgeConfig, toDetailInvoicingBadge } from "@features/trips";
 import { useTripRevenueSplit } from "@features/trips/application";
@@ -41,20 +42,6 @@ function legLabel(leg: {
   clientId: string;
 }): string {
   return leg.clientLegalName || leg.clientRfc || leg.clientId.slice(0, 8);
-}
-
-function splitInvoiceHref(
-  tripId: string,
-  legId: string,
-  attachCartaPorte: boolean,
-): string {
-  const params = new URLSearchParams({
-    trip_id: tripId,
-    scope: "split_share",
-    leg_id: legId,
-  });
-  if (attachCartaPorte) params.set("attach_carta_porte", "1");
-  return `/invoices/new?${params.toString()}`;
 }
 
 export function TripInvoiceActions({
@@ -202,9 +189,15 @@ export function TripInvoiceActions({
     return null;
   }
 
-  const createPrimaryHref = `/invoices/new?trip_id=${trip.id}`;
-  const createFalseTripHref = `/invoices/new?trip_id=${trip.id}&scope=false_trip`;
-  const createAccessoryHref = `/invoices/new?trip_id=${trip.id}&scope=accessory`;
+  const createPrimaryHref = buildInvoiceCreateHref({ tripId: trip.id });
+  const createFalseTripHref = buildInvoiceCreateHref({
+    tripId: trip.id,
+    scope: "false_trip",
+  });
+  const createAccessoryHref = buildInvoiceCreateHref({
+    tripId: trip.id,
+    scope: "accessory",
+  });
 
   const tripInvoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
@@ -262,7 +255,14 @@ export function TripInvoiceActions({
               <DropdownMenuItem
                 key={`create-${leg.id}`}
                 onSelect={() =>
-                  goToInvoice(splitInvoiceHref(trip.id, leg.id, attach))
+                  goToInvoice(
+                    buildInvoiceCreateHref({
+                      tripId: trip.id,
+                      scope: "split_share",
+                      legId: leg.id,
+                      attachCartaPorte: attach,
+                    }),
+                  )
                 }
               >
                 <Receipt className="mr-2 h-4 w-4" />
@@ -504,7 +504,14 @@ export function TripInvoiceActions({
                   key={leg.id}
                   variant="outline"
                   onClick={() =>
-                    goToInvoice(splitInvoiceHref(trip.id, leg.id, attach))
+                    goToInvoice(
+                      buildInvoiceCreateHref({
+                        tripId: trip.id,
+                        scope: "split_share",
+                        legId: leg.id,
+                        attachCartaPorte: attach,
+                      }),
+                    )
                   }
                 >
                   <Receipt className="h-4 w-4 mr-2" />

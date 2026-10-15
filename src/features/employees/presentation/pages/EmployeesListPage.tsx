@@ -115,8 +115,8 @@ export function EmployeesListPage() {
     [fromState, navigate],
   );
   const handleCreate = useCallback(() => {
-    navigate("/employees/new");
-  }, [navigate]);
+    navigate("/employees/new", { state: fromState });
+  }, [fromState, navigate]);
   const handleRefresh = useCallback(async () => {
     await refetch();
     toast({ title: copy.page.refreshSuccess, variant: "success" });

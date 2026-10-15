@@ -8,6 +8,7 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isValidSatRfc, normalizeMexRfc } from "@boeltech/cfdi-domain";
 import { z } from "zod";
 
 import { Button } from "@shared/ui/button";
@@ -49,9 +50,14 @@ const identitySchema = z.object({
   tradeName: z.string().optional(),
   rfc: z
     .string()
-    .min(12, "El RFC debe tener al menos 12 caracteres")
-    .max(13, "El RFC no puede tener más de 13 caracteres")
-    .regex(/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/, "RFC inválido"),
+    .transform((v) => normalizeMexRfc(v) ?? "")
+    .pipe(
+      z
+        .string()
+        .min(12, "El RFC debe tener al menos 12 caracteres")
+        .max(13, "El RFC no puede tener más de 13 caracteres")
+        .refine((v) => isValidSatRfc(v), { message: "RFC inválido" }),
+    ),
   regimenFiscal: z.string().min(1, "El régimen fiscal es requerido"),
 });
 
@@ -114,7 +120,7 @@ export const CompanyIdentitySheet = memo(function CompanyIdentitySheet({
         await updateMutation.mutateAsync({
           legalName: data.legalName.trim(),
           tradeName: data.tradeName?.trim() || null,
-          rfc: data.rfc.trim(),
+          rfc: data.rfc,
           regimenFiscal: data.regimenFiscal,
         });
         setShowSummary(false);
@@ -130,7 +136,11 @@ export const CompanyIdentitySheet = memo(function CompanyIdentitySheet({
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent className={SETTINGS_SHEET_CONTENT_CLASS} side="right">
+      <SheetContent
+        className={SETTINGS_SHEET_CONTENT_CLASS}
+        side="right"
+        onFocusOutside={(event) => event.preventDefault()}
+      >
         <SheetHeader className={SETTINGS_SHEET_HEADER_CLASS}>
           <SheetTitle>{copy.sheetTitle}</SheetTitle>
           <SheetDescription>{copy.sheetDescription}</SheetDescription>

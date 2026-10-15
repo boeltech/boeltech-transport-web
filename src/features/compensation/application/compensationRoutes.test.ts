@@ -9,11 +9,9 @@ import {
   compensationTemplateOperatorsPath,
   formatAssignEmployeeIds,
   isCompensationCorridorsCreateQuery,
-  isCompensationHubPath,
   isCompensationTemplateDetailPath,
   parseAssignEmployeeIds,
   resolveBatchInitialEffectiveFrom,
-  resolveCompensationHubTab,
   resolveCompensationTemplateDetailRedirect,
   resolveLegacyAgreementsPath,
   withBatchCompleted,
@@ -58,12 +56,6 @@ describe("compensationRoutes", () => {
     expect(resolveLegacyAgreementsPath("?employeeId=emp-1")).toBe(
       "/finance/compensation/templates?employeeId=emp-1",
     );
-  });
-
-  it("detecta tab activo del hub", () => {
-    expect(resolveCompensationHubTab("/finance/compensation/templates")).toBe("templates");
-    expect(resolveCompensationHubTab("/finance/compensation/corridors")).toBe("corridors");
-    expect(isCompensationHubPath("/finance/compensation/templates/tpl-1")).toBe(true);
   });
 
   it("detecta ruta legacy de detalle de plantilla", () => {

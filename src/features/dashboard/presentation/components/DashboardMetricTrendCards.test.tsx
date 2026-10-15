@@ -133,6 +133,7 @@ describe("DashboardMetricTrendCards", () => {
     );
     expect(navigate).toHaveBeenCalledWith(
       "/finance/approvals?status=pending&type=trip_expense",
+      { state: { from: "/dashboard" } },
     );
   });
 

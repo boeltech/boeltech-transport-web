@@ -162,7 +162,10 @@ describe("BillingServiceConceptMasterDetail", () => {
     await user.click(screen.getByRole("button", { name: copy.form.save }));
 
     expect(
-      screen.getByText(copy.form.validation.nameRequired),
+      screen.getAllByText(copy.form.validation.nameRequired).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByText(copy.form.validation.summaryTitle),
     ).toBeInTheDocument();
     expect(createMutateAsync).not.toHaveBeenCalled();
     expect(updateMutateAsync).not.toHaveBeenCalled();

@@ -27,7 +27,7 @@ import {
 } from "@shared/ui/alert-dialog";
 import { Checkbox } from "@shared/ui/checkbox";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { FormFieldShell } from "@shared/ui/form";
+import { FormFieldShell, FormValidationSummary } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Switch } from "@shared/ui/switch";
@@ -298,8 +298,19 @@ function BillingSchemeFormPanel({
     });
   };
 
+  const summaryMessages = Object.values(fieldErrors).filter(
+    (message): message is string => Boolean(message),
+  );
+
   return (
     <div className="space-y-4">
+      {summaryMessages.length > 0 ? (
+        <FormValidationSummary
+          title={copy.form.validation.summaryTitle}
+          messages={summaryMessages}
+        />
+      ) : null}
+
       <FormFieldShell
         fieldId="billing-scheme-name"
         label={copy.form.name}

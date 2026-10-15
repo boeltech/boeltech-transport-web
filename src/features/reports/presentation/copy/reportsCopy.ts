@@ -12,8 +12,8 @@ export const reportsCopy = {
     viewAnalysisCta: "Ver análisis",
     viewPerformanceCta: "Ver comparativa",
     viewCarteraCta: "Ver cartera",
-    viewDashboardCta: "Ver dashboard",
-    viewBranchKpisCta: "Ver comparativa en el dashboard",
+    viewDashboardCta: "Ver Inicio",
+    viewBranchKpisCta: "Ver comparativa en Inicio",
     groups: {
       financial: {
         title: "Financiero",

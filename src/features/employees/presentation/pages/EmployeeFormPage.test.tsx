@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EmployeeFormPage } from "./EmployeeFormPage";
@@ -25,7 +26,7 @@ vi.mock("@shared/ui/address-input", () => ({
 }));
 
 // Data router required: EmployeeFormPage uses useUnsavedChangesGuard → useBlocker.
-function renderCreatePage() {
+function renderCreatePage(state?: { from?: string }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -43,10 +44,16 @@ function renderCreatePage() {
       },
       {
         path: "/employees",
-        element: <div>Listado</div>,
+        element: <div data-testid="employees-list">Listado</div>,
       },
     ],
-    { initialEntries: ["/employees/new"] },
+    {
+      initialEntries: [
+        state
+          ? { pathname: "/employees/new", state }
+          : "/employees/new",
+      ],
+    },
   );
   return render(<RouterProvider router={router} />);
 }
@@ -64,5 +71,13 @@ describe("EmployeeFormPage F2 (D8 dirty create) + F3 (D14 copy)", () => {
     expect(
       screen.getByRole("button", { name: "Siguiente" }),
     ).toBeInTheDocument();
+  });
+
+  it("W7-02: cancel con state.from restaura cola del listado", async () => {
+    const user = userEvent.setup();
+    renderCreatePage({ from: "/employees?status=active&page=2" });
+
+    await user.click(screen.getByRole("button", { name: /Cancelar/i }));
+    expect(screen.getByTestId("employees-list")).toBeInTheDocument();
   });
 });

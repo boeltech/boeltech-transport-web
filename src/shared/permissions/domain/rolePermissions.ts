@@ -426,9 +426,6 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Remolques - Lectura (pool de flota)
       "trailers.read",
-
-      // Reportes - Historial de sus propios viajes
-      "reports.read",
     ],
   },
 
@@ -448,9 +445,6 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
       // Facturas - lectura alineada con PERMISSIONS.invoices.read en API
       "invoices.read",
-
-      // Reportes - Vista limitada de sus propios datos
-      "reports.read",
     ],
   },
 };

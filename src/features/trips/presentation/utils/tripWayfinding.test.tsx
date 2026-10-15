@@ -1,11 +1,57 @@
 import { describe, expect, it } from "vitest";
 import { shellCopy } from "../copy/tripDetail/shellCopy";
 import {
+  isSafeTripReturnHref,
   resolveTripAccessDeniedCopy,
+  resolveTripBackHref,
   resolveTripWayfindingBackLabel,
 } from "./tripWayfinding";
 
+describe("isSafeTripReturnHref / resolveTripBackHref", () => {
+  it("allowlist trips, invoiceable, dispatch, approvals, settlements, factura y listado", () => {
+    expect(isSafeTripReturnHref("/trips?status=draft")).toBe(true);
+    expect(isSafeTripReturnHref("/trips/abc-1")).toBe(true);
+    expect(isSafeTripReturnHref("/finance/invoiceable?bucket=ready")).toBe(
+      true,
+    );
+    expect(isSafeTripReturnHref("/finance/dispatch?tab=sent")).toBe(true);
+    expect(
+      isSafeTripReturnHref("/finance/approvals?type=trip_expense"),
+    ).toBe(true);
+    expect(isSafeTripReturnHref("/finance/settlements/new")).toBe(true);
+    expect(isSafeTripReturnHref("/invoices/inv-1")).toBe(true);
+    expect(isSafeTripReturnHref("/finance/invoices?page=2")).toBe(true);
+    expect(isSafeTripReturnHref("/invoices/new")).toBe(false);
+    expect(isSafeTripReturnHref("/invoices/inv-1/edit")).toBe(false);
+    expect(isSafeTripReturnHref("/dashboard")).toBe(false);
+    expect(isSafeTripReturnHref("/settings")).toBe(false);
+  });
+
+  it("resolveTripBackHref acepta allowlist y cae en /trips", () => {
+    expect(resolveTripBackHref("/invoices/inv-9")).toBe("/invoices/inv-9");
+    expect(resolveTripBackHref("/finance/invoices?bucket=stamped")).toBe(
+      "/finance/invoices?bucket=stamped",
+    );
+    expect(resolveTripBackHref("https://evil.example/phish")).toBe("/trips");
+    expect(resolveTripBackHref("//evil.example/path")).toBe("/trips");
+    expect(resolveTripBackHref("/dashboard")).toBe("/trips");
+    expect(resolveTripBackHref(undefined)).toBe("/trips");
+  });
+});
+
 describe("resolveTripWayfindingBackLabel", () => {
+  it("label Volver a la factura desde detalle de factura", () => {
+    expect(resolveTripWayfindingBackLabel("/invoices/inv-1")).toBe(
+      shellCopy.state.backToInvoice,
+    );
+  });
+
+  it("label Volver a facturas desde listado Finanzas", () => {
+    expect(
+      resolveTripWayfindingBackLabel("/finance/invoices?bucket=stamped"),
+    ).toBe(shellCopy.state.backToInvoices);
+  });
+
   it("label Volver a aprobaciones desde la bandeja", () => {
     expect(
       resolveTripWayfindingBackLabel(
@@ -18,6 +64,12 @@ describe("resolveTripWayfindingBackLabel", () => {
     expect(resolveTripWayfindingBackLabel("/trips?status=in_progress")).toBe(
       shellCopy.state.backToList,
     );
+  });
+
+  it("label Volver a Por facturar desde invoiceable", () => {
+    expect(
+      resolveTripWayfindingBackLabel("/finance/invoiceable?bucket=ready"),
+    ).toBe(shellCopy.state.backToInvoiceable);
   });
 
   it("label Volver al envío / a envíos desde facturación", () => {

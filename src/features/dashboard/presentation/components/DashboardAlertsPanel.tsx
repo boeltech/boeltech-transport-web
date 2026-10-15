@@ -28,6 +28,7 @@ import { Button } from "@shared/ui/button";
 import { alertVariants } from "@shared/ui/alert";
 import { ScrollArea } from "@shared/ui/scroll-area";
 import { Skeleton } from "@shared/ui/skeleton";
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import {
   DASHBOARD_ALERT_SEVERITY_ORDER,
@@ -122,6 +123,7 @@ interface DashboardAlertsPanelProps {
   isError?: boolean;
   onRetry?: () => void;
   navigate: ReturnType<typeof useNavigate>;
+  fromHref?: string;
 }
 
 export function DashboardAlertsPanel({
@@ -130,6 +132,7 @@ export function DashboardAlertsPanel({
   isError = false,
   onRetry,
   navigate,
+  fromHref = DASHBOARD_PATH,
 }: DashboardAlertsPanelProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -220,7 +223,7 @@ export function DashboardAlertsPanel({
                 <AlertItem
                   key={`${alert.type}-${alert.entity_id}-${i}`}
                   alert={alert}
-                  onClick={() => handleAlertClick(alert, navigate)}
+                  onClick={() => handleAlertClick(alert, navigate, fromHref)}
                 />
               ))}
               {!expanded && remaining > 0 ? (

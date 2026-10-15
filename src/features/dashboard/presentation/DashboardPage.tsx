@@ -19,6 +19,8 @@ import {
 } from "@shared/constants/roles";
 import { useAuth } from "@/features/auth";
 import { getGreeting } from "@/shared/lib/userHelpers";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { resolveDashboardOutgoingFrom } from "@shared/utils/reportsWayfinding";
 import { formatDashboardTodayLabel } from "./utils/dashboardChartHelpers";
 import { useDashboard } from "../application/hooks/useDashboard";
 import { useTripsByDay } from "../application/hooks/useTripsByDay";
@@ -42,11 +44,13 @@ import {
   AlertTitle,
 } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
+import { HubPageShell } from "@shared/ui/page-shells";
 import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
 
 function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const fromHref = resolveDashboardOutgoingFrom(useIncomingFrom());
   const isClientPortal = isClientPortalRole(user?.role);
   const isDriverPortal = isDriverPortalRole(user?.role);
   const hideDashboardCustomize = isClientPortal || isDriverPortal;
@@ -120,6 +124,7 @@ function DashboardPage() {
         void refetch();
       },
       navigate,
+      fromHref,
       tripsByDay,
       tripsByDayLoading,
       tripsDays,
@@ -141,6 +146,7 @@ function DashboardPage() {
       isError,
       refetch,
       navigate,
+      fromHref,
       tripsByDay,
       tripsByDayLoading,
       tripsDays,
@@ -156,96 +162,90 @@ function DashboardPage() {
     ],
   );
 
+  const customizeLabel =
+    hiddenWidgetsCount > 0
+      ? `${dashboardCopy.customize.personalizeButton} · ${dashboardCopy.customize.hiddenWidgetsCount(hiddenWidgetsCount)}`
+      : dashboardCopy.customize.personalizeButton;
+
   return (
-    <div className="space-y-6">
+    <>
       <ReportsReturnLink />
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{getGreeting(user)}</h1>
-          <p className="text-sm text-muted-foreground">
-            {formatDashboardTodayLabel()}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canReadTrips && !hideDashboardCustomize ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCustomizeOpen(true)}
-            >
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
-              {dashboardCopy.customize.personalizeButton}
-              {hiddenWidgetsCount > 0 ? (
-                <>
-                  {" "}
-                  <span className="ml-1 font-normal text-muted-foreground">
-                    · {dashboardCopy.customize.hiddenWidgetsCount(hiddenWidgetsCount)}
-                  </span>
-                </>
-              ) : null}
-            </Button>
-          ) : null}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
-            {isFetching ? (
+      <HubPageShell
+        title={getGreeting(user)}
+        description={formatDashboardTodayLabel()}
+        primaryActions={[
+          ...(canReadTrips && !hideDashboardCustomize
+            ? [
+                {
+                  id: "customize",
+                  label: customizeLabel,
+                  onClick: () => setCustomizeOpen(true),
+                  variant: "outline" as const,
+                  icon: <SlidersHorizontal className="mr-2 h-4 w-4" />,
+                },
+              ]
+            : []),
+          {
+            id: "refresh",
+            label: dashboardCopy.page.refresh,
+            onClick: () => {
+              void refetch();
+            },
+            variant: "outline" as const,
+            icon: isFetching ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            {dashboardCopy.page.refresh}
-          </Button>
-        </div>
-      </div>
+            ),
+          },
+        ]}
+      >
+        <DashboardOrientationAlert
+          role={user?.role}
+          canReadTrips={canReadTrips}
+        />
 
-      <DashboardOrientationAlert
-        role={user?.role}
-        canReadTrips={canReadTrips}
-      />
-
-      {isError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <AlertTitle>{dashboardCopy.page.error.title}</AlertTitle>
-              <AlertDescription className="sr-only">
-                {dashboardCopy.page.error.title}
-              </AlertDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              {dashboardCopy.page.error.retry}
-            </Button>
-          </div>
-        </Alert>
-      )}
-
-      {canReadTrips ? (
-        <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
-          {visibleWidgets.map((pref) => {
-            const entry = getWidgetRegistryEntry(pref.id);
-            if (!entry) return null;
-            return (
-              <div
-                key={pref.id}
-                className={`${getSpanClass(pref.id)} h-full min-h-0`}
-              >
-                {entry.render(widgetCtx)}
+        {isError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <AlertTitle>{dashboardCopy.page.error.title}</AlertTitle>
+                <AlertDescription className="sr-only">
+                  {dashboardCopy.page.error.title}
+                </AlertDescription>
               </div>
-            );
-          })}
-        </div>
-      ) : null}
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                {dashboardCopy.page.error.retry}
+              </Button>
+            </div>
+          </Alert>
+        )}
+
+        {canReadTrips ? (
+          <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
+            {visibleWidgets.map((pref) => {
+              const entry = getWidgetRegistryEntry(pref.id);
+              if (!entry) return null;
+              return (
+                <div
+                  key={pref.id}
+                  className={`${getSpanClass(pref.id)} h-full min-h-0`}
+                >
+                  {entry.render(widgetCtx)}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </HubPageShell>
 
       <DashboardCustomizePanel
         open={customizeOpen}
         onOpenChange={setCustomizeOpen}
         layoutApi={layoutApi}
       />
-    </div>
+    </>
   );
 }
 

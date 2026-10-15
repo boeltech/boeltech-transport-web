@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import type { useNavigate } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
 import type { RecentTrip } from "../../domain/types";
 import { Button } from "@shared/ui/button";
 import {
@@ -65,14 +66,17 @@ interface DashboardRecentTripsProps {
   trips: RecentTrip[] | undefined;
   isLoading: boolean;
   navigate: ReturnType<typeof useNavigate>;
+  fromHref?: string;
 }
 
 export function DashboardRecentTrips({
   trips,
   isLoading,
   navigate,
+  fromHref = DASHBOARD_PATH,
 }: DashboardRecentTripsProps) {
   const rows = trips ?? [];
+  const navState = { from: fromHref };
 
   return (
     <Card className="flex h-full flex-col">
@@ -94,7 +98,7 @@ export function DashboardRecentTrips({
             variant="ghost"
             size="sm"
             className="h-7 shrink-0 text-xs"
-            onClick={() => navigate("/trips")}
+            onClick={() => navigate("/trips", { state: navState })}
           >
             {dashboardCopy.recentTrips.viewAll}
             <ArrowRight className="ml-1 h-3 w-3" />
@@ -117,7 +121,7 @@ export function DashboardRecentTrips({
               key={trip.id}
               trip={trip}
               onClick={() =>
-                navigate(`/trips/${trip.id}`, { state: { from: "/dashboard" } })
+                navigate(`/trips/${trip.id}`, { state: navState })
               }
             />
           ))

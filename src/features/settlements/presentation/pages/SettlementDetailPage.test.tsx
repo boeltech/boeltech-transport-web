@@ -24,7 +24,15 @@ vi.mock("@shared/permissions", () => ({
 }));
 
 vi.mock("@features/settings/application", () => ({
-  useCompanySettings: () => ({ data: { legalName: "Transportes Test", rfc: "AAA010101AAA" } }),
+  useCompanySettings: () => ({
+    data: {
+      legalName: "Transportes Test",
+      rfc: "AAA010101AAA",
+      logoUrl: null,
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    },
+  }),
+  useCompanyLogoObjectUrl: () => ({ logoSrc: null, isLoading: false, isError: false }),
 }));
 
 vi.mock("@shared/hooks", async (importOriginal) => {
@@ -363,7 +371,7 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     mockSubmitSettlement.mockResolvedValue({ ...pendingSettlement });
   });
 
-  it("D25: pendiente ofrece Corregir · Devolver para corregir · Autorizar · ⋯ y «Vista previa del recibo»", async () => {
+  it("D25 / H1–H3: pendiente ofrece cluster Autorizar · ⋯ con Preview/Corregir/Devolver (sin hint entre CTAs)", async () => {
     mockGetSettlementById.mockResolvedValue(pendingSettlement);
     renderDetail();
 
@@ -371,13 +379,137 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
       expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: "Corregir" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Devolver para corregir/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Más acciones/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Rechazar$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Corregir" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Devolver para corregir/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Vista previa del recibo/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Rechazar$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Imprimir recibo/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Si solo hay un error corregible, devuelve el pago/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("R1: dialog en pendiente usa título y descripción de vista previa", async () => {
+    const user = userEvent.setup();
+    mockGetSettlementById.mockResolvedValue(pendingSettlement);
+    renderDetail();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Vista previa del recibo/i }),
+    );
+
+    expect(screen.getByRole("heading", { name: "Vista previa del recibo" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Vista previa para revisión; no es un documento para firma."),
+    ).toBeInTheDocument();
+  });
+
+  it("R1: dialog en autorizado usa «Recibo para firma»", async () => {
+    const user = userEvent.setup();
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "approved",
+      approvedAt: "2026-09-16T10:00:00Z",
+      approvedBy: "user-approver-999",
+      approvedByName: "Auditor",
+    });
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: /Imprimir recibo/i }));
+
+    expect(screen.getByRole("heading", { name: "Recibo para firma" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Documento listo para firma del operador. Imprímelo y recoge la firma.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("R1: dialog en pagado usa «Recibo de pago»", async () => {
+    const user = userEvent.setup();
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "disbursed",
+      approvedAt: "2026-09-16T10:00:00Z",
+      approvedBy: "user-approver-999",
+      approvedByName: "Auditor",
+      disbursedAt: "2026-09-17T10:00:00Z",
+      disbursedBy: "user-executor-1",
+      disbursedByName: "Tesorería",
+      disbursementMethod: "cash",
+    });
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: /Imprimir recibo/i }));
+
+    expect(screen.getByRole("heading", { name: "Recibo de pago" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Recibo del pago registrado. Imprímelo para firma o archivo."),
+    ).toBeInTheDocument();
+  });
+
+  it("R2: en pagado el botón Imprimir recibo es primary", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "disbursed",
+      approvedAt: "2026-09-16T10:00:00Z",
+      approvedBy: "user-approver-999",
+      approvedByName: "Auditor",
+      disbursedAt: "2026-09-17T10:00:00Z",
+      disbursedBy: "user-executor-1",
+      disbursedByName: "Tesorería",
+      disbursementMethod: "cash",
+    });
+    renderDetail();
+
+    const printBtn = await screen.findByRole("button", { name: /Imprimir recibo/i });
+    expect(printBtn.className).toMatch(/bg-primary/);
+  });
+
+  it("R2: en autorizado el botón Imprimir recibo es outline", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "approved",
+      approvedAt: "2026-09-16T10:00:00Z",
+      approvedBy: "user-approver-999",
+      approvedByName: "Auditor",
+    });
+    renderDetail();
+
+    const printBtn = await screen.findByRole("button", { name: /Imprimir recibo/i });
+    expect(printBtn.className).not.toMatch(/bg-primary(?!\/)/);
+    expect(printBtn.className).toMatch(/border-input/);
+  });
+
+  it("R2: en pendiente Vista previa del recibo es outline", async () => {
+    mockGetSettlementById.mockResolvedValue(pendingSettlement);
+    renderDetail();
+
+    const previewBtn = await screen.findByRole("button", {
+      name: /Vista previa del recibo/i,
+    });
+    expect(previewBtn.className).not.toMatch(/bg-primary(?!\/)/);
+    expect(previewBtn.className).toMatch(/border-input/);
+  });
+
+  it("R7: Imprimir vive en el footer del dialog, no en el header", async () => {
+    const user = userEvent.setup();
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      status: "approved",
+      approvedAt: "2026-09-16T10:00:00Z",
+      approvedBy: "user-approver-999",
+      approvedByName: "Auditor",
+    });
+    renderDetail();
+
+    await user.click(await screen.findByRole("button", { name: /Imprimir recibo/i }));
+
+    const heading = screen.getByRole("heading", { name: "Recibo para firma" });
+    const printInDialog = screen.getByRole("button", { name: /^Imprimir$/i });
+    expect(heading.parentElement).not.toContainElement(printInDialog);
   });
 
   it("criterio 6: rechazada ofrece «Armar pago nuevo con este periodo»", async () => {

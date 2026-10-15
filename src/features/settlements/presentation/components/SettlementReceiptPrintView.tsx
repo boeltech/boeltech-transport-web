@@ -24,17 +24,22 @@ import {
 
 interface SettlementReceiptPrintViewProps {
   settlement: DriverSettlement;
-  companyName?: string;
+  /** Razón social / nombre comercial; si falta, copy neutro (nunca marca inventada). */
+  companyName?: string | null;
   rfc?: string;
+  /** URL lista para `<img>` (p. ej. object URL del logo autenticado). */
+  logoSrc?: string | null;
 }
 
 export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementReceiptPrintViewProps>(
   function SettlementReceiptPrintView(
-    { settlement, companyName = "Empresa de Transporte", rfc },
+    { settlement, companyName, rfc, logoSrc },
     ref,
   ) {
     const copy = settlementsCopy.detailPage.items;
     const receiptCopy = settlementsCopy.detailPage.receipt;
+    const displayCompanyName =
+      companyName?.trim() || settlementsCopy.detailPage.fallbacks.companyName;
     const zeroReasonCopy: Readonly<Record<string, string | undefined>> =
       receiptCopy.zeroTripsReasons;
     const reimbursementCopy = settlementsCopy.reimbursements;
@@ -55,11 +60,36 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
     const paymentMethodLabel = settlement.disbursementMethod
       ? DISBURSEMENT_METHOD_LABELS[settlement.disbursementMethod as DisbursementMethod] ?? settlement.disbursementMethod
       : null;
-    const isPaid = settlement.status === "disbursed" || Boolean(settlement.disbursedAt);
-    const isApprovedPendingPay =
-      settlement.status === "approved" && !isPaid;
-    // D28: solo lo autorizado o pagado se firma; lo demás es documento de revisión.
-    const isSignable = isReceiptSignable(settlement.status) || isPaid;
+    const isDisbursed = settlement.status === "disbursed";
+    const isApprovedPendingPay = settlement.status === "approved";
+    // D28 / R-05: firmable solo por status (approved | disbursed); no bypass por disbursedAt.
+    const isSignable = isReceiptSignable(settlement.status);
+    const workflowCopy = settlementsCopy.detailPage.workflow;
+    const companySignerName = isDisbursed
+      ? settlement.disbursedByName || receiptCopy.signatures.approverDefaultName
+      : settlement.approvedByName || receiptCopy.signatures.approverDefaultName;
+    const companySignerTitle = isDisbursed
+      ? receiptCopy.signatures.disburserTitle
+      : receiptCopy.signatures.approverTitle;
+    const companySignerDisclaimer = isDisbursed
+      ? settlement.disbursedAt
+        ? `${receiptCopy.signatures.disbursedOnPrefix} ${formatDate(settlement.disbursedAt)} · ${receiptCopy.signatures.approverDisclaimerDisbursed}`
+        : receiptCopy.signatures.approverDisclaimerDisbursed
+      : isApprovedPendingPay
+        ? `${receiptCopy.signatures.pendingPaymentBanner} · ${receiptCopy.signatures.approverDisclaimerPending}`
+        : receiptCopy.signatures.approverDisclaimerPending;
+    const selfSegApprovalLabel =
+      settlement.selfSegregatedApproval
+        ? settlement.approverCountAtApprove != null
+          ? workflowCopy.selfSegregatedApprovalCount(settlement.approverCountAtApprove)
+          : workflowCopy.selfSegregatedApproval
+        : null;
+    const selfSegDisburseLabel =
+      settlement.selfSegregatedDisbursement
+        ? settlement.executorCountAtDisburse != null
+          ? workflowCopy.selfSegregatedDisbursementCount(settlement.executorCountAtDisburse)
+          : workflowCopy.selfSegregatedDisbursement
+        : null;
 
     return (
       <div
@@ -78,26 +108,38 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
           </div>
         ) : null}
         {/* CABECERA DE LA EMPRESA Y COMPROBANTE */}
-        <div className="flex justify-between items-start border-b-2 border-black pb-3 mb-3">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight uppercase">{companyName}</h1>
-            {rfc && <p className="text-[11px] text-muted-foreground">RFC: {rfc}</p>}
-            <p className="text-[11px] font-semibold text-foreground">
-              {isReimbursementOnly
-                ? reimbursementCopy.receipt.documentTitle
-                : receiptCopy.documentTitle}
-            </p>
-            {isReimbursementOnly ? (
-              <p className="text-[10px] text-muted-foreground">
-                {reimbursementCopy.receipt.documentSubtitle}
-              </p>
+        <div className="flex justify-between items-start border-b-2 border-black pb-3 mb-3 gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            {logoSrc ? (
+              <img
+                src={logoSrc}
+                alt=""
+                data-testid="receipt-company-logo"
+                className="h-12 w-auto max-w-[140px] shrink-0 object-contain print:h-10 print:max-w-[120px]"
+              />
             ) : null}
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold tracking-tight uppercase">
+                {displayCompanyName}
+              </h1>
+              {rfc && <p className="text-[11px] text-black/70">RFC: {rfc}</p>}
+              <p className="text-[11px] font-semibold text-black">
+                {isReimbursementOnly
+                  ? reimbursementCopy.receipt.documentTitle
+                  : receiptCopy.documentTitle}
+              </p>
+              {isReimbursementOnly ? (
+                <p className="text-[10px] text-black/70">
+                  {reimbursementCopy.receipt.documentSubtitle}
+                </p>
+              ) : null}
+            </div>
           </div>
           <div className="text-right">
             <div className="inline-block border-2 border-black px-2.5 py-0.5 text-sm font-bold font-mono bg-muted print:bg-transparent">
               {receiptCopy.folioLabel} {settlement.settlementNumber}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-[11px] text-black/70 mt-1">
               {receiptCopy.statusLabel}{" "}
               <span className="font-semibold text-black">
                 {SETTLEMENT_STATUS_LABELS[settlement.status] ?? settlement.status}
@@ -107,16 +149,16 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
               <p className="mt-1 inline-block border-2 border-black px-2 py-0.5 text-[10px] font-black tracking-wide">
                 {receiptCopy.signatures.pendingPaymentBanner}
               </p>
-            ) : isPaid ? (
+            ) : isDisbursed ? (
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide">
                 {receiptCopy.signatures.finalReceiptBanner}
               </p>
             ) : null}
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-black/70">
               {receiptCopy.issueDateLabel} {formatDate(settlement.createdAt || new Date().toISOString())}
             </p>
             {settlement.updatedAt ? (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[10px] text-black/70">
                 {receiptCopy.lastModified(formatDateTime(settlement.updatedAt))}
               </p>
             ) : null}
@@ -126,10 +168,10 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
         {/* DATOS DEL OPERADOR Y PERÍODO */}
         <div className="grid grid-cols-2 gap-3 border border-border p-2.5 rounded-sm mb-3 bg-muted/80 print:bg-transparent">
           <div>
-            <p className="text-[10px] uppercase text-muted-foreground font-semibold">{receiptCopy.driverLabel}</p>
+            <p className="text-[10px] uppercase text-black/70 font-semibold">{receiptCopy.driverLabel}</p>
             <p className="text-sm font-bold text-black">{settlement.employeeFullName ?? "—"}</p>
             {paymentMethodLabel && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
+              <p className="text-[10px] text-black/70 mt-0.5">
                 {receiptCopy.paymentMethodLabel} <span className="font-medium text-black">{paymentMethodLabel}</span>
                 {settlement.disbursementReference && (
                   <span> · {receiptCopy.bankRefLabel} <span className="font-mono text-black">{settlement.disbursementReference}</span></span>
@@ -138,7 +180,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             )}
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+            <p className="text-[10px] uppercase text-black/70 font-semibold">
               {isReimbursementOnly
                 ? reimbursementCopy.receipt.dateLabel
                 : receiptCopy.settledPeriodLabel}
@@ -148,11 +190,11 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                 ? formatDate(settlement.createdAt)
                 : `${formatDate(settlement.periodStart)} al ${formatDate(settlement.periodEnd)}`}
             </p>
-            {settlement.disbursedAt && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
+            {isDisbursed && settlement.disbursedAt ? (
+              <p className="text-[10px] text-black/70 mt-0.5">
                 {receiptCopy.signatures.disbursedOnPrefix} <span className="font-medium text-black">{formatDate(settlement.disbursedAt)}</span>
               </p>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -163,7 +205,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
           </h2>
           <table className="w-full border-collapse border border-border text-left">
             <thead>
-              <tr className="bg-muted text-[10px] uppercase text-muted-foreground">
+              <tr className="bg-muted text-[10px] uppercase text-black/70">
                 <th className="border border-border p-1.5">{receiptCopy.earningsTable.concept}</th>
                 <th className="border border-border p-1.5">{receiptCopy.earningsTable.type}</th>
                 <th className="border border-border p-1.5">{receiptCopy.earningsTable.trip}</th>
@@ -175,7 +217,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             <tbody>
               {earnings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="border border-border p-2 text-center text-muted-foreground italic">
+                  <td colSpan={6} className="border border-border p-2 text-center text-black/70 italic">
                     {receiptCopy.earningsTable.empty}
                   </td>
                 </tr>
@@ -187,24 +229,24 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                     <tr key={it.id ?? idx} className="text-[11px]">
                       <td className="border border-border p-1.5">
                         <div className="font-semibold text-black">
-                          {title} {badgeTag ? <span className="font-normal text-[10px] text-muted-foreground">[{badgeTag}]</span> : ""}
+                          {title} {badgeTag ? <span className="font-normal text-[10px] text-black/70">[{badgeTag}]</span> : ""}
                         </div>
-                        {subtitle && <div className="text-[10px] text-muted-foreground leading-tight">{subtitle}</div>}
+                        {subtitle && <div className="text-[10px] text-black/70 leading-tight">{subtitle}</div>}
                         {tripLine ? (
                           <div
-                            className="text-[10px] text-muted-foreground leading-tight"
+                            className="text-[10px] text-black/70 leading-tight"
                             data-testid="receipt-reimbursement-trip-line"
                           >
                             {tripLine}
                           </div>
                         ) : null}
                         {isManualPayeeReimbursement(it) ? (
-                          <div className="text-[10px] text-muted-foreground leading-tight">
+                          <div className="text-[10px] text-black/70 leading-tight">
                             {reimbursementCopy.manualPayeeLine}
                           </div>
                         ) : null}
                       </td>
-                      <td className="border border-border p-1.5 text-[10px] text-muted-foreground">
+                      <td className="border border-border p-1.5 text-[10px] text-black/70">
                         {getSettlementItemCategoryLabel(it)}
                       </td>
                       <td className="border border-border p-1.5 font-mono text-[11px]">{it.tripCode ?? "—"}</td>
@@ -238,10 +280,10 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             <h2 className="text-[11px] font-bold uppercase tracking-wider bg-muted px-2 py-1 mb-1 border border-border">
               {receiptCopy.zeroTripsTitle}
             </h2>
-            <p className="text-[10px] text-muted-foreground mb-1">{receiptCopy.zeroTripsHint}</p>
+            <p className="text-[10px] text-black/70 mb-1">{receiptCopy.zeroTripsHint}</p>
             <table className="w-full border-collapse border border-border text-left">
               <thead>
-                <tr className="bg-muted text-[10px] uppercase text-muted-foreground">
+                <tr className="bg-muted text-[10px] uppercase text-black/70">
                   <th className="border border-border p-1.5">{receiptCopy.zeroTripsTable.trip}</th>
                   <th className="border border-border p-1.5">{receiptCopy.zeroTripsTable.reason}</th>
                 </tr>
@@ -271,7 +313,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
           </h2>
           <table className="w-full border-collapse border border-border text-left">
             <thead>
-              <tr className="bg-muted text-[10px] uppercase text-muted-foreground">
+              <tr className="bg-muted text-[10px] uppercase text-black/70">
                 <th className="border border-border p-1.5">{receiptCopy.deductionsTable.concept}</th>
                 <th className="border border-border p-1.5">{receiptCopy.deductionsTable.type}</th>
                 <th className="border border-border p-1.5">{receiptCopy.deductionsTable.reference}</th>
@@ -281,7 +323,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
             <tbody>
               {deductions.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="border border-border p-2 text-center text-muted-foreground italic">
+                  <td colSpan={4} className="border border-border p-2 text-center text-black/70 italic">
                     {receiptCopy.deductionsTable.empty}
                   </td>
                 </tr>
@@ -292,12 +334,12 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                     <tr key={it.id ?? idx} className="text-[11px]">
                       <td className="border border-border p-1.5">
                         <div className="font-semibold text-black">{title}</div>
-                        {subtitle && <div className="text-[10px] text-muted-foreground leading-tight">{subtitle}</div>}
+                        {subtitle && <div className="text-[10px] text-black/70 leading-tight">{subtitle}</div>}
                       </td>
-                      <td className="border border-border p-1.5 text-[10px] text-muted-foreground">
+                      <td className="border border-border p-1.5 text-[10px] text-black/70">
                         {getSettlementItemCategoryLabel(it)}
                       </td>
-                      <td className="border border-border p-1.5 font-mono text-[10px] text-muted-foreground">
+                      <td className="border border-border p-1.5 font-mono text-[10px] text-black/70">
                         {it.calculationDetails?.advanceFolio ?? (it.advanceId ? "Anticipo vinculado" : "—")}
                       </td>
                       <td className="border border-border p-1.5 text-right tabular-nums font-semibold text-black">
@@ -322,7 +364,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
                 <tr className="text-[11px]" data-testid="receipt-uncovered-deductions">
                   <td colSpan={3} className="border border-border p-1.5 text-right">
                     <span className="font-bold uppercase">{capCopy.uncoveredLabel}</span>
-                    <span className="block text-[10px] font-normal text-muted-foreground">
+                    <span className="block text-[10px] font-normal text-black/70">
                       {capCopy.uncoveredHint}
                     </span>
                   </td>
@@ -339,7 +381,7 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
         <div className="border-2 border-black bg-muted p-2 mb-3 rounded-sm print:bg-transparent break-inside-avoid">
           <div className="grid grid-cols-3 gap-2 text-center items-center">
             <div className="border-r border-border pr-2">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+              <span className="text-[10px] uppercase font-bold text-black/70 block">
                 {receiptCopy.balance.totalEarningsLabel}
               </span>
               <span className="text-sm font-bold tabular-nums text-black block">
@@ -347,14 +389,14 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
               </span>
             </div>
             <div className="border-r border-border pr-2">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+              <span className="text-[10px] uppercase font-bold text-black/70 block">
                 {receiptCopy.balance.totalDeductionsLabel}
               </span>
               <span className="text-sm font-bold tabular-nums text-black block">
                 -{formatMxCurrency(totalDeductions)}
               </span>
               {uncoveredDeductions > 0 ? (
-                <span className="text-[10px] tabular-nums text-muted-foreground block">
+                <span className="text-[10px] tabular-nums text-black/70 block">
                   {capCopy.uncoveredLabel} +{formatMxCurrency(uncoveredDeductions)}
                 </span>
               ) : null}
@@ -378,6 +420,21 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
           </div>
         )}
 
+        {/* Evidencia D3′ (misma idea que el detalle) */}
+        {selfSegApprovalLabel || selfSegDisburseLabel ? (
+          <div
+            data-testid="receipt-self-segregated-evidence"
+            className="border border-black/40 p-2 rounded-sm mb-3 text-[10px] bg-white break-inside-avoid space-y-0.5"
+          >
+            {selfSegApprovalLabel ? (
+              <p className="font-semibold text-black">{selfSegApprovalLabel}</p>
+            ) : null}
+            {selfSegDisburseLabel ? (
+              <p className="font-semibold text-black">{selfSegDisburseLabel}</p>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* FIRMAS DE CONFORMIDAD */}
         {!isSignable ? (
           <div
@@ -393,8 +450,8 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
           <div>
             <div className="border-b border-black w-3/4 mx-auto mb-1"></div>
             <p className="font-bold text-xs text-black">{settlement.employeeFullName ?? "Operador / Conductor"}</p>
-            <p className="text-[10px] font-semibold text-muted-foreground">{receiptCopy.signatures.driverTitle}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
+            <p className="text-[10px] font-semibold text-black/70">{receiptCopy.signatures.driverTitle}</p>
+            <p className="text-[9px] text-black/70 mt-0.5 leading-tight">
               {isReimbursementOnly
                 ? reimbursementCopy.receipt.driverDisclaimer
                 : receiptCopy.signatures.driverDisclaimer}
@@ -402,16 +459,12 @@ export const SettlementReceiptPrintView = forwardRef<HTMLDivElement, SettlementR
           </div>
           <div>
             <div className="border-b border-black w-3/4 mx-auto mb-1"></div>
-            <p className="font-bold text-xs text-black">
-              {settlement.approvedByName || receiptCopy.signatures.approverDefaultName}
+            <p className="font-bold text-xs text-black" data-testid="receipt-company-signer-name">
+              {companySignerName}
             </p>
-            <p className="text-[10px] font-semibold text-muted-foreground">{receiptCopy.signatures.approverTitle}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
-              {isPaid
-                ? `${receiptCopy.signatures.disbursedOnPrefix} ${formatDate(settlement.disbursedAt!)} · ${receiptCopy.signatures.approverDisclaimerDisbursed}`
-                : isApprovedPendingPay
-                  ? `${receiptCopy.signatures.pendingPaymentBanner} · ${receiptCopy.signatures.approverDisclaimerPending}`
-                  : receiptCopy.signatures.approverDisclaimerPending}
+            <p className="text-[10px] font-semibold text-black/70">{companySignerTitle}</p>
+            <p className="text-[9px] text-black/70 mt-0.5 leading-tight">
+              {companySignerDisclaimer}
             </p>
           </div>
         </div>

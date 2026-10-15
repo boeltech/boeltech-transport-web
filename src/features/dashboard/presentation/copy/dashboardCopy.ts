@@ -49,11 +49,16 @@ export const dashboardCopy = {
     resetRole: "Restaurar predeterminado del rol",
     resetSystem: "Restaurar predeterminado del sistema",
     done: "Listo",
-    roleSettingsTitle: "Layout de Inicio por rol",
+    roleSettingsTitle: "Widgets de Inicio",
     roleSettingsDescription:
-      "Define el orden y visibilidad por defecto para cada rol. Los usuarios pueden personalizar después.",
-    selectRole: "Rol",
-    saveRoleLayout: "Guardar layout del rol",
+      "Elige un rol, edita sus widgets y cierra con Listo. Los cambios se guardan al instante; cada usuario puede personalizar después.",
+    selectRole: "Rol a configurar",
+    roleSettingsSteps:
+      "1. Elige el rol · 2. Edita los widgets · 3. Cierra con Listo",
+    /** CTA que abre el sheet de edición (no es un submit separado). */
+    editRoleLayout: "Editar widgets del rol",
+    /** @deprecated Preferir editRoleLayout */
+    saveRoleLayout: "Editar widgets del rol",
   },
   scorecard: {
     title: "Scorecard del mes",

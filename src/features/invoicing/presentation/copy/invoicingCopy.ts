@@ -818,6 +818,7 @@ export const invoicingCopy = {
     header: {
       title: "Factura",
       backLabel: "Volver",
+      backToInvoiceable: "Volver a Por facturar",
       backToCobros: "Volver a cobros",
       backToDispatch: "Volver a envíos",
       backToDispatchPeriod: "Volver a envíos del periodo",

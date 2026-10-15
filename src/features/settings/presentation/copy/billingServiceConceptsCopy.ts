@@ -3,7 +3,7 @@ export const billingServiceConceptsCopy = {
     title: "Servicios de cobro",
     description:
       "Catálogo reutilizable para partidas de servicio en facturas de ingreso (maniobras, resguardo, estadía, etc.).",
-    backToBilling: "Volver a facturación",
+    backToBilling: "Volver a Datos para facturar",
   },
   info: {
     title: "Uso en facturas",
@@ -51,6 +51,7 @@ export const billingServiceConceptsCopy = {
     deactivate: "Desactivar",
     reactivate: "Reactivar",
     validation: {
+      summaryTitle: "Revisa estos campos",
       nameRequired: "Indica un nombre para el servicio",
       claveProdServRequired: "Selecciona una clave producto/servicio",
       claveUnidadRequired: "Selecciona una clave de unidad",

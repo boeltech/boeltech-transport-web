@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SettlementCreatePage } from "./SettlementCreatePage";
 import { ApiError } from "@shared/api/interceptors/error-handler";
@@ -457,10 +457,22 @@ describe("SettlementCreatePage Component", () => {
     });
 
     const queryClient = createTestQueryClient();
+    const createHref =
+      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
+    function LocationProbe() {
+      const location = useLocation();
+      return (
+        <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+      );
+    }
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
-          <SettlementCreatePage />
+        <MemoryRouter initialEntries={[createHref]}>
+          <Routes>
+            <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
+            <Route path="/finance/compensation/templates" element={<LocationProbe />} />
+            <Route path="/employees/:id/edit" element={<LocationProbe />} />
+          </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -469,15 +481,77 @@ describe("SettlementCreatePage Component", () => {
       expect(screen.getByText(/Tarifa incompleta/i)).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByRole("link", { name: /Completar tarifa/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Configurar sueldo en empleado/i }),
-    ).toBeInTheDocument();
+    const tarifasLink = screen.getByRole("link", { name: /Completar tarifa/i });
+    const salaryLink = screen.getByRole("link", {
+      name: /Configurar sueldo en empleado/i,
+    });
+    expect(tarifasLink).toBeInTheDocument();
+    expect(salaryLink).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /Abrir ficha del empleado/i }),
     ).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(tarifasLink);
+    expect(screen.getByTestId("location-state")).toHaveTextContent(
+      JSON.stringify({ from: createHref }),
+    );
+  });
+
+  it("S5-01: link sueldo en empleado propaga state.from al mismo alta", async () => {
+    mockPreviewSettlement.mockResolvedValue({
+      ...mockPreview,
+      agreement: {
+        ...mockPreview.agreement,
+        hasFixedSalary: false,
+        fixedSalaryAmount: 0,
+        fixedSalaryPeriod: "none",
+        calculationType: "salary_only",
+        rules: [],
+      },
+      summary: {
+        ...mockPreview.summary,
+        totalCommissions: 0,
+        totalBaseSalary: 0,
+        totalFixedAllowances: 0,
+        grossAmount: 0,
+        netAmount: 0,
+      },
+      fixedAllowances: [],
+      eligibleTrips: [],
+    });
+
+    const createHref =
+      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
+    function LocationProbe() {
+      const location = useLocation();
+      return (
+        <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+      );
+    }
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[createHref]}>
+          <Routes>
+            <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
+            <Route path="/employees/:id/edit" element={<LocationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Tarifa incompleta/i)).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("link", { name: /Configurar sueldo en empleado/i }),
+    );
+    expect(screen.getByTestId("location-state")).toHaveTextContent(
+      JSON.stringify({ from: createHref }),
+    );
   });
 
   it("bloquea Enviar a autorización si hay viajes por km sin distancia hasta ack", async () => {

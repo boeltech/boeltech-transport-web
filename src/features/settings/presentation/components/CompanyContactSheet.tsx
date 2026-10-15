@@ -112,7 +112,11 @@ export const CompanyContactSheet = memo(function CompanyContactSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent className={SETTINGS_SHEET_CONTENT_CLASS} side="right">
+      <SheetContent
+        className={SETTINGS_SHEET_CONTENT_CLASS}
+        side="right"
+        onFocusOutside={(event) => event.preventDefault()}
+      >
         <SheetHeader className={SETTINGS_SHEET_HEADER_CLASS}>
           <SheetTitle>{copy.sheetTitle}</SheetTitle>
           <SheetDescription>{copy.sheetDescription}</SheetDescription>

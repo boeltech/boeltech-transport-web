@@ -109,7 +109,7 @@ export const settingsNavItems: SettingsNavItem[] = [
   },
   {
     id: SettingsSection.DASHBOARD_LAYOUTS,
-    label: "Inicio",
+    label: "Widgets de Inicio",
     description: "Orden y visibilidad de widgets por rol",
     path: "/settings/dashboard-layouts",
     icon: LayoutDashboard,
@@ -123,15 +123,4 @@ export function getSettingsNavItem(
   id: SettingsSectionValue,
 ): SettingsNavItem | undefined {
   return settingsNavItems.find((item) => item.id === id);
-}
-
-export function getActiveSettingsNavItem(
-  pathname: string,
-): SettingsNavItem | undefined {
-  const exactMatch = settingsNavItems.find((item) => item.path === pathname);
-  if (exactMatch) return exactMatch;
-
-  return settingsNavItems.find(
-    (item) => pathname.startsWith(item.path) && item.path !== "/settings",
-  );
 }

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   CERTIFICATE_EXPIRY_WARNING_DAYS,
+  isBillingCoreReady,
   resolveCertificateReadiness,
+  resolveIdentityReadiness,
   resolveNumberingReadiness,
   resolveReadinessTone,
 } from "./billingReadiness";
@@ -12,6 +14,42 @@ const NOW = new Date("2026-08-01T12:00:00.000Z");
 function daysFromNow(days: number): string {
   return new Date(NOW.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
 }
+
+describe("resolveIdentityReadiness", () => {
+  it("marca pendiente cuando falta un dato de identidad", () => {
+    expect(
+      resolveIdentityReadiness(
+        {
+          legalName: "Demo",
+          rfc: "TAB123456XYZ",
+          regimenFiscal: "",
+          lugarExpedicion: "03100",
+        },
+        { known: true },
+      ).status,
+    ).toBe("pending");
+  });
+
+  it("marca listo con identidad mínima", () => {
+    expect(
+      resolveIdentityReadiness(
+        {
+          legalName: "Demo",
+          rfc: "TAB123456XYZ",
+          regimenFiscal: "601",
+          lugarExpedicion: "03100",
+        },
+        { known: true },
+      ).status,
+    ).toBe("ready");
+  });
+
+  it("queda unknown hasta que se conoce el GET de empresa", () => {
+    expect(resolveIdentityReadiness(undefined, { known: false }).status).toBe(
+      "unknown",
+    );
+  });
+});
 
 describe("resolveCertificateReadiness", () => {
   it("marca pendiente cuando no hay sello cargado", () => {
@@ -80,9 +118,22 @@ describe("resolveNumberingReadiness", () => {
 });
 
 describe("resolveReadinessTone", () => {
+  it("exige identidad en el núcleo pendiente", () => {
+    expect(
+      resolveReadinessTone({
+        identity: "pending",
+        certificate: "ready",
+        numbering: "ready",
+        connection: "unknown",
+        emitter: "unknown",
+      }),
+    ).toBe("pending");
+  });
+
   it("exige las dos comprobaciones para declarar listo para facturar", () => {
     expect(
       resolveReadinessTone({
+        identity: "ready",
         certificate: "ready",
         numbering: "ready",
         connection: "ready",
@@ -92,6 +143,7 @@ describe("resolveReadinessTone", () => {
 
     expect(
       resolveReadinessTone({
+        identity: "ready",
         certificate: "ready",
         numbering: "ready",
         connection: "unknown",
@@ -103,6 +155,7 @@ describe("resolveReadinessTone", () => {
   it("prioriza lo pendiente sobre el vencimiento próximo", () => {
     expect(
       resolveReadinessTone({
+        identity: "ready",
         certificate: "warning",
         numbering: "pending",
         connection: "unknown",
@@ -112,6 +165,7 @@ describe("resolveReadinessTone", () => {
 
     expect(
       resolveReadinessTone({
+        identity: "ready",
         certificate: "warning",
         numbering: "ready",
         connection: "unknown",
@@ -123,11 +177,34 @@ describe("resolveReadinessTone", () => {
   it("trata una comprobación fallida como pendiente", () => {
     expect(
       resolveReadinessTone({
+        identity: "ready",
         certificate: "ready",
         numbering: "ready",
         connection: "pending",
         emitter: "unknown",
       }),
     ).toBe("pending");
+  });
+});
+
+describe("isBillingCoreReady", () => {
+  it("acepta sello en warning como núcleo listo", () => {
+    expect(
+      isBillingCoreReady({
+        identity: "ready",
+        certificate: "warning",
+        numbering: "ready",
+      }),
+    ).toBe(true);
+  });
+
+  it("falla sin identidad", () => {
+    expect(
+      isBillingCoreReady({
+        identity: "pending",
+        certificate: "ready",
+        numbering: "ready",
+      }),
+    ).toBe(false);
   });
 });

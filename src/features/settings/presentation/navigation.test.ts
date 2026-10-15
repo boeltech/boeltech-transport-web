@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SettingsSection } from "../domain";
 import {
-  getActiveSettingsNavItem,
   getSettingsNavItem,
   settingsNavItems,
 } from "./navigation";
@@ -51,7 +50,7 @@ const EXPECTED_NAV_ORDER = [
   {
     id: SettingsSection.DASHBOARD_LAYOUTS,
     path: "/settings/dashboard-layouts",
-    label: "Inicio",
+    label: "Widgets de Inicio",
   },
 ] as const;
 
@@ -83,22 +82,10 @@ describe("settingsNavItems", () => {
   });
 });
 
-describe("getSettingsNavItem / getActiveSettingsNavItem", () => {
+describe("getSettingsNavItem", () => {
   it("resolves by section id", () => {
     expect(getSettingsNavItem(SettingsSection.IMPORTS)?.label).toBe(
       "Importar padrón",
     );
-  });
-
-  it("resolves exact and nested paths", () => {
-    expect(getActiveSettingsNavItem("/settings/billing")?.id).toBe(
-      SettingsSection.BILLING,
-    );
-    expect(
-      getActiveSettingsNavItem("/settings/catalogs/clave_prod_serv")?.id,
-    ).toBe(SettingsSection.CATALOGS);
-    expect(
-      getActiveSettingsNavItem("/settings/billing/service-concepts")?.id,
-    ).toBe(SettingsSection.BILLING);
   });
 });

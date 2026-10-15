@@ -1,21 +1,18 @@
 /**
- * BillingSettingsPage
+ * BillingSettingsPage — hub permanente «Datos para facturar».
  *
- * Puesta a punto para facturar: encabeza una ficha de preparación y sigue con
- * los bloques en el orden en que se resuelven (sello, numeración, valores que
- * se precargan, timbrado y servicios de cobro).
- *
- * Ubicación: src/features/settings/presentation/pages/BillingSettingsPage.tsx
+ * Strip de preparación (identidad → sello → numeración + diagnóstico PAC),
+ * numeración/defaults con Guardar, teasers a hijas.
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Info, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, Info, Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
-import { EmptyState } from "@shared/ui/feedback-states";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import {
   FormStickyActions,
   FormValidationSummary,
@@ -28,13 +25,12 @@ import { ROLES } from "@shared/constants/roles";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 
 import { SettingsPageShell } from "@shared/ui/page-shells";
-import { AdminBillingOrientationAlert } from "../components/AdminBillingOrientationAlert";
 import { BillingCertificateCard } from "../components/BillingCertificateCard";
 import { BillingDefaultsCard } from "../components/BillingDefaultsCard";
 import { BillingNumberingCard } from "../components/BillingNumberingCard";
 import { BillingReadinessCard } from "../components/BillingReadinessCard";
+import { BillingDispatchSchemesCard } from "../components/BillingDispatchSchemesCard";
 import { BillingServiceConceptsCard } from "../components/BillingServiceConceptsCard";
-import { BillingStampingCard } from "../components/BillingStampingCard";
 import {
   useBillingSettings,
   useCompanySettings,
@@ -52,10 +48,10 @@ import {
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
 import {
   resolveCertificateReadiness,
+  resolveIdentityReadiness,
   resolveNumberingReadiness,
   type BillingRequirementStatus,
 } from "../utils/billingReadiness";
-import { isCompanyIdentityReady } from "../utils/companyIdentityReadiness";
 import {
   billingSettingsSchema,
   mapSettingsToForm,
@@ -85,6 +81,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
 
   const form = useForm<BillingSettingsFormData>({
     resolver: zodResolver(billingSettingsSchema),
+    mode: "onChange",
     defaultValues: { pacProvider: PacProviders.PROFACT },
   });
   const { handleSubmit, reset, formState } = form;
@@ -138,7 +135,6 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         tasaIva: data.tasaIva,
       };
 
-      // Solo los timbradores con credenciales por empresa las envían.
       const usesCredentials =
         PAC_USES_CREDENTIALS[data.pacProvider as PacProvider] ?? false;
       if (usesCredentials) {
@@ -168,6 +164,12 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
     registerEmitterMutation.mutate();
   }, [canUpdateSettings, registerEmitterMutation]);
 
+  const identityReadiness = useMemo(
+    () =>
+      resolveIdentityReadiness(companySettings, { known: companyReady }),
+    [companySettings, companyReady],
+  );
+
   const certificateReadiness = useMemo(
     () =>
       resolveCertificateReadiness(
@@ -178,7 +180,9 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
 
   const numberingReadiness = useMemo(
     () =>
-      resolveNumberingReadiness(settings ?? { serieFactura: "", folioInicial: 0 }),
+      resolveNumberingReadiness(
+        settings ?? { serieFactura: "", folioInicial: 0 },
+      ),
     [settings],
   );
 
@@ -201,16 +205,23 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         title={copy.page.title}
         description={copy.page.description}
       >
-        <EmptyState
-          icon={<AlertTriangle />}
+        <DetailAlertCard
+          severity="critical"
+          icon={<AlertCircle className="h-5 w-5" aria-hidden />}
           title={copy.state.loadErrorTitle}
-          description={copy.state.loadErrorDescription}
-          cta={{
-            label: copy.state.retry,
-            icon: <RefreshCw />,
-            onClick: () => void refetch(),
-          }}
-        />
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+            >
+              {copy.state.retry}
+            </Button>
+          }
+        >
+          <p>{copy.state.loadErrorDescription}</p>
+        </DetailAlertCard>
       </SettingsPageShell>
     );
   }
@@ -218,6 +229,8 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const validationMessages = showValidationSummary
     ? collectFieldErrorMessages(form.formState.errors)
     : [];
+
+  const provider = resolveSelectablePacProvider(settings.pacProvider);
 
   return (
     <SettingsPageShell
@@ -234,23 +247,23 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
           </Alert>
         )}
 
-        {canUploadCertificate ? (
-          <AdminBillingOrientationAlert
-            identityMissing={
-              companyReady &&
-              companySettings !== undefined &&
-              !isCompanyIdentityReady(companySettings)
-            }
-          />
-        ) : null}
-
         <BillingReadinessCard
+          identity={identityReadiness}
           certificate={certificateReadiness}
           numbering={numberingReadiness}
           connection={toCheckStatus(testConnectionMutation.data?.success)}
           isCheckingConnection={testConnectionMutation.isPending}
           emitter={toCheckStatus(registerEmitterMutation.data?.success)}
           isRegisteringEmitter={registerEmitterMutation.isPending}
+          certificateUploadRestricted={
+            canUpdateSettings && !canUploadCertificate
+          }
+          provider={provider}
+          canRunDiagnostics={canUpdateSettings}
+          connectionResult={testConnectionMutation.data}
+          emitterResult={registerEmitterMutation.data}
+          onTestConnection={handleTestConnection}
+          onRegisterEmitter={handleRegisterEmitter}
         />
 
         <BillingCertificateCard
@@ -275,6 +288,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
             form={form}
             settings={settings}
             canEdit={canUpdateSettings}
+            defaultCollapsed
           />
 
           {canUpdateSettings && (
@@ -312,43 +326,31 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
           )}
         </form>
 
-        <BillingStampingCard
-          provider={resolveSelectablePacProvider(settings.pacProvider)}
-          canRunActions={canUpdateSettings}
-          connectionResult={testConnectionMutation.data}
-          isTestingConnection={testConnectionMutation.isPending}
-          onTestConnection={handleTestConnection}
-          emitterResult={registerEmitterMutation.data}
-          isRegisteringEmitter={registerEmitterMutation.isPending}
-          onRegisterEmitter={handleRegisterEmitter}
-        />
-
-        <BillingServiceConceptsCard />
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            {copy.extrasHeading}
+          </p>
+          <div className="space-y-2">
+            <BillingServiceConceptsCard />
+            <BillingDispatchSchemesCard />
+          </div>
+        </div>
       </div>
       <UnsavedChangesDialog blocker={blocker} />
     </SettingsPageShell>
   );
 });
 
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-/** Las comprobaciones no se persisten: sin ejecutar en la sesión, se desconocen. */
 function toCheckStatus(success: boolean | undefined): BillingRequirementStatus {
   if (success === undefined) return "unknown";
   return success ? "ready" : "pending";
 }
 
-// ============================================================================
-// SKELETON
-// ============================================================================
-
 function BillingSettingsPageSkeleton() {
   return (
     <div className="space-y-6">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="space-y-4 rounded-lg border p-6">
+        <div key={index} className="space-y-4 rounded-xl border p-6">
           <Skeleton className="h-6 w-48" />
           <div className="grid gap-4 sm:grid-cols-2">
             {Array.from({ length: 4 }).map((__, field) => (

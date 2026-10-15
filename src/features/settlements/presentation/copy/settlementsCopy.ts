@@ -8,6 +8,14 @@ export const settlementsCopy = {
       "Arma el pago, pide autorización cuando aplique y regístralo al operador.",
     navAriaLabel: "Secciones de pagos a operadores",
     approvalPoliciesAction: "Reglas de autorización",
+    registryRelated: {
+      label: "Volver a por pagar",
+      description: "Cola operativa de cortes y pagos pendientes",
+    },
+    createRelated: {
+      label: "Volver a armar pago",
+      description: "Continuar el alta con el mismo operador y período",
+    },
     tabs: {
       porPagar: "Por pagar",
       adelantos: "Anticipos",
@@ -25,6 +33,7 @@ export const settlementsCopy = {
     description:
       "Anticipos en gestión: en Aprobaciones, por entregar o con saldo pendiente de descontar.",
     deductInPayment: "Descontar en pago",
+    viewInApprovals: "Ver en Aprobaciones",
     loadErrorTitle: "No se pudieron cargar los anticipos",
     loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
     retry: "Reintentar",
@@ -261,6 +270,7 @@ export const settlementsCopy = {
     backToRegistry: "Volver al historial",
     backToAdvances: "Volver a anticipos",
     backToApprovals: "Volver a aprobaciones",
+    backToAgreements: "Volver a Tarifas",
     viewDetail: "Ver detalle",
     viewDetails: "Ver detalles",
     exportCsv: "Exportar CSV",
@@ -545,16 +555,27 @@ export const settlementsCopy = {
     fallbacks: {
       paymentTitle: "Pago",
       noAgreement: "Sin acuerdo",
-      companyName: "Empresa de Transporte",
+      /** Neutro: no inventar una marca cuando faltan legalName / tradeName / tenant. */
+      companyName: "Sin razón social configurada",
       speiMethod: "SPEI",
       noCommission: "Sin comisión",
       weeklyPeriod: "semanal",
     },
     receiptDialog: {
-      title: "Recibo de pago",
-      previewDescription: "Vista previa para impresión y firma del operador.",
+      /** No firmable (draft / pending / rejected / cancelled). */
+      previewTitle: "Vista previa del recibo",
+      previewDescription: "Vista previa para revisión; no es un documento para firma.",
+      /** Firmable autorizado, aún sin pagar. */
+      signableTitle: "Recibo para firma",
+      signableDescription:
+        "Documento listo para firma del operador. Imprímelo y recoge la firma.",
+      /** Ya dispersado. */
+      paidTitle: "Recibo de pago",
+      paidDescription: "Recibo del pago registrado. Imprímelo para firma o archivo.",
       print: "Imprimir",
       preparing: "Preparando...",
+      /** Suggested PDF filename stem (browser appends .pdf). Folio-first, filesystem-safe. */
+      printDocumentTitle: (folio: string) => `Recibo-${folio}`,
     },
     balanceStrip: {
       grossEarnings: "Lo ganado",
@@ -717,6 +738,7 @@ export const settlementsCopy = {
         driverDisclaimer:
           "Recibí a mi entera satisfacción la cantidad neta indicada por concepto de mis servicios y viajes del período.",
         approverTitle: "Revisado y Autorizado / Empresa",
+        disburserTitle: "Pago registrado / Empresa",
         approverDefaultName: "Tesorería / Operaciones",
         approverDisclaimerDisbursed: "Pago revisado y registrado por administración.",
         approverDisclaimerPending: "Pago autorizado, pendiente de registrar.",
@@ -729,7 +751,6 @@ export const settlementsCopy = {
       reviewSignaturesNotice:
         "Documento de revisión. No firmar: puede cambiar antes de autorizarse.",
       lastModified: (dateTime: string) => `Última modificación: ${dateTime}`,
-      previewDialogDescription: "Vista previa para revisión; no es un documento para firma.",
     },
   },
   createPage: {
@@ -1244,6 +1265,7 @@ export const settlementsCopy = {
       printReceipt: "Imprimir recibo",
       history: "Ver historial completo",
       menuHistory: "Ver historial",
+      moreActions: "Más",
       moreActionsSr: "Más acciones",
     },
     returnedAlert: {
@@ -1251,6 +1273,7 @@ export const settlementsCopy = {
       resubmitUnchanged: "Reenviar sin cambios",
     },
     returnedChip: "Devuelto",
+    /** D3 preferido: solo en sheets; opcional bajo cluster ≥2xl — no entre CTAs (H1). */
     returnVsRejectHint:
       "Si solo hay un error corregible, devuelve el pago; rechazar lo cierra.",
     sheet: {

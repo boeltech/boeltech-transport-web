@@ -57,6 +57,7 @@ import { Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { EmptyState } from "@shared/ui/feedback-states";
 
+import { FINANCE_INVOICEABLE_PATH } from "@features/finance/application";
 import {
   useTrips,
   useDeleteTrip,
@@ -455,8 +456,10 @@ export function TripsListPage() {
   }, [filters]);
 
   const goCreateReserve = useCallback(() => {
-    navigate("/trips/new");
-  }, [navigate]);
+    navigate("/trips/new", {
+      state: { from: tripsListHref(searchParams) },
+    });
+  }, [navigate, searchParams]);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -806,6 +809,16 @@ export function TripsListPage() {
             : undefined
         }
         onPageChange={filters.setPage}
+        relatedConfig={
+          isAccountant
+            ? {
+                label: copy.accountantOrientation.invoiceableLink,
+                href: FINANCE_INVOICEABLE_PATH,
+                description:
+                  "Cola de viajes listos para emitir el primer CFDI.",
+              }
+            : undefined
+        }
       />
 
       {/* Delete confirmation */}

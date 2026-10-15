@@ -2,14 +2,17 @@
  * Reglas de autorización por concepto (ADR-0099 F5 · SDD §4.1).
  * Lectura para admin/gerente/contador; edición solo admin con `edit_enabled`.
  */
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { AlertCircle, Info } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { AlertCircle, ArrowLeft, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
-import { SettingsPageShell } from "@shared/ui/page-shells/SettingsPageShell";
+import { SettingsPageShell } from "@shared/ui/page-shells";
 import { usePermissions } from "@shared/permissions";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { isSafeSettlementReturnHref } from "@features/settlements/application/settlementReturnHref";
 import { isApprovalConcept, type ApprovalConcept } from "../../domain";
 import { useApprovalPolicies, usePolicyCandidateUsers } from "../../application";
 import { approvalPoliciesCopy } from "../copy/approvalPoliciesCopy";
@@ -23,6 +26,11 @@ const copy = approvalPoliciesCopy.page;
 
 export function ApprovalPoliciesPage() {
   const { hasPermission } = usePermissions();
+  const incomingFrom = useIncomingFrom();
+  const operatorPaymentsReturnHref =
+    incomingFrom && isSafeSettlementReturnHref(incomingFrom)
+      ? incomingFrom
+      : null;
   const [searchParams, setSearchParams] = useSearchParams();
   const overview = useApprovalPolicies();
   const hasUpdatePermission = hasPermission("approval_policies", "update");
@@ -43,6 +51,13 @@ export function ApprovalPoliciesPage() {
   );
   const [sheetMode, setSheetMode] = useState<ApprovalPolicySheetMode | null>(null);
   const [historyConcept, setHistoryConcept] = useState<ApprovalConcept | null>(null);
+
+  // Deep-link ?concept= tras montaje (p. ej. hub «Reglas de autorización»).
+  useEffect(() => {
+    if (isApprovalConcept(conceptParam)) {
+      setOpenConcept(conceptParam);
+    }
+  }, [conceptParam]);
 
   const effectiveMode: ApprovalPolicySheetMode = canEdit ? (sheetMode ?? "edit") : "view";
   const openPolicy = overview.data?.concepts.find((policy) => policy.concept === openConcept) ?? null;
@@ -73,6 +88,16 @@ export function ApprovalPoliciesPage() {
 
   return (
     <SettingsPageShell sectionTitle={copy.sectionTitle} title={copy.title} description={copy.description}>
+      {operatorPaymentsReturnHref ? (
+        <div className="mb-4">
+          <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
+            <Link to={operatorPaymentsReturnHref}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
+              {copy.backToOperatorPayments}
+            </Link>
+          </Button>
+        </div>
+      ) : null}
       <div className="space-y-6">
         {overview.isLoading ? (
           <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
@@ -81,15 +106,20 @@ export function ApprovalPoliciesPage() {
             ))}
           </div>
         ) : overview.isError || !overview.data ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex flex-wrap items-center gap-3">
-              <span>{copy.loadError}</span>
-              <Button size="sm" variant="outline" onClick={() => void overview.refetch()}>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+            title={copy.loadError}
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void overview.refetch()}
+              >
                 {copy.retry}
               </Button>
-            </AlertDescription>
-          </Alert>
+            }
+          />
         ) : (
           <>
             {readOnlyNotice ? (

@@ -1,12 +1,14 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useUserDetailWayfinding } from "../utils/userWayfinding";
 import { AlertCircle, Clock, KeyRound, Shield, User, UserRound } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { InfoRow, type StatCardProps } from "@shared/ui/data-display";
 import { ROLE_LABELS } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import {
   PolicyOrphanConfirmDialog,
   usePolicyOrphanConfirmation,
@@ -26,6 +28,8 @@ export function UserDetailPage() {
   const userId = id ?? "";
   const { backHref, backLabel, fromState } = useUserDetailWayfinding();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canReadEmployees = hasPermission("employees", "read");
 
   const { data: user, isLoading, isError } = useUser(userId);
 
@@ -190,6 +194,18 @@ export function UserDetailPage() {
                 value={user.email}
                 copyable
               />
+              {user.employeeId && canReadEmployees ? (
+                <div className="mt-3">
+                  <Button type="button" size="sm" variant="outline" asChild>
+                    <Link
+                      to={`/employees/${user.employeeId}`}
+                      state={{ from: `/users/${user.id}` }}
+                    >
+                      {usersCopy.detail.viewEmployee}
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -216,7 +232,10 @@ export function UserDetailPage() {
           </Card>
         </div>
 
-        <UserActivitySection userId={user.id} />
+        <UserActivitySection
+          userId={user.id}
+          fromState={{ from: `/users/${user.id}` }}
+        />
       </div>
       <PolicyOrphanConfirmDialog
         {...orphanGuard.dialog}

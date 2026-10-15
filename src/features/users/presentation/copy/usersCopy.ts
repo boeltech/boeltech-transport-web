@@ -203,6 +203,7 @@ export const usersCopy = {
     email: "Correo",
     backToList: "Volver a usuarios",
     backToActivity: "Volver al historial de usuarios",
+    viewEmployee: "Ver empleado",
     toasts: {
       statusSuccess: "Usuario actualizado",
       statusError: "Error al actualizar usuario",

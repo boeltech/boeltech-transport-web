@@ -4,20 +4,24 @@ import { BillingServiceConceptMasterDetail } from "../components/BillingServiceC
 import { billingServiceConceptsCopy } from "../copy/billingServiceConceptsCopy";
 
 export function BillingServiceConceptsPage() {
+  const { page } = billingServiceConceptsCopy;
   return (
-    <SettingsPageShell sectionTitle={billingServiceConceptsCopy.page.title}>
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">
-          {billingServiceConceptsCopy.page.description}{" "}
+    <SettingsPageShell
+      sectionTitle={page.title}
+      title={page.title}
+      description={
+        <>
+          {page.description}{" "}
           <Link
             to="/settings/billing"
             className="text-primary underline-offset-4 hover:underline"
           >
-            {billingServiceConceptsCopy.page.backToBilling}
+            {page.backToBilling}
           </Link>
-        </p>
-        <BillingServiceConceptMasterDetail />
-      </div>
+        </>
+      }
+    >
+      <BillingServiceConceptMasterDetail />
     </SettingsPageShell>
   );
 }

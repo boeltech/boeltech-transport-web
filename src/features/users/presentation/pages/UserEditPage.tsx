@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { usersCopy } from "../copy/usersCopy";
+import { USERS_LIST_PATH } from "../utils/userWayfinding";
 import { UserRound } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UnsavedChangesDialog } from "@shared/ui/form";
@@ -21,6 +22,8 @@ export function UserEditPage() {
   const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const userId = id ?? "";
+  const detailFallback = userId ? `/users/${userId}` : USERS_LIST_PATH;
+  const backHref = resolveInternalAppHref(incomingFrom, detailFallback);
   const [isDirty, setIsDirty] = useState(false);
   const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
     isDirty,
@@ -37,7 +40,7 @@ export function UserEditPage() {
         description: "Los cambios se guardaron correctamente",
         variant: "success",
       });
-      navigatePreservingFrom(navigate, `/users/${userId}`, incomingFrom);
+      navigate(backHref);
     },
     onError: (error, variables) => {
       const retry = () =>
@@ -78,8 +81,8 @@ export function UserEditPage() {
   );
 
   const handleCancel = useCallback(() => {
-    navigatePreservingFrom(navigate, `/users/${userId}`, incomingFrom);
-  }, [navigate, userId, incomingFrom]);
+    navigate(backHref);
+  }, [navigate, backHref]);
 
   return (
     <FormPageShell
@@ -89,11 +92,11 @@ export function UserEditPage() {
         icon: <UserRound />,
         title: "Usuario no encontrado",
         description: "No existe el usuario que intentas editar.",
-        backHref: "/users",
+        backHref: USERS_LIST_PATH,
         backLabel: usersCopy.detail.backToList,
       }}
       header={{
-        backHref: `/users/${userId}`,
+        backHref,
         icon: <UserRound className="h-5 w-5" />,
         title: user ? `Editar ${user.firstName} ${user.lastName}` : "Editar usuario",
         subtitle: user?.email,

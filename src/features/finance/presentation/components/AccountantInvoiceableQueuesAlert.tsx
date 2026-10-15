@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Receipt } from "lucide-react";
 
+import { buildTripsFiscalAttentionHref } from "@features/trips/application";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 
@@ -55,7 +56,9 @@ export function AccountantInvoiceableQueuesAlert({
         <p>{copy.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link to="/trips?fiscalAttention=1">{copy.fiscalAttentionLink}</Link>
+            <Link to={buildTripsFiscalAttentionHref()}>
+              {copy.fiscalAttentionLink}
+            </Link>
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
             {copy.dismiss}

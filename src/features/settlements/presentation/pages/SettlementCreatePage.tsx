@@ -73,6 +73,7 @@ import { settlementsCopy } from "../copy/settlementsCopy";
 import {
   resolveSettlementBackHref,
   resolveSettlementWayfindingBackLabel,
+  useSettlementQueueFromState,
 } from "../utils/settlementWayfinding";
 import { shouldShowSupportParticipationBadge } from "../utils/settlementParticipationHelpers";
 import {
@@ -202,6 +203,8 @@ export function SettlementCreatePage() {
   const fromState = location.state?.from as string | undefined;
   const backHref = resolveSettlementBackHref(fromState);
   const backLabel = resolveSettlementWayfindingBackLabel(backHref);
+  /** Al salir a Tarifas / empleado: volver a este mismo alta (pathname + query). */
+  const createReturnState = useSettlementQueueFromState();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const createMutation = useCreateSettlement();
@@ -1058,6 +1061,7 @@ export function SettlementCreatePage() {
                           periodStart,
                           periodEnd,
                         })}
+                        state={createReturnState}
                       >
                         {governanceCopy.reviewAgreementsAction}
                       </Link>
@@ -1092,6 +1096,7 @@ export function SettlementCreatePage() {
                           periodStart,
                           periodEnd,
                         })}
+                        state={createReturnState}
                       >
                         {readiness === "incomplete"
                           ? createCopy.empty.configureIncompleteCompensationAction
@@ -1101,7 +1106,10 @@ export function SettlementCreatePage() {
                     {(readiness === "incomplete" || readiness === "period_mismatch") &&
                     selectedEmployeeId ? (
                       <Button type="button" size="sm" variant="outline" asChild>
-                        <Link to={`/employees/${selectedEmployeeId}/edit`}>
+                        <Link
+                          to={`/employees/${selectedEmployeeId}/edit`}
+                          state={createReturnState}
+                        >
                           {createCopy.empty.configureEmployeeSalaryAction}
                         </Link>
                       </Button>
@@ -2131,6 +2139,7 @@ export function SettlementCreatePage() {
                     periodStart,
                     periodEnd,
                   }),
+                  { state: createReturnState },
                 ),
             }}
           />
@@ -2148,6 +2157,7 @@ export function SettlementCreatePage() {
                     periodStart,
                     periodEnd,
                   }),
+                  { state: createReturnState },
                 ),
             }}
           />

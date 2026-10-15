@@ -19,7 +19,12 @@ import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { useQueryErrorToast } from "@shared/hooks";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { useFinanceListingFilters } from "@features/finance/application";
+import {
+  FINANCE_INVOICEABLE_PATH,
+  FINANCE_INVOICES_PATH,
+  useFinanceListingFilters,
+} from "@features/finance/application";
+import { buildTripsFiscalAttentionHref } from "@features/trips/application";
 import {
   useTrips,
   useInvoiceableWorkbenchSummary,
@@ -44,11 +49,11 @@ import {
   countsFromInvoiceableSummary,
   mapInvoiceableWorkbenchBuckets,
 } from "../utils/mapInvoiceableWorkbenchBuckets";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = financeCopy.invoiceable;
 const workbenchCopy = copy.workbench;
 const PAGE_SIZE = 10;
-const PAGE_PATH = "/finance/invoiceable";
 
 // ============================================================================
 // TABLE
@@ -223,6 +228,7 @@ function InvoiceableTripsTable({
 
 export function FinanceInvoiceablePage() {
   const navigate = useNavigate();
+  const { from: queueFrom } = useInvoiceQueueFromState();
   const role = useRole();
   const isAccountant = role === ROLES.ACCOUNTANT;
 
@@ -300,26 +306,26 @@ export function FinanceInvoiceablePage() {
   const handleInvoice = useCallback(
     (trip: TripListItem) => {
       navigate(buildInvoiceCreatePathFromTrip(trip), {
-        state: { from: PAGE_PATH },
+        state: { from: queueFrom },
       });
     },
-    [navigate],
+    [navigate, queueFrom],
   );
 
   const handleOpenTripInvoicing = useCallback(
     (trip: TripListItem) => {
       navigate(buildTripInvoicingHubPath(trip.id), {
-        state: { from: PAGE_PATH },
+        state: { from: queueFrom },
       });
     },
-    [navigate],
+    [navigate, queueFrom],
   );
 
   const isDegraded = isError && !isLoading;
   const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
   const listLoading = isLoading || summaryLoading;
   const hasSearch = Boolean(filters.search.trim());
-  const helpEmpty = useHelpEmptySupport(PAGE_PATH, !hasSearch);
+  const helpEmpty = useHelpEmptySupport(FINANCE_INVOICEABLE_PATH, !hasSearch);
 
   return (
     <WorkbenchPageShell
@@ -335,7 +341,7 @@ export function FinanceInvoiceablePage() {
       bucketsLoading={summaryLoading}
       isDegraded={isDegraded}
       degradedMessage={workbenchCopy.degradedMessage}
-      degradedHref="/finance/invoices"
+      degradedHref={FINANCE_INVOICES_PATH}
       degradedLinkLabel={workbenchCopy.degradedLinkLabel}
       toolbar={{
         search: {
@@ -399,7 +405,7 @@ export function FinanceInvoiceablePage() {
                       ? {
                           label: copy.empty.accountantFiscalAttentionCta,
                           onClick: () =>
-                            navigate("/trips?fiscalAttention=1"),
+                            navigate(buildTripsFiscalAttentionHref()),
                           variant: "outline" as const,
                         }
                       : undefined
@@ -430,7 +436,7 @@ export function FinanceInvoiceablePage() {
       onPageChange={filters.setPage}
       relatedConfig={{
         label: workbenchCopy.relatedConfig.label,
-        href: "/finance/invoices",
+        href: FINANCE_INVOICES_PATH,
         description: isAccountant
           ? workbenchCopy.relatedConfig.descriptionAccountant
           : workbenchCopy.relatedConfig.description,

@@ -11,9 +11,13 @@ const copy = driversCopy.detail;
 
 interface DriverDetailDriverTabProps {
   driver: Driver;
+  fromState?: { from: string };
 }
 
-export function DriverDetailDriverTab({ driver }: DriverDetailDriverTabProps) {
+export function DriverDetailDriverTab({
+  driver,
+  fromState,
+}: DriverDetailDriverTabProps) {
   const branchId = driver.branchId ?? driver.employee?.branchId ?? null;
   const branchLabel =
     formatBranchLabel(
@@ -38,6 +42,7 @@ export function DriverDetailDriverTab({ driver }: DriverDetailDriverTabProps) {
                 value={
                   <Link
                     to={`/employees/${driver.employeeId}`}
+                    state={fromState}
                     className="text-primary underline-offset-4 hover:underline"
                   >
                     {copy.label.viewEmployee}
@@ -71,6 +76,7 @@ export function DriverDetailDriverTab({ driver }: DriverDetailDriverTabProps) {
                   branchId && branchLabel ? (
                     <Link
                       to={`/branches/${branchId}`}
+                      state={fromState}
                       className="text-primary underline-offset-4 hover:underline"
                     >
                       {branchLabel}
@@ -176,6 +182,7 @@ export function DriverDetailDriverTab({ driver }: DriverDetailDriverTabProps) {
                   {copy.hint.emergencyFromEmployee}{" "}
                   <Link
                     to={`/employees/${driver.employeeId}`}
+                    state={fromState}
                     className="text-primary underline-offset-4 hover:underline"
                   >
                     {copy.label.viewEmployee}

@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { SettlementsAdvancesPage } from "./SettlementsAdvancesPage";
+import { settlementsDriverAdvanceApprovalsPath } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
 const advancesCopy = settlementsCopy.advancesList;
 
-const { advancesQuery } = vi.hoisted(() => ({
+const { advancesQuery, mockPermissions } = vi.hoisted(() => ({
   advancesQuery: {
     data: undefined as
       | {
@@ -24,11 +25,13 @@ const { advancesQuery } = vi.hoisted(() => ({
     isError: false,
     refetch: vi.fn(),
   },
+  mockPermissions: { granted: new Set<string>() },
 }));
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
-    hasPermission: () => true,
+    hasPermission: (module: string, action: string) =>
+      mockPermissions.granted.has(`${module}.${action}`),
   }),
 }));
 
@@ -79,6 +82,11 @@ vi.mock(
 
 describe("SettlementsAdvancesPage F3", () => {
   beforeEach(() => {
+    mockPermissions.granted = new Set([
+      "settlements.read",
+      "settlements.create",
+      "finance_approvals.read",
+    ]);
     advancesQuery.data = {
       data: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
@@ -87,6 +95,25 @@ describe("SettlementsAdvancesPage F3", () => {
     advancesQuery.isFetching = false;
     advancesQuery.isError = false;
     advancesQuery.refetch.mockClear();
+  });
+
+  it("CTA Ver en Aprobaciones apunta a la bandeja de anticipos", () => {
+    renderWithTheme(<SettlementsAdvancesPage />);
+    const link = screen.getByRole("link", {
+      name: advancesCopy.viewInApprovals,
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      settlementsDriverAdvanceApprovalsPath(),
+    );
+  });
+
+  it("sin finance_approvals.read no muestra Ver en Aprobaciones", () => {
+    mockPermissions.granted = new Set(["settlements.read", "settlements.create"]);
+    renderWithTheme(<SettlementsAdvancesPage />);
+    expect(
+      screen.queryByRole("link", { name: advancesCopy.viewInApprovals }),
+    ).not.toBeInTheDocument();
   });
 
   it("mantiene un filtro toolbar (operador) sin ListingFilterPanel vacío", () => {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { FINANCE_APPROVALS_PATH } from "@features/finance/application";
+import { settlementsPendingApprovalPath } from "../../application/settlementsRoutes";
 import {
   SETTLEMENT_WORKBENCH_BUCKETS,
   settlementsApprovalsInboxPath,
-  settlementsCompensationApprovalsPath,
   settlementsDriverAdvanceApprovalsPath,
   settlementsPendingApprovalRedirectPath,
 } from "./settlementWorkbenchConfig";
@@ -18,27 +19,27 @@ describe("settlementWorkbenchConfig", () => {
     ]);
   });
 
-  it("builds En autorización workbench deep link for compensation payments", () => {
-    expect(settlementsCompensationApprovalsPath()).toBe(
+  it("builds En autorización via settlementsPendingApprovalPath (S5-DUP-01)", () => {
+    expect(settlementsPendingApprovalPath()).toBe(
       "/finance/settlements?bucket=approval",
     );
-    expect(settlementsCompensationApprovalsPath({ driverId: "emp-9" })).toBe(
+    expect(settlementsPendingApprovalPath({ driverId: "emp-9" })).toBe(
       "/finance/settlements?bucket=approval&employeeId=emp-9",
     );
-    expect(settlementsCompensationApprovalsPath({ employeeId: "emp-9" })).toBe(
+    expect(settlementsPendingApprovalPath({ employeeId: "emp-9" })).toBe(
       "/finance/settlements?bucket=approval&employeeId=emp-9",
     );
   });
 
   it("keeps advances on the global Approvals inbox", () => {
     expect(settlementsDriverAdvanceApprovalsPath()).toBe(
-      "/finance/approvals?type=driver_advance_request&status=pending",
+      `${FINANCE_APPROVALS_PATH}?type=driver_advance_request&status=pending`,
     );
   });
 
   it("points review-in-approvals to the global liquidaciones inbox", () => {
     expect(settlementsApprovalsInboxPath()).toBe(
-      "/finance/approvals?type=internal_staff_compensation&status=pending",
+      `${FINANCE_APPROVALS_PATH}?type=internal_staff_compensation&status=pending`,
     );
   });
 
@@ -51,3 +52,4 @@ describe("settlementWorkbenchConfig", () => {
     );
   });
 });
+

@@ -11,7 +11,6 @@ export { SettingsRoutes } from "./routes";
 export {
   settingsNavItems,
   getSettingsNavItem,
-  getActiveSettingsNavItem,
 } from "./navigation";
 export type { SettingsNavItem } from "./navigation";
 

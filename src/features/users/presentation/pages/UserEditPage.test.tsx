@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UserEditPage } from "./UserEditPage";
@@ -80,6 +81,7 @@ function buildUser(overrides: Partial<User> = {}): User {
 // Data router required: UserEditPage uses useUnsavedChangesGuard → useBlocker.
 function renderEditPage(
   path = "/users/11111111-1111-4111-8111-111111111111/edit",
+  state?: { from?: string },
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -100,10 +102,16 @@ function renderEditPage(
         path: "/users/:id",
         element: <div>Detalle</div>,
       },
+      {
+        path: "/users",
+        element: <div data-testid="users-list">Listado</div>,
+      },
     ],
-    { initialEntries: [path] },
+    {
+      initialEntries: [state ? { pathname: path, state } : path],
+    },
   );
-  return render(<RouterProvider router={router} />);
+  return { ...render(<RouterProvider router={router} />), router };
 }
 
 describe("UserEditPage F2 (D7/D8)", () => {
@@ -132,5 +140,16 @@ describe("UserEditPage F2 (D7/D8)", () => {
     expect(
       screen.getByRole("button", { name: fc.submitEdit }),
     ).toBeDisabled();
+  });
+
+  it("W7-01: con state.from, Volver usa la misma cola que Cancelar", async () => {
+    const user = userEvent.setup();
+    renderEditPage(
+      "/users/11111111-1111-4111-8111-111111111111/edit",
+      { from: "/users?status=inactive" },
+    );
+
+    await user.click(screen.getByRole("button", { name: /Volver/i }));
+    expect(screen.getByTestId("users-list")).toBeInTheDocument();
   });
 });

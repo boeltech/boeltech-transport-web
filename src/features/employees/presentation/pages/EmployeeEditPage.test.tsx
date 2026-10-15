@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EmployeeEditPage } from "./EmployeeEditPage";
@@ -101,6 +102,7 @@ function buildEmployee(overrides: Partial<Employee> = {}): Employee {
 // Data router required: EmployeeEditPage uses useUnsavedChangesGuard → useBlocker.
 function renderEditPage(
   path = "/employees/22222222-2222-4222-8222-222222222222/edit",
+  state?: { from?: string },
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -121,10 +123,18 @@ function renderEditPage(
         path: "/employees/:id",
         element: <div>Detalle</div>,
       },
+      {
+        path: "/finance/settlements/new",
+        element: <div data-testid="settlement-create">Alta</div>,
+      },
     ],
-    { initialEntries: [path] },
+    {
+      initialEntries: [
+        state ? { pathname: path, state } : path,
+      ],
+    },
   );
-  return render(<RouterProvider router={router} />);
+  return { ...render(<RouterProvider router={router} />), router };
 }
 
 describe("EmployeeEditPage F2 (D7/D8)", () => {
@@ -149,5 +159,18 @@ describe("EmployeeEditPage F2 (D7/D8)", () => {
     expect(
       screen.getByRole("button", { name: fc.action.save }),
     ).toBeDisabled();
+  });
+
+  it("S5-01: con state.from del alta, Volver regresa al mismo create", async () => {
+    const user = userEvent.setup();
+    const createHref =
+      "/finance/settlements/new?employeeId=22222222-2222-4222-8222-222222222222&periodStart=2026-08-01&periodEnd=2026-08-15";
+    renderEditPage(
+      "/employees/22222222-2222-4222-8222-222222222222/edit",
+      { from: createHref },
+    );
+
+    await user.click(screen.getByRole("button", { name: /Volver/i }));
+    expect(screen.getByTestId("settlement-create")).toBeInTheDocument();
   });
 });

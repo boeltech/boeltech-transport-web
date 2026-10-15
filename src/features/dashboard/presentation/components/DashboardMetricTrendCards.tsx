@@ -3,6 +3,11 @@ import { Badge } from "@shared/ui/badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
+import {
+  buildFinanceAnalysisHref,
+  FINANCE_COBROS_PATH,
+} from "@features/finance/application";
 import type { useDashboard } from "../../application/hooks/useDashboard";
 import type { useFinanceSummary } from "@features/finance";
 import { dashboardCopy } from "../copy/dashboardCopy";
@@ -11,6 +16,7 @@ interface DashboardMetricTrendCardsProps {
   data: ReturnType<typeof useDashboard>["data"];
   isLoading: boolean;
   navigate: ReturnType<typeof useNavigate>;
+  fromHref?: string;
   financeLoading: boolean;
   financeSummary?: ReturnType<typeof useFinanceSummary>["data"];
 }
@@ -121,6 +127,7 @@ export function DashboardMetricTrendCards({
   data,
   isLoading,
   navigate,
+  fromHref = DASHBOARD_PATH,
   financeLoading,
   financeSummary,
 }: DashboardMetricTrendCardsProps) {
@@ -129,6 +136,7 @@ export function DashboardMetricTrendCards({
   const hasOverdue = overdue > 0;
   const isProvisional =
     (financialMonth?.trips_with_pending_expenses ?? 0) > 0;
+  const navState = { from: fromHref };
 
   const cells: {
     key: string;
@@ -154,7 +162,8 @@ export function DashboardMetricTrendCards({
         navigate(
           isProvisional
             ? APPROVALS_PENDING_HREF
-            : "/finance/analysis?view=margin",
+            : buildFinanceAnalysisHref("margin"),
+          { state: navState },
         ),
       tone: isProvisional ? "warning" : "default",
       chip: isProvisional
@@ -175,7 +184,7 @@ export function DashboardMetricTrendCards({
         ? formatMxCurrencyWhole(financeSummary.collectedThisMonth)
         : "—",
       loading: isLoading || financeLoading,
-      onClick: () => navigate("/finance/cobros"),
+      onClick: () => navigate(FINANCE_COBROS_PATH, { state: navState }),
     },
     {
       key: "receivable",
@@ -185,7 +194,7 @@ export function DashboardMetricTrendCards({
         ? formatMxCurrencyWhole(financeSummary.totalReceivable)
         : "—",
       loading: isLoading || financeLoading,
-      onClick: () => navigate("/finance/cobros"),
+      onClick: () => navigate(FINANCE_COBROS_PATH, { state: navState }),
     },
     {
       key: "overdue",
@@ -193,7 +202,7 @@ export function DashboardMetricTrendCards({
       subtitle: dashboardCopy.scorecard.overdue.subtitle,
       value: financeSummary ? formatMxCurrencyWhole(overdue) : "—",
       loading: isLoading || financeLoading,
-      onClick: () => navigate("/finance/cobros"),
+      onClick: () => navigate(FINANCE_COBROS_PATH, { state: navState }),
       tone: hasOverdue ? "warning" : "default",
     },
   ];

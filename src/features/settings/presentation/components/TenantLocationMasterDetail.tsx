@@ -293,43 +293,49 @@ export function TenantLocationMasterDetail() {
           ) : mode === "edit" && (selectedId ?? resolvedViewId) ? (
             <div className="space-y-4">
               <h3 className="font-medium">{tenantLocationsCopy.form.editTitle}</h3>
-              <ClientAddressForm
-                ref={formRef}
-                key={selectedId ?? resolvedViewId ?? "edit"}
-                formContext="additional"
-                hidePrimarySwitch
-                infoMessage={tenantLocationsCopy.form.hint}
-                locationOwnerTypes={["tenant"]}
-                locationSearchLabel={tenantLocationsCopy.form.locationSearchLabel}
-                locationSearchPlaceholder={
-                  tenantLocationsCopy.form.locationSearchPlaceholder
-                }
-                defaultValues={
-                  detailQuery.data
-                    ? addressToFormData(detailQuery.data)
-                    : defaultTenantLocationFormValues
-                }
-                addressTypeOptions={TENANT_LOCATION_TYPES}
-                onChange={(data) => setFormData(data)}
-                onSubmit={handleSave}
-                disabled={isPending}
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancelForm}
-                >
-                  {tenantLocationsCopy.form.cancel}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => void handleSubmitForm()}
-                  disabled={isPending}
-                >
-                  {tenantLocationsCopy.form.save}
-                </Button>
-              </div>
+              {!detailQuery.data ? (
+                <div className="flex justify-center py-12" aria-busy="true">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <ClientAddressForm
+                    ref={formRef}
+                    key={`${detailQuery.data.id}:${detailQuery.data.updatedAt}`}
+                    formContext="additional"
+                    hidePrimarySwitch
+                    infoMessage={tenantLocationsCopy.form.hint}
+                    locationOwnerTypes={["tenant"]}
+                    locationSearchLabel={
+                      tenantLocationsCopy.form.locationSearchLabel
+                    }
+                    locationSearchPlaceholder={
+                      tenantLocationsCopy.form.locationSearchPlaceholder
+                    }
+                    defaultValues={addressToFormData(detailQuery.data)}
+                    addressTypeOptions={TENANT_LOCATION_TYPES}
+                    onChange={(data) => setFormData(data)}
+                    onSubmit={handleSave}
+                    disabled={isPending}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancelForm}
+                    >
+                      {tenantLocationsCopy.form.cancel}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => void handleSubmitForm()}
+                      disabled={isPending}
+                    >
+                      {tenantLocationsCopy.form.save}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           ) : selectedListItem && detailQuery.data ? (
             <ClientAddressDetailView

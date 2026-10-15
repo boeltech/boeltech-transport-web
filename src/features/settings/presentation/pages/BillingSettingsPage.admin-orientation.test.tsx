@@ -4,7 +4,6 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
-import { ADMIN_BILLING_ORIENTATION_STORAGE_KEY } from "../components/AdminBillingOrientationAlert";
 import { BillingSettingsPage } from "./BillingSettingsPage";
 
 const { mockHasPermission, mockHasRole } = vi.hoisted(() => ({
@@ -81,8 +80,23 @@ vi.mock("@shared/ui/page-shells", () => ({
 }));
 
 vi.mock("../components/BillingReadinessCard", () => ({
-  BillingReadinessCard: () => <div>readiness</div>,
-  BILLING_ANCHORS: { certificate: "sello", numbering: "folio" },
+  BillingReadinessCard: ({
+    certificateUploadRestricted,
+  }: {
+    certificateUploadRestricted?: boolean;
+  }) => (
+    <div>
+      readiness
+      {certificateUploadRestricted ? (
+        <span>{billingSettingsCopy.readiness.certificate.adminOnly}</span>
+      ) : null}
+    </div>
+  ),
+  BILLING_ANCHORS: {
+    certificate: "sello",
+    numbering: "folio",
+    diagnostics: "diag",
+  },
 }));
 
 vi.mock("../components/BillingCertificateCard", () => ({
@@ -106,15 +120,14 @@ vi.mock("../components/BillingDefaultsCard", () => ({
   BillingDefaultsCard: () => null,
 }));
 
-vi.mock("../components/BillingStampingCard", () => ({
-  BillingStampingCard: () => null,
-}));
-
 vi.mock("../components/BillingServiceConceptsCard", () => ({
   BillingServiceConceptsCard: () => null,
 }));
 
-// Data router required: BillingSettingsPage uses useUnsavedChangesGuard → useBlocker.
+vi.mock("../components/BillingDispatchSchemesCard", () => ({
+  BillingDispatchSchemesCard: () => null,
+}));
+
 function renderPage() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -135,36 +148,35 @@ function renderPage() {
   return render(<RouterProvider router={router} />);
 }
 
-describe("BillingSettingsPage — orientación admin", () => {
+describe("BillingSettingsPage — roles y readiness", () => {
   beforeEach(() => {
-    window.localStorage.removeItem(ADMIN_BILLING_ORIENTATION_STORAGE_KEY);
     mockHasPermission.mockReturnValue(true);
     mockHasRole.mockImplementation((role: string) => role === "admin");
   });
 
-  it("admin ve L1b y conserva CSD, no aviso restringido", () => {
+  it("admin ve readiness y CSD, no aviso restringido", () => {
     renderPage();
 
-    expect(
-      screen.getByText(billingSettingsCopy.adminOrientation.title),
-    ).toBeInTheDocument();
+    expect(screen.getByText("readiness")).toBeInTheDocument();
     expect(screen.getByText("csd")).toBeInTheDocument();
     expect(screen.getByText("numeracion")).toBeInTheDocument();
-    expect(screen.getByText("readiness")).toBeInTheDocument();
     expect(
       screen.queryByText(billingSettingsCopy.certificate.restrictedTitle),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(billingSettingsCopy.readiness.certificate.adminOnly),
+    ).not.toBeInTheDocument();
   });
 
-  it("manager no ve L1b; ve aviso CSD restringido", () => {
+  it("manager ve aviso CSD restringido en card y en readiness", () => {
     mockHasRole.mockReturnValue(false);
     renderPage();
 
     expect(
-      screen.queryByText(billingSettingsCopy.adminOrientation.title),
-    ).not.toBeInTheDocument();
-    expect(
       screen.getByText(billingSettingsCopy.certificate.restrictedTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingSettingsCopy.readiness.certificate.adminOnly),
     ).toBeInTheDocument();
   });
 });

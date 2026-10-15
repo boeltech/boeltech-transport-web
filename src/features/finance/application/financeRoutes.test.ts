@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  FINANCE_APPROVALS_PATH,
+  FINANCE_COBROS_PATH,
+  FINANCE_HUB_PATH,
+  FINANCE_INVOICEABLE_PATH,
+  FINANCE_INVOICES_PATH,
   buildFinanceAnalysisHref,
   buildFinanceAnalysisSearchParams,
   buildFinanceMarginMonthHref,
@@ -7,6 +12,14 @@ import {
 } from "./financeRoutes";
 
 describe("financeRoutes", () => {
+  it("exporta paths canónicos del hub Finanzas", () => {
+    expect(FINANCE_HUB_PATH).toBe("/finance");
+    expect(FINANCE_INVOICEABLE_PATH).toBe("/finance/invoiceable");
+    expect(FINANCE_INVOICES_PATH).toBe("/finance/invoices");
+    expect(FINANCE_COBROS_PATH).toBe("/finance/cobros");
+    expect(FINANCE_APPROVALS_PATH).toBe("/finance/approvals");
+  });
+
   it("resolveLegacyFinanceLocation maps summary to /finance", () => {
     expect(resolveLegacyFinanceLocation("?tab=summary")).toBe("/finance");
   });

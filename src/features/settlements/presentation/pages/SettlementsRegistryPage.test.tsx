@@ -97,11 +97,7 @@ describe("SettlementsRegistryPage F3", () => {
 
     const filtersBtn = screen.getByRole("button", { name: /Filtros/ });
     expect(filtersBtn).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", {
-        name: settlementsCopy.workbench.actions.backToWorkbench,
-      }),
-    ).toBeInTheDocument();
+    // Wayfinding «Volver a por pagar» vive en HubPageShell.relatedConfig del layout.
 
     await user.click(filtersBtn);
     expect(

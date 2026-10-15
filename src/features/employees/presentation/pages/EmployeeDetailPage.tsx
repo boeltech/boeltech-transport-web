@@ -59,7 +59,7 @@ const EMPLOYEE_DETAIL_TABS = [
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const employeeId = id ?? "";
-  const { backHref, backLabel } = useMasterDetailWayfinding(
+  const { backHref, backLabel, fromState } = useMasterDetailWayfinding(
     "/employees",
     copy.state.backToList,
   );
@@ -69,6 +69,7 @@ export function EmployeeDetailPage() {
   );
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission("employees", "update");
+  const canReadDrivers = hasPermission("drivers", "read");
   const {
     data: result,
     isLoading,
@@ -145,7 +146,9 @@ export function EmployeeDetailPage() {
     const editHref = `/employees/${employee.id}/edit`;
     const editAction = canEdit ? (
       <Button type="button" size="sm" variant="outline" asChild>
-        <Link to={editHref}>{copy.alert.goToEdit}</Link>
+        <Link to={editHref} state={fromState}>
+          {copy.alert.goToEdit}
+        </Link>
       </Button>
     ) : undefined;
 
@@ -206,13 +209,16 @@ export function EmployeeDetailPage() {
 
     if (!terminated && employee.driverRole) {
       const driverAlert = buildEmployeeDriverRoleAlert(employee.driverRole);
-      const driverAction = (
+      const driverAction = canReadDrivers ? (
         <Button type="button" size="sm" variant="outline" asChild>
-          <Link to={`/drivers/${employee.driverRole.driverId}`}>
+          <Link
+            to={`/drivers/${employee.driverRole.driverId}`}
+            state={fromState}
+          >
             {copy.alert.goToDriver}
           </Link>
         </Button>
-      );
+      ) : undefined;
       cards.push(
         <DetailAlertCard
           key="driver-role"
@@ -233,7 +239,7 @@ export function EmployeeDetailPage() {
 
     if (cards.length === 0) return undefined;
     return <div className="space-y-3">{cards}</div>;
-  }, [employee, comparisonNowMs, canEdit]);
+  }, [employee, comparisonNowMs, canEdit, canReadDrivers, fromState]);
 
   if (isLoading) {
     return (

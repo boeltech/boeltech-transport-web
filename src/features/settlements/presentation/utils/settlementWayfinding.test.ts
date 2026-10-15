@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
   isSafeSettlementReturnHref,
+  isSettlementCreateHref,
   resolveSettlementBackHref,
   resolveSettlementWayfindingBackLabel,
 } from "./settlementWayfinding";
@@ -23,10 +24,25 @@ describe("settlementWayfinding", () => {
     expect(isSafeSettlementReturnHref("/trips")).toBe(false);
   });
 
+  it("detecta href del alta para return desde Tarifas / empleado", () => {
+    expect(isSettlementCreateHref("/finance/settlements/new")).toBe(true);
+    expect(
+      isSettlementCreateHref(
+        "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+      ),
+    ).toBe(true);
+    expect(isSettlementCreateHref("/finance/settlements")).toBe(false);
+  });
+
   it("resuelve href de vuelta o cae a Por pagar", () => {
     expect(
       resolveSettlementBackHref("/finance/settlements/pending-approval"),
-    ).toBe("/finance/settlements/pending-approval");
+    ).toBe("/finance/settlements?bucket=approval");
+    expect(
+      resolveSettlementBackHref(
+        "/finance/settlements/pending-approval?driverId=emp-1",
+      ),
+    ).toBe("/finance/settlements?bucket=approval&employeeId=emp-1");
     expect(resolveSettlementBackHref("/finance/settlements/new")).toBe(
       "/finance/settlements",
     );
@@ -59,7 +75,15 @@ describe("settlementWayfinding", () => {
       ),
     ).toBe(actions.backToApprovals);
     expect(resolveSettlementWayfindingBackLabel("/finance/compensation")).toBe(
-      actions.backToList,
+      actions.backToAgreements,
     );
+    expect(
+      resolveSettlementWayfindingBackLabel(
+        "/finance/compensation/templates?employeeId=emp-1",
+      ),
+    ).toBe(actions.backToAgreements);
+    expect(
+      resolveSettlementWayfindingBackLabel("/finance/agreements"),
+    ).toBe(actions.backToAgreements);
   });
 });

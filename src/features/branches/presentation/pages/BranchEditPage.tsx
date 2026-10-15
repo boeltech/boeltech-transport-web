@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
+import { BRANCHES_LIST_PATH } from "@shared/utils/masterWayfinding";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { Building2 } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
@@ -24,6 +25,10 @@ export function BranchEditPage() {
   const incomingFrom = useIncomingFrom();
   const { toast } = useToast();
   const branchId = id ?? "";
+  const detailFallback = branchId
+    ? `${BRANCHES_LIST_PATH}/${branchId}`
+    : BRANCHES_LIST_PATH;
+  const backHref = resolveInternalAppHref(incomingFrom, detailFallback);
   const [isDirty, setIsDirty] = useState(false);
   const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
     isDirty,
@@ -39,7 +44,7 @@ export function BranchEditPage() {
         description: branchesCopy.edit.toasts.successDescription,
         variant: "success",
       });
-      navigatePreservingFrom(navigate, `/branches/${branchId}`, incomingFrom);
+      navigate(backHref);
     },
     onError: (error) => {
       const known = getBranchMutationErrorToast(error);
@@ -86,8 +91,8 @@ export function BranchEditPage() {
   );
 
   const handleCancel = useCallback(() => {
-    navigatePreservingFrom(navigate, `/branches/${branchId}`, incomingFrom);
-  }, [navigate, branchId, incomingFrom]);
+    navigate(backHref);
+  }, [navigate, backHref]);
 
   return (
     <FormPageShell
@@ -98,11 +103,11 @@ export function BranchEditPage() {
         icon: <Building2 />,
         title: branchesCopy.edit.notFound.title,
         description: branchesCopy.edit.notFound.description,
-        backHref: "/branches",
+        backHref: BRANCHES_LIST_PATH,
         backLabel: branchesCopy.edit.notFound.backLabel,
       }}
       header={{
-        backHref: `/branches/${branchId}`,
+        backHref,
         backLabel: branchesCopy.edit.backLabel,
         icon: <Building2 className="h-5 w-5" />,
         iconVariant:

@@ -11,6 +11,8 @@ import {
   formatMxCurrencyWhole,
 } from "@shared/utils/formatMxCurrency";
 import { formatMonthPeriodAxis } from "@shared/utils/monthPeriod";
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
+import { buildFinanceAnalysisHref } from "@features/finance/application";
 import type { FinancialMonth, FinancialTrendData } from "../../domain/types";
 import { DASHBOARD_FINANCIAL_TREND_SERIES } from "../config/dashboardChartConfig";
 import { dashboardCopy } from "../copy/dashboardCopy";
@@ -132,6 +134,7 @@ interface DashboardFinancialComparisonChartProps {
   trendLoading?: boolean;
   months: FinancialTrendMonths;
   onMonthsChange: (months: FinancialTrendMonths) => void;
+  fromHref?: string;
 }
 
 export function DashboardFinancialComparisonChart({
@@ -141,7 +144,9 @@ export function DashboardFinancialComparisonChart({
   trendLoading = false,
   months,
   onMonthsChange,
+  fromHref = DASHBOARD_PATH,
 }: DashboardFinancialComparisonChartProps) {
+  const navState = { from: fromHref };
   const monthTripCount = financialMonth?.trip_count ?? 0;
   const hasMonthTrips = monthTripCount > 0;
 
@@ -183,12 +188,17 @@ export function DashboardFinancialComparisonChart({
         <div className="flex flex-wrap items-center justify-start gap-x-3 gap-y-2 sm:justify-end">
           <FinancialTrendMonthSelector value={months} onChange={onMonthsChange} />
           <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
-            <Link to="/finance/analysis?view=performance">
+            <Link
+              to={buildFinanceAnalysisHref("performance")}
+              state={navState}
+            >
               {copy.compareWithPreviousYear}
             </Link>
           </Button>
           <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
-            <Link to="/finance/analysis?view=margin">{copy.viewProfitability}</Link>
+            <Link to={buildFinanceAnalysisHref("margin")} state={navState}>
+              {copy.viewProfitability}
+            </Link>
           </Button>
         </div>
       }
@@ -217,6 +227,7 @@ export function DashboardFinancialComparisonChart({
               <AlertDescription>
                 <Link
                   to="/finance/approvals?status=pending&type=trip_expense"
+                  state={navState}
                   className="cursor-pointer hover:underline"
                   aria-label={copy.pendingExpensesLinkAriaLabel}
                 >

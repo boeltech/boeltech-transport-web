@@ -16,7 +16,11 @@ import { usePermissions } from "@shared/permissions";
 import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import {
+  FINANCE_COBROS_BUCKET_PARAM,
+  FINANCE_COBROS_PATH,
   FINANCE_COBROS_RFC_PARAM,
+  FINANCE_HUB_PATH,
+  FINANCE_INVOICES_PATH,
   OPEN_PPD_INVOICES_PAGE_SIZE,
   useOpenPpdInvoices,
   useOpenPpdSummary,
@@ -36,6 +40,7 @@ import {
 } from "../config/financeCobrosConfig";
 import {
   DEFAULT_COBROS_BUCKET,
+  isCobrosBucket,
   isCobrosListBucket,
   type CobrosBucketId,
 } from "../config/cobrosWorkbenchConfig";
@@ -64,7 +69,6 @@ import {
 
 const copy = financeCopy.cobros;
 const workbenchCopy = financeCopy.cobros.workbench;
-const COBROS_PATH = "/finance/cobros";
 
 // ============================================================================
 // CobrosRegisterBar
@@ -144,10 +148,31 @@ export function FinanceCobrosPage() {
   const rfcFromUrl = (searchParams.get(FINANCE_COBROS_RFC_PARAM) ?? "")
     .trim()
     .toUpperCase();
+  const bucketFromUrl = searchParams.get(FINANCE_COBROS_BUCKET_PARAM) ?? "";
+  const activeBucket: CobrosBucketId = isCobrosBucket(bucketFromUrl)
+    ? bucketFromUrl
+    : DEFAULT_COBROS_BUCKET;
 
-  const [activeBucket, setActiveBucket] = useState<CobrosBucketId>(DEFAULT_COBROS_BUCKET);
   const [todayTray, setTodayTray] = useState<CobrosTodayEntry[]>(() =>
     readCobrosTodayTray(),
+  );
+
+  const handleBucketChange = useCallback(
+    (bucket: CobrosBucketId) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (bucket === DEFAULT_COBROS_BUCKET) {
+            next.delete(FINANCE_COBROS_BUCKET_PARAM);
+          } else {
+            next.set(FINANCE_COBROS_BUCKET_PARAM, bucket);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
   );
 
   const handlePaymentRegistered = useCallback((next: CobrosTodayEntry) => {
@@ -221,7 +246,7 @@ export function FinanceCobrosPage() {
     <FinanceCobrosWorkbench
       rfcFromUrl={rfcFromUrl}
       activeBucket={activeBucket}
-      onBucketChange={setActiveBucket}
+      onBucketChange={handleBucketChange}
       todayTray={todayTray}
       rfcChips={rfcChips}
       onRfcSearch={handleRfcSearch}
@@ -501,7 +526,7 @@ function FinanceCobrosWorkbench({
   const hasRfcFilter = Boolean(filterRfc);
   const listLoading = isListBucket && (isLoading || summaryLoading);
   const helpEmpty = useHelpEmptySupport(
-    COBROS_PATH,
+    FINANCE_COBROS_PATH,
     activeBucket === "open" && !hasRfcFilter,
   );
 
@@ -526,7 +551,7 @@ function FinanceCobrosWorkbench({
         bucketsLoading={summaryLoading}
         isDegraded={isDegraded}
         degradedMessage={workbenchCopy.degradedMessage}
-        degradedHref="/finance/invoices"
+        degradedHref={FINANCE_INVOICES_PATH}
         degradedLinkLabel={workbenchCopy.degradedLinkLabel}
         toolbar={{
           filters: (
@@ -658,7 +683,7 @@ function FinanceCobrosWorkbench({
         onPageChange={isListBucket ? handlePageChange : undefined}
         relatedConfig={{
           label: workbenchCopy.relatedConfig.label,
-          href: "/finance",
+          href: FINANCE_HUB_PATH,
           description: workbenchCopy.relatedConfig.description,
         }}
       />

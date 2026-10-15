@@ -1,9 +1,10 @@
 /**
  * F3 — Dashboard layouts: SettingsPageShell + title/description desde copy;
- * sin prosa hardcode; panel de personalización montado.
+ * flujo rol → editar (panel cerrado por defecto).
  */
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 vi.mock("@shared/ui/page-shells", () => ({
@@ -73,17 +74,24 @@ describe("DashboardLayoutsSettingsPage (F3)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("mantiene DashboardCustomizePanel montado", () => {
+  it("mantiene el panel cerrado hasta Editar widgets del rol", async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter>
         <DashboardLayoutsSettingsPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("dashboard-customize-panel")).toBeInTheDocument();
+    const panel = screen.getByTestId("dashboard-customize-panel");
+    expect(panel).toHaveAttribute("data-open", "false");
+
+    await user.click(
+      screen.getByRole("button", { name: copy.editRoleLayout }),
+    );
+    expect(panel).toHaveAttribute("data-open", "true");
   });
 
-  it("expone selector de rol y CTA desde copy", () => {
+  it("expone selector de rol, pasos y CTA de edición desde copy", () => {
     render(
       <MemoryRouter>
         <DashboardLayoutsSettingsPage />
@@ -91,8 +99,9 @@ describe("DashboardLayoutsSettingsPage (F3)", () => {
     );
 
     expect(screen.getByLabelText(copy.selectRole)).toBeInTheDocument();
+    expect(screen.getByText(copy.roleSettingsSteps)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: copy.saveRoleLayout }),
+      screen.getByRole("button", { name: copy.editRoleLayout }),
     ).toBeInTheDocument();
   });
 });

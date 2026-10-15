@@ -19,6 +19,8 @@ export interface DashboardWidgetContext {
   isError: boolean;
   onRetry: () => void;
   navigate: ReturnType<typeof useNavigate>;
+  /** `state.from` al salir del dashboard (Inicio o reenvío desde Reportes). */
+  fromHref: string;
   tripsByDay?: TripsByDayData;
   tripsByDayLoading: boolean;
   tripsDays: TripsDayRange;

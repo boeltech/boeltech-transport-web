@@ -42,6 +42,8 @@ interface SettlementBacklogTableProps {
   isLoading: boolean;
   viewMode: "table" | "cards";
   onNavigateCreate: (path: string) => void;
+  /** Misma cola que Armar pago / Ver detalle (`state.from`). */
+  fromState?: { from: string };
 }
 
 function RowTypeBadge({ row }: { row: SettlementBacklogRow }) {
@@ -136,7 +138,13 @@ const WARNINGS_WITH_OWN_BADGE = new Set([
   "template_version_superseded",
 ]);
 
-function PeriodWarnings({ row }: { row: SettlementBacklogRow }) {
+function PeriodWarnings({
+  row,
+  fromState,
+}: {
+  row: SettlementBacklogRow;
+  fromState?: { from: string };
+}) {
   const { warnings, employeeId, periodOverlap } = row;
   const visible = warnings
     .filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w))
@@ -186,6 +194,7 @@ function PeriodWarnings({ row }: { row: SettlementBacklogRow }) {
                 <TooltipTrigger asChild>
                   <Link
                     to={overlapHref}
+                    state={fromState}
                     className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={copy.warnings.period_overlap_cta}
                   >
@@ -330,6 +339,7 @@ export function SettlementBacklogTable({
   isLoading,
   viewMode,
   onNavigateCreate,
+  fromState,
 }: SettlementBacklogTableProps) {
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
@@ -391,7 +401,7 @@ export function SettlementBacklogTable({
 
                 <div className="space-y-1">
                   <BacklogPeriod row={row} />
-                  <PeriodWarnings row={row} />
+                  <PeriodWarnings row={row} fromState={fromState} />
                 </div>
 
                 <div className="pt-1">
@@ -478,7 +488,7 @@ export function SettlementBacklogTable({
                 <TableCell className="min-w-[220px] py-3">
                   <div className="space-y-1.5">
                     <BacklogPeriod row={row} />
-                    <PeriodWarnings row={row} />
+                    <PeriodWarnings row={row} fromState={fromState} />
                   </div>
                 </TableCell>
                 <TableCell className="min-w-[170px] py-3">

@@ -29,6 +29,21 @@ const LEGACY_TAB_ALIASES: Record<
   reports: { segment: "analysis", view: "margin" },
 };
 
+/** Hub Finanzas (Cartera / resumen). */
+export const FINANCE_HUB_PATH = "/finance";
+
+/** Cola Por facturar. */
+export const FINANCE_INVOICEABLE_PATH = "/finance/invoiceable";
+
+/** Registro / listado de facturas. */
+export const FINANCE_INVOICES_PATH = "/finance/invoices";
+
+/** Workbench Cobros. */
+export const FINANCE_COBROS_PATH = "/finance/cobros";
+
+/** Bandeja de aprobaciones (finanzas). */
+export const FINANCE_APPROVALS_PATH = "/finance/approvals";
+
 /** Workbench unificado de envío de facturas. */
 export const FINANCE_DISPATCH_PATH = "/finance/dispatch";
 
@@ -41,13 +56,13 @@ export const FINANCE_DISPATCH_PENDING_HREF = `${FINANCE_DISPATCH_PATH}?tab=pendi
 export const FINANCE_DISPATCH_HISTORY_HREF = FINANCE_DISPATCH_PERIOD_PATH;
 
 const TAB_TO_PATH: Record<string, string> = {
-  summary: "/finance",
-  invoiceable: "/finance/invoiceable",
-  cobros: "/finance/cobros",
-  approvals: "/finance/approvals",
+  summary: FINANCE_HUB_PATH,
+  invoiceable: FINANCE_INVOICEABLE_PATH,
+  cobros: FINANCE_COBROS_PATH,
+  approvals: FINANCE_APPROVALS_PATH,
   "dispatch-runs": FINANCE_DISPATCH_PERIOD_PATH,
   dispatch: FINANCE_DISPATCH_PATH,
-  invoices: "/finance/invoices",
+  invoices: FINANCE_INVOICES_PATH,
   analysis: "/finance/analysis",
 };
 
@@ -60,12 +75,12 @@ export function resolveLegacyFinanceLocation(search: string): string {
   const params = new URLSearchParams(search);
   const requestedTab = params.get("tab");
   if (!requestedTab) {
-    return "/finance";
+    return FINANCE_HUB_PATH;
   }
 
   const alias = LEGACY_TAB_ALIASES[requestedTab];
   const segment = alias?.segment ?? requestedTab;
-  const path = TAB_TO_PATH[segment] ?? "/finance/invoices";
+  const path = TAB_TO_PATH[segment] ?? FINANCE_INVOICES_PATH;
 
   params.delete("tab");
 
@@ -79,8 +94,8 @@ export function resolveLegacyFinanceLocation(search: string): string {
 
 export function buildFinanceCobrosPath(rfc?: string | null): string {
   const normalized = rfc?.trim().toUpperCase();
-  if (!normalized) return "/finance/cobros";
-  return `/finance/cobros?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(normalized)}`;
+  if (!normalized) return FINANCE_COBROS_PATH;
+  return `${FINANCE_COBROS_PATH}?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(normalized)}`;
 }
 
 export function buildFinanceAnalysisSearchParams(

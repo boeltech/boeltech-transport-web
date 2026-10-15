@@ -72,7 +72,7 @@ function isEmployeeRfcMissing(rfc: string | null | undefined): boolean {
 export function DriverDetailPage() {
   const { id } = useParams<{ id: string }>();
   const driverId = id || "";
-  const { backHref, backLabel } = useMasterDetailWayfinding(
+  const { backHref, backLabel, fromState } = useMasterDetailWayfinding(
     "/drivers",
     copy.state.backToList,
   );
@@ -446,7 +446,9 @@ export function DriverDetailPage() {
           {
             value: "driver",
             label: copy.tab.driver,
-            content: <DriverDetailDriverTab driver={driver} />,
+            content: (
+              <DriverDetailDriverTab driver={driver} fromState={fromState} />
+            ),
           },
           {
             value: "documents",

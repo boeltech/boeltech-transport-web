@@ -6,11 +6,13 @@ import {
   Banknote,
   XCircle,
   MoreHorizontal,
+  ChevronDown,
   ExternalLink,
   Send,
   Pencil,
   Undo2,
   History,
+  Printer,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -85,6 +87,7 @@ import {
   resolveSettlementDisburseUi,
 } from "../utils/settlementCta";
 import {
+  isReceiptSignable,
   isSettlementCorrectable,
   isSettlementReturned,
   settlementGuards,
@@ -111,6 +114,11 @@ interface SettlementActionsProps {
   onCorrect?: () => void;
   /** Si se pasa, el historial lo monta el contenedor (detalle) — H-13. */
   onOpenHistory?: () => void;
+  /**
+   * Detalle: Vista previa / Imprimir recibo dentro del cluster (H3).
+   * En pagado es primaria; en el resto overflow responsive &lt;2xl → Más.
+   */
+  onReceiptClick?: () => void;
 }
 
 export function SettlementActions({
@@ -122,6 +130,7 @@ export function SettlementActions({
   variant = "dropdown",
   onCorrect,
   onOpenHistory,
+  onReceiptClick,
 }: SettlementActionsProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -574,7 +583,21 @@ export function SettlementActions({
   );
 
   if (variant === "buttons") {
-    const showMoreMenu = canReject || canCancel;
+    const showReceipt = Boolean(onReceiptClick);
+    const receiptSignable = isReceiptSignable(settlement.status);
+    const receiptIsPrimary = settlement.status === "disbursed";
+    const receiptOverflow = showReceipt && !receiptIsPrimary;
+    const receiptLabel = receiptSignable
+      ? flowCopy.header.printReceipt
+      : flowCopy.header.previewReceipt;
+    const ReceiptIcon = receiptSignable ? Printer : Eye;
+
+    /** Secundarias que en &lt;2xl viven en «Más» (paridad InvoiceActions / H2). */
+    const hasResponsiveOverflow = receiptOverflow || canCorrect || canReject;
+    const hasTertiaryInMore = canReject || canCancel;
+    const showMoreMenu = hasTertiaryInMore || hasResponsiveOverflow;
+    const moreTriggerClassName = hasTertiaryInMore ? undefined : "2xl:hidden";
+
     return (
       <>
         <div className="flex max-w-full flex-col items-end gap-2">
@@ -595,105 +618,157 @@ export function SettlementActions({
             </div>
           ) : null}
           <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
-          {canCorrect && (
-            <Button variant="outline" onClick={onCorrect}>
-              <Pencil className="mr-2 h-4 w-4" />
-              {flowCopy.header.correct}
-            </Button>
-          )}
-          {/* D15: devuelta → reenviar desde la alerta del detalle. */}
-          {canSubmit && !isReturned && (
-            <div className="flex flex-col items-end gap-1">
-              <Button
-                onClick={handleSubmit}
-                disabled={
-                  submitMutation.isPending ||
-                  (hasMissingDataGaps && !acknowledgeMissingData)
-                }
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {submitLabel}
+            {showReceipt && receiptIsPrimary ? (
+              <Button onClick={onReceiptClick}>
+                <ReceiptIcon className="mr-2 h-4 w-4" />
+                {receiptLabel}
               </Button>
-              {hasMissingDataGaps && !acknowledgeMissingData ? (
-                <p className="max-w-[14rem] text-xs leading-snug text-warning">
-                  {missingDataGateCopy.submitBlockedHint}
-                </p>
-              ) : null}
-            </div>
-          )}
-          {canReject && (
-            <div className="flex max-w-[14rem] flex-col items-stretch gap-1 sm:max-w-none sm:flex-row sm:items-center sm:gap-2">
+            ) : null}
+            {receiptOverflow ? (
               <Button
                 variant="outline"
+                className="hidden 2xl:inline-flex"
+                onClick={onReceiptClick}
+              >
+                <ReceiptIcon className="mr-2 h-4 w-4" />
+                {receiptLabel}
+              </Button>
+            ) : null}
+            {canCorrect ? (
+              <Button
+                variant="outline"
+                className="hidden 2xl:inline-flex"
+                onClick={onCorrect}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                {flowCopy.header.correct}
+              </Button>
+            ) : null}
+            {/* D15: devuelta → reenviar desde la alerta del detalle. */}
+            {canSubmit && !isReturned ? (
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={
+                    submitMutation.isPending ||
+                    (hasMissingDataGaps && !acknowledgeMissingData)
+                  }
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {submitLabel}
+                </Button>
+                {hasMissingDataGaps && !acknowledgeMissingData ? (
+                  <p className="max-w-[14rem] text-xs leading-snug text-warning">
+                    {missingDataGateCopy.submitBlockedHint}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {canReject ? (
+              <Button
+                variant="outline"
+                className="hidden 2xl:inline-flex"
                 onClick={() => setReasonMode("return")}
                 disabled={isDeciding}
               >
                 <Undo2 className="mr-2 h-4 w-4" />
                 {flowCopy.header.returnForCorrection}
               </Button>
-              <p className="text-xs leading-snug text-muted-foreground sm:max-w-[12rem]">
-                {flowCopy.returnVsRejectHint}
+            ) : null}
+            {canApprove ? (
+              <Button onClick={requestApprove} disabled={approveMutation.isPending}>
+                <Check className="mr-2 h-4 w-4 text-success" />
+                {copy.actions.approve}
+              </Button>
+            ) : null}
+            {showApprovalStateChip ? <ApprovalActionStateChip actionUi={approvalUi} /> : null}
+            {showOwnApproveBlocked ? <OwnRequestChip /> : null}
+            {showOwnDisburseBlocked ? <OwnRequestChip kind="disburse" /> : null}
+            {showAwaitingTreasuryHint ? (
+              <p className="max-w-[14rem] text-xs leading-snug text-muted-foreground sm:max-w-[16rem]">
+                {copy.actions.awaitingTreasuryDisburse}
               </p>
-            </div>
-          )}
-          {canApprove && (
-            <Button
-              onClick={requestApprove}
-              disabled={approveMutation.isPending}
-            >
-              <Check className="mr-2 h-4 w-4 text-success" />
-              {copy.actions.approve}
-            </Button>
-          )}
-          {showApprovalStateChip && <ApprovalActionStateChip actionUi={approvalUi} />}
-          {showOwnApproveBlocked && <OwnRequestChip />}
-          {showOwnDisburseBlocked && <OwnRequestChip kind="disburse" />}
-          {showAwaitingTreasuryHint ? (
-            <p className="max-w-[14rem] text-xs leading-snug text-muted-foreground sm:max-w-[16rem]">
-              {copy.actions.awaitingTreasuryDisburse}
-            </p>
-          ) : null}
-          {canDisburseAction && (
-            <Button onClick={openDisburse}>
-              <Banknote className="mr-2 h-4 w-4" />
-              {copy.actions.disburse}
-            </Button>
-          )}
-          {showMoreMenu && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label={flowCopy.header.moreActionsSr}>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                {canReject ? (
-                  <DropdownMenuItem
-                    onClick={() => setReasonMode("reject")}
-                    disabled={isDeciding}
-                    className="text-destructive focus:text-destructive"
+            ) : null}
+            {canDisburseAction ? (
+              <Button onClick={openDisburse}>
+                <Banknote className="mr-2 h-4 w-4" />
+                {copy.actions.disburse}
+              </Button>
+            ) : null}
+            {showMoreMenu ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={
+                      moreTriggerClassName
+                        ? `shrink-0 gap-1 ${moreTriggerClassName}`
+                        : "shrink-0 gap-1"
+                    }
+                    aria-label={flowCopy.header.moreActionsSr}
                   >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    {copy.actions.reject}
-                  </DropdownMenuItem>
-                ) : null}
-                {canCancel ? (
-                  <DropdownMenuItem
-                    onClick={() => setCancelDialogOpen(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    {copy.actions.cancelSettlement}
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          {showSettingsUnavailable && (
-            <span className="text-xs text-destructive px-1">
-              {copy.toasts.settingsUnavailable}
-            </span>
-          )}
+                    <MoreHorizontal className="h-4 w-4 shrink-0" />
+                    <span>{flowCopy.header.moreActions}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  {receiptOverflow ? (
+                    <DropdownMenuItem
+                      className="2xl:hidden"
+                      onClick={onReceiptClick}
+                    >
+                      <ReceiptIcon className="mr-2 h-4 w-4" />
+                      {receiptLabel}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canCorrect ? (
+                    <DropdownMenuItem className="2xl:hidden" onClick={onCorrect}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      {flowCopy.header.correct}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canReject ? (
+                    <DropdownMenuItem
+                      className="2xl:hidden"
+                      onClick={() => setReasonMode("return")}
+                      disabled={isDeciding}
+                    >
+                      <Undo2 className="mr-2 h-4 w-4" />
+                      {flowCopy.header.returnForCorrection}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {hasResponsiveOverflow && hasTertiaryInMore ? (
+                    <DropdownMenuSeparator className="2xl:hidden" />
+                  ) : null}
+                  {canReject ? (
+                    <DropdownMenuItem
+                      onClick={() => setReasonMode("reject")}
+                      disabled={isDeciding}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      {copy.actions.reject}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canCancel ? (
+                    <DropdownMenuItem
+                      onClick={() => setCancelDialogOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      {copy.actions.cancelSettlement}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+            {showSettingsUnavailable ? (
+              <span className="px-1 text-xs text-destructive">
+                {copy.toasts.settingsUnavailable}
+              </span>
+            ) : null}
           </div>
         </div>
         {dialogs}

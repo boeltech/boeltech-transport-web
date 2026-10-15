@@ -3,7 +3,9 @@
  * Layout KPI chips: deprecado — usar mapSettlementWorkbenchBuckets + WorkbenchPageShell (ADR-0090).
  */
 
+import { FINANCE_APPROVALS_PATH } from "@features/finance/application";
 import type { SettlementStatus } from "../../domain/enums";
+import { settlementsWorkbenchBucketPath } from "../../application/settlementsRoutes";
 
 /** Cubetas navegables en el KPI strip (incl. En autorización = pipeline `pending_approval`). */
 export type SettlementWorkbenchNavBucket =
@@ -43,31 +45,14 @@ export const OPEN_ADVANCE_STATUSES = [
   "partially_applied",
 ] as const;
 
-const LIST_PATH = "/finance/settlements";
-
-function approvalBucketPath(employeeId?: string): string {
-  const qs = new URLSearchParams({ bucket: "approval" });
-  if (employeeId) qs.set("employeeId", employeeId);
-  return `${LIST_PATH}?${qs.toString()}`;
-}
-
-/** Deep-link de cortes en autorización → bucket del workbench Por pagar. */
-export function settlementsCompensationApprovalsPath(params?: {
-  employeeId?: string;
-  /** @deprecated Preferir `employeeId` (compat deep-links del tab eliminado). */
-  driverId?: string;
-}): string {
-  return approvalBucketPath(params?.employeeId ?? params?.driverId);
-}
-
 /** Anticipos siguen en la bandeja global de Aprobaciones. */
 export function settlementsDriverAdvanceApprovalsPath(): string {
-  return "/finance/approvals?type=driver_advance_request&status=pending";
+  return `${FINANCE_APPROVALS_PATH}?type=driver_advance_request&status=pending`;
 }
 
 /** Bandeja global de liquidaciones (módulo Aprobaciones). */
 export function settlementsApprovalsInboxPath(): string {
-  return "/finance/approvals?type=internal_staff_compensation&status=pending";
+  return `${FINANCE_APPROVALS_PATH}?type=internal_staff_compensation&status=pending`;
 }
 
 export function resolveDefaultWorkbenchBucket(): SettlementWorkbenchNavBucket {
@@ -79,6 +64,10 @@ export function settlementsPendingApprovalRedirectPath(search?: string): string 
   const params = new URLSearchParams(
     search?.startsWith("?") ? search.slice(1) : (search ?? ""),
   );
-  const driverId = params.get("driverId") ?? params.get("employeeId") ?? undefined;
-  return approvalBucketPath(driverId || undefined);
+  const employeeId =
+    params.get("employeeId") ?? params.get("driverId") ?? undefined;
+  return settlementsWorkbenchBucketPath(
+    "approval",
+    employeeId ? { employeeId } : undefined,
+  );
 }

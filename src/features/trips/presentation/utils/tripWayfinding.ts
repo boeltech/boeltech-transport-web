@@ -1,29 +1,124 @@
 import { isApprovalsInboxHref } from "@features/approvals";
+import {
+  FINANCE_DISPATCH_PATH,
+  FINANCE_INVOICEABLE_PATH,
+  FINANCE_INVOICES_PATH,
+} from "@features/finance/application";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { shellCopy } from "../copy/tripDetail/shellCopy";
+
+const TRIPS_LIST_FALLBACK = "/trips";
+const SETTLEMENTS_PATH_PREFIX = "/finance/settlements";
 
 function pathOnly(href: string): string {
   return href.split("?")[0] ?? href;
 }
 
+/** Detalle de factura (`/invoices/:id`), no alta ni edit. */
+export function isInvoiceDetailHref(href: string): boolean {
+  const path = pathOnly(href);
+  if (path === "/invoices/new") return false;
+  return /^\/invoices\/[^/]+$/.test(path);
+}
+
+function isTripAppHref(href: string): boolean {
+  return (
+    href === "/trips" ||
+    href.startsWith("/trips/") ||
+    href.startsWith("/trips?")
+  );
+}
+
+function isFinanceInvoicesHref(href: string): boolean {
+  const path = pathOnly(href);
+  return (
+    path === FINANCE_INVOICES_PATH ||
+    path.startsWith(`${FINANCE_INVOICES_PATH}/`)
+  );
+}
+
+function isFinanceInvoiceableHref(href: string): boolean {
+  const path = pathOnly(href);
+  return (
+    path === FINANCE_INVOICEABLE_PATH ||
+    path.startsWith(`${FINANCE_INVOICEABLE_PATH}/`)
+  );
+}
+
+function isFinanceDispatchHref(href: string): boolean {
+  const path = pathOnly(href);
+  return (
+    path === FINANCE_DISPATCH_PATH ||
+    path.startsWith(`${FINANCE_DISPATCH_PATH}/`)
+  );
+}
+
+function isSettlementsHref(href: string): boolean {
+  const path = pathOnly(href);
+  return (
+    path === SETTLEMENTS_PATH_PREFIX ||
+    path.startsWith(`${SETTLEMENTS_PATH_PREFIX}/`)
+  );
+}
+
+/**
+ * Colas razonables para el chevron de vuelta desde detalle de viaje (Ola 6).
+ * Paridad conceptual con `isSafeInvoiceReturnHref`.
+ */
+export function isSafeTripReturnHref(href: string): boolean {
+  if (isTripAppHref(href)) return true;
+  if (isFinanceInvoiceableHref(href)) return true;
+  if (isFinanceDispatchHref(href)) return true;
+  if (isApprovalsInboxHref(href)) return true;
+  if (isSettlementsHref(href)) return true;
+  if (isInvoiceDetailHref(href)) return true;
+  if (isFinanceInvoicesHref(href)) return true;
+  return false;
+}
+
+/**
+ * Resuelve `location.state.from` para el detalle de viaje.
+ * Rechaza URLs externas y rutas internas fuera de la allowlist.
+ */
+export function resolveTripBackHref(from: string | undefined): string {
+  if (from == null || from.trim() === "") return TRIPS_LIST_FALLBACK;
+
+  const candidate = resolveInternalAppHref(from, TRIPS_LIST_FALLBACK);
+  if (candidate === TRIPS_LIST_FALLBACK) return TRIPS_LIST_FALLBACK;
+  if (!isSafeTripReturnHref(candidate)) return TRIPS_LIST_FALLBACK;
+  return candidate;
+}
+
 /**
  * Label del chevron al salir del detalle de viaje.
+ * Factura → Volver a la factura; listado facturas → Volver a facturas;
  * Bandeja de aprobaciones → Volver a aprobaciones;
+ * Por facturar → Volver a Por facturar;
  * envío de facturas → Volver al envío / a envíos;
  * pago a operador → Volver al pago;
  * resto → Volver a Viajes.
  */
 export function resolveTripWayfindingBackLabel(href: string): string {
+  if (isInvoiceDetailHref(href)) {
+    return shellCopy.state.backToInvoice;
+  }
+  if (isFinanceInvoicesHref(href)) {
+    return shellCopy.state.backToInvoices;
+  }
   if (isApprovalsInboxHref(href)) {
     return shellCopy.state.backToApprovals;
   }
   const path = pathOnly(href);
-  if (path === "/finance/dispatch") {
+  if (path === FINANCE_INVOICEABLE_PATH) {
+    return shellCopy.state.backToInvoiceable;
+  }
+  if (path === FINANCE_DISPATCH_PATH) {
     return shellCopy.state.backToDispatch;
   }
-  if (path === "/finance/dispatch/period") {
+  if (path === `${FINANCE_DISPATCH_PATH}/period`) {
     return shellCopy.state.backToDispatchPeriod;
   }
-  if (path.startsWith("/finance/dispatch/")) {
+  if (path.startsWith(`${FINANCE_DISPATCH_PATH}/`)) {
     return shellCopy.state.backToDispatchRun;
   }
   if (path === "/finance/settlements/new") {

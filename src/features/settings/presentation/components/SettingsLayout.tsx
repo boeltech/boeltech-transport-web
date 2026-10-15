@@ -6,6 +6,7 @@
  */
 
 import { memo, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Settings, ChevronRight } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { SettingsNavTabs } from "./SettingsNavTabs";
@@ -49,13 +50,16 @@ export const SettingsLayout = memo(function SettingsLayout({
           className="flex items-center gap-2 text-sm text-muted-foreground"
           aria-label="Configuración"
         >
-          <span className="flex items-center gap-1.5">
-            <Settings className="h-4 w-4" />
+          <Link
+            to="/settings"
+            className="flex items-center gap-1.5 hover:text-foreground"
+          >
+            <Settings className="h-4 w-4" aria-hidden />
             <span>Configuración</span>
-          </span>
+          </Link>
           {sectionTitle && (
             <>
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden />
               <span className="text-foreground">{sectionTitle}</span>
             </>
           )}
@@ -64,7 +68,7 @@ export const SettingsLayout = memo(function SettingsLayout({
         <div className="flex items-start gap-4">
           {headerSlot ? <div className="shrink-0 pt-0.5">{headerSlot}</div> : null}
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight">
               {title ?? DEFAULT_TITLE}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -76,9 +80,18 @@ export const SettingsLayout = memo(function SettingsLayout({
 
       {!hideNavigation && <SettingsNavTabs />}
 
-      <main className={cn("min-w-0", hideNavigation && "max-w-4xl")}>
+      {/* region (no <main>): el app shell ya expone <main id="contenido"> */}
+      <div
+        role="region"
+        aria-label={
+          typeof title === "string"
+            ? title
+            : sectionTitle ?? DEFAULT_TITLE
+        }
+        className={cn("min-w-0", hideNavigation && "max-w-4xl")}
+      >
         {children}
-      </main>
+      </div>
     </div>
   );
 });
@@ -123,7 +136,7 @@ export const SettingsSection = memo(function SettingsSection({
 export interface SettingsCardProps {
   title: string;
   description?: string;
-  children: ReactNode;
+  children?: ReactNode;
   actions?: ReactNode;
   className?: string;
 }
@@ -141,14 +154,14 @@ export const SettingsCard = memo(function SettingsCard({
   return (
     <div
       className={cn(
-        "rounded-lg border bg-card text-card-foreground shadow-sm",
+        "rounded-xl border bg-card text-card-foreground shadow-sm",
         className,
       )}
     >
       <div className="space-y-4 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="font-medium">{title}</h3>
+            <h3 className="text-base font-semibold">{title}</h3>
             {description && (
               <p className="mt-1 text-sm text-muted-foreground">{description}</p>
             )}

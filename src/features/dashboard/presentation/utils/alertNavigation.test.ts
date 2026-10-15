@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { DASHBOARD_PATH, REPORTS_HUB_PATH } from "@shared/utils/reportsWayfinding";
 import type { DashboardAlert } from "../../domain/types";
 import { handleAlertClick } from "./alertNavigation";
 
@@ -17,7 +18,25 @@ describe("handleAlertClick", () => {
     handleAlertClick(alert, navigate);
 
     expect(navigate).toHaveBeenCalledWith("/trips/trip-42", {
-      state: { from: "/dashboard" },
+      state: { from: DASHBOARD_PATH },
+    });
+  });
+
+  it("forwards reports return when fromHref is the catalog", () => {
+    const navigate = vi.fn();
+    const alert: DashboardAlert = {
+      type: "overdue_trip",
+      severity: "error",
+      title: "Viaje vencido",
+      description: "Retraso",
+      entity_id: "trip-42",
+      entity_code: "V-042",
+    };
+
+    handleAlertClick(alert, navigate, REPORTS_HUB_PATH);
+
+    expect(navigate).toHaveBeenCalledWith("/trips/trip-42", {
+      state: { from: REPORTS_HUB_PATH },
     });
   });
 
@@ -34,7 +53,7 @@ describe("handleAlertClick", () => {
     handleAlertClick(alert, navigate);
 
     expect(navigate).toHaveBeenCalledWith("/drivers/driver-9?tab=documents", {
-      state: { from: "/dashboard" },
+      state: { from: DASHBOARD_PATH },
     });
   });
 
@@ -51,7 +70,7 @@ describe("handleAlertClick", () => {
     handleAlertClick(alert, navigate);
 
     expect(navigate).toHaveBeenCalledWith("/vehicles/vehicle-3?tab=documents", {
-      state: { from: "/dashboard" },
+      state: { from: DASHBOARD_PATH },
     });
   });
 });

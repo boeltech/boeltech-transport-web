@@ -10,8 +10,8 @@
 import { Suspense } from "react";
 import { lazyWithRetry } from "@shared/lib/lazyWithRetry";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
-import { PermissionGuard, usePermissions } from "@shared/permissions";
+import { PermissionGuard } from "@shared/permissions";
+import { LoadingPageState } from "@shared/ui/feedback-states";
 
 // ============================================================================
 // LAZY LOADED PAGES - Settings
@@ -38,12 +38,6 @@ const BillingSettingsPage = lazyWithRetry(() =>
 const BillingServiceConceptsPage = lazyWithRetry(() =>
   import("./pages/BillingServiceConceptsPage").then((m) => ({
     default: m.BillingServiceConceptsPage,
-  })),
-);
-
-const BillingSchemesPage = lazyWithRetry(() =>
-  import("./pages/BillingSchemesPage").then((m) => ({
-    default: m.BillingSchemesPage,
   })),
 );
 
@@ -81,6 +75,12 @@ const DashboardLayoutsSettingsPage = lazyWithRetry(() =>
   })),
 );
 
+const SettingsHubPage = lazyWithRetry(() =>
+  import("./pages/SettingsHubPage").then((m) => ({
+    default: m.SettingsHubPage,
+  })),
+);
+
 // ============================================================================
 // LAZY LOADED PAGES - Catalogs (from catalogs feature)
 // ============================================================================
@@ -111,17 +111,15 @@ const ImportsHubPage = lazyWithRetry(() =>
 
 function SettingsLoadingFallback() {
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <div className="min-h-[400px] py-6" aria-busy="true">
+      <LoadingPageState variant="form" />
     </div>
   );
 }
 
-function SettingsIndexRedirect() {
-  const { hasPermission } = usePermissions();
-  const canReadSettings = hasPermission("settings", "read");
-
-  return <Navigate to={canReadSettings ? "general" : "billing"} replace />;
+function SettingsUnknownRedirect() {
+  // Catch-all → hub (primera vista del módulo), no siempre General.
+  return <Navigate to="/settings" replace />;
 }
 
 // ============================================================================
@@ -132,7 +130,7 @@ function SettingsIndexRedirect() {
  * Rutas del módulo de configuración
  *
  * Estructura:
- * /settings              → Redirect a /settings/general
+ * /settings              → Hub por jobs (Empresa / Facturación / Padrón / Gobernanza)
  * /settings/general      → Configuración de empresa
  * /settings/catalogs     → Catálogos SAT e internos
  * /settings/catalogs/:typeCode → Detalle de catálogo
@@ -140,14 +138,13 @@ function SettingsIndexRedirect() {
  * /settings/approvals  → Reglas de autorización (ADR-0099)
  * /settings/notifications → Avisos de la empresa (documentos por vencer)
  * /settings/security     → Redirect a /account/security
- * /settings/integrations → Integraciones (próximamente)
+ * /settings/integrations → Integraciones (placeholder)
  */
 export function SettingsRoutes() {
   return (
     <Suspense fallback={<SettingsLoadingFallback />}>
       <Routes>
-        {/* Index - redirect to general */}
-        <Route index element={<SettingsIndexRedirect />} />
+        <Route index element={<SettingsHubPage />} />
 
         {/* General Settings — lectura para todo rol con acceso a Configuración */}
         <Route
@@ -231,18 +228,7 @@ export function SettingsRoutes() {
             </PermissionGuard>
           }
         />
-        <Route
-          path="billing-schemes"
-          element={
-            <PermissionGuard
-              module="invoices"
-              action="read"
-              fallback={<Navigate to="/forbidden" replace />}
-            >
-              <BillingSchemesPage />
-            </PermissionGuard>
-          }
-        />
+        {/* billing-schemes: redirect top-level en app router (fuera de ModuleRoute settings) */}
 
         {/* SaaS subscription (también ruta top-level sin RBAC billing para paywall) */}
         <Route path="subscription" element={<BillingSubscriptionPage />} />
@@ -298,8 +284,7 @@ export function SettingsRoutes() {
         {/* Integrations Settings (placeholder) */}
         <Route path="integrations" element={<IntegrationsSettingsPage />} />
 
-        {/* Catch all - redirect to general */}
-        <Route path="*" element={<Navigate to="general" replace />} />
+        <Route path="*" element={<SettingsUnknownRedirect />} />
       </Routes>
     </Suspense>
   );

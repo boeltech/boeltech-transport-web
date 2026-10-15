@@ -13,6 +13,7 @@ import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import type { ActiveFilterChip } from "@shared/ui/listing";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
   BRANCH_STATUS_LABELS,
@@ -39,6 +40,7 @@ const copy = branchesCopy.list;
 
 export function BranchesListPage() {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -124,7 +126,10 @@ export function BranchesListPage() {
     return "";
   }, []);
 
-  const handleCreate = useCallback(() => navigate("/branches/new"), [navigate]);
+  const handleCreate = useCallback(
+    () => navigate("/branches/new", { state: fromState }),
+    [fromState, navigate],
+  );
 
   const handleRefresh = useCallback(async () => {
     await refetch();

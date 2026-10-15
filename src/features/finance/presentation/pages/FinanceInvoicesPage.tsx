@@ -10,6 +10,7 @@ import { Button } from "@shared/ui/button";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import {
+  FINANCE_INVOICEABLE_PATH,
   isFinanceAnalyticsEnabled,
   useFinanceInvoicesList,
   useFinanceListingFilters,
@@ -33,6 +34,7 @@ import {
 } from "@features/invoicing";
 import type { TripListItem } from "@features/trips/domain";
 import { resolveFinanceInvoicesTabTripTarget } from "../utils/financeInvoiceFromTripCta";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 import {
   countsFromFinanceSummary,
   mapInvoicesWorkbenchBuckets,
@@ -40,14 +42,13 @@ import {
 
 const DOWNLOAD_PARAM = "download";
 
-const INVOICES_PAGE_PATH = "/finance/invoices";
-
 const copy = financeCopy.invoices;
 const workbenchCopy = copy.workbench;
 const newInvoiceCta = copy.newInvoiceCta;
 
 export function FinanceInvoicesPage() {
   const navigate = useNavigate();
+  const { from: queueFrom } = useInvoiceQueueFromState();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isClientPortal = isClientPortalRole(user?.role);
@@ -165,19 +166,19 @@ export function FinanceInvoicesPage() {
   const handleView = useCallback(
     (id: string) => {
       navigate(`/invoices/${id}`, {
-        state: { from: INVOICES_PAGE_PATH },
+        state: { from: queueFrom },
       });
     },
-    [navigate],
+    [navigate, queueFrom],
   );
 
   const handleTripSelected = useCallback(
     (trip: TripListItem) => {
       navigate(resolveFinanceInvoicesTabTripTarget(trip), {
-        state: { from: INVOICES_PAGE_PATH },
+        state: { from: queueFrom },
       });
     },
-    [navigate],
+    [navigate, queueFrom],
   );
 
   return (
@@ -301,7 +302,7 @@ export function FinanceInvoicesPage() {
           canInvoiceFromTrip
             ? {
                 label: workbenchCopy.relatedConfig.label,
-                href: "/finance/invoiceable",
+                href: FINANCE_INVOICEABLE_PATH,
                 description: workbenchCopy.relatedConfig.description,
               }
             : undefined

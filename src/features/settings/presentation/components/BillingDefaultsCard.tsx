@@ -6,8 +6,9 @@
  * arranque de factura que puede cambiar caso por caso.
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
+import { ChevronDown } from "lucide-react";
 
 import { InfoRow } from "@shared/ui/data-display";
 import {
@@ -17,12 +18,18 @@ import {
 } from "@shared/ui/form";
 import { Label } from "@shared/ui/label";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
+import { cn } from "@shared/lib/utils/cn";
 
 import {
   UsoCfdiSelect,
@@ -41,8 +48,6 @@ import {
   normalizeTasaIva,
   type BillingSettingsFormData,
 } from "../validation/billingSettingsSchema";
-import { SettingsCard } from "./SettingsLayout";
-
 const copy = billingSettingsCopy.defaults;
 
 const TASA_IVA_OPTIONS = [
@@ -55,69 +60,103 @@ export interface BillingDefaultsCardProps {
   form: UseFormReturn<BillingSettingsFormData>;
   settings: BillingSettings;
   canEdit: boolean;
+  /** Operate density: start collapsed (default true). */
+  defaultCollapsed?: boolean;
 }
 
 export const BillingDefaultsCard = memo(function BillingDefaultsCard({
   form,
   settings,
   canEdit,
+  defaultCollapsed = true,
 }: BillingDefaultsCardProps) {
-  if (!canEdit) {
-    return (
-      <SettingsCard title={copy.title} description={copy.description}>
-        <div>
-          <CatalogInfoRow
-            label={copy.usoCfdi}
-            typeCode={"sat_uso_cfdi" as CatalogTypeCodeValue}
-            code={settings.defaultUsoCfdi}
-          />
-          <CatalogInfoRow
-            label={copy.formaPago}
-            typeCode={"sat_forma_pago" as CatalogTypeCodeValue}
-            code={settings.defaultFormaPago}
-          />
-          <CatalogInfoRow
-            label={copy.metodoPago}
-            typeCode={"sat_metodo_pago" as CatalogTypeCodeValue}
-            code={settings.defaultMetodoPago}
-          />
-          <CatalogInfoRow
-            label={copy.claveProductoServicio}
-            typeCode={"sat_clave_prod_serv" as CatalogTypeCodeValue}
-            code={settings.claveProductoServicio}
-          />
-          <CatalogInfoRow
-            label={copy.claveUnidad}
-            typeCode={"sat_clave_unidad" as CatalogTypeCodeValue}
-            code={settings.claveUnidad}
-          />
-          <InfoRow
-            variant="inline"
-            label={copy.moneda}
-            value={copy.monedaOptions.mxn}
-          />
-          <InfoRow
-            variant="inline"
-            label={copy.tasaIva}
-            value={
-              TASA_IVA_OPTIONS.find(
-                (option) => option.value === normalizeTasaIva(settings.tasaIva),
-              )?.label ?? copy.emptyValue
-            }
-          />
-        </div>
-      </SettingsCard>
-    );
-  }
+  const [open, setOpen] = useState(!defaultCollapsed);
 
-  return <BillingDefaultsForm form={form} />;
+  const body = !canEdit ? (
+    <div>
+      <CatalogInfoRow
+        label={copy.usoCfdi}
+        typeCode={"sat_uso_cfdi" as CatalogTypeCodeValue}
+        code={settings.defaultUsoCfdi}
+      />
+      <CatalogInfoRow
+        label={copy.formaPago}
+        typeCode={"sat_forma_pago" as CatalogTypeCodeValue}
+        code={settings.defaultFormaPago}
+      />
+      <CatalogInfoRow
+        label={copy.metodoPago}
+        typeCode={"sat_metodo_pago" as CatalogTypeCodeValue}
+        code={settings.defaultMetodoPago}
+      />
+      <CatalogInfoRow
+        label={copy.claveProductoServicio}
+        typeCode={"sat_clave_prod_serv" as CatalogTypeCodeValue}
+        code={settings.claveProductoServicio}
+      />
+      <CatalogInfoRow
+        label={copy.claveUnidad}
+        typeCode={"sat_clave_unidad" as CatalogTypeCodeValue}
+        code={settings.claveUnidad}
+      />
+      <InfoRow
+        variant="inline"
+        label={copy.moneda}
+        value={copy.monedaOptions.mxn}
+      />
+      <InfoRow
+        variant="inline"
+        label={copy.tasaIva}
+        value={
+          TASA_IVA_OPTIONS.find(
+            (option) => option.value === normalizeTasaIva(settings.tasaIva),
+          )?.label ?? copy.emptyValue
+        }
+      />
+    </div>
+  ) : (
+    <BillingDefaultsFormFields form={form} />
+  );
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-start justify-between gap-4 p-6 text-left"
+          >
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold">{copy.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {copy.description}
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground">
+              {open ? copy.collapse : copy.expand}
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 transition-transform",
+                  open && "rotate-180",
+                )}
+                aria-hidden
+              />
+            </span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-4 border-t px-6 pb-6 pt-4">{body}</div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
 });
 
 // ============================================================================
 // EDICIÓN
 // ============================================================================
 
-function BillingDefaultsForm({
+function BillingDefaultsFormFields({
   form,
 }: {
   form: UseFormReturn<BillingSettingsFormData>;
@@ -143,7 +182,6 @@ function BillingDefaultsForm({
   });
 
   return (
-    <SettingsCard title={copy.title} description={copy.description}>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormFieldShell
           fieldId="defaultUsoCfdi"
@@ -272,7 +310,15 @@ function BillingDefaultsForm({
           errorMessage={errors.claveProductoServicio?.message}
         >
           <ProductoServicioSearch
+            id="claveProductoServicio"
             value={claveProductoServicio}
+            error={Boolean(errors.claveProductoServicio)}
+            aria-invalid={Boolean(errors.claveProductoServicio)}
+            aria-describedby={
+              errors.claveProductoServicio
+                ? "claveProductoServicio-error"
+                : undefined
+            }
             onSelect={(item: CatalogItem) =>
               form.setValue("claveProductoServicio", item.code, {
                 shouldDirty: true,
@@ -296,7 +342,13 @@ function BillingDefaultsForm({
           errorMessage={errors.claveUnidad?.message}
         >
           <UnidadMedidaSearch
+            id="claveUnidad"
             value={claveUnidad}
+            error={Boolean(errors.claveUnidad)}
+            aria-invalid={Boolean(errors.claveUnidad)}
+            aria-describedby={
+              errors.claveUnidad ? "claveUnidad-error" : undefined
+            }
             onSelect={(item: CatalogItem) =>
               form.setValue("claveUnidad", item.code, {
                 shouldDirty: true,
@@ -312,7 +364,6 @@ function BillingDefaultsForm({
           />
         </FormFieldShell>
       </div>
-    </SettingsCard>
   );
 }
 

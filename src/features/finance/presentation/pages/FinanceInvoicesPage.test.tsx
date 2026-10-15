@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { FinanceInvoiceListItem } from "@features/finance/domain";
 
 import { financeCopy } from "../copy";
 import { CLIENT_PORTAL_INVOICES_ORIENTATION_STORAGE_KEY } from "../components/ClientPortalInvoicesOrientationAlert";
@@ -13,12 +15,16 @@ const {
   mockCanShowInvoiceFromTripCta,
   mockIsFinanceAnalyticsEnabled,
   mockUseFinanceSummary,
+  mockUseFinanceInvoicesList,
+  mockNavigate,
 } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockHasPermission: vi.fn(() => false),
   mockCanShowInvoiceFromTripCta: vi.fn(() => false),
   mockIsFinanceAnalyticsEnabled: vi.fn(() => false),
   mockUseFinanceSummary: vi.fn(() => ({ data: undefined, isLoading: false })),
+  mockUseFinanceInvoicesList: vi.fn(),
+  mockNavigate: vi.fn(),
 }));
 
 vi.mock("@features/auth", () => ({
@@ -28,6 +34,14 @@ vi.mock("@features/auth", () => ({
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
 }));
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...mod,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock("@shared/hooks", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@shared/hooks")>();
@@ -49,12 +63,34 @@ vi.mock("@features/invoicing", () => ({
   invoiceBulkDownloadCopy: { actionButton: "Descargar CFDI" },
 }));
 
-vi.mock("@features/finance/application", () => ({
-  isFinanceAnalyticsEnabled: (...args: unknown[]) =>
-    mockIsFinanceAnalyticsEnabled(...args),
-  useFinanceInvoicesList: () => ({
+vi.mock("@features/finance/application", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@features/finance/application")>();
+  return {
+    ...actual,
+    isFinanceAnalyticsEnabled: (...args: unknown[]) =>
+      mockIsFinanceAnalyticsEnabled(...args),
+    useFinanceInvoicesList: (...args: unknown[]) =>
+      mockUseFinanceInvoicesList(...args),
+    useFinanceSummary: () => mockUseFinanceSummary(),
+    useFinanceListingFilters: () => ({
+      search: "",
+      page: 1,
+      filters: { bucket: "" },
+      searchProps: { value: "", onChange: vi.fn(), placeholder: "" },
+      activeChips: [],
+      hasFilters: false,
+      setFilter: vi.fn(),
+      setPage: vi.fn(),
+      clearAll: vi.fn(),
+    }),
+  };
+});
+
+function emptyListResult() {
+  return {
     data: {
-      data: [],
+      data: [] as FinanceInvoiceListItem[],
       pagination: { page: 1, totalPages: 1, total: 0, limit: 10 },
     },
     isLoading: false,
@@ -62,29 +98,38 @@ vi.mock("@features/finance/application", () => ({
     error: null,
     refetch: vi.fn(),
     isFetching: false,
-  }),
-  useFinanceSummary: () => mockUseFinanceSummary(),
-  useFinanceListingFilters: () => ({
-    search: "",
-    page: 1,
-    filters: { bucket: "" },
-    searchProps: { value: "", onChange: vi.fn(), placeholder: "" },
-    activeChips: [],
-    hasFilters: false,
-    setFilter: vi.fn(),
-    setPage: vi.fn(),
-    clearAll: vi.fn(),
-  }),
-}));
+  };
+}
 
-function renderPage(role: string) {
+function buildInvoice(
+  overrides: Partial<FinanceInvoiceListItem> = {},
+): FinanceInvoiceListItem {
+  return {
+    id: "inv-42",
+    serie: "A",
+    folio: 42,
+    receiverRfc: "XAXX010101000",
+    receiverName: "Cliente Demo",
+    issuedAt: "2026-08-01T12:00:00.000Z",
+    paymentMethod: "PUE",
+    total: 1160,
+    balanceDue: 1160,
+    totalPaid: 0,
+    tripCodes: ["TRP-001"],
+    status: "stamped",
+    dispatchSentAt: null,
+    ...overrides,
+  };
+}
+
+function renderPage(role: string, route = "/finance/invoices") {
   mockUseAuth.mockReturnValue({ user: { role } });
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={["/finance/invoices"]}>
+      <MemoryRouter initialEntries={[route]}>
         <FinanceInvoicesPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -96,10 +141,12 @@ describe("FinanceInvoicesPage — orientación client", () => {
     window.localStorage.removeItem(
       CLIENT_PORTAL_INVOICES_ORIENTATION_STORAGE_KEY,
     );
+    mockNavigate.mockReset();
     mockHasPermission.mockReturnValue(false);
     mockCanShowInvoiceFromTripCta.mockReturnValue(false);
     mockIsFinanceAnalyticsEnabled.mockReturnValue(false);
     mockUseFinanceSummary.mockReturnValue({ data: undefined, isLoading: false });
+    mockUseFinanceInvoicesList.mockReturnValue(emptyListResult());
   });
 
   it("titula Mis facturas, muestra L1b y no pide Nueva factura", () => {
@@ -127,6 +174,7 @@ describe("FinanceInvoicesPage — orientación client", () => {
 
 describe("FinanceInvoicesPage — Workbench F1", () => {
   beforeEach(() => {
+    mockNavigate.mockReset();
     mockHasPermission.mockImplementation(
       (resource: string, action: string) =>
         (resource === "finance" && action === "read") ||
@@ -149,6 +197,7 @@ describe("FinanceInvoicesPage — Workbench F1", () => {
       },
       isLoading: false,
     });
+    mockUseFinanceInvoicesList.mockReturnValue(emptyListResult());
   });
 
   it("usa shell EmptyState, primary Nueva factura y Descargar CFDI outline", () => {
@@ -190,5 +239,24 @@ describe("FinanceInvoicesPage — Workbench F1", () => {
     expect(
       screen.getByPlaceholderText(financeCopy.invoices.searchPlaceholder),
     ).toBeInTheDocument();
+  });
+
+  it("al ir a detalle propaga state.from con pathname+search (bucket/filtros)", async () => {
+    const user = userEvent.setup();
+    mockUseFinanceInvoicesList.mockReturnValue({
+      ...emptyListResult(),
+      data: {
+        data: [buildInvoice()],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 10 },
+      },
+    });
+
+    renderPage("admin", "/finance/invoices?bucket=stamped");
+
+    await user.click(screen.getByText("A-42"));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-42", {
+      state: { from: "/finance/invoices?bucket=stamped" },
+    });
   });
 });

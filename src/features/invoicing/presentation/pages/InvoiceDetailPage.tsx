@@ -54,6 +54,7 @@ import { resolveInvoiceFollowThrough } from "../helpers/resolveInvoiceFollowThro
 import { resolveInvoicePortalStatusLabel } from "../utils/invoicePortalStatus";
 import {
   resolveInvoiceAccessDeniedCopy,
+  resolveInvoiceBackHref,
   resolveInvoiceWayfindingBackLabel,
 } from "../utils/invoiceWayfinding";
 
@@ -61,13 +62,13 @@ const copy = invoicingCopy.detail;
 /** Sin max-w propio: mismo techo que el listado (`LayoutShell` max-w-7xl). */
 const DETAIL_SHELL_CLASS = "w-full p-4 sm:p-6";
 
-function resolveInvoiceBackHref(
+function invoiceBackHref(
   from: string | undefined,
   invoice: Invoice | undefined,
 ): string {
-  if (from && !from.startsWith("/invoices/new")) return from;
-  if (invoice?.trips?.length) return `/trips/${invoice.trips[0].tripId}`;
-  return "/finance/invoices";
+  return resolveInvoiceBackHref(from, {
+    tripId: invoice?.trips?.[0]?.tripId,
+  });
 }
 
 export function InvoiceDetailPage() {
@@ -212,11 +213,11 @@ export function InvoiceDetailPage() {
   });
 
   const handleBack = () => {
-    navigate(resolveInvoiceBackHref(fromState, invoice));
+    navigate(invoiceBackHref(fromState, invoice));
   };
 
   const shellHeaderPlaceholder = {
-    backHref: resolveInvoiceBackHref(fromState, undefined),
+    backHref: invoiceBackHref(fromState, undefined),
     icon: <Receipt className="h-6 w-6" />,
     title: copy.header.title,
   };
@@ -332,7 +333,7 @@ export function InvoiceDetailPage() {
   const isActiveSubstitute =
     Boolean(invoice.parentInvoiceId) && invoice.status !== "cancelled";
 
-  const backHref = resolveInvoiceBackHref(fromState, invoice);
+  const backHref = invoiceBackHref(fromState, invoice);
 
   /** Misma regla que InvoiceEmailDispatchBadge: fallo auto solo si aún no hay envío exitoso. */
   const autoDispatchFailed =

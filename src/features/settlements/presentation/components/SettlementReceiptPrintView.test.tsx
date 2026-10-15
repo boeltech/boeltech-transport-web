@@ -16,7 +16,7 @@ const mockSettlement: DriverSettlement = {
   },
   periodStart: "2026-08-01",
   periodEnd: "2026-08-15",
-  status: "approved",
+  status: "disbursed",
   totalTripsCommission: 3500,
   totalBaseSalary: 5000,
   totalReimbursableExpenses: 650,
@@ -34,7 +34,7 @@ const mockSettlement: DriverSettlement = {
   disbursementReference: "SPEI-889911",
   approvedAt: "2026-08-15T18:00:00Z",
   approvedBy: "user-approver",
-  approvedByName: "Lic. Roberto Garza",
+  approvedByName: "Lic. Ana López",
   rejectionReason: null,
   notes: "Ajuste de casetas incluido con ticket autorizado.",
   createdAt: "2026-08-15T12:00:00Z",
@@ -137,19 +137,22 @@ describe("SettlementReceiptPrintView", () => {
     expect(screen.getByText(/NETO A PAGAR AL OPERADOR/i)).toBeInTheDocument();
   });
 
-  it("renders signatures section with operator and approver details", () => {
+  it("renders signatures section with operator and disburser details when paid", () => {
     render(<SettlementReceiptPrintView settlement={mockSettlement} />);
 
     expect(screen.getByText("Firma de Conformidad del Operador")).toBeInTheDocument();
     expect(
       screen.getByText(/Recibí a mi entera satisfacción la cantidad neta indicada/i),
     ).toBeInTheDocument();
-    expect(screen.getByText("Lic. Roberto Garza")).toBeInTheDocument();
-    expect(screen.getByText("Revisado y Autorizado / Empresa")).toBeInTheDocument();
+    expect(screen.getByTestId("receipt-company-signer-name")).toHaveTextContent(
+      "Lic. Roberto Garza",
+    );
+    expect(screen.getByText("Pago registrado / Empresa")).toBeInTheDocument();
     expect(screen.getByText("Recibo de pago")).toBeInTheDocument();
+    expect(screen.queryByText("Lic. Ana López")).not.toBeInTheDocument();
   });
 
-  it("muestra PENDIENTE DE PAGO cuando está Autorizado sin dispersión", () => {
+  it("muestra PENDIENTE DE PAGO y autorizador cuando está Autorizado sin dispersión", () => {
     render(
       <SettlementReceiptPrintView
         settlement={{
@@ -157,6 +160,7 @@ describe("SettlementReceiptPrintView", () => {
           status: "approved",
           disbursedAt: null,
           disbursedBy: null,
+          disbursedByName: null,
           disbursementMethod: null,
           disbursementReference: null,
         }}
@@ -165,6 +169,107 @@ describe("SettlementReceiptPrintView", () => {
 
     expect(screen.getByText("PENDIENTE DE PAGO")).toBeInTheDocument();
     expect(screen.queryByText("Recibo de pago")).not.toBeInTheDocument();
+    expect(screen.getByTestId("receipt-company-signer-name")).toHaveTextContent(
+      "Lic. Ana López",
+    );
+    expect(screen.getByText("Revisado y Autorizado / Empresa")).toBeInTheDocument();
+  });
+
+  it("R-05: cancelled + disbursedAt huérfano sigue con watermark (no firmable)", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={{
+          ...mockSettlement,
+          status: "cancelled",
+          disbursedAt: "2026-08-16T10:00:00Z",
+          disbursedByName: "Lic. Roberto Garza",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("receipt-review-watermark")).toHaveTextContent(
+      "NO VÁLIDO PARA FIRMA",
+    );
+    expect(screen.queryByText("Firma de Conformidad del Operador")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recibo de pago")).not.toBeInTheDocument();
+  });
+
+  it("R-04: rejected muestra watermark NO VÁLIDO PARA FIRMA", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={{
+          ...mockSettlement,
+          status: "rejected",
+          approvedAt: null,
+          approvedBy: null,
+          approvedByName: null,
+          disbursedAt: null,
+          disbursedBy: null,
+          disbursedByName: null,
+          disbursementMethod: null,
+          disbursementReference: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("receipt-review-watermark")).toHaveTextContent(
+      "NO VÁLIDO PARA FIRMA",
+    );
+    expect(screen.queryByText("Firma de Conformidad del Operador")).not.toBeInTheDocument();
+  });
+
+  it("R-03: con logoSrc muestra el logo en cabecera", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={mockSettlement}
+        companyName="Transportes Tlama"
+        logoSrc="https://cdn.example/logo.png?v=1"
+      />,
+    );
+
+    const logo = screen.getByTestId("receipt-company-logo");
+    expect(logo).toHaveAttribute("src", "https://cdn.example/logo.png?v=1");
+    expect(screen.getByText(/Transportes Tlama/i)).toBeInTheDocument();
+  });
+
+  it("R-03: sin logoSrc no renderiza img rota", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={mockSettlement}
+        companyName="Transportes Tlama"
+      />,
+    );
+
+    expect(screen.queryByTestId("receipt-company-logo")).not.toBeInTheDocument();
+  });
+
+  it("branding: sin companyName usa fallback neutro (no inventa marca)", () => {
+    render(<SettlementReceiptPrintView settlement={mockSettlement} />);
+
+    expect(screen.getByText(/Sin razón social configurada/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Empresa de Transporte/i)).not.toBeInTheDocument();
+  });
+
+  it("R-02: imprime evidencia self-segregated de autorización y dispersión", () => {
+    render(
+      <SettlementReceiptPrintView
+        settlement={{
+          ...mockSettlement,
+          selfSegregatedApproval: true,
+          approverCountAtApprove: 1,
+          selfSegregatedDisbursement: true,
+          executorCountAtDisburse: 1,
+        }}
+      />,
+    );
+
+    const evidence = screen.getByTestId("receipt-self-segregated-evidence");
+    expect(evidence).toHaveTextContent(
+      /Autorizado en modo un solo responsable \(1 autorizador al momento\)/,
+    );
+    expect(evidence).toHaveTextContent(
+      /Pago registrado en modo un solo responsable \(1 ejecutor al momento\)/,
+    );
   });
 
   it.each(["draft", "pending_approval"] as const)(

@@ -3,7 +3,8 @@
  * Una pantalla Pedido | Flota. Submit = POST /trips create_intent=reserve.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarPlus, ChevronDown, ClipboardList, Truck } from "lucide-react";
@@ -70,9 +71,21 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
+function resolveTripCanvasBackHref(from: string | undefined): string {
+  const fallback = "/trips";
+  const candidate = resolveInternalAppHref(from, fallback);
+  const path = candidate.split("?")[0] ?? candidate;
+  /** Solo listado `/trips` (+ query); no detalle ni otras rutas. */
+  return path === "/trips" ? candidate : fallback;
+}
+
 export function TripCanvasPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const listBackHref = resolveTripCanvasBackHref(
+    location.state?.from as string | undefined,
+  );
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [confirmLaterOpen, setConfirmLaterOpen] = useState(false);
   const [selectedCorridor, setSelectedCorridor] =
@@ -245,7 +258,7 @@ export function TripCanvasPage() {
     <FormPageShell
       isLoading={false}
       header={{
-        backHref: "/trips",
+        backHref: listBackHref,
         backLabel: copy.page.backLabel,
         icon: <CalendarPlus className="h-5 w-5" />,
         title: copy.page.title,

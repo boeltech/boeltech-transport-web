@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@shared/ui/alert-dialog";
+import { FieldInlineError } from "@shared/ui/form";
 import { cn } from "@shared/lib/utils/cn";
 
 import { useDeleteLogo, useUploadLogo } from "../../application/hooks";
@@ -204,11 +205,7 @@ export const CompanyLogoField = memo(function CompanyLogoField({
           ) : null}
         </div>
 
-        {error ? (
-          <p className="text-xs text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <FieldInlineError fieldId="company-logo" message={error} />
 
         <p className="text-xs text-muted-foreground">{copy.hint}</p>
       </div>

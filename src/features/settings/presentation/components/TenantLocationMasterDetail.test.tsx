@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   ClientAddress,
@@ -40,14 +40,19 @@ const detail: ClientAddress = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
+const detailQueryState = vi.hoisted(() => ({
+  data: undefined as ClientAddress | undefined,
+  isLoading: false,
+}));
+
 vi.mock("../../application/hooks/useTenantLocations", () => ({
   useTenantLocations: () => ({
     data: [listItem],
     isLoading: false,
   }),
   useTenantLocation: (id: string | undefined) => ({
-    data: id === locationId ? detail : undefined,
-    isLoading: false,
+    data: id === locationId ? detailQueryState.data : undefined,
+    isLoading: detailQueryState.isLoading,
   }),
   useCreateTenantLocation: () => ({
     mutateAsync: vi.fn(),
@@ -78,12 +83,15 @@ vi.mock(
 vi.mock("@features/clients/presentation/components/ClientAddressForm", () => ({
   ClientAddressForm: ({
     locationOwnerTypes,
+    defaultValues,
   }: {
     locationOwnerTypes?: string[];
+    defaultValues?: { street?: string };
   }) => (
     <div
       data-testid="tenant-location-form"
       data-owner-types={(locationOwnerTypes ?? []).join(",")}
+      data-street={defaultValues?.street ?? ""}
     />
   ),
 }));
@@ -91,6 +99,8 @@ vi.mock("@features/clients/presentation/components/ClientAddressForm", () => ({
 describe("TenantLocationMasterDetail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    detailQueryState.data = detail;
+    detailQueryState.isLoading = false;
   });
 
   it("abre edición de la primera ubicación sin click previo en la lista", async () => {
@@ -114,8 +124,45 @@ describe("TenantLocationMasterDetail", () => {
       "data-owner-types",
       "tenant",
     );
+    expect(screen.getByTestId("tenant-location-form")).toHaveAttribute(
+      "data-street",
+      "Av Carlos Lazo",
+    );
     expect(
       screen.queryByText(tenantLocationsCopy.list.emptyTitle),
     ).not.toBeInTheDocument();
+  });
+
+  it("en edición no muestra form vacío si el detalle desaparece (race)", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<TenantLocationMasterDetail />);
+
+    await user.click(screen.getByRole("button", { name: /Editar/i }));
+    expect(screen.getByTestId("tenant-location-form")).toHaveAttribute(
+      "data-street",
+      "Av Carlos Lazo",
+    );
+
+    detailQueryState.data = undefined;
+    detailQueryState.isLoading = true;
+    rerender(<TenantLocationMasterDetail />);
+
+    expect(
+      screen.getByText(tenantLocationsCopy.form.editTitle),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("tenant-location-form")).not.toBeInTheDocument();
+    expect(document.querySelector("[aria-busy='true']")).toBeTruthy();
+
+    detailQueryState.data = detail;
+    detailQueryState.isLoading = false;
+    rerender(<TenantLocationMasterDetail />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("tenant-location-form")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("tenant-location-form")).toHaveAttribute(
+      "data-street",
+      "Av Carlos Lazo",
+    );
   });
 });

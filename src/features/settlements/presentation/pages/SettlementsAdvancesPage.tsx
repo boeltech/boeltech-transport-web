@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { AlertCircle, Download, Plus } from "lucide-react";
-import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import { Link } from "react-router-dom";
+import { AlertCircle, ClipboardCheck, Download, Plus } from "lucide-react";
+import { ListPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { type ActiveFilterChip } from "@shared/ui/listing";
@@ -9,6 +10,7 @@ import { useListingFilters, useToast } from "@shared/hooks";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { useDriverAdvances } from "../../application/hooks";
+import { settlementsDriverAdvanceApprovalsPath } from "../config/settlementWorkbenchConfig";
 import {
   DriverAdvancesTable,
   DriverAdvanceCard,
@@ -32,6 +34,7 @@ export function SettlementsAdvancesPage() {
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
   const canExport = hasPermission("settlements", "read");
+  const canReadApprovals = hasPermission("finance_approvals", "read");
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
 
   const openCreate = useCallback(() => setAdvanceDialogOpen(true), []);
@@ -186,19 +189,37 @@ export function SettlementsAdvancesPage() {
           onClearFilters: filters.clearAll,
           hasFilters: filters.hasFilters,
           viewMode: filters.viewModeProps,
-          extraActions: canExport ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={filteredAdvances.length === 0 || showLoadError}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              {copy.actions.exportCsv}
-            </Button>
-          ) : null,
+          extraActions: (
+            <>
+              {canReadApprovals ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  asChild
+                >
+                  <Link to={settlementsDriverAdvanceApprovalsPath()}>
+                    <ClipboardCheck className="h-4 w-4" />
+                    {advancesCopy.viewInApprovals}
+                  </Link>
+                </Button>
+              ) : null}
+              {canExport ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={filteredAdvances.length === 0 || showLoadError}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  {copy.actions.exportCsv}
+                </Button>
+              ) : null}
+            </>
+          ),
           filters: (
             <EmployeeAsyncCombobox
               id="settlements-advances-employee-filter"

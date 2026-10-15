@@ -12,7 +12,7 @@ export const billingSettingsCopy = {
     sectionTitle: "Datos para facturar",
     title: "Datos para facturar",
     description:
-      "Deja lista a tu empresa para emitir facturas y consulta aquí si sigue lista.",
+      "Revisa si tu empresa puede emitir facturas y ajusta sello, numeración y precargas.",
   },
   state: {
     readOnlyTitle: "Modo solo lectura",
@@ -42,18 +42,24 @@ export const billingSettingsCopy = {
     titleAttention: "Tu sello digital está por vencer",
     titlePending: "Falta algo para poder facturar",
     descriptionReady:
-      "Tu sello está vigente, tu numeración está definida y el timbrador respondió correctamente.",
+      "Identidad, sello y numeración están en orden; el timbrador respondió correctamente.",
     descriptionReadyUnverified:
-      "Tu sello está vigente y tu numeración está definida: ya puedes emitir facturas.",
+      "Identidad, sello y numeración están en orden: ya puedes emitir facturas.",
     descriptionAttention:
       "Renueva tu sello ante el SAT antes de que venza: sin él no puedes emitir facturas.",
     descriptionPending:
-      "Resuelve lo que aparece abajo para poder emitir tu primera factura.",
+      "Completa lo que aparece abajo para poder emitir facturas.",
     requirements: {
+      identity: "Identidad fiscal de la empresa",
       certificate: "Sello digital de tu empresa",
       numbering: "Numeración de tus facturas",
       connection: "Conexión con el timbrador",
       emitter: "Alta de tu empresa ante el timbrador",
+    },
+    identity: {
+      missing: "Falta el RFC, la razón social, el régimen o el CP",
+      ready: "RFC, régimen y CP listos",
+      unknown: "Cargando…",
     },
     certificate: {
       missing: "Falta cargarlo",
@@ -61,14 +67,15 @@ export const billingSettingsCopy = {
       expiring: "Vence el {date}",
       valid: "Vigente hasta el {date}",
       validNoDate: "Cargado",
+      adminOnly: "Lo carga un administrador",
     },
     numbering: {
       missing: "Falta definirla",
       ready: "Serie {serie}",
     },
-    checksHeading: "Comprobaciones opcionales",
+    checksHeading: "Diagnóstico del timbrador",
     checksHint:
-      "Tu empresa se da de alta sola cuando guardas tus datos o cargas el sello. Usa estas comprobaciones solo si algo falla al facturar.",
+      "Tu empresa se da de alta sola cuando guardas tus datos o cargas el sello. Usa estas acciones solo si algo falla al facturar.",
     check: {
       unknownConnection: "Puedes comprobarla cuando quieras",
       unknownEmitter: "Se hace sola al guardar tus datos",
@@ -77,11 +84,14 @@ export const billingSettingsCopy = {
       okEmitter: "Registrada",
       failed: "No se pudo completar",
     },
+    ctaIdentity: "Ir a General",
     ctaCertificate: "Cargar el sello digital",
     ctaNumbering: "Definir la numeración",
     ctaConnection: "Comprobar la conexión",
     ctaEmitter: "Dar de alta tu empresa",
     pendingListTitle: "Para completar el alta falta:",
+    expandDiagnostics: "Mostrar diagnóstico",
+    collapseDiagnostics: "Ocultar diagnóstico",
   },
 
   // ── Sello digital ─────────────────────────────────────────────────────────
@@ -110,6 +120,13 @@ export const billingSettingsCopy = {
     upload: "Cargar sello",
     replace: "Reemplazar sello",
     uploading: "Cargando…",
+    validation: {
+      certificateRequired: "Selecciona el archivo .cer",
+      privateKeyRequired: "Selecciona el archivo .key",
+      passwordRequired: "Captura la contraseña del sello",
+      extensionCer: "El certificado debe ser un archivo .cer",
+      extensionKey: "La llave debe ser un archivo .key",
+    },
   },
 
   // ── Numeración ────────────────────────────────────────────────────────────
@@ -134,6 +151,8 @@ export const billingSettingsCopy = {
     title: "Valores que se precargan al facturar",
     description:
       "Cada factura nueva arranca con estos valores. Puedes cambiarlos factura por factura.",
+    expand: "Mostrar precargas",
+    collapse: "Ocultar precargas",
     usoCfdi: "Uso de CFDI",
     usoCfdiHint: "Para qué usará tu cliente la factura.",
     formaPago: "Forma de pago",
@@ -185,7 +204,7 @@ export const billingSettingsCopy = {
     /** D3 — nunca decir "prerequisitos": nombrar lo que falta. */
     emitterReasons: {
       missing_rfc:
-        "Falta el RFC de tu empresa. Complétalo en Datos generales.",
+        "Falta el RFC de tu empresa. Complétalo en General.",
       missing_csd: "Falta cargar el sello digital de tu empresa.",
       missing_csd_password:
         "Falta la contraseña del sello. Vuelve a cargarlo capturando su contraseña.",
@@ -206,6 +225,16 @@ export const billingSettingsCopy = {
     empty: "Todavía no registras servicios",
     manage: "Administrar servicios",
   },
+
+  /** Wayfinding ADR-0082 — frecuencias viven en Finanzas, no en el nav de Settings. */
+  dispatchSchemes: {
+    title: "Frecuencias de envío",
+    description:
+      "Cuándo se agrupan las facturas para el cliente — en Finanzas, no aquí.",
+    openInFinance: "Abrir en Finanzas",
+  },
+
+  extrasHeading: "Más configuración",
 
   // ── Toasts (mutaciones) ───────────────────────────────────────────────────
   toast: {
@@ -230,13 +259,4 @@ export const billingSettingsCopy = {
     emitterErrorDescription: "Vuelve a intentarlo en unos minutos.",
   },
 
-  /** Alert L1b — sello + numeración. Visible solo admin. Key propia. */
-  adminOrientation: {
-    title: "Sello y numeración",
-    body: "Carga el sello digital —solo tú puedes— y define la serie y el folio. Así la oficina puede timbrar.",
-    identityMissing:
-      "Falta el RFC, la razón social, el régimen o el CP.",
-    identityLink: "Ir a General",
-    dismiss: "Entendido",
-  },
 } as const;

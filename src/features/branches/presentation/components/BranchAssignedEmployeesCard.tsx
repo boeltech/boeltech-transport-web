@@ -2,17 +2,22 @@ import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
+import { usePermissions } from "@shared/permissions";
 import { useBranchEmployees } from "../../application";
 import { branchesCopy } from "../copy/branchesCopy";
 
 interface BranchAssignedEmployeesCardProps {
   branchId: string;
+  fromState?: { from: string };
 }
 
 export function BranchAssignedEmployeesCard({
   branchId,
+  fromState,
 }: BranchAssignedEmployeesCardProps) {
   const { data: employees = [], isLoading } = useBranchEmployees(branchId);
+  const { hasPermission } = usePermissions();
+  const canReadEmployees = hasPermission("employees", "read");
   const copy = branchesCopy.detail.employees;
 
   return (
@@ -53,13 +58,15 @@ export function BranchAssignedEmployeesCard({
                       .join(" · ")}
                   </p>
                 </div>
-                <Link
-                  to={`/employees/${employee.id}`}
-                  state={{ from: `/branches/${branchId}` }}
-                  className="shrink-0 text-primary underline-offset-4 hover:underline"
-                >
-                  {copy.viewEmployee}
-                </Link>
+                {canReadEmployees ? (
+                  <Link
+                    to={`/employees/${employee.id}`}
+                    state={fromState ?? { from: `/branches/${branchId}` }}
+                    className="shrink-0 text-primary underline-offset-4 hover:underline"
+                  >
+                    {copy.viewEmployee}
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>

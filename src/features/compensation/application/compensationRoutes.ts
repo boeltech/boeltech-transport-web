@@ -225,20 +225,6 @@ export function resolveLegacyAgreementsPath(search: string): string {
   return COMPENSATION_TEMPLATES_PATH;
 }
 
-export function isCompensationHubPath(pathname: string): boolean {
-  const normalized = pathname.replace(/\/+$/, "");
-  return (
-    normalized === COMPENSATION_HUB_PATH ||
-    normalized.startsWith(`${COMPENSATION_HUB_PATH}/`)
-  );
-}
-
-export function resolveCompensationHubTab(pathname: string): "templates" | "corridors" {
-  const normalized = pathname.replace(/\/+$/, "");
-  if (normalized.startsWith(COMPENSATION_CORRIDORS_PATH)) return "corridors";
-  return "templates";
-}
-
 /** Ruta legacy `/templates/:id` — redirige al listado con query. */
 export function isCompensationTemplateDetailPath(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "");

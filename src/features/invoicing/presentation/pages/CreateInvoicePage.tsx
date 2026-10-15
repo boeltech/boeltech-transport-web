@@ -27,6 +27,7 @@ import {
 } from "../financeInvoiceFromTripCta";
 import { getInvoiceCreateReadiness } from "../invoiceCreateReadiness";
 import { invoicingCopy } from "../copy/invoicingCopy";
+import { resolveInvoiceBackHref } from "../utils/invoiceWayfinding";
 import {
   defaultInvoiceFormValues,
   invoiceFormSchema,
@@ -124,8 +125,9 @@ export function CreateInvoicePage() {
   const shellBackHref =
     isEditMode && invoiceId
       ? `/invoices/${invoiceId}`
-      : (fromState ??
-        (tripId ? `/trips/${tripId}` : "/finance/invoices"));
+      : resolveInvoiceBackHref(fromState, {
+          tripId: tripId || undefined,
+        });
 
   const shellTitle = isEditMode
     ? copy.edit.title
@@ -543,9 +545,12 @@ export function CreateInvoicePage() {
   const { mutate, isPending } = useCreateInvoice({
     onSuccess: (invoice) => {
       toast({ title: copy.create.successToast });
+      /** Sin sentinel `/invoices/new`: origen safe → viaje → listado facturas. */
+      const postCreateFrom = resolveInvoiceBackHref(fromState, {
+        tripId: tripId || undefined,
+      });
       navigate(`/invoices/${invoice.id}`, {
-        /** Conserva el módulo de origen; sin origen, el detalle vuelve al viaje ligado. */
-        state: { from: fromState ?? "/invoices/new" },
+        state: { from: postCreateFrom },
       });
     },
     onError: (err) => handleMutationError(copy.create.errorToast, err),
