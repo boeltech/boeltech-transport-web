@@ -9,7 +9,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
 import { cn } from "@shared/lib/utils/cn";
 import { useTabParam } from "@shared/hooks";
-import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
+import { DetailPageShell } from "@shared/ui/page-shells";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import {
@@ -24,6 +24,7 @@ import { useVehicle } from "../../application";
 import {
   VehicleStatus,
   VEHICLE_TYPE_LABELS,
+  assessVehicleTypeConfigCoherence,
   type Vehicle,
   type VehicleTypeValue,
 } from "../../domain";
@@ -36,6 +37,7 @@ import { VehicleDeactivatedAlert } from "../components/VehicleDeactivatedAlert";
 import { VehicleDetailDocumentsTab } from "../components/VehicleDetailDocumentsTab";
 import { VehicleDetailHeaderSubtitle } from "../components/VehicleDetailHeaderSubtitle";
 import { VehicleDetailUnitTab } from "../components/VehicleDetailUnitTab";
+import { VehicleTypeConfigCoherenceAlert } from "../components/VehicleTypeConfigCoherenceAlert";
 import { vehiclesCopy } from "../copy";
 import {
   getDaysUntilDateString,
@@ -49,46 +51,96 @@ const copy = vehiclesCopy.detail;
 /** Tabs enlazables por `?tab=` (deep-link de alertas de documentación). */
 const VEHICLE_DETAIL_TABS = ["unit", "documents"] as const;
 
+/**
+ * Estado de un documento operativo (seguro RC / permiso SCT) para la alerta del detalle.
+ * Paridad conceptual con el clasificador de asignación (ADR-0066, `useVehicles`):
+ * `missing` y `noExpiry` bloquean la asignación (hard); `expired` es liberable con permiso.
+ */
+type DocumentAlertStatus =
+  | "missing"
+  | "noExpiry"
+  | "expired"
+  | "expiringSoon"
+  | "ok";
+
+function hasText(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function classifyDocument(
+  documentNumber: string | null,
+  expirationDate: string | null,
+): DocumentAlertStatus {
+  if (!hasText(expirationDate)) {
+    return hasText(documentNumber) ? "noExpiry" : "missing";
+  }
+  if (isExpired(expirationDate)) return "expired";
+  if (isExpiringSoon(expirationDate)) return "expiringSoon";
+  return "ok";
+}
+
+function documentAlertText(
+  status: DocumentAlertStatus,
+  expirationDate: string | null,
+): string | null {
+  switch (status) {
+    case "missing":
+      return copy.alert.notRegistered;
+    case "noExpiry":
+      return copy.alert.noExpiry;
+    case "expired":
+      return copy.alert.expired;
+    case "expiringSoon":
+      return copy.alert.expiresIn(getDaysUntilDateString(expirationDate) ?? 0);
+    default:
+      return null;
+  }
+}
+
 function buildDocumentAlerts(vehicle: Vehicle) {
   const { documentation } = vehicle;
-  const insuranceExpired = isExpired(documentation.insuranceExpiry);
-  const insuranceExpiringSoon = isExpiringSoon(documentation.insuranceExpiry);
-  const sctExpired = isExpired(documentation.sctPermitExpiry);
-  const sctExpiringSoon = isExpiringSoon(documentation.sctPermitExpiry);
-
-  const hasDocumentAlerts =
-    insuranceExpired ||
-    insuranceExpiringSoon ||
-    sctExpired ||
-    sctExpiringSoon;
+  const docs = [
+    {
+      label: copy.alert.insuranceLabel,
+      status: classifyDocument(
+        documentation.insurancePolicy,
+        documentation.insuranceExpiry,
+      ),
+      expirationDate: documentation.insuranceExpiry,
+    },
+    {
+      label: copy.alert.sctLabel,
+      status: classifyDocument(
+        documentation.sctPermitNumber,
+        documentation.sctPermitExpiry,
+      ),
+      expirationDate: documentation.sctPermitExpiry,
+    },
+  ];
 
   const documentAlertItems: { label: string; text: string }[] = [];
-  if (insuranceExpired || insuranceExpiringSoon) {
-    documentAlertItems.push({
-      label: copy.alert.insuranceLabel,
-      text: insuranceExpired
-        ? copy.alert.expired
-        : copy.alert.expiresIn(
-            getDaysUntilDateString(documentation.insuranceExpiry) ?? 0,
-          ),
-    });
-  }
-  if (sctExpired || sctExpiringSoon) {
-    documentAlertItems.push({
-      label: copy.alert.sctLabel,
-      text: sctExpired
-        ? copy.alert.expired
-        : copy.alert.expiresIn(
-            getDaysUntilDateString(documentation.sctPermitExpiry) ?? 0,
-          ),
-    });
+  for (const doc of docs) {
+    const text = documentAlertText(doc.status, doc.expirationDate);
+    if (text) documentAlertItems.push({ label: doc.label, text });
   }
 
+  const hasMissing = docs.some(
+    (d) => d.status === "missing" || d.status === "noExpiry",
+  );
+  const hasExpired = docs.some((d) => d.status === "expired");
+  const severity: "critical" | "warning" =
+    hasMissing || hasExpired ? "critical" : "warning";
+  const title = hasMissing
+    ? copy.alert.documentsMissingTitle
+    : hasExpired
+      ? copy.alert.documentsExpiredTitle
+      : copy.alert.documentsExpiringTitle;
+
   return {
-    hasDocumentAlerts,
+    hasDocumentAlerts: documentAlertItems.length > 0,
     documentAlertItems,
-    insuranceExpired,
-    sctExpired,
+    severity,
+    title,
   };
 }
 
@@ -152,7 +204,78 @@ export function VehicleDetailPage() {
   const documentAlerts = buildDocumentAlerts(vehicle);
   // Una unidad dada de baja no opera: sus vencimientos de documentos no exigen acción.
   const hasDocumentAlerts = !isDeactivated && documentAlerts.hasDocumentAlerts;
-  const { documentAlertItems, insuranceExpired, sctExpired } = documentAlerts;
+  const {
+    documentAlertItems,
+    severity: documentAlertSeverity,
+    title: documentAlertTitle,
+  } = documentAlerts;
+  // Aviso soft tipo ↔ ConfigVehicular (PRD D4): debajo de docs; oculto en baja.
+  const configCode = vehicle.cartaPorte.satConfigAutotransporteCode ?? "";
+  const typeConfigCoherence = assessVehicleTypeConfigCoherence(
+    vehicle.type,
+    configCode,
+  );
+  const showTypeConfigAlert =
+    !isDeactivated && typeConfigCoherence.status === "mismatch";
+
+  const documentAlertCard = hasDocumentAlerts ? (
+    <DetailAlertCard
+      key="documents"
+      severity={documentAlertSeverity}
+      icon={
+        <AlertTriangle
+          className={cn(
+            "h-5 w-5",
+            documentAlertSeverity === "critical"
+              ? "text-destructive"
+              : "text-warning",
+          )}
+        />
+      }
+      title={documentAlertTitle}
+      items={documentAlertItems}
+      action={
+        <>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setActiveTab("documents")}
+          >
+            {copy.alert.goToDocuments}
+          </Button>
+          {canEdit ? (
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link to={`/vehicles/${vehicle.id}/edit`}>
+                {copy.alert.goToEdit}
+              </Link>
+            </Button>
+          ) : null}
+        </>
+      }
+    />
+  ) : null;
+
+  const typeConfigAlertCard =
+    showTypeConfigAlert && typeConfigCoherence.status === "mismatch" ? (
+      <VehicleTypeConfigCoherenceAlert
+        key="type-config"
+        vehicleId={vehicle.id}
+        type={vehicle.type}
+        configCode={configCode}
+        configFamily={typeConfigCoherence.configFamily}
+        canEdit={canEdit}
+      />
+    ) : null;
+
+  const activeAlerts = isDeactivated ? (
+    <VehicleDeactivatedAlert vehicle={vehicle} />
+  ) : documentAlertCard || typeConfigAlertCard ? (
+    <div className="space-y-3">
+      {documentAlertCard}
+      {typeConfigAlertCard}
+    </div>
+  ) : null;
 
   return (
     <DetailPageShell
@@ -192,50 +315,7 @@ export function VehicleDetailPage() {
           />
         ),
       }}
-      alerts={
-        isDeactivated ? (
-          <VehicleDeactivatedAlert vehicle={vehicle} />
-        ) : hasDocumentAlerts ? (
-          <DetailAlertCard
-            severity={insuranceExpired || sctExpired ? "critical" : "warning"}
-            icon={
-              <AlertTriangle
-                className={cn(
-                  "h-5 w-5",
-                  insuranceExpired || sctExpired
-                    ? "text-destructive"
-                    : "text-warning",
-                )}
-              />
-            }
-            title={
-              insuranceExpired || sctExpired
-                ? copy.alert.documentsExpiredTitle
-                : copy.alert.documentsExpiringTitle
-            }
-            items={documentAlertItems}
-            action={
-              <>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setActiveTab("documents")}
-                >
-                  {copy.alert.goToDocuments}
-                </Button>
-                {canEdit ? (
-                  <Button type="button" size="sm" variant="outline" asChild>
-                    <Link to={`/vehicles/${vehicle.id}/edit`}>
-                      {copy.alert.goToEdit}
-                    </Link>
-                  </Button>
-                ) : null}
-              </>
-            }
-          />
-        ) : null
-      }
+      alerts={activeAlerts}
       stats={[
         {
           title: copy.stat.mileage.title,

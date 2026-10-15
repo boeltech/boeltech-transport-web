@@ -50,10 +50,14 @@ export const vehiclesCopy = {
       documents: "Documentos",
     },
     alert: {
+      /** Alta progresiva: falta folio/número o vigencia → la unidad no se asigna (ADR-0066 hard). */
+      documentsMissingTitle: "Faltan datos para asignar la unidad",
       documentsExpiredTitle: "Documentos vencidos",
       documentsExpiringTitle: "Documentos por vencer",
       insuranceLabel: "Seguro RC",
       sctLabel: "Permiso SCT",
+      notRegistered: "No registrado",
+      noExpiry: "Sin fecha de vencimiento",
       expired: "Vencido",
       expiresIn: (days: number) => `Vence en ${days} días`,
       goToDocuments: "Ir a Documentos",
@@ -73,6 +77,21 @@ export const vehiclesCopy = {
       successTitle: "Estado actualizado",
       successDescription: (unitNumber: string, statusLabel: string) =>
         `${unitNumber} ahora está ${statusLabel}`,
+    },
+    /**
+     * Aviso soft tipo ERP ↔ ConfigVehicular (PRD D4/D8). Sin «SAT no permite»,
+     * «inválido», «incorrecto» ni «error»: no es obligación fiscal.
+     */
+    coherenceAlert: {
+      title: "Revisa el tipo y la configuración vehicular",
+      bodyLead: "La unidad está registrada como",
+      bodyConfig: "pero su configuración SAT es",
+      bodyFamily: "habitual en",
+      bodyTail:
+        "No impide operar ni timbrar; conviene confirmar que ambos datos describen la misma unidad.",
+      codeWithLabel: (code: string, label: string | null) =>
+        label ? `${code} – ${label}` : code,
+      cta: "Revisar en Carta Porte",
     },
     section: {
       unitData: {
@@ -441,7 +460,11 @@ export const vehiclesCopy = {
     },
     hint: {
       reviewEmpty: "Sin registrar",
+      reviewNoExpiry: "Sin fecha de vencimiento",
       reviewMileageDefault: "Sin captura (se registrará 0 km)",
+      /** Alta progresiva: el campo es opcional, pero sin él la unidad no se asigna a viajes. */
+      expiryRequiredToAssign:
+        "Opcional al guardar. Sin esta fecha la unidad no podrá asignarse a viajes.",
       trailerAssignedOnTrip:
         "Si esta configuración usa remolque, se elige al crear el viaje.",
       trailerCatalogPrefix: "Alta en ",
@@ -453,12 +476,22 @@ export const vehiclesCopy = {
       branchOverQuotaAdjust: "Ajusta sucursales",
       branchOverQuotaTail:
         "o elige una sucursal incluida en el plan al guardar cambios.",
+      /** Aviso soft tipo ↔ ConfigVehicular bajo el select (PRD D2/D8). */
+      typeConfigCoherence: {
+        lead: "Revisa la combinación: una unidad tipo",
+        usual: "suele registrarse con",
+        here: "aquí está",
+        tail: "Puedes guardar así; ajusta el tipo o la configuración si no describen la misma unidad.",
+      },
+      /** Sufijo en Revisión del wizard (PRD D3). */
+      reviewTypeMismatch: (typeLabel: string) =>
+        `No coincide con el tipo ${typeLabel}`,
     },
     alert: {
       cartaPorteCreate:
         "Los campos marcados con * son obligatorios para timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML. Los viajes ya iniciados o timbrados conservan los datos con los que salieron; para corregirlos usa «Refrescar desde el catálogo» en el viaje.",
       cartaPorteEdit:
-        "Los campos Autotransporte con * son obligatorios para guardar una unidad operable y timbrar Carta Porte 3.1. Placa y año se reutilizan en el XML. Los viajes ya iniciados o timbrados conservan los datos con los que salieron; para corregirlos usa «Refrescar desde el catálogo» en el viaje.",
+        "Los campos Autotransporte con * son obligatorios para guardar la unidad y timbrar Carta Porte 3.1; para asignarla a viajes también hacen falta las vigencias del seguro RC y del permiso SCT. Placa y año se reutilizan en el XML. Los viajes ya iniciados o timbrados conservan los datos con los que salieron; para corregirlos usa «Refrescar desde el catálogo» en el viaje.",
     },
     action: {
       cancel: "Cancelar",
@@ -489,6 +522,27 @@ export const vehiclesCopy = {
     subscriptionHref: "/settings/subscription",
     utilityNotAssignable:
       "El utilitario no se asigna a viajes; úsalo solo como apoyo.",
+  },
+  /**
+   * Familias de ConfigVehicular para el aviso soft tipo ↔ configuración
+   * (tabla DOM). Compartido por form (hint) y detalle (alerta).
+   */
+  typeConfigCoherence: {
+    /** Lo que el tipo ERP suele usar; indexado por `VehicleType`. */
+    expectedByType: {
+      truck: "una configuración T (tractocamión con semirremolque)",
+      torton: "C3 (camión de tres ejes)",
+      rabon: "C2 (camión de dos ejes)",
+      pickup: "VL o C2 (camioneta ligera o dos ejes)",
+      utility: "",
+    },
+    /** Familia habitual del código capturado; indexado por `VehicleConfigFamily`. */
+    familyLabel: {
+      tracto: "tractocamiones",
+      torton: "tortones",
+      rabon: "rabones",
+      ligera: "camionetas ligeras",
+    },
   },
 } as const;
 

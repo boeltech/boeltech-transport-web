@@ -15,7 +15,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Controller,
   FormProvider,
@@ -36,6 +36,7 @@ import {
   FileText,
   ClipboardCheck,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
@@ -80,6 +81,7 @@ import {
 import {
   VEHICLE_TYPE_LABELS,
   VehicleType,
+  assessVehicleTypeConfigCoherence,
   isBillableMotrizType,
   type VehicleTypeValue,
   type Vehicle,
@@ -256,10 +258,46 @@ function VehicleOptionalInsuranceFields({
   );
 }
 
+/**
+ * Aviso soft tipo ↔ ConfigVehicular bajo el select (PRD D2). No es un
+ * `FieldInlineError`: no toca RHF, `errors`, el riel ni Guardar/Siguiente.
+ */
+function VehicleTypeConfigCoherenceHint({
+  type,
+  configCode,
+}: {
+  type: string | undefined;
+  configCode: string | undefined;
+}) {
+  const coherence = assessVehicleTypeConfigCoherence(type, configCode);
+  if (coherence.status !== "mismatch" || !type || !configCode) return null;
+
+  const typeLabel = VEHICLE_TYPE_LABELS[type as VehicleTypeValue] ?? type;
+  const expected =
+    vehiclesCopy.typeConfigCoherence.expectedByType[type as VehicleTypeValue];
+  const hint = fc.hint.typeConfigCoherence;
+
+  return (
+    <p className="flex items-start gap-1.5 text-xs text-warning" role="note">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span>
+        {hint.lead} <strong className="font-medium">{typeLabel}</strong>{" "}
+        {hint.usual} <strong className="font-medium">{expected}</strong>;{" "}
+        {hint.here} <strong className="font-medium">{configCode}</strong>.{" "}
+        {hint.tail}
+      </span>
+    </p>
+  );
+}
+
 function VehicleCreateWizardSummary() {
   const form = useFormContext<CreateVehicleFormData>();
   const v = form.watch();
   const showBillingNotice = isBillableMotrizType(v.type);
+  // D3: sufijo de revisión; no cuenta como error ni frena «Registrar».
+  const typeConfigMismatch =
+    assessVehicleTypeConfigCoherence(v.type, v.satConfigAutotransporteCode)
+      .status === "mismatch";
   const { tipoPermisoLabel, configVehicularLabel, isLoading } =
     useVehicleCatalogLabels();
   const { data: branchesResult } = useBranches({
@@ -286,6 +324,9 @@ function VehicleCreateWizardSummary() {
     .filter(Boolean)
     .join(" · ");
   const sctLine = [permisoLabel, v.sctPermitNumber].filter(Boolean).join(" · ");
+  // Alta progresiva: folio capturado sin vigencia → se señala, no se da por completo.
+  const rcMissingExpiry = Boolean(rcLine) && !v.insuranceExpiry?.trim();
+  const sctMissingExpiry = Boolean(sctLine) && !v.sctPermitExpiry?.trim();
   const pesoLabel =
     typeof v.pesoBrutoVehicular === "number"
       ? vehiclesCopy.detail.format.pesoBruto(v.pesoBrutoVehicular)
@@ -336,7 +377,17 @@ function VehicleCreateWizardSummary() {
           </div>
           <div>
             <p className="text-muted-foreground">{fc.label.reviewRc}</p>
-            <p className="font-medium">{rcLine || fc.hint.reviewEmpty}</p>
+            <p className="font-medium">
+              {rcLine || fc.hint.reviewEmpty}
+              {rcMissingExpiry ? (
+                <>
+                  {" · "}
+                  <span className="font-normal text-warning">
+                    {fc.hint.reviewNoExpiry}
+                  </span>
+                </>
+              ) : null}
+            </p>
           </div>
           <div>
             <p className="text-muted-foreground">{fc.label.reviewSct}</p>
@@ -345,6 +396,14 @@ function VehicleCreateWizardSummary() {
                 (isLoading
                   ? vehiclesCopy.detail.hint.catalogLoading
                   : fc.hint.reviewEmpty)}
+              {sctMissingExpiry ? (
+                <>
+                  {" · "}
+                  <span className="font-normal text-warning">
+                    {fc.hint.reviewNoExpiry}
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
           <div>
@@ -354,6 +413,16 @@ function VehicleCreateWizardSummary() {
                 (isLoading
                   ? vehiclesCopy.detail.hint.catalogLoading
                   : fc.hint.reviewEmpty)}
+              {typeConfigMismatch && v.type ? (
+                <>
+                  {" · "}
+                  <span className="font-normal text-warning">
+                    {fc.hint.reviewTypeMismatch(
+                      VEHICLE_TYPE_LABELS[v.type as VehicleTypeValue] ?? v.type,
+                    )}
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
           <div>
@@ -449,6 +518,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
     }, [isDirty, onDirtyChange]);
 
     const selectedType = watch("type");
+    const selectedConfigCode = watch("satConfigAutotransporteCode");
     const typeBillingHint = isBillableMotrizType(selectedType)
       ? vehiclesCopy.billingPolicy.create
       : selectedType === VehicleType.UTILITY
@@ -536,6 +606,20 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
       document
         .getElementById(sectionId)
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, []);
+
+    // Deep-link a una sección del edit (`/vehicles/:id/edit#vehicle-edit-carta-porte`),
+    // p. ej. CTA «Revisar en Carta Porte» del detalle. Solo al montar.
+    const { hash: locationHash } = useLocation();
+    useEffect(() => {
+      if (!isEditMode) return;
+      const target = locationHash.replace(/^#/, "");
+      if (!target) return;
+      const isKnownSection = (
+        Object.values(VEHICLE_EDIT_SECTION_IDS) as string[]
+      ).includes(target);
+      if (isKnownSection) handleEditSectionSelect(target);
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
     }, []);
 
     const sectionPanels = (
@@ -836,6 +920,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                     showSatCode={false}
                   />
                 }
+                hint={fc.hint.expiryRequiredToAssign}
               />
             </div>
 
@@ -888,6 +973,7 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                     showSatCode={false}
                   />
                 }
+                hint={fc.hint.expiryRequiredToAssign}
               />
             </div>
 
@@ -1013,6 +1099,10 @@ export const VehicleForm = forwardRef<VehicleFormRef, VehicleFormProps>(
                       />
                     )}
                   </VehicleGridCatalogSlot>
+                  <VehicleTypeConfigCoherenceHint
+                    type={selectedType}
+                    configCode={selectedConfigCode}
+                  />
                   <p className="text-xs text-muted-foreground">
                     {fc.hint.trailerAssignedOnTrip}{" "}
                     {fc.hint.trailerCatalogPrefix}

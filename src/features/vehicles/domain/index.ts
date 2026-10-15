@@ -5,6 +5,7 @@
  */
 
 export * from "./entities";
+export * from "./assessVehicleTypeConfigCoherence";
 export * from "./isBillableMotriz";
 export * from "./isTripAssignableVehicleType";
 

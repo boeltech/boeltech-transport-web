@@ -129,6 +129,7 @@ export function VehicleGridDateField<T extends FieldValues>({
   required,
   fieldId,
   className,
+  hint,
 }: {
   control: Control<T>;
   name: FieldPath<T>;
@@ -136,6 +137,7 @@ export function VehicleGridDateField<T extends FieldValues>({
   required?: boolean;
   fieldId?: string;
   className?: string;
+  hint?: ReactNode;
 }) {
   const resolvedId = fieldId ?? String(name);
 
@@ -151,6 +153,7 @@ export function VehicleGridDateField<T extends FieldValues>({
             label={label}
             required={required}
             errorMessage={errorMessage}
+            hint={hint}
             className={className}
           >
             <DateField
