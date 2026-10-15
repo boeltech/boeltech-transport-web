@@ -382,7 +382,7 @@ export function SettlementBacklogTable({
                   <span className="text-xs text-muted-foreground font-medium">
                     {fieldsCopy.estimatedAmount}
                   </span>
-                  <span className="text-base font-extrabold tabular-nums text-primary">
+                  <span className="text-base font-extrabold tabular-nums text-foreground">
                     {row.estimatedNetAmount != null
                       ? formatMxCurrency(row.estimatedNetAmount)
                       : copy.backlog.estimatedAmountMissing}
@@ -408,7 +408,7 @@ export function SettlementBacklogTable({
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      Solo lectura
+                      {copy.backlog.readOnly}
                     </span>
                   )}
                 </div>
@@ -469,7 +469,7 @@ export function SettlementBacklogTable({
                   </p>
                 </TableCell>
                 <TableCell className="min-w-[140px] py-3 text-right">
-                  <p className="tabular-nums text-base font-bold text-primary whitespace-nowrap">
+                  <p className="tabular-nums text-base font-bold text-foreground whitespace-nowrap">
                     {row.estimatedNetAmount != null
                       ? formatMxCurrency(row.estimatedNetAmount)
                       : copy.backlog.estimatedAmountMissing}
@@ -496,7 +496,7 @@ export function SettlementBacklogTable({
                       {backlogCtaLabel(row)}
                     </Button>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Solo lectura</span>
+                    <span className="text-xs text-muted-foreground">{copy.backlog.readOnly}</span>
                   )}
                 </TableCell>
               </TableRow>

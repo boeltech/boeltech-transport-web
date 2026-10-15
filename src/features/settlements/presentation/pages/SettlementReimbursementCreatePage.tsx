@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { AlertTriangle, Banknote, Calculator, Check, Receipt, Send, User, Wallet } from "lucide-react";
+import { AlertTriangle, Banknote, Check, Receipt, Send, User, Wallet } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
 import { Textarea } from "@shared/ui/text-area/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { FieldInlineError, FormValidationSummary } from "@shared/ui/form";
+import { Skeleton } from "@shared/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -380,9 +381,24 @@ export function SettlementReimbursementCreatePage() {
     }
     if (isPreviewLoading) {
       return (
-        <div className="py-12 text-center text-muted-foreground space-y-2">
-          <Calculator className="mx-auto h-8 w-8 animate-bounce text-primary" />
-          <p className="text-sm font-semibold text-foreground">{pageCopy.loadingTitle}</p>
+        <div
+          className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+          data-testid="settlement-reimbursement-calculating"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <span className="sr-only">{pageCopy.loadingTitle}</span>
+          <div className="lg:col-span-8 space-y-4">
+            <Skeleton className="h-10 w-56" />
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+          <div className="lg:col-span-4 space-y-3">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
         </div>
       );
     }
@@ -490,7 +506,7 @@ export function SettlementReimbursementCreatePage() {
           </div>
         </div>
 
-        <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
+        <div className="lg:col-span-4 lg:sticky lg:top-20 space-y-4">
           <Card className="border-primary/20 bg-card shadow-sm">
             <CardHeader className="pb-3 border-b bg-muted/20">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -506,7 +522,7 @@ export function SettlementReimbursementCreatePage() {
                     {createCopy.summary.netTotalLabel}
                   </span>
                   <span
-                    className="text-2xl font-extrabold font-mono text-primary tabular-nums"
+                    className="text-2xl font-extrabold font-mono text-foreground tabular-nums"
                     data-testid="reimbursement-net-amount"
                   >
                     {formatMxCurrency(netAmount)}
@@ -586,32 +602,15 @@ export function SettlementReimbursementCreatePage() {
                   <ReimbursementErrorAlert error={reimbursementError} findExpense={findExpense} />
                 ) : null}
                 {createCta !== "guardar_borrador" ? (
-                  <>
-                    <Button
-                      className="w-full"
-                      disabled={createMutation.isPending}
-                      onClick={requestSubmitForApproval}
-                    >
-                      <Send className="mr-2 h-4 w-4" />
-                      {createCopy.summary.submitApprovalBtn}
-                    </Button>
-                    <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                      {canSelfApproveOwnCut
-                        ? createCopy.summary.submitApprovalSegregationHintSingle
-                        : createCopy.summary.submitApprovalSegregationHint}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                    {thresholdMxn === null
-                      ? canSelfDisburseOwnCut
-                        ? createCopy.summary.bypassDraftHintNoAmountSingle
-                        : createCopy.summary.bypassDraftHintNoAmount
-                      : canSelfDisburseOwnCut
-                        ? createCopy.summary.bypassDraftHintSingle(formatMxCurrency(thresholdMxn))
-                        : createCopy.summary.bypassDraftHint(formatMxCurrency(thresholdMxn))}
-                  </p>
-                )}
+                  <Button
+                    className="w-full"
+                    disabled={createMutation.isPending}
+                    onClick={requestSubmitForApproval}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {createCopy.summary.submitApprovalBtn}
+                  </Button>
+                ) : null}
                 <Button
                   variant={createCta === "guardar_borrador" ? "default" : "secondary"}
                   className="w-full"
@@ -620,11 +619,32 @@ export function SettlementReimbursementCreatePage() {
                 >
                   {createCopy.summary.saveDraftBtn}
                 </Button>
-                {settingsError ? (
-                  <p className="text-[11px] text-center text-destructive py-0.5">
-                    {copy.toasts.settingsUnavailable}
-                  </p>
-                ) : null}
+                <p
+                  className={
+                    settingsError
+                      ? "text-xs text-center text-destructive leading-snug px-1"
+                      : "text-xs text-center text-muted-foreground leading-snug px-1"
+                  }
+                  data-testid="settlement-reimbursement-cta-hint"
+                >
+                  {settingsError
+                    ? copy.toasts.settingsUnavailable
+                    : createCta !== "guardar_borrador"
+                      ? canSelfApproveOwnCut
+                        ? createCopy.summary.submitApprovalSegregationHintSingle
+                        : createCopy.summary.submitApprovalSegregationHint
+                      : thresholdMxn === null
+                        ? canSelfDisburseOwnCut
+                          ? createCopy.summary.bypassDraftHintNoAmountSingle
+                          : createCopy.summary.bypassDraftHintNoAmount
+                        : canSelfDisburseOwnCut
+                          ? createCopy.summary.bypassDraftHintSingle(
+                              formatMxCurrency(thresholdMxn),
+                            )
+                          : createCopy.summary.bypassDraftHint(
+                              formatMxCurrency(thresholdMxn),
+                            )}
+                </p>
                 <Button
                   variant="ghost"
                   className="w-full text-muted-foreground"
@@ -690,7 +710,7 @@ export function SettlementReimbursementCreatePage() {
                 </span>
               </div>
             ) : null}
-            <div className="border-t pt-2.5 flex justify-between items-center font-bold text-primary text-base">
+            <div className="border-t pt-2.5 flex justify-between items-center font-bold text-foreground text-base">
               <span>{createCopy.dialog.netLabel}</span>
               <span className="tabular-nums font-mono text-lg">{formatMxCurrency(netAmount)}</span>
             </div>

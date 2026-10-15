@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams, useLocation, Link } from "react-router-dom";
 import {
-  Calculator,
   Check,
   Send,
   User,
@@ -16,7 +15,6 @@ import {
 } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Badge } from "@shared/ui/badge";
 import { Textarea } from "@shared/ui/text-area/textarea";
@@ -26,6 +24,7 @@ import {
   FieldInlineError,
   FormValidationSummary,
   getFieldErrorAriaProps,
+  MoneyInput,
 } from "@shared/ui/form";
 import { PeriodStepper } from "../components/PeriodStepper";
 import { buildSuggestedSettlementPeriod } from "../utils/buildSuggestedSettlementPeriod";
@@ -48,6 +47,8 @@ import {
 } from "@shared/ui/table";
 import { Checkbox } from "@shared/ui/checkbox";
 import { EmptyState } from "@shared/ui/feedback-states";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { Skeleton } from "@shared/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { useToast } from "@shared/hooks";
 import { formatDate, getTodayString } from "@shared/utils/dateUtils";
@@ -694,13 +695,6 @@ export function SettlementCreatePage() {
     tripConflictAlert?.key === periodConflictKey ? tripConflictAlert.conflicts : null;
   const containedBlockSettlement =
     periodicBlock?.status === "excluded_contained" ? periodicBlock.settlement : null;
-  const showCommercialFreightHint = useMemo(
-    () =>
-      (preview?.eligibleTrips ?? []).some(
-        (trip) => trip.freightBase === "commercial_at_complete",
-      ),
-    [preview?.eligibleTrips],
-  );
   const canSubmitForApproval =
     canProceedWithSave &&
     !isPeriodBlocked &&
@@ -1004,29 +998,37 @@ export function SettlementCreatePage() {
             </div>
 
             {templateChangeAlert && (
-              <Alert variant="warning" data-testid="settlement-template-change-alert">
-                <AlertTriangle />
-                <AlertTitle>{templateChangeAlert.title}</AlertTitle>
-                <AlertDescription>{templateChangeAlert.body}</AlertDescription>
-              </Alert>
+              <div data-testid="settlement-template-change-alert">
+                <DetailAlertCard
+                  severity="warning"
+                  icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                  title={templateChangeAlert.title}
+                >
+                  <p>{templateChangeAlert.body}</p>
+                </DetailAlertCard>
+              </div>
             )}
             {templateSupersededAlert && (
-              <Alert variant="warning" data-testid="settlement-template-superseded-alert">
-                <AlertTriangle />
-                <AlertTitle>{templateSupersededAlert.title}</AlertTitle>
-                <AlertDescription>{templateSupersededAlert.body}</AlertDescription>
-              </Alert>
+              <div data-testid="settlement-template-superseded-alert">
+                <DetailAlertCard
+                  severity="warning"
+                  icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                  title={templateSupersededAlert.title}
+                >
+                  <p>{templateSupersededAlert.body}</p>
+                </DetailAlertCard>
+              </div>
             )}
-            {/* Banner: tarifa lista vs configuración incompleta (PD2) */}
+            {/* Banner: tarifa lista (H-07 neutra) */}
             {preview && readiness === "ready" && (preview.template || agreementSummaryText) && (
-              <div className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs">
-                <Info className="h-4 w-4 text-primary shrink-0" />
+              <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/20 px-3.5 py-2.5 text-xs">
+                <Info className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-semibold text-foreground">
                     {createCopy.sections.agreementActiveLabel}:
                   </span>
                   {preview.template ? (
-                    <span className="text-primary font-medium">
+                    <span className="text-foreground font-medium">
                       {createCopy.sections.templateAppliedValue(
                         preview.template.name,
                         preview.template.version,
@@ -1034,7 +1036,7 @@ export function SettlementCreatePage() {
                       {agreementSummaryText ? ` — ${agreementSummaryText}` : ""}
                     </span>
                   ) : (
-                    <span className="text-primary font-medium">{agreementSummaryText}</span>
+                    <span className="text-foreground font-medium">{agreementSummaryText}</span>
                   )}
                 </div>
               </div>
@@ -1044,15 +1046,11 @@ export function SettlementCreatePage() {
               !preview.templateChange &&
               assignmentAmbiguity.hasAmbiguity &&
               assignmentAmbiguity.appliedAssignment && (
-                <Alert variant="warning">
-                  <AlertTriangle />
-                  <AlertTitle>{governanceCopy.settlementAmbiguityTitle}</AlertTitle>
-                  <AlertDescription className="space-y-3">
-                    <p>
-                      {governanceCopy.settlementAmbiguityDescriptionPrefix}{" "}
-                      {formatDate(assignmentAmbiguity.appliedAssignment.effectiveFrom)}
-                      {governanceCopy.settlementAmbiguityDescriptionSuffix}
-                    </p>
+                <DetailAlertCard
+                  severity="warning"
+                  icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                  title={governanceCopy.settlementAmbiguityTitle}
+                  action={
                     <Button type="button" size="sm" variant="outline" asChild>
                       <Link
                         to={settlementsAgreementsPath({
@@ -1064,29 +1062,29 @@ export function SettlementCreatePage() {
                         {governanceCopy.reviewAgreementsAction}
                       </Link>
                     </Button>
-                  </AlertDescription>
-                </Alert>
+                  }
+                >
+                  <p>
+                    {governanceCopy.settlementAmbiguityDescriptionPrefix}{" "}
+                    {formatDate(assignmentAmbiguity.appliedAssignment.effectiveFrom)}
+                    {governanceCopy.settlementAmbiguityDescriptionSuffix}
+                  </p>
+                </DetailAlertCard>
               )}
             {(preview || isMissingCompensationScheme || isPeriodMismatch) &&
               readiness !== "ready" && (
-              <Alert variant="warning">
-                <AlertTriangle />
-                <AlertTitle>
-                  {readiness === "incomplete"
+              <DetailAlertCard
+                severity="warning"
+                icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                title={
+                  readiness === "incomplete"
                     ? createCopy.empty.incompleteAgreementTitle
                     : readiness === "period_mismatch"
                       ? periodMismatchCopy.title
-                      : missingSchemeCopy.title}
-                </AlertTitle>
-                <AlertDescription className="space-y-3">
-                  <p>
-                    {readiness === "incomplete"
-                      ? createCopy.empty.incompleteAgreementDescription
-                      : readiness === "period_mismatch"
-                        ? periodMismatchCopy.description
-                        : missingSchemeCopy.description}
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-1">
+                      : missingSchemeCopy.title
+                }
+                action={
+                  <div className="flex flex-wrap gap-2">
                     <Button type="button" size="sm" asChild>
                       <Link
                         to={settlementsAgreementsPath({
@@ -1122,23 +1120,23 @@ export function SettlementCreatePage() {
                       </Button>
                     ) : null}
                   </div>
-                </AlertDescription>
-              </Alert>
+                }
+              >
+                <p>
+                  {readiness === "incomplete"
+                    ? createCopy.empty.incompleteAgreementDescription
+                    : readiness === "period_mismatch"
+                      ? periodMismatchCopy.description
+                      : missingSchemeCopy.description}
+                </p>
+              </DetailAlertCard>
             )}
             {partialOverlap ? (
-              <Alert variant="warning">
-                <AlertTriangle />
-                <AlertTitle>{createCopy.periodicBlock.partialTitle}</AlertTitle>
-                <AlertDescription className="space-y-3">
-                  <p>
-                    {(hasUsableSuggestedStart
-                      ? createCopy.periodicBlock.partialDescription
-                      : createCopy.periodicBlock.partialDescriptionNoSuggestion)(
-                      partialOverlap.settlementNumber,
-                      SETTLEMENT_STATUS_LABELS[partialOverlap.status] ?? partialOverlap.status,
-                      describePeriod(partialOverlap.periodStart, partialOverlap.periodEnd),
-                    )}
-                  </p>
+              <DetailAlertCard
+                severity="warning"
+                icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                title={createCopy.periodicBlock.partialTitle}
+                action={
                   <div className="flex flex-wrap gap-2">
                     {hasUsableSuggestedStart ? (
                       <Button
@@ -1161,24 +1159,24 @@ export function SettlementCreatePage() {
                       </Button>
                     ) : null}
                   </div>
-                </AlertDescription>
-              </Alert>
+                }
+              >
+                <p>
+                  {(hasUsableSuggestedStart
+                    ? createCopy.periodicBlock.partialDescription
+                    : createCopy.periodicBlock.partialDescriptionNoSuggestion)(
+                    partialOverlap.settlementNumber,
+                    SETTLEMENT_STATUS_LABELS[partialOverlap.status] ?? partialOverlap.status,
+                    describePeriod(partialOverlap.periodStart, partialOverlap.periodEnd),
+                  )}
+                </p>
+              </DetailAlertCard>
             ) : containedBlockSettlement ? (
-              <Alert variant="info">
-                <Info />
-                <AlertTitle>{createCopy.periodicBlock.containedTitle}</AlertTitle>
-                <AlertDescription className="space-y-3">
-                  <p>
-                    {createCopy.periodicBlock.containedDescription(
-                      containedBlockSettlement.settlementNumber,
-                      SETTLEMENT_STATUS_LABELS[containedBlockSettlement.status] ??
-                        containedBlockSettlement.status,
-                      describePeriod(
-                        containedBlockSettlement.periodStart,
-                        containedBlockSettlement.periodEnd,
-                      ),
-                    )}
-                  </p>
+              <DetailAlertCard
+                severity="info"
+                icon={<Info className="h-5 w-5" aria-hidden />}
+                title={createCopy.periodicBlock.containedTitle}
+                action={
                   <Button type="button" size="sm" variant="outline" asChild>
                     <Link to={settlementDetailPath(containedBlockSettlement.settlementId)}>
                       {createCopy.periodicBlock.viewSettlementAction(
@@ -1186,8 +1184,20 @@ export function SettlementCreatePage() {
                       )}
                     </Link>
                   </Button>
-                </AlertDescription>
-              </Alert>
+                }
+              >
+                <p>
+                  {createCopy.periodicBlock.containedDescription(
+                    containedBlockSettlement.settlementNumber,
+                    SETTLEMENT_STATUS_LABELS[containedBlockSettlement.status] ??
+                      containedBlockSettlement.status,
+                    describePeriod(
+                      containedBlockSettlement.periodStart,
+                      containedBlockSettlement.periodEnd,
+                    ),
+                  )}
+                </p>
+              </DetailAlertCard>
             ) : null}
           </CardContent>
         </Card>
@@ -1200,14 +1210,25 @@ export function SettlementCreatePage() {
             description={createCopy.empty.selectOperatorDescription}
           />
         ) : isPreviewLoading ? (
-          <div className="py-12 text-center text-muted-foreground space-y-2">
-            <Calculator className="mx-auto h-8 w-8 animate-bounce text-primary" />
-            <p className="text-sm font-semibold text-foreground">
-              {createCopy.empty.calculatingTitle}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {createCopy.empty.calculatingDescription}
-            </p>
+          <div
+            className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+            data-testid="settlement-create-calculating"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <span className="sr-only">{createCopy.empty.calculatingTitle}</span>
+            <div className="lg:col-span-8 space-y-4">
+              <Skeleton className="h-10 w-56" />
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+            <div className="lg:col-span-4 space-y-3">
+              <Skeleton className="h-8 w-40" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
           </div>
         ) : preview ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1275,7 +1296,7 @@ export function SettlementCreatePage() {
 
                             return (
                               <TableRow key={trip.tripId}>
-                                <TableCell className="font-semibold text-primary font-mono text-xs">
+                                <TableCell className="font-semibold text-foreground font-mono text-xs tabular-nums">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <Link
                                       to={`/trips/${trip.tripId}`}
@@ -1292,7 +1313,7 @@ export function SettlementCreatePage() {
                                       <Badge
                                         variant="neutral"
                                         tone="soft"
-                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                        className="text-xs py-0 px-1.5 h-4 font-normal"
                                       >
                                         {createCopy.trips.supportParticipationBadge}
                                       </Badge>
@@ -1301,7 +1322,7 @@ export function SettlementCreatePage() {
                                       <Badge
                                         variant="warning"
                                         tone="soft"
-                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                        className="text-xs py-0 px-1.5 h-4 font-normal"
                                         title={`${trip.corridorMatch.name} — ${formatMxCurrency(trip.corridorMatch.fixedAmount)}${trip.corridorMatch.replacesKmCommission ? " · Sustituye comisión por km" : ""}`}
                                       >
                                         {createCopy.trips.corridorBadgeLabel}
@@ -1311,7 +1332,7 @@ export function SettlementCreatePage() {
                                       <Badge
                                         variant={zeroReasonBadge.variant}
                                         tone="soft"
-                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                        className="text-xs py-0 px-1.5 h-4 font-normal"
                                         title={zeroReasonBadge.title}
                                       >
                                         {zeroReasonBadge.label}
@@ -1333,7 +1354,7 @@ export function SettlementCreatePage() {
                                             : "neutral"
                                       }
                                       tone="soft"
-                                      className="text-[10px]"
+                                      className="text-xs"
                                     >
                                       <Route className="mr-1 h-2.5 w-2.5" />
                                       {routeTypeLabel}
@@ -1342,7 +1363,7 @@ export function SettlementCreatePage() {
                                       <Badge
                                         variant="warning"
                                         tone="soft"
-                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                        className="text-xs py-0 px-1.5 h-4 font-normal"
                                       >
                                         {createCopy.trips.falseTripBadge}
                                       </Badge>
@@ -1351,7 +1372,7 @@ export function SettlementCreatePage() {
                                       <Badge
                                         variant="info"
                                         tone="soft"
-                                        className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                                        className="text-xs py-0 px-1.5 h-4 font-normal"
                                         title={createCopy.trips.revenueSplitBadgeTitle}
                                       >
                                         {createCopy.trips.revenueSplitBadge}
@@ -1396,17 +1417,17 @@ export function SettlementCreatePage() {
                                         Flete {formatMxCurrency(trip.freightRevenue)}
                                       </span>
                                       {trip.freightBase === "commercial_at_complete" ? (
-                                        <span className="block text-[10px] opacity-80">
+                                        <span className="block text-xs opacity-80">
                                           al completar
                                         </span>
                                       ) : null}
                                       {trip.requiresZeroKmAck ? (
-                                        <span className="block text-[10px] text-warning mt-0.5">
+                                        <span className="block text-xs text-warning mt-0.5">
                                           {createCopy.trips.distanceGapHint}
                                         </span>
                                       ) : null}
                                       {trip.requiresZeroFreightAck ? (
-                                        <span className="block text-[10px] text-warning mt-0.5">
+                                        <span className="block text-xs text-warning mt-0.5">
                                           {createCopy.trips.freightGapHint}
                                         </span>
                                       ) : null}
@@ -1429,7 +1450,7 @@ export function SettlementCreatePage() {
                                         <Badge
                                           variant="info"
                                           tone="soft"
-                                          className="mt-0.5 h-auto shrink-0 whitespace-nowrap text-[10px] font-normal leading-4 px-1.5 py-0"
+                                          className="mt-0.5 h-auto shrink-0 whitespace-nowrap text-xs font-normal leading-4 px-1.5 py-0"
                                           title={createCopy.trips.minimumGuaranteedBadgeTitle(
                                             formatMxCurrency(trip.commissionBeforeMinimum ?? 0),
                                             formatMxCurrency(
@@ -1446,7 +1467,7 @@ export function SettlementCreatePage() {
                                         <Badge
                                           variant="neutral"
                                           tone="soft"
-                                          className="mt-0.5 h-auto shrink-0 whitespace-nowrap text-[10px] font-normal leading-4 px-1.5 py-0"
+                                          className="mt-0.5 h-auto shrink-0 whitespace-nowrap text-xs font-normal leading-4 px-1.5 py-0"
                                           title={createCopy.trips.multipleOperatorsBadgeTitle}
                                         >
                                           {createCopy.trips.multipleOperatorsBadge}
@@ -1579,7 +1600,7 @@ export function SettlementCreatePage() {
                                     }
                                   />
                                 </TableCell>
-                                <TableCell className="font-semibold text-primary font-mono text-xs">
+                                <TableCell className="font-semibold text-foreground font-mono text-xs tabular-nums">
                                   {adv.folio}
                                 </TableCell>
                                 <TableCell className="text-xs">
@@ -1587,8 +1608,9 @@ export function SettlementCreatePage() {
                                     {ADVANCE_CATEGORY_LABELS[adv.category as AdvanceCategory] ?? adv.category}
                                   </span>
                                   {adv.disbursedAt && (
-                                    <span className="text-[11px] text-muted-foreground block mt-0.5">
-                                      Entregado: {formatDate(adv.disbursedAt)}
+                                    <span className="text-xs text-muted-foreground block mt-0.5">
+                                      {createCopy.advances.deliveredPrefix}{" "}
+                                      {formatDate(adv.disbursedAt)}
                                     </span>
                                   )}
                                 </TableCell>
@@ -1596,31 +1618,27 @@ export function SettlementCreatePage() {
                                   {formatMxCurrency(maxDeduct)}
                                   {adv.reservedBySettlementNumber ? (
                                     <span
-                                      className="block text-[10px] font-normal text-muted-foreground mt-0.5"
+                                      className="block text-xs font-normal text-muted-foreground mt-0.5"
                                       data-testid={`create-advance-reserved-elsewhere-${adv.advanceId}`}
                                     >
                                       {createCopy.summary.reservedElsewhereHint(adv.reservedBySettlementNumber)}
                                     </span>
                                   ) : reservedAmount > 0 ? (
-                                    <span className="block text-[10px] font-normal text-muted-foreground mt-0.5">
+                                    <span className="block text-xs font-normal text-muted-foreground mt-0.5">
                                       {createCopy.summary.reservedAdvanceHint}
                                     </span>
                                   ) : null}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="space-y-1">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      max={maxDeduct}
+                                    <MoneyInput
                                       disabled={!isSelected}
-                                      value={isSelected ? currentVal : ""}
-                                      onChange={(e) =>
+                                      value={isSelected ? currentVal : undefined}
+                                      onValueChange={(val) =>
                                         handleAdvanceAmountChange(
                                           adv.advanceId,
                                           maxDeduct,
-                                          parseFloat(e.target.value) || 0,
+                                          Math.min(maxDeduct, Math.max(0, val ?? 0)),
                                         )
                                       }
                                       aria-label={`${createCopy.advances.amountAriaLabel} ${adv.folio}`}
@@ -1628,11 +1646,11 @@ export function SettlementCreatePage() {
                                       {...(isSelected
                                         ? getFieldErrorAriaProps(ADVANCES_FIELD_ID, capacityErrors.advances)
                                         : {})}
-                                      className="h-8 text-right tabular-nums text-xs"
+                                      className="h-8 text-xs"
                                     />
                                     {isSelected && remainingAfterDeduction > 0 && (
                                       <p
-                                        className="text-[10px] text-muted-foreground text-right tabular-nums"
+                                        className="text-xs text-muted-foreground text-right tabular-nums"
                                         data-testid={`create-advance-pending-${adv.advanceId}`}
                                       >
                                         {capCopy.pendingNextCut(formatMxCurrency(remainingAfterDeduction))}
@@ -1681,7 +1699,7 @@ export function SettlementCreatePage() {
             </div>
 
             {/* COLUMNA DERECHA: Sticky resumen a pagar (D6) */}
-            <div className="lg:col-span-4 lg:sticky lg:top-6 space-y-4">
+            <div className="lg:col-span-4 lg:sticky lg:top-20 space-y-4">
               <Card className="border-primary/20 bg-card shadow-sm">
                 <CardHeader className="pb-3 border-b bg-muted/20">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -1699,11 +1717,11 @@ export function SettlementCreatePage() {
                         <span className="text-xs uppercase tracking-wider font-bold text-muted-foreground block">
                           {createCopy.summary.netTotalLabel}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {createCopy.summary.netTotalSubtext}
                         </span>
                       </div>
-                      <span className="text-2xl font-extrabold font-mono text-primary tabular-nums">
+                      <span className="text-2xl font-extrabold font-mono text-foreground tabular-nums">
                         {formatMxCurrency(netAmount)}
                       </span>
                     </div>
@@ -1713,10 +1731,10 @@ export function SettlementCreatePage() {
                     className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 space-y-1"
                     aria-label={createCopy.summary.channelsTeachingAriaLabel}
                   >
-                    <p className="text-[11px] font-medium text-muted-foreground">
+                    <p className="text-xs font-medium text-muted-foreground">
                       {createCopy.summary.channelsTeachingIntro}
                     </p>
-                    <ul className="text-[11px] text-muted-foreground space-y-0.5 list-none">
+                    <ul className="text-xs text-muted-foreground space-y-0.5 list-none">
                       <li>{createCopy.summary.channelsTeachingExpense}</li>
                       <li>{createCopy.summary.channelsTeachingAdvance}</li>
                       <li>{createCopy.summary.channelsTeachingFixed}</li>
@@ -1806,7 +1824,7 @@ export function SettlementCreatePage() {
                         </div>
                         {omittedTemplateLines.length > 0 ? (
                           <ul
-                            className="pl-2 space-y-0.5 border-l border-warning/50 text-[11px] text-muted-foreground"
+                            className="pl-2 space-y-0.5 border-l border-warning/50 text-xs text-muted-foreground"
                             data-testid="create-template-omitted"
                           >
                             {omittedTemplateLines.map((line) => (
@@ -1848,7 +1866,7 @@ export function SettlementCreatePage() {
                       stacked
                     />
                     {hasManualAdjustments ? (
-                      <p className="text-[11px] text-muted-foreground" data-testid="create-manual-items-hint">
+                      <p className="text-xs text-muted-foreground" data-testid="create-manual-items-hint">
                         {copy.settlementFlow.create.manualItemsHint}
                       </p>
                     ) : null}
@@ -1922,13 +1940,13 @@ export function SettlementCreatePage() {
                             <p className="text-xs font-medium text-foreground">
                               {createCopy.missingDataGate.alertTitle}
                             </p>
-                            <p className="text-[11px] text-muted-foreground leading-snug">
+                            <p className="text-xs text-muted-foreground leading-snug">
                               {createCopy.missingDataGate.alertDescription(
                                 missingDataTrips.length,
                               )}
                             </p>
                             <ul
-                              className="text-[11px] text-foreground leading-snug space-y-0.5"
+                              className="text-xs text-foreground leading-snug space-y-0.5"
                               aria-label={createCopy.missingDataGate.tripsListAriaLabel}
                             >
                               {missingDataTrips.slice(0, MISSING_DATA_TRIPS_LISTED).map((trip) => (
@@ -1976,44 +1994,22 @@ export function SettlementCreatePage() {
                           </div>
                         ) : null}
                         {createCta !== "guardar_borrador" ? (
-                          <>
-                            <Button
-                              className="w-full"
-                              disabled={
-                                createMutation.isPending || !canSubmitForApproval
-                              }
-                              onClick={requestSubmitForApproval}
-                            >
-                              <Send className="mr-2 h-4 w-4" />
-                              {createCopy.summary.submitApprovalBtn}
-                            </Button>
-                            {hasMissingDataGaps && !acknowledgeMissingDataTrips ? (
-                              <p className="text-[11px] text-center text-warning leading-snug px-1">
-                                {createCopy.missingDataGate.submitBlockedHint}
-                              </p>
-                            ) : (
-                              <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                                {canSelfApproveOwnCut
-                                  ? createCopy.summary.submitApprovalSegregationHintSingle
-                                  : createCopy.summary.submitApprovalSegregationHint}
-                              </p>
-                            )}
-                          </>
-                        ) : (
-                          <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                            {thresholdMxn === null
-                              ? canSelfDisburseOwnCut
-                                ? createCopy.summary.bypassDraftHintNoAmountSingle
-                                : createCopy.summary.bypassDraftHintNoAmount
-                              : canSelfDisburseOwnCut
-                                ? createCopy.summary.bypassDraftHintSingle(
-                                    formatMxCurrency(thresholdMxn),
-                                  )
-                                : createCopy.summary.bypassDraftHint(
-                                    formatMxCurrency(thresholdMxn),
-                                  )}
-                          </p>
-                        )}
+                          <Button
+                            className="w-full"
+                            disabled={
+                              createMutation.isPending || !canSubmitForApproval
+                            }
+                            onClick={requestSubmitForApproval}
+                            title={
+                              hasMissingDataGaps && !acknowledgeMissingDataTrips
+                                ? createCopy.missingDataGate.submitBlockedHint
+                                : undefined
+                            }
+                          >
+                            <Send className="mr-2 h-4 w-4" />
+                            {createCopy.summary.submitApprovalBtn}
+                          </Button>
+                        ) : null}
                         <Button
                           variant={
                             createCta === "guardar_borrador"
@@ -2025,31 +2021,84 @@ export function SettlementCreatePage() {
                             createMutation.isPending || !canProceedWithSave || isPeriodBlocked
                           }
                           onClick={() => handleSave(false)}
+                          title={
+                            isPeriodBlocked
+                              ? hasUsableSuggestedStart
+                                ? createCopy.periodicBlock.submitBlockedHint
+                                : createCopy.periodicBlock.submitBlockedHintNoSuggestion
+                              : !canProceedWithSave
+                                ? createCopy.summary.actionsBlockedUntilReady
+                                : undefined
+                          }
                         >
                           {createCopy.summary.saveDraftBtn}
                         </Button>
-                        {isPeriodBlocked ? (
-                          <p className="text-[11px] text-center text-warning leading-snug px-1">
-                            {hasUsableSuggestedStart
-                              ? createCopy.periodicBlock.submitBlockedHint
-                              : createCopy.periodicBlock.submitBlockedHintNoSuggestion}
-                          </p>
-                        ) : null}
-                        {showCommercialFreightHint ? (
-                          <p className="text-[11px] text-center text-muted-foreground leading-snug px-1">
-                            {createCopy.summary.commercialFreightHint}
-                          </p>
-                        ) : null}
-                        {settingsError && (
-                          <p className="text-[11px] text-center text-destructive py-0.5">
-                            {copy.toasts.settingsUnavailable}
-                          </p>
-                        )}
-                        {!canProceedWithSave && !settingsError && (
-                          <p className="text-[11px] text-center text-muted-foreground py-0.5">
-                            {createCopy.summary.actionsBlockedUntilReady}
-                          </p>
-                        )}
+                        {(() => {
+                          const hint = settingsError
+                            ? {
+                                text: copy.toasts.settingsUnavailable,
+                                tone: "destructive" as const,
+                              }
+                            : isPeriodBlocked
+                              ? {
+                                  text: hasUsableSuggestedStart
+                                    ? createCopy.periodicBlock.submitBlockedHint
+                                    : createCopy.periodicBlock.submitBlockedHintNoSuggestion,
+                                  tone: "warning" as const,
+                                }
+                              : hasMissingDataGaps &&
+                                  !acknowledgeMissingDataTrips &&
+                                  createCta !== "guardar_borrador"
+                                ? {
+                                    text: createCopy.missingDataGate.submitBlockedHint,
+                                    tone: "warning" as const,
+                                  }
+                                : !canProceedWithSave
+                                  ? {
+                                      text: createCopy.summary.actionsBlockedUntilReady,
+                                      tone: "muted" as const,
+                                    }
+                                  : createCta !== "guardar_borrador"
+                                    ? {
+                                        text: canSelfApproveOwnCut
+                                          ? createCopy.summary
+                                              .submitApprovalSegregationHintSingle
+                                          : createCopy.summary
+                                              .submitApprovalSegregationHint,
+                                        tone: "muted" as const,
+                                      }
+                                    : {
+                                        text:
+                                          thresholdMxn === null
+                                            ? canSelfDisburseOwnCut
+                                              ? createCopy.summary
+                                                  .bypassDraftHintNoAmountSingle
+                                              : createCopy.summary
+                                                  .bypassDraftHintNoAmount
+                                            : canSelfDisburseOwnCut
+                                              ? createCopy.summary.bypassDraftHintSingle(
+                                                  formatMxCurrency(thresholdMxn),
+                                                )
+                                              : createCopy.summary.bypassDraftHint(
+                                                  formatMxCurrency(thresholdMxn),
+                                                ),
+                                        tone: "muted" as const,
+                                      };
+                          return (
+                            <p
+                              className={
+                                hint.tone === "destructive"
+                                  ? "text-xs text-center text-destructive leading-snug px-1"
+                                  : hint.tone === "warning"
+                                    ? "text-xs text-center text-warning leading-snug px-1"
+                                    : "text-xs text-center text-muted-foreground leading-snug px-1"
+                              }
+                              data-testid="settlement-create-cta-hint"
+                            >
+                              {hint.text}
+                            </p>
+                          );
+                        })()}
                       </>
                     ) : (
                       <p className="text-xs text-center text-muted-foreground py-1">
@@ -2193,7 +2242,7 @@ export function SettlementCreatePage() {
                 </span>
               </div>
             ) : null}
-            <div className="border-t pt-2.5 flex justify-between items-center font-bold text-primary text-base">
+            <div className="border-t pt-2.5 flex justify-between items-center font-bold text-foreground text-base">
               <span>{createCopy.dialog.netLabel}</span>
               <span className="tabular-nums font-mono text-lg">{formatMxCurrency(netAmount)}</span>
             </div>

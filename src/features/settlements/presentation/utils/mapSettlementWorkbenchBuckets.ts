@@ -2,7 +2,6 @@ import type { WorkbenchBucket } from "@shared/ui/page-shells";
 import type { SettlementWorkbenchSummary } from "../../domain/entities";
 import {
   SETTLEMENT_WORKBENCH_BUCKETS,
-  settlementsCompensationApprovalsPath,
   type SettlementWorkbenchNavBucket,
 } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
@@ -18,6 +17,8 @@ function countForBucket(
       return summary.pending;
     case "draft":
       return summary.draft;
+    case "approval":
+      return summary.approval;
     case "payable":
       return summary.payable;
     case "closed":
@@ -30,7 +31,9 @@ function toneForBucket(
   count: number,
 ): WorkbenchBucket["tone"] {
   if (count <= 0) return "default";
-  if (bucket === "pending" || bucket === "payable") return "warning";
+  if (bucket === "pending" || bucket === "payable" || bucket === "approval") {
+    return "warning";
+  }
   if (bucket === "closed") return "success";
   return "default";
 }
@@ -43,7 +46,7 @@ export interface MapSettlementWorkbenchBucketsParams {
 
 /**
  * Maps workbench summary → WorkbenchPageShell buckets (ADR-0090).
- * Solo etapas de pago (+ crossLink de autorización al tab Por autorizar).
+ * Etapas de pago en el panel inferior (incl. En autorización = `pending_approval`).
  * Anticipos se enlazan debajo del scorecard (openAdvancesBridge), no como bucket.
  */
 export function mapSettlementWorkbenchBuckets({
@@ -51,36 +54,16 @@ export function mapSettlementWorkbenchBuckets({
   activeBucket,
   onBucketChange,
 }: MapSettlementWorkbenchBucketsParams): WorkbenchBucket[] {
-  const buckets: WorkbenchBucket[] = SETTLEMENT_WORKBENCH_BUCKETS.map(
-    (bucket) => {
-      const count = countForBucket(bucket, summary);
-      return {
-        id: bucket,
-        label: copy.buckets[bucket],
-        description: copy.bucketDescriptions[bucket],
-        count,
-        isActive: activeBucket === bucket,
-        onClick: () => onBucketChange(bucket),
-        tone: toneForBucket(bucket, count),
-      };
-    },
-  );
-
-  if (summary.approval > 0) {
-    buckets.push({
-      id: "approval",
-      label: copy.buckets.approval,
-      description: copy.bucketDescriptions.approval,
-      count: summary.approval,
-      isActive: false,
-      onClick: () => undefined,
-      tone: "warning",
-      crossLink: {
-        href: settlementsCompensationApprovalsPath(),
-        label: copy.approvalLink(summary.approval),
-      },
-    });
-  }
-
-  return buckets;
+  return SETTLEMENT_WORKBENCH_BUCKETS.map((bucket) => {
+    const count = countForBucket(bucket, summary);
+    return {
+      id: bucket,
+      label: copy.buckets[bucket],
+      description: copy.bucketDescriptions[bucket],
+      count,
+      isActive: activeBucket === bucket,
+      onClick: () => onBucketChange(bucket),
+      tone: toneForBucket(bucket, count),
+    };
+  });
 }

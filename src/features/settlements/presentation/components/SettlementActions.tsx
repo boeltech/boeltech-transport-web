@@ -72,7 +72,7 @@ import {
   useSubmitSettlement,
 } from "../../application/hooks/useSettlements";
 import { useSettlementSettings } from "../../application/hooks/useSettlementSettings";
-import { settlementsCompensationApprovalsPath } from "../config/settlementWorkbenchConfig";
+import { settlementsApprovalsInboxPath } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
 import { SettlementCancelDialog } from "./SettlementCancelDialog";
@@ -109,6 +109,8 @@ interface SettlementActionsProps {
   variant?: "dropdown" | "buttons";
   /** D21: abre el Sheet «Corregir pago» (solo en el detalle, que trae partidas). */
   onCorrect?: () => void;
+  /** Si se pasa, el historial lo monta el contenedor (detalle) — H-13. */
+  onOpenHistory?: () => void;
 }
 
 export function SettlementActions({
@@ -119,6 +121,7 @@ export function SettlementActions({
   approvalLinkOnly = false,
   variant = "dropdown",
   onCorrect,
+  onOpenHistory,
 }: SettlementActionsProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -414,7 +417,7 @@ export function SettlementActions({
                   {settlement.employeeFullName ?? "—"}
                 </span>{" "}
                 {copy.actionDialogs.approveSettlement.descriptionPart3}{" "}
-                <span className="font-bold text-primary">
+                <span className="font-bold text-foreground tabular-nums">
                   {formatMxCurrency(settlement.netAmount)}
                 </span>
                 {copy.actionDialogs.approveSettlement.descriptionPart4}
@@ -510,7 +513,7 @@ export function SettlementActions({
         />
       )}
 
-      {canOpenHistory ? (
+      {canOpenHistory && !onOpenHistory ? (
         <ApprovalHistorySheet
           open={historyOpen}
           onOpenChange={setHistoryOpen}
@@ -612,7 +615,7 @@ export function SettlementActions({
                 {submitLabel}
               </Button>
               {hasMissingDataGaps && !acknowledgeMissingData ? (
-                <p className="max-w-[14rem] text-[11px] leading-snug text-warning">
+                <p className="max-w-[14rem] text-xs leading-snug text-warning">
                   {missingDataGateCopy.submitBlockedHint}
                 </p>
               ) : null}
@@ -628,7 +631,7 @@ export function SettlementActions({
                 <Undo2 className="mr-2 h-4 w-4" />
                 {flowCopy.header.returnForCorrection}
               </Button>
-              <p className="text-[11px] leading-snug text-muted-foreground sm:max-w-[12rem]">
+              <p className="text-xs leading-snug text-muted-foreground sm:max-w-[12rem]">
                 {flowCopy.returnVsRejectHint}
               </p>
             </div>
@@ -646,7 +649,7 @@ export function SettlementActions({
           {showOwnApproveBlocked && <OwnRequestChip />}
           {showOwnDisburseBlocked && <OwnRequestChip kind="disburse" />}
           {showAwaitingTreasuryHint ? (
-            <p className="max-w-[14rem] text-[11px] leading-snug text-muted-foreground sm:max-w-[16rem]">
+            <p className="max-w-[14rem] text-xs leading-snug text-muted-foreground sm:max-w-[16rem]">
               {copy.actions.awaitingTreasuryDisburse}
             </p>
           ) : null}
@@ -719,7 +722,7 @@ export function SettlementActions({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to={settlementsCompensationApprovalsPath()}>
+                <Link to={settlementsApprovalsInboxPath()}>
                   <ExternalLink className="mr-2 h-4 w-4" />
                   {settlementsCopy.workbench.actions.reviewInApprovals}
                 </Link>
@@ -798,7 +801,11 @@ export function SettlementActions({
           {canOpenHistory && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  onOpenHistory ? onOpenHistory() : setHistoryOpen(true)
+                }
+              >
                 <History className="mr-2 h-4 w-4" />
                 {flowCopy.header.menuHistory}
               </DropdownMenuItem>

@@ -51,6 +51,22 @@ vi.mock("@shared/ui/employee-async-combobox", () => ({
   }) => <div data-testid={id ?? "employee-combobox"}>{placeholder}</div>,
 }));
 
+vi.mock("@features/employees/application", () => ({
+  useEmployeeBasic: (employeeId: string, enabled = true) => ({
+    data:
+      enabled && employeeId
+        ? {
+            id: employeeId,
+            fullName: "Ana López",
+            firstName: "Ana",
+            lastName: "López",
+            secondLastName: null,
+            employeeNumber: "E-1",
+          }
+        : undefined,
+  }),
+}));
+
 vi.mock("../../application/hooks", () => ({
   useSettlements: () => settlementsQuery,
 }));
@@ -111,11 +127,25 @@ describe("SettlementsRegistryPage F3", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lista vacía usa EmptyState único del shell", () => {
-    renderWithTheme(<SettlementsRegistryPage />);
+  it("lista vacía usa EmptyState único del shell (icono de consulta, no Plus)", () => {
+    const { container } = renderWithTheme(<SettlementsRegistryPage />);
 
     expect(
       screen.getByText(settlementsCopy.empty.settlementsTitle),
     ).toBeInTheDocument();
+    // Archive (consulta), no Plus de creación
+    expect(container.querySelector("svg.lucide-archive")).toBeTruthy();
+    expect(container.querySelector("svg.lucide-plus")).toBeNull();
+  });
+
+  it("H-02: chip de operador usa nombre resuelto (sin UUID)", () => {
+    renderWithTheme(<SettlementsRegistryPage />, {
+      route: ["/finance/settlements/registry?employeeId=emp-1"],
+    });
+
+    expect(
+      screen.getByText(settlementsCopy.workbench.chip.employee("Ana López")),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/emp-1/i)).not.toBeInTheDocument();
   });
 });

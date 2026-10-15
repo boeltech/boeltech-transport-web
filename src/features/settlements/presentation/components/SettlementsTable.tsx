@@ -35,7 +35,6 @@ interface SettlementsTableProps {
   onActionComplete?: () => void;
   approvalLinkOnly?: boolean;
   showRejectedCorrection?: boolean;
-  emptyMessage?: string;
   columnMode?: SettlementsTableColumnMode;
 }
 
@@ -96,27 +95,6 @@ function LoadingSkeleton({ colCount }: { colCount: number }) {
   );
 }
 
-function EmptyState({
-  message,
-  colSpan,
-}: {
-  message?: string;
-  colSpan: number;
-}) {
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell
-          colSpan={colSpan}
-          className="h-24 text-center text-muted-foreground text-sm"
-        >
-          {message ?? copy.empty.settlements}
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
-}
-
 function SettlementStatusCell({
   status,
   rejectionReason,
@@ -168,7 +146,6 @@ export function SettlementsTable({
   onActionComplete,
   approvalLinkOnly = false,
   showRejectedCorrection = false,
-  emptyMessage,
   columnMode = "registry",
 }: SettlementsTableProps) {
   const headers = columnMode === "pipeline" ? PIPELINE_HEADERS : REGISTRY_HEADERS;
@@ -185,15 +162,9 @@ export function SettlementsTable({
     );
   }
 
+  // Empty lo resuelve el shell (ListPageShell / WorkbenchPageShell): EmptyState único.
   if (settlements.length === 0) {
-    return (
-      <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de pagos">
-          <TableHeaderRow headers={headers} />
-          <EmptyState message={emptyMessage} colSpan={colCount} />
-        </Table>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -207,10 +178,10 @@ export function SettlementsTable({
               className="cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={() => onView(st.id)}
             >
-              <TableCell className="font-semibold text-primary font-mono whitespace-nowrap">
+              <TableCell className="font-semibold text-foreground font-mono tabular-nums whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5">
                   {st.settlementNumber}
-                  <SettlementKindBadge kind={st.settlementKind} className="font-sans text-[10px]" />
+                  <SettlementKindBadge kind={st.settlementKind} className="font-sans text-xs" />
                 </span>
               </TableCell>
 
@@ -242,7 +213,7 @@ export function SettlementsTable({
                 </>
               ) : null}
 
-              <TableCell className="text-right tabular-nums font-bold text-primary whitespace-nowrap">
+              <TableCell className="text-right tabular-nums font-bold text-foreground whitespace-nowrap">
                 {formatMxCurrency(st.netAmount)}
               </TableCell>
 

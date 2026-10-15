@@ -47,6 +47,8 @@ import {
 } from "../../domain/enums";
 import type { DriverSettlement } from "../../domain/entities";
 
+const disburseCopy = settlementsCopy.settlementFlow.disburse;
+
 interface DisburseSettlementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -129,7 +131,7 @@ export function DisburseSettlementDialog({
         expectedRevision,
       });
       toast({
-        title: settlementsCopy.settlementFlow.disburse.successTitle,
+        title: disburseCopy.successTitle,
         variant: "success",
       });
       reset();
@@ -163,12 +165,8 @@ export function DisburseSettlementDialog({
       const errorMsg = forbidden
         ? (forbidden.message ?? settlementsCopy.toasts.selfDisburseRejected)
         : getErrorMessage(error);
-      setApiError({ title: "No se pudo registrar el pago", message: errorMsg });
-      toast({
-        title: "Error al registrar el pago",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      // Dialog: error solo inline (sin toast duplicado).
+      setApiError({ title: disburseCopy.errorAlertTitle, message: errorMsg });
     }
   };
 
@@ -194,10 +192,10 @@ export function DisburseSettlementDialog({
           <DialogTitle>
             {selfConfirm
               ? approvalsCopy.selfApproval.confirmDisburseTitle
-              : "Registrar pago al operador"}
+              : disburseCopy.title}
           </DialogTitle>
           <DialogDescription>
-            {settlementsCopy.settlementFlow.disburse.dialogDescriptionPrefix}{" "}
+            {disburseCopy.dialogDescriptionPrefix}{" "}
             <span className="font-semibold text-foreground">
               {settlement.settlementNumber}
             </span>
@@ -220,9 +218,9 @@ export function DisburseSettlementDialog({
         {revisionChanged && (
           <AlertWithIcon
             variant="warning"
-            title={settlementsCopy.settlementFlow.disburse.revisionChangedTitle}
+            title={disburseCopy.revisionChangedTitle}
           >
-            <p>{settlementsCopy.settlementFlow.disburse.revisionChanged}</p>
+            <p>{disburseCopy.revisionChanged}</p>
             <Button
               type="button"
               size="sm"
@@ -233,18 +231,18 @@ export function DisburseSettlementDialog({
                 onOpenChange(false);
               }}
             >
-              {settlementsCopy.settlementFlow.disburse.reload}
+              {disburseCopy.reload}
             </Button>
           </AlertWithIcon>
         )}
 
         <div className="rounded-lg border bg-muted/40 p-3 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Operador:</span>
+            <span className="text-muted-foreground">{disburseCopy.operatorLabel}:</span>
             <span className="font-medium">{settlement.employeeFullName ?? "—"}</span>
           </div>
           <div className="mt-1 flex justify-between">
-            <span className="text-muted-foreground">Monto neto pagado:</span>
+            <span className="text-muted-foreground">{disburseCopy.netAmountLabel}:</span>
             <span className="font-bold text-primary">
               {formatMxCurrency(settlement.netAmount)}
             </span>
@@ -253,7 +251,7 @@ export function DisburseSettlementDialog({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
           <div className="space-y-1">
-            <Label htmlFor="disb-method">Método de pago *</Label>
+            <Label htmlFor="disb-method">{disburseCopy.methodLabel}</Label>
             <Select
               value={selectedMethod}
               disabled={isPending}
@@ -264,7 +262,7 @@ export function DisburseSettlementDialog({
               }
             >
               <SelectTrigger id="disb-method">
-                <SelectValue placeholder="Seleccionar método" />
+                <SelectValue placeholder={disburseCopy.methodPlaceholder} />
               </SelectTrigger>
               <SelectContent>
                 {(
@@ -280,13 +278,18 @@ export function DisburseSettlementDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="disb-ref">Referencia bancaria / Folio SPEI *</Label>
+            <Label htmlFor="disb-ref">{disburseCopy.referenceLabel}</Label>
             <Input
               id="disb-ref"
               disabled={isPending}
-              placeholder="Ej. SPEI-998823 o Cheque #452"
+              placeholder={disburseCopy.referencePlaceholder}
               {...register("disbursementReference")}
             />
+            {selectedMethod === "cash" && !errors.disbursementReference?.message ? (
+              <p className="text-xs text-muted-foreground">
+                {disburseCopy.referenceCashHint}
+              </p>
+            ) : null}
             <FieldInlineError fieldId="disb-ref" message={errors.disbursementReference?.message} />
           </div>
 
@@ -294,18 +297,18 @@ export function DisburseSettlementDialog({
             control={control}
             name="disbursedAt"
             fieldId="disb-date"
-            label="Fecha y hora de transferencia"
+            label={disburseCopy.disbursedAtLabel}
             required
             disabled={isPending}
           />
 
           <div className="space-y-1">
-            <Label htmlFor="disb-notes">Observaciones de tesorería</Label>
+            <Label htmlFor="disb-notes">{disburseCopy.notesLabel}</Label>
             <Textarea
               id="disb-notes"
               rows={2}
               disabled={isPending}
-              placeholder="Comprobante, cuenta de destino o notas adicionales..."
+              placeholder={disburseCopy.notesPlaceholder}
               {...register("notes")}
             />
             <FieldInlineError fieldId="disb-notes" message={errors.notes?.message} />
@@ -318,10 +321,10 @@ export function DisburseSettlementDialog({
               disabled={isPending}
               onClick={() => onOpenChange(false)}
             >
-              Cancelar
+              {disburseCopy.cancel}
             </Button>
             <Button type="submit" disabled={isPending || revisionChanged}>
-              {disburseMutation.isPending ? "Registrando..." : "Confirmar pago realizado"}
+              {disburseMutation.isPending ? disburseCopy.pending : disburseCopy.confirm}
             </Button>
           </DialogFooter>
         </form>

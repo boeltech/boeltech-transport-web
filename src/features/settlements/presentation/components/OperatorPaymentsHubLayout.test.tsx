@@ -9,7 +9,6 @@ import {
 import {
   SETTLEMENTS_ADVANCES_PATH,
   SETTLEMENTS_LIST_PATH,
-  SETTLEMENTS_PENDING_APPROVAL_PATH,
 } from "../../application/settlementsRoutes";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { OperatorPaymentsHubLayout } from "./OperatorPaymentsHubLayout";
@@ -45,7 +44,6 @@ function renderHub(path: string) {
       <Routes>
         <Route element={<OperatorPaymentsHubLayout />}>
           <Route path={SETTLEMENTS_LIST_PATH} element={<div>tab</div>} />
-          <Route path={SETTLEMENTS_PENDING_APPROVAL_PATH} element={<div>tab</div>} />
           <Route path={SETTLEMENTS_ADVANCES_PATH} element={<div>tab</div>} />
           <Route path={COMPENSATION_TEMPLATES_PATH} element={<div>tab</div>} />
           <Route path={COMPENSATION_CORRIDORS_PATH} element={<div>tab</div>} />
@@ -59,7 +57,6 @@ function renderHub(path: string) {
 
 const ALL_TABS = [
   SETTLEMENTS_LIST_PATH,
-  SETTLEMENTS_PENDING_APPROVAL_PATH,
   SETTLEMENTS_ADVANCES_PATH,
   COMPENSATION_TEMPLATES_PATH,
   COMPENSATION_CORRIDORS_PATH,
@@ -70,6 +67,13 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
     mockPermissions.granted = new Set(ADMIN_PERMISSIONS);
   });
 
+  it("no muestra el tab Por autorizar (VoBo vive en bucket En autorización)", () => {
+    renderHub(SETTLEMENTS_LIST_PATH);
+    expect(
+      screen.queryByRole("link", { name: /Por autorizar/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it.each(ALL_TABS)("admin no ve «Configuración» en %s", (path) => {
     renderHub(path);
     expect(screen.getByText("tab")).toBeInTheDocument();
@@ -78,7 +82,6 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
 
   it.each([
     [SETTLEMENTS_LIST_PATH, "/settings/approvals?concept=settlement"],
-    [SETTLEMENTS_PENDING_APPROVAL_PATH, "/settings/approvals?concept=settlement"],
     [SETTLEMENTS_ADVANCES_PATH, "/settings/approvals?concept=driver_advance"],
   ])("«Reglas de autorización» en %s abre %s", async (path, target) => {
     const user = userEvent.setup();
@@ -97,7 +100,7 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
     },
   );
 
-  it.each([SETTLEMENTS_LIST_PATH, SETTLEMENTS_PENDING_APPROVAL_PATH, SETTLEMENTS_ADVANCES_PATH])(
+  it.each([SETTLEMENTS_LIST_PATH, SETTLEMENTS_ADVANCES_PATH])(
     "sin approval_policies.read no ve «Reglas de autorización» en %s",
     (path) => {
       mockPermissions.granted = new Set(["settlements.read", "settlements.create", "settlements.update"]);

@@ -5,33 +5,34 @@
 
 import type { SettlementStatus } from "../../domain/enums";
 
-/** Cubetas navegables en el KPI strip (autorización → tab Por autorizar del hub). */
+/** Cubetas navegables en el KPI strip (incl. En autorización = pipeline `pending_approval`). */
 export type SettlementWorkbenchNavBucket =
   | "pending"
   | "draft"
+  | "approval"
   | "payable"
   | "closed";
 
-/** Incluye `approval` para contadores y URLs legacy. */
-export type SettlementWorkbenchBucket =
-  | SettlementWorkbenchNavBucket
-  | "approval";
+/** Alias histórico; hoy coincide con las cubetas navegables. */
+export type SettlementWorkbenchBucket = SettlementWorkbenchNavBucket;
 
 export const SETTLEMENT_WORKBENCH_BUCKETS: SettlementWorkbenchNavBucket[] = [
   "pending",
   "draft",
+  "approval",
   "payable",
   "closed",
 ];
 
 export const SETTLEMENT_REGISTRY_VIEW = "registry";
 
-/** Estados agrupados por etapa KPI (excepto pending y approval). */
+/** Estados agrupados por etapa KPI (excepto pending). */
 export const BUCKET_PIPELINE_STATUSES: Record<
   Exclude<SettlementWorkbenchNavBucket, "pending">,
   readonly SettlementStatus[]
 > = {
   draft: ["draft", "rejected"],
+  approval: ["pending_approval"],
   payable: ["approved"],
   closed: ["disbursed"],
 };
@@ -42,15 +43,21 @@ export const OPEN_ADVANCE_STATUSES = [
   "partially_applied",
 ] as const;
 
-const PENDING_APPROVAL_PATH = "/finance/settlements/pending-approval";
+const LIST_PATH = "/finance/settlements";
 
-/** Deep-link de pagos por autorizar → tab hub (D-A). */
+function approvalBucketPath(employeeId?: string): string {
+  const qs = new URLSearchParams({ bucket: "approval" });
+  if (employeeId) qs.set("employeeId", employeeId);
+  return `${LIST_PATH}?${qs.toString()}`;
+}
+
+/** Deep-link de cortes en autorización → bucket del workbench Por pagar. */
 export function settlementsCompensationApprovalsPath(params?: {
+  employeeId?: string;
+  /** @deprecated Preferir `employeeId` (compat deep-links del tab eliminado). */
   driverId?: string;
 }): string {
-  if (!params?.driverId) return PENDING_APPROVAL_PATH;
-  const qs = new URLSearchParams({ driverId: params.driverId });
-  return `${PENDING_APPROVAL_PATH}?${qs.toString()}`;
+  return approvalBucketPath(params?.employeeId ?? params?.driverId);
 }
 
 /** Anticipos siguen en la bandeja global de Aprobaciones. */
@@ -58,6 +65,20 @@ export function settlementsDriverAdvanceApprovalsPath(): string {
   return "/finance/approvals?type=driver_advance_request&status=pending";
 }
 
+/** Bandeja global de liquidaciones (módulo Aprobaciones). */
+export function settlementsApprovalsInboxPath(): string {
+  return "/finance/approvals?type=internal_staff_compensation&status=pending";
+}
+
 export function resolveDefaultWorkbenchBucket(): SettlementWorkbenchNavBucket {
   return "pending";
+}
+
+/** Redirect canónico desde la ruta legacy del tab Por autorizar. */
+export function settlementsPendingApprovalRedirectPath(search?: string): string {
+  const params = new URLSearchParams(
+    search?.startsWith("?") ? search.slice(1) : (search ?? ""),
+  );
+  const driverId = params.get("driverId") ?? params.get("employeeId") ?? undefined;
+  return approvalBucketPath(driverId || undefined);
 }

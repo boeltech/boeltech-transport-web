@@ -19,7 +19,13 @@ import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import {
+  createMemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
 import { CompensationHubLayout } from "@features/compensation/presentation/components/CompensationHubLayout";
@@ -178,13 +184,22 @@ function createTestQueryClient() {
   });
 }
 
+// Data router required: CompensationSchemeBuilderPage usa useUnsavedChangesGuard → useBlocker.
+// Las <Routes> descendientes siguen resolviendo bajo la ruta comodín.
 function renderWithRoutes(initialEntry: string, ui: ReactNode) {
   const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntry]}>{ui}</MemoryRouter>
-    </QueryClientProvider>,
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+        ),
+      },
+    ],
+    { initialEntries: [initialEntry] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 const mockCorridor = {

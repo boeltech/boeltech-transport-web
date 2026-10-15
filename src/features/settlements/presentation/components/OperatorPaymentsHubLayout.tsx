@@ -16,7 +16,6 @@ import { approvalPoliciesPath } from "@features/approval-policies/application/ap
 import {
   SETTLEMENTS_ADVANCES_PATH,
   SETTLEMENTS_LIST_PATH,
-  SETTLEMENTS_PENDING_APPROVAL_PATH,
   resolveOperatorPaymentsHubTab,
   settlementCreatePath,
   type OperatorPaymentsHubTab,
@@ -28,7 +27,6 @@ const copy = settlementsCopy.hub;
 /** Regla de autorización que gobierna cada pestaña; Tarifas no tiene. */
 const APPROVAL_CONCEPT_BY_TAB: Partial<Record<OperatorPaymentsHubTab, ApprovalConcept>> = {
   "por-pagar": "settlement",
-  "por-autorizar": "settlement",
   adelantos: "driver_advance",
 };
 
@@ -104,11 +102,6 @@ export function OperatorPaymentsHubLayout() {
           id: "por-pagar",
           label: copy.tabs.porPagar,
           href: SETTLEMENTS_LIST_PATH,
-        },
-        {
-          id: "por-autorizar",
-          label: copy.tabs.porAutorizar,
-          href: SETTLEMENTS_PENDING_APPROVAL_PATH,
         },
         {
           id: "adelantos",

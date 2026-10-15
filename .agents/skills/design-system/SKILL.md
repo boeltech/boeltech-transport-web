@@ -31,8 +31,8 @@ AppLayout (providers) → LayoutShell → Sidebar + Header + main → Outlet →
 |---|---|---|
 | Providers | `src/widgets/layout/ui/AppLayout.tsx` | Query → Auth → Permission → Theme → Toast → Sidebar → LayoutShell |
 | Layout | `src/widgets/layout/ui/LayoutShell.tsx` | Sidebar **240/56px**, header **h-14** solid, skip link → `#contenido`, main `pt-16` + `max-w-7xl`. Un solo landmark `<aside>` (desktop). |
-| Sidebar | `src/widgets/sidebar/` | `navigation.ts` + RBAC via `useNavigation`; badges via `useNavigationWithBadges`. Active: `bg-sidebar-accent` + `text-sidebar-primary` + riel **3px** `bg-sidebar-primary` + `aria-current="page"`. Badge visible en colapsado (número o dot). Labels de grupo sentence-case (`text-sidebar-foreground/60`). Sin user/logout en footer (solo collapse). |
-| Header | `src/widgets/header/ui/Header.tsx` | Solid `bg-background` (sin glass/blur). Search `rounded-md` ⌘K (`GlobalCommandMenu`); **lupa móvil** `<md` abre el mismo menú. Campana inbox, tema, menú usuario (logout aquí; nombre/rol `lg+`). |
+| Sidebar | `src/widgets/sidebar/` | `navigation.ts` + RBAC via `useNavigation`; badges via `useNavigationWithBadges`. Active: `bg-sidebar-accent` + `text-sidebar-foreground` (neutro) + riel **3px** `bg-sidebar-primary` (ámbar; primary solo en riel) + `aria-current="page"`. Badge visible en colapsado (número o dot). Labels de grupo sentence-case (`text-sidebar-foreground/60`). Sin user/logout en footer (solo collapse). |
+| Header | `src/widgets/header/ui/Header.tsx` | Solid `bg-background` (sin glass/blur). Search ⌘K `bg-muted` + `border-border` (Operate cool; sin warm wash). **lupa móvil** `<md` abre el mismo menú. Campana inbox, tema, menú usuario (logout aquí; nombre/rol `lg+`). |
 | Estado sidebar | `src/app/providers/SidebarProvider.tsx` | Colapso persistido en localStorage |
 | Anchos | `sidebarLayout.ts` | `SIDEBAR_WIDTH_PX=240` / `SIDEBAR_COLLAPSED_WIDTH_PX=56` — alinear Header left + main margin |
 
@@ -203,8 +203,8 @@ Independiente del modo light/dark. Atributo `data-palette` en `<html>`, persisti
 | `v2` | Patio (ink + ámbar + brand) | **Sí** (`COLOR_PALETTE_DEFAULT`) | Triad Operate: ink estructura; ámbar señala (no CTA); brand Teal Operate = `--primary` (hue 205) |
 
 v2 anclas (fuente de verdad; no utilidades Tailwind aún): `--palette-ink`,
-`--palette-amber`, `--palette-brand` (Teal Operate ≈ `#0F6F82` /
-`oklch(0.48 0.10 205)` light), `--palette-concrete`, `--palette-elevated`,
+`--palette-amber`, `--palette-brand` (Teal Operate ≈ `#008292` /
+`oklch(0.54 0.13 205)` light · L~0.72 dark), `--palette-concrete`, `--palette-elevated`,
 `--palette-muted`, más derivados `--palette-amber-soft`, `--palette-ink-raised`,
 `--palette-hairline`. Neutros en hue 256. Chrome activo = `sidebar-primary`
 (ámbar). CTAs = `--primary` → brand (nunca ámbar).
@@ -222,8 +222,9 @@ v2 anclas (fuente de verdad; no utilidades Tailwind aún): `--palette-ink`,
 
 `--success` `--warning` `--info` `--destructive` `--neutral`
 
-En v2, `--info` comparte familia hue 205 con brand (un solo teal de marca; sin
-azul cielo aparte). Utilidades: `bg-success`, `text-warning-foreground`, etc.
+En v2, `--info` comparte familia hue 205 con brand pero un escalón menos chroma
+(no idéntico al CTA; sin azul cielo aparte). Utilidades: `bg-success`,
+`text-warning-foreground`, etc.
 
 **Semánticos soft** (para chips de estado en listas, backgrounds de mensajes):
 
@@ -242,6 +243,7 @@ gráficas del dashboard y módulo de finanzas.
 | `--background` / `--foreground` | Fondo y texto de la app |
 | `--card` / `--card-foreground` | Cards y panels |
 | `--muted` / `--muted-foreground` | Backgrounds discretos / texto descriptivo |
+| `--accent` / `--accent-foreground` | Lavado cool ink/concrete (ghost/outline hover). En v2 **no** es ámbar |
 | `--border` | Bordes de cards |
 | `--input` | Bordes de form inputs |
 | `--ring` | Focus ring |
@@ -342,7 +344,7 @@ Empty/error **por bucket** en la feature. No ampliar `ListPageShell` ni fusionar
 
 **Dispatch (Ola 3 #3):** `/finance/dispatch` = **Workbench** (Pendientes/Enviadas; no `ListPageShell` de página). Sticky Enviar = única sólida de cola; Armar = outline. Empty cola solo shell. Error carga → `DetailAlertCard` + Reintentar en `action`. Confirm batch = Sheet. Periodo `/finance/dispatch/period` = `ListPageShell` + `ListingFilterPanel`; empty onboarding XOR filtrado. Create run = Dialog + Alert inline. Detalle `/finance/dispatch/:id`: alertas con job vía **`DetailAlertCard.action`** (empty-scheduled Armar; fallido Armar; no-ready Actualizar lista; error carga Reintentar). Confirm/Reenviar = `AlertDialog`; toolbar **una sola primaria** Enviar o Reenviar. `DispatchRunSendResults` montado en detalle tras envío. No EntityListCard / FormSticky / LongForm.
 
-**Pagos a operadores (Ola 3 #4):** Hub `HubPageShell` (5 tabs). Por pagar = **Workbench** `showHeader=false` (`ListingFilterPanel` sucursal; contratistas fuera). Anticipos / Tarifas / Rutas = `ListPageShell` `showHeader=false` bajo hub; **1 filtro toolbar** OK (no inventar panel vacío). Historial = **List deep-link** (`/finance/settlements/registry`, no tab) con status+operador en `ListingFilterPanel`. Empty único shell; error → `DetailAlertCard` + Reintentar en `action`. Banners compensación (assign / duplicados) → `DetailAlertCard.action` cuando hay job. **Sin sticky de cola** (no hay lote multi-select). Overlays: Dialog disburse/VoBo; Sheet corregir. No EntityListCard / FormSticky / LongForm.
+**Pagos a operadores (Ola 3 #4):** Hub `HubPageShell` (**4 tabs**: Por pagar · Anticipos · Tarifas · Rutas con tarifa fija; **sin** tab «Por autorizar» — el VoBo vive en el bucket **En autorización** de Por pagar y en `/finance/approvals`; `/finance/settlements/pending-approval` solo redirige). Vocabulario único para `pending_approval`: **«En autorización»** (bucket, badge, labels, back-link). Por pagar = **Workbench** `showHeader=false` (`ListingFilterPanel` sucursal; contratistas fuera). Anticipos / Tarifas / Rutas = `ListPageShell` `showHeader=false` bajo hub; **1 filtro toolbar** OK (no inventar panel vacío). Historial = **List deep-link** (`/finance/settlements/registry`, no tab) con status+operador en `ListingFilterPanel`. Empty único shell (tablas devuelven `null` si vacío); error → **un solo** `DetailAlertCard` + Reintentar en `action` (no `isDegraded` del shell además). Banners compensación (assign / duplicados) → `DetailAlertCard.action` cuando hay job. **Sin sticky de cola** (no hay lote multi-select). Overlays: Dialog disburse/VoBo; Sheet corregir. No EntityListCard / FormSticky / LongForm.
 
 **Análisis (Ola 3 #5 — cierre ola):** `/finance/analysis` = **Hub** `HubPageShell` (Mes a mes / Rentabilidad / Gastos; `?view=` + preserve periodo). **No** Workbench ni `ListPageShell`. Controles en toolbar (periodo, alcance, meses, YoY, granularidad); **no** inventar `ListingFilterPanel` vacío. Chips = `ActiveFilterChips` + Limpiar. Empty único por vista; error/alerta con job → `DetailAlertCard.action`. Export outline. No EntityListCard / FormSticky / LongForm / sticky cola. **Ola 3 cerrada** (facturas · cobros · dispatch · liquidaciones · análisis).
 

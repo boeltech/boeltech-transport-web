@@ -50,6 +50,22 @@ vi.mock("@shared/ui/employee-async-combobox", () => ({
   }) => <div data-testid={id ?? "employee-combobox"}>{placeholder}</div>,
 }));
 
+vi.mock("@features/employees/application", () => ({
+  useEmployeeBasic: (employeeId: string, enabled = true) => ({
+    data:
+      enabled && employeeId
+        ? {
+            id: employeeId,
+            fullName: "Pedro Infante",
+            firstName: "Pedro",
+            lastName: "Infante",
+            secondLastName: null,
+            employeeNumber: "E-1",
+          }
+        : undefined,
+  }),
+}));
+
 vi.mock("../../application/hooks", () => ({
   useDriverAdvances: () => advancesQuery,
 }));
@@ -105,5 +121,17 @@ describe("SettlementsAdvancesPage F3", () => {
     expect(
       screen.getByText(settlementsCopy.empty.advancesTitle),
     ).toBeInTheDocument();
+  });
+
+  it("H-02: chip de operador usa nombre resuelto (sin UUID)", () => {
+    renderWithTheme(<SettlementsAdvancesPage />, {
+      route: ["/finance/settlements/advances?employeeId=emp-1"],
+    });
+
+    expect(
+      screen.getByText(settlementsCopy.workbench.chip.employee("Pedro Infante")),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/emp-1/i)).not.toBeInTheDocument();
+    expect(screen.getByText(advancesCopy.operatorAll)).toBeInTheDocument();
   });
 });

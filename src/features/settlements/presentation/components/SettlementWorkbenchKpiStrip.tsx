@@ -2,16 +2,12 @@
  * @deprecated Preferir mapSettlementWorkbenchBuckets + WorkbenchPageShell (ADR-0090).
  * Conservado temporalmente por referencias residuales.
  */
-import { Link } from "react-router-dom";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 import type { SettlementWorkbenchSummary } from "../../domain/entities";
 import type { SettlementWorkbenchNavBucket } from "../config/settlementWorkbenchConfig";
-import {
-  SETTLEMENT_WORKBENCH_BUCKETS,
-  settlementsCompensationApprovalsPath,
-} from "../config/settlementWorkbenchConfig";
+import { SETTLEMENT_WORKBENCH_BUCKETS } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
 const copy = settlementsCopy.workbench;
@@ -37,6 +33,24 @@ function BucketCountBadge({ count }: { count: number }) {
   );
 }
 
+function countForBucket(
+  bucket: SettlementWorkbenchNavBucket,
+  summary: SettlementWorkbenchSummary,
+): number {
+  switch (bucket) {
+    case "pending":
+      return summary.pending;
+    case "draft":
+      return summary.draft;
+    case "approval":
+      return summary.approval;
+    case "payable":
+      return summary.payable;
+    case "closed":
+      return summary.closed;
+  }
+}
+
 export function SettlementWorkbenchKpiStrip({
   activeBucket,
   summary,
@@ -53,14 +67,7 @@ export function SettlementWorkbenchKpiStrip({
       >
         {SETTLEMENT_WORKBENCH_BUCKETS.map((bucket) => {
           const isActive = activeBucket === bucket;
-          const count =
-            bucket === "pending"
-              ? summary.pending
-              : bucket === "draft"
-                ? summary.draft
-                : bucket === "payable"
-                  ? summary.payable
-                  : summary.closed;
+          const count = countForBucket(bucket, summary);
 
           return (
             <Button
@@ -91,20 +98,6 @@ export function SettlementWorkbenchKpiStrip({
           {copy.buckets.openAdvances}
           <BucketCountBadge count={summary.openAdvances} />
         </Button>
-
-        {summary.approval > 0 ? (
-          <Button
-            asChild
-            type="button"
-            variant="link"
-            size="sm"
-            className="h-8 px-2 text-muted-foreground"
-          >
-            <Link to={settlementsCompensationApprovalsPath()}>
-              {copy.approvalLink(summary.approval)}
-            </Link>
-          </Button>
-        ) : null}
       </div>
 
       <p className="text-xs text-muted-foreground">

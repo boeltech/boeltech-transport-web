@@ -51,6 +51,7 @@ import {
 } from "../components";
 import { filterSettlementBacklog } from "../utils/filterSettlementBacklog";
 import { mapSettlementWorkbenchBuckets } from "../utils/mapSettlementWorkbenchBuckets";
+import { useEmployeeFilterChipLabel } from "../hooks/useEmployeeFilterChipLabel";
 import type { DriverSettlement } from "../../domain/entities";
 
 const copy = settlementsCopy;
@@ -93,16 +94,17 @@ export function SettlementsListPage() {
     return map;
   }, [branches]);
 
-  const filters = useListingFilters<"bucket" | "branchId" | "includeContractors">(
-    {
-      filters: {
-        bucket: {},
-        branchId: {},
-        includeContractors: {},
-      },
-      preserveParamsOnClear: ["bucket"],
+  const filters = useListingFilters<
+    "bucket" | "branchId" | "includeContractors" | "employeeId"
+  >({
+    filters: {
+      bucket: {},
+      branchId: {},
+      includeContractors: {},
+      employeeId: {},
     },
-  );
+    preserveParamsOnClear: ["bucket"],
+  });
 
   const activeBucket: SettlementWorkbenchNavBucket = isWorkbenchBucket(
     filters.filters.bucket,
@@ -111,6 +113,7 @@ export function SettlementsListPage() {
     : "pending";
   const branchIdFilter = filters.filters.branchId || "";
   const includeContractors = filters.filters.includeContractors === "true";
+  const employeeIdFilter = filters.filters.employeeId || "";
 
   const workbenchParams = useMemo(
     () => ({
@@ -139,16 +142,16 @@ export function SettlementsListPage() {
   const listRedirect = resolveSettlementsListRedirect(location.search);
 
   useEffect(() => {
-    if (filters.filters.bucket === "approval") {
-      filters.setFilter("bucket", "pending");
-    }
-  }, [filters]);
-
-  useEffect(() => {
     if (activeBucket !== "pending" && includeContractors) {
       filters.setFilter("includeContractors", "");
     }
   }, [activeBucket, filters, includeContractors]);
+
+  useEffect(() => {
+    if (activeBucket !== "approval" && employeeIdFilter) {
+      filters.setFilter("employeeId", "");
+    }
+  }, [activeBucket, employeeIdFilter, filters]);
 
   useEffect(() => {
     if (defaultsAppliedRef.current) return;
@@ -178,6 +181,10 @@ export function SettlementsListPage() {
     refetch: refetchPipelinePrimary,
   } = useSettlements({
     status: pipelineStatus,
+    employeeId:
+      activeBucket === "approval" && employeeIdFilter
+        ? employeeIdFilter
+        : undefined,
     search: filters.search.trim() || undefined,
     page: filters.page,
     pageSize: 20,
@@ -215,6 +222,11 @@ export function SettlementsListPage() {
     return pipelineData?.data ?? [];
   }, [activeBucket, pipelineData?.data, rejectedPipelineData?.data]);
 
+  const employeeFilterChipLabel = useEmployeeFilterChipLabel(
+    employeeIdFilter,
+    pipelineSettlements,
+  );
+
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetchWorkbenchCounts(), refetchWorkbench()]);
     if (activeBucket !== "pending") {
@@ -251,8 +263,12 @@ export function SettlementsListPage() {
     (bucket: SettlementWorkbenchNavBucket) => {
       // Una sola llamada a setSearchParams: setFilters ya resetea page=1.
       // Un setPage() seguido sobrescribe la URL (RR no encadena updaters).
-      // Contratistas solo aplican a Pendientes: no dejar el opt-in pegado.
-      filters.setFilters({ bucket, includeContractors: "" });
+      // Contratistas / employeeId no aplican fuera de su bucket: limpiar.
+      filters.setFilters({
+        bucket,
+        includeContractors: "",
+        employeeId: "",
+      });
     },
     [filters],
   );
@@ -354,8 +370,13 @@ export function SettlementsListPage() {
   );
   const hasBranchFilter = Boolean(branchIdFilter);
   const hasContractorFilter = includeContractors && activeBucket === "pending";
+  const hasEmployeeFilter =
+    activeBucket === "approval" && Boolean(employeeIdFilter);
   const hasToolbarFilters =
-    Boolean(filters.search.trim()) || hasBranchFilter || hasContractorFilter;
+    Boolean(filters.search.trim()) ||
+    hasBranchFilter ||
+    hasContractorFilter ||
+    hasEmployeeFilter;
   const activeFilterChips: ActiveFilterChip[] = [
     ...(hasBranchFilter
       ? [
@@ -374,6 +395,15 @@ export function SettlementsListPage() {
             id: "include-contractors",
             label: workbenchCopy.chip.includeContractors,
             onRemove: () => filters.setFilter("includeContractors", ""),
+          },
+        ]
+      : []),
+    ...(hasEmployeeFilter
+      ? [
+          {
+            id: "employee",
+            label: employeeFilterChipLabel,
+            onRemove: () => filters.setFilter("employeeId", ""),
           },
         ]
       : []),
@@ -426,10 +456,6 @@ export function SettlementsListPage() {
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.scorecards.settlements.ariaLabel}
         bucketsLoading={workbenchCountsLoading}
-        isDegraded={activeError && !activeLoading}
-        degradedHref={settlementsRegistryPath()}
-        degradedLinkLabel={workbenchCopy.actions.viewFullHistory}
-        degradedMessage={workbenchCopy.empty.backlogApiPendingDescription}
         afterAwareness={
           !workbenchCountsLoading && workbenchSummary.openAdvances > 0 ? (
             <div className="space-y-1">

@@ -10,18 +10,11 @@ export const settlementsCopy = {
     approvalPoliciesAction: "Reglas de autorización",
     tabs: {
       porPagar: "Por pagar",
-      porAutorizar: "Por autorizar",
       adelantos: "Anticipos",
       comoTePago: "Tarifas",
       tablaRutas: "Rutas con tarifa fija",
     },
     createCut: "Armar pago",
-    operatorFilterPlaceholder: "Todos los operadores",
-    pendingApprovalEmptyTitle: "Nada por autorizar",
-    pendingApprovalEmptyDescription:
-      "Cuando un pago requiera autorización, aparecerá aquí para que lo autorice alguien distinto de quien lo armó.",
-    pendingApprovalEmptyDescriptionSingle:
-      "Cuando un pago requiera autorización, aparecerá aquí. Como eres el único autorizador activo, podrás autorizarlo tú mismo; quedará marcado como autoaprobado.",
   },
   tabs: {
     settlements: "Por pagar",
@@ -35,6 +28,9 @@ export const settlementsCopy = {
     loadErrorTitle: "No se pudieron cargar los anticipos",
     loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
     retry: "Reintentar",
+    operatorAll: "Todos los operadores",
+    deliveredLabel: "Entregado",
+    balancePendingLabel: "Saldo pendiente",
   },
   workbench: {
     buckets: {
@@ -49,7 +45,7 @@ export const settlementsCopy = {
       pending: "Operadores con viajes, sueldo o reembolsos por pagar.",
       draft: "Borradores, devueltas para corregir y rechazadas.",
       approval:
-        "Pendientes de autorización en Por autorizar.",
+        "Cortes esperando autorización (VoBo) antes de pagar.",
       payable:
         "Autorizados: falta registrar el pago al operador.",
       closed: "Ya pagados al operador.",
@@ -77,7 +73,7 @@ export const settlementsCopy = {
       count === 1 ? "1 en autorización →" : `${count} en autorización →`,
     actions: {
       settlePeriod: "Armar pago",
-      reviewInApprovals: "Revisar en Por autorizar",
+      reviewInApprovals: "Revisar en Aprobaciones",
       viewFullHistory: "Historial",
       backToWorkbench: "Volver a por pagar",
       includeContractors: "Incluir contratistas",
@@ -94,6 +90,8 @@ export const settlementsCopy = {
       branch: (label: string) => `Sucursal: ${label}`,
       branchUnknown: "Sucursal",
       includeContractors: "Incluye contratistas",
+      employee: (name: string) => `Operador: ${name}`,
+      employeeFallback: "Operador",
     },
     backlog: {
       tableAriaLabel: "Operadores pendientes de pago",
@@ -116,6 +114,7 @@ export const settlementsCopy = {
         days === 1 ? "1 día" : `${days} días`,
       estimatedAmountMissing: "Sin tarifa",
       correctBadge: "Corregir",
+      readOnly: "Solo lectura",
     },
     warnings: {
       /** Fallback F1 cuando no hay enrich `periodOverlap`. */
@@ -202,9 +201,6 @@ export const settlementsCopy = {
       backlogTitle: "Sin operadores pendientes de pago",
       backlogDescription:
         "Todos los operadores están al corriente para este filtro. Revisa anticipos pendientes o consulta el historial.",
-      backlogApiPendingTitle: "Lista en preparación",
-      backlogApiPendingDescription:
-        "La lista de operadores por pagar se está preparando. Mientras tanto, revisa los pagos ya registrados o el historial.",
       pipelineTitle: "Sin pagos en esta etapa",
       pipelineDescription:
         "No hay pagos en esta etapa. Prueba otra o consulta el historial.",
@@ -261,7 +257,7 @@ export const settlementsCopy = {
     confirm: "Confirmar",
     backToList: "Volver a por pagar",
     backToWorkbench: "Volver a por pagar",
-    backToPendingApproval: "Volver a por autorizar",
+    backToPendingApproval: "Volver a en autorización",
     backToRegistry: "Volver al historial",
     backToAdvances: "Volver a anticipos",
     backToApprovals: "Volver a aprobaciones",
@@ -278,7 +274,7 @@ export const settlementsCopy = {
   },
   status: {
     draft: "Borrador",
-    pending_approval: "Por autorizar",
+    pending_approval: "En autorización",
     approved: "Autorizado",
     disbursed: "Pagado",
     rejected: "Rechazado",
@@ -286,7 +282,7 @@ export const settlementsCopy = {
   },
   advanceStatus: {
     draft: "Borrador",
-    pending_approval: "Por autorizar",
+    pending_approval: "En autorización",
     pending_disbursement: "Autorizado (pendiente entrega)",
     disbursed: "Entregado (abierto)",
     partially_applied: "Parcialmente descontado",
@@ -503,7 +499,7 @@ export const settlementsCopy = {
   },
   confirmSubmitDialog: {
     title: "¿Enviar pago para autorización?",
-    description: "Revisa el monto a pagar antes de enviarlo a Por autorizar.",
+    description: "Revisa el monto a pagar antes de enviarlo a autorización.",
     confirmAction: "Confirmar y enviar",
   },
   registry: {
@@ -541,6 +537,25 @@ export const settlementsCopy = {
       "Configura sueldos base y comisiones por clase de ruta para cada operador.",
   },
   detailPage: {
+    notFound: {
+      title: "Pago no encontrado",
+      description:
+        "No se encontró el pago solicitado o no tienes permisos para consultarlo.",
+    },
+    fallbacks: {
+      paymentTitle: "Pago",
+      noAgreement: "Sin acuerdo",
+      companyName: "Empresa de Transporte",
+      speiMethod: "SPEI",
+      noCommission: "Sin comisión",
+      weeklyPeriod: "semanal",
+    },
+    receiptDialog: {
+      title: "Recibo de pago",
+      previewDescription: "Vista previa para impresión y firma del operador.",
+      print: "Imprimir",
+      preparing: "Preparando...",
+    },
     balanceStrip: {
       grossEarnings: "Lo ganado",
       grossEarningsSubtext: "Sueldo, viajes, prestaciones y reembolsos",
@@ -640,6 +655,7 @@ export const settlementsCopy = {
     rejection: {
       title: "Pago rechazado por gerencia",
       reasonLabel: "Motivo:",
+      reasonFallback: "Sin motivo especificado.",
       reopenDraftBtn: "Armar pago nuevo con este periodo",
     },
     notes: {
@@ -708,7 +724,7 @@ export const settlementsCopy = {
         finalReceiptBanner: "Recibo de pago",
         disbursedOnPrefix: "Pagado el",
       },
-      /** D28: borrador, por autorizar, rechazada y cancelada no se firman. */
+      /** D28: borrador, en autorización, rechazada y cancelada no se firman. */
       reviewWatermark: "NO VÁLIDO PARA FIRMA",
       reviewSignaturesNotice:
         "Documento de revisión. No firmar: puede cambiar antes de autorizarse.",
@@ -760,7 +776,7 @@ export const settlementsCopy = {
       submitApprovalBtn: "Enviar a autorización",
       pedirVoboBtn: "Enviar a autorización",
       submitApprovalSegregationHint:
-        "Otro usuario con permiso debe autorizarlo en Por autorizar (también puedes verlo en Aprobaciones).",
+        "Otro usuario con permiso debe autorizarlo en En autorización (también puedes verlo en Aprobaciones).",
       submitApprovalSegregationHintSingle:
         "Como eres el único autorizador activo, podrás autorizar este pago tú mismo; quedará marcado como autoaprobado.",
       bypassDraftHint: (thresholdLabel: string) =>
@@ -797,6 +813,12 @@ export const settlementsCopy = {
       clearAll: "Quitar descuentos",
       amountAriaLabel: "Monto a descontar del anticipo",
       emptyAdvances: "El operador no tiene anticipos pendientes de descontar.",
+      applyCol: "Aplicar",
+      folioCol: "Folio",
+      conceptCol: "Concepto / Tipo",
+      balanceCol: "Saldo pendiente",
+      deductCol: "Monto a descontar",
+      deliveredPrefix: "Entregado:",
     },
     trips: {
       coveredBySalary: "Cubierto por sueldo base",
@@ -893,7 +915,7 @@ export const settlementsCopy = {
       voboTitle: "¿Enviar a autorización?",
       description: "Revisa el monto a pagar antes de enviar a autorización.",
       voboDescription:
-        "Se reserva el saldo de anticipos y el pago pasa a Por autorizar. Quien lo envía no puede autorizarlo.",
+        "Se reserva el saldo de anticipos y el pago pasa a En autorización. Quien lo envía no puede autorizarlo.",
       driverLabel: "Operador",
       periodLabel: "Período",
       netLabel: "A pagar",
@@ -1326,6 +1348,7 @@ export const settlementsCopy = {
       action: "Cerrar y recargar",
     },
     disburse: {
+      title: "Registrar pago al operador",
       revisionChangedTitle: "El pago cambió",
       revisionChanged:
         "El pago cambió desde que lo abriste. Revisa el neto antes de registrar el pago.",
@@ -1333,6 +1356,23 @@ export const settlementsCopy = {
       successTitle: "Pago registrado correctamente",
       dialogDescriptionPrefix:
         "Captura la referencia bancaria o folio de la transferencia efectuada para registrar el folio",
+      errorAlertTitle: "No se pudo registrar el pago",
+      operatorLabel: "Operador",
+      netAmountLabel: "Monto neto pagado",
+      methodLabel: "Método de pago *",
+      methodPlaceholder: "Seleccionar método",
+      referenceLabel: "Referencia bancaria / Folio SPEI *",
+      referencePlaceholder: "Ej. SPEI-998823 o Cheque #452",
+      /** D3: referencia sigue obligatoria también en efectivo — solo hint. */
+      referenceCashHint:
+        "En efectivo también captura un folio, recibo o nota del pago (obligatorio).",
+      disbursedAtLabel: "Fecha y hora de transferencia",
+      notesLabel: "Observaciones de tesorería",
+      notesPlaceholder:
+        "Comprobante, cuenta de destino o notas adicionales...",
+      cancel: "Cancelar",
+      confirm: "Confirmar pago realizado",
+      pending: "Registrando...",
     },
     toasts: {
       updated: "Pago actualizado",

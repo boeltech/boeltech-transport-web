@@ -1932,7 +1932,7 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
   }
 
   const amountInput = (folio: string) =>
-    screen.getByRole("spinbutton", { name: `Monto a descontar del anticipo ${folio}` });
+    screen.getByRole("textbox", { name: `Monto a descontar del anticipo ${folio}` });
 
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn();
@@ -1958,7 +1958,7 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
 
     await user.click(screen.getByRole("checkbox"));
 
-    expect(amountInput("ANT-10")).toHaveValue(2000);
+    expect(amountInput("ANT-10")).toHaveValue("2,000.00");
     expect(screen.getByTestId("create-advance-pending-adv-1")).toHaveTextContent(
       "Quedan $500.00 pendientes para el siguiente corte.",
     );
@@ -1989,7 +1989,7 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
     expect(mockCreateSettlement).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Descontar el máximo posible" }));
-    expect(amountInput("ANT-10")).toHaveValue(2000);
+    expect(amountInput("ANT-10")).toHaveValue("2,000.00");
     expect(document.getElementById("settlement-create-advances-error")).not.toBeInTheDocument();
   });
 
@@ -2013,7 +2013,7 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
     await waitFor(() => expect(screen.getByText("ANT-10")).toBeInTheDocument());
 
     await user.click(screen.getByRole("checkbox"));
-    expect(amountInput("ANT-10")).toHaveValue(1700);
+    expect(amountInput("ANT-10")).toHaveValue("1,700.00");
     expect(screen.queryByTestId("create-template-omitted")).not.toBeInTheDocument();
   });
 
@@ -2043,8 +2043,8 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
     expect(amountInput("ANT-20")).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: /Descontar todo/i }));
-    expect(amountInput("ANT-20")).toHaveValue(null);
-    expect(amountInput("ANT-10")).toHaveValue(2000);
+    expect(amountInput("ANT-20")).toHaveValue("");
+    expect(amountInput("ANT-10")).toHaveValue("2,000.00");
   });
 
   it("E11 punto 6: comisión 1,000 + reembolso 500 + fondo 1,200 → fondo 1,000 (200 omitido), anticipo máx. 500, neto 500", async () => {
@@ -2075,7 +2075,7 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
     );
 
     await user.click(screen.getByRole("checkbox"));
-    expect(amountInput("ANT-10")).toHaveValue(500);
+    expect(amountInput("ANT-10")).toHaveValue("500.00");
   });
 
   it("bruto 0 + fondo 300: deja crear y muestra el fondo no aplicado", async () => {
@@ -2122,8 +2122,8 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
     await waitFor(() => expect(screen.getByText("ANT-11")).toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: /Descontar todo/i }));
-    expect(amountInput("ANT-11")).toHaveValue(1500);
-    expect(amountInput("ANT-12")).toHaveValue(500);
+    expect(amountInput("ANT-11")).toHaveValue("1,500.00");
+    expect(amountInput("ANT-12")).toHaveValue("500.00");
 
     await user.click(screen.getByRole("button", { name: /Guardar borrador/i }));
     await waitFor(() => expect(mockCreateSettlement).toHaveBeenCalledTimes(1));

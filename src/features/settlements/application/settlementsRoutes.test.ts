@@ -107,12 +107,12 @@ describe("settlementsRoutes", () => {
     );
   });
 
-  it("builds pending-approval path with optional driverId", () => {
+  it("builds approval-bucket path with optional driverId → employeeId", () => {
     expect(settlementsPendingApprovalPath()).toBe(
-      "/finance/settlements/pending-approval",
+      "/finance/settlements?bucket=approval",
     );
     expect(settlementsPendingApprovalPath({ driverId: "emp-9" })).toBe(
-      "/finance/settlements/pending-approval?driverId=emp-9",
+      "/finance/settlements?bucket=approval&employeeId=emp-9",
     );
   });
 
@@ -125,7 +125,7 @@ describe("settlementsRoutes", () => {
     );
     expect(
       resolveOperatorPaymentsHubTab("/finance/settlements/pending-approval"),
-    ).toBe("por-autorizar");
+    ).toBe("por-pagar");
     expect(resolveOperatorPaymentsHubTab("/finance/settlements/advances")).toBe(
       "adelantos",
     );

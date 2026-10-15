@@ -416,7 +416,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     expect(screen.getByText("Roberto González")).toBeInTheDocument();
     expect(screen.getByText("$3,000.00")).toBeInTheDocument();
-    expect(screen.getByText("Por autorizar")).toBeInTheDocument();
+    expect(screen.getByText("En autorización")).toBeInTheDocument();
   });
 
   it("2. Renderiza la vista de detalle con KPI cards y partidas desglosadas", async () => {

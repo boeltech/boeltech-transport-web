@@ -6,10 +6,15 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { DriverAdvance } from "../../domain/entities";
 import {
   ADVANCE_CATEGORY_LABELS,
+  DISBURSEMENT_METHOD_LABELS,
   type AdvanceCategory,
+  type DisbursementMethod,
 } from "../../domain/enums";
+import { settlementsCopy } from "../copy/settlementsCopy";
 import { AdvanceStatusBadge } from "./SettlementStatusBadge";
 import { AdvanceActions } from "./AdvanceActions";
+
+const advancesCopy = settlementsCopy.advancesList;
 
 interface DriverAdvanceCardProps {
   advance: DriverAdvance;
@@ -48,7 +53,9 @@ export function DriverAdvanceCard({ advance }: DriverAdvanceCardProps) {
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <CreditCard className="h-3.5 w-3.5" />
           <span>
-            {advance.paymentMethod}
+            {DISBURSEMENT_METHOD_LABELS[
+              advance.paymentMethod as DisbursementMethod
+            ] ?? advance.paymentMethod}
             {advance.bankReference ? ` (${advance.bankReference})` : ""}
           </span>
         </div>
@@ -62,13 +69,17 @@ export function DriverAdvanceCard({ advance }: DriverAdvanceCardProps) {
 
         <div className="border-t pt-2 grid grid-cols-2 gap-2">
           <div>
-            <span className="text-muted-foreground">Entregado:</span>
+            <span className="text-muted-foreground">
+              {advancesCopy.deliveredLabel}:
+            </span>
             <p className="font-medium text-foreground tabular-nums">
               {formatMxCurrency(advance.amount)}
             </p>
           </div>
           <div className="text-right">
-            <span className="text-muted-foreground">Saldo pendiente:</span>
+            <span className="text-muted-foreground">
+              {advancesCopy.balancePendingLabel}:
+            </span>
             <p className="font-bold text-primary tabular-nums">
               {formatMxCurrency(advance.balanceRemaining)}
             </p>

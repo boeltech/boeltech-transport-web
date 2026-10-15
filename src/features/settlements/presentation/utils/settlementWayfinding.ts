@@ -18,6 +18,11 @@ function hrefPath(href: string): string {
   return href.split("?")[0] ?? href;
 }
 
+function hrefSearch(href: string): string {
+  const q = href.indexOf("?");
+  return q >= 0 ? href.slice(q + 1) : "";
+}
+
 /** Solo colas internas de pagos / aprobaciones / esquemas. */
 export function isSafeSettlementReturnHref(href: string): boolean {
   const path = hrefPath(href);
@@ -41,8 +46,16 @@ export function resolveSettlementBackHref(from: string | undefined): string {
 
 export function resolveSettlementWayfindingBackLabel(href: string): string {
   const path = hrefPath(href);
+  const search = hrefSearch(href);
   const copy = settlementsCopy.actions;
-  if (path === SETTLEMENTS_PENDING_APPROVAL_PATH) return copy.backToPendingApproval;
+  const bucket = new URLSearchParams(search).get("bucket");
+
+  if (
+    path === SETTLEMENTS_PENDING_APPROVAL_PATH ||
+    (path === SETTLEMENTS_LIST_PATH && bucket === "approval")
+  ) {
+    return copy.backToPendingApproval;
+  }
   if (path === SETTLEMENTS_REGISTRY_PATH) return copy.backToRegistry;
   if (path === SETTLEMENTS_ADVANCES_PATH) return copy.backToAdvances;
   if (path === "/finance/approvals" || path.startsWith("/finance/approvals/")) {

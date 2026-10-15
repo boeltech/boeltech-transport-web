@@ -209,11 +209,6 @@ export const compensationCopy = {
     },
     discard: "Descartar",
     save: "Guardar",
-    discardConfirmTitle: "¿Descartar cambios?",
-    discardConfirmDescription:
-      "Hay cambios sin guardar. Si sales ahora, se perderán.",
-    discardConfirmAction: "Descartar cambios",
-    discardKeepEditing: "Seguir editando",
     notFoundTitle: "Tarifa no encontrada",
     notFoundDescription: "La tarifa no existe o no tienes acceso.",
     loadingLabel: "Cargando tarifa…",
@@ -435,6 +430,7 @@ export const compensationCopy = {
     loadErrorTitle: "No se pudieron cargar las rutas",
     loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
     retry: "Reintentar",
+    clearFilters: "Limpiar filtros",
   },
   corridorActions: {
     openMenuSr: "Abrir menú de acciones de ruta",

@@ -104,6 +104,22 @@ vi.mock("@features/help-center/presentation", () => ({
   useHelpEmptySupport: () => null,
 }));
 
+vi.mock("@features/employees/application", () => ({
+  useEmployeeBasic: (employeeId: string, enabled = true) => ({
+    data:
+      enabled && employeeId
+        ? {
+            id: employeeId,
+            fullName: "Xaime Weir",
+            firstName: "Xaime",
+            lastName: "Weir",
+            secondLastName: null,
+            employeeNumber: "E-9",
+          }
+        : undefined,
+  }),
+}));
+
 vi.mock("../../application/hooks", () => ({
   useSettlementWorkbench: () => workbench,
   useSettlementWorkbenchCounts: () => workbenchCounts,
@@ -253,5 +269,17 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     expect(
       screen.getByText(workbenchCopy.empty.pipelineDescription),
     ).toBeInTheDocument();
+  });
+
+  it("H-02: chip de operador en En autorización usa nombre (sin UUID)", async () => {
+    renderWithTheme(<SettlementsListPage />, {
+      route: ["/finance/settlements?bucket=approval&employeeId=emp-9"],
+    });
+
+    expect(
+      await screen.findByText(workbenchCopy.chip.employee("Xaime Weir")),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/emp-9/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Operador filtrado")).not.toBeInTheDocument();
   });
 });

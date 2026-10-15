@@ -49,28 +49,31 @@ describe("mapSettlementWorkbenchBuckets", () => {
     expect(buckets.find((b) => b.id === "openAdvances")).toBeUndefined();
   });
 
-  it("adds approval as crossLink to hub Por autorizar when count > 0", () => {
+  it("treats approval as a navigable bucket (not a crossLink)", () => {
+    const onBucketChange = vi.fn();
     const buckets = mapSettlementWorkbenchBuckets({
       summary,
       activeBucket: "pending",
+      onBucketChange,
+    });
+
+    const approval = buckets.find((b) => b.id === "approval");
+    expect(approval?.count).toBe(2);
+    expect(approval?.crossLink).toBeUndefined();
+    expect(approval?.isActive).toBe(false);
+    approval?.onClick();
+    expect(onBucketChange).toHaveBeenCalledWith("approval");
+  });
+
+  it("keeps approval bucket when count is 0", () => {
+    const buckets = mapSettlementWorkbenchBuckets({
+      summary: { ...summary, approval: 0 },
+      activeBucket: "approval",
       onBucketChange: vi.fn(),
     });
 
     const approval = buckets.find((b) => b.id === "approval");
-    expect(approval?.crossLink?.href).toBe(
-      "/finance/settlements/pending-approval",
-    );
-    expect(approval?.count).toBe(2);
-    expect(approval?.description).toMatch(/Por autorizar/i);
-  });
-
-  it("omits approval crossLink when count is 0", () => {
-    const buckets = mapSettlementWorkbenchBuckets({
-      summary: { ...summary, approval: 0 },
-      activeBucket: "pending",
-      onBucketChange: vi.fn(),
-    });
-
-    expect(buckets.find((b) => b.id === "approval")).toBeUndefined();
+    expect(approval?.count).toBe(0);
+    expect(approval?.isActive).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import { AlertCircle, Download, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import { type ActiveFilterChip } from "@shared/ui/listing";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
@@ -15,6 +16,7 @@ import {
   DriverAdvanceCreateDialog,
 } from "../components";
 import { exportDriverAdvancesCsv } from "../utils/settlementExportHelpers";
+import { useEmployeeFilterChipLabel } from "../hooks/useEmployeeFilterChipLabel";
 import { useRegisterCompensationHubCreateAction } from "@features/compensation/presentation/hooks/useRegisterCompensationHubCreateAction";
 
 const copy = settlementsCopy;
@@ -46,9 +48,6 @@ export function SettlementsAdvancesPage() {
     filters: {
       employeeId: {},
     },
-    chipLabels: {
-      employeeId: (value) => `Operador: ${value.slice(0, 8)}`,
-    },
   });
 
   const employeeIdFilter = filters.filters.employeeId || "";
@@ -66,9 +65,17 @@ export function SettlementsAdvancesPage() {
   });
 
   const showLoadError = isError && !isLoading;
+  const advancesList = useMemo(
+    () => advancesData?.data ?? [],
+    [advancesData?.data],
+  );
+
+  const employeeChipLabel = useEmployeeFilterChipLabel(
+    employeeIdFilter,
+    advancesList,
+  );
 
   const filteredAdvances = useMemo(() => {
-    const advancesList = advancesData?.data ?? [];
     if (!filters.search.trim()) return advancesList;
     const q = filters.search.toLowerCase();
     return advancesList.filter(
@@ -78,7 +85,18 @@ export function SettlementsAdvancesPage() {
         (a.tripCode && a.tripCode.toLowerCase().includes(q)) ||
         (a.bankReference && a.bankReference.toLowerCase().includes(q)),
     );
-  }, [advancesData?.data, filters.search]);
+  }, [advancesList, filters.search]);
+
+  const activeFilterChips: ActiveFilterChip[] = employeeIdFilter
+    ? [
+        ...filters.activeChips,
+        {
+          id: "employeeId",
+          label: employeeChipLabel,
+          onRemove: () => filters.setFilter("employeeId", ""),
+        },
+      ]
+    : filters.activeChips;
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -164,7 +182,7 @@ export function SettlementsAdvancesPage() {
           },
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
-          activeFilterChips: filters.activeChips,
+          activeFilterChips,
           onClearFilters: filters.clearAll,
           hasFilters: filters.hasFilters,
           viewMode: filters.viewModeProps,
@@ -189,7 +207,7 @@ export function SettlementsAdvancesPage() {
               onChange={(employeeId) =>
                 filters.setFilter("employeeId", employeeId)
               }
-              placeholder="Todos los operadores"
+              placeholder={advancesCopy.operatorAll}
               allowClear
             />
           ),

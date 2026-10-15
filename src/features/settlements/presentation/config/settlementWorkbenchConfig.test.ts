@@ -1,37 +1,53 @@
 import { describe, expect, it } from "vitest";
 import {
-  BUCKET_PIPELINE_STATUSES,
-  resolveDefaultWorkbenchBucket,
   SETTLEMENT_WORKBENCH_BUCKETS,
+  settlementsApprovalsInboxPath,
   settlementsCompensationApprovalsPath,
+  settlementsDriverAdvanceApprovalsPath,
+  settlementsPendingApprovalRedirectPath,
 } from "./settlementWorkbenchConfig";
 
 describe("settlementWorkbenchConfig", () => {
-  it("exposes four navigable KPI buckets without approval", () => {
+  it("exposes five navigable KPI buckets including approval", () => {
     expect(SETTLEMENT_WORKBENCH_BUCKETS).toEqual([
       "pending",
       "draft",
+      "approval",
       "payable",
       "closed",
     ]);
   });
 
-  it("maps pipeline buckets to settlement statuses", () => {
-    expect(BUCKET_PIPELINE_STATUSES.draft).toEqual(["draft", "rejected"]);
-    expect(BUCKET_PIPELINE_STATUSES.payable).toEqual(["approved"]);
-    expect(BUCKET_PIPELINE_STATUSES.closed).toEqual(["disbursed"]);
-  });
-
-  it("builds Por autorizar hub deep link for compensation payments", () => {
+  it("builds En autorización workbench deep link for compensation payments", () => {
     expect(settlementsCompensationApprovalsPath()).toBe(
-      "/finance/settlements/pending-approval",
+      "/finance/settlements?bucket=approval",
     );
     expect(settlementsCompensationApprovalsPath({ driverId: "emp-9" })).toBe(
-      "/finance/settlements/pending-approval?driverId=emp-9",
+      "/finance/settlements?bucket=approval&employeeId=emp-9",
+    );
+    expect(settlementsCompensationApprovalsPath({ employeeId: "emp-9" })).toBe(
+      "/finance/settlements?bucket=approval&employeeId=emp-9",
     );
   });
 
-  it("defaults all roles to pending (Pendientes)", () => {
-    expect(resolveDefaultWorkbenchBucket()).toBe("pending");
+  it("keeps advances on the global Approvals inbox", () => {
+    expect(settlementsDriverAdvanceApprovalsPath()).toBe(
+      "/finance/approvals?type=driver_advance_request&status=pending",
+    );
+  });
+
+  it("points review-in-approvals to the global liquidaciones inbox", () => {
+    expect(settlementsApprovalsInboxPath()).toBe(
+      "/finance/approvals?type=internal_staff_compensation&status=pending",
+    );
+  });
+
+  it("redirects legacy pending-approval tab to the approval bucket", () => {
+    expect(settlementsPendingApprovalRedirectPath()).toBe(
+      "/finance/settlements?bucket=approval",
+    );
+    expect(settlementsPendingApprovalRedirectPath("?driverId=emp-9")).toBe(
+      "/finance/settlements?bucket=approval&employeeId=emp-9",
+    );
   });
 });

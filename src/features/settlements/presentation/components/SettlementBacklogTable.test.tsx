@@ -471,7 +471,7 @@ describe("SettlementBacklogTable period_overlap CTA (F2)", () => {
       settlementsPendingApprovalPath({ driverId: "emp-77" }),
     );
     expect(overlapLink.getAttribute("href")).toBe(
-      "/finance/settlements/pending-approval?driverId=emp-77",
+      "/finance/settlements?bucket=approval&employeeId=emp-77",
     );
   });
 

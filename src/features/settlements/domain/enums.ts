@@ -134,7 +134,7 @@ export type AdvanceStatus =
 
 export const ADVANCE_STATUS_LABELS: Record<AdvanceStatus, string> = {
   draft: "Borrador",
-  pending_approval: "Por autorizar",
+  pending_approval: "En autorización",
   pending_disbursement: "Autorizado (pendiente entrega)",
   disbursed: "Entregado (abierto)",
   partially_applied: "Parcialmente descontado",
@@ -157,7 +157,7 @@ export type SettlementStatus =
 
 export const SETTLEMENT_STATUS_LABELS: Record<SettlementStatus, string> = {
   draft: "Borrador",
-  pending_approval: "Por autorizar",
+  pending_approval: "En autorización",
   approved: "Autorizado",
   disbursed: "Pagado",
   rejected: "Rechazado",

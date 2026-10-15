@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CompensationSchemeBuilderPage } from "./CompensationSchemeBuilderPage";
 import type { CompensationTemplate } from "../../domain/entities";
 import { ApiError } from "@shared/api/interceptors/error-handler";
+import { UNSAVED_CHANGES_COPY } from "@shared/hooks/useUnsavedChangesGuard";
 import { compensationCopy } from "../copy/compensationCopy";
 
 const {
@@ -118,31 +119,35 @@ const template: CompensationTemplate = {
   activeAssignmentsCount: 0,
 };
 
+// Data router required: CompensationSchemeBuilderPage uses useUnsavedChangesGuard → useBlocker.
 function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <Routes>
-          <Route
-            path="/finance/compensation/templates/:id/build"
-            element={<CompensationSchemeBuilderPage />}
-          />
-          <Route
-            path="/finance/compensation/templates"
-            element={<div>Lista de esquemas</div>}
-          />
-          <Route
-            path="/finance/settlements/new"
-            element={<div>Armar pago</div>}
-          />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/finance/compensation/templates/:id/build",
+        element: (
+          <QueryClientProvider client={client}>
+            <CompensationSchemeBuilderPage />
+          </QueryClientProvider>
+        ),
+      },
+      {
+        path: "/finance/compensation/templates",
+        element: <div>Lista de esquemas</div>,
+      },
+      {
+        path: "/finance/settlements/new",
+        element: <div>Armar pago</div>,
+      },
+    ],
+    { initialEntries: [initialPath] },
   );
+
+  return render(<RouterProvider router={router} />);
 }
 
 describe("CompensationSchemeBuilderPage", () => {
@@ -291,7 +296,65 @@ describe("CompensationSchemeBuilderPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Descartar" }));
 
-    expect(screen.getByText("Lista de esquemas")).toBeInTheDocument();
+    expect(await screen.findByText("Lista de esquemas")).toBeInTheDocument();
+  });
+
+  it("H-15: con cambios, Descartar abre UnsavedChangesDialog; Seguir editando permanece y Salir navega", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.type(screen.getByLabelText("Nombre"), " v2");
+    await user.click(screen.getByRole("button", { name: "Descartar" }));
+
+    const dialog = await screen.findByRole("alertdialog", {
+      name: UNSAVED_CHANGES_COPY.title,
+    });
+    expect(dialog).toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: UNSAVED_CHANGES_COPY.keepEditingLabel,
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Nombre")).toHaveValue("Operador foráneo v2");
+    expect(screen.queryByText("Lista de esquemas")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Descartar" }));
+    await user.click(
+      within(
+        await screen.findByRole("alertdialog", {
+          name: UNSAVED_CHANGES_COPY.title,
+        }),
+      ).getByRole("button", { name: UNSAVED_CHANGES_COPY.confirmLabel }),
+    );
+
+    expect(await screen.findByText("Lista de esquemas")).toBeInTheDocument();
+  });
+
+  it("H-15: footer con un solo primary — Guardar sólido y Activar outline deshabilitado en borrador incompleto", () => {
+    mockUseCompensationTemplate.mockReturnValue({
+      data: {
+        ...template,
+        isActive: false,
+        status: "draft",
+        rules: [],
+        corridorIds: [],
+        corridors: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderPage();
+
+    const activate = screen.getByRole("button", {
+      name: compensationCopy.templateActions.activate,
+    });
+    expect(activate).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
   });
 
   it("muestra not found cuando falla la carga", () => {

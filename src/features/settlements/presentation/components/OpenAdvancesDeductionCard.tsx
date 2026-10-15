@@ -1,9 +1,8 @@
 import { CheckCheck, RotateCcw } from "lucide-react";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
+import { FieldInlineError, getFieldErrorAriaProps, MoneyInput } from "@shared/ui/form";
 import {
   Table,
   TableBody,
@@ -92,11 +91,11 @@ export function OpenAdvancesDeductionCard({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12 text-center">Aplicar</TableHead>
-                  <TableHead className="w-24">Folio</TableHead>
-                  <TableHead>Concepto / Tipo</TableHead>
-                  <TableHead className="text-right">Saldo pendiente</TableHead>
-                  <TableHead className="text-right w-44">Monto a descontar</TableHead>
+                  <TableHead className="w-12 text-center">{createCopy.advances.applyCol}</TableHead>
+                  <TableHead className="w-24">{createCopy.advances.folioCol}</TableHead>
+                  <TableHead>{createCopy.advances.conceptCol}</TableHead>
+                  <TableHead className="text-right">{createCopy.advances.balanceCol}</TableHead>
+                  <TableHead className="text-right w-44">{createCopy.advances.deductCol}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -117,7 +116,7 @@ export function OpenAdvancesDeductionCard({
                           }
                         />
                       </TableCell>
-                      <TableCell className="font-semibold text-primary font-mono text-xs">
+                      <TableCell className="font-semibold text-foreground font-mono text-xs tabular-nums">
                         {adv.folio}
                       </TableCell>
                       <TableCell className="text-xs">
@@ -125,8 +124,8 @@ export function OpenAdvancesDeductionCard({
                           {ADVANCE_CATEGORY_LABELS[adv.category] ?? adv.category}
                         </span>
                         {adv.disbursedAt && (
-                          <span className="text-[11px] text-muted-foreground block mt-0.5">
-                            Entregado: {formatDate(adv.disbursedAt)}
+                          <span className="text-xs text-muted-foreground block mt-0.5">
+                            {createCopy.advances.deliveredPrefix} {formatDate(adv.disbursedAt)}
                           </span>
                         )}
                       </TableCell>
@@ -134,40 +133,36 @@ export function OpenAdvancesDeductionCard({
                         {formatMxCurrency(maxDeduct)}
                         {adv.reservedBySettlementNumber ? (
                           <span
-                            className="block text-[10px] font-normal text-muted-foreground mt-0.5"
+                            className="block text-xs font-normal text-muted-foreground mt-0.5"
                             data-testid={`advance-reserved-elsewhere-${adv.advanceId}`}
                           >
                             {createCopy.summary.reservedElsewhereHint(adv.reservedBySettlementNumber)}
                           </span>
                         ) : (adv.reservedAmount ?? 0) > 0 ? (
-                          <span className="block text-[10px] font-normal text-muted-foreground mt-0.5">
+                          <span className="block text-xs font-normal text-muted-foreground mt-0.5">
                             {createCopy.summary.reservedAdvanceHint}
                           </span>
                         ) : null}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="space-y-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max={maxDeduct}
+                          <MoneyInput
                             disabled={!isSelected}
-                            value={isSelected ? currentVal : ""}
-                            onChange={(e) =>
+                            value={isSelected ? currentVal : undefined}
+                            onValueChange={(val) =>
                               onAmountChange(
                                 adv.advanceId,
                                 maxDeduct,
-                                parseFloat(e.target.value) || 0,
+                                Math.min(maxDeduct, Math.max(0, val ?? 0)),
                               )
                             }
                             aria-label={`${createCopy.advances.amountAriaLabel} ${adv.folio}`}
                             error={isSelected && Boolean(error)}
                             {...(isSelected ? getFieldErrorAriaProps(fieldId, error) : {})}
-                            className="h-8 text-right tabular-nums text-xs"
+                            className="h-8 text-xs"
                           />
                           {isSelected && remainingAfterDeduction > 0 && (
-                            <p className="text-[10px] text-muted-foreground text-right tabular-nums">
+                            <p className="text-xs text-muted-foreground text-right tabular-nums">
                               {capCopy.pendingNextCut(formatMxCurrency(remainingAfterDeduction))}
                             </p>
                           )}

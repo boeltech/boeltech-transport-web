@@ -8,6 +8,8 @@ import { DATE_FIELD_COPY } from "@shared/ui/form";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 
 import type { DriverSettlement } from "../../domain/entities";
+import { settlementsCopy } from "../copy/settlementsCopy";
+import { disburseSettlementFormSchema } from "../validation/settlementSchemas";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
 
 const mockMutateAsync = vi.fn();
@@ -246,5 +248,41 @@ describe("DisburseSettlementDialog", () => {
     expect(mockToast).not.toHaveBeenCalled();
     expect(onSuccess).not.toHaveBeenCalled();
     expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("H-14: error genérico de red solo inline (sin toast)", async () => {
+    const user = userEvent.setup();
+    mockMutateAsync.mockRejectedValueOnce(new Error("Red caída"));
+    renderDialog();
+
+    await user.type(screen.getByLabelText(/referencia bancaria/i), "SPEI-1");
+    await user.click(screen.getByRole("button", { name: /confirmar pago realizado/i }));
+
+    expect(await screen.findByText("No se pudo registrar el pago")).toBeInTheDocument();
+    expect(screen.getByText("Red caída")).toBeInTheDocument();
+    expect(mockToast).not.toHaveBeenCalled();
+  });
+
+  it("H-14 / D3: referencia sigue obligatoria en cash (schema intacto) y el hint está en copy", () => {
+    const parsed = disburseSettlementFormSchema.safeParse({
+      disbursementMethod: "cash",
+      disbursementReference: "",
+      disbursedAt: "2026-08-15T10:00",
+      notes: "",
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.some((i) => i.path.includes("disbursementReference"))).toBe(
+        true,
+      );
+    }
+    expect(settlementsCopy.settlementFlow.disburse.referenceCashHint).toMatch(
+      /obligatorio/i,
+    );
+
+    renderDialog();
+    expect(
+      screen.getByLabelText(settlementsCopy.settlementFlow.disburse.referenceLabel),
+    ).toBeInTheDocument();
   });
 });

@@ -154,7 +154,6 @@ export function CorridorTariffsListPage() {
         title={copy.title}
         beforeToolbar={
           <>
-            <p className="mb-4 text-sm text-muted-foreground">{copy.description}</p>
             {showLoadError ? (
               <DetailAlertCard
                 severity="critical"
@@ -180,9 +179,8 @@ export function CorridorTariffsListPage() {
                 severity="warning"
                 icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
                 title={copy.duplicateBannerTitle}
-              >
-                <p>{copy.duplicateBanner}</p>
-              </DetailAlertCard>
+                items={[{ text: copy.duplicateBanner }]}
+              />
             ) : null}
           </>
         }
@@ -207,7 +205,7 @@ export function CorridorTariffsListPage() {
           cta: canCreate ? { label: copy.create, onClick: openCreate } : undefined,
           secondaryCta: filters.hasFilters
             ? {
-                label: "Limpiar filtros",
+                label: copy.clearFilters,
                 onClick: filters.clearAll,
                 variant: "outline",
               }

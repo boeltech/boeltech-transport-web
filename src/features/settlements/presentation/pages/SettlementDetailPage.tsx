@@ -179,16 +179,20 @@ export function SettlementDetailPage() {
     }
   };
 
+  const dCopy = copy.detailPage;
+
   const companyDisplayName =
     companySettings?.legalName ||
     companySettings?.tradeName ||
     user?.tenant?.name ||
-    "Empresa de Transporte";
+    dCopy.fallbacks.companyName;
 
   const companyRfc = companySettings?.rfc || undefined;
 
   const handlePrint = () => {
-    const title = `${escapeHtml(companyDisplayName)} - ${escapeHtml(settlement?.settlementNumber || "Pago")}`;
+    const title = `${escapeHtml(companyDisplayName)} - ${escapeHtml(
+      settlement?.settlementNumber || dCopy.fallbacks.paymentTitle,
+    )}`;
     triggerPrint(title);
   };
 
@@ -200,12 +204,10 @@ export function SettlementDetailPage() {
 
   const rawCalcType = agreement?.calculationType;
   const calculationTypeLabel = isComposite
-    ? copy.detailPage.tariff.compositeLabel
+    ? dCopy.tariff.compositeLabel
     : rawCalcType
       ? COMPENSATION_CALCULATION_TYPE_LABELS[rawCalcType] ?? String(rawCalcType)
-      : "Sin acuerdo";
-
-  const dCopy = copy.detailPage;
+      : dCopy.fallbacks.noAgreement;
   const isReimbursementOnly = settlement?.settlementKind === "reimbursement_only";
   /** Rearmar tras rechazo o cancelación: mismo operador y, en pagos normales, mismas fechas. */
   const rebuildPath = settlement
@@ -258,8 +260,8 @@ export function SettlementDetailPage() {
         notFound={!settlement}
         notFoundConfig={{
           icon: <Banknote className="h-8 w-8 text-muted-foreground" />,
-          title: "Pago no encontrado",
-          description: "No se encontró el pago solicitado o no tienes permisos para consultarlo.",
+          title: dCopy.notFound.title,
+          description: dCopy.notFound.description,
           backHref,
           backLabel,
         }}
@@ -278,7 +280,7 @@ export function SettlementDetailPage() {
               <SettlementKindBadge kind={settlement.settlementKind} />
             </span>
           ) : (
-            "Pago"
+            dCopy.fallbacks.paymentTitle
           ),
           subtitle: settlement ? (
             <div className="space-y-0.5">
@@ -320,6 +322,7 @@ export function SettlementDetailPage() {
                 variant="buttons"
                 settlement={settlement}
                 onCorrect={() => setCorrectionOpen(true)}
+                onOpenHistory={() => setHistoryOpen(true)}
                 onActionComplete={() => {
                   void refetch();
                 }}
@@ -371,7 +374,7 @@ export function SettlementDetailPage() {
                             {flowCopy.returnedAlert.resubmitUnchanged}
                           </Button>
                           {hasMissingDataGaps && !acknowledgeMissingData ? (
-                            <p className="text-[11px] leading-snug text-warning">
+                            <p className="text-xs leading-snug text-warning">
                               {missingDataGateCopy.submitBlockedHint}
                             </p>
                           ) : null}
@@ -408,6 +411,35 @@ export function SettlementDetailPage() {
                   }
                 >
                   <p>{copy.reimbursements.cancelled.body}</p>
+                </DetailAlertCard>
+              </div>
+            ) : null}
+
+            {settlement.status === "rejected" ? (
+              <div data-testid="settlement-rejected-alert">
+                <DetailAlertCard
+                  severity="critical"
+                  icon={<AlertCircle className="h-5 w-5" aria-hidden />}
+                  title={dCopy.rejection.title}
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(rebuildPath)}
+                      className="gap-1.5"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      {dCopy.rejection.reopenDraftBtn}
+                    </Button>
+                  }
+                >
+                  <p>
+                    <span className="font-medium text-foreground/80">
+                      {dCopy.rejection.reasonLabel}{" "}
+                    </span>
+                    {settlement.rejectionReason || dCopy.rejection.reasonFallback}
+                  </p>
                 </DetailAlertCard>
               </div>
             ) : null}
@@ -450,12 +482,12 @@ export function SettlementDetailPage() {
                   </div>
                 </div>
 
-                <div className="p-4 sm:p-5 flex flex-col justify-between bg-primary/5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                <div className="p-4 sm:p-5 flex flex-col justify-between bg-muted/30">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {dCopy.balanceStrip.netToPay}
                   </span>
                   <div className="mt-2">
-                    <p className="text-2xl sm:text-3xl font-extrabold tabular-nums text-primary">
+                    <p className="text-2xl sm:text-3xl font-extrabold tabular-nums text-foreground">
                       {formatMxCurrency(settlement.netAmount)}
                     </p>
                     <p className="text-xs font-medium text-foreground mt-0.5">
@@ -468,35 +500,6 @@ export function SettlementDetailPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               <div className="lg:col-span-8 space-y-6">
-                {settlement.status === "rejected" ? (
-                  <div data-testid="settlement-rejected-alert">
-                    <DetailAlertCard
-                      severity="critical"
-                      icon={<AlertCircle className="h-5 w-5" aria-hidden />}
-                      title={dCopy.rejection.title}
-                      action={
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(rebuildPath)}
-                          className="gap-1.5"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          {dCopy.rejection.reopenDraftBtn}
-                        </Button>
-                      }
-                    >
-                      <p>
-                        <span className="font-medium text-foreground/80">
-                          {dCopy.rejection.reasonLabel}{" "}
-                        </span>
-                        {settlement.rejectionReason || "Sin motivo especificado."}
-                      </p>
-                    </DetailAlertCard>
-                  </div>
-                ) : null}
-
                 {/* D3: desglose colapsable según estado */}
                 <Collapsible defaultOpen={expandItemsByDefault} className="group">
                   <Card>
@@ -561,13 +564,13 @@ export function SettlementDetailPage() {
                         >
                           <Check className="h-2.5 w-2.5" />
                         </span>
-                        <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
                           {dCopy.workflow.step1}
                         </p>
                         <p className="text-xs font-semibold text-foreground truncate">
                           {settlement.submittedByName ?? settlement.createdByName ?? "—"}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {settlement.submittedAt || settlement.createdAt
                             ? formatDate(settlement.submittedAt || settlement.createdAt)
                             : "—"}
@@ -591,7 +594,7 @@ export function SettlementDetailPage() {
                             <X className="h-2.5 w-2.5" />
                           ) : null}
                         </span>
-                        <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
                           {dCopy.workflow.step2}
                         </p>
                         <p className="text-xs font-semibold text-foreground truncate">
@@ -600,7 +603,7 @@ export function SettlementDetailPage() {
                               ? dCopy.rejection.title
                               : dCopy.workflow.pendingManagement)}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {settlement.approvedAt
                             ? formatDate(settlement.approvedAt)
                             : dCopy.workflow.notApproved}
@@ -614,7 +617,7 @@ export function SettlementDetailPage() {
                             <div className="mt-1">
                               <SelfApprovedBadge />
                             </div>
-                            <p className="text-[10px] text-muted-foreground italic mt-0.5">
+                            <p className="text-xs text-muted-foreground italic mt-0.5">
                               {settlement.approverCountAtApprove != null
                                 ? dCopy.workflow.selfSegregatedApprovalCount(
                                     settlement.approverCountAtApprove,
@@ -636,7 +639,7 @@ export function SettlementDetailPage() {
                         >
                           {settlement.disbursedByName ? <Check className="h-2.5 w-2.5" /> : null}
                         </span>
-                        <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
                           {dCopy.workflow.step3}
                         </p>
                         {isDisbursed ? (
@@ -644,22 +647,22 @@ export function SettlementDetailPage() {
                             <p className="font-semibold text-foreground truncate">
                               {settlement.disbursedByName ?? "—"}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {settlement.disbursedAt ? formatDate(settlement.disbursedAt) : "—"}
                               {" · "}
                               {settlement.disbursementMethod
                                 ? (DISBURSEMENT_METHOD_LABELS[settlement.disbursementMethod] ??
                                   settlement.disbursementMethod)
-                                : "SPEI"}
+                                : dCopy.fallbacks.speiMethod}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {dCopy.paymentInfo.reference}:{" "}
                               <span className="font-mono text-foreground">
                                 {settlement.disbursementReference ?? "—"}
                               </span>
                             </p>
                             {settlement.selfSegregatedDisbursement ? (
-                              <p className="text-[10px] text-muted-foreground italic">
+                              <p className="text-xs text-muted-foreground italic">
                                 {settlement.executorCountAtDisburse != null
                                   ? dCopy.workflow.selfSegregatedDisbursementCount(
                                       settlement.executorCountAtDisburse,
@@ -673,7 +676,7 @@ export function SettlementDetailPage() {
                             <p className="text-xs font-semibold text-foreground">
                               {dCopy.workflow.pendingDisbursement}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {dCopy.workflow.notDisbursed}
                             </p>
                           </>
@@ -728,10 +731,10 @@ export function SettlementDetailPage() {
                             {Boolean(agreement?.hasFixedSalary) && (
                               <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">{dCopy.tariff.fixedSalary}</span>
-                                <span className="font-semibold text-primary">
+                                <span className="font-semibold text-foreground tabular-nums">
                                   {formatMxCurrency(agreement?.fixedSalaryAmount ?? 0)}{" "}
-                                  <span className="text-[11px] text-muted-foreground font-normal">
-                                    ({COMPENSATION_SALARY_PERIOD_LABELS[agreement?.fixedSalaryPeriod as CompensationSalaryPeriod] ?? "semanal"})
+                                  <span className="text-xs text-muted-foreground font-normal">
+                                    ({COMPENSATION_SALARY_PERIOD_LABELS[agreement?.fixedSalaryPeriod as CompensationSalaryPeriod] ?? dCopy.fallbacks.weeklyPeriod})
                                   </span>
                                 </span>
                               </div>
@@ -739,7 +742,7 @@ export function SettlementDetailPage() {
 
                             {agreement?.rules && agreement.rules.length > 0 && (
                               <div className="space-y-1.5 pt-1">
-                                <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
                                   <Route className="h-3 w-3" /> {dCopy.tariff.routesTitle}
                                 </span>
                                 <div className="space-y-1">
@@ -747,7 +750,7 @@ export function SettlementDetailPage() {
                                     const routeLabel =
                                       TRIP_ROUTE_TYPE_LABELS[rule.routeType as TripRouteType] ??
                                       rule.routeType;
-                                    let ruleText = "Sin comisión";
+                                    let ruleText: string = dCopy.fallbacks.noCommission;
                                     if (rule.commissionType === "rate_per_km") {
                                       ruleText = `${formatMxCurrency(rule.rateValue)} / km`;
                                     } else if (rule.commissionType === "percentage_of_freight") {
@@ -762,7 +765,7 @@ export function SettlementDetailPage() {
                                         className="flex justify-between items-center py-1 border-b border-border/50 last:border-b-0"
                                       >
                                         <span className="font-medium text-foreground">{routeLabel}:</span>
-                                        <span className="text-primary font-semibold tabular-nums">
+                                        <span className="text-foreground font-semibold tabular-nums">
                                           {ruleText}
                                         </span>
                                       </div>
@@ -809,7 +812,7 @@ export function SettlementDetailPage() {
                           </div>
                         )}
 
-                        <p className="text-[10px] text-muted-foreground italic pt-1 border-t border-dashed">
+                        <p className="text-xs text-muted-foreground italic pt-1 border-t border-dashed">
                           {dCopy.tariff.disclaimer}
                         </p>
                       </CardContent>
@@ -828,16 +831,16 @@ export function SettlementDetailPage() {
           <DialogHeader className="p-4 border-b print:hidden">
             <div className="flex justify-between items-center pr-6">
               <div>
-                <DialogTitle>Recibo de pago</DialogTitle>
+                <DialogTitle>{dCopy.receiptDialog.title}</DialogTitle>
                 <DialogDescription>
                   {receiptSignable
-                    ? "Vista previa para impresión y firma del operador."
+                    ? dCopy.receiptDialog.previewDescription
                     : dCopy.receipt.previewDialogDescription}
                 </DialogDescription>
               </div>
               <Button onClick={handlePrint} disabled={isPrinting} className="gap-1.5">
                 <Printer className="h-4 w-4" />
-                <span>{isPrinting ? "Preparando..." : "Imprimir"}</span>
+                <span>{isPrinting ? dCopy.receiptDialog.preparing : dCopy.receiptDialog.print}</span>
               </Button>
             </div>
           </DialogHeader>

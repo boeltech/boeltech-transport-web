@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useWatch } from "react-hook-form";
 import {
@@ -29,8 +36,9 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { LoadingPageState, NotFoundState } from "@shared/ui/feedback-states";
+import { UnsavedChangesDialog } from "@shared/ui/form";
 import { usePermissions } from "@shared/permissions";
-import { useToast } from "@shared/hooks";
+import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { settlementCreatePath } from "@features/settlements/application/settlementsRoutes";
 import {
@@ -87,7 +95,6 @@ export function CompensationSchemeBuilderPage() {
   const canUpdate = hasPermission("settlements", "update");
 
   const [activeSectionId, setActiveSectionId] = useState<BuilderSectionId>("payment");
-  const [discardOpen, setDiscardOpen] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
 
   const {
@@ -140,6 +147,26 @@ export function CompensationSchemeBuilderPage() {
   const watchedValues = useWatch({ control: form.control });
   const isDirty = form.formState.isDirty;
 
+  // Guard de cambios sin guardar (DS § Formularios largos). Bloqueada = solo lectura, sin guard.
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+    isDirty,
+    enabled: !locked,
+  });
+  // Guardar: liberar el guard mientras corre la mutación (onSuccess navega al catálogo);
+  // si falla o la validación no pasa, se vuelve a armar.
+  const wasSavingRef = useRef(false);
+  useEffect(() => {
+    if (isSaving) {
+      wasSavingRef.current = true;
+      allowLeave();
+      return;
+    }
+    if (wasSavingRef.current) {
+      wasSavingRef.current = false;
+      resetAllowLeave();
+    }
+  }, [allowLeave, isSaving, resetAllowLeave]);
+
   const activateMutation = useActivateCompensationTemplate();
   const createVersionMutation = useCreateCompensationTemplateVersion();
 
@@ -185,17 +212,10 @@ export function CompensationSchemeBuilderPage() {
     }
   }, []);
 
-  const navigateBack = useCallback(() => {
+  // Descartar navega directo: si hay cambios, el blocker abre `UnsavedChangesDialog`.
+  const handleDiscardClick = useCallback(() => {
     navigate(COMPENSATION_TEMPLATES_PATH);
   }, [navigate]);
-
-  const handleDiscardClick = useCallback(() => {
-    if (isDirty) {
-      setDiscardOpen(true);
-      return;
-    }
-    navigateBack();
-  }, [isDirty, navigateBack]);
 
   const handleCreateVersion = useCallback(async () => {
     if (!template) return;
@@ -278,9 +298,17 @@ export function CompensationSchemeBuilderPage() {
         loading: createVersionMutation.isPending,
       });
     } else {
+      const showActivate =
+        canUpdate &&
+        (template?.status === "draft" || template?.status === "inactive");
+      // Un solo primary sólido: Activar cuando la tarifa está lista (guardada y
+      // completa); si no, Guardar es el primary y Activar queda outline deshabilitado.
+      const canActivateNow = showActivate && !isDirty && isComplete;
+
       actions.push({
         id: "save",
         label: copy.save,
+        variant: canActivateNow ? "outline" : "default",
         onClick: () => {
           void onSubmit();
         },
@@ -288,15 +316,13 @@ export function CompensationSchemeBuilderPage() {
         loading: isSaving,
       });
 
-      const showActivate =
-        canUpdate &&
-        (template?.status === "draft" || template?.status === "inactive");
       if (showActivate) {
         actions.push({
           id: "activate",
           label: actionsCopy.activate,
+          variant: canActivateNow ? "default" : "outline",
           onClick: () => setActivateOpen(true),
-          disabled: isDirty || !isComplete || activateMutation.isPending,
+          disabled: !canActivateNow || activateMutation.isPending,
           loading: activateMutation.isPending,
         });
       }
@@ -534,22 +560,7 @@ export function CompensationSchemeBuilderPage() {
         />
       </form>
 
-      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.discardConfirmTitle}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {copy.discardConfirmDescription}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{copy.discardKeepEditing}</AlertDialogCancel>
-            <AlertDialogAction onClick={navigateBack}>
-              {copy.discardConfirmAction}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UnsavedChangesDialog blocker={blocker} />
 
       <AlertDialog open={activateOpen} onOpenChange={setActivateOpen}>
         <AlertDialogContent>

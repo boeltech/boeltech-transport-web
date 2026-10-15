@@ -22,7 +22,9 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { DriverAdvance } from "../../domain/entities";
 import {
   ADVANCE_CATEGORY_LABELS,
+  DISBURSEMENT_METHOD_LABELS,
   type AdvanceCategory,
+  type DisbursementMethod,
 } from "../../domain/enums";
 import { showsSelfApprovedBadge } from "@features/approvals/domain";
 import {
@@ -171,7 +173,11 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
 
                 {/* Método / Referencia */}
                 <TableCell className="text-muted-foreground whitespace-nowrap">
-                  <span>{adv.paymentMethod}</span>
+                  <span>
+                    {DISBURSEMENT_METHOD_LABELS[
+                      adv.paymentMethod as DisbursementMethod
+                    ] ?? adv.paymentMethod}
+                  </span>
                   {adv.bankReference ? (
                     <span className="text-xs text-muted-foreground font-mono ml-1">
                       ({adv.bankReference})

@@ -180,24 +180,18 @@ export function settlementsRegistryPath(
 
 
 
-/** Bandeja Por autorizar; `driverId` filtra por operador (ApprovalInboxPage). */
-
+/**
+ * Cortes en autorización → bucket del workbench.
+ * `driverId` se mapea a `employeeId` (compat deep-links del tab eliminado).
+ */
 export function settlementsPendingApprovalPath(
-
-  params?: { driverId?: string },
-
+  params?: { driverId?: string; employeeId?: string },
 ): string {
-
-  if (!params?.driverId) {
-
-    return SETTLEMENTS_PENDING_APPROVAL_PATH;
-
-  }
-
-  const qs = new URLSearchParams({ driverId: params.driverId });
-
-  return `${SETTLEMENTS_PENDING_APPROVAL_PATH}?${qs.toString()}`;
-
+  const employeeId = params?.employeeId ?? params?.driverId;
+  return settlementsWorkbenchBucketPath(
+    "approval",
+    employeeId ? { employeeId } : undefined,
+  );
 }
 
 
@@ -374,7 +368,6 @@ export function resolveLegacySettlementsPath(
 
 export type OperatorPaymentsHubTab =
   | "por-pagar"
-  | "por-autorizar"
   | "adelantos"
   | "como-te-pago"
   | "tabla-de-rutas";
@@ -384,7 +377,8 @@ export function resolveOperatorPaymentsHubTab(
 ): OperatorPaymentsHubTab {
   const normalized = pathname.replace(/\/+$/, "") || "/";
 
-  if (normalized === SETTLEMENTS_PENDING_APPROVAL_PATH) return "por-autorizar";
+  // Ruta legacy del tab eliminado: el redirect del router aterriza en Por pagar.
+  if (normalized === SETTLEMENTS_PENDING_APPROVAL_PATH) return "por-pagar";
   if (
     normalized === SETTLEMENTS_ADVANCES_PATH ||
     normalized.startsWith(`${SETTLEMENTS_ADVANCES_PATH}/`)

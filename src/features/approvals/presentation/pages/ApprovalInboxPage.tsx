@@ -155,7 +155,7 @@ export interface ApprovalInboxPageProps {
    */
   embedded?: boolean;
   /**
-   * Fija el tipo (p. ej. «Por autorizar» de Pagos a operadores): sin
+   * Fija el tipo (p. ej. liquidaciones embebidas en un host): sin
    * tarjetas de tipo y sin `type` en la URL.
    */
   lockedType?: ApprovalWorkbenchType;

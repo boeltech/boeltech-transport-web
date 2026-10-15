@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, ArrowLeft, Download, Plus } from "lucide-react";
+import { AlertCircle, Archive, ArrowLeft, Download, Search } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import { type ActiveFilterChip } from "@shared/ui/listing";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { settlementsCopy } from "../copy/settlementsCopy";
@@ -22,6 +23,7 @@ import {
   SettlementRegistryFilters,
 } from "../components";
 import { exportSettlementsCsv } from "../utils/settlementExportHelpers";
+import { useEmployeeFilterChipLabel } from "../hooks/useEmployeeFilterChipLabel";
 import {
   SETTLEMENT_STATUS_LABELS,
   type SettlementStatus,
@@ -53,7 +55,6 @@ export function SettlementsRegistryPage() {
     chipLabels: {
       status: (value) =>
         `Estado: ${SETTLEMENT_STATUS_LABELS[value as SettlementStatus] || value}`,
-      employeeId: (value) => `Operador: ${value.slice(0, 8)}`,
     },
   });
 
@@ -78,8 +79,16 @@ export function SettlementsRegistryPage() {
 
   const showLoadError = isError && !isLoading;
 
+  const settlementsList = useMemo(
+    () => settlementsData?.data ?? [],
+    [settlementsData?.data],
+  );
+  const employeeChipLabel = useEmployeeFilterChipLabel(
+    employeeIdFilter,
+    settlementsList,
+  );
+
   const filteredSettlements = useMemo(() => {
-    const settlementsList = settlementsData?.data ?? [];
     if (!filters.search.trim()) return settlementsList;
     const q = filters.search.toLowerCase();
     return settlementsList.filter(
@@ -87,7 +96,18 @@ export function SettlementsRegistryPage() {
         s.settlementNumber.toLowerCase().includes(q) ||
         (s.employeeFullName && s.employeeFullName.toLowerCase().includes(q)),
     );
-  }, [settlementsData?.data, filters.search]);
+  }, [settlementsList, filters.search]);
+
+  const activeFilterChips: ActiveFilterChip[] = employeeIdFilter
+    ? [
+        ...filters.activeChips,
+        {
+          id: "employeeId",
+          label: employeeChipLabel,
+          onRemove: () => filters.setFilter("employeeId", ""),
+        },
+      ]
+    : filters.activeChips;
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -130,7 +150,11 @@ export function SettlementsRegistryPage() {
         onPageChange={filters.setPage}
         entityLabelPlural={registryCopy.entityLabelPlural}
         emptyState={{
-          icon: <Plus className="h-8 w-8 text-muted-foreground" />,
+          icon: filters.hasFilters ? (
+            <Search className="h-8 w-8 text-muted-foreground" />
+          ) : (
+            <Archive className="h-8 w-8 text-muted-foreground" />
+          ),
           title: copy.empty.settlementsTitle,
           description: filters.hasFilters
             ? copy.empty.withFiltersDescription
@@ -193,7 +217,7 @@ export function SettlementsRegistryPage() {
           },
           onRefresh: handleRefresh,
           isRefreshing: isFetching,
-          activeFilterChips: filters.activeChips,
+          activeFilterChips,
           onClearFilters: filters.clearAll,
           hasFilters: filters.hasFilters,
           viewMode: filters.viewModeProps,

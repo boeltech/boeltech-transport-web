@@ -43,6 +43,11 @@ describe("settlementWayfinding", () => {
       ),
     ).toBe(actions.backToPendingApproval);
     expect(
+      resolveSettlementWayfindingBackLabel(
+        "/finance/settlements?bucket=approval",
+      ),
+    ).toBe(actions.backToPendingApproval);
+    expect(
       resolveSettlementWayfindingBackLabel("/finance/settlements/registry"),
     ).toBe(actions.backToRegistry);
     expect(

@@ -146,12 +146,12 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
   });
 
-  it("vuelve a por autorizar cuando viene con state.from", async () => {
+  it("vuelve a en autorización cuando viene con state.from", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
     function QueueProbe() {
       const location = useLocation();
-      return <div>{location.pathname}</div>;
+      return <div>{`${location.pathname}${location.search}`}</div>;
     }
 
     render(
@@ -160,14 +160,14 @@ describe("SettlementDetailPage self-approval (H9)", () => {
           initialEntries={[
             {
               pathname: "/finance/settlements/set-detail-1",
-              state: { from: "/finance/settlements/pending-approval" },
+              state: { from: "/finance/settlements?bucket=approval" },
             },
           ]}
         >
           <Routes>
             <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
             <Route
-              path="/finance/settlements/pending-approval"
+              path="/finance/settlements"
               element={<QueueProbe />}
             />
           </Routes>
@@ -180,9 +180,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     });
 
     await user.click(
-      screen.getByRole("button", { name: "Volver a por autorizar" }),
+      screen.getByRole("button", { name: "Volver a en autorización" }),
     );
-    expect(screen.getByText("/finance/settlements/pending-approval")).toBeInTheDocument();
+    expect(screen.getByText("/finance/settlements?bucket=approval")).toBeInTheDocument();
   });
 
   it("no muestra Autorizar cuando submittedBy === user.id", async () => {
