@@ -1,5 +1,6 @@
 /**
  * Cabecera editorial del form auth (sin Card).
+ * F1: alineada a la misma columna que los inputs (text-left).
  */
 import { cn } from "@shared/lib/utils/cn";
 
@@ -15,7 +16,7 @@ export function AuthFunnelFormHeader({
   className,
 }: AuthFunnelFormHeaderProps) {
   return (
-    <header className={cn("mb-8 space-y-2 text-center", className)}>
+    <header className={cn("mb-8 space-y-2 text-left", className)}>
       <h1 className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
         {title}
       </h1>

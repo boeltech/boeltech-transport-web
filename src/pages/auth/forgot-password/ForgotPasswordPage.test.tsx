@@ -58,4 +58,26 @@ describe("ForgotPasswordPage", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("left-aligns the form heading (F1)", () => {
+    renderPage();
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading.closest("header")).toHaveClass("text-left");
+  });
+
+  it("usa un único h1 en el estado de éxito (F1)", async () => {
+    const user = userEvent.setup();
+    post.mockResolvedValue({ data: {} });
+    renderPage();
+
+    await user.type(screen.getByLabelText("Empresa"), "acme");
+    await user.type(
+      screen.getByLabelText(/Correo electrónico/i),
+      "a@b.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Enviar enlace/i }));
+
+    const headings = await screen.findAllByRole("heading", { level: 1 });
+    expect(headings).toHaveLength(1);
+  });
 });

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useSearchParams } from "react-router-dom";
-import { CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
@@ -132,7 +132,10 @@ const ResetPasswordPage = () => {
         description={copy.success.body}
       >
         <Button asChild size="lg" className="w-full">
-          <Link to="/login">{copy.success.goLogin}</Link>
+          <Link to="/login">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {copy.success.goLogin}
+          </Link>
         </Button>
       </AuthFunnelStatusBlock>
     );
@@ -228,6 +231,16 @@ const ResetPasswordPage = () => {
           {isSubmitting ? copy.submitting : copy.submit}
         </Button>
       </form>
+
+      <div className="mt-8 text-center">
+        <Link
+          to="/login"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center text-sm transition-colors"
+        >
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          {copy.backToLogin}
+        </Link>
+      </div>
     </div>
   );
 };

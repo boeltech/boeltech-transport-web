@@ -1,7 +1,8 @@
 /**
  * Stepper vertical del registro para el panel de marca (desktop)
  * y progreso compacto en móvil.
- * Colores: panel marca suave (foreground / muted), no primary-foreground.
+ * F2 Operate: progreso teal; trial tip muted + tip ámbar señal (D5);
+ * una mención de trial por viewport (panel XOR compact).
  */
 import { Check } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
@@ -17,6 +18,20 @@ type RegisterBrandStepperProps = {
   variant?: "panel" | "compact";
   className?: string;
 };
+
+function TrialTip({ className }: { className?: string }) {
+  return (
+    <p
+      className={cn(
+        "text-muted-foreground flex items-baseline gap-1.5 text-xs leading-snug",
+        className,
+      )}
+    >
+      <span className="auth-funnel-trust-tip" aria-hidden />
+      <span>{copy.trialHint}</span>
+    </p>
+  );
+}
 
 export function RegisterBrandStepper({
   currentStep,
@@ -58,9 +73,7 @@ export function RegisterBrandStepper({
           })}
         </ol>
         {/* D5: única mención de trial en móvil (aside oculto) */}
-        <p className="text-muted-foreground text-center text-xs">
-          {copy.trialHint}
-        </p>
+        <TrialTip className="justify-center" />
       </div>
     );
   }
@@ -78,7 +91,7 @@ export function RegisterBrandStepper({
           {copy.panel.progressHint}
         </p>
         {/* D5: única mención de trial en desktop (panel marca) */}
-        <p className="text-primary pt-1 text-sm font-medium">{copy.trialHint}</p>
+        <TrialTip className="pt-1" />
       </div>
 
       <ol className="space-y-0" aria-label={copy.progressAria}>

@@ -59,6 +59,7 @@ import { useCheckSubdomainAvailability } from "@shared/commercial/useCheckSubdom
 import { usePublicOperationalPlans } from "@shared/commercial/usePublicOperationalPlans";
 import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
 import { AuthFunnelFormHeader } from "../AuthFunnelFormHeader";
+import { AuthFunnelStatusBlock } from "../AuthFunnelStatusBlock";
 import { PasswordVisibilityToggle } from "../PasswordVisibilityToggle";
 import { useAuthFunnelBrandSlot } from "../AuthFunnelShellContext";
 import { RegisterBrandStepper } from "./RegisterBrandStepper";
@@ -314,20 +315,18 @@ const RegisterPage = () => {
 
   if (!registrationResolved) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
-      </div>
+      <AuthFunnelStatusBlock variant="loading" loadingLabel={copy.loading} />
     );
   }
 
   if (!registrationOpen) {
     return (
-      <div className="w-full space-y-6">
-        <AuthFunnelFormHeader
-          title={copy.closed.title}
-          description={copy.closed.description}
-        />
-        <div className="flex flex-col gap-3">
+      <AuthFunnelStatusBlock
+        variant="info"
+        title={copy.closed.title}
+        description={copy.closed.description}
+      >
+        <div className="flex w-full flex-col gap-2">
           <Button asChild size="lg" className="w-full">
             <a href={copy.closed.contactHref}>{copy.closed.contact}</a>
           </Button>
@@ -338,7 +337,7 @@ const RegisterPage = () => {
             <Link to="/welcome">{copy.closed.home}</Link>
           </Button>
         </div>
-      </div>
+      </AuthFunnelStatusBlock>
     );
   }
 
@@ -550,7 +549,7 @@ const RegisterPage = () => {
                             {plan.code === recommendedPlanCode ? (
                               <Badge
                                 variant="secondary"
-                                className="text-[10px]"
+                                className="px-1.5 py-0 text-[10px] font-medium"
                               >
                                 {copy.plan.recommendedBadge}
                               </Badge>
@@ -565,48 +564,48 @@ const RegisterPage = () => {
                   </p>
                 </div>
 
-                <div className="bg-muted/40 space-y-3 rounded-lg border p-4">
+                {/* D7: preferencia orientativa — precio secundario, sin pricing hero */}
+                <div className="bg-muted/30 space-y-2 rounded-md border p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">{copy.plan.previewTitle}</p>
-                    <Badge variant="info" tone="soft">
+                    <p className="text-muted-foreground text-xs font-medium">
+                      {copy.plan.previewTitle}
+                    </p>
+                    <Badge
+                      variant="secondary"
+                      className="px-1.5 py-0 text-[10px] font-medium"
+                    >
                       {copy.plan.orientativeBadge}
                     </Badge>
                   </div>
-                  <div>
-                    <p className="text-foreground text-sm font-semibold">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-foreground text-sm font-medium">
                       {preferredPlan.name}
                     </p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {copy.plan.priceListLabel}
-                    </p>
-                    <p className="text-primary text-xl font-bold tracking-tight tabular-nums">
-                      {preferredPlan.priceAmount}
+                    <p className="text-muted-foreground text-sm tabular-nums">
+                      <span className="text-foreground font-medium">
+                        {preferredPlan.priceAmount}
+                      </span>
                       {preferredPlan.pricePeriod ? (
-                        <span className="text-muted-foreground ml-1 text-sm font-medium">
+                        <span className="ml-1 text-xs">
                           {preferredPlan.pricePeriod}
                         </span>
                       ) : null}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground mb-1 text-xs">
-                      {copy.plan.capacityLabel}
-                    </p>
-                    <ul className="text-muted-foreground space-y-1 text-xs">
-                      {preferredPlan.unitsLabel ? (
-                        <li>{preferredPlan.unitsLabel}</li>
-                      ) : null}
-                      <li>{preferredPlan.usersLabel}</li>
-                      <li>{preferredPlan.branchesLabel}</li>
-                      {preferredPlan.stampsLabel ? (
-                        <li>{preferredPlan.stampsLabel}</li>
-                      ) : null}
-                    </ul>
-                  </div>
-                  <p className="text-foreground text-xs font-medium">
-                    {copy.plan.trialNote}
+                  <p className="text-muted-foreground text-[11px]">
+                    {copy.plan.priceListLabel}
                   </p>
-                  <p className="text-muted-foreground text-xs">
+                  <ul className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                    {preferredPlan.unitsLabel ? (
+                      <li>{preferredPlan.unitsLabel}</li>
+                    ) : null}
+                    <li>{preferredPlan.usersLabel}</li>
+                    <li>{preferredPlan.branchesLabel}</li>
+                    {preferredPlan.stampsLabel ? (
+                      <li>{preferredPlan.stampsLabel}</li>
+                    ) : null}
+                  </ul>
+                  <p className="text-muted-foreground text-[11px] leading-snug">
                     {copy.plan.priceNote}
                   </p>
                 </div>
@@ -786,39 +785,44 @@ const RegisterPage = () => {
 
             {step === "confirm" && (
               <>
-                <div className="space-y-4 rounded-lg border p-4">
-                  <div>
-                    <p className="text-muted-foreground text-sm">
+                {/* Densidad FormHeader/login — resumen operativo, no checkout SaaS */}
+                <div className="divide-border divide-y rounded-md border p-3">
+                  <div className="space-y-0.5 pb-3">
+                    <p className="text-muted-foreground text-xs font-medium">
                       {copy.confirm.company}
                     </p>
-                    <p className="font-medium">{watch("companyName")}</p>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-foreground text-sm font-medium">
+                      {watch("companyName")}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
                       {watch("subdomain")}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
+                  <div className="space-y-0.5 py-3">
+                    <p className="text-muted-foreground text-xs font-medium">
                       {copy.confirm.admin}
                     </p>
-                    <p className="font-medium">
+                    <p className="text-foreground text-sm font-medium">
                       {watch("firstName")} {watch("lastName")}
                     </p>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-muted-foreground text-xs">
                       {watch("email")}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
+                  <div className="space-y-0.5 pt-3">
+                    <p className="text-muted-foreground text-xs font-medium">
                       {copy.confirm.plan}
                     </p>
-                    <p className="font-medium">{preferredPlan.name}</p>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-foreground text-sm font-medium">
+                      {preferredPlan.name}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
                       {copy.confirm.fleet}:{" "}
                       {declaredFleetBand
                         ? FLEET_BAND_LABELS[declaredFleetBand]
                         : copy.confirm.fleetNone}
                     </p>
-                    <p className="text-muted-foreground mt-2 text-xs">
+                    <p className="text-muted-foreground mt-1.5 text-[11px] leading-snug">
                       {copy.confirm.serverNote}
                     </p>
                   </div>

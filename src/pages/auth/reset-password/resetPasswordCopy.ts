@@ -1,10 +1,12 @@
 /**
  * Copy de restablecimiento de contraseña (reset con token).
  * Namespace: resetPassword.copy.*
+ * F1 Operate: tono alineado a forgot (iniciar sesión, sin marketing).
  */
 export const resetPasswordCopy = {
   title: "Nueva contraseña",
-  description: "Elige una contraseña segura para volver a entrar a tu empresa",
+  description:
+    "Elige una contraseña segura para volver a iniciar sesión en tu empresa.",
   fields: {
     password: "Nueva contraseña",
     passwordPlaceholder: "Mínimo 8 caracteres",
@@ -15,6 +17,8 @@ export const resetPasswordCopy = {
   submitting: "Actualizando…",
   validationSummaryTitle: "Revisa tu nueva contraseña",
   loading: "Verificando enlace…",
+  /** Ghost bajo el form (paridad forgot). */
+  backToLogin: "Volver a iniciar sesión",
   invalid: {
     title: "Enlace inválido",
     missingToken: "No se proporcionó un enlace válido",

@@ -71,8 +71,7 @@ export const registerFunnelCopy = {
     orientativeBadge: "Orientativo",
     previewTitle: "Resumen orientativo",
     priceListLabel: "Precio por motriz",
-    capacityLabel: "Capacidad",
-    trialNote: "Incluye prueba: 14 días · 15 timbres · sin tarjeta",
+    /** Trial vive solo en stepper (D5); no repetir en card Plan. */
     priceNote:
       "Sin IVA · sin fee · la preferencia no compra el plan; el cobro real depende de tu flota (Q_fact) al salir de prueba",
   },
@@ -117,6 +116,9 @@ export const registerFunnelCopy = {
     create: "Crear cuenta",
     creating: "Creando…",
   },
+
+  /** Resolviendo kill-switch self-serve (StatusBlock loading). */
+  loading: "Cargando…",
 
   closed: {
     title: "Registro público cerrado",

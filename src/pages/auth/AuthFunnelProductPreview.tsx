@@ -41,9 +41,10 @@ export function AuthFunnelProductPreview({
             "border-border/80 w-full rounded-xl border object-cover object-top shadow-lg",
             "origin-bottom-left",
             compact
-              ? "translate-y-2 scale-[0.92]"
+              ? "translate-y-1 scale-[0.96]"
               : "translate-x-4 translate-y-6 scale-[1.02] sm:translate-x-6",
-            compact ? "max-h-36" : "max-h-48",
+            /* F3: sin lockup desktop hay más aire — crop un poco más legible */
+            compact ? "max-h-40" : "max-h-48",
           )}
         />
       </div>
@@ -79,7 +80,7 @@ function AuthFunnelProductPreviewMock({
           "bg-card text-card-foreground border-border/80 relative overflow-hidden rounded-xl border shadow-lg",
           "origin-bottom-left",
           compact
-            ? "translate-y-2 scale-[0.92]"
+            ? "translate-y-1 scale-[0.96]"
             : "translate-x-4 translate-y-6 scale-[1.02] sm:translate-x-6",
         )}
       >
@@ -92,7 +93,7 @@ function AuthFunnelProductPreviewMock({
           </span>
         </div>
 
-        <div className={cn("flex", compact ? "h-36" : "h-48")}>
+        <div className={cn("flex", compact ? "h-40" : "h-48")}>
           <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border flex w-14 shrink-0 flex-col gap-2 border-r p-2">
             <div className="bg-sidebar-primary/20 h-6 w-full rounded-md" />
             <div className="bg-sidebar-primary/35 h-2 w-full rounded" />

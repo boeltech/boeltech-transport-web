@@ -23,6 +23,15 @@ describe("registerFunnelCopy SoT v5", () => {
     expect(DEFAULT_OPERATIONAL_PLAN_CODE).toBe("operacion_micro");
   });
 
+  it("D5: trial lives once in trialHint — not duplicated under plan", () => {
+    expect(registerFunnelCopy.trialHint).toMatch(/14 días/i);
+    expect(registerFunnelCopy.trialHint).toMatch(/sin tarjeta/i);
+    expect(
+      "trialNote" in registerFunnelCopy.plan,
+    ).toBe(false);
+    expect(flattenCopy(registerFunnelCopy.plan)).not.toMatch(/Prueba gratis/);
+  });
+
   it("marks plan preference as orientative and does not sell the select as purchase", () => {
     expect(registerFunnelCopy.plan.planHint.toLowerCase()).toMatch(
       /orientativ/,
