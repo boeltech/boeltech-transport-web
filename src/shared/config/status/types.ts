@@ -69,7 +69,7 @@ export interface StatusConfig {
 export type CanonicalColorVariant =
   | "success" // Verde — Operación completada, viaje finalizado
   | "warning" // Ámbar — Por vencer, pendiente, atención moderada
-  | "info" // Azul — Notas, en progreso, neutral activo
+  | "info" // Teal / familia brand (menos chroma) — Notas, en progreso, neutral activo
   | "destructive" // Rojo — Eliminar, cancelar, error crítico
   | "neutral"; // Gris — Borrador, inactivo, archivado
 

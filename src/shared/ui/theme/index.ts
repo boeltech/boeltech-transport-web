@@ -46,7 +46,7 @@ export {
   parseStoredColorPalette,
 } from "./paletteRuntime";
 
-export { CONTRAST_PAIRS } from "./contrastPairs";
+export { CONTRAST_PAIRS, CONTRAST_PAIRS_V2_EXTRA } from "./contrastPairs";
 export type { ContrastPair } from "./contrastPairs";
 export {
   auditContrastPairs,

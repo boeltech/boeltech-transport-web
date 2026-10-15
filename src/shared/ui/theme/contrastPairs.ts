@@ -18,6 +18,22 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
     label: "Secondary",
   },
   { fg: "muted-foreground", bg: "muted", min: 4.5, label: "Muted" },
+  /**
+   * Texto secundario en UI densa (labels, hints) sobre canvas / card —
+   * uso real más frecuente que muted-on-muted.
+   */
+  {
+    fg: "muted-foreground",
+    bg: "background",
+    min: 4.5,
+    label: "Muted on canvas",
+  },
+  {
+    fg: "muted-foreground",
+    bg: "card",
+    min: 4.5,
+    label: "Muted on card",
+  },
   { fg: "accent-foreground", bg: "accent", min: 4.5, label: "Accent" },
   { fg: "success-foreground", bg: "success", min: 4.5, label: "Success solid" },
   { fg: "warning-foreground", bg: "warning", min: 4.5, label: "Warning solid" },
@@ -76,5 +92,37 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
     bg: "sidebar-accent",
     min: 4.5,
     label: "Sidebar accent",
+  },
+] as const;
+
+/**
+ * Pares v2-only (anclas `--palette-*`).
+ * - Mark brand-on-ink / brand-on-sidebar = no-texto (WCAG 1.4.11 → 3:1).
+ * - Wordmark `--palette-brand-on-ink` = texto AA (4.5:1) vs sidebar / ink.
+ */
+export const CONTRAST_PAIRS_V2_EXTRA: readonly ContrastPair[] = [
+  {
+    fg: "palette-brand",
+    bg: "sidebar",
+    min: 3,
+    label: "Brand on sidebar",
+  },
+  {
+    fg: "palette-brand",
+    bg: "palette-ink",
+    min: 3,
+    label: "Brand on ink",
+  },
+  {
+    fg: "palette-brand-on-ink",
+    bg: "sidebar",
+    min: 4.5,
+    label: "Wordmark brand-on-ink on sidebar",
+  },
+  {
+    fg: "palette-brand-on-ink",
+    bg: "palette-ink",
+    min: 4.5,
+    label: "Wordmark brand-on-ink on ink",
   },
 ] as const;

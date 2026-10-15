@@ -227,7 +227,7 @@ export function StatusSection() {
           </div>
           <p className="mt-6 text-sm text-muted-foreground">
             Default <code className="font-mono text-xs">tone="primary"</code>{" "}
-            (azul-tinta). Mantén la consistencia: KPIs positivos en{" "}
+            (brand). Mantén la consistencia: KPIs positivos en{" "}
             <code className="font-mono text-xs">success</code>, negativos en{" "}
             <code className="font-mono text-xs">destructive</code>, sin
             mezclarlos arbitrariamente.

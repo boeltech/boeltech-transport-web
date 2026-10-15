@@ -100,7 +100,7 @@ const PATIO_ANCHORS = [
   {
     token: "palette-brand",
     label: "brand",
-    note: "Teal Operate / marca",
+    note: "Teal Operate ≈ #008292",
     textToken: "primary-foreground",
   },
   {
@@ -124,7 +124,7 @@ const PATIO_ANCHORS = [
   {
     token: "palette-amber-soft",
     label: "ámbar soft",
-    note: "Lavado / hover",
+    note: "Señal soft / warning",
     textToken: "palette-amber-soft-foreground",
   },
   {
@@ -184,7 +184,7 @@ export function ColorPaletteSection() {
             <p className="mt-4 text-sm text-muted-foreground">
               Triad Operate:{" "}
               <code className="font-mono text-xs">--primary</code> → brand Teal
-              Operate (hue 205, ≈ #0F6F82),{" "}
+              Operate (hue 205, ≈ #008292),{" "}
               <code className="font-mono text-xs">--warning</code> / riel → ámbar
               (señal, no CTA),{" "}
               <code className="font-mono text-xs">--sidebar</code> → ink.

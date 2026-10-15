@@ -132,7 +132,7 @@ export function ChartPaletteSection() {
             ))}
           </div>
           <p className="mt-6 text-sm text-muted-foreground">
-            La paleta empieza con el azul primary (
+            La paleta empieza con el primary / brand (
             <code className="font-mono text-xs">--chart-1</code>) y va girando
             la rueda cromática para mantener contraste mutuo entre series
             adyacentes. En dark mode la lightness sube ~0.1 para legibilidad

@@ -116,7 +116,7 @@ export function CatalogTypeCard({
 
         {/* Size indicator */}
         {!isSmall && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
+          <p className="text-xs text-warning-soft-foreground">
             Catálogo grande — requiere búsqueda
           </p>
         )}

@@ -39,7 +39,7 @@ export interface ThemeContextValue {
   cycleMode: () => void;
   /**
    * Paleta de color del DS (independiente de light/dark).
-   * Default `v1` (azul-tinta). `v2` = Patio ink+ámbar.
+   * Default `v2` Patio (ink + ámbar + brand teal). `v1` = alternativa DS (azul-tinta).
    */
   colorPalette: ColorPaletteId;
   /** Cambiar paleta de color */
