@@ -138,7 +138,8 @@
 /* ── Tipografía marketing ──────────────────────────────── */
 .landing-display {
   font-family: var(--landing-font-display);
-  font-size: clamp(2.5rem, 1.75rem + 2.6vw, 3.85rem);
+  /* PRD: +~10% tope desktop (4.25rem); no paridad Aceternity text-7xl */
+  font-size: clamp(2.5rem, 1.8rem + 2.85vw, 4.25rem);
   font-weight: 700;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -234,13 +235,18 @@
   background: color-mix(in srgb, var(--landing-ink) 6%, transparent);
 }
 
-/* D9: mark brand + wordmark brand-on-ink locked a tokens landing (foto ink, no bg-primary). */
+/* D9 A: mark brand + wordmark brand-on-ink (foto ink, no bg-primary). */
 .landing-hero-chrome:not(.is-stuck) [data-landing-lockup="hero-mixed"] .text-primary {
   color: var(--landing-brand);
 }
 
 .landing-hero-chrome:not(.is-stuck) [data-landing-lockup="hero-mixed"] .text-palette-brand-on-ink {
   color: var(--landing-brand-on-ink);
+}
+
+/* D9 B (A/B): lockup knockout blanco sobre foto — mark + wordmark currentColor. */
+.landing-hero-chrome:not(.is-stuck) [data-landing-lockup="hero-knockout"] {
+  color: var(--landing-on-dark);
 }
 
 .landing-hero-chrome-nav a {

@@ -3,7 +3,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { OPERATIONAL_PLAN_CATALOG } from "@shared/commercial/operationalPlanCatalog";
-import LandingPage from "./LandingPage";
+import LandingPage, { LANDING_HERO_LOCKUP_AB } from "./LandingPage";
 import { landingCopy } from "./landingCopy";
 import {
   prefetchCommercialAsset,
@@ -127,22 +127,38 @@ describe("LandingPage /welcome polish", () => {
     expect(container.querySelector(".landing-hero-brand-rule")).toBeNull();
   });
 
-  it("uses hero-mixed lockup on load and elevated sticky chrome past the hero", () => {
+  it("uses hero chrome lockup on load and elevated sticky chrome past the hero", () => {
     const { container } = renderLanding();
     const chrome = screen.getByRole("banner");
     expect(chrome).toHaveAttribute("data-landing-hero-chrome");
     expect(chrome).toHaveAttribute("data-stuck", "false");
     expect(chrome).not.toHaveClass("is-stuck");
+
+    const activeHeroAttr =
+      LANDING_HERO_LOCKUP_AB === "knockout" ? "hero-knockout" : "hero-mixed";
+    const inactiveHeroAttr =
+      LANDING_HERO_LOCKUP_AB === "knockout" ? "hero-mixed" : "hero-knockout";
     const heroLockup = container.querySelector(
-      '[data-landing-lockup="hero-mixed"]',
+      `[data-landing-lockup="${activeHeroAttr}"]`,
     );
     expect(heroLockup).toBeTruthy();
     expect(
+      container.querySelector(`[data-landing-lockup="${inactiveHeroAttr}"]`),
+    ).toBeNull();
+    expect(
       container.querySelector('[data-landing-lockup="brand"]'),
     ).toBeNull();
-    /* Foto ink: onInk (palette-brand-on-ink), no onBrand (primary-foreground). */
-    expect(heroLockup?.querySelector(".text-palette-brand-on-ink")).toBeTruthy();
-    expect(heroLockup?.querySelector(".text-primary-foreground")).toBeNull();
+
+    if (LANDING_HERO_LOCKUP_AB === "knockout") {
+      /* B: currentColor → CSS --landing-on-dark; no onBrand / onInk classes. */
+      expect(heroLockup?.querySelector(".text-current")).toBeTruthy();
+      expect(heroLockup?.querySelector(".text-primary-foreground")).toBeNull();
+      expect(heroLockup?.querySelector(".text-palette-brand-on-ink")).toBeNull();
+    } else {
+      /* A: onInk (palette-brand-on-ink), no onBrand. */
+      expect(heroLockup?.querySelector(".text-palette-brand-on-ink")).toBeTruthy();
+      expect(heroLockup?.querySelector(".text-primary-foreground")).toBeNull();
+    }
 
     triggerHeroIntersection(false);
 
@@ -153,7 +169,7 @@ describe("LandingPage /welcome polish", () => {
     );
     expect(stuckLockup).toBeTruthy();
     expect(
-      container.querySelector('[data-landing-lockup="hero-mixed"]'),
+      container.querySelector(`[data-landing-lockup="${activeHeroAttr}"]`),
     ).toBeNull();
     expect(stuckLockup?.querySelector(".text-primary-foreground")).toBeNull();
     expect(stuckLockup?.querySelector(".text-palette-brand-on-ink")).toBeNull();
@@ -166,7 +182,7 @@ describe("LandingPage /welcome polish", () => {
     expect(chrome).toHaveAttribute("data-stuck", "false");
     expect(chrome).not.toHaveClass("is-stuck");
     expect(
-      container.querySelector('[data-landing-lockup="hero-mixed"]'),
+      container.querySelector(`[data-landing-lockup="${activeHeroAttr}"]`),
     ).toBeTruthy();
   });
 

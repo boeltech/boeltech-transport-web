@@ -51,6 +51,14 @@ const LandingPage = () => {
 };
 
 /**
+ * A/B lockup en chrome del hero (solo no-stuck; stuck sigue brand).
+ * - mixed: mark teal + wordmark on-ink (A)
+ * - knockout: mark + wordmark blancos vía --landing-on-dark (B · prueba)
+ * Volver a A: cambiar a `"mixed"`.
+ */
+export const LANDING_HERO_LOCKUP_AB: "mixed" | "knockout" = "knockout";
+
+/**
  * Chrome único (F1+F2): on-dark en hero; `is-stuck` elevated al cruzar el umbral
  * del hero (IntersectionObserver sobre `[data-landing-hero]`).
  * F1 navs: menú secciones &lt;md (Cómo funciona / Precios); CTA siempre en barra.
@@ -61,6 +69,19 @@ const HeroChrome = () => {
   const [stuck, setStuck] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavId = useId();
+
+  const heroLockup =
+    LANDING_HERO_LOCKUP_AB === "knockout"
+      ? ({
+          data: "hero-knockout",
+          variant: "current",
+          markVariant: "current",
+        } as const)
+      : ({
+          data: "hero-mixed",
+          variant: "onInk",
+          markVariant: "brand",
+        } as const);
 
   useEffect(() => {
     const heroEl = document.querySelector("[data-landing-hero]");
@@ -107,13 +128,13 @@ const HeroChrome = () => {
           to="/welcome"
           className="flex shrink-0 items-center gap-2"
           aria-label={brand}
-          data-landing-lockup={stuck ? "brand" : "hero-mixed"}
+          data-landing-lockup={stuck ? "brand" : heroLockup.data}
           onClick={closeMobileNav}
         >
           <BrandLockup
-            /* D9: hero (foto ink) = mark teal + wordmark onInk; stuck (elevated) = brand. */
-            variant={stuck ? "brand" : "onInk"}
-            markVariant="brand"
+            /* stuck = brand. Hero: A mixed (onInk) · B knockout (current → on-dark). */
+            variant={stuck ? "brand" : heroLockup.variant}
+            markVariant={stuck ? "brand" : heroLockup.markVariant}
             decorative
             markSize={32}
             wordmarkClassName="text-xl sm:text-2xl"
