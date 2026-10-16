@@ -92,6 +92,20 @@ export function isCargoHazmat(cargo: TripCargo): boolean {
   return cargo.hazardousMaterial === true || cargo.requiresHazmat;
 }
 
+/**
+ * Carga ya cerrada en patio (o cancelada): los huecos de planeación
+ * no son accionables ni deben competir con el status de ciclo de vida.
+ */
+export function isCargoPlanningGapMuted(
+  status: CargoStatusType | TripCargo["status"],
+): boolean {
+  return (
+    status === "delivered" ||
+    status === "returned" ||
+    status === "cancelled"
+  );
+}
+
 export function isCargoInsured(cargo: TripCargo): boolean {
   const hasInsurer = Boolean(cargo.aseguraCarga?.trim());
   const hasPolicy = Boolean(cargo.polizaCarga?.trim());
@@ -171,9 +185,15 @@ export function formatCargoRouteLine(
 ): string {
   const planning = getCargoPlanningStops(cargo, orderedStops);
   const pickup = planning.pickupLabel ?? cargoCopy.state.missingPickup;
-  const delivery =
-    planning.deliveryLabels.length > 0
-      ? planning.deliveryLabels.join(", ")
-      : cargoCopy.state.missingDelivery;
-  return cargoCopy.format.routeSummary(pickup, delivery);
+  if (planning.deliveryLabels.length > 0) {
+    return cargoCopy.format.routeSummary(
+      pickup,
+      planning.deliveryLabels.join(", "),
+    );
+  }
+  // Terminal: no competir «Sin entrega» con Entregada/Devuelta/Cancelada.
+  if (isCargoPlanningGapMuted(cargo.status)) {
+    return pickup;
+  }
+  return cargoCopy.format.routeSummary(pickup, cargoCopy.state.missingDelivery);
 }

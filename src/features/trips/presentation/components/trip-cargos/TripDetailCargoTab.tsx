@@ -67,7 +67,10 @@ function CargoLoadError({ onRetry }: { onRetry: () => void }) {
   return (
     <Card className="border-destructive/50">
       <CardContent className="py-6 text-center">
-        <AlertCircle className="h-10 w-10 mx-auto text-destructive mb-3" />
+        <AlertCircle
+          className="h-10 w-10 mx-auto text-destructive mb-3"
+          aria-hidden
+        />
         <p className="text-sm text-muted-foreground mb-3">{copy.state.loadError}</p>
         <Button variant="outline" size="sm" onClick={onRetry}>
           <RefreshCw className="mr-2 h-4 w-4" /> {copy.action.retry}
@@ -371,6 +374,36 @@ export function TripDetailCargoTab({
           });
         }
 
+        const originalDeliveries =
+          editingCargo?.movements?.filter(
+            (movement) => movement.movementType === "delivery",
+          ) ?? [];
+        const nextDeliveryIndexes = (values.movements ?? [])
+          .filter((movement) => movement.movementType === "delivery")
+          .map((movement) => movement.stopIndex);
+
+        for (let i = 0; i < originalDeliveries.length; i += 1) {
+          const deliveryMovement = originalDeliveries[i];
+          if (!deliveryMovement?.id || deliveryMovement.completedAt) continue;
+          const nextStopIndex = nextDeliveryIndexes[i];
+          if (
+            nextStopIndex == null ||
+            nextStopIndex < 0 ||
+            nextStopIndex === deliveryMovement.stopIndex
+          ) {
+            continue;
+          }
+          const nextStop = orderedStops[nextStopIndex];
+          if (!nextStop?.id) {
+            throw new Error(copy.toast.cargoStopUnresolved);
+          }
+          await reassignMovementStop.mutateAsync({
+            cargoId: editingCargoId,
+            movementId: deliveryMovement.id,
+            data: { stopId: nextStop.id, stopIndex: nextStopIndex },
+          });
+        }
+
         await updateCargo.mutateAsync({
           cargoId: editingCargoId,
           data: formValuesToUpdateCargoInput(values),
@@ -430,7 +463,16 @@ export function TripDetailCargoTab({
           editingCargo ? tripCargoToFormValues(editingCargo) : null
         }
         editingIndex={editingCargoId ? 0 : null}
-        deliveriesReadOnly={editingCargoId != null}
+        deliveriesReadOnly={
+          editingCargoId != null &&
+          Boolean(
+            editingCargo?.movements?.some(
+              (movement) =>
+                movement.movementType === "delivery" &&
+                movement.completedAt != null,
+            ),
+          )
+        }
         vehicleCapacityKg={vehicleCapacityKg}
         baselineWeightKg={baselineWeightKg}
         stopCargoCount={cargosAtActivePickup.length}
@@ -512,9 +554,11 @@ export function TripDetailCargoTab({
           orderedStops={orderedStops}
           canEditStructural={canEditStructural}
           canAppendCargo={canEditStructural || canAppendCargo}
+          showAppendOnlyBanner={canAppendCargo && !canEditStructural}
           onAddCargo={() => openAddCargo()}
           onEditCargo={openEditCargo}
           onRemoveCargo={handleRemoveCargo}
+          onGoToRoute={() => navigate(`/trips/${tripId}?tab=route`)}
           isRemoving={deleteCargo.isPending}
         />
       </div>

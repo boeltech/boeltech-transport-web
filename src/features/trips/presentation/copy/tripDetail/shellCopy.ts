@@ -16,7 +16,8 @@ export const shellCopy = {
     cargo: "Cargas",
     costs: "Costos",
     history: "Historial",
-    trackingLive: "En vivo",
+    /** Polling de timeline; no implica GPS de unidad. */
+    trackingLive: "Al día",
     /** Indicador discreto (punto); no compite con el CTA «Incidente» del feed. */
     trackingIncident: "Incidente",
     trackingIncidentAria: "Con incidente abierto",

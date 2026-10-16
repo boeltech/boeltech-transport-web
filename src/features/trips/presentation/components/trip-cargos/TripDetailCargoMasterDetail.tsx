@@ -10,7 +10,6 @@ import {
 
 import {
   CARGO_STATUS_LABELS,
-  CargoStatus,
   type TripCargo,
   type TripStop,
 } from "@features/trips/domain";
@@ -42,10 +41,10 @@ import { tripDetailCopy } from "../../copy";
 import {
   formatCargoRouteLine,
   getCargoPlanningStops,
-  getCargoStatusVariant,
   getCargoWeightKg,
   isCargoHazmat,
   isCargoInsured,
+  isCargoPlanningGapMuted,
 } from "./tripCargoDetailHelpers";
 
 const copy = tripDetailCopy.cargo;
@@ -56,9 +55,12 @@ export type TripDetailCargoMasterDetailProps = {
   canEditStructural: boolean;
   /** ADR-0093 — CTA agregar carga mid-trip. */
   canAppendCargo?: boolean;
+  /** Mid-trip: solo append (sin editar/eliminar estructurales). */
+  showAppendOnlyBanner?: boolean;
   onAddCargo: () => void;
   onEditCargo: (cargoId: string) => void;
   onRemoveCargo: (cargoId: string) => void;
+  onGoToRoute?: () => void;
   isRemoving?: boolean;
 };
 
@@ -76,6 +78,14 @@ function CargoMasterRow({
   const hazmat = isCargoHazmat(cargo);
   const weightKg = getCargoWeightKg(cargo);
   const routeLine = formatCargoRouteLine(cargo, orderedStops);
+  const planning = getCargoPlanningStops(cargo, orderedStops);
+  const planningGapMuted = isCargoPlanningGapMuted(cargo.status);
+  const missingPickup =
+    !planningGapMuted &&
+    (!planning.hasPickupMovement || planning.pickupLabel == null);
+  const missingDelivery =
+    !planningGapMuted &&
+    (!planning.hasDeliveryMovement || planning.deliveryLabels.length === 0);
   const facts = [
     weightKg > 0 ? copy.format.weightKg(weightKg) : null,
     cargo.units != null && cargo.units > 0
@@ -104,22 +114,46 @@ function CargoMasterRow({
           <span className="min-w-0 truncate text-sm font-medium">
             {cargo.description}
           </span>
-          <Badge
-            variant={getCargoStatusVariant(cargo.status)}
-            className="shrink-0 text-xs font-normal"
-          >
-            {CARGO_STATUS_LABELS[cargo.status] || cargo.status}
-          </Badge>
           {hazmat ? (
-            <Badge variant="warning" tone="soft" className="text-[10px] font-normal">
+            <Badge
+              variant="warning"
+              tone="soft"
+              className="text-[10px] font-normal"
+            >
               {copy.label.hazardous}
+            </Badge>
+          ) : null}
+          {missingPickup ? (
+            <Badge
+              variant="warning"
+              tone="soft"
+              className="text-[10px] font-normal"
+            >
+              {copy.state.missingPickup}
+            </Badge>
+          ) : null}
+          {missingDelivery ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-normal text-muted-foreground"
+            >
+              {copy.state.missingDelivery}
             </Badge>
           ) : null}
         </div>
         <p className="truncate text-xs text-muted-foreground">{routeLine}</p>
-        {facts ? (
-          <p className="text-xs text-muted-foreground tabular-nums">{facts}</p>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {facts ? (
+            <p className="text-xs text-muted-foreground tabular-nums">{facts}</p>
+          ) : null}
+          <Badge
+            variant="outline"
+            className="text-[10px] font-normal text-muted-foreground"
+            title={copy.hint.statusInTracking}
+          >
+            {CARGO_STATUS_LABELS[cargo.status] || cargo.status}
+          </Badge>
+        </div>
       </div>
     </button>
   );
@@ -129,12 +163,15 @@ function CargoReadPanel({
   cargo,
   orderedStops,
   canEditStructural,
+  showTrackingFooter,
   onEdit,
   onRequestRemove,
 }: {
   cargo: TripCargo;
   orderedStops: readonly TripStop[];
   canEditStructural: boolean;
+  /** Pie «estado en Seguimiento» solo cuando aporta (p. ej. mid-trip). */
+  showTrackingFooter?: boolean;
   onEdit: () => void;
   onRequestRemove: () => void;
 }) {
@@ -143,9 +180,17 @@ function CargoReadPanel({
   const insured = isCargoInsured(cargo);
   const weightKg = getCargoWeightKg(cargo);
 
+  const planningGapMuted = isCargoPlanningGapMuted(cargo.status);
   const pickupValue = planning.pickupLabel ?? copy.state.missingPickup;
   const pickupMissing = planning.pickupLabel == null;
   const deliveryMissing = planning.deliveryLabels.length === 0;
+  const deliveryMissingHistorical = planningGapMuted && deliveryMissing;
+
+  const hazmatCode = cargo.hazardousMaterialCode?.trim() || null;
+  const packagingType = cargo.packagingType?.trim() || null;
+  const packagingDescription = cargo.packagingDescription?.trim() || null;
+  const showHazmatDetail =
+    hazmat && Boolean(hazmatCode || packagingType || packagingDescription);
 
   const quantityParts = [
     weightKg > 0 ? copy.format.weightKg(weightKg) : null,
@@ -170,12 +215,6 @@ function CargoReadPanel({
               {cargo.description}
             </h3>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge
-                variant={getCargoStatusVariant(cargo.status)}
-                className="text-xs font-normal"
-              >
-                {CARGO_STATUS_LABELS[cargo.status] || cargo.status}
-              </Badge>
               {hazmat ? (
                 <Badge
                   variant="warning"
@@ -185,6 +224,15 @@ function CargoReadPanel({
                   {copy.label.hazardous}
                 </Badge>
               ) : null}
+              <span className="text-xs text-muted-foreground">
+                {copy.hint.statusInTracking}:{" "}
+                <Badge
+                  variant="outline"
+                  className="align-middle text-[10px] font-normal text-muted-foreground"
+                >
+                  {CARGO_STATUS_LABELS[cargo.status] || cargo.status}
+                </Badge>
+              </span>
             </div>
           </div>
           {canEditStructural ? (
@@ -196,7 +244,7 @@ function CargoReadPanel({
                 className="h-8 text-muted-foreground"
                 onClick={onEdit}
               >
-                <Edit2 className="mr-1.5 h-3.5 w-3.5" />
+                <Edit2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                 {copy.action.editCargo}
               </Button>
               <Button
@@ -207,7 +255,7 @@ function CargoReadPanel({
                 onClick={onRequestRemove}
                 aria-label={copy.action.removeCargo}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
               </Button>
             </div>
           ) : null}
@@ -227,7 +275,8 @@ function CargoReadPanel({
                 <p
                   className={cn(
                     "text-sm font-medium leading-snug",
-                    pickupMissing && "text-warning",
+                    pickupMissing && !planningGapMuted && "text-warning",
+                    pickupMissing && planningGapMuted && "text-muted-foreground",
                   )}
                 >
                   {pickupValue}
@@ -247,7 +296,11 @@ function CargoReadPanel({
                 <p className="text-xs text-muted-foreground">
                   {copy.section.delivery}
                 </p>
-                {deliveryMissing ? (
+                {deliveryMissingHistorical ? (
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {copy.state.missingDeliveryHistorical}
+                  </p>
+                ) : deliveryMissing ? (
                   <p className="text-sm font-medium text-warning">
                     {copy.state.missingDelivery}
                   </p>
@@ -273,6 +326,45 @@ function CargoReadPanel({
           <p className="text-sm font-medium tabular-nums tracking-tight text-foreground">
             {copy.format.quantitiesLine(quantityParts)}
           </p>
+        ) : null}
+
+        {showHazmatDetail ? (
+          <section
+            className="space-y-2 rounded-lg border border-warning/40 bg-warning-soft/40 px-3 py-2.5"
+            aria-label={copy.label.hazardous}
+          >
+            <p className="text-xs font-semibold text-warning-soft-foreground">
+              {copy.label.hazardous}
+            </p>
+            <dl className="space-y-1.5 text-sm">
+              {hazmatCode ? (
+                <div className="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
+                  <dt className="text-muted-foreground">
+                    {copy.label.hazardousCode}
+                  </dt>
+                  <dd className="font-medium tabular-nums">{hazmatCode}</dd>
+                </div>
+              ) : null}
+              {packagingType ? (
+                <div className="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
+                  <dt className="text-muted-foreground">
+                    {copy.label.packagingType}
+                  </dt>
+                  <dd className="font-medium tabular-nums">{packagingType}</dd>
+                </div>
+              ) : null}
+              {packagingDescription ? (
+                <div className="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
+                  <dt className="text-muted-foreground">
+                    {copy.label.packagingDescription}
+                  </dt>
+                  <dd className="text-right font-medium">
+                    {packagingDescription}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </section>
         ) : null}
 
         {/* Anexos: seguro / notas */}
@@ -330,9 +422,11 @@ function CargoReadPanel({
         ) : null}
       </div>
 
-      <p className="mt-5 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-        {copy.hint.manageInTracking}
-      </p>
+      {showTrackingFooter ? (
+        <p className="mt-5 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+          {copy.hint.manageInTracking}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -342,9 +436,11 @@ export function TripDetailCargoMasterDetail({
   orderedStops,
   canEditStructural,
   canAppendCargo = false,
+  showAppendOnlyBanner = false,
   onAddCargo,
   onEditCargo,
   onRemoveCargo,
+  onGoToRoute,
   isRemoving = false,
 }: TripDetailCargoMasterDetailProps) {
   const isMobile = useMediaQuery("(max-width: 1023px)");
@@ -369,17 +465,24 @@ export function TripDetailCargoMasterDetail({
   );
 
   const cargosWithoutPickup = cargos.filter((cargo) => {
+    if (isCargoPlanningGapMuted(cargo.status)) return false;
     const planning = getCargoPlanningStops(cargo, orderedStops);
     return !planning.hasPickupMovement || planning.pickupLabel == null;
   });
   const cargosWithoutDelivery = cargos.filter((cargo) => {
-    if (cargo.status === CargoStatus.CANCELLED) return false;
+    if (isCargoPlanningGapMuted(cargo.status)) return false;
     const planning = getCargoPlanningStops(cargo, orderedStops);
     return (
       !planning.hasDeliveryMovement || planning.deliveryLabels.length === 0
     );
   });
-  const unresolvedMovementCount = cargos.reduce((count, cargo) => {
+  const cargosWithUnresolved = cargos.filter((cargo) => {
+    if (isCargoPlanningGapMuted(cargo.status)) return false;
+    return (
+      getCargoPlanningStops(cargo, orderedStops).unresolvedMovementCount > 0
+    );
+  });
+  const unresolvedMovementCount = cargosWithUnresolved.reduce((count, cargo) => {
     return (
       count + getCargoPlanningStops(cargo, orderedStops).unresolvedMovementCount
     );
@@ -390,6 +493,12 @@ export function TripDetailCargoMasterDetail({
     if (isMobile) {
       setMobileSheetOpen(true);
     }
+  };
+
+  const focusAndEditCargo = (cargoId: string) => {
+    setSelectedId(cargoId);
+    if (isMobile) setMobileSheetOpen(false);
+    onEditCargo(cargoId);
   };
 
   const pendingRemoveCargo =
@@ -403,6 +512,7 @@ export function TripDetailCargoMasterDetail({
         cargo={selectedCargo}
         orderedStops={orderedStops}
         canEditStructural={canEditStructural}
+        showTrackingFooter={showAppendOnlyBanner}
         onEdit={() => {
           setSelectedId((prev) => prev ?? resolvedViewId);
           onEditCargo(selectedCargo.id);
@@ -420,7 +530,7 @@ export function TripDetailCargoMasterDetail({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-base font-semibold flex items-center gap-2">
-            <Package className="h-4 w-4 shrink-0 text-primary" />
+            <Package className="h-4 w-4 shrink-0 text-primary" aria-hidden />
             {copy.section.list}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">{copy.hint.list}</p>
@@ -430,49 +540,121 @@ export function TripDetailCargoMasterDetail({
         </div>
         {canAppendCargo ? (
           <Button type="button" size="sm" variant="outline" onClick={onAddCargo}>
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
             {copy.action.addCargo}
           </Button>
         ) : null}
       </div>
 
+      {showAppendOnlyBanner ? (
+        <p
+          className="rounded-md border border-border/80 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+          role="status"
+        >
+          {copy.hint.appendOnlyBanner}
+        </p>
+      ) : null}
+
       {cargosWithoutPickup.length > 0 ? (
         <DetailAlertCard
           severity="warning"
-          icon={<AlertTriangle className="h-4 w-4" />}
+          icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
           title={copy.alert.noPickupTitle}
           items={[
             { text: copy.alert.noPickupBody(cargosWithoutPickup.length) },
-            { text: copy.hint.reviewPlanning },
           ]}
+          action={
+            <div className="flex flex-wrap gap-2">
+              {onGoToRoute ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onGoToRoute}
+                >
+                  {copy.action.goToRoute}
+                </Button>
+              ) : null}
+              {canEditStructural && cargosWithoutPickup[0] ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    focusAndEditCargo(cargosWithoutPickup[0]!.id)
+                  }
+                >
+                  {copy.action.fixFirstCargo}
+                </Button>
+              ) : null}
+            </div>
+          }
         />
       ) : null}
 
-      {cargosWithoutDelivery.length > 0 || unresolvedMovementCount > 0 ? (
+      {cargosWithoutDelivery.length > 0 ? (
         <DetailAlertCard
           severity="info"
-          icon={<AlertTriangle className="h-4 w-4" />}
-          title={copy.alert.reviewTitle}
+          icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
+          title={copy.alert.noDeliveryTitle}
           items={[
-            ...(cargosWithoutDelivery.length > 0
-              ? [
-                  {
-                    text: copy.alert.noDeliveryBody(
-                      cargosWithoutDelivery.length,
-                    ),
-                  },
-                ]
-              : []),
-            ...(unresolvedMovementCount > 0
-              ? [
-                  {
-                    text: copy.alert.unresolvedMovementBody(
-                      unresolvedMovementCount,
-                    ),
-                  },
-                ]
-              : []),
+            {
+              text: copy.alert.noDeliveryBody(cargosWithoutDelivery.length),
+            },
           ]}
+          action={
+            canEditStructural && cargosWithoutDelivery[0] ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  focusAndEditCargo(cargosWithoutDelivery[0]!.id)
+                }
+              >
+                {copy.action.fixFirstCargo}
+              </Button>
+            ) : null
+          }
+        />
+      ) : null}
+
+      {unresolvedMovementCount > 0 ? (
+        <DetailAlertCard
+          severity="info"
+          icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
+          title={copy.alert.unresolvedTitle}
+          items={[
+            {
+              text: copy.alert.unresolvedMovementBody(unresolvedMovementCount),
+            },
+          ]}
+          action={
+            <div className="flex flex-wrap gap-2">
+              {onGoToRoute ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onGoToRoute}
+                >
+                  {copy.action.goToRoute}
+                </Button>
+              ) : null}
+              {canEditStructural && cargosWithUnresolved[0] ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    focusAndEditCargo(cargosWithUnresolved[0]!.id)
+                  }
+                >
+                  {copy.action.fixFirstCargo}
+                </Button>
+              ) : null}
+            </div>
+          }
         />
       ) : null}
 
@@ -493,11 +675,7 @@ export function TripDetailCargoMasterDetail({
           <div className="min-h-0 overflow-y-auto bg-background md:max-h-[min(28rem,65vh)] md:rounded-r-md md:p-5">
             {detail}
           </div>
-        ) : (
-          <div className="flex items-center justify-center rounded-md border border-dashed py-8 text-sm text-muted-foreground md:hidden">
-            {copy.hint.selectCargo}
-          </div>
-        )}
+        ) : null}
       </div>
 
       <Sheet
@@ -517,6 +695,7 @@ export function TripDetailCargoMasterDetail({
                 cargo={selectedCargo}
                 orderedStops={orderedStops}
                 canEditStructural={canEditStructural}
+                showTrackingFooter={showAppendOnlyBanner}
                 onEdit={() => {
                   onEditCargo(selectedCargo.id);
                   setMobileSheetOpen(false);

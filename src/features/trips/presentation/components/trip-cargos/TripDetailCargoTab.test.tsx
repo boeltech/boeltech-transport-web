@@ -320,7 +320,7 @@ describe("TripDetailCargoTab", () => {
     expect(screen.queryByText(copy.state.emptyDescription)).not.toBeInTheDocument();
   });
 
-  it("opens edit sheet from read panel with deliveries read-only", async () => {
+  it("opens edit sheet from read panel with deliveries editable", async () => {
     const user = userEvent.setup();
 
     render(
@@ -350,7 +350,9 @@ describe("TripDetailCargoTab", () => {
       screen.getAllByText(copy.format.quantitiesLine(["200 kg", "4 uds"]))
         .length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(copy.hint.manageInTracking)).toBeInTheDocument();
+    expect(screen.getByText(copy.hint.list)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(copy.hint.statusInTracking))).toBeInTheDocument();
+    expect(screen.queryByText(copy.hint.manageInTracking)).not.toBeInTheDocument();
     expect(screen.queryByText(copy.section.list)).toBeInTheDocument();
     expect(screen.queryByText(/Por estado/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Resumen de cargas/i)).not.toBeInTheDocument();
@@ -362,7 +364,7 @@ describe("TripDetailCargoTab", () => {
     expect(screen.getByTestId("cargo-movement-sheet")).toBeInTheDocument();
     expect(screen.getByTestId("sheet-mode")).toHaveTextContent("edit");
     expect(screen.getByTestId("sheet-deliveries-readonly")).toHaveTextContent(
-      "readonly",
+      "editable",
     );
     expect(screen.getByTestId("sheet-description")).toHaveTextContent(
       "Tarimas de acero",
@@ -541,6 +543,8 @@ describe("TripDetailCargoTab", () => {
         ),
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(copy.hint.appendOnlyBanner)).toBeInTheDocument();
+    expect(screen.getByText(copy.hint.manageInTracking)).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: copy.action.addCargo }),
@@ -548,6 +552,47 @@ describe("TripDetailCargoTab", () => {
     expect(screen.getByTestId("sheet-vehicle-capacity")).toHaveTextContent(
       "20000",
     );
+  });
+
+  it("does not warn about missing delivery when cargo is already delivered", () => {
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.COMPLETED}
+          cargos={[
+            {
+              ...sampleCargo,
+              status: "delivered",
+              deliveredAt: "2026-10-15T18:00:00.000Z",
+            },
+          ]}
+          orderedStops={[pickupStop]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural={false}
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByText(copy.alert.noDeliveryTitle),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.alert.noDeliveryBody(1)),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.state.missingDelivery, { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(copy.state.missingDeliveryHistorical),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(copy.hint.statusInTracking)),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Entregada").length).toBeGreaterThan(0);
   });
 
   it("uses readonly over-capacity hint when the trip is completed", () => {

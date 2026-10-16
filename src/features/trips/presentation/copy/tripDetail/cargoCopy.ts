@@ -17,9 +17,15 @@ export const cargoCopy = {
     cargoTimeline: "Hitos de carga",
   },
   hint: {
-    list: "Planeación de cargas. La recogida y la entrega se registran en Seguimiento.",
+    /** Una sola línea above-the-fold (planeación vs Seguimiento). */
+    list: "Planeación de cargas. Recogida y entrega se registran en Seguimiento.",
     selectCargo: "Selecciona una carga de la lista.",
-    manageInTracking: "Recogida y entrega se registran en Seguimiento.",
+    /**
+     * Pie del panel solo mid-trip / cuando se puede operar.
+     * Evita duplicar `hint.list` en draft/scheduled.
+     */
+    manageInTracking:
+      "El estado en patio se actualiza en Seguimiento al registrar recogida o entrega.",
     trackingManageCargo:
       "Registra recogida, tránsito, entrega o incidencias de cada carga.",
     trackingViewCargo: "Estado actual de las cargas del viaje.",
@@ -27,23 +33,30 @@ export const cargoCopy = {
     cargoTimeline: "Estado y hitos de las cargas del viaje.",
     pendingBeforeDeparture:
       "Opera las cargas pendientes en esta parada antes de registrar salida o cierre del viaje.",
-    mobileDetailSheet: "Carga",
+    mobileDetailSheet: "Detalle de planeación",
+    /** Mid-trip: append permitido, edición estructural no. */
+    appendOnlyBanner:
+      "En ruta solo puedes agregar cargas. Para corregir o eliminar, el viaje debe estar en reserva o programado.",
+    statusInTracking: "Estado en patio",
   },
   alert: {
-    noPickupTitle: "Cargas sin parada de recogida",
+    noPickupTitle: "Falta parada de recogida",
     noPickupBody: (count: number) =>
       count === 1
         ? "1 carga no tiene parada de recogida."
         : `${count} cargas no tienen parada de recogida.`,
-    reviewTitle: "Revisa la planeación",
+    noDeliveryTitle: "Falta entrega planificada",
     noDeliveryBody: (count: number) =>
       count === 1
         ? "1 carga no tiene entrega planificada."
         : `${count} cargas no tienen entrega planificada.`,
+    unresolvedTitle: "Carga sin parada de la ruta",
     unresolvedMovementBody: (count: number) =>
       count === 1
         ? "1 carga no coincide con una parada de la ruta."
         : `${count} cargas no coinciden con una parada de la ruta.`,
+    /** @deprecated Preferir títulos específicos; se mantiene por compat. */
+    reviewTitle: "Falta entrega planificada",
   },
   action: {
     addCargo: "Agregar carga",
@@ -55,6 +68,7 @@ export const cargoCopy = {
     confirmRemove: "Eliminar",
     keepCargo: "Conservar",
     goToRoute: "Ir a Ruta",
+    fixFirstCargo: "Corregir carga",
     retry: "Reintentar",
     actionDisabledNotAtStop: "Registra llegada en esta parada para operar",
     deliver: "Entregar",
@@ -81,6 +95,8 @@ export const cargoCopy = {
       "Las cargas en tránsito aparecerán aquí para registrar entrega.",
     missingPickup: "Sin recogida",
     missingDelivery: "Sin entrega",
+    /** Lectura histórica cuando ya entregó/cerró sin parada planificada. */
+    missingDeliveryHistorical: "Sin parada de entrega planificada",
   },
   label: {
     totalWeight: "Peso",
@@ -94,6 +110,9 @@ export const cargoCopy = {
     deliveryStop: "Parada de entrega",
     noMerchandise: "Sin cargas",
     hazardous: "Peligroso",
+    hazardousCode: "Clave material",
+    packagingType: "Embalaje",
+    packagingDescription: "Descripción embalaje",
     defaultUnits: "uds",
     pickupCompleted: "Recogida registrada",
     deliveryCompleted: "Entrega registrada",
@@ -124,6 +143,9 @@ export const cargoCopy = {
     cargoPickupReassignError: "No se pudo cambiar la parada de carga",
     cargoPickupMovementMissing:
       "No se encontró el movimiento de carga para reasignar la parada.",
+    cargoDeliveryReassignError: "No se pudo cambiar la parada de entrega",
+    cargoDeliveryMovementMissing:
+      "No se encontró el movimiento de entrega para reasignar la parada.",
     cargoRemoved: "Carga eliminada",
     cargoRemoveError: "No se pudo eliminar la carga",
     saveErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
@@ -135,10 +157,10 @@ export const cargoCopy = {
     title: "Peso cargado",
     unknownTitle: "Sin capacidad registrada para esta unidad",
     unknownBody:
-      "No podremos avisarle si el peso de las mercancías supera lo que admite la unidad.",
+      "No podemos avisarte si el peso de las mercancías supera lo que admite la unidad.",
     /** Viaje aún mutable (draft / scheduled / in_progress). */
     overCapacityHint:
-      "Reduzca el peso de las mercancías o reasigne la unidad en Operación.",
+      "Baja el peso de las mercancías o cambia la unidad en Operación.",
     /** Viaje cerrado (completed / cancelled): solo lectura histórica. */
     overCapacityHintReadonly:
       "El peso cargado superó la capacidad registrada de la unidad.",

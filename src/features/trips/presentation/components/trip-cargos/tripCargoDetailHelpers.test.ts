@@ -10,6 +10,7 @@ import {
   attachStopIdsToCreateCargoMovements,
   formatCargoRouteLine,
   getCargoPlanningStops,
+  isCargoPlanningGapMuted,
 } from "./tripCargoDetailHelpers";
 import { tripDetailCopy } from "../../copy";
 
@@ -117,5 +118,15 @@ describe("getCargoPlanningStops / formatCargoRouteLine", () => {
         copy.state.missingDelivery,
       ),
     );
+  });
+});
+
+describe("isCargoPlanningGapMuted", () => {
+  it("mutes planning gaps for terminal cargo statuses", () => {
+    expect(isCargoPlanningGapMuted("delivered")).toBe(true);
+    expect(isCargoPlanningGapMuted("returned")).toBe(true);
+    expect(isCargoPlanningGapMuted("cancelled")).toBe(true);
+    expect(isCargoPlanningGapMuted("pending")).toBe(false);
+    expect(isCargoPlanningGapMuted("in_transit")).toBe(false);
   });
 });
