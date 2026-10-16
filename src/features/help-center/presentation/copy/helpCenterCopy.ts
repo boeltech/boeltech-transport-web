@@ -70,6 +70,7 @@ export const helpCenterCopy = {
     facturacion: "Facturación",
     viajes: "Viajes",
     operacion: "Operación",
+    flota: "Flota",
     comercial: "Comercial",
     finanzas: "Finanzas",
     reportes: "Reportes",

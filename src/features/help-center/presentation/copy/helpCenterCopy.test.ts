@@ -47,6 +47,7 @@ describe("helpCenterCopy.spotlight", () => {
 describe("helpCenterCopy product labels (PRD D1–D5)", () => {
   it("uses operative group/index copy without «Concepto fiscal» / «plataforma»", () => {
     expect(helpCenterCopy.groups.concepto_fiscal).toBe("Conceptos de factura");
+    expect(helpCenterCopy.groups.flota).toBe("Flota");
     expect(helpCenterCopy.index.description).toBe(
       "Guías y artículos para operar día a día",
     );
