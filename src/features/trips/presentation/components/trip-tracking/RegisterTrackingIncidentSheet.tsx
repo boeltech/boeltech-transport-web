@@ -38,6 +38,7 @@ import {
   TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
 } from "./trackingSheetLayout";
 import { createTrackingIdempotencyKey } from "./trackingIdempotency";
+import { trackingCopy } from "./trackingCopy";
 
 type RegisterTrackingIncidentSheetProps = {
   tripId: string;
@@ -75,12 +76,15 @@ function RegisterTrackingIncidentSheetBody({
 
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
-      toast({ title: "Incidente registrado", variant: "success" });
+      toast({
+        title: trackingCopy.sheet.incidentRegistered,
+        variant: "success",
+      });
       onOpenChange(false);
     },
     onError: (error) => {
       toast({
-        title: "No se pudo registrar el incidente",
+        title: trackingCopy.sheet.incidentFailed,
         description: error.message,
         variant: "destructive",
       });
@@ -142,7 +146,9 @@ function RegisterTrackingIncidentSheetBody({
               disabled={registerMutation.isPending}
             >
               <SelectTrigger id="tracking-incident-severity">
-                <SelectValue placeholder="Selecciona severidad" />
+                <SelectValue
+                  placeholder={trackingCopy.sheet.incidentSeverityPlaceholder}
+                />
               </SelectTrigger>
               <SelectContent>
                 {SEVERITY_OPTIONS.map((option) => (
@@ -162,7 +168,7 @@ function RegisterTrackingIncidentSheetBody({
               onChange={(e) => setDescription(e.target.value)}
               disabled={registerMutation.isPending}
               rows={4}
-              placeholder="Qué ocurrió, dónde y acciones tomadas…"
+              placeholder={trackingCopy.sheet.incidentPlaceholder}
               aria-invalid={fieldError ? true : undefined}
             />
             {fieldError ? (
@@ -216,11 +222,10 @@ export function RegisterTrackingIncidentSheet({
         <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Registrar incidente
+            {trackingCopy.sheet.incidentTitle}
           </SheetTitle>
           <SheetDescription>
-            Documenta un evento adverso en el timeline. Marca si requiere asistencia
-            inmediata.
+            {trackingCopy.sheet.incidentDescription}
           </SheetDescription>
         </SheetHeader>
 

@@ -18,6 +18,7 @@ import {
   type TrackingMapStopMarker,
 } from "./trackingMapHelpers";
 import { escapeHtml } from "./escapeHtml";
+import { trackingCopy } from "./trackingCopy";
 
 const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
 const DEFAULT_ZOOM = 4.5;
@@ -32,26 +33,35 @@ function scheduleMapResizeAfterReveal(map: mapboxgl.Map) {
   requestAnimationFrame(() => scheduleMapResize(map));
 }
 
-function createNumberedMarkerElement(order: number): HTMLDivElement {
+function createNumberedMarkerElement(
+  order: number,
+  label: string,
+): HTMLDivElement {
   const el = document.createElement("div");
   el.className =
     "flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-primary text-xs font-semibold text-primary-foreground shadow-md";
   el.textContent = String(order);
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", `Parada ${order}: ${label}`);
   return el;
 }
 
-function createPulseMarkerElement(): HTMLDivElement {
+function createPulseMarkerElement(ariaLabel: string): HTMLDivElement {
   const el = document.createElement("div");
   el.className = "relative flex h-4 w-4 items-center justify-center";
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", ariaLabel);
   el.innerHTML =
     '<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/60"></span><span class="relative inline-flex h-3 w-3 rounded-full border-2 border-background bg-destructive"></span>';
   return el;
 }
 
-function createEventMarkerElement(): HTMLDivElement {
+function createEventMarkerElement(ariaLabel: string): HTMLDivElement {
   const el = document.createElement("div");
   el.className =
     "h-2.5 w-2.5 rounded-full border border-background bg-warning shadow";
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", ariaLabel);
   return el;
 }
 
@@ -79,14 +89,14 @@ function syncMapOverlays(map: mapboxgl.Map, params: SyncMapOverlaysParams) {
 
   for (const stop of stopMarkers) {
     const marker = new mapboxgl.Marker({
-      element: createNumberedMarkerElement(stop.order),
+      element: createNumberedMarkerElement(stop.order, stop.label),
     })
       .setLngLat([stop.longitude, stop.latitude])
       .setPopup(
         new mapboxgl.Popup({ offset: 16 }).setHTML(
           `<strong>${stop.order}. ${escapeHtml(stop.label)}</strong>${
             stop.sublabel
-              ? `<br/><span style="font-size:12px;opacity:0.75">${escapeHtml(stop.sublabel)}</span>`
+              ? `<br/><span style="font-size:12px;color:#64748b">${escapeHtml(stop.sublabel)}</span>`
               : ""
           }`,
         ),
@@ -96,18 +106,23 @@ function syncMapOverlays(map: mapboxgl.Map, params: SyncMapOverlaysParams) {
   }
 
   for (const event of eventMarkers) {
-    const marker = new mapboxgl.Marker({ element: createEventMarkerElement() })
+    const marker = new mapboxgl.Marker({
+      element: createEventMarkerElement(
+        event.label?.trim() || trackingCopy.section.timeline,
+      ),
+    })
       .setLngLat([event.longitude, event.latitude])
       .addTo(map);
     markersRef.current.push(marker);
   }
 
   if (lastKnownPosition) {
-    const marker = new mapboxgl.Marker({ element: createPulseMarkerElement() })
+    const lastKnownLabel = trackingCopy.sheet.lastKnownPosition;
+    const marker = new mapboxgl.Marker({
+      element: createPulseMarkerElement(lastKnownLabel),
+    })
       .setLngLat([lastKnownPosition.longitude, lastKnownPosition.latitude])
-      .setPopup(
-        new mapboxgl.Popup({ offset: 12 }).setText("Última posición reportada"),
-      )
+      .setPopup(new mapboxgl.Popup({ offset: 12 }).setText(lastKnownLabel))
       .addTo(map);
     markersRef.current.push(marker);
   }
@@ -292,12 +307,18 @@ export function TripTrackingMapView({
   return (
     <div
       ref={shellRef}
+      role="region"
+      aria-label={trackingCopy.section.map}
       className={cn(
         "relative h-72 w-full min-w-0 overflow-hidden rounded-md border bg-muted/30",
         className,
       )}
     >
-      <div ref={containerRef} className="absolute inset-0 h-full w-full" />
+      <div
+        ref={containerRef}
+        className="absolute inset-0 h-full w-full"
+        aria-hidden
+      />
     </div>
   );
 }

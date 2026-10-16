@@ -72,7 +72,7 @@ export type TripTrackingObjectiveHubProps = {
   canMutateCargo?: boolean;
   isDriverPortal?: boolean;
   isClientPortal?: boolean;
-  /** F5: 1 línea + CTA; demota Completar viaje / falso mid-ruta. */
+  /** F5: 1 línea + CTA; demota cierre de un jalón / falso mid-ruta. */
   compact?: boolean;
   className?: string;
 };
@@ -284,7 +284,7 @@ export function TripTrackingObjectiveHub({
     ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
     : null;
   /**
-   * Completar viaje siempre visible cuando es elegible (atajo sin pasar
+   * Cerrar de un jalón siempre visible cuando es elegible (atajo sin pasar
    * por todas las paradas). En Ahora (compact) se demota si no es el
    * primary; puede quedar disabled por gating de cargas, pero no se oculta.
    */
@@ -451,11 +451,11 @@ export function TripTrackingObjectiveHub({
                   onQuickCloseTrip?.();
                 }}
                 aria-describedby={
-                  !demoteSecondaryClose
-                    ? quickCloseCargoBlockReason
-                      ? `${quickCloseHintId}-reason`
-                      : quickCloseHintId
-                    : undefined
+                  quickCloseCargoBlockReason
+                    ? `${quickCloseHintId}-reason`
+                    : !demoteSecondaryClose
+                      ? quickCloseHintId
+                      : undefined
                 }
               >
                 <Flag
@@ -468,23 +468,21 @@ export function TripTrackingObjectiveHub({
                   {trackingCopy.action.quickClose}
                 </span>
               </Button>
-              {!demoteSecondaryClose ? (
-                quickCloseCargoBlockReason ? (
-                  <p
-                    id={`${quickCloseHintId}-reason`}
-                    className="text-xs text-muted-foreground"
-                    role="status"
-                  >
-                    {quickCloseCargoBlockReason}
-                  </p>
-                ) : (
-                  <p
-                    id={quickCloseHintId}
-                    className="text-xs text-muted-foreground"
-                  >
-                    {trackingCopy.hint.quickCloseTransition}
-                  </p>
-                )
+              {quickCloseCargoBlockReason ? (
+                <p
+                  id={`${quickCloseHintId}-reason`}
+                  className="text-xs text-muted-foreground"
+                  role="status"
+                >
+                  {quickCloseCargoBlockReason}
+                </p>
+              ) : !demoteSecondaryClose ? (
+                <p
+                  id={quickCloseHintId}
+                  className="text-xs text-muted-foreground"
+                >
+                  {trackingCopy.hint.quickCloseTransition}
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -492,11 +490,11 @@ export function TripTrackingObjectiveHub({
             <div className="space-y-0.5">
               <Button
                 type="button"
-                variant={compact ? "link" : "outline"}
+                variant={compact ? "ghost" : "outline"}
                 size={compact ? "sm" : ctaSize}
                 className={cn(
                   compact
-                    ? "h-auto justify-start px-0 text-xs font-normal text-muted-foreground"
+                    ? "h-8 justify-start px-2 text-xs font-normal text-muted-foreground"
                     : "h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto",
                 )}
                 onClick={() => onDeclareFalseTrip?.()}
@@ -509,7 +507,7 @@ export function TripTrackingObjectiveHub({
                   )}
                 />
                 <span className={compact ? "font-normal" : "font-medium"}>
-                  {trackingCopy.action.clientCancelledCargo}
+                  {trackingCopy.action.declareFalseTrip}
                 </span>
               </Button>
               {!compact ? (

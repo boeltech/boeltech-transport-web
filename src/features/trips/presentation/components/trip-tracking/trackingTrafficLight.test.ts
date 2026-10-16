@@ -193,7 +193,7 @@ describe("trackingTrafficLightLabel / badgeVariant", () => {
   it("maps badge variants", () => {
     expect(trackingTrafficLightBadgeVariant("on_time")).toBe("success");
     expect(trackingTrafficLightBadgeVariant("at_risk")).toBe("warning");
-    expect(trackingTrafficLightBadgeVariant("delayed")).toBe("warning");
+    expect(trackingTrafficLightBadgeVariant("delayed")).toBe("destructive");
     expect(trackingTrafficLightBadgeVariant("stopped")).toBe("destructive");
   });
 });

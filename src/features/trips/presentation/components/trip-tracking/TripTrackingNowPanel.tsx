@@ -11,6 +11,7 @@ import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 
 import type { TripScheduleTimes } from "../trip-route/tripRouteDetailHelpers";
+import { TrackingEvidenceActions } from "./TrackingEvidenceActions";
 import { TripTrackingObjectiveHub } from "./TripTrackingObjectiveHub";
 import { trackingCopy } from "./trackingCopy";
 
@@ -37,6 +38,11 @@ export type TripTrackingNowPanelProps = {
   hasActiveSplit?: boolean;
   onDeclareFalseTrip?: () => void;
   onGoToCargos?: (stopId: string) => void;
+  /** Evidencia al alcance (D1): sin scrollear a historial. */
+  onRegisterNote?: () => void;
+  onRegisterIncident?: () => void;
+  canRegisterNote?: boolean;
+  canRegisterIncident?: boolean;
   canOperateTracking?: boolean;
   canMutateCargo?: boolean;
   isDriverPortal?: boolean;
@@ -46,7 +52,7 @@ export type TripTrackingNowPanelProps = {
 };
 
 /**
- * F6/F7 panel «Ahora»: qué sigue (1 CTA) + contacto flota.
+ * F6/F7 panel «Ahora»: qué sigue (1 CTA) + evidencia + contacto flota.
  * Incidente abierto vive en franja full-width (F7.2), no aquí.
  */
 export function TripTrackingNowPanel({
@@ -65,6 +71,10 @@ export function TripTrackingNowPanel({
   hasActiveSplit = false,
   onDeclareFalseTrip,
   onGoToCargos,
+  onRegisterNote,
+  onRegisterIncident,
+  canRegisterNote = false,
+  canRegisterIncident = false,
   canOperateTracking = true,
   canMutateCargo,
   isDriverPortal = false,
@@ -76,6 +86,10 @@ export function TripTrackingNowPanel({
   const vehicleLabel = contact?.vehicleLabel?.trim() || null;
   const driverPhone = contact?.driverPhone?.trim() || null;
   const hasContact = Boolean(driverName || vehicleLabel);
+  const showEvidence =
+    onRegisterNote != null &&
+    onRegisterIncident != null &&
+    !isClientPortal;
 
   return (
     <div
@@ -109,6 +123,23 @@ export function TripTrackingNowPanel({
         isDriverPortal={isDriverPortal}
         isClientPortal={isClientPortal}
       />
+
+      {showEvidence ? (
+        <div
+          className="space-y-1.5"
+          data-tracking-section="evidence-now"
+        >
+          <p className="text-xs text-muted-foreground">
+            {trackingCopy.hint.evidenceNow}
+          </p>
+          <TrackingEvidenceActions
+            onRegisterNote={onRegisterNote}
+            onRegisterIncident={onRegisterIncident}
+            canRegisterNote={canRegisterNote}
+            canRegisterIncident={canRegisterIncident}
+          />
+        </div>
+      ) : null}
 
       {hasContact ? (
         <div

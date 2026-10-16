@@ -79,7 +79,7 @@ export function trackingTrafficLightBadgeVariant(
     case "at_risk":
       return "warning";
     case "delayed":
-      return "warning";
+      return "destructive";
     case "stopped":
       return "destructive";
   }

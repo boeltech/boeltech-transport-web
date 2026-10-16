@@ -4,10 +4,11 @@
  */
 
 export const STOP_TRANSITION_COPY = {
-  dispatch: "El viaje pasa a En Ruta",
-  start: "El viaje pasa a En Ruta",
+  /** Despacho operativo: aún no implica salida del origen. */
+  dispatch: "El viaje queda listo para operar",
+  start: "El viaje queda listo para operar",
   arrive: "La parada queda en curso",
-  departOrigin: "El viaje sigue En Ruta",
+  departOrigin: "Queda registrada la salida del origen",
   depart: "La parada queda completada",
   close: "La parada queda completada y el viaje se cierra",
   quickClose: "El viaje queda completado",

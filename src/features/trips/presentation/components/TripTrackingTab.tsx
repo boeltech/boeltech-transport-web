@@ -42,7 +42,6 @@ import {
   getTrackingIncidentTimelineMeta,
   getFalseTripDeclaredTimelineMeta,
   shouldShowIncidentClosedChip,
-  TrackingEvidenceActions,
   TripTrackingIncidentStrip,
   TripTrackingItineraryRail,
   TripTrackingNowPanel,
@@ -331,6 +330,19 @@ export function TripTrackingTab({
     [itineraryRows, currentStopId],
   );
 
+  const railSelectedEffectiveId =
+    railSelectedStopId ?? focusRequest?.stopId ?? null;
+
+  const railSelectionHint = useMemo(() => {
+    if (!railSelectedEffectiveId || tripStatus !== TripStatus.IN_PROGRESS) {
+      return null;
+    }
+    if (isTrackingCurrentStop(railSelectedEffectiveId, itineraryRows)) {
+      return null;
+    }
+    return trackingCopy.hint.railMapOnly;
+  }, [railSelectedEffectiveId, tripStatus, itineraryRows]);
+
   const trafficLight = useMemo(() => {
     if (!timeline) return "n/a" as const;
     return resolveTrackingTrafficLight({
@@ -548,13 +560,14 @@ export function TripTrackingTab({
         tripStatus={tripStatus}
         tripTimes={tripScheduleTimes}
         cargos={cargos}
-        selectedStopId={railSelectedStopId ?? focusRequest?.stopId ?? null}
+        selectedStopId={railSelectedEffectiveId}
         onSelectStop={handleRailSelect}
+        selectionHint={railSelectionHint}
       />
 
-      {/* AHORA (~35–40%) | MAPA (~60–65%) */}
+      {/* AHORA (≥ mapa pre-GPS) | MAPA (contexto del viaje) */}
       <div
-        className="grid gap-4 lg:grid-cols-[minmax(0,38%)_minmax(0,62%)]"
+        className="grid gap-4 lg:grid-cols-[minmax(0,55%)_minmax(0,45%)]"
         data-tracking-section="now-map"
       >
         <TripTrackingNowPanel
@@ -596,6 +609,14 @@ export function TripTrackingTab({
               : undefined
           }
           onGoToCargos={handleGoToCargos}
+          onRegisterNote={
+            canOperateTracking ? () => openNoteSheet() : undefined
+          }
+          onRegisterIncident={
+            canOperateTracking ? () => openIncidentSheet() : undefined
+          }
+          canRegisterNote={canOperateStops}
+          canRegisterIncident={canOperateStops}
           canOperateTracking={canOperateTracking}
           canMutateCargo={canMutateCargo}
           isDriverPortal={isDriverPortal}
@@ -606,49 +627,34 @@ export function TripTrackingTab({
         <div
           className="min-w-0 lg:sticky lg:top-20 lg:self-start"
           data-tracking-section="map"
-          data-tracking-map-weight="protagonist"
+          data-tracking-map-weight="supporting"
         >
           <TripTrackingMap
             stops={orderedStops}
             events={timeline.events}
             routeGeojson={timeline.map.routeGeojson}
             lastKnownPosition={timeline.map.lastKnownPosition}
-            mapClassName="h-[min(28rem,55vh)] min-h-80"
+            mapClassName="h-[min(22rem,45vh)] min-h-64"
             focusStop={focusRequest}
             distanceActualKm={timeline.progress.distanceActualKm}
           />
         </div>
       </div>
 
-      {/* BITÁCORA DEL VIAJE — full width */}
+      {/* HISTORIAL DEL VIAJE — full width (solo lectura; evidencia en Ahora) */}
       <Card id="tracking-bitacora" data-tracking-section="feed">
-        <CardHeader className="space-y-2 pb-2">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0 space-y-1">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                {trackingCopy.section.timeline}
-              </CardTitle>
-              {timeline.events.length === 0 ? (
-                <CardDescription>
-                  {trackingCopy.state.noEvents}
-                </CardDescription>
-              ) : (
-                <CardDescription>
-                  {trackingCopy.hint.timelineHasEvents}
-                </CardDescription>
-              )}
-            </div>
-            {canOperateTracking || canOperateStops ? (
-              <TrackingEvidenceActions
-                onRegisterNote={() => openNoteSheet()}
-                onRegisterIncident={() => openIncidentSheet()}
-                canRegisterNote={canOperateStops}
-                canRegisterIncident={canOperateStops}
-                className="shrink-0"
-              />
-            ) : null}
-          </div>
+        <CardHeader className="space-y-1 pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            {trackingCopy.section.timeline}
+          </CardTitle>
+          {timeline.events.length === 0 ? (
+            <CardDescription>{trackingCopy.state.noEvents}</CardDescription>
+          ) : (
+            <CardDescription>
+              {trackingCopy.hint.timelineHasEvents}
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent>
           {timeline.events.length === 0 ? (
@@ -678,6 +684,13 @@ export function TripTrackingTab({
                         falseTripDeclaredBy,
                       )
                     : [];
+                const hasDetail =
+                  Boolean(timelineBody) ||
+                  incidentMeta.length > 0 ||
+                  Boolean(event.stopId) ||
+                  typeof event.payload?.cargo_description === "string" ||
+                  (event.latitude != null && event.longitude != null) ||
+                  falseTripMeta.length > 0;
                 return {
                   id: event.id,
                   icon: <EventIcon className="h-4 w-4" />,
@@ -686,7 +699,7 @@ export function TripTrackingTab({
                     event.eventType === "stop_departed" ||
                     event.eventType === "false_trip_declared",
                   content: (
-                    <div className="rounded-md border p-3">
+                    <div className="min-w-0 py-0.5">
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         <p className="text-sm font-medium">
                           {formatTrackingEventLabel(
@@ -706,23 +719,18 @@ export function TripTrackingTab({
                           {formatDateTime(event.occurredAt.toISOString())}
                         </p>
                       </div>
-                      {falseTripMeta.length > 0 ? (
-                        <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                          {falseTripMeta.map((line) => (
-                            <li key={line}>{line}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {timelineBody ||
-                      incidentMeta.length > 0 ||
-                      event.stopId ||
-                      event.payload?.cargo_description ||
-                      (event.latitude != null &&
-                        event.longitude != null) ? (
-                        <details className="mt-2">
+                      {hasDetail ? (
+                        <details className="mt-1">
                           <summary className="cursor-pointer text-xs text-muted-foreground">
                             {trackingCopy.action.timelineMore}
                           </summary>
+                          {falseTripMeta.length > 0 ? (
+                            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                              {falseTripMeta.map((line) => (
+                                <li key={line}>{line}</li>
+                              ))}
+                            </ul>
+                          ) : null}
                           {typeof event.payload?.cargo_description ===
                           "string" ? (
                             <p className="mt-1 text-sm text-muted-foreground">

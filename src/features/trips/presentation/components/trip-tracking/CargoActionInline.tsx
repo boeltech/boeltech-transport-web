@@ -72,6 +72,8 @@ export function CargoActionInline({
   const meta = ACTION_META[action];
   const Icon = meta.icon;
 
+  const showDisabledReason = Boolean(disabled && title && !showTransition);
+
   return (
     <div className={cn("space-y-0.5", className)}>
       <Button
@@ -82,7 +84,12 @@ export function CargoActionInline({
         disabled={disabled || pending}
         title={title}
         onClick={onClick}
-        aria-describedby={showTransition ? transitionId : undefined}
+        aria-label={
+          disabled && title ? `${meta.label}. ${title}` : undefined
+        }
+        aria-describedby={
+          showTransition || showDisabledReason ? transitionId : undefined
+        }
       >
         {pending ? (
           <Loader2 className="mr-1.5 h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -94,6 +101,14 @@ export function CargoActionInline({
       {showTransition ? (
         <p id={transitionId} className="text-xs text-muted-foreground">
           {CARGO_TRANSITION_COPY[meta.transition]}
+        </p>
+      ) : showDisabledReason ? (
+        <p
+          id={transitionId}
+          className="text-xs text-muted-foreground"
+          role="status"
+        >
+          {title}
         </p>
       ) : null}
     </div>

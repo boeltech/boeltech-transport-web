@@ -31,6 +31,7 @@ import {
   TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
 } from "./trackingSheetLayout";
 import { createTrackingIdempotencyKey } from "./trackingIdempotency";
+import { trackingCopy } from "./trackingCopy";
 
 type RegisterTrackingNoteSheetProps = {
   tripId: string;
@@ -58,12 +59,12 @@ function RegisterTrackingNoteSheetBody({
 
   const registerMutation = useRegisterTrackingEvent({
     onSuccess: () => {
-      toast({ title: "Nota registrada", variant: "success" });
+      toast({ title: trackingCopy.sheet.noteRegistered, variant: "success" });
       onOpenChange(false);
     },
     onError: (error) => {
       toast({
-        title: "No se pudo registrar la nota",
+        title: trackingCopy.sheet.noteFailed,
         description: error.message,
         variant: "destructive",
       });
@@ -120,7 +121,7 @@ function RegisterTrackingNoteSheetBody({
               onChange={(e) => setNote(e.target.value)}
               disabled={registerMutation.isPending}
               rows={4}
-              placeholder="Detalle operativo, instrucciones, contexto…"
+              placeholder={trackingCopy.sheet.notePlaceholder}
               aria-invalid={fieldError ? true : undefined}
             />
             {fieldError ? (
@@ -162,10 +163,10 @@ export function RegisterTrackingNoteSheet({
         <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-center gap-2">
             <StickyNote className="h-5 w-5 text-primary" />
-            Nota operativa
+            {trackingCopy.sheet.noteTitle}
           </SheetTitle>
           <SheetDescription>
-            Añade una anotación al timeline del viaje sin impacto fiscal directo.
+            {trackingCopy.sheet.noteDescription}
           </SheetDescription>
         </SheetHeader>
 

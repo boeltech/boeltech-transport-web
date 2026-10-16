@@ -9,6 +9,7 @@ import type { TrackingEvent, TrackingTimelineMapPosition, TripStop } from "@feat
 
 import { formatTrackingCoords } from "./trip-tracking/trackingGpsCapture";
 import { buildStopMarkers as buildMapStopMarkers } from "./trip-tracking/trackingMapHelpers";
+import { trackingCopy } from "./trip-tracking/trackingCopy";
 
 const TripTrackingMapView = lazy(() =>
   import("./trip-tracking/TripTrackingMapView").then((mod) => ({
@@ -21,7 +22,7 @@ interface TripTrackingMapProps {
   events?: TrackingEvent[];
   routeGeojson?: Record<string, unknown> | null;
   lastKnownPosition: TrackingTimelineMapPosition | null;
-  /** Altura útil del canvas Mapbox (F5/F6 mapa protagonista). */
+  /** Altura útil del canvas Mapbox (contexto del viaje; pre-GPS supporting). */
   mapClassName?: string;
   /**
    * F6: al elegir una parada del riel (no workbench), alinear el mapa.
@@ -42,7 +43,7 @@ function TripTrackingMapFallbackList({
     <>
       <div className="rounded-lg border bg-muted/20 p-3">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Ultima posicion conocida
+          {trackingCopy.sheet.mapFallbackLastKnown}
         </p>
         {lastKnownPosition ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -54,24 +55,24 @@ function TripTrackingMapFallbackList({
             </Badge>
             {lastKnownPosition.accuracyMeters != null ? (
               <span className="text-xs text-muted-foreground">
-                Precision ~{Math.round(lastKnownPosition.accuracyMeters)} m
+                Precisión ~{Math.round(lastKnownPosition.accuracyMeters)} m
               </span>
             ) : null}
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
-            Aun no hay eventos con coordenadas registradas.
+            {trackingCopy.sheet.mapFallbackNoCoords}
           </p>
         )}
       </div>
 
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          Coordenadas por parada
+          {trackingCopy.sheet.mapFallbackStopsTitle}
         </p>
         {stopMarkers.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Sin paradas con coordenadas para trazar.
+            {trackingCopy.sheet.mapFallbackNoStopCoords}
           </p>
         ) : (
           stopMarkers.map((stop) => (
@@ -128,11 +129,9 @@ export function TripTrackingMap({
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <MapPinned className="h-4 w-4 text-primary" />
-          Mapa operativo
+          {trackingCopy.section.map}
         </CardTitle>
-        <CardDescription>
-          Ubicación de paradas y eventos con GPS.
-        </CardDescription>
+        <CardDescription>{trackingCopy.hint.map}</CardDescription>
         {distanceMeta ? (
           <p className="text-xs text-muted-foreground" data-tracking-map-meta>
             {distanceMeta}
@@ -145,7 +144,7 @@ export function TripTrackingMap({
             fallback={
               <Skeleton
                 className={mapClassName ?? "h-72 w-full rounded-md"}
-                aria-label="Cargando mapa"
+                aria-label={trackingCopy.sheet.mapLoading}
               />
             }
           >
@@ -174,20 +173,20 @@ export function TripTrackingMap({
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
                 n
               </span>
-              Parada
+              {trackingCopy.sheet.mapLegendStop}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2.5 w-2.5 rounded-full bg-warning" />
-              Evento con GPS
+              {trackingCopy.sheet.mapLegendEvent}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-3 w-3 rounded-full bg-destructive" />
-              Ultima posicion
+              {trackingCopy.sheet.lastKnownPosition}
             </span>
             {routeGeojson ? (
               <span className="inline-flex items-center gap-1">
                 <Navigation className="h-3.5 w-3.5" />
-                Ruta planificada
+                {trackingCopy.sheet.mapLegendRoute}
               </span>
             ) : null}
           </div>

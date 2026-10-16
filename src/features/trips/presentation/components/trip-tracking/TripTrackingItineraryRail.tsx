@@ -28,6 +28,11 @@ export type TripTrackingItineraryRailProps = {
   /** Parada resaltada (p. ej. selección del hub o focusRequest). */
   selectedStopId?: string | null;
   onSelectStop?: (stopId: string) => void;
+  /**
+   * Feedback cuando la selección no es operable (solo mapa / consulta).
+   * Vacío = sin hint.
+   */
+  selectionHint?: string | null;
   className?: string;
 };
 
@@ -45,11 +50,13 @@ export function TripTrackingItineraryRail({
   cargos = [],
   selectedStopId = null,
   onSelectStop,
+  selectionHint = null,
   className,
 }: TripTrackingItineraryRailProps) {
   const rows = buildTrackingItineraryRows(stops, tripTimes, cargos);
   const showHints = tripStatus === TripStatus.IN_PROGRESS;
   const trackMode = rows.length > 0 && rows.length <= RAIL_TRACK_MAX;
+  const hint = selectionHint?.trim() || null;
 
   if (rows.length === 0) {
     return (
@@ -165,6 +172,15 @@ export function TripTrackingItineraryRail({
           );
         })}
       </ol>
+      {hint ? (
+        <p
+          className="text-xs text-muted-foreground"
+          role="status"
+          data-tracking-rail-hint="map-only"
+        >
+          {hint}
+        </p>
+      ) : null}
     </section>
   );
 }

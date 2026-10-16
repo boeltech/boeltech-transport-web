@@ -121,9 +121,9 @@ describe("trackingOperationalHelpers", () => {
     expect(rows.find((r) => r.stop.id === "s1")?.waitingPhase).toBe(false);
   });
 
-  it("label for close_at_destination is Finalizar viaje", () => {
+  it("label for close_at_destination is Finalizar en destino", () => {
     expect(getTrackingNextActionLabel("close_at_destination")).toBe(
-      "Finalizar viaje",
+      "Finalizar en destino",
     );
   });
 

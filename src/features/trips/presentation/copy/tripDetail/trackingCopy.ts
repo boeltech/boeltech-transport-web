@@ -11,24 +11,28 @@ export const trackingCopy = {
     now: "Ahora",
     contact: "Contacto",
     metrics: "Avance del viaje",
-    itinerary: "Itinerario operativo",
+    itinerary: "Paradas",
     stopsAndCargos: "Paradas y cargas",
     /** Detalle del hub tracking (léxico operativo; no «mercancía»). */
     cargosAtStop: "Cargas en esta parada",
     /** Portal cliente: narrativa de estado, no «Qué sigue» operativo (D11). */
     statusClient: "Estado del envío",
-    timeline: "Bitácora del viaje",
-    map: "Mapa operativo",
+    timeline: "Historial del viaje",
+    map: "Mapa del viaje",
   },
   action: {
     start: "Iniciar viaje",
     arrive: "Registrar llegada",
     depart: "Registrar salida",
     departOrigin: "Salida de origen",
-    close: "Finalizar viaje",
-    /** ADR-0088: atajo de cierre rápido post-inicio. */
-    quickClose: "Completar viaje",
-    /** PD1: CTA secundario del hub tras llegada en origen. */
+    /** Cierre canónico en destino. */
+    close: "Finalizar en destino",
+    /** ADR-0088: atajo de cierre sin registrar cada parada. */
+    quickClose: "Cerrar de un jalón",
+    /**
+     * Motivo típico de viaje en falso (placeholder / sheet).
+     * El CTA del hub usa `declareFalseTrip`, no esta frase.
+     */
     clientCancelledCargo: "El cliente canceló la carga",
     declareFalseTrip: "Declarar viaje en falso",
     note: "Nota",
@@ -128,7 +132,8 @@ export const trackingCopy = {
     stopWorkbenchDescription:
       "Opera las cargas de esta parada. Las demás paradas son solo lectura en el mapa.",
     /** Confirmación de arranque: una línea; sin itinerario futuro. */
-    startDescription: "Confirma hora y kilometraje. El viaje pasará a «En Ruta».",
+    startDescription:
+      "Confirma hora y kilometraje. Queda listo para registrar la primera parada.",
     startMileagePlaceholder: "Ej: 150000",
     loadingVehicleMileage: "Cargando kilometraje…",
     /** Un solo hint operativo cuando hay sugerencia. */
@@ -151,7 +156,7 @@ export const trackingCopy = {
     resourceBlockedDriver: (status: string) =>
       `El conductor no puede iniciar el viaje (${status}).`,
     departOriginDescription:
-      "Confirma la hora de salida. El viaje sigue En Ruta.",
+      "Confirma la hora de salida del origen. El tránsito hacia el destino queda registrado.",
     civilTimeHint: "Hora de México",
     arrivalDescription: "Confirma la hora de llegada. La parada quedará en curso.",
     departureDescription:
@@ -160,6 +165,28 @@ export const trackingCopy = {
       "Confirma hora y kilometraje final. El viaje quedará completado.",
     quickCloseDescription:
       "Cierra el viaje sin registrar cada parada. Confirma hora y kilometraje final.",
+    noteTitle: "Registrar nota",
+    noteDescription: "Queda en el historial del viaje.",
+    notePlaceholder: "Detalle operativo, instrucciones, contexto…",
+    noteRegistered: "Nota registrada",
+    noteFailed: "No se pudo registrar la nota",
+    incidentTitle: "Registrar incidente",
+    incidentDescription:
+      "Queda en el historial. Marca si requiere asistencia inmediata.",
+    incidentSeverityPlaceholder: "Selecciona severidad",
+    incidentPlaceholder: "Qué ocurrió, dónde y acciones tomadas…",
+    incidentRegistered: "Incidente registrado",
+    incidentFailed: "No se pudo registrar el incidente",
+    /** Popup del mapa: última posición conocida de la unidad en este viaje. */
+    lastKnownPosition: "Última posición reportada",
+    mapFallbackLastKnown: "Última posición conocida",
+    mapFallbackNoCoords: "Aún no hay eventos con coordenadas registradas.",
+    mapFallbackStopsTitle: "Coordenadas por parada",
+    mapFallbackNoStopCoords: "Sin paradas con coordenadas para trazar.",
+    mapLegendStop: "Parada",
+    mapLegendEvent: "Evento con GPS",
+    mapLegendRoute: "Ruta planificada",
+    mapLoading: "Cargando mapa",
     quickCloseWarningTitle: "Antes de confirmar",
     quickCloseWarningStops:
       "Paradas no visitadas: se registrará una hora de llegada estimada.",
@@ -245,7 +272,8 @@ export const trackingCopy = {
   },
   toast: {
     tripStarted: "Viaje iniciado",
-    tripStartedDescription: (tripCode: string) => `${tripCode} está En Ruta`,
+    tripStartedDescription: (tripCode: string) =>
+      `${tripCode} listo para seguimiento`,
     originDeparted: "Salida de origen registrada",
     originDepartFailed: "Error al registrar salida de origen",
     startFailed: "Error al iniciar",
@@ -263,7 +291,7 @@ export const trackingCopy = {
     tripClosedDescription: (tripCode: string) =>
       `${tripCode} quedó completado`,
     tripCloseFailed: "No se pudo finalizar el viaje",
-    quickCloseFailed: "No se pudo completar el viaje",
+    quickCloseFailed: "No se pudo cerrar el viaje",
     falseTripDeclared: "Viaje en falso declarado",
     falseTripDeclaredDescription: (tripCode: string) =>
       `${tripCode} quedó completado. Se puede facturar el desplazamiento.`,
@@ -292,7 +320,8 @@ export const trackingCopy = {
     civilTimeHint: "Hora de México",
   },
   state: {
-    live: "En vivo",
+    /** Polling de timeline; no implica GPS de unidad. */
+    live: "Al día",
     syncing: "Sincronizando…",
     readOnly: "Solo lectura",
     skippedNotVisited: "Omitido — no se visitó",
@@ -304,15 +333,19 @@ export const trackingCopy = {
     locationSaved: "Ubicación guardada",
   },
   hint: {
-    map: "Ubicación de paradas y eventos con GPS.",
+    map: "Paradas y eventos de este viaje.",
     itinerary: "Progreso por parada con plan y hora real.",
+    /** Riel: parada seleccionada que no es la operable. */
+    railMapOnly:
+      "Solo consulta en el mapa. Opera la parada en curso desde Ahora.",
     objectiveGuide: "La siguiente operación y el botón para registrarla.",
     readOnlyGuide:
-      "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, bitácora y mapa abajo.",
+      "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, historial y mapa abajo.",
     idleGuide:
       "No hay una acción de parada pendiente. Puedes revisar cargas o registrar una nota o incidente si aplica.",
     evidenceAtStop:
       "La nota o incidente usará esta parada como referencia de ubicación cuando tenga coordenadas.",
+    evidenceNow: "Nota o incidente del viaje.",
     distancePlanned: "Calculada desde las paradas del viaje.",
     distanceActual: "Distancia real proyectada por el seguimiento.",
     eta: "Basado en la programación del viaje.",
@@ -324,7 +357,7 @@ export const trackingCopy = {
     /** Portal cliente: lectura de estado (D11). Sin Iniciar/Registrar/Completar/falso. */
     clientScheduledTitle: "Programado",
     clientScheduledBody: "Tu envío está programado. Aún no sale.",
-    clientInProgressTitle: "En Ruta",
+    clientInProgressTitle: "En camino",
     clientInProgressBody: "Tu envío está en camino.",
     clientCompletedTitle: "Completado",
     clientCompletedBody: "Tu envío ya llegó.",

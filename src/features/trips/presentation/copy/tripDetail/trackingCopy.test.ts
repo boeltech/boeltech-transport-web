@@ -20,8 +20,9 @@ describe("trackingCopy — portal cliente (D11)", () => {
 });
 
 describe("trackingCopy — StartTripSheet (Capa 1 lean)", () => {
-  it("usa descripción de arranque sin itinerario futuro", () => {
-    expect(trackingCopy.sheet.startDescription).toMatch(/En Ruta/i);
+  it("usa descripción de arranque sin itinerario futuro ni «En Ruta» prematuro", () => {
+    expect(trackingCopy.sheet.startDescription).toMatch(/primera parada/i);
+    expect(trackingCopy.sheet.startDescription).not.toMatch(/En Ruta/i);
     expect(trackingCopy.sheet.startDescription).not.toMatch(
       /origen|carga|salida de origen|mercanc/i,
     );
@@ -33,7 +34,10 @@ describe("trackingCopy — StartTripSheet (Capa 1 lean)", () => {
     expect(trackingCopy.label.occurredAtDeparture).toBe("¿A qué hora salió?");
     expect(trackingCopy.toast.tripStarted).toBe("Viaje iniciado");
     expect(trackingCopy.toast.tripStartedDescription("V-1")).toBe(
-      "V-1 está En Ruta",
+      "V-1 listo para seguimiento",
+    );
+    expect(trackingCopy.toast.tripStartedDescription("V-1")).not.toMatch(
+      /En Ruta/i,
     );
     expect(trackingCopy.toast.startMileageRequiredDescription).not.toMatch(
       /od[oó]metro/i,
@@ -97,7 +101,7 @@ describe("trackingCopy — Registrar llegada/salida (Capa 1 lean)", () => {
 
 describe("trackingCopy — Salida de origen (Capa 1 lean)", () => {
   it("describe el resultado operativo sin léxico fiscal", () => {
-    expect(trackingCopy.sheet.departOriginDescription).toMatch(/En Ruta/i);
+    expect(trackingCopy.sheet.departOriginDescription).toMatch(/salida del origen/i);
     expect(trackingCopy.sheet.departOriginDescription).not.toMatch(/fiscal/i);
     expect(trackingCopy.sheet.departOriginDescription).not.toMatch(
       /iniciar el tránsito/i,
@@ -114,7 +118,10 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     );
     expect(trackingCopy.label.endMileage).toBe("Kilometraje final");
     expect(trackingCopy.toast.endMileageRequired).not.toMatch(/od[oó]metro/i);
-    expect(trackingCopy.action.close).toBe("Finalizar viaje");
+    expect(trackingCopy.action.close).toBe("Finalizar en destino");
+    expect(trackingCopy.action.quickClose).toBe("Cerrar de un jalón");
+    expect(trackingCopy.section.itinerary).toBe("Paradas");
+    expect(trackingCopy.section.timeline).toBe("Historial del viaje");
   });
 
   it("desglosa km inicial + distancia planificada en el sugerido de cierre", () => {
