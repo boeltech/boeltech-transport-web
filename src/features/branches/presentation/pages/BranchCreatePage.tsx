@@ -85,11 +85,14 @@ export function BranchCreatePage() {
       wasSubmittingRef.current = true;
       return;
     }
+    // Solo reactivar el blocker si el submit falló; en éxito navegamos con allowLeave.
     if (wasSubmittingRef.current) {
       wasSubmittingRef.current = false;
-      resetAllowLeave();
+      if (createMutation.isError) {
+        resetAllowLeave();
+      }
     }
-  }, [createMutation.isPending, resetAllowLeave]);
+  }, [createMutation.isPending, createMutation.isError, resetAllowLeave]);
 
   const handleSubmit = useCallback(
     (values: BranchFormData) => {
