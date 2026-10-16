@@ -3,10 +3,9 @@
  *
  * Barra superior con:
  * - Botón de menú móvil
- * - Buscador global / lupa móvil → GlobalCommandMenu
- * - Notificaciones
- * - Theme toggle
- * - Menú de usuario
+ * - Buscador global / lupa móvil → GlobalCommandMenu (ancla izquierda, densidad F2)
+ * - Cluster derecha: ayuda → inbox → tema | usuario
+ * - Solid bg-background (sin glass/blur)
  *
  * Ubicación: src/widgets/header/ui/Header.tsx
  */
@@ -88,17 +87,17 @@ export const Header = memo(function Header({ className }: HeaderProps) {
       )}
     >
       {/* ==========================================
-          Lado izquierdo
+          Lado izquierdo — search como ancla
           ========================================== */}
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-1.5 md:gap-3">
         {/* Botón de menú (móvil) */}
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="size-8 shrink-0 lg:hidden"
           onClick={openMobile}
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-4 w-4" />
           <span className="sr-only">Abrir menú</span>
         </Button>
 
@@ -107,32 +106,33 @@ export const Header = memo(function Header({ className }: HeaderProps) {
           type="button"
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="size-8 shrink-0 md:hidden"
           onClick={() => setCommandOpen(true)}
           aria-label={headerCopy.commandMenu.title}
         >
-          <Search className="h-5 w-5" />
+          <Search className="h-4 w-4" />
         </Button>
 
         {/* Navegación rápida (misma data filtrada que el sidebar) */}
-        <div className="hidden md:flex">
+        <div className="hidden md:flex" data-header-search>
           <Button
             type="button"
             variant="ghost"
             className={cn(
-              "relative h-9 w-72 justify-start rounded-md text-muted-foreground",
+              /* F2: más compacto que w-72/h-9 — ancla Linear/Asana sin perder ⌘K */
+              "relative h-8 w-56 justify-start rounded-md text-muted-foreground lg:w-64",
               /* Operate cool: muted + hairline; sin warm wash de --accent */
-              "border border-border bg-muted pl-10 pr-14 font-normal shadow-none",
+              "border border-border bg-muted pl-9 pr-12 font-normal shadow-none",
               "hover:bg-muted hover:text-muted-foreground",
             )}
             onClick={() => setCommandOpen(true)}
             aria-label={headerCopy.commandMenu.title}
           >
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <span className="truncate text-sm">
               {headerCopy.commandMenu.trigger}
             </span>
-            <kbd className="pointer-events-none absolute right-3 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded-md border border-border bg-background/60 px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+            <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-0.5 rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
               ⌘K
             </kbd>
           </Button>
@@ -142,12 +142,20 @@ export const Header = memo(function Header({ className }: HeaderProps) {
       </div>
 
       {/* ==========================================
-          Lado derecho
+          Lado derecho — cluster denso (ayuda → inbox → tema | usuario)
           ========================================== */}
-      <div className="flex items-center gap-2 md:gap-3">
+      <div
+        className="flex items-center gap-0.5"
+        data-header-actions
+      >
         <HelpPanelButton />
         <NotificationInboxButton />
         <ThemeCycleButton />
+        <div
+          className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:block"
+          aria-hidden
+          data-header-actions-divider
+        />
         <UserMenu user={user} onLogout={logout} />
       </div>
     </header>
@@ -173,13 +181,17 @@ const UserMenu = memo(function UserMenu({ user, onLogout }: UserMenuProps) {
   return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 px-2">
+          <Button
+            variant="ghost"
+            className="flex h-8 items-center gap-1.5 px-1.5"
+            data-header-user-menu
+          >
             {/* Avatar */}
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
+            <div className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
               {getUserInitials(user)}
             </div>
             {/* Info (solo desktop amplio) */}
-            <div className="hidden flex-col items-start text-left lg:flex">
+            <div className="hidden flex-col items-start text-left leading-tight lg:flex">
               <span className="text-sm font-medium">{getUserFullName(user)}</span>
               <span className="text-xs text-muted-foreground capitalize">
                 {user?.role || menuCopy.userFallback}
