@@ -21,11 +21,12 @@ export const BRAND_LOCKUP = {
   WORDMARK_HEIGHT_RATIO: 1,
   /**
    * Nudge vertical óptico del wordmark (fracción de markSize).
-   * Calibrado en sidebar expandido: markSize 30 → translateY(2.4px) = 0.08×.
-   * Comfortaa «tlamx» sin descendentes; el portal B carga más abajo.
    * Positivo = baja el nombre. Escala con markSize en landing/auth/design-system.
+   * Schibsted: em-box ya centra con `items-center`; un nudge leve (~0.04×)
+   * alinea el centro de tinta del glyph con el ink del portal B
+   * (calib. /welcome markSize 32 → +1.28px; Comfortaa usaba 0.08).
    */
-  WORDMARK_OPTICAL_Y_OFFSET_RATIO: 0.08,
+  WORDMARK_OPTICAL_Y_OFFSET_RATIO: 0.04,
   /**
    * Gap óptico cuando el mark sustituye una letra dentro del nombre
    * (legado «la»+mark+«uno»). Más estrecho que icono|wordmark.

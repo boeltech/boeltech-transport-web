@@ -1,11 +1,11 @@
 # Marks tlamx - v3.0
 
 Color `#2558a8` (azul-tinta). Producto: **tlamx** · Empresa: Boeltech.  
-Wordmark display: **Comfortaa** (+ stroke `.brand-wordmark-thick`).
+Wordmark display: **Schibsted Grotesk** 700 (Opción B · unifica con `/welcome`).
 
 ## Logo de producto (lockup)
 
-Composición canónica: **isotipo portal B + wordmark `tlamx`** (Comfortaa).
+Composición canónica: **isotipo portal B + wordmark `tlamx`** (Schibsted Grotesk).
 
 ### Espaciado (safe area / guía Rilxer)
 
@@ -31,7 +31,7 @@ viewBox ceñido `10 14 80 70` para paridad óptica.
 
 **Integrado:**
 - `public/favicon.svg` = portal ink
-- UI: `BrandLockup` (`LatunoMark` + `Wordmark` Comfortaa) en sidebar, landing, auth, design-system
+- UI: `BrandLockup` (`LatunoMark` + `Wordmark` Schibsted) en sidebar, landing, auth, design-system
 - Email: API `emailBrandHeaderHtml` → PNG portal **inline** (data URI); override remoto opcional `EMAIL_BRAND_ASSET_BASE_URL`. Regenerar: `node scripts/generate-email-mark.mjs` en API.
 
 ## Archivo — propuestas / legado
@@ -52,4 +52,4 @@ Con `npm run dev`:
 - `/brand/latuno-lockup-safe-area.svg`
 - `/welcome`, `/login`, sidebar ERP
 
-Checklist: 16px · 64px · gap 0.5×mark · Comfortaa + stroke en wordmark · centro óptico mark↔wordmark (`WORDMARK_OPTICAL_Y_OFFSET_RATIO`).
+Checklist: 16px · 64px · gap 0.5×mark · Schibsted 700 (sin stroke) · centro óptico mark↔wordmark (`WORDMARK_OPTICAL_Y_OFFSET_RATIO`).

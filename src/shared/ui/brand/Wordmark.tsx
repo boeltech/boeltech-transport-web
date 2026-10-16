@@ -1,8 +1,8 @@
 /**
  * Wordmark — marca tipográfica del producto tlamx.
  *
- * Display: Comfortaa (`font-brand` / BRAND.displayFontFamily).
- * En BrandLockup se aplica además `.brand-wordmark-thick`.
+ * Display: Schibsted Grotesk (`font-brand` / BRAND.displayFontFamily).
+ * Misma familia que el display de `/welcome` (Opción B · 2026-10-15).
  * El isotipo vive en LatunoMark / BrandLockup.
  *
  * Variantes tipográficas:
@@ -73,7 +73,7 @@ export const Wordmark = memo(function Wordmark({
         ...style,
       }}
       className={cn(
-        "font-brand font-bold leading-none select-none tracking-[-0.03em] lowercase",
+        "font-brand font-bold leading-none select-none tracking-[-0.035em] lowercase",
         VARIANT_CLASSES[variant],
         className,
       )}

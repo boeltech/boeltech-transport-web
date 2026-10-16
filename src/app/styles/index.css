@@ -11,8 +11,9 @@
  * ============================================================ */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
-/* Brand display (tlamx wordmark) — Comfortaa canónico */
-@import "@fontsource/comfortaa/700.css";
+/* Brand display (tlamx wordmark) — Schibsted Grotesk (Opción B · unifica con /welcome) */
+@import "@fontsource/schibsted-grotesk/latin-700.css";
+@import "@fontsource/schibsted-grotesk/latin-ext-700.css";
 
 @plugin "tailwindcss-animate";
 
@@ -138,8 +139,8 @@
 :root {
   --radius: 0.625rem;
 
-  /* Display de marca tlamx (Comfortaa) — wordmark / BrandLockup */
-  --font-brand: Comfortaa, ui-sans-serif, system-ui, sans-serif;
+  /* Display de marca tlamx (Schibsted Grotesk) — wordmark / BrandLockup */
+  --font-brand: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
 
   /* ============================================================
    * Brand scale — azul-tinta (Fase 1)
@@ -559,13 +560,17 @@ html.dark[data-palette="v2"] {
     font-family: var(--font-mono);
     font-feature-settings: "liga" 0, "calt" 0;
   }
-  /* Display de marca tlamx — Comfortaa */
+  /* Display de marca tlamx — Schibsted Grotesk 700 (sin stroke artificial) */
   .font-brand {
-    font-family: Comfortaa, ui-sans-serif, system-ui, sans-serif;
+    font-family: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
   }
-  /* Engrosa trazo sin cambiar font-size (mantiene ratio 1:1 con isotipo) */
+  /**
+   * Legado Comfortaa: engrosaba trazo para empatar el isotipo.
+   * Schibsted 700 no lo necesita; la clase queda no-op por si algún call-site
+   * aún la aplica.
+   */
   .brand-wordmark-thick {
-    -webkit-text-stroke: 0.55px currentColor;
+    -webkit-text-stroke: 0;
     paint-order: stroke fill;
   }
   /* Números tabulares por default en tablas para alineación de totales */
