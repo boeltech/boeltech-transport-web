@@ -328,7 +328,10 @@ describe("smoke approvals ADR-0098 autoaprobación", () => {
     expect(screen.getByText("2 seleccionado(s)")).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: approvalsCopy.inbox.bulk.approve }),
+      within(screen.getByTestId("approvals-bulk-actions-bar")).getByRole(
+        "button",
+        { name: approvalsCopy.inbox.bulk.approve },
+      ),
     );
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent(selfCopy.bulkWarning(1));
@@ -367,7 +370,10 @@ describe("smoke approvals ADR-0098 autoaprobación", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "Seleccionar" }));
     await user.click(
-      screen.getByRole("button", { name: approvalsCopy.inbox.bulk.approve }),
+      within(screen.getByTestId("approvals-bulk-actions-bar")).getByRole(
+        "button",
+        { name: approvalsCopy.inbox.bulk.approve },
+      ),
     );
     const dialog = await screen.findByRole("alertdialog");
     await user.click(

@@ -5,7 +5,12 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import {
+  createMemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { DriverCreatePage } from "@features/drivers/presentation/pages/DriverCreatePage";
@@ -113,17 +118,25 @@ function createTestQueryClient() {
 
 function renderDriverCreatePage() {
   const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <MemoryRouter initialEntries={["/drivers/new"]}>
-          <Routes>
-            <Route path="/drivers/new" element={<DriverCreatePage />} />
-          </Routes>
-        </MemoryRouter>
-      </TooltipProvider>
-    </QueryClientProvider>,
+  // Data router: DriverCreatePage usa useUnsavedChangesGuard → useBlocker.
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <Routes>
+                <Route path="/drivers/new" element={<DriverCreatePage />} />
+              </Routes>
+            </TooltipProvider>
+          </QueryClientProvider>
+        ),
+      },
+    ],
+    { initialEntries: ["/drivers/new"] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 beforeAll(() => {

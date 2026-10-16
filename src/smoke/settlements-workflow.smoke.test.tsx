@@ -498,7 +498,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     // Verificar que el diálogo de vista previa está abierto y la clase activa está en body
     expect(
-      screen.getByRole("heading", { name: /Recibo de pago/i }),
+      screen.getByRole("heading", { name: /Vista previa del recibo/i }),
     ).toBeInTheDocument();
     expect(document.body.classList.contains("print-receipt-active")).toBe(true);
 
@@ -777,7 +777,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     await user.click(printBtn);
 
-    expect(screen.getByRole("heading", { name: /Recibo de pago/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Vista previa del recibo/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Pago a operador — Período")).toBeInTheDocument();
     expect(screen.getByText("NO VÁLIDO PARA FIRMA")).toBeInTheDocument();
     expect(screen.getByText(/Última modificación:/)).toBeInTheDocument();

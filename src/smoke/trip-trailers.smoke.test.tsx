@@ -96,6 +96,12 @@ vi.mock("@features/catalogs", () => ({
   TipoPermisoSelect: () => <div data-testid="mock-tipo-permiso" />,
   ConfigAutotransporteSelect: () => <div data-testid="mock-config" />,
   SubTipoRemSelect: () => <div data-testid="mock-subtipo" />,
+  useCatalogOptions: () => ({ data: [], isLoading: false }),
+  CatalogTypeCode: {
+    SAT_CONFIG_AUTOTRANSPORTE: "sat_config_autotransporte",
+    SAT_TIPO_PERMISO: "sat_tipo_permiso",
+    SAT_SUB_TIPO_REM: "sat_sub_tipo_rem",
+  },
 }));
 
 vi.mock(

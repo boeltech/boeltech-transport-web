@@ -271,6 +271,15 @@ vi.mock("@features/finance/application/hooks/useBillingDispatchRuns", () => ({
     isError: false,
     refetch: mocks.refetch,
   }),
+  useBillingDispatchPeriodPreview: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
+  useCreateBillingDispatchRun: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
   usePreviewBillingDispatchRun: () => ({
     mutateAsync: mocks.previewMutateAsync,
     isPending: false,
@@ -711,8 +720,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(dispatchRunsCopy.detail.result.byClientTitle),
-    ).not.toBeInTheDocument();
+      screen.getByText(dispatchRunsCopy.detail.result.byClientTitle),
+    ).toBeInTheDocument();
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.buckets.readyTitle).length,
     ).toBeGreaterThan(0);

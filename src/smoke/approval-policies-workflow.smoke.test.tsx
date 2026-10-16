@@ -12,7 +12,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import {
+  createMemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import type { ReactNode } from "react";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import { ROLE_LABELS, type UserRole } from "@shared/constants/roles";
@@ -239,14 +245,22 @@ function LocationProbe() {
 }
 
 function renderApp(path: string, routes: ReactNode, client = createClient()) {
-  render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>{routes}</Routes>
-        <LocationProbe />
-      </MemoryRouter>
-    </QueryClientProvider>,
+  // Data router: UserEditPage usa useUnsavedChangesGuard → useBlocker.
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <QueryClientProvider client={client}>
+            <Routes>{routes}</Routes>
+            <LocationProbe />
+          </QueryClientProvider>
+        ),
+      },
+    ],
+    { initialEntries: [path] },
   );
+  render(<RouterProvider router={router} />);
   return client;
 }
 
@@ -793,8 +807,9 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-13)", () => {
 
     it.each(["dispatcher", "operator"] as const)("%s: SettingsNavTabs omite «Reglas de autorización»", (role) => {
       setRole(role);
+      // Hub por grupos: en /settings/general solo siblings de «empresa»; Reglas vive en gobernanza.
+      // Sin permiso settings el nav puede no montarse (items vacíos → null).
       renderApp("/settings/general", <Route path="/settings/*" element={<SettingsNavTabs />} />);
-      expect(screen.getByLabelText("Secciones de configuración")).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: "Reglas de autorización" })).not.toBeInTheDocument();
     });
   });
@@ -840,7 +855,9 @@ describe("Smoke ADR-0099 F7: Reglas de autorización (AP-1…AP-13)", () => {
 
     async function deactivateFromList(user: ReturnType<typeof userEvent.setup>) {
       await screen.findAllByText("mario@empresa.mx");
-      await user.click(screen.getAllByRole("button", { name: "Acciones" })[0]!);
+      await user.click(
+        screen.getAllByRole("button", { name: "Abrir menú de acciones" })[0]!,
+      );
       await user.click(await screen.findByRole("menuitem", { name: /Desactivar usuario/ }));
       const statusDialog = await screen.findByRole("alertdialog");
       await user.click(within(statusDialog).getByRole("button", { name: "Confirmar" }));

@@ -247,7 +247,10 @@ describe("AX-2 masiva por paso", () => {
     await screen.findByRole("checkbox", { name: "Seleccionar V-S1" });
     await user.click(screen.getByRole("checkbox", { name: "Seleccionar" }));
     await user.click(
-      screen.getByRole("button", { name: approvalsCopy.inbox.bulk.approve }),
+      within(screen.getByTestId("approvals-bulk-actions-bar")).getByRole(
+        "button",
+        { name: approvalsCopy.inbox.bulk.approve },
+      ),
     );
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent(expectedPrediction);

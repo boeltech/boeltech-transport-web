@@ -93,6 +93,7 @@ describe("PlatformGlobalCatalogsPage F2", () => {
     expect(
       screen.getAllByText("Productos y servicios CP").length,
     ).toBeGreaterThan(0);
-    expect(document.querySelector(".group")).toBeTruthy();
+    // Mobile list uses EntityListCard without to/onClick (no `.group` hover chrome).
+    expect(document.querySelector("ul.md\\:hidden")).toBeTruthy();
   });
 });

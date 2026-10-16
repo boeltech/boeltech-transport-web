@@ -56,9 +56,9 @@ describe("ReportsPage", () => {
     expect(screen.getByText("Comparativa por sucursal")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Ver análisis/i })).toHaveLength(2);
     expect(screen.getByRole("link", { name: /Ver cartera/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ver dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ver Inicio/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Ver comparativa en el dashboard/i }),
+      screen.getByRole("link", { name: /Ver comparativa en Inicio/i }),
     ).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: /Ver cartera/i })).toHaveAttribute(
       "href",

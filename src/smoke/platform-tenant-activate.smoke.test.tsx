@@ -9,7 +9,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   PlatformAdminActivation,
@@ -102,13 +108,21 @@ function renderWithProviders(ui: ReactNode, initialEntry = "/platform/tenants/ne
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <PlatformAuthProvider>{ui}</PlatformAuthProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  // Data router: PlatformTenantCreatePage usa useUnsavedChangesGuard → useBlocker.
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <QueryClientProvider client={queryClient}>
+            <PlatformAuthProvider>{ui}</PlatformAuthProvider>
+          </QueryClientProvider>
+        ),
+      },
+    ],
+    { initialEntries: [initialEntry] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 function renderActivationCard(canMutate: boolean) {

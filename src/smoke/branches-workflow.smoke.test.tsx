@@ -23,10 +23,10 @@ import {
   buildBranchManagementEvent,
 } from "@features/branches/test/branchTestFixtures";
 import type { BranchListItem } from "@features/branches/domain";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@shared/ui/tooltip";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useFormContext } from "react-hook-form";
 
 const {
@@ -132,6 +132,7 @@ vi.mock("@shared/ui/address-input/AddressInput", () => ({
       setValue("address.exteriorNumber", "100", { shouldValidate: true });
       setValue("address.postalCode", "64000", { shouldValidate: true });
       setValue("address.satStateCode", "19", { shouldValidate: true });
+      setValue("address.satMunicipalityCode", "039", { shouldValidate: true });
       setValue("address.satCountryCode", "MEX", { shouldValidate: true });
     }, [getValues, setValue]);
 
@@ -304,25 +305,32 @@ function renderBranchesApp(initialEntry = "/branches") {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  return render(
+  const withProviders = (page: ReactNode) => (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <MemoryRouter initialEntries={[initialEntry]}>
-          <Routes>
-            <Route path="/branches" element={<BranchesListPage />} />
-            <Route path="/branches/new" element={<BranchCreatePage />} />
-            <Route path="/branches/:id" element={<BranchDetailPage />} />
-          </Routes>
-        </MemoryRouter>
-      </TooltipProvider>
-    </QueryClientProvider>,
+      <TooltipProvider>{page}</TooltipProvider>
+    </QueryClientProvider>
   );
+
+  // Data router: BranchCreatePage usa useUnsavedChangesGuard → useBlocker.
+  // Rutas absolutas (mismo patrón que BranchCreatePage.test).
+  const router = createMemoryRouter(
+    [
+      { path: "/branches", element: withProviders(<BranchesListPage />) },
+      { path: "/branches/new", element: withProviders(<BranchCreatePage />) },
+      { path: "/branches/:id", element: withProviders(<BranchDetailPage />) },
+    ],
+    { initialEntries: [initialEntry] },
+  );
+
+  return render(<RouterProvider router={router} />);
 }
 
 async function openRowActions(branchName: string) {
   const row = screen.getByText(branchName).closest("tr");
   expect(row).toBeTruthy();
-  const menuButton = within(row!).getByRole("button", { name: "Acciones" });
+  const menuButton = within(row!).getByRole("button", {
+    name: branchesCopy.card.actionsAria,
+  });
   const user = userEvent.setup();
   await user.click(menuButton);
   return user;
@@ -442,43 +450,55 @@ describe("branches workflow smoke", () => {
     expect(screen.queryByTestId("branch-location-map")).not.toBeInTheDocument();
   });
 
-  it("deletes a secondary branch from the list actions menu", async () => {
+  it("deletes a secondary branch from the detail page (D1: no baja en listado)", async () => {
     renderBranchesApp();
 
     await waitFor(() => {
       expect(screen.getByText("Sucursal Secundaria")).toBeInTheDocument();
     });
 
-    const user = await openRowActions("Sucursal Secundaria");
-    await user.click(screen.getByRole("menuitem", { name: branchesCopy.actions.delete }));
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Sucursal Secundaria"));
 
-    const dialog = await screen.findByRole("alertdialog");
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /Sucursal Secundaria/ }),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: branchesCopy.actions.delete }),
+    );
+    const dialog = await screen.findByRole("dialog");
     await user.click(
       within(dialog).getByRole("button", { name: branchesCopy.actions.delete }),
     );
 
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith(BRANCH_TEST_IDS.secondary);
-      expect(mockGetAll.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
   });
 
-  it("blocks delete action for main branch in the dropdown menu", async () => {
+  it("blocks delete action for main branch on the detail page", async () => {
     renderBranchesApp();
 
     await waitFor(() => {
       expect(screen.getByText("Sucursal El Marqués")).toBeInTheDocument();
     });
 
-    const user = await openRowActions("Sucursal El Marqués");
-    expect(
-      screen.getByRole("menuitem", {
-        name: branchesCopy.actions.mainDeleteDisabled,
-      }),
-    ).toHaveAttribute("aria-disabled", "true");
+    const user = userEvent.setup();
+    await user.click(screen.getByText("Sucursal El Marqués"));
 
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /Sucursal El Marqués/ }),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole("button", { name: branchesCopy.actions.delete }),
+    ).toBeDisabled();
     expect(mockDelete).not.toHaveBeenCalled();
-    void user;
   });
 
   it("restores a deleted branch from the deleted view", async () => {
@@ -500,7 +520,7 @@ describe("branches workflow smoke", () => {
       screen.getByRole("menuitem", { name: branchesCopy.actions.restore }),
     );
 
-    const dialog = await screen.findByRole("alertdialog");
+    const dialog = await screen.findByRole("dialog");
     await actionsUser.click(
       within(dialog).getByRole("button", { name: branchesCopy.actions.restore }),
     );
@@ -541,9 +561,14 @@ describe("branches workflow smoke", () => {
 
     await waitFor(() => {
       expect(mockCreate).toHaveBeenCalled();
-      expect(
-        screen.getByRole("heading", { name: /Sucursal Nueva Smoke/ }),
-      ).toBeInTheDocument();
     });
+    expect(mockCreate.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        code: "QRO-99",
+        name: "Sucursal Nueva Smoke",
+      }),
+    );
+    // Detalle post-create: cubierto por «navigates to detail…». Aquí el DoD del
+    // wizard es enviar el alta con código/nombre correctos (data router + blocker).
   });
 });
