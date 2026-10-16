@@ -14,6 +14,7 @@ import {
 } from "react-router-dom";
 import { Suspense, type ReactNode } from "react";
 import { lazyWithRetry } from "@shared/lib/lazyWithRetry";
+import { RootScrollLayout } from "./RootScrollLayout";
 
 // ============================================
 // Error Boundary
@@ -525,6 +526,10 @@ const devOnlyAppChildRoutes = import.meta.env.DEV
 // ============================================
 
 export const router = createBrowserRouter([
+  {
+    element: <RootScrollLayout />,
+    errorElement: <RouteErrorBoundary />,
+    children: [
   // ==========================================
   // Ruta Raíz - Redirect dinámico
   // ==========================================
@@ -1352,6 +1357,8 @@ export const router = createBrowserRouter([
   {
     path: "*",
     element: withSuspense(NotFoundPage),
+  },
+    ],
   },
 ]);
 
