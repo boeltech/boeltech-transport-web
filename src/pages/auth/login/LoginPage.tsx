@@ -289,7 +289,7 @@ const LoginPage = () => {
       ) : (
         <form
           onSubmit={handleSubmit(onSubmit, () => setShowFieldSummary(true))}
-          className="space-y-4"
+          className="auth-funnel-login-form"
         >
           <div className="space-y-2">
             <Label htmlFor="subdomain">{copy.fields.subdomain}</Label>
@@ -383,7 +383,7 @@ const LoginPage = () => {
 
           <Button
             type="submit"
-            className="w-full"
+            className="auth-funnel-login-submit w-full"
             size="lg"
             disabled={isSubmitting}
             isLoading={isSubmitting}

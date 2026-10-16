@@ -3,7 +3,7 @@
  * Namespace: auth-funnel-*
  *
  * Tipografía del formulario = Inter (global). No importar Schibsted/Plex al form.
- * Comfortaa solo vía BrandLockup.
+ * Schibsted Grotesk del wordmark solo vía BrandLockup (carga global en index.css).
  * Ámbar (--sidebar-primary) = señal (tip trust, riel mobile) — nunca CTA.
  * CTA «Entrar»/«Verificar» = Button primary teal (--primary) del DS.
  * Degradado brand: teal↔ink (sin ámbar en el lavado).
@@ -160,14 +160,41 @@
 }
 
 /*
- * Claim aside — un grado más «display» con Inter (tracking/leading/peso).
- * Sin Schibsted en F1; F2 opcional puede scoped-swap font-family aquí.
+ * Claim aside — Schibsted Grotesk (paridad wordmark + landing display).
+ * Formulario sigue en Inter (no contaminar inputs).
  */
 .auth-funnel-claim {
+  font-family: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
   font-weight: 700;
-  letter-spacing: -0.032em;
-  line-height: 1.12;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
   text-wrap: balance;
+}
+
+/* Login: preview más presente (featured vs compact registro). */
+.auth-funnel-preview-featured {
+  margin-top: auto;
+}
+
+.auth-funnel-preview-featured .auth-funnel-preview-frame {
+  max-height: 13.5rem;
+}
+
+@media (min-width: 1280px) {
+  .auth-funnel-preview-featured .auth-funnel-preview-frame {
+    max-height: 15.5rem;
+  }
+}
+
+/* Login form: un poco más de aire entre bloques. */
+.auth-funnel-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.auth-funnel-login-form .auth-funnel-login-submit {
+  margin-top: 0.35rem;
 }
 
 /* Tip ámbar señal DS — no teal CTA */

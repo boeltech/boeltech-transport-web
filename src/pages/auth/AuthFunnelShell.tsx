@@ -2,8 +2,8 @@
  * Shell visual del embudo auth: panel de marca (izq.) + área de formulario.
  * Modos D1–D4: login | forgot | reset | verify | invite | activate | register (stepper vía brandSlot).
  * Puente Patio: degradado teal↔ink; ámbar (--sidebar-primary) = señal (tip, riel);
- * CTA form = Button primary teal. Claim Inter display-ish (F1; Schibsted = F2).
- * MFA a11y; mobile header oculto en lg+ (CSS). BrandLockup en aside + mobile.
+ * CTA form = Button primary teal. Claim Schibsted (paridad landing/wordmark).
+ * Preview featured en login. MFA a11y; mobile header oculto en lg+ (CSS).
  */
 
 import type { ReactNode } from "react";
@@ -59,7 +59,7 @@ function LoginBrandPanel() {
   return (
     <>
       <div className="space-y-3">
-        <p className="auth-funnel-claim text-foreground text-2xl sm:text-[1.75rem]">
+        <p className="auth-funnel-claim text-foreground text-2xl sm:text-[1.85rem]">
           {copy.claimTitle}
         </p>
         <p className="text-muted-foreground text-base leading-relaxed">
@@ -87,7 +87,7 @@ function LoginBrandPanel() {
         ))}
       </ul>
 
-      <AuthFunnelProductPreview density="compact" />
+      <AuthFunnelProductPreview density="featured" />
     </>
   );
 }

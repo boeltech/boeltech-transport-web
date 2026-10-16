@@ -19,13 +19,13 @@ export const authFunnelCopy = {
   claimBody:
     "Viajes, flota y clientes en un solo ERP para transporte en México.",
 
-  /** Trust fiscal (login) — sin promesa de trial. */
+  /** Trust fiscal (login) — paridad /welcome; sin promesa de trial. */
   trust: {
     ariaLabel: "Cumplimiento fiscal mexicano",
     items: [
-      { label: "CFDI 4.0", hint: "Timbrado fiscal" },
-      { label: "Carta Porte 3.1", hint: "Complemento SAT" },
-      { label: "REP", hint: "Complementos de pago" },
+      { label: "CFDI 4.0", hint: "Timbrado con tu sello" },
+      { label: "Carta Porte 3.1", hint: "Va con el viaje" },
+      { label: "REP", hint: "Al registrar el pago" },
     ],
   } as const,
 

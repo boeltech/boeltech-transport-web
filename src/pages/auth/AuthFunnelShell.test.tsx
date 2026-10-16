@@ -10,8 +10,10 @@ vi.mock("@shared/ui/theme", () => ({
 }));
 
 vi.mock("./AuthFunnelProductPreview", () => ({
-  AuthFunnelProductPreview: () => (
-    <div data-testid="auth-product-preview">preview</div>
+  AuthFunnelProductPreview: ({ density }: { density?: string }) => (
+    <div data-testid="auth-product-preview" data-density={density ?? "default"}>
+      preview
+    </div>
   ),
 }));
 
@@ -45,7 +47,7 @@ describe("AuthFunnelShell F1", () => {
     expect(document.getElementById("auth-form")).toBeTruthy();
   });
 
-  it("shows claim, compact trust and preview on login", () => {
+  it("shows claim, landing-aligned trust and featured preview on login", () => {
     renderShell("/login");
     const claim = screen.getByText(authFunnelCopy.claimTitle);
     expect(claim).toBeInTheDocument();
@@ -53,7 +55,11 @@ describe("AuthFunnelShell F1", () => {
     const trust = screen.getByLabelText(authFunnelCopy.trust.ariaLabel);
     expect(trust.tagName).toBe("UL");
     expect(within(trust).getByText("CFDI 4.0")).toBeInTheDocument();
-    expect(screen.getByTestId("auth-product-preview")).toBeInTheDocument();
+    expect(within(trust).getByText("Timbrado con tu sello")).toBeInTheDocument();
+    expect(within(trust).getByText("Va con el viaje")).toBeInTheDocument();
+    const preview = screen.getByTestId("auth-product-preview");
+    expect(preview).toBeInTheDocument();
+    expect(preview).toHaveAttribute("data-density", "featured");
   });
 
   it("uses minimal brand panel on reset (no claim, trust or preview)", () => {

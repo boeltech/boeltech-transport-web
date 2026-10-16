@@ -9,8 +9,12 @@ import { authFunnelCopy as copy } from "./authFunnelCopy";
 
 type AuthFunnelProductPreviewProps = {
   className?: string;
-  /** compact = login / bajo el stepper en registro */
-  density?: "default" | "compact";
+  /**
+   * compact = bajo stepper registro
+   * featured = panel login (más legible; polish F1)
+   * default = resto
+   */
+  density?: "default" | "compact" | "featured";
 };
 
 const PRODUCT_PREVIEW_ID = "product-preview-dashboard" as const;
@@ -20,6 +24,7 @@ export function AuthFunnelProductPreview({
   density = "default",
 }: AuthFunnelProductPreviewProps) {
   const compact = density === "compact";
+  const featured = density === "featured";
 
   if (isCommercialAssetEnabled(PRODUCT_PREVIEW_ID)) {
     return (
@@ -27,6 +32,7 @@ export function AuthFunnelProductPreview({
         className={cn(
           "pointer-events-none relative select-none",
           compact ? "mt-auto pt-4" : "mt-auto",
+          featured && "auth-funnel-preview-featured",
           className,
         )}
         aria-hidden
@@ -38,13 +44,13 @@ export function AuthFunnelProductPreview({
           id={PRODUCT_PREVIEW_ID}
           decorative
           className={cn(
-            "border-border/80 w-full rounded-xl border object-cover object-top shadow-lg",
+            "auth-funnel-preview-frame border-border/80 w-full rounded-xl border object-cover object-top shadow-lg",
             "origin-bottom-left",
-            compact
-              ? "translate-y-1 scale-[0.96]"
-              : "translate-x-4 translate-y-6 scale-[1.02] sm:translate-x-6",
-            /* F3: sin lockup desktop hay más aire — crop un poco más legible */
-            compact ? "max-h-40" : "max-h-48",
+            compact && "translate-y-1 scale-[0.96] max-h-40",
+            featured && "translate-y-0 scale-100 max-h-56",
+            !compact &&
+              !featured &&
+              "translate-x-4 translate-y-6 scale-[1.02] max-h-48 sm:translate-x-6",
           )}
         />
       </div>
@@ -61,6 +67,7 @@ function AuthFunnelProductPreviewMock({
   density = "default",
 }: AuthFunnelProductPreviewProps) {
   const compact = density === "compact";
+  const featured = density === "featured";
   const trips = compact ? copy.previewTrips.slice(0, 2) : copy.previewTrips;
 
   return (
@@ -68,6 +75,7 @@ function AuthFunnelProductPreviewMock({
       className={cn(
         "pointer-events-none relative select-none",
         compact ? "mt-auto pt-4" : "mt-auto",
+        featured && "auth-funnel-preview-featured",
         className,
       )}
       aria-hidden
@@ -77,11 +85,13 @@ function AuthFunnelProductPreviewMock({
       </p>
       <div
         className={cn(
-          "bg-card text-card-foreground border-border/80 relative overflow-hidden rounded-xl border shadow-lg",
+          "auth-funnel-preview-frame bg-card text-card-foreground border-border/80 relative overflow-hidden rounded-xl border shadow-lg",
           "origin-bottom-left",
-          compact
-            ? "translate-y-1 scale-[0.96]"
-            : "translate-x-4 translate-y-6 scale-[1.02] sm:translate-x-6",
+          compact && "translate-y-1 scale-[0.96]",
+          featured && "translate-y-0 scale-100",
+          !compact &&
+            !featured &&
+            "translate-x-4 translate-y-6 scale-[1.02] sm:translate-x-6",
         )}
       >
         <div className="bg-muted/80 flex items-center gap-1.5 border-b px-3 py-2">
@@ -93,7 +103,14 @@ function AuthFunnelProductPreviewMock({
           </span>
         </div>
 
-        <div className={cn("flex", compact ? "h-40" : "h-48")}>
+        <div
+          className={cn(
+            "flex",
+            compact && "h-40",
+            featured && "h-52",
+            !compact && !featured && "h-48",
+          )}
+        >
           <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border flex w-14 shrink-0 flex-col gap-2 border-r p-2">
             <div className="bg-sidebar-primary/20 h-6 w-full rounded-md" />
             <div className="bg-sidebar-primary/35 h-2 w-full rounded" />
