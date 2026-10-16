@@ -77,6 +77,7 @@ export const helpCenterCopy = {
     portales: "Portales",
     concepto_fiscal: "Conceptos de factura",
     administracion: "Administración",
+    configuracion: "Configuración",
   } as Record<string, string>,
   aria: {
     openHelp: "Ayuda",

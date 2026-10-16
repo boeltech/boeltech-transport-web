@@ -11,6 +11,19 @@ describe("matchHelpScreen", () => {
     ).toBe(true);
   });
 
+  it("matches billing-schemes leaf path for frecuencias-envio", () => {
+    expect(
+      matchHelpScreen("/settings/billing-schemes", [
+        "/settings/billing-schemes",
+      ]),
+    ).toBe(true);
+    expect(
+      matchHelpScreen("/finance/dispatch/period", [
+        "/settings/billing-schemes",
+      ]),
+    ).toBe(false);
+  });
+
   it("matches :id patterns against UUID pathnames", () => {
     expect(
       matchHelpScreen("/invoices/a1b2c3d4-e5f6-7890-abcd-ef1234567890", [
