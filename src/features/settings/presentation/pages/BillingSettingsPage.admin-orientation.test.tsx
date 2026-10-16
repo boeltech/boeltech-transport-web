@@ -124,10 +124,6 @@ vi.mock("../components/BillingServiceConceptsCard", () => ({
   BillingServiceConceptsCard: () => null,
 }));
 
-vi.mock("../components/BillingDispatchSchemesCard", () => ({
-  BillingDispatchSchemesCard: () => null,
-}));
-
 function renderPage() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },

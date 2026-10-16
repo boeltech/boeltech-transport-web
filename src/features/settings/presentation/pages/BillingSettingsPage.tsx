@@ -2,7 +2,7 @@
  * BillingSettingsPage — hub permanente «Datos para facturar».
  *
  * Strip de preparación (identidad → sello → numeración + diagnóstico PAC),
- * numeración/defaults con Guardar, teasers a hijas.
+ * numeración/defaults con Guardar; teaser a servicios de cobro.
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,7 +29,6 @@ import { BillingCertificateCard } from "../components/BillingCertificateCard";
 import { BillingDefaultsCard } from "../components/BillingDefaultsCard";
 import { BillingNumberingCard } from "../components/BillingNumberingCard";
 import { BillingReadinessCard } from "../components/BillingReadinessCard";
-import { BillingDispatchSchemesCard } from "../components/BillingDispatchSchemesCard";
 import { BillingServiceConceptsCard } from "../components/BillingServiceConceptsCard";
 import {
   useBillingSettings,
@@ -332,7 +331,6 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
           </p>
           <div className="space-y-2">
             <BillingServiceConceptsCard />
-            <BillingDispatchSchemesCard />
           </div>
         </div>
       </div>

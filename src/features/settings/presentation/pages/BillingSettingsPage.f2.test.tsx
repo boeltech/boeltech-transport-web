@@ -103,10 +103,6 @@ vi.mock("../components/BillingServiceConceptsCard", () => ({
   BillingServiceConceptsCard: () => <div>service-concepts</div>,
 }));
 
-vi.mock("../components/BillingDispatchSchemesCard", () => ({
-  BillingDispatchSchemesCard: () => <div>dispatch-schemes</div>,
-}));
-
 function renderPage() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -149,12 +145,11 @@ describe("BillingSettingsPage hub operate", () => {
     expect(screen.getByText("readiness")).toBeInTheDocument();
     expect(screen.getByText("defaults")).toBeInTheDocument();
     expect(screen.getByText("service-concepts")).toBeInTheDocument();
-    expect(screen.getByText("dispatch-schemes")).toBeInTheDocument();
+    expect(screen.queryByText("dispatch-schemes")).not.toBeInTheDocument();
     expect(screen.getByText(billingSettingsCopy.extrasHeading)).toBeInTheDocument();
 
     expect(form?.textContent).toContain("defaults");
     expect(form?.textContent).not.toContain("service-concepts");
-    expect(form?.textContent).not.toContain("dispatch-schemes");
     expect(form?.textContent).not.toContain("readiness");
   });
 });

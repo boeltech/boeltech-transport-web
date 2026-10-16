@@ -226,14 +226,6 @@ export const billingSettingsCopy = {
     manage: "Administrar servicios",
   },
 
-  /** Wayfinding ADR-0082 — frecuencias viven en Finanzas, no en el nav de Settings. */
-  dispatchSchemes: {
-    title: "Frecuencias de envío",
-    description:
-      "Cuándo se agrupan las facturas para el cliente — en Finanzas, no aquí.",
-    openInFinance: "Abrir en Finanzas",
-  },
-
   extrasHeading: "Más configuración",
 
   // ── Toasts (mutaciones) ───────────────────────────────────────────────────
