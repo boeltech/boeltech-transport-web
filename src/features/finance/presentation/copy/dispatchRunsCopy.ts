@@ -185,6 +185,13 @@ export const dispatchRunsCopy = {
       "Revisa el lote, confirma y manda un correo por cliente. No genera facturas nuevas. Si el automático no encontró listos, arma el envío cuando ya haya facturas listas.",
     executeCta: "Armar envío del periodo",
     backToWorkbench: "Volver a envíos",
+    /** Atajo page-local (no ListPageShell.relatedConfig) → Configuración. */
+    relatedConfig: {
+      label: "Frecuencias de envío",
+      description:
+        "Define cada cuánto se agrupa el correo a cada cliente.",
+      href: "/settings/billing-schemes",
+    },
     entityLabelPlural: "envíos",
     loadError: "Error al cargar los envíos del periodo",
     filters: {
@@ -214,7 +221,9 @@ export const dispatchRunsCopy = {
       onboardingTitle: "Antes del primer envío",
       onboardingSteps: [
         {
-          label: "Crea una frecuencia aquí.",
+          label: "Crea una frecuencia de envío.",
+          href: "/settings/billing-schemes",
+          linkLabel: "Crear frecuencias",
         },
         {
           label: "En cada cliente, elige cada cuánto y revisa el correo.",

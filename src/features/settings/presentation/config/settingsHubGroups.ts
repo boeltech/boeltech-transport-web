@@ -30,7 +30,11 @@ export const SETTINGS_HUB_GROUPS: readonly SettingsHubGroupDefinition[] = [
   },
   {
     id: "facturacion",
-    sectionIds: [SettingsSection.BILLING, SettingsSection.SUBSCRIPTION],
+    sectionIds: [
+      SettingsSection.BILLING,
+      SettingsSection.BILLING_SCHEMES,
+      SettingsSection.SUBSCRIPTION,
+    ],
   },
   {
     id: "padron",

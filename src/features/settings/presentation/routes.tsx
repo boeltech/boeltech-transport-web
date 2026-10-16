@@ -35,6 +35,12 @@ const BillingSettingsPage = lazyWithRetry(() =>
   })),
 );
 
+const BillingSchemesPage = lazyWithRetry(() =>
+  import("./pages/BillingSchemesPage").then((m) => ({
+    default: m.BillingSchemesPage,
+  })),
+);
+
 const BillingServiceConceptsPage = lazyWithRetry(() =>
   import("./pages/BillingServiceConceptsPage").then((m) => ({
     default: m.BillingServiceConceptsPage,
@@ -135,6 +141,7 @@ function SettingsUnknownRedirect() {
  * /settings/catalogs     → Catálogos SAT e internos
  * /settings/catalogs/:typeCode → Detalle de catálogo
  * /settings/billing      → Facturación electrónica
+ * /settings/billing-schemes → Frecuencias de envío
  * /settings/approvals  → Reglas de autorización (ADR-0099)
  * /settings/notifications → Avisos de la empresa (documentos por vencer)
  * /settings/security     → Redirect a /account/security
@@ -228,7 +235,8 @@ export function SettingsRoutes() {
             </PermissionGuard>
           }
         />
-        {/* billing-schemes: redirect top-level en app router (fuera de ModuleRoute settings) */}
+        {/* Frecuencias de envío — ModuleRoute settings → settings.read */}
+        <Route path="billing-schemes" element={<BillingSchemesPage />} />
 
         {/* SaaS subscription (también ruta top-level sin RBAC billing para paywall) */}
         <Route path="subscription" element={<BillingSubscriptionPage />} />

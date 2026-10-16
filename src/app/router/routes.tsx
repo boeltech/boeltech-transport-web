@@ -40,7 +40,6 @@ import {
 import { AppLayout } from "@widgets/layout";
 import { SettingsRoutes } from "@features/settings";
 import { StaffFinanceRoute } from "@features/finance";
-import { FINANCE_DISPATCH_PERIOD_PATH } from "@features/finance/application";
 import { ROLES } from "@shared/constants/roles";
 const AuthLayout = lazyWithRetry(() => import("@widgets/layout/ui/AuthLayout"));
 
@@ -668,13 +667,6 @@ export const router = createBrowserRouter([
           {
             path: "/settings/subscription",
             element: withSuspense(BillingSubscriptionPage),
-          },
-          // Legacy billing-schemes → fuera de ModuleRoute settings (evita forbidden)
-          {
-            path: "/settings/billing-schemes",
-            element: (
-              <Navigate to={FINANCE_DISPATCH_PERIOD_PATH} replace />
-            ),
           },
 
           // ========================================

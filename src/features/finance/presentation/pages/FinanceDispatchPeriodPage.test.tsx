@@ -21,10 +21,6 @@ vi.mock("@shared/hooks", async (importOriginal) => {
   };
 });
 
-vi.mock("@features/settings/presentation/components/BillingSchemesCompactCard", () => ({
-  BillingSchemesCompactCard: () => <div>Frecuencias de envío</div>,
-}));
-
 vi.mock("@features/settings/application/hooks/useBillingSchemes", () => ({
   useBillingSchemes: () => ({ data: [], isLoading: false, isError: false }),
 }));
@@ -70,12 +66,20 @@ describe("FinanceDispatchPeriodPage", () => {
     vi.clearAllMocks();
   });
 
-  it("enseña lotes del periodo, frecuencias y onboarding de 3 pasos", () => {
+  it("enseña lotes del periodo, atajo a settings y onboarding de 3 pasos", () => {
     renderPage();
 
     expect(
       screen.getByRole("link", { name: dispatchRunsCopy.tab.backToWorkbench }),
     ).toHaveAttribute("href", "/finance/dispatch");
+    expect(
+      screen.getByRole("link", {
+        name: dispatchRunsCopy.tab.relatedConfig.label,
+      }),
+    ).toHaveAttribute("href", "/settings/billing-schemes");
+    expect(
+      screen.getByText(dispatchRunsCopy.tab.relatedConfig.description),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: dispatchRunsCopy.tab.title }),
     ).toBeInTheDocument();
@@ -100,6 +104,15 @@ describe("FinanceDispatchPeriodPage", () => {
     expect(
       screen.getByText(dispatchRunsCopy.tab.empty.onboardingSteps[0]!.label),
     ).toBeInTheDocument();
+    const schemeStep = dispatchRunsCopy.tab.empty.onboardingSteps[0];
+    expect(
+      screen.getByRole("link", {
+        name:
+          "linkLabel" in schemeStep && schemeStep.linkLabel
+            ? schemeStep.linkLabel
+            : "Crear frecuencias",
+      }),
+    ).toHaveAttribute("href", "/settings/billing-schemes");
     const clientStep = dispatchRunsCopy.tab.empty.onboardingSteps[1];
     expect(
       screen.getByRole("link", {

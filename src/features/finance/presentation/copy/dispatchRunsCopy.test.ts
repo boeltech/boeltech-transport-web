@@ -36,14 +36,18 @@ describe("dispatchRunsCopy glossary", () => {
     expect(blob).not.toMatch(/PDF\/XML adjuntos/i);
   });
 
-  it("onboarding del periodo no manda a Pendientes", () => {
+  it("onboarding del periodo manda el paso 1 a frecuencias en settings", () => {
     const steps = dispatchRunsCopy.tab.empty.onboardingSteps;
     expect(steps).toHaveLength(3);
-    expect(steps[0]?.label).toMatch(/frecuencia aquí/i);
+    expect(steps[0]?.label).toMatch(/frecuencia de envío/i);
+    expect(steps[0]?.href).toBe("/settings/billing-schemes");
+    expect(steps[0]?.linkLabel).toBe("Crear frecuencias");
     expect(steps[1]?.href).toBe("/clients");
     expect(steps[2]?.label).toMatch(/Arma el envío del periodo/i);
     expect(JSON.stringify(steps[2])).not.toMatch(/Pendientes/i);
-    expect(JSON.stringify(steps)).not.toMatch(/settings\/billing-schemes/);
+    expect(dispatchRunsCopy.tab.relatedConfig.href).toBe(
+      "/settings/billing-schemes",
+    );
   });
 
   it("toolbar del periodo usa Filtros y empty virgen distinto del recorte", () => {

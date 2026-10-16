@@ -1,18 +1,18 @@
 /**
- * Envíos del periodo: listado de lotes + frecuencias de envío (`ListPageShell`).
+ * Envíos del periodo: listado de lotes (`ListPageShell`).
  *
  * Dictamen toolbar: sin search (el API no busca); estado y frecuencia en
- * `ListingFilterPanel`. Hide-empty fuera del panel. Card de frecuencias y
- * Armar no son recortes. Empty: onboarding XOR EmptyState filtrado (D10).
+ * `ListingFilterPanel`. Hide-empty fuera del panel. CRUD de frecuencias vive
+ * en `/settings/billing-schemes` (atajo relatedConfig page-local). Armar no
+ * es un recorte. Empty: onboarding XOR EmptyState filtrado (D10).
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, History, Plus } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, History, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { ListPageShell } from "@shared/ui/page-shells";
 import { useQueryErrorToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
-import { BillingSchemesCompactCard } from "@features/settings/presentation/components/BillingSchemesCompactCard";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
 import {
   useBillingDispatchRuns,
@@ -168,12 +168,26 @@ export function FinanceDispatchPeriodPage() {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
-        <Link to={workbenchBackHref}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
-          {copy.backToWorkbench}
-        </Link>
-      </Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
+          <Link to={workbenchBackHref}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
+            {copy.backToWorkbench}
+          </Link>
+        </Button>
+        <div className="min-w-0 sm:text-right">
+          <Link
+            to={copy.relatedConfig.href}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+          >
+            {copy.relatedConfig.label}
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {copy.relatedConfig.description}
+          </p>
+        </div>
+      </div>
       <ListPageShell<BillingDispatchRunListItem>
         title={copy.title}
         description={copy.subtitle}
@@ -183,7 +197,6 @@ export function FinanceDispatchPeriodPage() {
           onClick: handleOpenCreate,
           visible: canExecute,
         }}
-        beforeToolbar={<BillingSchemesCompactCard />}
         toolbar={{
           filters: (
             <>

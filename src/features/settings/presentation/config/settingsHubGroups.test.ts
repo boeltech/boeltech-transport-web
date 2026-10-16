@@ -21,9 +21,23 @@ describe("settingsHubGroups", () => {
     expect(getSettingsHubGroupId(SettingsSection.GENERAL)).toBe("empresa");
     expect(getSettingsHubGroupId(SettingsSection.LOCATIONS)).toBe("empresa");
     expect(getSettingsHubGroupId(SettingsSection.BILLING)).toBe("facturacion");
+    expect(getSettingsHubGroupId(SettingsSection.BILLING_SCHEMES)).toBe(
+      "facturacion",
+    );
     expect(getSettingsHubGroupId(SettingsSection.SUBSCRIPTION)).toBe(
       "facturacion",
     );
+  });
+
+  it("keeps billing-schemes between billing and subscription in facturacion", () => {
+    const facturacion = getSettingsNavItemsForGroup("facturacion").map(
+      (i) => i.id,
+    );
+    expect(facturacion).toEqual([
+      SettingsSection.BILLING,
+      SettingsSection.BILLING_SCHEMES,
+      SettingsSection.SUBSCRIPTION,
+    ]);
   });
 
   it("resolves deep links to the parent section", () => {

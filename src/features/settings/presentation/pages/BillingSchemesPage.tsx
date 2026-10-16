@@ -1,6 +1,17 @@
-import { Navigate } from "react-router-dom";
+import { SettingsPageShell } from "@shared/ui/page-shells";
+import { BillingSchemesCompactCard } from "../components/BillingSchemesCompactCard";
+import { billingSchemesCopy } from "../copy/billingSchemesCopy";
 
-/** Legacy: el catálogo se mueve a Envíos del periodo. */
+const copy = billingSchemesCopy.page;
+
 export function BillingSchemesPage() {
-  return <Navigate to="/finance/dispatch/period" replace />;
+  return (
+    <SettingsPageShell
+      sectionTitle={copy.title}
+      title={copy.title}
+      description={copy.description}
+    >
+      <BillingSchemesCompactCard />
+    </SettingsPageShell>
+  );
 }

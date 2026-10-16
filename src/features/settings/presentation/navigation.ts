@@ -7,6 +7,7 @@
 
 import {
   Building2,
+  CalendarClock,
   Database,
   FileText,
   Bell,
@@ -53,6 +54,14 @@ export const settingsNavItems: SettingsNavItem[] = [
       "Sello digital, numeración y valores con los que emites tus facturas",
     path: "/settings/billing",
     icon: FileText,
+    permission: { module: "settings", action: "read" },
+  },
+  {
+    id: SettingsSection.BILLING_SCHEMES,
+    label: "Frecuencias de envío",
+    description: "Define cada cuánto se agrupa el correo a cada cliente.",
+    path: "/settings/billing-schemes",
+    icon: CalendarClock,
     permission: { module: "settings", action: "read" },
   },
   {

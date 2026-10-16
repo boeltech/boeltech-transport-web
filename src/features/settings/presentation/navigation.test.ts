@@ -18,6 +18,11 @@ const EXPECTED_NAV_ORDER = [
     label: "Datos para facturar",
   },
   {
+    id: SettingsSection.BILLING_SCHEMES,
+    path: "/settings/billing-schemes",
+    label: "Frecuencias de envío",
+  },
+  {
     id: SettingsSection.SUBSCRIPTION,
     path: "/settings/subscription",
     label: "Tu plan",
@@ -73,12 +78,15 @@ describe("settingsNavItems", () => {
     ).toBe(false);
   });
 
-  it("places billing immediately after general, without billing-schemes in nav", () => {
+  it("places billing-schemes after billing and before subscription", () => {
     const ids = settingsNavItems.map((item) => item.id);
     const billingIdx = ids.indexOf(SettingsSection.BILLING);
     expect(billingIdx).toBe(1);
-    expect(ids).not.toContain(SettingsSection.BILLING_SCHEMES);
-    expect(ids[billingIdx + 1]).toBe(SettingsSection.SUBSCRIPTION);
+    expect(ids[billingIdx + 1]).toBe(SettingsSection.BILLING_SCHEMES);
+    expect(ids[billingIdx + 2]).toBe(SettingsSection.SUBSCRIPTION);
+    expect(
+      getSettingsNavItem(SettingsSection.BILLING_SCHEMES)?.permission,
+    ).toEqual({ module: "settings", action: "read" });
   });
 });
 
