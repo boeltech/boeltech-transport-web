@@ -19,13 +19,25 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // F4b sprint-cero-seguridad (CEO 2026-10-16, opción 1): deuda histórica a warn.
+      // Baseline congelado en package.json --max-warnings; cleanup futuro puede restaurar error.
+      'no-unused-labels': 'warn',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
+      'react-refresh/only-export-components': 'warn',
+    },
   },
   {
     files: ['src/features/**/presentation/pages/**/*Page*.{ts,tsx}'],
     rules: {
       // Guardrail Fase 3: las pages deben consumir shells, no primitivas wizard.
+      // warn (no error) hasta cleanup pedido — ver F4b baseline.
       'no-restricted-imports': [
-        'error',
+        'warn',
         {
           paths: [
             {
@@ -42,7 +54,7 @@ export default defineConfig([
     files: ['src/features/finance/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
-        'error',
+        'warn',
         {
           patterns: [
             {
@@ -59,7 +71,7 @@ export default defineConfig([
     files: ['src/features/invoicing/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
-        'error',
+        'warn',
         {
           patterns: [
             {

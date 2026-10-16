@@ -33,6 +33,13 @@ jobs:
       - name: Typecheck tests
         run: npm run typecheck:test
 
+      # Fail on ESLint errors; warnings capped at baseline (CEO 2026-10-16 opción 1 / F4b).
+      # Historical debt rules downgraded to warn in eslint.config.js; max-warnings=163
+      # (= 114 former errors + 49 prior warnings). Do not raise without re-measure;
+      # cleanup pedido may restore error severity and lower the cap.
+      - name: Lint
+        run: npm run lint
+
       - name: Design token guardrail
         run: npm run lint:design-tokens
 
