@@ -1,6 +1,7 @@
 /**
  * Capa visual full-bleed del hero `/welcome`.
  * A1: foto patio/flota (`tlama-landing-hero-yard.png`) + overlay ruta sutil.
+ * Hero híbrido: patio de fondo; copy+preview centrados encima (LandingPage).
  * Decorative; reduced-motion en landing.css.
  */
 import { cn } from "@shared/lib/utils/cn";

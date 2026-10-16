@@ -170,6 +170,34 @@ describe("LandingPage /welcome polish", () => {
     ).toBeTruthy();
   });
 
+  it("opens mobile section menu and closes on link click", async () => {
+    const user = userEvent.setup();
+    const { container } = renderLanding();
+    const chrome = screen.getByRole("banner");
+
+    expect(container.querySelector("[data-landing-mobile-nav]")).toBeNull();
+    const trigger = within(chrome).getByRole("button", {
+      name: landingCopy.nav.menuOpen,
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger).toHaveAttribute(
+      "aria-label",
+      landingCopy.nav.menuClose,
+    );
+    const mobileNav = container.querySelector("[data-landing-mobile-nav]");
+    expect(mobileNav).toBeTruthy();
+    const pricingInMobile = within(mobileNav as HTMLElement).getByRole("link", {
+      name: landingCopy.nav.pricing,
+    });
+    expect(pricingInMobile).toHaveAttribute("href", "#pricing");
+
+    await user.click(pricingInMobile);
+    expect(container.querySelector("[data-landing-mobile-nav]")).toBeNull();
+  });
+
   it("keeps hero chrome CTA and #pricing / #evidencia anchors without Opcionales/FAQ in nav", () => {
     const { container } = renderLanding();
     const chrome = screen.getByRole("banner");
@@ -259,6 +287,15 @@ describe("LandingPage /welcome polish", () => {
     expect(
       within(footerProduct).queryByRole("link", { name: "Opcionales" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("uses hybrid hero stack (centered copy + preview, not split columns)", () => {
+    const { container } = renderLanding();
+    const stack = container.querySelector(".landing-hero-stack");
+    expect(stack).toBeTruthy();
+    expect(stack!.querySelector(".landing-hero-copy")).toBeTruthy();
+    expect(stack!.querySelector(".landing-hero-preview")).toBeTruthy();
+    expect(container.querySelector(".landing-hero .lg\\:grid-cols-2")).toBeNull();
   });
 
   it("mounts product preview near the hero and again in evidence (not a dense product grid)", () => {
@@ -409,10 +446,16 @@ describe("LandingPage /welcome polish", () => {
     const planCta = (col: Element | null) =>
       col?.querySelector(".landing-plan-actions a");
 
-    /* Default 6–30: solo Pequeña = match + CTA ámbar. */
+    /* Default 6–30: solo Pequeña = match + CTA ámbar + cue P4. */
     expect(pequenaCol?.classList.contains("is-fleet-match")).toBe(true);
     expect(microCol?.classList.contains("is-fleet-match")).toBe(false);
     expect(medianaCol?.classList.contains("is-fleet-match")).toBe(false);
+    expect(screen.getByText("Tu banda: Pequeña")).toBeInTheDocument();
+    expect(
+      pequenaCol?.querySelector(".landing-plan-actions")?.compareDocumentPosition(
+        pequenaCol.querySelector(".landing-plan-specs")!,
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(planCta(pequenaCol)?.classList.contains("landing-cta-amber")).toBe(
       true,
     );
@@ -426,6 +469,7 @@ describe("LandingPage /welcome polish", () => {
     await user.click(screen.getByRole("radio", { name: "1–5" }));
     expect(microCol?.classList.contains("is-fleet-match")).toBe(true);
     expect(pequenaCol?.classList.contains("is-fleet-match")).toBe(false);
+    expect(screen.getByText("Tu banda: Micro")).toBeInTheDocument();
     /* Popular badge permanece; no inventa segunda columna featured con CTA ámbar. */
     expect(pequenaCol?.classList.contains("is-popular")).toBe(true);
     expect(planCta(microCol)?.classList.contains("landing-cta-amber")).toBe(
@@ -440,6 +484,7 @@ describe("LandingPage /welcome polish", () => {
       '.landing-plan-col[data-plan-code="operacion_grande"]',
     );
     expect(grandeCol?.classList.contains("is-fleet-match")).toBe(true);
+    expect(screen.getByText("Tu banda: Grande")).toBeInTheDocument();
     expect(pequenaCol?.classList.contains("is-fleet-match")).toBe(false);
     expect(pequenaCol?.classList.contains("is-popular")).toBe(true);
     /* Grande cotización: outline/quote, sin CTA ámbar aunque sea match. */
@@ -639,6 +684,17 @@ describe("LandingPage /welcome polish", () => {
       }),
     ).toBeInTheDocument();
     expect(optionals!.textContent).not.toMatch(/\b0[123]\b/);
+    expect(optionals!.querySelector(".landing-optionals-bento")).toBeTruthy();
+    expect(optionals!.querySelectorAll(".landing-optionals-cell")).toHaveLength(
+      landingCopy.optionals.items.length,
+    );
+  });
+
+  it("exposes evidence progress dots matching beats", () => {
+    const { container } = renderLanding();
+    const dots = container.querySelectorAll(".landing-evidence-dot");
+    expect(dots).toHaveLength(landingCopy.product.items.length);
+    expect(container.querySelector(".landing-evidence-dot.is-active")).toBeTruthy();
   });
 
   it("limits LandingReveal to at most three uses", () => {

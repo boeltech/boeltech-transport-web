@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, UserPlus } from "lucide-react";
+import { ChevronRight, Menu, UserPlus, X } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { BrandLockup, Wordmark } from "@shared/ui/brand";
 import { cn } from "@shared/lib/utils/cn";
@@ -26,6 +26,7 @@ function planCodeForFleetOption(optionId: string): string {
  * Landing pública (`/welcome`): embudo D1–D12 · look «Señal de patio».
  * Secuencia: Hero(+chrome+UI) → Trust → Evidencia → Precios → FAQ → CTA → Opcionales → Footer.
  * Máx. 3 LandingReveal: hero copy (eager), preview, CTA cierre.
+ * Hero: híbrido patio + stack centrado (copy → preview grande; ref. Aceternity centered).
  * F1: chrome on-dark dentro del hero. F2: sticky elevated + lockup al salir del hero.
  */
 const LandingPage = () => {
@@ -51,12 +52,15 @@ const LandingPage = () => {
 
 /**
  * Chrome único (F1+F2): on-dark en hero; `is-stuck` elevated al cruzar el umbral
- * del hero (IntersectionObserver sobre `[data-landing-hero]`). Sin nav duplicado.
+ * del hero (IntersectionObserver sobre `[data-landing-hero]`).
+ * F1 navs: menú secciones &lt;md (Cómo funciona / Precios); CTA siempre en barra.
  */
 const HeroChrome = () => {
   const { brand, nav } = landingCopy;
   const { open: registrationOpen } = usePublicSelfServeRegister();
   const [stuck, setStuck] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavId = useId();
 
   useEffect(() => {
     const heroEl = document.querySelector("[data-landing-hero]");
@@ -73,10 +77,24 @@ const HeroChrome = () => {
     return () => observer.disconnect();
   }, []);
 
+  /* Cerrar menú móvil al pasar a md+ */
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => {
+      if (mq.matches) setMobileNavOpen(false);
+    };
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
   const navLinks = [
     { href: `#${landingCopy.evidence.id}`, label: nav.product },
     { href: `#${landingCopy.pricing.id}`, label: nav.pricing },
   ];
+
+  const closeMobileNav = () => setMobileNavOpen(false);
 
   return (
     <header
@@ -90,6 +108,7 @@ const HeroChrome = () => {
           className="flex shrink-0 items-center gap-2"
           aria-label={brand}
           data-landing-lockup={stuck ? "brand" : "hero-mixed"}
+          onClick={closeMobileNav}
         >
           <BrandLockup
             /* D9: hero (foto ink) = mark teal + wordmark onInk; stuck (elevated) = brand. */
@@ -103,7 +122,7 @@ const HeroChrome = () => {
 
         <nav
           className="landing-hero-chrome-nav hidden items-center gap-6 md:flex"
-          aria-label="Secciones"
+          aria-label={nav.sectionsLabel}
         >
           {navLinks.map((link) => (
             <a
@@ -116,7 +135,26 @@ const HeroChrome = () => {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "landing-mobile-nav-trigger md:hidden",
+              stuck ? "landing-btn-ghost-ink" : "landing-btn-ghost-on-dark",
+            )}
+            aria-expanded={mobileNavOpen}
+            aria-controls={mobileNavId}
+            aria-label={mobileNavOpen ? nav.menuClose : nav.menuOpen}
+            onClick={() => setMobileNavOpen((open) => !open)}
+          >
+            {mobileNavOpen ? (
+              <X className="h-5 w-5" aria-hidden />
+            ) : (
+              <Menu className="h-5 w-5" aria-hidden />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -150,6 +188,28 @@ const HeroChrome = () => {
           )}
         </div>
       </div>
+
+      {mobileNavOpen ? (
+        <nav
+          id={mobileNavId}
+          className="landing-mobile-nav md:hidden"
+          aria-label={nav.sectionsLabel}
+          data-landing-mobile-nav
+        >
+          <div className="landing-shell flex flex-col gap-1 py-3">
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="landing-mobile-nav-link"
+                onClick={closeMobileNav}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </nav>
+      ) : null}
     </header>
   );
 };
@@ -166,17 +226,18 @@ const HeroSection = () => {
       <HeroChrome />
 
       <div className="landing-shell landing-hero-content">
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12 xl:gap-16">
-          <div className="landing-hero-copy relative z-10 mx-auto w-full max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
+        {/* Híbrido: copy + CTA centrados → preview grande centrado (patio de fondo). */}
+        <div className="landing-hero-stack relative z-10">
+          <div className="landing-hero-copy mx-auto w-full max-w-2xl text-center">
             <LandingReveal eager>
               <h1 className="landing-hero-enter-item landing-display text-[color:var(--landing-on-dark)]">
                 {hero.title}
               </h1>
-              <p className="landing-hero-enter-item landing-hero-support mx-auto mt-6 text-base md:text-lg lg:mx-0">
+              <p className="landing-hero-enter-item landing-hero-support mx-auto mt-6 text-base md:text-lg">
                 {hero.subtitle}
               </p>
 
-              <div className="landing-hero-enter-item mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5 lg:justify-start">
+              <div className="landing-hero-enter-item mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5">
                 {registrationOpen ? (
                   <Button
                     size="lg"
@@ -207,7 +268,7 @@ const HeroSection = () => {
                   {hero.ctaLogin}
                 </Link>
               </div>
-              <p className="landing-hero-enter-item mt-4 flex items-center justify-center gap-2 text-sm text-[color:var(--landing-on-dark)]/70 lg:justify-start">
+              <p className="landing-hero-enter-item mt-4 flex items-center justify-center gap-2 text-sm text-[color:var(--landing-on-dark)]/70">
                 {registrationOpen ? (
                   <>
                     <span
@@ -223,9 +284,8 @@ const HeroSection = () => {
             </LandingReveal>
           </div>
 
-          {/* Preview al final de la orquestación hero (F2) */}
           <LandingReveal
-            className="landing-preview-rise relative z-10"
+            className="landing-preview-rise landing-hero-preview relative z-10"
             delayMs={780}
           >
             <LandingProductPreview backdrop={false} />
@@ -460,6 +520,28 @@ const EvidenceSection = () => {
               />
             </div>
           </div>
+
+          {beatCount > 1 ? (
+            <div
+              className="landing-evidence-dots"
+              role="group"
+              aria-label="Progreso del recorrido"
+            >
+              {product.items.map((beat, index) => (
+                <button
+                  key={beat.title}
+                  type="button"
+                  className={cn(
+                    "landing-evidence-dot",
+                    index === activeIndex && "is-active",
+                  )}
+                  aria-label={`${beat.title}${index === activeIndex ? ", actual" : ""}`}
+                  aria-current={index === activeIndex ? "true" : undefined}
+                  onClick={() => selectBeatManual(index)}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
@@ -474,6 +556,7 @@ const PricingSection = () => {
     pricing.fleetSelector.defaultOptionId,
   );
   const highlightedCode = planCodeForFleetOption(fleetOptionId);
+  const matchPlan = plans.find((p) => p.code === highlightedCode);
   const matchColRef = useRef<HTMLElement | null>(null);
   const skipMatchScrollRef = useRef(true);
 
@@ -509,6 +592,7 @@ const PricingSection = () => {
         <LandingFleetSizeSelector
           value={fleetOptionId}
           onChange={(optionId) => setFleetOptionId(optionId)}
+          matchBandName={matchPlan?.shortName}
         />
 
         <div className="landing-plan-table" role="list">
@@ -539,7 +623,8 @@ const PricingSection = () => {
 
                 <h3 className="landing-plan-name">{plan.shortName}</h3>
 
-                <p className="mt-4 flex flex-wrap items-baseline gap-1.5">
+                {/* P2: precio + audience + CTA antes de specs (escaneo Unsection). */}
+                <p className="landing-plan-price-row mt-4 flex flex-wrap items-baseline gap-1.5">
                   <span
                     className={cn(
                       "landing-price-amount",
@@ -558,6 +643,47 @@ const PricingSection = () => {
                 </p>
 
                 <p className="landing-plan-audience">{audience}</p>
+
+                <div className="landing-plan-actions">
+                  {/* F1: CTA ámbar solo en fleet-match; cotización Grande siempre outline. */}
+                  <Button
+                    className={cn(
+                      "w-full",
+                      isFleetMatch && !isQuote
+                        ? "landing-cta-amber"
+                        : "landing-btn-outline-ink",
+                    )}
+                    size="lg"
+                    variant={
+                      isFleetMatch && !isQuote ? "default" : "outline"
+                    }
+                    asChild
+                  >
+                    {isQuote ? (
+                      <a href="mailto:ventas@boeltech.com">
+                        {pricing.ctaQuote}
+                      </a>
+                    ) : registrationOpen ? (
+                      <Link to="/register">{pricing.cta}</Link>
+                    ) : (
+                      <a href="mailto:ventas@boeltech.com">
+                        {landingCopy.nav.contactSales}
+                      </a>
+                    )}
+                  </Button>
+                  {registrationOpen && !isQuote ? (
+                    <Button
+                      className="landing-btn-ghost-ink w-full"
+                      size="sm"
+                      variant="ghost"
+                      asChild
+                    >
+                      <a href="mailto:ventas@boeltech.com">
+                        {pricing.ctaSecondary}
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
 
                 <dl className="landing-plan-specs">
                   <div className="landing-plan-spec">
@@ -604,54 +730,13 @@ const PricingSection = () => {
                       </dd>
                     </div>
                   ) : null}
-                  <div className="landing-plan-spec">
+                  <div className="landing-plan-spec landing-plan-spec-l0">
                     <dt className="landing-plan-spec-label">
                       {pricing.featureLabels.l0}
                     </dt>
                     <dd className="landing-plan-spec-value">Incluido</dd>
                   </div>
                 </dl>
-
-                <div className="landing-plan-actions">
-                  {/* F1: CTA ámbar solo en fleet-match; cotización Grande siempre outline. */}
-                  <Button
-                    className={cn(
-                      "w-full",
-                      isFleetMatch && !isQuote
-                        ? "landing-cta-amber"
-                        : "landing-btn-outline-ink",
-                    )}
-                    size="lg"
-                    variant={
-                      isFleetMatch && !isQuote ? "default" : "outline"
-                    }
-                    asChild
-                  >
-                    {isQuote ? (
-                      <a href="mailto:ventas@boeltech.com">
-                        {pricing.ctaQuote}
-                      </a>
-                    ) : registrationOpen ? (
-                      <Link to="/register">{pricing.cta}</Link>
-                    ) : (
-                      <a href="mailto:ventas@boeltech.com">
-                        {landingCopy.nav.contactSales}
-                      </a>
-                    )}
-                  </Button>
-                  {registrationOpen && !isQuote ? (
-                    <Button
-                      className="landing-btn-ghost-ink w-full"
-                      size="sm"
-                      variant="ghost"
-                      asChild
-                    >
-                      <a href="mailto:ventas@boeltech.com">
-                        {pricing.ctaSecondary}
-                      </a>
-                    </Button>
-                  ) : null}
-                </div>
               </article>
             );
           })}
@@ -688,9 +773,16 @@ const OptionalsSection = () => {
           </p>
         </div>
 
-        <div className="landing-optionals-strip mx-auto max-w-5xl">
+        <div
+          className="landing-optionals-bento mx-auto max-w-5xl"
+          role="list"
+        >
           {optionals.items.map((item) => (
-            <div key={item.title} className="landing-optionals-item">
+            <div
+              key={item.title}
+              className="landing-optionals-cell"
+              role="listitem"
+            >
               <h3>{item.title}</h3>
               <p>{item.description}</p>
             </div>

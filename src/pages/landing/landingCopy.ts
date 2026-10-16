@@ -20,6 +20,10 @@ export const landingCopy = {
     login: "Iniciar sesión",
     register: "Probar gratis",
     contactSales: "Contactar ventas",
+    /** F1 navs: menú secciones bajo breakpoint md */
+    menuOpen: "Abrir menú",
+    menuClose: "Cerrar menú",
+    sectionsLabel: "Secciones",
   },
 
   hero: {
@@ -240,6 +244,11 @@ export const landingCopy = {
     fleetSelector: {
       label: "¿Cuántas motrices?",
       hint: "Marca tu flota y vemos la banda que te queda.",
+      /**
+       * P4: cue bajo el selector. `{name}` = shortName del plan match
+       * (Micro / Pequeña / Mediana / Grande).
+       */
+      matchCueTemplate: "Tu banda: {name}",
       options: [
         {
           id: "1-5",

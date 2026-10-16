@@ -8,13 +8,19 @@ import { landingCopy } from "./landingCopy";
 type LandingFleetSizeSelectorProps = {
   value: string;
   onChange: (optionId: string, planCode: string) => void;
+  /** P4: shortName de la banda match (p. ej. «Pequeña»). */
+  matchBandName?: string;
 };
 
 export function LandingFleetSizeSelector({
   value,
   onChange,
+  matchBandName,
 }: LandingFleetSizeSelectorProps) {
   const { fleetSelector } = landingCopy.pricing;
+  const matchCue =
+    matchBandName &&
+    fleetSelector.matchCueTemplate.replace("{name}", matchBandName);
 
   return (
     <div className="landing-fleet-selector">
@@ -46,6 +52,15 @@ export function LandingFleetSizeSelector({
           );
         })}
       </div>
+      {matchCue ? (
+        <p
+          className="landing-fleet-selector-match"
+          data-landing-fleet-match-cue
+          aria-live="polite"
+        >
+          {matchCue}
+        </p>
+      ) : null}
     </div>
   );
 }
