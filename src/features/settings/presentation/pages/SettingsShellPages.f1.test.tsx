@@ -2,6 +2,7 @@
  * F1 — páginas in-scope montan SettingsPageShell (no SettingsLayout directo).
  */
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
@@ -10,7 +11,7 @@ vi.mock("@shared/ui/page-shells", () => ({
     children,
     sectionTitle,
   }: {
-    children: unknown;
+    children: ReactNode;
     sectionTitle?: string;
   }) => (
     <div data-testid="settings-page-shell" data-section={sectionTitle ?? ""}>

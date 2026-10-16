@@ -19,10 +19,13 @@ const {
   mockNavigate,
 } = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
-  mockHasPermission: vi.fn(() => false),
-  mockCanShowInvoiceFromTripCta: vi.fn(() => false),
-  mockIsFinanceAnalyticsEnabled: vi.fn(() => false),
-  mockUseFinanceSummary: vi.fn(() => ({ data: undefined, isLoading: false })),
+  mockHasPermission: vi.fn((_resource: string, _action: string) => false),
+  mockCanShowInvoiceFromTripCta: vi.fn((..._args: unknown[]) => false),
+  mockIsFinanceAnalyticsEnabled: vi.fn((..._args: unknown[]) => false),
+  mockUseFinanceSummary: vi.fn((): { data: unknown; isLoading: boolean } => ({
+    data: undefined,
+    isLoading: false,
+  })),
   mockUseFinanceInvoicesList: vi.fn(),
   mockNavigate: vi.fn(),
 }));

@@ -3,6 +3,7 @@
  * flujo rol → editar (panel cerrado por defecto).
  */
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -14,7 +15,7 @@ vi.mock("@shared/ui/page-shells", () => ({
     title,
     description,
   }: {
-    children: unknown;
+    children: ReactNode;
     sectionTitle?: string;
     title?: string;
     description?: string;

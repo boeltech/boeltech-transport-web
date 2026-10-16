@@ -255,6 +255,9 @@ describe("landingCopy F3 conversion (evidence / FAQ / fleet selector)", () => {
     const optionalsFaq = landingCopy.faq.items.find((i) =>
       i.question.toLowerCase().includes("combustible"),
     );
-    expect(optionalsFaq?.linkHref).toBe("#opcionales");
+    expect(optionalsFaq && "linkHref" in optionalsFaq).toBe(true);
+    if (optionalsFaq && "linkHref" in optionalsFaq) {
+      expect(optionalsFaq.linkHref).toBe("#opcionales");
+    }
   });
 });

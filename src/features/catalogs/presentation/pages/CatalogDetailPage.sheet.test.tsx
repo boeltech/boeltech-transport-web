@@ -9,7 +9,7 @@ import { catalogsCopy } from "../copy/catalogsCopy";
 
 const NOW = new Date("2026-07-01T12:00:00.000Z");
 
-const hasPermission = vi.fn(() => false);
+const hasPermission = vi.fn((_resource: string, _action: string) => false);
 
 vi.mock("@shared/hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/hooks")>();

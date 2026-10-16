@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   previewMutateAsync: vi.fn(),
   confirmMutateAsync: vi.fn(),
-  hasPermission: vi.fn(() => true),
+  hasPermission: vi.fn((_module: string, _action: string) => true),
   run: null as BillingDispatchRun | null,
   isError: false,
   isLoading: false,

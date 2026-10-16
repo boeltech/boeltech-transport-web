@@ -451,10 +451,13 @@ describe("LandingPage /welcome polish", () => {
     expect(microCol?.classList.contains("is-fleet-match")).toBe(false);
     expect(medianaCol?.classList.contains("is-fleet-match")).toBe(false);
     expect(screen.getByText("Tu banda: Pequeña")).toBeInTheDocument();
+    expect(pequenaCol).toBeTruthy();
+    const pequenaActions = pequenaCol!.querySelector(".landing-plan-actions");
+    const pequenaSpecs = pequenaCol!.querySelector(".landing-plan-specs");
+    expect(pequenaActions && pequenaSpecs).toBeTruthy();
     expect(
-      pequenaCol?.querySelector(".landing-plan-actions")?.compareDocumentPosition(
-        pequenaCol.querySelector(".landing-plan-specs")!,
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      pequenaActions!.compareDocumentPosition(pequenaSpecs!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(planCta(pequenaCol)?.classList.contains("landing-cta-amber")).toBe(
       true,

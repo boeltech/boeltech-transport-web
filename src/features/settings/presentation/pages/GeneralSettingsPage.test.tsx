@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -29,7 +30,7 @@ vi.mock("@shared/ui/page-shells", () => ({
     children,
     sectionTitle,
   }: {
-    children: unknown;
+    children: ReactNode;
     sectionTitle?: string;
   }) => (
     <div>
