@@ -1,5 +1,6 @@
 import { apiClient } from "@shared/api";
 import type {
+  ActivationData,
   BranchKpisData,
   BranchKpisPeriodValue,
   BranchKpisTrendData,
@@ -8,6 +9,7 @@ import type {
 } from "../domain/types";
 import { DEFAULT_BRANCH_KPIS_PERIOD } from "../domain/types";
 import {
+  mapActivation,
   mapBranchKpis,
   mapBranchKpisTrend,
   mapFinancialTrend,
@@ -20,6 +22,13 @@ interface TripsByDayApiResponse {
 }
 
 export const dashboardApi = {
+  getActivation: async (): Promise<ActivationData> => {
+    const response = await apiClient.get<TripsByDayApiResponse>(
+      "/dashboard/activation",
+    );
+    return mapActivation(response.data as Record<string, unknown>);
+  },
+
   getTripsByDay: async (days = 30): Promise<TripsByDayData> => {
     const response = await apiClient.get<TripsByDayApiResponse>(
       `/dashboard/trips-by-day?days=${days}`,

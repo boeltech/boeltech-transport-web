@@ -1,4 +1,77 @@
 export const dashboardCopy = {
+  activation: {
+    title: "Para tu primer viaje",
+    titleDispatcher: "Estado de activación",
+    titleAccountant: "Pista fiscal",
+    description:
+      "Completa estos pasos para poder reservar. Cada enlace abre el alta existente.",
+    descriptionDispatcherEmpty:
+      "La empresa aún arma cliente, unidad y conductor. Cuando estén listos, podrás reservar.",
+    descriptionDispatcherReady:
+      "Ya hay maestros. Reserva el primer viaje cuando esté listo el patio.",
+    descriptionAccountant:
+      "RFC de la empresa y CSD/PAC para facturar. Solo lectura de progreso aquí.",
+    dismiss: "Continuar sin guía",
+    doneBadge: "Listo",
+    pendingBadge: "Pendiente",
+    itemLabels: {
+      client: "Alta de cliente",
+      vehicle: "Alta de unidad",
+      driver: "Alta de conductor",
+      first_trip: "Reservar primer viaje",
+      company_fiscal: "RFC de la empresa",
+      csd_pac: "CSD / datos para facturar",
+      invite_team: "Invitar al equipo",
+    } as const,
+    ctaLabels: {
+      client: "Nuevo cliente",
+      vehicle: "Nueva unidad",
+      driver: "Nuevo conductor",
+      first_trip: "Reservar viaje",
+      company_fiscal: "Ir a empresa",
+      csd_pac: "Ir a facturación",
+      invite_team: "Invitar usuario",
+    } as const,
+    emptyGapDescription: {
+      client: "Antes falta un cliente. Dalo de alta y vuelve a este listado.",
+      vehicle: "Antes falta una unidad. Dala de alta y vuelve a este listado.",
+      driver:
+        "Antes falta un conductor. Dalo de alta y vuelve a este listado.",
+      first_trip: "Reserva el primer viaje cuando los maestros estén listos.",
+      company_fiscal: "Completa el RFC de la empresa en Configuración.",
+      csd_pac: "Configura el CSD en Datos para facturar.",
+      invite_team: "Invita a alguien del equipo en Usuarios.",
+    } as const,
+  },
+  demoSeed: {
+    offerTitle: "¿Quieres datos de ejemplo?",
+    offerBody:
+      "Carga un cliente, unidad y conductor de prueba para explorar. No los uses con clientes reales ni intentes timbrar: no son datos fiscales operables.",
+    loadCta: "Cargar datos de ejemplo",
+    startCleanCta: "Empezar limpio",
+    loadSheetTitle: "Cargar datos de ejemplo",
+    loadSheetDescription:
+      "Se crearán maestros de demostración (y un viaje en borrador si aplica). Úsalos solo para practicar: no los compartas con clientes reales y no intentes timbrar.",
+    loadConfirm: "Cargar ejemplo",
+    loadCancel: "Cancelar",
+    loadSuccess: "Datos de ejemplo cargados",
+    loadBusy: "Cargando…",
+    bannerTitle: "Datos de ejemplo",
+    bannerBody:
+      "Esta empresa tiene datos de demostración. No los uses con clientes reales ni intentes timbrar facturas con ellos.",
+    bannerDismiss: "Ocultar",
+    purgeCta: "Eliminar datos de ejemplo",
+    purgeSheetTitle: "Eliminar datos de ejemplo",
+    purgeSheetDescription:
+      "Se borrarán solo las entidades sembradas como ejemplo. Esta acción no se puede deshacer. Escribe PURGE_DEMO para confirmar.",
+    purgeConfirmLabel: "Confirmación",
+    purgeConfirmPlaceholder: "PURGE_DEMO",
+    purgeSubmit: "Eliminar datos de ejemplo",
+    purgeCancel: "Cancelar",
+    purgeSuccess: "Datos de ejemplo eliminados",
+    purgeBusy: "Eliminando…",
+    exampleBadge: "Ejemplo",
+  },
   page: {
     subtitle: "Operación, alertas y documentación del día",
     tripsBridge: "El trabajo del día está en Viajes.",

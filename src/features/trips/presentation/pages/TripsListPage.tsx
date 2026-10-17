@@ -52,8 +52,11 @@ import {
 } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import { BranchStatus, useBranches } from "@features/branches";
+import { useDashboardActivation } from "@features/dashboard/application/hooks/useDashboardActivation";
+import { resolveActivationEmptyGuidance } from "@features/dashboard/domain/activation";
+import { buildActivationGapEmptyCta } from "@features/dashboard/presentation/utils/activationEmptyCta";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
-import { Search, AlertTriangle, Clock, CalendarPlus } from "lucide-react";
+import { Search, AlertTriangle, Clock, CalendarPlus, Users } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { EmptyState } from "@shared/ui/feedback-states";
 
@@ -467,6 +470,20 @@ export function TripsListPage() {
     toast({ title: copy.refreshSuccess, variant: "success" });
   }, [refetch, refetchSummary, toast]);
 
+  const { data: activation } = useDashboardActivation({
+    enabled:
+      !isLeanTripPortal &&
+      !hasFilters &&
+      !fiscalAttentionOnly &&
+      !hasOverdueFilter,
+  });
+  const activationGap = resolveActivationEmptyGuidance("trips", activation);
+  const activationGapEmpty = activationGap
+    ? buildActivationGapEmptyCta(activationGap, navigate, (
+        <Users className="h-4 w-4" />
+      ))
+    : null;
+
   // ── Active filter chips ────────────────────────────────────────
   const activeFilterChips: ActiveFilterChip[] = [
     ...(invoiceStatusFilter
@@ -536,26 +553,30 @@ export function TripsListPage() {
             ? `No hay viajes ${workbenchCopy.buckets[activeBucket].toLowerCase()}`
             : copy.empty.title;
 
-  const showJobEmpty = shouldShowTripsJobEmpty({
-    isLeanTripPortal,
-    hasFilters,
-    hasActiveBucket: Boolean(activeBucket),
-    fiscalAttentionOnly,
-    hasOverdueFilter,
-    isManager,
-    isOperator,
-  });
+  const showJobEmpty =
+    !activationGapEmpty &&
+    shouldShowTripsJobEmpty({
+      isLeanTripPortal,
+      hasFilters,
+      hasActiveBucket: Boolean(activeBucket),
+      fiscalAttentionOnly,
+      hasOverdueFilter,
+      isManager,
+      isOperator,
+    });
 
-  const emptyDescription = resolveTripsListEmptyDescription({
-    hasOverdueFilter,
-    hasFilters,
-    isClientPortal,
-    isDriverPortal,
-    isManager,
-    isOperator,
-    fiscalAttentionOnly,
-    showJobEmpty,
-  });
+  const emptyDescription = activationGapEmpty
+    ? activationGapEmpty.description
+    : resolveTripsListEmptyDescription({
+        hasOverdueFilter,
+        hasFilters,
+        isClientPortal,
+        isDriverPortal,
+        isManager,
+        isOperator,
+        fiscalAttentionOnly,
+        showJobEmpty,
+      });
 
   const showHelpOnEmpty =
     !hasFilters &&
@@ -627,11 +648,21 @@ export function TripsListPage() {
         })}
         beforeAwareness={beforeAwareness}
         primaryAction={{
-          label: copy.actions.create,
-          icon: <CalendarPlus className="h-4 w-4" />,
-          onClick: goCreateReserve,
-          visible: canCreate,
-          dataHelpAnchor: "trip-reservar-cta",
+          label: activationGapEmpty
+            ? activationGapEmpty.cta.label
+            : copy.actions.create,
+          icon: activationGapEmpty ? (
+            <Users className="h-4 w-4" />
+          ) : (
+            <CalendarPlus className="h-4 w-4" />
+          ),
+          onClick: activationGapEmpty
+            ? activationGapEmpty.cta.onClick
+            : goCreateReserve,
+          visible: canCreate || Boolean(activationGapEmpty),
+          dataHelpAnchor: activationGapEmpty
+            ? "trip-activation-gap-cta"
+            : "trip-reservar-cta",
         }}
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.scorecardAriaLabel}
@@ -750,16 +781,18 @@ export function TripsListPage() {
                     : undefined
                 }
                 cta={
-                  canCreate
-                    ? {
-                        label: copy.actions.create,
-                        onClick: goCreateReserve,
-                        icon: <CalendarPlus className="h-4 w-4" />,
-                      }
-                    : clearFiltersCta ?? helpCta
+                  activationGapEmpty
+                    ? activationGapEmpty.cta
+                    : canCreate
+                      ? {
+                          label: copy.actions.create,
+                          onClick: goCreateReserve,
+                          icon: <CalendarPlus className="h-4 w-4" />,
+                        }
+                      : clearFiltersCta ?? helpCta
                 }
                 secondaryCta={
-                  canCreate
+                  activationGapEmpty || canCreate
                     ? (clearFiltersCta ?? helpCta)
                     : clearFiltersCta && helpCta
                       ? helpCta

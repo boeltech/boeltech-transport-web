@@ -1,5 +1,100 @@
 import { describe, expect, it } from "vitest";
-import { mapBranchKpis, mapBranchKpisTrend, mapFinancialTrend } from "./mappers";
+import {
+  mapActivation,
+  mapBranchKpis,
+  mapBranchKpisTrend,
+  mapFinancialTrend,
+} from "./mappers";
+
+describe("mapActivation", () => {
+  it("mapea snake_case a camelCase", () => {
+    const result = mapActivation({
+      ops_level: "l1_ready",
+      fiscal_track: {
+        company_rfc_set: true,
+        certificate_configured: false,
+        ready_hint: "missing_csd",
+      },
+      counts: {
+        clients: 1,
+        vehicles: 2,
+        drivers: 1,
+        trips_non_cancelled: 0,
+        users_non_admin: 0,
+      },
+      items: [
+        {
+          code: "client",
+          status: "done",
+          required_for_ops: true,
+          cta_path: "/clients/new",
+          can_act: true,
+        },
+        {
+          code: "first_trip",
+          status: "pending",
+          required_for_ops: true,
+          cta_path: "/trips/new",
+          can_act: true,
+        },
+      ],
+      demo: {
+        has_demo_data: false,
+        seed_available: false,
+        purge_allowed: false,
+      },
+      dismissed: false,
+    });
+
+    expect(result.opsLevel).toBe("l1_ready");
+    expect(result.fiscalTrack).toEqual({
+      companyRfcSet: true,
+      certificateConfigured: false,
+      readyHint: "missing_csd",
+    });
+    expect(result.counts.tripsNonCancelled).toBe(0);
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0]).toMatchObject({
+      code: "client",
+      status: "done",
+      requiredForOps: true,
+      ctaPath: "/clients/new",
+      canAct: true,
+    });
+    expect(result.demo.seedAvailable).toBe(false);
+  });
+
+  it("mapea flags demo seed_available y purge_allowed", () => {
+    const result = mapActivation({
+      ops_level: "empty",
+      fiscal_track: {
+        company_rfc_set: false,
+        certificate_configured: false,
+        ready_hint: "missing_rfc",
+      },
+      counts: {
+        clients: 0,
+        vehicles: 0,
+        drivers: 0,
+        trips_non_cancelled: 0,
+        users_non_admin: 0,
+      },
+      items: [],
+      demo: {
+        has_demo_data: true,
+        seed_available: true,
+        purge_allowed: true,
+      },
+      dismissed: false,
+    });
+
+    expect(result.demo).toEqual({
+      hasDemoData: true,
+      seedAvailable: true,
+      purgeAllowed: true,
+    });
+  });
+});
 
 describe("mapFinancialTrend", () => {
   it("mapea current_period a currentPeriod", () => {

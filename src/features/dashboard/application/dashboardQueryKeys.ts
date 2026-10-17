@@ -4,6 +4,8 @@
 export const dashboardQueryKeys = {
   all: ["dashboard"] as const,
   stats: () => [...dashboardQueryKeys.all, "stats"] as const,
+  activation: () => [...dashboardQueryKeys.all, "activation"] as const,
+  demoSeed: () => [...dashboardQueryKeys.all, "demo-seed"] as const,
   tripsByDay: (days: number) =>
     [...dashboardQueryKeys.all, "trips-by-day", days] as const,
   financialTrend: (months: number) =>

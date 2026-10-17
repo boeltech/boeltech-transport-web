@@ -25,6 +25,7 @@ import {
 } from "@widgets/sidebar";
 import { Header } from "@/widgets/header";
 import { EmailVerificationBanner } from "@features/auth";
+import { DemoDataBanner } from "@features/dashboard";
 import { HelpPanelProvider } from "@features/help-center";
 
 /**
@@ -95,6 +96,7 @@ export function LayoutShell() {
             <div className="px-4 pb-4 pt-16 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
               <div className="mx-auto max-w-7xl">
                 <EmailVerificationBanner />
+                <DemoDataBanner />
                 <Outlet />
               </div>
             </div>

@@ -48,6 +48,14 @@ vi.mock("@features/branches", () => ({
   useBranches: () => ({ data: { data: [] } }),
 }));
 
+vi.mock("@features/dashboard/application/hooks/useDashboardActivation", () => ({
+  useDashboardActivation: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
   useRole: () => mockUseRole(),

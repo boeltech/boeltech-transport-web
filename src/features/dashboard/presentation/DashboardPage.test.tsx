@@ -36,6 +36,14 @@ vi.mock("../application/hooks/useDashboard", () => ({
   }),
 }));
 
+vi.mock("../application/hooks/useDashboardActivation", () => ({
+  useDashboardActivation: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 vi.mock("../application/hooks/useTripsByDay", () => ({
   useTripsByDay: () => ({ data: undefined, isLoading: false }),
 }));

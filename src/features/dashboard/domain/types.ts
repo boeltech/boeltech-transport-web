@@ -205,6 +205,103 @@ export interface BranchKpisTrendData {
 }
 
 // ============================================
+// Activation checklist (F1 onboarding guiado)
+// ============================================
+
+export type ActivationOpsLevel = "empty" | "l1_ready" | "l1_complete";
+
+export type ActivationItemCode =
+  | "client"
+  | "vehicle"
+  | "driver"
+  | "first_trip"
+  | "company_fiscal"
+  | "csd_pac"
+  | "invite_team";
+
+export type ActivationItemStatus = "pending" | "done" | "skipped";
+
+export type ActivationReadyHint =
+  | "missing_rfc"
+  | "missing_csd"
+  | "ready_for_config"
+  | "configured";
+
+export interface ActivationCounts {
+  clients: number;
+  vehicles: number;
+  drivers: number;
+  tripsNonCancelled: number;
+  usersNonAdmin: number;
+}
+
+export interface ActivationFiscalTrack {
+  companyRfcSet: boolean;
+  certificateConfigured: boolean;
+  readyHint: ActivationReadyHint;
+}
+
+export interface ActivationItem {
+  code: ActivationItemCode;
+  status: ActivationItemStatus;
+  requiredForOps: boolean;
+  ctaPath: string;
+  canAct: boolean;
+}
+
+export interface ActivationDemo {
+  hasDemoData: boolean;
+  seedAvailable: boolean;
+  purgeAllowed: boolean;
+}
+
+export interface ActivationData {
+  opsLevel: ActivationOpsLevel;
+  fiscalTrack: ActivationFiscalTrack;
+  counts: ActivationCounts;
+  items: ActivationItem[];
+  demo: ActivationDemo;
+  /** API F1 siempre false; dismiss es localStorage en web. */
+  dismissed: boolean;
+}
+
+/** Pack code for POST /setup/demo-seed (F2). */
+export const DEMO_OPS_PACK = "demo_ops_v1" as const;
+export type DemoOpsPack = typeof DEMO_OPS_PACK;
+
+/** Literal confirm body for POST /setup/demo-seed:purge. */
+export const DEMO_PURGE_CONFIRM = "PURGE_DEMO" as const;
+
+export type DemoSeedRunStatus = "completed" | "purged";
+
+export interface DemoSeedStatus {
+  pack: string | null;
+  status: DemoSeedRunStatus | null;
+  hasDemoData: boolean;
+  seedAvailable: boolean;
+  purgeAllowed: boolean;
+  includeDraftTrip: boolean | null;
+  entityCounts: Record<string, number>;
+  createdAt: string | null;
+}
+
+export interface DemoSeedApplyResult {
+  runId: string;
+  pack: string;
+  status: "completed";
+  includeDraftTrip: boolean;
+  entityCounts: Record<string, number>;
+  entityIds: Array<{ entityType: string; entityId: string }>;
+}
+
+export interface DemoSeedPurgeResult {
+  runId: string;
+  pack: string;
+  status: "purged";
+  purgedEntityCounts: Record<string, number>;
+}
+
+// ============================================
 // UI Constants
 // ============================================
 

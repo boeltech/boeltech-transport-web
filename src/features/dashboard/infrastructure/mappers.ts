@@ -1,3 +1,12 @@
+import type {
+  ActivationData,
+  ActivationItem,
+  ActivationItemCode,
+  ActivationItemStatus,
+  ActivationOpsLevel,
+  ActivationReadyHint,
+} from "../domain/types";
+
 function asString(value: unknown): string {
   return value == null ? "" : String(value);
 }
@@ -5,6 +14,103 @@ function asString(value: unknown): string {
 function asNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function asBoolean(value: unknown): boolean {
+  return value === true;
+}
+
+const ACTIVATION_OPS_LEVELS = new Set<ActivationOpsLevel>([
+  "empty",
+  "l1_ready",
+  "l1_complete",
+]);
+
+const ACTIVATION_ITEM_CODES = new Set<ActivationItemCode>([
+  "client",
+  "vehicle",
+  "driver",
+  "first_trip",
+  "company_fiscal",
+  "csd_pac",
+  "invite_team",
+]);
+
+const ACTIVATION_ITEM_STATUSES = new Set<ActivationItemStatus>([
+  "pending",
+  "done",
+  "skipped",
+]);
+
+const ACTIVATION_READY_HINTS = new Set<ActivationReadyHint>([
+  "missing_rfc",
+  "missing_csd",
+  "ready_for_config",
+  "configured",
+]);
+
+function asOpsLevel(value: unknown): ActivationOpsLevel {
+  const raw = asString(value) as ActivationOpsLevel;
+  return ACTIVATION_OPS_LEVELS.has(raw) ? raw : "empty";
+}
+
+function asItemCode(value: unknown): ActivationItemCode | null {
+  const raw = asString(value) as ActivationItemCode;
+  return ACTIVATION_ITEM_CODES.has(raw) ? raw : null;
+}
+
+function asItemStatus(value: unknown): ActivationItemStatus {
+  const raw = asString(value) as ActivationItemStatus;
+  return ACTIVATION_ITEM_STATUSES.has(raw) ? raw : "pending";
+}
+
+function asReadyHint(value: unknown): ActivationReadyHint {
+  const raw = asString(value) as ActivationReadyHint;
+  return ACTIVATION_READY_HINTS.has(raw) ? raw : "missing_rfc";
+}
+
+function mapActivationItem(raw: Record<string, unknown>): ActivationItem | null {
+  const code = asItemCode(raw.code);
+  if (!code) return null;
+  return {
+    code,
+    status: asItemStatus(raw.status),
+    requiredForOps: asBoolean(raw.required_for_ops),
+    ctaPath: asString(raw.cta_path) || "/",
+    canAct: asBoolean(raw.can_act),
+  };
+}
+
+export function mapActivation(raw: Record<string, unknown>): ActivationData {
+  const countsRaw = (raw.counts ?? {}) as Record<string, unknown>;
+  const fiscalRaw = (raw.fiscal_track ?? {}) as Record<string, unknown>;
+  const demoRaw = (raw.demo ?? {}) as Record<string, unknown>;
+  const itemsRaw = Array.isArray(raw.items) ? raw.items : [];
+
+  return {
+    opsLevel: asOpsLevel(raw.ops_level),
+    fiscalTrack: {
+      companyRfcSet: asBoolean(fiscalRaw.company_rfc_set),
+      certificateConfigured: asBoolean(fiscalRaw.certificate_configured),
+      readyHint: asReadyHint(fiscalRaw.ready_hint),
+    },
+    counts: {
+      clients: asNumber(countsRaw.clients),
+      vehicles: asNumber(countsRaw.vehicles),
+      drivers: asNumber(countsRaw.drivers),
+      tripsNonCancelled: asNumber(countsRaw.trips_non_cancelled),
+      usersNonAdmin: asNumber(countsRaw.users_non_admin),
+    },
+    items: itemsRaw
+      .map((item) => mapActivationItem(item as Record<string, unknown>))
+      .filter((item): item is ActivationItem => item != null),
+    demo: {
+      hasDemoData: asBoolean(demoRaw.has_demo_data),
+      seedAvailable: asBoolean(demoRaw.seed_available),
+      purgeAllowed: asBoolean(demoRaw.purge_allowed),
+    },
+    dismissed: asBoolean(raw.dismissed),
+  };
 }
 
 export function mapFinancialTrend(raw: Record<string, unknown>) {

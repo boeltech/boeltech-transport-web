@@ -32,6 +32,7 @@ import {
   useFinanceSummary,
 } from "@features/finance";
 import type { FinancialTrendMonths } from "./components";
+import { DashboardActivationChecklist } from "./components/DashboardActivationChecklist";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
 import { DashboardOrientationAlert } from "./components/DashboardOrientationAlert";
 import { getWidgetRegistryEntry } from "./widgets/registry";
@@ -204,6 +205,8 @@ function DashboardPage() {
           role={user?.role}
           canReadTrips={canReadTrips}
         />
+
+        <DashboardActivationChecklist />
 
         {isError && (
           <Alert variant="destructive">

@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { dashboardCopy } from "./dashboardCopy";
 
+describe("dashboardCopy.demoSeed", () => {
+  it("advierte no usar con clientes reales ni timbrar", () => {
+    expect(dashboardCopy.demoSeed.offerBody).toMatch(/clientes reales/i);
+    expect(dashboardCopy.demoSeed.offerBody).toMatch(/timbrar/i);
+    expect(dashboardCopy.demoSeed.bannerBody).toMatch(/clientes reales/i);
+    expect(dashboardCopy.demoSeed.bannerBody).toMatch(/timbrar/i);
+    expect(dashboardCopy.demoSeed.loadCta).toMatch(/ejemplo/i);
+    expect(dashboardCopy.demoSeed.startCleanCta).toMatch(/limpio/i);
+  });
+});
+
 describe("dashboardCopy.page", () => {
   it("subtitle staff es operativo, sin margen ni cobranza", () => {
     expect(dashboardCopy.page.subtitle).toMatch(/operación/i);

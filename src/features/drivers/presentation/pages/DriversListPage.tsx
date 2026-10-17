@@ -25,8 +25,11 @@ import { ROLES } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
 import { BranchStatus, useBranches } from "@features/branches";
+import { useDashboardActivation } from "@features/dashboard/application/hooks/useDashboardActivation";
+import { resolveActivationEmptyGuidance } from "@features/dashboard/domain/activation";
+import { buildActivationGapEmptyCta } from "@features/dashboard/presentation/utils/activationEmptyCta";
 import { MasterImportWizard } from "@features/imports";
-import { Plus, Search, AlertTriangle, FileUp, Loader2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, FileUp, Loader2, Users } from "lucide-react";
 
 import { useDrivers, useDeleteDriver } from "../../application";
 import {
@@ -146,6 +149,16 @@ export function DriversListPage() {
   const canImport =
     hasPermission("imports", "execute") && hasPermission("drivers", "create");
   const [importWizardOpen, setImportWizardOpen] = useState(false);
+
+  const { data: activation } = useDashboardActivation({
+    enabled: !filters.hasFilters,
+  });
+  const activationGap = resolveActivationEmptyGuidance("drivers", activation);
+  const activationGapEmpty = activationGap
+    ? buildActivationGapEmptyCta(activationGap, navigate, (
+        <Users className="h-4 w-4" />
+      ))
+    : null;
 
   const handleView = useCallback(
     (id: string) => navigate(`/drivers/${id}`, { state: fromState }),
@@ -288,18 +301,22 @@ export function DriversListPage() {
           title: copy.empty.title,
           description: filters.hasFilters
             ? copy.empty.descriptionFiltered
+            : activationGapEmpty
+              ? activationGapEmpty.description
+              : canCreate
+                ? isManager
+                  ? copy.empty.descriptionClearManager
+                  : copy.empty.descriptionClear
+                : copy.empty.descriptionReadonly,
+          cta: activationGapEmpty
+            ? activationGapEmpty.cta
             : canCreate
-              ? isManager
-                ? copy.empty.descriptionClearManager
-                : copy.empty.descriptionClear
-              : copy.empty.descriptionReadonly,
-          cta: canCreate
-            ? {
-                label: copy.actions.create,
-                icon: <Plus className="h-4 w-4" />,
-                onClick: handleCreate,
-              }
-            : undefined,
+              ? {
+                  label: copy.actions.create,
+                  icon: <Plus className="h-4 w-4" />,
+                  onClick: handleCreate,
+                }
+              : undefined,
           secondaryCta: filters.hasFilters
             ? {
                 label: copy.actions.clearFilters,
