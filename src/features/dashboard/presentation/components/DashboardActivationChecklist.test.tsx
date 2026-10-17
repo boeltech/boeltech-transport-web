@@ -12,9 +12,14 @@ import {
   getDashboardActivationStorageKey,
 } from "./DashboardActivationChecklist";
 
-const { mockUseAuth, mockUseDashboardActivation } = vi.hoisted(() => ({
+const {
+  mockUseAuth,
+  mockUseDashboardActivation,
+  mockTrackActivationEvent,
+} = vi.hoisted(() => ({
   mockUseAuth: vi.fn(),
   mockUseDashboardActivation: vi.fn(),
+  mockTrackActivationEvent: vi.fn(),
 }));
 
 vi.mock("@/features/auth", () => ({
@@ -31,6 +36,11 @@ vi.mock("../../application/hooks/useDemoSeed", () => ({
     mutate: vi.fn(),
     isPending: false,
   }),
+}));
+
+vi.mock("../../domain/trackActivationEvent", () => ({
+  trackActivationEvent: (...args: unknown[]) =>
+    mockTrackActivationEvent(...args),
 }));
 
 const copy = dashboardCopy.activation;
@@ -134,6 +144,7 @@ describe("DashboardActivationChecklist", () => {
   beforeEach(() => {
     clearActivationStorage();
     mockUseDashboardActivation.mockReset();
+    mockTrackActivationEvent.mockReset();
   });
 
   it("admin ve checklist con CTA a gap pendiente", () => {
@@ -143,15 +154,96 @@ describe("DashboardActivationChecklist", () => {
     expect(
       screen.getByRole("link", { name: copy.ctaLabels.client }),
     ).toHaveAttribute("href", "/clients/new");
+    expect(mockTrackActivationEvent).toHaveBeenCalledWith(
+      "activation_checklist_viewed",
+      expect.objectContaining({ mode: "full", opsLevel: "empty" }),
+      expect.objectContaining({ onceKey: "tenant-1:user-1" }),
+    );
   });
 
-  it("dispatcher ve modo compacto mid-setup", () => {
+  it("dispatcher ve modo compacto mid-setup empty", () => {
     renderChecklist("dispatcher");
 
     expect(screen.getByText(copy.titleDispatcher)).toBeInTheDocument();
     expect(
       screen.getByText(copy.descriptionDispatcherEmpty),
     ).toBeInTheDocument();
+    expect(copy.descriptionDispatcherEmpty).toMatch(/aún se está armando/i);
+  });
+
+  it("dispatcher l1_ready refuerza reservar", () => {
+    renderChecklist("dispatcher", undefined, {
+      ...emptyActivation,
+      opsLevel: "l1_ready",
+      items: [
+        {
+          code: "client",
+          status: "done",
+          requiredForOps: true,
+          ctaPath: "/clients/new",
+          canAct: false,
+        },
+        {
+          code: "vehicle",
+          status: "done",
+          requiredForOps: true,
+          ctaPath: "/vehicles/new",
+          canAct: false,
+        },
+        {
+          code: "driver",
+          status: "done",
+          requiredForOps: true,
+          ctaPath: "/drivers/new",
+          canAct: false,
+        },
+        {
+          code: "first_trip",
+          status: "pending",
+          requiredForOps: true,
+          ctaPath: "/trips/new",
+          canAct: true,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByText(copy.descriptionDispatcherReady),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: copy.ctaLabels.first_trip }),
+    ).toHaveAttribute("href", "/trips/new");
+  });
+
+  it("dispatcher l1_complete ve mensaje breve de ops listo", () => {
+    renderChecklist("dispatcher", undefined, {
+      ...emptyActivation,
+      opsLevel: "l1_complete",
+      items: [
+        {
+          code: "first_trip",
+          status: "done",
+          requiredForOps: true,
+          ctaPath: "/trips/new",
+          canAct: true,
+        },
+        {
+          code: "company_fiscal",
+          status: "pending",
+          requiredForOps: false,
+          ctaPath: "/settings/general",
+          canAct: false,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByText(copy.descriptionDispatcherComplete),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: copy.successTripsCta }),
+    ).toHaveAttribute("href", "/trips");
+    expect(screen.queryByText(copy.itemLabels.company_fiscal)).not.toBeInTheDocument();
   });
 
   it("accountant ve pista fiscal", () => {
@@ -161,6 +253,98 @@ describe("DashboardActivationChecklist", () => {
     expect(
       screen.getByRole("link", { name: copy.ctaLabels.company_fiscal }),
     ).toHaveAttribute("href", "/settings/general");
+  });
+
+  it("accountant con ops listo enfatiza ready_hint fiscal", () => {
+    renderChecklist("accountant", undefined, {
+      ...emptyActivation,
+      opsLevel: "l1_complete",
+      fiscalTrack: {
+        companyRfcSet: true,
+        certificateConfigured: false,
+        readyHint: "missing_csd",
+      },
+      items: [
+        {
+          code: "company_fiscal",
+          status: "done",
+          requiredForOps: false,
+          ctaPath: "/settings/general",
+          canAct: true,
+        },
+        {
+          code: "csd_pac",
+          status: "pending",
+          requiredForOps: false,
+          ctaPath: "/settings/billing",
+          canAct: true,
+        },
+      ],
+    });
+
+    expect(
+      screen.getByText(copy.descriptionAccountantOpsReady),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(copy.fiscalReadyHints.missing_csd),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: copy.ctaLabels.csd_pac })[0],
+    ).toHaveAttribute("href", "/settings/billing");
+  });
+
+  it("admin en l1_complete ve momento de éxito con CTAs", () => {
+    renderChecklist("admin", undefined, {
+      ...emptyActivation,
+      opsLevel: "l1_complete",
+      items: [
+        {
+          code: "client",
+          status: "done",
+          requiredForOps: true,
+          ctaPath: "/clients/new",
+          canAct: true,
+        },
+        {
+          code: "first_trip",
+          status: "done",
+          requiredForOps: true,
+          ctaPath: "/trips/new",
+          canAct: true,
+        },
+        {
+          code: "company_fiscal",
+          status: "pending",
+          requiredForOps: false,
+          ctaPath: "/settings/general",
+          canAct: true,
+        },
+        {
+          code: "invite_team",
+          status: "pending",
+          requiredForOps: false,
+          ctaPath: "/users",
+          canAct: true,
+        },
+      ],
+    });
+
+    expect(screen.getByText(copy.successTitle)).toBeInTheDocument();
+    expect(screen.getByText(copy.successBody)).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: copy.ctaLabels.company_fiscal })[0],
+    ).toHaveAttribute("href", "/settings/general");
+    expect(
+      screen.getAllByRole("link", { name: copy.ctaLabels.invite_team })[0],
+    ).toHaveAttribute("href", "/users");
+    expect(
+      screen.getByRole("link", { name: copy.successTripsCta }),
+    ).toHaveAttribute("href", "/trips");
+    expect(mockTrackActivationEvent).toHaveBeenCalledWith(
+      "activation_first_trip_ready",
+      expect.objectContaining({ opsLevel: "l1_complete" }),
+      expect.objectContaining({ onceKey: "tenant-1:user-1" }),
+    );
   });
 
   it("operator no ve el panel", () => {
@@ -179,6 +363,10 @@ describe("DashboardActivationChecklist", () => {
     await user.click(screen.getByRole("button", { name: copy.dismiss }));
     expect(window.localStorage.getItem(key)).toBe("true");
     expect(screen.queryByText(copy.title)).not.toBeInTheDocument();
+    expect(mockTrackActivationEvent).toHaveBeenCalledWith(
+      "activation_checklist_dismissed",
+      expect.objectContaining({ mode: "full", opsLevel: "empty" }),
+    );
   });
 
   it("admin ve CTA seed cuando seedAvailable", () => {

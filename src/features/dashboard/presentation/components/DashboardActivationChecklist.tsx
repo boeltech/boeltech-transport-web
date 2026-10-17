@@ -1,14 +1,16 @@
 /**
  * Checklist de activación del tenant en Inicio (F1).
  * F2: bloque opt-in de datos de ejemplo cuando seedAvailable.
+ * F3: éxito primer viaje (admin/manager), mid-setup dispatcher, pista fiscal accountant.
  * Dismiss = localStorage por tenant+user (no endpoint).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, Circle, ListChecks } from "lucide-react";
+import { CheckCircle2, Circle, ListChecks, PartyPopper } from "lucide-react";
 
 import { useAuth } from "@/features/auth";
+import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
@@ -23,11 +25,21 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { useDashboardActivation } from "../../application/hooks/useDashboardActivation";
 import {
   filterActivationItemsForMode,
-  hasPendingItemsForMode,
+  findPendingSoftTrackItems,
+  isOpsReadyForFiscalTrack,
+  resolvePreferredFiscalItem,
   resolveActivationChecklistMode,
+  shouldShowActivationChecklist,
   type ActivationChecklistMode,
 } from "../../domain/activation";
-import type { ActivationItem, ActivationItemCode } from "../../domain/types";
+import { trackActivationEvent } from "../../domain/trackActivationEvent";
+import type {
+  ActivationData,
+  ActivationItem,
+  ActivationItemCode,
+  ActivationOpsLevel,
+  ActivationReadyHint,
+} from "../../domain/types";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import { DemoSeedLoadSheet } from "./DemoSeedLoadSheet";
 
@@ -78,7 +90,11 @@ function itemCtaLabel(code: ActivationItemCode): string {
   return copy.ctaLabels[code] ?? itemLabel(code);
 }
 
-function titleForMode(mode: ActivationChecklistMode): string {
+function titleForMode(
+  mode: ActivationChecklistMode,
+  opsLevel: ActivationOpsLevel,
+): string {
+  if (mode === "full" && opsLevel === "l1_complete") return copy.successTitle;
   if (mode === "dispatcher_compact") return copy.titleDispatcher;
   if (mode === "accountant_fiscal") return copy.titleAccountant;
   return copy.title;
@@ -86,18 +102,31 @@ function titleForMode(mode: ActivationChecklistMode): string {
 
 function descriptionForMode(
   mode: ActivationChecklistMode,
-  opsLevel: string,
+  opsLevel: ActivationOpsLevel,
+  readyHint: ActivationReadyHint,
 ): string {
   if (mode === "dispatcher_compact") {
-    return opsLevel === "empty"
-      ? copy.descriptionDispatcherEmpty
-      : copy.descriptionDispatcherReady;
+    if (opsLevel === "empty") return copy.descriptionDispatcherEmpty;
+    if (opsLevel === "l1_complete") return copy.descriptionDispatcherComplete;
+    return copy.descriptionDispatcherReady;
   }
-  if (mode === "accountant_fiscal") return copy.descriptionAccountant;
+  if (mode === "accountant_fiscal") {
+    if (isOpsReadyForFiscalTrack(opsLevel) && readyHint !== "configured") {
+      return copy.descriptionAccountantOpsReady;
+    }
+    return copy.descriptionAccountant;
+  }
+  if (mode === "full" && opsLevel === "l1_complete") return copy.successBody;
   return copy.description;
 }
 
-function ActivationItemRow({ item }: { item: ActivationItem }) {
+function ActivationItemRow({
+  item,
+  emphasize,
+}: {
+  item: ActivationItem;
+  emphasize?: boolean;
+}) {
   const done = item.status === "done";
   const label = itemLabel(item.code);
 
@@ -116,7 +145,15 @@ function ActivationItemRow({ item }: { item: ActivationItem }) {
       )}
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={done ? "text-muted-foreground line-through" : ""}>
+          <span
+            className={
+              done
+                ? "text-muted-foreground line-through"
+                : emphasize
+                  ? "font-medium text-foreground"
+                  : ""
+            }
+          >
             {label}
           </span>
           <Badge variant={done ? "secondary" : "outline"} className="text-xs">
@@ -126,7 +163,11 @@ function ActivationItemRow({ item }: { item: ActivationItem }) {
         {!done && item.canAct ? (
           <Link
             to={item.ctaPath}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className={
+              emphasize
+                ? "font-semibold text-primary underline-offset-4 hover:underline"
+                : "font-medium text-primary underline-offset-4 hover:underline"
+            }
           >
             {itemCtaLabel(item.code)}
           </Link>
@@ -140,6 +181,56 @@ function ActivationItemRow({ item }: { item: ActivationItem }) {
         ) : null}
       </div>
     </li>
+  );
+}
+
+function FirstTripSuccessBlock({ data }: { data: ActivationData }) {
+  const softPending = findPendingSoftTrackItems(data.items);
+
+  return (
+    <Alert variant="success" aria-label={copy.successTitle}>
+      <PartyPopper aria-hidden />
+      <AlertDescription>
+        <div className="flex flex-wrap items-center gap-2">
+          {softPending.map((item) =>
+            item.canAct ? (
+              <Button key={item.code} asChild variant="outline" size="sm">
+                <Link to={item.ctaPath}>{itemCtaLabel(item.code)}</Link>
+              </Button>
+            ) : null,
+          )}
+          <Button asChild variant="secondary" size="sm">
+            <Link to="/trips">{copy.successTripsCta}</Link>
+          </Button>
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function AccountantFiscalEmphasis({
+  data,
+}: {
+  data: ActivationData;
+}) {
+  if (!isOpsReadyForFiscalTrack(data.opsLevel)) return null;
+  if (data.fiscalTrack.readyHint === "configured") return null;
+
+  const preferred = resolvePreferredFiscalItem(
+    data.items,
+    data.fiscalTrack.readyHint,
+  );
+  if (!preferred || !preferred.canAct) return null;
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+      <p className="text-sm text-foreground">
+        {copy.fiscalReadyHints[data.fiscalTrack.readyHint]}
+      </p>
+      <Button asChild size="sm">
+        <Link to={preferred.ctaPath}>{itemCtaLabel(preferred.code)}</Link>
+      </Button>
+    </div>
   );
 }
 
@@ -172,6 +263,36 @@ export function DashboardActivationChecklist({
     enabled: Boolean(mode) && isAuthenticated && !dismissed,
   });
 
+  const panelVisible =
+    Boolean(mode) &&
+    !dismissed &&
+    !isLoading &&
+    !isError &&
+    data != null &&
+    shouldShowActivationChecklist(data, mode!);
+
+  const sessionOnceKey =
+    tenantId && userId ? `${tenantId}:${userId}` : undefined;
+
+  useEffect(() => {
+    if (!panelVisible || !data || !mode || !sessionOnceKey) return;
+    trackActivationEvent(
+      "activation_checklist_viewed",
+      { mode, opsLevel: data.opsLevel },
+      { onceKey: sessionOnceKey },
+    );
+  }, [panelVisible, data, mode, sessionOnceKey]);
+
+  useEffect(() => {
+    if (!panelVisible || !data || !sessionOnceKey) return;
+    if (mode !== "full" || data.opsLevel !== "l1_complete") return;
+    trackActivationEvent(
+      "activation_first_trip_ready",
+      { opsLevel: data.opsLevel },
+      { onceKey: sessionOnceKey },
+    );
+  }, [panelVisible, data, mode, sessionOnceKey]);
+
   if (!mode || dismissed) return null;
 
   if (isLoading) {
@@ -191,17 +312,38 @@ export function DashboardActivationChecklist({
   }
 
   if (isError || !data) return null;
-  if (!hasPendingItemsForMode(data, mode)) return null;
+  if (!shouldShowActivationChecklist(data, mode)) return null;
 
   const items = filterActivationItemsForMode(data.items, mode);
-  const visibleItems =
-    mode === "dispatcher_compact"
-      ? items.filter((i) => i.status === "pending" || i.requiredForOps)
-      : items;
+  const showFirstTripSuccess =
+    mode === "full" && data.opsLevel === "l1_complete";
+  const showDispatcherComplete =
+    mode === "dispatcher_compact" && data.opsLevel === "l1_complete";
+  const preferredFiscal =
+    mode === "accountant_fiscal"
+      ? resolvePreferredFiscalItem(data.items, data.fiscalTrack.readyHint)
+      : undefined;
 
-  const showSeedOffer = data.demo.seedAvailable && !seedOfferDismissed;
+  let visibleItems = items;
+  if (mode === "dispatcher_compact") {
+    if (data.opsLevel === "l1_complete") {
+      visibleItems = [];
+    } else {
+      // Compact mid-setup: pending ops items (CTAs only when canAct).
+      visibleItems = items.filter((i) => i.status === "pending");
+    }
+  } else if (mode === "full" && data.opsLevel === "l1_complete") {
+    visibleItems = items.filter((i) => i.status === "pending");
+  }
+
+  const showSeedOffer =
+    mode === "full" && data.demo.seedAvailable && !seedOfferDismissed;
 
   const dismiss = () => {
+    trackActivationEvent("activation_checklist_dismissed", {
+      mode,
+      opsLevel: data.opsLevel,
+    });
     if (resolvedKey) writeDismissed(resolvedKey);
     setDismissed(true);
   };
@@ -215,14 +357,22 @@ export function DashboardActivationChecklist({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <ListChecks className="h-4 w-4 text-muted-foreground" aria-hidden />
-          {titleForMode(mode)}
+          {showFirstTripSuccess ? (
+            <PartyPopper className="h-4 w-4 text-success" aria-hidden />
+          ) : (
+            <ListChecks className="h-4 w-4 text-muted-foreground" aria-hidden />
+          )}
+          {titleForMode(mode, data.opsLevel)}
         </CardTitle>
         <CardDescription>
-          {descriptionForMode(mode, data.opsLevel)}
+          {descriptionForMode(mode, data.opsLevel, data.fiscalTrack.readyHint)}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {showFirstTripSuccess ? <FirstTripSuccessBlock data={data} /> : null}
+        {mode === "accountant_fiscal" ? (
+          <AccountantFiscalEmphasis data={data} />
+        ) : null}
         {showSeedOffer ? (
           <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
             <p className="text-sm font-medium text-foreground">
@@ -248,13 +398,25 @@ export function DashboardActivationChecklist({
             </div>
           </div>
         ) : null}
-        {mode === "dispatcher_compact" && data.opsLevel === "empty" ? null : (
+        {showDispatcherComplete ? (
+          <Button asChild size="sm" variant="secondary">
+            <Link to="/trips">{copy.successTripsCta}</Link>
+          </Button>
+        ) : null}
+        {visibleItems.length > 0 ? (
           <ul className="space-y-3">
             {visibleItems.map((item) => (
-              <ActivationItemRow key={item.code} item={item} />
+              <ActivationItemRow
+                key={item.code}
+                item={item}
+                emphasize={
+                  mode === "accountant_fiscal" &&
+                  preferredFiscal?.code === item.code
+                }
+              />
             ))}
           </ul>
-        )}
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
             {copy.dismiss}

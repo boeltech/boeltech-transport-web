@@ -13,6 +13,31 @@ describe("dashboardCopy.demoSeed", () => {
   });
 });
 
+describe("dashboardCopy.activation F3", () => {
+  it("éxito primer viaje y mid-setup dispatcher/accountant", () => {
+    expect(dashboardCopy.activation.successTitle).toMatch(/primer viaje/i);
+    expect(dashboardCopy.activation.successTripsCta).toMatch(/Viajes/i);
+    expect(dashboardCopy.activation.descriptionDispatcherEmpty).toMatch(
+      /aún se está armando/i,
+    );
+    expect(dashboardCopy.activation.descriptionDispatcherReady).toMatch(
+      /reserva/i,
+    );
+    expect(dashboardCopy.activation.descriptionDispatcherComplete).toMatch(
+      /viaje/i,
+    );
+    expect(dashboardCopy.activation.fiscalReadyHints.missing_rfc).toMatch(
+      /RFC/i,
+    );
+    expect(dashboardCopy.activation.fiscalReadyHints.missing_csd).toMatch(
+      /CSD/i,
+    );
+    expect(dashboardCopy.activation.ctaLabels.csd_pac).toMatch(
+      /Datos para facturar/i,
+    );
+  });
+});
+
 describe("dashboardCopy.page", () => {
   it("subtitle staff es operativo, sin margen ni cobranza", () => {
     expect(dashboardCopy.page.subtitle).toMatch(/operación/i);

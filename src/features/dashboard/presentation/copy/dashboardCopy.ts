@@ -5,12 +5,31 @@ export const dashboardCopy = {
     titleAccountant: "Pista fiscal",
     description:
       "Completa estos pasos para poder reservar. Cada enlace abre el alta existente.",
+    /** F3 — dispatcher mid-setup (ops empty). */
     descriptionDispatcherEmpty:
-      "La empresa aún arma cliente, unidad y conductor. Cuando estén listos, podrás reservar.",
+      "La empresa aún se está armando: faltan cliente, unidad o conductor. Cuando estén listos, podrás reservar.",
+    /** F3 — dispatcher L1 ready to reserve. */
     descriptionDispatcherReady:
-      "Ya hay maestros. Reserva el primer viaje cuando esté listo el patio.",
+      "Ya hay cliente, unidad y conductor. Reserva el primer viaje cuando el patio esté listo.",
+    /** F3 — dispatcher ops complete (first trip exists). */
+    descriptionDispatcherComplete:
+      "Operación lista: ya hay al menos un viaje. Sigue en Viajes.",
     descriptionAccountant:
       "RFC de la empresa y CSD/PAC para facturar. Solo lectura de progreso aquí.",
+    /** F3 — accountant when ops ready and fiscal incomplete. */
+    descriptionAccountantOpsReady:
+      "Ya hay viaje o maestros listos. Completa la pista fiscal cuando puedas.",
+    /** F3 — first-trip success (admin/manager). */
+    successTitle: "Primer viaje listo",
+    successBody:
+      "Ya tienes operación en marcha. Sigue con facturación o invita al equipo cuando quieras.",
+    successTripsCta: "Ir a Viajes",
+    fiscalReadyHints: {
+      missing_rfc: "Falta el RFC de la empresa para poder facturar.",
+      missing_csd: "Falta configurar el CSD en Datos para facturar.",
+      ready_for_config: "Completa los datos para facturar (CSD/PAC).",
+      configured: "Pista fiscal configurada.",
+    } as const,
     dismiss: "Continuar sin guía",
     doneBadge: "Listo",
     pendingBadge: "Pendiente",
@@ -29,7 +48,7 @@ export const dashboardCopy = {
       driver: "Nuevo conductor",
       first_trip: "Reservar viaje",
       company_fiscal: "Ir a empresa",
-      csd_pac: "Ir a facturación",
+      csd_pac: "Ir a Datos para facturar",
       invite_team: "Invitar usuario",
     } as const,
     emptyGapDescription: {
