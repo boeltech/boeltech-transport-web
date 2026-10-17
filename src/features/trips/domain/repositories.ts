@@ -23,6 +23,7 @@ import type {
 import type {
   CreateTripInput,
   CreateTripWarning,
+  CloneTripInput,
   UpdateTripInput,
   UpdateTripStatusInput,
   // CreateStopInput,
@@ -61,6 +62,33 @@ export interface ITripRepository {
    * (Endpoint transaccional POST /trips/with-details)
    */
   create(input: CreateTripInput): Promise<{
+    trip: Trip;
+    summary: {
+      tripId: string;
+      tripCode: string;
+      stopsCreated: number;
+      cargosCreated: number;
+      expensesCreated: number;
+      finalStatus: string;
+    };
+    warnings?: Array<{
+      code: string;
+      message: string;
+      vehicleId?: string;
+      driverId?: string;
+      conflictingTripId?: string;
+      conflictingTripCode?: string;
+    }>;
+  }>;
+
+  /**
+   * Clona un viaje (whitelist ops/comercial en API).
+   * `POST /trips/:tripId/clone` — misma forma de respuesta que create.
+   */
+  clone(
+    sourceTripId: string,
+    input: CloneTripInput,
+  ): Promise<{
     trip: Trip;
     summary: {
       tripId: string;

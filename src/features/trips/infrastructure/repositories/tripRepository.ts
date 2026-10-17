@@ -18,6 +18,7 @@ import {
   type MappedSingleResult,
 } from "@shared/api";
 import type {
+  CloneTripInput,
   CreateTripInput,
   ITripRepository,
   PaginatedResult,
@@ -125,6 +126,21 @@ export class TripRepository implements ITripRepository {
     const response = await apiClient.post<ApiCreateTripResponse>(
       TRIPS_ENDPOINT,
       input, // ← camelCase, se convierte automáticamente a snake_case
+    );
+
+    return mapCreateTripResponse(response);
+  }
+
+  /**
+   * Clona un viaje (`POST /trips/:id/clone`). Body camelCase → snake vía apiClient.
+   */
+  async clone(
+    sourceTripId: string,
+    input: CloneTripInput,
+  ): Promise<CreateTripResult> {
+    const response = await apiClient.post<ApiCreateTripResponse>(
+      `${TRIPS_ENDPOINT}/${sourceTripId}/clone`,
+      input,
     );
 
     return mapCreateTripResponse(response);

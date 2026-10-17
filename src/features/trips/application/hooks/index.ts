@@ -31,6 +31,10 @@ export { useTripTimeline } from "./tracking/useTripTimeline";
 export { useCancelTrip } from "./trip/useCancelTrip";
 export { useClientCorridors } from "./trip/useClientCorridors";
 export { TripCreationError, useCreateTrip } from "./trip/useCreateTrip";
+export {
+  useCloneTrip,
+  type CloneTripVariables,
+} from "./trip/useCloneTrip";
 export { useReplaceTripStops } from "./trip/useReplaceTripStops";
 /** @deprecated E1 — prefer useReplanTripStops for mid-trip route. */
 export { useAppendTripStops } from "./trip/useAppendTripStops";

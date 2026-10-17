@@ -34,6 +34,7 @@ export {
   useCompleteCargoMovement,
   useCompleteTripCargoMovement,
   useCreateTrip,
+  useCloneTrip,
   useDeleteCargo,
   useDeleteExpense,
   useDeleteTrip,

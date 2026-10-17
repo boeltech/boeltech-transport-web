@@ -60,8 +60,10 @@ import {
   type TripStatusType,
 } from "../../domain";
 import { tripsListCopy } from "../copy/listCopy";
-import { tripDetailCopy } from "../copy";
+import { tripDetailCopy, cloneTripCopy } from "../copy";
 import { showTripDetailErrorToast } from "../helpers/toastTripDetailError";
+import { CloneTripSheet } from "./CloneTripSheet";
+import { utcIsoToLocalInput } from "@shared/utils/dateUtils";
 import {
   MoreHorizontal,
   Eye,
@@ -69,7 +71,20 @@ import {
   XCircle,
   Loader2,
   ChevronDown,
+  Copy,
 } from "lucide-react";
+
+function cloneTripDefaultLocals(source: {
+  scheduledDeparture?: Date | null;
+  scheduledArrival?: Date | null;
+}): { defaultDepartureLocal: string; defaultArrivalLocal: string } {
+  const toLocal = (value?: Date | null) =>
+    value ? utcIsoToLocalInput(value.toISOString()) : "";
+  return {
+    defaultDepartureLocal: toLocal(source.scheduledDeparture),
+    defaultArrivalLocal: toLocal(source.scheduledArrival),
+  };
+}
 
 // ============================================================================
 // TYPES
@@ -104,6 +119,9 @@ interface CommonProps {
   /** PD3: aviso en Cancelar si hay llegada y no hay carga entregada. */
   hasRealArrival?: boolean;
   hasDeliveredCargo?: boolean;
+  /** Precarga del sheet Clonar cuando no hay objeto `trip` (detalle). */
+  scheduledDeparture?: Date;
+  scheduledArrival?: Date | null;
   /** Callback para ver detalles (solo en modo dropdown desde tabla) */
   onView?: (id: string) => void;
   /** Callback para eliminar (solo en modo dropdown desde tabla) */
@@ -147,6 +165,8 @@ export function TripActions(props: TripActionsProps) {
     onActionComplete,
     hasRealArrival = false,
     hasDeliveredCargo = false,
+    scheduledDeparture,
+    scheduledArrival,
     menuTriggerClassName,
     menuAriaLabel = "Abrir menú de acciones",
   } = props;
@@ -182,6 +202,8 @@ export function TripActions(props: TripActionsProps) {
     open: false,
     reason: "",
   });
+
+  const [cloneSheetOpen, setCloneSheetOpen] = useState(false);
 
   // ---------------------------------------------------------------------------
   // MUTATIONS (variant "buttons" y "detailMenu")
@@ -221,6 +243,7 @@ export function TripActions(props: TripActionsProps) {
 
   const canUpdate = hasPermission("trips", "update");
   const canDelete = hasPermission("trips", "delete");
+  const canCreate = hasPermission("trips", "create");
 
   const validTransitions = VALID_TRANSITIONS[currentStatus] || [];
 
@@ -231,6 +254,18 @@ export function TripActions(props: TripActionsProps) {
     hasRealArrival &&
     !hasDeliveredCargo;
   const canDeleteTrip = validTransitions.includes("delete") && canDelete;
+  const canCloneTrip = canCreate;
+
+  const cloneDefaults = props.trip
+    ? cloneTripDefaultLocals(props.trip)
+    : cloneTripDefaultLocals({
+        scheduledDeparture,
+        scheduledArrival,
+      });
+
+  const openCloneSheet = () => {
+    setTimeout(() => setCloneSheetOpen(true), 0);
+  };
 
   // ---------------------------------------------------------------------------
   // HANDLERS
@@ -251,7 +286,18 @@ export function TripActions(props: TripActionsProps) {
     setCancelDialog({ open: false, reason: "" });
   };
 
-  const hasNoActions = !canCancelTrip && !canDeleteTrip;
+  const hasNoActions = !canCancelTrip && !canDeleteTrip && !canCloneTrip;
+
+  const cloneTripSheet = canCloneTrip ? (
+    <CloneTripSheet
+      tripId={id}
+      tripCode={code}
+      open={cloneSheetOpen}
+      onOpenChange={setCloneSheetOpen}
+      defaultDepartureLocal={cloneDefaults.defaultDepartureLocal}
+      defaultArrivalLocal={cloneDefaults.defaultArrivalLocal}
+    />
+  ) : null;
 
   const tripActionDialogs = (
     <>
@@ -368,6 +414,7 @@ export function TripActions(props: TripActionsProps) {
 
   if (variant === "dropdown") {
     const hasMutationMenuItems =
+      canCloneTrip ||
       (canCancelTrip && Boolean(onCancel)) ||
       (canDeleteTrip && Boolean(onDelete));
 
@@ -379,55 +426,74 @@ export function TripActions(props: TripActionsProps) {
     const hasStateActions = Boolean(canCancelTrip && onCancel);
 
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("h-8 w-8", menuTriggerClassName)}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">{menuAriaLabel}</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          {onView && (
-            <DropdownMenuItem onClick={() => onView(id)}>
-              <Eye className="mr-2 h-4 w-4" />
-              Ver detalles
-            </DropdownMenuItem>
-          )}
-
-          {hasStateActions && (
-            <>
-              <DropdownMenuSeparator />
-
-              {canCancelTrip && onCancel && (
-                <DropdownMenuItem
-                  onClick={() => onCancel(id)}
-                  className="text-warning focus:text-warning"
-                >
-                  <XCircle className="mr-2 h-4 w-4" />
-                  Cancelar
-                </DropdownMenuItem>
-              )}
-            </>
-          )}
-
-          {canDeleteTrip && onDelete && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onDelete(id)}
-                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", menuTriggerClassName)}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">{menuAriaLabel}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {onView && (
+              <DropdownMenuItem onClick={() => onView(id)}>
+                <Eye className="mr-2 h-4 w-4" />
+                Ver detalles
               </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            )}
+
+            {canCloneTrip ? (
+              <>
+                {onView ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem
+                  onSelect={() => {
+                    openCloneSheet();
+                  }}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  {cloneTripCopy.action.label}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+
+            {hasStateActions && (
+              <>
+                {onView || canCloneTrip ? <DropdownMenuSeparator /> : null}
+
+                {canCancelTrip && onCancel && (
+                  <DropdownMenuItem
+                    onClick={() => onCancel(id)}
+                    className="text-warning focus:text-warning"
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Cancelar
+                  </DropdownMenuItem>
+                )}
+              </>
+            )}
+
+            {canDeleteTrip && onDelete && (
+              <>
+                {onView || canCloneTrip || hasStateActions ? (
+                  <DropdownMenuSeparator />
+                ) : null}
+                <DropdownMenuItem
+                  onClick={() => onDelete(id)}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {cloneTripSheet}
+      </>
     );
   }
 
@@ -436,7 +502,7 @@ export function TripActions(props: TripActionsProps) {
   // ---------------------------------------------------------------------------
 
   if (variant === "detailMenu") {
-    const hasMenuContent = canCancelTrip || canDeleteTrip;
+    const hasMenuContent = canCancelTrip || canDeleteTrip || canCloneTrip;
     if (!hasMenuContent) {
       return null;
     }
@@ -452,15 +518,30 @@ export function TripActions(props: TripActionsProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            {canCancelTrip ? (
+            {canCloneTrip ? (
               <DropdownMenuItem
-                onSelect={() => setCancelDialog({ open: true, reason: "" })}
+                onSelect={() => {
+                  openCloneSheet();
+                }}
                 disabled={isLoading}
-                className="text-warning focus:text-warning"
               >
-                <XCircle className="mr-2 h-4 w-4" />
-                Cancelar viaje
+                <Copy className="mr-2 h-4 w-4" />
+                {cloneTripCopy.action.label}
               </DropdownMenuItem>
+            ) : null}
+
+            {canCancelTrip ? (
+              <>
+                {canCloneTrip ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem
+                  onSelect={() => setCancelDialog({ open: true, reason: "" })}
+                  disabled={isLoading}
+                  className="text-warning focus:text-warning"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Cancelar viaje
+                </DropdownMenuItem>
+              </>
             ) : null}
 
             {canDeleteTrip ? (
@@ -487,6 +568,7 @@ export function TripActions(props: TripActionsProps) {
           </DropdownMenuContent>
         </DropdownMenu>
         {tripActionDialogs}
+        {cloneTripSheet}
       </>
     );
   }
@@ -502,6 +584,18 @@ export function TripActions(props: TripActionsProps) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
+        {canCloneTrip && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCloneSheetOpen(true)}
+            disabled={isLoading}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            {cloneTripCopy.action.label}
+          </Button>
+        )}
+
         {/* Cancelar viaje */}
         {canCancelTrip && (
           <Button
@@ -537,6 +631,7 @@ export function TripActions(props: TripActionsProps) {
         )}
       </div>
       {tripActionDialogs}
+      {cloneTripSheet}
     </>
   );
 }

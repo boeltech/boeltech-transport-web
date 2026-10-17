@@ -44,3 +44,4 @@ export {
 export type { CfdiDocumentIntent, StopFiscalUiContext } from "./wizard";
 export { tripsListCopy } from "./listCopy";
 export { canvasCopy } from "./canvasCopy";
+export { cloneTripCopy } from "./cloneTripCopy";

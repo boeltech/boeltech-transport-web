@@ -14,6 +14,7 @@ export { TripListRouteLabel } from "./TripListRouteLabel";
 export { TripTable } from "./TripTable";
 export { InvoiceableTripPickerSheet } from "./InvoiceableTripPickerSheet";
 export { TripActions } from "./TripActions";
+export { CloneTripSheet } from "./CloneTripSheet";
 export { StartTripSheet } from "./trip-tracking/StartTripSheet";
 export { TripInvoiceActions } from "./TripInvoiceActions";
 export { TripFiscalSection } from "./TripFiscalSection";

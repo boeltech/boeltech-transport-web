@@ -677,6 +677,15 @@ export interface CancelTripInput {
   reason: string;
 }
 
+/**
+ * Body de `POST /trips/:tripId/clone` (camelCase; apiClient → snake).
+ * UX exige ambas fechas; el API las acepta opcionales.
+ */
+export interface CloneTripInput {
+  scheduledDeparture: string; // ISO 8601
+  scheduledArrival: string; // ISO 8601
+}
+
 // ============================================================================
 // RESULT TYPES
 // ============================================================================

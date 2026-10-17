@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { TooltipProvider } from "@shared/ui/tooltip";
 
 import { TripStatus } from "@features/trips/domain";
-import { tripsListCopy } from "../copy";
+import { tripsListCopy, cloneTripCopy } from "../copy";
 import { TripActions } from "./TripActions";
 
 const mockHasPermission = vi.fn();
@@ -21,9 +21,10 @@ vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-vi.mock("../../application", () => ({
+vi.mock("@features/trips/application", () => ({
   useCancelTrip: () => ({ mutate: vi.fn(), isPending: false }),
   useDeleteTrip: () => ({ mutate: vi.fn(), isPending: false }),
+  useCloneTrip: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 async function openMoreMenu(user: ReturnType<typeof userEvent.setup>) {
@@ -59,7 +60,59 @@ describe("TripActions", () => {
       screen.queryByRole("menuitem", { name: /Edición completa/i }),
     ).not.toBeInTheDocument();
     expect(
+      screen.getByRole("menuitem", { name: cloneTripCopy.action.label }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("menuitem", { name: /Cancelar viaje/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides Clonar viaje without trips.create", async () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        module === "trips" && action !== "create",
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <TripActions
+          variant="detailMenu"
+          tripId="trip-1"
+          tripCode="TR-001"
+          status={TripStatus.DRAFT}
+        />
+      </MemoryRouter>,
+    );
+
+    await openMoreMenu(user);
+    expect(
+      screen.queryByRole("menuitem", { name: cloneTripCopy.action.label }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /Cancelar viaje/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens clone sheet from Más menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <TripActions
+          variant="detailMenu"
+          tripId="trip-1"
+          tripCode="TR-001"
+          status={TripStatus.COMPLETED}
+        />
+      </MemoryRouter>,
+    );
+
+    await openMoreMenu(user);
+    await user.click(
+      screen.getByRole("menuitem", { name: cloneTripCopy.action.label }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: cloneTripCopy.sheet.title }),
     ).toBeInTheDocument();
   });
 

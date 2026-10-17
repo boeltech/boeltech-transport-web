@@ -1197,6 +1197,8 @@ export function TripDetailPage() {
                   tripId={trip.id}
                   tripCode={trip.tripCode}
                   status={resolvedDisplayStatus}
+                  scheduledDeparture={trip.scheduledDeparture}
+                  scheduledArrival={trip.scheduledArrival}
                   hasRealArrival={orderedStops.some(
                     (stop) => stop.actualArrival != null,
                   )}

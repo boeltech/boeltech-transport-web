@@ -81,6 +81,7 @@ export {
   useInvoiceableWorkbenchSummary,
   useTrip,
   useCreateTrip,
+  useCloneTrip,
   useUpdateTrip,
   useUpdateTripStatus,
   useStartTrip,

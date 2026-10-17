@@ -211,6 +211,7 @@ export type {
   UpdateTripInput,
   UpdateTripStatusInput,
   CancelTripInput,
+  CloneTripInput,
 
   // Result Types
   CreateTripResult,
