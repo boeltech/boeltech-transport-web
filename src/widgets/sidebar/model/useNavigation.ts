@@ -165,11 +165,16 @@ function filterNavItems(
       return item.roles.includes(userRole);
     }
 
+    const action = item.action || "read";
+
+    // OR de módulos (p. ej. documentos flota: vehicles.read | drivers.read)
+    if (item.anyModules && item.anyModules.length > 0) {
+      return item.anyModules.some((module) => hasPermission(module, action));
+    }
+
     // Si no requiere módulo, mostrar siempre
     if (!item.module) return true;
 
-    // Verificar permiso con la acción especificada o 'read' por defecto
-    const action = item.action || "read";
     return hasPermission(item.module, action);
   });
 }

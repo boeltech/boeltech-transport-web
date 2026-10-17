@@ -27,6 +27,7 @@ import { RouteErrorBoundary } from "@/pages/errors/components/ErrorBoundary";
 import {
   PrivateRoute,
   ModuleRoute,
+  AnyModuleRoute,
   PermissionRoute,
   RoleRoute,
   DenyRolesRoute,
@@ -162,6 +163,15 @@ const CreateVehiclePage = lazyWithRetry(() =>
 const EditVehiclePage = lazyWithRetry(() =>
   import("@features/vehicles/presentation/pages/EditVehiclePage").then((m) => ({
     default: m.EditVehiclePage,
+  })),
+);
+
+// Fleet documents (Ola 1 F2 — tablero docs por vencer)
+const FleetDocumentsListPage = lazyWithRetry(() =>
+  import(
+    "@features/fleet-documents/presentation/pages/FleetDocumentsListPage"
+  ).then((m) => ({
+    default: m.FleetDocumentsListPage,
   })),
 );
 
@@ -781,6 +791,28 @@ export const router = createBrowserRouter([
                   {
                     path: "/trailers/:id/edit",
                     element: withSuspense(EditTrailerPage),
+                  },
+                ],
+              },
+            ],
+          },
+
+          // ========================================
+          // Módulo: Fleet documents (Documentos por vencer)
+          // RBAC: vehicles.read OR drivers.read (paridad API)
+          // Ola 9: driver denegado en web (permisos API/mobile intactos)
+          // ========================================
+          {
+            element: <DenyRolesRoute roles={[ROLES.DRIVER]} />,
+            children: [
+              {
+                element: (
+                  <AnyModuleRoute modules={["vehicles", "drivers"]} />
+                ),
+                children: [
+                  {
+                    path: "/fleet/documents",
+                    element: withSuspense(FleetDocumentsListPage),
                   },
                 ],
               },

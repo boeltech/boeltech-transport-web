@@ -37,7 +37,9 @@ import {
   ClipboardCheck,
   Mail,
   Banknote,
+  FileWarning,
 } from "lucide-react";
+import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
 import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
 
@@ -103,6 +105,13 @@ export const navigationConfig: NavGroup[] = [
         path: "/drivers",
         icon: Users,
         module: "drivers",
+      },
+      {
+        id: "fleet-documents",
+        label: copy.item.fleetDocuments,
+        path: FLEET_DOCUMENTS_PATH,
+        icon: FileWarning,
+        anyModules: ["vehicles", "drivers"],
       },
     ],
   },

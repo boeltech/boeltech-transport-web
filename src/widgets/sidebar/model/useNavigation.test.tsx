@@ -146,6 +146,36 @@ describe("filterNavigation", () => {
     expect(billingGroup?.items.map((i) => i.id)).toEqual(["finance-invoices"]);
   });
 
+  it("shows fleet documents when user has vehicles.read or drivers.read", () => {
+    const withVehicles = filterNavigation(
+      navigationConfig,
+      (module, action) => module === "vehicles" && action === "read",
+      ROLES.DISPATCHER,
+    );
+    const fleetWithVehicles = withVehicles.find((g) => g.id === "fleet");
+    expect(fleetWithVehicles?.items.map((i) => i.id)).toContain(
+      "fleet-documents",
+    );
+
+    const withDriversOnly = filterNavigation(
+      navigationConfig,
+      (module, action) => module === "drivers" && action === "read",
+      ROLES.DISPATCHER,
+    );
+    const fleetWithDrivers = withDriversOnly.find((g) => g.id === "fleet");
+    expect(fleetWithDrivers?.items.map((i) => i.id)).toEqual([
+      "drivers",
+      "fleet-documents",
+    ]);
+
+    const withNeither = filterNavigation(
+      navigationConfig,
+      () => false,
+      ROLES.CLIENT,
+    );
+    expect(withNeither.find((g) => g.id === "fleet")).toBeUndefined();
+  });
+
   it("allows accountant to see billing and finance (Reportes as finance item)", () => {
     const hasPermission = createPermissionChecker("accountant");
     const filtered = filterNavigation(navigationConfig, hasPermission, ROLES.ACCOUNTANT);

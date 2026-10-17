@@ -19,6 +19,8 @@ export const navigationCopy = {
     vehicles: "Vehículos",
     trailers: "Remolques",
     drivers: "Conductores",
+    /** Tablero de docs de flota por vencer (/fleet/documents). */
+    fleetDocuments: "Documentos",
     employees: "Empleados",
     clientsList: "Clientes",
     /** Entrada al hub Finanzas (landing Cartera). Grupo = Finanzas; ítem ≠ mismo label. */

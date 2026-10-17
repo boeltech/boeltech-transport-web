@@ -75,7 +75,7 @@ describe("navigationConfig", () => {
     expect(items.filter((item) => typeof item.badge === "string")).toEqual([]);
   });
 
-  it("keeps fleet to vehicles, trailers and drivers only", () => {
+  it("keeps fleet to vehicles, trailers, drivers and documents", () => {
     const fleet = navigationConfig.find((group) => group.id === "fleet");
     const operations = navigationConfig.find(
       (group) => group.id === "operations",
@@ -86,7 +86,9 @@ describe("navigationConfig", () => {
       "vehicles",
       "trailers",
       "drivers",
+      "fleet-documents",
     ]);
+    expect(navigationCopy.item.fleetDocuments).toBe("Documentos");
   });
 
   it("places branches and employees under Administración", () => {

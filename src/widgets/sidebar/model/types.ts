@@ -28,6 +28,11 @@ export interface NavItem {
   icon: LucideIcon;
   /** Módulo requerido para ver este item */
   module?: Module;
+  /**
+   * OR de módulos: visible si el usuario tiene `action` en al menos uno.
+   * Si se define, tiene precedencia sobre `module`.
+   */
+  anyModules?: Module[];
   /** Acción requerida (default: 'read') */
   action?: Action;
   /**

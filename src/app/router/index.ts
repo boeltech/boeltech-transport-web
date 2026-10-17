@@ -14,4 +14,5 @@ export {
   RoleRoute,
   AdminRoute,
   ModuleRoute,
+  AnyModuleRoute,
 } from "./guards";
