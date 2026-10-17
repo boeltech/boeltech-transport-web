@@ -1,4 +1,5 @@
-import { Receipt } from "lucide-react";
+import { Download, Loader2, Receipt } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Skeleton } from "@shared/ui/skeleton";
@@ -20,30 +21,37 @@ import {
 import { EmptyState } from "@shared/ui/feedback-states";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { AccountStatementItem } from "@features/finance/domain";
+import { buildFinanceCobrosPath } from "@features/finance/application";
 import { financeCopy } from "../copy";
 import { getAccountStatementDisplayPaid } from "../utils/accountStatementDisplayPaid";
 
 interface FinanceAccountStatementSectionProps {
   rows: AccountStatementItem[];
   isLoading?: boolean;
-  /** Navega a Cobros con RFC precargado (D2). */
-  onCollectClient?: (clientRfc: string) => void;
+  /** CTA Cobrar → /finance/cobros?rfc= (deep-link observable). */
+  showCollectAction?: boolean;
+  /** Descarga PDF estado de cuenta (finance.read). */
+  onDownloadPdf?: (clientRfc: string) => void;
+  /** RFC en descarga activa (loading por fila). */
+  downloadingRfc?: string | null;
 }
 
 export function FinanceAccountStatementSection({
   rows,
   isLoading = false,
-  onCollectClient,
+  showCollectAction = false,
+  onDownloadPdf,
+  downloadingRfc = null,
 }: FinanceAccountStatementSectionProps) {
-  const showCollect = typeof onCollectClient === "function";
+  const showDownload = typeof onDownloadPdf === "function";
+  const showActions = showCollectAction || showDownload;
+  const copy = financeCopy.summary.accountStatement;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{financeCopy.summary.sections.accountStatement}</CardTitle>
-        <CardDescription>
-          {financeCopy.summary.accountStatement.description}
-        </CardDescription>
+        <CardDescription>{copy.description}</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -80,7 +88,7 @@ export function FinanceAccountStatementSection({
                   <TableHead className="text-right">
                     {financeCopy.summary.table.invoices}
                   </TableHead>
-                  {showCollect ? (
+                  {showActions ? (
                     <TableHead className="text-right">
                       {financeCopy.summary.table.actions}
                     </TableHead>
@@ -88,62 +96,99 @@ export function FinanceAccountStatementSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.clientRfc}>
-                    <TableCell className="font-medium">{row.clientName}</TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">
-                      {row.clientRfc}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatMxCurrency(row.totalInvoiced)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-success">
-                      {formatMxCurrency(getAccountStatementDisplayPaid(row))}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {row.balanceDue > 0 ? (
-                        <span className="text-destructive">
-                          {formatMxCurrency(row.balanceDue)}
-                        </span>
-                      ) : (
-                        <span className="text-success">
-                          {formatMxCurrency(0)}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {row.overdueAmount > 0 ? (
-                        <span className="font-medium text-destructive">
-                          {formatMxCurrency(row.overdueAmount)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="secondary">{row.openInvoiceCount}</Badge>
-                    </TableCell>
-                    {showCollect ? (
-                      <TableCell className="text-right">
-                        {row.openInvoiceCount > 0 ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            aria-label={financeCopy.summary.accountStatement.collectActionAria(
-                              row.clientName,
-                            )}
-                            onClick={() => onCollectClient(row.clientRfc)}
-                          >
-                            {financeCopy.summary.accountStatement.collectAction}
-                          </Button>
+                {rows.map((row) => {
+                  const isDownloading = downloadingRfc === row.clientRfc;
+                  const cobrosHref = buildFinanceCobrosPath(row.clientRfc);
+                  const showCollect =
+                    showCollectAction && row.openInvoiceCount > 0;
+
+                  return (
+                    <TableRow key={row.clientRfc}>
+                      <TableCell className="font-medium">
+                        {row.clientName}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        {row.clientRfc}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMxCurrency(row.totalInvoiced)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-success">
+                        {formatMxCurrency(getAccountStatementDisplayPaid(row))}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {row.balanceDue > 0 ? (
+                          <span className="text-destructive">
+                            {formatMxCurrency(row.balanceDue)}
+                          </span>
+                        ) : (
+                          <span className="text-success">
+                            {formatMxCurrency(0)}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.overdueAmount > 0 ? (
+                          <span className="font-medium text-destructive">
+                            {formatMxCurrency(row.overdueAmount)}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                    ) : null}
-                  </TableRow>
-                ))}
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">
+                          {row.openInvoiceCount}
+                        </Badge>
+                      </TableCell>
+                      {showActions ? (
+                        <TableCell className="text-right">
+                          {showDownload || showCollect ? (
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {showDownload ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={isDownloading}
+                                  aria-label={copy.downloadPdfActionAria(
+                                    row.clientName,
+                                  )}
+                                  onClick={() => onDownloadPdf(row.clientRfc)}
+                                >
+                                  {isDownloading ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                  )}
+                                  {copy.downloadPdfAction}
+                                </Button>
+                              ) : null}
+                              {showCollect ? (
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  <Link
+                                    to={cobrosHref}
+                                    aria-label={copy.collectActionAria(
+                                      row.clientName,
+                                    )}
+                                  >
+                                    {copy.collectAction}
+                                  </Link>
+                                </Button>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

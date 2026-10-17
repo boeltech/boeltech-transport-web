@@ -325,6 +325,10 @@ export const financeCopy = {
       collectAction: "Cobrar",
       collectActionAria: (clientName: string) =>
         `Cobrar a ${clientName}`,
+      downloadPdfAction: "Descargar PDF",
+      downloadPdfActionAria: (clientName: string) =>
+        `Descargar estado de cuenta de ${clientName}`,
+      downloadPdfError: "No se pudo descargar el estado de cuenta",
     },
     dsoTitle: "Días promedio de cobro (30 días)",
     daysSuffix: "días",

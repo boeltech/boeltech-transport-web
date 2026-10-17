@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo } from "react";
 import { Download } from "lucide-react";
 import { useAuth } from "@features/auth";
 import { ROLES } from "@shared/constants/roles";
@@ -10,10 +9,10 @@ import { Button } from "@shared/ui/button";
 import { HubPageShell } from "@shared/ui/page-shells";
 import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
 import {
-  buildFinanceCobrosPath,
   useAccountStatement,
   useAgingByClient,
   useAgingSummary,
+  useDownloadAccountStatementPdf,
   useFinanceSummary,
 } from "@features/finance/application";
 import {
@@ -27,10 +26,10 @@ import { buildFinanceCycleSteps } from "../utils/financeHubNav";
 import { exportAgingByClientCsv } from "../utils/financeExportHelpers";
 
 export function FinanceSummaryPage() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const canReadFinance = hasPermission("finance", "read");
   const {
     data: summary,
     isLoading,
@@ -50,6 +49,16 @@ export function FinanceSummaryPage() {
     error: agingErr,
   } = useAgingSummary();
   const { data: agingByClient } = useAgingByClient();
+
+  const downloadPdf = useDownloadAccountStatementPdf({
+    onError: (err) => {
+      toast({
+        variant: "destructive",
+        title: financeCopy.summary.accountStatement.downloadPdfError,
+        description: getErrorMessage(err),
+      });
+    },
+  });
 
   useEffect(() => {
     if (!summaryError || !summaryErr) return;
@@ -79,13 +88,6 @@ export function FinanceSummaryPage() {
   }, [agingError, agingErr, toast]);
 
   const rows = statement ?? [];
-
-  const handleCollectClient = useCallback(
-    (clientRfc: string) => {
-      navigate(buildFinanceCobrosPath(clientRfc));
-    },
-    [navigate],
-  );
 
   const agingExportAction = useMemo(() => {
     if (!agingByClient?.length) return undefined;
@@ -149,7 +151,15 @@ export function FinanceSummaryPage() {
       <FinanceAccountStatementSection
         rows={rows}
         isLoading={stmtLoading}
-        onCollectClient={handleCollectClient}
+        showCollectAction
+        onDownloadPdf={
+          canReadFinance
+            ? (clientRfc) => downloadPdf.mutate(clientRfc)
+            : undefined
+        }
+        downloadingRfc={
+          downloadPdf.isPending ? (downloadPdf.variables ?? null) : null
+        }
       />
     </HubPageShell>
   );

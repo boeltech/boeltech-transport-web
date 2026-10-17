@@ -1,4 +1,7 @@
-export { financeApi } from "./financeApi";
+export {
+  financeApi,
+  buildAccountStatementPdfFileName,
+} from "./financeApi";
 export { financeInvoicesListApi } from "./invoicesListApi";
 export { financePaymentsApi } from "./financePaymentsApi";
 export {

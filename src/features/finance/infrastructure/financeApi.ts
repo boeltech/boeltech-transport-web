@@ -36,6 +36,12 @@ import {
 
 const FINANCE_BASE = "/finance";
 
+/** Filename local de respaldo si el header Content-Disposition no trae nombre. */
+export function buildAccountStatementPdfFileName(clientRfc: string): string {
+  const rfc = clientRfc.trim().toUpperCase();
+  return `estado-cuenta-${rfc}.pdf`;
+}
+
 const profitabilityTripsSortByApi: Record<
   NonNullable<ProfitabilityTripsFilters["sortBy"]>,
   string
@@ -90,6 +96,21 @@ export const financeApi = {
     );
     return (response.data ?? []).map((item) =>
       mapAccountStatementItem(item as Record<string, unknown>),
+    );
+  },
+
+  /**
+   * PDF estado de cuenta por RFC.
+   * GET /finance/account-statement/pdf?client_rfc= — permiso finance.read.
+   * Proyección del mismo GET JSON; no recalcula saldos en cliente.
+   */
+  downloadAccountStatementPdf: async (clientRfc: string): Promise<void> => {
+    const rfc = clientRfc.trim().toUpperCase();
+    const params = new URLSearchParams();
+    addOptionalParam(params, "client_rfc", rfc);
+    await apiClient.downloadFile(
+      `${FINANCE_BASE}/account-statement/pdf?${params.toString()}`,
+      buildAccountStatementPdfFileName(rfc),
     );
   },
 

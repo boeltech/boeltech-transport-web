@@ -42,6 +42,11 @@ vi.mock("@features/finance/application", async (importOriginal) => {
       error: null,
     }),
     useAgingByClient: () => ({ data: [] }),
+    useDownloadAccountStatementPdf: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+      variables: undefined,
+    }),
   };
 });
 

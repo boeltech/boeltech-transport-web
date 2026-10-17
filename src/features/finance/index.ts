@@ -27,6 +27,7 @@ export {
   useAgingSummary,
   useAgingByClient,
   useAgingClientInvoices,
+  useDownloadAccountStatementPdf,
   useProfitabilityTrips,
   useProfitabilityAggregate,
   useExpensesByCategory,
@@ -44,7 +45,10 @@ export {
   FINANCE_DISPATCH_DETAIL_PATH,
 } from "./application";
 
-export { financeApi } from "./infrastructure";
+export {
+  financeApi,
+  buildAccountStatementPdfFileName,
+} from "./infrastructure";
 
 export {
   FinanceSummaryPage,

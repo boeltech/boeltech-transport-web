@@ -13,6 +13,7 @@ export {
   useInvoicesByStatusMonth,
   useMonthlyPerformance,
 } from "./hooks/useFinance";
+export { useDownloadAccountStatementPdf } from "./hooks/useDownloadAccountStatementPdf";
 export {
   MONTHLY_PERFORMANCE_MONTH_OPTIONS,
   DEFAULT_MONTHLY_PERFORMANCE_MONTHS,

@@ -1,4 +1,6 @@
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AccountStatementItem } from "@features/finance/domain";
@@ -21,9 +23,13 @@ function buildRow(
   };
 }
 
+function renderSection(ui: ReactElement): ReturnType<typeof render> {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 describe("FinanceAccountStatementSection", () => {
   it("shows settled Pagado for stamped PUE when total_paid is raw 0", () => {
-    render(
+    renderSection(
       <FinanceAccountStatementSection rows={[buildRow()]} isLoading={false} />,
     );
 
@@ -37,7 +43,7 @@ describe("FinanceAccountStatementSection", () => {
   });
 
   it("keeps Pagado equal to registered payments for partial PPD", () => {
-    render(
+    renderSection(
       <FinanceAccountStatementSection
         rows={[
           buildRow({
@@ -62,7 +68,7 @@ describe("FinanceAccountStatementSection", () => {
   });
 
   it("shows Abiertas badge from openInvoiceCount, not invoiceCount", () => {
-    render(
+    renderSection(
       <FinanceAccountStatementSection
         rows={[
           buildRow({
@@ -88,11 +94,8 @@ describe("FinanceAccountStatementSection", () => {
     expect(within(row).queryByText("9")).not.toBeInTheDocument();
   });
 
-  it("shows Cobrar when openInvoiceCount > 0 and calls with client RFC", async () => {
-    const user = userEvent.setup();
-    const onCollectClient = vi.fn();
-
-    render(
+  it("shows Cobrar with deep-link /finance/cobros?rfc= when openInvoiceCount > 0", () => {
+    renderSection(
       <FinanceAccountStatementSection
         rows={[
           buildRow({
@@ -102,21 +105,23 @@ describe("FinanceAccountStatementSection", () => {
           }),
         ]}
         isLoading={false}
-        onCollectClient={onCollectClient}
+        showCollectAction
       />,
     );
 
-    const collect = screen.getByRole("button", {
+    const collect = screen.getByRole("link", {
       name: financeCopy.summary.accountStatement.collectActionAria(
         "INDUSTRIA ILUMINADORA DE ALMACENES",
       ),
     });
-    await user.click(collect);
-    expect(onCollectClient).toHaveBeenCalledWith("IIA040805DZ4");
+    expect(collect).toHaveAttribute(
+      "href",
+      "/finance/cobros?rfc=IIA040805DZ4",
+    );
   });
 
   it("hides Cobrar when openInvoiceCount is 0 even if balanceDue > 0", () => {
-    render(
+    renderSection(
       <FinanceAccountStatementSection
         rows={[
           buildRow({
@@ -126,14 +131,60 @@ describe("FinanceAccountStatementSection", () => {
           }),
         ]}
         isLoading={false}
-        onCollectClient={vi.fn()}
+        showCollectAction
       />,
     );
 
     expect(
-      screen.queryByRole("button", {
+      screen.queryByRole("link", {
         name: /Cobrar/i,
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows Descargar PDF and calls onDownloadPdf with client RFC", async () => {
+    const user = userEvent.setup();
+    const onDownloadPdf = vi.fn();
+
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[
+          buildRow({
+            openInvoiceCount: 1,
+            balanceDue: 12000,
+          }),
+        ]}
+        isLoading={false}
+        showCollectAction
+        onDownloadPdf={onDownloadPdf}
+      />,
+    );
+
+    const download = screen.getByRole("button", {
+      name: financeCopy.summary.accountStatement.downloadPdfActionAria(
+        "INDUSTRIA ILUMINADORA DE ALMACENES",
+      ),
+    });
+    await user.click(download);
+    expect(onDownloadPdf).toHaveBeenCalledWith("IIA040805DZ4");
+  });
+
+  it("disables Descargar PDF while downloadingRfc matches the row", () => {
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[buildRow({ openInvoiceCount: 1, balanceDue: 100 })]}
+        isLoading={false}
+        onDownloadPdf={vi.fn()}
+        downloadingRfc="IIA040805DZ4"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.downloadPdfActionAria(
+          "INDUSTRIA ILUMINADORA DE ALMACENES",
+        ),
+      }),
+    ).toBeDisabled();
   });
 });
