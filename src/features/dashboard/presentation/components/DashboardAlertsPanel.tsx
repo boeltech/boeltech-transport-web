@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { useNavigate } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
+import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
 import type {
   AlertSeverity,
   AlertType,
@@ -20,6 +21,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@shared/ui/card";
@@ -34,7 +36,11 @@ import {
   DASHBOARD_ALERT_SEVERITY_ORDER,
   dashboardAlertSeverityConfig,
 } from "../config/dashboardAlertSeverity";
-import { handleAlertClick } from "../utils/alertNavigation";
+import {
+  getAlertCtaLabel,
+  handleAlertClick,
+  hasDocumentAlerts,
+} from "../utils/alertNavigation";
 
 /** Max alerts shown before "Ver las N restantes" expand CTA (P1b). */
 export const DASHBOARD_ALERTS_VISIBLE_LIMIT = 8;
@@ -63,35 +69,43 @@ const ALERT_ITEM_LAYOUT_OVERRIDES = "p-2.5 text-left";
 
 function AlertItem({
   alert,
-  onClick,
+  onAction,
 }: {
   alert: DashboardAlert;
-  onClick?: () => void;
+  onAction: () => void;
 }) {
   const Icon = ALERT_ICON_MAP[alert.type] ?? AlertCircle;
   const severity = dashboardAlertSeverityConfig[alert.severity];
+  const ctaLabel = getAlertCtaLabel(alert.type);
 
   return (
-    <button
-      type="button"
+    <div
       className={cn(
         alertVariants({ variant: severity.alertVariant }),
         ALERT_ITEM_LAYOUT_OVERRIDES,
-        "transition-opacity",
-        onClick && "cursor-pointer hover:opacity-80",
       )}
-      onClick={onClick}
     >
       <Icon
         className={cn("mt-0.5 h-4 w-4 shrink-0 self-start", severity.iconClassName)}
       />
-      <div className="min-w-0">
-        <p className="text-sm font-medium leading-snug">{alert.title}</p>
-        <p className="text-xs text-muted-foreground line-clamp-2">
-          {alert.description}
-        </p>
+      <div className="min-w-0 space-y-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium leading-snug">{alert.title}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2">
+            {alert.description}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 px-2.5 text-xs"
+          onClick={onAction}
+        >
+          {ctaLabel}
+        </Button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -156,6 +170,9 @@ export function DashboardAlertsPanel({
     expanded || remaining === 0
       ? sorted
       : sorted.slice(0, DASHBOARD_ALERTS_VISIBLE_LIMIT);
+
+  const showDocumentsBoardLink =
+    !isLoading && !showUnavailable && hasDocumentAlerts(sorted);
 
   const description = (() => {
     if (isLoading) return dashboardCopy.alerts.loading;
@@ -223,7 +240,7 @@ export function DashboardAlertsPanel({
                 <AlertItem
                   key={`${alert.type}-${alert.entity_id}-${i}`}
                   alert={alert}
-                  onClick={() => handleAlertClick(alert, navigate, fromHref)}
+                  onAction={() => handleAlertClick(alert, navigate, fromHref)}
                 />
               ))}
               {!expanded && remaining > 0 ? (
@@ -241,6 +258,21 @@ export function DashboardAlertsPanel({
           </ScrollArea>
         )}
       </CardContent>
+      {showDocumentsBoardLink ? (
+        <CardFooter className="shrink-0 border-t pt-3">
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0 text-sm"
+            onClick={() =>
+              navigate(FLEET_DOCUMENTS_PATH, { state: { from: fromHref } })
+            }
+          >
+            {dashboardCopy.alerts.viewAllDocuments}
+          </Button>
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }

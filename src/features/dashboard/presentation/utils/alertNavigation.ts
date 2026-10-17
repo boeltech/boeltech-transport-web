@@ -1,6 +1,28 @@
 import type { useNavigate } from "react-router-dom";
 import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
-import type { DashboardAlert } from "../../domain/types";
+import type { AlertType, DashboardAlert } from "../../domain/types";
+import { dashboardCopy } from "../copy/dashboardCopy";
+
+const DOCUMENT_ALERT_TYPES: ReadonlySet<AlertType> = new Set([
+  "license_expiring",
+  "medical_certificate_expiring",
+  "insurance_expiring",
+  "sct_permit_expiring",
+]);
+
+export function isDocumentAlertType(type: AlertType): boolean {
+  return DOCUMENT_ALERT_TYPES.has(type);
+}
+
+export function hasDocumentAlerts(
+  alerts: readonly DashboardAlert[] | undefined,
+): boolean {
+  return Boolean(alerts?.some((alert) => isDocumentAlertType(alert.type)));
+}
+
+export function getAlertCtaLabel(type: AlertType): string {
+  return dashboardCopy.alerts.cta[type] ?? dashboardCopy.alerts.cta.overdue_trip;
+}
 
 export function handleAlertClick(
   alert: DashboardAlert,

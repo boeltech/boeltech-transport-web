@@ -77,14 +77,17 @@ export const dashboardCopy = {
       title: "Cobrado este mes",
       subtitle:
         "Pagos de facturas en el periodo · no incluye efectivo sin CFDI",
+      ariaLabel: "Cobrado este mes: ir a Cobros",
     },
     receivable: {
       title: "Por cobrar",
       subtitle: "Facturas con saldo pendiente",
+      ariaLabel: "Por cobrar: ir a Cobros",
     },
     overdue: {
       title: "Vencido",
       subtitle: "Saldo con pago atrasado",
+      ariaLabel: "Vencido: ir a Cobros",
     },
   },
   /** @deprecated Prefer scorecard.*; kept for any residual references */
@@ -137,6 +140,14 @@ export const dashboardCopy = {
       `${count} alerta${count > 1 ? "s" : ""} operativa${count > 1 ? "s" : ""}`,
     showRemaining: (remaining: number) =>
       `Ver las ${remaining} restante${remaining > 1 ? "s" : ""}`,
+    viewAllDocuments: "Ver todos los documentos",
+    cta: {
+      overdue_trip: "Ver viaje",
+      license_expiring: "Ver documentos",
+      medical_certificate_expiring: "Ver documentos",
+      insurance_expiring: "Ver documentos",
+      sct_permit_expiring: "Ver documentos",
+    },
     severity: {
       error: (count: number) => `${count} urgente${count > 1 ? "s" : ""}`,
       warning: (count: number) => `${count} aviso${count > 1 ? "s" : ""}`,

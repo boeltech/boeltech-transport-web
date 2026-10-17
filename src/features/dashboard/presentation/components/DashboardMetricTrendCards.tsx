@@ -185,6 +185,7 @@ export function DashboardMetricTrendCards({
         : "—",
       loading: isLoading || financeLoading,
       onClick: () => navigate(FINANCE_COBROS_PATH, { state: navState }),
+      ariaLabel: dashboardCopy.scorecard.collected.ariaLabel,
     },
     {
       key: "receivable",
@@ -195,6 +196,7 @@ export function DashboardMetricTrendCards({
         : "—",
       loading: isLoading || financeLoading,
       onClick: () => navigate(FINANCE_COBROS_PATH, { state: navState }),
+      ariaLabel: dashboardCopy.scorecard.receivable.ariaLabel,
     },
     {
       key: "overdue",
@@ -204,6 +206,7 @@ export function DashboardMetricTrendCards({
       loading: isLoading || financeLoading,
       onClick: () => navigate(FINANCE_COBROS_PATH, { state: navState }),
       tone: hasOverdue ? "warning" : "default",
+      ariaLabel: dashboardCopy.scorecard.overdue.ariaLabel,
     },
   ];
 

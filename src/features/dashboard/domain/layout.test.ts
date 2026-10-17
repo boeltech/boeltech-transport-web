@@ -253,7 +253,7 @@ describe("dashboard layout", () => {
         buildRoleDefaultLayout("accountant"),
         financeStaff,
       ).map((w) => w.id),
-    ).toEqual(["metric_trends", "financial_comparison"]);
+    ).toEqual(["metric_trends", "alerts", "financial_comparison"]);
 
     expect(
       getVisibleWidgetsInOrder(

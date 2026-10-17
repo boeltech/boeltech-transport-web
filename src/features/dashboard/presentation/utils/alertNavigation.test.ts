@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { DASHBOARD_PATH, REPORTS_HUB_PATH } from "@shared/utils/reportsWayfinding";
 import type { DashboardAlert } from "../../domain/types";
-import { handleAlertClick } from "./alertNavigation";
+import { dashboardCopy } from "../copy/dashboardCopy";
+import {
+  getAlertCtaLabel,
+  handleAlertClick,
+  hasDocumentAlerts,
+  isDocumentAlertType,
+} from "./alertNavigation";
 
 describe("handleAlertClick", () => {
   it("navigates overdue_trip to trip detail", () => {
@@ -72,5 +78,46 @@ describe("handleAlertClick", () => {
     expect(navigate).toHaveBeenCalledWith("/vehicles/vehicle-3?tab=documents", {
       state: { from: DASHBOARD_PATH },
     });
+  });
+});
+
+describe("alert CTA helpers", () => {
+  it("exposes observable CTA labels per alert type", () => {
+    expect(getAlertCtaLabel("overdue_trip")).toBe(
+      dashboardCopy.alerts.cta.overdue_trip,
+    );
+    expect(getAlertCtaLabel("license_expiring")).toBe(
+      dashboardCopy.alerts.cta.license_expiring,
+    );
+    expect(getAlertCtaLabel("insurance_expiring")).toBe(
+      dashboardCopy.alerts.cta.insurance_expiring,
+    );
+  });
+
+  it("detects document alerts for the fleet documents board link", () => {
+    expect(isDocumentAlertType("overdue_trip")).toBe(false);
+    expect(isDocumentAlertType("license_expiring")).toBe(true);
+    expect(
+      hasDocumentAlerts([
+        {
+          type: "overdue_trip",
+          severity: "error",
+          title: "Viaje",
+          description: "Retraso",
+          entity_id: "trip-1",
+        },
+      ]),
+    ).toBe(false);
+    expect(
+      hasDocumentAlerts([
+        {
+          type: "sct_permit_expiring",
+          severity: "warning",
+          title: "Permiso",
+          description: "Por vencer",
+          entity_id: "vehicle-1",
+        },
+      ]),
+    ).toBe(true);
   });
 });

@@ -157,8 +157,8 @@ describe("DashboardAlertsPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders each alert row with a single type icon and no chevron", () => {
-    render(
+  it("renders each alert row with a single type icon and an observable CTA", () => {
+    const { container } = render(
       <DashboardAlertsPanel
         alerts={[errorAlert]}
         isLoading={false}
@@ -166,11 +166,16 @@ describe("DashboardAlertsPanel", () => {
       />,
     );
 
-    const row = screen.getByRole("button", { name: /Viaje vencido/i });
-    expect(row.querySelectorAll(":scope > svg")).toHaveLength(1);
+    expect(screen.getByText("Viaje vencido")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: dashboardCopy.alerts.cta.overdue_trip }),
+    ).toBeInTheDocument();
+
+    const iconHost = container.querySelector("[class*='grid']");
+    expect(iconHost?.querySelectorAll(":scope > svg")).toHaveLength(1);
   });
 
-  it("uses ScrollArea for the alert list and keeps row click navigation", () => {
+  it("uses ScrollArea and navigates from the primary CTA", () => {
     const { container } = render(
       <DashboardAlertsPanel
         alerts={[errorAlert]}
@@ -187,9 +192,48 @@ describe("DashboardAlertsPanel", () => {
       ...DASHBOARD_ALERTS_LIST_VIEWPORT_CLASS.split(" "),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Viaje vencido/i }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: dashboardCopy.alerts.cta.overdue_trip,
+      }),
+    );
     expect(navigate).toHaveBeenCalledWith(`/trips/${errorAlert.entity_id}`, {
       state: { from: "/dashboard" },
     });
+  });
+
+  it("shows fleet documents board link when document alerts are present", () => {
+    render(
+      <DashboardAlertsPanel
+        alerts={[warningAlert, infoAlert]}
+        isLoading={false}
+        navigate={navigate}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: dashboardCopy.alerts.viewAllDocuments,
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith("/fleet/documents", {
+      state: { from: "/dashboard" },
+    });
+  });
+
+  it("hides fleet documents board link when only overdue trips are present", () => {
+    render(
+      <DashboardAlertsPanel
+        alerts={[errorAlert]}
+        isLoading={false}
+        navigate={navigate}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: dashboardCopy.alerts.viewAllDocuments,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

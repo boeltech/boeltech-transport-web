@@ -196,4 +196,49 @@ describe("DashboardMetricTrendCards", () => {
     expect(overdueAmount.className).toContain("text-warning");
     expect(overdueAmount.className).not.toContain("text-warning-foreground");
   });
+
+  it("deep-links Por cobrar and Vencido to Cobros with observable aria labels", async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: { financial_month: buildFinancialMonth() },
+            } as never
+          }
+          isLoading={false}
+          navigate={navigate}
+          financeLoading={false}
+          financeSummary={
+            {
+              collectedThisMonth: 10_000,
+              totalReceivable: 20_000,
+              totalOverdue: 5_000,
+            } as never
+          }
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dashboardCopy.scorecard.receivable.ariaLabel,
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith("/finance/cobros", {
+      state: { from: "/dashboard" },
+    });
+
+    navigate.mockClear();
+    await user.click(
+      screen.getByRole("button", {
+        name: dashboardCopy.scorecard.overdue.ariaLabel,
+      }),
+    );
+    expect(navigate).toHaveBeenCalledWith("/finance/cobros", {
+      state: { from: "/dashboard" },
+    });
+  });
 });

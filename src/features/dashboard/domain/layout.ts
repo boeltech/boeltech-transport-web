@@ -175,7 +175,8 @@ const ROLE_DEFAULT_VISIBLE: Record<UserRole, readonly WidgetId[]> = {
     "fleet_drivers",
     "operations_snapshot",
   ],
-  accountant: ["metric_trends", "financial_comparison"],
+  /** Scorecard (cobros) + alertas (docs / viajes overdue) + tendencia financiera. */
+  accountant: ["metric_trends", "alerts", "financial_comparison"],
   dispatcher: ["alerts", "fleet_drivers", "operations_snapshot"],
   operator: ["operations_snapshot"],
   driver: ["recent_trips"],
