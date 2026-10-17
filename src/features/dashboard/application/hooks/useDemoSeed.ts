@@ -5,6 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/features/auth";
+import { trackActivationEvent } from "../../domain/trackActivationEvent";
 import { demoSeedApi } from "../../infrastructure/demoSeedApi";
 import { dashboardQueryKeys } from "../dashboardQueryKeys";
 import { invalidateAfterDemoSeedChange } from "../invalidateAfterDemoSeedChange";
@@ -28,6 +29,7 @@ export function useApplyDemoSeed() {
     mutationFn: (options?: { includeDraftTrip?: boolean }) =>
       demoSeedApi.apply(options),
     onSuccess: () => {
+      trackActivationEvent("activation_demo_seed_loaded");
       invalidateAfterDemoSeedChange(queryClient);
     },
   });
@@ -39,6 +41,7 @@ export function usePurgeDemoSeed() {
   return useMutation({
     mutationFn: () => demoSeedApi.purge(),
     onSuccess: () => {
+      trackActivationEvent("activation_demo_seed_purged");
       invalidateAfterDemoSeedChange(queryClient);
     },
   });

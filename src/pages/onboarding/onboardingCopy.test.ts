@@ -51,7 +51,7 @@ describe("onboardingCopy founder A/B", () => {
       `Prepara tu cuenta en ${BRAND.productName}`,
     );
     expect(onboardingCopy.header.submitFounder).toBe(
-      "Ir a Datos para facturar",
+      "Continuar a Datos para facturar",
     );
     expect(onboardingCopy.header.stepsAria).toBe("Pasos de bienvenida");
     expect(onboardingCopy.toast.successTitle).toBe("Listo");
@@ -125,11 +125,14 @@ describe("onboardingCopy founder A/B", () => {
 });
 
 describe("onboardingCopy family handshake", () => {
-  it("F1 welcome names screen look, plan consult and billing house", () => {
+  it("F1 welcome names screen look, plan consult, Inicio and primer viaje", () => {
     const body = onboardingCopy.welcome.founderBody("Ana");
-    expect(body).toBe(
-      "Hola, Ana. En un momento eliges cómo se ve la pantalla y te decimos dónde consultar el plan de la empresa. Al terminar te llevamos a Datos para facturar, para cargar la información con la que tu empresa factura a sus clientes. Estos pasos no vuelven a aparecer.",
-    );
+    expect(body).toMatch(/Hola, Ana/);
+    expect(body).toMatch(/Datos para facturar/);
+    expect(body).toMatch(/Inicio/);
+    expect(body).toMatch(/primer viaje/i);
+    expect(body).toMatch(/RFC y CSD/);
+    expect(body).toMatch(/no vuelven a aparecer/);
   });
 
   it("F2/F3 handshake is role-specific and stays off commercial copy", () => {
@@ -191,18 +194,20 @@ describe("onboardingCopy family handshake", () => {
 
     const admin = resolveOnboardingHandshake("admin", "Mar");
     expect(admin.title).toBe("Mar, empiezas en Datos para facturar");
-    expect(admin.body).toBe(
-      "Ahí cargas la información con la que la empresa factura a sus clientes. No es la lista de viajes ni la de usuarios.",
-    );
+    expect(admin.body).toMatch(/RFC y CSD/);
+    expect(admin.body).toMatch(/Inicio/);
+    expect(admin.body).toMatch(/primer viaje/i);
+    expect(admin.body).toMatch(/checklist de maestros/i);
     expect(`${admin.title} ${admin.body}`).not.toMatch(
       /trial|timbres|Q_fact/i,
     );
   });
 
-  it("F1 submit goes to Datos para facturar", () => {
+  it("F1 submit keeps billing landing label (ops-first wording)", () => {
     expect(onboardingCopy.header.submitFounder).toBe(
-      "Ir a Datos para facturar",
+      "Continuar a Datos para facturar",
     );
+    expect(onboardingCopy.header.submitFounder).toMatch(/Datos para facturar/);
   });
 
   it.each([

@@ -11,7 +11,7 @@ export const onboardingCopy = {
     title: "Primeros pasos",
     subtitle: `Prepara tu cuenta en ${BRAND.productName}`,
     back: "Volver",
-    submitFounder: "Ir a Datos para facturar",
+    submitFounder: "Continuar a Datos para facturar",
     submitHouse: (house: string) => `Ir a ${house}`,
     submitting: "Guardando…",
     stepsAria: "Pasos de bienvenida",
@@ -54,7 +54,7 @@ export const onboardingCopy = {
   },
   welcome: {
     founderBody: (name: string) =>
-      `Hola, ${name}. En un momento eliges cómo se ve la pantalla y te decimos dónde consultar el plan de la empresa. Al terminar te llevamos a Datos para facturar, para cargar la información con la que tu empresa factura a sus clientes. Estos pasos no vuelven a aparecer.`,
+      `Hola, ${name}. En un momento eliges cómo se ve la pantalla y te decimos dónde consultar el plan de la empresa. Al terminar te llevamos a Datos para facturar (RFC y CSD en paralelo). Después, en Inicio verás qué falta para armar el primer viaje. Estos pasos no vuelven a aparecer.`,
   },
   handshake: {
     dispatcher: {
@@ -83,7 +83,7 @@ export const onboardingCopy = {
     },
     admin: {
       title: (name: string) => `${name}, empiezas en Datos para facturar`,
-      body: "Ahí cargas la información con la que la empresa factura a sus clientes. No es la lista de viajes ni la de usuarios.",
+      body: "Ahí cargas RFC y CSD para facturar. Luego en Inicio verás el checklist de maestros y el primer viaje; facturación y operación van en paralelo.",
     },
   },
   preferences: {

@@ -20,6 +20,8 @@ vi.mock("@widgets/header", () => ({
 
 vi.mock("@features/auth", () => ({
   EmailVerificationBanner: () => null,
+  // DemoDataBanner (F2) mounts in LayoutShell and calls useAuth.
+  useAuth: () => ({ isAuthenticated: false, user: null }),
 }));
 
 vi.mock("@features/help-center", () => ({

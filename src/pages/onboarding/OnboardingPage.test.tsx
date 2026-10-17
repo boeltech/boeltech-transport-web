@@ -392,9 +392,7 @@ describe("OnboardingPage families", () => {
       screen.getByRole("heading", { name: /empiezas en Datos para facturar/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /cargas la información con la que la empresa factura a sus clientes/i,
-      ),
+      screen.getByText(/checklist de maestros y el primer viaje/i),
     ).toBeInTheDocument();
     expect(screen.queryByText("Tu plan")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /actual/ })).not.toBeInTheDocument();
