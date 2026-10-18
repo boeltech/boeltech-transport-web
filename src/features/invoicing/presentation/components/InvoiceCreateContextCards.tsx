@@ -39,12 +39,22 @@ function IssuerContextColumn({ issuer }: { issuer: IssuerSnapshot }) {
   );
 }
 
-function TripLinkRow({ trip }: { trip: Pick<InvoiceTripRef, "tripId" | "tripCode"> }) {
+function TripLinkRow({
+  trip,
+  tripReturnFrom,
+}: {
+  trip: Pick<InvoiceTripRef, "tripId" | "tripCode">;
+  /** Wayfinding de vuelta desde el detalle de viaje (Opción S / detalle). */
+  tripReturnFrom?: string;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="font-mono text-sm font-semibold">{trip.tripCode}</span>
       <Button variant="link" className="h-auto p-0 text-xs" asChild>
-        <Link to={`/trips/${trip.tripId}`}>
+        <Link
+          to={`/trips/${trip.tripId}`}
+          state={tripReturnFrom ? { from: tripReturnFrom } : undefined}
+        >
           {copy.label.viewTrip}
           <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden />
         </Link>
@@ -58,6 +68,7 @@ type TripContextColumnProps = {
   tripId?: string;
   prefill?: InvoicePrefill | null;
   receiverName?: string;
+  tripReturnFrom?: string;
 };
 
 function TripContextColumn({
@@ -65,6 +76,7 @@ function TripContextColumn({
   tripId,
   prefill,
   receiverName,
+  tripReturnFrom,
 }: TripContextColumnProps) {
   const singleTrip =
     trips[0] ??
@@ -106,12 +118,18 @@ function TripContextColumn({
         <ul className="space-y-2 text-sm">
           {trips.map((trip) => (
             <li key={trip.tripId}>
-              <TripLinkRow trip={trip} />
+              <TripLinkRow trip={trip} tripReturnFrom={tripReturnFrom} />
             </li>
           ))}
         </ul>
       ) : singleTrip ? (
-        <TripLinkRow trip={{ tripId: singleTrip.tripId || tripId || "", tripCode: singleTrip.tripCode }} />
+        <TripLinkRow
+          trip={{
+            tripId: singleTrip.tripId || tripId || "",
+            tripCode: singleTrip.tripCode,
+          }}
+          tripReturnFrom={tripReturnFrom}
+        />
       ) : null}
       {showClientHint ? (
         <p className="text-xs text-muted-foreground">{ctxCopy.receiverPrefilledHint}</p>
@@ -138,6 +156,8 @@ type CreateContextLineProps = {
   receiverRfc?: string;
   tripCode?: string;
   tripId?: string;
+  /** `location.state.from` al abrir el detalle de viaje (Opción S). */
+  tripReturnFrom?: string;
   total: number;
   issuerName?: string;
   issuerRfc?: string;
@@ -159,6 +179,7 @@ function CreateContextLine({
   receiverRfc,
   tripCode,
   tripId,
+  tripReturnFrom,
   total,
   issuerName,
   issuerRfc,
@@ -237,6 +258,9 @@ function CreateContextLine({
             <Button variant="link" className="h-auto p-0" asChild>
               <Link
                 to={`/trips/${tripId ?? ""}`}
+                state={
+                  tripReturnFrom ? { from: tripReturnFrom } : undefined
+                }
                 className="inline-flex items-center gap-1.5"
               >
                 <Badge variant="secondary" className="font-mono">
@@ -281,6 +305,11 @@ export type InvoiceCreateContextCardsProps = {
   receiverRfc?: string;
   /** Alta: total calculado en vivo desde los conceptos. */
   total?: number;
+  /**
+   * Origen seguro para el chevron del viaje al salir del alta (Opción S).
+   * Típicamente Por facturar; nunca `/invoices/new`.
+   */
+  tripReturnFrom?: string;
   sharePercent?: number | null;
   splitLegsInvoiced?: number;
   splitLegsTotal?: number;
@@ -297,6 +326,7 @@ export function InvoiceCreateContextCards({
   receiverName,
   receiverRfc,
   total = 0,
+  tripReturnFrom,
   sharePercent,
   splitLegsInvoiced,
   splitLegsTotal,
@@ -312,6 +342,7 @@ export function InvoiceCreateContextCards({
         receiverRfc={receiverRfc || prefill?.receiverRfc}
         tripCode={prefill?.tripCode}
         tripId={prefill?.tripId || tripId}
+        tripReturnFrom={tripReturnFrom}
         total={total}
         issuerName={prefill?.issuerName}
         issuerRfc={prefill?.issuerRfc}
@@ -357,6 +388,7 @@ export function InvoiceCreateContextCards({
           tripId={tripId}
           prefill={prefill}
           receiverName={receiverName}
+          tripReturnFrom={tripReturnFrom}
         />
         {(tripAmount > 0 || prefill || trips.length > 0) ? (
           <TripBaseRateColumn amount={tripAmount} />

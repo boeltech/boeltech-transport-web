@@ -4,6 +4,7 @@ import {
   isSafeTripReturnHref,
   resolveTripAccessDeniedCopy,
   resolveTripBackHref,
+  resolveTripReturnHrefFromInvoiceCreate,
   resolveTripWayfindingBackLabel,
 } from "./tripWayfinding";
 
@@ -36,6 +37,41 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
     expect(resolveTripBackHref("//evil.example/path")).toBe("/trips");
     expect(resolveTripBackHref("/dashboard")).toBe("/trips");
     expect(resolveTripBackHref(undefined)).toBe("/trips");
+  });
+
+  it("resolveTripReturnHrefFromInvoiceCreate cae a Por facturar (nunca /invoices/new)", () => {
+    expect(resolveTripReturnHrefFromInvoiceCreate(undefined)).toBe(
+      "/finance/invoiceable",
+    );
+    expect(resolveTripReturnHrefFromInvoiceCreate("")).toBe(
+      "/finance/invoiceable",
+    );
+    expect(resolveTripReturnHrefFromInvoiceCreate("/invoices/new")).toBe(
+      "/finance/invoiceable",
+    );
+    expect(
+      resolveTripReturnHrefFromInvoiceCreate("/invoices/new?trip_id=1"),
+    ).toBe("/finance/invoiceable");
+    expect(resolveTripReturnHrefFromInvoiceCreate("/dashboard")).toBe(
+      "/finance/invoiceable",
+    );
+    expect(
+      resolveTripReturnHrefFromInvoiceCreate("https://evil.example/phish"),
+    ).toBe("/finance/invoiceable");
+  });
+
+  it("resolveTripReturnHrefFromInvoiceCreate reutiliza from seguro", () => {
+    expect(
+      resolveTripReturnHrefFromInvoiceCreate(
+        "/finance/invoiceable?bucket=ready",
+      ),
+    ).toBe("/finance/invoiceable?bucket=ready");
+    expect(resolveTripReturnHrefFromInvoiceCreate("/trips/abc-1")).toBe(
+      "/trips/abc-1",
+    );
+    expect(
+      resolveTripReturnHrefFromInvoiceCreate("/finance/invoices?page=2"),
+    ).toBe("/finance/invoices?page=2");
   });
 });
 

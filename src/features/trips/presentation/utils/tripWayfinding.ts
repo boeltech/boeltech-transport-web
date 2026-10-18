@@ -90,6 +90,25 @@ export function resolveTripBackHref(from: string | undefined): string {
 }
 
 /**
+ * Opción S (PRD wayfinding): `state.from` al navegar del alta de factura
+ * (`/invoices/new`) al detalle de viaje. Reutiliza el origen seguro del create
+ * si ya está en la allowlist de trips; si no (o es `/invoices/new`), cae a
+ * Por facturar. Nunca pasa `from: /invoices/new` ni lo añade a la allowlist.
+ */
+export function resolveTripReturnHrefFromInvoiceCreate(
+  from: string | undefined,
+): string {
+  if (from == null || from.trim() === "") return FINANCE_INVOICEABLE_PATH;
+
+  const trimmed = from.trim();
+  if (trimmed.startsWith("/invoices/new")) return FINANCE_INVOICEABLE_PATH;
+
+  const candidate = resolveInternalAppHref(trimmed, FINANCE_INVOICEABLE_PATH);
+  if (!isSafeTripReturnHref(candidate)) return FINANCE_INVOICEABLE_PATH;
+  return candidate;
+}
+
+/**
  * Label del chevron al salir del detalle de viaje.
  * Factura → Volver a la factura; listado facturas → Volver a facturas;
  * Bandeja de aprobaciones → Volver a aprobaciones;

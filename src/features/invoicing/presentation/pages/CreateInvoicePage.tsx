@@ -27,6 +27,7 @@ import {
 } from "../financeInvoiceFromTripCta";
 import { getInvoiceCreateReadiness } from "../invoiceCreateReadiness";
 import { invoicingCopy } from "../copy/invoicingCopy";
+import { resolveTripReturnHrefFromInvoiceCreate } from "@features/trips/presentation/utils/tripWayfinding";
 import { resolveInvoiceBackHref } from "../utils/invoiceWayfinding";
 import {
   defaultInvoiceFormValues,
@@ -128,6 +129,9 @@ export function CreateInvoicePage() {
       : resolveInvoiceBackHref(fromState, {
           tripId: tripId || undefined,
         });
+
+  /** Opción S: chevron del viaje → Por facturar (nunca `/invoices/new`). */
+  const tripReturnFrom = resolveTripReturnHrefFromInvoiceCreate(fromState);
 
   const shellTitle = isEditMode
     ? copy.edit.title
@@ -827,7 +831,13 @@ export function CreateInvoicePage() {
             <p className="text-sm text-muted-foreground">
               {splitShareCopy.missingLegIdBody}
             </p>
-            <Button onClick={() => navigate(`/trips/${tripId}`)}>
+            <Button
+              onClick={() =>
+                navigate(`/trips/${tripId}`, {
+                  state: { from: tripReturnFrom },
+                })
+              }
+            >
               {splitShareCopy.viewTripInvoicing}
             </Button>
           </CardContent>
@@ -860,7 +870,14 @@ export function CreateInvoicePage() {
               >
                 {splitShareCopy.viewExistingInvoice}
               </Button>
-              <Button variant="outline" onClick={() => navigate(`/trips/${tripId}`)}>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(`/trips/${tripId}`, {
+                    state: { from: tripReturnFrom },
+                  })
+                }
+              >
                 {splitShareCopy.viewTripInvoicing}
               </Button>
             </div>
@@ -916,11 +933,11 @@ export function CreateInvoicePage() {
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={() =>
-                  navigate(
-                    isBlockedByActiveSplitWrongScope && tripId
-                      ? `/trips/${tripId}`
-                      : shellBackHref,
-                  )
+                  isBlockedByActiveSplitWrongScope && tripId
+                    ? navigate(`/trips/${tripId}`, {
+                        state: { from: tripReturnFrom },
+                      })
+                    : navigate(shellBackHref)
                 }
               >
                 {isBlockedByActiveSplitWrongScope
@@ -930,7 +947,11 @@ export function CreateInvoicePage() {
               {tripId && /ruta|paradas|coordenadas|distancias|carta\s+porte/i.test(blockedReason) ? (
                 <Button
                   variant="outline"
-                  onClick={() => navigate(`/trips/${tripId}?tab=route`)}
+                  onClick={() =>
+                    navigate(`/trips/${tripId}?tab=route`, {
+                      state: { from: tripReturnFrom },
+                    })
+                  }
                 >
                   {copy.blocked.goToRouteTab}
                 </Button>
@@ -938,7 +959,11 @@ export function CreateInvoicePage() {
               {tripId && /carga|mercanc/i.test(blockedReason) ? (
                 <Button
                   variant="outline"
-                  onClick={() => navigate(`/trips/${tripId}?tab=cargo`)}
+                  onClick={() =>
+                    navigate(`/trips/${tripId}?tab=cargo`, {
+                      state: { from: tripReturnFrom },
+                    })
+                  }
                 >
                   {copy.blocked.goToCargoTab}
                 </Button>
@@ -991,6 +1016,7 @@ export function CreateInvoicePage() {
           receiverName={receiverName}
           receiverRfc={receiverRfc}
           total={total}
+          tripReturnFrom={isEditMode ? undefined : tripReturnFrom}
           sharePercent={isSplitShareScope ? prefill?.sharePercent : undefined}
           splitLegsInvoiced={
             isSplitShareScope
