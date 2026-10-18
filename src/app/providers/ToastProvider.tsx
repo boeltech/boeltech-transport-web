@@ -29,7 +29,7 @@ export function ToastProvider({
   children,
   position = "top-right",
   duration = 4000,
-  expand = false,
+  expand = true,
   closeButton = true,
   richColors = true,
 }: ToastProviderProps) {

@@ -22,7 +22,7 @@ type ToasterProps = ToasterConfig;
 export function Toaster({
   position = "top-right",
   duration = 4000,
-  expand = false,
+  expand = true,
   closeButton = true,
   richColors = true,
 }: ToasterProps) {

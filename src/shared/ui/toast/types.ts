@@ -89,7 +89,7 @@ export interface ToasterConfig {
   position?: ToastPosition;
   /** Duración por defecto en ms */
   duration?: number;
-  /** Expandir toasts */
+  /** Lista siempre expandida (D8 Operate default: true; legible sin hover) */
   expand?: boolean;
   /** Mostrar botón de cerrar */
   closeButton?: boolean;
