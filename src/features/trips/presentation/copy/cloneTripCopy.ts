@@ -32,6 +32,7 @@ export const cloneTripCopy = {
     success: (tripCode: string) => `Viaje ${tripCode} creado`,
     successTitle: "Viaje clonado",
     error: "No se pudo clonar el viaje",
+    overlayErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
     overlapWarningTitle: "Posible traslape con una reserva",
   },
 } as const;

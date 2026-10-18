@@ -26,6 +26,7 @@ import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { buildOverlayErrorToastDescription } from "@shared/utils/overlayErrorFeedback";
 import { useActiveClients } from "@features/clients/application";
 import {
   TripStatus,
@@ -400,7 +401,10 @@ function TripRevenueSplitSheetBody({
       toast({
         variant: "error",
         title: splitCopy.saveErrorTitle,
-        description: message,
+        description: buildOverlayErrorToastDescription(
+          message,
+          tripFiscalCopy.overlayErrorSeeInline,
+        ),
       });
     }
   };
@@ -452,7 +456,10 @@ function TripRevenueSplitSheetBody({
       toast({
         variant: "error",
         title: splitCopy.cancelErrorTitle,
-        description: message,
+        description: buildOverlayErrorToastDescription(
+          message,
+          tripFiscalCopy.overlayErrorSeeInline,
+        ),
       });
     }
   }

@@ -36,7 +36,12 @@ import {
   RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE,
 } from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
-import { buildOverlayErrorToastDescription } from "@shared/utils/overlayErrorFeedback";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
+import {
+  buildOverlayErrorToastDescription,
+  isInlineOverlayError,
+} from "@shared/utils/overlayErrorFeedback";
 import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import { TripFiscalCorrectionSheet } from "./TripFiscalCorrectionSheet";
 import { PreflightBlockerSheet } from "./PreflightBlockerSheet";
@@ -112,6 +117,8 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   const [stampOverlayError, setStampOverlayError] = useState<string | null>(
     null,
   );
+  /** D5: error PAC largo sin sheet abierto — panel persistente en página. */
+  const [stampPageError, setStampPageError] = useState<string | null>(null);
   const [isPreparingStamp, setIsPreparingStamp] = useState(false);
   const preparingStampRef = useRef(false);
   const [genericReceiverDialog, setGenericReceiverDialog] =
@@ -130,6 +137,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   const { mutate: stamp, isPending: isStamping } = useStampInvoice({
     onSuccess: () => {
       setPendingStampInvoiceId(null);
+      setStampPageError(null);
       releasePreparingStamp();
       if (onStampSuccessToast) {
         onStampSuccessToast();
@@ -324,7 +332,6 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
                 ? toFiscalStopDisplayOrder(parsed.stopOrder)
                 : null,
             ),
-            duration: 8000,
             action: {
               label: stampCopy.fixAction,
               onClick: () =>
@@ -344,18 +351,34 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
       const hasInlineOverlay = Boolean(fixStopId);
       if (hasInlineOverlay) {
         setStampOverlayError(message);
+        setStampPageError(null);
+        toast({
+          variant: "error",
+          title: stampCopy.errorTitle,
+          description: buildOverlayErrorToastDescription(
+            message,
+            tripFiscalCopy.overlayErrorSeeInline,
+          ),
+        });
+        return;
       }
+
+      // D5: sin sheet — error largo → panel persistente + toast breve (no dump PAC).
+      if (isInlineOverlayError(message)) {
+        setStampPageError(message);
+        toast({
+          variant: "error",
+          title: stampCopy.errorTitle,
+          description: tripFiscalCopy.stampPageErrorSeeInline,
+        });
+        return;
+      }
+
+      setStampPageError(null);
       toast({
         variant: "error",
         title: stampCopy.errorTitle,
-        // Sin sheet abierto no hay «formulario» inline: mostrar el mensaje completo.
-        description: hasInlineOverlay
-          ? buildOverlayErrorToastDescription(
-              message,
-              tripFiscalCopy.overlayErrorSeeInline,
-            )
-          : message,
-        duration: message.length > 120 ? 10000 : undefined,
+        description: message,
       });
     },
     [
@@ -385,6 +408,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
       }
       preparingStampRef.current = true;
       setIsPreparingStamp(true);
+      setStampPageError(null);
 
       let handedOffToStamp = false;
       try {
@@ -511,6 +535,30 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
 
   const sheets: ReactNode = (
     <>
+      {stampPageError ? (
+        <div
+          className="fixed inset-x-4 bottom-4 z-[60] mx-auto max-w-lg sm:inset-x-auto sm:left-auto sm:right-4"
+          role="status"
+        >
+          <Alert variant="destructive" className="shadow-lg">
+            <AlertTitle>{stampCopy.errorTitle}</AlertTitle>
+            <AlertDescription className="select-text whitespace-pre-wrap break-words">
+              {stampPageError}
+            </AlertDescription>
+            <div className="mt-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setStampPageError(null)}
+              >
+                {tripFiscalCopy.stampPageErrorDismiss}
+              </Button>
+            </div>
+          </Alert>
+        </div>
+      ) : null}
+
       {activeFixStop && activeFixTrip ? (
         <TripFiscalCorrectionSheet
           mode="apply-now"

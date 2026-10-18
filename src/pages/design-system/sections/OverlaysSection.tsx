@@ -6,7 +6,7 @@
  *   - Sheet: drawer lateral para edición o detalle contextual
  *   - Popover: contenido anclado a un trigger (filtros, micro-formularios)
  *   - Tooltip: ayuda contextual breve sobre hover/focus
- *   - Toast (sonner): notificaciones efímeras
+ *   - Toast (sonner): notificaciones efímeras + gobernanza D1–D7
  *
  * Cada uno tiene reglas de cuándo usar — ver descripción de cada card.
  */
@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +51,171 @@ import {
   toastWarning,
   toastInfo,
 } from "@shared/hooks/useToast";
+import { useOverlayMutationFeedback } from "@shared/hooks/useOverlayMutationFeedback";
 import { Info } from "lucide-react";
+
+const PAC_LONG_ERROR =
+  "El PAC rechazó el CFDI: [CFDI40145] El atributo Fecha no cumple con el patrón requerido. " +
+  "Además, el complemento CartaPorte30 presenta inconsistencias en Ubicaciones/Mercancias. " +
+  "Revise RFC, domicilio y clave de producto/servicio antes de reintentar el timbrado.";
+
+function ToastGovernanceDemo() {
+  const { toast } = useToast();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const sheetFeedback = useOverlayMutationFeedback({
+    errorTitle: "Error al guardar",
+    seeInlineCopy: "Revisa el mensaje detallado en el formulario.",
+    toast,
+  });
+
+  const dialogFeedback = useOverlayMutationFeedback({
+    errorTitle: "Error de API",
+    seeInlineCopy: "Revisa el mensaje en el dialog.",
+    toast,
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gobernanza toast (D1 / D7 / D8)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Cuatro escenarios canónicos: toast éxito corto; Sheet con error PAC
+          largo (Alert + toast breve); Dialog con Alert inline; CTA única de
+          next-step en el toast. Umbral inline = 160 chars; duración unificada
+          en <code>toast()</code> y <code>toastError</code>. Stack Operate con{" "}
+          <code>expand=&#123;true&#125;</code> (D8): varios toasts legibles sin
+          hover.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {/* 1 — Toast éxito efímero */}
+          <Button
+            variant="success"
+            onClick={() =>
+              toastSuccess("Guardado", "Los cambios se aplicaron.")
+            }
+          >
+            1. Éxito corto
+          </Button>
+
+          {/* 2 — Sheet: PAC largo → Alert + toast breve */}
+          <Sheet
+            open={sheetOpen}
+            onOpenChange={(open) => {
+              setSheetOpen(open);
+              if (!open) sheetFeedback.clearOverlayError();
+            }}
+          >
+            <SheetTrigger asChild>
+              <Button variant="outline">2. Sheet · error PAC largo</Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Editar (demo)</SheetTitle>
+                <SheetDescription>
+                  Simula un error PAC &gt;160 chars: Alert seleccionable + toast
+                  breve. El sheet no se cierra al interactuar con el toast.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="my-6 space-y-3">
+                {sheetFeedback.submissionError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Error al guardar</AlertTitle>
+                    <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                      {sheetFeedback.submissionError}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => sheetFeedback.showOverlayError(PAC_LONG_ERROR)}
+                >
+                  Simular rechazo PAC
+                </Button>
+              </div>
+              <SheetFooter>
+                <Button variant="ghost" onClick={() => setSheetOpen(false)}>
+                  Cerrar
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+
+          {/* 3 — Dialog: error API → Alert inline */}
+          <Dialog
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) dialogFeedback.clearOverlayError();
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline">3. Dialog · Alert inline</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirmar cobro</DialogTitle>
+                <DialogDescription>
+                  Con dialog modal abierto el toast no es interactivo: el error
+                  vive en Alert inline.
+                </DialogDescription>
+              </DialogHeader>
+              {dialogFeedback.submissionError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Error de API</AlertTitle>
+                  <AlertDescription className="select-text whitespace-pre-wrap break-words">
+                    {dialogFeedback.submissionError}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <DialogFooter>
+                <Button
+                  variant="ghost"
+                  onClick={() => setDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() =>
+                    dialogFeedback.showOverlayError(
+                      "No se pudo registrar el pago: saldo insuficiente en la cadena REP.",
+                    )
+                  }
+                >
+                  Simular error API
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 4 — CTA única next-step (D7) */}
+          <Button
+            variant="info"
+            onClick={() =>
+              toast({
+                variant: "success",
+                title: "Factura timbrada",
+                description: "Lista para enviar al cliente.",
+                action: {
+                  label: "Enviar por correo",
+                  onClick: () =>
+                    toastInfo("Demo", "Aquí abriría el dialog de envío."),
+                },
+              })
+            }
+          >
+            4. Toast · CTA next-step
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function OverlaysSection() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -59,6 +224,8 @@ export function OverlaysSection() {
 
   return (
     <div className="space-y-8">
+      <ToastGovernanceDemo />
+
       {/* Dialog */}
       <Card>
         <CardHeader>
@@ -133,7 +300,7 @@ export function OverlaysSection() {
                 <SheetTitle>Editar cliente</SheetTitle>
                 <SheetDescription>
                   Los cambios se guardan al confirmar. Las direcciones tienen
-                  su propio CRUD en el tab "Direcciones" del detalle.
+                  su propio CRUD en el tab &quot;Direcciones&quot; del detalle.
                 </SheetDescription>
               </SheetHeader>
               <div className="my-6 space-y-3 text-sm">
@@ -267,7 +434,10 @@ export function OverlaysSection() {
             {" "}
             <code>toastSuccess</code>, <code>toastError</code>,{" "}
             <code>toastWarning</code>, <code>toastInfo</code>,{" "}
-            <code>toastPromise</code>, <code>toastDismiss</code>.
+            <code>toastPromise</code>, <code>toastDismiss</code>. D8: el{" "}
+            <code>Toaster</code> monta con <code>expand=&#123;true&#125;</code>{" "}
+            — dispara varios botones seguidos para ver el stack legible sin
+            hover.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

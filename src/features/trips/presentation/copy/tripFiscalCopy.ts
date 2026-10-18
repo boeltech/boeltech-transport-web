@@ -5,6 +5,9 @@ const genericAudience = (kind: GenericRfcKind) =>
 
 export const tripFiscalCopy = {
   overlayErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
+  /** D5: timbrar sin sheet — toast breve; detalle en panel de página. */
+  stampPageErrorSeeInline: "Revisa el detalle del error en la alerta.",
+  stampPageErrorDismiss: "Cerrar",
   correctionSheet: {
     title: "Corregir datos fiscales",
     subtitle: (stopOrder: number, stopTypeLabel: string, location: string) =>

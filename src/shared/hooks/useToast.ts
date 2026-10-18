@@ -33,6 +33,7 @@ import type {
   ToastPromiseMessages,
   UseToastReturn,
 } from "@/shared/ui/toast/types";
+import { resolveToastDuration } from "@shared/utils/overlayErrorFeedback";
 
 // ============================================
 // Helper para obtener la función de toast correcta
@@ -60,22 +61,16 @@ function getToastFunction(variant: ToastVariant) {
   }
 }
 
-/** Errores largos (p. ej. PAC) necesitan más tiempo y expandir el toast. */
-function resolveToastDuration(
+function showVariantToast(
   variant: ToastVariant,
-  description: string | undefined,
-  explicit?: number,
-): number | undefined {
-  if (explicit !== undefined) {
-    return explicit;
-  }
-  if (variant === "error" || variant === "destructive") {
-    const len = description?.length ?? 0;
-    if (len > 200) return 12_000;
-    if (len > 80) return 8_000;
-    return 6_000;
-  }
-  return undefined;
+  title: string,
+  description?: string,
+) {
+  const toastFn = getToastFunction(variant);
+  return toastFn(title, {
+    description,
+    duration: resolveToastDuration(variant, description, undefined, title),
+  });
 }
 
 // ============================================
@@ -101,7 +96,7 @@ export function useToast(): UseToastReturn {
 
     return toastFn(title, {
       description,
-      duration: resolveToastDuration(variant, description, duration),
+      duration: resolveToastDuration(variant, description, duration, title),
       dismissible,
       onDismiss: onClose,
       action: action
@@ -138,28 +133,28 @@ export function useToast(): UseToastReturn {
    * Helper: Toast de éxito
    */
   const success = useCallback((title: string, description?: string) => {
-    return sonnerToast.success(title, { description });
+    return showVariantToast("success", title, description);
   }, []);
 
   /**
    * Helper: Toast de error
    */
   const error = useCallback((title: string, description?: string) => {
-    return sonnerToast.error(title, { description });
+    return showVariantToast("error", title, description);
   }, []);
 
   /**
    * Helper: Toast de advertencia
    */
   const warning = useCallback((title: string, description?: string) => {
-    return sonnerToast.warning(title, { description });
+    return showVariantToast("warning", title, description);
   }, []);
 
   /**
    * Helper: Toast de información
    */
   const info = useCallback((title: string, description?: string) => {
-    return sonnerToast.info(title, { description });
+    return showVariantToast("info", title, description);
   }, []);
 
   return {
@@ -182,7 +177,7 @@ export function useToast(): UseToastReturn {
  * @example toastSuccess('Guardado', 'Los cambios se aplicaron');
  */
 export function toastSuccess(title: string, description?: string) {
-  return sonnerToast.success(title, { description });
+  return showVariantToast("success", title, description);
 }
 
 /**
@@ -190,7 +185,7 @@ export function toastSuccess(title: string, description?: string) {
  * @example toastError('Error', 'No se pudo guardar');
  */
 export function toastError(title: string, description?: string) {
-  return sonnerToast.error(title, { description });
+  return showVariantToast("error", title, description);
 }
 
 /**
@@ -198,7 +193,7 @@ export function toastError(title: string, description?: string) {
  * @example toastWarning('Atención', 'Revise los datos');
  */
 export function toastWarning(title: string, description?: string) {
-  return sonnerToast.warning(title, { description });
+  return showVariantToast("warning", title, description);
 }
 
 /**
@@ -206,7 +201,7 @@ export function toastWarning(title: string, description?: string) {
  * @example toastInfo('Info', 'Proceso en curso');
  */
 export function toastInfo(title: string, description?: string) {
-  return sonnerToast.info(title, { description });
+  return showVariantToast("info", title, description);
 }
 
 /**

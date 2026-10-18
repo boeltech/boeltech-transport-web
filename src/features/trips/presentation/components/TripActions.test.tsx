@@ -17,9 +17,15 @@ vi.mock("@shared/permissions", () => ({
   }),
 }));
 
-vi.mock("@shared/hooks", () => ({
-  useToast: () => ({ toast: vi.fn() }),
-}));
+vi.mock("@shared/hooks", async () => {
+  const actual = await vi.importActual<typeof import("@shared/hooks")>(
+    "@shared/hooks",
+  );
+  return {
+    ...actual,
+    useToast: () => ({ toast: vi.fn() }),
+  };
+});
 
 vi.mock("@features/trips/application", () => ({
   useCancelTrip: () => ({ mutate: vi.fn(), isPending: false }),

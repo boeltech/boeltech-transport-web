@@ -20,14 +20,39 @@ globs:
 - Mantener `modal={true}` (default Radix) para confirmaciones.
 - Errores API con dialog abierto → **`Alert` inline** en `DialogContent`; no depender solo de toast.
 
-## Feedback en mutaciones desde overlay
+## Canales (D1)
+
+| Canal | Uso |
+|-------|-----|
+| Toast | Éxito o error ≤160 chars |
+| Alert inline | Error >160 o Dialog abierto |
+| Inbox | Jobs async |
+| FormValidationSummary | RHF — sin toast |
+
+## Duración (D2 / D3)
+
+Unificada en `resolveToastDuration` (`overlayErrorFeedback.ts`): éxito/info/warning **4 s**; error corto **6 s**; largo **8 s**; muy largo **12 s**. Umbral inline único **160**. Misma lógica en `toast()` y `toastError`/`error()`.
+
+## Feedback en mutaciones desde overlay (D4)
 
 | Escenario | Patrón |
 |-----------|--------|
 | Éxito | Toast; cerrar overlay |
-| Error corto (≤ ~160 chars) | Toast (sheet) o Alert (dialog) |
+| Error corto (≤160 chars) | Toast (sheet) o Alert (dialog) |
 | Error largo (PAC/SAT) | `Alert` inline + toast breve con `useOverlayMutationFeedback` |
 | Validación RHF | `FormValidationSummary` / `FieldInlineError`; sin toast |
+| Page-level fiscal sin sheet (D5) | Error >160 → panel Alert persistente + toast breve |
+
+**Prohibido:** `getErrorMessage` completo solo en toast con overlay abierto.
+
+## Densidad y CTA (D6 / D7)
+
+- Máx. 1 toast éxito por acción; warnings → un solo toast warning agrupado (`formatGroupedWarningDescription`).
+- CTA en toast: máx. 1, solo next-step del mismo job; no destructivas.
+
+## Stack expandido (D8)
+
+- Operate: `expand={true}` por defecto en `Toaster` / `ToastProvider` (lista legible sin hover).
 
 ## Variantes toast
 
@@ -38,3 +63,4 @@ globs:
 - [`src/shared/ui/toast/README.md`](../../src/shared/ui/toast/README.md)
 - Skill design-system § Overlays
 - Skill detail-sheet-master-detail § Toast y errores API
+- Demo: `/design-system` → Gobernanza toast

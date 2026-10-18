@@ -18,14 +18,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
+import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import {
   FormValidationSummary,
   RHFDateTimeField,
 } from "@shared/ui/form";
-import { useToast } from "@shared/hooks";
+import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { formatGroupedWarningDescription } from "@shared/utils/overlayErrorFeedback";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 
 import { useCloneTrip } from "@features/trips/application";
@@ -86,6 +88,12 @@ function CloneTripSheetBody({
 }: Omit<CloneTripSheetProps, "open" | "tripCode">) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { submissionError, showOverlayError, clearOverlayError } =
+    useOverlayMutationFeedback({
+      errorTitle: copy.toast.error,
+      seeInlineCopy: copy.toast.overlayErrorSeeInline,
+      toast,
+    });
   const scheduleFieldProps = tripScheduleDateTimeFieldProps(copy.preset);
 
   const form = useForm<CloneFormValues>({
@@ -102,11 +110,13 @@ function CloneTripSheetBody({
       scheduledDeparture: defaultDepartureLocal ?? "",
       scheduledArrival: defaultArrivalLocal ?? "",
     });
-  }, [tripId, defaultDepartureLocal, defaultArrivalLocal, form]);
+    clearOverlayError();
+  }, [tripId, defaultDepartureLocal, defaultArrivalLocal, form, clearOverlayError]);
 
   const mutation = useCloneTrip();
 
   const onValid = async (values: CloneFormValues) => {
+    clearOverlayError();
     try {
       const result = await mutation.mutateAsync({
         sourceTripId: tripId,
@@ -122,24 +132,21 @@ function CloneTripSheetBody({
         variant: "success",
       });
 
+      // D6: máx. 1 toast warning agrupado (no bucle N).
       if (result.warnings?.length) {
-        for (const warning of result.warnings) {
-          toast({
-            title: copy.toast.overlapWarningTitle,
-            description: warning.message,
-            variant: "warning",
-          });
-        }
+        toast({
+          title: copy.toast.overlapWarningTitle,
+          description: formatGroupedWarningDescription(
+            result.warnings.map((w) => w.message),
+          ),
+          variant: "warning",
+        });
       }
 
       onOpenChange(false);
       navigate(`/trips/${result.trip.id}`);
     } catch (error) {
-      toast({
-        title: copy.toast.error,
-        description: getErrorMessage(error),
-        variant: "error",
-      });
+      showOverlayError(getErrorMessage(error));
     }
   };
 
@@ -154,6 +161,15 @@ function CloneTripSheetBody({
         onSubmit={form.handleSubmit(onValid)}
         noValidate
       >
+        {submissionError ? (
+          <Alert variant="destructive">
+            <AlertTitle>{copy.toast.error}</AlertTitle>
+            <AlertDescription className="select-text whitespace-pre-wrap break-words">
+              {submissionError}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         {form.formState.isSubmitted && summaryErrors.length > 0 ? (
           <FormValidationSummary messages={summaryErrors} />
         ) : null}

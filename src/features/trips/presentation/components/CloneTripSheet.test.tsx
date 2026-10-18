@@ -20,9 +20,15 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("@shared/hooks", () => ({
-  useToast: () => ({ toast: mockToast }),
-}));
+vi.mock("@shared/hooks", async () => {
+  const actual = await vi.importActual<typeof import("@shared/hooks")>(
+    "@shared/hooks",
+  );
+  return {
+    ...actual,
+    useToast: () => ({ toast: mockToast }),
+  };
+});
 
 vi.mock("@features/trips/application", () => ({
   useCloneTrip: () => ({
@@ -44,6 +50,23 @@ function renderSheet(open = true) {
     </MemoryRouter>,
   );
   return { onOpenChange };
+}
+
+async function fillScheduleAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+  const form = document.getElementById("clone-trip-form");
+  expect(form).toBeTruthy();
+  const todayButtons = within(form as HTMLElement).getAllByRole("button", {
+    name: cloneTripCopy.preset.todayAtEight,
+  });
+  const tomorrowButtons = within(form as HTMLElement).getAllByRole("button", {
+    name: cloneTripCopy.preset.tomorrowAtEight,
+  });
+
+  await user.click(todayButtons[0]!);
+  await user.click(tomorrowButtons[1] ?? tomorrowButtons[0]!);
+  await user.click(
+    screen.getByRole("button", { name: cloneTripCopy.action.submit }),
+  );
 }
 
 describe("CloneTripSheet", () => {
@@ -98,23 +121,7 @@ describe("CloneTripSheet", () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderSheet(true);
 
-    const form = document.getElementById("clone-trip-form");
-    expect(form).toBeTruthy();
-    const todayButtons = within(form as HTMLElement).getAllByRole("button", {
-      name: cloneTripCopy.preset.todayAtEight,
-    });
-    const tomorrowButtons = within(form as HTMLElement).getAllByRole(
-      "button",
-      { name: cloneTripCopy.preset.tomorrowAtEight },
-    );
-
-    // Departure → today; arrival → tomorrow (second field's presets).
-    await user.click(todayButtons[0]!);
-    await user.click(tomorrowButtons[1] ?? tomorrowButtons[0]!);
-
-    await user.click(
-      screen.getByRole("button", { name: cloneTripCopy.action.submit }),
-    );
+    await fillScheduleAndSubmit(user);
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalled();
@@ -136,5 +143,61 @@ describe("CloneTripSheet", () => {
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mockNavigate).toHaveBeenCalledWith("/trips/new-trip-9");
+  });
+
+  it("agrupa N warnings en un solo toast (D6)", async () => {
+    mockMutateAsync.mockResolvedValue({
+      trip: { id: "new-trip-9" },
+      summary: {
+        tripId: "new-trip-9",
+        tripCode: "TR-009",
+        stopsCreated: 2,
+        cargosCreated: 1,
+        expensesCreated: 0,
+        finalStatus: "draft",
+      },
+      warnings: [
+        { code: "overlap_a", message: "Unidad traslapada" },
+        { code: "overlap_b", message: "Operador traslapado" },
+      ],
+    });
+
+    const user = userEvent.setup();
+    renderSheet(true);
+    await fillScheduleAndSubmit(user);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: cloneTripCopy.toast.successTitle,
+          variant: "success",
+        }),
+      );
+    });
+
+    const warningCalls = mockToast.mock.calls.filter(
+      (call) => call[0]?.variant === "warning",
+    );
+    expect(warningCalls).toHaveLength(1);
+    expect(warningCalls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        title: cloneTripCopy.toast.overlapWarningTitle,
+        description: "1. Unidad traslapada\n2. Operador traslapado",
+        variant: "warning",
+      }),
+    );
+  });
+
+  it("muestra Alert inline ante error de API (D4)", async () => {
+    mockMutateAsync.mockRejectedValue(new Error("Fallo de clonación"));
+
+    const user = userEvent.setup();
+    renderSheet(true);
+    await fillScheduleAndSubmit(user);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fallo de clonación")).toBeInTheDocument();
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

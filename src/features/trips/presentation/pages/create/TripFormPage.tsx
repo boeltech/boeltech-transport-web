@@ -38,6 +38,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { FormValidationSummary } from "@shared/ui/form";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { formatGroupedWarningDescription } from "@shared/utils/overlayErrorFeedback";
 
 // Feature hooks
 import {
@@ -429,14 +430,12 @@ export function TripFormPage() {
       };
     }
 
-    // Mostrar advertencias si las hay (no bloquean)
+    // D6: un solo toast warning con la lista (no bucle N).
     if (validation.warnings.length > 0) {
-      validation.warnings.forEach((warning) => {
-        toast({
-          title: shell.toast.infoTitle,
-          description: warning,
-          variant: "warning",
-        });
+      toast({
+        title: shell.toast.infoTitle,
+        description: formatGroupedWarningDescription(validation.warnings),
+        variant: "warning",
       });
     }
 
@@ -899,14 +898,15 @@ export function TripFormPage() {
         variant: "success",
       });
 
+      // D6: máx. 1 toast warning agrupado post-create.
       if (result.warnings?.length) {
-        for (const warning of result.warnings) {
-          toast({
-            title: shell.toast.overlapWarningTitle,
-            description: warning.message,
-            variant: "warning",
-          });
-        }
+        toast({
+          title: shell.toast.overlapWarningTitle,
+          description: formatGroupedWarningDescription(
+            result.warnings.map((w) => w.message),
+          ),
+          variant: "warning",
+        });
       }
 
       navigate(`/trips/${result.trip.id}`);
