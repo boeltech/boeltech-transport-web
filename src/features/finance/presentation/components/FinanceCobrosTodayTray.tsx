@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Receipt, X } from "lucide-react";
 import {
   canRetryRepStamp,
@@ -10,6 +11,8 @@ import {
   type FinanceRepWaitReason,
 } from "@features/finance/domain";
 import {
+  consumeRepExceptionExits,
+  invalidateRepExceptionLiveQueries,
   useRepStatusByIds,
   useRetryFinanceRepStamp,
 } from "@features/finance/application";
@@ -81,6 +84,7 @@ export function FinanceCobrosTodayTray({
   onEntryLiveUpdate,
 }: FinanceCobrosTodayTrayProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const fromState = useInvoiceQueueFromState();
   const paymentIds = useMemo(
     () => entries.map((entry) => entry.paymentId),
@@ -99,9 +103,16 @@ export function FinanceCobrosTodayTray({
   }, [liveStatuses]);
 
   const prevStageRef = useRef<Map<string, CobrosRepStage>>(new Map());
+  /** Último `repStatus` live por pago — para invalidar KPI solo al salir de excepción. */
+  const prevRepStatusRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!liveStatuses) return;
+    if (
+      consumeRepExceptionExits(prevRepStatusRef.current, liveStatuses)
+    ) {
+      invalidateRepExceptionLiveQueries(queryClient);
+    }
     for (const item of liveStatuses) {
       const stage = resolveCobrosRepStage({
         repStatus: item.repStatus,
@@ -126,7 +137,7 @@ export function FinanceCobrosTodayTray({
         });
       }
     }
-  }, [liveStatuses, entries, onEntryLiveUpdate, toast]);
+  }, [liveStatuses, entries, onEntryLiveUpdate, queryClient, toast]);
 
   const retryMutation = useRetryFinanceRepStamp({
     onSuccess: () => {

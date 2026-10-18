@@ -1,5 +1,9 @@
 export { financeQueryKeys } from "./financeQueryKeys";
 export {
+  consumeRepExceptionExits,
+  invalidateRepExceptionLiveQueries,
+} from "./invalidateRepExceptionLiveQueries";
+export {
   useFinanceSummary,
   useAccountStatement,
   useAgingSummary,

@@ -50,3 +50,7 @@ export {
   canRetryRepStamp,
   isRepStatusTerminal,
 } from "./repRetryGate";
+export {
+  isRepExceptionStatus,
+  leftRepExceptionStatus,
+} from "./repExceptionStatus";

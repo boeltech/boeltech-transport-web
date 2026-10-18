@@ -36,12 +36,15 @@ export const financeQueryKeys = {
     [...financeQueryKeys.all, "invoices-by-status-month", filters] as const,
   monthlyPerformance: (months: number) =>
     [...financeQueryKeys.all, "monthly-performance", months] as const,
+  /** Prefijo de invalidación del tab Excepciones REP (poll live). */
+  repExceptionsRoot: () =>
+    [...financeQueryKeys.all, "rep-exceptions"] as const,
   repExceptions: (
     receiverRfc: string | null,
     page: number,
     limit: number,
   ) =>
-    [...financeQueryKeys.all, "rep-exceptions", receiverRfc, page, limit] as const,
+    [...financeQueryKeys.repExceptionsRoot(), receiverRfc, page, limit] as const,
   repStatusByIds: (idsKey: string) =>
     [...financeQueryKeys.all, "rep-status", idsKey] as const,
   openPpdInvoices: (filters: {
@@ -51,6 +54,9 @@ export const financeQueryKeys = {
     page: number;
     limit: number;
   }) => [...financeQueryKeys.all, "open-ppd", filters] as const,
+  /** Prefijo de invalidación del KPI open-ppd-summary (poll live). */
+  openPpdSummaryRoot: () =>
+    [...financeQueryKeys.all, "open-ppd-summary"] as const,
   openPpdSummary: (receiverRfc: string | null, search: string | null) =>
-    [...financeQueryKeys.all, "open-ppd-summary", receiverRfc, search] as const,
+    [...financeQueryKeys.openPpdSummaryRoot(), receiverRfc, search] as const,
 };
