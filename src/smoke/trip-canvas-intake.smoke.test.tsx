@@ -140,6 +140,22 @@ vi.mock("@features/clients/application", () => ({
   }),
 }));
 
+vi.mock("@features/branches", () => ({
+  BranchStatus: { ACTIVE: "active" },
+  useBranches: () => ({
+    data: { data: [], meta: undefined },
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@features/dashboard/application/hooks/useDashboardActivation", () => ({
+  useDashboardActivation: () => ({
+    data: undefined,
+    isLoading: false,
+    isFetching: false,
+  }),
+}));
+
 vi.mock(
   "@features/trips/presentation/pages/create/components/ReservePedidoStep",
   () => ({

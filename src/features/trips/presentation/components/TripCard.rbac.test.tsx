@@ -80,6 +80,12 @@ describe("TripCard RBAC cancel", () => {
   });
 
   it("no muestra menú Acciones cuando solo hay onView (read-only / portal)", () => {
+    // Portal / read-only: sin create/update/delete → sin clonar ni mutar (⋯ oculto).
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        module === "trips" && action === "read",
+    );
+
     renderWithQuery(
       <TripCard
         trip={listTrip({ id: "t1", status: TripStatus.SCHEDULED })}
