@@ -95,7 +95,7 @@ function ArStackCard({
   return (
     <button
       type="button"
-      className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2 overflow-hidden rounded-2xl border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-5"
+      className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2 rounded-2xl border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-5"
       onClick={onClick}
       aria-label={ariaLabel}
     >
@@ -106,11 +106,11 @@ function ArStackCard({
         ) : null}
       </div>
       {isLoading ? (
-        <Skeleton className="h-7 w-24" />
+        <Skeleton className="h-7 w-24 shrink-0" />
       ) : (
         <p
           className={cn(
-            "truncate text-xl font-semibold tabular-nums tracking-tight sm:text-2xl",
+            "shrink-0 pb-0.5 text-xl font-semibold leading-snug tabular-nums tracking-tight sm:text-2xl",
             valueClass,
           )}
         >
