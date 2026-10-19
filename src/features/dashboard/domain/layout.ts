@@ -17,6 +17,7 @@ export const DASHBOARD_WIDGET_IDS = [
   "metric_trends",
   "operations_snapshot",
   "alerts",
+  "invoices_month",
   "vehicle_expense_ranking",
   "financial_comparison",
   "recent_trips",
@@ -94,10 +95,18 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
     },
     {
       id: "metric_trends",
-      title: "Scorecard del mes",
+      title: "Resumen del mes",
       span: "full",
       defaultVisible: true,
       defaultOrder: 2,
+      gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
+    },
+    {
+      id: "invoices_month",
+      title: "Facturación",
+      span: "half",
+      defaultVisible: true,
+      defaultOrder: 3,
       gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
     },
     {
@@ -105,7 +114,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       title: "Unidades con más gasto",
       span: "half",
       defaultVisible: true,
-      defaultOrder: 3,
+      defaultOrder: 4,
       gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
     },
     {
@@ -113,7 +122,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       title: "Ingresos, costos y margen",
       span: "full",
       defaultVisible: true,
-      defaultOrder: 4,
+      defaultOrder: 5,
       gate: ({ canReadTrips, showFinance }) => canReadTrips && showFinance,
     },
     {
@@ -121,7 +130,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       title: "Viajes recientes",
       span: "half",
       defaultVisible: true,
-      defaultOrder: 5,
+      defaultOrder: 6,
       gate: ({ canReadTrips }) => canReadTrips,
     },
     {
@@ -129,7 +138,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       title: "Flota y conductores",
       span: "half",
       defaultVisible: false,
-      defaultOrder: 6,
+      defaultOrder: 7,
       gate: ({ canReadTrips, isClientPortal, isDriverPortal }) =>
         canReadTrips && !isClientPortal && !isDriverPortal,
     },
@@ -138,7 +147,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       title: "Viajes por día",
       span: "full",
       defaultVisible: false,
-      defaultOrder: 7,
+      defaultOrder: 8,
       gate: ({ canReadTrips }) => canReadTrips,
     },
     {
@@ -146,7 +155,7 @@ export const SYSTEM_DEFAULT_WIDGET_DEFS: readonly DashboardWidgetDefinition[] =
       title: "KPIs por sucursal",
       span: "full",
       defaultVisible: false,
-      defaultOrder: 8,
+      defaultOrder: 9,
       gate: ({ canReadTrips, canReadBranches }) =>
         canReadTrips && canReadBranches,
     },
@@ -162,21 +171,34 @@ export function buildSystemDefaultLayout(): DashboardLayout {
   };
 }
 
+/**
+ * Admin/manager: sin `operations_snapshot` (banda matutina Aurora lo absorbe).
+ * Con cluster Aurora, `vehicle_expense_ranking` va pinneado debajo del resumen
+ * (chrome en DashboardPage) por default en admin/accountant.
+ */
 const ROLE_DEFAULT_VISIBLE: Record<UserRole, readonly WidgetId[]> = {
   admin: [
     "metric_trends",
-    "alerts",
     "vehicle_expense_ranking",
     "financial_comparison",
+    "alerts",
+    "invoices_month",
   ],
+  /** Sin invoices_month / ranking por default (densidad ops); en Personalizar. */
   manager: [
     "metric_trends",
+    "financial_comparison",
     "alerts",
     "fleet_drivers",
-    "operations_snapshot",
   ],
-  /** Scorecard (cobros) + alertas (docs / viajes overdue) + tendencia financiera. */
-  accountant: ["metric_trends", "alerts", "financial_comparison"],
+  /** Cluster Aurora full width (sin banda) + ranking + facturación + alertas. */
+  accountant: [
+    "metric_trends",
+    "vehicle_expense_ranking",
+    "alerts",
+    "invoices_month",
+    "financial_comparison",
+  ],
   dispatcher: ["alerts", "fleet_drivers", "operations_snapshot"],
   operator: ["operations_snapshot"],
   driver: ["recent_trips"],

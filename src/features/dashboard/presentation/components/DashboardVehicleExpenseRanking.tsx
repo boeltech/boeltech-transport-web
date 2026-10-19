@@ -33,6 +33,7 @@ export function DashboardVehicleExpenseRanking({
 
   return (
     <ChartCard
+      className="min-w-0 w-full"
       title={dashboardCopy.vehicleExpenses.title}
       description={dashboardCopy.vehicleExpenses.description}
       isLoading={isLoading}

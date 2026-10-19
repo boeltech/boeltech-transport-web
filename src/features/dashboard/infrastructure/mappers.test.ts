@@ -3,8 +3,81 @@ import {
   mapActivation,
   mapBranchKpis,
   mapBranchKpisTrend,
+  mapDashboard,
   mapFinancialTrend,
 } from "./mappers";
+
+describe("mapDashboard", () => {
+  const baseStats = {
+    vehicles: {
+      total: 1,
+      available: 1,
+      on_trip: 0,
+      in_maintenance: 0,
+    },
+    drivers: {
+      total: 1,
+      available: 1,
+      on_trip: 0,
+      on_vacation: 0,
+      on_leave: 0,
+    },
+    trips: {
+      total_this_month: 2,
+      in_progress: 1,
+      completed_this_month: 1,
+      cancelled_this_month: 0,
+    },
+    billing: null,
+    financial_month: null,
+  };
+
+  it("mapea collected_yesterday y trips_today a camelCase", () => {
+    const result = mapDashboard({
+      stats: { ...baseStats, collected_yesterday: 1250.5 },
+      alerts: [],
+      recent_trips: [{ id: "r1", trip_code: "T-1" }],
+      trips_today: [
+        {
+          id: "t1",
+          trip_code: "T-HOY",
+          origin_city: "CDMX",
+          destination_city: "MTY",
+          status: "in_progress",
+          scheduled_departure: "2026-10-17T12:00:00Z",
+          driver_full_name: "Ana",
+          vehicle_unit_number: "U-1",
+        },
+      ],
+    });
+
+    expect(result.stats.collectedYesterday).toBe(1250.5);
+    expect(result.tripsToday).toHaveLength(1);
+    expect(result.tripsToday[0]?.trip_code).toBe("T-HOY");
+    expect(result.recent_trips).toHaveLength(1);
+  });
+
+  it("conserva null en collectedYesterday (sin finance.read)", () => {
+    const result = mapDashboard({
+      stats: { ...baseStats, collected_yesterday: null },
+      alerts: [],
+      recent_trips: [],
+      trips_today: [],
+    });
+    expect(result.stats.collectedYesterday).toBeNull();
+    expect(result.tripsToday).toEqual([]);
+  });
+
+  it("trata collected_yesterday ausente como null", () => {
+    const result = mapDashboard({
+      stats: baseStats,
+      alerts: [],
+      recent_trips: [],
+    });
+    expect(result.stats.collectedYesterday).toBeNull();
+    expect(result.tripsToday).toEqual([]);
+  });
+});
 
 describe("mapActivation", () => {
   it("mapea snake_case a camelCase", () => {

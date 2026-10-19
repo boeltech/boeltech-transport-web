@@ -92,6 +92,8 @@ export const dashboardCopy = {
     exampleBadge: "Ejemplo",
   },
   page: {
+    /** Título corto cuando la banda matutina lleva el saludo (admin/manager). */
+    titleShort: "Inicio",
     subtitle: "Operación, alertas y documentación del día",
     tripsBridge: "El trabajo del día está en Viajes.",
     tripsBridgeLink: "Ir a Viajes",
@@ -153,10 +155,12 @@ export const dashboardCopy = {
     saveRoleLayout: "Editar widgets del rol",
   },
   scorecard: {
-    title: "Scorecard del mes",
-    description:
-      "Margen de viajes completados (incluye sin CFDI) menos costos aprobados. Cobranza = pagos de facturas; el efectivo sin factura se registra en Costos.",
-    ariaLabel: "Scorecard financiero del mes",
+    /** Cluster Aurora: hero Margen (+ $/viaje) | stack Cobrado·Por cobrar·Vencido. */
+    title: "Resumen del mes",
+    description: "Margen e ingreso por viaje a la izquierda; cobranza a la derecha.",
+    ariaLabel: "Resumen financiero del mes",
+    /** Suffix beside the MoM delta badge (Aurora scorecard). */
+    vsPreviousMonth: "vs mes anterior",
     margin: {
       title: "Margen operativo",
       subtitle: "Completados · tarifa · costos aprobados",
@@ -165,10 +169,19 @@ export const dashboardCopy = {
       provisionalAriaLabel:
         "Margen operativo provisional: ir a aprobaciones de gastos en cola",
     },
+    revenuePerTrip: {
+      title: "Ingreso promedio por viaje",
+      subtitle: "Ingreso real ÷ viajes completados",
+      ariaLabel: "Ingreso promedio por viaje del mes",
+      /** @deprecated Caption bajo Margen retirado en F-layout; Card 2 es celda propia. */
+      caption: (value: string) => `${value} por viaje`,
+    },
+    arStrip: {
+      ariaLabel: "Cobranza: cobrado, por cobrar y vencido",
+    },
     collected: {
-      title: "Cobrado este mes",
-      subtitle:
-        "Pagos de facturas en el periodo · no incluye efectivo sin CFDI",
+      title: "Cobrado",
+      subtitle: "Pagos de facturas · sin efectivo sin CFDI",
       ariaLabel: "Cobrado este mes: ir a Cobros",
     },
     receivable: {
@@ -182,6 +195,26 @@ export const dashboardCopy = {
       ariaLabel: "Vencido: ir a Cobros",
     },
   },
+  /**
+   * Inventario actual de facturas por estado (`FinanceSummary.invoicesByStatus`).
+   * No es un corte mensual: el API agrupa todas las facturas del tenant.
+   */
+  invoicesMonth: {
+    title: "Facturación",
+    description: "Timbradas y pendientes de timbrar · inventario actual",
+    ariaLabel: "Desglose de facturas por estado",
+    stamped: "Timbradas",
+    pending: "Pendientes",
+    pendingHint: "Borradores sin timbrar",
+    cancellationPending: "Cancelación pendiente",
+    cancelled: "Canceladas",
+    emptyTitle: "Sin facturas",
+    emptyDescription:
+      "Cuando crees o timbres facturas, verás el desglose aquí.",
+    viewInvoices: "Ver facturas",
+    openAriaLabel: "Ir a Facturas",
+  },
+
   /** @deprecated Prefer scorecard.*; kept for any residual references */
   metrics: {
     baseRate: {
@@ -207,7 +240,30 @@ export const dashboardCopy = {
       cancelledThisMonth: "Cancelados (mes)",
       activeAlerts: "Alertas activas",
       fleetOnTrip: "Flota en viaje",
-      fleetOnTripValue: (onTrip: number, total: number) => `${onTrip} / ${total}`,
+      fleetOnTripValue: (onTrip: number, total: number) => {
+        if (total <= 0) return `${onTrip} / ${total}`;
+        const pct = Math.round((onTrip / total) * 100);
+        return `${pct}% · ${onTrip}/${total}`;
+      },
+    },
+  },
+  morningBrief: {
+    summaryTitle: "Resumen del día",
+    microLabels: {
+      mine: "Me toca",
+      yesterday: "Ayer",
+      active: "Activas",
+    },
+    stats: {
+      pendingApprovals: "Por autorizar",
+      collectedYesterday: "Cobrado ayer",
+      activeAlerts: "Alertas activas",
+    },
+    tripsToday: {
+      title: "Viajes de hoy",
+      empty: "No hay viajes operativos hoy",
+      emptyHint: "Los que salgan o sigan en ruta aparecerán aquí",
+      viewAll: "Ver todos los viajes de hoy",
     },
   },
   recentTrips: {

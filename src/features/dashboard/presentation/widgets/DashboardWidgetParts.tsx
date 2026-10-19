@@ -7,6 +7,7 @@ export {
   renderAlerts,
   renderFinancialComparison,
   renderFleetDrivers,
+  renderInvoicesMonth,
   renderMetricTrends,
   renderOperationsSnapshot,
   renderRecentTrips,

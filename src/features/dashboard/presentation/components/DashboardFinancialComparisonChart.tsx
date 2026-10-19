@@ -41,7 +41,7 @@ function FinancialTrendMonthSelector({
     <div
       role="group"
       aria-label={copy.monthsAriaLabel}
-      className="flex gap-0.5 rounded-lg bg-muted/50 p-0.5"
+      className="flex gap-0.5 rounded-lg border border-border/60 bg-muted/50 p-0.5"
     >
       {TREND_MONTH_OPTIONS.map((months) => (
         <Button
@@ -52,8 +52,8 @@ function FinancialTrendMonthSelector({
           aria-pressed={value === months}
           className={
             value === months
-              ? "h-7 bg-background px-2.5 text-xs text-foreground shadow-none hover:bg-background"
-              : "h-7 px-2.5 text-xs text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground"
+              ? "h-7 bg-card px-2.5 text-xs text-card-foreground shadow-none hover:bg-card"
+              : "h-7 px-2.5 text-xs text-muted-foreground shadow-none hover:bg-transparent hover:text-card-foreground"
           }
           onClick={() => onChange(months)}
         >
@@ -113,12 +113,17 @@ function FinancialMiniKpis({ fm }: { fm: FinancialMonth }) {
   ];
 
   return (
-    <div className="grid gap-3 border-t pt-4 sm:grid-cols-3">
+    <div className="grid min-w-0 gap-3 border-t border-border pt-4 sm:grid-cols-3">
       {items.map((item) => (
-        <div key={item.label} className="rounded-lg border bg-muted/30 px-3 py-2">
+        <div
+          key={item.label}
+          className="min-w-0 rounded-lg border border-border bg-muted/40 px-3 py-2"
+        >
           <p className="text-xs text-muted-foreground">{item.label}</p>
-          <p className="text-sm font-semibold tabular-nums">{item.value}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+          <p className="truncate text-sm font-semibold tabular-nums text-card-foreground">
+            {item.value}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
             {item.detail}
           </p>
         </div>
@@ -180,12 +185,13 @@ export function DashboardFinancialComparisonChart({
 
   return (
     <ChartCard
+      className="min-w-0 w-full"
       title={copy.title}
       description={copy.description}
       isLoading={loading}
       aria-label={copy.ariaLabel}
       tools={
-        <div className="flex flex-wrap items-center justify-start gap-x-3 gap-y-2 sm:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center justify-start gap-x-3 gap-y-2 sm:justify-end">
           <FinancialTrendMonthSelector value={months} onChange={onMonthsChange} />
           <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
             <Link

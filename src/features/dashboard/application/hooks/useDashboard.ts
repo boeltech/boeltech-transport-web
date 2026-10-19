@@ -10,6 +10,7 @@ import { apiClient } from "@/shared/api";
 import { devRefetchIntervalMs } from "@/shared/config/devPolling";
 import { useAuth } from "@/features/auth";
 import type { DashboardData } from "../../domain/types";
+import { mapDashboard } from "../../infrastructure/mappers";
 
 // ============================================
 // API
@@ -17,13 +18,13 @@ import type { DashboardData } from "../../domain/types";
 
 interface ApiResponse {
   success: boolean;
-  data: DashboardData;
+  data: Record<string, unknown>;
 }
 
 const dashboardApi = {
   get: async (): Promise<DashboardData> => {
     const response = await apiClient.get<ApiResponse>("/dashboard");
-    return response.data;
+    return mapDashboard(response.data ?? {});
   },
 };
 

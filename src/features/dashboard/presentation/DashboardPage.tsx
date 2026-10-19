@@ -1,7 +1,8 @@
 /**
  * DashboardPage
  *
- * Panel de control principal — layout configurable por widget.
+ * Panel de control principal — banda matutina (F1) + cluster Aurora (F-layout)
+ * + layout configurable.
  */
 
 import { useMemo, useState } from "react";
@@ -18,6 +19,8 @@ import {
   isDriverPortalRole,
 } from "@shared/constants/roles";
 import { useAuth } from "@/features/auth";
+import { usePermissions } from "@shared/permissions";
+import { useApprovalsPendingCountsByType } from "@features/approvals/application";
 import { getGreeting } from "@/shared/lib/userHelpers";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { resolveDashboardOutgoingFrom } from "@shared/utils/reportsWayfinding";
@@ -34,7 +37,12 @@ import {
 import type { FinancialTrendMonths } from "./components";
 import { DashboardActivationChecklist } from "./components/DashboardActivationChecklist";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
+import { DashboardMorningBrief } from "./components/DashboardMorningBrief";
 import { DashboardOrientationAlert } from "./components/DashboardOrientationAlert";
+import {
+  DASHBOARD_ALERTS_WIDGET_DOM_ID,
+  shouldShowMorningBrief,
+} from "../domain/morningBrief";
 import { getWidgetRegistryEntry } from "./widgets/registry";
 import type { DashboardWidgetContext, TripsDayRange } from "./widgets/types";
 import { dashboardCopy } from "./copy/dashboardCopy";
@@ -79,6 +87,43 @@ function DashboardPage() {
   const hiddenWidgetsCount = Math.max(
     0,
     customizableWidgets.length - visibleWidgets.length,
+  );
+
+  const showMorningBrief = shouldShowMorningBrief({
+    role: user?.role,
+    canReadTrips,
+    showFinance,
+  });
+
+  // «Por autorizar» (cola Me toca): sin finance_approvals.read no monta fila ni dispara el hook.
+  const { hasPermission } = usePermissions();
+  const canReadApprovals = hasPermission("finance_approvals", "read");
+  const showPendingApprovalsStat = showMorningBrief && canReadApprovals;
+  const { data: pendingApprovalCounts, isLoading: pendingApprovalsLoading } =
+    useApprovalsPendingCountsByType({
+      queue: "mine",
+      enabled: showPendingApprovalsStat,
+    });
+
+  /** Aurora chrome: cluster → unidades gasto → chart (orden fijo del wireframe). */
+  const auroraClusterPref = visibleWidgets.find(
+    (pref) => pref.id === "metric_trends",
+  );
+  const pinnedExpenseRankingPref = auroraClusterPref
+    ? visibleWidgets.find((pref) => pref.id === "vehicle_expense_ranking")
+    : undefined;
+  const pinnedChartPref = auroraClusterPref
+    ? visibleWidgets.find((pref) => pref.id === "financial_comparison")
+    : undefined;
+  const pinnedChromeIds = new Set(
+    [
+      auroraClusterPref?.id,
+      pinnedExpenseRankingPref?.id,
+      pinnedChartPref?.id,
+    ].filter((id): id is NonNullable<typeof id> => id != null),
+  );
+  const gridWidgets = visibleWidgets.filter(
+    (pref) => !pinnedChromeIds.has(pref.id),
   );
 
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -172,8 +217,14 @@ function DashboardPage() {
     <>
       <ReportsReturnLink />
       <HubPageShell
-        title={getGreeting(user)}
-        description={formatDashboardTodayLabel()}
+        title={
+          showMorningBrief
+            ? dashboardCopy.page.titleShort
+            : getGreeting(user)
+        }
+        description={
+          showMorningBrief ? undefined : formatDashboardTodayLabel()
+        }
         primaryActions={[
           ...(canReadTrips && !hideDashboardCustomize
             ? [
@@ -226,14 +277,61 @@ function DashboardPage() {
         )}
 
         {canReadTrips ? (
-          <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
-            {visibleWidgets.map((pref) => {
+          <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-stretch">
+            {showMorningBrief ? (
+              <div className="h-full min-h-0 min-w-0 lg:col-span-4">
+                <DashboardMorningBrief
+                  user={user}
+                  pendingApprovals={pendingApprovalCounts?.total}
+                  pendingApprovalsCounts={pendingApprovalCounts}
+                  showPendingApprovalsStat={showPendingApprovalsStat}
+                  isPendingApprovalsLoading={pendingApprovalsLoading}
+                  collectedYesterday={data?.stats.collectedYesterday}
+                  showCollectedStat={showFinance}
+                  alertCount={data?.alerts?.length ?? 0}
+                  tripsToday={data?.tripsToday}
+                  isLoading={isLoading}
+                  navigate={navigate}
+                  fromHref={fromHref}
+                />
+              </div>
+            ) : null}
+
+            {auroraClusterPref || pinnedExpenseRankingPref ? (
+              <div
+                className={`flex h-full min-h-0 min-w-0 flex-col gap-6 ${
+                  showMorningBrief ? "lg:col-span-8" : "lg:col-span-12"
+                }`}
+              >
+                {auroraClusterPref
+                  ? getWidgetRegistryEntry("metric_trends")?.render(widgetCtx)
+                  : null}
+                {pinnedExpenseRankingPref
+                  ? getWidgetRegistryEntry("vehicle_expense_ranking")?.render(
+                      widgetCtx,
+                    )
+                  : null}
+              </div>
+            ) : null}
+
+            {pinnedChartPref ? (
+              <div className="h-full min-h-0 min-w-0 lg:col-span-12">
+                {getWidgetRegistryEntry("financial_comparison")?.render(
+                  widgetCtx,
+                )}
+              </div>
+            ) : null}
+
+            {gridWidgets.map((pref) => {
               const entry = getWidgetRegistryEntry(pref.id);
               if (!entry) return null;
+              const isAlerts = pref.id === "alerts";
               return (
                 <div
                   key={pref.id}
-                  className={`${getSpanClass(pref.id)} h-full min-h-0`}
+                  id={isAlerts ? DASHBOARD_ALERTS_WIDGET_DOM_ID : undefined}
+                  tabIndex={isAlerts ? -1 : undefined}
+                  className={`${getSpanClass(pref.id)} h-full min-h-0 min-w-0 outline-none`}
                 >
                   {entry.render(widgetCtx)}
                 </div>

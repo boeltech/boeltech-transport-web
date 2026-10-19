@@ -8,7 +8,9 @@ export { DashboardFinancialComparisonChart } from "./DashboardFinancialCompariso
 export type { FinancialTrendMonths } from "./DashboardFinancialComparisonChart";
 export { DashboardFleetDriversCharts } from "./DashboardFleetDriversCharts";
 export { DashboardKpiStrip } from "./DashboardKpiStrip";
+export { DashboardInvoicesMonthWidget } from "./DashboardInvoicesMonthWidget";
 export { DashboardMetricTrendCards } from "./DashboardMetricTrendCards";
+export { DashboardMorningBrief } from "./DashboardMorningBrief";
 export { DashboardOperationsSnapshot } from "./DashboardOperationsSnapshot";
 export { DashboardRecentTrips } from "./DashboardRecentTrips";
 export { DashboardTripsByDayChart } from "./DashboardTripsByDayChart";

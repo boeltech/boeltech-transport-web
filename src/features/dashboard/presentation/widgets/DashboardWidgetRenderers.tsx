@@ -1,11 +1,13 @@
 import type { DashboardWidgetContext } from "./types";
 import {
   buildFinanceAnalysisHref,
+  FINANCE_INVOICES_PATH,
 } from "@features/finance/application";
 import {
   DashboardAlertsPanel,
   DashboardFinancialComparisonChart,
   DashboardFleetDriversCharts,
+  DashboardInvoicesMonthWidget,
   DashboardMetricTrendCards,
   DashboardOperationsSnapshot,
   DashboardRecentTrips,
@@ -29,6 +31,7 @@ export function renderMetricTrends(ctx: DashboardWidgetContext) {
       fromHref={ctx.fromHref}
       financeLoading={ctx.financeLoading}
       financeSummary={ctx.financeSummary}
+      financialTrend={ctx.financialTrend}
     />
   );
 }
@@ -84,6 +87,20 @@ export function renderFinancialComparison(ctx: DashboardWidgetContext) {
       months={ctx.financialTrendMonths}
       onMonthsChange={ctx.setFinancialTrendMonths}
       fromHref={ctx.fromHref}
+    />
+  );
+}
+
+export function renderInvoicesMonth(ctx: DashboardWidgetContext) {
+  return (
+    <DashboardInvoicesMonthWidget
+      financeSummary={ctx.financeSummary}
+      isLoading={ctx.financeLoading}
+      onOpenInvoices={() =>
+        ctx.navigate(FINANCE_INVOICES_PATH, {
+          state: { from: ctx.fromHref },
+        })
+      }
     />
   );
 }

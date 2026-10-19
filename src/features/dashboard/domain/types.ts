@@ -35,6 +35,11 @@ export interface DashboardStats {
   } | null;
   /** Null cuando el rol no tiene finance.read (API D9 / branch-kpis). */
   financial_month: FinancialMonth | null;
+  /**
+   * Cobrado el día civil de ayer (CDMX).
+   * `null` cuando el rol no tiene finance.read — no inventar 0.
+   */
+  collectedYesterday: number | null;
 }
 
 export interface FinancialMonth {
@@ -106,6 +111,8 @@ export interface DashboardData {
   stats: DashboardStats;
   alerts: DashboardAlert[];
   recent_trips: RecentTrip[];
+  /** Viajes del día operativo CDMX (cap 5; predicado ops_day del API). */
+  tripsToday: RecentTrip[];
 }
 
 export interface TripsByDayPoint {

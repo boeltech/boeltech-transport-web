@@ -5,6 +5,10 @@ import type {
   ActivationItemStatus,
   ActivationOpsLevel,
   ActivationReadyHint,
+  DashboardAlert,
+  DashboardData,
+  DashboardStats,
+  RecentTrip,
 } from "../domain/types";
 
 function asString(value: unknown): string {
@@ -78,6 +82,35 @@ function mapActivationItem(raw: Record<string, unknown>): ActivationItem | null 
     requiredForOps: asBoolean(raw.required_for_ops),
     ctaPath: asString(raw.cta_path) || "/",
     canAct: asBoolean(raw.can_act),
+  };
+}
+
+/**
+ * GET /dashboard — conserva el shape legacy snake_case de stats/alerts/recent
+ * y mapea los campos Aurora F1 a camelCase (`collectedYesterday`, `tripsToday`).
+ */
+export function mapDashboard(raw: Record<string, unknown>): DashboardData {
+  const statsRaw = (raw.stats ?? {}) as Record<string, unknown>;
+  const collectedRaw = statsRaw.collected_yesterday;
+  const collectedYesterday =
+    collectedRaw === null || collectedRaw === undefined
+      ? null
+      : asNumber(collectedRaw);
+
+  const stats = {
+    ...(statsRaw as Omit<DashboardStats, "collectedYesterday">),
+    collectedYesterday,
+  } as DashboardStats;
+
+  return {
+    stats,
+    alerts: (Array.isArray(raw.alerts) ? raw.alerts : []) as DashboardAlert[],
+    recent_trips: (Array.isArray(raw.recent_trips)
+      ? raw.recent_trips
+      : []) as RecentTrip[],
+    tripsToday: (Array.isArray(raw.trips_today)
+      ? raw.trips_today
+      : []) as RecentTrip[],
   };
 }
 

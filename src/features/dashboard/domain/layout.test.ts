@@ -86,6 +86,9 @@ describe("dashboard layout", () => {
     expect(
       filtered.widgets.some((w) => w.id === "vehicle_expense_ranking"),
     ).toBe(false);
+    expect(filtered.widgets.some((w) => w.id === "invoices_month")).toBe(
+      false,
+    );
     expect(filtered.widgets.some((w) => w.id === "metric_trends")).toBe(
       false,
     );
@@ -98,6 +101,7 @@ describe("dashboard layout", () => {
       "alerts",
       "operations_snapshot",
       "metric_trends",
+      "invoices_month",
       "vehicle_expense_ranking",
       "financial_comparison",
       "recent_trips",
@@ -111,6 +115,7 @@ describe("dashboard layout", () => {
       "alerts",
       "operations_snapshot",
       "metric_trends",
+      "invoices_month",
       "vehicle_expense_ranking",
       "financial_comparison",
       "recent_trips",
@@ -131,6 +136,7 @@ describe("dashboard layout", () => {
       "alerts",
       "operations_snapshot",
       "metric_trends",
+      "invoices_month",
       "vehicle_expense_ranking",
       "financial_comparison",
       "recent_trips",
@@ -231,9 +237,10 @@ describe("dashboard layout", () => {
       ).map((w) => w.id),
     ).toEqual([
       "metric_trends",
-      "alerts",
       "vehicle_expense_ranking",
       "financial_comparison",
+      "alerts",
+      "invoices_month",
     ]);
 
     expect(
@@ -243,9 +250,9 @@ describe("dashboard layout", () => {
       ).map((w) => w.id),
     ).toEqual([
       "metric_trends",
+      "financial_comparison",
       "alerts",
       "fleet_drivers",
-      "operations_snapshot",
     ]);
 
     expect(
@@ -253,7 +260,21 @@ describe("dashboard layout", () => {
         buildRoleDefaultLayout("accountant"),
         financeStaff,
       ).map((w) => w.id),
-    ).toEqual(["metric_trends", "alerts", "financial_comparison"]);
+    ).toEqual([
+      "metric_trends",
+      "vehicle_expense_ranking",
+      "alerts",
+      "invoices_month",
+      "financial_comparison",
+    ]);
+
+    // Manager: ranking queda en Personalizar (densidad ops)
+    expect(
+      getVisibleWidgetsInOrder(
+        buildRoleDefaultLayout("manager"),
+        financeStaff,
+      ).map((w) => w.id),
+    ).not.toContain("vehicle_expense_ranking");
 
     expect(
       getVisibleWidgetsInOrder(
