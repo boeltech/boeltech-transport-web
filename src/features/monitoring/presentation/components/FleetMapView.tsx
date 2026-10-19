@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { createRoot, type Root } from "react-dom/client";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -7,15 +6,13 @@ import { useMapboxStyle } from "@shared/geolocation/application/hooks/useMapboxS
 import { cn } from "@shared/lib/utils/cn";
 import type { FleetVehiclePosition } from "../../domain";
 import { createFleetMarkerElement } from "./FleetMapMarker";
-import { VehiclePopoverContent } from "./VehiclePopoverContent";
+import { buildFleetPopupHtml } from "./fleetPopupHtml";
 
 const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
 const DEFAULT_ZOOM = 4.8;
 
 type MarkerEntry = {
   marker: mapboxgl.Marker;
-  root: Root | null;
-  popupNode: HTMLDivElement | null;
 };
 
 export interface FleetMapViewProps {
@@ -28,6 +25,20 @@ export interface FleetMapViewProps {
 
 function scheduleResize(map: mapboxgl.Map) {
   requestAnimationFrame(() => map.resize());
+}
+
+function applyMarkerVisual(
+  el: HTMLElement,
+  position: FleetVehiclePosition,
+): void {
+  const fresh = createFleetMarkerElement({
+    status: position.status,
+    courseDeg: position.courseDeg,
+    label: position.vehicleEconomicNumber,
+    unreadAlertCount: position.unreadAlertCount ?? 0,
+  });
+  el.replaceChildren(...Array.from(fresh.childNodes));
+  el.setAttribute("aria-label", fresh.getAttribute("aria-label") ?? "");
 }
 
 export function FleetMapView({
@@ -75,7 +86,6 @@ export function FleetMapView({
       observer.disconnect();
       map.off("load", onLoad);
       markers.forEach((entry) => {
-        entry.root?.unmount();
         entry.marker.remove();
       });
       markers.clear();
@@ -106,7 +116,6 @@ export function FleetMapView({
 
     markersRef.current.forEach((entry, id) => {
       if (!nextIds.has(id)) {
-        entry.root?.unmount();
         entry.marker.remove();
         markersRef.current.delete(id);
       }
@@ -118,22 +127,12 @@ export function FleetMapView({
         position.latitude!,
       ];
       const existing = markersRef.current.get(position.vehicleId);
+      const popupHtml = buildFleetPopupHtml(position);
 
       if (existing) {
         existing.marker.setLngLat(lngLat);
-        const el = existing.marker.getElement();
-        const fresh = createFleetMarkerElement({
-          status: position.status,
-          courseDeg: position.courseDeg,
-          label: position.vehicleEconomicNumber,
-        });
-        el.replaceChildren(...Array.from(fresh.childNodes));
-        el.setAttribute("aria-label", fresh.getAttribute("aria-label") ?? "");
-        if (existing.root && existing.popupNode) {
-          existing.root.render(
-            <VehiclePopoverContent position={position} />,
-          );
-        }
+        applyMarkerVisual(existing.marker.getElement(), position);
+        existing.marker.getPopup()?.setHTML(popupHtml);
         continue;
       }
 
@@ -141,18 +140,15 @@ export function FleetMapView({
         status: position.status,
         courseDeg: position.courseDeg,
         label: position.vehicleEconomicNumber,
+        unreadAlertCount: position.unreadAlertCount ?? 0,
       });
-
-      const popupNode = document.createElement("div");
-      const root = createRoot(popupNode);
-      root.render(<VehiclePopoverContent position={position} />);
 
       const popup = new mapboxgl.Popup({
         offset: 18,
         closeButton: true,
         maxWidth: "280px",
         className: "fleet-map-popup",
-      }).setDOMContent(popupNode);
+      }).setHTML(popupHtml);
 
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat(lngLat)
@@ -163,7 +159,7 @@ export function FleetMapView({
         onSelectRef.current?.(position);
       });
 
-      markersRef.current.set(position.vehicleId, { marker, root, popupNode });
+      markersRef.current.set(position.vehicleId, { marker });
     }
 
     if (withCoords.length > 0 && !focusVehicleId) {
@@ -177,15 +173,22 @@ export function FleetMapView({
     }
   }, [positions, focusVehicleId]);
 
-  // Focus / fly to selected
+  // Focus / fly to selected — always open popup (no toggle)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusVehicleId) return;
     const entry = markersRef.current.get(focusVehicleId);
     if (!entry) return;
     const { lng, lat } = entry.marker.getLngLat();
-    map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 12), duration: 700 });
-    entry.marker.togglePopup();
+    map.easeTo({
+      center: [lng, lat],
+      zoom: Math.max(map.getZoom(), 12),
+      duration: 700,
+    });
+    const popup = entry.marker.getPopup();
+    if (popup && !popup.isOpen()) {
+      entry.marker.togglePopup();
+    }
   }, [focusVehicleId]);
 
   return (

@@ -21,6 +21,8 @@ export const navigationCopy = {
     dashboard: "Inicio",
     trips: "Viajes",
     fleetMap: "Mapa de flota",
+    gpsAlerts: "Alertas",
+    gpsAlertSettings: "Configuración",
     branches: "Sucursales",
     vehicles: "Vehículos",
     trailers: "Remolques",

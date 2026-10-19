@@ -14,12 +14,18 @@ type MutationCallbacks<T> = {
 
 export function useGpsDevice(
   vehicleId: string,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean;
+    /** Polling overlay viaje / live (CA-36 · D20). */
+    refetchInterval?: number | false;
+  },
 ) {
   return useQuery({
     queryKey: monitoringQueryKeys.gpsDevice(vehicleId),
     queryFn: () => monitoringApi.getGpsDevice(vehicleId),
     enabled: (options?.enabled ?? true) && Boolean(vehicleId),
+    refetchInterval: options?.refetchInterval,
+    refetchIntervalInBackground: false,
     staleTime: 30_000,
   });
 }

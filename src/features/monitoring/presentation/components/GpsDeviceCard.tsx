@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
+  History,
   MoreHorizontal,
   Radio,
   Unlink,
@@ -21,9 +22,18 @@ import {
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
 import { useGpsDevice } from "../../application";
-import { FLEET_MAP_PATH, type GpsPositionStatusType } from "../../domain";
+import {
+  FLEET_MAP_PATH,
+  fleetHistoryPath,
+  type GpsDeviceLastPosition,
+  type GpsPositionStatusType,
+} from "../../domain";
 import { GPS_STATUS_COLOR } from "../config/gpsStatusStyles";
 import { monitoringCopy } from "../copy/monitoringCopy";
+import { addressDisplay } from "../utils/addressDisplay";
+import { formatAbsoluteTime } from "../utils/formatAbsoluteTime";
+import { formatCardinalHeading } from "../utils/cardinalHeading";
+import { movementLabel } from "../utils/movementLabel";
 import { RelativeTime } from "./RelativeTime";
 import { LinkGpsDeviceSheet } from "./LinkGpsDeviceSheet";
 import { UnlinkGpsDeviceDialog } from "./UnlinkGpsDeviceDialog";
@@ -162,6 +172,7 @@ export function GpsDeviceCard({
             </div>
           ) : (
             <LinkedBody
+              vehicleId={vehicleId}
               imei={query.data.imei}
               linkedAt={query.data.linkedAt}
               linkedByName={query.data.linkedByName}
@@ -193,29 +204,42 @@ export function GpsDeviceCard({
 }
 
 function LinkedBody({
+  vehicleId,
   imei,
   linkedAt,
   linkedByName,
   lastPosition,
   mapboxToken,
 }: {
+  vehicleId: string;
   imei: string;
   linkedAt: string;
   linkedByName: string | null;
-  lastPosition: {
-    latitude: number;
-    longitude: number;
-    speedKmh: number | null;
-    recordedAt: string;
-    stale: boolean;
-    status: GpsPositionStatusType;
-  } | null;
+  lastPosition: GpsDeviceLastPosition | null;
   mapboxToken: string;
 }) {
   const copy = monitoringCopy.device;
+  const parity = monitoringCopy.parity;
   const status: GpsPositionStatusType = lastPosition?.status ?? "offline";
   const colors = GPS_STATUS_COLOR[status];
   const hasFix = lastPosition != null;
+  const heading = hasFix
+    ? formatCardinalHeading(lastPosition.courseDeg)
+    : null;
+  const address = hasFix
+    ? addressDisplay(
+        lastPosition.address,
+        lastPosition.addressStatus,
+        parity.addressUnavailable,
+      )
+    : null;
+  const movement = hasFix
+    ? movementLabel(lastPosition.movementStatus, {
+        moving: parity.movement.moving,
+        stopped: parity.movement.stopped,
+        empty: copy.emptyValue,
+      })
+    : copy.emptyValue;
 
   return (
     <div className="space-y-4">
@@ -243,6 +267,11 @@ function LinkedBody({
         />
         <InfoRow
           variant="inline"
+          label={copy.label.movement}
+          value={movement}
+        />
+        <InfoRow
+          variant="inline"
           label={copy.label.lastPosition}
           value={
             hasFix
@@ -250,6 +279,33 @@ function LinkedBody({
               : copy.emptyValue
           }
           mono={hasFix}
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.signal}
+          value={
+            hasFix ? (
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm">
+                  {formatAbsoluteTime(lastPosition.recordedAt)}
+                </span>
+                <RelativeTime
+                  iso={lastPosition.recordedAt}
+                  className={cn(
+                    "text-xs text-muted-foreground",
+                    status === "stale" && colors.labelClass,
+                  )}
+                />
+              </span>
+            ) : (
+              copy.noReport
+            )
+          }
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.address}
+          value={address ?? copy.emptyValue}
         />
         <InfoRow
           variant="inline"
@@ -262,16 +318,43 @@ function LinkedBody({
         />
         <InfoRow
           variant="inline"
-          label={copy.label.signal}
+          label={copy.label.course}
+          value={heading?.label ?? copy.emptyValue}
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.sats}
           value={
-            hasFix ? (
-              <RelativeTime
-                iso={lastPosition.recordedAt}
-                className={cn(status === "stale" && colors.labelClass)}
-              />
-            ) : (
-              copy.noReport
-            )
+            hasFix && lastPosition.satellites != null
+              ? String(lastPosition.satellites)
+              : copy.emptyValue
+          }
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.battery}
+          value={
+            hasFix && lastPosition.batteryPct != null
+              ? parity.batteryPct(lastPosition.batteryPct)
+              : copy.emptyValue
+          }
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.phone}
+          value={
+            hasFix && lastPosition.phone
+              ? lastPosition.phone
+              : copy.emptyValue
+          }
+        />
+        <InfoRow
+          variant="inline"
+          label={copy.label.odometer}
+          value={
+            hasFix && lastPosition.odometerKm != null
+              ? parity.odometerKm(lastPosition.odometerKm)
+              : copy.emptyValue
           }
         />
         <InfoRow
@@ -306,12 +389,24 @@ function LinkedBody({
         </div>
       )}
 
-      <Button asChild variant="outline" size="sm">
-        <Link to={FLEET_MAP_PATH} className="inline-flex items-center gap-1">
-          {copy.viewOnMap}
-          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-        </Link>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link
+            to={fleetHistoryPath(vehicleId)}
+            className="inline-flex items-center gap-1"
+            data-testid="gps-view-history"
+          >
+            <History className="h-3.5 w-3.5" aria-hidden />
+            {copy.viewHistory}
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link to={FLEET_MAP_PATH} className="inline-flex items-center gap-1">
+            {copy.viewOnMap}
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }

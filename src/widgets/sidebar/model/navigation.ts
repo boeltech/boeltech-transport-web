@@ -27,6 +27,8 @@ import {
   Users,
   Route,
   MapPin,
+  Bell,
+  Settings2,
   FileText,
   FileClock,
   FileBarChart,
@@ -49,7 +51,11 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
-import { FLEET_MAP_PATH } from "@features/monitoring/domain";
+import {
+  ALERT_SETTINGS_PATH,
+  ALERTS_LIST_PATH,
+  FLEET_MAP_PATH,
+} from "@features/monitoring/domain";
 import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
 
@@ -101,6 +107,21 @@ export const navigationConfig: NavGroup[] = [
         path: FLEET_MAP_PATH,
         icon: MapPin,
         module: "gps_tracking",
+      },
+      {
+        id: "gps-alerts",
+        label: copy.item.gpsAlerts,
+        path: ALERTS_LIST_PATH,
+        icon: Bell,
+        module: "gps_tracking",
+      },
+      {
+        id: "gps-alert-settings",
+        label: copy.item.gpsAlertSettings,
+        path: ALERT_SETTINGS_PATH,
+        icon: Settings2,
+        module: "gps_tracking",
+        action: "admin",
       },
     ],
   },

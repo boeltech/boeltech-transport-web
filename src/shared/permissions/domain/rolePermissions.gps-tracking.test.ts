@@ -3,9 +3,10 @@ import type { UserRole } from "@shared/constants/roles";
 import { getPermissionsForRole } from "./rolePermissions.js";
 import { checkPermission } from "./rules.js";
 
-/** Lockstep API `PERMISSIONS.gps_tracking` (pedido gps-tracking-monitoreo). */
+/** Lockstep API `PERMISSIONS.gps_tracking` (pedido gps-tracking-corte-2 · T20). */
 const READ_ROLES: readonly UserRole[] = ["admin", "manager", "dispatcher"];
 const EXECUTE_ROLES: readonly UserRole[] = ["admin", "manager"];
+const ADMIN_ROLES: readonly UserRole[] = ["admin"];
 const ALL_ROLES: readonly UserRole[] = [
   "admin",
   "manager",
@@ -16,7 +17,10 @@ const ALL_ROLES: readonly UserRole[] = [
   "client",
 ];
 
-function allows(role: UserRole, action: "read" | "execute"): boolean {
+function allows(
+  role: UserRole,
+  action: "read" | "execute" | "admin",
+): boolean {
   return checkPermission(
     role,
     getPermissionsForRole(role),
@@ -32,5 +36,9 @@ describe("gps_tracking role permissions", () => {
 
   it.each(ALL_ROLES)("execute para %s coincide con el API", (role) => {
     expect(allows(role, "execute")).toBe(EXECUTE_ROLES.includes(role));
+  });
+
+  it.each(ALL_ROLES)("admin para %s coincide con el API", (role) => {
+    expect(allows(role, "admin")).toBe(ADMIN_ROLES.includes(role));
   });
 });

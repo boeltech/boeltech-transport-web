@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, MapPin, Radio } from "lucide-react";
 import { config } from "@shared/config";
 import { isApiError } from "@shared/api/interceptors/error-handler";
@@ -20,8 +20,16 @@ export function FleetMapPage() {
   const copy = monitoringCopy.fleet;
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const query = useFleetPositions();
+  const [searchParams] = useSearchParams();
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [focusVehicleId, setFocusVehicleId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fromQuery = searchParams.get("vehicleId");
+    if (fromQuery) {
+      setFocusVehicleId(fromQuery);
+    }
+  }, [searchParams]);
 
   const positions = useMemo(
     () => query.data?.positions ?? [],
@@ -49,10 +57,7 @@ export function FleetMapPage() {
 
   return (
     <div
-      className={cn(
-        "relative -mx-4 -mb-4 h-[calc(100dvh-4rem)] overflow-hidden bg-zinc-950",
-        "md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8",
-      )}
+      className="relative h-full min-h-[calc(100dvh-4rem)] overflow-hidden bg-zinc-950"
       data-testid="fleet-map-page"
     >
       {/* Map canvas */}
@@ -77,8 +82,8 @@ export function FleetMapPage() {
         aria-hidden
       />
 
-      {/* Title chip */}
-      <div className="pointer-events-none absolute left-3 top-3 z-10 md:left-4 md:top-4">
+      {/* Title chip — a la derecha del NavigationControl Mapbox (top-left ~10+32px) */}
+      <div className="pointer-events-none absolute left-14 top-3 z-10 md:left-16 md:top-4">
         <div
           className={cn(
             "pointer-events-auto inline-flex items-center gap-2 rounded-full",

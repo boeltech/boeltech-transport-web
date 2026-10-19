@@ -11,9 +11,10 @@
  * Ubicación: src/widgets/layout/ui/LayoutShell.tsx
  */
 
-import { Outlet } from "react-router-dom";
+import { Outlet, useMatches } from "react-router-dom";
 
 import { cn } from "@shared/lib/utils/cn";
+import { isFlushRouteHandle } from "@app/router/routeHandle";
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import {
   MobileSidebar,
@@ -37,6 +38,8 @@ import { HelpPanelProvider } from "@features/help-center";
  */
 export function LayoutShell() {
   const { isCollapsed } = useSidebar();
+  const matches = useMatches();
+  const isFlush = matches.some((match) => isFlushRouteHandle(match.handle));
 
   return (
     <HelpPanelProvider>
@@ -95,11 +98,30 @@ export function LayoutShell() {
                 : SIDEBAR_MAIN_OFFSET_CLASS,
             )}
           >
-            <div className="px-4 pb-4 pt-16 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
-              <div className="mx-auto max-w-7xl">
+            <div
+              className={cn(
+                isFlush
+                  ? "flex h-dvh flex-col overflow-hidden pt-16"
+                  : "px-4 pb-4 pt-16 md:px-6 md:pb-6 lg:px-8 lg:pb-8",
+              )}
+              data-testid={isFlush ? "layout-content-flush" : "layout-content"}
+            >
+              <div
+                className={cn(
+                  isFlush
+                    ? "flex min-h-0 flex-1 flex-col"
+                    : "mx-auto max-w-7xl",
+                )}
+              >
                 <EmailVerificationBanner />
                 <DemoDataBanner />
-                <Outlet />
+                {isFlush ? (
+                  <div className="min-h-0 flex-1">
+                    <Outlet />
+                  </div>
+                ) : (
+                  <Outlet />
+                )}
               </div>
             </div>
           </div>

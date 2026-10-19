@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ChevronLeft, ChevronRight, History, Search } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Input } from "@shared/ui/input";
 import { Skeleton } from "@shared/ui/skeleton";
 import type { FleetVehiclePosition, FleetPositionsSummary } from "../../domain";
+import { fleetHistoryPath } from "../../domain";
 import { monitoringCopy } from "../copy/monitoringCopy";
 import { FleetPanelRow } from "./FleetPanelRow";
 
@@ -140,6 +142,22 @@ export function FleetPanel({
               </ul>
             )}
           </div>
+
+          {selectedVehicleId ? (
+            <div className="border-t border-white/10 px-3 py-2.5">
+              <Link
+                to={fleetHistoryPath(selectedVehicleId)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400",
+                  "hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50",
+                )}
+                data-testid="fleet-panel-history-link"
+              >
+                <History className="h-3.5 w-3.5" aria-hidden />
+                {copy.viewHistory}
+              </Link>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </aside>

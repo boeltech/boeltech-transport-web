@@ -175,11 +175,32 @@ const FleetDocumentsListPage = lazyWithRetry(() =>
   })),
 );
 
-// GPS monitoreo — mapa de flota (add-on gps_tracking)
+// GPS monitoreo — mapa de flota + historial + alertas (add-on gps_tracking)
 const FleetMapPage = lazyWithRetry(() =>
   import("@features/monitoring/presentation/pages/FleetMapPage").then((m) => ({
     default: m.FleetMapPage,
   })),
+);
+const FleetHistoryPage = lazyWithRetry(() =>
+  import("@features/monitoring/presentation/pages/FleetHistoryPage").then(
+    (m) => ({
+      default: m.FleetHistoryPage,
+    }),
+  ),
+);
+const AlertsListPage = lazyWithRetry(() =>
+  import("@features/monitoring/presentation/pages/AlertsListPage").then(
+    (m) => ({
+      default: m.AlertsListPage,
+    }),
+  ),
+);
+const AlertSettingsPage = lazyWithRetry(() =>
+  import("@features/monitoring/presentation/pages/AlertSettingsPage").then(
+    (m) => ({
+      default: m.AlertSettingsPage,
+    }),
+  ),
 );
 
 // Trailers (ADR-0077)
@@ -764,7 +785,33 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: "/monitoring/fleet",
+                // Full-bleed under AppLayout chrome (LayoutShell reads handle.flush)
+                handle: { flush: true },
                 element: withSuspense(FleetMapPage),
+              },
+              {
+                path: "/monitoring/fleet/history/:vehicleId",
+                handle: { flush: true },
+                element: withSuspense(FleetHistoryPage),
+              },
+              {
+                path: "/monitoring/alerts",
+                element: withSuspense(AlertsListPage),
+              },
+              {
+                element: (
+                  <PermissionRoute
+                    module="gps_tracking"
+                    action="admin"
+                    redirectTo="/monitoring/alerts"
+                  />
+                ),
+                children: [
+                  {
+                    path: "/monitoring/settings",
+                    element: withSuspense(AlertSettingsPage),
+                  },
+                ],
               },
             ],
           },

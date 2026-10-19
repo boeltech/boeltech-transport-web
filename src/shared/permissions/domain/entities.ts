@@ -71,6 +71,7 @@ export const ACTIONS = [
   "import",
   "assign",
   "execute", // For special actions like "process payroll", "generate report"
+  "admin", // Module admin config (e.g. GPS alert settings) — typically admin-only
 ] as const;
 
 export type Action = (typeof ACTIONS)[number];

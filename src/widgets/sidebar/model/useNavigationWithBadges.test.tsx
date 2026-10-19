@@ -22,7 +22,26 @@ const sampleNavigation: NavGroup[] = [
       },
     ],
   },
+  {
+    id: "monitoring",
+    title: "Monitoreo",
+    items: [
+      {
+        id: "fleet-map",
+        label: "Mapa de flota",
+        path: "/monitoring/fleet",
+        icon: Circle,
+      },
+      {
+        id: "gps-alerts",
+        label: "Alertas",
+        path: "/monitoring/alerts",
+        icon: Circle,
+      },
+    ],
+  },
 ];
+
 const operatorPaymentsNav: NavGroup[] = [
   {
     id: "operator-payments",
@@ -46,7 +65,7 @@ const operatorPaymentsNav: NavGroup[] = [
 
 describe("enrichNavigationWithBadges", () => {
   it("adds badge to finance-approvals when pending count is positive", () => {
-    const enriched = enrichNavigationWithBadges(sampleNavigation, 5);
+    const enriched = enrichNavigationWithBadges(sampleNavigation, 5, undefined);
     const approvalsItem = enriched[0].items.find(
       (item) => item.id === "finance-approvals",
     );
@@ -54,13 +73,27 @@ describe("enrichNavigationWithBadges", () => {
     expect(approvalsItem?.badge).toBe(5);
   });
 
-  it("leaves navigation unchanged when pending count is zero or undefined", () => {
-    expect(enrichNavigationWithBadges(sampleNavigation, 0)).toEqual(
+  it("adds badge to gps-alerts when unread count is positive", () => {
+    const enriched = enrichNavigationWithBadges(
       sampleNavigation,
+      undefined,
+      undefined,
+      3,
     );
-    expect(enrichNavigationWithBadges(sampleNavigation, undefined)).toEqual(
-      sampleNavigation,
+    const alertsItem = enriched[1].items.find(
+      (item) => item.id === "gps-alerts",
     );
+
+    expect(alertsItem?.badge).toBe(3);
+  });
+
+  it("leaves navigation unchanged when counts are zero or undefined", () => {
+    expect(
+      enrichNavigationWithBadges(sampleNavigation, 0, undefined, 0),
+    ).toEqual(sampleNavigation);
+    expect(
+      enrichNavigationWithBadges(sampleNavigation, undefined, undefined, undefined),
+    ).toEqual(sampleNavigation);
   });
 
   it("adds F4 nav-badges to Pagos and Anticipos", () => {

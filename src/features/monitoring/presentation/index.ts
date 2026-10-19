@@ -6,6 +6,9 @@ export {
   GpsDeviceCard,
   LinkGpsDeviceSheet,
   UnlinkGpsDeviceDialog,
-  VehiclePopoverContent,
+  buildFleetPopupHtml,
+  TripGpsOverlayCard,
+  AlertListItem,
+  AlertSettingsCard,
 } from "./components";
 export { monitoringCopy } from "./copy/monitoringCopy";

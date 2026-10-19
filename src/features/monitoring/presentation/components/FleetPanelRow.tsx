@@ -2,6 +2,9 @@ import { cn } from "@shared/lib/utils/cn";
 import type { FleetVehiclePosition } from "../../domain";
 import { GPS_STATUS_COLOR } from "../config/gpsStatusStyles";
 import { monitoringCopy } from "../copy/monitoringCopy";
+import { formatAbsoluteTime } from "../utils/formatAbsoluteTime";
+import { formatCardinalHeading } from "../utils/cardinalHeading";
+import { movementLabel } from "../utils/movementLabel";
 import { RelativeTime } from "./RelativeTime";
 
 export interface FleetPanelRowProps {
@@ -26,6 +29,12 @@ export function FleetPanelRow({
     position.speedKmh != null && hasCoords
       ? copy.speed(position.speedKmh)
       : copy.noSignal;
+  const movement = movementLabel(position.movementStatus, {
+    moving: copy.movement.moving,
+    stopped: copy.movement.stopped,
+    empty: "",
+  });
+  const heading = formatCardinalHeading(position.courseDeg);
 
   return (
     <button
@@ -62,10 +71,22 @@ export function FleetPanelRow({
         <span className="mt-0.5 block truncate text-xs text-zinc-400">
           {modelLine || position.vehiclePlate}
         </span>
+        {hasCoords && position.recordedAt ? (
+          <span className="mt-0.5 block truncate text-[10px] text-zinc-500">
+            {formatAbsoluteTime(position.recordedAt)}
+          </span>
+        ) : null}
         <span className="mt-1 block text-[11px] tabular-nums text-zinc-500">
           {speedLabel}
+          {movement ? ` · ${movement}` : null}
+          {heading ? ` · ${heading.cardinal}` : null}
           {position.vehiclePlate ? ` · ${position.vehiclePlate}` : null}
         </span>
+        {hasCoords && position.odometerKm != null ? (
+          <span className="mt-0.5 block truncate text-[10px] text-zinc-600">
+            {copy.odometer(position.odometerKm)}
+          </span>
+        ) : null}
       </span>
     </button>
   );

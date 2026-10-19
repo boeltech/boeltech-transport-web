@@ -14,12 +14,14 @@ export function createFleetMarkerElement(params: {
   status: GpsPositionStatusType;
   courseDeg: number | null;
   label: string;
+  /** CA-47 — badge rojo si hay alertas sin leer. */
+  unreadAlertCount?: number;
 }): HTMLDivElement {
-  const { status, courseDeg, label } = params;
+  const { status, courseDeg, label, unreadAlertCount = 0 } = params;
   const el = document.createElement("div");
   el.className = "fleet-map-marker";
   el.style.cssText =
-    "width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;";
+    "position:relative;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;";
   el.setAttribute("role", "button");
   el.setAttribute("aria-label", label);
   el.tabIndex = 0;
@@ -28,6 +30,10 @@ export function createFleetMarkerElement(params: {
   const showArrow =
     status === "online" && courseDeg != null && Number.isFinite(courseDeg);
   const rotation = showArrow ? courseDeg! : 0;
+  const alertBadge =
+    unreadAlertCount > 0
+      ? `<span style="position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:9999px;background:#ef4444;border:2px solid #fff;box-shadow:0 0 0 1px rgba(239,68,68,.35);" aria-hidden="true"></span>`
+      : "";
 
   if (showArrow) {
     el.innerHTML = `
@@ -35,7 +41,7 @@ export function createFleetMarkerElement(params: {
         style="transform:rotate(${rotation}deg);filter:drop-shadow(0 1px 3px rgba(0,0,0,.45));">
         <path d="M14 3 L22 23 L14 18 L6 23 Z" fill="${color}" stroke="#fff" stroke-width="1.5"
           stroke-linejoin="round"/>
-      </svg>`;
+      </svg>${alertBadge}`;
   } else {
     const stroke = status === "offline" ? color : "#fff";
     const fill = status === "offline" ? "transparent" : color;
@@ -49,7 +55,7 @@ export function createFleetMarkerElement(params: {
             ? `<circle cx="11" cy="11" r="10" fill="none" stroke="#${ring}" stroke-opacity="0.35" stroke-width="2"/>`
             : ""
         }
-      </svg>`;
+      </svg>${alertBadge}`;
   }
 
   return el;

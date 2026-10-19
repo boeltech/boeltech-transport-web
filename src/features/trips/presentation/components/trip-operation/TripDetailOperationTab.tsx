@@ -30,6 +30,7 @@ import { Separator } from "@shared/ui/separator";
 import { TripScheduleInlineEditor } from "./TripScheduleInlineEditor";
 import { TripRouteTypeInlineEditor } from "./TripRouteTypeInlineEditor";
 import { TripDetailStatusHistory } from "./TripDetailStatusHistory";
+import { TripGpsOverlayCard } from "@features/monitoring/presentation";
 import { TripFleetAssignmentSheet } from "../trip-fleet-assignment";
 import { TripFleetSnapshotCard } from "../trip-fleet-snapshot";
 import { TripOrderCard } from "../trip-order";
@@ -295,6 +296,20 @@ export function TripDetailOperationTab({
             </div>
           </CardContent>
         </Card>
+      ) : null}
+
+      {/* GPS corte 2 — overlay debajo de flota (CA-32–38); hide sin device */}
+      {!isClientPortalView ? (
+        <TripGpsOverlayCard
+          vehicleId={trip.vehicleId}
+          vehicleLabel={
+            trip.vehicle
+              ? [trip.vehicle.unitNumber, trip.vehicle.licensePlate]
+                  .filter(Boolean)
+                  .join(" · ")
+              : null
+          }
+        />
       ) : null}
 
       {/* D7 — 2. Programación */}

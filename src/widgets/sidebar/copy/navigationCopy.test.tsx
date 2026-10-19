@@ -72,10 +72,17 @@ describe("navigationConfig", () => {
     ]);
   });
 
-  it("places fleet map under Monitoreo with MapPin path", () => {
+  it("places fleet map, alerts and settings under Monitoreo", () => {
     const monitoring = navigationConfig.find((g) => g.id === "monitoring");
-    expect(monitoring?.items.map((i) => i.id)).toEqual(["fleet-map"]);
+    expect(monitoring?.items.map((i) => i.id)).toEqual([
+      "fleet-map",
+      "gps-alerts",
+      "gps-alert-settings",
+    ]);
     expect(monitoring?.items[0]?.path).toBe("/monitoring/fleet");
+    expect(monitoring?.items[1]?.path).toBe("/monitoring/alerts");
+    expect(monitoring?.items[2]?.path).toBe("/monitoring/settings");
+    expect(monitoring?.items[2]?.action).toBe("admin");
     expect(monitoring?.items[0]?.module).toBe("gps_tracking");
   });
 

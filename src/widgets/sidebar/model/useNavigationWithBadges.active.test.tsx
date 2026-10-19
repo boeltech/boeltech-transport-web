@@ -32,6 +32,10 @@ vi.mock("@features/settlements/application", async (importOriginal) => ({
   }),
 }));
 
+vi.mock("@features/monitoring/application", () => ({
+  useGpsAlertsSummary: () => ({ data: { unreadCount: 0, windowDays: 7 } }),
+}));
+
 function renderNavigation(initialEntry: string) {
   return renderHook(() => useNavigationWithBadges(), {
     wrapper: ({ children }: { children: ReactNode }) => (

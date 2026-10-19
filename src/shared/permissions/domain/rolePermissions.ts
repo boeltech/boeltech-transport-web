@@ -69,7 +69,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "operational_cash.void",
       "fiscal_policy.read",
 
-      // GPS monitoreo — lockstep API gps_tracking
+      // GPS monitoreo — lockstep API gps_tracking (admin = solo rol admin vía bypass)
       "gps_tracking.read",
       "gps_tracking.execute",
 
