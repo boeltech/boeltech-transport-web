@@ -50,6 +50,14 @@ export const cargoCopy = {
       count === 1
         ? "1 carga no tiene entrega planificada."
         : `${count} cargas no tienen entrega planificada.`,
+    /**
+     * Residual con 1 unload (ensure API no sanó: p. ej. descarga no operable).
+     * No vender «agregar y asignar» — el servidor defaulta delivery cuando puede.
+     */
+    noDeliveryBodySingleUnload: (count: number) =>
+      count === 1
+        ? "1 carga no tiene entrega planificada. Con una sola descarga el sistema la registra en destino cuando esa parada es operable; si falta, revisa la Ruta o agrega otra descarga."
+        : `${count} cargas no tienen entrega planificada. Con una sola descarga el sistema las registra en destino cuando esa parada es operable; si faltan, revisa la Ruta o agrega otra descarga.`,
     unresolvedTitle: "Carga sin parada de la ruta",
     unresolvedMovementBody: (count: number) =>
       count === 1
@@ -148,6 +156,17 @@ export const cargoCopy = {
       "No se encontró el movimiento de entrega para reasignar la parada.",
     cargoRemoved: "Carga eliminada",
     cargoRemoveError: "No se pudo eliminar la carga",
+    cargoRemoveForbidden:
+      "No tienes permiso para eliminar cargas. Pídeselo a un administrador o gerente.",
+    cargoRemoveNetworkError:
+      "No se pudo eliminar la carga. Revisa tu conexión e intenta de nuevo.",
+    cargoDeliveryAdded: "Entrega agregada",
+    cargoDeliveryAddError: "No se pudo agregar la entrega",
+    /**
+     * API `CARGO_STOP_NOT_OPERABLE` (400): parada completed/skipped o no operable.
+     */
+    cargoStopNotOperable:
+      "Esa parada ya no admite esta operación. Elige una parada pendiente o en visita activa.",
     saveErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
     movementCompleted: "Operación registrada en parada",
     movementError: "No se pudo completar la operación",

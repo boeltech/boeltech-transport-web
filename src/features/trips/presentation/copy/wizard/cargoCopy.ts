@@ -224,11 +224,20 @@ export const cargoCopy = {
         "Indique en qué paradas se descarga esta mercancía. Si la entrega es parcial, capture el peso o la cantidad de cada punto.",
       deliveriesReadOnly:
         "Las entregas de esta mercancía no se pueden cambiar aquí. Defínalas al dar de alta la carga.",
+      /**
+       * Edit/create con 1 sola descarga: CTA «Agregar entrega» oculto (CEO).
+       * F5: entrega asumida y materializada por API al guardar / al listar.
+       */
+      deliveriesSingleUnload:
+        "Solo hay una descarga (destino): la entrega se registra ahí al guardar. Para más entregas, agrega otra descarga en Ruta.",
       pendingFields: "Datos pendientes:",
     },
     state: {
       noDeliveries:
         "Sin entregas asignadas. Puede asignarlas ahora o más adelante.",
+      /** Empty state cuando CTA oculto (1 unload): no pedirle al operador que asigne. */
+      noDeliveriesSingleUnload:
+        "La entrega se registrará en el destino al guardar.",
     },
     action: {
       cancel: "Cancelar",

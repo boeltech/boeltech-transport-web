@@ -251,6 +251,83 @@ describe("CargoMovementSheet", () => {
     ).toBeInTheDocument();
   });
 
+  it("hides Agregar entrega when allowAddDelivery is false (edit gate ≥2 unload)", () => {
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={validCargo}
+        editingIndex={0}
+        allowAddDelivery={false}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: sheet.action.addDelivery }),
+    ).not.toBeInTheDocument();
+    // Hint: entrega asumida y materializada (F5); CTA oculto (1 descarga).
+    expect(
+      screen.getByText(sheet.hint.deliveriesSingleUnload),
+    ).toBeInTheDocument();
+    expect(sheet.hint.deliveriesSingleUnload).toMatch(/registra/i);
+    // Reassign de entregas existentes sigue editable (peso de la fila).
+    expect(screen.getByDisplayValue("500")).toBeInTheDocument();
+  });
+
+  it("shows single-unload empty copy when CTA is hidden and no deliveries yet (F5)", () => {
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          movements: [{ stopIndex: 0, movementType: "pickup" }],
+        }}
+        editingIndex={null}
+        allowAddDelivery={false}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(sheet.state.noDeliveriesSingleUnload),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(sheet.state.noDeliveries)).not.toBeInTheDocument();
+  });
+
+  it("shows Agregar entrega when allowAddDelivery is true", () => {
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={validCargo}
+        editingIndex={0}
+        allowAddDelivery
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: sheet.action.addDelivery }),
+    ).toBeInTheDocument();
+  });
+
   it("shows FormValidationSummary when submit is invalid", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

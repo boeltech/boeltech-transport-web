@@ -17,8 +17,9 @@ const mutateAddAsync = vi.fn();
 const mutateUpdateAsync = vi.fn();
 const mutateDelete = vi.fn();
 const mutateReassignAsync = vi.fn();
+const mutateAddMovementAsync = vi.fn();
 
-const { mockUseVehicle } = vi.hoisted(() => ({
+const { mockUseVehicle, mockHasPermission } = vi.hoisted(() => ({
   mockUseVehicle: vi.fn(() => ({
     data: undefined as
       | {
@@ -30,6 +31,10 @@ const { mockUseVehicle } = vi.hoisted(() => ({
       | undefined,
     isLoading: false,
   })),
+  mockHasPermission: vi.fn((module: string, action: string) => {
+    if (module === "trips" && action === "delete") return true;
+    return true;
+  }),
 }));
 
 vi.mock("@shared/hooks", () => ({
@@ -37,11 +42,23 @@ vi.mock("@shared/hooks", () => ({
   useMediaQuery: () => false,
 }));
 
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({ hasPermission: mockHasPermission }),
+}));
+
 vi.mock("@features/vehicles", () => ({
   useVehicle: (...args: unknown[]) => mockUseVehicle(...args),
 }));
 
 vi.mock("@features/trips/application", () => ({
+  CargoError: class CargoError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+      this.name = "CargoError";
+    }
+  },
   useAddCargo: () => ({
     mutate: vi.fn(),
     mutateAsync: mutateAddAsync,
@@ -53,6 +70,11 @@ vi.mock("@features/trips/application", () => ({
     isPending: false,
   }),
   useDeleteCargo: () => ({ mutate: mutateDelete, isPending: false }),
+  useAddCargoMovement: () => ({
+    mutate: vi.fn(),
+    mutateAsync: mutateAddMovementAsync,
+    isPending: false,
+  }),
   useReassignCargoMovementStop: () => ({
     mutate: vi.fn(),
     mutateAsync: mutateReassignAsync,
@@ -66,6 +88,7 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
     initialValues,
     editingIndex,
     deliveriesReadOnly,
+    allowAddDelivery,
     availablePickupStops,
     onPickupStopChange,
     vehicleCapacityKg,
@@ -75,6 +98,7 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
     initialValues: { description?: string; satProductCode?: string } | null;
     editingIndex: number | null;
     deliveriesReadOnly?: boolean;
+    allowAddDelivery?: boolean;
     availablePickupStops?: Array<{ index: number; locationName?: string }>;
     onPickupStopChange?: (stop: {
       index: number;
@@ -95,6 +119,9 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
         </span>
         <span data-testid="sheet-deliveries-readonly">
           {deliveriesReadOnly ? "readonly" : "editable"}
+        </span>
+        <span data-testid="sheet-allow-add-delivery">
+          {allowAddDelivery ? "allow" : "deny"}
         </span>
         <span data-testid="sheet-pickup-options">
           {availablePickupStops?.length ?? 0}
@@ -176,6 +203,40 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
         >
           Submit edit
         </button>
+        <button
+          type="button"
+          data-testid="sheet-submit-edit-with-new-delivery"
+          onClick={() =>
+            void onSubmit(
+              {
+                description: "Tarimas de acero",
+                satProductCode: "50192100",
+                satUnitCode: "H87",
+                satUnitName: "Pieza",
+                currency: "MXN",
+                weight: 200,
+                units: 4,
+                weightInKg: 200,
+                hazardousMaterial: false,
+                requiresHazmat: false,
+                isInsured: false,
+                sectorRequirements: {},
+                movements: [
+                  { stopIndex: 0, movementType: "pickup" },
+                  {
+                    stopIndex: 2,
+                    movementType: "delivery",
+                    weight: 100,
+                    units: 2,
+                  },
+                ],
+              } as TripCargoFormValues,
+              0,
+            )
+          }
+        >
+          Submit edit with delivery
+        </button>
       </div>
     ) : null,
 }));
@@ -231,10 +292,17 @@ describe("TripDetailCargoTab", () => {
     mutateAddAsync.mockReset();
     mutateUpdateAsync.mockReset();
     mutateReassignAsync.mockReset();
+    mutateAddMovementAsync.mockReset();
     mutateDelete.mockClear();
     mutateAddAsync.mockResolvedValue({});
     mutateUpdateAsync.mockResolvedValue({});
     mutateReassignAsync.mockResolvedValue({});
+    mutateAddMovementAsync.mockResolvedValue({});
+    mockHasPermission.mockReset();
+    mockHasPermission.mockImplementation((module: string, action: string) => {
+      if (module === "trips" && action === "delete") return true;
+      return true;
+    });
     mockUseVehicle.mockReset();
     mockUseVehicle.mockReturnValue({ data: undefined, isLoading: false });
   });
@@ -546,8 +614,9 @@ describe("TripDetailCargoTab", () => {
     expect(screen.getByText(copy.hint.appendOnlyBanner)).toBeInTheDocument();
     expect(screen.getByText(copy.hint.manageInTracking)).toBeInTheDocument();
 
+    // Header + posible CTA del alert «Falta entrega» (F4) comparten label.
     await user.click(
-      screen.getByRole("button", { name: copy.action.addCargo }),
+      screen.getAllByRole("button", { name: copy.action.addCargo })[0]!,
     );
     expect(screen.getByTestId("sheet-vehicle-capacity")).toHaveTextContent(
       "20000",
@@ -635,5 +704,131 @@ describe("TripDetailCargoTab", () => {
     expect(
       screen.queryByText(copy.capacity.overCapacityHint),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides Eliminar when trips.delete is denied (Opción A)", () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        !(module === "trips" && action === "delete"),
+    );
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[sampleCargo]}
+          orderedStops={[pickupStop]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: copy.action.editCargo }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.action.removeCargo }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("denies Agregar entrega in edit when only 1 unload stop", async () => {
+    const user = userEvent.setup();
+    const destination = {
+      id: "st-dest",
+      stopType: ["destination"],
+      address: "Cliente",
+      city: "GDL",
+      locationName: "Destino",
+      sequenceOrder: 1,
+    } as TripStop;
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[sampleCargo]}
+          orderedStops={[pickupStop, destination]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.editCargo }),
+    );
+    expect(screen.getByTestId("sheet-allow-add-delivery")).toHaveTextContent(
+      "deny",
+    );
+  });
+
+  it("allows Agregar entrega in edit with ≥2 unload stops and POSTs new delivery", async () => {
+    const user = userEvent.setup();
+    const waypointDelivery = {
+      id: "st-wp",
+      stopType: ["waypoint", "delivery"],
+      address: "Escala",
+      city: "QRO",
+      locationName: "Escala",
+      sequenceOrder: 1,
+    } as TripStop;
+    const destination = {
+      id: "st-dest",
+      stopType: ["destination"],
+      address: "Cliente",
+      city: "GDL",
+      locationName: "Destino",
+      sequenceOrder: 2,
+    } as TripStop;
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[sampleCargo]}
+          orderedStops={[pickupStop, waypointDelivery, destination]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.editCargo }),
+    );
+    expect(screen.getByTestId("sheet-allow-add-delivery")).toHaveTextContent(
+      "allow",
+    );
+
+    await user.click(
+      screen.getByTestId("sheet-submit-edit-with-new-delivery"),
+    );
+
+    await waitFor(() => {
+      expect(mutateAddMovementAsync).toHaveBeenCalledWith({
+        cargoId: "cargo-1",
+        data: expect.objectContaining({
+          stopId: "st-dest",
+          stopIndex: 2,
+          movementType: "delivery",
+          weight: 100,
+          units: 2,
+        }),
+      });
+    });
+    expect(mutateUpdateAsync).toHaveBeenCalled();
   });
 });

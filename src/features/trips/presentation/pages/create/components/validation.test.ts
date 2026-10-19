@@ -96,6 +96,27 @@ describe("tripCargoSchema — seguro de carga", () => {
     weightInKg: 250,
   };
 
+  it("rejects weight 0 and EUR currency (paquete: positive + MXN|USD)", () => {
+    const zeroWeight = tripCargoSchema.safeParse({
+      ...baseCargo,
+      weight: 0,
+      weightInKg: 0,
+    });
+    expect(zeroWeight.success).toBe(false);
+
+    const eur = tripCargoSchema.safeParse({
+      ...baseCargo,
+      currency: "EUR",
+    });
+    expect(eur.success).toBe(false);
+
+    const usd = tripCargoSchema.safeParse({
+      ...baseCargo,
+      currency: "USD",
+    });
+    expect(usd.success).toBe(true);
+  });
+
   it("allows uninsured cargo without insurance fields", () => {
     const result = tripCargoSchema.safeParse({
       ...baseCargo,

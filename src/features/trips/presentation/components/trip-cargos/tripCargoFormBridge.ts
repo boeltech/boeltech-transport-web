@@ -25,7 +25,7 @@ function emptyToNull(value: string | undefined): string | null {
  */
 export function tripCargoToFormValues(cargo: TripCargo): TripCargoFormValues {
   const currency: CurrencyType =
-    cargo.currency === "USD" || cargo.currency === "EUR" ? cargo.currency : "MXN";
+    cargo.currency === "USD" ? "USD" : "MXN";
 
   return {
     id: cargo.id,

@@ -1,12 +1,146 @@
-import type {
-  CargoStatusType,
-  CreateCargoInput,
-  TripCargo,
-  TripStop,
+import {
+  StopType,
+  type CargoStatusType,
+  type CreateCargoInput,
+  type TripCargo,
+  type TripStop,
 } from "@features/trips/domain";
 
 import { cargoCopy } from "../../copy/tripDetail/cargoCopy";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
+import { hasStopType } from "../trip-route/tripRouteDetailHelpers";
+
+/**
+ * Parada tipo descarga (unload): `delivery` y/o `destination`.
+ * Alineado con `toDeliverySheetStops` del tab Cargas y con `isUnloadStop` del API.
+ */
+export function isUnloadStopForCargo(stop: Pick<TripStop, "stopType">): boolean {
+  return (
+    hasStopType(stop.stopType, StopType.DELIVERY) ||
+    hasStopType(stop.stopType, StopType.DESTINATION)
+  );
+}
+
+/** Paradas de descarga del viaje en el orden recibido. */
+export function listUnloadStops(
+  orderedStops: readonly TripStop[],
+): TripStop[] {
+  return orderedStops.filter(isUnloadStopForCargo);
+}
+
+export function countUnloadStops(orderedStops: readonly TripStop[]): number {
+  return listUnloadStops(orderedStops).length;
+}
+
+/**
+ * CTA «Agregar entrega» en edición de mercancía: solo con ≥2 descargas
+ * (CEO 2026-10-18). Con 1 sola (típicamente destino) el CTA se oculta.
+ */
+export function canShowAddDeliveryInCargoEdit(
+  orderedStops: readonly TripStop[],
+): boolean {
+  return countUnloadStops(orderedStops) >= 2;
+}
+
+/** Códigos de error de mutación de cargas que la UI mapea a copy propio. */
+export const CARGO_STOP_NOT_OPERABLE = "CARGO_STOP_NOT_OPERABLE" as const;
+
+const NETWORK_ERROR_CODES = new Set([
+  "NETWORK_ERROR",
+  "TIMEOUT",
+  "SERVICE_UNAVAILABLE",
+]);
+
+export type CargoErrorLike = {
+  code?: string;
+  message?: string;
+};
+
+/**
+ * Toast de delete: 403 vs red vs genérico (PRD / F4).
+ */
+export function resolveCargoRemoveErrorToast(error: CargoErrorLike): {
+  title: string;
+  description?: string;
+} {
+  if (error.code === "FORBIDDEN") {
+    return { title: cargoCopy.toast.cargoRemoveForbidden };
+  }
+  if (error.code != null && NETWORK_ERROR_CODES.has(error.code)) {
+    return { title: cargoCopy.toast.cargoRemoveNetworkError };
+  }
+  const description = error.message?.trim();
+  return {
+    title: cargoCopy.toast.cargoRemoveError,
+    description: description || undefined,
+  };
+}
+
+/**
+ * Mensaje usable cuando falla add/update/reassign por parada no operable u otro error.
+ */
+export function resolveCargoMutationErrorMessage(
+  error: unknown,
+  fallback: string,
+): string {
+  if (
+    error != null &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as CargoErrorLike).code === CARGO_STOP_NOT_OPERABLE
+  ) {
+    return cargoCopy.toast.cargoStopNotOperable;
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+}
+
+export type MissingDeliveryAlertModel = {
+  body: string;
+  /** Con ≥2 unload: editar puede «Agregar entrega». Con 1: no vender Editar. */
+  showEditAction: boolean;
+  showAddCargoAction: boolean;
+  showGoToRouteAction: boolean;
+};
+
+/**
+ * Alert «Falta entrega» coherente con gate ≥2 descargas (PRD D6 / F4)
+ * y con default delivery 1 unload (F5): solo se muestra si el listado
+ * aún trae cargos sin movement delivery (p. ej. ensure no sanó).
+ */
+export function resolveMissingDeliveryAlert(args: {
+  count: number;
+  canAddDeliveryInEdit: boolean;
+  canEditStructural: boolean;
+  canAppendCargo: boolean;
+  hasGoToRoute: boolean;
+}): MissingDeliveryAlertModel {
+  const {
+    count,
+    canAddDeliveryInEdit,
+    canEditStructural,
+    canAppendCargo,
+    hasGoToRoute,
+  } = args;
+
+  if (canAddDeliveryInEdit) {
+    return {
+      body: cargoCopy.alert.noDeliveryBody(count),
+      showEditAction: canEditStructural && count > 0,
+      showAddCargoAction: false,
+      showGoToRouteAction: false,
+    };
+  }
+
+  return {
+    body: cargoCopy.alert.noDeliveryBodySingleUnload(count),
+    showEditAction: false,
+    showAddCargoAction: canAppendCargo,
+    showGoToRouteAction: hasGoToRoute,
+  };
+}
 
 export type AttachStopIdsResult =
   | { ok: true; cargo: CreateCargoInput }

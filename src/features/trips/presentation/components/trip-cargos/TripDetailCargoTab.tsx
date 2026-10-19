@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { AlertCircle, Package, Plus, RefreshCw } from "lucide-react";
 
 import {
+  CargoError,
   useAddCargo,
+  useAddCargoMovement,
   useDeleteCargo,
   useReassignCargoMovementStop,
   useUpdateCargo,
@@ -18,6 +20,7 @@ import {
 } from "@features/trips/domain";
 import { useVehicle } from "@features/vehicles";
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { EmptyState } from "@shared/ui/feedback-states";
@@ -27,7 +30,10 @@ import { tripDetailCopy } from "../../copy";
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import {
   attachStopIdsToCreateCargoMovements,
+  canShowAddDeliveryInCargoEdit,
   getCargoWeightKg,
+  resolveCargoMutationErrorMessage,
+  resolveCargoRemoveErrorToast,
 } from "./tripCargoDetailHelpers";
 import {
   formValuesToUpdateCargoInput,
@@ -152,11 +158,15 @@ export function TripDetailCargoTab({
   onCargosChanged,
 }: TripDetailCargoTabProps) {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const addCargo = useAddCargo(tripId);
   const updateCargo = useUpdateCargo(tripId);
   const deleteCargo = useDeleteCargo(tripId);
+  const addCargoMovement = useAddCargoMovement(tripId);
   const reassignMovementStop = useReassignCargoMovementStop(tripId);
+  const canDeleteCargo =
+    canEditStructural && hasPermission("trips", "delete");
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
     vehicleId ?? "",
     { enabled: Boolean(vehicleId) },
@@ -326,10 +336,14 @@ export function TripDetailCargoTab({
         }
         onCargosChanged?.();
       },
-      onError: (error) => {
+      onError: (error: CargoError) => {
+        const resolved = resolveCargoRemoveErrorToast({
+          code: error.code,
+          message: error.message,
+        });
         toast({
-          title: copy.toast.cargoRemoveError,
-          description: error.message,
+          title: resolved.title,
+          description: resolved.description,
           variant: "destructive",
         });
       },
@@ -378,9 +392,12 @@ export function TripDetailCargoTab({
           editingCargo?.movements?.filter(
             (movement) => movement.movementType === "delivery",
           ) ?? [];
-        const nextDeliveryIndexes = (values.movements ?? [])
-          .filter((movement) => movement.movementType === "delivery")
-          .map((movement) => movement.stopIndex);
+        const nextDeliveries = (values.movements ?? []).filter(
+          (movement) => movement.movementType === "delivery",
+        );
+        const nextDeliveryIndexes = nextDeliveries.map(
+          (movement) => movement.stopIndex,
+        );
 
         for (let i = 0; i < originalDeliveries.length; i += 1) {
           const deliveryMovement = originalDeliveries[i];
@@ -404,6 +421,29 @@ export function TripDetailCargoTab({
           });
         }
 
+        // Altas de entrega en edición → POST …/movements (F3).
+        for (let i = originalDeliveries.length; i < nextDeliveries.length; i += 1) {
+          const delivery = nextDeliveries[i];
+          if (!delivery || delivery.stopIndex < 0) {
+            throw new Error(copy.toast.cargoStopUnresolved);
+          }
+          const stop = orderedStops[delivery.stopIndex];
+          if (!stop?.id) {
+            throw new Error(copy.toast.cargoStopUnresolved);
+          }
+          await addCargoMovement.mutateAsync({
+            cargoId: editingCargoId,
+            data: {
+              stopId: stop.id,
+              stopIndex: delivery.stopIndex,
+              movementType: "delivery",
+              weight: delivery.weight,
+              units: delivery.units,
+              notes: delivery.notes,
+            },
+          });
+        }
+
         await updateCargo.mutateAsync({
           cargoId: editingCargoId,
           data: formValuesToUpdateCargoInput(values),
@@ -411,9 +451,9 @@ export function TripDetailCargoTab({
         toast({ title: copy.toast.cargoUpdated, variant: "success" });
         onCargosChanged?.();
       } catch (error) {
-        throw error instanceof Error
-          ? error
-          : new Error(copy.toast.cargoUpdateError);
+        throw new Error(
+          resolveCargoMutationErrorMessage(error, copy.toast.cargoUpdateError),
+        );
       }
       return;
     }
@@ -437,9 +477,9 @@ export function TripDetailCargoTab({
       toast({ title: copy.toast.cargoAdded, variant: "success" });
       onCargosChanged?.();
     } catch (error) {
-      throw error instanceof Error
-        ? error
-        : new Error(copy.toast.cargoAddError);
+      throw new Error(
+        resolveCargoMutationErrorMessage(error, copy.toast.cargoAddError),
+      );
     }
   };
 
@@ -472,6 +512,11 @@ export function TripDetailCargoTab({
                 movement.completedAt != null,
             ),
           )
+        }
+        allowAddDelivery={
+          editingCargoId == null
+            ? true
+            : canShowAddDeliveryInCargoEdit(orderedStops)
         }
         vehicleCapacityKg={vehicleCapacityKg}
         baselineWeightKg={baselineWeightKg}
@@ -553,6 +598,7 @@ export function TripDetailCargoTab({
           cargos={cargos}
           orderedStops={orderedStops}
           canEditStructural={canEditStructural}
+          canDeleteCargo={canDeleteCargo}
           canAppendCargo={canEditStructural || canAppendCargo}
           showAppendOnlyBanner={canAppendCargo && !canEditStructural}
           onAddCargo={() => openAddCargo()}

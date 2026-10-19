@@ -245,14 +245,15 @@ export function useDeleteCargo(
 
 /**
  * Hook para agregar un movimiento a una carga
+ * (`POST /trips/:tripId/cargos/:cargoId/movements`).
+ * `cargoId` viaja en las variables (mismo patrón que reassign).
  */
 export function useAddCargoMovement(
   tripId: string,
-  cargoId: string,
   options?: UseMutationOptions<
     CargoMovement,
     CargoError,
-    CreateCargoMovementInput
+    { cargoId: string; data: CreateCargoMovementInput }
   >,
 ) {
   const queryClient = useQueryClient();
@@ -262,8 +263,14 @@ export function useAddCargoMovement(
 
   return useMutation({
     ...rest,
-    mutationFn: async (input: CreateCargoMovementInput) => {
-      const result = await addMovementUseCase.execute(tripId, cargoId, input);
+    mutationFn: async ({
+      cargoId,
+      data,
+    }: {
+      cargoId: string;
+      data: CreateCargoMovementInput;
+    }) => {
+      const result = await addMovementUseCase.execute(tripId, cargoId, data);
 
       if (!result.success) {
         throw new CargoError(

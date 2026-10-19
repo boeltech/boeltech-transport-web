@@ -133,9 +133,14 @@ export interface CargoMovementSheetProps {
   stopCargoCount: number;
   /**
    * Cuando es true, la sección de entregas es solo lectura (p. ej. edit en
-   * detalle de viaje: `UpdateCargoInput` no reescribe movements).
+   * detalle de viaje con entregas ya completadas en patio).
    */
   deliveriesReadOnly?: boolean;
+  /**
+   * Muestra el CTA «Agregar entrega». En edición del detalle solo con ≥2
+   * paradas descarga (CEO). Default: `!deliveriesReadOnly`.
+   */
+  allowAddDelivery?: boolean;
   /**
    * Título del toast/alert cuando `onSubmit` rechaza (API).
    * Por defecto usa el copy del sheet de wizard.
@@ -269,12 +274,15 @@ function CargoMovementSheetSession({
   baselineWeightKg,
   stopCargoCount,
   deliveriesReadOnly = false,
+  allowAddDelivery: allowAddDeliveryProp,
   submitErrorTitle,
   onSubmit,
   onSubmittingChange,
 }: Omit<CargoMovementSheetProps, "open"> & {
   onSubmittingChange: (submitting: boolean) => void;
 }) {
+  const allowAddDelivery =
+    allowAddDeliveryProp ?? !deliveriesReadOnly;
   const { error: showErrorToast, toast } = useToast();
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
@@ -907,6 +915,7 @@ function CargoMovementSheetSession({
               }
               defaultOpen={
                 deliveriesReadOnly ||
+                !allowAddDelivery ||
                 initialDeliveryAssignments(initialValues).length > 0
               }
             >
@@ -914,9 +923,11 @@ function CargoMovementSheetSession({
                 <p className="text-xs text-muted-foreground sm:max-w-md">
                   {deliveriesReadOnly
                     ? sheet.hint.deliveriesReadOnly
-                    : sheet.hint.deliveries}
+                    : allowAddDelivery
+                      ? sheet.hint.deliveries
+                      : sheet.hint.deliveriesSingleUnload}
                 </p>
-                {!deliveriesReadOnly ? (
+                {!deliveriesReadOnly && allowAddDelivery ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -932,7 +943,9 @@ function CargoMovementSheetSession({
 
               {deliveryAssignments.length === 0 ? (
                 <div className="rounded-lg border border-dashed py-3 text-center text-xs text-muted-foreground">
-                  {sheet.state.noDeliveries}
+                  {allowAddDelivery
+                    ? sheet.state.noDeliveries
+                    : sheet.state.noDeliveriesSingleUnload}
                 </div>
               ) : deliveriesReadOnly ? (
                 <ul className="space-y-2">

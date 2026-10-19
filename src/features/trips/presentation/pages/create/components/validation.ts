@@ -308,15 +308,22 @@ export const tripCargoSchema = z.object({
   satProductDescription: z.string().optional(), // Descripción del catálogo (referencia)
   satUnitCode: z.string().optional(), // c_ClaveUnidad
   satUnitName: z.string().optional(), // Nombre de la unidad (referencia)
-  currency: z.enum(["MXN", "USD", "EUR"]).default("MXN"),
+  // Alineado a `@boeltech/cfdi-domain` validadores/trips (MXN|USD; weight positive).
+  currency: z.enum(["MXN", "USD"]).default("MXN"),
 
   // Descripción
   description: z.string().min(1, "Descripción requerida"),
 
   // Cantidades
   units: z.coerce.number().min(1, "La cantidad debe ser mayor a 0").optional(),
-  weight: z.coerce.number().min(0, "El peso no puede ser negativo").optional(),
-  weightInKg: z.coerce.number().min(0, "El peso no puede ser negativo").optional(), // Carta Porte
+  weight: z.coerce
+    .number()
+    .positive("El peso debe ser mayor a 0")
+    .optional(),
+  weightInKg: z.coerce
+    .number()
+    .positive("El peso debe ser mayor a 0")
+    .optional(), // Carta Porte
 
   // Seguro de carga
   // Si isInsured, se exigen valor declarado, aseguradora y póliza (ver superRefine).

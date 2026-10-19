@@ -82,7 +82,7 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
     satProductDescription: cargo.satProductDescription ?? undefined,
     satUnitCode: cargo.satUnitCode ?? undefined,
     satUnitName: cargo.satUnitName ?? undefined,
-    currency: cargo.currency ?? "MXN",
+    currency: cargo.currency === "USD" ? ("USD" as const) : ("MXN" as const),
     hazardousMaterial: cargo.hazardousMaterial ?? false,
     requiresHazmat: cargo.hazardousMaterial ?? false,
     hazardousMaterialCode: cargo.hazardousMaterialCode ?? undefined,

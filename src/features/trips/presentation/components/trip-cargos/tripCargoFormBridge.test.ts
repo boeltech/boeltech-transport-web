@@ -118,4 +118,9 @@ describe("tripCargoFormBridge", () => {
     expect(update.aseguraCarga).toBeNull();
     expect(update.polizaCarga).toBeNull();
   });
+
+  it("maps legacy EUR currency to MXN for the sheet (paquete MXN|USD)", () => {
+    const form = tripCargoToFormValues(baseCargo({ currency: "EUR" }));
+    expect(form.currency).toBe("MXN");
+  });
 });

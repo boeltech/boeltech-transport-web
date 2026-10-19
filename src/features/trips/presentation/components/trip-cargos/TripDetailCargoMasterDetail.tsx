@@ -39,12 +39,14 @@ import { cn } from "@shared/lib/utils/cn";
 
 import { tripDetailCopy } from "../../copy";
 import {
+  canShowAddDeliveryInCargoEdit,
   formatCargoRouteLine,
   getCargoPlanningStops,
   getCargoWeightKg,
   isCargoHazmat,
   isCargoInsured,
   isCargoPlanningGapMuted,
+  resolveMissingDeliveryAlert,
 } from "./tripCargoDetailHelpers";
 
 const copy = tripDetailCopy.cargo;
@@ -53,6 +55,11 @@ export type TripDetailCargoMasterDetailProps = {
   cargos: readonly TripCargo[];
   orderedStops: readonly TripStop[];
   canEditStructural: boolean;
+  /**
+   * Eliminar carga: exige `trips.delete` (admin/manager). Independiente de
+   * `canEditStructural` / `trips.update` — Opción A PRD.
+   */
+  canDeleteCargo?: boolean;
   /** ADR-0093 — CTA agregar carga mid-trip. */
   canAppendCargo?: boolean;
   /** Mid-trip: solo append (sin editar/eliminar estructurales). */
@@ -163,6 +170,7 @@ function CargoReadPanel({
   cargo,
   orderedStops,
   canEditStructural,
+  canDeleteCargo,
   showTrackingFooter,
   onEdit,
   onRequestRemove,
@@ -170,6 +178,7 @@ function CargoReadPanel({
   cargo: TripCargo;
   orderedStops: readonly TripStop[];
   canEditStructural: boolean;
+  canDeleteCargo: boolean;
   /** Pie «estado en Seguimiento» solo cuando aporta (p. ej. mid-trip). */
   showTrackingFooter?: boolean;
   onEdit: () => void;
@@ -235,28 +244,32 @@ function CargoReadPanel({
               </span>
             </div>
           </div>
-          {canEditStructural ? (
+          {canEditStructural || canDeleteCargo ? (
             <div className="flex shrink-0 items-center gap-0.5">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-8 text-muted-foreground"
-                onClick={onEdit}
-              >
-                <Edit2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                {copy.action.editCargo}
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={onRequestRemove}
-                aria-label={copy.action.removeCargo}
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              </Button>
+              {canEditStructural ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-muted-foreground"
+                  onClick={onEdit}
+                >
+                  <Edit2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                  {copy.action.editCargo}
+                </Button>
+              ) : null}
+              {canDeleteCargo ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={onRequestRemove}
+                  aria-label={copy.action.removeCargo}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -435,6 +448,7 @@ export function TripDetailCargoMasterDetail({
   cargos,
   orderedStops,
   canEditStructural,
+  canDeleteCargo = false,
   canAppendCargo = false,
   showAppendOnlyBanner = false,
   onAddCargo,
@@ -488,6 +502,18 @@ export function TripDetailCargoMasterDetail({
     );
   }, 0);
 
+  const canAddDeliveryInEdit = canShowAddDeliveryInCargoEdit(orderedStops);
+  const missingDeliveryAlert =
+    cargosWithoutDelivery.length > 0
+      ? resolveMissingDeliveryAlert({
+          count: cargosWithoutDelivery.length,
+          canAddDeliveryInEdit,
+          canEditStructural,
+          canAppendCargo,
+          hasGoToRoute: onGoToRoute != null,
+        })
+      : null;
+
   const handleSelect = (cargoId: string) => {
     setSelectedId(cargoId);
     if (isMobile) {
@@ -512,6 +538,7 @@ export function TripDetailCargoMasterDetail({
         cargo={selectedCargo}
         orderedStops={orderedStops}
         canEditStructural={canEditStructural}
+        canDeleteCargo={canDeleteCargo}
         showTrackingFooter={showAppendOnlyBanner}
         onEdit={() => {
           setSelectedId((prev) => prev ?? resolvedViewId);
@@ -592,28 +619,51 @@ export function TripDetailCargoMasterDetail({
         />
       ) : null}
 
-      {cargosWithoutDelivery.length > 0 ? (
+      {missingDeliveryAlert ? (
         <DetailAlertCard
           severity="info"
           icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
           title={copy.alert.noDeliveryTitle}
-          items={[
-            {
-              text: copy.alert.noDeliveryBody(cargosWithoutDelivery.length),
-            },
-          ]}
+          items={[{ text: missingDeliveryAlert.body }]}
           action={
-            canEditStructural && cargosWithoutDelivery[0] ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  focusAndEditCargo(cargosWithoutDelivery[0]!.id)
-                }
-              >
-                {copy.action.fixFirstCargo}
-              </Button>
+            missingDeliveryAlert.showEditAction ||
+            missingDeliveryAlert.showAddCargoAction ||
+            missingDeliveryAlert.showGoToRouteAction ? (
+              <div className="flex flex-wrap gap-2">
+                {missingDeliveryAlert.showGoToRouteAction && onGoToRoute ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onGoToRoute}
+                  >
+                    {copy.action.goToRoute}
+                  </Button>
+                ) : null}
+                {missingDeliveryAlert.showAddCargoAction ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onAddCargo}
+                  >
+                    {copy.action.addCargo}
+                  </Button>
+                ) : null}
+                {missingDeliveryAlert.showEditAction &&
+                cargosWithoutDelivery[0] ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      focusAndEditCargo(cargosWithoutDelivery[0]!.id)
+                    }
+                  >
+                    {copy.action.fixFirstCargo}
+                  </Button>
+                ) : null}
+              </div>
             ) : null
           }
         />
@@ -695,6 +745,7 @@ export function TripDetailCargoMasterDetail({
                 cargo={selectedCargo}
                 orderedStops={orderedStops}
                 canEditStructural={canEditStructural}
+                canDeleteCargo={canDeleteCargo}
                 showTrackingFooter={showAppendOnlyBanner}
                 onEdit={() => {
                   onEditCargo(selectedCargo.id);
