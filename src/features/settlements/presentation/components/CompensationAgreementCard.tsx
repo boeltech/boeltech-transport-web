@@ -96,11 +96,11 @@ export function CompensationAgreementCard({
                 </div>
                 {agreement.rules.map((r, idx) => {
                   const routeLabel = TRIP_ROUTE_TYPE_LABELS[r.routeType] ?? r.routeType;
-                  let valDesc = "Sin comisión";
+                  let valDesc = "Sin pago por viaje";
                   if (r.commissionType === "rate_per_km") {
                     valDesc = `${formatMxCurrency(r.rateValue)} / km`;
                   } else if (r.commissionType === "percentage_of_freight") {
-                    valDesc = `${r.rateValue}% flete`;
+                    valDesc = `${r.rateValue}% del flete`;
                   } else if (r.commissionType === "fixed_per_trip") {
                     valDesc = `${formatMxCurrency(r.rateValue)} / viaje`;
                   }

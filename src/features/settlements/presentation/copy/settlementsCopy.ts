@@ -319,7 +319,7 @@ export const settlementsCopy = {
     calculationType: "Regla de pago",
     baseRate: "Tarifa fija por viaje",
     ratePerKm: "Tarifa por km recorrido",
-    percentageRate: "% sobre flete facturado",
+    percentageRate: "% del flete facturado",
     helperDailyRate: "Tarifa diaria ayudante",
     paymentMethod: "Método de entrega",
     bankReference: "Referencia de pago (transferencia o folio)",
@@ -339,7 +339,7 @@ export const settlementsCopy = {
     commissionRules: "Reglas de comisión",
     noFixedSalary: "Sin sueldo base",
     compositeScheme: "Sueldo + pago por viajes",
-    noCommission: "Sin comisión",
+    noCommission: "Sin pago por viaje",
     minGuaranteedPrefix: "mín.",
     salaryOnly: "Solo sueldo base",
     fromPrefix: "Desde",
@@ -558,7 +558,7 @@ export const settlementsCopy = {
       /** Neutro: no inventar una marca cuando faltan legalName / tradeName / tenant. */
       companyName: "Sin razón social configurada",
       speiMethod: "SPEI",
-      noCommission: "Sin comisión",
+      noCommission: "Sin pago por viaje",
       weeklyPeriod: "semanal",
     },
     receiptDialog: {
@@ -624,7 +624,7 @@ export const settlementsCopy = {
       fixedSalary: "Sueldo base:",
       routesTitle: "Pago por tipo de ruta:",
       ratePerKm: "Tarifa por kilómetro:",
-      percentageRate: "% sobre flete:",
+      percentageRate: "% del flete:",
       fixedPerTrip: "Tarifa fija por viaje:",
       helperDailyRate: "Tarifa diaria ayudante:",
       compositeLabel: "Sueldo + pago por viajes",
@@ -809,7 +809,7 @@ export const settlementsCopy = {
       bypassDraftHintNoAmountSingle:
         "La regla no pide autorización por monto y no hay correcciones manuales: se guarda en borrador. Como eres el único usuario que puede registrar pagos, podrás hacerlo tú mismo; quedará marcado en el historial.",
       commercialFreightHint:
-        "El % sobre flete usa el monto comercial al completar el viaje, no el monto de la factura timbrada.",
+        "El % del flete usa el monto comercial al completar el viaje, no el monto de la factura timbrada.",
       reservedAdvanceHint: "Reservado en un pago pendiente; se aplica al registrar el pago.",
       reservedElsewhereHint: (folio: string) =>
         `Reservado en ${folio}. Se libera cuando ese pago se pague o se cancele.`,
@@ -842,11 +842,11 @@ export const settlementsCopy = {
       deliveredPrefix: "Entregado:",
     },
     trips: {
-      coveredBySalary: "Cubierto por sueldo base",
+      coveredBySalary: "Sin pago por viaje",
       emptyTrips: "No hay viajes completados pendientes de pago para este operador en las fechas seleccionadas.",
       supportParticipationBadge: "Apoyo",
-      corridorBadgePrefix: "Corredor",
-      corridorBadgeLabel: "Corredor",
+      corridorBadgePrefix: "Ruta fija",
+      corridorBadgeLabel: "Ruta fija",
       multipleOperatorsBadge: "Varios operadores",
       multipleOperatorsBadgeTitle:
         "Participaron varios operadores. Cada uno recibe el 100 % de la comisión según su regla.",
@@ -1127,7 +1127,7 @@ export const settlementsCopy = {
     calculationTypeLabel: "Tipo de comisión",
     calculationTypePlaceholder: "Seleccionar tipo de comisión",
     ratePerKmLabel: "Tarifa por kilómetro ($/km)",
-    percentageRateLabel: "% de comisión sobre flete",
+    percentageRateLabel: "% del flete",
     baseRateLabel: "Tarifa fija por viaje ($)",
     helperDailyRateLabel: "Tarifa diaria / ayudante ($/día)",
     minimumGuaranteedLabel: "Garantía mínima por viaje ($)",

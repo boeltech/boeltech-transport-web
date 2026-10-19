@@ -116,7 +116,7 @@ function describeRuleForSimulation(
     case "rate_per_km":
       return `Pago por km (${routeLabel.toLowerCase()})${suffix}`;
     case "percentage_of_freight":
-      return `Comisión ${rule.rateValue}% (${routeLabel.toLowerCase()})${suffix}`;
+      return `${rule.rateValue}% del flete (${routeLabel.toLowerCase()})${suffix}`;
     case "fixed_per_trip":
       return `Importe fijo (${routeLabel.toLowerCase()})${suffix}`;
     case "none":

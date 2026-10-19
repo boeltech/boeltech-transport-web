@@ -769,7 +769,7 @@ export function SettlementDetailPage() {
                                     if (rule.commissionType === "rate_per_km") {
                                       ruleText = `${formatMxCurrency(rule.rateValue)} / km`;
                                     } else if (rule.commissionType === "percentage_of_freight") {
-                                      ruleText = `${rule.rateValue}% sobre flete`;
+                                      ruleText = `${rule.rateValue}% del flete`;
                                     } else if (rule.commissionType === "fixed_per_trip") {
                                       ruleText = `${formatMxCurrency(rule.rateValue)} por viaje`;
                                     }

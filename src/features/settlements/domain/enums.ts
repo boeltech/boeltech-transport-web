@@ -22,7 +22,7 @@ export const COMPENSATION_CALCULATION_TYPE_LABELS: Record<
 > = {
   fixed_per_trip: "Tarifa fija por viaje",
   rate_per_km: "Tarifa por kilómetro",
-  percentage_of_freight: "Porcentaje sobre flete",
+  percentage_of_freight: "Porcentaje del flete",
   fixed_daily_rate: "Tarifa diaria (ayudante/apoyo)",
   salary_only: "Solo sueldo base",
 };
@@ -62,9 +62,9 @@ export const AGREEMENT_COMMISSION_TYPE_LABELS: Record<
   string
 > = {
   rate_per_km: "Tarifa por kilómetro",
-  percentage_of_freight: "Porcentaje sobre flete",
+  percentage_of_freight: "Porcentaje del flete",
   fixed_per_trip: "Monto fijo por viaje",
-  none: "Sin comisión (cubierto por sueldo base)",
+  none: "Sin pago por viaje",
 };
 
 // ============================================================================

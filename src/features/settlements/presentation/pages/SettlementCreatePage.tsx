@@ -181,8 +181,9 @@ const ZERO_REASON_BADGES: Partial<
 const MISSING_DATA_TRIPS_LISTED = 5;
 
 /**
- * «Cubierto por sueldo base» solo para un local en $0 por regla `none`; con dato
+ * Chip «Sin pago por viaje» solo para un local en $0 por regla `none`; con dato
  * faltante, sin regla o mínimo aplicado el viaje muestra su motivo o su insignia.
+ * Match de `applied_rule`: «sin pago» (glosario PRD / API F1).
  */
 function isLocalTripCoveredBySalary(
   trip: EligibleTripPreview,
@@ -191,7 +192,8 @@ function isLocalTripCoveredBySalary(
   if (routeType !== "local" || trip.calculatedCommission !== 0) return false;
   if (trip.calculationGap || trip.minimumGuaranteedApplied) return false;
   if (trip.zeroCommissionReason && trip.zeroCommissionReason !== "scheme") return false;
-  return Boolean(trip.appliedRule?.toLowerCase().includes("sueldo"));
+  const rule = trip.appliedRule?.toLowerCase() ?? "";
+  return rule.includes("sin pago");
 }
 
 const ADVANCES_FIELD_ID = "settlement-create-advances";
@@ -753,9 +755,9 @@ export function SettlementCreatePage() {
     const helperDailyRate = Number(agreement.helper_daily_rate ?? agreement.helperDailyRate ?? 0);
 
     if (calcType === "rate_per_km" && ratePerKm > 0) {
-      parts.push(`Comisión de ${formatMxCurrency(ratePerKm)} por km recorrido`);
+      parts.push(`Pago de ${formatMxCurrency(ratePerKm)} por km recorrido`);
     } else if (calcType === "percentage_of_freight" && percentageRate > 0) {
-      parts.push(`${percentageRate}% de comisión sobre flete`);
+      parts.push(`${percentageRate}% del flete`);
     } else if (calcType === "fixed_per_trip" && baseRate > 0) {
       parts.push(`Tarifa fija de ${formatMxCurrency(baseRate)} por viaje`);
     } else if (calcType === "fixed_daily_rate" && helperDailyRate > 0) {

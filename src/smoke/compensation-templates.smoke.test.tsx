@@ -960,7 +960,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(within(preview).getByText("Fernando Castillo")).toBeInTheDocument();
       expect(
         within(preview).getByText(
-          `Ya está asignado a ${TEMPLATE_NAME} versión 1 del ${formatDate("2026-09-01")} al ${formatDate("2026-10-06")}. Esa asignación empieza el mismo día o después que la nueva, así que no se puede cerrar antes de que empiece.`,
+          `Ya tiene una asignación en ${TEMPLATE_NAME} versión 1 del ${formatDate("2026-09-01")} al ${formatDate("2026-10-06")}. Esa asignación empieza el mismo día o después que la nueva, así que no se puede cerrar antes de que empiece.`,
         ),
       ).toBeInTheDocument();
       expect(within(preview).getByRole("button", { name: exitAction })).toBeInTheDocument();

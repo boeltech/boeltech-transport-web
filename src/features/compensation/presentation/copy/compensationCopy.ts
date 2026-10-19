@@ -652,16 +652,16 @@ export const compensationCopy = {
     openPeriod: (from: string) => `desde el ${from}, sin fecha de fin`,
     conflicts: {
       previousStartsCause: (template: string, period: string) =>
-        `Ya está asignado a ${template} ${period}. Esa asignación empieza el mismo día o después que la nueva, así que no se puede cerrar antes de que empiece.`,
+        `Ya tiene una asignación en ${template} ${period}. Esa asignación empieza el mismo día o después que la nueva, así que no se puede cerrar antes de que empiece.`,
       previousClosedAction: (nextFrom: string, newFrom: string, template: string) =>
-        `Para que cobre con esta versión al terminar esa asignación, asígnalo desde el ${nextFrom}. Si esta versión debe aplicar desde el ${newFrom}, primero desactiva su asignación en ${template}.`,
+        `Para que cobre con esta versión al terminar esa asignación, vuelve a asignar desde el ${nextFrom}. Si esta versión debe aplicar desde el ${newFrom}, primero desactiva su asignación en ${template}.`,
       previousOpenAction: (existingFrom: string, newFrom: string, template: string) =>
         `Elige un inicio posterior al ${existingFrom}: su asignación en ${template} se cerrará el día anterior. Si esta versión debe aplicar desde el ${newFrom}, primero desactiva esa asignación.`,
-      sameTemplateCause: (period: string) => `Ya está asignado a esta versión ${period}.`,
+      sameTemplateCause: (period: string) => `Ya tiene una asignación en esta versión ${period}.`,
       sameTemplateAction:
         "No hace falta asignarlo otra vez. Si quieres cambiar sus fechas, usa el menú ··· de su fila.",
       overlapCause: (template: string, period: string) =>
-        `Ya está asignado a ${template} ${period}, y esas fechas se cruzan con la nueva asignación.`,
+        `Ya tiene una asignación en ${template} ${period}, y esas fechas se cruzan con la nueva asignación.`,
       overlapCloseAction: (closeOn: string) =>
         `Marca “Cerrar asignación anterior al iniciar la nueva” para que se cierre el ${closeOn}, o cambia las fechas para que no se crucen.`,
       settledCause: "Tiene días ya liquidados.",

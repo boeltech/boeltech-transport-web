@@ -141,7 +141,7 @@ const mockPreview = {
       freightRevenue: 5000,
       calculatedCommission: 0,
       approvedReimbursableExpenses: 0,
-      appliedRule: "Cubierto por sueldo base",
+      appliedRule: "Sin pago por viaje",
       operationalOutcome: "false_trip",
       hasRevenueSplit: false,
       distanceBasis: "unavailable",
@@ -221,7 +221,7 @@ describe("SettlementCreatePage Component", () => {
     expect(screen.getByText("Tarifa de pago aplicada:")).toBeInTheDocument();
     expect(screen.getByText(/^Operador estándar — /)).toBeInTheDocument();
     expect(screen.getByText(/Sueldo base semanal de \$3,500\.00/i)).toBeInTheDocument();
-    expect(screen.getByText(/15% de comisión sobre flete/i)).toBeInTheDocument();
+    expect(screen.getByText(/15% del flete/i)).toBeInTheDocument();
 
     // Validar tabla de viajes (columnas compactas por defecto)
     expect(screen.getByText("Monterrey → CDMX")).toBeInTheDocument();
@@ -237,8 +237,8 @@ describe("SettlementCreatePage Component", () => {
     expect(tripLink).toHaveAttribute("href", "/trips/trip-1");
 
     await user.click(screen.getByRole("button", { name: /Ver detalle de cálculo/i }));
-    // Viaje Local matchea regla Local (cubierto por sueldo, comisión 0)
-    expect(screen.getByText("Cubierto por sueldo base")).toBeInTheDocument();
+    // Viaje Local matchea regla Local (none / $0) — chip «Sin pago por viaje»
+    expect(screen.getByText("Sin pago por viaje")).toBeInTheDocument();
 
     // Validar anticipos y acciones rápidas
     expect(screen.getByText("ANT-10")).toBeInTheDocument();
@@ -799,7 +799,7 @@ describe("SettlementCreatePage Component", () => {
       expect(within(list).queryByText("TRP-KM4")).not.toBeInTheDocument();
     });
 
-    it("local con flete en $0 no se marca «Cubierto por sueldo» y muestra su motivo", async () => {
+    it("local con flete en $0 no se marca «Sin pago por viaje» y muestra su motivo", async () => {
       const user = userEvent.setup();
       mockPreviewSettlement.mockResolvedValue({
         ...mockPreview,
@@ -809,7 +809,7 @@ describe("SettlementCreatePage Component", () => {
             routeType: "local",
             freightRevenue: 0,
             calculatedCommission: 0,
-            appliedRule: "15% sobre flete",
+            appliedRule: "15% del flete",
             requiresZeroFreightAck: true,
             calculationGap: "zero_freight",
             zeroCommissionReason: "zero_freight",
@@ -820,11 +820,11 @@ describe("SettlementCreatePage Component", () => {
 
       expect(await screen.findByText("Sin flete")).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: /Ver detalle de cálculo/i }));
-      expect(screen.queryByText("Cubierto por sueldo base")).not.toBeInTheDocument();
-      expect(screen.getByText("15% sobre flete")).toBeInTheDocument();
+      expect(screen.queryByText("Sin pago por viaje")).not.toBeInTheDocument();
+      expect(screen.getByText("15% del flete")).toBeInTheDocument();
     });
 
-    it("local con mínimo aplicado muestra «Mínimo garantizado», no «Cubierto por sueldo»", async () => {
+    it("local con mínimo aplicado muestra «Mínimo garantizado», no «Sin pago por viaje»", async () => {
       mockPreviewSettlement.mockResolvedValue({
         ...mockPreview,
         eligibleTrips: [
@@ -848,7 +848,7 @@ describe("SettlementCreatePage Component", () => {
       expect(screen.getAllByText("$300.00").length).toBeGreaterThanOrEqual(1);
     });
 
-    it("local con regla «Sin pago extra» (none) sigue «Cubierto por sueldo base»", async () => {
+    it("local con regla none muestra «Sin pago por viaje»", async () => {
       const user = userEvent.setup();
       mockPreviewSettlement.mockResolvedValue({
         ...mockPreview,
@@ -856,7 +856,7 @@ describe("SettlementCreatePage Component", () => {
           tripWithGap({
             routeType: "local",
             calculatedCommission: 0,
-            appliedRule: "Sin comisión (Sueldo base)",
+            appliedRule: "Sin pago por viaje",
             zeroCommissionReason: "scheme",
             commissionBeforeMinimum: 0,
             minimumGuaranteedAmount: 0,
@@ -870,7 +870,7 @@ describe("SettlementCreatePage Component", () => {
       await screen.findByText("VIA-100");
       expect(screen.queryByText("$0 por tarifa")).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: /Ver detalle de cálculo/i }));
-      expect(screen.getByText("Cubierto por sueldo base")).toBeInTheDocument();
+      expect(screen.getByText("Sin pago por viaje")).toBeInTheDocument();
     });
 
     it("insignia «Mínimo garantizado» con el cálculo y el mínimo en el title", async () => {
@@ -1028,7 +1028,7 @@ describe("SettlementCreatePage Component", () => {
       expect(screen.getByText(/^Operador foráneo( —|$)/)).toBeInTheDocument();
     });
 
-    const corridorBadge = screen.getByText("Corredor");
+    const corridorBadge = screen.getByText("Ruta fija");
     expect(corridorBadge).toBeInTheDocument();
     expect(corridorBadge).toHaveAttribute("title", expect.stringContaining("MTY-CDMX"));
     expect(corridorBadge).toHaveAttribute("title", expect.stringContaining("$4,500.00"));

@@ -87,6 +87,7 @@ describe("simulateCompensation", () => {
 
     expect(result.total).toBe(18_000 * 0.08);
     expect(result.items[0]?.amount).toBe(1440);
+    expect(result.items[0]?.label).toBe("8% del flete (foráneo)");
   });
 
   it("calculates fixed_per_trip correctly", () => {

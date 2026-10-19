@@ -184,12 +184,12 @@ describe("TemplateAssignmentBatchSheet", () => {
     expect(within(preview).getByText("Fernando Ruiz")).toBeInTheDocument();
     expect(
       within(preview).getByText(
-        `Ya está asignado a Foráneo versión 1 del ${formatDate("2026-09-01")} al ${formatDate("2026-09-30")}. Esa asignación empieza el mismo día o después que la nueva, así que no se puede cerrar antes de que empiece.`,
+        `Ya tiene una asignación en Foráneo versión 1 del ${formatDate("2026-09-01")} al ${formatDate("2026-09-30")}. Esa asignación empieza el mismo día o después que la nueva, así que no se puede cerrar antes de que empiece.`,
       ),
     ).toBeInTheDocument();
     expect(
       within(preview).getByText(
-        `Para que cobre con esta versión al terminar esa asignación, asígnalo desde el ${formatDate("2026-10-01")}. Si esta versión debe aplicar desde el ${formatDate("2026-09-01")}, primero desactiva su asignación en Foráneo versión 1.`,
+        `Para que cobre con esta versión al terminar esa asignación, vuelve a asignar desde el ${formatDate("2026-10-01")}. Si esta versión debe aplicar desde el ${formatDate("2026-09-01")}, primero desactiva su asignación en Foráneo versión 1.`,
       ),
     ).toBeInTheDocument();
     expect(

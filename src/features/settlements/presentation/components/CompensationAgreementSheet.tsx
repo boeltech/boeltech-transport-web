@@ -371,7 +371,7 @@ export function CompensationAgreementSheet({
       const ruleSummaries = rules.map((r) => {
         const route = TRIP_ROUTE_TYPE_LABELS[r.routeType as TripRouteType] ?? r.routeType;
         if (r.commissionType === "none") {
-          return `${route}: sin comisión extra (cubierto por sueldo)`;
+          return `${route}: sin pago por viaje`;
         }
         if (r.commissionType === "rate_per_km") {
           const minNote =
@@ -381,7 +381,7 @@ export function CompensationAgreementSheet({
           return `${route}: ${formatMxCurrency(r.rateValue)}/km${minNote}`;
         }
         if (r.commissionType === "percentage_of_freight") {
-          return `${route}: ${r.rateValue}% flete`;
+          return `${route}: ${r.rateValue}% del flete`;
         }
         if (r.commissionType === "fixed_per_trip") {
           return `${route}: ${formatMxCurrency(r.rateValue)}/viaje`;
