@@ -11,6 +11,7 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { X } from "lucide-react";
 
+import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@/shared/ui/button";
 import { BrandLockup, BRAND } from "@/shared/ui/brand";
 import { ScrollArea } from "@/shared/ui/scroll-area";
@@ -25,7 +26,12 @@ import { useNavigationWithBadges } from "../model/useNavigationWithBadges";
 import type { NavItem } from "../model/types";
 import { NavActiveRail } from "./NavActiveRail";
 import { NavBadge } from "./NavBadge";
-import { navGroupLabelClassName, navItemClassName } from "./navItemStyles";
+import {
+  navGroupLabelClassName,
+  navItemClassName,
+  sidebarChromeButtonClassName,
+  sidebarFocusRingClassName,
+} from "./navItemStyles";
 
 // ============================================
 // MAIN COMPONENT
@@ -68,7 +74,10 @@ export const MobileSidebar = memo(function MobileSidebar() {
         <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
           <Link
             to="/dashboard"
-            className="flex items-center overflow-hidden rounded-md text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            className={cn(
+              "flex items-center overflow-hidden rounded-md text-sidebar-foreground",
+              sidebarFocusRingClassName,
+            )}
             onClick={handleNavClick}
             aria-label={`Ir al dashboard de ${BRAND.productName}`}
           >
@@ -83,7 +92,7 @@ export const MobileSidebar = memo(function MobileSidebar() {
             ref={closeButtonRef}
             variant="ghost"
             size="icon"
-            className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className={sidebarChromeButtonClassName()}
             onClick={closeMobile}
           >
             <X className="h-5 w-5" />

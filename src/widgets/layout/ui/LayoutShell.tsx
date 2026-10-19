@@ -19,6 +19,7 @@ import {
   MobileSidebar,
   Sidebar,
   SIDEBAR_COLLAPSED_WIDTH_PX,
+  SIDEBAR_LAYOUT_TRANSITION_CLASS,
   SIDEBAR_MAIN_OFFSET_CLASS,
   SIDEBAR_MAIN_OFFSET_COLLAPSED_CLASS,
   SIDEBAR_WIDTH_PX,
@@ -56,8 +57,8 @@ export function LayoutShell() {
             ========================================== */}
         <aside
           className={cn(
-            "fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out",
-            "hidden lg:block",
+            "fixed left-0 top-0 z-40 h-screen hidden lg:block",
+            SIDEBAR_LAYOUT_TRANSITION_CLASS,
           )}
           style={{
             width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_PX : SIDEBAR_WIDTH_PX,
@@ -82,12 +83,13 @@ export function LayoutShell() {
             ========================================== */}
         <main
           id="contenido"
-          className={cn("min-h-screen transition-all duration-300 ease-in-out")}
+          className="min-h-screen"
           tabIndex={-1}
         >
           <div
             className={cn(
-              "min-h-screen transition-all duration-300 ease-in-out",
+              "min-h-screen",
+              SIDEBAR_LAYOUT_TRANSITION_CLASS,
               isCollapsed
                 ? SIDEBAR_MAIN_OFFSET_COLLAPSED_CLASS
                 : SIDEBAR_MAIN_OFFSET_CLASS,

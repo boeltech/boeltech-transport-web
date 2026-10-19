@@ -40,6 +40,7 @@ import { getUserFullName, getUserInitials } from "@/shared/lib/userHelpers";
 import {
   SIDEBAR_HEADER_LEFT_CLASS,
   SIDEBAR_HEADER_LEFT_COLLAPSED_CLASS,
+  SIDEBAR_LAYOUT_TRANSITION_CLASS,
 } from "@widgets/sidebar";
 import { headerCopy } from "../copy/headerCopy";
 import { GlobalCommandMenu } from "./GlobalCommandMenu";
@@ -79,8 +80,8 @@ export const Header = memo(function Header({ className }: HeaderProps) {
       className={cn(
         "fixed top-0 right-0 z-30 flex h-14 items-center justify-between border-b border-border",
         "bg-background",
-        "px-4 transition-all duration-300 ease-in-out",
-        "left-0",
+        "px-4 left-0",
+        SIDEBAR_LAYOUT_TRANSITION_CLASS,
         SIDEBAR_HEADER_LEFT_CLASS,
         isCollapsed && SIDEBAR_HEADER_LEFT_COLLAPSED_CLASS,
         className,

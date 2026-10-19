@@ -30,14 +30,17 @@ import {
 
 import { useSidebar } from "@/app/providers/SidebarProvider";
 import { useNavigationWithBadges } from "../model/useNavigationWithBadges";
-import {
-  SIDEBAR_COLLAPSED_WIDTH_CLASS,
-  SIDEBAR_WIDTH_CLASS,
-} from "../model/sidebarLayout";
+import { SIDEBAR_LABEL_FADE_CLASS } from "../model/sidebarLayout";
 import type { NavGroup, NavItem } from "../model/types";
 import { NavActiveRail } from "./NavActiveRail";
 import { NavBadge } from "./NavBadge";
-import { navGroupLabelClassName, navItemClassName } from "./navItemStyles";
+import {
+  navGroupLabelClassName,
+  navItemClassName,
+  navLabelVisibilityClassName,
+  sidebarChromeButtonClassName,
+  sidebarFocusRingClassName,
+} from "./navItemStyles";
 
 // ============================================
 // MAIN COMPONENT
@@ -49,12 +52,7 @@ export const Sidebar = memo(function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div
-        className={cn(
-          "flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300",
-          isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_WIDTH_CLASS,
-        )}
-      >
+      <div className="flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         {/* Brand row + collapse/expand — always at top (never footer) */}
         <div className="flex h-14 items-center border-b border-sidebar-border px-3">
           <div
@@ -65,7 +63,10 @@ export const Sidebar = memo(function Sidebar() {
           >
             <Link
               to="/dashboard"
-              className="flex items-center overflow-hidden rounded-md text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+              className={cn(
+                "flex items-center overflow-hidden rounded-md text-sidebar-foreground",
+                sidebarFocusRingClassName,
+              )}
               aria-label={`Ir al dashboard de ${BRAND.productName}`}
             >
               <BrandLockup
@@ -80,7 +81,7 @@ export const Sidebar = memo(function Sidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 shrink-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className={sidebarChromeButtonClassName()}
                 onClick={toggle}
                 aria-label="Colapsar menú"
               >
@@ -97,7 +98,7 @@ export const Sidebar = memo(function Sidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8 shrink-0 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  className={sidebarChromeButtonClassName()}
                   onClick={toggle}
                   aria-label="Expandir menú"
                 >
@@ -143,12 +144,31 @@ const NavGroupComponent = memo(function NavGroupComponent({
 }: NavGroupComponentProps) {
   return (
     <div className="mb-3">
-      {group.title && !isCollapsed && (
-        <h3 className={navGroupLabelClassName()}>{group.title}</h3>
-      )}
-
-      {group.title && isCollapsed && (
-        <div className="mx-2 mb-2 border-t border-sidebar-border" />
+      {group.title && (
+        <div className="relative mb-2 min-h-px">
+          <h3
+            className={cn(
+              navGroupLabelClassName("mb-0"),
+              SIDEBAR_LABEL_FADE_CLASS,
+              isCollapsed
+                ? "pointer-events-none absolute inset-x-0 opacity-0"
+                : "opacity-100",
+            )}
+            aria-hidden={isCollapsed || undefined}
+          >
+            {group.title}
+          </h3>
+          <div
+            className={cn(
+              "mx-2 border-t border-sidebar-border",
+              SIDEBAR_LABEL_FADE_CLASS,
+              isCollapsed
+                ? "opacity-100"
+                : "pointer-events-none absolute inset-x-0 opacity-0",
+            )}
+            aria-hidden
+          />
+        </div>
       )}
 
       <div className="space-y-0.5">
@@ -202,11 +222,19 @@ const NavItemLink = memo(function NavItemLink({
           <NavBadge value={item.badge!} collapsed />
         )}
       </span>
-      {!isCollapsed && (
-        <>
-          <span className="flex-1 truncate">{item.label}</span>
-          {item.badge !== undefined && <NavBadge value={item.badge} />}
-        </>
+      <span
+        className={cn("flex-1 truncate", navLabelVisibilityClassName(!isCollapsed))}
+        aria-hidden={isCollapsed || undefined}
+      >
+        {item.label}
+      </span>
+      {item.badge !== undefined && (
+        <span
+          className={navLabelVisibilityClassName(!isCollapsed)}
+          aria-hidden={isCollapsed || undefined}
+        >
+          <NavBadge value={item.badge} />
+        </span>
       )}
     </Link>
   );
