@@ -69,6 +69,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "operational_cash.void",
       "fiscal_policy.read",
 
+      // GPS monitoreo — lockstep API gps_tracking
+      "gps_tracking.read",
+      "gps_tracking.execute",
+
       // Vehículos - Control total
       "vehicles.read",
       "vehicles.create",
@@ -331,6 +335,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Gobierno Sin factura — pedir y registrar abono; no anular ni aprobar
       "trips_settlement.request",
       "operational_cash.create",
+
+      // GPS monitoreo — lockstep API gps_tracking (mapa; sin execute)
+      "gps_tracking.read",
 
       // Vehículos - Lectura y disponibilidad
       "vehicles.read",

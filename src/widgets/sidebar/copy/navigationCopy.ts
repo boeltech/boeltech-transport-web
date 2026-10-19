@@ -5,6 +5,7 @@
 export const navigationCopy = {
   group: {
     operations: "Operación",
+    monitoring: "Monitoreo",
     fleet: "Flota",
     commercial: "Comercial",
     billing: "Facturación",
@@ -19,6 +20,7 @@ export const navigationCopy = {
   item: {
     dashboard: "Inicio",
     trips: "Viajes",
+    fleetMap: "Mapa de flota",
     branches: "Sucursales",
     vehicles: "Vehículos",
     trailers: "Remolques",

@@ -26,6 +26,7 @@ import {
   Container,
   Users,
   Route,
+  MapPin,
   FileText,
   FileClock,
   FileBarChart,
@@ -48,6 +49,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
+import { FLEET_MAP_PATH } from "@features/monitoring/domain";
 import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
 
@@ -86,6 +88,19 @@ export const navigationConfig: NavGroup[] = [
         path: "/trips",
         icon: Route,
         module: "trips",
+      },
+    ],
+  },
+  {
+    id: "monitoring",
+    title: copy.group.monitoring,
+    items: [
+      {
+        id: "fleet-map",
+        label: copy.item.fleetMap,
+        path: FLEET_MAP_PATH,
+        icon: MapPin,
+        module: "gps_tracking",
       },
     ],
   },

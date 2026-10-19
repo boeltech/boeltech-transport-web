@@ -175,6 +175,13 @@ const FleetDocumentsListPage = lazyWithRetry(() =>
   })),
 );
 
+// GPS monitoreo — mapa de flota (add-on gps_tracking)
+const FleetMapPage = lazyWithRetry(() =>
+  import("@features/monitoring/presentation/pages/FleetMapPage").then((m) => ({
+    default: m.FleetMapPage,
+  })),
+);
+
 // Trailers (ADR-0077)
 const TrailerListPage = lazyWithRetry(() =>
   import("@features/trailers").then((m) => ({
@@ -745,6 +752,19 @@ export const router = createBrowserRouter([
               {
                 path: "/trips/new",
                 element: withSuspense(TripCanvasPage),
+              },
+            ],
+          },
+
+          // ========================================
+          // Módulo: Monitoreo GPS (mapa de flota)
+          // ========================================
+          {
+            element: <ModuleRoute module="gps_tracking" />,
+            children: [
+              {
+                path: "/monitoring/fleet",
+                element: withSuspense(FleetMapPage),
               },
             ],
           },

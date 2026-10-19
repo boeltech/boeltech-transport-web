@@ -7,6 +7,7 @@ import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import type { Vehicle } from "../../domain";
 import { vehiclesCopy } from "../copy";
 import { useVehicleCatalogLabels } from "../hooks/useVehicleCatalogLabels";
+import { GpsDeviceCard } from "@features/monitoring/presentation";
 import { VehicleOperationalExpenseCard } from "./VehicleOperationalExpenseCard";
 
 const copy = vehiclesCopy.detail;
@@ -138,6 +139,13 @@ export function VehicleDetailUnitTab({ vehicle }: VehicleDetailUnitTabProps) {
           </CardContent>
         </Card>
       </DetailSection>
+
+      <GpsDeviceCard
+        vehicleId={vehicle.id}
+        unitNumber={vehicle.unitNumber}
+        brand={vehicle.brand}
+        model={vehicle.model}
+      />
 
       <VehicleOperationalExpenseCard vehicleId={vehicle.id} />
 

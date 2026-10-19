@@ -54,13 +54,14 @@ describe("navigationCopy", () => {
 });
 
 describe("navigationConfig", () => {
-  it("shows the eight group headers in semantic order", () => {
+  it("shows the group headers in semantic order", () => {
     const groupTitles = navigationConfig
       .map((group) => group.title)
       .filter((title) => title !== "");
 
     expect(groupTitles).toEqual([
       "Operación",
+      "Monitoreo",
       "Flota",
       "Comercial",
       "Facturación",
@@ -69,6 +70,13 @@ describe("navigationConfig", () => {
       "Finanzas",
       "Administración",
     ]);
+  });
+
+  it("places fleet map under Monitoreo with MapPin path", () => {
+    const monitoring = navigationConfig.find((g) => g.id === "monitoring");
+    expect(monitoring?.items.map((i) => i.id)).toEqual(["fleet-map"]);
+    expect(monitoring?.items[0]?.path).toBe("/monitoring/fleet");
+    expect(monitoring?.items[0]?.module).toBe("gps_tracking");
   });
 
   it("does not advertise screens that are not built", () => {
