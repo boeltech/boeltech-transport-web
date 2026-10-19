@@ -43,6 +43,11 @@ export interface TripFilters {
   readonly invoiceableBucket?: "ready" | "proration_pending" | "blocked";
   /** Filtro por sucursal de origen (`origin_branch_id`); `unassigned` = NULL. */
   readonly originBranchId?: string | "unassigned";
+  /**
+   * Día operativo CDMX (`ops_day` API). Anula status / date_from / date_to.
+   * URL web: `?opsDay=YYYY-MM-DD`.
+   */
+  readonly opsDay?: string;
 }
 
 /**

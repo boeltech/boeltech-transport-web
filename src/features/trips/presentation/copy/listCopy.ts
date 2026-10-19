@@ -83,6 +83,7 @@ export const tripsListCopy = {
 
   chip: {
     overdue: "Con retraso",
+    opsDay: "Viajes de hoy",
     fiscalAttention: "Solo con atención",
     invoice: (label: string) => `Factura: ${label}`,
     date: (range: string) => `Fecha: ${range}`,

@@ -3,6 +3,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
 import { TripStatus, tripQueryKeys, type Trip } from "@features/trips/domain";
 import { tripRepository, trackingRepository } from "@features/trips/infrastructure";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
@@ -59,6 +60,7 @@ export function useStartTrip(
       });
       await invalidateTripAssignmentResources(queryClient);
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      invalidateDashboardLiveQueries(queryClient);
       options?.onSuccess?.(trip, variables, onMutateResult, context);
     },
   });

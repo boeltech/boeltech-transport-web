@@ -3,6 +3,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
 import {
   tripQueryKeys,
   type CreateTrackingEventInput,
@@ -67,6 +68,8 @@ export function useRegisterTrackingEvent(
       await refetchTripTrackingViews(queryClient, variables.tripId, patch);
       await invalidateTripAssignmentResources(queryClient);
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      // Tracking puede pasar a in_progress / completed — refresca Viajes de hoy.
+      invalidateDashboardLiveQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {

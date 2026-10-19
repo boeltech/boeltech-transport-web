@@ -267,14 +267,20 @@ export class TripRepository implements ITripRepository {
         dateFrom,
         dateTo,
         search,
+        opsDay,
       } = params.filters;
 
-      if (status) query.status = Array.isArray(status) ? status : [status];
+      // ops_day anula status / date_from / date_to en el API — no enviarlos.
+      if (opsDay) {
+        query.ops_day = opsDay;
+      } else {
+        if (status) query.status = Array.isArray(status) ? status : [status];
+        if (dateFrom) query.date_from = dateFrom;
+        if (dateTo) query.date_to = dateTo;
+      }
       if (clientId) query.client_id = clientId;
       if (driverId) query.driver_id = driverId;
       if (vehicleId) query.vehicle_id = vehicleId;
-      if (dateFrom) query.date_from = dateFrom;
-      if (dateTo) query.date_to = dateTo;
       if (search) query.search = search;
       if (params.filters.requiresFiscalAttention === true) {
         query.requires_fiscal_attention = true;

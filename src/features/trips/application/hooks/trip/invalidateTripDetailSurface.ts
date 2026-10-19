@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 
+import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
 import {
   TripStatus,
   tripQueryKeys,
@@ -18,6 +19,7 @@ function statusNeedsTrackingTimeline(
  * Invalidación del surface del detalle de viaje tras mutaciones de lifecycle.
  * Purga timeline cacheado cuando el status ya no necesita contexto de tracking
  * (evita que data disabled envenene chrome/ruta).
+ * También refresca `/dashboard` (Viajes de hoy, viajes en ruta, alertas).
  */
 export async function invalidateTripDetailSurface(
   queryClient: QueryClient,
@@ -45,4 +47,5 @@ export async function invalidateTripDetailSurface(
   }
 
   await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+  invalidateDashboardLiveQueries(queryClient);
 }

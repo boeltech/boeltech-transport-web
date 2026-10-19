@@ -156,6 +156,8 @@ export function TripsListPage() {
           // Mutuamente excluyente con cola de atención fiscal (count global)
           params.delete("fiscalAttention");
         }
+        // ops_day anula status — quitar al elegir bucket
+        params.delete("opsDay");
         params.set("page", "1");
         return params;
       });
@@ -170,6 +172,7 @@ export function TripsListPage() {
         if (attentionOnly) {
           params.set("fiscalAttention", "1");
           params.delete("status");
+          params.delete("opsDay");
         } else {
           params.delete("fiscalAttention");
         }
@@ -257,6 +260,10 @@ export function TripsListPage() {
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
   const overdueOnly = searchParams.get("overdue") === "1";
+  const opsDayParam = searchParams.get("opsDay")?.trim() || "";
+  const opsDayFilter = /^\d{4}-\d{2}-\d{2}$/.test(opsDayParam)
+    ? opsDayParam
+    : undefined;
   const invoiceStatusFilter = parseTripInvoiceStatusFilter(
     searchParams.get("invoiceStatus"),
   );
@@ -266,10 +273,11 @@ export function TripsListPage() {
       ? ("unassigned" as const)
       : originBranchIdParam || undefined;
 
-  // Derive the status filter from the active bucket
-  const statusFilter: TripStatusType | undefined = activeBucket
-    ? BUCKET_TO_STATUS[activeBucket]
-    : undefined;
+  // Derive the status filter from the active bucket (ignored when opsDay)
+  const statusFilter: TripStatusType | undefined =
+    !opsDayFilter && activeBucket
+      ? BUCKET_TO_STATUS[activeBucket]
+      : undefined;
 
   const { data, isLoading, isFetching, refetch } = useTrips({
     page: filters.page,
@@ -277,8 +285,9 @@ export function TripsListPage() {
     filters: {
       status: statusFilter || undefined,
       search: filters.search || undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
+      dateFrom: opsDayFilter ? undefined : dateFrom || undefined,
+      dateTo: opsDayFilter ? undefined : dateTo || undefined,
+      opsDay: opsDayFilter,
       requiresFiscalAttention: fiscalAttentionOnly ? true : undefined,
       invoiceStatus: invoiceStatusFilter,
       overdueOnly: overdueOnly ? true : undefined,
@@ -334,7 +343,8 @@ export function TripsListPage() {
   // ── Derived state ──────────────────────────────────────────────
   const trips = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.pagination;
-  const hasDateFilter = !!dateFrom || !!dateTo;
+  const hasDateFilter = !opsDayFilter && (!!dateFrom || !!dateTo);
+  const hasOpsDayFilter = Boolean(opsDayFilter);
   const hasInvoiceFilter = !!invoiceStatusFilter;
   const hasOverdueFilter = overdueOnly;
   const hasOriginBranchFilter = Boolean(originBranchFilter);
@@ -347,6 +357,7 @@ export function TripsListPage() {
   const hasFilters =
     Boolean(filters.search.trim()) ||
     hasDateFilter ||
+    hasOpsDayFilter ||
     hasInvoiceFilter ||
     hasOverdueFilter ||
     hasOriginBranchFilter;
@@ -401,6 +412,7 @@ export function TripsListPage() {
         else params.delete("dateFrom");
         if (to) params.set("dateTo", to);
         else params.delete("dateTo");
+        params.delete("opsDay");
         params.set("page", "1");
         return params;
       });
@@ -413,6 +425,15 @@ export function TripsListPage() {
       const params = new URLSearchParams(prev);
       params.delete("dateFrom");
       params.delete("dateTo");
+      params.set("page", "1");
+      return params;
+    });
+  }, [setSearchParams]);
+
+  const handleClearOpsDay = useCallback(() => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("opsDay");
       params.set("page", "1");
       return params;
     });
@@ -486,6 +507,15 @@ export function TripsListPage() {
 
   // ── Active filter chips ────────────────────────────────────────
   const activeFilterChips: ActiveFilterChip[] = [
+    ...(hasOpsDayFilter
+      ? [
+          {
+            id: "ops-day",
+            label: copy.chip.opsDay,
+            onRemove: handleClearOpsDay,
+          },
+        ]
+      : []),
     ...(invoiceStatusFilter
       ? [
           {

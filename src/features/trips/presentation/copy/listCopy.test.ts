@@ -7,6 +7,7 @@ describe("tripsListCopy", () => {
     expect(tripsListCopy.actions.create).toBe("Reservar viaje");
     expect(tripsListCopy.actions.viewDrafts).toBe("Ver reservas");
     expect(tripsListCopy.filter.overdue).toBe("Con retraso");
+    expect(tripsListCopy.chip.opsDay).toBe("Viajes de hoy");
     expect(tripsListCopy.filter.showFilters).toBe("Filtros");
     expect(tripsListCopy.filter.originBranchLabel).toBe("Sucursal origen");
     expect(tripsListCopy.filter.fiscalLabel).toBe("Atención de factura");

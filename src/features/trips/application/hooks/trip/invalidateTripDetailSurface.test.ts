@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 
+import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
 import { TripStatus, tripQueryKeys } from "@features/trips/domain";
 
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
@@ -90,6 +91,21 @@ describe("invalidateTripDetailSurface", () => {
     expect(
       queryClient.getQueryState(tripQueryKeys.revenueSplit(tripId))
         ?.isInvalidated,
+    ).toBe(true);
+  });
+
+  it("invalidates dashboard live queries (Viajes de hoy / en ruta)", async () => {
+    const tripId = "trip-6";
+    queryClient.setQueryData(dashboardQueryKeys.all, {
+      tripsToday: [],
+    });
+
+    await invalidateTripDetailSurface(queryClient, tripId, {
+      status: TripStatus.IN_PROGRESS,
+    });
+
+    expect(
+      queryClient.getQueryState(dashboardQueryKeys.all)?.isInvalidated,
     ).toBe(true);
   });
 });
