@@ -43,6 +43,7 @@ import {
 import { useTerminateEmployee } from "../../application/hooks/useEmployees";
 import type { EmployeeListItem, TerminateEmployeeDTO } from "../../domain/entities";
 import { employeesCopy } from "../copy/employeesCopy";
+import { getDefaultTerminationDate } from "../utils/defaultTerminationDate";
 
 const actionsCopy = employeesCopy.detail.actions;
 
@@ -92,9 +93,7 @@ export function EmployeeActions({
 
   const [terminateDialog, setTerminateDialog] = useState(false);
   const [terminateError, setTerminateError] = useState<string | null>(null);
-  const [terminationDate, setTerminationDate] = useState(
-    () => new Date().toISOString().split("T")[0],
-  );
+  const [terminationDate, setTerminationDate] = useState(getDefaultTerminationDate);
   const [terminationReason, setTerminationReason] = useState("");
 
   const terminateMutation = useTerminateEmployee();
@@ -109,6 +108,7 @@ export function EmployeeActions({
 
   const openTerminateDialog = () => {
     setTerminateError(null);
+    setTerminationDate(getDefaultTerminationDate());
     setTerminateDialog(true);
   };
 
