@@ -350,11 +350,8 @@ export function TripDetailCargoTab({
     });
   };
 
-  const handleCargoSubmit = async (
-    values: TripCargoFormValues,
-    _editingIndex: number | null,
-    _options?: { keepOpen?: boolean },
-  ) => {
+  // Sheet cierra / keepOpen; editingIndex no aplica en detalle (estado vía editingCargoId).
+  const handleCargoSubmit = async (values: TripCargoFormValues) => {
     if (editingCargoId) {
       try {
         const originalPickup = resolvePickupStopForCargo(editingCargo);

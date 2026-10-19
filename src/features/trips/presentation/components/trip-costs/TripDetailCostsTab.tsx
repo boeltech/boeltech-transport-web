@@ -728,11 +728,13 @@ export function TripDetailCostsTab({
     }
   };
 
+  // Sheet pasa editingIndex (wizard); el detalle usa editingExpenseId.
   const handleSubmitFromSheet = async (
     values: TripExpenseFormValues,
     _editingIndex: number | null,
     options?: { keepOpen?: boolean },
   ) => {
+    void _editingIndex;
     try {
       if (editingExpenseId) {
         await updateExpense.mutateAsync({

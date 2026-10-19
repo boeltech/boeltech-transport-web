@@ -204,6 +204,7 @@ export function mapStopToReplaceStopInput(
   edited?: TripStopOperationalValues,
 ): CreateStopInput {
   const mapped = mapStopToCreateStopInput(source, edited);
-  const { addressId: _omit, ...rest } = mapped;
+  const { addressId, ...rest } = mapped;
+  void addressId;
   return rest;
 }

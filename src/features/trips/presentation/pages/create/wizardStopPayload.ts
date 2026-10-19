@@ -57,9 +57,7 @@ export function buildTripEndpointSummary(stop: WizardStopRow): {
     if (stop.interiorNumber?.trim()) {
       streetLine += `, Int. ${stop.interiorNumber.trim()}`;
     }
-    partsPushIfValid: {
-      addressParts.push(streetLine);
-    }
+    addressParts.push(streetLine);
   }
 
   if (stop.postalCode?.trim()) {
