@@ -120,11 +120,11 @@ export const PAC_PROVIDER_LABELS: Record<PacProvider, string> = {
 
 /**
  * PACs que autentican mediante credenciales por tenant (usuario + contraseña).
- * ProFact y Stub usan configuración a nivel servidor (variables de entorno).
+ * ProFact, Finkok y Stub usan configuración a nivel plataforma (variables de entorno).
  */
 export const PAC_USES_CREDENTIALS: Record<PacProvider, boolean> = {
   [PacProviders.PROFACT]: false,
-  [PacProviders.FINKOK]: true,
+  [PacProviders.FINKOK]: false,
   [PacProviders.SW_SAPIEN]: true,
   [PacProviders.DIGISAT]: true,
   [PacProviders.FACTURAPI]: true,
@@ -132,11 +132,12 @@ export const PAC_USES_CREDENTIALS: Record<PacProvider, boolean> = {
 };
 
 /**
- * PACs con adapter implementado en API. Ampliar al habilitar Finkok, SW Sapien, etc.
- * Mientras solo haya uno, la UI deja ProFact fijo y deshabilita el selector.
+ * PACs con adapter implementado en API. Ampliar al habilitar SW Sapien, etc.
+ * La UI no pide user/pass por tenant para los de plataforma (ver PAC_USES_CREDENTIALS).
  */
 export const SELECTABLE_PAC_PROVIDERS: readonly PacProvider[] = [
   PacProviders.PROFACT,
+  PacProviders.FINKOK,
 ];
 
 export function resolveSelectablePacProvider(

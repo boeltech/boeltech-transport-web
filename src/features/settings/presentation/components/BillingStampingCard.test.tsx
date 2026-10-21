@@ -42,6 +42,12 @@ describe("BillingStampingCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("muestra el nombre amigable de Finkok cuando es el timbrador configurado", () => {
+    renderCard({ provider: PacProviders.FINKOK });
+
+    expect(screen.getByText("Finkok")).toBeInTheDocument();
+  });
+
   it("muestra el ambiente que reporta la comprobación", () => {
     renderCard({
       connectionResult: {
