@@ -427,7 +427,10 @@ export const invoicingCopy = {
       repPdfError: "Error al generar el PDF del comprobante de pago",
       copied: "Copiado al portapapeles",
       copyFailed: "No se pudo copiar",
-      paymentRegistered:
+      /** PUE u otro cobro sin REP (`rep_status: not_required`). */
+      paymentRegistered: "Pago registrado",
+      /** PPD: el job sellará el complemento de recepción de pagos. */
+      paymentRegisteredRepQueued:
         "Pago registrado. El comprobante de pago se sellará en segundo plano.",
       repRetrySuccess: "Sello del comprobante de pago reencolado",
       repRetryError: "No se pudo reencolar el sello del comprobante de pago",
@@ -524,7 +527,8 @@ export const invoicingCopy = {
       /** Banner ATF cuando status = cancellation_pending. */
       cancellationPendingBannerTitle: "Esperando al receptor",
       cancellationPendingBannerBody:
-        "La solicitud de cancelación ya se envió. Espera la aceptación del receptor. No asumas que la factura quedó cancelada ante el SAT.",
+        "La solicitud de cancelación ya se envió. Espera la aceptación del receptor. No asumas que la factura quedó cancelada ante el SAT. Si el portal del PAC ya la marca cancelada, actualiza el estado aquí.",
+      cancellationPendingBannerCta: "Actualizar estado",
       pueSettled:
         "PUE: liquidación fiscal al emitir; el cobro se registra aparte",
       pueSettledTitle: "PUE — método de pago fiscal",

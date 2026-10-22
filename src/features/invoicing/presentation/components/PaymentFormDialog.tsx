@@ -35,6 +35,7 @@ import {
   getInvoiceDisplayAmounts,
   type CreatePaymentPayload,
   type Invoice,
+  type Payment,
 } from "@features/invoicing/domain";
 import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
 import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -136,8 +137,14 @@ function PaymentFormDialogInner({ invoice, onOpenChange }: Omit<Props, "open">) 
     mode: "onChange",
   });
 
-  const submitSuccess = () => {
-    toast({ title: copy.toast.paymentRegistered });
+  const submitSuccess = (payment: Payment) => {
+    const queuesRep =
+      isPpd && payment.repStatus !== "not_required";
+    toast({
+      title: queuesRep
+        ? copy.toast.paymentRegisteredRepQueued
+        : copy.toast.paymentRegistered,
+    });
     form.reset();
     setChainRepairOpen(false);
     setPendingPayload(null);

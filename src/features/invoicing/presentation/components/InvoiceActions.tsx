@@ -330,13 +330,13 @@ export function InvoiceActions({
     (canShowSubstitute || showBlockedSubstitute);
 
   const canShowCancel =
-    isStamped &&
+    isStampedLike &&
     canExecute &&
     canAdminManagerFiscal &&
     isCancelEligible;
 
   const showBlockedCancel =
-    isStamped &&
+    isStampedLike &&
     canExecute &&
     canAdminManagerFiscal &&
     Boolean(fullInvoice) &&
@@ -350,7 +350,7 @@ export function InvoiceActions({
     (canShowCancel || showBlockedCancel);
 
   const canShowResumeCancel =
-    isStamped &&
+    isStampedLike &&
     canExecute &&
     canAdminManagerFiscal &&
     hasActiveReplacement &&

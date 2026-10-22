@@ -146,12 +146,15 @@ export function InvoiceDetailPage() {
   );
 
   /**
-   * (B) Sustitución parcial — A-54: stamped + hijo activo.
+   * (B) Sustitución parcial — A-54: original aún vigente (stamped o
+   * cancellation_pending) + hijo activo. El pending_receiver también debe
+   * ofrecer «Reintentar cancelación» para sincronizar con el PAC/SAT.
    * Precedencia PRD D2 sobre mid-trip flota.
    */
   const showSubstitutionCancelPendingOriginal =
     !isClientPortal &&
-    invoice?.status === "stamped" &&
+    (invoice?.status === "stamped" ||
+      invoice?.status === "cancellation_pending") &&
     invoice.activeReplacement != null;
 
   /**
@@ -410,8 +413,11 @@ export function InvoiceDetailPage() {
   const showClientDraftAlert =
     isClientPortal && invoice.status === "draft";
 
+  /** Generic pending banner; substitution path has its own alert + resume CTA. */
   const showCancellationPendingBanner =
-    !isClientPortal && invoice.status === "cancellation_pending";
+    !isClientPortal &&
+    invoice.status === "cancellation_pending" &&
+    !showSubstitutionCancelPendingOriginal;
 
   const genericReceiverMismatch =
     !isClientPortal && invoice.status === "draft"
@@ -476,6 +482,18 @@ export function InvoiceDetailPage() {
           severity="warning"
           icon={<Clock className="h-5 w-5" />}
           title={copy.hint.cancellationPendingBannerTitle}
+          action={
+            canAdminManagerFiscal ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenCancelRequestKey((key) => key + 1)}
+              >
+                {copy.hint.cancellationPendingBannerCta}
+              </Button>
+            ) : null
+          }
         >
           <p>{copy.hint.cancellationPendingBannerBody}</p>
         </DetailAlertCard>

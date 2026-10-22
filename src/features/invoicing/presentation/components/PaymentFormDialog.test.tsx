@@ -4,23 +4,40 @@ import userEvent from "@testing-library/user-event";
 import type { Invoice } from "@features/invoicing/domain";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import { invoicingCopy } from "../copy/invoicingCopy";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 
 const mutateMock = vi.fn();
+const toastMock = vi.fn();
 let registerPaymentOnError: ((err: Error) => void) | undefined;
+let registerPaymentOnSuccess:
+  | ((payment: { repStatus: string }) => void)
+  | undefined;
 
 vi.mock("@features/invoicing/application", () => ({
   useRegisterPayment: (
     _invoiceId: string,
-    options?: { onError?: (err: Error) => void },
+    options?: {
+      onError?: (err: Error) => void;
+      onSuccess?: (payment: { repStatus: string }) => void;
+    },
   ) => {
     registerPaymentOnError = options?.onError;
+    registerPaymentOnSuccess = options?.onSuccess;
     return {
       mutate: mutateMock,
       isPending: false,
     };
   },
 }));
+
+vi.mock("@shared/hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/hooks")>();
+  return {
+    ...actual,
+    useToast: () => ({ toast: toastMock }),
+  };
+});
 
 vi.mock("@features/catalogs/presentation/components", () => ({
   FormaPagoSelect: ({
@@ -112,6 +129,45 @@ describe("PaymentFormDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     registerPaymentOnError = undefined;
+    registerPaymentOnSuccess = undefined;
+  });
+
+  it("toasts without REP queue copy for PUE (not_required)", () => {
+    renderDialog(
+      buildInvoice({
+        paymentMethod: "PUE",
+        paymentForm: "03",
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
+    expect(registerPaymentOnSuccess).toBeTypeOf("function");
+
+    act(() => {
+      registerPaymentOnSuccess?.({ repStatus: "not_required" });
+    });
+
+    expect(toastMock).toHaveBeenCalledWith({
+      title: invoicingCopy.detail.toast.paymentRegistered,
+    });
+  });
+
+  it("toasts REP queued copy for PPD pending stamp", () => {
+    renderDialog(
+      buildInvoice({
+        paymentMethod: "PPD",
+        currency: "MXN",
+        exchangeRate: 1,
+      }),
+    );
+
+    act(() => {
+      registerPaymentOnSuccess?.({ repStatus: "pending" });
+    });
+
+    expect(toastMock).toHaveBeenCalledWith({
+      title: invoicingCopy.detail.toast.paymentRegisteredRepQueued,
+    });
   });
 
   it("shows operative title, folio, client and balance without PPD/REP in the title", () => {

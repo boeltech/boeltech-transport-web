@@ -420,6 +420,78 @@ describe("InvoiceDetailPage", () => {
     expect(actions).toHaveAttribute("data-open-resume-cancel", "1");
   });
 
+  it("A-54 pending_receiver: resume cancel CTA syncs when original awaits receptor", async () => {
+    mockUseRole.mockReturnValue("manager");
+    mockHasPermission.mockImplementation(
+      (_module?: string, action?: string) =>
+        action === "execute" || action === "read",
+    );
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: false,
+        operationalOutcome: "false_trip",
+        status: "completed",
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "cancellation_pending",
+        canCancelInvoice: true,
+        canSubstituteInvoice: false,
+        activeReplacement: {
+          id: "inv-58",
+          serie: "A",
+          folio: 58,
+          cfdiUuid: "6a0f148d-750b-516d-b7dc-d9b8c923a2b9",
+        },
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-260927-0001",
+            clientName: "INMOBILIARIA CVA",
+            scheduledDeparture: "2026-09-27T12:00:00.000Z",
+            baseRate: 28500,
+            billingScope: "false_trip",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(
+      screen.getByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingTitle,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        invoicingCopy.detail.hint.cancellationPendingBannerBody,
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: invoicingCopy.detail.hint.cancellationPendingBannerCta,
+      }),
+    ).not.toBeInTheDocument();
+
+    const resumeBtn = screen.getByRole("button", {
+      name: invoicingCopy.detail.hint.substitutionCancelPendingCta,
+    });
+    const actions = screen.getByTestId("invoice-actions");
+    await user.click(resumeBtn);
+    expect(actions).toHaveAttribute("data-open-resume-cancel", "1");
+  });
+
   it("A-55: orients to original and does not show mid-trip Sustituir", () => {
     mockUseRole.mockReturnValue("manager");
     useTripMock.mockReturnValue({
