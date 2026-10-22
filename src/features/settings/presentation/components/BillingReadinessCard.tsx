@@ -1,7 +1,10 @@
 /**
  * Ficha de preparación para facturar (hub operate-first).
  *
- * Checklist: identidad → sello → numeración; diagnóstico PAC en un solo bloque.
+ * Checklist: identidad → sello → numeración; diagnóstico PAC (conexión).
+ *
+ * Desde pedido 2026-10-22-finkok-default-pac: sin fila emitter ni botón
+ * RegistraEmisor (D7/D-PRD-2). 4 checks totales.
  */
 
 import { memo, useState } from "react";
@@ -11,7 +14,6 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleDashed,
-  FileKey,
   Loader2,
   RefreshCw,
   XCircle,
@@ -32,7 +34,6 @@ import { formatDate } from "@shared/utils/dateUtils";
 import {
   PAC_PROVIDER_LABELS,
   type PacProvider,
-  type RegisterPacEmitterResult,
   type TestPacConnectionResult,
 } from "../../domain";
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
@@ -62,16 +63,12 @@ export interface BillingReadinessCardProps {
   numbering: NumberingReadiness;
   connection: BillingRequirementStatus;
   isCheckingConnection: boolean;
-  emitter: BillingRequirementStatus;
-  isRegisteringEmitter: boolean;
   /** Manager sin rol admin: el sello lo carga otro. */
   certificateUploadRestricted?: boolean;
   provider: PacProvider;
   canRunDiagnostics: boolean;
   connectionResult?: TestPacConnectionResult;
-  emitterResult?: RegisterPacEmitterResult;
   onTestConnection: () => void;
-  onRegisterEmitter: () => void;
 }
 
 export const BillingReadinessCard = memo(function BillingReadinessCard({
@@ -80,22 +77,17 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
   numbering,
   connection,
   isCheckingConnection,
-  emitter,
-  isRegisteringEmitter,
   certificateUploadRestricted = false,
   provider,
   canRunDiagnostics,
   connectionResult,
-  emitterResult,
   onTestConnection,
-  onRegisterEmitter,
 }: BillingReadinessCardProps) {
   const tone = resolveReadinessTone({
     identity: identity.status,
     certificate: certificate.status,
     numbering: numbering.status,
     connection,
-    emitter,
   });
 
   const coreReady = isBillingCoreReady({
@@ -106,9 +98,7 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
 
   const diagnosticsForcedOpen =
     connection === "pending" ||
-    emitter === "pending" ||
-    Boolean(connectionResult && !connectionResult.success) ||
-    Boolean(emitterResult && !emitterResult.success);
+    Boolean(connectionResult && !connectionResult.success);
 
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(
     () => !coreReady || diagnosticsForcedOpen,
@@ -139,7 +129,6 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
     certificate: certificate.status,
     numbering: numbering.status,
     connection,
-    emitter,
     certificateUploadRestricted,
   });
 
@@ -249,16 +238,10 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
                 <RequirementRow
                   label={copy.requirements.connection}
                   status={connection}
-                  detail={describeCheck(
+                  detail={describeConnectionCheck(
                     connection,
                     isCheckingConnection,
-                    false,
                   )}
-                />
-                <RequirementRow
-                  label={copy.requirements.emitter}
-                  status={emitter}
-                  detail={describeCheck(emitter, isRegisteringEmitter, true)}
                 />
               </ul>
               <p className="text-xs text-muted-foreground">{copy.checksHint}</p>
@@ -281,22 +264,6 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
                       ? stampingCopy.testingConnection
                       : stampingCopy.testConnection}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={onRegisterEmitter}
-                    disabled={isRegisteringEmitter}
-                  >
-                    {isRegisteringEmitter ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileKey className="mr-2 h-4 w-4" />
-                    )}
-                    {isRegisteringEmitter
-                      ? stampingCopy.registeringEmitter
-                      : stampingCopy.registerEmitter}
-                  </Button>
                 </div>
               ) : null}
 
@@ -316,28 +283,6 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
                   </AlertTitle>
                   <AlertDescription>
                     {connectionResult.message}
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              {emitterResult ? (
-                <Alert variant={emitterResult.success ? "default" : "warning"}>
-                  {emitterResult.success ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : (
-                    <AlertTriangle className="h-4 w-4" />
-                  )}
-                  <AlertTitle>
-                    {emitterResult.success
-                      ? stampingCopy.emitterOkTitle
-                      : stampingCopy.emitterFailedTitle}
-                  </AlertTitle>
-                  <AlertDescription>
-                    {emitterResult.success ? (
-                      emitterResult.message
-                    ) : (
-                      <EmitterFailureDetail result={emitterResult} />
-                    )}
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -394,29 +339,6 @@ function RequirementRow({ label, status, detail }: RequirementRowProps) {
   );
 }
 
-function EmitterFailureDetail({
-  result,
-}: {
-  result: RegisterPacEmitterResult;
-}) {
-  const missing = result.reason
-    ? stampingCopy.emitterReasons[result.reason]
-    : undefined;
-
-  if (!missing) {
-    return <>{result.message}</>;
-  }
-
-  return (
-    <div className="space-y-1">
-      <p>{copy.pendingListTitle}</p>
-      <ul className="list-inside list-disc">
-        <li>{missing}</li>
-      </ul>
-    </div>
-  );
-}
-
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -457,17 +379,14 @@ function describeNumbering(numbering: NumberingReadiness): string {
   return copy.numbering.ready.replace("{serie}", numbering.serie);
 }
 
-function describeCheck(
+function describeConnectionCheck(
   status: BillingRequirementStatus,
   isRunning: boolean,
-  isEmitter: boolean,
 ): string {
   if (isRunning) return copy.check.running;
-  if (status === "ready") {
-    return isEmitter ? copy.check.okEmitter : copy.check.ok;
-  }
+  if (status === "ready") return copy.check.ok;
   if (status === "pending") return copy.check.failed;
-  return isEmitter ? copy.check.unknownEmitter : copy.check.unknownConnection;
+  return copy.check.unknownConnection;
 }
 
 function resolvePrimaryCta(statuses: {
@@ -475,7 +394,6 @@ function resolvePrimaryCta(statuses: {
   certificate: BillingRequirementStatus;
   numbering: BillingRequirementStatus;
   connection: BillingRequirementStatus;
-  emitter: BillingRequirementStatus;
   certificateUploadRestricted: boolean;
 }): { label: string; to?: string; anchor?: string } | null {
   if (statuses.identity === "pending") {
@@ -495,9 +413,6 @@ function resolvePrimaryCta(statuses: {
       label: copy.ctaConnection,
       anchor: BILLING_ANCHORS.diagnostics,
     };
-  }
-  if (statuses.emitter === "pending") {
-    return { label: copy.ctaEmitter, anchor: BILLING_ANCHORS.diagnostics };
   }
   return null;
 }

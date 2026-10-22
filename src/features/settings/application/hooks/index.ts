@@ -19,7 +19,6 @@ export {
   useUpdateBillingSettings,
   useUploadCertificate,
   useTestPacConnection,
-  useRegisterPacEmitter,
 } from "./useBillingSettings";
 
 // Billing Service Concepts

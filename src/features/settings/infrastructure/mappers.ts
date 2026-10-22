@@ -20,8 +20,6 @@ import type {
   TestPacConnectionPayload,
   TestPacConnectionResult,
   PacTestErrorType,
-  RegisterPacEmitterResult,
-  PacEmitterRegisterReason,
 } from "../domain";
 import { config } from "@shared/config";
 import type { ClientAddress } from "@features/clients/domain";
@@ -307,14 +305,6 @@ export interface ApiTestPacConnectionResponse {
   error_type: PacTestErrorType | null;
 }
 
-export interface ApiRegisterPacEmitterResponse {
-  success: boolean;
-  attempted: boolean;
-  provider: string | null;
-  message: string;
-  reason: PacEmitterRegisterReason;
-}
-
 /** Convierte el payload camelCase del formulario a snake_case para la API */
 export function toApiTestPacConnection(
   payload: TestPacConnectionPayload,
@@ -336,18 +326,6 @@ export function mapTestPacConnection(
     provider: (api.provider as PacProvider) ?? null,
     environment: api.environment,
     errorType: api.error_type,
-  };
-}
-
-export function mapRegisterPacEmitter(
-  api: ApiRegisterPacEmitterResponse,
-): RegisterPacEmitterResult {
-  return {
-    success: api.success,
-    attempted: api.attempted,
-    provider: (api.provider as PacProvider) ?? null,
-    message: api.message,
-    reason: api.reason,
   };
 }
 

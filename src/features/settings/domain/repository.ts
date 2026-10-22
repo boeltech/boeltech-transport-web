@@ -14,7 +14,6 @@ import type {
   NotificationSettings,
   TestPacConnectionPayload,
   TestPacConnectionResult,
-  RegisterPacEmitterResult,
 } from "./entities";
 
 // ============================================================================
@@ -126,7 +125,6 @@ export interface ISettingsRepository {
   testPacConnection(
     payload?: TestPacConnectionPayload,
   ): Promise<TestPacConnectionResult>;
-  registerPacEmitter(): Promise<RegisterPacEmitterResult>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Notification Settings

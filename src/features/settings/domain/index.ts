@@ -26,8 +26,6 @@ export type {
   TestPacConnectionPayload,
   TestPacConnectionResult,
   PacTestErrorType,
-  RegisterPacEmitterResult,
-  PacEmitterRegisterReason,
 } from "./entities";
 
 // Repository interface & DTOs

@@ -21,7 +21,6 @@ import type {
   UploadLogoResult,
   TestPacConnectionPayload,
   TestPacConnectionResult,
-  RegisterPacEmitterResult,
 } from "../domain";
 import {
   mapCompanySettings,
@@ -33,12 +32,10 @@ import {
   toApiUpdateNotificationSettings,
   toApiTestPacConnection,
   mapTestPacConnection,
-  mapRegisterPacEmitter,
   type ApiCompanySettingsResponse,
   type ApiBillingSettingsResponse,
   type ApiNotificationSettingsResponse,
   type ApiTestPacConnectionResponse,
-  type ApiRegisterPacEmitterResponse,
 } from "./mappers";
 import {
   fetchTenantAddresses,
@@ -195,13 +192,6 @@ export class SettingsRepository implements ISettingsRepository {
     }>(`${SETTINGS_ENDPOINT}/billing/test-connection`, body);
 
     return mapTestPacConnection(response.data);
-  }
-
-  async registerPacEmitter(): Promise<RegisterPacEmitterResult> {
-    const response = await apiClient.post<{
-      data: ApiRegisterPacEmitterResponse;
-    }>(`${SETTINGS_ENDPOINT}/billing/register-emitter`);
-    return mapRegisterPacEmitter(response.data);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

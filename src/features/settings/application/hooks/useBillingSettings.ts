@@ -22,7 +22,6 @@ import {
   type SettingsResult,
   type TestPacConnectionPayload,
   type TestPacConnectionResult,
-  type RegisterPacEmitterResult,
   settingsQueryKeys,
 } from "../../domain";
 import { settingsRepository } from "../../infrastructure";
@@ -183,40 +182,3 @@ export function useTestPacConnection(
   });
 }
 
-/**
- * Hook para reintentar registro de emisor en ProFact con la configuración
- * persistida del tenant (RFC + CSD + PAC).
- */
-export function useRegisterPacEmitter(
-  options?: Omit<
-    UseMutationOptions<RegisterPacEmitterResult, Error, void>,
-    "mutationFn"
-  >,
-) {
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: () => settingsRepository.registerPacEmitter(),
-    onSuccess: (result) => {
-      if (result.success) {
-        toast({ title: copy.emitterOk, description: result.message });
-        return;
-      }
-
-      toast({
-        title: copy.emitterFailed,
-        // El detalle de lo que falta se enumera en la pantalla, junto a la acción.
-        description: result.message,
-        variant: result.attempted ? "destructive" : "default",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: copy.emitterError,
-        description: error.message ?? copy.emitterErrorDescription,
-        variant: "destructive",
-      });
-    },
-    ...options,
-  });
-}

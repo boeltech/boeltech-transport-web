@@ -24,7 +24,7 @@ vi.mock("../../application/hooks", () => ({
     data: {
       id: "bill-1",
       tenantId: "tenant-1",
-      pacProvider: "profact",
+      pacProvider: "finkok",
       pacUsername: "",
       pacPasswordConfigured: false,
       certificateConfigured: false,
@@ -60,11 +60,6 @@ vi.mock("../../application/hooks", () => ({
   }),
   useUpdateBillingSettings: () => ({ mutate: vi.fn(), isPending: false }),
   useTestPacConnection: () => ({
-    mutate: vi.fn(),
-    isPending: false,
-    data: undefined,
-  }),
-  useRegisterPacEmitter: () => ({
     mutate: vi.fn(),
     isPending: false,
     data: undefined,

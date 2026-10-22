@@ -14,7 +14,6 @@ export { BillingReadinessCard, BILLING_ANCHORS } from "./BillingReadinessCard";
 export { BillingCertificateCard } from "./BillingCertificateCard";
 export { BillingNumberingCard } from "./BillingNumberingCard";
 export { BillingDefaultsCard } from "./BillingDefaultsCard";
-export { BillingStampingCard } from "./BillingStampingCard";
 export { BillingServiceConceptsCard } from "./BillingServiceConceptsCard";
 export { CompanyProfileView } from "./CompanyProfileView";
 export { CompanyIdentitySheet } from "./CompanyIdentitySheet";

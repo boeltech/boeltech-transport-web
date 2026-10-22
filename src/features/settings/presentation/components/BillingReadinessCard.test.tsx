@@ -29,12 +29,9 @@ function renderCard(
         numbering={READY_NUMBERING}
         connection="unknown"
         isCheckingConnection={false}
-        emitter="unknown"
-        isRegisteringEmitter={false}
-        provider="profact"
+        provider="finkok"
         canRunDiagnostics
         onTestConnection={vi.fn()}
-        onRegisterEmitter={vi.fn()}
         {...overrides}
       />
     </MemoryRouter>,
@@ -51,6 +48,17 @@ describe("BillingReadinessCard", () => {
     expect(screen.getByText("Sello digital de tu empresa")).toBeInTheDocument();
     expect(screen.getByText("Numeración de tus facturas")).toBeInTheDocument();
     expect(screen.getByText("Diagnóstico del timbrador")).toBeInTheDocument();
+  });
+
+  it("no muestra fila de alta ante el timbrador", () => {
+    renderCard();
+
+    expect(
+      screen.queryByText("Alta de tu empresa ante el timbrador"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Dar de alta tu empresa/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("lleva a General cuando falta la identidad", () => {
@@ -70,7 +78,7 @@ describe("BillingReadinessCard", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("lleva al diagnóstico solo cuando una comprobación falla", () => {
+  it("lleva al diagnóstico solo cuando la conexión falla", () => {
     renderCard({ connection: "pending" });
 
     expect(
@@ -78,7 +86,7 @@ describe("BillingReadinessCard", () => {
     ).toHaveAttribute("href", "#diagnostico-timbrador");
   });
 
-  it("declara listo para facturar solo con las dos comprobaciones hechas", () => {
+  it("declara listo para facturar con la conexión comprobada", () => {
     const { rerender } = renderCard();
     expect(screen.getByText("Tus datos están completos")).toBeInTheDocument();
 
@@ -90,12 +98,9 @@ describe("BillingReadinessCard", () => {
           numbering={READY_NUMBERING}
           connection="ready"
           isCheckingConnection={false}
-          emitter="ready"
-          isRegisteringEmitter={false}
-          provider="profact"
+          provider="finkok"
           canRunDiagnostics
           onTestConnection={vi.fn()}
-          onRegisterEmitter={vi.fn()}
         />
       </MemoryRouter>,
     );

@@ -54,7 +54,6 @@ export const billingSettingsCopy = {
       certificate: "Sello digital de tu empresa",
       numbering: "Numeración de tus facturas",
       connection: "Conexión con el timbrador",
-      emitter: "Alta de tu empresa ante el timbrador",
     },
     identity: {
       missing: "Falta el RFC, la razón social, el régimen o el CP",
@@ -75,20 +74,17 @@ export const billingSettingsCopy = {
     },
     checksHeading: "Diagnóstico del timbrador",
     checksHint:
-      "Tu empresa se da de alta sola cuando guardas tus datos o cargas el sello. Usa estas acciones solo si algo falla al facturar.",
+      "El timbrado funciona con tu sello digital y la conexión de Boeltech con Finkok. Si algo falla al facturar, comprueba la conexión aquí.",
     check: {
       unknownConnection: "Puedes comprobarla cuando quieras",
-      unknownEmitter: "Se hace sola al guardar tus datos",
       running: "Comprobando…",
       ok: "Correcta",
-      okEmitter: "Registrada",
       failed: "No se pudo completar",
     },
     ctaIdentity: "Ir a General",
     ctaCertificate: "Cargar el sello digital",
     ctaNumbering: "Definir la numeración",
     ctaConnection: "Comprobar la conexión",
-    ctaEmitter: "Dar de alta tu empresa",
     pendingListTitle: "Para completar el alta falta:",
     expandDiagnostics: "Mostrar diagnóstico",
     collapseDiagnostics: "Ocultar diagnóstico",
@@ -193,26 +189,8 @@ export const billingSettingsCopy = {
     environmentUnknown: "Se muestra al comprobar la conexión",
     testConnection: "Comprobar conexión",
     testingConnection: "Comprobando…",
-    registerEmitter: "Dar de alta tu empresa",
-    registeringEmitter: "Dando de alta…",
-    registerHint:
-      "Tu empresa se da de alta sola cuando guardas tus datos o cargas el sello. Reintenta aquí solo si el timbrador rechaza tus facturas.",
     connectionOkTitle: "La conexión funciona",
     connectionFailedTitle: "No se pudo conectar",
-    emitterOkTitle: "Tu empresa quedó dada de alta",
-    emitterFailedTitle: "No se pudo completar el alta",
-    /** D3 — nunca decir "prerequisitos": nombrar lo que falta. */
-    emitterReasons: {
-      missing_rfc:
-        "Falta el RFC de tu empresa. Complétalo en General.",
-      missing_csd: "Falta cargar el sello digital de tu empresa.",
-      missing_csd_password:
-        "Falta la contraseña del sello. Vuelve a cargarlo capturando su contraseña.",
-      provider_not_profact:
-        "El timbrador configurado no permite dar de alta la empresa desde aquí.",
-      register_failed:
-        "El timbrador rechazó el alta. Vuelve a intentarlo en unos minutos.",
-    } as Record<string, string>,
   },
 
   // ── Servicios de cobro ────────────────────────────────────────────────────
@@ -245,10 +223,6 @@ export const billingSettingsCopy = {
     connectionFailed: "No se pudo conectar con el timbrador",
     connectionFailedDescription: "Vuelve a intentarlo en unos minutos.",
     connectionError: "No se pudo comprobar la conexión",
-    emitterOk: "Tu empresa quedó dada de alta ante el timbrador",
-    emitterFailed: "No se pudo completar el alta",
-    emitterError: "No se pudo completar el alta",
-    emitterErrorDescription: "Vuelve a intentarlo en unos minutos.",
   },
 
 } as const;

@@ -105,14 +105,15 @@ export type BillingReadinessTone =
 
 /**
  * Titular de la ficha. Núcleo = identidad + sello + numeración.
- * "Listo para facturar" exige además las comprobaciones PAC de la sesión.
+ * "Listo para facturar" exige además la comprobación de conexión con el PAC.
+ *
+ * Desde pedido 2026-10-22-finkok-default-pac: sin check `emitter` (D7/D-PRD-2).
  */
 export function resolveReadinessTone(input: {
   identity: BillingRequirementStatus;
   certificate: BillingRequirementStatus;
   numbering: BillingRequirementStatus;
   connection: BillingRequirementStatus;
-  emitter: BillingRequirementStatus;
 }): BillingReadinessTone {
   if (
     input.identity === "pending" ||
@@ -121,13 +122,13 @@ export function resolveReadinessTone(input: {
   ) {
     return "pending";
   }
-  if (input.connection === "pending" || input.emitter === "pending") {
+  if (input.connection === "pending") {
     return "pending";
   }
   if (input.certificate === "warning") {
     return "attention";
   }
-  if (input.connection === "ready" && input.emitter === "ready") {
+  if (input.connection === "ready") {
     return "ready";
   }
   return "readyUnverified";

@@ -132,11 +132,10 @@ export const PAC_USES_CREDENTIALS: Record<PacProvider, boolean> = {
 };
 
 /**
- * PACs con adapter implementado en API. Ampliar al habilitar SW Sapien, etc.
- * La UI no pide user/pass por tenant para los de plataforma (ver PAC_USES_CREDENTIALS).
+ * PACs con adapter implementado en API. Finkok es el único PAC operativo del
+ * producto (pedido 2026-10-22-finkok-default-pac, D1/D2).
  */
 export const SELECTABLE_PAC_PROVIDERS: readonly PacProvider[] = [
-  PacProviders.PROFACT,
   PacProviders.FINKOK,
 ];
 
@@ -149,7 +148,7 @@ export function resolveSelectablePacProvider(
   ) {
     return stored as PacProvider;
   }
-  return SELECTABLE_PAC_PROVIDERS[0] ?? PacProviders.PROFACT;
+  return SELECTABLE_PAC_PROVIDERS[0] ?? PacProviders.FINKOK;
 }
 
 // ============================================================================
@@ -175,22 +174,6 @@ export interface TestPacConnectionResult {
   provider: PacProvider | null;
   environment: "production" | "sandbox" | null;
   errorType: PacTestErrorType | null;
-}
-
-export type PacEmitterRegisterReason =
-  | "provider_not_profact"
-  | "missing_rfc"
-  | "missing_csd"
-  | "missing_csd_password"
-  | "register_failed"
-  | null;
-
-export interface RegisterPacEmitterResult {
-  success: boolean;
-  attempted: boolean;
-  provider: PacProvider | null;
-  message: string;
-  reason: PacEmitterRegisterReason;
 }
 
 // ============================================================================

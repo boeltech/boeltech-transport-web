@@ -125,19 +125,17 @@ describe("resolveReadinessTone", () => {
         certificate: "ready",
         numbering: "ready",
         connection: "unknown",
-        emitter: "unknown",
       }),
     ).toBe("pending");
   });
 
-  it("exige las dos comprobaciones para declarar listo para facturar", () => {
+  it("exige la comprobación de conexión para declarar listo para facturar", () => {
     expect(
       resolveReadinessTone({
         identity: "ready",
         certificate: "ready",
         numbering: "ready",
         connection: "ready",
-        emitter: "ready",
       }),
     ).toBe("ready");
 
@@ -147,7 +145,6 @@ describe("resolveReadinessTone", () => {
         certificate: "ready",
         numbering: "ready",
         connection: "unknown",
-        emitter: "unknown",
       }),
     ).toBe("readyUnverified");
   });
@@ -159,7 +156,6 @@ describe("resolveReadinessTone", () => {
         certificate: "warning",
         numbering: "pending",
         connection: "unknown",
-        emitter: "unknown",
       }),
     ).toBe("pending");
 
@@ -169,7 +165,6 @@ describe("resolveReadinessTone", () => {
         certificate: "warning",
         numbering: "ready",
         connection: "unknown",
-        emitter: "unknown",
       }),
     ).toBe("attention");
   });
@@ -181,7 +176,6 @@ describe("resolveReadinessTone", () => {
         certificate: "ready",
         numbering: "ready",
         connection: "pending",
-        emitter: "unknown",
       }),
     ).toBe("pending");
   });

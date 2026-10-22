@@ -35,13 +35,10 @@ import {
   useCompanySettings,
   useUpdateBillingSettings,
   useTestPacConnection,
-  useRegisterPacEmitter,
 } from "../../application/hooks";
 import {
-  PAC_USES_CREDENTIALS,
   resolveSelectablePacProvider,
   PacProviders,
-  type PacProvider,
   type UpdateBillingSettingsDTO,
 } from "../../domain";
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
@@ -70,7 +67,6 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
     useCompanySettings();
   const updateMutation = useUpdateBillingSettings();
   const testConnectionMutation = useTestPacConnection();
-  const registerEmitterMutation = useRegisterPacEmitter();
 
   const canUpdateSettings = hasPermission("settings", "update");
   const canUploadCertificate = hasRole(ROLES.ADMIN);
@@ -81,7 +77,7 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const form = useForm<BillingSettingsFormData>({
     resolver: zodResolver(billingSettingsSchema),
     mode: "onChange",
-    defaultValues: { pacProvider: PacProviders.PROFACT },
+    defaultValues: { pacProvider: PacProviders.FINKOK },
   });
   const { handleSubmit, reset, formState } = form;
   const isDirty = formState.isDirty;
@@ -134,13 +130,6 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         tasaIva: data.tasaIva,
       };
 
-      const usesCredentials =
-        PAC_USES_CREDENTIALS[data.pacProvider as PacProvider] ?? false;
-      if (usesCredentials) {
-        if (data.pacUsername) dto.pacUsername = data.pacUsername;
-        if (data.pacPassword) dto.pacPassword = data.pacPassword;
-      }
-
       allowLeave();
       updateMutation.mutate(dto, {
         onSuccess: (result) => {
@@ -157,11 +146,6 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
       pacProvider: resolveSelectablePacProvider(settings.pacProvider),
     });
   }, [canUpdateSettings, settings, testConnectionMutation]);
-
-  const handleRegisterEmitter = useCallback(() => {
-    if (!canUpdateSettings) return;
-    registerEmitterMutation.mutate();
-  }, [canUpdateSettings, registerEmitterMutation]);
 
   const identityReadiness = useMemo(
     () =>
@@ -252,17 +236,13 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
           numbering={numberingReadiness}
           connection={toCheckStatus(testConnectionMutation.data?.success)}
           isCheckingConnection={testConnectionMutation.isPending}
-          emitter={toCheckStatus(registerEmitterMutation.data?.success)}
-          isRegisteringEmitter={registerEmitterMutation.isPending}
           certificateUploadRestricted={
             canUpdateSettings && !canUploadCertificate
           }
           provider={provider}
           canRunDiagnostics={canUpdateSettings}
           connectionResult={testConnectionMutation.data}
-          emitterResult={registerEmitterMutation.data}
           onTestConnection={handleTestConnection}
-          onRegisterEmitter={handleRegisterEmitter}
         />
 
         <BillingCertificateCard

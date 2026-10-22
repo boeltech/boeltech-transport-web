@@ -11,10 +11,8 @@
 import { z } from "zod";
 
 import {
-  PAC_USES_CREDENTIALS,
   resolveSelectablePacProvider,
   type BillingSettings,
-  type PacProvider,
 } from "../../domain";
 
 export const ALLOWED_TASA_IVA = [0, 0.08, 0.16] as const;
@@ -64,18 +62,6 @@ export const billingSettingsSchema = z
         (value) => ALLOWED_TASA_IVA.includes(value as AllowedTasaIva),
         { message: "Elige una tasa de IVA válida: 0%, 8% o 16%" },
       ),
-  })
-  .superRefine((data, ctx) => {
-    // Solo los timbradores con credenciales por empresa requieren usuario.
-    const usesCredentials =
-      PAC_USES_CREDENTIALS[data.pacProvider as PacProvider] ?? false;
-    if (usesCredentials && !data.pacUsername?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["pacUsername"],
-        message: "Este timbrador necesita un usuario configurado",
-      });
-    }
   });
 
 export type BillingSettingsFormData = z.infer<typeof billingSettingsSchema>;
