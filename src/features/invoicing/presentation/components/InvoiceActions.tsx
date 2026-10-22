@@ -260,8 +260,13 @@ export function InvoiceActions({
     (parentInvoiceForPartial?.status === "stamped" ||
       parentInvoiceForPartial?.status === "cancellation_pending");
   const hasActiveReplacement = Boolean(fullInvoice?.activeReplacement);
+  /**
+   * Viaje en falso + CFDI de flete CP: camino es Cancelar (ADR-0079), no Sustituir 04.
+   * CFDI mismo scope `false_trip`: no ocultar por outcome — respeta canSubstituteInvoice.
+   */
   const hideSubstituteForFalseTrip =
-    linkedTrip?.operationalOutcome === "false_trip";
+    linkedTrip?.operationalOutcome === "false_trip" &&
+    linkedBillingScope === "primary_transport";
   /** Post-cancel: no empujar / no mostrar Sustituir; el camino es Cancelar. */
   const hideSubstituteForPostCancel = linkedTrip?.status === "cancelled";
   /** Parcial: no re-sustituir; el camino es resume cancel del original. */

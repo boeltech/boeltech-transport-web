@@ -759,7 +759,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides Sustituir on stamped freight CFDI when the trip is false_trip", async () => {
+  it("hides Sustituir when trip is false_trip and linked CFDI is primary_transport freight", async () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
         action === "execute" || action === "read",
@@ -795,6 +795,127 @@ describe("InvoiceActions RBAC execute/delete", () => {
     expect(
       screen.getByRole("menuitem", { name: actionsCopy.cancel }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Sustituir in Más for billing_scope false_trip when canSubstituteInvoice", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseTrip.mockReturnValue({
+      data: { operationalOutcome: "false_trip" },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: true,
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            originCity: "QRO",
+            originState: "QRO",
+            destinationCity: "CDMX",
+            destinationState: "CMX",
+            baseRate: 1000,
+            billingScope: "false_trip",
+          },
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    await openMoreMenu(user);
+
+    expect(
+      screen.getByRole("menuitem", { name: actionsCopy.substitute }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: actionsCopy.cancel }),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks Sustituir and Cancelar with cobros on billing_scope false_trip", async () => {
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        (module === "invoices" &&
+          (action === "execute" || action === "read")) ||
+        (module === "finance" && action === "read"),
+    );
+    mockUseTrip.mockReturnValue({
+      data: { operationalOutcome: "false_trip" },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        paymentMethod: "PPD",
+        canSubstituteInvoice: false,
+        canCancelInvoice: false,
+        totalPaid: 500,
+        balanceDue: 660,
+        payments: [
+          {
+            id: "pay-1",
+            invoiceId: "inv-1",
+            amount: 500,
+            currency: "MXN",
+            exchangeRate: 1,
+            amountMxn: 500,
+            paymentDate: "2026-06-02",
+            paymentTime: "12:00:00",
+            paymentForm: "03",
+            paymentFormName: null,
+            reference: null,
+            notes: null,
+            createdAt: "2026-06-02T12:00:00.000Z",
+            createdByName: null,
+            repCfdiUuid: null,
+            repStampedAt: null,
+            repStatus: "pending",
+            repAttempts: 1,
+            repLastError: null,
+            hasRepXml: false,
+            repNumParcialidad: 1,
+            repImpSaldoAnt: null,
+            repImpSaldoInsoluto: null,
+            repImpPagado: null,
+          },
+        ],
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            originCity: "QRO",
+            originState: "QRO",
+            destinationCity: "CDMX",
+            destinationState: "CMX",
+            baseRate: 1000,
+            billingScope: "false_trip",
+          },
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    await openMoreMenu(user);
+
+    expect(
+      screen.getByRole("menuitem", {
+        name: actionsCopy.substituteBlockedTitle,
+      }),
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByRole("menuitem", { name: actionsCopy.cancelBlockedTitle }),
+    ).toHaveAttribute("aria-disabled", "true");
     expect(
       screen.queryByRole("menuitem", { name: actionsCopy.substitute }),
     ).not.toBeInTheDocument();
