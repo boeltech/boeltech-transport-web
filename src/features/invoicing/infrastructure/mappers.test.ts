@@ -337,6 +337,28 @@ describe("invoicing mappers can_cancel_invoice", () => {
   it("mapInvoice leaves canCancelInvoice undefined when API omits the flag", () => {
     expect(mapInvoice(baseRaw).canCancelInvoice).toBeUndefined();
   });
+
+  it("mapInvoice maps active_replacement object and null", () => {
+    expect(mapInvoice(baseRaw).activeReplacement).toBeNull();
+    const withReplacement = mapInvoice({
+      ...baseRaw,
+      active_replacement: {
+        id: "inv-child",
+        serie: "A",
+        folio: 55,
+        cfdi_uuid: "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
+      },
+    });
+    expect(withReplacement.activeReplacement).toEqual({
+      id: "inv-child",
+      serie: "A",
+      folio: 55,
+      cfdiUuid: "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
+    });
+    expect(
+      mapInvoice({ ...baseRaw, active_replacement: null }).activeReplacement,
+    ).toBeNull();
+  });
 });
 
 describe("invoicing mappers dispatch_sent_at", () => {

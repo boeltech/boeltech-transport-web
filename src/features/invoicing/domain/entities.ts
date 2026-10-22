@@ -21,13 +21,21 @@ export const InvoiceStatusLabels: Record<InvoiceStatus, string> = {
   draft: "Borrador",
   stamping: "Timbrando…",
   stamped: "Timbrada",
-  cancellation_pending: "Cancelación pendiente",
-  cancelled: "Cancelada",
+  cancellation_pending: "Esperando al receptor",
+  cancelled: "Cancelada ante el SAT",
 };
 
 // ============================================================================
 // ENTITIES
 // ============================================================================
+
+/** GET invoice: hijo activo de sustitución (cancel original pendiente). */
+export interface ActiveReplacementSummary {
+  readonly id: string;
+  readonly serie: string;
+  readonly folio: number;
+  readonly cfdiUuid: string | null;
+}
 
 export interface Invoice {
   readonly id: string;
@@ -38,6 +46,11 @@ export interface Invoice {
   readonly cfdiUuid: string | null;
   readonly invoiceType: "ingreso" | "pago";
   readonly parentInvoiceId: string | null;
+  /**
+   * GET invoice: reemplazo activo (`status <> cancelled`) o `null`.
+   * Señal de sustitución parcial (sustituta OK / original sin cancelar).
+   */
+  readonly activeReplacement: ActiveReplacementSummary | null;
   // Emisor
   readonly issuerRfc: string;
   readonly issuerName: string;

@@ -1,6 +1,7 @@
 export type {
   InvoiceStatus,
   Invoice,
+  ActiveReplacementSummary,
   InvoiceListItem,
   InvoiceBillingScope,
   InvoiceTripRef,

@@ -19,8 +19,8 @@ import {
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useCancelInvoice } from "@features/invoicing/application";
 import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
-import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { invoicingCopy } from "../copy/invoicingCopy";
+import { resolveCancelMutationError } from "../helpers/resolveCancelMutationError";
 
 const copy = invoicingCopy.detail;
 
@@ -69,6 +69,7 @@ export function CancelInvoiceDialog({
   hasRegisteredPayments = false,
 }: Props) {
   const { toast } = useToast();
+  const [alertTitle, setAlertTitle] = useState<string>(copy.cancelErrorTitle);
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
       errorTitle: copy.cancelErrorTitle,
@@ -94,6 +95,8 @@ export function CancelInvoiceDialog({
       cancellation_code: defaultCancellationCode,
       replacement_cfdi_uuid: undefined,
     });
+    setAlertTitle(copy.cancelErrorTitle);
+    clearOverlayError();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset al abrir, no en cada tecla
   }, [open, defaultCancellationCode]);
 
@@ -106,18 +109,22 @@ export function CancelInvoiceDialog({
 
   const { mutate, isPending } = useCancelInvoice({
     onSuccess: (invoice) => {
-      const isPending = invoice.status === "cancellation_pending";
+      const isPendingAcceptance = invoice.status === "cancellation_pending";
       toast({
-        title: isPending ? "Solicitud de cancelación enviada" : "Factura cancelada",
-        description: isPending
-          ? "El SAT/PAC reportó estatus pendiente de aceptación del receptor."
+        title: isPendingAcceptance
+          ? copy.cancelDialog.toastPendingTitle
+          : copy.cancelDialog.toastCancelledTitle,
+        description: isPendingAcceptance
+          ? copy.cancelDialog.toastPendingDescription
           : undefined,
       });
       form.reset();
       onOpenChange(false);
     },
     onError: (err) => {
-      showOverlayError(getErrorMessage(err));
+      const mapped = resolveCancelMutationError(err);
+      setAlertTitle(mapped.title);
+      showOverlayError(mapped.body);
     },
   });
 
@@ -125,6 +132,7 @@ export function CancelInvoiceDialog({
     (values) => {
       setShowValidationSummary(false);
       clearOverlayError();
+      setAlertTitle(copy.cancelErrorTitle);
       mutate({
         id: invoiceId,
         payload: {
@@ -140,6 +148,10 @@ export function CancelInvoiceDialog({
   );
 
   const validationMessages = collectFieldErrorMessages(form.formState.errors);
+  const motiveHint =
+    cancellationCode != null
+      ? copy.cancelDialog.motiveHints[cancellationCode]
+      : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -176,21 +188,37 @@ export function CancelInvoiceDialog({
 
             {submissionError ? (
               <Alert variant="destructive">
-                <AlertTitle>{copy.cancelErrorTitle}</AlertTitle>
+                <AlertTitle>{alertTitle}</AlertTitle>
                 <AlertDescription className="select-text whitespace-pre-wrap break-words">
                   {submissionError}
                 </AlertDescription>
               </Alert>
             ) : null}
 
-            <RHFSelectField
-              control={control}
-              name="cancellation_code"
-              label={copy.cancelDialog.satMotive}
-              required
-              placeholder={copy.cancelDialog.satMotivePlaceholder}
-              options={MOTIVOS}
-            />
+            <div className="space-y-2">
+              <RHFSelectField
+                control={control}
+                name="cancellation_code"
+                label={copy.cancelDialog.satMotive}
+                required
+                placeholder={copy.cancelDialog.satMotivePlaceholder}
+                options={MOTIVOS}
+              />
+              {motiveHint ? (
+                <p className="text-xs text-muted-foreground">{motiveHint}</p>
+              ) : null}
+            </div>
+
+            {cancellationCode === "01" ? (
+              <Alert variant="warning">
+                <AlertTitle>
+                  {copy.cancelDialog.motive01PreferSubstituteTitle}
+                </AlertTitle>
+                <AlertDescription>
+                  {copy.cancelDialog.motive01PreferSubstituteBody}
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
             <RHFTextField
               control={control}

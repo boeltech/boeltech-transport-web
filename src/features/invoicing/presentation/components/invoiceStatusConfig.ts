@@ -32,12 +32,12 @@ export const INVOICE_STATUS_CONFIG: Record<InvoiceStatus, StatusConfig> = {
   cancellation_pending: createStatusConfig("warning", {
     label: InvoiceStatusLabels.cancellation_pending,
     icon: Clock,
-    description: "Cancelación en proceso ante el PAC",
+    description: "Solicitud enviada; el receptor debe aceptarla",
   }),
   cancelled: createStatusConfig("destructive", {
     label: InvoiceStatusLabels.cancelled,
     icon: XCircle,
-    description: "Factura cancelada",
+    description: "Cancelada ante el SAT",
   }),
 };
 

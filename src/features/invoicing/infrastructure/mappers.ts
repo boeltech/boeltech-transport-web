@@ -160,6 +160,12 @@ interface ApiInvoice {
   updated_by_name: string | null;
   can_substitute_invoice?: boolean;
   can_cancel_invoice?: boolean;
+  active_replacement?: {
+    id: string;
+    serie: string;
+    folio: number;
+    cfdi_uuid: string | null;
+  } | null;
 }
 
 interface ApiInvoiceListItem {
@@ -330,6 +336,14 @@ export function mapInvoice(raw: unknown): Invoice {
     invoiceType:
       invoice.invoice_type === "pago" ? "pago" : "ingreso",
     parentInvoiceId: invoice.parent_invoice_id ?? null,
+    activeReplacement: invoice.active_replacement
+      ? {
+          id: invoice.active_replacement.id,
+          serie: invoice.active_replacement.serie,
+          folio: invoice.active_replacement.folio,
+          cfdiUuid: invoice.active_replacement.cfdi_uuid,
+        }
+      : null,
     issuerRfc: invoice.issuer_rfc,
     issuerName: invoice.issuer_name,
     issuerTaxRegime: invoice.issuer_tax_regime,

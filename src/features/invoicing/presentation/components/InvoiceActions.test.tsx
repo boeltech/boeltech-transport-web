@@ -31,11 +31,17 @@ vi.mock("@features/trips/presentation/components/trip-fiscal", () => ({
     error instanceof Error ? error.message : String(error),
 }));
 
+const mockUseInvoice = vi.fn(() => ({
+  data: undefined as { status?: string; activeReplacement?: unknown } | undefined,
+}));
+
 vi.mock("@features/invoicing/application", () => ({
   useDeleteInvoice: () => ({ mutate: vi.fn(), isPending: false }),
   useRegisterPayment: () => ({ mutate: vi.fn(), isPending: false }),
   useCancelInvoice: () => ({ mutate: vi.fn(), isPending: false }),
   useSubstituteStampedInvoice: () => ({ mutate: vi.fn(), isPending: false }),
+  useResumeSubstitutionCancel: () => ({ mutate: vi.fn(), isPending: false }),
+  useInvoice: (...args: unknown[]) => mockUseInvoice(...args),
   useOpenInvoicePdf: () => ({ mutate: vi.fn(), isPending: false }),
   useDownloadInvoiceXml: () => ({ mutate: vi.fn(), isPending: false }),
   useInvoiceSendRecipients: () => ({
@@ -80,6 +86,19 @@ vi.mock("./SubstituteInvoiceSheet", () => ({
     open ? (
       <div role="dialog" aria-label="Sustituir factura">
         Substitute sheet open
+      </div>
+    ) : null,
+}));
+
+vi.mock("./ResumeSubstitutionCancelDialog", () => ({
+  ResumeSubstitutionCancelDialog: ({
+    open,
+  }: {
+    open: boolean;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Reintentar cancelación del original">
+        Resume cancel dialog open
       </div>
     ) : null,
 }));
@@ -132,6 +151,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     cfdiUuid: "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
     invoiceType: "ingreso",
     parentInvoiceId: null,
+    activeReplacement: null,
     issuerRfc: "AAA010101AAA",
     issuerName: "Emisor",
     issuerTaxRegime: "601",
@@ -313,6 +333,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
     fiscalSheetsMock.isStampBusy = false;
     mockUseRole.mockReturnValue("manager");
     mockUseTrip.mockReturnValue({ data: undefined });
+    mockUseInvoice.mockReturnValue({ data: undefined });
   });
 
   it("manager with execute sees Cancelar and Sustituir but not Eliminar borrador", async () => {
@@ -422,6 +443,63 @@ describe("InvoiceActions RBAC execute/delete", () => {
     await user.click(primarySubstitute);
     expect(
       await screen.findByRole("dialog", { name: "Sustituir factura" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not elevate Sustituir when activeReplacement; elevates Reintentar cancelación", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseRole.mockReturnValue("manager");
+    mockUseTrip.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+        status: "in_progress",
+      },
+    });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: false,
+        activeReplacement: {
+          id: "inv-55",
+          serie: "A",
+          folio: 55,
+          cfdiUuid: null,
+        },
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "TRP-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+    );
+
+    const user = userEvent.setup();
+    expect(
+      screen.queryByRole("button", { name: actionsCopy.substitute }),
+    ).not.toBeInTheDocument();
+    const resumePrimary = screen.getByRole("button", {
+      name: invoicingCopy.detail.hint.substitutionCancelPendingCta,
+    });
+    expect(resumePrimary).toBeInTheDocument();
+    await user.click(resumePrimary);
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Reintentar cancelación del original",
+      }),
     ).toBeInTheDocument();
   });
 

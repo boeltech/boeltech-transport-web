@@ -60,6 +60,12 @@ export const shellCopy = {
     fiscalAttentionChip: "Atención fiscal",
     fiscalAttentionNoInvoiceBody:
       "Hay un pendiente de facturación en este viaje. Revísalo en Facturación cuando corresponda.",
+    /** Sustitución parcial (flete con active_replacement): no mid-trip flota/Sustituir. */
+    substitutionCancelPendingTitle:
+      "Sustituta emitida; original sin cancelar",
+    substitutionCancelPendingBody:
+      "La factura de flete tiene una sustituta vigente y el original sigue sin cancelar. Abre la factura original y reintenta la cancelación. No sustituyas de nuevo ni corrijas flota por este aviso.",
+    substitutionCancelPendingCta: "Abrir factura original",
     /** ADR-0081: prorrateo — no pretender un solo documento de flete. */
     fiscalAttentionSplitBody:
       "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Operación; luego sustituye cada porción facturada pendiente al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",

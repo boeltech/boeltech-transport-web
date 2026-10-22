@@ -217,6 +217,7 @@ function createInvoice(): Invoice {
     cfdiUuid: null,
     invoiceType: "ingreso",
     parentInvoiceId: null,
+    activeReplacement: null,
     issuerRfc: "AAA010101AAA",
     issuerName: "Transporte Demo",
     issuerTaxRegime: "601",

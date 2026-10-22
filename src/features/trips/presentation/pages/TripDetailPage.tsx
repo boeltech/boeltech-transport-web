@@ -55,6 +55,7 @@ import {
   formatDuration,
   formatTripRouteSubtitle,
 } from "@features/trips";
+import { useInvoice } from "@features/invoicing/application";
 
 // ── Domain Types ───────────────────────────────────────────────────────────
 import {
@@ -208,6 +209,24 @@ export function TripDetailPage() {
   } = useTripRevenueSplit(tripId, {
     enabled: Boolean(tripId) && needsFiscalAttentionSplitLegs,
   });
+
+  /** Legacy flag mid-trip + flete en parcial: no empujar Sustituir/flota. */
+  const principalInvoiceIdForPartial = trip?.invoicing.invoiceId ?? null;
+  const { data: principalInvoiceForPartial } = useInvoice(
+    principalInvoiceIdForPartial ?? "",
+    {
+      enabled: Boolean(
+        !isLeanTripPortal &&
+          trip?.requiresFiscalAttention &&
+          principalInvoiceIdForPartial &&
+          trip.operationalOutcome !== "false_trip" &&
+          trip.status !== "cancelled",
+      ),
+    },
+  );
+  const freightHasPartialSubstitution = Boolean(
+    principalInvoiceForPartial?.activeReplacement,
+  );
 
   const tripQueryState = resolveDetailQueryErrorState({
     missingId: !tripId,
@@ -468,6 +487,35 @@ export function TripDetailPage() {
             }
           >
             <p>{shell.alert.falseTripCancelCfdiBody}</p>
+          </DetailAlertCard>,
+        );
+      } else if (
+        fiscalBannerMode === "midTrip" &&
+        freightHasPartialSubstitution &&
+        !invoicingConsoleVisible
+      ) {
+        const originalInvoiceId =
+          principalInvoiceForPartial?.id ?? trip.invoicing.invoiceId;
+        cards.push(
+          <DetailAlertCard
+            key="substitution-cancel-pending"
+            severity="critical"
+            icon={<Receipt className="h-5 w-5" />}
+            title={shell.alert.substitutionCancelPendingTitle}
+            action={
+              originalInvoiceId ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    to={`/invoices/${originalInvoiceId}`}
+                    state={{ from: tripDetailFromHref }}
+                  >
+                    {shell.alert.substitutionCancelPendingCta}
+                  </Link>
+                </Button>
+              ) : null
+            }
+          >
+            <p>{shell.alert.substitutionCancelPendingBody}</p>
           </DetailAlertCard>,
         );
       } else if (
@@ -839,6 +887,8 @@ export function TripDetailPage() {
     isDispatcher,
     isManager,
     invoicingConsoleVisible,
+    freightHasPartialSubstitution,
+    principalInvoiceForPartial,
     revenueSplitForFiscalCta,
     revenueSplitForFiscalCtaFetched,
     resolvedActiveTab,

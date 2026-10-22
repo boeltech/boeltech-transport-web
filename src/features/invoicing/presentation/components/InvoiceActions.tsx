@@ -59,7 +59,12 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { canRegisterFinancialPayment } from "@boeltech/cfdi-domain";
-import { useDeleteInvoice, useOpenInvoicePdf, useDownloadInvoiceXml } from "@features/invoicing/application";
+import {
+  useDeleteInvoice,
+  useInvoice,
+  useOpenInvoicePdf,
+  useDownloadInvoiceXml,
+} from "@features/invoicing/application";
 import { parseInvoiceBillingScope, toInvoiceLike } from "@features/invoicing/domain";
 import { useTrip } from "@features/trips/application";
 import {
@@ -69,12 +74,14 @@ import {
 import { shouldShowFalseTripCancelCfdiBanner } from "@features/trips/presentation/helpers/shouldShowFalseTripCancelCfdiBanner";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
+import { ResumeSubstitutionCancelDialog } from "./ResumeSubstitutionCancelDialog";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
 import { SendInvoiceDialog } from "./SendInvoiceDialog";
 import type { InvoiceStatus, Invoice } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
 
 const actionsCopy = invoicingCopy.detail.actions;
+const hintCopy = invoicingCopy.detail.hint;
 const sendCopy = invoicingCopy.send;
 
 // ============================================================================
@@ -123,6 +130,11 @@ interface InvoiceActionsProps {
    * que la toolbar.
    */
   openPaymentRequestKey?: number;
+  /**
+   * Incrementar desde el banner de sustitución parcial para abrir
+   * ResumeSubstitutionCancelDialog (reintento cancel original).
+   */
+  openResumeCancelRequestKey?: number;
 }
 
 export function InvoiceActions({
@@ -140,6 +152,7 @@ export function InvoiceActions({
   openCancelRequestKey = 0,
   openSendRequestKey = 0,
   openPaymentRequestKey = 0,
+  openResumeCancelRequestKey = 0,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -153,11 +166,13 @@ export function InvoiceActions({
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelBlockedDialogOpen, setCancelBlockedDialogOpen] = useState(false);
   const [substituteSheetOpen, setSubstituteSheetOpen] = useState(false);
+  const [resumeCancelDialogOpen, setResumeCancelDialogOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const openSendDialogRef = useRef<() => void>(() => {});
   /** Snapshot frozen while payment/cancel/substitute overlays are open. */
   const [overlayInvoice, setOverlayInvoice] = useState<Invoice | null>(null);
   const lastBusyRef = useRef(false);
+  const lastOpenResumeCancelKeyRef = useRef(0);
   const lastOpenSubstituteKeyRef = useRef(0);
   const lastOpenCancelKeyRef = useRef(0);
   const lastOpenSendKeyRef = useRef(0);
@@ -230,12 +245,32 @@ export function InvoiceActions({
   const { data: linkedTrip } = useTrip(linkedTripId ?? "", {
     enabled: Boolean(isStamped && isFreightLinkedInvoice && linkedTripId),
   });
+  const parentInvoiceId = fullInvoice?.parentInvoiceId ?? null;
+  const { data: parentInvoiceForPartial } = useInvoice(parentInvoiceId ?? "", {
+    enabled: Boolean(
+      variant === "buttons" &&
+        isStamped &&
+        parentInvoiceId &&
+        canAdminManagerFiscal,
+    ),
+  });
+  /** Original aún vigente: no elevar Sustituir en la sustituta (parcial). */
+  const parentCancelStillOpen =
+    Boolean(parentInvoiceId) &&
+    (parentInvoiceForPartial?.status === "stamped" ||
+      parentInvoiceForPartial?.status === "cancellation_pending");
+  const hasActiveReplacement = Boolean(fullInvoice?.activeReplacement);
   const hideSubstituteForFalseTrip =
     linkedTrip?.operationalOutcome === "false_trip";
   /** Post-cancel: no empujar / no mostrar Sustituir; el camino es Cancelar. */
   const hideSubstituteForPostCancel = linkedTrip?.status === "cancelled";
+  /** Parcial: no re-sustituir; el camino es resume cancel del original. */
+  const hideSubstituteForPartial =
+    hasActiveReplacement || parentCancelStillOpen;
   const hideSubstitute =
-    hideSubstituteForFalseTrip || hideSubstituteForPostCancel;
+    hideSubstituteForFalseTrip ||
+    hideSubstituteForPostCancel ||
+    hideSubstituteForPartial;
 
   const tripNeedsFiscalAttention =
     Boolean(linkedTrip?.requiresFiscalAttention) && !hideSubstitute;
@@ -285,6 +320,8 @@ export function InvoiceActions({
   const elevateSubstitutePrimary =
     variant === "buttons" &&
     tripNeedsFiscalAttention &&
+    !hasActiveReplacement &&
+    !parentCancelStillOpen &&
     (canShowSubstitute || showBlockedSubstitute);
 
   const canShowCancel =
@@ -307,6 +344,17 @@ export function InvoiceActions({
     (needsFalseTripCancel || needsPostCancelCancel) &&
     (canShowCancel || showBlockedCancel);
 
+  const canShowResumeCancel =
+    isStamped &&
+    canExecute &&
+    canAdminManagerFiscal &&
+    hasActiveReplacement &&
+    Boolean(fullInvoice);
+
+  /** Eleva Reintentar cancelación cuando hay sustitución parcial (A-54). */
+  const elevateResumeCancelPrimary =
+    variant === "buttons" && canShowResumeCancel;
+
   const openCancelBlockedFeedback = () => {
     setCancelBlockedDialogOpen(true);
     toast({
@@ -323,7 +371,9 @@ export function InvoiceActions({
   };
 
   const elevateFiscalPrimary =
-    elevateSubstitutePrimary || elevateCancelPrimary;
+    elevateSubstitutePrimary ||
+    elevateCancelPrimary ||
+    elevateResumeCancelPrimary;
 
   const canShowExport = Boolean(fullInvoice) && isStampedLike && canExport;
 
@@ -391,6 +441,7 @@ export function InvoiceActions({
       paymentDialogOpen ||
       cancelDialogOpen ||
       substituteSheetOpen ||
+      resumeCancelDialogOpen ||
       sendDialogOpen ||
       fiscal.isStampBusy;
     if (lastBusyRef.current === busy) return;
@@ -402,9 +453,24 @@ export function InvoiceActions({
     paymentDialogOpen,
     cancelDialogOpen,
     substituteSheetOpen,
+    resumeCancelDialogOpen,
     sendDialogOpen,
     fiscal.isStampBusy,
   ]);
+
+  useEffect(() => {
+    if (variant !== "buttons") return;
+    if (
+      !openResumeCancelRequestKey ||
+      openResumeCancelRequestKey === lastOpenResumeCancelKeyRef.current
+    ) {
+      return;
+    }
+    lastOpenResumeCancelKeyRef.current = openResumeCancelRequestKey;
+    if (canShowResumeCancel) {
+      setResumeCancelDialogOpen(true);
+    }
+  }, [variant, openResumeCancelRequestKey, canShowResumeCancel]);
 
   useEffect(() => {
     if (variant !== "buttons") return;
@@ -591,6 +657,7 @@ export function InvoiceActions({
     paymentIsPrimary ||
     elevateSubstitutePrimary ||
     elevateCancelPrimary ||
+    elevateResumeCancelPrimary ||
     hasMoreMenu;
 
   if (!hasToolbar) return null;
@@ -698,6 +765,18 @@ export function InvoiceActions({
           >
             <XCircle className="mr-2 h-4 w-4" />
             {actionsCopy.cancel}
+          </Button>
+        ) : null}
+
+        {elevateResumeCancelPrimary && fullInvoice ? (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setResumeCancelDialogOpen(true)}
+            disabled={isLoading}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {hintCopy.substitutionCancelPendingCta}
           </Button>
         ) : null}
 
@@ -1143,6 +1222,15 @@ export function InvoiceActions({
           onOpenChange={(open) => handleOverlayOpenChange("substitute", open)}
         />
       )}
+
+      {canShowResumeCancel && fullInvoice ? (
+        <ResumeSubstitutionCancelDialog
+          invoiceId={invoiceId}
+          open={resumeCancelDialogOpen}
+          onOpenChange={setResumeCancelDialogOpen}
+          defaultReason={fullInvoice.cancellationReason}
+        />
+      ) : null}
 
       {variant === "buttons" && canShowSendByEmail ? (
         <SendInvoiceDialog

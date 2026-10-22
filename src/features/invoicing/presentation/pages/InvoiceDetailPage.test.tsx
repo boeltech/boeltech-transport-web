@@ -3,7 +3,10 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Invoice } from "@features/invoicing/domain";
+import {
+  InvoiceStatusLabels,
+  type Invoice,
+} from "@features/invoicing/domain";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { InvoiceDetailPage } from "./InvoiceDetailPage";
@@ -38,6 +41,7 @@ vi.mock("../components/InvoiceActions", () => ({
     openPaymentRequestKey?: number;
     openSubstituteRequestKey?: number;
     openCancelRequestKey?: number;
+    openResumeCancelRequestKey?: number;
   }) => (
     <div
       data-testid="invoice-actions"
@@ -45,6 +49,7 @@ vi.mock("../components/InvoiceActions", () => ({
       data-open-payment={String(props.openPaymentRequestKey ?? 0)}
       data-open-substitute={String(props.openSubstituteRequestKey ?? 0)}
       data-open-cancel={String(props.openCancelRequestKey ?? 0)}
+      data-open-resume-cancel={String(props.openResumeCancelRequestKey ?? 0)}
     />
   ),
 }));
@@ -94,6 +99,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     cfdiUuid: "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
     invoiceType: "ingreso",
     parentInvoiceId: null,
+    activeReplacement: null,
     issuerRfc: "AAA010101AAA",
     issuerName: "Emisor",
     issuerTaxRegime: "601",
@@ -199,6 +205,71 @@ describe("InvoiceDetailPage", () => {
     });
   });
 
+  it("shows above-the-fold banner when cancellation is waiting for the receiver", () => {
+    mockUseRole.mockReturnValue("admin");
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({ status: "cancellation_pending" }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    // Badge + banner title share the same glossary string.
+    expect(
+      screen.getAllByText(
+        invoicingCopy.detail.hint.cancellationPendingBannerTitle,
+      ).length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.cancellationPendingBannerBody),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Cancelada ante el SAT label when cancelled", () => {
+    mockUseRole.mockReturnValue("admin");
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({ status: "cancelled" }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText(InvoiceStatusLabels.cancelled),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        invoicingCopy.detail.hint.cancellationPendingBannerTitle,
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("accountant on stamped invoice sees stable SAT hole without trip banners", () => {
+    mockUseRole.mockReturnValue("accountant");
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({ status: "stamped" }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.satHoleTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.satHoleBody),
+    ).toBeInTheDocument();
+  });
+
   it("shows PUE settled hint in balance stat when fully paid at stamp", () => {
     renderPage();
 
@@ -245,13 +316,28 @@ describe("InvoiceDetailPage", () => {
     expect(screen.getAllByText("Flete").length).toBeGreaterThan(0);
   });
 
-  it("shows substitution alert for active substitute with parentInvoiceId", () => {
-    useInvoiceMock.mockReturnValue({
-      data: buildInvoice({ parentInvoiceId: "parent-inv-1", status: "stamped" }),
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: refetchMock,
+  it("shows substitution alert for active substitute when original already cancelled", () => {
+    useInvoiceMock.mockImplementation((id: string) => {
+      if (id === "parent-inv-1") {
+        return {
+          data: buildInvoice({
+            id: "parent-inv-1",
+            status: "cancelled",
+            parentInvoiceId: null,
+          }),
+          isLoading: false,
+          isError: false,
+          error: null,
+          refetch: refetchMock,
+        };
+      }
+      return {
+        data: buildInvoice({ parentInvoiceId: "parent-inv-1", status: "stamped" }),
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: refetchMock,
+      };
     });
 
     renderPage();
@@ -263,6 +349,196 @@ describe("InvoiceDetailPage", () => {
       "href",
       "/invoices/parent-inv-1",
     );
+  });
+
+  it("A-54: shows substitution-cancel-pending banner and hides mid-trip Sustituir", async () => {
+    mockUseRole.mockReturnValue("manager");
+    mockHasPermission.mockImplementation(
+      (_module?: string, action?: string) =>
+        action === "execute" || action === "read",
+    );
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+        status: "in_progress",
+      },
+    });
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "stamped",
+        canSubstituteInvoice: false,
+        activeReplacement: {
+          id: "inv-55",
+          serie: "A",
+          folio: 55,
+          cfdiUuid: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        },
+        trips: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-1",
+            clientName: "Cliente",
+            scheduledDeparture: "2026-06-01T12:00:00.000Z",
+            baseRate: 1000,
+            billingScope: "primary_transport",
+            originCity: "Mty",
+            originState: "NL",
+            destinationCity: "Gdl",
+            destinationState: "JAL",
+          },
+        ],
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(
+      screen.getByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingTitle,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Revisión de facturación pendiente"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Sustituir$/i }),
+    ).not.toBeInTheDocument();
+
+    const resumeBtn = screen.getByRole("button", {
+      name: invoicingCopy.detail.hint.substitutionCancelPendingCta,
+    });
+    expect(resumeBtn).toBeInTheDocument();
+    const actions = screen.getByTestId("invoice-actions");
+    expect(actions).toHaveAttribute("data-open-resume-cancel", "0");
+    await user.click(resumeBtn);
+    expect(actions).toHaveAttribute("data-open-resume-cancel", "1");
+  });
+
+  it("A-55: orients to original and does not show mid-trip Sustituir", () => {
+    mockUseRole.mockReturnValue("manager");
+    useTripMock.mockReturnValue({
+      data: {
+        requiresFiscalAttention: true,
+        operationalOutcome: "completed",
+        status: "in_progress",
+      },
+    });
+    useInvoiceMock.mockImplementation((id: string) => {
+      if (id === "parent-inv-54") {
+        return {
+          data: buildInvoice({
+            id: "parent-inv-54",
+            status: "stamped",
+            parentInvoiceId: null,
+            activeReplacement: {
+              id: "inv-1",
+              serie: "A",
+              folio: 55,
+              cfdiUuid: null,
+            },
+          }),
+          isLoading: false,
+          isError: false,
+          error: null,
+          refetch: refetchMock,
+        };
+      }
+      return {
+        data: buildInvoice({
+          id: "inv-1",
+          parentInvoiceId: "parent-inv-54",
+          status: "stamped",
+          trips: [
+            {
+              tripId: "trip-1",
+              tripCode: "V-1",
+              clientName: "Cliente",
+              scheduledDeparture: "2026-06-01T12:00:00.000Z",
+              baseRate: 1000,
+              billingScope: "primary_transport",
+              originCity: "Mty",
+              originState: "NL",
+              destinationCity: "Gdl",
+              destinationState: "JAL",
+            },
+          ],
+        }),
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: refetchMock,
+      };
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingTitle,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingBodySubstitute,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: invoicingCopy.detail.hint.substitutionCancelPendingLinkOriginal,
+      }),
+    ).toHaveAttribute("href", "/invoices/parent-inv-54");
+    expect(
+      screen.queryByText("Revisión de facturación pendiente"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Sustituir$/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("accountant with partial substitution sees ask-manager hole, not Sustituir/Cancelar CTA", () => {
+    mockUseRole.mockReturnValue("accountant");
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "stamped",
+        activeReplacement: {
+          id: "inv-55",
+          serie: "A",
+          folio: 55,
+          cfdiUuid: null,
+        },
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingTitle,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingAskManagerBody,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: invoicingCopy.detail.hint.substitutionCancelPendingCta,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(invoicingCopy.detail.hint.satHoleTitle),
+    ).not.toBeInTheDocument();
   });
 
   it("hides substitution alert when cancelled substitute still has parentInvoiceId", () => {

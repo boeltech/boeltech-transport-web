@@ -34,6 +34,7 @@ import {
   getErrorMessage,
   isApiError,
 } from "@shared/api/interceptors/error-handler";
+import { resolveCancelMutationError } from "../helpers/resolveCancelMutationError";
 import type { Invoice } from "@features/invoicing/domain";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import { SubstitutionAmountCorrectionsSection } from "./SubstitutionAmountCorrectionsSection";
@@ -87,6 +88,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
   const [cancelFailedRecovery, setCancelFailedRecovery] = useState<{
     uuid: string | null;
   } | null>(null);
+  const [errorAlertTitle, setErrorAlertTitle] = useState<string>(copy.errorTitle);
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
       errorTitle: copy.errorTitle,
@@ -162,6 +164,22 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
     invoice.concepts?.[0]?.ivaRate ??
     0.16;
 
+  /** Si el GET ya trae hijo activo, el form monta en recuperación (banner persistente). */
+  useEffect(() => {
+    if (invoice.activeReplacement == null || cancelFailedRecovery != null) {
+      return;
+    }
+    setCancelFailedRecovery({
+      uuid: invoice.activeReplacement.cfdiUuid,
+    });
+    setErrorAlertTitle(copy.cancelFailedTitle);
+    showOverlayError(
+      copy.cancelFailedDescription(invoice.activeReplacement.cfdiUuid),
+    );
+    // Solo al montar / cambiar el summary del GET; no re-disparar por recovery local.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recovery gate intencional
+  }, [invoice.activeReplacement, showOverlayError]);
+
   const { mutate, isPending } = useSubstituteStampedInvoice(invoice.id, {
     onSuccess: (data) => {
       setCancelFailedRecovery(null);
@@ -186,6 +204,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
             ? err.details.replacement_cfdi_uuid
             : null;
         setCancelFailedRecovery({ uuid });
+        setErrorAlertTitle(copy.cancelFailedTitle);
         showOverlayError(copy.cancelFailedDescription(uuid));
         void queryClient.invalidateQueries({
           queryKey: invoiceQueryKeys.detail(invoice.id),
@@ -194,6 +213,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
         return;
       }
       setCancelFailedRecovery(null);
+      setErrorAlertTitle(copy.errorTitle);
       showOverlayError(getErrorMessage(err));
     },
   });
@@ -202,6 +222,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
     useResumeSubstitutionCancel(invoice.id, {
       onSuccess: () => {
         setCancelFailedRecovery(null);
+        setErrorAlertTitle(copy.errorTitle);
         toast({
           title: copy.resumeCancelSuccessTitle,
           description: copy.resumeCancelSuccessDescription,
@@ -214,7 +235,9 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
         onOpenChange(false);
       },
       onError: (err) => {
-        showOverlayError(getErrorMessage(err));
+        const mapped = resolveCancelMutationError(err);
+        setErrorAlertTitle(mapped.title);
+        showOverlayError(mapped.body);
       },
     });
 
@@ -224,6 +247,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
       setPreflightMessages([]);
       clearOverlayError();
       setCancelFailedRecovery(null);
+      setErrorAlertTitle(copy.errorTitle);
 
       let stopsById = buildStopsByIdFromCache(queryClient, linkedTripIds);
       let tripsById = buildTripsByIdFromCache(queryClient, linkedTripIds);
@@ -317,11 +341,7 @@ function SubstituteInvoiceSheetForm({ invoice, onOpenChange }: FormProps) {
         <div className={SUBSTITUTION_SHEET_BODY_CLASS}>
           {submissionError ? (
             <Alert variant="destructive">
-              <AlertTitle>
-                {cancelFailedRecovery
-                  ? copy.cancelFailedTitle
-                  : copy.errorTitle}
-              </AlertTitle>
+              <AlertTitle>{errorAlertTitle}</AlertTitle>
               <AlertDescription className="select-text whitespace-pre-wrap break-words">
                 {submissionError}
               </AlertDescription>

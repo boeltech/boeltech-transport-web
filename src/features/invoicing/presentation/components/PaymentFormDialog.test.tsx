@@ -49,6 +49,7 @@ function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
     cfdiUuid: "uuid",
     invoiceType: "ingreso",
     parentInvoiceId: null,
+    activeReplacement: null,
     issuerRfc: "AAA010101AAA",
     issuerName: "Emisor",
     issuerTaxRegime: "601",

@@ -12,7 +12,10 @@ import {
 } from "lucide-react";
 import { StatCard, type StatCardTone } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
-import type { InvoiceStatus } from "@features/invoicing/domain";
+import {
+  InvoiceStatusLabels,
+  type InvoiceStatus,
+} from "@features/invoicing/domain";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 interface KpiCardConfig {
@@ -71,7 +74,7 @@ export function InvoicesSummaryCards({
       filterStatus: "stamped",
     },
     {
-      label: "Cancelación pendiente",
+      label: InvoiceStatusLabels.cancellation_pending,
       value: cancellationPending,
       description: "facturas",
       icon: Clock,
@@ -79,7 +82,7 @@ export function InvoicesSummaryCards({
       filterStatus: "cancellation_pending",
     },
     {
-      label: "Canceladas",
+      label: InvoiceStatusLabels.cancelled,
       value: cancelled,
       description: "facturas",
       icon: XCircle,

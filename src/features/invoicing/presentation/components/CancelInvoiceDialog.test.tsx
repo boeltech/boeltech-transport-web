@@ -1,18 +1,39 @@
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { ApiError } from "@shared/api/interceptors/error-handler";
+import type { Invoice } from "@features/invoicing/domain";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 import { invoicingCopy } from "../copy/invoicingCopy";
 
 const mutateMock = vi.fn();
+const toastMock = vi.fn();
 const copy = invoicingCopy.detail.cancelDialog;
 
+type CancelOpts = {
+  onSuccess?: (invoice: Invoice) => void;
+  onError?: (err: unknown) => void;
+};
+
+let cancelOpts: CancelOpts | undefined;
+
 vi.mock("@features/invoicing/application", () => ({
-  useCancelInvoice: () => ({
-    mutate: mutateMock,
-    isPending: false,
-  }),
+  useCancelInvoice: (opts?: CancelOpts) => {
+    cancelOpts = opts;
+    return {
+      mutate: mutateMock,
+      isPending: false,
+    };
+  },
 }));
+
+vi.mock("@shared/hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/hooks")>();
+  return {
+    ...actual,
+    useToast: () => ({ toast: toastMock }),
+  };
+});
 
 function renderDialog(
   props: Partial<ComponentProps<typeof CancelInvoiceDialog>> = {},
@@ -30,6 +51,7 @@ function renderDialog(
 describe("CancelInvoiceDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cancelOpts = undefined;
   });
 
   it("keeps scrollable body and sticky footer buttons visible", () => {
@@ -45,7 +67,6 @@ describe("CancelInvoiceDialog", () => {
       screen.getByRole("button", { name: copy.confirm }),
     ).toBeInTheDocument();
 
-    // Dialog portaliza a document.body — no buscar en container de render.
     const scrollBody = document.querySelector(
       "[data-slot='cancel-invoice-body']",
     );
@@ -63,7 +84,6 @@ describe("CancelInvoiceDialog", () => {
       screen.getByText(copy.paymentsNoticeTitle),
     ).toBeInTheDocument();
     expect(screen.getByText(copy.paymentsNotice)).toBeInTheDocument();
-    // Dialog still allows confirm if opened — Actions must not open this path with cobros.
     expect(
       screen.getByRole("button", { name: copy.confirm }),
     ).toBeInTheDocument();
@@ -94,5 +114,66 @@ describe("CancelInvoiceDialog", () => {
     expect(
       screen.getByRole("button", { name: copy.confirm }),
     ).toBeInTheDocument();
+  });
+
+  it("shows motive 01 hint and prefer-Sustituir warning", () => {
+    renderDialog({ defaultCancellationCode: "01" });
+
+    expect(screen.getByText(copy.motiveHints["01"])).toBeInTheDocument();
+    expect(
+      screen.getByText(copy.motive01PreferSubstituteTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(copy.motive01PreferSubstituteBody),
+    ).toBeInTheDocument();
+  });
+
+  it("shows next-step Alert for 409 cancellation in progress", () => {
+    renderDialog();
+
+    act(() => {
+      cancelOpts?.onError?.(
+        new ApiError("en curso", 409, "CANCELLATION_IN_PROGRESS"),
+      );
+    });
+
+    expect(
+      screen.getByText(copy.errorInProgressTitle),
+    ).toBeInTheDocument();
+    expect(screen.getByText(copy.errorInProgressBody)).toBeInTheDocument();
+    expect(screen.queryByText(/PAC_|Finkok|SOAP|lease/i)).not.toBeInTheDocument();
+  });
+
+  it("toasts with canonical vocabulary on pending acceptance", () => {
+    renderDialog();
+
+    act(() => {
+      cancelOpts?.onSuccess?.({
+        status: "cancellation_pending",
+      } as Invoice);
+    });
+
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.toastPendingTitle,
+        description: copy.toastPendingDescription,
+      }),
+    );
+  });
+
+  it("toasts Cancelada ante el SAT when fully cancelled", () => {
+    renderDialog();
+
+    act(() => {
+      cancelOpts?.onSuccess?.({
+        status: "cancelled",
+      } as Invoice);
+    });
+
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.toastCancelledTitle,
+      }),
+    );
   });
 });

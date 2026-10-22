@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { Receipt, AlertCircle, FileText } from "lucide-react";
+import { Receipt, AlertCircle, FileText, Clock } from "lucide-react";
 import { canRegisterFinancialPayment } from "@boeltech/cfdi-domain";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -13,7 +13,10 @@ import { usePermissions, useRole } from "@shared/permissions";
 import { isClientPortalRole, ROLES } from "@shared/constants/roles";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
-import { useInvoice, useRetryRepStamp } from "@features/invoicing/application";
+import {
+  useInvoice,
+  useRetryRepStamp,
+} from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
   parseInvoiceBillingScope,
@@ -95,6 +98,8 @@ export function InvoiceDetailPage() {
   const [openCancelRequestKey, setOpenCancelRequestKey] = useState(0);
   const [openSendRequestKey, setOpenSendRequestKey] = useState(0);
   const [openPaymentRequestKey, setOpenPaymentRequestKey] = useState(0);
+  const [openResumeCancelRequestKey, setOpenResumeCancelRequestKey] =
+    useState(0);
 
   const filesReadyStorageKey = getInvoiceFilesReadyStorageKey(id ?? "");
   const [filesReadyCollapsed, setFilesReadyCollapsed] = useState(() =>
@@ -126,6 +131,43 @@ export function InvoiceDetailPage() {
         linkedTripIdForFiscal,
     ),
   });
+
+  const parentInvoiceIdForPartial = invoice?.parentInvoiceId ?? null;
+  const { data: parentInvoiceForPartial } = useInvoice(
+    parentInvoiceIdForPartial ?? "",
+    {
+      enabled: Boolean(
+        !isClientPortal &&
+          invoice &&
+          invoice.status === "stamped" &&
+          parentInvoiceIdForPartial,
+      ),
+    },
+  );
+
+  /**
+   * (B) Sustitución parcial — A-54: stamped + hijo activo.
+   * Precedencia PRD D2 sobre mid-trip flota.
+   */
+  const showSubstitutionCancelPendingOriginal =
+    !isClientPortal &&
+    invoice?.status === "stamped" &&
+    invoice.activeReplacement != null;
+
+  /**
+   * (B) en A-55: sustituta vigente mientras el original sigue stamped
+   * o cancellation_pending.
+   */
+  const showSubstitutionCancelPendingSubstitute =
+    !isClientPortal &&
+    Boolean(invoice?.parentInvoiceId) &&
+    invoice?.status === "stamped" &&
+    (parentInvoiceForPartial?.status === "stamped" ||
+      parentInvoiceForPartial?.status === "cancellation_pending");
+
+  const showSubstitutionCancelPending =
+    showSubstitutionCancelPendingOriginal ||
+    showSubstitutionCancelPendingSubstitute;
 
   const showFalseTripCancelCfdi =
     !isClientPortal &&
@@ -172,13 +214,14 @@ export function InvoiceDetailPage() {
       ? !invoice!.canCancelInvoice
       : true);
 
-  /** Mid-trip / flota: Sustituir 04. Excluye false_trip y post-cancel. */
+  /** Mid-trip / flota: Sustituir 04. Excluye false_trip, post-cancel y parcial (B). */
   const showTripFiscalAttention =
     !isClientPortal &&
     invoice?.status === "stamped" &&
     Boolean(linkedTripForFiscal?.requiresFiscalAttention) &&
     linkedTripForFiscal?.operationalOutcome !== "false_trip" &&
-    !linkedTripCancelled;
+    !linkedTripCancelled &&
+    !showSubstitutionCancelPending;
 
   const fiscalAttentionTripIds = useMemo(() => {
     if (
@@ -367,6 +410,9 @@ export function InvoiceDetailPage() {
   const showClientDraftAlert =
     isClientPortal && invoice.status === "draft";
 
+  const showCancellationPendingBanner =
+    !isClientPortal && invoice.status === "cancellation_pending";
+
   const genericReceiverMismatch =
     !isClientPortal && invoice.status === "draft"
       ? resolveGenericReceiverAdjustment({
@@ -384,11 +430,27 @@ export function InvoiceDetailPage() {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  /** Contador (y otros no admin/manager): hueco SAT estable en stamped/pending, sin depender de banners de viaje. */
+  const showSatHoleAlert =
+    !isClientPortal &&
+    !canAdminManagerFiscal &&
+    (invoice.status === "stamped" ||
+      invoice.status === "cancellation_pending") &&
+    !showFalseTripCancelCfdi &&
+    !showPostCancelFiscalAttention &&
+    !showTripFiscalAttention &&
+    !showSubstitutionCancelPending;
+
+  const showActiveSubstituteInfo =
+    isActiveSubstitute && !showSubstitutionCancelPendingSubstitute;
+
   const hasAlerts =
     showClientDraftAlert ||
+    showCancellationPendingBanner ||
+    showSatHoleAlert ||
     (!isClientPortal &&
       (showGenericReceiverAlert ||
-        isActiveSubstitute ||
+        showActiveSubstituteInfo ||
         showFilesReadyAlert ||
         showXmlMissingAlert ||
         showRepFiscalAlert ||
@@ -396,6 +458,7 @@ export function InvoiceDetailPage() {
         showTripFiscalAttention ||
         showFalseTripCancelCfdi ||
         showPostCancelFiscalAttention ||
+        showSubstitutionCancelPending ||
         showFollowThrough));
   const alerts = hasAlerts ? (
     <div className="space-y-3">
@@ -406,6 +469,24 @@ export function InvoiceDetailPage() {
           title={copy.hint.clientDraftTitle}
         >
           <p>{copy.hint.clientDraftBody}</p>
+        </DetailAlertCard>
+      ) : null}
+      {showCancellationPendingBanner ? (
+        <DetailAlertCard
+          severity="warning"
+          icon={<Clock className="h-5 w-5" />}
+          title={copy.hint.cancellationPendingBannerTitle}
+        >
+          <p>{copy.hint.cancellationPendingBannerBody}</p>
+        </DetailAlertCard>
+      ) : null}
+      {showSatHoleAlert ? (
+        <DetailAlertCard
+          severity="info"
+          icon={<AlertCircle className="h-5 w-5" />}
+          title={copy.hint.satHoleTitle}
+        >
+          <p>{copy.hint.satHoleBody}</p>
         </DetailAlertCard>
       ) : null}
       {showGenericReceiverAlert && genericReceiverMismatch ? (
@@ -516,6 +597,51 @@ export function InvoiceDetailPage() {
             <p>{copy.hint.postCancelCancelCfdiBody}</p>
           ) : (
             <p>{copy.hint.satHoleBody}</p>
+          )}
+        </DetailAlertCard>
+      ) : null}
+      {showSubstitutionCancelPending ? (
+        <DetailAlertCard
+          severity="critical"
+          icon={<Receipt className="h-5 w-5" />}
+          title={copy.hint.substitutionCancelPendingTitle}
+          action={
+            showSubstitutionCancelPendingOriginal && canAdminManagerFiscal ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setOpenResumeCancelRequestKey((key) => key + 1)
+                }
+              >
+                {copy.hint.substitutionCancelPendingCta}
+              </Button>
+            ) : showSubstitutionCancelPendingSubstitute &&
+              invoice.parentInvoiceId ? (
+              <Button asChild size="sm" variant="outline">
+                <Link
+                  to={`/invoices/${invoice.parentInvoiceId}`}
+                  state={{ from: location.pathname }}
+                >
+                  {copy.hint.substitutionCancelPendingLinkOriginal}
+                </Link>
+              </Button>
+            ) : null
+          }
+        >
+          {canAdminManagerFiscal ? (
+            <p>
+              {showSubstitutionCancelPendingOriginal
+                ? copy.hint.substitutionCancelPendingBodyOriginal(
+                    invoice.activeReplacement?.cfdiUuid ?? null,
+                  )
+                : parentInvoiceForPartial?.status === "cancellation_pending"
+                  ? copy.hint.substitutionCancelPendingBodyParentWaiting
+                  : copy.hint.substitutionCancelPendingBodySubstitute}
+            </p>
+          ) : (
+            <p>{copy.hint.substitutionCancelPendingAskManagerBody}</p>
           )}
         </DetailAlertCard>
       ) : null}
@@ -636,7 +762,7 @@ export function InvoiceDetailPage() {
           </p>
         </DetailAlertCard>
       ) : null}
-      {isActiveSubstitute ? (
+      {showActiveSubstituteInfo ? (
         <DetailAlertCard
           severity="info"
           icon={<Receipt className="h-5 w-5" />}
@@ -728,6 +854,7 @@ export function InvoiceDetailPage() {
             openCancelRequestKey={openCancelRequestKey}
             openSendRequestKey={openSendRequestKey}
             openPaymentRequestKey={openPaymentRequestKey}
+            openResumeCancelRequestKey={openResumeCancelRequestKey}
           />
         ),
       }}

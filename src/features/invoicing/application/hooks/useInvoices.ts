@@ -163,6 +163,8 @@ export const useInvoices = (
 export type UseInvoiceOptions = {
   /** When true, skip REP status polling (e.g. while an overlay is open). */
   pausePolling?: boolean;
+  /** When false, skip the detail fetch (e.g. parent/freight guard). Default true. */
+  enabled?: boolean;
 };
 
 export const useInvoice = (id: string, options?: UseInvoiceOptions) => {
@@ -170,7 +172,7 @@ export const useInvoice = (id: string, options?: UseInvoiceOptions) => {
   return useQuery({
     queryKey: invoiceQueryKeys.detail(id),
     queryFn: () => invoicingApi.getById(id),
-    enabled: !!id,
+    enabled: (options?.enabled ?? true) && !!id,
     staleTime: 30_000,
     refetchInterval: pausePolling
       ? false

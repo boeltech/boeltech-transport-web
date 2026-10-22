@@ -375,8 +375,8 @@ export const invoicingCopy = {
       payments: (count: number) =>
         count === 1 ? "Pagos recibidos" : `Pagos recibidos (${count})`,
       notes: "Notas internas",
-      cancellation: "Cancelación",
-      cancellationPending: "Cancelación en proceso",
+      cancellation: "Cancelada ante el SAT",
+      cancellationPending: "Esperando al receptor",
     },
     label: {
       issueDate: "Fecha de emisión",
@@ -419,7 +419,7 @@ export const invoicingCopy = {
     },
     overlayErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
     paymentErrorTitle: "Error al registrar pago",
-    cancelErrorTitle: "Error al cancelar factura",
+    cancelErrorTitle: "No se pudo cancelar",
     toast: {
       loadError: "Error al cargar factura",
       pdfError: "Error al generar PDF",
@@ -520,7 +520,11 @@ export const invoicingCopy = {
       substitutionLink: "la factura original",
       substitutionSuffix: ".",
       cancellationPendingSat:
-        "Pendiente de aceptación del cliente",
+        "Esperando aceptación del receptor; aún no está cancelada ante el SAT",
+      /** Banner ATF cuando status = cancellation_pending. */
+      cancellationPendingBannerTitle: "Esperando al receptor",
+      cancellationPendingBannerBody:
+        "La solicitud de cancelación ya se envió. Espera la aceptación del receptor. No asumas que la factura quedó cancelada ante el SAT.",
       pueSettled:
         "PUE: liquidación fiscal al emitir; el cobro se registra aparte",
       pueSettledTitle: "PUE — método de pago fiscal",
@@ -546,6 +550,24 @@ export const invoicingCopy = {
         "Hubo cambios en el viaje después de facturar. Pide a un gerente cancelar o sustituir esta factura.",
       fiscalAttentionAskManagerLink: "Pide a un gerente",
       fiscalAttentionChip: "Atención fiscal",
+      /**
+       * Sustitución parcial: sustituta timbrada / original sin cancelar.
+       * Reutiliza título/CTA del sheet (`cancelFailed*` / `resumeCancel`).
+       */
+      substitutionCancelPendingTitle:
+        "Sustituta timbrada; original sin cancelar",
+      substitutionCancelPendingBodyOriginal: (uuid: string | null) =>
+        uuid
+          ? `La nueva factura ya tiene UUID ${uuid}. No vuelvas a Sustituir: reintenta la cancelación del original.`
+          : "La nueva factura ya se timbró. No vuelvas a Sustituir: reintenta la cancelación del original.",
+      substitutionCancelPendingBodySubstitute:
+        "Esta factura ya está timbrada como sustituta. Falta cancelar el original ante el SAT. Abre la factura original y reintenta la cancelación ahí.",
+      substitutionCancelPendingBodyParentWaiting:
+        "La cancelación del original ya se envió y espera al receptor. Abre la factura original para ver el estado; no asumas que quedó cancelada ante el SAT.",
+      substitutionCancelPendingCta: "Reintentar cancelación",
+      substitutionCancelPendingLinkOriginal: "Ir a la factura original",
+      substitutionCancelPendingAskManagerBody:
+        "La sustituta ya está timbrada y el original sigue sin cancelar. Pide a un gerente reintentar la cancelación del original.",
       satHoleTitle: "Trámite SAT: pide a un gerente",
       satHoleBody:
         "Cancelar o sustituir esta factura lo hace un gerente. Tú puedes enviar el XML/PDF y registrar el cobro.",
@@ -742,13 +764,22 @@ export const invoicingCopy = {
       cancelFailedTitle: "Sustituta timbrada; original sin cancelar",
       cancelFailedDescription: (uuid: string | null) =>
         uuid
-          ? `La nueva factura ya tiene UUID ${uuid}. No vuelvas a sustituir: reintenta solo la cancelación del original.`
-          : "La nueva factura ya se timbró. No vuelvas a sustituir: reintenta solo la cancelación del original.",
+          ? `La nueva factura ya tiene UUID ${uuid}. No vuelvas a Sustituir: usa «Reintentar cancelación del original».`
+          : "La nueva factura ya se timbró. No vuelvas a Sustituir: usa «Reintentar cancelación del original».",
       resumeCancel: "Reintentar cancelación del original",
       resumeCancelProcessing: "Reintentando cancelación…",
       resumeCancelSuccessTitle: "Cancelación del original completada",
       resumeCancelSuccessDescription:
-        "La factura sustituta queda vigente y el CFDI original fue cancelado (o quedó pendiente ante el SAT).",
+        "La factura sustituta queda vigente. El original quedó cancelado ante el SAT o está esperando al receptor.",
+      resumeCancelDialogTitle: "Reintentar cancelación del original",
+      resumeCancelDialogDescription:
+        "Confirma el motivo de cancelación ante el SAT. No emite otra sustituta.",
+      resumeCancelReasonLabel: "Motivo de la cancelación",
+      resumeCancelReasonPlaceholder:
+        "Ej. Corrección del RFC del receptor (reintento)",
+      resumeCancelConfirm: "Reintentar cancelación",
+      resumeCancelDefaultReason:
+        "Reintento de cancelación del original tras sustitución",
       tripsStopLoadErrorTitle: "No se pudieron cargar las paradas",
       tripsStopLoadErrorDescription:
         "Espera a que terminen de cargar los viajes vinculados o vuelve a intentar.",
@@ -801,12 +832,31 @@ export const invoicingCopy = {
     cancelDialog: {
       title: "Cancelar factura",
       description:
-        "Esta acción cancelará la factura. Por regulación del SAT, debes indicar el motivo.",
+        "Esta acción cancela la factura ante el SAT. Debes indicar el motivo.",
       paymentsNoticeTitle: "Los cobros no se migran",
       paymentsNotice:
         "Los cobros y comprobantes de pago (REP) de esta factura no pasan a otra. Cancelar no abre un asistente para reasignarlos.",
       satMotive: "Motivo SAT",
       satMotivePlaceholder: "Selecciona motivo",
+      motiveHints: {
+        "01": "Errores con CFDI de reemplazo. Si vas a emitir otra factura, usa Sustituir.",
+        "02": "Errores sin factura de reemplazo (corrección sin relación).",
+        "03": "La operación no se realizó (p. ej. viaje en falso).",
+        "04": "Operación nominativa relacionada en una factura global.",
+      },
+      motive01PreferSubstituteTitle: "¿Necesitas una factura de reemplazo?",
+      motive01PreferSubstituteBody:
+        "Si vas a corregir datos y timbrar otra, cierra y usa Sustituir. El motivo 01 exige el folio fiscal (UUID) del CFDI sustituto.",
+      errorInProgressTitle: "Ya hay una solicitud en curso",
+      errorInProgressBody:
+        "Espera unos minutos y vuelve a consultar el estado de la factura. No asumas que quedó cancelada ante el SAT.",
+      errorTransportTitle: "Solicitud no confirmada",
+      errorTransportBody:
+        "No se confirmó la cancelación por un problema de conexión. Revisa el estado de la factura; no asumas que quedó cancelada ante el SAT. Si sigue timbrada, puedes reintentar.",
+      toastCancelledTitle: "Cancelada ante el SAT",
+      toastPendingTitle: "Esperando al receptor",
+      toastPendingDescription:
+        "La solicitud se envió. El receptor debe aceptarla; mientras tanto no está cancelada ante el SAT.",
       reason: "Descripción",
       reasonPlaceholder: "Describe el motivo de cancelación…",
       replacementUuid: "UUID de CFDI sustitución",
@@ -844,8 +894,8 @@ export const invoicingCopy = {
       draft: "Borrador",
       stamping: "En proceso",
       stamped: "Facturado",
-      cancellation_pending: "Cancelación en proceso",
-      cancelled: "Cancelada",
+      cancellation_pending: "Esperando al receptor",
+      cancelled: "Cancelada ante el SAT",
     },
   },
   concepts: {

@@ -1,10 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Invoice } from "@features/invoicing/domain";
 import { tripQueryKeys, type Trip, type TripStop } from "@features/trips/domain";
+import { ApiError } from "@shared/api/interceptors/error-handler";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import { invoicingCopy } from "../copy/invoicingCopy";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
 
 /** Esperas puntuales bajo carga CI (no subir timeout global). */
@@ -16,14 +18,26 @@ const { mutateMock, TRIP_ID, STOP_ID } = vi.hoisted(() => ({
   STOP_ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 }));
 
+type SubstituteOpts = {
+  onError?: (err: unknown) => void;
+};
+
+let substituteOpts: SubstituteOpts | undefined;
+
 vi.mock("@features/invoicing/application", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@features/invoicing/application")>();
   return {
     ...actual,
-    useSubstituteStampedInvoice: () => ({
-      mutate: mutateMock,
-      isPending: false,
-    }),
+    useSubstituteStampedInvoice: (
+      _invoiceId: string,
+      opts?: SubstituteOpts,
+    ) => {
+      substituteOpts = opts;
+      return {
+        mutate: mutateMock,
+        isPending: false,
+      };
+    },
     useResumeSubstitutionCancel: () => ({
       mutate: vi.fn(),
       isPending: false,
@@ -89,6 +103,7 @@ function buildInvoice(): Invoice {
     cfdiUuid: "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
     invoiceType: "ingreso",
     parentInvoiceId: null,
+    activeReplacement: null,
     issuerRfc: "AAA010101AAA",
     issuerName: "Emisor",
     issuerTaxRegime: "601",
@@ -190,6 +205,37 @@ function renderSheet() {
 describe("SubstituteInvoiceSheet", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    substituteOpts = undefined;
+  });
+
+  it("after SUBSTITUTION_CANCEL_FAILED shows resume cancel CTA and blocks re-substitute", () => {
+    const substituteCopy = invoicingCopy.detail.substitute;
+    renderSheet();
+
+    act(() => {
+      substituteOpts?.onError?.(
+        new ApiError("cancel failed", 502, "SUBSTITUTION_CANCEL_FAILED", {
+          replacement_cfdi_uuid: "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
+        }),
+      );
+    });
+
+    expect(
+      screen.getByText(substituteCopy.cancelFailedTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        substituteCopy.cancelFailedDescription(
+          "c9b54a4b-c44f-4fd6-afeb-a6889f4ad073",
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: substituteCopy.resumeCancel }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Sustituir factura$/i }),
+    ).toBeDisabled();
   });
 
   it("renders operative header, intro and confirm without SAT codes in subtitle", () => {
