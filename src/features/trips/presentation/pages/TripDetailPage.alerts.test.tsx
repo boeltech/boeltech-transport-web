@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Receipt } from "lucide-react";
+import { MemoryRouter } from "react-router-dom";
 
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { tripDetailCopy } from "../copy";
+import { resolveFiscalAttentionAlertSlot } from "../helpers/resolveFiscalAttentionAlertSlot";
 import { applyOpenAssignFleetSearchParams } from "./tripDetailAssignFleetParams";
 
 const shell = tripDetailCopy.shell;
@@ -78,5 +80,64 @@ describe("TripDetailPage alerts — D6 Asignar flota", () => {
     expect(
       screen.getByRole("button", { name: assignFleetLabel }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("TripDetailPage alerts — ATF wayfinding (PD1 consola on)", () => {
+  it("midTrip + consola visible → slot midTrip (no silenciar)", () => {
+    // Console visibility is intentionally not an input — coexist with preStats.
+    expect(
+      resolveFiscalAttentionAlertSlot({
+        mode: "midTrip",
+        freightHasPartialSubstitution: false,
+      }),
+    ).toBe("midTrip");
+  });
+
+  it("parcial + consola visible → banner crítico con Abrir factura original", () => {
+    expect(
+      resolveFiscalAttentionAlertSlot({
+        mode: "midTrip",
+        freightHasPartialSubstitution: true,
+      }),
+    ).toBe("partialSubstitution");
+
+    render(
+      <MemoryRouter>
+        <DetailAlertCard
+          severity="critical"
+          icon={<Receipt className="h-5 w-5" />}
+          title={shell.alert.substitutionCancelPendingTitle}
+          action={
+            <Button variant="outline" size="sm" asChild>
+              <a href="/invoices/inv-original">
+                {shell.alert.substitutionCancelPendingCta}
+              </a>
+            </Button>
+          }
+        >
+          <p>{shell.alert.substitutionCancelPendingBody}</p>
+        </DetailAlertCard>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(shell.alert.substitutionCancelPendingTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: shell.alert.substitutionCancelPendingCta,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(shell.alert.fiscalAttentionCta)).toBeNull();
+  });
+
+  it("postCancel + consola visible → slot postCancel", () => {
+    expect(
+      resolveFiscalAttentionAlertSlot({
+        mode: "postCancel",
+        freightHasPartialSubstitution: false,
+      }),
+    ).toBe("postCancel");
   });
 });

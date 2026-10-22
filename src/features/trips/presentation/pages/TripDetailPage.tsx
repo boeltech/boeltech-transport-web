@@ -128,6 +128,7 @@ import {
 } from "./tripDetailQueryGating";
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
 import { buildPostCancelFiscalAlertLines } from "../helpers/buildPostCancelFiscalAlertLines";
+import { resolveFiscalAttentionAlertSlot } from "../helpers/resolveFiscalAttentionAlertSlot";
 import { resolveFiscalAttentionBannerMode } from "../helpers/resolveFiscalAttentionBannerMode";
 import {
   canShowFiscalSubstituteCta,
@@ -400,15 +401,6 @@ export function TripDetailPage() {
     );
   }, [trip, cargos.length, satConfigAutotransporteCode]);
 
-  /**
-   * D1: when the invoicing console (preStats) already shows the fiscal context,
-   * suppress the duplicate fiscal-attention alert to avoid redundant messaging.
-   */
-  const invoicingConsoleVisible =
-    !isLeanTripPortal &&
-    trip != null &&
-    shouldShowTripInvoicingConsole(trip, Boolean(postCancelFiscal));
-
   const tripAlerts = useMemo(() => {
     if (!trip) return undefined;
 
@@ -457,15 +449,19 @@ export function TripDetailPage() {
       );
     }
 
+    // PD1: ATF banners coexist with invoicing console (preStats); do not gate on console.
     if (!isLeanTripPortal && trip.cfdiEmissionIntent !== "sin_cfdi_efectivo") {
-      const fiscalBannerMode = resolveFiscalAttentionBannerMode({
-        operationalOutcome: trip.operationalOutcome,
-        requiresFiscalAttention: trip.requiresFiscalAttention,
-        status: trip.status,
-        invoicing: trip.invoicing,
+      const fiscalAlertSlot = resolveFiscalAttentionAlertSlot({
+        mode: resolveFiscalAttentionBannerMode({
+          operationalOutcome: trip.operationalOutcome,
+          requiresFiscalAttention: trip.requiresFiscalAttention,
+          status: trip.status,
+          invoicing: trip.invoicing,
+        }),
+        freightHasPartialSubstitution,
       });
 
-      if (fiscalBannerMode === "falseTrip") {
+      if (fiscalAlertSlot === "falseTrip") {
         const cancelInvoiceId = trip.invoicing.invoiceId;
         cards.push(
           <DetailAlertCard
@@ -489,11 +485,7 @@ export function TripDetailPage() {
             <p>{shell.alert.falseTripCancelCfdiBody}</p>
           </DetailAlertCard>,
         );
-      } else if (
-        fiscalBannerMode === "midTrip" &&
-        freightHasPartialSubstitution &&
-        !invoicingConsoleVisible
-      ) {
+      } else if (fiscalAlertSlot === "partialSubstitution") {
         const originalInvoiceId =
           principalInvoiceForPartial?.id ?? trip.invoicing.invoiceId;
         cards.push(
@@ -519,11 +511,10 @@ export function TripDetailPage() {
           </DetailAlertCard>,
         );
       } else if (
-        (fiscalBannerMode === "postCancel" ||
-        fiscalBannerMode === "midTrip") &&
-        !invoicingConsoleVisible
+        fiscalAlertSlot === "postCancel" ||
+        fiscalAlertSlot === "midTrip"
       ) {
-        const isPostCancel = fiscalBannerMode === "postCancel";
+        const isPostCancel = fiscalAlertSlot === "postCancel";
         const fiscalCta = resolveFiscalAttentionCta({
           requiresFiscalAttention: trip.requiresFiscalAttention,
           hasActiveSplit: trip.invoicing.hasActiveSplit,
@@ -886,7 +877,6 @@ export function TripDetailPage() {
     canSubstituteFiscal,
     isDispatcher,
     isManager,
-    invoicingConsoleVisible,
     freightHasPartialSubstitution,
     principalInvoiceForPartial,
     revenueSplitForFiscalCta,
