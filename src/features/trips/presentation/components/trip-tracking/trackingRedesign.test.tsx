@@ -680,7 +680,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
       screen.queryByRole("button", { name: /Iniciar viaje/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Cerrar de un jalón/i }),
+      screen.queryByRole("button", { name: /Completar viaje/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
@@ -1561,8 +1561,8 @@ describe("TripTrackingIncidentStrip (F7.2)", () => {
   });
 });
 
-describe("TripTrackingObjectiveHub compact (Cerrar de un jalón siempre visible)", () => {
-  it("muestra Cerrar de un jalón demoted aunque el primary sea otro job (p. ej. cargas)", () => {
+describe("TripTrackingObjectiveHub compact (Completar viaje siempre visible)", () => {
+  it("muestra Completar viaje demoted aunque el primary sea otro job (p. ej. cargas)", () => {
     const originAtDock = stop({
       id: "s1",
       sequenceOrder: 1,
@@ -1619,7 +1619,7 @@ describe("TripTrackingObjectiveHub compact (Cerrar de un jalón siempre visible)
     expect(goToCargos.className).toMatch(/bg-primary/);
   });
 
-  it("muestra Cerrar de un jalón aunque esté disabled (sin_cfdi sin carga activa)", () => {
+  it("muestra Completar viaje aunque esté disabled (sin_cfdi sin carga activa)", () => {
     const destinationArrived = stop({
       id: "s2",
       sequenceOrder: 2,

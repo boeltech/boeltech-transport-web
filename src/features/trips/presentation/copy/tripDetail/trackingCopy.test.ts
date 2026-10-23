@@ -119,7 +119,7 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     expect(trackingCopy.label.endMileage).toBe("Kilometraje final");
     expect(trackingCopy.toast.endMileageRequired).not.toMatch(/od[oó]metro/i);
     expect(trackingCopy.action.close).toBe("Finalizar en destino");
-    expect(trackingCopy.action.quickClose).toBe("Cerrar de un jalón");
+    expect(trackingCopy.action.quickClose).toBe("Completar viaje");
     expect(trackingCopy.section.itinerary).toBe("Paradas");
     expect(trackingCopy.section.timeline).toBe("Historial del viaje");
   });

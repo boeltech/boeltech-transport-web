@@ -28,7 +28,7 @@ export const trackingCopy = {
     /** Cierre canónico en destino. */
     close: "Finalizar en destino",
     /** ADR-0088: atajo de cierre sin registrar cada parada. */
-    quickClose: "Cerrar de un jalón",
+    quickClose: "Completar viaje",
     /**
      * Motivo típico de viaje en falso (placeholder / sheet).
      * El CTA del hub usa `declareFalseTrip`, no esta frase.
@@ -164,7 +164,7 @@ export const trackingCopy = {
     closeDescription:
       "Confirma hora y kilometraje final. El viaje quedará completado.",
     quickCloseDescription:
-      "Cierra el viaje sin registrar cada parada. Confirma hora y kilometraje final.",
+      "Completa el viaje sin registrar cada parada. Confirma hora y kilometraje final.",
     noteTitle: "Registrar nota",
     noteDescription: "Queda en el historial del viaje.",
     notePlaceholder: "Detalle operativo, instrucciones, contexto…",
@@ -412,7 +412,7 @@ export const trackingCopy = {
     timelineActor: (actor: string) => `Registró: ${actor}`,
     updatedAgo: (ago: string) => `Actualizado ${ago}`,
     quickCloseTransition:
-      "Cierra sin registrar cada parada. Las no visitadas se completan automáticamente.",
+      "Completa sin registrar cada parada. Las no visitadas se completan automáticamente.",
     /** T4-043: mutex false_trip vs split activo (API 409 SPLIT_INCOMPATIBLE_WITH_FALSE_TRIP). */
     declareFalseTripBlockedBySplit:
       "Cancela el prorrateo activo antes de declarar viaje en falso.",

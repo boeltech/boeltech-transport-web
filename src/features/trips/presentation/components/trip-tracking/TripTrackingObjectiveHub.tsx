@@ -72,7 +72,7 @@ export type TripTrackingObjectiveHubProps = {
   canMutateCargo?: boolean;
   isDriverPortal?: boolean;
   isClientPortal?: boolean;
-  /** F5: 1 línea + CTA; demota cierre de un jalón / falso mid-ruta. */
+  /** F5: 1 línea + CTA; demota Completar viaje / falso mid-ruta. */
   compact?: boolean;
   className?: string;
 };
@@ -284,7 +284,7 @@ export function TripTrackingObjectiveHub({
     ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
     : null;
   /**
-   * Cerrar de un jalón siempre visible cuando es elegible (atajo sin pasar
+   * Completar viaje siempre visible cuando es elegible (atajo sin pasar
    * por todas las paradas). En Ahora (compact) se demota si no es el
    * primary; puede quedar disabled por gating de cargas, pero no se oculta.
    */
