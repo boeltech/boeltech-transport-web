@@ -40,11 +40,11 @@ export type CommercialAsset = {
   enabled: boolean;
 };
 
-/** Dimensiones de los crops A3 actuales (recaptura staging pendiente). */
+/** Dimensiones de los crops A3 (carrusel Evidencia + auth funnel). */
 const A3_PREVIEW = { width: 1024, height: 510 } as const;
 
 export const commercialAssets: Record<CommercialAssetId, CommercialAsset> = {
-  /** Hero / fallback genérico — mismo crop que Viajes hasta recaptura. */
+  /** Auth funnel / fallback genérico — crop A3 Viajes. */
   "product-preview-dashboard": {
     id: "product-preview-dashboard",
     src: "/commercial/product/product-preview-trips.png",

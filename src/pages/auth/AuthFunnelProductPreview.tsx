@@ -1,6 +1,6 @@
 /**
  * Preview de marketing del embudo auth: operación + facturación.
- * Mismo asset que landing (`product-preview-dashboard`); mock CSS si no enabled.
+ * Crop A3 `product-preview-dashboard`; mock CSS si no enabled.
  */
 import { cn } from "@shared/lib/utils/cn";
 import { isCommercialAssetEnabled } from "@shared/commercial/assets/commercialAssets";

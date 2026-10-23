@@ -1,8 +1,7 @@
 /**
- * Preview de marketing: crops A3 del producto o mock CSS.
- * Frame patio (F2). Montaje hacia/junto al hero en LandingPage.
- * Si el asset (`assetId` o dashboard) está enabled → imagen; si no → mock.
- * `backdrop={false}` cuando el hero ya aporta capas.
+ * Preview de marketing: crops A3 del producto (Evidencia) o mock CSS.
+ * Frame patio. Si el asset (`assetId` o dashboard) está enabled → imagen; si no → mock.
+ * `backdrop={false}` cuando el padre ya aporta capas.
  * F1: crossfade del crop dentro del frame (chrome quieto).
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -16,18 +15,18 @@ import { landingCopy } from "./landingCopy";
 
 type LandingProductPreviewProps = {
   className?: string;
-  /** Route-mesh detrás del frame. Default false en hero patio. */
+  /** Route-mesh detrás del frame. Default false. */
   backdrop?: boolean;
   /** Índice en preview.navItems a resaltar (beats de evidencia, mock). */
   activeNavIndex?: number;
   /**
-   * Crop A3 por beat. Default: product-preview-dashboard (hero).
+   * Crop A3 por beat. Default: product-preview-dashboard.
    * Si el id no está enabled, cae al mock CSS.
    */
   assetId?: CommercialAssetId;
   /**
    * Carrusel evidencia: fuerza crossfade+slide aunque el SO tenga
-   * prefers-reduced-motion (fade corto; hero sigue respetando reduce).
+   * prefers-reduced-motion (fade corto).
    */
   carouselMotion?: boolean;
 };

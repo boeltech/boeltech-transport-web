@@ -26,6 +26,8 @@ describe("commercialAssets", () => {
     ] as const) {
       expect(isCommercialAssetEnabled(id)).toBe(true);
       expect(commercialAssets[id].src).toMatch(/\.png$/);
+      expect(commercialAssets[id].width).toBe(1024);
+      expect(commercialAssets[id].height).toBe(510);
     }
     expect(commercialAssets["og-default"].enabled).toBe(false);
   });

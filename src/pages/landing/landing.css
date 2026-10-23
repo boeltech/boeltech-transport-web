@@ -11,9 +11,10 @@
  * Tokens patio scoped bajo `.landing-root` — no contaminan tipografía del ERP.
  *
  * Assets fotográficos:
- *   A1 — `/brand/tlama-landing-hero-yard.png` (flota/patio, copy space izq.).
- *   A3 — crops en public/commercial/product/product-preview-{fleet,trips,clients,billing}.png.
+ *   A1 — `/brand/tlama-landing-hero-yard.png` (flota/patio; ancla visual del hero).
+ *   A3 — crops Evidencia: public/commercial/product/product-preview-{fleet,trips,clients,billing}.png.
  *   A4 — banda CTA: degradado teal↔ink (eco auth brand panel; F2 stops).
+ *   Hero `/welcome` no monta preview de producto (UI solo en #evidencia).
  *
  * F2 — Paridad anclas con DS Patio v2 (F1 Teal Operate):
  *   --landing-brand = oklch light --palette-brand (≈ #008292), no #0F6F82.
@@ -138,11 +139,11 @@
 /* ── Tipografía marketing ──────────────────────────────── */
 .landing-display {
   font-family: var(--landing-font-display);
-  /* PRD: +~10% tope desktop (4.25rem); no paridad Aceternity text-7xl */
-  font-size: clamp(2.5rem, 1.8rem + 2.85vw, 4.25rem);
+  /* Hero marketing (D6): tope ~5rem desktop; ≤2 líneas; no toca tipografía ERP. */
+  font-size: clamp(2.75rem, 1.85rem + 3.4vw, 5rem);
   font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
   text-wrap: balance;
 }
 
@@ -359,9 +360,12 @@
   background: color-mix(in srgb, var(--landing-ink) 5%, transparent) !important;
 }
 
-/* ── Hero full-bleed + scrim ───────────────────────────── */
+/* ── Hero full-bleed + scrim (~1 viewport; sin preview de producto) ─ */
 .landing-hero {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
   /* overflow en el visual: el chrome fixed (.is-stuck) no debe quedar clippeado. */
   overflow: visible;
   color: var(--landing-on-dark);
@@ -418,67 +422,51 @@
     );
 }
 
-.landing-hero-stage {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.landing-hero-route {
-  position: absolute;
-  top: 8%;
-  left: 50%;
-  width: min(42%, 300px);
-  opacity: 0.12;
-  filter: brightness(0) invert(1);
-  transform: translateX(-50%) rotate(-6deg);
-  transform-origin: 50% 40%;
-  will-change: transform, opacity;
-}
-
 @media (max-width: 1023px) {
   .landing-hero-photo {
     object-position: 55% 38%;
-  }
-
-  .landing-hero-route {
-    opacity: 0.09;
-    width: min(56%, 220px);
-    top: 6%;
   }
 }
 
 .landing-hero-content {
   position: relative;
   z-index: 2;
-  /* Chrome ya aporta h-16; stack centrado (copy → preview). */
-  padding-top: clamp(1.5rem, 3vw, 3rem);
-  padding-bottom: clamp(1.25rem, 2.5vw, 2rem);
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Copy más alto en el viewport (sin hueco del preview); no agrandar H1. */
+  padding-top: clamp(2.5rem, 8vh, 5.5rem);
+  padding-bottom: clamp(1rem, 3vh, 2rem);
 }
 
 .landing-hero-stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(2rem, 4vw, 3rem);
+  width: 100%;
 }
 
 .landing-hero-copy {
   width: 100%;
 }
 
-.landing-hero-preview {
-  width: 100%;
-  max-width: 56rem;
-}
-
 .landing-hero-support {
-  max-width: 36rem;
+  max-width: 34ch;
+  margin-top: clamp(1.25rem, 2vw, 1.5rem);
+  font-size: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
   letter-spacing: 0.005em;
-  line-height: 1.65;
+  line-height: 1.5;
   color: color-mix(in srgb, var(--landing-on-dark) 90%, transparent);
   text-shadow: 0 1px 20px color-mix(in srgb, var(--landing-ink) 50%, transparent);
+}
+
+.landing-hero-cta-wrap {
+  margin-top: clamp(2rem, 2.5vw, 2.25rem);
+}
+
+.landing-hero-hint {
+  margin-top: clamp(0.75rem, 1.5vw, 1rem);
 }
 
 .landing-hero-cta {
@@ -508,6 +496,8 @@
 .landing-hero-trust {
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
+  margin-top: auto;
   border-top: none;
   padding-block: 1.15rem 1.35rem;
 }
@@ -587,30 +577,6 @@
   }
 }
 
-@keyframes landing-stage-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* U1: micro-drift del motif de ruta (una vez; híbrido centrado con translateX). */
-@keyframes landing-route-drift {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) rotate(-6deg) translate3d(10px, 6px, 0);
-  }
-  35% {
-    opacity: 0.14;
-  }
-  to {
-    opacity: 0.12;
-    transform: translateX(-50%) rotate(-6deg) translate3d(0, 0, 0);
-  }
-}
-
 @keyframes landing-trust-in {
   from {
     opacity: 0;
@@ -626,11 +592,6 @@
   animation: landing-hero-photo-enter var(--landing-motion-hero-photo) ease both;
   transform-origin: 58% 42%;
   will-change: transform, opacity;
-}
-
-.landing-hero.is-visual-ready .landing-hero-route {
-  animation: landing-route-drift 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: 180ms;
 }
 
 .landing-hero.is-visual-ready .landing-hero-trust {
@@ -652,7 +613,7 @@
     0 0 0 1px color-mix(in srgb, var(--landing-brand) 25%, transparent);
 }
 
-/* Crop stack: frame quieto; solo capas internas crossfadean */
+/* Crop stack A3 (Evidencia): frame quieto; solo capas internas crossfadean */
 .landing-preview-crop-stack {
   position: relative;
   width: 100%;
@@ -733,20 +694,6 @@
   to {
     opacity: 0;
     transform: translateX(-18px);
-  }
-}
-
-/* Hero híbrido: preview centrado y más ancho (product proof). */
-.landing-hero .landing-preview-frame {
-  max-width: min(56rem, 100%);
-  margin-inline: auto;
-  transform: perspective(1100px) rotateX(2deg);
-  transform-origin: 50% 100%;
-}
-
-@media (max-width: 767px) {
-  .landing-hero .landing-preview-frame {
-    transform: none;
   }
 }
 
@@ -937,7 +884,7 @@
     0 14px 32px -12px color-mix(in srgb, var(--landing-ink) 24%, transparent);
 }
 
-/* U3: indicadores de beat (carrusel) */
+/* U3: indicadores de beat — refuerzo mobile; tabs son la nav principal. */
 .landing-evidence-dots {
   display: flex;
   justify-content: center;
@@ -946,8 +893,9 @@
 }
 
 @media (min-width: 1024px) {
+  /* Desktop: tabs llevan el beat; dots secundarios (ocultos). */
   .landing-evidence-dots {
-    justify-content: flex-start;
+    display: none;
   }
 }
 
@@ -1716,7 +1664,6 @@
   }
 
   .landing-hero.is-visual-ready .landing-hero-photo,
-  .landing-hero.is-visual-ready .landing-hero-route,
   .landing-hero.is-visual-ready .landing-hero-trust {
     opacity: 1;
     transform: none;

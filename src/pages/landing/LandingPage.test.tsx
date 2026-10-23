@@ -228,6 +228,10 @@ describe("LandingPage /welcome polish", () => {
     expect(
       within(chrome).getByRole("link", { name: landingCopy.nav.login }),
     ).toHaveAttribute("href", "/login");
+    expect(landingCopy.nav.login).toBe("Ya tengo cuenta");
+    expect(
+      within(chrome).queryByRole("link", { name: "Iniciar sesión" }),
+    ).not.toBeInTheDocument();
     expect(
       within(chrome).getByRole("link", {
         name: landingCopy.nav.pricing,
@@ -254,13 +258,41 @@ describe("LandingPage /welcome polish", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps a single Contactar ventas CTA in the hero (no login link, no Probar gratis)", () => {
+    const { container } = renderLanding();
+    const hero = container.querySelector("[data-landing-hero]");
+    expect(hero).toBeTruthy();
+    const heroCopy = hero!.querySelector(".landing-hero-copy");
+    expect(heroCopy).toBeTruthy();
+
+    const primary = within(heroCopy as HTMLElement).getByRole("link", {
+      name: landingCopy.hero.ctaPrimaryClosed,
+    });
+    expect(primary).toHaveAttribute("href", "mailto:ventas@boeltech.com");
+    expect(
+      within(heroCopy as HTMLElement).queryByRole("link", {
+        name: landingCopy.nav.login,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(heroCopy as HTMLElement).queryByRole("link", {
+        name: landingCopy.hero.ctaPrimaryOpen,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(heroCopy as HTMLElement).queryByRole("link", {
+        name: "Probar gratis",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps scroll-margin on #evidencia and #pricing for in-page anchors", () => {
     const { container } = renderLanding();
     expect(container.querySelector("#evidencia")).toHaveClass("scroll-mt-20");
     expect(container.querySelector("#pricing")).toHaveClass("scroll-mt-20");
   });
 
-  it("orders DOM as Evidencia → Pricing → FAQ → CTA → Optionals", () => {
+  it("orders DOM as Evidencia → Pricing → Optionals → FAQ → CTA", () => {
     const { container } = renderLanding();
     const main = container.querySelector("main#contenido");
     expect(main).toBeTruthy();
@@ -284,12 +316,10 @@ describe("LandingPage /welcome polish", () => {
       Array.from(main!.children).indexOf(el.closest("section")!);
 
     expect(position(evidence!)).toBeLessThan(position(pricing!));
-    expect(position(pricing!)).toBeLessThan(position(faq!));
+    expect(position(pricing!)).toBeLessThan(position(optionals!));
+    expect(position(optionals!)).toBeLessThan(position(faq!));
     expect(position(faq!)).toBeLessThan(
       position(ctaHeading.closest("section")!),
-    );
-    expect(position(ctaHeading.closest("section")!)).toBeLessThan(
-      position(optionals!),
     );
 
     expect(
@@ -305,22 +335,31 @@ describe("LandingPage /welcome polish", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("uses hybrid hero stack (centered copy + preview, not split columns)", () => {
+  it("uses centered hero copy stack without product preview (not split columns)", () => {
     const { container } = renderLanding();
     const stack = container.querySelector(".landing-hero-stack");
     expect(stack).toBeTruthy();
     expect(stack!.querySelector(".landing-hero-copy")).toBeTruthy();
-    expect(stack!.querySelector(".landing-hero-preview")).toBeTruthy();
+    expect(stack!.querySelector(".landing-hero-preview")).toBeNull();
+    expect(
+      container.querySelector(".landing-hero .landing-preview-frame"),
+    ).toBeNull();
+    expect(
+      container.querySelector(".landing-hero .landing-preview-mock"),
+    ).toBeNull();
     expect(container.querySelector(".landing-hero .lg\\:grid-cols-2")).toBeNull();
   });
 
-  it("mounts product preview near the hero and again in evidence (not a dense product grid)", () => {
+  it("keeps product preview only in evidence (not in hero; not a dense product grid)", () => {
     const { container } = renderLanding();
     expect(
       container.querySelector(".landing-hero .landing-preview-frame"),
-    ).toBeTruthy();
+    ).toBeNull();
     expect(
       container.querySelector("#evidencia .landing-preview-frame"),
+    ).toBeTruthy();
+    expect(
+      container.querySelector("#evidencia .landing-preview-crop-stack"),
     ).toBeTruthy();
     expect(container.querySelector(".landing-module-grid")).toBeNull();
   });
@@ -340,7 +379,16 @@ describe("LandingPage /welcome polish", () => {
     const second = landingCopy.product.items[1]!;
 
     expect(
-      screen.getByRole("heading", { level: 3, name: first.title }),
+      screen.getByRole("heading", { level: 3, name: first.benefitTitle }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: landingCopy.evidence.title,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(landingCopy.evidence.subtitle),
     ).toBeInTheDocument();
 
     const evidencePreview = container.querySelector(
@@ -357,7 +405,7 @@ describe("LandingPage /welcome polish", () => {
     await user.click(within(tablist).getByRole("tab", { name: second.title }));
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { level: 3, name: second.title }),
+        screen.getByRole("heading", { level: 3, name: second.benefitTitle }),
       ).toBeInTheDocument();
     });
     expect(
@@ -387,7 +435,7 @@ describe("LandingPage /welcome polish", () => {
       const second = landingCopy.product.items[1]!;
 
       expect(
-        screen.getByRole("heading", { level: 3, name: first.title }),
+        screen.getByRole("heading", { level: 3, name: first.benefitTitle }),
       ).toBeInTheDocument();
       expect(
         document.querySelector("#evidencia"),
@@ -402,7 +450,7 @@ describe("LandingPage /welcome polish", () => {
         screen.getByRole("tab", { name: second.title }),
       ).toHaveAttribute("aria-selected", "true");
       expect(
-        screen.getByRole("heading", { level: 3, name: second.title }),
+        screen.getByRole("heading", { level: 3, name: second.benefitTitle }),
       ).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
@@ -466,7 +514,7 @@ describe("LandingPage /welcome polish", () => {
     expect(pequenaCol?.classList.contains("is-fleet-match")).toBe(true);
     expect(microCol?.classList.contains("is-fleet-match")).toBe(false);
     expect(medianaCol?.classList.contains("is-fleet-match")).toBe(false);
-    expect(screen.getByText("Tu banda: Pequeña")).toBeInTheDocument();
+    expect(screen.getByText("Tu plan: Pequeña")).toBeInTheDocument();
     expect(pequenaCol).toBeTruthy();
     const pequenaActions = pequenaCol!.querySelector(".landing-plan-actions");
     const pequenaSpecs = pequenaCol!.querySelector(".landing-plan-specs");
@@ -488,9 +536,19 @@ describe("LandingPage /welcome polish", () => {
     await user.click(screen.getByRole("radio", { name: "1–5" }));
     expect(microCol?.classList.contains("is-fleet-match")).toBe(true);
     expect(pequenaCol?.classList.contains("is-fleet-match")).toBe(false);
-    expect(screen.getByText("Tu banda: Micro")).toBeInTheDocument();
-    /* Popular badge permanece; no inventa segunda columna featured con CTA ámbar. */
+    expect(screen.getByText("Tu plan: Micro")).toBeInTheDocument();
+    /* Popular badge permanece; no-match eyebrow = rango motrices (no familyLabel). */
     expect(pequenaCol?.classList.contains("is-popular")).toBe(true);
+    expect(
+      within(pequenaCol as HTMLElement).getByText(
+        landingCopy.pricing.popularBadge,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      microCol!.querySelector(".landing-plan-eyebrow")?.textContent,
+    ).toBe("1–5 motrices");
+    expect(container.querySelector(".landing-plan-spec-l0")).toBeNull();
+    expect(screen.queryByText("Núcleo incluido")).not.toBeInTheDocument();
     expect(planCta(microCol)?.classList.contains("landing-cta-amber")).toBe(
       true,
     );
@@ -503,7 +561,7 @@ describe("LandingPage /welcome polish", () => {
       '.landing-plan-col[data-plan-code="operacion_grande"]',
     );
     expect(grandeCol?.classList.contains("is-fleet-match")).toBe(true);
-    expect(screen.getByText("Tu banda: Grande")).toBeInTheDocument();
+    expect(screen.getByText("Tu plan: Grande")).toBeInTheDocument();
     expect(pequenaCol?.classList.contains("is-fleet-match")).toBe(false);
     expect(pequenaCol?.classList.contains("is-popular")).toBe(true);
     /* Grande cotización: outline/quote, sin CTA ámbar aunque sea match. */
@@ -592,6 +650,9 @@ describe("LandingPage /welcome polish", () => {
 
     const faq = document.querySelector("#faq");
     expect(faq).toBeTruthy();
+    /* PRD: FAQ muted vs Opcionales elevated — separación de banda. */
+    expect(faq).toHaveClass("landing-band-muted");
+    expect(faq).not.toHaveClass("landing-band-surface");
     expect(
       within(faq as HTMLElement).getByRole("heading", {
         level: 2,
@@ -672,15 +733,21 @@ describe("LandingPage /welcome polish", () => {
     expect(container.querySelector(".landing-hero-band")).toBeNull();
   });
 
-  it("unifies open-mode trial CTA to Probar gratis (header, hero, pricing, close)", () => {
-    renderLanding();
+  it("unifies open-mode trial CTA to Probar gratis (chrome, pricing, close; not hero)", () => {
+    const { container } = renderLanding();
     const trialLinks = screen.getAllByRole("link", {
       name: "Probar gratis",
     });
-    expect(trialLinks.length).toBeGreaterThanOrEqual(5);
+    expect(trialLinks.length).toBeGreaterThanOrEqual(4);
     for (const link of trialLinks) {
       expect(link).toHaveAttribute("href", "/register");
     }
+    const heroCopy = container.querySelector(".landing-hero-copy");
+    expect(
+      within(heroCopy as HTMLElement).queryByRole("link", {
+        name: "Probar gratis",
+      }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: landingCopy.pricing.ctaQuote }),
     ).toHaveAttribute("href", "mailto:ventas@boeltech.com");
@@ -716,9 +783,9 @@ describe("LandingPage /welcome polish", () => {
     expect(container.querySelector(".landing-evidence-dot.is-active")).toBeTruthy();
   });
 
-  it("limits LandingReveal to at most three uses", () => {
+  it("limits LandingReveal to at most two uses (hero copy + CTA cierre)", () => {
     const { container } = renderLanding();
-    expect(container.querySelectorAll(".landing-reveal")).toHaveLength(3);
+    expect(container.querySelectorAll(".landing-reveal")).toHaveLength(2);
     expect(container.querySelector(".landing-reveal.is-eager")).toBeTruthy();
   });
 
@@ -797,5 +864,58 @@ describe("LandingPage closed registration", () => {
         hidden: true,
       }),
     ).toHaveAttribute("href", "mailto:ventas@boeltech.com");
+  });
+
+  it("chrome shows Ya tengo cuenta + Contactar ventas; hero has only Contactar ventas", () => {
+    const { container } = renderLanding();
+    const chrome = screen.getByRole("banner");
+
+    expect(
+      within(chrome).getByRole("link", { name: "Ya tengo cuenta" }),
+    ).toHaveAttribute("href", "/login");
+    expect(
+      within(chrome).getByRole("link", {
+        name: landingCopy.nav.contactSales,
+      }),
+    ).toHaveAttribute("href", "mailto:ventas@boeltech.com");
+    expect(
+      within(chrome).queryByRole("link", { name: "Iniciar sesión" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(chrome).queryByRole("link", {
+        name: landingCopy.nav.register,
+      }),
+    ).not.toBeInTheDocument();
+
+    const heroCopy = container.querySelector(".landing-hero-copy");
+    expect(
+      within(heroCopy as HTMLElement).getByRole("link", {
+        name: landingCopy.hero.ctaPrimaryClosed,
+      }),
+    ).toHaveAttribute("href", "mailto:ventas@boeltech.com");
+    expect(
+      within(heroCopy as HTMLElement).queryByRole("link", {
+        name: "Ya tengo cuenta",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(heroCopy as HTMLElement).queryByRole("link", {
+        name: "Probar gratis",
+      }),
+    ).not.toBeInTheDocument();
+
+    const sticky = document.querySelector("[data-landing-sticky-cta]");
+    expect(
+      within(sticky as HTMLElement).queryByRole("link", {
+        name: "Ya tengo cuenta",
+        hidden: true,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(sticky as HTMLElement).getByRole("link", {
+        name: landingCopy.stickyCta.pricingLink,
+        hidden: true,
+      }),
+    ).toHaveAttribute("href", "#pricing");
   });
 });

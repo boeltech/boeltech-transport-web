@@ -65,8 +65,8 @@ describe("landingCopy pricing SoT v5", () => {
     expect(landingCopy.pricing.priceHint.toLowerCase()).toMatch(
       /sin cargo fijo de cuenta/,
     );
-    expect(landingCopy.pricing.priceHintClosed.toLowerCase()).toMatch(
-      /sin cargo fijo de cuenta/,
+    expect(landingCopy.pricing.priceHintClosed).toBe(
+      "MXN · por motriz · mes · sin IVA · alta con ventas",
     );
     expect(flattenCopy(landingCopy.pricing)).not.toMatch(/fee de cuenta/i);
     expect(landingCopy.pricing.annualNote).not.toMatch(/−\s?15%|-15%/);
@@ -128,11 +128,17 @@ describe("landingCopy visitor MX (D6–D13)", () => {
     expect(landingCopy.hero.trialHint).not.toMatch(/cualquier plan/i);
   });
 
-  it("keeps a single trial verb Probar gratis across nav, hero, cards and close CTA", () => {
+  it("keeps a single trial verb Probar gratis for open-mode surfaces (not hero primary)", () => {
     expect(landingCopy.nav.register).toBe("Probar gratis");
     expect(landingCopy.hero.ctaPrimaryOpen).toBe("Probar gratis");
+    expect(landingCopy.hero.ctaPrimaryClosed).toBe("Contactar ventas");
     expect(landingCopy.pricing.cta).toBe("Probar gratis");
     expect(landingCopy.cta.primary).toBe("Probar gratis");
+  });
+
+  it("unifies welcome login wording to Ya tengo cuenta (not Iniciar sesión)", () => {
+    expect(landingCopy.nav.login).toBe("Ya tengo cuenta");
+    expect(landingCopy.hero.ctaLogin).toBe("Ya tengo cuenta");
   });
 
   it("omits Opcionales from nav copy (deep link stays via pricing footnote)", () => {
@@ -175,15 +181,30 @@ describe("landingCopy visitor MX (D6–D13)", () => {
       "REP",
     ]);
     expect(landingCopy.trust.items.map((item) => item.hint)).toEqual([
-      "Timbrado con tu sello",
-      "Va con el viaje",
+      "Con tu CSD",
+      "Sale con el viaje",
       "Al registrar el pago",
     ]);
   });
 
-  it("puts Equipo de apoyo in the core Viajes card, not in optionals", () => {
+  it("keeps exact hero marketing copy (title, support, closed hint)", () => {
+    expect(landingCopy.hero.title).toBe("Opera tu flota y factura en México.");
+    expect(landingCopy.hero.subtitle).toBe(
+      "Viajes, unidades y clientes en un solo lugar. Facturas con tu CSD cuando la operación lo pida.",
+    );
+    expect(landingCopy.hero.badgeClosed).toBe(
+      "Te damos de alta con el equipo de ventas.",
+    );
+    expect(landingCopy.hero.title).not.toMatch(/desde el primer día/i);
+  });
+
+  it("keeps optionals without Equipo de apoyo (no longer a Viajes bullet)", () => {
     const viajes = landingCopy.product.items.find((item) => item.title === "Viajes");
-    expect(viajes?.bullets).toContain("Equipo de apoyo y su compensación");
+    expect(viajes?.bullets).toEqual([
+      "Alta de viaje",
+      "Paradas y seguimiento",
+      "Gastos y aprobaciones",
+    ]);
     expect(landingCopy.optionals.items).toHaveLength(3);
     expect(landingCopy.optionals.items.map((item) => item.title)).toEqual([
       "Combustible",
@@ -194,22 +215,37 @@ describe("landingCopy visitor MX (D6–D13)", () => {
     expect(flattenCopy(landingCopy.optionals.items)).not.toMatch(/paywall/i);
   });
 
-  it("replaces product jargon with visitor labels", () => {
+  it("keeps evidence beat labels short and visitor-facing", () => {
     const bullets = landingCopy.product.items.flatMap((item) => item.bullets);
-    expect(bullets).toContain("Alta de viaje por pasos");
-    expect(bullets).toContain("Roles y permisos para oficina, patio y finanzas");
-    expect(bullets).toContain("Aprobaciones de gastos y operación");
+    expect(bullets).toContain("Alta de viaje");
+    expect(bullets).toContain("Permisos por rol");
+    expect(bullets).toContain("Gastos y aprobaciones");
+    expect(bullets).toHaveLength(12);
     expect(landingCopy.pricing.featureLabels.fleet).toBe("Motrices");
-    expect(landingCopy.pricing.featureLabels.l0).toBe("Núcleo incluido");
   });
 
   it("F3 pricing: patio frame copy without catalog SaaS tone", () => {
-    expect(landingCopy.pricing.title.toLowerCase()).toMatch(/flota|motriz|banda/);
-    expect(landingCopy.pricing.subtitle.toLowerCase()).toMatch(/flota/);
-    expect(landingCopy.pricing.fleetSelector.hint.toLowerCase()).toMatch(
-      /flota|banda/,
+    expect(landingCopy.pricing.title).toBe(
+      "Planes según el tamaño de tu flota",
     );
-    expect(landingCopy.pricing.familyLabel).toBe("Operación");
+    expect(landingCopy.pricing.subtitle).toBe(
+      "Pagas por motriz al mes, sin cargo fijo de cuenta. Mismo núcleo operativo en todos los planes; cambian cupos y precio.",
+    );
+    expect(landingCopy.pricing.fleetSelector.label).toBe(
+      "¿Cuántas motrices operas?",
+    );
+    expect(landingCopy.pricing.fleetSelector.hint).toBe(
+      "Motriz = unidad tractora. Es la unidad de cobro del plan.",
+    );
+    expect(landingCopy.pricing.fleetSelector.matchCueTemplate).toBe(
+      "Tu plan: {name}",
+    );
+    expect(landingCopy.pricing.audiences).toEqual({
+      operacion_micro: "Viajes y factura sin cargo fijo extra.",
+      operacion_pequena: "Más usuarios, sucursales e historial.",
+      operacion_mediana: "Varias sucursales y más equipo.",
+      operacion_grande: "Precio y cupos a medida.",
+    });
     expect(landingCopy.pricing.popularBadge).toBe("Más elegido");
   });
 });
@@ -218,12 +254,23 @@ describe("landingCopy F3 conversion (evidence / FAQ / fleet selector)", () => {
   it("anchors evidence at #evidencia and nav label Cómo funciona", () => {
     expect(landingCopy.evidence.id).toBe("evidencia");
     expect(landingCopy.nav.product).toBe("Cómo funciona");
+    expect(landingCopy.evidence.title).toBe("Cómo funciona en tu patio");
+    expect(landingCopy.evidence.subtitle).toBe(
+      "Las mismas funciones en todos los planes. Lo que cambia con el tamaño de flota son los cupos (motrices, usuarios, sucursales), no lo que puedes hacer.",
+    );
+    expect(landingCopy.evidence.tablistLabel).toBe("Áreas del producto");
     expect(landingCopy.product.items).toHaveLength(4);
     expect(landingCopy.product.items.map((i) => i.title)).toEqual([
       "Flota",
       "Viajes",
-      "Clientes y personal",
-      "Facturación y finanzas",
+      "Clientes",
+      "Facturación",
+    ]);
+    expect(landingCopy.product.items.map((i) => i.benefitTitle)).toEqual([
+      "Tus unidades bajo control",
+      "El viaje, de punta a punta",
+      "Gente y permisos claros",
+      "Del viaje al CFDI",
     ]);
   });
 
@@ -243,6 +290,12 @@ describe("landingCopy F3 conversion (evidence / FAQ / fleet selector)", () => {
     expect(landingCopy.faq.id).toBe("faq");
     expect(landingCopy.faq.items.length).toBeGreaterThanOrEqual(5);
     expect(landingCopy.faq.items.length).toBeLessThanOrEqual(6);
+    const motrizFaq = landingCopy.faq.items.find(
+      (item) => item.question === "¿Qué es una motriz?",
+    );
+    expect(motrizFaq?.answer).toBe(
+      "Una motriz es el tractocamión o vehículo motriz que opera viajes. No cuenta remolques ni dollies. El plan se cobra por motriz al mes.",
+    );
     const blob = flattenCopy(landingCopy.faq);
     expect(blob).toMatch(/CSD/);
     expect(blob).toMatch(/14 días/);

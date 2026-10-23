@@ -22,11 +22,16 @@ function planCodeForFleetOption(optionId: string): string {
   return match?.planCode ?? landingCopy.pricing.popularCode;
 }
 
+/** SoT usa «unidades»; en landing pricing mostramos «motrices» (mismo rango). */
+function fleetUnitsLabelForLanding(unitsLabel: string): string {
+  return unitsLabel.replace(/\bunidades\b/gi, "motrices");
+}
+
 /**
  * Landing pública (`/welcome`): embudo D1–D12 · look «Señal de patio».
- * Secuencia: Hero(+chrome+UI) → Trust → Evidencia → Precios → FAQ → CTA → Opcionales → Footer.
- * Máx. 3 LandingReveal: hero copy (eager), preview, CTA cierre.
- * Hero: híbrido patio + stack centrado (copy → preview grande; ref. Aceternity centered).
+ * Secuencia: Hero(+chrome+trust) → Evidencia → Precios → Opcionales → FAQ → CTA → Footer.
+ * Máx. 2 LandingReveal en hero/cierre: hero copy (eager), CTA cierre.
+ * Hero: patio full-bleed + scrim + copy/CTA + trust tipográfico (~1 viewport; UI en #evidencia).
  * F1: chrome on-dark dentro del hero. F2: sticky elevated + lockup al salir del hero.
  */
 const LandingPage = () => {
@@ -40,9 +45,9 @@ const LandingPage = () => {
         <HeroSection />
         <EvidenceSection />
         <PricingSection />
+        <OptionalsSection />
         <LandingFaq />
         <CTASection />
-        <OptionalsSection />
       </main>
       <Footer />
       <StickyMobileCta />
@@ -247,49 +252,35 @@ const HeroSection = () => {
       <HeroChrome />
 
       <div className="landing-shell landing-hero-content">
-        {/* Híbrido: copy + CTA centrados → preview grande centrado (patio de fondo). */}
+        {/* Patio + copy/CTA; prueba de UI solo en #evidencia (sin preview en hero). */}
         <div className="landing-hero-stack relative z-10">
           <div className="landing-hero-copy mx-auto w-full max-w-2xl text-center">
             <LandingReveal eager>
               <h1 className="landing-hero-enter-item landing-display text-[color:var(--landing-on-dark)]">
                 {hero.title}
               </h1>
-              <p className="landing-hero-enter-item landing-hero-support mx-auto mt-6 text-base md:text-lg">
+              <p className="landing-hero-enter-item landing-hero-support mx-auto">
                 {hero.subtitle}
               </p>
 
-              <div className="landing-hero-enter-item mt-9 flex flex-col items-center gap-3.5 sm:flex-row sm:justify-center sm:gap-5">
-                {registrationOpen ? (
-                  <Button
-                    size="lg"
-                    asChild
-                    className="landing-hero-cta landing-cta-amber min-w-[210px]"
-                  >
-                    <Link to="/register">
-                      {hero.ctaPrimaryOpen}
-                      <ChevronRight className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    asChild
-                    className="landing-hero-cta landing-cta-amber min-w-[210px]"
-                  >
-                    <a href="mailto:ventas@boeltech.com">
-                      {hero.ctaPrimaryClosed}
-                      <ChevronRight className="ml-2 h-5 w-5" />
-                    </a>
-                  </Button>
-                )}
-                <Link
-                  to="/login"
-                  className="landing-link-onbrand text-sm font-medium text-[color:var(--landing-on-dark)]/85 underline-offset-4 transition-colors hover:underline"
+              <div className="landing-hero-enter-item landing-hero-cta-wrap flex flex-col items-center justify-center">
+                {/*
+                  Primario del hero = Contactar ventas (D2 CEO).
+                  No bifurcar a Probar gratis aquí mientras self-serve esté off;
+                  login vive en chrome (`nav.login`), no junto al CTA del hero.
+                */}
+                <Button
+                  size="lg"
+                  asChild
+                  className="landing-hero-cta landing-cta-amber min-w-[210px]"
                 >
-                  {hero.ctaLogin}
-                </Link>
+                  <a href="mailto:ventas@boeltech.com">
+                    {hero.ctaPrimaryClosed}
+                    <ChevronRight className="ml-2 h-5 w-5" />
+                  </a>
+                </Button>
               </div>
-              <p className="landing-hero-enter-item mt-4 flex items-center justify-center gap-2 text-sm text-[color:var(--landing-on-dark)]/70">
+              <p className="landing-hero-enter-item landing-hero-hint flex items-center justify-center gap-2 text-sm text-[color:var(--landing-on-dark)]/70">
                 {registrationOpen ? (
                   <>
                     <span
@@ -304,13 +295,6 @@ const HeroSection = () => {
               </p>
             </LandingReveal>
           </div>
-
-          <LandingReveal
-            className="landing-preview-rise landing-hero-preview relative z-10"
-            delayMs={780}
-          >
-            <LandingProductPreview backdrop={false} />
-          </LandingReveal>
         </div>
       </div>
 
@@ -508,7 +492,9 @@ const EvidenceSection = () => {
                 copyFading && "is-fading",
               )}
             >
-              <h3 className="landing-evidence-beat-title">{active.title}</h3>
+              <h3 className="landing-evidence-beat-title">
+                {active.benefitTitle}
+              </h3>
               <p className="landing-muted-text mt-3 text-base leading-relaxed">
                 {active.description}
               </p>
@@ -621,6 +607,7 @@ const PricingSection = () => {
             const isPopular = plan.code === pricing.popularCode;
             const isFleetMatch = plan.code === highlightedCode;
             const audience = pricing.audiences[plan.code] ?? plan.unitsLabel;
+            const fleetRangeLabel = fleetUnitsLabelForLanding(plan.unitsLabel);
             const isQuote =
               plan.code === "operacion_grande" ||
               plan.priceAmount === "Cotización" ||
@@ -639,7 +626,7 @@ const PricingSection = () => {
                 )}
               >
                 <p className="landing-plan-eyebrow">
-                  {isPopular ? pricing.popularBadge : pricing.familyLabel}
+                  {isPopular ? pricing.popularBadge : fleetRangeLabel}
                 </p>
 
                 <h3 className="landing-plan-name">{plan.shortName}</h3>
@@ -712,7 +699,7 @@ const PricingSection = () => {
                       {pricing.featureLabels.fleet}
                     </dt>
                     <dd className="landing-plan-spec-value">
-                      {plan.unitsLabel}
+                      {fleetRangeLabel}
                     </dd>
                   </div>
                   <div className="landing-plan-spec">
@@ -751,12 +738,6 @@ const PricingSection = () => {
                       </dd>
                     </div>
                   ) : null}
-                  <div className="landing-plan-spec landing-plan-spec-l0">
-                    <dt className="landing-plan-spec-label">
-                      {pricing.featureLabels.l0}
-                    </dt>
-                    <dd className="landing-plan-spec-value">Incluido</dd>
-                  </div>
                 </dl>
               </article>
             );

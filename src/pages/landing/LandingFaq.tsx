@@ -14,7 +14,7 @@ export function LandingFaq() {
   return (
     <section
       id={faq.id}
-      className="landing-band landing-band-surface landing-faq scroll-mt-20 py-16 md:py-20"
+      className="landing-band landing-band-muted landing-faq scroll-mt-20 py-16 md:py-20"
     >
       <div className="landing-shell">
         <div className="mx-auto max-w-2xl text-center">
