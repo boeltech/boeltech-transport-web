@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { FinkokEmitterStatuses } from "../../domain";
 import {
   CERTIFICATE_EXPIRY_WARNING_DAYS,
   isBillingCoreReady,
   resolveCertificateReadiness,
+  resolveFinkokEmitterCta,
+  resolveFinkokEmitterReadiness,
   resolveIdentityReadiness,
   resolveNumberingReadiness,
   resolveReadinessTone,
@@ -117,6 +120,68 @@ describe("resolveNumberingReadiness", () => {
   });
 });
 
+describe("resolveFinkokEmitterReadiness", () => {
+  it("oculta el paso cuando el flag está off", () => {
+    const result = resolveFinkokEmitterReadiness({
+      finkokRegistrationEnabled: false,
+      finkokEmitter: {
+        status: FinkokEmitterStatuses.READY,
+        detail: null,
+        checkedAt: null,
+        taxpayerId: "AAA010101AAA",
+        registrationEnabled: false,
+      },
+    });
+    expect(result.visible).toBe(false);
+    expect(result.blocksReady).toBe(false);
+  });
+
+  it("trata cache vacía con flag on como no_registrado bloqueante", () => {
+    const result = resolveFinkokEmitterReadiness({
+      finkokRegistrationEnabled: true,
+      finkokEmitter: null,
+    });
+    expect(result.visible).toBe(true);
+    expect(result.status).toBe(FinkokEmitterStatuses.NOT_REGISTERED);
+    expect(result.blocksReady).toBe(true);
+  });
+
+  it("no bloquea cuando el RFC está ready", () => {
+    const result = resolveFinkokEmitterReadiness({
+      finkokRegistrationEnabled: true,
+      finkokEmitter: {
+        status: FinkokEmitterStatuses.READY,
+        detail: null,
+        checkedAt: "2026-10-23T15:00:00.000Z",
+        taxpayerId: "AAA010101AAA",
+        registrationEnabled: true,
+      },
+    });
+    expect(result.blocksReady).toBe(false);
+    expect(result.rowStatus).toBe("ready");
+  });
+});
+
+describe("resolveFinkokEmitterCta", () => {
+  it("ofrece reintentar en no_registrado y error; solo verificar en suspendido", () => {
+    expect(
+      resolveFinkokEmitterCta(FinkokEmitterStatuses.NOT_REGISTERED),
+    ).toBe("register");
+    expect(resolveFinkokEmitterCta(FinkokEmitterStatuses.ERROR)).toBe(
+      "register",
+    );
+    expect(resolveFinkokEmitterCta(FinkokEmitterStatuses.SUSPENDED)).toBe(
+      "verifyStatus",
+    );
+    expect(resolveFinkokEmitterCta(FinkokEmitterStatuses.READY)).toBeNull();
+    expect(
+      resolveFinkokEmitterCta(FinkokEmitterStatuses.READY, {
+        includeReadyVerify: true,
+      }),
+    ).toBe("verify");
+  });
+});
+
 describe("resolveReadinessTone", () => {
   it("exige identidad en el núcleo pendiente", () => {
     expect(
@@ -147,6 +212,38 @@ describe("resolveReadinessTone", () => {
         connection: "unknown",
       }),
     ).toBe("readyUnverified");
+  });
+
+  it("A3: bloquea ready/readyUnverified si el RFC no está listo", () => {
+    expect(
+      resolveReadinessTone({
+        identity: "ready",
+        certificate: "ready",
+        numbering: "ready",
+        connection: "ready",
+        finkokEmitterBlocksReady: true,
+      }),
+    ).toBe("pending");
+
+    expect(
+      resolveReadinessTone({
+        identity: "ready",
+        certificate: "ready",
+        numbering: "ready",
+        connection: "unknown",
+        finkokEmitterBlocksReady: true,
+      }),
+    ).toBe("pending");
+
+    expect(
+      resolveReadinessTone({
+        identity: "ready",
+        certificate: "ready",
+        numbering: "ready",
+        connection: "ready",
+        finkokEmitterBlocksReady: false,
+      }),
+    ).toBe("ready");
   });
 
   it("prioriza lo pendiente sobre el vencimiento próximo", () => {
@@ -198,6 +295,17 @@ describe("isBillingCoreReady", () => {
         identity: "pending",
         certificate: "ready",
         numbering: "ready",
+      }),
+    ).toBe(false);
+  });
+
+  it("A3: falla si el RFC bloquea", () => {
+    expect(
+      isBillingCoreReady({
+        identity: "ready",
+        certificate: "ready",
+        numbering: "ready",
+        finkokEmitterBlocksReady: true,
       }),
     ).toBe(false);
   });

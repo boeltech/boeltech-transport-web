@@ -59,6 +59,31 @@ export interface CompanyAddress {
 // ============================================================================
 
 /**
+ * Estado del RFC emisor ante Finkok Registration (embed GET /settings/billing).
+ * Enum API en inglés; la UI mapea copy ES-MX.
+ */
+export const FinkokEmitterStatuses = {
+  READY: "ready",
+  NOT_REGISTERED: "not_registered",
+  REGISTERING: "registering",
+  SUSPENDED: "suspended",
+  ERROR: "error",
+  UNAVAILABLE: "unavailable",
+} as const;
+
+export type FinkokEmitterStatus =
+  (typeof FinkokEmitterStatuses)[keyof typeof FinkokEmitterStatuses];
+
+export interface FinkokEmitter {
+  readonly status: FinkokEmitterStatus;
+  /** Mensaje client-safe; nunca SOAP crudo ni credenciales. */
+  readonly detail: string | null;
+  readonly checkedAt: string | null;
+  readonly taxpayerId: string | null;
+  readonly registrationEnabled: boolean;
+}
+
+/**
  * Configuración de facturación electrónica
  */
 export interface BillingSettings {
@@ -94,6 +119,13 @@ export interface BillingSettings {
    * del primer folio en pantalla (el API también lo rechaza con 422).
    */
   readonly hasIssuedInvoices: boolean;
+  /**
+   * Kill-switch `FINKOK_REGISTRATION_ENABLED`. Ausente/false → ocultar paso RFC
+   * en checklist (no bloquea «Listo»).
+   */
+  readonly finkokRegistrationEnabled: boolean;
+  /** Cache del RFC emisor ante Finkok; `null` si el API no lo embebe. */
+  readonly finkokEmitter: FinkokEmitter | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }

@@ -1,8 +1,8 @@
 /**
  * BillingSettingsPage — hub permanente «Datos para facturar».
  *
- * Strip de preparación (identidad → sello → numeración + diagnóstico PAC),
- * numeración/defaults con Guardar; teaser a servicios de cobro.
+ * Strip de preparación (identidad → sello → numeración → RFC timbrador +
+ * diagnóstico PAC), numeración/defaults con Guardar; teaser a servicios.
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,6 +35,8 @@ import {
   useCompanySettings,
   useUpdateBillingSettings,
   useTestPacConnection,
+  useVerifyFinkokEmitter,
+  useRegisterFinkokEmitter,
 } from "../../application/hooks";
 import {
   resolveSelectablePacProvider,
@@ -44,6 +46,7 @@ import {
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
 import {
   resolveCertificateReadiness,
+  resolveFinkokEmitterReadiness,
   resolveIdentityReadiness,
   resolveNumberingReadiness,
   type BillingRequirementStatus,
@@ -67,9 +70,13 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
     useCompanySettings();
   const updateMutation = useUpdateBillingSettings();
   const testConnectionMutation = useTestPacConnection();
+  const verifyFinkokMutation = useVerifyFinkokEmitter();
+  const registerFinkokMutation = useRegisterFinkokEmitter();
 
   const canUpdateSettings = hasPermission("settings", "update");
   const canUploadCertificate = hasRole(ROLES.ADMIN);
+  /** Mutaciones finkok-emitter: solo admin (D-PRD-R10). */
+  const canMutateFinkokEmitter = canUploadCertificate;
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const hydratedKeyRef = useRef<string | null>(null);
   const wasSubmittingRef = useRef(false);
@@ -147,6 +154,19 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
     });
   }, [canUpdateSettings, settings, testConnectionMutation]);
 
+  const isFinkokEmitterMutating =
+    verifyFinkokMutation.isPending || registerFinkokMutation.isPending;
+
+  const handleVerifyFinkokEmitter = useCallback(() => {
+    if (!canMutateFinkokEmitter) return;
+    verifyFinkokMutation.mutate();
+  }, [canMutateFinkokEmitter, verifyFinkokMutation]);
+
+  const handleRegisterFinkokEmitter = useCallback(() => {
+    if (!canMutateFinkokEmitter) return;
+    registerFinkokMutation.mutate();
+  }, [canMutateFinkokEmitter, registerFinkokMutation]);
+
   const identityReadiness = useMemo(
     () =>
       resolveIdentityReadiness(companySettings, { known: companyReady }),
@@ -167,6 +187,18 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
         settings ?? { serieFactura: "", folioInicial: 0 },
       ),
     [settings],
+  );
+
+  const finkokEmitterReadiness = useMemo(
+    () =>
+      resolveFinkokEmitterReadiness(
+        settings ?? {
+          finkokRegistrationEnabled: false,
+          finkokEmitter: null,
+        },
+        { isMutating: isFinkokEmitterMutating },
+      ),
+    [settings, isFinkokEmitterMutating],
   );
 
   if (isLoading) {
@@ -239,6 +271,11 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
           certificateUploadRestricted={
             canUpdateSettings && !canUploadCertificate
           }
+          finkokEmitter={finkokEmitterReadiness}
+          isFinkokEmitterMutating={isFinkokEmitterMutating}
+          canMutateFinkokEmitter={canMutateFinkokEmitter}
+          onVerifyFinkokEmitter={handleVerifyFinkokEmitter}
+          onRegisterFinkokEmitter={handleRegisterFinkokEmitter}
           provider={provider}
           canRunDiagnostics={canUpdateSettings}
           connectionResult={testConnectionMutation.data}

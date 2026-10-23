@@ -11,6 +11,7 @@ import type { CreateClientAddressDTO } from "@features/clients/domain";
 import type {
   CompanySettings,
   BillingSettings,
+  FinkokEmitter,
   NotificationSettings,
   TestPacConnectionPayload,
   TestPacConnectionResult,
@@ -125,6 +126,10 @@ export interface ISettingsRepository {
   testPacConnection(
     payload?: TestPacConnectionPayload,
   ): Promise<TestPacConnectionResult>;
+  /** GET …/finkok-emitter — refresca cache vía SOAP get (settings.read). */
+  getFinkokEmitter(): Promise<FinkokEmitter>;
+  /** POST …/finkok-emitter — get→add solo RFC (admin). */
+  registerFinkokEmitter(): Promise<SettingsResult<FinkokEmitter>>;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Notification Settings

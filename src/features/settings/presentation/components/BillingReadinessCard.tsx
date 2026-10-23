@@ -1,10 +1,11 @@
 /**
  * Ficha de preparación para facturar (hub operate-first).
  *
- * Checklist: identidad → sello → numeración; diagnóstico PAC (conexión).
+ * Checklist: identidad → sello → numeración → RFC ante el timbrador (si flag);
+ * diagnóstico PAC (conexión + detalle RFC).
  *
- * Desde pedido 2026-10-22-finkok-default-pac: sin fila emitter ni botón
- * RegistraEmisor (D7/D-PRD-2). 4 checks totales.
+ * Pedido 2026-10-23-finkok-registro-clientes (F3): sin UI ProFact /
+ * register-emitter; credenciales PAC no visibles.
  */
 
 import { memo, useState } from "react";
@@ -32,6 +33,7 @@ import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 
 import {
+  FinkokEmitterStatuses,
   PAC_PROVIDER_LABELS,
   type PacProvider,
   type TestPacConnectionResult,
@@ -39,9 +41,12 @@ import {
 import { billingSettingsCopy } from "../copy/billingSettingsCopy";
 import {
   isBillingCoreReady,
+  resolveFinkokEmitterCta,
   resolveReadinessTone,
   type BillingRequirementStatus,
   type CertificateReadiness,
+  type FinkokEmitterCtaKind,
+  type FinkokEmitterReadiness,
   type IdentityReadiness,
   type NumberingReadiness,
 } from "../utils/billingReadiness";
@@ -65,6 +70,13 @@ export interface BillingReadinessCardProps {
   isCheckingConnection: boolean;
   /** Manager sin rol admin: el sello lo carga otro. */
   certificateUploadRestricted?: boolean;
+  /** Paso RFC; omitir o `visible: false` = flag off. */
+  finkokEmitter?: FinkokEmitterReadiness;
+  isFinkokEmitterMutating?: boolean;
+  /** Admin: CTAs verificar/reintentar. Manager: solo lectura. */
+  canMutateFinkokEmitter?: boolean;
+  onVerifyFinkokEmitter?: () => void;
+  onRegisterFinkokEmitter?: () => void;
   provider: PacProvider;
   canRunDiagnostics: boolean;
   connectionResult?: TestPacConnectionResult;
@@ -78,37 +90,57 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
   connection,
   isCheckingConnection,
   certificateUploadRestricted = false,
+  finkokEmitter,
+  isFinkokEmitterMutating = false,
+  canMutateFinkokEmitter = false,
+  onVerifyFinkokEmitter,
+  onRegisterFinkokEmitter,
   provider,
   canRunDiagnostics,
   connectionResult,
   onTestConnection,
 }: BillingReadinessCardProps) {
+  const finkokVisible = Boolean(finkokEmitter?.visible);
+  const finkokBlocksReady = Boolean(finkokEmitter?.blocksReady);
+
   const tone = resolveReadinessTone({
     identity: identity.status,
     certificate: certificate.status,
     numbering: numbering.status,
     connection,
+    finkokEmitterBlocksReady: finkokBlocksReady,
   });
 
   const coreReady = isBillingCoreReady({
     identity: identity.status,
     certificate: certificate.status,
     numbering: numbering.status,
+    finkokEmitterBlocksReady: finkokBlocksReady,
   });
 
   const diagnosticsForcedOpen =
     connection === "pending" ||
-    Boolean(connectionResult && !connectionResult.success);
+    Boolean(connectionResult && !connectionResult.success) ||
+    (finkokVisible &&
+      finkokEmitter != null &&
+      finkokEmitter.status !== FinkokEmitterStatuses.READY);
 
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(
     () => !coreReady || diagnosticsForcedOpen,
   );
 
+  const descriptionReady = finkokVisible
+    ? copy.descriptionReadyWithRfc
+    : copy.descriptionReady;
+  const descriptionReadyUnverified = finkokVisible
+    ? copy.descriptionReadyUnverifiedWithRfc
+    : copy.descriptionReadyUnverified;
+
   const headline = {
-    ready: { title: copy.titleReady, description: copy.descriptionReady },
+    ready: { title: copy.titleReady, description: descriptionReady },
     readyUnverified: {
       title: copy.titleReadyUnverified,
-      description: copy.descriptionReadyUnverified,
+      description: descriptionReadyUnverified,
     },
     attention: {
       title: copy.titleAttention,
@@ -130,9 +162,17 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
     numbering: numbering.status,
     connection,
     certificateUploadRestricted,
+    finkokEmitter: finkokVisible ? finkokEmitter : undefined,
+    canMutateFinkokEmitter,
   });
 
   const environment = connectionResult?.environment;
+  const finkokDiagCta =
+    finkokVisible && finkokEmitter
+      ? resolveFinkokEmitterCta(finkokEmitter.status, {
+          includeReadyVerify: true,
+        })
+      : null;
 
   return (
     <section
@@ -152,7 +192,7 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
           </Badge>
         </div>
 
-        <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-2">
           <RequirementRow
             label={copy.requirements.identity}
             status={identity.status}
@@ -171,6 +211,17 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
             status={numbering.status}
             detail={describeNumbering(numbering)}
           />
+          {finkokVisible && finkokEmitter ? (
+            <RequirementRow
+              label={copy.requirements.finkokEmitter}
+              status={finkokEmitter.rowStatus}
+              detail={describeFinkokEmitter(finkokEmitter)}
+              spinning={
+                isFinkokEmitterMutating ||
+                finkokEmitter.status === FinkokEmitterStatuses.REGISTERING
+              }
+            />
+          ) : null}
         </ul>
 
         {cta ? (
@@ -178,11 +229,29 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
             <Button asChild size="sm">
               <Link to={cta.to}>{cta.label}</Link>
             </Button>
-          ) : (
+          ) : cta.finkokAction ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={isFinkokEmitterMutating}
+              onClick={() =>
+                runFinkokAction(
+                  cta.finkokAction,
+                  onVerifyFinkokEmitter,
+                  onRegisterFinkokEmitter,
+                )
+              }
+            >
+              {isFinkokEmitterMutating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {cta.label}
+            </Button>
+          ) : cta.anchor ? (
             <Button asChild size="sm">
               <a href={`#${cta.anchor}`}>{cta.label}</a>
             </Button>
-          )
+          ) : null
         ) : null}
 
         <Collapsible
@@ -243,11 +312,23 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
                     isCheckingConnection,
                   )}
                 />
+                {finkokVisible && finkokEmitter ? (
+                  <RequirementRow
+                    label={copy.requirements.finkokEmitter}
+                    status={finkokEmitter.rowStatus}
+                    detail={describeFinkokEmitter(finkokEmitter)}
+                    spinning={
+                      isFinkokEmitterMutating ||
+                      finkokEmitter.status ===
+                        FinkokEmitterStatuses.REGISTERING
+                    }
+                  />
+                ) : null}
               </ul>
               <p className="text-xs text-muted-foreground">{copy.checksHint}</p>
 
-              {canRunDiagnostics ? (
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
+                {canRunDiagnostics ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -264,8 +345,31 @@ export const BillingReadinessCard = memo(function BillingReadinessCard({
                       ? stampingCopy.testingConnection
                       : stampingCopy.testConnection}
                   </Button>
-                </div>
-              ) : null}
+                ) : null}
+
+                {canMutateFinkokEmitter && finkokDiagCta ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isFinkokEmitterMutating}
+                    onClick={() =>
+                      runFinkokAction(
+                        finkokDiagCta,
+                        onVerifyFinkokEmitter,
+                        onRegisterFinkokEmitter,
+                      )
+                    }
+                  >
+                    {isFinkokEmitterMutating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    {finkokCtaLabel(finkokDiagCta)}
+                  </Button>
+                ) : null}
+              </div>
 
               {connectionResult ? (
                 <Alert
@@ -302,15 +406,23 @@ interface RequirementRowProps {
   label: string;
   status: BillingRequirementStatus;
   detail: string;
+  spinning?: boolean;
 }
 
-function RequirementRow({ label, status, detail }: RequirementRowProps) {
-  const Icon = {
-    ready: CheckCircle2,
-    warning: AlertTriangle,
-    pending: XCircle,
-    unknown: CircleDashed,
-  }[status];
+function RequirementRow({
+  label,
+  status,
+  detail,
+  spinning = false,
+}: RequirementRowProps) {
+  const Icon = spinning
+    ? Loader2
+    : {
+        ready: CheckCircle2,
+        warning: AlertTriangle,
+        pending: XCircle,
+        unknown: CircleDashed,
+      }[status];
 
   return (
     <li className="flex items-start gap-2 py-1.5">
@@ -318,10 +430,11 @@ function RequirementRow({ label, status, detail }: RequirementRowProps) {
         aria-hidden
         className={cn(
           "mt-0.5 h-4 w-4 shrink-0",
-          status === "ready" && "text-success",
-          status === "warning" && "text-warning",
-          status === "pending" && "text-destructive",
-          status === "unknown" && "text-muted-foreground",
+          spinning && "animate-spin text-muted-foreground",
+          !spinning && status === "ready" && "text-success",
+          !spinning && status === "warning" && "text-warning",
+          !spinning && status === "pending" && "text-destructive",
+          !spinning && status === "unknown" && "text-muted-foreground",
         )}
       />
       <div className="min-w-0">
@@ -379,6 +492,25 @@ function describeNumbering(numbering: NumberingReadiness): string {
   return copy.numbering.ready.replace("{serie}", numbering.serie);
 }
 
+function describeFinkokEmitter(emitter: FinkokEmitterReadiness): string {
+  switch (emitter.status) {
+    case FinkokEmitterStatuses.READY:
+      return copy.finkokEmitter.ready;
+    case FinkokEmitterStatuses.NOT_REGISTERED:
+      return copy.finkokEmitter.notRegistered;
+    case FinkokEmitterStatuses.REGISTERING:
+      return copy.finkokEmitter.registering;
+    case FinkokEmitterStatuses.SUSPENDED:
+      return copy.finkokEmitter.suspended;
+    case FinkokEmitterStatuses.ERROR:
+      return emitter.detail?.trim()
+        ? `${emitter.detail.trim()} Puedes volver a intentarlo.`
+        : copy.finkokEmitter.error;
+    default:
+      return copy.finkokEmitter.errorFallback;
+  }
+}
+
 function describeConnectionCheck(
   status: BillingRequirementStatus,
   isRunning: boolean,
@@ -389,13 +521,40 @@ function describeConnectionCheck(
   return copy.check.unknownConnection;
 }
 
+function finkokCtaLabel(kind: FinkokEmitterCtaKind): string {
+  if (kind === "register") return copy.ctaFinkokRegister;
+  if (kind === "verifyStatus") return copy.ctaFinkokVerifyStatus;
+  return copy.ctaFinkokVerify;
+}
+
+function runFinkokAction(
+  kind: FinkokEmitterCtaKind | undefined,
+  onVerify?: () => void,
+  onRegister?: () => void,
+) {
+  if (kind === "register") {
+    onRegister?.();
+    return;
+  }
+  if (kind === "verify" || kind === "verifyStatus") {
+    onVerify?.();
+  }
+}
+
 function resolvePrimaryCta(statuses: {
   identity: BillingRequirementStatus;
   certificate: BillingRequirementStatus;
   numbering: BillingRequirementStatus;
   connection: BillingRequirementStatus;
   certificateUploadRestricted: boolean;
-}): { label: string; to?: string; anchor?: string } | null {
+  finkokEmitter?: FinkokEmitterReadiness;
+  canMutateFinkokEmitter: boolean;
+}): {
+  label: string;
+  to?: string;
+  anchor?: string;
+  finkokAction?: FinkokEmitterCtaKind;
+} | null {
   if (statuses.identity === "pending") {
     return { label: copy.ctaIdentity, to: SETTINGS_GENERAL_PATH };
   }
@@ -407,6 +566,34 @@ function resolvePrimaryCta(statuses: {
   }
   if (statuses.numbering === "pending") {
     return { label: copy.ctaNumbering, anchor: BILLING_ANCHORS.numbering };
+  }
+  if (
+    statuses.finkokEmitter?.visible &&
+    statuses.finkokEmitter.blocksReady &&
+    statuses.canMutateFinkokEmitter
+  ) {
+    const kind = resolveFinkokEmitterCta(statuses.finkokEmitter.status);
+    if (kind) {
+      return {
+        label: finkokCtaLabel(kind),
+        finkokAction: kind,
+      };
+    }
+    // registrando / sin CTA: anclar al diagnóstico
+    return {
+      label: copy.expandDiagnostics,
+      anchor: BILLING_ANCHORS.diagnostics,
+    };
+  }
+  if (
+    statuses.finkokEmitter?.visible &&
+    statuses.finkokEmitter.blocksReady &&
+    !statuses.canMutateFinkokEmitter
+  ) {
+    return {
+      label: copy.expandDiagnostics,
+      anchor: BILLING_ANCHORS.diagnostics,
+    };
   }
   if (statuses.connection === "pending") {
     return {

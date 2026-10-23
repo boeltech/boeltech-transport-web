@@ -45,6 +45,10 @@ export const billingSettingsCopy = {
       "Identidad, sello y numeración están en orden; el timbrador respondió correctamente.",
     descriptionReadyUnverified:
       "Identidad, sello y numeración están en orden: ya puedes emitir facturas.",
+    descriptionReadyWithRfc:
+      "Identidad, sello, numeración y RFC ante el timbrador están en orden; el timbrador respondió correctamente.",
+    descriptionReadyUnverifiedWithRfc:
+      "Identidad, sello, numeración y RFC ante el timbrador están en orden: ya puedes emitir facturas.",
     descriptionAttention:
       "Renueva tu sello ante el SAT antes de que venza: sin él no puedes emitir facturas.",
     descriptionPending:
@@ -53,6 +57,7 @@ export const billingSettingsCopy = {
       identity: "Identidad fiscal de la empresa",
       certificate: "Sello digital de tu empresa",
       numbering: "Numeración de tus facturas",
+      finkokEmitter: "RFC ante el timbrador",
       connection: "Conexión con el timbrador",
     },
     identity: {
@@ -72,9 +77,19 @@ export const billingSettingsCopy = {
       missing: "Falta definirla",
       ready: "Serie {serie}",
     },
+    finkokEmitter: {
+      ready: "Registrado ante el timbrador",
+      notRegistered: "Aún no está registrado",
+      registering: "Registrando…",
+      suspended:
+        "Registro suspendido. Contacta a soporte Boeltech; no intentes darlo de alta de nuevo.",
+      error: "No pudimos completar el registro. Puedes volver a intentarlo.",
+      errorFallback:
+        "No pudimos contactar al timbrador. Reintenta o avisa a soporte.",
+    },
     checksHeading: "Diagnóstico del timbrador",
     checksHint:
-      "El timbrado funciona con tu sello digital y la conexión de Boeltech con Finkok. Si algo falla al facturar, comprueba la conexión aquí.",
+      "El timbrado usa tu sello y la cuenta Finkok de Boeltech. Además, el RFC de tu empresa debe estar registrado ante el timbrador; al cargar el sello lo intentamos por ti. Si algo falla, verifica o reintenta aquí.",
     check: {
       unknownConnection: "Puedes comprobarla cuando quieras",
       running: "Comprobando…",
@@ -84,6 +99,9 @@ export const billingSettingsCopy = {
     ctaIdentity: "Ir a General",
     ctaCertificate: "Cargar el sello digital",
     ctaNumbering: "Definir la numeración",
+    ctaFinkokRegister: "Reintentar registro",
+    ctaFinkokVerify: "Verificar registro",
+    ctaFinkokVerifyStatus: "Verificar estado",
     ctaConnection: "Comprobar la conexión",
     pendingListTitle: "Para completar el alta falta:",
     expandDiagnostics: "Mostrar diagnóstico",
@@ -223,6 +241,9 @@ export const billingSettingsCopy = {
     connectionFailed: "No se pudo conectar con el timbrador",
     connectionFailedDescription: "Vuelve a intentarlo en unos minutos.",
     connectionError: "No se pudo comprobar la conexión",
+    finkokEmitterError: "No pudimos registrar el RFC ante el timbrador",
+    finkokEmitterErrorDescription:
+      "Revisa el paso en la ficha o vuelve a intentarlo.",
   },
 
 } as const;

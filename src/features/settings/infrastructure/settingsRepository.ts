@@ -11,6 +11,7 @@ import { apiClient } from "@shared/api";
 import type {
   CompanySettings,
   BillingSettings,
+  FinkokEmitter,
   NotificationSettings,
   ISettingsRepository,
   UpdateCompanySettingsDTO,
@@ -26,6 +27,7 @@ import {
   mapCompanySettings,
   mapEmbeddedCompanyAddress,
   mapBillingSettings,
+  mapFinkokEmitter,
   mapNotificationSettings,
   toApiUpdateCompanySettings,
   toApiUpdateBillingSettings,
@@ -34,6 +36,7 @@ import {
   mapTestPacConnection,
   type ApiCompanySettingsResponse,
   type ApiBillingSettingsResponse,
+  type ApiFinkokEmitterResponse,
   type ApiNotificationSettingsResponse,
   type ApiTestPacConnectionResponse,
 } from "./mappers";
@@ -192,6 +195,25 @@ export class SettingsRepository implements ISettingsRepository {
     }>(`${SETTINGS_ENDPOINT}/billing/test-connection`, body);
 
     return mapTestPacConnection(response.data);
+  }
+
+  async getFinkokEmitter(): Promise<FinkokEmitter> {
+    const response = await apiClient.get<{ data: ApiFinkokEmitterResponse }>(
+      `${SETTINGS_ENDPOINT}/billing/finkok-emitter`,
+    );
+    return mapFinkokEmitter(response.data);
+  }
+
+  async registerFinkokEmitter(): Promise<SettingsResult<FinkokEmitter>> {
+    const response = await apiClient.post<{
+      data: ApiFinkokEmitterResponse;
+      message?: string;
+    }>(`${SETTINGS_ENDPOINT}/billing/finkok-emitter`, {});
+
+    return {
+      data: mapFinkokEmitter(response.data),
+      message: response.message,
+    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────

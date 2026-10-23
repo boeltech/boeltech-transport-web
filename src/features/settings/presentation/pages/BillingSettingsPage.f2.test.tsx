@@ -41,6 +41,8 @@ vi.mock("../../application/hooks", () => ({
       tasaIva: 0.16,
       nextFolio: 1,
       hasIssuedInvoices: false,
+      finkokRegistrationEnabled: false,
+      finkokEmitter: null,
       createdAt: new Date("2026-01-01T00:00:00Z"),
       updatedAt: new Date("2026-01-01T00:00:00Z"),
     },
@@ -65,6 +67,8 @@ vi.mock("../../application/hooks", () => ({
     data: undefined,
   }),
   useUploadCertificate: () => ({ mutate: vi.fn(), isPending: false }),
+  useVerifyFinkokEmitter: () => ({ mutate: vi.fn(), isPending: false }),
+  useRegisterFinkokEmitter: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@shared/ui/page-shells", () => ({

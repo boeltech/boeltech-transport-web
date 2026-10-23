@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { formatDate } from "@shared/utils/dateUtils";
+import { FinkokEmitterStatuses } from "../../domain";
 import { BillingReadinessCard } from "./BillingReadinessCard";
 import type {
   CertificateReadiness,
+  FinkokEmitterReadiness,
   IdentityReadiness,
   NumberingReadiness,
 } from "../utils/billingReadiness";
@@ -17,6 +20,36 @@ const READY_CERTIFICATE: CertificateReadiness = {
   daysRemaining: 500,
 };
 const READY_NUMBERING: NumberingReadiness = { status: "ready", serie: "A" };
+
+function finkokReady(): FinkokEmitterReadiness {
+  return {
+    visible: true,
+    status: FinkokEmitterStatuses.READY,
+    detail: null,
+    rowStatus: "ready",
+    blocksReady: false,
+  };
+}
+
+function finkokNotRegistered(): FinkokEmitterReadiness {
+  return {
+    visible: true,
+    status: FinkokEmitterStatuses.NOT_REGISTERED,
+    detail: null,
+    rowStatus: "pending",
+    blocksReady: true,
+  };
+}
+
+function finkokSuspended(): FinkokEmitterReadiness {
+  return {
+    visible: true,
+    status: FinkokEmitterStatuses.SUSPENDED,
+    detail: null,
+    rowStatus: "pending",
+    blocksReady: true,
+  };
+}
 
 function renderCard(
   overrides: Partial<Parameters<typeof BillingReadinessCard>[0]> = {},
@@ -50,14 +83,113 @@ describe("BillingReadinessCard", () => {
     expect(screen.getByText("Diagnóstico del timbrador")).toBeInTheDocument();
   });
 
-  it("no muestra fila de alta ante el timbrador", () => {
-    renderCard();
+  it("no muestra fila ProFact ni botón Dar de alta", () => {
+    renderCard({ finkokEmitter: finkokNotRegistered(), canMutateFinkokEmitter: true });
 
     expect(
       screen.queryByText("Alta de tu empresa ante el timbrador"),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Dar de alta tu empresa/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra RFC ante el timbrador cuando el flag está on", () => {
+    renderCard({ finkokEmitter: finkokReady() });
+
+    expect(screen.getAllByText("RFC ante el timbrador").length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getAllByText("Registrado ante el timbrador").length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("oculta el paso RFC cuando no es visible (flag off)", () => {
+    renderCard({
+      finkokEmitter: {
+        visible: false,
+        status: FinkokEmitterStatuses.UNAVAILABLE,
+        detail: null,
+        rowStatus: "unknown",
+        blocksReady: false,
+      },
+    });
+
+    expect(screen.queryByText("RFC ante el timbrador")).not.toBeInTheDocument();
+  });
+
+  it("A3: no declara listo si falta el RFC aunque la conexión esté ok", () => {
+    renderCard({
+      connection: "ready",
+      finkokEmitter: finkokNotRegistered(),
+      canMutateFinkokEmitter: true,
+    });
+
+    expect(
+      screen.getByText("Falta algo para poder facturar"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Listo para facturar")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Tus datos están completos"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("declara listo con núcleo + RFC ready + conexión", () => {
+    renderCard({
+      connection: "ready",
+      finkokEmitter: finkokReady(),
+      canMutateFinkokEmitter: true,
+    });
+
+    expect(screen.getByText("Listo para facturar")).toBeInTheDocument();
+  });
+
+  it("ofrece Reintentar registro y dispara el callback", async () => {
+    const user = userEvent.setup();
+    const onRegister = vi.fn();
+    renderCard({
+      finkokEmitter: finkokNotRegistered(),
+      canMutateFinkokEmitter: true,
+      onRegisterFinkokEmitter: onRegister,
+    });
+
+    const buttons = screen.getAllByRole("button", {
+      name: "Reintentar registro",
+    });
+    await user.click(buttons[0]!);
+    expect(onRegister).toHaveBeenCalledTimes(1);
+  });
+
+  it("en suspendido solo ofrece Verificar estado (sin reintentar alta)", () => {
+    renderCard({
+      finkokEmitter: finkokSuspended(),
+      canMutateFinkokEmitter: true,
+    });
+
+    expect(
+      screen.getAllByRole("button", { name: "Verificar estado" }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("button", { name: "Reintentar registro" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Registro suspendido\. Contacta a soporte Boeltech/)
+        .length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("manager no ve CTAs de registro/reintento", () => {
+    renderCard({
+      finkokEmitter: finkokNotRegistered(),
+      canMutateFinkokEmitter: false,
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Reintentar registro" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Verificar registro" }),
     ).not.toBeInTheDocument();
   });
 
@@ -86,7 +218,7 @@ describe("BillingReadinessCard", () => {
     ).toHaveAttribute("href", "#diagnostico-timbrador");
   });
 
-  it("declara listo para facturar con la conexión comprobada", () => {
+  it("declara listo para facturar con la conexión comprobada (flag off)", () => {
     const { rerender } = renderCard();
     expect(screen.getByText("Tus datos están completos")).toBeInTheDocument();
 

@@ -2,11 +2,12 @@
  * Estado de preparación para facturar.
  *
  * Identidad, sello y numeración se derivan de GET settings (persistidos).
- * Conexión y alta ante el timbrador son mutaciones de sesión: nunca se
- * presentan como estado recordado.
+ * Conexión es mutación de sesión. RFC ante Finkok viene del embed/cache
+ * (pedido 2026-10-23-finkok-registro-clientes, A3).
  */
 
-import type { BillingSettings } from "../../domain";
+import type { BillingSettings, FinkokEmitterStatus } from "../../domain";
+import { FinkokEmitterStatuses } from "../../domain";
 import {
   isCompanyIdentityReady,
   type CompanyIdentitySource,
@@ -35,6 +36,17 @@ export interface NumberingReadiness {
 
 export interface IdentityReadiness {
   status: Extract<BillingRequirementStatus, "ready" | "pending" | "unknown">;
+}
+
+export interface FinkokEmitterReadiness {
+  /** Flag on y status distinto de unavailable → mostrar paso en checklist. */
+  visible: boolean;
+  status: FinkokEmitterStatus;
+  detail: string | null;
+  /** Icono de fila en checklist. */
+  rowStatus: BillingRequirementStatus;
+  /** A3: bloquea ready / readyUnverified cuando visible y no ready. */
+  blocksReady: boolean;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -97,6 +109,59 @@ export function resolveNumberingReadiness(
   return { status: "ready", serie };
 }
 
+function finkokRowStatus(
+  status: FinkokEmitterStatus,
+  isMutating: boolean,
+): BillingRequirementStatus {
+  if (isMutating || status === FinkokEmitterStatuses.REGISTERING) {
+    return "unknown";
+  }
+  if (status === FinkokEmitterStatuses.READY) return "ready";
+  return "pending";
+}
+
+/**
+ * Resuelve el paso «RFC ante el timbrador». Flag off / unavailable → oculto
+ * (no entra a A3). Cache vacía con flag on se trata como no_registrado.
+ */
+export function resolveFinkokEmitterReadiness(
+  settings: Pick<
+    BillingSettings,
+    "finkokRegistrationEnabled" | "finkokEmitter"
+  >,
+  opts?: { isMutating?: boolean },
+): FinkokEmitterReadiness {
+  const isMutating = Boolean(opts?.isMutating);
+  const enabled = settings.finkokRegistrationEnabled;
+  const raw = settings.finkokEmitter;
+
+  if (!enabled) {
+    return {
+      visible: false,
+      status: FinkokEmitterStatuses.UNAVAILABLE,
+      detail: null,
+      rowStatus: "unknown",
+      blocksReady: false,
+    };
+  }
+
+  const status: FinkokEmitterStatus =
+    !raw || raw.status === FinkokEmitterStatuses.UNAVAILABLE
+      ? FinkokEmitterStatuses.NOT_REGISTERED
+      : isMutating
+        ? FinkokEmitterStatuses.REGISTERING
+        : raw.status;
+
+  const ready = status === FinkokEmitterStatuses.READY;
+  return {
+    visible: true,
+    status,
+    detail: raw?.detail ?? null,
+    rowStatus: finkokRowStatus(status, isMutating),
+    blocksReady: !ready,
+  };
+}
+
 export type BillingReadinessTone =
   | "ready"
   | "readyUnverified"
@@ -104,21 +169,25 @@ export type BillingReadinessTone =
   | "pending";
 
 /**
- * Titular de la ficha. Núcleo = identidad + sello + numeración.
+ * Titular de la ficha. Núcleo = identidad + sello + numeración (+ RFC si flag).
  * "Listo para facturar" exige además la comprobación de conexión con el PAC.
  *
- * Desde pedido 2026-10-22-finkok-default-pac: sin check `emitter` (D7/D-PRD-2).
+ * A3 (pedido registro clientes): sin RFC `ready` no hay ready / readyUnverified
+ * cuando el flag está on.
  */
 export function resolveReadinessTone(input: {
   identity: BillingRequirementStatus;
   certificate: BillingRequirementStatus;
   numbering: BillingRequirementStatus;
   connection: BillingRequirementStatus;
+  /** Cuando true, RFC debe estar listo para tono ready*. */
+  finkokEmitterBlocksReady?: boolean;
 }): BillingReadinessTone {
   if (
     input.identity === "pending" ||
     input.certificate === "pending" ||
-    input.numbering === "pending"
+    input.numbering === "pending" ||
+    input.finkokEmitterBlocksReady
   ) {
     return "pending";
   }
@@ -139,10 +208,38 @@ export function isBillingCoreReady(input: {
   identity: BillingRequirementStatus;
   certificate: BillingRequirementStatus;
   numbering: BillingRequirementStatus;
+  finkokEmitterBlocksReady?: boolean;
 }): boolean {
   return (
     input.identity === "ready" &&
     (input.certificate === "ready" || input.certificate === "warning") &&
-    input.numbering === "ready"
+    input.numbering === "ready" &&
+    !input.finkokEmitterBlocksReady
   );
+}
+
+export type FinkokEmitterCtaKind = "register" | "verify" | "verifyStatus";
+
+/**
+ * CTA de RFC según estado PRD §5.
+ * Primario: solo cuando no está listo. Secundario en diagnóstico puede
+ * incluir «Verificar registro» con `includeReadyVerify`.
+ */
+export function resolveFinkokEmitterCta(
+  status: FinkokEmitterStatus,
+  opts?: { includeReadyVerify?: boolean },
+): FinkokEmitterCtaKind | null {
+  switch (status) {
+    case FinkokEmitterStatuses.NOT_REGISTERED:
+    case FinkokEmitterStatuses.ERROR:
+      return "register";
+    case FinkokEmitterStatuses.SUSPENDED:
+      return "verifyStatus";
+    case FinkokEmitterStatuses.READY:
+      return opts?.includeReadyVerify ? "verify" : null;
+    case FinkokEmitterStatuses.REGISTERING:
+    case FinkokEmitterStatuses.UNAVAILABLE:
+    default:
+      return null;
+  }
 }

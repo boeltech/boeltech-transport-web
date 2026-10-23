@@ -17,6 +17,7 @@ import {
 import { useToast } from "@shared/hooks/useToast";
 import {
   type BillingSettings,
+  type FinkokEmitter,
   type UpdateBillingSettingsDTO,
   type UploadCertificateDTO,
   type SettingsResult,
@@ -28,6 +29,23 @@ import { settingsRepository } from "../../infrastructure";
 import { billingSettingsCopy } from "../../presentation/copy/billingSettingsCopy";
 
 const copy = billingSettingsCopy.toast;
+
+function mergeFinkokEmitterIntoBillingCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  emitter: FinkokEmitter,
+) {
+  queryClient.setQueryData<BillingSettings>(
+    settingsQueryKeys.billing(),
+    (prev) =>
+      prev
+        ? {
+            ...prev,
+            finkokRegistrationEnabled: emitter.registrationEnabled,
+            finkokEmitter: emitter,
+          }
+        : prev,
+  );
+}
 
 // ============================================================================
 // QUERY HOOK
@@ -175,6 +193,80 @@ export function useTestPacConnection(
       toast({
         title: copy.connectionError,
         description: error.message ?? copy.connectionFailedDescription,
+        variant: "destructive",
+      });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Verifica el RFC emisor ante Finkok (GET …/finkok-emitter → SOAP get).
+ * Solo lectura / refresh de cache; no dispara add.
+ */
+export function useVerifyFinkokEmitter(
+  options?: Omit<
+    UseMutationOptions<FinkokEmitter, Error, void>,
+    "mutationFn"
+  >,
+) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: () => settingsRepository.getFinkokEmitter(),
+    onSuccess: (emitter) => {
+      mergeFinkokEmitterIntoBillingCache(queryClient, emitter);
+      if (emitter.status === "error") {
+        toast({
+          title: copy.finkokEmitterError,
+          description: emitter.detail ?? copy.finkokEmitterErrorDescription,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: copy.finkokEmitterError,
+        description: error.message ?? copy.finkokEmitterErrorDescription,
+        variant: "destructive",
+      });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Registra / reintenta el RFC emisor (POST …/finkok-emitter → get→add A2).
+ * Authz: admin (la página no monta el CTA para manager).
+ */
+export function useRegisterFinkokEmitter(
+  options?: Omit<
+    UseMutationOptions<SettingsResult<FinkokEmitter>, Error, void>,
+    "mutationFn"
+  >,
+) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: () => settingsRepository.registerFinkokEmitter(),
+    onSuccess: (result) => {
+      mergeFinkokEmitterIntoBillingCache(queryClient, result.data);
+      if (result.data.status === "error") {
+        toast({
+          title: copy.finkokEmitterError,
+          description:
+            result.data.detail ?? copy.finkokEmitterErrorDescription,
+          variant: "destructive",
+        });
+      }
+      // Éxito silencioso si la fila ya muestra ✓ (PRD preferencia).
+    },
+    onError: (error) => {
+      toast({
+        title: copy.finkokEmitterError,
+        description: error.message ?? copy.finkokEmitterErrorDescription,
         variant: "destructive",
       });
     },

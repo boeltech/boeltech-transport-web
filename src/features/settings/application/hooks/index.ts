@@ -19,6 +19,8 @@ export {
   useUpdateBillingSettings,
   useUploadCertificate,
   useTestPacConnection,
+  useVerifyFinkokEmitter,
+  useRegisterFinkokEmitter,
 } from "./useBillingSettings";
 
 // Billing Service Concepts

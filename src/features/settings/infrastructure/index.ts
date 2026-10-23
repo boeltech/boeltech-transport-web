@@ -9,6 +9,7 @@ export { settingsRepository, SettingsRepository } from "./settingsRepository";
 export {
   mapCompanySettings,
   mapBillingSettings,
+  mapFinkokEmitter,
   mapNotificationSettings,
   toApiUpdateCompanySettings,
   toApiUpdateBillingSettings,
@@ -19,5 +20,6 @@ export type {
   ApiCompanySettingsResponse,
   ApiCompanyAddressResponse,
   ApiBillingSettingsResponse,
+  ApiFinkokEmitterResponse,
   ApiNotificationSettingsResponse,
 } from "./mappers";

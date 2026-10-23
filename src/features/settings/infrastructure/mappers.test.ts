@@ -80,4 +80,35 @@ describe("mapBillingSettings", () => {
 
     expect(mapped.hasIssuedInvoices).toBe(false);
   });
+
+  it("mapea embed finkok_registration_enabled + finkok_emitter", () => {
+    const mapped = mapBillingSettings(
+      buildApiBillingSettings({
+        finkok_registration_enabled: true,
+        finkok_emitter: {
+          status: "ready",
+          detail: null,
+          checked_at: "2026-10-23T15:00:00.000Z",
+          taxpayer_id: "AAA010101AAA",
+          registration_enabled: true,
+        },
+      }),
+    );
+
+    expect(mapped.finkokRegistrationEnabled).toBe(true);
+    expect(mapped.finkokEmitter).toEqual({
+      status: "ready",
+      detail: null,
+      checkedAt: "2026-10-23T15:00:00.000Z",
+      taxpayerId: "AAA010101AAA",
+      registrationEnabled: true,
+    });
+  });
+
+  it("flag off y sin embed → no exige RFC en dominio", () => {
+    const mapped = mapBillingSettings(buildApiBillingSettings({}));
+
+    expect(mapped.finkokRegistrationEnabled).toBe(false);
+    expect(mapped.finkokEmitter).toBeNull();
+  });
 });

@@ -8,18 +8,21 @@
  * Ubicación: src/features/settings/infrastructure/mappers.ts
  */
 
-import type {
-  CompanySettings,
-  CompanyAddress,
-  BillingSettings,
-  NotificationSettings,
-  PacProvider,
-  UpdateCompanySettingsDTO,
-  UpdateBillingSettingsDTO,
-  UpdateNotificationSettingsDTO,
-  TestPacConnectionPayload,
-  TestPacConnectionResult,
-  PacTestErrorType,
+import {
+  FinkokEmitterStatuses,
+  type CompanySettings,
+  type CompanyAddress,
+  type BillingSettings,
+  type FinkokEmitter,
+  type FinkokEmitterStatus,
+  type NotificationSettings,
+  type PacProvider,
+  type UpdateCompanySettingsDTO,
+  type UpdateBillingSettingsDTO,
+  type UpdateNotificationSettingsDTO,
+  type TestPacConnectionPayload,
+  type TestPacConnectionResult,
+  type PacTestErrorType,
 } from "../domain";
 import { config } from "@shared/config";
 import type { ClientAddress } from "@features/clients/domain";
@@ -76,6 +79,14 @@ function resolvePublicAssetUrl(url: string | null): string | null {
   return `${base.origin}${url}`;
 }
 
+export interface ApiFinkokEmitterResponse {
+  status: string;
+  detail: string | null;
+  checked_at: string | null;
+  taxpayer_id: string | null;
+  registration_enabled?: boolean;
+}
+
 export interface ApiBillingSettingsResponse {
   id: string;
   tenant_id: string;
@@ -98,8 +109,39 @@ export interface ApiBillingSettingsResponse {
   next_folio?: number;
   /** True cuando ya hay facturas en la serie configurada. */
   has_issued_invoices?: boolean;
+  /** Kill-switch FINKOK_REGISTRATION_ENABLED (pedido registro clientes). */
+  finkok_registration_enabled?: boolean;
+  /** Cache RFC emisor ante Finkok (embed). */
+  finkok_emitter?: ApiFinkokEmitterResponse | null;
   created_at: string;
   updated_at: string;
+}
+
+const FINKOK_EMITTER_STATUS_SET = new Set<string>(
+  Object.values(FinkokEmitterStatuses),
+);
+
+function normalizeFinkokEmitterStatus(raw: string): FinkokEmitterStatus {
+  if (FINKOK_EMITTER_STATUS_SET.has(raw)) {
+    return raw as FinkokEmitterStatus;
+  }
+  return FinkokEmitterStatuses.ERROR;
+}
+
+export function mapFinkokEmitter(
+  api: ApiFinkokEmitterResponse,
+  registrationEnabledFallback = false,
+): FinkokEmitter {
+  return {
+    status: normalizeFinkokEmitterStatus(api.status),
+    detail: api.detail ?? null,
+    checkedAt: api.checked_at ?? null,
+    taxpayerId: api.taxpayer_id ?? null,
+    registrationEnabled:
+      typeof api.registration_enabled === "boolean"
+        ? api.registration_enabled
+        : registrationEnabledFallback,
+  };
 }
 
 export interface ApiNotificationSettingsResponse {
@@ -184,6 +226,10 @@ export function mapBillingSettings(
     .toUpperCase();
   const rawTasaIva =
     typeof api.tasa_iva === "number" ? api.tasa_iva : Number.parseFloat(api.tasa_iva);
+  const finkokRegistrationEnabled = Boolean(api.finkok_registration_enabled);
+  const finkokEmitter = api.finkok_emitter
+    ? mapFinkokEmitter(api.finkok_emitter, finkokRegistrationEnabled)
+    : null;
 
   return {
     id: api.id,
@@ -208,6 +254,8 @@ export function mapBillingSettings(
         ? api.next_folio
         : null,
     hasIssuedInvoices: Boolean(api.has_issued_invoices),
+    finkokRegistrationEnabled,
+    finkokEmitter,
     createdAt: new Date(api.created_at),
     updatedAt: new Date(api.updated_at),
   };

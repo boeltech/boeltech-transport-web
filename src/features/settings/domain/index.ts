@@ -13,6 +13,7 @@ export {
   PAC_USES_CREDENTIALS,
   SELECTABLE_PAC_PROVIDERS,
   resolveSelectablePacProvider,
+  FinkokEmitterStatuses,
   settingsQueryKeys,
 } from "./entities";
 
@@ -22,6 +23,8 @@ export type {
   CompanyAddress,
   BillingSettings,
   PacProvider,
+  FinkokEmitter,
+  FinkokEmitterStatus,
   NotificationSettings,
   TestPacConnectionPayload,
   TestPacConnectionResult,
