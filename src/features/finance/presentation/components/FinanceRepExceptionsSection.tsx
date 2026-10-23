@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertCircle, FileWarning, Loader2 } from "lucide-react";
 import {
   useRepExceptions,
@@ -13,6 +14,7 @@ import {
   canRetryRepStamp,
   isRepManualReview,
   isRepOrphanParked,
+  isRepPacConfigErrorMessage,
   REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
 } from "@features/finance/domain";
 import { Badge } from "@shared/ui/badge";
@@ -42,6 +44,7 @@ import {
 
 const copy = financeCopy.cobros.exceptions;
 const PAGE_SIZE = 10;
+const BILLING_SETTINGS_PATH = "/settings/billing";
 
 function statusBadgeVariant(
   status: FinanceRepExceptionStatus,
@@ -179,6 +182,9 @@ export function FinanceRepExceptionsSection({
                   const manualReview = isRepManualReview({
                     repLastError: item.repLastError,
                   });
+                  const configError = isRepPacConfigErrorMessage(
+                    item.repLastError,
+                  );
                   const orphan = isRepOrphanParked({
                     repStatus: item.repStatus,
                     repCfdiUuid: item.repCfdiUuid,
@@ -230,7 +236,12 @@ export function FinanceRepExceptionsSection({
                             {copy.manualReviewHint}
                           </p>
                         ) : null}
-                        {orphan && !manualReview ? (
+                        {configError && !manualReview ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {copy.permanentConfigErrorHint}
+                          </p>
+                        ) : null}
+                        {orphan && !manualReview && !configError ? (
                           <p className="mt-1 text-xs text-muted-foreground">
                             {copy.orphanHint}
                           </p>
@@ -251,6 +262,13 @@ export function FinanceRepExceptionsSection({
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col items-start gap-1">
+                          {configError ? (
+                            <Button size="sm" variant="outline" asChild>
+                              <Link to={BILLING_SETTINGS_PATH}>
+                                {copy.goToBillingSettings}
+                              </Link>
+                            </Button>
+                          ) : null}
                           {canRetry && primary ? (
                             <Button
                               type="button"

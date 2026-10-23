@@ -3,8 +3,10 @@ import {
   canRetryRepStamp,
   isRepManualReview,
   isRepOrphanParked,
+  isRepPacConfigErrorMessage,
   isRepPermanentError,
   isRepStatusTerminal,
+  REP_PAC_CONFIG_ERROR_MESSAGE,
   REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
 } from "./repRetryGate";
 
@@ -23,7 +25,21 @@ describe("repRetryGate", () => {
     ).toBe(false);
   });
 
-  it("blocks retry for orphan, manual_review, and permanent error kinds", () => {
+  it("detects PAC config messages (base + tip. 702 hint)", () => {
+    expect(isRepPacConfigErrorMessage(REP_PAC_CONFIG_ERROR_MESSAGE)).toBe(true);
+    expect(
+      isRepPacConfigErrorMessage(
+        `${REP_PAC_CONFIG_ERROR_MESSAGE} Registre el RFC emisor en Datos para facturar o en el panel del timbrador.`,
+      ),
+    ).toBe(true);
+    expect(
+      isRepPacConfigErrorMessage("Registre el RFC emisor en el panel"),
+    ).toBe(true);
+    expect(isRepPacConfigErrorMessage("Error de validación PAC")).toBe(false);
+    expect(isRepPacConfigErrorMessage(null)).toBe(false);
+  });
+
+  it("blocks retry for orphan, manual_review, permanent, and config messages", () => {
     expect(
       canRetryRepStamp({
         repStatus: "failed",
@@ -44,6 +60,14 @@ describe("repRetryGate", () => {
         repErrorKind: "permanent",
         repCfdiUuid: null,
         repLastError: "Error PAC validación",
+      }),
+    ).toBe(false);
+    expect(
+      canRetryRepStamp({
+        repStatus: "failed",
+        repErrorKind: null,
+        repCfdiUuid: null,
+        repLastError: REP_PAC_CONFIG_ERROR_MESSAGE,
       }),
     ).toBe(false);
     expect(

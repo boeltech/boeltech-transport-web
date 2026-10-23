@@ -14,7 +14,10 @@ import {
   COBROS_FOLLOW_THROUGH_STORAGE_KEY,
   COBROS_TODAY_TRAY_STORAGE_KEY,
 } from "../utils/cobrosFollowThrough";
-import { REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE } from "@features/finance/domain";
+import {
+  REP_PAC_CONFIG_ERROR_MESSAGE,
+  REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
+} from "@features/finance/domain";
 import { financeCopy } from "../copy";
 
 const {
@@ -568,6 +571,57 @@ describe("FinanceCobrosPage", () => {
     expect(
       screen.getByRole("tab", { name: /Excepciones REP/i }),
     ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("shows actionable config hint for permanent PAC config failure (no Timbrando / retry)", () => {
+    const configMessage = `${REP_PAC_CONFIG_ERROR_MESSAGE} Registre el RFC emisor en Datos para facturar o en el panel del timbrador.`;
+    sessionStorage.setItem(
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-config",
+          receiverRfc: "XAXX010101000",
+          amount: 155480,
+          paymentDate: "2026-10-22",
+          repStatus: "failed",
+          invoices: [{ id: "inv-1", serie: "A", folio: 2, amount: 155480 }],
+          recordedAt: "2026-10-22T12:00:00.000Z",
+        },
+      ]),
+    );
+    repStatusByIds.data = [
+      {
+        paymentId: "pay-config",
+        repStatus: "failed",
+        repAttempts: 1,
+        repLastError: configMessage,
+        repCfdiUuid: null,
+        repStampedAt: null,
+        repNextAttemptAt: null,
+        waitReason: null,
+        repErrorKind: "permanent",
+        invoices: [{ id: "inv-1", serie: "A", folio: 2, amount: 155480 }],
+      },
+    ];
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/cobros"],
+    });
+
+    expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
+    expect(screen.getByText("Requiere atención")).toBeInTheDocument();
+    expect(screen.getByText(configMessage)).toBeInTheDocument();
+    expect(
+      screen.getByText(financeCopy.cobros.todayTray.permanentConfigErrorHint),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Ir a Datos para facturar" }),
+    ).toHaveAttribute("href", "/settings/billing");
+    expect(screen.queryByText("Timbrando…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reintento programado…")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Reintentar timbrado" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows stamped stage in tray without auto-clearing the session entry", () => {

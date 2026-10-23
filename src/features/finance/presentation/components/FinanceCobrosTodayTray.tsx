@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Receipt, X } from "lucide-react";
 import {
   canRetryRepStamp,
   isRepManualReview,
   isRepOrphanParked,
+  isRepPacConfigErrorMessage,
   isRepPermanentError,
   REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
   type FinanceRepStatusItem,
@@ -33,6 +35,7 @@ import type { CobrosInvoiceNavTarget } from "../utils/cobrosInvoiceNav";
 import { CobrosInvoiceNavCta } from "./CobrosInvoiceNav";
 
 const copy = financeCopy.cobros.todayTray;
+const BILLING_SETTINGS_PATH = "/settings/billing";
 
 /** Hints for in-progress wait reasons that the stage chip alone does not explain. */
 function waitReasonHint(
@@ -242,6 +245,8 @@ export function FinanceCobrosTodayTray({
               repErrorKind,
             });
             const permanent = isRepPermanentError({ repErrorKind });
+            const configError = isRepPacConfigErrorMessage(repLastError);
+            const permanentConfig = permanent && configError;
             const orphan = isRepOrphanParked({ repStatus, repCfdiUuid });
             const waitHint =
               stage === "stamping" ? waitReasonHint(waitReason) : null;
@@ -287,7 +292,12 @@ export function FinanceCobrosTodayTray({
                         {copy.manualReviewHint}
                       </p>
                     ) : null}
-                    {permanent && !manualReview ? (
+                    {permanentConfig && !manualReview ? (
+                      <p className="text-xs text-muted-foreground">
+                        {copy.permanentConfigErrorHint}
+                      </p>
+                    ) : null}
+                    {permanent && !permanentConfig && !manualReview ? (
                       <p className="text-xs text-muted-foreground">
                         {copy.permanentErrorHint}
                       </p>
@@ -299,6 +309,17 @@ export function FinanceCobrosTodayTray({
                     ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {permanentConfig ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                      >
+                        <Link to={BILLING_SETTINGS_PATH}>
+                          {copy.goToBillingSettings}
+                        </Link>
+                      </Button>
+                    ) : null}
                     {canRetry && primaryInvoice ? (
                       <Button
                         type="button"

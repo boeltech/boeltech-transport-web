@@ -44,8 +44,10 @@ export type {
 } from "./entities";
 export {
   REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
+  REP_PAC_CONFIG_ERROR_MESSAGE,
   isRepManualReview,
   isRepPermanentError,
+  isRepPacConfigErrorMessage,
   isRepOrphanParked,
   canRetryRepStamp,
   isRepStatusTerminal,

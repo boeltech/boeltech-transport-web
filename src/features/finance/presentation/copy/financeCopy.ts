@@ -104,6 +104,9 @@ const cobrosCopy = {
       "Revise en el PAC antes de reintentar; no reintente a ciegas.",
     permanentErrorHint:
       "El PAC rechazó el comprobante de forma permanente; no reintente a ciegas.",
+    permanentConfigErrorHint:
+      "Revise el RFC emisor y el sello en Configuración → Datos para facturar; no reintente a ciegas.",
+    goToBillingSettings: "Ir a Datos para facturar",
     orphanHint:
       "Hay un UUID de comprobante; revise en el PAC antes de actuar.",
     dismissTray: "Cerrar",
@@ -135,6 +138,9 @@ const cobrosCopy = {
     action: "Acción",
     manualReviewHint:
       "Revise en el PAC antes de reintentar; no reintente a ciegas.",
+    permanentConfigErrorHint:
+      "Revise el RFC emisor y el sello en Configuración → Datos para facturar; no reintente a ciegas.",
+    goToBillingSettings: "Ir a Datos para facturar",
     orphanHint:
       "Hay un UUID de comprobante; revise en el PAC antes de actuar.",
     entityLabelPlural: "comprobantes",
