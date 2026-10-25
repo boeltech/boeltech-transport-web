@@ -1,10 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, Download, Info, Receipt } from "lucide-react";
+import { AlertCircle, ChevronDown, Download, Info, Receipt } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { ActiveFilterChips } from "@shared/ui/listing";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -13,6 +18,7 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { useToast } from "@shared/hooks";
+import { cn } from "@shared/lib/utils/cn";
 import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import {
   parseExpenseDimension,
@@ -40,6 +46,7 @@ const DEFAULT_GRANULARITY = "month";
 export function ExpenseAnalysisTab() {
   const { toast } = useToast();
   const [today] = useState(getTodayString);
+  const [alertOpen, setAlertOpen] = useState(false);
 
   const filters = useFinanceListingFilters<
     "dimension" | "granularity" | "from" | "to" | "vehicleId"
@@ -82,6 +89,10 @@ export function ExpenseAnalysisTab() {
     },
     [filters],
   );
+
+  const handleWidenPeriod = useCallback(() => {
+    filters.setFilters({ from: "", to: "" });
+  }, [filters]);
 
   const handleDimensionChange = useCallback(
     (value: "vehicle" | "driver" | "client" | "route") => {
@@ -165,6 +176,7 @@ export function ExpenseAnalysisTab() {
     (byCategory?.total.some((value) => value > 0) ?? false) ||
     dimensionRows.length > 0;
   const isEmpty = !isLoading && !isLoadError && !hasExpenseData;
+  const isDefaultPeriod = period.choice === "last_12";
 
   const alertCopy = financeCopy.expenses.alert;
   const errorCopy = financeCopy.expenses.error;
@@ -175,20 +187,50 @@ export function ExpenseAnalysisTab() {
         <DetailAlertCard
           severity="info"
           icon={<Info className="h-5 w-5" aria-hidden />}
-          title={alertCopy.includesShow}
-          items={[
-            { text: alertCopy.summary },
-            { text: alertCopy.body },
-            {
-              text: `${alertCopy.bodyRoutePrefix} ${alertCopy.bodyRouteLink}${alertCopy.bodyRouteSuffix}`,
-            },
-          ]}
+          title={alertCopy.summary}
           action={
-            <Button asChild type="button" size="sm" variant="outline">
-              <Link to="/trips">{alertCopy.goToTrips}</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild type="button" size="sm" variant="outline">
+                <Link to="/trips">{alertCopy.goToTrips}</Link>
+              </Button>
+              <Button asChild type="button" size="sm" variant="ghost">
+                <Link to="/finance/analysis?view=margin">
+                  {alertCopy.goToProfitability}
+                </Link>
+              </Button>
+            </div>
           }
-        />
+        >
+          <Collapsible open={alertOpen} onOpenChange={setAlertOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2 h-auto px-2 py-1 text-xs"
+              >
+                {alertOpen ? alertCopy.includesHide : alertCopy.includesShow}
+                <ChevronDown
+                  className={cn(
+                    "ml-1 h-3.5 w-3.5 transition-transform",
+                    alertOpen && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1 pt-1 text-sm text-muted-foreground">
+              <p>{alertCopy.body}</p>
+              <p>
+                {alertCopy.bodyRoutePrefix}{" "}
+                <span className="font-medium text-foreground/80">
+                  {alertCopy.bodyRouteLink}
+                </span>
+                {alertCopy.bodyRouteSuffix}
+              </p>
+            </CollapsibleContent>
+          </Collapsible>
+        </DetailAlertCard>
         <Button
           type="button"
           size="sm"
@@ -227,7 +269,7 @@ export function ExpenseAnalysisTab() {
               }
             >
               <SelectTrigger
-                className="w-[160px]"
+                className="w-[180px]"
                 aria-label={financeCopy.expenses.filters.granularity}
               >
                 <SelectValue
@@ -283,11 +325,30 @@ export function ExpenseAnalysisTab() {
           }
         />
       ) : isEmpty ? (
-        <EmptyState
-          icon={<Receipt className="h-10 w-10 text-muted-foreground" />}
-          title={financeCopy.expenses.empty.title}
-          description={financeCopy.expenses.empty.description}
-        />
+        <div className="space-y-3">
+          <EmptyState
+            icon={<Receipt className="h-10 w-10 text-muted-foreground" />}
+            title={financeCopy.expenses.empty.title}
+            description={financeCopy.expenses.empty.description}
+          />
+          <div className="flex flex-wrap justify-center gap-2">
+            {!isDefaultPeriod ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleWidenPeriod}
+              >
+                {financeCopy.expenses.empty.widenPeriod}
+              </Button>
+            ) : null}
+            <Button type="button" size="sm" variant="ghost" asChild>
+              <Link to="/finance/analysis?view=performance">
+                {financeCopy.expenses.empty.viewPerformance}
+              </Link>
+            </Button>
+          </div>
+        </div>
       ) : (
         <>
           <ExpenseAnalysisKpiCards

@@ -15,6 +15,7 @@ import type {
   ProfitabilityTripItem,
   ProfitabilityTripsResponse,
 } from "@features/finance/domain";
+import { parseMarginBasis } from "@features/finance/domain";
 
 function asNumber(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -68,12 +69,22 @@ export function mapAccountStatementItem(
   };
 }
 
+function mapNullableProfitabilityStatus(
+  value: unknown,
+): ProfitabilityStatus | null {
+  if (value == null || value === "") return null;
+  return asString(value) as ProfitabilityStatus;
+}
+
 function mapProfitabilityTripItem(
   raw: Record<string, unknown>,
 ): ProfitabilityTripItem {
   const grossMarginPct = raw.gross_margin_pct;
   const grossMargin = raw.gross_margin;
-  const profitabilityStatus = raw.profitability_status;
+  const operationalMargin = raw.operational_margin;
+  const operationalMarginPct = raw.operational_margin_pct;
+  const hasOperational =
+    raw.operational_cost != null || raw.trip_commission_total != null;
   return {
     tripId: asString(raw.trip_id),
     tripCode: asString(raw.trip_code),
@@ -88,10 +99,31 @@ function mapProfitabilityTripItem(
     grossMargin: grossMargin == null ? null : asNumber(grossMargin),
     grossMarginPct:
       grossMarginPct == null ? null : asNumber(grossMarginPct),
-    profitabilityStatus:
-      profitabilityStatus == null || profitabilityStatus === ""
-        ? null
-        : (asString(profitabilityStatus) as ProfitabilityStatus),
+    profitabilityStatus: mapNullableProfitabilityStatus(
+      raw.profitability_status,
+    ),
+    tripCommissionTotal:
+      raw.trip_commission_total == null
+        ? undefined
+        : asNumber(raw.trip_commission_total),
+    operationalCost: hasOperational
+      ? asNumber(raw.operational_cost)
+      : undefined,
+    operationalMargin:
+      operationalMargin == null && !hasOperational
+        ? undefined
+        : operationalMargin == null
+          ? null
+          : asNumber(operationalMargin),
+    operationalMarginPct:
+      operationalMarginPct == null && !hasOperational
+        ? undefined
+        : operationalMarginPct == null
+          ? null
+          : asNumber(operationalMarginPct),
+    operationalProfitabilityStatus: hasOperational
+      ? mapNullableProfitabilityStatus(raw.operational_profitability_status)
+      : undefined,
     hasPendingExpenses: asBoolean(raw.has_pending_expenses),
     tripStatus: asNullableString(raw.trip_status) ?? undefined,
     financialBucket: asNullableString(raw.financial_bucket) as
@@ -129,6 +161,9 @@ export function mapProfitabilityTripsResponse(
     string,
     unknown
   >;
+  const meta = (raw.meta ?? {}) as Record<string, unknown>;
+  const marginBasis = parseMarginBasis(meta.margin_basis);
+  const hasOperationalAgg = aggregates.total_operational_cost != null;
 
   return {
     data: rows.map((item) => mapProfitabilityTripItem(item as Record<string, unknown>)),
@@ -146,6 +181,23 @@ export function mapProfitabilityTripsResponse(
         aggregates.blended_margin_pct == null
           ? null
           : asNumber(aggregates.blended_margin_pct),
+      totalTripCommission:
+        aggregates.total_trip_commission == null
+          ? undefined
+          : asNumber(aggregates.total_trip_commission),
+      totalOperationalCost: hasOperationalAgg
+        ? asNumber(aggregates.total_operational_cost)
+        : undefined,
+      blendedOperationalMargin:
+        aggregates.blended_operational_margin == null && !hasOperationalAgg
+          ? undefined
+          : asNumber(aggregates.blended_operational_margin),
+      blendedOperationalMarginPct:
+        aggregates.blended_operational_margin_pct == null && !hasOperationalAgg
+          ? undefined
+          : aggregates.blended_operational_margin_pct == null
+            ? null
+            : asNumber(aggregates.blended_operational_margin_pct),
       totalProjectedRevenue: asNumber(aggregates.total_projected_revenue),
       totalCancellationLoss: asNumber(aggregates.total_cancellation_loss),
       totalCancelledInvoiceRevenue: asNumber(
@@ -159,6 +211,7 @@ export function mapProfitabilityTripsResponse(
         loss: asNumber(byStatus.loss),
       },
     },
+    marginBasis,
   };
 }
 
@@ -166,6 +219,7 @@ export function mapProfitabilityAggregateItem(
   raw: Record<string, unknown>,
 ): ProfitabilityAggregateItem {
   const blendedMarginPct = raw.blended_margin_pct;
+  const hasOperational = raw.total_operational_cost != null;
   return {
     key: asString(raw.key),
     label: asString(raw.label),
@@ -175,6 +229,23 @@ export function mapProfitabilityAggregateItem(
     blendedMargin: asNumber(raw.blended_margin),
     blendedMarginPct:
       blendedMarginPct == null ? null : asNumber(blendedMarginPct),
+    totalTripCommission:
+      raw.total_trip_commission == null
+        ? undefined
+        : asNumber(raw.total_trip_commission),
+    totalOperationalCost: hasOperational
+      ? asNumber(raw.total_operational_cost)
+      : undefined,
+    blendedOperationalMargin:
+      raw.blended_operational_margin == null && !hasOperational
+        ? undefined
+        : asNumber(raw.blended_operational_margin),
+    blendedOperationalMarginPct:
+      raw.blended_operational_margin_pct == null && !hasOperational
+        ? undefined
+        : raw.blended_operational_margin_pct == null
+          ? null
+          : asNumber(raw.blended_operational_margin_pct),
   };
 }
 
@@ -266,11 +337,21 @@ export function mapIncomeByMonth(raw: Record<string, unknown>): IncomeByMonth {
 }
 
 export function mapPeriodFinancials(raw: Record<string, unknown>): PeriodFinancials {
+  const hasOperational = raw.operational_cost != null;
   return {
     period: asString(raw.period),
     actualRevenue: asNumber(raw.actual_revenue),
     actualCost: asNumber(raw.actual_cost),
     actualMargin: asNumber(raw.actual_margin),
+    operationalCost: hasOperational ? asNumber(raw.operational_cost) : undefined,
+    operationalMargin:
+      raw.operational_margin == null && !hasOperational
+        ? undefined
+        : asNumber(raw.operational_margin),
+    periodPersonnelCost:
+      raw.period_personnel_cost == null
+        ? undefined
+        : asNumber(raw.period_personnel_cost),
     tripCount: asNumber(raw.trip_count),
     incompleteTripCount: asNumber(raw.incomplete_trip_count),
     tripsWithPendingExpenses: asNumber(raw.trips_with_pending_expenses),
@@ -287,10 +368,12 @@ function mapPeriodFinancialsList(raw: unknown): PeriodFinancials[] {
 export function mapMonthlyPerformance(
   raw: Record<string, unknown>,
 ): MonthlyPerformance {
+  const meta = (raw.meta ?? {}) as Record<string, unknown>;
   return {
     periods: Array.isArray(raw.periods) ? raw.periods.map(asString) : [],
     current: mapPeriodFinancialsList(raw.current),
     previous: mapPeriodFinancialsList(raw.previous),
+    marginBasis: parseMarginBasis(meta.margin_basis),
   };
 }
 

@@ -32,6 +32,7 @@ export {
   shiftPeriod,
   splitCompletedMonths,
   summarizePerformanceWindow,
+  summarizePeriodPersonnelCost,
   summarizePeriods,
   variationSentiment,
   type AlignedPerformanceMonth,

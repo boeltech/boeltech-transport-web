@@ -3,6 +3,7 @@ import {
   type PerformanceTotals,
   type VariationPolarity,
 } from "@features/finance/application";
+import type { MarginBasis } from "@features/finance/domain";
 import { Card, CardContent } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
 import { cn } from "@shared/lib/utils/cn";
@@ -14,7 +15,7 @@ import { PerformanceVariation } from "./PerformanceVariation";
 const copy = financeCopy.performance.kpis;
 
 interface KpiDefinition {
-  key: "revenue" | "cost" | "margin";
+  key: "revenue" | "cost" | "margin" | "personnel";
   title: string;
   value: number;
   previousValue: number;
@@ -35,6 +36,11 @@ interface PerformanceKpiCardsProps {
    * Nunca chips en las cards; nunca en modo «solo mes en curso».
    */
   provisionalNote?: string | null;
+  /** ADR-0108 — naming de costo/margen. */
+  marginBasis?: MarginBasis;
+  /** ADR-0108 — personal de periodo aparte (meses del summary). */
+  personnelCost?: number;
+  previousPersonnelCost?: number;
 }
 
 function KpiCard({
@@ -100,7 +106,12 @@ export function PerformanceKpiCards({
   isLoading = false,
   periodNote,
   provisionalNote,
+  marginBasis = "operational",
+  personnelCost,
+  previousPersonnelCost,
 }: PerformanceKpiCardsProps) {
+  const operational = marginBasis === "operational";
+  const showPersonnel = personnelCost != null;
   const kpis: KpiDefinition[] = [
     {
       key: "revenue",
@@ -112,7 +123,7 @@ export function PerformanceKpiCards({
     },
     {
       key: "cost",
-      title: copy.cost,
+      title: operational ? copy.cost : copy.costLegacy,
       value: current?.cost ?? 0,
       previousValue: previous?.cost ?? 0,
       polarity: "lower-is-better",
@@ -126,7 +137,7 @@ export function PerformanceKpiCards({
     },
     {
       key: "margin",
-      title: copy.margin,
+      title: operational ? copy.margin : copy.marginLegacy,
       value: current?.margin ?? 0,
       previousValue: previous?.margin ?? 0,
       polarity: "higher-is-better",
@@ -134,6 +145,16 @@ export function PerformanceKpiCards({
       previousDetail: copy.previousMarginPct(formatPct(previous?.marginPct ?? null)),
     },
   ];
+  if (showPersonnel) {
+    kpis.push({
+      key: "personnel",
+      title: copy.personnelCost,
+      value: personnelCost,
+      previousValue: previousPersonnelCost ?? 0,
+      polarity: "lower-is-better",
+      detail: copy.personnelCostHint,
+    });
+  }
 
   return (
     <div className="space-y-2">
@@ -147,7 +168,10 @@ export function PerformanceKpiCards({
       ) : null}
       <section
         aria-label={copy.ariaLabel}
-        className="grid grid-cols-1 gap-4 md:grid-cols-3"
+        className={cn(
+          "grid grid-cols-1 gap-4 md:grid-cols-3",
+          showPersonnel && "xl:grid-cols-4",
+        )}
       >
         {kpis.map((kpi) => (
           <KpiCard key={kpi.key} kpi={kpi} compare={compare} isLoading={isLoading} />

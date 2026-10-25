@@ -47,6 +47,9 @@ export interface AccountStatementItem {
 
 export type ProfitabilityRevenueSource = "trip_base_rate" | "invoice_subtotal";
 
+/** ADR-0108 — base de margen reportada en `meta.margin_basis` (opcional). */
+export type MarginBasis = "trip_expenses" | "operational";
+
 export interface ProfitabilityTripItem {
   tripId: string;
   tripCode: string;
@@ -61,6 +64,13 @@ export interface ProfitabilityTripItem {
   grossMargin: number | null;
   grossMarginPct: number | null;
   profitabilityStatus: ProfitabilityStatus | null;
+  /** ADR-0108 — comisión liquidación approved|disbursed. */
+  tripCommissionTotal?: number;
+  /** ADR-0108 — gasto de viaje + comisión. */
+  operationalCost?: number;
+  operationalMargin?: number | null;
+  operationalMarginPct?: number | null;
+  operationalProfitabilityStatus?: ProfitabilityStatus | null;
   hasPendingExpenses: boolean;
   tripStatus?: string;
   financialBucket?: FinancialBucket;
@@ -85,11 +95,18 @@ export interface ProfitabilityTripsResponse {
     totalActual: number;
     blendedMargin: number;
     blendedMarginPct: number | null;
+    /** ADR-0108 */
+    totalTripCommission?: number;
+    totalOperationalCost?: number;
+    blendedOperationalMargin?: number;
+    blendedOperationalMarginPct?: number | null;
     totalProjectedRevenue: number;
     totalCancellationLoss: number;
     totalCancelledInvoiceRevenue: number;
     byProfitabilityStatus: Record<ProfitabilityStatus, number>;
   };
+  /** ADR-0108 — si el API lo envía. */
+  marginBasis?: MarginBasis;
 }
 
 export interface ProfitabilityAggregateItem {
@@ -100,6 +117,11 @@ export interface ProfitabilityAggregateItem {
   totalActual: number;
   blendedMargin: number;
   blendedMarginPct: number | null;
+  /** ADR-0108 */
+  totalTripCommission?: number;
+  totalOperationalCost?: number;
+  blendedOperationalMargin?: number;
+  blendedOperationalMarginPct?: number | null;
 }
 
 export type AgingBucket = "0-30" | "31-60" | "61-90" | "90+";
@@ -297,8 +319,17 @@ export interface IncomeByMonthFilters {
 export interface PeriodFinancials {
   period: string;
   actualRevenue: number;
+  /**
+   * Primario de costo del mes (API): legacy `actual_total` o `operational_cost`
+   * según `FINANCE_OPERATIONAL_MARGIN_ENABLED`.
+   */
   actualCost: number;
   actualMargin: number;
+  /** ADR-0108 — siempre aditivo cuando el API lo envía. */
+  operationalCost?: number;
+  operationalMargin?: number;
+  /** ADR-0108 — personal de periodo aparte (no resta del costo de viajes). */
+  periodPersonnelCost?: number;
   tripCount: number;
   /** Viajes con salida en el mes que aún no están `completed`. */
   incompleteTripCount: number;
@@ -319,6 +350,8 @@ export interface MonthlyPerformance {
   periods: string[];
   current: PeriodFinancials[];
   previous: PeriodFinancials[];
+  /** ADR-0108 — si el API lo envía en meta. */
+  marginBasis?: MarginBasis;
 }
 
 export interface InvoicesByStatusMonthFilters {

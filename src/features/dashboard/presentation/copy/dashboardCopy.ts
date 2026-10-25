@@ -355,11 +355,12 @@ export const dashboardCopy = {
   },
   financialComparison: {
     title: "Ingresos, costos y margen",
-    description: "Ingreso real y costo real por mes de viajes completados",
-    ariaLabel: "Gráfico de barras: ingreso real y costo real por mes",
+    description:
+      "Ingreso y costo por mes de viajes completados (el costo sigue el primario del API: operativo cuando el flag está activo)",
+    ariaLabel: "Gráfico de barras: ingreso y costo por mes",
     series: {
-      actualRevenue: "Ingreso real",
-      actualCost: "Costo real",
+      actualRevenue: "Ingreso",
+      actualCost: "Costo",
     },
     currentPeriodLabel: (label: string) => `${label} (en curso)`,
     monthsOption: (months: number) => `${months}m`,
@@ -367,11 +368,11 @@ export const dashboardCopy = {
     empty: {
       title: "Sin viajes completados",
       description:
-        "Cuando cierres viajes, aquí verás ingreso real, costo real y margen por mes.",
+        "Cuando cierres viajes, aquí verás ingreso, costo y margen por mes.",
     },
     monthEmpty: "Sin viajes completados este mes.",
     pendingExpensesAlert:
-      "Hay gastos en cola de aprobación; el costo real y el margen operativo pueden bajar.",
+      "Hay gastos en cola de aprobación; el costo y el margen pueden bajar.",
     pendingExpensesLinkAriaLabel: "Ir a aprobaciones de gastos en cola",
     viewProfitability: "Ver rentabilidad",
     compareWithPreviousYear: "Comparar con año anterior",

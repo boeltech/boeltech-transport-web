@@ -108,18 +108,39 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
     expect(dimensionQuery.refetch).toHaveBeenCalled();
   });
 
-  it("aviso Gastos: DetailAlertCard con CTA Ir a Viajes en action", () => {
+  it("aviso Gastos: 1 línea above-the-fold + detalle colapsable + CTAs", async () => {
+    const user = userEvent.setup();
     renderWithTheme(<ExpenseAnalysisTab />, {
       route: ["/finance/analysis?view=expenses"],
       resolvedTheme: "light",
     });
 
-    expect(screen.getByText(copy.alert.includesShow)).toBeInTheDocument();
-    expect(
-      screen.getByText((text) => text.includes(copy.alert.summary)),
-    ).toBeInTheDocument();
+    expect(screen.getByText(copy.alert.summary)).toBeInTheDocument();
+    expect(screen.queryByText(copy.alert.body)).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: copy.alert.includesShow }),
+    );
+    expect(screen.getByText(copy.alert.body)).toBeInTheDocument();
     const trips = screen.getByRole("link", { name: copy.alert.goToTrips });
     expect(trips).toHaveAttribute("href", "/trips");
+    expect(
+      screen.getByRole("link", { name: copy.alert.goToProfitability }),
+    ).toHaveAttribute("href", "/finance/analysis?view=margin");
+  });
+
+  it("empty accionable: Mes a mes siempre; ampliar periodo si no es default", () => {
+    renderWithTheme(<ExpenseAnalysisTab />, {
+      route: ["/finance/analysis?view=expenses&from=2026-01-01&to=2026-01-31"],
+      resolvedTheme: "light",
+    });
+
+    expect(screen.getByText(copy.empty.title)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: copy.empty.viewPerformance }),
+    ).toHaveAttribute("href", "/finance/analysis?view=performance");
+    expect(
+      screen.getByRole("button", { name: copy.empty.widenPeriod }),
+    ).toBeInTheDocument();
   });
 
   it("toolbar periodo/granularidad sin ListingFilterPanel; chips + Limpiar", async () => {

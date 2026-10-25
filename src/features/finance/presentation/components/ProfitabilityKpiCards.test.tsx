@@ -31,7 +31,7 @@ describe("ProfitabilityKpiCards", () => {
   it("shows revenue, actual cost, margin $·% and the loss card for operational scope", () => {
     render(<ProfitabilityKpiCards scope="operational" trips={buildTrips(7)} />);
     expect(screen.getByText("Ingreso")).toBeInTheDocument();
-    expect(screen.getByText("Gasto real")).toBeInTheDocument();
+    expect(screen.getByText("Gasto de viaje")).toBeInTheDocument();
     expect(screen.getByText("$3,000.00 · 75.00%")).toBeInTheDocument();
     const lossCard = screen.getByTestId("profitability-loss-card");
     expect(within(lossCard).getByText("Viajes con pérdida")).toBeInTheDocument();

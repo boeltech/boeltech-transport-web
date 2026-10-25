@@ -11,6 +11,7 @@ import type {
   ProfitabilityTripsResponse,
 } from "@features/finance/domain";
 import { financeCopy } from "../copy";
+import { tripsUseOperationalBasis } from "../utils/operationalMarginDisplay";
 import {
   showsMarginForScope,
   tripCountLabel,
@@ -107,6 +108,28 @@ export function ProfitabilityKpiCards({
   const agg = trips?.aggregates;
   const showMargin = showsMarginForScope(scope);
   const lossCount = agg?.byProfitabilityStatus.loss ?? 0;
+  const operational = tripsUseOperationalBasis(trips);
+  const costTitle = operational
+    ? copy.metrics.operationalCost
+    : copy.metrics.totalActual;
+  const costHint = operational
+    ? copy.metrics.operationalCostHint
+    : copy.metrics.totalActualHint;
+  const costValue = operational
+    ? (agg?.totalOperationalCost ?? agg?.totalActual ?? 0)
+    : (agg?.totalActual ?? 0);
+  const marginTitle = operational
+    ? copy.metrics.operationalMargin
+    : copy.metrics.blendedMargin;
+  const marginHint = operational
+    ? copy.metrics.operationalMarginHint
+    : copy.metrics.blendedMarginHint;
+  const marginValue = operational
+    ? (agg?.blendedOperationalMargin ?? agg?.blendedMargin ?? 0)
+    : (agg?.blendedMargin ?? 0);
+  const marginPct = operational
+    ? (agg?.blendedOperationalMarginPct ?? agg?.blendedMarginPct)
+    : agg?.blendedMarginPct;
 
   const cards = useMemo(() => {
     if (scope === "pipeline") {
@@ -139,9 +162,9 @@ export function ProfitabilityKpiCards({
         },
         {
           key: "actual",
-          title: copy.metrics.totalActual,
-          subtitle: copy.metrics.totalActualHint,
-          value: formatMxCurrency(agg?.totalActual ?? 0),
+          title: costTitle,
+          subtitle: costHint,
+          value: formatMxCurrency(costValue),
           tone: "warning" as const,
         },
         {
@@ -164,30 +187,43 @@ export function ProfitabilityKpiCards({
       },
       {
         key: "totalActual",
-        title: copy.metrics.totalActual,
-        subtitle: copy.metrics.totalActualHint,
-        value: formatMxCurrency(agg?.totalActual ?? 0),
+        title: costTitle,
+        subtitle: costHint,
+        value: formatMxCurrency(costValue),
         tone: "warning" as const,
       },
     ];
 
     if (!showMargin) return base;
 
-    const marginPct = agg?.blendedMarginPct;
     return [
       ...base,
       {
         key: "blendedMargin",
-        title: copy.metrics.blendedMargin,
-        subtitle: copy.metrics.blendedMarginHint,
-        value: `${formatMxCurrency(agg?.blendedMargin ?? 0)} · ${formatMarginPct(marginPct)}`,
+        title: marginTitle,
+        subtitle:
+          operational && (agg?.totalTripCommission ?? 0) === 0
+            ? copy.metrics.missingCommissionHint
+            : marginHint,
+        value: `${formatMxCurrency(marginValue)} · ${formatMarginPct(marginPct ?? null)}`,
         tone:
-          (agg?.blendedMargin ?? 0) < 0
-            ? ("destructive" as const)
-            : ("success" as const),
+          marginValue < 0 ? ("destructive" as const) : ("success" as const),
       },
     ];
-  }, [agg, scope, showMargin, tripCount]);
+  }, [
+    agg,
+    costHint,
+    costTitle,
+    costValue,
+    marginHint,
+    marginPct,
+    marginTitle,
+    marginValue,
+    operational,
+    scope,
+    showMargin,
+    tripCount,
+  ]);
 
   const cardCount = cards.length + (showMargin ? 1 : 0);
 

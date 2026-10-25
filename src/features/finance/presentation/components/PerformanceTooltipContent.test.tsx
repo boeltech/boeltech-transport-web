@@ -40,7 +40,7 @@ describe("PerformanceTooltipContent", () => {
     expect(within(revenueRow).getByText("$800.00")).toBeInTheDocument();
     expect(within(revenueRow).getByText("+$200.00 (+25.0%)")).toBeInTheDocument();
 
-    const costRow = screen.getByRole("row", { name: /^Gasto/ });
+    const costRow = screen.getByRole("row", { name: /^Costo operativo/ });
     expect(within(costRow).getByText("+$100.00 (+20.0%)")).toBeInTheDocument();
   });
 

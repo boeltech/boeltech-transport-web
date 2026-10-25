@@ -251,17 +251,18 @@ describe("buildMonthlyPerformanceCsv", () => {
       "mes",
       "estado",
       "ingreso",
-      "gasto",
-      "margen",
+      "costo_operativo",
+      "margen_operativo",
       "margen_pct",
+      "costo_personal",
       "viajes",
       "provisional",
       "viajes_sin_terminar",
       "viajes_con_gastos_pendientes",
     ]);
     expect(csv.rows).toEqual([
-      ["2025-12", "completo", 1000, 600, 400, 40, 2, "no", 0, 0],
-      ["2026-01", "en_curso", 500, 0, 500, 100, 1, "no", 0, 0],
+      ["2025-12", "completo", 1000, 600, 400, 40, 0, 2, "no", 0, 0],
+      ["2026-01", "en_curso", 500, 0, 500, 100, 0, 1, "no", 0, 0],
     ]);
   });
 
@@ -271,21 +272,23 @@ describe("buildMonthlyPerformanceCsv", () => {
       "mes",
       "estado",
       "ingreso",
-      "gasto",
-      "margen",
+      "costo_operativo",
+      "margen_operativo",
       "margen_pct",
+      "costo_personal",
       "viajes",
       "provisional",
       "viajes_sin_terminar",
       "viajes_con_gastos_pendientes",
       "mes_anio_anterior",
       "ingreso_anio_anterior",
-      "gasto_anio_anterior",
-      "margen_anio_anterior",
+      "costo_operativo_anio_anterior",
+      "margen_operativo_anio_anterior",
       "margen_pct_anio_anterior",
+      "costo_personal_anio_anterior",
       "viajes_anio_anterior",
       "variacion_ingreso_pct",
-      "variacion_gasto_pct",
+      "variacion_costo_pct",
       "variacion_margen_pct",
     ]);
     expect(csv.rows[0]).toEqual([
@@ -295,6 +298,7 @@ describe("buildMonthlyPerformanceCsv", () => {
       600,
       400,
       40,
+      0,
       2,
       "no",
       0,
@@ -304,6 +308,7 @@ describe("buildMonthlyPerformanceCsv", () => {
       500,
       300,
       37.5,
+      0,
       1,
       25,
       20,
@@ -316,6 +321,7 @@ describe("buildMonthlyPerformanceCsv", () => {
       0,
       500,
       100,
+      0,
       1,
       "no",
       0,
@@ -325,6 +331,7 @@ describe("buildMonthlyPerformanceCsv", () => {
       0,
       0,
       "",
+      0,
       0,
       "",
       "",
@@ -367,12 +374,13 @@ describe("buildMonthlyPerformanceCsv", () => {
       300,
       600,
       66.67,
+      0,
       3,
       "si",
       2,
       1,
     ]);
-    expect(csv.rows[1]?.slice(7, 10)).toEqual(["si", 4, 0]);
+    expect(csv.rows[1]?.slice(8, 11)).toEqual(["si", 4, 0]);
   });
 
   it("never exports −100 % (or any variation) for the month in progress", () => {

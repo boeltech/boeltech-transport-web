@@ -65,6 +65,66 @@ describe("mapProfitabilityTripsResponse", () => {
     expect(result.data[0]?.grossMargin).toBeNull();
     expect(result.data[0]?.profitabilityStatus).toBeNull();
   });
+
+  it("maps ADR-0108 operational fields and margin_basis meta", () => {
+    const result = mapProfitabilityTripsResponse({
+      data: [
+        {
+          trip_id: "t1",
+          trip_code: "V-001",
+          client_name: "Acme",
+          vehicle_id: "v1",
+          driver_id: "d1",
+          origin_city: "GDL",
+          destination_city: "MTY",
+          scheduled_departure: "2026-06-01T10:00:00.000Z",
+          trip_status: "completed",
+          financial_bucket: "realized",
+          revenue: 1000,
+          actual_total: 400,
+          trip_commission_total: 100,
+          operational_cost: 500,
+          gross_margin: 600,
+          operational_margin: 500,
+          gross_margin_pct: 60,
+          operational_margin_pct: 50,
+          profitability_status: "high",
+          operational_profitability_status: "medium",
+          has_pending_expenses: false,
+        },
+      ],
+      pagination: { page: 1, limit: 20, total: 1, total_pages: 1 },
+      aggregates: {
+        total_revenue: 1000,
+        total_actual: 400,
+        blended_margin: 600,
+        blended_margin_pct: 60,
+        total_trip_commission: 100,
+        total_operational_cost: 500,
+        blended_operational_margin: 500,
+        blended_operational_margin_pct: 50,
+        total_projected_revenue: 0,
+        total_cancellation_loss: 0,
+        total_cancelled_invoice_revenue: 0,
+        by_profitability_status: {
+          high: 1,
+          medium: 0,
+          low: 0,
+          breakeven: 0,
+          loss: 0,
+        },
+      },
+      meta: { margin_basis: "operational" },
+    });
+
+    expect(result.marginBasis).toBe("operational");
+    expect(result.data[0]?.tripCommissionTotal).toBe(100);
+    expect(result.data[0]?.operationalCost).toBe(500);
+    expect(result.data[0]?.operationalMargin).toBe(500);
+    expect(result.data[0]?.operationalProfitabilityStatus).toBe("medium");
+    expect(result.aggregates.totalOperationalCost).toBe(500);
+    expect(result.aggregates.blendedOperationalMarginPct).toBe(50);
+  });
 });
 
 describe("mapFinanceSummary", () => {
@@ -170,6 +230,9 @@ describe("mapMonthlyPerformance", () => {
       incompleteTripCount: 0,
       tripsWithPendingExpenses: 0,
       provisional: false,
+      operationalCost: undefined,
+      operationalMargin: undefined,
+      periodPersonnelCost: undefined,
     });
     expect(result.current[1]?.actualRevenue).toBe(1500.5);
     expect(result.current[1]?.tripCount).toBe(3);
@@ -215,6 +278,44 @@ describe("mapMonthlyPerformance", () => {
       incompleteTripCount: 0,
       tripsWithPendingExpenses: 0,
       provisional: false,
+    });
+  });
+
+  it("maps ADR-0108 operational_cost and period_personnel_cost", () => {
+    const result = mapMonthlyPerformance({
+      periods: ["2026-09"],
+      current: [
+        {
+          period: "2026-09",
+          actual_revenue: 1000,
+          actual_cost: 700,
+          actual_margin: 300,
+          operational_cost: 700,
+          operational_margin: 300,
+          period_personnel_cost: 150,
+          trip_count: 2,
+        },
+      ],
+      previous: [
+        {
+          period: "2025-09",
+          actual_revenue: 800,
+          actual_cost: 500,
+          actual_margin: 300,
+          operational_cost: 500,
+          operational_margin: 300,
+          period_personnel_cost: 0,
+          trip_count: 1,
+        },
+      ],
+      meta: { margin_basis: "operational" },
+    });
+
+    expect(result.marginBasis).toBe("operational");
+    expect(result.current[0]).toMatchObject({
+      operationalCost: 700,
+      operationalMargin: 300,
+      periodPersonnelCost: 150,
     });
   });
 

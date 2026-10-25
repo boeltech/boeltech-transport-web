@@ -277,9 +277,14 @@ export const financeApi = {
     const params = new URLSearchParams();
     addOptionalParam(params, "months", months);
 
-    const response = await apiClient.get<{ data: unknown }>(
-      `${FINANCE_BASE}/performance/monthly?${params.toString()}`,
-    );
-    return mapMonthlyPerformance((response.data ?? {}) as Record<string, unknown>);
+    const response = await apiClient.get<{
+      data?: unknown;
+      meta?: unknown;
+    }>(`${FINANCE_BASE}/performance/monthly?${params.toString()}`);
+    const payload = {
+      ...((response.data ?? {}) as Record<string, unknown>),
+      meta: response.meta,
+    };
+    return mapMonthlyPerformance(payload);
   },
 };

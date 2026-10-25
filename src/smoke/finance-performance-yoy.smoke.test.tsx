@@ -121,7 +121,9 @@ describe("finance performance YoY smoke", () => {
         .getAllByRole("tab")
         .map((tab) => tab.textContent),
     ).toEqual(["Mes a mes", "Rentabilidad", "Gastos"]);
-    expect(await screen.findByText("Ingreso, gasto y margen mes a mes")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Ingreso, costo operativo y margen mes a mes"),
+    ).toBeInTheDocument();
   });
 
   it("totals only complete months and shows the month in progress without comparison", async () => {
@@ -141,7 +143,9 @@ describe("finance performance YoY smoke", () => {
       ),
     ).toBeInTheDocument();
 
-    expect(screen.getByText("Ingreso, gasto y margen mes a mes")).toBeInTheDocument();
+    expect(
+      screen.getByText("Ingreso, costo operativo y margen mes a mes"),
+    ).toBeInTheDocument();
     expect(screen.getAllByTestId("composed-chart")).toHaveLength(2);
     expect(screen.getAllByTestId("bar-previousRevenue")).toHaveLength(1);
     expect(screen.getByTestId("line-previousMarginPct")).toBeInTheDocument();

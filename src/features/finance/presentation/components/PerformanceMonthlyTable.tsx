@@ -42,6 +42,8 @@ const provisionalCopy = financeCopy.performance.provisional;
 interface PerformanceMonthlyTableProps {
   months: AlignedPerformanceMonth[];
   compare: boolean;
+  /** ADR-0108 — columna Costo de personal aparte. */
+  showPersonnelColumn?: boolean;
 }
 
 function ProvisionalMonthChip({ monthLabel }: { monthLabel: string }) {
@@ -70,6 +72,7 @@ function ProvisionalMonthChip({ monthLabel }: { monthLabel: string }) {
 export function PerformanceMonthlyTable({
   months,
   compare,
+  showPersonnelColumn = false,
 }: PerformanceMonthlyTableProps) {
   return (
     <Card>
@@ -87,6 +90,9 @@ export function PerformanceMonthlyTable({
                 <TableHead className="text-right">{copy.cost}</TableHead>
                 <TableHead className="text-right">{copy.margin}</TableHead>
                 <TableHead className="text-right">{copy.marginPct}</TableHead>
+                {showPersonnelColumn ? (
+                  <TableHead className="text-right">{copy.personnelCost}</TableHead>
+                ) : null}
                 <TableHead className="text-right">{copy.trips}</TableHead>
                 {compare ? (
                   <>
@@ -163,6 +169,11 @@ export function PerformanceMonthlyTable({
                         computeMarginPct(current.actualMargin, current.actualRevenue),
                       )}
                     </TableCell>
+                    {showPersonnelColumn ? (
+                      <TableCell className="text-right tabular-nums">
+                        {formatMxCurrency(current.periodPersonnelCost ?? 0)}
+                      </TableCell>
+                    ) : null}
                     <TableCell className="text-right tabular-nums">
                       {current.tripCount.toLocaleString("es-MX")}
                     </TableCell>

@@ -168,7 +168,14 @@ export function buildMonthlyPerformanceCsv(
   options: { compare: boolean },
 ): CsvTable {
   const c = copy.csv;
-  const amountHeaders = [c.revenue, c.cost, c.margin, c.marginPct, c.trips];
+  const amountHeaders = [
+    c.revenue,
+    c.cost,
+    c.margin,
+    c.marginPct,
+    c.personnelCost,
+    c.trips,
+  ];
   const provisionalHeaders = [
     c.provisional,
     c.incompleteTrips,
@@ -194,6 +201,7 @@ export function buildMonthlyPerformanceCsv(
       current.actualCost,
       current.actualMargin,
       csvPct(computeMarginPct(current.actualMargin, current.actualRevenue)),
+      current.periodPersonnelCost ?? 0,
       current.tripCount,
       current.provisional ? c.provisionalYes : c.provisionalNo,
       current.incompleteTripCount,
@@ -214,6 +222,7 @@ export function buildMonthlyPerformanceCsv(
       previous.actualCost,
       previous.actualMargin,
       csvPct(computeMarginPct(previous.actualMargin, previous.actualRevenue)),
+      previous.periodPersonnelCost ?? 0,
       previous.tripCount,
       ...variations,
     ];

@@ -6,9 +6,11 @@ import {
   alignPerformanceMonths,
   monthlyPerformanceRequestMonths,
   summarizePerformanceWindow,
+  summarizePeriodPersonnelCost,
   useMonthlyPerformance,
   type MonthlyPerformanceMonths,
 } from "@features/finance/application";
+import { resolveMonthlyMarginBasis } from "@features/finance/domain";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
@@ -83,6 +85,23 @@ export function PerformanceTab() {
   const summary = useMemo(() => summarizePerformanceWindow(aligned), [aligned]);
   const { hasCurrent, canCompare } = summary;
   const compare = canCompare && (compareChoice ?? true);
+  const marginBasis = useMemo(() => {
+    const rows = aligned.map((month) => month.current);
+    return resolveMonthlyMarginBasis(rows, data?.marginBasis);
+  }, [aligned, data?.marginBasis]);
+  const personnelCost = useMemo(() => {
+    const rows = summary.inProgressOnly && summary.inProgress
+      ? [summary.inProgress.current]
+      : summary.completed.map((month) => month.current);
+    if (!rows.some((row) => row.periodPersonnelCost != null)) return undefined;
+    return summarizePeriodPersonnelCost(rows);
+  }, [summary]);
+  const previousPersonnelCost = useMemo(() => {
+    if (personnelCost == null) return undefined;
+    return summarizePeriodPersonnelCost(
+      summary.completed.map((month) => month.previous),
+    );
+  }, [personnelCost, summary.completed]);
 
   const isEmpty = !isLoading && !isError && !hasCurrent;
   const showContent = !isError && !isEmpty;
@@ -193,6 +212,9 @@ export function PerformanceTab() {
             isLoading={isLoading}
             periodNote={periodNote}
             provisionalNote={provisionalKpiNote}
+            marginBasis={marginBasis}
+            personnelCost={personnelCost}
+            previousPersonnelCost={previousPersonnelCost}
           />
           <PerformanceComparisonChart
             months={aligned}
@@ -200,7 +222,11 @@ export function PerformanceTab() {
             isLoading={isLoading}
           />
           {!isLoading ? (
-            <PerformanceMonthlyTable months={aligned} compare={compare} />
+            <PerformanceMonthlyTable
+              months={aligned}
+              compare={compare}
+              showPersonnelColumn={personnelCost != null}
+            />
           ) : null}
         </>
       )}

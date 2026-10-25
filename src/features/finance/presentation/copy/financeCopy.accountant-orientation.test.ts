@@ -8,6 +8,11 @@ describe("financeCopy — orientación accountant", () => {
       /primera factura/i,
     );
     expect(financeCopy.invoiceable.descriptionAccountant).toMatch(/operación/i);
+    expect(financeCopy.invoiceable.descriptionAccountant).toMatch(/Programado/i);
+    expect(financeCopy.invoiceable.descriptionAccountant).not.toMatch(
+      /solo al completar|solo completados/i,
+    );
+    expect(financeCopy.invoiceable.description).toMatch(/Programados/i);
     expect(financeCopy.invoiceable.descriptionAccountant).not.toMatch(/patio/i);
     expect(financeCopy.invoiceable.descriptionAccountant).toMatch(
       /Atención fiscal/i,

@@ -39,12 +39,24 @@ import type {
   ProfitabilityTripItem,
   ProfitabilityTripsFilters,
 } from "@features/finance/domain";
+import { shouldShowMissingCommissionChip } from "@features/finance/domain";
 import { financeCopy } from "../copy";
 import { getProfitabilityStatusConfig } from "../config/profitabilityStatusConfig";
 import {
   buildProfitabilityTripsFiltersForExpand,
   filterTripsForExpandedGroup,
 } from "../utils/profitabilityExpandTripsFilters";
+import {
+  aggregateDisplayCost,
+  aggregateDisplayMargin,
+  aggregateDisplayMarginPct,
+  aggregateUsesOperationalBasis,
+  tripDisplayCost,
+  tripDisplayMargin,
+  tripDisplayMarginPct,
+  tripDisplayStatus,
+  tripsUseOperationalBasis,
+} from "../utils/operationalMarginDisplay";
 
 const DIMENSION_LABELS = financeCopy.profitability.filters.dimensions;
 
@@ -148,6 +160,13 @@ function ProfitabilityTripDetailPanel({
 
   const showPipelineColumn = scope === "pipeline";
   const showMarginColumns = scope !== "pipeline" && scope !== "cancelled";
+  const operational = tripsUseOperationalBasis(data);
+  const costLabel = operational
+    ? financeCopy.profitability.table.operationalCost
+    : financeCopy.profitability.table.actualTotal;
+  const marginLabel = operational
+    ? financeCopy.profitability.table.operationalMargin
+    : financeCopy.profitability.table.margin;
 
   return (
     <div className="border-t bg-muted/20 px-2 py-2 md:px-4">
@@ -168,9 +187,7 @@ function ProfitabilityTripDetailPanel({
             <TableHead className="h-8 text-right text-xs">
               {financeCopy.profitability.table.revenue}
             </TableHead>
-            <TableHead className="h-8 text-right text-xs">
-              {financeCopy.profitability.table.actualTotal}
-            </TableHead>
+            <TableHead className="h-8 text-right text-xs">{costLabel}</TableHead>
             {showPipelineColumn ? (
               <TableHead className="h-8 text-right text-xs">
                 {financeCopy.profitability.table.projected}
@@ -179,7 +196,7 @@ function ProfitabilityTripDetailPanel({
             {showMarginColumns ? (
               <>
                 <TableHead className="h-8 text-right text-xs">
-                  {financeCopy.profitability.table.margin}
+                  {marginLabel}
                 </TableHead>
                 <TableHead className="h-8 text-right text-xs">
                   {financeCopy.profitability.table.marginPct}
@@ -192,87 +209,103 @@ function ProfitabilityTripDetailPanel({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row, index) => (
-            <TableRow
-              key={row.tripId || `${row.tripCode}-${index}`}
-              className="hover:bg-muted/40"
-            >
-              <TableCell className="py-2 text-sm">
-                {row.tripId ? (
-                  <Link
-                    to={`/trips/${row.tripId}`}
-                    className="font-mono font-medium text-primary hover:underline"
-                    aria-label={financeCopy.profitability.masterDetail.viewTrip(
-                      row.tripCode,
-                    )}
-                  >
-                    {row.tripCode}
-                  </Link>
-                ) : (
-                  <span className="font-mono font-medium">{row.tripCode}</span>
-                )}
-              </TableCell>
-              {dimension !== "client" ? (
+          {rows.map((row, index) => {
+            const displayMargin = tripDisplayMargin(row, operational);
+            const displayMarginPct = tripDisplayMarginPct(row, operational);
+            const displayStatus = tripDisplayStatus(row, operational);
+            const missingCommission = shouldShowMissingCommissionChip(row);
+            return (
+              <TableRow
+                key={row.tripId || `${row.tripCode}-${index}`}
+                className="hover:bg-muted/40"
+              >
                 <TableCell className="py-2 text-sm">
-                  {row.clientName ?? financeCopy.profitability.table.noClient}
-                </TableCell>
-              ) : null}
-              <TableCell className="py-2 text-sm">
-                {row.financialBucket ? (
-                  <Badge variant="outline" className="text-xs">
-                    {FINANCIAL_BUCKET_LABELS[row.financialBucket] ??
-                      row.financialBucket}
-                  </Badge>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-              <TableCell className="py-2 text-right text-sm">
-                <ProfitabilityRevenueCell row={row} />
-              </TableCell>
-              <TableCell className="py-2 text-right text-sm">
-                {formatMxCurrency(row.actualTotal)}
-              </TableCell>
-              {showPipelineColumn ? (
-                <TableCell className="py-2 text-right text-sm">
-                  {formatMxCurrency(row.projectedRevenue ?? 0)}
-                </TableCell>
-              ) : null}
-              {showMarginColumns ? (
-                <>
-                  <TableCell className="py-2 text-right text-sm">
-                    {row.grossMargin == null
-                      ? "—"
-                      : formatMxCurrency(row.grossMargin)}
-                  </TableCell>
-                  <TableCell className="py-2 text-right text-sm">
-                    {row.grossMarginPct == null
-                      ? "—"
-                      : `${row.grossMarginPct.toFixed(2)}%`}
-                  </TableCell>
-                  <TableCell className="py-2 text-right">
-                    {row.profitabilityStatus == null ? (
-                      "—"
-                    ) : (
-                      <Badge
-                        variant={
-                          getProfitabilityStatusConfig(row.profitabilityStatus)
-                            .badge.variant
-                        }
-                        tone={
-                          getProfitabilityStatusConfig(row.profitabilityStatus)
-                            .badge.tone
-                        }
+                  <div className="flex flex-col items-start gap-1">
+                    {row.tripId ? (
+                      <Link
+                        to={`/trips/${row.tripId}`}
+                        className="font-mono font-medium text-primary hover:underline"
+                        aria-label={financeCopy.profitability.masterDetail.viewTrip(
+                          row.tripCode,
+                        )}
                       >
-                        {getProfitabilityStatusConfig(row.profitabilityStatus)
-                          .label ?? row.profitabilityStatus}
-                      </Badge>
+                        {row.tripCode}
+                      </Link>
+                    ) : (
+                      <span className="font-mono font-medium">{row.tripCode}</span>
                     )}
+                    {missingCommission ? (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-normal"
+                        data-testid="missing-commission-chip"
+                      >
+                        {financeCopy.profitability.missingCommissionChip}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </TableCell>
+                {dimension !== "client" ? (
+                  <TableCell className="py-2 text-sm">
+                    {row.clientName ?? financeCopy.profitability.table.noClient}
                   </TableCell>
-                </>
-              ) : null}
-            </TableRow>
-          ))}
+                ) : null}
+                <TableCell className="py-2 text-sm">
+                  {row.financialBucket ? (
+                    <Badge variant="outline" className="text-xs">
+                      {FINANCIAL_BUCKET_LABELS[row.financialBucket] ??
+                        row.financialBucket}
+                    </Badge>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell className="py-2 text-right text-sm">
+                  <ProfitabilityRevenueCell row={row} />
+                </TableCell>
+                <TableCell className="py-2 text-right text-sm">
+                  {formatMxCurrency(tripDisplayCost(row, operational))}
+                </TableCell>
+                {showPipelineColumn ? (
+                  <TableCell className="py-2 text-right text-sm">
+                    {formatMxCurrency(row.projectedRevenue ?? 0)}
+                  </TableCell>
+                ) : null}
+                {showMarginColumns ? (
+                  <>
+                    <TableCell className="py-2 text-right text-sm">
+                      {displayMargin == null
+                        ? "—"
+                        : formatMxCurrency(displayMargin)}
+                    </TableCell>
+                    <TableCell className="py-2 text-right text-sm">
+                      {displayMarginPct == null
+                        ? "—"
+                        : `${displayMarginPct.toFixed(2)}%`}
+                    </TableCell>
+                    <TableCell className="py-2 text-right">
+                      {displayStatus == null ? (
+                        "—"
+                      ) : (
+                        <Badge
+                          variant={
+                            getProfitabilityStatusConfig(displayStatus).badge
+                              .variant
+                          }
+                          tone={
+                            getProfitabilityStatusConfig(displayStatus).badge.tone
+                          }
+                        >
+                          {getProfitabilityStatusConfig(displayStatus).label ??
+                            displayStatus}
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </>
+                ) : null}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
@@ -308,6 +341,13 @@ export function ProfitabilityMasterDetailTable({
 
   const items = aggregate ?? [];
   const showEmpty = !aggregateLoading && items.length === 0;
+  const operational = aggregateUsesOperationalBasis(items);
+  const costLabel = operational
+    ? financeCopy.profitability.aggregateTable.operationalCost
+    : financeCopy.profitability.aggregateTable.actualTotal;
+  const marginLabel = operational
+    ? financeCopy.profitability.aggregateTable.operationalMargin
+    : financeCopy.profitability.aggregateTable.margin;
 
   const toggleRow = (key: string) => {
     onExpandedKeyChange(expandedKey === key ? null : key);
@@ -376,12 +416,8 @@ export function ProfitabilityMasterDetailTable({
             <TableHead className="text-right">
               {financeCopy.profitability.aggregateTable.revenue}
             </TableHead>
-            <TableHead className="text-right">
-              {financeCopy.profitability.aggregateTable.actualTotal}
-            </TableHead>
-            <TableHead className="text-right">
-              {financeCopy.profitability.aggregateTable.margin}
-            </TableHead>
+            <TableHead className="text-right">{costLabel}</TableHead>
+            <TableHead className="text-right">{marginLabel}</TableHead>
             <TableHead className="text-right">
               {financeCopy.profitability.aggregateTable.marginPct}
             </TableHead>
@@ -397,6 +433,10 @@ export function ProfitabilityMasterDetailTable({
                     item.key,
                     expandContext,
                   ),
+                );
+                const displayMarginPct = aggregateDisplayMarginPct(
+                  item,
+                  operational,
                 );
 
                 return (
@@ -432,15 +472,19 @@ export function ProfitabilityMasterDetailTable({
                         {formatMxCurrency(item.totalRevenue)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatMxCurrency(item.totalActual)}
+                        {formatMxCurrency(
+                          aggregateDisplayCost(item, operational),
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatMxCurrency(item.blendedMargin)}
+                        {formatMxCurrency(
+                          aggregateDisplayMargin(item, operational),
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {item.blendedMarginPct == null
+                        {displayMarginPct == null
                           ? "—"
-                          : `${item.blendedMarginPct.toFixed(2)}%`}
+                          : `${displayMarginPct.toFixed(2)}%`}
                       </TableCell>
                     </TableRow>
                     {isExpanded && expandedFilters ? (

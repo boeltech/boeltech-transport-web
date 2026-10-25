@@ -82,7 +82,12 @@ export function computeMarginPct(margin: number, revenue: number): number | null
 }
 
 export function hasPeriodActivity(row: PeriodFinancials): boolean {
-  return row.tripCount > 0 || row.actualRevenue !== 0 || row.actualCost !== 0;
+  return (
+    row.tripCount > 0 ||
+    row.actualRevenue !== 0 ||
+    row.actualCost !== 0 ||
+    (row.periodPersonnelCost ?? 0) !== 0
+  );
 }
 
 export function hasAnyPeriodActivity(rows: readonly PeriodFinancials[]): boolean {
@@ -115,11 +120,21 @@ function emptyPeriod(period: string): PeriodFinancials {
     actualRevenue: 0,
     actualCost: 0,
     actualMargin: 0,
+    operationalCost: 0,
+    operationalMargin: 0,
+    periodPersonnelCost: 0,
     tripCount: 0,
     incompleteTripCount: 0,
     tripsWithPendingExpenses: 0,
     provisional: false,
   };
+}
+
+/** Suma de costo de personal de periodo en los meses completos del summary. */
+export function summarizePeriodPersonnelCost(
+  rows: readonly PeriodFinancials[],
+): number {
+  return rows.reduce((sum, row) => sum + (row.periodPersonnelCost ?? 0), 0);
 }
 
 export interface AlignedPerformanceMonth {

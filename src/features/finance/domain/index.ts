@@ -3,6 +3,7 @@ export type {
   ProfitabilityScope,
   FinancialBucket,
   ProfitabilityDimension,
+  MarginBasis,
   FinanceSummary,
   AccountStatementItem,
   ProfitabilityTripItem,
@@ -56,3 +57,9 @@ export {
   isRepExceptionStatus,
   leftRepExceptionStatus,
 } from "./repExceptionStatus";
+export {
+  parseMarginBasis,
+  resolveMarginBasis,
+  resolveMonthlyMarginBasis,
+  shouldShowMissingCommissionChip,
+} from "./marginBasis";
