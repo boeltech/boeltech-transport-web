@@ -592,7 +592,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     expect(onDeclareFalseTrip).not.toHaveBeenCalled();
   });
 
-  it("en programado muestra Iniciar viaje deshabilitado si no hay paradas", async () => {
+  it("en programado muestra Despachar… deshabilitado si no hay paradas", async () => {
     const user = userEvent.setup();
     const onStartTrip = vi.fn();
     render(
@@ -607,7 +607,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     );
 
     const startButton = screen.getByRole("button", {
-      name: /Iniciar viaje/i,
+      name: /Despachar/i,
     });
     expect(startButton).toBeDisabled();
     expect(
@@ -638,7 +638,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     );
 
     const startButton = screen.getByRole("button", {
-      name: /Iniciar viaje/i,
+      name: /Despachar/i,
     });
     expect(startButton).toBeDisabled();
     expect(
@@ -677,20 +677,20 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(trackingCopy.section.objective)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Iniciar viaje/i }),
+      screen.queryByRole("button", { name: /Despachar/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Completar viaje/i }),
+      screen.queryByRole("button", { name: trackingCopy.action.quickClose }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: trackingCopy.action.declareFalseTrip,
       }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/Iniciar viaje/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Despachar/i)).not.toBeInTheDocument();
   });
 
-  it("en programado no oculta Iniciar por ausencia de cargas", async () => {
+  it("en programado no oculta Despachar por ausencia de cargas", async () => {
     const user = userEvent.setup();
     const onStartTrip = vi.fn();
     render(
@@ -728,7 +728,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     );
 
     const startButton = screen.getByRole("button", {
-      name: /Iniciar viaje/i,
+      name: /Despachar/i,
     });
     expect(startButton).toBeDisabled();
     expect(
@@ -779,8 +779,9 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     ).toHaveLength(1);
   });
 
-  it("con cargo_blocked guía a Ver cargas de la parada", async () => {
+  it("con cargo_blocked muta carga desde Operate (F3 / D6, no solo Ver…)", async () => {
     const user = userEvent.setup();
+    const onCargoAction = vi.fn();
     const originArrived = {
       ...origin,
       actualArrival: new Date("2026-01-01T09:00:00Z"),
@@ -809,20 +810,22 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
         stops={[originArrived, waypoint, destination]}
         tripStatus={TripStatus.IN_PROGRESS}
         cargos={[pendingCargo]}
+        onCargoAction={onCargoAction}
       />,
     );
 
     expect(
       screen.getAllByText(/Completa las cargas/i).length,
     ).toBeGreaterThan(0);
-    const goCargos = screen.getByRole("button", {
-      name: /Ver cargas de la parada/i,
-    });
-    await user.click(goCargos);
-    expect(screen.getByText("Zapatos")).toBeInTheDocument();
     expect(
-      screen.getAllByText(trackingCopy.section.cargosAtStop).length,
-    ).toBeGreaterThan(0);
+      screen.queryByRole("button", { name: /Ver cargas de la parada/i }),
+    ).not.toBeInTheDocument();
+    const markPickup = screen.getByRole("button", {
+      name: trackingCopy.action.markPickup,
+    });
+    expect(markPickup.className).toMatch(/bg-primary/);
+    await user.click(markPickup);
+    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup");
   });
 
   it("cargo_blocked driver no dice Completa las cargas; avisa a patio (D11)", () => {
@@ -878,7 +881,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
 
     expect(
       screen.getByRole("button", {
-        name: /Estados de parada/i,
+        name: /¿Qué significan los estados\?/i,
       }),
     ).toBeInTheDocument();
   });
@@ -1229,7 +1232,7 @@ describe("TripTrackingNextActionCard (legacy guide)", () => {
       screen.queryByRole("button", { name: /Registrar llegada/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Iniciar viaje/i }),
+      screen.queryByRole("button", { name: /Despachar/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Nota/i }),
@@ -1473,7 +1476,7 @@ describe("TripTrackingStopsCargosMasterDetail (F5.3 cabecera compacta)", () => {
   });
 });
 
-describe("TripTrackingNowPanel (F6/F7 Ahora)", () => {
+describe("TripTrackingNowPanel (layout A Operate)", () => {
   const origin = stop({
     id: "s1",
     sequenceOrder: 1,
@@ -1481,13 +1484,18 @@ describe("TripTrackingNowPanel (F6/F7 Ahora)", () => {
     locationName: "Bodega QRO",
   });
 
-  it("compone qué sigue + contacto sin incidente ni master-detail (F7.2)", () => {
+  it("compone Qué sigue sin label Ahora; contacto en overflow (PD2/PD5)", async () => {
+    const user = userEvent.setup();
     render(
       <TripTrackingNowPanel
         stops={[origin]}
         tripStatus={TripStatus.IN_PROGRESS}
         cargos={[]}
         canOperateTracking
+        onRegisterNote={vi.fn()}
+        onRegisterIncident={vi.fn()}
+        canRegisterNote
+        canRegisterIncident
         contact={{
           driverName: "Ana Pérez",
           vehicleLabel: "U-12 · ABC-123",
@@ -1497,8 +1505,9 @@ describe("TripTrackingNowPanel (F6/F7 Ahora)", () => {
     );
 
     expect(
-      screen.getByLabelText(trackingCopy.section.now),
-    ).toHaveAttribute("data-tracking-section", "now");
+      screen.getByLabelText(trackingCopy.section.operate),
+    ).toHaveAttribute("data-tracking-section", "operate");
+    expect(screen.queryByText(trackingCopy.section.now)).not.toBeInTheDocument();
     expect(
       screen.queryByText(trackingCopy.hint.openIncidentTitle),
     ).not.toBeInTheDocument();
@@ -1506,21 +1515,32 @@ describe("TripTrackingNowPanel (F6/F7 Ahora)", () => {
       screen.queryByRole("button", { name: trackingCopy.action.closeIncident }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(trackingCopy.section.objective)).toBeInTheDocument();
-    expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
-    expect(screen.getByText(/U-12 · ABC-123/)).toBeInTheDocument();
-    expect(screen.getByText("+525551112233")).toBeInTheDocument();
+    expect(screen.queryByText("Ana Pérez")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: trackingCopy.action.moreActions }),
+    );
     expect(
-      screen.getByRole("link", { name: trackingCopy.action.call }),
+      await screen.findByText(
+        new RegExp(`${trackingCopy.label.operator}:\\s*Ana Pérez`),
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`U-12 · ABC-123`))).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: trackingCopy.action.call }),
     ).toHaveAttribute("href", "tel:+525551112233");
     expect(screen.queryByText("Paradas y cargas")).not.toBeInTheDocument();
   });
 
-  it("muestra Celular No capturado y omite Llamar sin teléfono", () => {
+  it("muestra Celular No capturado en overflow sin Llamar", async () => {
+    const user = userEvent.setup();
     render(
       <TripTrackingNowPanel
         stops={[origin]}
         tripStatus={TripStatus.SCHEDULED}
         cargos={[]}
+        canOperateTracking
+        onStartTrip={vi.fn()}
         contact={{
           driverName: "Ana Pérez",
           vehicleLabel: "U-12",
@@ -1528,12 +1548,32 @@ describe("TripTrackingNowPanel (F6/F7 Ahora)", () => {
       />,
     );
 
+    await user.click(
+      screen.getByRole("button", { name: trackingCopy.action.moreActions }),
+    );
     expect(
-      screen.getByText(trackingCopy.label.mobileNotCaptured),
+      await screen.findByText(new RegExp(trackingCopy.label.mobileNotCaptured)),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: trackingCopy.action.call }),
+      screen.queryByRole("menuitem", { name: trackingCopy.action.call }),
     ).not.toBeInTheDocument();
+  });
+
+  it("muestra hint mid-trip PD12 en Operate", () => {
+    const onGoToRouteTab = vi.fn();
+    render(
+      <TripTrackingNowPanel
+        stops={[origin]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={[]}
+        onGoToRouteTab={onGoToRouteTab}
+      />,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: trackingCopy.hint.midTripRouteChanges,
+      }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -1561,8 +1601,10 @@ describe("TripTrackingIncidentStrip (F7.2)", () => {
   });
 });
 
-describe("TripTrackingObjectiveHub compact (Completar viaje siempre visible)", () => {
-  it("muestra Completar viaje demoted aunque el primary sea otro job (p. ej. cargas)", () => {
+describe("TripTrackingObjectiveHub compact (overflow PD5 / D5)", () => {
+  it("pone quick close en ⋯; un solo default (Marcar recogida) above-the-fold", async () => {
+    const user = userEvent.setup();
+    const onCargoAction = vi.fn();
     const originAtDock = stop({
       id: "s1",
       sequenceOrder: 1,
@@ -1603,23 +1645,117 @@ describe("TripTrackingObjectiveHub compact (Completar viaje siempre visible)", (
         canOperateTracking
         canMutateCargo
         onQuickCloseTrip={vi.fn()}
+        onCargoAction={onCargoAction}
         onGoToCargos={vi.fn()}
         cfdiEmissionIntent="emitir_cfdi"
       />,
     );
 
     expect(
-      screen.getByRole("button", { name: trackingCopy.action.quickClose }),
-    ).toBeInTheDocument();
-    const goToCargos = screen.getByRole("button", {
-      name: trackingCopy.action.goToCargos,
+      screen.queryByRole("button", { name: trackingCopy.action.quickClose }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Ver cargas/i }),
+    ).not.toBeInTheDocument();
+    const markPickup = screen.getByRole("button", {
+      name: trackingCopy.action.markPickup,
     });
-    expect(goToCargos).toBeInTheDocument();
-    // CTA primario del job cargo_blocked (variant default → bg-primary).
-    expect(goToCargos.className).toMatch(/bg-primary/);
+    expect(markPickup).toBeInTheDocument();
+    expect(markPickup.className).toMatch(/bg-primary/);
+    await user.click(markPickup);
+    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup");
+
+    await user.click(
+      screen.getByRole("button", { name: trackingCopy.action.moreActions }),
+    );
+    expect(
+      await screen.findByRole("menuitem", {
+        name: trackingCopy.action.quickClose,
+      }),
+    ).toBeInTheDocument();
   });
 
-  it("muestra Completar viaje aunque esté disabled (sin_cfdi sin carga activa)", () => {
+  it("con N cargas pendientes lista mutaciones inline (un solo default)", async () => {
+    const user = userEvent.setup();
+    const onCargoAction = vi.fn();
+    const originAtDock = stop({
+      id: "s1",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN],
+      locationName: "Bodega QRO",
+      status: "in_progress",
+      actualArrival: new Date("2026-07-12T10:00:00.000Z"),
+    });
+    const destination = stop({
+      id: "s2",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION],
+      locationName: "Cliente CDMX",
+    });
+    const cargos = [
+      cargo({
+        id: "c1",
+        description: "Caja A",
+        status: CargoStatus.PENDING,
+        movements: [
+          {
+            id: "m1",
+            movementType: "pickup",
+            stopId: "s1",
+            stopIndex: 1,
+            completedAt: null,
+            weight: null,
+            units: null,
+            notes: null,
+          },
+        ],
+      }),
+      cargo({
+        id: "c2",
+        description: "Caja B",
+        status: CargoStatus.PENDING,
+        movements: [
+          {
+            id: "m2",
+            movementType: "pickup",
+            stopId: "s1",
+            stopIndex: 1,
+            completedAt: null,
+            weight: null,
+            units: null,
+            notes: null,
+          },
+        ],
+      }),
+    ];
+
+    render(
+      <TripTrackingObjectiveHub
+        compact
+        stops={[originAtDock, destination]}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={cargos}
+        canOperateTracking
+        canMutateCargo
+        onCargoAction={onCargoAction}
+        cfdiEmissionIntent="emitir_cfdi"
+      />,
+    );
+
+    expect(screen.getByText("Caja A")).toBeInTheDocument();
+    expect(screen.getByText("Caja B")).toBeInTheDocument();
+    const pickupButtons = screen.getAllByRole("button", {
+      name: trackingCopy.action.markPickup,
+    });
+    expect(pickupButtons).toHaveLength(2);
+    expect(pickupButtons[0]!.className).toMatch(/bg-primary/);
+    expect(pickupButtons[1]!.className).not.toMatch(/bg-primary/);
+    await user.click(pickupButtons[1]!);
+    expect(onCargoAction).toHaveBeenCalledWith("c2", "pickup");
+  });
+
+  it("muestra quick close disabled en ⋯ (sin_cfdi sin carga activa)", async () => {
+    const user = userEvent.setup();
     const destinationArrived = stop({
       id: "s2",
       sequenceOrder: 2,
@@ -1651,11 +1787,44 @@ describe("TripTrackingObjectiveHub compact (Completar viaje siempre visible)", (
       />,
     );
 
-    const quickClose = screen.getByRole("button", {
+    await user.click(
+      screen.getByRole("button", { name: trackingCopy.action.moreActions }),
+    );
+    const quickClose = await screen.findByRole("menuitem", {
       name: new RegExp(trackingCopy.action.quickClose),
     });
-    expect(quickClose).toBeInTheDocument();
-    expect(quickClose).toBeDisabled();
+    expect(quickClose).toHaveAttribute("data-disabled");
+  });
+
+  it("restaura microcopy de transición bajo CTA primario (PD3)", () => {
+    const origin = stop({
+      id: "s1",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN],
+      locationName: "Bodega QRO",
+    });
+    const destination = stop({
+      id: "s2",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION],
+      locationName: "Cliente CDMX",
+    });
+
+    render(
+      <TripTrackingObjectiveHub
+        compact
+        stops={[origin, destination]}
+        tripStatus={TripStatus.SCHEDULED}
+        cargos={[]}
+        canOperateTracking
+        onStartTrip={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: trackingCopy.action.start }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(STOP_TRANSITION_COPY.dispatch)).toBeInTheDocument();
   });
 });
 

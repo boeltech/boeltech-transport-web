@@ -38,9 +38,13 @@ export const CARGO_TRANSITION_COPY = {
 export type CargoTransitionAction = keyof typeof CARGO_TRANSITION_COPY;
 
 export const legendCopy = {
+  /** PD8 — CTA único bajo el riel (consola A). */
+  states: {
+    expand: "¿Qué significan los estados?",
+  },
   stop: {
     title: "Estados de parada",
-    expand: "Estados de parada",
+    expand: "¿Qué significan los estados?",
     collapse: "Ocultar",
     /** Catálogo canónico (F2 / PRD); «En espera» es fase derivada aparte. */
     flow: ["Pendiente", "En sitio", "Completada"] as const,

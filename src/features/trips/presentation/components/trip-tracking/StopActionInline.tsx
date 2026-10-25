@@ -19,8 +19,8 @@ export type StopActionInlineProps = {
   /** `lg` en el hub operativo (única CTA de parada del tab). */
   size?: "sm" | "default" | "lg";
   /**
-   * Microcopy de transición bajo el botón.
-   * En el hub lean (D2) va en `false`: título + CTA bastan.
+   * Microcopy de transición bajo el botón (PD3 / CA8).
+   * Default `true` en CTA primario Operate.
    */
   showTransition?: boolean;
   /** Visible + title/aria cuando el CTA está deshabilitado. */

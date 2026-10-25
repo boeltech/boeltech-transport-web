@@ -418,6 +418,8 @@ export function TripTrackingStopsCargosMasterDetail({
               hasActiveSplit={hasActiveSplit}
               onDeclareFalseTrip={onDeclareFalseTrip}
               onGoToCargos={handleSelect}
+              onCargoAction={canMutateCargo ? onCargoAction : undefined}
+              pendingCargoAction={pendingCargoAction}
               canOperateTracking={canOperateTracking}
               canMutateCargo={canMutateCargoProp}
               isDriverPortal={isDriverPortal}

@@ -39,6 +39,7 @@ export {
   useDeleteExpense,
   useDeleteTrip,
   useRegisterTrackingEvent,
+  useCreateTrackingEventBatch,
   useCloseTrackingIncident,
   useRejectExpense,
   useReturnExpense,

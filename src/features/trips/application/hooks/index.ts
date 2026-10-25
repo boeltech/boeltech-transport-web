@@ -25,6 +25,7 @@ export {
 } from "./expense/useExpenseOperations";
 
 export { useRegisterTrackingEvent } from "./tracking/useRegisterTrackingEvent";
+export { useCreateTrackingEventBatch } from "./tracking/useCreateTrackingEventBatch";
 export { useCloseTrackingIncident } from "./tracking/useCloseTrackingIncident";
 export { useTripTimeline } from "./tracking/useTripTimeline";
 

@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailTimeline } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import {
   Clock,
   Loader2,
+  Map as MapIcon,
   RefreshCw,
 } from "lucide-react";
 import { getOrderedStops, TripStatus, type CfdiEmissionIntent, type TripOperationalOutcomeType, type TripStatusType, type TripStop, type TripCargo } from "@features/trips/domain";
@@ -16,6 +19,7 @@ import {
   useUpdateCargo,
 } from "@features/trips/application";
 import { formatStopTimelineLabel } from "../uiHelpers";
+import { formatStopActionShortLabel } from "./trackingActionLabels";
 import { formatTrackingEventLabel } from "./trackingEventLabels";
 import { resolveTrackingEventIcon } from "./trackingEventIcons";
 import {
@@ -42,6 +46,7 @@ import {
   getTrackingIncidentTimelineMeta,
   getFalseTripDeclaredTimelineMeta,
   shouldShowIncidentClosedChip,
+  TrackingStatesLegend,
   TripTrackingIncidentStrip,
   TripTrackingItineraryRail,
   TripTrackingNowPanel,
@@ -76,6 +81,8 @@ interface TripTrackingTabProps {
   vehicleId?: string;
   driverId?: string;
   tripStartMileage?: number | null;
+  /** Señal barata PD6: origen≈sucursal para default «ya en andén». */
+  originBranchId?: string | null;
   status: TripStatusType;
   /** Cargas del page-level `useTripCargos` (misma query key; no duplicar observer). */
   cargos?: readonly TripCargo[];
@@ -102,6 +109,7 @@ export function TripTrackingTab({
   vehicleId,
   driverId,
   tripStartMileage,
+  originBranchId = null,
   status,
   cargos: cargosProp = [],
   operationalOutcome,
@@ -112,6 +120,7 @@ export function TripTrackingTab({
   contact = null,
   onCargosChanged,
 }: TripTrackingTabProps) {
+  const [, setSearchParams] = useSearchParams();
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isDriverPortal = isDriverPortalRole(role);
@@ -408,6 +417,23 @@ export function TripTrackingTab({
     currentStopId != null &&
     workbenchRequestedStopId === currentStopId;
 
+  const evidenceReferenceStopForSheets =
+    evidenceReferenceStop ?? currentStopRow?.stop ?? referenceStopForGps;
+
+  const evidenceAssociateMeta = useMemo(() => {
+    const stop = evidenceReferenceStopForSheets;
+    if (!stop?.id) return null;
+    const row = itineraryRows.find((r) => r.stop.id === stop.id);
+    const displayOrder =
+      row?.displayOrder ??
+      orderedStops.findIndex((s) => s.id === stop.id) + 1;
+    if (!displayOrder || displayOrder < 1) return null;
+    return {
+      id: stop.id,
+      label: formatStopActionShortLabel(stop, displayOrder),
+    };
+  }, [evidenceReferenceStopForSheets, itineraryRows, orderedStops]);
+
   if (timelineQuery.isLoading) {
     return (
       <div className="space-y-4">
@@ -441,13 +467,14 @@ export function TripTrackingTab({
 
   const openNoteSheet = (stop: TripStop | null = null) => {
     if (!canOperateTracking) return;
-    setEvidenceReferenceStop(stop);
+    // PD10 — preasociar parada en curso si no se pasa otra.
+    setEvidenceReferenceStop(stop ?? currentStopRow?.stop ?? null);
     setNoteSheetOpen(true);
   };
 
   const openIncidentSheet = (stop: TripStop | null = null) => {
     if (!canOperateTracking) return;
-    setEvidenceReferenceStop(stop);
+    setEvidenceReferenceStop(stop ?? currentStopRow?.stop ?? null);
     setIncidentSheetOpen(true);
   };
 
@@ -460,9 +487,6 @@ export function TripTrackingTab({
     setIncidentSheetOpen(open);
     if (!open) setEvidenceReferenceStop(null);
   };
-
-  const evidenceReferenceStopForSheets =
-    evidenceReferenceStop ?? referenceStopForGps;
 
   const handleRailSelect = (stopId: string) => {
     setRailSelectedStopId(stopId);
@@ -565,219 +589,260 @@ export function TripTrackingTab({
         selectionHint={railSelectionHint}
       />
 
-      {/* AHORA (≥ mapa pre-GPS) | MAPA (contexto del viaje) */}
-      <div
-        className="grid gap-4 lg:grid-cols-[minmax(0,55%)_minmax(0,45%)]"
-        data-tracking-section="now-map"
+      {/* PD8 — leyenda colapsada bajo el riel */}
+      <TrackingStatesLegend showCargo={cargos.length > 0} />
+
+      {/* OPERATE — full-width; mapa fuera del fold (PD1 / layout A) */}
+      <TripTrackingNowPanel
+        stops={orderedStops}
+        tripStatus={tripStatus}
+        tripTimes={tripScheduleTimes}
+        cargos={cargos}
+        onStartTrip={
+          canOperateTracking ? () => setStartSheetOpen(true) : undefined
+        }
+        onArrive={
+          canOperateTracking ? () => setArrivalSheetOpen(true) : undefined
+        }
+        onDepart={
+          canOperateTracking ? () => setDepartureSheetOpen(true) : undefined
+        }
+        onDepartOrigin={
+          canOperateTracking
+            ? () => setDepartOriginSheetOpen(true)
+            : undefined
+        }
+        onCloseTrip={
+          canOperateTracking
+            ? () => setTripArrivalSheetOpen(true)
+            : undefined
+        }
+        onQuickCloseTrip={
+          canOperateTracking
+            ? () => setQuickCloseSheetOpen(true)
+            : undefined
+        }
+        operationalOutcome={operationalOutcome}
+        cfdiEmissionIntent={cfdiEmissionIntent}
+        hasActiveSplit={hasActiveSplit}
+        onDeclareFalseTrip={
+          canOperateTracking &&
+          cfdiEmissionIntent !== "sin_cfdi_efectivo"
+            ? () => setFalseTripSheetOpen(true)
+            : undefined
+        }
+        onGoToCargos={handleGoToCargos}
+        onCargoAction={canMutateCargo ? handleCargoAction : undefined}
+        pendingCargoAction={pendingCargoAction}
+        onRegisterNote={
+          canOperateTracking ? () => openNoteSheet() : undefined
+        }
+        onRegisterIncident={
+          canOperateTracking ? () => openIncidentSheet() : undefined
+        }
+        canRegisterNote={canOperateStops}
+        canRegisterIncident={canOperateStops}
+        canOperateTracking={canOperateTracking}
+        canMutateCargo={canMutateCargo}
+        isDriverPortal={isDriverPortal}
+        isClientPortal={isClientPortal}
+        contact={contact}
+        onGoToRouteTab={() => {
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("tab", "route");
+              return next;
+            },
+            { replace: true },
+          );
+        }}
+      />
+
+      {/* CONSULTA — mapa + bitácora bajo fold (sub-tabs; sin sticky F6) */}
+      <section
+        className="space-y-3"
+        data-tracking-section="consulta"
+        aria-label={trackingCopy.section.consulta}
       >
-        <TripTrackingNowPanel
-          stops={orderedStops}
-          tripStatus={tripStatus}
-          tripTimes={tripScheduleTimes}
-          cargos={cargos}
-          onStartTrip={
-            canOperateTracking ? () => setStartSheetOpen(true) : undefined
-          }
-          onArrive={
-            canOperateTracking ? () => setArrivalSheetOpen(true) : undefined
-          }
-          onDepart={
-            canOperateTracking ? () => setDepartureSheetOpen(true) : undefined
-          }
-          onDepartOrigin={
-            canOperateTracking
-              ? () => setDepartOriginSheetOpen(true)
-              : undefined
-          }
-          onCloseTrip={
-            canOperateTracking
-              ? () => setTripArrivalSheetOpen(true)
-              : undefined
-          }
-          onQuickCloseTrip={
-            canOperateTracking
-              ? () => setQuickCloseSheetOpen(true)
-              : undefined
-          }
-          operationalOutcome={operationalOutcome}
-          cfdiEmissionIntent={cfdiEmissionIntent}
-          hasActiveSplit={hasActiveSplit}
-          onDeclareFalseTrip={
-            canOperateTracking &&
-            cfdiEmissionIntent !== "sin_cfdi_efectivo"
-              ? () => setFalseTripSheetOpen(true)
-              : undefined
-          }
-          onGoToCargos={handleGoToCargos}
-          onRegisterNote={
-            canOperateTracking ? () => openNoteSheet() : undefined
-          }
-          onRegisterIncident={
-            canOperateTracking ? () => openIncidentSheet() : undefined
-          }
-          canRegisterNote={canOperateStops}
-          canRegisterIncident={canOperateStops}
-          canOperateTracking={canOperateTracking}
-          canMutateCargo={canMutateCargo}
-          isDriverPortal={isDriverPortal}
-          isClientPortal={isClientPortal}
-          contact={contact}
-        />
-
-        <div
-          className="min-w-0 lg:sticky lg:top-20 lg:self-start"
-          data-tracking-section="map"
-          data-tracking-map-weight="supporting"
-        >
-          <TripTrackingMap
-            stops={orderedStops}
-            events={timeline.events}
-            routeGeojson={timeline.map.routeGeojson}
-            lastKnownPosition={timeline.map.lastKnownPosition}
-            mapClassName="h-[min(22rem,45vh)] min-h-64"
-            focusStop={focusRequest}
-            distanceActualKm={timeline.progress.distanceActualKm}
-          />
-        </div>
-      </div>
-
-      {/* HISTORIAL DEL VIAJE — full width (solo lectura; evidencia en Ahora) */}
-      <Card id="tracking-bitacora" data-tracking-section="feed">
-        <CardHeader className="space-y-1 pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary" />
-            {trackingCopy.section.timeline}
-          </CardTitle>
-          {timeline.events.length === 0 ? (
-            <CardDescription>{trackingCopy.state.noEvents}</CardDescription>
-          ) : (
-            <CardDescription>
-              {trackingCopy.hint.timelineHasEvents}
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent>
-          {timeline.events.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {trackingCopy.state.timelineEmpty}
-            </p>
-          ) : (
-            <DetailTimeline
-              items={timeline.events.map((event) => {
-                const relatedStop = event.stopId
-                  ? stopsById.get(event.stopId)
-                  : undefined;
-                const EventIcon = resolveTrackingEventIcon(event.eventType);
-                const timelineBody = getTrackingEventTimelineBody(event);
-                const incidentMeta =
-                  event.eventType === "incident"
-                    ? getTrackingIncidentTimelineMeta(event)
-                    : [];
-                const showIncidentClosedChip = shouldShowIncidentClosedChip(
-                  event.eventType,
-                  timeline.trip.hasOpenIncident,
-                );
-                const falseTripMeta =
-                  event.eventType === "false_trip_declared"
-                    ? getFalseTripDeclaredTimelineMeta(
-                        event,
-                        falseTripDeclaredBy,
-                      )
-                    : [];
-                const hasDetail =
-                  Boolean(timelineBody) ||
-                  incidentMeta.length > 0 ||
-                  Boolean(event.stopId) ||
-                  typeof event.payload?.cargo_description === "string" ||
-                  (event.latitude != null && event.longitude != null) ||
-                  falseTripMeta.length > 0;
-                return {
-                  id: event.id,
-                  icon: <EventIcon className="h-4 w-4" />,
-                  completed:
-                    event.eventType === "trip_arrived" ||
-                    event.eventType === "stop_departed" ||
-                    event.eventType === "false_trip_declared",
-                  content: (
-                    <div className="min-w-0 py-0.5">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <p className="text-sm font-medium">
-                          {formatTrackingEventLabel(
-                            event.eventType,
-                            relatedStop,
-                          )}
-                        </p>
-                        {showIncidentClosedChip ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] font-normal shrink-0"
-                          >
-                            {trackingCopy.hint.incidentClosedChip}
-                          </Badge>
-                        ) : null}
-                        <p className="text-xs text-muted-foreground tabular-nums">
-                          {formatDateTime(event.occurredAt.toISOString())}
-                        </p>
-                      </div>
-                      {hasDetail ? (
-                        <details className="mt-1">
-                          <summary className="cursor-pointer text-xs text-muted-foreground">
-                            {trackingCopy.action.timelineMore}
-                          </summary>
-                          {falseTripMeta.length > 0 ? (
-                            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                              {falseTripMeta.map((line) => (
-                                <li key={line}>{line}</li>
-                              ))}
-                            </ul>
-                          ) : null}
-                          {typeof event.payload?.cargo_description ===
-                          "string" ? (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {event.payload.cargo_description}
-                            </p>
-                          ) : null}
-                          {event.latitude != null &&
-                          event.longitude != null ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {trackingCopy.hint.timelineLocationSaved}
-                            </p>
-                          ) : null}
-                          {timelineBody ? (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {timelineBody}
-                            </p>
-                          ) : null}
-                          {incidentMeta.length > 0 ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {incidentMeta.join(" · ")}
-                            </p>
-                          ) : null}
-                          {event.stopId
-                            ? (() => {
-                                const stopLabel =
-                                  stopTimelineLabelsById.get(event.stopId);
-                                if (!stopLabel) return null;
-                                return (
-                                  <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                                    <p>{stopLabel.primary}</p>
-                                    {stopLabel.secondary ? (
-                                      <p>{stopLabel.secondary}</p>
-                                    ) : null}
-                                  </div>
-                                );
-                              })()
-                            : null}
-                        </details>
-                      ) : null}
-                    </div>
-                  ),
-                };
-              })}
-            />
-          )}
-        </CardContent>
-      </Card>
+        <p className="text-xs font-medium text-muted-foreground">
+          {trackingCopy.section.consulta}
+        </p>
+        <Tabs defaultValue="map" className="min-w-0">
+          <TabsList aria-label={trackingCopy.section.consulta}>
+            <TabsTrigger value="map" className="gap-1.5">
+              <MapIcon className="h-3.5 w-3.5" aria-hidden />
+              {trackingCopy.section.map}
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="gap-1.5">
+              <Clock className="h-3.5 w-3.5" aria-hidden />
+              {trackingCopy.section.timeline}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="map" className="mt-3">
+            <div
+              className="min-w-0"
+              data-tracking-section="map"
+              data-tracking-map-weight="consulta"
+            >
+              <TripTrackingMap
+                stops={orderedStops}
+                events={timeline.events}
+                routeGeojson={timeline.map.routeGeojson}
+                lastKnownPosition={timeline.map.lastKnownPosition}
+                mapClassName="h-[min(22rem,45vh)] min-h-64"
+                focusStop={focusRequest}
+                distanceActualKm={timeline.progress.distanceActualKm}
+              />
+            </div>
+          </TabsContent>
+          <TabsContent value="timeline" className="mt-3">
+            <Card id="tracking-bitacora" data-tracking-section="feed">
+              <CardHeader className="space-y-1 pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  {trackingCopy.section.timeline}
+                </CardTitle>
+                {timeline.events.length === 0 ? (
+                  <CardDescription>{trackingCopy.state.noEvents}</CardDescription>
+                ) : (
+                  <CardDescription>
+                    {trackingCopy.hint.timelineHasEvents}
+                  </CardDescription>
+                )}
+              </CardHeader>
+              <CardContent>
+                {timeline.events.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {trackingCopy.state.timelineEmpty}
+                  </p>
+                ) : (
+                  <DetailTimeline
+                    items={timeline.events.map((event) => {
+                      const relatedStop = event.stopId
+                        ? stopsById.get(event.stopId)
+                        : undefined;
+                      const EventIcon = resolveTrackingEventIcon(
+                        event.eventType,
+                      );
+                      const timelineBody = getTrackingEventTimelineBody(event);
+                      const incidentMeta =
+                        event.eventType === "incident"
+                          ? getTrackingIncidentTimelineMeta(event)
+                          : [];
+                      const showIncidentClosedChip =
+                        shouldShowIncidentClosedChip(
+                          event.eventType,
+                          timeline.trip.hasOpenIncident,
+                        );
+                      const falseTripMeta =
+                        event.eventType === "false_trip_declared"
+                          ? getFalseTripDeclaredTimelineMeta(
+                              event,
+                              falseTripDeclaredBy,
+                            )
+                          : [];
+                      const hasDetail =
+                        Boolean(timelineBody) ||
+                        incidentMeta.length > 0 ||
+                        Boolean(event.stopId) ||
+                        typeof event.payload?.cargo_description === "string" ||
+                        (event.latitude != null && event.longitude != null) ||
+                        falseTripMeta.length > 0;
+                      return {
+                        id: event.id,
+                        icon: <EventIcon className="h-4 w-4" />,
+                        completed:
+                          event.eventType === "trip_arrived" ||
+                          event.eventType === "stop_departed" ||
+                          event.eventType === "false_trip_declared",
+                        content: (
+                          <div className="min-w-0 py-0.5">
+                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                              <p className="text-sm font-medium">
+                                {formatTrackingEventLabel(
+                                  event.eventType,
+                                  relatedStop,
+                                )}
+                              </p>
+                              {showIncidentClosedChip ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] font-normal shrink-0"
+                                >
+                                  {trackingCopy.hint.incidentClosedChip}
+                                </Badge>
+                              ) : null}
+                              <p className="text-xs text-muted-foreground tabular-nums">
+                                {formatDateTime(
+                                  event.occurredAt.toISOString(),
+                                )}
+                              </p>
+                            </div>
+                            {hasDetail ? (
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-xs text-muted-foreground">
+                                  {trackingCopy.action.timelineMore}
+                                </summary>
+                                {falseTripMeta.length > 0 ? (
+                                  <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                    {falseTripMeta.map((line) => (
+                                      <li key={line}>{line}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                                {typeof event.payload?.cargo_description ===
+                                "string" ? (
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    {event.payload.cargo_description}
+                                  </p>
+                                ) : null}
+                                {event.latitude != null &&
+                                event.longitude != null ? (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {trackingCopy.hint.timelineLocationSaved}
+                                  </p>
+                                ) : null}
+                                {timelineBody ? (
+                                  <p className="mt-1 text-sm text-muted-foreground">
+                                    {timelineBody}
+                                  </p>
+                                ) : null}
+                                {incidentMeta.length > 0 ? (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {incidentMeta.join(" · ")}
+                                  </p>
+                                ) : null}
+                                {event.stopId
+                                  ? (() => {
+                                      const stopLabel =
+                                        stopTimelineLabelsById.get(
+                                          event.stopId,
+                                        );
+                                      if (!stopLabel) return null;
+                                      return (
+                                        <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                          <p>{stopLabel.primary}</p>
+                                          {stopLabel.secondary ? (
+                                            <p>{stopLabel.secondary}</p>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })()
+                                  : null}
+                              </details>
+                            ) : null}
+                          </div>
+                        ),
+                      };
+                    })}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </section>
 
       <TripTrackingStopWorkbenchSheet
         open={workbenchSheetOpen}
@@ -806,6 +871,7 @@ export function TripTrackingTab({
             driverId={driverId}
             tripStartMileage={tripStartMileage}
             originStop={originStop}
+            originBranchId={originBranchId}
             cfdiEmissionIntent={cfdiEmissionIntent}
             cargos={cargos}
             open={startSheetOpen}
@@ -887,12 +953,16 @@ export function TripTrackingTab({
           <RegisterTrackingNoteSheet
             tripId={tripId}
             referenceStop={evidenceReferenceStopForSheets}
+            associatedStopId={evidenceAssociateMeta?.id}
+            associatedStopLabel={evidenceAssociateMeta?.label}
             open={noteSheetOpen}
             onOpenChange={handleNoteSheetOpenChange}
           />
           <RegisterTrackingIncidentSheet
             tripId={tripId}
             referenceStop={evidenceReferenceStopForSheets}
+            associatedStopId={evidenceAssociateMeta?.id}
+            associatedStopLabel={evidenceAssociateMeta?.label}
             open={incidentSheetOpen}
             onOpenChange={handleIncidentSheetOpenChange}
           />

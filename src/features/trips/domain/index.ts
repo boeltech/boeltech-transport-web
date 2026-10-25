@@ -176,6 +176,8 @@ export type {
   StartTripTrackingInput,
   TrackingCapturedVia,
   TrackingEvent,
+  TrackingEventBatchItem,
+  TrackingEventBatchItemStatus,
   TrackingEventCategory,
   TrackingEventType,
   TrackingTimeline,

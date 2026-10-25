@@ -1590,6 +1590,7 @@ export function TripDetailPage() {
                   vehicleId={trip.vehicleId}
                   driverId={trip.driverId}
                   tripStartMileage={trip.mileage.start}
+                  originBranchId={trip.originBranchId}
                   status={resolvedDisplayStatus}
                   cargos={cargos}
                   operationalOutcome={trip.operationalOutcome}

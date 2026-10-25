@@ -1,24 +1,36 @@
-import {
-  CargoStatus,
-  TripStatus,
-  type TripCargo,
-  type TripStatusType,
-  type TripStop,
+import { canDeclareFalseTrip as domainCanDeclareFalseTrip } from "@boeltech/cfdi-domain";
+
+import type {
+  CfdiEmissionIntent,
+  TripCargo,
+  TripOperationalOutcomeType,
+  TripStatusType,
+  TripStop,
 } from "@features/trips/domain";
 
+export type CanDeclareFalseTripUxInput = {
+  tripStatus: TripStatusType;
+  stops: readonly TripStop[];
+  cargos?: readonly TripCargo[];
+  /** ADR-0081 / T4-043: prorrateo `active`. */
+  hasActiveRevenueSplit?: boolean;
+  /** ADR-0096: `sin_cfdi_efectivo` → deny (mutex con falso). */
+  cfdiEmissionIntent?: CfdiEmissionIntent;
+  operationalOutcome?: TripOperationalOutcomeType;
+};
+
 /**
- * Elegibilidad UX/API para declarar viaje en falso (ADR-0079 / PD1 / T4-043).
- * in_progress + ≥1 llegada real + ninguna carga delivered + sin prorrateo activo.
+ * Adapter UX → `@boeltech/cfdi-domain` `canDeclareFalseTrip` (T-FALSE / PD11).
+ * No reimplementa reglas; solo mapea Result → boolean para ocultar el CTA.
  */
-export function canDeclareFalseTrip(
-  tripStatus: TripStatusType,
-  stops: readonly TripStop[],
-  cargos: readonly TripCargo[] = [],
-  hasActiveSplit = false,
-): boolean {
-  if (hasActiveSplit) return false;
-  if (tripStatus !== TripStatus.IN_PROGRESS) return false;
-  const hasRealArrival = stops.some((stop) => stop.actualArrival != null);
-  if (!hasRealArrival) return false;
-  return !cargos.some((cargo) => cargo.status === CargoStatus.DELIVERED);
+export function canDeclareFalseTrip(input: CanDeclareFalseTripUxInput): boolean {
+  const result = domainCanDeclareFalseTrip({
+    trip: { status: input.tripStatus },
+    stops: input.stops,
+    cargos: input.cargos,
+    hasActiveRevenueSplit: input.hasActiveRevenueSplit,
+    cfdiEmissionIntent: input.cfdiEmissionIntent,
+    operationalOutcome: input.operationalOutcome,
+  });
+  return result.ok;
 }
