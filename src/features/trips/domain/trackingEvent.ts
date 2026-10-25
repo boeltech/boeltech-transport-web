@@ -98,6 +98,16 @@ export interface CreateTrackingEventInput {
   payload?: Record<string, unknown>;
 }
 
+/** Ítem de respuesta de `POST …/tracking/events/batch` (ya en camelCase). */
+export type TrackingEventBatchItemStatus = "created" | "duplicate" | "error";
+
+export interface TrackingEventBatchItem {
+  index: number;
+  status: TrackingEventBatchItemStatus;
+  event: TrackingEvent | null;
+  error: { code: string; message: string } | null;
+}
+
 export interface StartTripTrackingInput {
   mileage: number;
   latitude?: number;

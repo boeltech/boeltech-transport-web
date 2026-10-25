@@ -19,20 +19,32 @@ describe("trackingCopy — portal cliente (D11)", () => {
   });
 });
 
-describe("trackingCopy — StartTripSheet (Capa 1 lean)", () => {
-  it("usa descripción de arranque sin itinerario futuro ni «En Ruta» prematuro", () => {
-    expect(trackingCopy.sheet.startDescription).toMatch(/primera parada/i);
-    expect(trackingCopy.sheet.startDescription).not.toMatch(/En Ruta/i);
-    expect(trackingCopy.sheet.startDescription).not.toMatch(
-      /origen|carga|salida de origen|mercanc/i,
+describe("trackingCopy — Nota/Incidente (PD10)", () => {
+  it("preasociación usa copy «Se asociará a {parada}»", () => {
+    expect(trackingCopy.sheet.willAssociateToStop("Parada 1 · Origen")).toBe(
+      "Se asociará a Parada 1 · Origen",
     );
-    expect(trackingCopy.sheet.startDescription).not.toMatch(/despach|od[oó]metro/i);
+  });
+});
+
+describe("trackingCopy — StartTripSheet (PD6 / CA5)", () => {
+  it("separa despacho de salida de origen y ofrece intención de ubicación", () => {
+    expect(trackingCopy.sheet.startDescription).toMatch(/despachar/i);
+    expect(trackingCopy.sheet.startDescription).toMatch(/salida de origen/i);
+    expect(trackingCopy.sheet.startDescription).not.toMatch(/En Ruta/i);
+    expect(trackingCopy.sheet.dispatchIntentAtDock).toMatch(/andén de carga/i);
+    expect(trackingCopy.sheet.dispatchIntentEnRoute).toMatch(/va en camino/i);
+    expect(trackingCopy.action.dispatchAtDock).toBe("Despachar en origen");
+    expect(trackingCopy.action.dispatchEnRoute).toMatch(/va en camino/i);
   });
 
-  it("usa léxico operativo en labels y toast de inicio", () => {
-    expect(trackingCopy.label.startMileage).toBe("Kilometraje al salir");
-    expect(trackingCopy.label.occurredAtDeparture).toBe("¿A qué hora salió?");
-    expect(trackingCopy.toast.tripStarted).toBe("Viaje iniciado");
+  it("usa léxico de despacho en labels y toast (≠ salida)", () => {
+    expect(trackingCopy.label.startMileage).toBe("Kilometraje al despachar");
+    expect(trackingCopy.label.occurredAtDispatch).toBe(
+      "¿A qué hora se despacha?",
+    );
+    expect(trackingCopy.toast.tripStarted).toBe("Viaje despachado");
+    expect(trackingCopy.toast.tripDispatchedAtDock).toMatch(/origen/i);
     expect(trackingCopy.toast.tripStartedDescription("V-1")).toBe(
       "V-1 listo para seguimiento",
     );
@@ -44,10 +56,12 @@ describe("trackingCopy — StartTripSheet (Capa 1 lean)", () => {
     );
   });
 
-  it("no expone copy de flota «Recursos asignados» / despachar", () => {
+  it("incluye hint PD7 y no copy de flota «Recursos asignados»", () => {
+    expect(trackingCopy.hint.dispatchOriginAlreadyArrived).toMatch(
+      /ya está registrada/i,
+    );
     const sheetJson = JSON.stringify(trackingCopy.sheet);
     expect(sheetJson).not.toMatch(/Recursos asignados/);
-    expect(sheetJson).not.toMatch(/despachar/i);
   });
 });
 
@@ -56,7 +70,11 @@ describe("trackingCopy — Paradas y cargas (Capa 1 lean)", () => {
     expect(trackingCopy.section.cargosAtStop).toBe("Cargas en esta parada");
     expect(trackingCopy.hint.cargoBlockedBody(2)).toMatch(/cargas pendientes/i);
     expect(trackingCopy.hint.cargoBlockedBody(2)).not.toMatch(/mercanc/i);
-    expect(trackingCopy.action.goToCargos).toMatch(/cargas/i);
+    expect(trackingCopy.action.markPickup).toMatch(/recogida/i);
+    expect(trackingCopy.action.registerCargosAtStop("Origen")).toMatch(
+      /Registrar cargas en Origen/i,
+    );
+    expect(trackingCopy.action.goToCargos).not.toMatch(/^Ver /i);
   });
 
   it("conductor: cargo_blocked escala a operación, no «Completa las cargas» (D11)", () => {
@@ -119,7 +137,11 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     expect(trackingCopy.label.endMileage).toBe("Kilometraje final");
     expect(trackingCopy.toast.endMileageRequired).not.toMatch(/od[oó]metro/i);
     expect(trackingCopy.action.close).toBe("Finalizar en destino");
-    expect(trackingCopy.action.quickClose).toBe("Completar viaje");
+    expect(trackingCopy.action.quickClose).toBe(
+      "Cerrar sin bitácora completa",
+    );
+    expect(trackingCopy.action.start).toBe("Despachar…");
+    expect(trackingCopy.state.live).toBe("En vivo");
     expect(trackingCopy.section.itinerary).toBe("Paradas");
     expect(trackingCopy.section.timeline).toBe("Historial del viaje");
   });

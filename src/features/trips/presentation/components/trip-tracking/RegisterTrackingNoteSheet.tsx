@@ -37,6 +37,9 @@ type RegisterTrackingNoteSheetProps = {
   tripId: string;
   /** Parada de referencia para ofrecer coords. guardadas (opcional). */
   referenceStop?: Pick<TripStop, "latitude" | "longitude"> | null;
+  /** PD10 — parada en curso preasociada al evento. */
+  associatedStopId?: string | null;
+  associatedStopLabel?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
@@ -48,6 +51,8 @@ function defaultOccurredAtLocal(): string {
 function RegisterTrackingNoteSheetBody({
   tripId,
   referenceStop,
+  associatedStopId,
+  associatedStopLabel,
   onOpenChange,
 }: Omit<RegisterTrackingNoteSheetProps, "open">) {
   const { toast } = useToast();
@@ -89,6 +94,7 @@ function RegisterTrackingNoteSheetBody({
         notes: note.trim(),
         occurredAt: localInputToUtcIso(occurredAt),
         idempotencyKey,
+        ...(associatedStopId ? { stopId: associatedStopId } : {}),
         ...trackingGpsToEventFields(gps),
       },
     });
@@ -97,6 +103,12 @@ function RegisterTrackingNoteSheetBody({
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
+          {associatedStopLabel ? (
+            <p className="text-xs text-muted-foreground">
+              {trackingCopy.sheet.willAssociateToStop(associatedStopLabel)}
+            </p>
+          ) : null}
+
           <TrackingOccurredAtField
             id="tracking-note-occurred-at"
             label="Fecha y hora"
@@ -154,6 +166,8 @@ function RegisterTrackingNoteSheetBody({
 export function RegisterTrackingNoteSheet({
   tripId,
   referenceStop,
+  associatedStopId,
+  associatedStopLabel,
   open,
   onOpenChange,
 }: RegisterTrackingNoteSheetProps) {
@@ -175,6 +189,8 @@ export function RegisterTrackingNoteSheet({
             key="tracking-note"
             tripId={tripId}
             referenceStop={referenceStop}
+            associatedStopId={associatedStopId}
+            associatedStopLabel={associatedStopLabel}
             onOpenChange={onOpenChange}
           />
         ) : null}

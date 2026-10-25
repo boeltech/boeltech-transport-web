@@ -5,6 +5,7 @@ import type {
   CreateTrackingEventInput,
   StartTripTrackingInput,
   TrackingEvent,
+  TrackingEventBatchItem,
   TrackingTimeline,
 } from "@features/trips/domain";
 import type {
@@ -22,6 +23,24 @@ type ApiCloseTrackingIncidentResponse = {
   has_open_incident: false;
   note_event: ApiTrackingEventResponse;
 };
+
+type ApiTrackingEventBatchItemResponse = {
+  index: number;
+  status: "created" | "duplicate" | "error";
+  event: ApiTrackingEventResponse | null;
+  error: { code: string; message: string } | null;
+};
+
+function mapApiTrackingEventBatchItem(
+  item: ApiTrackingEventBatchItemResponse,
+): TrackingEventBatchItem {
+  return {
+    index: item.index,
+    status: item.status,
+    event: item.event ? mapApiTrackingEvent(item.event) : null,
+    error: item.error,
+  };
+}
 
 function toApiCreatePayload(input: CreateTrackingEventInput) {
   return {
@@ -88,6 +107,28 @@ export class TrackingRepository {
       ...(response.warnings && response.warnings.length > 0
         ? { warnings: response.warnings }
         : {}),
+    };
+  }
+
+  /**
+   * Batch atómico (T-BATCH): `POST …/tracking/events/batch`.
+   * Un solo request; el API hace rollback si falla un ítem.
+   */
+  async createEventBatch(
+    tripId: string,
+    events: readonly CreateTrackingEventInput[],
+  ): Promise<{
+    data: TrackingEventBatchItem[];
+    message?: string;
+  }> {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiTrackingEventBatchItemResponse[]>
+    >(`${TRIPS_ENDPOINT}/${tripId}/tracking/events/batch`, {
+      events: events.map(toApiCreatePayload),
+    });
+    return {
+      data: response.data.map(mapApiTrackingEventBatchItem),
+      message: response.message,
     };
   }
 

@@ -44,6 +44,9 @@ type RegisterTrackingIncidentSheetProps = {
   tripId: string;
   /** Parada de referencia para ofrecer coords. guardadas (opcional). */
   referenceStop?: Pick<TripStop, "latitude" | "longitude"> | null;
+  /** PD10 — parada en curso preasociada al evento. */
+  associatedStopId?: string | null;
+  associatedStopLabel?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
@@ -63,6 +66,8 @@ function defaultOccurredAtLocal(): string {
 function RegisterTrackingIncidentSheetBody({
   tripId,
   referenceStop,
+  associatedStopId,
+  associatedStopLabel,
   onOpenChange,
 }: Omit<RegisterTrackingIncidentSheetProps, "open">) {
   const { toast } = useToast();
@@ -108,6 +113,7 @@ function RegisterTrackingIncidentSheetBody({
         eventType: "incident",
         occurredAt: localInputToUtcIso(occurredAt),
         idempotencyKey,
+        ...(associatedStopId ? { stopId: associatedStopId } : {}),
         payload: {
           incident_type: "other",
           severity,
@@ -122,6 +128,12 @@ function RegisterTrackingIncidentSheetBody({
   return (
     <>
       <div className={TRACKING_SHEET_BODY_CLASS}>
+          {associatedStopLabel ? (
+            <p className="text-xs text-muted-foreground">
+              {trackingCopy.sheet.willAssociateToStop(associatedStopLabel)}
+            </p>
+          ) : null}
+
           <TrackingOccurredAtField
             id="tracking-incident-occurred-at"
             label="Fecha y hora"
@@ -213,6 +225,8 @@ function RegisterTrackingIncidentSheetBody({
 export function RegisterTrackingIncidentSheet({
   tripId,
   referenceStop,
+  associatedStopId,
+  associatedStopLabel,
   open,
   onOpenChange,
 }: RegisterTrackingIncidentSheetProps) {
@@ -234,6 +248,8 @@ export function RegisterTrackingIncidentSheet({
             key="tracking-incident"
             tripId={tripId}
             referenceStop={referenceStop}
+            associatedStopId={associatedStopId}
+            associatedStopLabel={associatedStopLabel}
             onOpenChange={onOpenChange}
           />
         ) : null}

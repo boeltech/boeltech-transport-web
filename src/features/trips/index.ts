@@ -88,6 +88,7 @@ export {
   useCancelTrip,
   useDeleteTrip,
   useRegisterTrackingEvent,
+  useCreateTrackingEventBatch,
   useCloseTrackingIncident,
   useTripTimeline,
   useTripCargos,

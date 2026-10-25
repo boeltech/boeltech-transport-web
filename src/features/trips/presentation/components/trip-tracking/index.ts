@@ -1,5 +1,11 @@
 export { StartTripSheet } from "./StartTripSheet";
 export type { StartTripSheetProps } from "./StartTripSheet";
+export {
+  buildAtDockDispatchBatchEvents,
+  originStopAlreadyArrived,
+  suggestDefaultDispatchLocationIntent,
+} from "./resolveDispatchLocationIntent";
+export type { DispatchLocationIntent } from "./resolveDispatchLocationIntent";
 export { DepartOriginSheet } from "./DepartOriginSheet";
 export type { DepartOriginSheetProps } from "./DepartOriginSheet";
 export { RegisterTripArrivalSheet } from "./RegisterTripArrivalSheet";
@@ -24,6 +30,7 @@ export { CargoActionInline } from "./CargoActionInline";
 export type { CargoActionInlineProps } from "./CargoActionInline";
 export { StopStateMachineLegend } from "./StopStateMachineLegend";
 export { CargoStateMachineLegend } from "./CargoStateMachineLegend";
+export { TrackingStatesLegend } from "./TrackingStatesLegend";
 export { TripTrackingNextActionCard } from "./TripTrackingNextActionCard";
 export type { TripTrackingNextActionCardProps } from "./TripTrackingNextActionCard";
 export type { TrackingOperationalFocusRequest } from "./trackingOperationalFocus";
@@ -41,12 +48,12 @@ export type { TripTrackingItineraryRailProps } from "./TripTrackingItineraryRail
 export { TripTrackingIncidentStrip } from "./TripTrackingIncidentStrip";
 export type { TripTrackingIncidentStripProps } from "./TripTrackingIncidentStrip";
 export { TripTrackingObjectiveHub } from "./TripTrackingObjectiveHub";
-export type { TripTrackingObjectiveHubProps } from "./TripTrackingObjectiveHub";
-export { TripTrackingNowPanel } from "./TripTrackingNowPanel";
 export type {
   TrackingContactInfo,
-  TripTrackingNowPanelProps,
-} from "./TripTrackingNowPanel";
+  TripTrackingObjectiveHubProps,
+} from "./TripTrackingObjectiveHub";
+export { TripTrackingNowPanel } from "./TripTrackingNowPanel";
+export type { TripTrackingNowPanelProps } from "./TripTrackingNowPanel";
 export { TripTrackingStopWorkbenchSheet } from "./TripTrackingStopWorkbenchSheet";
 export type { TripTrackingStopWorkbenchSheetProps } from "./TripTrackingStopWorkbenchSheet";
 export { TripTrackingStopOperationDetail } from "./TripTrackingStopOperationDetail";
@@ -79,6 +86,11 @@ export type {
   TrackingPrimaryAction,
   TrackingPrimaryActionKind,
 } from "./trackingNextAction";
+export {
+  listOperatePendingCargoActions,
+  resolveOperateCargoCtaLabel,
+} from "./operateCargoActions";
+export type { OperatePendingCargoAction } from "./operateCargoActions";
 export {
   TRACKING_STOP_STATUS_CONFIG,
   TrackingStopStatusBadge,

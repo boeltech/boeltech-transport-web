@@ -7,8 +7,15 @@ export const trackingCopy = {
     status: "Estado operativo",
     actions: "Acciones de seguimiento",
     objective: "Qué sigue",
-    /** F6: panel izquierdo (excepción + qué sigue + contacto). */
+    /**
+     * Layout A (consola): zona Operate full-width.
+     * @deprecated PD2 — no usar como cabecera de job; preferir `objective`.
+     */
     now: "Ahora",
+    /** Layout A: zona Operate (aria / landmark). */
+    operate: "Operación",
+    /** Layout A: mapa + bitácora bajo fold o sub-tabs. */
+    consulta: "Consulta",
     contact: "Contacto",
     metrics: "Avance del viaje",
     itinerary: "Paradas",
@@ -21,14 +28,19 @@ export const trackingCopy = {
     map: "Mapa del viaje",
   },
   action: {
-    start: "Iniciar viaje",
+    /** Despacho operativo (no «Iniciar» genérico — CA5 / PD6). */
+    start: "Despachar…",
+    /** Footer sheet: ya en andén → batch dispatch+llegada (PD6). */
+    dispatchAtDock: "Despachar en origen",
+    /** Footer sheet: solo trip_dispatched (PD6 / T-START). */
+    dispatchEnRoute: "Despachar (va en camino)",
     arrive: "Registrar llegada",
     depart: "Registrar salida",
     departOrigin: "Salida de origen",
     /** Cierre canónico en destino. */
     close: "Finalizar en destino",
-    /** ADR-0088: atajo de cierre sin registrar cada parada. */
-    quickClose: "Completar viaje",
+    /** ADR-0088: atajo especial — demoted a ⋯ (PD5). */
+    quickClose: "Cerrar sin bitácora completa",
     /**
      * Motivo típico de viaje en falso (placeholder / sheet).
      * El CTA del hub usa `declareFalseTrip`, no esta frase.
@@ -43,7 +55,20 @@ export const trackingCopy = {
     retry: "Reintentar",
     cancel: "Cancelar",
     now: "Ahora",
-    goToCargos: "Ver cargas de la parada",
+    /** Overflow Operate (PD5 / D5). */
+    moreActions: "Más acciones",
+    /**
+     * F3 / D6: CTA Operate cuando hay N cargas pendientes (abre workbench o lista).
+     * @deprecated Prefer `registerCargosAtStop` / `markPickup` — no usar «Ver…».
+     */
+    goToCargos: "Registrar cargas de la parada",
+    /** Patio: N cargas en parada en curso (PRD copy table). */
+    registerCargosAtStop: (stopLabel: string) =>
+      `Registrar cargas en ${stopLabel}`,
+    /** Patio: 1 carga pendiente de recogida (PRD). */
+    markPickup: "Marcar recogida",
+    /** Patio: 1 carga pendiente de entrega. */
+    markDeliver: "Marcar entrega",
     /** CTA footer del sheet de parada (corto, sin «Parada N · …»). */
     confirmArrival: "Registrar llegada",
     confirmDeparture: "Registrar salida",
@@ -53,7 +78,8 @@ export const trackingCopy = {
   },
   label: {
     departureAt: "Fecha y hora de salida",
-    startMileage: "Kilometraje al salir",
+    /** Odómetro al despachar (≠ salida de origen / FechaHoraSalida CP). */
+    startMileage: "Kilometraje al despachar",
     endMileage: "Kilometraje final",
     currentTarget: "Qué sigue",
     distancePlanned: "Km planeados",
@@ -69,6 +95,10 @@ export const trackingCopy = {
     nextStop: (label: string) => `Siguiente: ${label}`,
     /** Cabecera Z1 (F7): unidad ya en la parada (no «Siguiente:»). */
     onSite: "En sitio",
+    /** Sheet despacho: hora del evento trip_dispatched (≠ salida de origen). */
+    occurredAtDispatch: "¿A qué hora se despacha?",
+    /** PD6: leyenda de la elección de ubicación. */
+    dispatchLocationIntent: "¿Dónde está la unidad?",
     /**
      * Semáforo operativo derivado (F1-B / PRD). Sustituye el chip binario «Va tarde».
      * Códigos: on_time · at_risk · delayed · stopped · n/a.
@@ -131,9 +161,22 @@ export const trackingCopy = {
     stopWorkbenchTitle: "Parada en curso",
     stopWorkbenchDescription:
       "Opera las cargas de esta parada. Las demás paradas son solo lectura en el mapa.",
-    /** Confirmación de arranque: una línea; sin itinerario futuro. */
+    /**
+     * Sheet despacho (PD6): despacho ≠ salida de origen.
+     * La elección de ubicación va en el body.
+     */
     startDescription:
-      "Confirma hora y kilometraje. Queda listo para registrar la primera parada.",
+      "Despachar pone el viaje en ruta. La salida de origen es otro paso, después de las cargas.",
+    /** PD6 — opción batch (intención explícita). */
+    dispatchIntentAtDock: "Ya está en el andén de carga",
+    dispatchIntentAtDockHint:
+      "Registra despacho y llegada a origen en un solo paso. La salida sigue aparte.",
+    /** PD6 — solo dispatch. */
+    dispatchIntentEnRoute: "Va en camino al origen",
+    dispatchIntentEnRouteHint:
+      "Solo despacha. Después registra la llegada a origen.",
+    /** Sugerencia default cuando origen≈sucursal. */
+    dispatchIntentSuggested: "Sugerido",
     startMileagePlaceholder: "Ej: 150000",
     loadingVehicleMileage: "Cargando kilometraje…",
     /** Un solo hint operativo cuando hay sugerencia. */
@@ -170,6 +213,8 @@ export const trackingCopy = {
     notePlaceholder: "Detalle operativo, instrucciones, contexto…",
     noteRegistered: "Nota registrada",
     noteFailed: "No se pudo registrar la nota",
+    /** PD10 — preasociación a parada en curso. */
+    willAssociateToStop: (parada: string) => `Se asociará a ${parada}`,
     incidentTitle: "Registrar incidente",
     incidentDescription:
       "Queda en el historial. Marca si requiere asistencia inmediata.",
@@ -271,15 +316,18 @@ export const trackingCopy = {
     clearLocation: "Quitar",
   },
   toast: {
-    tripStarted: "Viaje iniciado",
+    tripStarted: "Viaje despachado",
     tripStartedDescription: (tripCode: string) =>
       `${tripCode} listo para seguimiento`,
+    tripDispatchedAtDock: "Despachado en origen",
+    tripDispatchedAtDockDescription: (tripCode: string) =>
+      `${tripCode}: despacho y llegada a origen registrados`,
     originDeparted: "Salida de origen registrada",
     originDepartFailed: "Error al registrar salida de origen",
-    startFailed: "Error al iniciar",
+    startFailed: "Error al despachar",
     startMileageRequired: "Kilometraje requerido",
     startMileageRequiredDescription:
-      "Indica el kilometraje al salir. Si hay sugerencia, puedes confirmarla o ajustarla.",
+      "Indica el kilometraje al despachar. Si hay sugerencia, puedes confirmarla o ajustarla.",
     arrivalRegistered: (stopLabel: string) =>
       `Llegada registrada · ${stopLabel}`,
     departureRegistered: (stopLabel: string) =>
@@ -306,8 +354,11 @@ export const trackingCopy = {
     endMileageInvalid: "Kilometraje inválido",
   },
   validation: {
-    departureRequired: "Indica la fecha y hora de salida.",
+    departureRequired: "Indica la fecha y hora de despacho.",
     occurredAtRequired: "Indica la fecha y hora.",
+    dispatchIntentRequired: "Indica si la unidad ya está en el andén o va en camino.",
+    dispatchOriginStopRequired:
+      "Falta la parada origen para registrar la llegada. Elige «Va en camino» o revisa la ruta.",
     arrivalAtDestinationRequired: "Indica la fecha y hora de llegada al destino.",
     quickCloseOccurredAtRequired:
       "Indica la fecha y hora de cierre del viaje.",
@@ -320,8 +371,8 @@ export const trackingCopy = {
     civilTimeHint: "Hora de México",
   },
   state: {
-    /** Polling de timeline; no implica GPS de unidad. */
-    live: "Al día",
+    /** Polling de timeline; no implica GPS de unidad. PD4: «En vivo» (no «Al día»). */
+    live: "En vivo",
     syncing: "Sincronizando…",
     readOnly: "Solo lectura",
     skippedNotVisited: "Omitido — no se visitó",
@@ -337,7 +388,9 @@ export const trackingCopy = {
     itinerary: "Progreso por parada con plan y hora real.",
     /** Riel: parada seleccionada que no es la operable. */
     railMapOnly:
-      "Solo consulta en el mapa. Opera la parada en curso desde Ahora.",
+      "Esta parada es solo consulta. Opera la parada en curso arriba.",
+    /** PD12: mid-trip — deep-link a tab Ruta (sin tab nuevo). */
+    midTripRouteChanges: "Cambios de ruta → tab Ruta",
     objectiveGuide: "La siguiente operación y el botón para registrarla.",
     readOnlyGuide:
       "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, historial y mapa abajo.",
@@ -405,6 +458,11 @@ export const trackingCopy = {
       "Operación registra las cargas. Avísales para continuar.",
     /** Iniciar bloqueado: copy de dominio + escala (D10). Sin asignar/Confirmar. */
     startBlockedEscalatePatio: "Avisa a operación.",
+    /**
+     * PD7: no re-llegar si app/office ya registró stop_arrived en origen.
+     */
+    dispatchOriginAlreadyArrived:
+      "La llegada a origen ya está registrada (app u oficina). No se vuelve a enviar; solo se despacha.",
     legendHelp: "¿Qué significan los estados?",
     timelineLocationSaved: "Ubicación registrada",
     timelineCause: (cause: string) => `Causa: ${cause}`,

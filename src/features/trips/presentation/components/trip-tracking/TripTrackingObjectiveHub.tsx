@@ -4,9 +4,13 @@ import {
   CheckCircle2,
   Flag,
   MapPin,
+  MoreHorizontal,
   Navigation,
   Package,
+  Phone,
   Send,
+  AlertTriangle,
+  StickyNote,
 } from "lucide-react";
 
 import {
@@ -19,6 +23,14 @@ import {
 } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@shared/ui/dropdown-menu";
 import { cn } from "@shared/lib/utils/cn";
 
 import {
@@ -35,8 +47,13 @@ import { sinCfdiCargoBlockReason } from "../../utils/tripSinCfdiCargoGating";
 import { resolveClientTrackingHubNarrative } from "../../utils/clientTrackingHub";
 import { isOriginStop } from "../trackingStopEligibility";
 import { StopActionInline } from "./StopActionInline";
+import { CargoActionInline } from "./CargoActionInline";
 import { canDeclareFalseTrip } from "./canDeclareFalseTrip";
 import { canQuickCloseTrip } from "./canQuickCloseTrip";
+import {
+  listOperatePendingCargoActions,
+  resolveOperateCargoCtaLabel,
+} from "./operateCargoActions";
 import {
   buildTrackingItineraryRows,
   resolveInlineStopAction,
@@ -49,7 +66,16 @@ import {
 } from "./trackingNextAction";
 import { resolveDeclareFalseTripTransition } from "./transitionCopy";
 import { trackingCopy } from "./trackingCopy";
+import type { CargoManualAction } from "../../utils/cargoStatusActions";
 import type { TripScheduleTimes } from "../trip-route/tripRouteDetailHelpers";
+
+/** Contacto flota en overflow Operate (PD5). */
+export type TrackingContactInfo = {
+  driverName?: string | null;
+  vehicleLabel?: string | null;
+  /** Teléfono operativo del conductor; si falta, fila «No capturado» y sin «Llamar». */
+  driverPhone?: string | null;
+};
 
 export type TripTrackingObjectiveHubProps = {
   stops: readonly TripStop[];
@@ -66,13 +92,32 @@ export type TripTrackingObjectiveHubProps = {
   cfdiEmissionIntent?: CfdiEmissionIntent;
   hasActiveSplit?: boolean;
   onDeclareFalseTrip?: () => void;
-  /** Foco a cargas de la parada (cargo_blocked). */
+  /**
+   * Legacy / workbench: abrir cargas de la parada (N cargas o sin onCargoAction).
+   * F3: no debe ser el único camino cuando hay mutación directa.
+   */
   onGoToCargos?: (stopId: string) => void;
+  /** F3 / D6: mutar carga desde Operate (≤2 clics). */
+  onCargoAction?: (cargoId: string, action: CargoManualAction) => void;
+  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
+  /** Evidencia — overflow Operate (PD5). */
+  onRegisterNote?: () => void;
+  onRegisterIncident?: () => void;
+  canRegisterNote?: boolean;
+  canRegisterIncident?: boolean;
+  /** Contacto flota — overflow Operate (PD5). */
+  contact?: TrackingContactInfo | null;
+  /** PD12: línea mid-trip → tab Ruta. */
+  onGoToRouteTab?: () => void;
+  showMidTripRouteHint?: boolean;
   canOperateTracking?: boolean;
   canMutateCargo?: boolean;
   isDriverPortal?: boolean;
   isClientPortal?: boolean;
-  /** F5: 1 línea + CTA; demota Completar viaje / falso mid-ruta. */
+  /**
+   * Layout A Operate: 1 CTA `default` + ⋯ (PD5 / D5).
+   * Sin compact: hub legado (master-detail) conserva secundarias visibles.
+   */
   compact?: boolean;
   className?: string;
 };
@@ -163,7 +208,8 @@ function shouldShowHubStopAction(
 }
 
 /**
- * Bloque «Qué sigue» / registrar (F4): CTAs operativos del tab Seguimiento.
+ * Bloque «Qué sigue» / registrar: CTAs operativos del tab Seguimiento.
+ * Layout A (compact): un `default` de mutación + overflow ⋯ (PD5 / D5).
  */
 export function TripTrackingObjectiveHub({
   stops,
@@ -181,6 +227,15 @@ export function TripTrackingObjectiveHub({
   hasActiveSplit = false,
   onDeclareFalseTrip,
   onGoToCargos,
+  onCargoAction,
+  pendingCargoAction = null,
+  onRegisterNote,
+  onRegisterIncident,
+  canRegisterNote = false,
+  canRegisterIncident = false,
+  contact = null,
+  onGoToRouteTab,
+  showMidTripRouteHint = false,
   canOperateTracking = true,
   canMutateCargo: canMutateCargoProp,
   isDriverPortal = false,
@@ -268,13 +323,48 @@ export function TripTrackingObjectiveHub({
     showsStopCta && primary.kind === "close"
       ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
       : null;
+  const canMutateCargo = canMutateCargoProp ?? canOperateTracking;
+  const operateCargoItems =
+    !isClientPortal &&
+    canOperateTracking &&
+    canMutateCargo &&
+    primary.kind === "cargo_blocked" &&
+    primary.stop != null
+      ? listOperatePendingCargoActions(
+          primary.stop,
+          cargos,
+          stops,
+          tripStatus,
+        )
+      : [];
+  const operateCargoStopLabel =
+    primary.stop?.locationName?.trim() ||
+    (primary.displayOrder != null
+      ? `parada #${primary.displayOrder}`
+      : "esta parada");
+  /** 1 carga + onCargoAction → mutación directa (1 clic). */
+  const showsDirectCargoCta =
+    operateCargoItems.length === 1 && onCargoAction != null;
+  /**
+   * N cargas: lista inline con mutación (1 clic) cuando hay onCargoAction;
+   * si no, CTA que abre workbench (≤2 clics con acción visible).
+   */
+  const showsInlineCargoList =
+    operateCargoItems.length > 1 && onCargoAction != null;
   const showsGoToCargosCta =
     !isClientPortal &&
     canOperateTracking &&
     primary.kind === "cargo_blocked" &&
     primary.stop != null &&
+    !showsDirectCargoCta &&
+    !showsInlineCargoList &&
     onGoToCargos != null;
-  const showsOperableCta = showsDispatchCta || showsStopCta || showsGoToCargosCta;
+  const showsOperableCta =
+    showsDispatchCta ||
+    showsStopCta ||
+    showsDirectCargoCta ||
+    showsInlineCargoList ||
+    showsGoToCargosCta;
   const quickCloseEligible =
     !isClientPortal &&
     canOperateTracking &&
@@ -283,17 +373,20 @@ export function TripTrackingObjectiveHub({
   const quickCloseCargoBlockReason = quickCloseEligible
     ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
     : null;
-  /**
-   * Completar viaje siempre visible cuando es elegible (atajo sin pasar
-   * por todas las paradas). En Ahora (compact) se demota si no es el
-   * primary; puede quedar disabled por gating de cargas, pero no se oculta.
-   */
   const showsQuickCloseCta = quickCloseEligible;
+  const declareFalseTripDomainEligible = canDeclareFalseTrip({
+    tripStatus,
+    stops,
+    cargos,
+    hasActiveRevenueSplit: false,
+    cfdiEmissionIntent,
+    operationalOutcome,
+  });
   const declareFalseTripBaseEligible =
     !isClientPortal &&
     canOperateTracking &&
     onDeclareFalseTrip != null &&
-    canDeclareFalseTrip(tripStatus, stops, cargos, false);
+    declareFalseTripDomainEligible;
   const showsDeclareFalseTripCta =
     declareFalseTripBaseEligible && !hasActiveSplit;
   const showsDeclareFalseTripSplitBlockHint =
@@ -301,6 +394,24 @@ export function TripTrackingObjectiveHub({
 
   const demoteSecondaryClose = compact && primary.kind !== "close";
   const ctaSize = compact ? "default" : "lg";
+  /** Operate (compact): secundarias en ⋯ — un solo `default` ATF (D5 / PD5). */
+  const useOverflowMenu = compact && !isClientPortal;
+
+  const driverName = contact?.driverName?.trim() || null;
+  const vehicleLabel = contact?.vehicleLabel?.trim() || null;
+  const driverPhone = contact?.driverPhone?.trim() || null;
+  const hasContact = Boolean(driverName || vehicleLabel);
+  const showEvidenceInOverflow =
+    useOverflowMenu &&
+    onRegisterNote != null &&
+    onRegisterIncident != null;
+  const showOverflowMenu =
+    useOverflowMenu &&
+    (showsQuickCloseCta ||
+      showsDeclareFalseTripCta ||
+      showsDeclareFalseTripSplitBlockHint ||
+      showEvidenceInOverflow ||
+      hasContact);
 
   return (
     <div
@@ -332,7 +443,9 @@ export function TripTrackingObjectiveHub({
       <div
         className={cn(
           "flex gap-3",
-          compact ? "flex-col sm:flex-row sm:items-center" : "flex-col sm:flex-row sm:items-start",
+          compact
+            ? "flex-col sm:flex-row sm:items-center"
+            : "flex-col sm:flex-row sm:items-start",
         )}
       >
         {!compact ? (
@@ -352,14 +465,15 @@ export function TripTrackingObjectiveHub({
           <div
             className={cn(
               "flex flex-col gap-2",
-              compact ? "sm:flex-row sm:flex-wrap sm:items-center sm:justify-between" : null,
+              compact
+                ? "sm:flex-row sm:flex-wrap sm:items-start sm:justify-between"
+                : null,
             )}
           >
             <div className="min-w-0 space-y-1">
               <p
                 className={cn(
-                  "font-semibold",
-                  compact ? "text-sm" : "text-sm",
+                  "font-semibold text-sm",
                   isTerminal || isClientPortal ? "text-muted-foreground" : null,
                 )}
               >
@@ -377,58 +491,248 @@ export function TripTrackingObjectiveHub({
                 </p>
               ) : null}
             </div>
-            {showsDispatchCta ? (
-              <StopActionInline
-                label={trackingCopy.action.start}
-                action="dispatch"
-                variant="default"
-                size={ctaSize}
-                showTransition={false}
-                disabled={Boolean(startRouteBlockReason)}
-                disabledReason={startRouteBlockReason ?? undefined}
-                onClick={() => {
-                  if (startRouteBlockReason) return;
-                  onStartTrip?.();
-                }}
-              />
-            ) : showsStopCta ? (
-              <StopActionInline
-                label={hubActionLabel!}
-                action={hubInlineAction!.action}
-                variant="default"
-                size={ctaSize}
-                showTransition={false}
-                disabled={Boolean(closeCargoBlockReason)}
-                disabledReason={closeCargoBlockReason ?? undefined}
-                onClick={() => {
-                  if (closeCargoBlockReason) return;
-                  dispatchInlineStopAction(hubInlineAction!, {
-                    onStartTrip,
-                    onArrive,
-                    onDepart,
-                    onDepartOrigin,
-                    onCloseTrip,
-                  });
-                }}
-              />
-            ) : showsGoToCargosCta ? (
-              <Button
-                type="button"
-                variant="default"
-                size={ctaSize}
-                className={cn(
-                  compact
-                    ? "h-auto min-h-9 w-full justify-start whitespace-normal py-2 text-left sm:w-auto"
-                    : "h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto",
-                )}
-                onClick={() => onGoToCargos?.(primary.stop!.id)}
-              >
-                <Package className="mr-2 h-4 w-4 shrink-0" />
-                <span className="font-medium">{trackingCopy.action.goToCargos}</span>
-              </Button>
-            ) : null}
+            <div
+              className={cn(
+                "flex flex-wrap items-start gap-2",
+                compact ? "w-full sm:w-auto" : null,
+              )}
+            >
+              {showsDispatchCta ? (
+                <StopActionInline
+                  label={trackingCopy.action.start}
+                  action="dispatch"
+                  variant="default"
+                  size={ctaSize}
+                  showTransition={compact}
+                  disabled={Boolean(startRouteBlockReason)}
+                  disabledReason={startRouteBlockReason ?? undefined}
+                  onClick={() => {
+                    if (startRouteBlockReason) return;
+                    onStartTrip?.();
+                  }}
+                />
+              ) : showsStopCta ? (
+                <StopActionInline
+                  label={hubActionLabel!}
+                  action={hubInlineAction!.action}
+                  variant="default"
+                  size={ctaSize}
+                  showTransition={compact}
+                  disabled={Boolean(closeCargoBlockReason)}
+                  disabledReason={closeCargoBlockReason ?? undefined}
+                  onClick={() => {
+                    if (closeCargoBlockReason) return;
+                    dispatchInlineStopAction(hubInlineAction!, {
+                      onStartTrip,
+                      onArrive,
+                      onDepart,
+                      onDepartOrigin,
+                      onCloseTrip,
+                    });
+                  }}
+                />
+              ) : showsDirectCargoCta ? (
+                <CargoActionInline
+                  action={operateCargoItems[0]!.action}
+                  label={resolveOperateCargoCtaLabel(
+                    operateCargoItems,
+                    operateCargoStopLabel,
+                  )}
+                  variant="default"
+                  size={ctaSize}
+                  showTransition={compact}
+                  pending={
+                    pendingCargoAction?.cargoId ===
+                      operateCargoItems[0]!.cargoId &&
+                    pendingCargoAction.action === operateCargoItems[0]!.action
+                  }
+                  onClick={() =>
+                    onCargoAction?.(
+                      operateCargoItems[0]!.cargoId,
+                      operateCargoItems[0]!.action,
+                    )
+                  }
+                />
+              ) : showsInlineCargoList ? (
+                <ul
+                  className="flex w-full flex-col gap-2 sm:max-w-md"
+                  data-tracking-section="operate-cargos"
+                >
+                  {operateCargoItems.map((item, index) => (
+                    <li
+                      key={`${item.cargoId}-${item.action}`}
+                      className="flex flex-col gap-1 rounded-md border bg-card/60 px-2.5 py-2"
+                    >
+                      <p className="truncate text-xs font-medium text-foreground">
+                        {item.description}
+                      </p>
+                      <CargoActionInline
+                        action={item.action}
+                        label={
+                          item.action === "pickup"
+                            ? trackingCopy.action.markPickup
+                            : trackingCopy.action.markDeliver
+                        }
+                        variant={index === 0 ? "default" : "outline"}
+                        size={index === 0 ? ctaSize : "sm"}
+                        showTransition={compact && index === 0}
+                        pending={
+                          pendingCargoAction?.cargoId === item.cargoId &&
+                          pendingCargoAction.action === item.action
+                        }
+                        onClick={() =>
+                          onCargoAction?.(item.cargoId, item.action)
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : showsGoToCargosCta ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  size={ctaSize}
+                  className={cn(
+                    compact
+                      ? "h-auto min-h-9 w-full justify-start whitespace-normal py-2 text-left sm:w-auto"
+                      : "h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto",
+                  )}
+                  onClick={() => onGoToCargos?.(primary.stop!.id)}
+                >
+                  <Package className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="font-medium">
+                    {resolveOperateCargoCtaLabel(
+                      operateCargoItems,
+                      operateCargoStopLabel,
+                    )}
+                  </span>
+                </Button>
+              ) : null}
+              {showOverflowMenu ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                      aria-label={trackingCopy.action.moreActions}
+                      data-tracking-section="operate-overflow"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    {showsQuickCloseCta ? (
+                      <DropdownMenuItem
+                        disabled={Boolean(quickCloseCargoBlockReason)}
+                        title={quickCloseCargoBlockReason ?? undefined}
+                        onSelect={() => {
+                          if (quickCloseCargoBlockReason) return;
+                          onQuickCloseTrip?.();
+                        }}
+                      >
+                        <Flag className="mr-2 h-4 w-4" />
+                        {trackingCopy.action.quickClose}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {showsDeclareFalseTripCta ? (
+                      <DropdownMenuItem
+                        onSelect={() => onDeclareFalseTrip?.()}
+                      >
+                        <Ban className="mr-2 h-4 w-4" />
+                        {trackingCopy.action.declareFalseTrip}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {showsDeclareFalseTripSplitBlockHint ? (
+                      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground whitespace-normal">
+                        {trackingCopy.hint.declareFalseTripBlockedBySplit}
+                      </DropdownMenuLabel>
+                    ) : null}
+                    {showEvidenceInOverflow ? (
+                      <>
+                        {showsQuickCloseCta ||
+                        showsDeclareFalseTripCta ||
+                        showsDeclareFalseTripSplitBlockHint ? (
+                          <DropdownMenuSeparator />
+                        ) : null}
+                        <DropdownMenuItem
+                          disabled={!canRegisterNote}
+                          title={
+                            canRegisterNote
+                              ? undefined
+                              : trackingCopy.error.registerRequiresInProgress
+                          }
+                          onSelect={() => onRegisterNote?.()}
+                        >
+                          <StickyNote className="mr-2 h-4 w-4" />
+                          {trackingCopy.action.note}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={!canRegisterIncident}
+                          title={
+                            canRegisterIncident
+                              ? undefined
+                              : trackingCopy.error.registerRequiresInProgress
+                          }
+                          onSelect={() => onRegisterIncident?.()}
+                        >
+                          <AlertTriangle className="mr-2 h-4 w-4" />
+                          {trackingCopy.action.incident}
+                        </DropdownMenuItem>
+                      </>
+                    ) : null}
+                    {hasContact ? (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                          {trackingCopy.section.contact}
+                        </DropdownMenuLabel>
+                        {driverName ? (
+                          <DropdownMenuLabel className="font-normal">
+                            {trackingCopy.label.operator}: {driverName}
+                          </DropdownMenuLabel>
+                        ) : null}
+                        {vehicleLabel ? (
+                          <DropdownMenuLabel className="font-normal">
+                            {trackingCopy.label.unit}: {vehicleLabel}
+                          </DropdownMenuLabel>
+                        ) : null}
+                        {driverPhone ? (
+                          <DropdownMenuItem asChild>
+                            <a href={`tel:${driverPhone}`}>
+                              <Phone className="mr-2 h-4 w-4" />
+                              {trackingCopy.action.call}
+                            </a>
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                            {trackingCopy.label.mobile}:{" "}
+                            {trackingCopy.label.mobileNotCaptured}
+                          </DropdownMenuLabel>
+                        )}
+                      </>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </div>
           </div>
-          {showsQuickCloseCta ? (
+
+          {showMidTripRouteHint && onGoToRouteTab && !isClientPortal ? (
+            <p className="text-xs text-muted-foreground">
+              <button
+                type="button"
+                className="underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                onClick={onGoToRouteTab}
+                data-tracking-section="mid-trip-route-hint"
+              >
+                {trackingCopy.hint.midTripRouteChanges}
+              </button>
+            </p>
+          ) : null}
+
+          {!useOverflowMenu && showsQuickCloseCta ? (
             <div className="space-y-0.5">
               <Button
                 type="button"
@@ -461,10 +765,14 @@ export function TripTrackingObjectiveHub({
                 <Flag
                   className={cn(
                     "shrink-0",
-                    demoteSecondaryClose ? "mr-1.5 h-3.5 w-3.5" : "mr-2 h-4 w-4",
+                    demoteSecondaryClose
+                      ? "mr-1.5 h-3.5 w-3.5"
+                      : "mr-2 h-4 w-4",
                   )}
                 />
-                <span className={demoteSecondaryClose ? "font-normal" : "font-medium"}>
+                <span
+                  className={demoteSecondaryClose ? "font-normal" : "font-medium"}
+                >
                   {trackingCopy.action.quickClose}
                 </span>
               </Button>
@@ -486,40 +794,29 @@ export function TripTrackingObjectiveHub({
               ) : null}
             </div>
           ) : null}
-          {showsDeclareFalseTripCta ? (
+          {!useOverflowMenu && showsDeclareFalseTripCta ? (
             <div className="space-y-0.5">
               <Button
                 type="button"
-                variant={compact ? "ghost" : "outline"}
-                size={compact ? "sm" : ctaSize}
-                className={cn(
-                  compact
-                    ? "h-8 justify-start px-2 text-xs font-normal text-muted-foreground"
-                    : "h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto",
-                )}
+                variant="outline"
+                size={ctaSize}
+                className="h-auto min-h-10 w-full justify-start whitespace-normal py-2.5 text-left text-sm sm:w-auto"
                 onClick={() => onDeclareFalseTrip?.()}
-                aria-describedby={compact ? undefined : declareFalseTripHintId}
+                aria-describedby={declareFalseTripHintId}
               >
-                <Ban
-                  className={cn(
-                    "shrink-0",
-                    compact ? "mr-1.5 h-3.5 w-3.5" : "mr-2 h-4 w-4",
-                  )}
-                />
-                <span className={compact ? "font-normal" : "font-medium"}>
+                <Ban className="mr-2 h-4 w-4 shrink-0" />
+                <span className="font-medium">
                   {trackingCopy.action.declareFalseTrip}
                 </span>
               </Button>
-              {!compact ? (
-                <p
-                  id={declareFalseTripHintId}
-                  className="text-xs text-muted-foreground"
-                >
-                  {resolveDeclareFalseTripTransition(isDriverPortal)}
-                </p>
-              ) : null}
+              <p
+                id={declareFalseTripHintId}
+                className="text-xs text-muted-foreground"
+              >
+                {resolveDeclareFalseTripTransition(isDriverPortal)}
+              </p>
             </div>
-          ) : showsDeclareFalseTripSplitBlockHint ? (
+          ) : !useOverflowMenu && showsDeclareFalseTripSplitBlockHint ? (
             <p
               id={declareFalseTripHintId}
               className="text-xs text-muted-foreground"

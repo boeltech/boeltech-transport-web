@@ -5,7 +5,10 @@ import {
   isVehicleStartableStatus,
 } from "@boeltech/cfdi-domain/reglas/trip-resource-sync";
 
-import { useStartTrip } from "@features/trips/application";
+import {
+  useCreateTrackingEventBatch,
+  useStartTrip,
+} from "@features/trips/application";
 import { useDriver } from "@features/drivers/application";
 import { DRIVER_STATUS_LABELS } from "@features/drivers/domain";
 import { useVehicle } from "@features/vehicles/application";
@@ -17,6 +20,7 @@ import type {
   TripStop,
 } from "@features/trips/domain";
 import { useToast } from "@shared/hooks";
+import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
@@ -56,6 +60,12 @@ import {
   type TrackingGpsCapture,
 } from "./trackingGpsCapture";
 import { createTrackingIdempotencyKey } from "./trackingIdempotency";
+import {
+  buildAtDockDispatchBatchEvents,
+  originStopAlreadyArrived,
+  suggestDefaultDispatchLocationIntent,
+  type DispatchLocationIntent,
+} from "./resolveDispatchLocationIntent";
 
 const copy = trackingCopy;
 const cargoGateCopy = cfdiEmissionIntentCopy.cargoGate;
@@ -71,8 +81,21 @@ export type StartTripSheetProps = {
   driverId?: string;
   /** Kilometraje inicial ya persistido en el viaje (wizard / edición). */
   tripStartMileage?: number | null;
-  /** Parada origen para ofrecer coords. guardadas al iniciar. */
-  originStop?: Pick<TripStop, "latitude" | "longitude"> | null;
+  /**
+   * Parada origen (id + coords + señales PD6/PD7).
+   * Coords para GPS; id/status/clientId para batch e intención.
+   */
+  originStop?: Pick<
+    TripStop,
+    | "id"
+    | "latitude"
+    | "longitude"
+    | "actualArrival"
+    | "status"
+    | "clientId"
+  > | null;
+  /** Señal barata origen≈sucursal (PD6 default). */
+  originBranchId?: string | null;
   /** ADR-0096 — defensa sheet si se abre sin cargas activas. */
   cfdiEmissionIntent?: CfdiEmissionIntent;
   cargos?: readonly TripCargo[];
@@ -92,6 +115,7 @@ function StartTripSheetBody({
   driverId,
   tripStartMileage,
   originStop,
+  originBranchId,
   cfdiEmissionIntent,
   cargos = [],
   onOpenChange,
@@ -103,8 +127,29 @@ function StartTripSheetBody({
   const [gps, setGps] = useState<TrackingGpsCapture | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
   const [mileageError, setMileageError] = useState<string | null>(null);
+  const [intentError, setIntentError] = useState<string | null>(null);
   const [cargoGateAlert, setCargoGateAlert] = useState(false);
-  const idempotencyKey = useMemo(() => createTrackingIdempotencyKey(), []);
+
+  const suggestedIntent = useMemo(
+    () =>
+      suggestDefaultDispatchLocationIntent({
+        originBranchId,
+        originStop,
+      }),
+    [originBranchId, originStop],
+  );
+  const [locationIntent, setLocationIntent] =
+    useState<DispatchLocationIntent>(suggestedIntent);
+
+  const alreadyArrived = originStopAlreadyArrived(originStop);
+  const dispatchIdempotencyKey = useMemo(
+    () => createTrackingIdempotencyKey(),
+    [],
+  );
+  const arriveIdempotencyKey = useMemo(
+    () => createTrackingIdempotencyKey(),
+    [],
+  );
 
   const { data: vehicle, isLoading: isLoadingVehicle } = useVehicle(
     vehicleId ?? "",
@@ -171,6 +216,25 @@ function StartTripSheetBody({
     },
   });
 
+  const batchMutation = useCreateTrackingEventBatch({
+    onSuccess: () => {
+      toast({
+        title: copy.toast.tripDispatchedAtDock,
+        description: copy.toast.tripDispatchedAtDockDescription(tripCode),
+        variant: "success",
+      });
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: copy.toast.startFailed,
+        description:
+          resolveSinCfdiCargoApiErrorMessage(error) ?? error.message,
+        variant: "error",
+      });
+    },
+  });
+
   const handleConfirm = () => {
     if (!resourceStartCheck.canStart) return;
 
@@ -196,20 +260,56 @@ function StartTripSheetBody({
       setTimeError(null);
     }
 
+    if (!locationIntent) {
+      setIntentError(copy.validation.dispatchIntentRequired);
+      hasError = true;
+    } else {
+      setIntentError(null);
+    }
+
+    const useBatch =
+      locationIntent === "at_dock" && !alreadyArrived && Boolean(originStop?.id);
+
+    if (locationIntent === "at_dock" && !alreadyArrived && !originStop?.id) {
+      setIntentError(copy.validation.dispatchOriginStopRequired);
+      hasError = true;
+    }
+
     if (hasError || parsed === null) return;
 
+    const occurredAtIso = localInputToUtcIso(occurredAt);
     const gpsFields = trackingGpsToEventFields(gps);
+
+    if (useBatch && originStop?.id) {
+      // T-BATCH: un solo POST con trip_dispatched + stop_arrived (nunca trip_departed).
+      batchMutation.mutate({
+        tripId,
+        events: buildAtDockDispatchBatchEvents({
+          originStopId: originStop.id,
+          occurredAtIso,
+          mileage: parsed,
+          latitude: gpsFields.latitude,
+          longitude: gpsFields.longitude,
+          accuracyMeters: gpsFields.accuracyMeters,
+          dispatchIdempotencyKey,
+          arriveIdempotencyKey,
+        }),
+      });
+      return;
+    }
+
+    // T-START: va en camino, o ya en andén con llegada previa (PD7) → solo dispatch.
     startMutation.mutate({
       id: tripId,
       mileage: parsed,
-      occurredAt: localInputToUtcIso(occurredAt),
+      occurredAt: occurredAtIso,
       latitude: gpsFields.latitude,
       longitude: gpsFields.longitude,
-      idempotencyKey,
+      idempotencyKey: dispatchIdempotencyKey,
     });
   };
 
-  const isPending = startMutation.isPending;
+  const isPending = startMutation.isPending || batchMutation.isPending;
   const startDisabled = isPending || !resourceStartCheck.canStart;
   const showAssignment = Boolean(vehicleId || driverId);
   const isLoadingAssignment =
@@ -228,6 +328,13 @@ function StartTripSheetBody({
   const driverLine = driverId
     ? (driver?.employee?.fullName ?? copy.sheet.loadingResource)
     : null;
+
+  const confirmLabel =
+    locationIntent === "at_dock" && !alreadyArrived
+      ? copy.action.dispatchAtDock
+      : locationIntent === "en_route"
+        ? copy.action.dispatchEnRoute
+        : copy.action.start;
 
   return (
     <>
@@ -282,9 +389,87 @@ function StartTripSheetBody({
           </div>
         ) : null}
 
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-foreground">
+            {copy.label.dispatchLocationIntent}
+          </legend>
+          {(
+            [
+              {
+                value: "at_dock" as const,
+                title: copy.sheet.dispatchIntentAtDock,
+                hint: copy.sheet.dispatchIntentAtDockHint,
+                suggested: suggestedIntent === "at_dock",
+              },
+              {
+                value: "en_route" as const,
+                title: copy.sheet.dispatchIntentEnRoute,
+                hint: copy.sheet.dispatchIntentEnRouteHint,
+                suggested: suggestedIntent === "en_route",
+              },
+            ] as const
+          ).map((option) => {
+            const selected = locationIntent === option.value;
+            const inputId = `dispatch-intent-${option.value}`;
+            return (
+              <label
+                key={option.value}
+                htmlFor={inputId}
+                className={cn(
+                  "flex cursor-pointer gap-3 rounded-lg border p-3 text-sm transition-colors",
+                  selected
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-muted/40",
+                  isPending && "pointer-events-none opacity-60",
+                )}
+              >
+                <input
+                  id={inputId}
+                  type="radio"
+                  name="dispatch-location-intent"
+                  value={option.value}
+                  checked={selected}
+                  disabled={isPending}
+                  className="mt-1"
+                  onChange={() => {
+                    setLocationIntent(option.value);
+                    if (intentError) setIntentError(null);
+                  }}
+                />
+                <span className="min-w-0 space-y-0.5">
+                  <span className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                    {option.title}
+                    {option.suggested ? (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        ({copy.sheet.dispatchIntentSuggested})
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {option.hint}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+          <FieldInlineError
+            fieldId="dispatch-intent"
+            message={intentError ?? undefined}
+          />
+        </fieldset>
+
+        {alreadyArrived ? (
+          <p
+            role="status"
+            className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+          >
+            {copy.hint.dispatchOriginAlreadyArrived}
+          </p>
+        ) : null}
+
         <TrackingOccurredAtField
           id="start-occurred-at"
-          label={copy.label.occurredAtDeparture}
+          label={copy.label.occurredAtDispatch}
           value={occurredAt}
           onChange={(next) => {
             setOccurredAt(next);
@@ -357,7 +542,7 @@ function StartTripSheetBody({
           ) : (
             <Play className="mr-2 h-4 w-4" />
           )}
-          {copy.action.start}
+          {confirmLabel}
         </Button>
       </SheetFooter>
     </>
@@ -371,6 +556,7 @@ export function StartTripSheet({
   driverId,
   tripStartMileage,
   originStop,
+  originBranchId,
   cfdiEmissionIntent,
   cargos,
   open,
@@ -398,6 +584,7 @@ export function StartTripSheet({
             driverId={driverId}
             tripStartMileage={tripStartMileage}
             originStop={originStop}
+            originBranchId={originBranchId}
             cfdiEmissionIntent={cfdiEmissionIntent}
             cargos={cargos}
             onOpenChange={onOpenChange}
