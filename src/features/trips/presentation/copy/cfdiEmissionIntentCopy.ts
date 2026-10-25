@@ -5,24 +5,25 @@
 
 export const cfdiEmissionIntentCopy = {
   field: {
+    /** D8: label Operate-first; jerga CFDI solo en hint. */
     label: "Liquidación",
-    hint: "Hereda del perfil del cliente. Puedes cambiarlo en este viaje.",
+    hint: "Hereda del perfil del cliente. Con factura se emite CFDI; en efectivo el cobro va sin CFDI. Puedes cambiarlo en este viaje.",
   },
   options: {
-    emitir_cfdi: "Emitir CFDI",
-    sin_cfdi_efectivo: "Sin CFDI · efectivo",
+    emitir_cfdi: "Con factura",
+    sin_cfdi_efectivo: "Efectivo sin factura",
   },
   chip: {
-    sinCfdi: "Sin CFDI · efectivo",
-    conCfdi: "Emitir CFDI",
+    sinCfdi: "Efectivo sin factura",
+    conCfdi: "Con factura",
   },
   complianceNotice:
     "Este modo no emite CFDI. La responsabilidad fiscal queda en tu operación.",
   overrideConfirm: {
-    title: "¿Liquidar sin CFDI?",
+    title: "¿Liquidar sin factura?",
     description:
-      "Este viaje no aparecerá en Por facturar. El cobro se registra en Costos.",
-    confirm: "Usar Sin CFDI · efectivo",
+      "Este viaje no aparecerá en Por facturar. El cobro se registra en Costos (sin CFDI).",
+    confirm: "Usar Efectivo sin factura",
     cancel: "Cancelar",
   },
   blockEmitir: {

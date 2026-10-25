@@ -5,8 +5,10 @@
  * Encapsula la lógica visual de "Facturación" en el header del detalle de viaje.
  *
  * ADR-0068: servicios adicionales · ADR-0079: viaje en falso · ADR-0081: reparto del flete.
+ * F3: primaria Facturar → decision sheet o skip (D2); menú tipado = atajo.
  */
 
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, FileText, Receipt, Users } from "lucide-react";
 import { Button } from "@shared/ui/button";
@@ -25,7 +27,12 @@ import { TripStatus, type Trip } from "@features/trips/domain";
 import { getTripInvoicingBadgeConfig, toDetailInvoicingBadge } from "@features/trips";
 import { useTripRevenueSplit } from "@features/trips/application";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
+import {
+  listEligibleTripInvoiceScopes,
+  resolveTripInvoiceScopeDecision,
+} from "../helpers/listEligibleTripInvoiceScopes";
 import { canUpsertTripRevenueSplit } from "./trip-fiscal/tripFiscalHelpers";
+import { TripInvoiceScopeDecisionSheet } from "./TripInvoiceScopeDecisionSheet";
 
 const copy = tripFiscalCopy.invoiceActions;
 
@@ -34,6 +41,12 @@ export interface TripInvoiceActionsProps {
   className?: string;
   presentation?: "inline" | "headerMenu";
   onOpenRevenueSplit?: () => void;
+  /**
+   * Control externo del sheet (p. ej. next-step Facturar en detalle).
+   * Si se omite, el sheet es interno al componente.
+   */
+  scopeSheetOpen?: boolean;
+  onScopeSheetOpenChange?: (open: boolean) => void;
 }
 
 function legLabel(leg: {
@@ -49,11 +62,17 @@ export function TripInvoiceActions({
   className,
   presentation = "inline",
   onOpenRevenueSplit,
+  scopeSheetOpen: scopeSheetOpenControlled,
+  onScopeSheetOpenChange,
 }: TripInvoiceActionsProps) {
   const navigate = useNavigate();
   const goToInvoice = (href: string) =>
     navigate(href, { state: { from: `/trips/${trip.id}` } });
   const { hasPermission } = usePermissions();
+
+  const [internalSheetOpen, setInternalSheetOpen] = useState(false);
+  const sheetOpen = scopeSheetOpenControlled ?? internalSheetOpen;
+  const setSheetOpen = onScopeSheetOpenChange ?? setInternalSheetOpen;
 
   const canCreateInvoices = hasPermission("invoices", "create");
   const canReadInvoices = hasPermission("invoices", "read");
@@ -98,10 +117,14 @@ export function TripInvoiceActions({
   });
 
   const hasDraftSplit = revenueSplit?.status === "draft";
-  const activeSplitLegs =
-    revenueSplit?.status === "active" ? revenueSplit.legs : [];
-  const pendingSplitLegs = activeSplitLegs.filter((leg) => !leg.invoiceId);
-  const invoicedSplitLegs = activeSplitLegs.filter((leg) => !!leg.invoiceId);
+  const pendingSplitLegs = useMemo(() => {
+    if (revenueSplit?.status !== "active") return [];
+    return revenueSplit.legs.filter((leg) => !leg.invoiceId);
+  }, [revenueSplit]);
+  const invoicedSplitLegs = useMemo(() => {
+    if (revenueSplit?.status !== "active") return [];
+    return revenueSplit.legs.filter((leg) => !!leg.invoiceId);
+  }, [revenueSplit]);
 
   const canShowSplitShareInvoiceAction =
     !isSinCfdiEfectivo &&
@@ -157,6 +180,57 @@ export function TripInvoiceActions({
   const canViewAccessories =
     (canReadInvoices || canCreateInvoices) && accessoryInvoices.length > 0;
 
+  const eligibleScopes = useMemo(
+    () =>
+      listEligibleTripInvoiceScopes({
+        tripId: trip.id,
+        status: trip.status,
+        operationalOutcome: trip.operationalOutcome,
+        cfdiEmissionIntent: trip.cfdiEmissionIntent,
+        canCreateInvoices,
+        canGenerateInvoice: trip.invoicing.canGenerateInvoice,
+        canGenerateFalseTripInvoice: trip.invoicing.canGenerateFalseTripInvoice,
+        canGenerateAccessoryInvoice: trip.invoicing.canGenerateAccessoryInvoice,
+        canGenerateSplitShareInvoice:
+          trip.invoicing.canGenerateSplitShareInvoice,
+        hasActiveSplit: trip.invoicing.hasActiveSplit,
+        cartaPorteAttached: trip.invoicing.cartaPorteAttached,
+        pendingSplitLegs,
+      }),
+    [
+      trip.id,
+      trip.status,
+      trip.operationalOutcome,
+      trip.cfdiEmissionIntent,
+      canCreateInvoices,
+      trip.invoicing.canGenerateInvoice,
+      trip.invoicing.canGenerateFalseTripInvoice,
+      trip.invoicing.canGenerateAccessoryInvoice,
+      trip.invoicing.canGenerateSplitShareInvoice,
+      trip.invoicing.hasActiveSplit,
+      trip.invoicing.cartaPorteAttached,
+      pendingSplitLegs,
+    ],
+  );
+
+  const createDecision = useMemo(
+    () => resolveTripInvoiceScopeDecision(eligibleScopes),
+    [eligibleScopes],
+  );
+
+  const sheetVariant =
+    createDecision.kind === "open_sheet" ? createDecision.variant : "full";
+
+  const handlePrimaryFacturar = () => {
+    if (createDecision.kind === "navigate") {
+      goToInvoice(createDecision.href);
+      return;
+    }
+    if (createDecision.kind === "open_sheet") {
+      setSheetOpen(true);
+    }
+  };
+
   const hasInvoiceEvidence =
     !!trip.invoicing.invoiceId ||
     !!trip.invoicing.invoiceFolio ||
@@ -167,8 +241,7 @@ export function TripInvoiceActions({
   // Usar CTAs efectivos (no solo flags API): cancelled hard-gatea creates
   // pero debe seguir mostrando ver factura / reparto.
   const canShowLinkedInvoiceState =
-    !canShowCreateInvoiceAction &&
-    !canShowFalseTripInvoiceAction &&
+    createDecision.kind === "none" &&
     (hasInvoiceEvidence ||
       canShowAccessoryInvoiceAction ||
       canShowSplitMenuGroup) &&
@@ -177,12 +250,11 @@ export function TripInvoiceActions({
       canShowAccessoryInvoiceAction ||
       canShowSplitMenuGroup);
 
+  const showPrimaryFacturar = createDecision.kind !== "none";
+
   if (
-    !canShowCreateInvoiceAction &&
-    !canShowFalseTripInvoiceAction &&
+    !showPrimaryFacturar &&
     !canShowLinkedInvoiceState &&
-    !canShowAccessoryInvoiceAction &&
-    !canShowSplitShareInvoiceAction &&
     !canShowRevenueSplitEntry &&
     !canShowPendingAccountantHint
   ) {
@@ -206,6 +278,16 @@ export function TripInvoiceActions({
   });
 
   const showPatioEscalateHint = !canOperatePatio && hasDraftSplit;
+
+  const scopeSheet = (
+    <TripInvoiceScopeDecisionSheet
+      open={sheetOpen}
+      onOpenChange={setSheetOpen}
+      scopes={eligibleScopes}
+      variant={sheetVariant}
+      onSelectHref={goToInvoice}
+    />
+  );
 
   const revenueSplitMenuItem =
     canShowRevenueSplitEntry &&
@@ -316,8 +398,7 @@ export function TripInvoiceActions({
 
   if (presentation === "headerMenu") {
     const hasHeaderMenuWork =
-      canShowCreateInvoiceAction ||
-      canShowFalseTripInvoiceAction ||
+      showPrimaryFacturar ||
       canShowLinkedInvoiceState ||
       canShowAccessoryInvoiceAction ||
       canShowSplitMenuGroup ||
@@ -381,6 +462,7 @@ export function TripInvoiceActions({
             </>
           ) : null}
 
+          {/* Atajos tipados (mismos href que el sheet) — no abren camino distinto. */}
           {canShowCreateInvoiceAction ? (
             <>
               {showMenuHeader || showPatioEscalateHint ? (
@@ -423,27 +505,32 @@ export function TripInvoiceActions({
       </DropdownMenu>
     );
 
-    if (!pendingAccountantBadge) return menu;
-
     return (
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={`flex flex-wrap items-center gap-2 ${className ?? ""}`}>
         {pendingAccountantBadge}
+        {showPrimaryFacturar ? (
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={handlePrimaryFacturar}
+          >
+            <Receipt className="h-4 w-4 mr-1.5" />
+            {copy.generatePrimary}
+          </Button>
+        ) : null}
         {menu}
+        {scopeSheet}
       </div>
     );
   }
 
-  if (canShowCreateInvoiceAction || canShowFalseTripInvoiceAction) {
-    const createHref = canShowFalseTripInvoiceAction
-      ? createFalseTripHref
-      : createPrimaryHref;
+  if (showPrimaryFacturar) {
     return (
       <div className={`flex flex-wrap items-center gap-2 ${className ?? ""}`}>
-        <Button variant="outline" onClick={() => goToInvoice(createHref)}>
+        <Button variant="outline" onClick={handlePrimaryFacturar}>
           <Receipt className="h-4 w-4 mr-2" />
-          {canShowFalseTripInvoiceAction
-            ? copy.generateFalseTrip
-            : copy.generatePrimary}
+          {copy.generatePrimary}
         </Button>
         {canShowRevenueSplitEntry && onOpenRevenueSplit && canOperatePatio ? (
           <Button variant="outline" onClick={onOpenRevenueSplit}>
@@ -456,6 +543,7 @@ export function TripInvoiceActions({
             {copy.patioEscalateHint}
           </p>
         ) : null}
+        {scopeSheet}
       </div>
     );
   }
@@ -494,39 +582,8 @@ export function TripInvoiceActions({
             {copy.viewPrimary}
           </Button>
         ) : null}
-        {canShowSplitShareInvoiceAction
-          ? pendingSplitLegs.map((leg) => {
-              const label = legLabel(leg);
-              const attach =
-                leg.suggestedCartaPorte && !trip.invoicing.cartaPorteAttached;
-              return (
-                <Button
-                  key={leg.id}
-                  variant="outline"
-                  onClick={() =>
-                    goToInvoice(
-                      buildInvoiceCreateHref({
-                        tripId: trip.id,
-                        scope: "split_share",
-                        legId: leg.id,
-                        attachCartaPorte: attach,
-                      }),
-                    )
-                  }
-                >
-                  <Receipt className="h-4 w-4 mr-2" />
-                  {copy.generateSplitShare(label)}
-                </Button>
-              );
-            })
-          : null}
-        {canShowAccessoryInvoiceAction ? (
-          <Button variant="outline" onClick={() => goToInvoice(createAccessoryHref)}>
-            <Receipt className="h-4 w-4 mr-2" />
-            {copy.generateAccessory}
-          </Button>
-        ) : null}
       </div>
+      {scopeSheet}
     </div>
   );
 }

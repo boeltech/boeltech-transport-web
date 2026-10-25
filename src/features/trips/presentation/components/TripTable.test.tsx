@@ -101,7 +101,7 @@ describe("TripTable", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("usa el badge Requiere atención en lugar de Fiscal", () => {
+  it("usa el badge Atención fiscal en lugar de Fiscal", () => {
     renderWithProviders(
       <TripTable
         trips={[listTrip({ requiresFiscalAttention: true })]}

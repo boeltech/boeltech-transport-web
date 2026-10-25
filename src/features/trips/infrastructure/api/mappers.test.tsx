@@ -129,6 +129,7 @@ describe("mapApiTripListItem invoicing (ADR-0068)", () => {
       hasActiveInvoice: false,
       hasActivePrimaryInvoice: false,
       hasActivePrincipalInvoice: true,
+      primaryTransportInvoiceId: null,
       canGenerateFalseTripInvoice: false,
       canGenerateInvoice: false,
       invoiceId: "inv-falso-1",

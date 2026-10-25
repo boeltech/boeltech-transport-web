@@ -177,6 +177,28 @@ export const tripFiscalCopy = {
     patioEscalateHint:
       "Pide a operación activar el reparto o declarar el viaje en falso. Tú no lo armas desde aquí.",
   },
+  /** Decision sheet scopes (D2 / F3) — «¿Qué vas a facturar?» */
+  scopeDecisionSheet: {
+    title: "¿Qué vas a facturar?",
+    description:
+      "Elige el tipo de cobro. Cada opción abre el alta con el alcance correcto.",
+    /** Solo split multi-porción (un scope, N destinos). */
+    splitLegsTitle: "¿Qué porción vas a facturar?",
+    splitLegsDescription:
+      "Este viaje reparte el flete entre clientes. Elige la porción pendiente.",
+    optionPrimary: "Flete (con Carta Porte)",
+    optionPrimaryHint: "Cobro principal del viaje.",
+    optionFalseTrip: "Viaje en falso",
+    optionFalseTripHint:
+      "Ingreso sin Carta Porte cuando el viaje no se realizó. No es lo mismo que cancelar el viaje.",
+    optionAccessory: "Servicios adicionales (sin flete)",
+    optionAccessoryHint: "Maniobras u otros cargos sin flete ni Carta Porte.",
+    optionSplitShare: (label: string) => `Porción · ${label}`,
+    optionSplitShareHint: "Parte del flete para este cliente del reparto.",
+    cancelVsFalseHint:
+      "Cancelar el viaje no factura. Si hubo un cobro por viaje no realizado, usa «Viaje en falso».",
+    close: "Cerrar",
+  },
   invoicesSection: {
     title: "Facturas del viaje",
     primaryLabel: "Flete",
@@ -187,6 +209,9 @@ export const tripFiscalCopy = {
     openInvoice: "Abrir",
     empty: "Aún no hay facturas vinculadas a este viaje.",
     compactTitle: "Facturación del viaje",
+    /** F4: consola mid-flight colapsada sin ATF. */
+    expand: "Mostrar",
+    collapse: "Ocultar",
     openMenuHint: "También en el menú Facturación",
     collectionByReceiver: "Cobranza por receptor — un saldo por CFDI",
     goToRouteTab: "Ir a Ruta",

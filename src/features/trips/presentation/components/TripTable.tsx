@@ -33,7 +33,7 @@ interface TripTableProps {
   onCancel?: (id: string) => void;
   /** Portal cliente: oculta columna Cliente (siempre es el mismo). */
   hideClientColumn?: boolean;
-  /** Portal cliente: oculta badge operativo «Requiere atención». */
+  /** Portal cliente: oculta badge operativo «Atención fiscal». */
   hideFiscalAttentionBadge?: boolean;
 }
 

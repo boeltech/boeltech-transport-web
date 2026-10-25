@@ -40,7 +40,15 @@ export interface TripReadinessRailProps {
   originCity?: string | null;
   destinationCity?: string | null;
   onItemClick?: (item: TripReadinessItem) => void;
+  /**
+   * CTA de navegación a Seguimiento en el rail.
+   * Con next-step block (F2) el caller omite este prop para no competir.
+   */
   onGoToTracking?: () => void;
+  /**
+   * `secondary` (default F2): checklist de apoyo, sin sombra ni peso de card primaria.
+   */
+  emphasis?: "primary" | "secondary";
 }
 
 function chipLabel(item: TripReadinessItem): string {
@@ -113,6 +121,7 @@ export function TripReadinessRail({
   destinationCity,
   onItemClick,
   onGoToTracking,
+  emphasis = "secondary",
 }: TripReadinessRailProps) {
   const isDraft = status === TripStatus.DRAFT;
   const isScheduled = status === TripStatus.SCHEDULED;
@@ -144,14 +153,36 @@ export function TripReadinessRail({
   const title = isScheduled
     ? copy.readiness.titleScheduled
     : copy.readiness.title;
+  const isSecondary = emphasis === "secondary";
 
   return (
     <div
-      className="rounded-xl border bg-card px-4 py-3 shadow-sm"
+      className={cn(
+        "rounded-xl border px-4 py-3",
+        isSecondary
+          ? "border-border/70 bg-muted/30 shadow-none"
+          : "border-border bg-card shadow-sm",
+      )}
       data-testid="trip-readiness-rail"
+      data-emphasis={emphasis}
     >
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="mt-1 text-sm text-foreground">{summary}</p>
+      <p
+        className={cn(
+          isSecondary
+            ? "text-xs font-medium text-muted-foreground"
+            : "text-sm font-semibold text-foreground",
+        )}
+      >
+        {title}
+      </p>
+      <p
+        className={cn(
+          "mt-1 text-sm",
+          isSecondary ? "text-muted-foreground" : "text-foreground",
+        )}
+      >
+        {summary}
+      </p>
       {isScheduled && onGoToTracking ? (
         <Button
           type="button"

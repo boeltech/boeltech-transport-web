@@ -16,6 +16,7 @@ import { Suspense, useEffect, useMemo, useState, type ReactElement } from "react
 import {
   Link,
   useLocation,
+  useNavigate,
   useParams,
   useSearchParams,
 } from "react-router-dom";
@@ -39,7 +40,6 @@ import {
   Loader2,
   AlertTriangle,
   ChevronDown,
-  Play,
 } from "lucide-react";
 
 // ── Hooks de Application Layer ─────────────────────────────────────────────
@@ -63,6 +63,7 @@ import {
   type StopTypeValue,
   TripStatus,
   CargoStatus,
+  StopStatus,
   canReassignTripFleet,
   getOrderedStops,
   resolveOperationalCashSummary,
@@ -90,6 +91,7 @@ import {
   shouldShowTripInvoicingConsole,
 } from "../components/shouldShowTripInvoicingConsole";
 import { TripInvoicingConsole } from "../components/TripInvoicingConsole";
+import { TripMidTripAdjustStrip } from "../components/TripMidTripAdjustStrip";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripLiquidacionChip } from "../components/TripLiquidacionChip";
 import { canEditTripLiquidacionIntent } from "../utils/tripLiquidacionMutability";
@@ -101,8 +103,16 @@ import {
 import { TripDetailOperationTab } from "../components/trip-operation";
 import { TripDetailRouteTab } from "../components/trip-route";
 import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfirmReserveButton";
+import { TripNextStepBlock } from "../components/trip-readiness/TripNextStepBlock";
 import { TripReadinessRail } from "../components/trip-readiness/TripReadinessRail";
 import { getCargoWeightKg } from "../components/trip-cargos/tripCargoDetailHelpers";
+import { resolveTripNextStepActions } from "../helpers/resolveTripNextStepActions";
+import { listMidTripAdjustLinks } from "../helpers/listMidTripAdjustLinks";
+import type { MidTripAdjustLink } from "../helpers/listMidTripAdjustLinks";
+import {
+  listEligibleTripInvoiceScopes,
+  resolveTripInvoiceScopeDecision,
+} from "../helpers/listEligibleTripInvoiceScopes";
 import { computeTripReadiness } from "../hooks/useTripReadiness";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 import { tripDetailCopy } from "../copy";
@@ -163,6 +173,7 @@ export function TripDetailPage() {
     location.state?.from as string | undefined,
   );
   const backLabel = resolveTripWayfindingBackLabel(backHref);
+  const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isClientPortal = isClientPortalRole(role);
@@ -178,6 +189,7 @@ export function TripDetailPage() {
   const canDeleteExpense = hasPermission("expenses", "delete");
   const canApproveTripExpenses = hasPermission("finance_approvals", "update");
   const canReadInvoices = hasPermission("invoices", "read");
+  const canCreateInvoices = hasPermission("invoices", "create");
   const canSubstituteFiscal = canShowFiscalSubstituteCta({
     canAdminManagerFiscal:
       role === ROLES.ADMIN || role === ROLES.MANAGER,
@@ -379,6 +391,7 @@ export function TripDetailPage() {
     lines: readonly string[];
   } | null>(null);
   const [revenueSplitSheetOpen, setRevenueSplitSheetOpen] = useState(false);
+  const [invoiceScopeSheetOpen, setInvoiceScopeSheetOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -401,6 +414,82 @@ export function TripDetailPage() {
     );
   }, [trip, cargos.length, satConfigAutotransporteCode]);
 
+  /** Split legs para scopes Facturar (F3); comparte cache con TripInvoiceActions. */
+  const needsInvoiceScopeSplit =
+    Boolean(trip) &&
+    !isLeanTripPortal &&
+    canCreateInvoices &&
+    trip?.cfdiEmissionIntent !== "sin_cfdi_efectivo" &&
+    trip?.operationalOutcome !== "false_trip" &&
+    (Boolean(trip?.invoicing.hasActiveSplit) ||
+      Boolean(trip?.invoicing.canGenerateInvoice) ||
+      (trip?.invoicing.splitLegsTotal ?? 0) > 0);
+
+  const { data: revenueSplitForInvoiceScopes } = useTripRevenueSplit(tripId, {
+    enabled: Boolean(tripId) && needsInvoiceScopeSplit,
+  });
+
+  const pendingSplitLegsForInvoice = useMemo(() => {
+    if (revenueSplitForInvoiceScopes?.status !== "active") return [];
+    return revenueSplitForInvoiceScopes.legs.filter((leg) => !leg.invoiceId);
+  }, [revenueSplitForInvoiceScopes]);
+
+  /** Facturar elegible vía helper F3 (misma verdad que menú / sheet). */
+  const invoiceScopeDecision = useMemo(() => {
+    if (!trip || isLeanTripPortal) {
+      return { kind: "none" as const };
+    }
+    const scopes = listEligibleTripInvoiceScopes({
+      tripId: trip.id,
+      status: trip.status,
+      operationalOutcome: trip.operationalOutcome,
+      cfdiEmissionIntent: trip.cfdiEmissionIntent,
+      canCreateInvoices,
+      canGenerateInvoice: trip.invoicing.canGenerateInvoice,
+      canGenerateFalseTripInvoice: trip.invoicing.canGenerateFalseTripInvoice,
+      canGenerateAccessoryInvoice: trip.invoicing.canGenerateAccessoryInvoice,
+      canGenerateSplitShareInvoice: trip.invoicing.canGenerateSplitShareInvoice,
+      hasActiveSplit: trip.invoicing.hasActiveSplit,
+      cartaPorteAttached: trip.invoicing.cartaPorteAttached,
+      pendingSplitLegs: pendingSplitLegsForInvoice,
+    });
+    return resolveTripInvoiceScopeDecision(scopes);
+  }, [
+    trip,
+    isLeanTripPortal,
+    canCreateInvoices,
+    pendingSplitLegsForInvoice,
+  ]);
+
+  const canInvoiceNextStep = invoiceScopeDecision.kind !== "none";
+
+  const nextStepPlan = useMemo(() => {
+    if (!trip || isLeanTripPortal || !tripReadiness) return null;
+    const routeReady = tripReadiness.items.some(
+      (item) => item.id === "route" && item.done,
+    );
+    const cargoReady = tripReadiness.items.some(
+      (item) => item.id === "cargo" && item.done,
+    );
+    return resolveTripNextStepActions({
+      status: displayStatus ?? trip.status,
+      routeReady,
+      cargoReady,
+      canUpdateTrip,
+      canInvoice: canInvoiceNextStep,
+      requiresFiscalAttention: Boolean(trip.requiresFiscalAttention),
+      activeTab: resolvedActiveTab,
+    });
+  }, [
+    trip,
+    isLeanTripPortal,
+    tripReadiness,
+    displayStatus,
+    canUpdateTrip,
+    canInvoiceNextStep,
+    resolvedActiveTab,
+  ]);
+
   const tripAlerts = useMemo(() => {
     if (!trip) return undefined;
 
@@ -420,20 +509,7 @@ export function TripDetailPage() {
           clientName={trip.client?.legalName}
           originCity={trip.originCity}
           destinationCity={trip.destinationCity}
-          onGoToTracking={
-            displayStatus === TripStatus.SCHEDULED
-              ? () => {
-                  setSearchParams(
-                    (prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set("tab", "tracking");
-                      return next;
-                    },
-                    { replace: true },
-                  );
-                }
-              : undefined
-          }
+          emphasis="secondary"
           onItemClick={(item) => {
             if (!item.tab) return;
             setSearchParams(
@@ -462,7 +538,8 @@ export function TripDetailPage() {
       });
 
       if (fiscalAlertSlot === "falseTrip") {
-        const cancelInvoiceId = trip.invoicing.invoiceId;
+        const cancelInvoiceId =
+          trip.invoicing.primaryTransportInvoiceId ?? trip.invoicing.invoiceId;
         cards.push(
           <DetailAlertCard
             key="false-trip-cancel-cfdi"
@@ -1067,6 +1144,122 @@ export function TripDetailPage() {
     role,
   });
 
+  const nextStepOwnsTracking = Boolean(
+    nextStepPlan &&
+      (nextStepPlan.primary.id === "go_to_tracking" ||
+        nextStepPlan.secondaries.some((a) => a.id === "go_to_tracking")),
+  );
+
+  const goToNextStepTab = (tab: "route" | "cargo" | "tracking") => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", tab);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const handleNextStepInvoice = () => {
+    if (invoiceScopeDecision.kind === "navigate") {
+      navigate(invoiceScopeDecision.href, {
+        state: { from: tripDetailFromHref },
+      });
+      return;
+    }
+    if (invoiceScopeDecision.kind === "open_sheet") {
+      setInvoiceScopeSheetOpen(true);
+    }
+  };
+
+  const confirmReserveButton = (
+    <TripConfirmReserveButton
+      tripId={trip.id}
+      tripCode={trip.tripCode}
+      status={resolvedDisplayStatus}
+      clientId={trip.clientId}
+      prospectiveAmount={trip.costs.baseRate}
+      cfdiDocumentIntent={trip.cfdiDocumentIntent}
+      scheduledArrival={trip.scheduledArrival}
+      fleetReady={tripReadiness?.fleetReady ?? true}
+      startMileage={trip.mileage.start}
+      suggestedStartMileage={vehicle?.currentMileage}
+      onActionComplete={(updated) => {
+        const f = updated?.fiscalActionRequired;
+        if (f) {
+          setPostCancelFiscal({
+            title: shell.alert.postCancelFiscalTitle,
+            lines: buildPostCancelFiscalAlertLines(f),
+          });
+        }
+      }}
+    />
+  );
+
+  const nextStepAlerts = nextStepPlan ? (
+    <TripNextStepBlock
+      plan={nextStepPlan}
+      confirmReserveSlot={
+        nextStepPlan.primary.id === "confirm_reserve"
+          ? confirmReserveButton
+          : undefined
+      }
+      onNavigateTab={goToNextStepTab}
+      onInvoice={handleNextStepInvoice}
+    />
+  ) : null;
+
+  /** F4 / D7: strip mid-trip — deep-links sin tab nuevo (chrome alerts). */
+  const midTripAdjustLinks =
+    !isLeanTripPortal && resolvedDisplayStatus === TripStatus.IN_PROGRESS
+      ? listMidTripAdjustLinks({
+          canReplanPendingStops,
+          canAppendCargo,
+          canReassignFleet,
+        })
+      : [];
+  const pendingStopCountForStrip = orderedStops.filter(
+    (stop) => stop.status === StopStatus.PENDING,
+  ).length;
+
+  const handleMidTripAdjustNavigate = (link: MidTripAdjustLink) => {
+    if (link.openAssignFleet) {
+      setSearchParams(
+        (prev) => applyOpenAssignFleetSearchParams(prev),
+        { replace: true },
+      );
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", link.tab);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const midTripAdjustStrip =
+    midTripAdjustLinks.length > 0 ? (
+      <TripMidTripAdjustStrip
+        links={midTripAdjustLinks}
+        pendingStopCount={pendingStopCountForStrip}
+        onNavigate={handleMidTripAdjustNavigate}
+      />
+    ) : null;
+
+  /** ATF banners (en tripAlerts) van antes del strip: el job fiscal no pierde jerarquía. */
+  const composedAlerts =
+    nextStepAlerts || tripAlerts || midTripAdjustStrip ? (
+      <div className="space-y-3">
+        {nextStepAlerts}
+        {tripAlerts}
+        {midTripAdjustStrip}
+      </div>
+    ) : undefined;
+
   return (
     <>
       <DetailPageShell
@@ -1162,31 +1355,16 @@ export function TripDetailPage() {
               ) : null
             ) : isDriverPortal ? null : (
               <>
-                <TripConfirmReserveButton
-                  tripId={trip.id}
-                  tripCode={trip.tripCode}
-                  status={resolvedDisplayStatus}
-                  clientId={trip.clientId}
-                  prospectiveAmount={trip.costs.baseRate}
-                  cfdiDocumentIntent={trip.cfdiDocumentIntent}
-                  scheduledArrival={trip.scheduledArrival}
-                  fleetReady={tripReadiness?.fleetReady ?? true}
-                  startMileage={trip.mileage.start}
-                  suggestedStartMileage={vehicle?.currentMileage}
-                  onActionComplete={(updated) => {
-                    // Mutaciones invalidan trip/cargos vía React Query; sin refetch manual.
-                    const f = updated?.fiscalActionRequired;
-                    if (f) {
-                      setPostCancelFiscal({
-                        title: shell.alert.postCancelFiscalTitle,
-                        lines: buildPostCancelFiscalAlertLines(f),
-                      });
-                    }
-                  }}
-                />
-                {/* D2: Phase CTA — navigate to tracking tab for scheduled/in_progress */}
+                {/* F2: Confirmar vive en next-step when draft_ready; oculta en incompleta. */}
+                {!nextStepPlan ||
+                (nextStepPlan.phase !== "draft_incomplete" &&
+                  nextStepPlan.primary.id !== "confirm_reserve")
+                  ? confirmReserveButton
+                  : null}
+                {/* F2: Seguimiento elevated in next-step; header solo si el bloque no lo posee. */}
                 {resolvedDisplayStatus === TripStatus.SCHEDULED &&
-                resolvedActiveTab !== "tracking" ? (
+                resolvedActiveTab !== "tracking" &&
+                !nextStepOwnsTracking ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -1202,12 +1380,13 @@ export function TripDetailPage() {
                       );
                     }}
                   >
-                    <Play className="mr-1.5 h-4 w-4" />
-                    {shell.action.startTrip}
+                    <Navigation className="mr-1.5 h-4 w-4" />
+                    {shell.action.goToTracking}
                   </Button>
                 ) : null}
                 {resolvedDisplayStatus === TripStatus.IN_PROGRESS &&
-                resolvedActiveTab !== "tracking" ? (
+                resolvedActiveTab !== "tracking" &&
+                !nextStepOwnsTracking ? (
                   <Button
                     type="button"
                     variant="default"
@@ -1231,6 +1410,8 @@ export function TripDetailPage() {
                   trip={trip}
                   presentation="headerMenu"
                   onOpenRevenueSplit={() => setRevenueSplitSheetOpen(true)}
+                  scopeSheetOpen={invoiceScopeSheetOpen}
+                  onScopeSheetOpenChange={setInvoiceScopeSheetOpen}
                 />
                 <TripActions
                   variant="detailMenu"
@@ -1260,7 +1441,7 @@ export function TripDetailPage() {
           </div>
         ),
       }}
-      alerts={tripAlerts}
+      alerts={composedAlerts}
       preStats={
         isLeanTripPortal ||
         !shouldShowTripInvoicingConsole(trip, Boolean(postCancelFiscal))

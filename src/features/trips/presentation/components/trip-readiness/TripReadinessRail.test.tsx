@@ -28,6 +28,16 @@ describe("TripReadinessRail", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("defaults to secondary emphasis (does not compete with next-step)", () => {
+    render(
+      <TripReadinessRail status={TripStatus.DRAFT} items={ITEMS} />,
+    );
+    expect(screen.getByTestId("trip-readiness-rail")).toHaveAttribute(
+      "data-emphasis",
+      "secondary",
+    );
+  });
+
   it("renders schedule and timbrar groups in draft", () => {
     render(
       <TripReadinessRail

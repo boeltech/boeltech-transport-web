@@ -42,6 +42,34 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.action.more).toBe("Más");
   });
 
+  it("CTA header scheduled navega a Seguimiento; no afirma mutación start (D3)", () => {
+    expect(shellCopy.action.startTrip).toBe("Ir a Seguimiento");
+    expect(shellCopy.action.startTrip).toBe(shellCopy.action.goToTracking);
+    expect(shellCopy.action.startTrip).not.toMatch(/iniciar viaje/i);
+  });
+
+  it("next-step F2: copy Operate sin mutación falsa de start", () => {
+    expect(shellCopy.nextStep.title).toBe("Siguiente paso");
+    expect(shellCopy.nextStep.completeRouteCargo).toMatch(/ruta y cargas/i);
+    expect(shellCopy.nextStep.confirmReserve).toBe("Confirmar reserva");
+    expect(shellCopy.nextStep.goToTracking).toBe("Ir a Seguimiento");
+    expect(shellCopy.nextStep.invoice).toBe("Facturar");
+    expect(shellCopy.nextStep.descriptionScheduled).toMatch(/Programado/i);
+    expect(shellCopy.nextStep.goToTracking).not.toMatch(/iniciar viaje/i);
+  });
+
+  it("mid-trip strip F4: tres deep-links Operate sin tab nuevo", () => {
+    expect(shellCopy.midTripStrip.title).toMatch(/ajustes/i);
+    expect(shellCopy.midTripStrip.pendingStops).toMatch(/paradas pendientes/i);
+    expect(shellCopy.midTripStrip.pendingStopsCount(1)).toBe("1 parada pendiente");
+    expect(shellCopy.midTripStrip.pendingStopsCount(3)).toBe(
+      "3 paradas pendientes",
+    );
+    expect(shellCopy.midTripStrip.addCargo).toMatch(/carga/i);
+    expect(shellCopy.midTripStrip.reassignFleet).toMatch(/reasignar/i);
+    expect(flattenCopy(shellCopy.midTripStrip)).not.toMatch(/\bCFDI\b/);
+  });
+
   it("accountant: abrir factura y pide gerente, sin CTA Sustituir", () => {
     expect(shellCopy.alert.fiscalAttentionOpenInvoiceCta).toBe("Abrir factura");
     expect(shellCopy.alert.fiscalAttentionAskManagerBody).toMatch(/gerente/i);

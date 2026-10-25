@@ -10,13 +10,14 @@ describe("tripsListCopy", () => {
     expect(tripsListCopy.chip.opsDay).toBe("Viajes de hoy");
     expect(tripsListCopy.filter.showFilters).toBe("Filtros");
     expect(tripsListCopy.filter.originBranchLabel).toBe("Sucursal origen");
-    expect(tripsListCopy.filter.fiscalLabel).toBe("Atención de factura");
-    expect(tripsListCopy.filter.fiscalAttention).toBe("Solo con atención");
+    expect(tripsListCopy.filter.fiscalLabel).toBe("Atención fiscal");
+    expect(tripsListCopy.filter.fiscalAttention).toBe("Atención fiscal");
+    expect(tripsListCopy.chip.fiscalAttention).toBe("Atención fiscal");
     expect(tripsListCopy.invoiceStatus.stamped).toBe("Facturado");
     expect(tripsListCopy.invoiceStatus.cancellation_pending).toBe(
       "Cancelación en proceso",
     );
-    expect(tripsListCopy.badge.fiscalAttention).toBe("Requiere atención");
+    expect(tripsListCopy.badge.fiscalAttention).toBe("Atención fiscal");
   });
 
   it("tiene copy de consulta para portal cliente", () => {
@@ -195,6 +196,12 @@ describe("tripsListCopy", () => {
     expect(tripsListCopy.workbench.buckets.fiscalAttention).toBe(
       "Atención fiscal",
     );
+    expect(tripsListCopy.filter.fiscalAttention).toBe(
+      tripsListCopy.workbench.buckets.fiscalAttention,
+    );
+    expect(tripsListCopy.chip.fiscalAttention).toBe(
+      tripsListCopy.workbench.buckets.fiscalAttention,
+    );
     expect(tripsListCopy.workbench.bucketDescriptions.fiscalAttention).toMatch(
       /sustitución/i,
     );
@@ -210,6 +217,22 @@ describe("tripsListCopy", () => {
     expect(
       tripsListCopy.workbench.bucketDescriptions.fiscalAttentionEscalate,
     ).not.toMatch(/sustitución/i);
+  });
+
+  it("glosario Reserva/Programado y Por facturar desde Programado (D1)", () => {
+    expect(tripsListCopy.workbench.bucketDescriptions.draft).toMatch(/Reserva/i);
+    expect(tripsListCopy.workbench.bucketDescriptions.scheduled).toMatch(
+      /Programado/i,
+    );
+    expect(tripsListCopy.workbench.bucketDescriptions.scheduled).toMatch(
+      /Por facturar/i,
+    );
+    expect(tripsListCopy.workbench.bucketDescriptions.scheduled).not.toMatch(
+      /solo al completar|solo completados/i,
+    );
+    expect(tripsListCopy.page.descriptionAccountant).toMatch(/Programados/i);
+    expect(tripsListCopy.accountantOrientation.body).toMatch(/Programados/i);
+    expect(tripsListCopy.invoiceablePicker.description).toMatch(/Programado/i);
   });
 
   it("incluye cliente en el placeholder porque el API search lo cubre", () => {

@@ -182,9 +182,13 @@ export const shellCopy = {
     confirm: "Confirmar",
     cancel: "Cancelar",
     more: "Más",
-    /** D2: CTA de fase en header — navegación directa a tracking. */
+    /** D3: CTA de fase en header — solo navega a Seguimiento; no muta start. */
     goToTracking: "Ir a Seguimiento",
-    startTrip: "Iniciar viaje",
+    /**
+     * Alias de navegación (mismo job que `goToTracking`).
+     * No afirma «Iniciar viaje»: la mutación start vive en el tab Seguimiento.
+     */
+    startTrip: "Ir a Seguimiento",
     closeTrip: "Cerrar viaje",
   },
   toast: {
@@ -225,5 +229,44 @@ export const shellCopy = {
       `Reserva de ${client}: ${route}. Para programar falta: ${missing}.`,
     fallbackClient: "este cliente",
     fallbackRoute: "ruta por confirmar",
+  },
+  /**
+   * Bloque next-step above-the-fold (D4 / F2).
+   * Una primaria + ≤2 secundarias; el rail de readiness no compite.
+   */
+  nextStep: {
+    title: "Siguiente paso",
+    completeRouteCargo: "Completar ruta y cargas",
+    completeRoute: "Completar ruta",
+    completeCargo: "Completar cargas",
+    confirmReserve: "Confirmar reserva",
+    goToTracking: "Ir a Seguimiento",
+    invoice: "Facturar",
+    goToRoute: "Ir a Ruta",
+    goToCargo: "Ir a Cargas",
+    adjustRoute: "Ajustar ruta",
+    adjustCargo: "Ajustar cargas",
+    descriptionDraftIncomplete:
+      "Arma paradas y cargas en el detalle antes de confirmar la reserva.",
+    descriptionDraftReady:
+      "Ruta y cargas listas. Confirma para pasar el viaje a Programado.",
+    descriptionScheduled:
+      "Puedes ir a Seguimiento o empezar a facturar desde Programado.",
+    descriptionInProgress: "Sigue el viaje en Seguimiento o factura si aplica.",
+    descriptionCompleted: "Emite la factura del viaje cuando corresponda.",
+  },
+  /**
+   * Strip mid-trip (F4 / D7): mapa de ajustes en chrome — sin tab nuevo.
+   * Deep-links a Ruta (paradas pendientes), Cargas y reasignar flota.
+   */
+  midTripStrip: {
+    title: "Ajustes en ruta",
+    description:
+      "Paradas pendientes, carga extra o cambio de flota — sin dejar el viaje.",
+    pendingStops: "Paradas pendientes",
+    pendingStopsCount: (count: number) =>
+      count === 1 ? "1 parada pendiente" : `${count} paradas pendientes`,
+    addCargo: "Agregar carga",
+    reassignFleet: "Reasignar flota",
   },
 } as const;

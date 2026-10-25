@@ -210,6 +210,7 @@ function mapApiTripInvoicing(
     hasActiveInvoice,
     hasActivePrimaryInvoice,
     hasActivePrincipalInvoice,
+    primaryTransportInvoiceId: api?.primary_transport_invoice_id ?? null,
     canGenerateInvoice,
     canGenerateAccessoryInvoice,
     canGenerateFalseTripInvoice,

@@ -8,9 +8,9 @@ export const tripsListCopy = {
     /** Despachador: job del día (D7), no «administra tu flota». */
     descriptionDispatcher:
       "Reserva, completa ruta y cargas, confirma e inicia. Aquí está el trabajo del día.",
-    /** Contador: lectura para facturar (D8). */
+    /** Contador: lectura para facturar (D8). Por facturar incluye elegibles desde Programado (D1). */
     descriptionAccountant:
-      "Lee el viaje para facturar. El primer CFDI está en Por facturar. Aquí, Atención fiscal es la cola de revisión de facturas ya emitidas.",
+      "Lee el viaje para facturar. El primer CFDI está en Por facturar (puede incluir viajes Programados elegibles). Aquí, Atención fiscal es la cola de revisión de facturas ya emitidas.",
     /** Gerente: receptor del trámite SAT (D6). No flota, no 4 pasos. */
     descriptionManager:
       "Cuando facturación te pide cancelar o sustituir, entra por Atención fiscal. Tú ejecutas el trámite en la factura.",
@@ -62,10 +62,10 @@ export const tripsListCopy = {
     hideFilters: "Filtros",
     statusLabel: "Estado",
     statusAll: "Todos los estados",
-    fiscalLabel: "Atención de factura",
+    fiscalLabel: "Atención fiscal",
     fiscalAll: "Todas",
-    fiscalPlaceholder: "Atención",
-    fiscalAttention: "Solo con atención",
+    fiscalPlaceholder: "Atención fiscal",
+    fiscalAttention: "Atención fiscal",
     invoiceLabel: "Estado de factura",
     invoiceAll: "Todas las facturas",
     invoicePlaceholder: "Estado de factura",
@@ -84,7 +84,7 @@ export const tripsListCopy = {
   chip: {
     overdue: "Con retraso",
     opsDay: "Viajes de hoy",
-    fiscalAttention: "Solo con atención",
+    fiscalAttention: "Atención fiscal",
     invoice: (label: string) => `Factura: ${label}`,
     date: (range: string) => `Fecha: ${range}`,
     originBranch: (label: string) => `Sucursal origen: ${label}`,
@@ -125,13 +125,13 @@ export const tripsListCopy = {
   badge: {
     overdue: (hours: number) => `${hours}h de retraso`,
     overdueShort: "Con retraso",
-    fiscalAttention: "Requiere atención",
+    fiscalAttention: "Atención fiscal",
   },
 
   invoiceablePicker: {
     title: "Seleccionar viaje facturable",
     description:
-      "Elige un viaje elegible para generar la factura. Incluye flete y viajes en falso sin factura activa.",
+      "Elige un viaje elegible para generar la factura. Incluye flete y viajes en falso sin factura activa; puede haber candidatos desde Programado.",
     searchPlaceholder: "Buscar por código, origen o destino…",
     empty: "No hay viajes facturables en este momento.",
     loadError: "No se pudo cargar la lista de viajes.",
@@ -161,7 +161,7 @@ export const tripsListCopy = {
   /** Alert L1b — dos colas. Visible solo accountant. */
   accountantOrientation: {
     title: "Dos colas distintas",
-    body: "El primer CFDI está en Por facturar. Atención fiscal es otra cola: viajes ya facturados que operación pidió revisar. No sustituyes tú la factura.",
+    body: "El primer CFDI está en Por facturar (también viajes Programados elegibles). Atención fiscal es otra cola: viajes ya facturados que operación pidió revisar. No sustituyes tú la factura.",
     invoiceableLink: "Ir a Por facturar",
     dismiss: "Entendido",
   },
@@ -262,8 +262,11 @@ export const tripsListCopy = {
       fiscalAttention: "Atención fiscal",
     },
     bucketDescriptions: {
-      draft: "Pedidos anotados pendientes de programar",
-      scheduled: "Viajes programados listos para iniciar",
+      /** Glosario Reserva: anotado; aún no Programado. */
+      draft: "Reserva: pedido anotado; falta confirmar para programar.",
+      /** Glosario Programado: listo para salir; facturación puede empezar aquí (D1). */
+      scheduled:
+        "Programado: listo para salir. Si es elegible, el flete ya puede ir a Por facturar.",
       in_progress: "Viajes actualmente en ruta",
       completed: "Viajes finalizados exitosamente",
       /** Portal cliente: estados del envío, no patio (D7). */

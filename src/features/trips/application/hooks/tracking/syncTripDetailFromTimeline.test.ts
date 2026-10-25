@@ -48,6 +48,8 @@ function baseTrip(overrides: Partial<Trip> = {}): Trip {
       canGenerateInvoice: false,
       hasActiveInvoice: false,
       hasActivePrimaryInvoice: false,
+      hasActivePrincipalInvoice: false,
+      primaryTransportInvoiceId: null,
       canGenerateAccessoryInvoice: false,
       invoiceFolio: null,
       invoiceCfdiUuid: null,

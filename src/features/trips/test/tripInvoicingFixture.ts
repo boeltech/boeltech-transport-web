@@ -11,6 +11,11 @@ export function tripInvoicingFixture(
     hasActivePrincipalInvoice:
       overrides.hasActivePrincipalInvoice ??
       (overrides.hasActivePrimaryInvoice ?? hasActiveInvoice),
+    primaryTransportInvoiceId:
+      overrides.primaryTransportInvoiceId ??
+      (overrides.hasActivePrimaryInvoice ?? hasActiveInvoice
+        ? (overrides.invoiceId ?? null)
+        : null),
     canGenerateInvoice: overrides.canGenerateInvoice ?? false,
     canGenerateAccessoryInvoice: overrides.canGenerateAccessoryInvoice ?? false,
     canGenerateFalseTripInvoice: overrides.canGenerateFalseTripInvoice ?? false,

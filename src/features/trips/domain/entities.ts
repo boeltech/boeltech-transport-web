@@ -204,6 +204,11 @@ export interface TripInvoicing {
   readonly hasActivePrimaryInvoice: boolean;
   /** Primaria o `false_trip` no cancelada (ADR-0079). */
   readonly hasActivePrincipalInvoice: boolean;
+  /**
+   * Id del flete `primary_transport` no cancelado (banner ADR-0079).
+   * Distinto de `invoiceId` (principal = primary xor false_trip).
+   */
+  readonly primaryTransportInvoiceId: string | null;
   readonly canGenerateInvoice: boolean;
   readonly canGenerateAccessoryInvoice: boolean;
   /** Outcome falso + completed + sin principal activa (ADR-0079). */

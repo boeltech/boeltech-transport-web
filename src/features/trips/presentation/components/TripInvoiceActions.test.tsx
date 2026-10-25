@@ -63,17 +63,22 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
     mockNavigate.mockReset();
   });
 
-  it("hides primary CP CTA and navigates to scope=false_trip", async () => {
+  it("Facturar (skip 1 scope) navega a scope=false_trip sin sheet", async () => {
     const user = userEvent.setup();
     renderActions(makeTrip());
 
     const cta = screen.getByRole("button", {
-      name: tripFiscalCopy.invoiceActions.generateFalseTrip,
+      name: tripFiscalCopy.invoiceActions.generatePrimary,
     });
     expect(cta).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generateAccessory,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: tripFiscalCopy.scopeDecisionSheet.title,
       }),
     ).not.toBeInTheDocument();
 
@@ -257,13 +262,80 @@ describe("TripInvoiceActions cancelled trip (hard-gate create)", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generatePrimary,
       }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("TripInvoiceActions decision sheet (F3 / D2)", () => {
+  beforeEach(() => {
+    mockNavigate.mockReset();
+  });
+
+  it("1 scope primary: Facturar navega directo (skip sheet)", async () => {
+    const user = userEvent.setup();
+    renderActions(
+      makeTrip({
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({
+          canGenerateInvoice: true,
+          canGenerateFalseTripInvoice: false,
+          canGenerateAccessoryInvoice: false,
+        }),
+      }),
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    );
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/invoices/new?trip_id=${TRIP_ID}`,
+      { state: { from: `/trips/${TRIP_ID}` } },
+    );
+    expect(
+      screen.queryByRole("heading", {
+        name: tripFiscalCopy.scopeDecisionSheet.title,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it(">1 scopes: Facturar abre sheet con opciones elegibles", async () => {
+    const user = userEvent.setup();
+    renderActions(
+      makeTrip({
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({
+          canGenerateInvoice: true,
+          canGenerateFalseTripInvoice: false,
+          canGenerateAccessoryInvoice: true,
+        }),
+      }),
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    );
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", {
+        name: tripFiscalCopy.scopeDecisionSheet.title,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(tripFiscalCopy.scopeDecisionSheet.optionPrimary),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(tripFiscalCopy.scopeDecisionSheet.optionAccessory),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(tripFiscalCopy.scopeDecisionSheet.cancelVsFalseHint),
+    ).toBeInTheDocument();
   });
 });

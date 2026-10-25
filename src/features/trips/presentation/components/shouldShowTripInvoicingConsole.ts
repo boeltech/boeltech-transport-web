@@ -2,11 +2,20 @@
  * Gate de visibilidad de la consola de facturación del viaje (Capa 1 PD2).
  * Solo si hay algo que mostrar en banda (sección fiscal y/o línea de reparto);
  * no montar el cascarón vacío solo por «listo para facturar» (CTAs viven en menú).
+ *
+ * F4 (claridad flujo): en `in_progress` sin Atención fiscal (ATF) la consola
+ * arranca colapsada / secundaria — no compite con operación/seguimiento.
  */
 
 import type { Trip } from "@features/trips/domain";
+import { TripStatus } from "@features/trips/domain";
 
 type TripInvoicingGate = Pick<Trip, "invoicing" | "cfdiEmissionIntent">;
+
+type TripInvoicingDensityGate = Pick<
+  Trip,
+  "status" | "requiresFiscalAttention"
+>;
 
 /** Señales que alimentan TripFiscalSection (sin postCancel local). */
 export function hasTripFiscalSectionContent(
@@ -69,6 +78,18 @@ export function shouldShowTripInvoicingConsole(
 
   return (
     hasTripFiscalSectionContent(inv) || hasTripRevenueSplitBandSignal(inv)
+  );
+}
+
+/**
+ * Densidad mid-flight (F4 / D7): colapsar por defecto solo en En ruta
+ * **sin** job ATF. Con ATF la consola permanece expandida (banners/CTAs del job).
+ */
+export function shouldCollapseTripInvoicingConsoleByDefault(
+  trip: TripInvoicingDensityGate,
+): boolean {
+  return (
+    trip.status === TripStatus.IN_PROGRESS && !trip.requiresFiscalAttention
   );
 }
 

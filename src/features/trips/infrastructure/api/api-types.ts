@@ -77,6 +77,8 @@ export interface ApiTripInvoicingResponse {
   has_active_invoice?: boolean;
   has_active_primary_invoice?: boolean;
   has_active_principal_invoice?: boolean;
+  /** Flete primary_transport no cancelado (banner ADR-0079). */
+  primary_transport_invoice_id?: string | null;
   can_generate_invoice?: boolean;
   can_generate_accessory_invoice?: boolean;
   can_generate_false_trip_invoice?: boolean;
