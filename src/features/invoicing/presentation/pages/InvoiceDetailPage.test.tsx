@@ -918,7 +918,9 @@ describe("InvoiceDetailPage", () => {
         requiresFiscalAttention: true,
         operationalOutcome: "false_trip",
         invoicing: {
+          hasActivePrimaryInvoice: true,
           hasActivePrincipalInvoice: true,
+          primaryTransportInvoiceId: "inv-1",
           invoiceId: "inv-1",
           invoiceStatus: "stamped",
         },
@@ -977,7 +979,9 @@ describe("InvoiceDetailPage", () => {
         requiresFiscalAttention: true,
         operationalOutcome: "false_trip",
         invoicing: {
+          hasActivePrimaryInvoice: false,
           hasActivePrincipalInvoice: false,
+          primaryTransportInvoiceId: null,
           invoiceId: "inv-1",
           invoiceStatus: "cancelled",
         },

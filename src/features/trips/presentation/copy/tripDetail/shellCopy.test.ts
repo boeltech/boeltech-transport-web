@@ -48,14 +48,47 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.action.startTrip).not.toMatch(/iniciar viaje/i);
   });
 
-  it("next-step F2: copy Operate sin mutación falsa de start", () => {
+  it("next-step F2/F8/F9: copy Operate sin mutación falsa de start", () => {
     expect(shellCopy.nextStep.title).toBe("Siguiente paso");
     expect(shellCopy.nextStep.completeRouteCargo).toMatch(/ruta y cargas/i);
     expect(shellCopy.nextStep.confirmReserve).toBe("Confirmar reserva");
     expect(shellCopy.nextStep.goToTracking).toBe("Ir a Seguimiento");
+    expect(shellCopy.nextStep.goToStart).toBe("Ir a iniciar");
+    expect(shellCopy.nextStep.goToStart).not.toMatch(/iniciar viaje/i);
     expect(shellCopy.nextStep.invoice).toBe("Facturar");
-    expect(shellCopy.nextStep.descriptionScheduled).toMatch(/Programado/i);
+    expect(shellCopy.nextStep.openDraft).toBe("Abrir borrador");
+    expect(shellCopy.nextStep.viewInvoices).toBe("Ver facturas");
+    expect(shellCopy.linkedDraftsSheet.title).toBe("Facturas del viaje");
+    expect(shellCopy.linkedDraftsSheet.description).toBe("Elige cuál abrir.");
+    expect(shellCopy.linkedDraftsSheet.rowPrincipal).toBe("Flete");
+    expect(shellCopy.linkedDraftsSheet.rowAccessory).toBe(
+      "Servicios adicionales",
+    );
+    expect(shellCopy.nextStep.descriptionScheduledCreate).toMatch(/Programado/i);
+    expect(shellCopy.nextStep.descriptionScheduledWithDraft).toMatch(/borrador/i);
+    expect(shellCopy.nextStep.descriptionScheduledWithDraft).not.toMatch(
+      /empezar a facturar/i,
+    );
+    expect(shellCopy.nextStep.descriptionScheduledOperate).not.toMatch(
+      /empezar a facturar/i,
+    );
+    expect(shellCopy.nextStep.descriptionScheduledSplitPartial(2, 4)).toBe(
+      "Se facturaron 2 de 4 porciones. Puedes seguir con las restantes. Para sacar el viaje, inicia desde Seguimiento.",
+    );
+    expect(shellCopy.nextStep.descriptionInProgressSplitPartial(2, 4)).toBe(
+      "Se facturaron 2 de 4 porciones. Sigue con las restantes o continúa en Seguimiento.",
+    );
+    expect(shellCopy.nextStep.descriptionCompletedSplitPartial(2, 4)).toBe(
+      "Se facturaron 2 de 4 porciones. Emite las restantes cuando corresponda.",
+    );
     expect(shellCopy.nextStep.goToTracking).not.toMatch(/iniciar viaje/i);
+    expect(shellCopy.nextStep.whatMissing).toBe("Qué falta");
+    expect(shellCopy.nextStep.descriptionDraftIncomplete).toMatch(
+      /llegada|tarifa|kilometraje/i,
+    );
+    expect(shellCopy.nextStep.descriptionDraftReadyFleetBlocked).toMatch(
+      /unidad|conductor/i,
+    );
   });
 
   it("mid-trip strip F4: tres deep-links Operate sin tab nuevo", () => {

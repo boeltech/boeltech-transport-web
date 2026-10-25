@@ -931,7 +931,9 @@ describe("InvoiceActions RBAC execute/delete", () => {
         operationalOutcome: "false_trip",
         requiresFiscalAttention: true,
         invoicing: tripInvoicingFixture({
+          hasActivePrimaryInvoice: true,
           hasActivePrincipalInvoice: true,
+          primaryTransportInvoiceId: "inv-1",
           invoiceId: "inv-1",
           invoiceStatus: "stamped",
         }),
@@ -987,7 +989,9 @@ describe("InvoiceActions RBAC execute/delete", () => {
         operationalOutcome: "false_trip",
         requiresFiscalAttention: true,
         invoicing: tripInvoicingFixture({
+          hasActivePrimaryInvoice: true,
           hasActivePrincipalInvoice: true,
+          primaryTransportInvoiceId: "inv-1",
           invoiceId: "inv-1",
           invoiceStatus: "stamped",
         }),
@@ -1260,7 +1264,9 @@ describe("InvoiceActions RBAC execute/delete", () => {
         operationalOutcome: "false_trip",
         requiresFiscalAttention: true,
         invoicing: tripInvoicingFixture({
+          hasActivePrimaryInvoice: true,
           hasActivePrincipalInvoice: true,
+          primaryTransportInvoiceId: "inv-1",
           invoiceId: "inv-1",
           invoiceStatus: "stamped",
         }),
@@ -1308,7 +1314,8 @@ describe("InvoiceActions RBAC execute/delete", () => {
           clientName: "Cliente",
           scheduledDeparture: "2026-06-01T12:00:00.000Z",
           baseRate: 1000,
-          billingScope: "false_trip",
+          // Flete CP a cancelar tras declarar falso (no el ingreso false_trip).
+          billingScope: "primary_transport",
           originCity: "Mty",
           originState: "NL",
           destinationCity: "Gdl",

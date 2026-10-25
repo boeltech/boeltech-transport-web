@@ -175,6 +175,8 @@ export function InvoiceDetailPage() {
   const showFalseTripCancelCfdi =
     !isClientPortal &&
     invoice?.status === "stamped" &&
+    // El ingreso false_trip es el CFDI legítimo — no pedir cancelarlo.
+    invoice.billingScope !== "false_trip" &&
     Boolean(linkedTripForFiscal?.invoicing) &&
     shouldShowFalseTripCancelCfdiBanner({
       operationalOutcome: linkedTripForFiscal!.operationalOutcome,

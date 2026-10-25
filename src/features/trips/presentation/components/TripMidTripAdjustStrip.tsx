@@ -1,5 +1,6 @@
 /**
- * Strip mid-trip (F4 / D7): deep-links a paradas pendientes / carga / reasignar.
+ * Strip mid-trip (F4 / D7 · F11b / D22): deep-links a paradas pendientes /
+ * carga / reasignar. Chips-only — sin título ni descripción (D22 / D29).
  * Sin tab nuevo — vive en chrome del detalle (alerts).
  */
 
@@ -12,6 +13,9 @@ import { tripDetailCopy } from "../copy";
 import type { MidTripAdjustLink } from "../helpers/listMidTripAdjustLinks";
 
 const copy = tripDetailCopy.shell.midTripStrip;
+
+/** a11y region label (D29: «Ajustes», no «Ajustes en ruta»). Not rendered as title. */
+const STRIP_ARIA_LABEL = "Ajustes";
 
 export type TripMidTripAdjustStripProps = {
   links: readonly MidTripAdjustLink[];
@@ -64,16 +68,9 @@ export function TripMidTripAdjustStrip({
         className,
       )}
       data-testid="trip-mid-trip-adjust-strip"
-      aria-labelledby="trip-mid-trip-adjust-title"
+      aria-label={STRIP_ARIA_LABEL}
     >
-      <p
-        id="trip-mid-trip-adjust-title"
-        className="text-sm font-medium text-foreground"
-      >
-        {copy.title}
-      </p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{copy.description}</p>
-      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {links.map((link) => (
           <Button
             key={link.id}

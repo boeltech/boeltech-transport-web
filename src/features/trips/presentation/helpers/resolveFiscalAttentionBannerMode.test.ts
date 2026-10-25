@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import { resolveFiscalAttentionBannerMode } from "./resolveFiscalAttentionBannerMode";
 
-const activePrincipal = tripInvoicingFixture({
+const activeFreight = tripInvoicingFixture({
+  hasActivePrimaryInvoice: true,
   hasActivePrincipalInvoice: true,
+  primaryTransportInvoiceId: "inv-1",
   invoiceId: "inv-1",
   invoiceStatus: "stamped",
 });
@@ -16,21 +18,22 @@ describe("resolveFiscalAttentionBannerMode", () => {
         operationalOutcome: "false_trip",
         requiresFiscalAttention: true,
         status: "cancelled",
-        invoicing: activePrincipal,
+        invoicing: activeFreight,
       }),
     ).toBe("falseTrip");
   });
 
-  it("false_trip sin principal activa → none (no cae a mid-trip ni post-cancel)", () => {
+  it("false_trip sin flete primary_transport → none (no cae a mid-trip ni post-cancel)", () => {
     expect(
       resolveFiscalAttentionBannerMode({
         operationalOutcome: "false_trip",
         requiresFiscalAttention: true,
         status: "cancelled",
         invoicing: tripInvoicingFixture({
-          hasActivePrincipalInvoice: false,
-          invoiceId: "inv-1",
-          invoiceStatus: "cancelled",
+          hasActivePrimaryInvoice: false,
+          hasActivePrincipalInvoice: true,
+          invoiceId: "inv-false",
+          invoiceStatus: "stamped",
         }),
       }),
     ).toBe("none");
@@ -42,7 +45,7 @@ describe("resolveFiscalAttentionBannerMode", () => {
         operationalOutcome: "standard",
         requiresFiscalAttention: true,
         status: "cancelled",
-        invoicing: activePrincipal,
+        invoicing: activeFreight,
       }),
     ).toBe("postCancel");
   });
@@ -53,7 +56,7 @@ describe("resolveFiscalAttentionBannerMode", () => {
         operationalOutcome: "standard",
         requiresFiscalAttention: true,
         status: "in_progress",
-        invoicing: activePrincipal,
+        invoicing: activeFreight,
       }),
     ).toBe("midTrip");
   });
@@ -64,7 +67,7 @@ describe("resolveFiscalAttentionBannerMode", () => {
         operationalOutcome: "standard",
         requiresFiscalAttention: false,
         status: "cancelled",
-        invoicing: activePrincipal,
+        invoicing: activeFreight,
       }),
     ).toBe("none");
   });

@@ -1,5 +1,5 @@
 /**
- * Consolida next-step above-the-fold del detalle (pedido claridad flujo · F2).
+ * Consolida next-step above-the-fold del detalle (pedido claridad flujo · F2/F9).
  * Pura: status + readiness + flags → 1 primaria + ≤2 secundarias.
  * No navega ni consulta permisos por sí misma: el caller pasa booleans.
  */
@@ -19,7 +19,9 @@ export type TripNextStepActionId =
   | "go_to_tracking"
   | "invoice"
   | "go_to_route"
-  | "go_to_cargo";
+  | "go_to_cargo"
+  | "open_draft"
+  | "view_invoices";
 
 export type TripNextStepTab = "route" | "cargo" | "tracking";
 
@@ -27,6 +29,8 @@ export type TripNextStepAction = {
   readonly id: TripNextStepActionId;
   /** Tab objetivo cuando la acción navega. */
   readonly tab?: TripNextStepTab;
+  /** Factura a abrir (`open_draft`). */
+  readonly invoiceId?: string;
 };
 
 export type TripNextStepPlan = {
@@ -42,8 +46,10 @@ export type ResolveTripNextStepActionsInput = {
   /** Puede mutar/completar reserva (trips.update). */
   readonly canUpdateTrip: boolean;
   /**
-   * Elegible a crear CFDI + permiso invoices.create.
-   * El caller aplica sin_cfdi / cancelado / flags API.
+   * Eleva Facturar en next-step (D10 / F6): ≥1 scope freight-family
+   * (`primary_transport` | `false_trip` | `split_share`).
+   * Accessory-only → false; create accesoria queda en header/menú (D12).
+   * El caller deriva con `hasFreightFamilyTripInvoiceScope`.
    */
   readonly canInvoice: boolean;
   /**
@@ -53,6 +59,11 @@ export type ResolveTripNextStepActionsInput = {
   readonly requiresFiscalAttention?: boolean;
   /** Tab activo del detalle; evita CTA «Ir a Seguimiento» redundante. */
   readonly activeTab?: string | null;
+  /**
+   * Borradores ligados (F9 / D18). Caller deriva con `listLinkedTripInvoiceDrafts`.
+   * Con elevate Facturar (D10) no se usan para secundaria fiscal create.
+   */
+  readonly linkedDraftInvoiceIds?: readonly string[];
 };
 
 const MAX_SECONDARIES = 2;
@@ -70,6 +81,17 @@ function trackingSecondary(
   return { id: "go_to_tracking", tab: "tracking" };
 }
 
+function draftSecondary(
+  linkedDraftInvoiceIds: readonly string[] | undefined,
+): TripNextStepAction | null {
+  const ids = linkedDraftInvoiceIds ?? [];
+  if (ids.length === 0) return null;
+  if (ids.length === 1) {
+    return { id: "open_draft", invoiceId: ids[0] };
+  }
+  return { id: "view_invoices" };
+}
+
 /**
  * Resuelve el plan de acciones next-step. `null` = no hay bloque (portal,
  * sin permiso, o fase sin job above-the-fold).
@@ -85,6 +107,7 @@ export function resolveTripNextStepActions(
     canInvoice,
     requiresFiscalAttention = false,
     activeTab,
+    linkedDraftInvoiceIds,
   } = input;
 
   if (status === TripStatus.DRAFT) {
@@ -138,10 +161,12 @@ export function resolveTripNextStepActions(
     }
 
     if (tracking) {
+      const draft = draftSecondary(linkedDraftInvoiceIds);
+      const secondaries = draft ? [draft] : [];
       return {
         phase,
         primary: tracking,
-        secondaries: [],
+        secondaries: takeSecondaries(secondaries),
       };
     }
 

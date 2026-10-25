@@ -165,4 +165,20 @@ describe("TripReadinessRail", () => {
       expect.objectContaining({ id: "rate", tab: "costs" }),
     );
   });
+
+  it("checklist presentation omits standalone card title (F8 / D15)", () => {
+    render(
+      <TripReadinessRail
+        status={TripStatus.DRAFT}
+        items={ITEMS}
+        presentation="checklist"
+      />,
+    );
+
+    expect(screen.getByTestId("trip-readiness-checklist")).toBeInTheDocument();
+    expect(screen.queryByTestId("trip-readiness-rail")).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.readiness.title)).not.toBeInTheDocument();
+    expect(screen.getByText(copy.readiness.scheduleGroup)).toBeInTheDocument();
+    expect(screen.getByText(copy.readiness.operateGroup)).toBeInTheDocument();
+  });
 });

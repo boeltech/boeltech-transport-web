@@ -1,13 +1,10 @@
 import type { Trip, TripInvoicing } from "@features/trips/domain";
 
-type CancelCfdiBannerInvoicing = Pick<
-  TripInvoicing,
-  "hasActivePrincipalInvoice" | "invoiceId" | "invoiceStatus"
->;
+type CancelCfdiBannerInvoicing = Pick<TripInvoicing, "hasActivePrimaryInvoice">;
 
 /**
  * Gate del banner «Cancela la factura de flete» (ADR-0079 / web #32).
- * Defensa UI: no pedir cancel si no hay principal vigente (post-cancel o invoice_id stale).
+ * Solo cuando hay flete `primary_transport` vigente — no el ingreso `false_trip`.
  */
 export function shouldShowFalseTripCancelCfdiBanner(input: {
   operationalOutcome: Trip["operationalOutcome"];
@@ -16,14 +13,5 @@ export function shouldShowFalseTripCancelCfdiBanner(input: {
 }): boolean {
   if (input.operationalOutcome !== "false_trip") return false;
   if (!input.requiresFiscalAttention) return false;
-
-  const { hasActivePrincipalInvoice, invoiceId, invoiceStatus } =
-    input.invoicing;
-
-  if (hasActivePrincipalInvoice) return true;
-
-  return (
-    Boolean(invoiceId) &&
-    (invoiceStatus === "stamped" || invoiceStatus === "cancellation_pending")
-  );
+  return input.invoicing.hasActivePrimaryInvoice;
 }

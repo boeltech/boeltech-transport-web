@@ -153,6 +153,22 @@ export function listEligibleTripInvoiceScopes(
   return scopes;
 }
 
+/**
+ * Freight-family scopes that may elevate next-step «Facturar» (D10) and the
+ * header primary CTA (D14). Accessory-only does **not** count — create
+ * accesoria stays in the typed Facturación menu item.
+ */
+export function hasFreightFamilyTripInvoiceScope(
+  scopes: readonly EligibleTripInvoiceScope[],
+): boolean {
+  return scopes.some(
+    (scope) =>
+      scope.kind === "primary_transport" ||
+      scope.kind === "false_trip" ||
+      scope.kind === "split_share",
+  );
+}
+
 /** Aplica skip rules D2 / TEC §C sobre la lista de scopes elegibles. */
 export function resolveTripInvoiceScopeDecision(
   scopes: readonly EligibleTripInvoiceScope[],

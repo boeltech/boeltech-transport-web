@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TripStatus } from "@features/trips/domain";
 import {
+  hasFreightFamilyTripInvoiceScope,
   listEligibleTripInvoiceScopes,
   resolveTripInvoiceScopeDecision,
   type ListEligibleTripInvoiceScopesInput,
@@ -221,5 +222,64 @@ describe("resolveTripInvoiceScopeDecision", () => {
       variant: "full",
       scopes,
     });
+  });
+});
+
+describe("hasFreightFamilyTripInvoiceScope (D10 / F6)", () => {
+  it("false when only accessory elegible", () => {
+    const scopes = listEligibleTripInvoiceScopes(
+      baseInput({
+        status: TripStatus.COMPLETED,
+        canGenerateAccessoryInvoice: true,
+      }),
+    );
+    expect(scopes.map((s) => s.kind)).toEqual(["accessory"]);
+    expect(hasFreightFamilyTripInvoiceScope(scopes)).toBe(false);
+  });
+
+  it("true when primary_transport elegible (con o sin accessory)", () => {
+    const freightOnly = listEligibleTripInvoiceScopes(
+      baseInput({
+        status: TripStatus.COMPLETED,
+        canGenerateInvoice: true,
+      }),
+    );
+    expect(hasFreightFamilyTripInvoiceScope(freightOnly)).toBe(true);
+
+    const freightAndAccessory = listEligibleTripInvoiceScopes(
+      baseInput({
+        status: TripStatus.COMPLETED,
+        canGenerateInvoice: true,
+        canGenerateAccessoryInvoice: true,
+      }),
+    );
+    expect(hasFreightFamilyTripInvoiceScope(freightAndAccessory)).toBe(true);
+  });
+
+  it("true for false_trip or split_share; false when empty (D13)", () => {
+    expect(
+      hasFreightFamilyTripInvoiceScope(
+        listEligibleTripInvoiceScopes(
+          baseInput({ canGenerateFalseTripInvoice: true }),
+        ),
+      ),
+    ).toBe(true);
+
+    expect(
+      hasFreightFamilyTripInvoiceScope(
+        listEligibleTripInvoiceScopes(
+          baseInput({
+            canGenerateSplitShareInvoice: true,
+            hasActiveSplit: true,
+            pendingSplitLegs: [leg("l1", "Cliente A")],
+          }),
+        ),
+      ),
+    ).toBe(true);
+
+    expect(hasFreightFamilyTripInvoiceScope([])).toBe(false);
+    expect(
+      hasFreightFamilyTripInvoiceScope(listEligibleTripInvoiceScopes(baseInput())),
+    ).toBe(false);
   });
 });

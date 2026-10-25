@@ -231,8 +231,8 @@ export const shellCopy = {
     fallbackRoute: "ruta por confirmar",
   },
   /**
-   * Bloque next-step above-the-fold (D4 / F2).
-   * Una primaria + ≤2 secundarias; el rail de readiness no compite.
+   * Bloque next-step above-the-fold (D4 / F2 / F8 D15 / F9 D16–D20).
+   * Una primaria + ≤2 secundarias; readiness = «Qué falta» colapsado si next-step visible.
    */
   nextStep: {
     title: "Siguiente paso",
@@ -241,22 +241,74 @@ export const shellCopy = {
     completeCargo: "Completar cargas",
     confirmReserve: "Confirmar reserva",
     goToTracking: "Ir a Seguimiento",
+    /**
+     * D17: label de `go_to_tracking` en Programado (solo navega; no muta start).
+     * En ruta usa `goToTracking` (D20).
+     */
+    goToStart: "Ir a iniciar",
     invoice: "Facturar",
     goToRoute: "Ir a Ruta",
     goToCargo: "Ir a Cargas",
     adjustRoute: "Ajustar ruta",
     adjustCargo: "Ajustar cargas",
+    /** D18: un borrador direccionable. */
+    openDraft: "Abrir borrador",
+    /** D18: varios borradores — reuso léxico listado. */
+    viewInvoices: "Ver facturas",
+    /** Inventario Para programar / Para completar bajo next-step (cerrado por defecto). */
+    whatMissing: "Qué falta",
+
     descriptionDraftIncomplete:
-      "Arma paradas y cargas en el detalle antes de confirmar la reserva.",
+      "Arma paradas y cargas en el detalle. Llegada, tarifa y kilometraje se piden al confirmar.",
     descriptionDraftReady:
-      "Ruta y cargas listas. Confirma para pasar el viaje a Programado.",
-    descriptionScheduled:
-      "Puedes ir a Seguimiento o empezar a facturar desde Programado.",
-    descriptionInProgress: "Sigue el viaje en Seguimiento o factura si aplica.",
+      "Ruta y cargas listas. Confirma para pasar el viaje a Programado. Llegada, tarifa y kilometraje se piden al confirmar.",
+    descriptionDraftReadyFleetBlocked:
+      "Asigna unidad y conductor antes de confirmar. Llegada, tarifa y kilometraje se piden al confirmar.",
+    /** D16 A · create freight-family elegible. */
+    descriptionScheduledCreate:
+      "Puedes facturar el flete desde Programado. Para sacar el viaje, inicia desde Seguimiento.",
+    /** D16 B · ≥1 borrador. */
+    descriptionScheduledWithDraft:
+      "Ya hay factura en borrador. Continúa el timbrado desde Facturación. Para sacar el viaje, inicia desde Seguimiento.",
+    /** D16 B plural. */
+    descriptionScheduledWithDrafts:
+      "Ya hay facturas en borrador. Continúa el timbrado desde Facturación. Para sacar el viaje, inicia desde Seguimiento.",
+    /** D16 C · sin create ni borrador. */
+    descriptionScheduledOperate:
+      "Para sacar el viaje, ve a Seguimiento e inicia desde ahí.",
+    /** D20 A. */
+    descriptionInProgressCreate:
+      "Puedes facturar si aplica. El seguimiento del viaje está en Seguimiento.",
+    /** D20 B. */
+    descriptionInProgressWithDraft:
+      "Ya hay factura en borrador. Continúa el timbrado desde Facturación o sigue el viaje en Seguimiento.",
+    /** D20 C. */
+    descriptionInProgressOperate: "Sigue el viaje en Seguimiento.",
     descriptionCompleted: "Emite la factura del viaje cuando corresponda.",
+    /** D28 · split parcial Programado. */
+    descriptionScheduledSplitPartial: (invoiced: number, total: number) =>
+      `Se facturaron ${invoiced} de ${total} porciones. Puedes seguir con las restantes. Para sacar el viaje, inicia desde Seguimiento.`,
+    /** D28 · split parcial En ruta. */
+    descriptionInProgressSplitPartial: (invoiced: number, total: number) =>
+      `Se facturaron ${invoiced} de ${total} porciones. Sigue con las restantes o continúa en Seguimiento.`,
+    /** D28 · split parcial Completado. */
+    descriptionCompletedSplitPartial: (invoiced: number, total: number) =>
+      `Se facturaron ${invoiced} de ${total} porciones. Emite las restantes cuando corresponda.`,
   },
   /**
-   * Strip mid-trip (F4 / D7): mapa de ajustes en chrome — sin tab nuevo.
+   * Sheet elección borradores N≥2 (F9b / D18′). Copy exacto PRD.
+   */
+  linkedDraftsSheet: {
+    title: "Facturas del viaje",
+    description: "Elige cuál abrir.",
+    rowPrincipal: "Flete",
+    rowAccessory: "Servicios adicionales",
+    close: "Cerrar",
+  },
+  /**
+   * Strip mid-trip (F4 / D7 · F11b / D22): chips-only — sin tab nuevo.
+   * `title` / `description` quedan sin render (D22/D29); si se reintroduce
+   * título visible, el label es «Ajustes» (no «Ajustes en ruta»).
    * Deep-links a Ruta (paradas pendientes), Cargas y reasignar flota.
    */
   midTripStrip: {

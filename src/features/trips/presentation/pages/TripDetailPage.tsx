@@ -87,11 +87,10 @@ import {
   TripDetailCostsTabLazy,
   TripDetailTabFallback,
 } from "./TripDetailLazyTabs";
-import {
-  shouldShowTripInvoicingConsole,
-} from "../components/shouldShowTripInvoicingConsole";
+import { shouldMountTripInvoicingConsole } from "../components/shouldShowTripInvoicingConsole";
 import { TripInvoicingConsole } from "../components/TripInvoicingConsole";
 import { TripMidTripAdjustStrip } from "../components/TripMidTripAdjustStrip";
+import { TripLinkedInvoiceDraftsSheet } from "../components/TripLinkedInvoiceDraftsSheet";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripLiquidacionChip } from "../components/TripLiquidacionChip";
 import { canEditTripLiquidacionIntent } from "../utils/tripLiquidacionMutability";
@@ -106,10 +105,14 @@ import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfi
 import { TripNextStepBlock } from "../components/trip-readiness/TripNextStepBlock";
 import { TripReadinessRail } from "../components/trip-readiness/TripReadinessRail";
 import { getCargoWeightKg } from "../components/trip-cargos/tripCargoDetailHelpers";
+import { listLinkedTripInvoiceDrafts } from "../helpers/listLinkedTripInvoiceDrafts";
 import { resolveTripNextStepActions } from "../helpers/resolveTripNextStepActions";
+import { resolveTripNextStepDescription } from "../helpers/resolveTripNextStepDescription";
 import { listMidTripAdjustLinks } from "../helpers/listMidTripAdjustLinks";
 import type { MidTripAdjustLink } from "../helpers/listMidTripAdjustLinks";
+import { shouldSuppressInProgressFleetMissingAlert } from "../helpers/shouldSuppressInProgressFleetMissingAlert";
 import {
+  hasFreightFamilyTripInvoiceScope,
   listEligibleTripInvoiceScopes,
   resolveTripInvoiceScopeDecision,
 } from "../helpers/listEligibleTripInvoiceScopes";
@@ -392,6 +395,7 @@ export function TripDetailPage() {
   } | null>(null);
   const [revenueSplitSheetOpen, setRevenueSplitSheetOpen] = useState(false);
   const [invoiceScopeSheetOpen, setInvoiceScopeSheetOpen] = useState(false);
+  const [linkedDraftsSheetOpen, setLinkedDraftsSheetOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -434,12 +438,10 @@ export function TripDetailPage() {
     return revenueSplitForInvoiceScopes.legs.filter((leg) => !leg.invoiceId);
   }, [revenueSplitForInvoiceScopes]);
 
-  /** Facturar elegible vía helper F3 (misma verdad que menú / sheet). */
-  const invoiceScopeDecision = useMemo(() => {
-    if (!trip || isLeanTripPortal) {
-      return { kind: "none" as const };
-    }
-    const scopes = listEligibleTripInvoiceScopes({
+  /** Scopes create elegibles (F3); misma verdad que menú / sheet. */
+  const eligibleInvoiceScopes = useMemo(() => {
+    if (!trip || isLeanTripPortal) return [];
+    return listEligibleTripInvoiceScopes({
       tripId: trip.id,
       status: trip.status,
       operationalOutcome: trip.operationalOutcome,
@@ -453,7 +455,6 @@ export function TripDetailPage() {
       cartaPorteAttached: trip.invoicing.cartaPorteAttached,
       pendingSplitLegs: pendingSplitLegsForInvoice,
     });
-    return resolveTripInvoiceScopeDecision(scopes);
   }, [
     trip,
     isLeanTripPortal,
@@ -461,7 +462,25 @@ export function TripDetailPage() {
     pendingSplitLegsForInvoice,
   ]);
 
-  const canInvoiceNextStep = invoiceScopeDecision.kind !== "none";
+  const invoiceScopeDecision = useMemo(
+    () => resolveTripInvoiceScopeDecision(eligibleInvoiceScopes),
+    [eligibleInvoiceScopes],
+  );
+
+  /** D10: next-step Facturar solo con freight-family; accessory-only no eleva. */
+  const canInvoiceNextStep =
+    hasFreightFamilyTripInvoiceScope(eligibleInvoiceScopes);
+
+  /** F9 / D16–D18 / F9b D18′: borradores ligados (señales locales del GET). */
+  const linkedDraftInvoices = useMemo(() => {
+    if (!trip) return [] as const;
+    return listLinkedTripInvoiceDrafts(trip.invoicing);
+  }, [trip]);
+
+  const linkedDraftInvoiceIds = useMemo(
+    () => linkedDraftInvoices.map((d) => d.id),
+    [linkedDraftInvoices],
+  );
 
   const nextStepPlan = useMemo(() => {
     if (!trip || isLeanTripPortal || !tripReadiness) return null;
@@ -479,6 +498,7 @@ export function TripDetailPage() {
       canInvoice: canInvoiceNextStep,
       requiresFiscalAttention: Boolean(trip.requiresFiscalAttention),
       activeTab: resolvedActiveTab,
+      linkedDraftInvoiceIds,
     });
   }, [
     trip,
@@ -488,6 +508,7 @@ export function TripDetailPage() {
     canUpdateTrip,
     canInvoiceNextStep,
     resolvedActiveTab,
+    linkedDraftInvoiceIds,
   ]);
 
   const tripAlerts = useMemo(() => {
@@ -495,12 +516,20 @@ export function TripDetailPage() {
 
     const cards: ReactElement[] = [];
 
-    const showReadinessRail =
+    // F8 / D15: card standalone solo si no hay next-step (evitar doble checklist ATF).
+    // F9 / D19 (confirmada F10): Programado + tab Seguimiento → no reponer card
+    // ni next-step (hub «Iniciar viaje» es la primaria).
+    const showStandaloneReadinessRail =
+      !nextStepPlan &&
       !isLeanTripPortal &&
       tripReadiness &&
       (displayStatus === TripStatus.DRAFT ||
-        displayStatus === TripStatus.SCHEDULED);
-    if (showReadinessRail) {
+        displayStatus === TripStatus.SCHEDULED) &&
+      !(
+        displayStatus === TripStatus.SCHEDULED &&
+        resolvedActiveTab === "tracking"
+      );
+    if (showStandaloneReadinessRail) {
       cards.push(
         <TripReadinessRail
           key="readiness-rail"
@@ -846,50 +875,64 @@ export function TripDetailPage() {
       displayStatus === TripStatus.IN_PROGRESS &&
       (!trip.vehicle || !trip.driver)
     ) {
-      const missing: { label?: string; text: string }[] = [];
-      if (!trip.vehicle) {
-        missing.push({
-          label: shell.alert.assignmentVehicleLabel,
-          text: shell.alert.operationVehicleMissing,
-        });
-      }
-      if (!trip.driver) {
-        missing.push({
-          label: shell.alert.assignmentDriverLabel,
-          text: shell.alert.operationDriverMissing,
-        });
-      }
-      if (missing.length > 0) {
-        const canAssignFleetFromAlert =
-          !isLeanTripPortal &&
-          canUpdateTrip &&
-          canReassignTripFleet(trip.status);
-        cards.push(
-          <DetailAlertCard
-            key="operation-missing"
-            severity="critical"
-            icon={<AlertTriangle className="h-5 w-5" />}
-            title={shell.alert.operationIncompleteTitle}
-            items={missing}
-            action={
-              canAssignFleetFromAlert ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setSearchParams(
-                      (prev) => applyOpenAssignFleetSearchParams(prev),
-                      { replace: true },
-                    );
-                  }}
-                >
-                  {tripDetailCopy.operation.action.assignFleet}
-                </Button>
-              ) : null
-            }
-          />,
-        );
+      // D27: same reassign chip the strip would expose (other chips irrelevant for gate).
+      const midTripLinksForFleetGate = !isLeanTripPortal
+        ? listMidTripAdjustLinks({
+            canReplanPendingStops: false,
+            canAppendCargo: false,
+            canReassignFleet:
+              canUpdateTrip && canReassignTripFleet(trip.status),
+          })
+        : [];
+      const absorbFleetMissingInStrip =
+        shouldSuppressInProgressFleetMissingAlert(midTripLinksForFleetGate);
+
+      if (!absorbFleetMissingInStrip) {
+        const missing: { label?: string; text: string }[] = [];
+        if (!trip.vehicle) {
+          missing.push({
+            label: shell.alert.assignmentVehicleLabel,
+            text: shell.alert.operationVehicleMissing,
+          });
+        }
+        if (!trip.driver) {
+          missing.push({
+            label: shell.alert.assignmentDriverLabel,
+            text: shell.alert.operationDriverMissing,
+          });
+        }
+        if (missing.length > 0) {
+          const canAssignFleetFromAlert =
+            !isLeanTripPortal &&
+            canUpdateTrip &&
+            canReassignTripFleet(trip.status);
+          cards.push(
+            <DetailAlertCard
+              key="operation-missing"
+              severity="critical"
+              icon={<AlertTriangle className="h-5 w-5" />}
+              title={shell.alert.operationIncompleteTitle}
+              items={missing}
+              action={
+                canAssignFleetFromAlert ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSearchParams(
+                        (prev) => applyOpenAssignFleetSearchParams(prev),
+                        { replace: true },
+                      );
+                    }}
+                  >
+                    {tripDetailCopy.operation.action.assignFleet}
+                  </Button>
+                ) : null
+              }
+            />,
+          );
+        }
       }
     }
 
@@ -948,6 +991,7 @@ export function TripDetailPage() {
     comparisonNowMs,
     hasOpenTrackingIncident,
     tripReadiness,
+    nextStepPlan,
     setSearchParams,
     isLeanTripPortal,
     canUpdateTrip,
@@ -1173,6 +1217,25 @@ export function TripDetailPage() {
     }
   };
 
+  const handleNextStepOpenDraft = (invoiceId: string) => {
+    navigate(`/invoices/${invoiceId}`, {
+      state: { from: tripDetailFromHref },
+    });
+  };
+
+  const handleNextStepViewInvoices = () => {
+    /** D18′: N≥2 borradores → sheet de elección (no navigate-first; no scroll consola). */
+    if (linkedDraftInvoices.length >= 2) {
+      setLinkedDraftsSheetOpen(true);
+    }
+  };
+
+  const handleSelectLinkedDraft = (invoiceId: string) => {
+    navigate(`/invoices/${invoiceId}`, {
+      state: { from: tripDetailFromHref },
+    });
+  };
+
   const confirmReserveButton = (
     <TripConfirmReserveButton
       tripId={trip.id}
@@ -1197,9 +1260,23 @@ export function TripDetailPage() {
     />
   );
 
+  const nextStepElevateInvoice =
+    canInvoiceNextStep && !trip.requiresFiscalAttention;
+
   const nextStepAlerts = nextStepPlan ? (
     <TripNextStepBlock
       plan={nextStepPlan}
+      description={resolveTripNextStepDescription({
+        phase: nextStepPlan.phase,
+        fleetReady: tripReadiness?.fleetReady ?? true,
+        elevateInvoice:
+          (nextStepPlan.phase === "scheduled" ||
+            nextStepPlan.phase === "in_progress") &&
+          nextStepElevateInvoice,
+        linkedDraftCount: linkedDraftInvoiceIds.length,
+        splitLegsInvoiced: trip.invoicing.splitLegsInvoiced,
+        splitLegsTotal: trip.invoicing.splitLegsTotal,
+      })}
       confirmReserveSlot={
         nextStepPlan.primary.id === "confirm_reserve"
           ? confirmReserveButton
@@ -1207,6 +1284,26 @@ export function TripDetailPage() {
       }
       onNavigateTab={goToNextStepTab}
       onInvoice={handleNextStepInvoice}
+      onOpenDraft={handleNextStepOpenDraft}
+      onViewInvoices={handleNextStepViewInvoices}
+      readinessStatus={
+        resolvedDisplayStatus === TripStatus.DRAFT ||
+        resolvedDisplayStatus === TripStatus.SCHEDULED
+          ? resolvedDisplayStatus
+          : undefined
+      }
+      readinessItems={tripReadiness?.items}
+      onReadinessItemClick={(item) => {
+        if (!item.tab) return;
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("tab", item.tab!);
+            return next;
+          },
+          { replace: true },
+        );
+      }}
     />
   ) : null;
 
@@ -1444,7 +1541,12 @@ export function TripDetailPage() {
       alerts={composedAlerts}
       preStats={
         isLeanTripPortal ||
-        !shouldShowTripInvoicingConsole(trip, Boolean(postCancelFiscal))
+        !shouldMountTripInvoicingConsole({
+          trip,
+          hasPostCancelFiscal: Boolean(postCancelFiscal),
+          requiresFiscalAttention: Boolean(trip.requiresFiscalAttention),
+          nextStepPlan,
+        })
           ? undefined
           : (
           <TripInvoicingConsole
@@ -1722,6 +1824,14 @@ export function TripDetailPage() {
           trip={trip}
           open={revenueSplitSheetOpen}
           onOpenChange={setRevenueSplitSheetOpen}
+        />
+      ) : null}
+      {!isLeanTripPortal && trip && linkedDraftInvoices.length >= 2 ? (
+        <TripLinkedInvoiceDraftsSheet
+          open={linkedDraftsSheetOpen}
+          onOpenChange={setLinkedDraftsSheetOpen}
+          drafts={linkedDraftInvoices}
+          onSelectDraft={handleSelectLinkedDraft}
         />
       ) : null}
     </>

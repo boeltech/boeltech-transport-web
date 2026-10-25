@@ -281,6 +281,7 @@ export function InvoiceActions({
     Boolean(linkedTrip?.requiresFiscalAttention) && !hideSubstitute;
 
   const needsFalseTripCancel =
+    linkedBillingScope === "primary_transport" &&
     Boolean(linkedTrip?.invoicing) &&
     shouldShowFalseTripCancelCfdiBanner({
       operationalOutcome: linkedTrip!.operationalOutcome,

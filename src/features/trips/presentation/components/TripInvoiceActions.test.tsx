@@ -339,3 +339,169 @@ describe("TripInvoiceActions decision sheet (F3 / D2)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
+  beforeEach(() => {
+    mockNavigate.mockReset();
+  });
+
+  function renderHeader(trip: Trip) {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    return render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <TripInvoiceActions trip={trip} presentation="headerMenu" />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("solo accessory: sin CTA primario Facturar; menú tipado navega a accessory", async () => {
+    const user = userEvent.setup();
+    renderHeader(
+      makeTrip({
+        status: TripStatus.COMPLETED,
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({
+          canGenerateInvoice: false,
+          canGenerateFalseTripInvoice: false,
+          canGenerateAccessoryInvoice: true,
+          invoiceId: "inv-flete-1",
+          invoiceFolio: "A-100",
+          invoiceStatus: "stamped",
+          hasActivePrincipalInvoice: true,
+        }),
+      }),
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
+
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generateAccessory,
+      }),
+    );
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/invoices/new?trip_id=${TRIP_ID}&scope=accessory`,
+      { state: { from: `/trips/${TRIP_ID}` } },
+    );
+  });
+
+  it.each([
+    TripStatus.SCHEDULED,
+    TripStatus.IN_PROGRESS,
+    TripStatus.COMPLETED,
+  ] as const)(
+    "%s + solo accessory: sin CTA verde Facturar",
+    (status) => {
+      renderHeader(
+        makeTrip({
+          status,
+          operationalOutcome: "standard",
+          invoicing: tripInvoicingFixture({
+            canGenerateInvoice: false,
+            canGenerateFalseTripInvoice: false,
+            canGenerateAccessoryInvoice: true,
+            invoiceId: "inv-flete-1",
+            invoiceFolio: "A-100",
+            invoiceStatus: "stamped",
+            hasActivePrincipalInvoice: true,
+          }),
+        }),
+      );
+
+      expect(
+        screen.queryByRole("button", {
+          name: tripFiscalCopy.invoiceActions.generatePrimary,
+        }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", {
+          name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+        }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("freight-family elegible: sin CTA verde; Facturar en menú (skip intacto)", async () => {
+    const user = userEvent.setup();
+    renderHeader(
+      makeTrip({
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({
+          canGenerateInvoice: true,
+          canGenerateFalseTripInvoice: false,
+          canGenerateAccessoryInvoice: false,
+        }),
+      }),
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    );
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/invoices/new?trip_id=${TRIP_ID}`,
+      { state: { from: `/trips/${TRIP_ID}` } },
+    );
+  });
+
+  it("0 creates + evidencia: sin CTA verde; Ver factura en menú", async () => {
+    const user = userEvent.setup();
+    renderHeader(
+      makeTrip({
+        operationalOutcome: "standard",
+        invoicing: tripInvoicingFixture({
+          canGenerateInvoice: false,
+          canGenerateFalseTripInvoice: false,
+          canGenerateAccessoryInvoice: false,
+          invoiceId: "inv-done-1",
+          invoiceFolio: "B-1",
+          invoiceStatus: "stamped",
+          hasActivePrincipalInvoice: true,
+        }),
+      }),
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
+    expect(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.viewPrimary,
+      }),
+    ).toBeInTheDocument();
+  });
+});

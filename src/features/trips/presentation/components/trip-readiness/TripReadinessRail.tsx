@@ -49,6 +49,11 @@ export interface TripReadinessRailProps {
    * `secondary` (default F2): checklist de apoyo, sin sombra ni peso de card primaria.
    */
   emphasis?: "primary" | "secondary";
+  /**
+   * F8 / D15: `card` = standalone «Reserva guardada» / «Viaje programado».
+   * `checklist` = solo grupos Para programar / Para completar (bajo «Qué falta»).
+   */
+  presentation?: "card" | "checklist";
 }
 
 function chipLabel(item: TripReadinessItem): string {
@@ -113,6 +118,60 @@ function ReadinessChip({
   );
 }
 
+function ReadinessChipGroups({
+  isDraft,
+  scheduleItems,
+  operateItems,
+  onItemClick,
+}: {
+  isDraft: boolean;
+  scheduleItems: readonly TripReadinessItem[];
+  operateItems: readonly TripReadinessItem[];
+  onItemClick?: (item: TripReadinessItem) => void;
+}) {
+  return (
+    <>
+      {isDraft ? (
+        <section className="mt-3 first:mt-0">
+          <h3 className="text-xs font-semibold text-foreground">
+            {copy.readiness.scheduleGroup}
+          </h3>
+          <ol
+            className="mt-2 flex flex-wrap gap-2"
+            aria-label={copy.readiness.scheduleGroup}
+          >
+            {scheduleItems.map((item) => (
+              <ReadinessChip
+                key={item.id}
+                item={item}
+                onItemClick={onItemClick}
+              />
+            ))}
+          </ol>
+        </section>
+      ) : null}
+
+      <section className="mt-3 first:mt-0">
+        <h3 className="text-xs font-semibold text-foreground">
+          {copy.readiness.operateGroup}
+        </h3>
+        <ol
+          className="mt-2 flex flex-wrap gap-2"
+          aria-label={copy.readiness.operateGroup}
+        >
+          {operateItems.map((item) => (
+            <ReadinessChip
+              key={item.id}
+              item={item}
+              onItemClick={onItemClick}
+            />
+          ))}
+        </ol>
+      </section>
+    </>
+  );
+}
+
 export function TripReadinessRail({
   status,
   items,
@@ -122,6 +181,7 @@ export function TripReadinessRail({
   onItemClick,
   onGoToTracking,
   emphasis = "secondary",
+  presentation = "card",
 }: TripReadinessRailProps) {
   const isDraft = status === TripStatus.DRAFT;
   const isScheduled = status === TripStatus.SCHEDULED;
@@ -132,6 +192,20 @@ export function TripReadinessRail({
   const visible = items.filter((item) => RAIL_IDS.includes(item.id));
   const scheduleItems = visible.filter((item) => item.group === "schedule");
   const operateItems = visible.filter((item) => item.group === "operate");
+
+  if (presentation === "checklist") {
+    return (
+      <div data-testid="trip-readiness-checklist">
+        <ReadinessChipGroups
+          isDraft={isDraft}
+          scheduleItems={scheduleItems}
+          operateItems={operateItems}
+          onItemClick={onItemClick}
+        />
+      </div>
+    );
+  }
+
   const missing = scheduleItems
     .filter((item) => !item.done)
     .map((item) => READINESS_LABELS[item.id]);
@@ -195,35 +269,12 @@ export function TripReadinessRail({
         </Button>
       ) : null}
 
-      {isDraft ? (
-        <section className="mt-3">
-          <h3 className="text-xs font-semibold text-foreground">
-            {copy.readiness.scheduleGroup}
-          </h3>
-          <ol
-            className="mt-2 flex flex-wrap gap-2"
-            aria-label={copy.readiness.scheduleGroup}
-          >
-            {scheduleItems.map((item) => (
-              <ReadinessChip key={item.id} item={item} onItemClick={onItemClick} />
-            ))}
-          </ol>
-        </section>
-      ) : null}
-
-      <section className="mt-3">
-        <h3 className="text-xs font-semibold text-foreground">
-          {copy.readiness.operateGroup}
-        </h3>
-        <ol
-          className="mt-2 flex flex-wrap gap-2"
-          aria-label={copy.readiness.operateGroup}
-        >
-          {operateItems.map((item) => (
-            <ReadinessChip key={item.id} item={item} onItemClick={onItemClick} />
-          ))}
-        </ol>
-      </section>
+      <ReadinessChipGroups
+        isDraft={isDraft}
+        scheduleItems={scheduleItems}
+        operateItems={operateItems}
+        onItemClick={onItemClick}
+      />
     </div>
   );
 }

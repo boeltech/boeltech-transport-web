@@ -6,6 +6,8 @@
  *
  * ADR-0068: servicios adicionales · ADR-0079: viaje en falso · ADR-0081: reparto del flete.
  * F3: primaria Facturar → decision sheet o skip (D2); menú tipado = atajo.
+ * F7 / D14: elevación freight-family (inline / menú tipado).
+ * F11a / D24: sin CTA verde «Facturar» en headerMenu — solo menú dropdown.
  */
 
 import { useMemo, useState } from "react";
@@ -28,6 +30,7 @@ import { getTripInvoicingBadgeConfig, toDetailInvoicingBadge } from "@features/t
 import { useTripRevenueSplit } from "@features/trips/application";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 import {
+  hasFreightFamilyTripInvoiceScope,
   listEligibleTripInvoiceScopes,
   resolveTripInvoiceScopeDecision,
 } from "../helpers/listEligibleTripInvoiceScopes";
@@ -238,10 +241,18 @@ export function TripInvoiceActions({
     accessoryInvoices.length > 0 ||
     canViewSplitInvoices;
 
+  // Freight-family create: eleva Facturar en inline; en headerMenu solo menú (D24).
+  // Solo accessory → menú tipado sin primario elevado.
+  const showPrimaryFacturar =
+    createDecision.kind !== "none" &&
+    hasFreightFamilyTripInvoiceScope(eligibleScopes);
+
   // Usar CTAs efectivos (no solo flags API): cancelled hard-gatea creates
-  // pero debe seguir mostrando ver factura / reparto.
+  // pero debe seguir mostrando ver factura / reparto / create accesoria.
+  // `!showPrimaryFacturar` (no `kind === "none"`): accessory-only aún es create
+  // pero no eleva el primario (inline outline / header ya sin CTA verde).
   const canShowLinkedInvoiceState =
-    createDecision.kind === "none" &&
+    !showPrimaryFacturar &&
     (hasInvoiceEvidence ||
       canShowAccessoryInvoiceAction ||
       canShowSplitMenuGroup) &&
@@ -249,8 +260,6 @@ export function TripInvoiceActions({
       canCreateInvoices ||
       canShowAccessoryInvoiceAction ||
       canShowSplitMenuGroup);
-
-  const showPrimaryFacturar = createDecision.kind !== "none";
 
   if (
     !showPrimaryFacturar &&
@@ -505,20 +514,10 @@ export function TripInvoiceActions({
       </DropdownMenu>
     );
 
+    // D24: sin CTA verde «Facturar» — Facturar vive en next-step + menú dropdown.
     return (
       <div className={`flex flex-wrap items-center gap-2 ${className ?? ""}`}>
         {pendingAccountantBadge}
-        {showPrimaryFacturar ? (
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={handlePrimaryFacturar}
-          >
-            <Receipt className="h-4 w-4 mr-1.5" />
-            {copy.generatePrimary}
-          </Button>
-        ) : null}
         {menu}
         {scopeSheet}
       </div>

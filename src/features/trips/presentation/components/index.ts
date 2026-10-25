@@ -22,6 +22,8 @@ export { TripInvoicingConsole } from "./TripInvoicingConsole";
 export {
   shouldShowTripInvoicingConsole,
   shouldShowTripFiscalBand,
+  shouldMountTripInvoicingConsole,
+  nextStepPlanOwnsInvoicing,
 } from "./shouldShowTripInvoicingConsole";
 export { TripTrackingMap } from "./TripTrackingMap";
 export { TripTrackingTab } from "./TripTrackingTab";

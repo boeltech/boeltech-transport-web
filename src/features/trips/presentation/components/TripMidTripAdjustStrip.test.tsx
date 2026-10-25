@@ -17,14 +17,15 @@ const allLinks = [
   },
 ];
 
-describe("TripMidTripAdjustStrip (F4)", () => {
-  it("renderiza título y los 3 deep-links", () => {
+describe("TripMidTripAdjustStrip (F4 · F11b / D22)", () => {
+  it("renderiza solo chips — sin título ni descripción", () => {
     render(
       <TripMidTripAdjustStrip links={allLinks} onNavigate={vi.fn()} />,
     );
 
     expect(screen.getByTestId("trip-mid-trip-adjust-strip")).toBeInTheDocument();
-    expect(screen.getByText(copy.title)).toBeInTheDocument();
+    expect(screen.queryByText(copy.title)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.description)).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: copy.pendingStops }),
     ).toBeInTheDocument();

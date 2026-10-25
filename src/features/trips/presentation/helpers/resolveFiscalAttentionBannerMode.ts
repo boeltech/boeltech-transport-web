@@ -11,10 +11,7 @@ export type FiscalAttentionBannerMode =
   | "postCancel"
   | "midTrip";
 
-type BannerInvoicing = Pick<
-  TripInvoicing,
-  "hasActivePrincipalInvoice" | "invoiceId" | "invoiceStatus"
->;
+type BannerInvoicing = Pick<TripInvoicing, "hasActivePrimaryInvoice">;
 
 export function resolveFiscalAttentionBannerMode(input: {
   operationalOutcome: Trip["operationalOutcome"];
