@@ -173,7 +173,10 @@ export function RegisterTrackingNoteSheet({
 }: RegisterTrackingNoteSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className={TRACKING_SHEET_CONTENT_CLASS}>
+      <SheetContent
+        className={TRACKING_SHEET_CONTENT_CLASS}
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-center gap-2">
             <StickyNote className="h-5 w-5 text-primary" />

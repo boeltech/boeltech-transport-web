@@ -333,7 +333,10 @@ export function DeclareFalseTripSheet({
 }: DeclareFalseTripSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className={TRACKING_SHEET_CONFIRM_CONTENT_CLASS}>
+      <SheetContent
+        className={TRACKING_SHEET_CONFIRM_CONTENT_CLASS}
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader className={TRACKING_SHEET_HEADER_CLASS}>
           <SheetTitle className="flex items-start gap-2 pr-6">
             <Ban className="mt-0.5 h-5 w-5 shrink-0 text-warning" />

@@ -69,6 +69,15 @@ import { trackingCopy } from "./trackingCopy";
 import type { CargoManualAction } from "../../utils/cargoStatusActions";
 import type { TripScheduleTimes } from "../trip-route/tripRouteDetailHelpers";
 
+/**
+ * Abrir Sheet desde DropdownMenu: diferir un tick para que Radix no dispare
+ * onFocusOutside y cierre el panel (regla sheet-from-menu-focus).
+ */
+function openSheetFromMenu(open: (() => void) | undefined) {
+  if (!open) return;
+  window.setTimeout(open, 0);
+}
+
 /** Contacto flota en overflow Operate (PD5). */
 export type TrackingContactInfo = {
   driverName?: string | null;
@@ -629,7 +638,7 @@ export function TripTrackingObjectiveHub({
                         title={quickCloseCargoBlockReason ?? undefined}
                         onSelect={() => {
                           if (quickCloseCargoBlockReason) return;
-                          onQuickCloseTrip?.();
+                          openSheetFromMenu(onQuickCloseTrip);
                         }}
                       >
                         <Flag className="mr-2 h-4 w-4" />
@@ -638,16 +647,32 @@ export function TripTrackingObjectiveHub({
                     ) : null}
                     {showsDeclareFalseTripCta ? (
                       <DropdownMenuItem
-                        onSelect={() => onDeclareFalseTrip?.()}
+                        onSelect={() =>
+                          openSheetFromMenu(onDeclareFalseTrip)
+                        }
                       >
                         <Ban className="mr-2 h-4 w-4" />
                         {trackingCopy.action.declareFalseTrip}
                       </DropdownMenuItem>
                     ) : null}
                     {showsDeclareFalseTripSplitBlockHint ? (
-                      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground whitespace-normal">
-                        {trackingCopy.hint.declareFalseTripBlockedBySplit}
-                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        disabled
+                        title={
+                          trackingCopy.hint.declareFalseTripBlockedBySplit
+                        }
+                      >
+                        <Ban className="mr-2 h-4 w-4 shrink-0" />
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span>{trackingCopy.action.declareFalseTrip}</span>
+                          <span className="text-xs font-normal text-muted-foreground whitespace-normal">
+                            {
+                              trackingCopy.hint
+                                .declareFalseTripBlockedBySplit
+                            }
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
                     ) : null}
                     {showEvidenceInOverflow ? (
                       <>
@@ -663,7 +688,7 @@ export function TripTrackingObjectiveHub({
                               ? undefined
                               : trackingCopy.error.registerRequiresInProgress
                           }
-                          onSelect={() => onRegisterNote?.()}
+                          onSelect={() => openSheetFromMenu(onRegisterNote)}
                         >
                           <StickyNote className="mr-2 h-4 w-4" />
                           {trackingCopy.action.note}
@@ -675,7 +700,9 @@ export function TripTrackingObjectiveHub({
                               ? undefined
                               : trackingCopy.error.registerRequiresInProgress
                           }
-                          onSelect={() => onRegisterIncident?.()}
+                          onSelect={() =>
+                            openSheetFromMenu(onRegisterIncident)
+                          }
                         >
                           <AlertTriangle className="mr-2 h-4 w-4" />
                           {trackingCopy.action.incident}
