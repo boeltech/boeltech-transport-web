@@ -2,7 +2,7 @@
  * DashboardPage
  *
  * Panel de control principal — banda matutina (F1) + cluster Aurora (F-layout)
- * + layout configurable.
+ * + layout configurable. Pulido Conform: ranking Operate D1, ATF D3, errores H3.
  */
 
 import { useMemo, useState } from "react";
@@ -24,7 +24,9 @@ import { useApprovalsPendingCountsByType } from "@features/approvals/application
 import { getGreeting } from "@/shared/lib/userHelpers";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { resolveDashboardOutgoingFrom } from "@shared/utils/reportsWayfinding";
+import { getTodayString } from "@shared/utils/dateUtils";
 import { formatDashboardTodayLabel } from "./utils/dashboardChartHelpers";
+import { resolveDashboardJobAction } from "./utils/resolveDashboardJobAction";
 import { useDashboard } from "../application/hooks/useDashboard";
 import { useTripsByDay } from "../application/hooks/useTripsByDay";
 import { useFinancialTrend } from "../application/hooks/useFinancialTrend";
@@ -47,14 +49,17 @@ import { getWidgetRegistryEntry } from "./widgets/registry";
 import type { DashboardWidgetContext, TripsDayRange } from "./widgets/types";
 import { dashboardCopy } from "./copy/dashboardCopy";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { HubPageShell } from "@shared/ui/page-shells";
 import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
+
+function focusAlertsPanel() {
+  const el = document.getElementById(DASHBOARD_ALERTS_WIDGET_DOM_ID);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.focus({ preventScroll: true });
+}
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -62,9 +67,11 @@ function DashboardPage() {
   const fromHref = resolveDashboardOutgoingFrom(useIncomingFrom());
   const isClientPortal = isClientPortalRole(user?.role);
   const isDriverPortal = isDriverPortalRole(user?.role);
-  const hideDashboardCustomize = isClientPortal || isDriverPortal;
+  const isPortal = isClientPortal || isDriverPortal;
+  const hideDashboardCustomize = isPortal;
   const [searchParams] = useSearchParams();
   const { data, isLoading, isError, refetch, isFetching } = useDashboard();
+  const [activationGuideVisible, setActivationGuideVisible] = useState(false);
 
   const compareBranchIds = useMemo(() => {
     const raw = searchParams.get("compareBranches");
@@ -165,7 +172,8 @@ function DashboardPage() {
     () => ({
       data,
       isLoading,
-      isError,
+      // H3: el error de página es dueño del retry — widgets no duplican unavailable.
+      isError: false,
       onRetry: () => {
         void refetch();
       },
@@ -213,6 +221,57 @@ function DashboardPage() {
       ? `${dashboardCopy.customize.personalizeButton} · ${dashboardCopy.customize.hiddenWidgetsCount(hiddenWidgetsCount)}`
       : dashboardCopy.customize.personalizeButton;
 
+  const jobAction = resolveDashboardJobAction({
+    role: user?.role,
+    canReadTrips,
+    isPortal,
+    showPendingApprovals: showPendingApprovalsStat,
+    pendingApprovalsTotal: pendingApprovalCounts?.total,
+    pendingApprovalsCounts: pendingApprovalCounts,
+    alertCount: data?.alerts?.length ?? 0,
+    todayOpsDay: getTodayString(),
+    onFocusAlerts: focusAlertsPanel,
+  });
+
+  const primaryActions = jobAction
+    ? [
+        {
+          id: jobAction.id,
+          label: jobAction.label,
+          href: jobAction.href,
+          onClick: jobAction.onClick,
+          variant: "default" as const,
+        },
+      ]
+    : undefined;
+
+  const secondaryActions = [
+    ...(canReadTrips && !hideDashboardCustomize
+      ? [
+          {
+            id: "customize",
+            label: customizeLabel,
+            onClick: () => setCustomizeOpen(true),
+            variant: "outline" as const,
+            icon: <SlidersHorizontal className="mr-2 h-4 w-4" />,
+          },
+        ]
+      : []),
+    {
+      id: "refresh",
+      label: dashboardCopy.page.refresh,
+      onClick: () => {
+        void refetch();
+      },
+      variant: "outline" as const,
+      icon: isFetching ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      ) : (
+        <RefreshCw className="mr-2 h-4 w-4" />
+      ),
+    },
+  ];
+
   return (
     <>
       <ReportsReturnLink />
@@ -225,56 +284,39 @@ function DashboardPage() {
         description={
           showMorningBrief ? undefined : formatDashboardTodayLabel()
         }
-        primaryActions={[
-          ...(canReadTrips && !hideDashboardCustomize
-            ? [
-                {
-                  id: "customize",
-                  label: customizeLabel,
-                  onClick: () => setCustomizeOpen(true),
-                  variant: "outline" as const,
-                  icon: <SlidersHorizontal className="mr-2 h-4 w-4" />,
-                },
-              ]
-            : []),
-          {
-            id: "refresh",
-            label: dashboardCopy.page.refresh,
-            onClick: () => {
-              void refetch();
-            },
-            variant: "outline" as const,
-            icon: isFetching ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            ),
-          },
-        ]}
+        primaryActions={primaryActions}
+        secondaryActions={secondaryActions}
       >
-        <DashboardOrientationAlert
-          role={user?.role}
-          canReadTrips={canReadTrips}
+        {!activationGuideVisible ? (
+          <DashboardOrientationAlert
+            role={user?.role}
+            canReadTrips={canReadTrips}
+          />
+        ) : null}
+
+        <DashboardActivationChecklist
+          onGuideVisibleChange={setActivationGuideVisible}
         />
 
-        <DashboardActivationChecklist />
-
-        {isError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <AlertTitle>{dashboardCopy.page.error.title}</AlertTitle>
-                <AlertDescription className="sr-only">
-                  {dashboardCopy.page.error.title}
-                </AlertDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
+        {isError ? (
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-4 w-4" />}
+            title={dashboardCopy.page.error.title}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
                 {dashboardCopy.page.error.retry}
               </Button>
-            </div>
-          </Alert>
-        )}
+            }
+          />
+        ) : null}
 
         {canReadTrips ? (
           <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-stretch">

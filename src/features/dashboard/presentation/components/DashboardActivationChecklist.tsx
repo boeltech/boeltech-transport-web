@@ -7,10 +7,15 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, Circle, ListChecks, PartyPopper } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  ListChecks,
+  PartyPopper,
+} from "lucide-react";
 
 import { useAuth } from "@/features/auth";
-import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
@@ -20,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@shared/ui/card";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
 
 import { useDashboardActivation } from "../../application/hooks/useDashboardActivation";
@@ -156,7 +162,11 @@ function ActivationItemRow({
           >
             {label}
           </span>
-          <Badge variant={done ? "secondary" : "outline"} className="text-xs">
+          <Badge
+            variant={done ? "success" : "neutral"}
+            tone="soft"
+            className="text-xs"
+          >
             {done ? copy.doneBadge : copy.pendingBadge}
           </Badge>
         </div>
@@ -188,23 +198,23 @@ function FirstTripSuccessBlock({ data }: { data: ActivationData }) {
   const softPending = findPendingSoftTrackItems(data.items);
 
   return (
-    <Alert variant="success" aria-label={copy.successTitle}>
-      <PartyPopper aria-hidden />
-      <AlertDescription>
-        <div className="flex flex-wrap items-center gap-2">
-          {softPending.map((item) =>
-            item.canAct ? (
-              <Button key={item.code} asChild variant="outline" size="sm">
-                <Link to={item.ctaPath}>{itemCtaLabel(item.code)}</Link>
-              </Button>
-            ) : null,
-          )}
-          <Button asChild variant="secondary" size="sm">
-            <Link to="/trips">{copy.successTripsCta}</Link>
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
+    <div
+      className="space-y-2 rounded-lg border border-border bg-success/5 p-3"
+      aria-label={copy.successTitle}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {softPending.map((item) =>
+          item.canAct ? (
+            <Button key={item.code} asChild variant="outline" size="sm">
+              <Link to={item.ctaPath}>{itemCtaLabel(item.code)}</Link>
+            </Button>
+          ) : null,
+        )}
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/trips">{copy.successTripsCta}</Link>
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -236,8 +246,11 @@ function AccountantFiscalEmphasis({
 
 export function DashboardActivationChecklist({
   storageKey: storageKeyProp,
+  onGuideVisibleChange,
 }: {
   storageKey?: string;
+  /** D3: cuando la guía manda (loading / error / checklist), ocultar Orientation. */
+  onGuideVisibleChange?: (visible: boolean) => void;
 }) {
   const { user, isAuthenticated } = useAuth();
   const mode = resolveActivationChecklistMode(user?.role);
@@ -259,7 +272,7 @@ export function DashboardActivationChecklist({
   );
   const [seedSheetOpen, setSeedSheetOpen] = useState(false);
 
-  const { data, isLoading, isError } = useDashboardActivation({
+  const { data, isLoading, isError, refetch } = useDashboardActivation({
     enabled: Boolean(mode) && isAuthenticated && !dismissed,
   });
 
@@ -270,6 +283,16 @@ export function DashboardActivationChecklist({
     !isError &&
     data != null &&
     shouldShowActivationChecklist(data, mode!);
+
+  const guideVisible =
+    Boolean(mode) &&
+    !dismissed &&
+    (isLoading || isError || panelVisible);
+
+  useEffect(() => {
+    onGuideVisibleChange?.(guideVisible);
+    return () => onGuideVisibleChange?.(false);
+  }, [guideVisible, onGuideVisibleChange]);
 
   const sessionOnceKey =
     tenantId && userId ? `${tenantId}:${userId}` : undefined;
@@ -311,7 +334,29 @@ export function DashboardActivationChecklist({
     );
   }
 
-  if (isError || !data) return null;
+  if (isError) {
+    return (
+      <DetailAlertCard
+        severity="critical"
+        icon={<AlertCircle className="h-4 w-4" />}
+        title={copy.error.title}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refetch();
+            }}
+          >
+            {copy.error.retry}
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (!data) return null;
   if (!shouldShowActivationChecklist(data, mode)) return null;
 
   const items = filterActivationItemsForMode(data.items, mode);

@@ -181,12 +181,12 @@ export function DashboardOrientationAlert({
   };
 
   return (
-    <Alert variant="info">
+    <Alert variant="info" className="py-2.5">
       <Compass className="h-4 w-4" />
-      <AlertTitle>{content.title}</AlertTitle>
-      <AlertDescription>
+      <AlertTitle className="text-sm leading-snug">{content.title}</AlertTitle>
+      <AlertDescription className="text-xs">
         {content.links.length > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {content.links.map((link) => (
               <p key={link.href}>
                 {link.preface}{" "}
@@ -200,7 +200,7 @@ export function DashboardOrientationAlert({
             ))}
           </div>
         ) : null}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
             {copy.orientationDismiss}
           </Button>

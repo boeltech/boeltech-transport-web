@@ -115,6 +115,7 @@ function renderChecklist(
     data: activation,
     isLoading: false,
     isError: false,
+    refetch: vi.fn(),
   });
 
   const client = new QueryClient({
@@ -393,5 +394,39 @@ describe("DashboardActivationChecklist", () => {
     expect(
       screen.queryByRole("button", { name: demoCopy.loadCta }),
     ).not.toBeInTheDocument();
+  });
+
+  it("en error muestra DetailAlertCard con Reintentar (no silent fail)", async () => {
+    const refetch = vi.fn();
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: {
+        id: "user-1",
+        role: "admin",
+        tenant: { id: "tenant-1" },
+      },
+    });
+    mockUseDashboardActivation.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <DashboardActivationChecklist />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(copy.error.title)).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: copy.error.retry }),
+    );
+    expect(refetch).toHaveBeenCalled();
   });
 });

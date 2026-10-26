@@ -113,11 +113,14 @@ describe("DashboardAlertsPanel", () => {
     expect(
       screen.getByText(dashboardCopy.alerts.unavailableTitle),
     ).toBeInTheDocument();
+    // CardDescription lleva el detalle; DetailAlertCard el título + Reintentar.
     expect(
       screen.getByText(dashboardCopy.alerts.unavailableDescription),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: dashboardCopy.alerts.retry }));
+    fireEvent.click(
+      screen.getByRole("button", { name: dashboardCopy.alerts.retry }),
+    );
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 

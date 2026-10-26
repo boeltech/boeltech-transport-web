@@ -71,7 +71,7 @@ function ScorecardDelta({ delta }: { delta: PercentDelta }) {
   );
 }
 
-function ArStackCard({
+function ArStripCell({
   title,
   subtitle,
   value,
@@ -79,6 +79,7 @@ function ArStackCard({
   onClick,
   tone = "default",
   ariaLabel,
+  className,
 }: {
   title: string;
   subtitle?: string;
@@ -87,6 +88,7 @@ function ArStackCard({
   onClick: () => void;
   tone?: "default" | "warning";
   ariaLabel: string;
+  className?: string;
 }) {
   // En bg-card usar text-card-foreground / text-warning — nunca *-foreground sólido.
   const valueClass =
@@ -95,7 +97,10 @@ function ArStackCard({
   return (
     <button
       type="button"
-      className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2 rounded-2xl border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-5"
+      className={cn(
+        "flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2 p-4 text-left text-card-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:p-5",
+        className,
+      )}
       onClick={onClick}
       aria-label={ariaLabel}
     >
@@ -265,12 +270,13 @@ export function DashboardMetricTrendCards({
           </div>
         </div>
 
-        {/* Stack AR vertical */}
+        {/* Stack AR — franja unida (mismo patrón que DashboardKpiStrip) */}
         <div
-          className="flex min-h-0 min-w-0 flex-col gap-3 lg:col-span-5 xl:col-span-4"
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm lg:col-span-5 xl:col-span-4"
+          role="group"
           aria-label={dashboardCopy.scorecard.arStrip.ariaLabel}
         >
-          <ArStackCard
+          <ArStripCell
             title={dashboardCopy.scorecard.collected.title}
             subtitle={dashboardCopy.scorecard.collected.subtitle}
             value={
@@ -281,8 +287,9 @@ export function DashboardMetricTrendCards({
             isLoading={arLoading}
             onClick={() => navigate(FINANCE_COBROS_PATH, { state: navState })}
             ariaLabel={dashboardCopy.scorecard.collected.ariaLabel}
+            className="border-b border-border"
           />
-          <ArStackCard
+          <ArStripCell
             title={dashboardCopy.scorecard.receivable.title}
             subtitle={dashboardCopy.scorecard.receivable.subtitle}
             value={
@@ -293,8 +300,9 @@ export function DashboardMetricTrendCards({
             isLoading={arLoading}
             onClick={() => navigate(FINANCE_COBROS_PATH, { state: navState })}
             ariaLabel={dashboardCopy.scorecard.receivable.ariaLabel}
+            className="border-b border-border"
           />
-          <ArStackCard
+          <ArStripCell
             title={dashboardCopy.scorecard.overdue.title}
             subtitle={dashboardCopy.scorecard.overdue.subtitle}
             value={financeSummary ? formatMxCurrencyWhole(overdue) : "—"}

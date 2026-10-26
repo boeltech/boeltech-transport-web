@@ -41,8 +41,30 @@ vi.mock("../application/hooks/useDashboardActivation", () => ({
     data: undefined,
     isLoading: false,
     isError: false,
+    refetch: vi.fn(),
   }),
 }));
+
+vi.mock("@features/approvals/application", () => ({
+  useApprovalsPendingCountsByType: () => ({
+    data: undefined,
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@shared/permissions", async () => {
+  const actual = await vi.importActual<typeof import("@shared/permissions")>(
+    "@shared/permissions",
+  );
+  return {
+    ...actual,
+    usePermissions: () => ({
+      hasPermission: () => false,
+      can: () => false,
+      permissions: {},
+    }),
+  };
+});
 
 vi.mock("../application/hooks/useTripsByDay", () => ({
   useTripsByDay: () => ({ data: undefined, isLoading: false }),
@@ -161,10 +183,9 @@ describe("DashboardPage — orientación client", () => {
     ["dispatcher", dashboardCopy.page.tripsBridgeLink, "/trips"],
   ] as const)("%s muestra su puente", (role, linkName, href) => {
     renderDashboard(role);
-    expect(screen.getByRole("link", { name: linkName })).toHaveAttribute(
-      "href",
-      href,
-    );
+    // Job CTA del toolbar (D1) puede repetir el mismo label que el puente de orientación.
+    const links = screen.getAllByRole("link", { name: linkName });
+    expect(links.some((el) => el.getAttribute("href") === href)).toBe(true);
   });
 
   it("driver conserva un solo puente a Mis viajes", () => {
@@ -221,6 +242,28 @@ describe("DashboardPage — orientación client", () => {
     renderDashboard("dispatcher");
     expect(
       screen.getByText(formatDashboardTodayLabel()),
+    ).toBeInTheDocument();
+  });
+
+  it("dispatcher expone CTA primario Ir a Viajes y Personalizar terciario", () => {
+    mockLayoutWidgets.mockReturnValue({
+      customizable: [{ id: "stub_a", visible: true, order: 0 }],
+      visible: [{ id: "stub_a", visible: true, order: 0 }],
+    });
+    renderDashboard("dispatcher");
+    const tripLinks = screen.getAllByRole("link", {
+      name: dashboardCopy.page.jobActions.trips,
+    });
+    expect(tripLinks.some((el) => el.getAttribute("href") === "/trips")).toBe(
+      true,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: dashboardCopy.customize.personalizeButton,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: dashboardCopy.page.refresh }),
     ).toBeInTheDocument();
   });
 });

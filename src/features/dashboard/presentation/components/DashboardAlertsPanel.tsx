@@ -28,6 +28,8 @@ import {
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { alertVariants } from "@shared/ui/alert";
+import { DetailAlertCard } from "@shared/ui/data-display";
+import { EmptyState } from "@shared/ui/feedback-states";
 import { ScrollArea } from "@shared/ui/scroll-area";
 import { Skeleton } from "@shared/ui/skeleton";
 import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
@@ -176,7 +178,8 @@ export function DashboardAlertsPanel({
 
   const description = (() => {
     if (isLoading) return dashboardCopy.alerts.loading;
-    if (showUnavailable) return dashboardCopy.alerts.unavailableTitle;
+    // Título del error vive en DetailAlertCard — no duplicar en CardDescription.
+    if (showUnavailable) return dashboardCopy.alerts.unavailableDescription;
     if (sorted.length === 0) return dashboardCopy.alerts.emptyTitle;
     return dashboardCopy.alerts.count(sorted.length);
   })();
@@ -211,25 +214,28 @@ export function DashboardAlertsPanel({
             ))}
           </div>
         ) : showUnavailable ? (
-          <div className="flex flex-col items-center gap-3 py-10 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive" />
-            <p className="text-sm text-muted-foreground">
-              {dashboardCopy.alerts.unavailableDescription}
-            </p>
-            {onRetry ? (
-              <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-                {dashboardCopy.alerts.retry}
-              </Button>
-            ) : null}
-          </div>
+          <DetailAlertCard
+            severity="critical"
+            icon={<AlertCircle className="h-4 w-4" />}
+            title={dashboardCopy.alerts.unavailableTitle}
+            action={
+              onRetry ? (
+                <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+                  {dashboardCopy.alerts.retry}
+                </Button>
+              ) : undefined
+            }
+          />
         ) : sorted.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center text-muted-foreground">
-            <CheckCircle className="h-10 w-10 text-success" />
-            <p className="text-sm font-medium">
-              {dashboardCopy.alerts.allClearTitle}
-            </p>
-            <p className="text-xs">{dashboardCopy.alerts.emptyDescription}</p>
-          </div>
+          <EmptyState
+            size="sm"
+            icon={<CheckCircle aria-hidden className="text-success" />}
+            title={dashboardCopy.alerts.allClearTitle}
+            description={
+              <p className="text-xs">{dashboardCopy.alerts.emptyDescription}</p>
+            }
+            className="[&_h3]:text-sm"
+          />
         ) : (
           <ScrollArea
             type="scroll"

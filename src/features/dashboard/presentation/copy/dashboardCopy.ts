@@ -33,6 +33,10 @@ export const dashboardCopy = {
     dismiss: "Continuar sin guía",
     doneBadge: "Listo",
     pendingBadge: "Pendiente",
+    error: {
+      title: "No se pudo cargar la guía de activación",
+      retry: "Reintentar",
+    },
     itemLabels: {
       client: "Alta de cliente",
       vehicle: "Alta de unidad",
@@ -127,6 +131,15 @@ export const dashboardCopy = {
     tripsBridgeDriverLink: "Ir a Mis viajes",
     refresh: "Actualizar",
     orientationDismiss: "Entendido",
+    /** CTAs de job en toolbar (D1) — no confundir con Personalizar/Actualizar. */
+    jobActions: {
+      pendingApprovals: "Por autorizar",
+      viewAlerts: "Ver alertas",
+      tripsToday: "Viajes de hoy",
+      trips: "Ir a Viajes",
+      invoiceable: "Ir a Por facturar",
+      fiscalAttention: "Ir a Atención fiscal",
+    },
     error: {
       title: "No se pudieron cargar los datos del dashboard.",
       retry: "Reintentar",

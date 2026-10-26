@@ -28,6 +28,7 @@ import {
   CardContent,
   CardHeader,
 } from "@shared/ui/card";
+import { EmptyState } from "@shared/ui/feedback-states";
 import { Skeleton } from "@shared/ui/skeleton";
 import type { RecentTrip } from "../../domain/types";
 import {
@@ -68,7 +69,7 @@ function MorningStatRow({
 }: MorningStatRowProps) {
   const body = (
     <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -76,7 +77,7 @@ function MorningStatRow({
           <span className="text-sm font-medium text-card-foreground">
             {label}
           </span>
-          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="text-xs font-normal text-muted-foreground">
             {microLabel}
           </span>
         </span>
@@ -261,11 +262,15 @@ export function DashboardMorningBrief({
                 <Skeleton key={i} className="h-14 w-full rounded-lg" />
               ))
             ) : rows.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 px-2 py-6 text-center text-muted-foreground">
-                <Route className="h-7 w-7" aria-hidden />
-                <p className="text-sm font-medium">{copy.tripsToday.empty}</p>
-                <p className="text-xs">{copy.tripsToday.emptyHint}</p>
-              </div>
+              <EmptyState
+                size="sm"
+                icon={<Route aria-hidden />}
+                title={copy.tripsToday.empty}
+                description={
+                  <p className="text-xs">{copy.tripsToday.emptyHint}</p>
+                }
+                className="px-2 [&_h3]:text-sm"
+              />
             ) : (
               rows.map((trip) => (
                 <TripTodayRow
