@@ -1,5 +1,6 @@
 /**
- * Campos secundarios del canvas de reserva (PD1): llegada, tarifa, km y notas.
+ * Opcionales comerciales del canvas de reserva (F1 intake lean):
+ * llegada, tarifa y km. Notas del pedido viven en Pedido (fuera del colapsable).
  */
 import { Controller, type UseFormReturn } from "react-hook-form";
 
@@ -10,16 +11,13 @@ import {
   RHFMoneyField,
 } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
-import { Textarea } from "@shared/ui/text-area";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 
 import type { TripWizardFormValues } from "./validation";
-import { wizardCopy } from "../../../copy";
+import { canvasCopy } from "../../../copy/canvasCopy";
 import { tripScheduleDateTimeFieldProps } from "../../../scheduleDateTimeField";
 
-const shell = wizardCopy.shell;
-const reserve = shell.reserve;
-const basic = wizardCopy.basicInfo;
+const fields = canvasCopy.fields;
 
 interface ReserveConfirmLaterFieldsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,8 +28,8 @@ export function ReserveConfirmLaterFields({
   form,
 }: ReserveConfirmLaterFieldsProps) {
   const { control, watch } = form;
-  const scheduleFieldProps = tripScheduleDateTimeFieldProps(basic.preset);
   const vehicleCurrentMileage = watch("vehicleCurrentMileage");
+  const scheduleFieldProps = tripScheduleDateTimeFieldProps(fields.preset);
 
   return (
     <div className="space-y-4">
@@ -45,9 +43,9 @@ export function ReserveConfirmLaterFields({
               label={
                 <SectionHeadingWithHint
                   noTitleWrap
-                  title={basic.label.scheduledArrival}
-                  hintLabel={basic.hintLabel.scheduledArrival}
-                  hint={<>{reserve.hint.arrival}</>}
+                  title={fields.label.scheduledArrival}
+                  hintLabel={fields.hintLabel.scheduledArrival}
+                  hint={<>{fields.hint.arrival}</>}
                 />
               }
               errorMessage={fieldState.error?.message}
@@ -72,8 +70,8 @@ export function ReserveConfirmLaterFields({
           <RHFMoneyField
             control={control}
             name="baseRate"
-            label={reserve.label.baseRate}
-            description={reserve.hint.baseRate}
+            label={fields.label.baseRate}
+            description={fields.hint.baseRate}
           />
         </div>
 
@@ -83,18 +81,18 @@ export function ReserveConfirmLaterFields({
           render={({ field, fieldState }) => (
             <FormFieldShell
               fieldId="reserve-startMileage"
-              label={basic.label.startMileage}
+              label={fields.label.startMileage}
               errorMessage={fieldState.error?.message}
               description={
                 vehicleCurrentMileage !== undefined
-                  ? basic.format.currentMileage(vehicleCurrentMileage)
-                  : reserve.hint.startMileage
+                  ? fields.format.currentMileage(vehicleCurrentMileage)
+                  : fields.hint.startMileage
               }
             >
               <Input
                 id="reserve-startMileage"
                 type="number"
-                placeholder={basic.placeholder.startMileage}
+                placeholder={fields.placeholder.startMileage}
                 value={field.value ?? ""}
                 onChange={(e) =>
                   field.onChange(
@@ -114,30 +112,6 @@ export function ReserveConfirmLaterFields({
           )}
         />
       </div>
-
-      <Controller
-        control={control}
-        name="notes"
-        render={({ field, fieldState }) => (
-          <FormFieldShell
-            fieldId="notes"
-            label={reserve.label.notes}
-            errorMessage={fieldState.error?.message}
-            description={reserve.hint.notes}
-          >
-            <Textarea
-              id="notes"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              placeholder={reserve.placeholder.notes}
-              rows={3}
-              error={Boolean(fieldState.error)}
-              {...getFieldErrorAriaProps("notes", fieldState.error?.message)}
-            />
-          </FormFieldShell>
-        )}
-      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 /**
- * Paso 1 del wizard de reserva (ADR-0071): pedido operativo mínimo.
+ * Pedido del canvas de reserva (intake lean F1):
+ * Cliente → (corredor) → ciudades → fecha salida → clase de ruta (secundaria).
  */
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -12,6 +13,7 @@ import {
 } from "@features/trips/domain";
 import { FormFieldShell, DateTimeField, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
+import { Textarea } from "@shared/ui/text-area";
 import {
   Select,
   SelectContent,
@@ -23,12 +25,10 @@ import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import { usePermissions } from "@shared/permissions";
 
 import type { TripWizardFormValues } from "./validation";
-import { wizardCopy } from "../../../copy";
+import { canvasCopy } from "../../../copy/canvasCopy";
 import { tripScheduleDateTimeFieldProps } from "../../../scheduleDateTimeField";
 
-const shell = wizardCopy.shell;
-const basic = wizardCopy.basicInfo;
-const reserve = shell.reserve;
+const fields = canvasCopy.fields;
 
 const ROUTE_TYPE_OPTIONS = [
   TripRouteType.LONG_HAUL,
@@ -54,13 +54,13 @@ export function ReservePedidoStep({
   const { control } = form;
   const { hasPermission } = usePermissions();
   const canCreateClient = hasPermission("clients", "create");
-  const scheduleFieldProps = tripScheduleDateTimeFieldProps(basic.preset);
+  const scheduleFieldProps = tripScheduleDateTimeFieldProps(fields.preset);
 
   return (
     <div className="space-y-6">
       <section className="space-y-4" aria-labelledby="reserve-client-heading">
         <h2 id="reserve-client-heading" className="sr-only">
-          {reserve.label.client}
+          {fields.label.client}
         </h2>
         <div className="space-y-2">
           <Controller
@@ -72,10 +72,10 @@ export function ReservePedidoStep({
                 label={
                   <SectionHeadingWithHint
                     noTitleWrap
-                    title={reserve.label.client}
-                    hintLabel={reserve.label.client}
+                    title={fields.label.client}
+                    hintLabel={fields.label.client}
                     required
-                    hint={<>{reserve.hint.client}</>}
+                    hint={<>{fields.hint.client}</>}
                   />
                 }
                 errorMessage={fieldState.error?.message}
@@ -98,7 +98,7 @@ export function ReservePedidoStep({
                     ) : (
                       <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
                     )}
-                    <SelectValue placeholder={basic.placeholder.selectClient} />
+                    <SelectValue placeholder={fields.placeholder.selectClient} />
                   </SelectTrigger>
                   <SelectContent>
                     {clients.map((client) => (
@@ -114,19 +114,19 @@ export function ReservePedidoStep({
           <p className="text-xs text-muted-foreground">
             {canCreateClient ? (
               <>
-                {reserve.hint.newClient}{" "}
+                {fields.hint.newClient}{" "}
                 <Link
                   to="/clients/new"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
                 >
-                  {reserve.action.newClient}
+                  {fields.action.newClient}
                   <ExternalLink className="h-3 w-3" aria-hidden />
                 </Link>
               </>
             ) : (
-              reserve.hint.newClientEscalate
+              fields.hint.newClientEscalate
             )}
           </p>
         </div>
@@ -138,7 +138,7 @@ export function ReservePedidoStep({
           id="reserve-route-heading"
           className="text-sm font-medium text-foreground"
         >
-          {reserve.section.routeApprox}
+          {fields.section.routeApprox}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Controller
@@ -147,7 +147,7 @@ export function ReservePedidoStep({
             render={({ field, fieldState }) => (
               <FormFieldShell
                 fieldId="originCity"
-                label={reserve.label.originCity}
+                label={fields.label.originCity}
                 required
                 errorMessage={fieldState.error?.message}
               >
@@ -156,7 +156,7 @@ export function ReservePedidoStep({
                   value={field.value ?? ""}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
-                  placeholder={reserve.placeholder.originCity}
+                  placeholder={fields.placeholder.originCity}
                   error={Boolean(fieldState.error)}
                   {...getFieldErrorAriaProps(
                     "originCity",
@@ -172,7 +172,7 @@ export function ReservePedidoStep({
             render={({ field, fieldState }) => (
               <FormFieldShell
                 fieldId="destinationCity"
-                label={reserve.label.destinationCity}
+                label={fields.label.destinationCity}
                 required
                 errorMessage={fieldState.error?.message}
               >
@@ -181,7 +181,7 @@ export function ReservePedidoStep({
                   value={field.value ?? ""}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
-                  placeholder={reserve.placeholder.destinationCity}
+                  placeholder={fields.placeholder.destinationCity}
                   error={Boolean(fieldState.error)}
                   {...getFieldErrorAriaProps(
                     "destinationCity",
@@ -192,6 +192,74 @@ export function ReservePedidoStep({
             )}
           />
         </div>
+      </section>
+
+      <section className="space-y-4" aria-labelledby="reserve-schedule-heading">
+        <h2
+          id="reserve-schedule-heading"
+          className="text-sm font-medium text-foreground"
+        >
+          {fields.section.schedule}
+        </h2>
+        <Controller
+          control={control}
+          name="scheduledDeparture"
+          render={({ field, fieldState }) => (
+            <FormFieldShell
+              fieldId="scheduledDeparture"
+              label={fields.label.scheduledDeparture}
+              required
+              errorMessage={fieldState.error?.message}
+            >
+              <DateTimeField
+                id="scheduledDeparture"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={Boolean(fieldState.error)}
+                {...scheduleFieldProps}
+                {...getFieldErrorAriaProps(
+                  "scheduledDeparture",
+                  fieldState.error?.message,
+                )}
+              />
+            </FormFieldShell>
+          )}
+        />
+      </section>
+
+      {/* PD2: notas del canal — visibles en Pedido, fuera del colapsable */}
+      <section className="space-y-4" aria-label={fields.label.notes}>
+        <Controller
+          control={control}
+          name="notes"
+          render={({ field, fieldState }) => (
+            <FormFieldShell
+              fieldId="notes"
+              label={fields.label.notes}
+              errorMessage={fieldState.error?.message}
+              description={fields.hint.notes}
+            >
+              <Textarea
+                id="notes"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                placeholder={fields.placeholder.notes}
+                rows={3}
+                error={Boolean(fieldState.error)}
+                {...getFieldErrorAriaProps("notes", fieldState.error?.message)}
+              />
+            </FormFieldShell>
+          )}
+        />
+      </section>
+
+      {/* PD7: clase de ruta secundaria — default en form; no compite con el script de llamada */}
+      <section
+        className="space-y-3 border-t border-border/60 pt-4"
+        aria-label={fields.label.routeType}
+      >
         <Controller
           control={control}
           name="routeType"
@@ -201,9 +269,9 @@ export function ReservePedidoStep({
               label={
                 <SectionHeadingWithHint
                   noTitleWrap
-                  title={reserve.label.routeType}
-                  hintLabel={reserve.label.routeType}
-                  hint={<>{reserve.hint.routeType}</>}
+                  title={fields.label.routeType}
+                  hintLabel={fields.label.routeType}
+                  hint={<>{fields.hint.routeType}</>}
                 />
               }
               errorMessage={fieldState.error?.message}
@@ -220,7 +288,7 @@ export function ReservePedidoStep({
                     fieldState.error?.message,
                   )}
                 >
-                  <SelectValue placeholder={reserve.placeholder.routeType} />
+                  <SelectValue placeholder={fields.placeholder.routeType} />
                 </SelectTrigger>
                 <SelectContent>
                   {ROUTE_TYPE_OPTIONS.map((value) => (
@@ -230,40 +298,6 @@ export function ReservePedidoStep({
                   ))}
                 </SelectContent>
               </Select>
-            </FormFieldShell>
-          )}
-        />
-      </section>
-
-      <section className="space-y-4" aria-labelledby="reserve-schedule-heading">
-        <h2
-          id="reserve-schedule-heading"
-          className="text-sm font-medium text-foreground"
-        >
-          {reserve.section.schedule}
-        </h2>
-        <Controller
-          control={control}
-          name="scheduledDeparture"
-          render={({ field, fieldState }) => (
-            <FormFieldShell
-              fieldId="scheduledDeparture"
-              label={basic.label.scheduledDeparture}
-              required
-              errorMessage={fieldState.error?.message}
-            >
-              <DateTimeField
-                id="scheduledDeparture"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                error={Boolean(fieldState.error)}
-                {...scheduleFieldProps}
-                {...getFieldErrorAriaProps(
-                  "scheduledDeparture",
-                  fieldState.error?.message,
-                )}
-              />
             </FormFieldShell>
           )}
         />

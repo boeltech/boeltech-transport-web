@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { RouteEstimate } from "@features/trips/domain";
 import { RouteEstimateCard } from "./RouteEstimateCard";
+import { canvasCopy } from "../../copy/canvasCopy";
 
 const DISCLAIMER =
   "Estimado interno con base en viajes completados. No es precio al cliente. Percances no incluidos.";
@@ -31,5 +33,24 @@ describe("RouteEstimateCard", () => {
     expect(screen.getByText(/no bloquea reservar/i)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText(/cotizaci[oó]n al cliente/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: canvasCopy.estimate.showBreakdown }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Combustible/i)).not.toBeInTheDocument();
+  });
+
+  it("reveals fuel/toll breakdown on demand (PD6)", async () => {
+    const user = userEvent.setup();
+    render(<RouteEstimateCard estimate={estimate} />);
+
+    await user.click(
+      screen.getByRole("button", { name: canvasCopy.estimate.showBreakdown }),
+    );
+
+    expect(screen.getByText(/^Combustible/)).toBeInTheDocument();
+    expect(screen.getByText(/^Peaje/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Con base en 8 viajes completados/),
+    ).toBeInTheDocument();
   });
 });

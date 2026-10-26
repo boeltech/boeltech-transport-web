@@ -1,5 +1,6 @@
 import { Loader2, Route } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import type { ClientCorridor } from "@features/trips/domain";
 import { canvasCopy } from "../../copy/canvasCopy";
 
@@ -45,7 +46,13 @@ export function CorridorPicker({
 
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{copy.label}</legend>
+      <legend className="sr-only">{copy.label}</legend>
+      <SectionHeadingWithHint
+        title={copy.label}
+        hintLabel={copy.label}
+        hint={<>{copy.hintDetail}</>}
+        titleClassName="text-sm font-medium"
+      />
       <p className="text-xs text-muted-foreground">{copy.hint}</p>
       <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-0.5">
         {corridors.map((corridor) => {

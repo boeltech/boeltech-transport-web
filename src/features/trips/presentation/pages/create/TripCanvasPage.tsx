@@ -2,7 +2,7 @@
  * Canvas de alta de viaje (ADR-0078 F2).
  * Una pantalla Pedido | Flota. Submit = POST /trips create_intent=reserve.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { useForm } from "react-hook-form";
@@ -35,10 +35,8 @@ import { useDrivers } from "@features/drivers/application";
 import { useActiveClients } from "@features/clients/application";
 
 import { canvasCopy } from "../../copy/canvasCopy";
-import { wizardCopy } from "../../copy";
 import { CorridorPicker } from "../../components/corridor/CorridorPicker";
 import { RouteEstimateCard } from "../../components/corridor/RouteEstimateCard";
-import { TripLiquidacionField } from "../../components/TripLiquidacionField";
 import { replaceStopsFromCorridor } from "../../components/trip-route/buildReplaceStopsPayload";
 import { ReservePedidoStep } from "./components/ReservePedidoStep";
 import { ReserveAsignarStep } from "./components/ReserveAsignarStep";
@@ -60,7 +58,6 @@ import {
 } from "./validateTripApiPayload";
 
 const copy = canvasCopy;
-const shell = wizardCopy.shell;
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -91,6 +88,7 @@ export function TripCanvasPage() {
   const [selectedCorridor, setSelectedCorridor] =
     useState<ClientCorridor | null>(null);
   const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
+  const validationSummaryRef = useRef<HTMLDivElement>(null);
 
   const { data: vehiclesRaw = [], isLoading: isLoadingVehicles } =
     useAssignableVehicles({ refetchOnMount: "always" });
@@ -146,12 +144,6 @@ export function TripCanvasPage() {
   const originCity = form.watch("originCity") ?? "";
   const destinationCity = form.watch("destinationCity") ?? "";
   const vehicleId = form.watch("vehicleId");
-
-  const selectedClient = useMemo(
-    () => clients.find((c) => c.id === clientId),
-    [clients, clientId],
-  );
-  const clientProfile = selectedClient?.cfdiReceptorProfile;
 
   useEffect(() => {
     if (!selectedCorridor) return;
@@ -213,7 +205,7 @@ export function TripCanvasPage() {
     const createApiCheck = validateCreateTripApiPayload(payload);
     if (!createApiCheck.ok) {
       toast({
-        title: shell.toast.serverValidationTitle,
+        title: copy.toast.serverValidationTitle,
         description: formatTripApiValidationForUser(createApiCheck.fieldErrors),
         variant: "error",
       });
@@ -223,13 +215,13 @@ export function TripCanvasPage() {
     try {
       const result = await createMutation.mutateAsync(payload);
       toast({
-        title: shell.toast.tripReserved,
+        title: copy.toast.tripReserved,
         variant: "success",
       });
       if (result.warnings?.length) {
         for (const warning of result.warnings) {
           toast({
-            title: shell.toast.overlapWarningTitle,
+            title: copy.toast.overlapWarningTitle,
             description: warning.message,
             variant: "warning",
           });
@@ -238,11 +230,11 @@ export function TripCanvasPage() {
       navigate(`/trips/${result.trip.id}`);
     } catch (error) {
       toast({
-        title: shell.toast.createError,
+        title: copy.toast.createError,
         description:
           error instanceof TripCreationError || error instanceof Error
             ? error.message
-            : shell.toast.unknownError,
+            : copy.toast.unknownError,
         variant: "error",
       });
     }
@@ -253,6 +245,14 @@ export function TripCanvasPage() {
   const validationMessages = showValidationSummary
     ? collectFieldErrorMessages(form.formState.errors)
     : [];
+
+  useEffect(() => {
+    if (!showValidationSummary || validationMessages.length === 0) return;
+    validationSummaryRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [showValidationSummary, validationMessages.length]);
 
   return (
     <FormPageShell
@@ -279,19 +279,12 @@ export function TripCanvasPage() {
                 isLoadingClients={isLoadingClients}
                 afterClient={
                   clientId ? (
-                    <div className="space-y-4">
-                      <TripLiquidacionField
-                        form={form}
-                        clientId={clientId}
-                        clientProfile={clientProfile}
-                      />
-                      <CorridorPicker
-                        corridors={corridors}
-                        isLoading={isLoadingCorridors}
-                        selectedKey={selectedCorridor?.corridorKey}
-                        onSelect={handleSelectCorridor}
-                      />
-                    </div>
+                    <CorridorPicker
+                      corridors={corridors}
+                      isLoading={isLoadingCorridors}
+                      selectedKey={selectedCorridor?.corridorKey}
+                      onSelect={handleSelectCorridor}
+                    />
                   ) : null
                 }
               />
@@ -346,26 +339,34 @@ export function TripCanvasPage() {
           </div>
         </Collapsible>
 
-        <FormValidationSummary
-          messages={validationMessages}
-          title={copy.submit.validationTitle}
-        />
-
-        <div className="flex justify-end border-t border-border pt-4">
-          <Button
-            type="submit"
-            disabled={createMutation.isPending}
-            leftIcon={
-              createMutation.isPending ? undefined : (
-                <CalendarPlus className="h-4 w-4" />
-              )
-            }
-          >
-            {createMutation.isPending
-              ? copy.submit.pending
-              : copy.submit.label}
-          </Button>
+        <div ref={validationSummaryRef} className="scroll-mt-28">
+          <FormValidationSummary
+            messages={validationMessages}
+            title={copy.submit.validationTitle}
+          />
         </div>
+
+        {/*
+          Sticky CTA — excepción canvas / pedido intake lean (TEC TD2).
+          Ref. visual: BuilderPageShell sticky bottom. No tocar FormPageShell.
+        */}
+        <footer className="sticky bottom-0 z-10 -mx-1 mt-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              disabled={createMutation.isPending}
+              leftIcon={
+                createMutation.isPending ? undefined : (
+                  <CalendarPlus className="h-4 w-4" />
+                )
+              }
+            >
+              {createMutation.isPending
+                ? copy.submit.pending
+                : copy.submit.label}
+            </Button>
+          </div>
+        </footer>
       </form>
     </FormPageShell>
   );

@@ -46,16 +46,51 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
     );
     expect(payload.routeType).toBe("long_haul");
     expect(payload.trailers).toBeUndefined();
+    // A2: reserve omite intent; API deriva del perfil
+    expect(payload.cfdiEmissionIntent).toBeUndefined();
 
     const snake = deepToSnake(payload) as {
       options?: { create_intent?: string };
       route_type?: string;
+      cfdi_emission_intent?: string;
     };
     expect(snake.options?.create_intent).toBe("reserve");
     expect(snake.route_type).toBe("long_haul");
+    expect(snake.cfdi_emission_intent).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(snake, "cfdi_emission_intent")).toBe(
+      false,
+    );
 
     const apiCheck = validateCreateTripApiPayload(payload);
     expect(apiCheck.ok).toBe(true);
+  });
+
+  it("omits cfdiEmissionIntent even when form has emitir_cfdi (A2 safe path)", () => {
+    const values = {
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      clientId: "33333333-3333-4333-8333-333333333333",
+      scheduledDeparture: "2030-01-15T14:00",
+      scheduledArrival: "",
+      originCity: "CDMX",
+      destinationCity: "MTY",
+      notes: "",
+      cfdiDocumentIntent: "ingreso",
+      cfdiEmissionIntent: "emitir_cfdi",
+      originBranchId: "",
+      stops: [],
+      cargos: [],
+      expenses: [],
+      internalStaff: [],
+    } as unknown as TripWizardFormValues;
+
+    const payload = buildCreateTripInputFromWizardValues(values, {
+      createIntent: "reserve",
+    });
+
+    expect(payload.cfdiEmissionIntent).toBeUndefined();
+    const snake = deepToSnake(payload) as Record<string, unknown>;
+    expect(snake).not.toHaveProperty("cfdi_emission_intent");
   });
 
   it("includes trailers when assigned for Config S/R", () => {

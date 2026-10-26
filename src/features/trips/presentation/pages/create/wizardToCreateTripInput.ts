@@ -49,6 +49,8 @@ export function buildCreateTripInputFromWizardValues(
 
   if (createIntent === "reserve") {
     const clonedStops = buildOptions?.clonedStops;
+    // A2 / ADR-0096: omit cfdiEmissionIntent so API derives default from client profile.
+    // Sending form default (emitir_cfdi) would break comercial_only coherence.
     return {
       vehicleId: data.vehicleId,
       driverId: data.driverId,
@@ -57,7 +59,6 @@ export function buildCreateTripInputFromWizardValues(
       clientId: data.clientId,
       originBranchId: data.originBranchId?.trim() || undefined,
       cfdiDocumentIntent: data.cfdiDocumentIntent ?? "ingreso",
-      cfdiEmissionIntent: data.cfdiEmissionIntent,
       routeType: data.routeType ?? "long_haul",
       scheduledDeparture: localInputToUtcIso(data.scheduledDeparture),
       scheduledArrival: data.scheduledArrival

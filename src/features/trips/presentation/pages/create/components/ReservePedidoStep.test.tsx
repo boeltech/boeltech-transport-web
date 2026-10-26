@@ -4,14 +4,14 @@ import { useForm } from "react-hook-form";
 import { MemoryRouter } from "react-router-dom";
 
 import { TooltipProvider } from "@shared/ui/tooltip";
-import { wizardCopy } from "../../../copy";
+import { canvasCopy } from "../../../copy/canvasCopy";
 import { ReservePedidoStep } from "./ReservePedidoStep";
 import {
   defaultWizardFormValues,
   type TripWizardFormValues,
 } from "./validation";
 
-const reserve = wizardCopy.shell.reserve;
+const fields = canvasCopy.fields;
 
 const { mockHasPermission } = vi.hoisted(() => ({
   mockHasPermission: vi.fn(),
@@ -51,10 +51,10 @@ describe("ReservePedidoStep client scale", () => {
     render(<Harness />);
 
     expect(
-      screen.getByRole("link", { name: reserve.action.newClient }),
+      screen.getByRole("link", { name: fields.action.newClient }),
     ).toHaveAttribute("href", "/clients/new");
     expect(
-      screen.queryByText(reserve.hint.newClientEscalate),
+      screen.queryByText(fields.hint.newClientEscalate),
     ).not.toBeInTheDocument();
   });
 
@@ -63,17 +63,46 @@ describe("ReservePedidoStep client scale", () => {
     render(<Harness />);
 
     expect(
-      screen.queryByRole("link", { name: reserve.action.newClient }),
+      screen.queryByRole("link", { name: fields.action.newClient }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(reserve.hint.newClientEscalate)).toBeInTheDocument();
+    expect(screen.getByText(fields.hint.newClientEscalate)).toBeInTheDocument();
   });
 
   it("renderiza select Clase de ruta con default Foráneo", () => {
     mockHasPermission.mockReturnValue(false);
     render(<Harness />);
 
-    expect(screen.getByText(reserve.label.routeType)).toBeInTheDocument();
     expect(document.getElementById("routeType")).toBeInTheDocument();
     expect(screen.getByText("Foráneo")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: fields.label.routeType }),
+    ).toBeInTheDocument();
+  });
+
+  it("muestra notas del pedido sin colapsable y orden lean PD1", () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Harness />);
+
+    const client = document.getElementById("clientId");
+    const origin = document.getElementById("originCity");
+    const departure = document.getElementById("scheduledDeparture");
+    const notes = document.getElementById("notes");
+    const routeType = document.getElementById("routeType");
+
+    expect(client).toBeTruthy();
+    expect(origin).toBeTruthy();
+    expect(departure).toBeTruthy();
+    expect(notes).toBeTruthy();
+    expect(routeType).toBeTruthy();
+
+    const following = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(client!.compareDocumentPosition(origin!) & following).toBeTruthy();
+    expect(origin!.compareDocumentPosition(departure!) & following).toBeTruthy();
+    expect(departure!.compareDocumentPosition(notes!) & following).toBeTruthy();
+    expect(notes!.compareDocumentPosition(routeType!) & following).toBeTruthy();
+
+    expect(
+      screen.getByRole("textbox", { name: fields.label.notes }),
+    ).toBeInTheDocument();
   });
 });
