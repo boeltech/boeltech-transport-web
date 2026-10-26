@@ -108,7 +108,7 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
     expect(dimensionQuery.refetch).toHaveBeenCalled();
   });
 
-  it("aviso Gastos: 1 línea above-the-fold + detalle colapsable + CTAs", async () => {
+  it("aviso Gastos: debajo del empty; detalle colapsable + CTAs", async () => {
     const user = userEvent.setup();
     renderWithTheme(<ExpenseAnalysisTab />, {
       route: ["/finance/analysis?view=expenses"],
@@ -127,6 +127,46 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
       screen.getByRole("link", { name: copy.alert.goToProfitability }),
     ).toHaveAttribute("href", "/finance/analysis?view=margin");
   });
+
+  it("con datos: KPIs antes del alert; Export en toolbar de periodo (fuera del alert)", () => {
+    dimensionQuery.data = [
+      {
+        key: "v1",
+        label: "Unidad 1",
+        tripCount: 1,
+        totalExpenses: 100,
+        avgExpensePerTrip: 100,
+      },
+    ];
+    categoryQuery.data = {
+      periods: ["2026-09"],
+      series: { fuel: [100] },
+      total: [100],
+    };
+
+    renderWithTheme(<ExpenseAnalysisTab />, {
+      route: ["/finance/analysis?view=expenses"],
+      resolvedTheme: "light",
+    });
+
+    const kpis = screen.getByTestId("expense-kpis");
+    const alert = screen.getByText(copy.alert.summary);
+    const period = screen.getByTestId("expense-period");
+    const exportBtn = screen.getByRole("button", { name: copy.exportCsv });
+    expect(
+      kpis.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      period.compareDocumentPosition(exportBtn) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      exportBtn.compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(exportBtn.className).toMatch(/w-full/);
+  });
+
 
   it("empty accionable: Mes a mes siempre; ampliar periodo si no es default", () => {
     renderWithTheme(<ExpenseAnalysisTab />, {

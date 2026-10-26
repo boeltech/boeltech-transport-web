@@ -34,6 +34,14 @@ vi.mock("recharts", () => ({
       {children}
     </div>
   ),
+  // Sparkline (KPI Mes a mes F4) — AreaChart / LineChart
+  AreaChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sparkline-area">{children}</div>
+  ),
+  LineChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sparkline-line">{children}</div>
+  ),
+  Area: () => null,
   Bar: ({ dataKey }: { dataKey: string }) => <span data-testid={`bar-${dataKey}`} />,
   Line: ({ dataKey }: { dataKey: string }) => <span data-testid={`line-${dataKey}`} />,
   CartesianGrid: () => null,
@@ -136,7 +144,10 @@ describe("finance performance YoY smoke", () => {
 
     const kpis = screen.getByRole("region", { name: "Totales del rango" });
     expect(await within(kpis).findByText("$3,000.00")).toBeInTheDocument();
-    expect(within(kpis).getByText("vs $2,300.00 año anterior")).toBeInTheDocument();
+    // F4: YoY va en subtitle compuesto (detalle · vs año ant. · Variation)
+    expect(
+      within(kpis).getByText(/vs \$2,300\.00 año anterior/),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "Totales de ago 2026 a sep 2026 · 2 meses completos. oct 2026 va en curso y se suma al terminar el mes.",
@@ -179,7 +190,7 @@ describe("finance performance YoY smoke", () => {
 
     expect(compare).not.toBeChecked();
     expect(screen.queryByTestId("bar-previousRevenue")).not.toBeInTheDocument();
-    expect(screen.queryByText(/^vs .* año anterior$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vs .* año anterior/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "Ingreso vs año ant." }),
     ).not.toBeInTheDocument();
@@ -202,7 +213,7 @@ describe("finance performance YoY smoke", () => {
 
     const kpis = screen.getByRole("region", { name: "Totales del rango" });
     expect(await within(kpis).findByText("$3,000.00")).toBeInTheDocument();
-    expect(screen.queryByText(/^vs .* año anterior$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vs .* año anterior/)).not.toBeInTheDocument();
     expect(screen.queryByText("Nuevo")).not.toBeInTheDocument();
 
     expect(screen.queryByTestId("bar-previousRevenue")).not.toBeInTheDocument();

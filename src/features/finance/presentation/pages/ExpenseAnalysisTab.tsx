@@ -43,6 +43,65 @@ import { formatFinancePeriodLabel } from "../utils/financeChartHelpers";
 const DEFAULT_DIMENSION = "vehicle";
 const DEFAULT_GRANULARITY = "month";
 
+function ExpenseScopeAlert({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const alertCopy = financeCopy.expenses.alert;
+  return (
+    <DetailAlertCard
+      severity="info"
+      icon={<Info className="h-5 w-5" aria-hidden />}
+      title={alertCopy.summary}
+      action={
+        <div className="flex flex-wrap gap-2">
+          <Button asChild type="button" size="sm" variant="outline">
+            <Link to="/trips">{alertCopy.goToTrips}</Link>
+          </Button>
+          <Button asChild type="button" size="sm" variant="ghost">
+            <Link to="/finance/analysis?view=margin">
+              {alertCopy.goToProfitability}
+            </Link>
+          </Button>
+        </div>
+      }
+    >
+      <Collapsible open={open} onOpenChange={onOpenChange}>
+        <CollapsibleTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 h-auto px-2 py-1 text-xs"
+          >
+            {open ? alertCopy.includesHide : alertCopy.includesShow}
+            <ChevronDown
+              className={cn(
+                "ml-1 h-3.5 w-3.5 transition-transform",
+                open && "rotate-180",
+              )}
+              aria-hidden
+            />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-1 pt-1 text-sm text-muted-foreground">
+          <p>{alertCopy.body}</p>
+          <p>
+            {alertCopy.bodyRoutePrefix}{" "}
+            <span className="font-medium text-foreground/80">
+              {alertCopy.bodyRouteLink}
+            </span>
+            {alertCopy.bodyRouteSuffix}
+          </p>
+        </CollapsibleContent>
+      </Collapsible>
+    </DetailAlertCard>
+  );
+}
+
 export function ExpenseAnalysisTab() {
   const { toast } = useToast();
   const [today] = useState(getTodayString);
@@ -178,78 +237,10 @@ export function ExpenseAnalysisTab() {
   const isEmpty = !isLoading && !isLoadError && !hasExpenseData;
   const isDefaultPeriod = period.choice === "last_12";
 
-  const alertCopy = financeCopy.expenses.alert;
   const errorCopy = financeCopy.expenses.error;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <DetailAlertCard
-          severity="info"
-          icon={<Info className="h-5 w-5" aria-hidden />}
-          title={alertCopy.summary}
-          action={
-            <div className="flex flex-wrap gap-2">
-              <Button asChild type="button" size="sm" variant="outline">
-                <Link to="/trips">{alertCopy.goToTrips}</Link>
-              </Button>
-              <Button asChild type="button" size="sm" variant="ghost">
-                <Link to="/finance/analysis?view=margin">
-                  {alertCopy.goToProfitability}
-                </Link>
-              </Button>
-            </div>
-          }
-        >
-          <Collapsible open={alertOpen} onOpenChange={setAlertOpen}>
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="-ml-2 h-auto px-2 py-1 text-xs"
-              >
-                {alertOpen ? alertCopy.includesHide : alertCopy.includesShow}
-                <ChevronDown
-                  className={cn(
-                    "ml-1 h-3.5 w-3.5 transition-transform",
-                    alertOpen && "rotate-180",
-                  )}
-                  aria-hidden
-                />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-1 pt-1 text-sm text-muted-foreground">
-              <p>{alertCopy.body}</p>
-              <p>
-                {alertCopy.bodyRoutePrefix}{" "}
-                <span className="font-medium text-foreground/80">
-                  {alertCopy.bodyRouteLink}
-                </span>
-                {alertCopy.bodyRouteSuffix}
-              </p>
-            </CollapsibleContent>
-          </Collapsible>
-        </DetailAlertCard>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="shrink-0 self-start"
-          disabled={!dimensionRows.length}
-          onClick={() => {
-            exportExpensesByDimensionCsv(dimensionRows, dimension);
-            toast({
-              title: financeCopy.exports.toasts.exportedTitle,
-              description: financeCopy.exports.toasts.expenses(dimensionLabel),
-            });
-          }}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          {financeCopy.expenses.exportCsv}
-        </Button>
-      </div>
-
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <AnalysisPeriodSelector
@@ -290,20 +281,38 @@ export function ExpenseAnalysisTab() {
             </Select>
           </div>
         </div>
-        {filters.hasFilters ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <ActiveFilterChips chips={filters.activeChips} />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={filters.clearAll}
-            >
-              {financeCopy.page.clearFilters}
-            </Button>
-          </div>
-        ) : null}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-full shrink-0 self-start sm:w-auto lg:self-auto"
+          disabled={!dimensionRows.length}
+          onClick={() => {
+            exportExpensesByDimensionCsv(dimensionRows, dimension);
+            toast({
+              title: financeCopy.exports.toasts.exportedTitle,
+              description: financeCopy.exports.toasts.expenses(dimensionLabel),
+            });
+          }}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {financeCopy.expenses.exportCsv}
+        </Button>
       </div>
+
+      {filters.hasFilters ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <ActiveFilterChips chips={filters.activeChips} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={filters.clearAll}
+          >
+            {financeCopy.page.clearFilters}
+          </Button>
+        </div>
+      ) : null}
 
       <AnalysisPeriodCaption period={period} today={today} />
 
@@ -348,6 +357,7 @@ export function ExpenseAnalysisTab() {
               </Link>
             </Button>
           </div>
+          <ExpenseScopeAlert open={alertOpen} onOpenChange={setAlertOpen} />
         </div>
       ) : (
         <>
@@ -358,6 +368,8 @@ export function ExpenseAnalysisTab() {
             isLoading={byCategoryLoading}
             isDimensionLoading={byDimensionLoading}
           />
+
+          <ExpenseScopeAlert open={alertOpen} onOpenChange={setAlertOpen} />
 
           <ExpenseAnalysisCharts
             byCategory={byCategory}

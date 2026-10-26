@@ -196,16 +196,25 @@ export function ProfitabilityKpiCards({
 
     if (!showMargin) return base;
 
+    /** TD6 — monto primario; % en subtitle; tono semántico del margen. */
+    const marginSubtitleParts = [
+      copy.metrics.shareOfRevenue(formatMarginPct(marginPct ?? null)),
+      operational && (agg?.totalTripCommission ?? 0) === 0
+        ? copy.metrics.missingCommissionHint
+        : null,
+    ].filter(Boolean);
+    const marginSubtitle =
+      marginSubtitleParts.length > 0
+        ? marginSubtitleParts.join(" · ")
+        : marginHint;
+
     return [
       ...base,
       {
         key: "blendedMargin",
         title: marginTitle,
-        subtitle:
-          operational && (agg?.totalTripCommission ?? 0) === 0
-            ? copy.metrics.missingCommissionHint
-            : marginHint,
-        value: `${formatMxCurrency(marginValue)} · ${formatMarginPct(marginPct ?? null)}`,
+        subtitle: marginSubtitle,
+        value: formatMxCurrency(marginValue),
         tone:
           marginValue < 0 ? ("destructive" as const) : ("success" as const),
       },
@@ -232,7 +241,8 @@ export function ProfitabilityKpiCards({
       aria-label={copy.metrics.ariaLabel}
       className={cn(
         "grid grid-cols-1 gap-4 sm:grid-cols-2",
-        cardCount >= 4 ? "xl:grid-cols-4" : cardCount === 3 ? "lg:grid-cols-3" : "",
+        cardCount >= 3 && "lg:grid-cols-3",
+        cardCount >= 4 && "xl:grid-cols-4",
       )}
     >
       {cards.map((card) => (

@@ -339,6 +339,9 @@ export function ProfitabilityTab() {
             lossOnly={lossOnly}
             onLossOnlyChange={handleLossOnlyChange}
           />
+          <p className="text-xs text-muted-foreground">
+            {financeCopy.performance.operationalCostLegend}
+          </p>
 
           <ProfitabilityMasterDetailTable
             scope={scope}

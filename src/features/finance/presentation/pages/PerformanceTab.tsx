@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { AlertCircle, Download, Info, TrendingUp } from "lucide-react";
+import { AlertCircle, ChevronDown, Download, Info, TrendingUp } from "lucide-react";
 import {
   DEFAULT_MONTHLY_PERFORMANCE_MONTHS,
   MONTHLY_PERFORMANCE_MONTH_OPTIONS,
@@ -13,10 +13,16 @@ import {
 import { resolveMonthlyMarginBasis } from "@features/finance/domain";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@shared/ui/collapsible";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { Label } from "@shared/ui/label";
 import { Switch } from "@shared/ui/switch";
 import { useToast } from "@shared/hooks";
+import { cn } from "@shared/lib/utils/cn";
 import {
   PerformanceComparisonChart,
   PerformanceKpiCards,
@@ -75,6 +81,7 @@ export function PerformanceTab() {
   );
   /** `null` = sin elección del usuario: se compara cuando hay datos del año anterior. */
   const [compareChoice, setCompareChoice] = useState<boolean | null>(null);
+  const [scopeOpen, setScopeOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useMonthlyPerformance(
     monthlyPerformanceRequestMonths(months),
@@ -166,6 +173,30 @@ export function PerformanceTab() {
 
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">{copy.scopeNote}</p>
+        <Collapsible open={scopeOpen} onOpenChange={setScopeOpen}>
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-ml-2 h-auto px-2 py-0.5 text-xs text-muted-foreground"
+            >
+              {scopeOpen ? copy.scopeIncludesHide : copy.scopeIncludesShow}
+              <ChevronDown
+                className={cn(
+                  "ml-1 h-3.5 w-3.5 transition-transform",
+                  scopeOpen && "rotate-180",
+                )}
+                aria-hidden
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {copy.scopeNoteDetail}
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
         {showNoPreviousNotice ? (
           <p
             id={noPreviousNoticeId}
@@ -215,7 +246,11 @@ export function PerformanceTab() {
             marginBasis={marginBasis}
             personnelCost={personnelCost}
             previousPersonnelCost={previousPersonnelCost}
+            months={aligned}
           />
+          <p className="text-xs text-muted-foreground">
+            {copy.operationalCostLegend}
+          </p>
           <PerformanceComparisonChart
             months={aligned}
             compare={compare}

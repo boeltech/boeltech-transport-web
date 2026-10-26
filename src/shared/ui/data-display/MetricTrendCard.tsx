@@ -11,7 +11,8 @@ import type { StatCardTone } from "./StatCard";
 
 export interface MetricTrendCardProps {
   title: string;
-  subtitle?: string;
+  /** Texto o composición compacta (p. ej. detalle + variación YoY). */
+  subtitle?: ReactNode;
   value: string | number;
   trend?: ReactNode;
   tone?: StatCardTone;
@@ -66,7 +67,7 @@ export function MetricTrendCard({
           )}
         </div>
         {trend && !isLoading ? (
-          <div className="w-[100px] shrink-0" aria-hidden>
+          <div className="flex w-[100px] shrink-0 justify-end">
             {trend}
           </div>
         ) : isLoading && trend ? (

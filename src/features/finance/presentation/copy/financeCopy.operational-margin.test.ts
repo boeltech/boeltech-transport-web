@@ -22,6 +22,15 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     expect(financeCopy.performance.kpis.personnelCost).toBe("Costo de personal");
     expect(financeCopy.performance.table.personnelCost).toBe("Costo de personal");
     expect(financeCopy.performance.scopeNote).not.toMatch(/P&L contable|caja/i);
+    expect(financeCopy.performance.scopeNoteDetail).not.toMatch(
+      /P&L contable|caja/i,
+    );
+    expect(financeCopy.performance.operationalCostLegend).toMatch(
+      /gasto de viaje aprobado/i,
+    );
+    expect(financeCopy.performance.operationalCostLegend).toMatch(
+      /comisión de liquidación autorizada/i,
+    );
   });
 
   it("Gastos = gasto de viaje; resolución del gráfico; sin comisión en copy de alcance", () => {
@@ -31,17 +40,35 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     );
     expect(financeCopy.expenses.alert.summary).toMatch(/gasto de viaje/i);
     expect(financeCopy.expenses.alert.summary).toMatch(/comisión/i);
+    expect(financeCopy.expenses.alert.includesShow).toMatch(
+      /qué incluye esta vista/i,
+    );
     expect(financeCopy.expenses.charts.latestPeriod.description).toMatch(
       /último tramo/i,
     );
+    expect(financeCopy.expenses.charts.timeSeries.ariaLabel).toMatch(
+      /barras apiladas/i,
+    );
+    expect(financeCopy.expenses.charts.latestPeriod.ariaLabel).toMatch(
+      /dona/i,
+    );
     expect(financeCopy.expenses.empty.viewPerformance).toMatch(/mes a mes/i);
+    expect(financeCopy.expenses.table.viewDriver("Ana")).toMatch(
+      /detalle del operador Ana/i,
+    );
+    expect(financeCopy.expenses.table.viewClient("Acme")).toMatch(
+      /detalle del cliente Acme/i,
+    );
   });
 
-  it("subtítulo de Análisis no reduce todo a «gasto»", () => {
+
+  it("subtítulo de Análisis es orientador (no listado técnico)", () => {
     const subtitle = financeCopy.page.sections.analysis.subtitle;
-    expect(subtitle).toMatch(/margen operativo/i);
-    expect(subtitle).toMatch(/gasto de viaje/i);
-    expect(subtitle.toLowerCase().endsWith("gasto.")).toBe(false);
+    expect(subtitle).toMatch(/rentabilidad/i);
+    expect(subtitle).toMatch(/tendencia/i);
+    expect(subtitle).toMatch(/gastos/i);
+    expect(subtitle).not.toMatch(/cliente\/ruta|unidad\/operador/i);
+    expect(subtitle.split(/\s+/).length).toBeLessThanOrEqual(15);
   });
 });
 

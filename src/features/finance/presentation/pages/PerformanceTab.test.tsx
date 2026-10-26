@@ -81,4 +81,19 @@ describe("PerformanceTab — F2 empty/error", () => {
     await user.click(retry);
     expect(performanceQuery.refetch).toHaveBeenCalled();
   });
+
+  it("scopeNote corto visible; detalle bajo ¿Qué incluye?", async () => {
+    const user = userEvent.setup();
+    renderWithTheme(<PerformanceTab />, {
+      route: ["/finance/analysis?view=performance"],
+      resolvedTheme: "light",
+    });
+
+    expect(screen.getByText(copy.scopeNote)).toBeInTheDocument();
+    expect(screen.queryByText(copy.scopeNoteDetail)).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: copy.scopeIncludesShow }),
+    );
+    expect(screen.getByText(copy.scopeNoteDetail)).toBeInTheDocument();
+  });
 });

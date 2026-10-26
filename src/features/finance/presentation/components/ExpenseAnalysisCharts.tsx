@@ -100,7 +100,7 @@ export function ExpenseAnalysisCharts({
         title={financeCopy.expenses.charts.timeSeries.title}
         description={financeCopy.expenses.charts.timeSeries.description}
         isLoading={isLoading}
-        aria-label="Gráfico de barras apiladas: gastos por concepto en el tiempo"
+        aria-label={financeCopy.expenses.charts.timeSeries.ariaLabel}
         footer={
           timeSeriesData.length > 0 ? (
             <p className="text-xs text-muted-foreground">
@@ -130,7 +130,7 @@ export function ExpenseAnalysisCharts({
         title={compositionTitle}
         description={financeCopy.expenses.charts.latestPeriod.description}
         isLoading={isLoading}
-        aria-label="Gráfico de dona: composición de gastos del tramo"
+        aria-label={financeCopy.expenses.charts.latestPeriod.ariaLabel}
         footer={
           latestPeriod ? (
             <p className="text-xs text-muted-foreground">

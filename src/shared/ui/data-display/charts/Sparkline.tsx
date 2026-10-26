@@ -26,32 +26,34 @@ export function Sparkline({
   const color = chartColor(token);
 
   return (
-    <ChartContainer height={height} className={className}>
-      {variant === "line" ? (
-        <LineChart data={data}>
-          <Line
-            type="monotone"
-            dataKey={dataKey}
-            stroke={color}
-            strokeWidth={1.5}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      ) : (
-        <AreaChart data={data}>
-          <Area
-            type="monotone"
-            dataKey={dataKey}
-            stroke={color}
-            fill={color}
-            fillOpacity={0.25}
-            strokeWidth={1.5}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      )}
-    </ChartContainer>
+    <div aria-hidden>
+      <ChartContainer height={height} className={className}>
+        {variant === "line" ? (
+          <LineChart data={data}>
+            <Line
+              type="monotone"
+              dataKey={dataKey}
+              stroke={color}
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        ) : (
+          <AreaChart data={data}>
+            <Area
+              type="monotone"
+              dataKey={dataKey}
+              stroke={color}
+              fill={color}
+              fillOpacity={0.25}
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        )}
+      </ChartContainer>
+    </div>
   );
 }

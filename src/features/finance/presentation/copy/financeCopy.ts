@@ -301,8 +301,7 @@ export const financeCopy = {
       },
       analysis: {
         title: "Análisis",
-        subtitle:
-          "Tendencia mes a mes, margen operativo por cliente/ruta/unidad/operador y gasto de viaje por concepto.",
+        subtitle: "Rentabilidad, tendencia y gastos de tu operación.",
       },
       approvals: {
         title: "Aprobaciones",
@@ -726,7 +725,7 @@ export const financeCopy = {
     alert: {
       summary:
         "Solo gasto de viaje aprobado. La comisión de liquidación está en Rentabilidad y Mes a mes.",
-      includesShow: "Ver detalle",
+      includesShow: "¿Qué incluye esta vista?",
       includesHide: "Ocultar detalle",
       body: "Se incluyen conceptos de gasto del viaje ya aprobados. Los pendientes aparecen cuando un gerente o administrador los aprueba en el detalle del viaje. No incluye comisión de liquidación, sueldo ni anticipos.",
       bodyRoutePrefix: "Registra conceptos en",
@@ -786,6 +785,8 @@ export const financeCopy = {
       totalExpense: "Gasto de viaje",
       avgExpensePerTrip: "Promedio por viaje",
       viewVehicle: (label: string) => `Ver detalle de la unidad ${label}`,
+      viewDriver: (label: string) => `Ver detalle del operador ${label}`,
+      viewClient: (label: string) => `Ver detalle del cliente ${label}`,
       dimensionColumn: {
         vehicle: "Unidad",
         driver: "Operador",
@@ -807,6 +808,8 @@ export const financeCopy = {
       timeSeries: {
         title: "Cómo cambian los conceptos",
         description: "Evolución del gasto de viaje aprobado en el tiempo",
+        ariaLabel:
+          "Gráfico de barras apiladas: gastos por concepto en el tiempo",
         footer: (periodCount: number, categoryCount: number) =>
           `${periodCount} tramo(s) · ${categoryCount} concepto(s)`,
       },
@@ -817,6 +820,7 @@ export const financeCopy = {
             : "En qué se fue el gasto de viaje — último tramo",
         description:
           "Distribución por concepto del último tramo del rango (no es el total del periodo)",
+        ariaLabel: "Gráfico de dona: composición de gastos del tramo",
         centerLabel: "Total",
         footer: (referencePeriod: string) => referencePeriod,
         emptyDescription:
@@ -832,7 +836,13 @@ export const financeCopy = {
       compareLabel: "Comparar con año anterior",
     },
     scopeNote:
-      "Solo viajes completados, contados en el mes de su salida programada. Ingreso: lo facturado o, si aún no se factura, la tarifa del viaje. Costo operativo: gasto de viaje aprobado + comisión de liquidación autorizada, en ese mismo mes. El personal de periodo va aparte y no se resta del costo de viajes. La vista Gastos cuenta cada gasto de viaje en la fecha en que se hizo.",
+      "Solo viajes completados, contados en el mes de su salida programada.",
+    scopeNoteDetail:
+      "Ingreso: lo facturado o, si aún no se factura, la tarifa del viaje. Costo operativo: gasto de viaje aprobado + comisión de liquidación autorizada, en ese mismo mes. El personal de periodo va aparte y no se resta del costo de viajes. La vista Gastos cuenta cada gasto de viaje en la fecha en que se hizo.",
+    scopeIncludesShow: "¿Qué incluye?",
+    scopeIncludesHide: "Ocultar",
+    operationalCostLegend:
+      "Costo operativo = gasto de viaje aprobado + comisión de liquidación autorizada.",
     noPreviousData: (rangeLabel: string) =>
       `Aún no hay datos de ${rangeLabel} para comparar.`,
     rangeLabel: (from: string, to: string) =>
@@ -933,7 +943,7 @@ export const financeCopy = {
         `${month} todavía puede cambiar: hay viajes sin terminar o gastos sin aprobar.`,
     },
     table: {
-      title: "Cifras por mes",
+      title: "¿Cuánto gané cada mes?",
       description:
         "Montos exactos de cada mes. El último mes va en curso. Abre un mes para ver su rentabilidad por cliente, ruta, unidad u operador. El costo de personal va en columna aparte.",
       inProgressComparison: "Se compara cuando termine el mes",

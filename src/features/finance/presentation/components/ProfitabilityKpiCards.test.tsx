@@ -28,14 +28,25 @@ function buildTrips(loss = 0, total = 120): ProfitabilityTripsResponse {
 }
 
 describe("ProfitabilityKpiCards", () => {
-  it("shows revenue, actual cost, margin $·% and the loss card for operational scope", () => {
+  it("shows revenue, actual cost, margin amount + % subtitle and the loss card", () => {
     render(<ProfitabilityKpiCards scope="operational" trips={buildTrips(7)} />);
     expect(screen.getByText("Ingreso")).toBeInTheDocument();
     expect(screen.getByText("Gasto de viaje")).toBeInTheDocument();
-    expect(screen.getByText("$3,000.00 · 75.00%")).toBeInTheDocument();
+    expect(screen.getByText("$3,000.00")).toBeInTheDocument();
+    expect(screen.getByText("75.00% del ingreso")).toBeInTheDocument();
+    expect(screen.getByText("$3,000.00")).toHaveClass("text-success");
     const lossCard = screen.getByTestId("profitability-loss-card");
     expect(within(lossCard).getByText("Viajes con pérdida")).toBeInTheDocument();
     expect(within(lossCard).getByText("7 de 120")).toBeInTheDocument();
+  });
+
+  it("uses destructive tone when blended margin is negative", () => {
+    const trips = buildTrips(3);
+    trips.aggregates.blendedMargin = -200;
+    trips.aggregates.blendedMarginPct = -5;
+    render(<ProfitabilityKpiCards scope="operational" trips={trips} />);
+    expect(screen.getByText("-$200.00")).toHaveClass("text-destructive");
+    expect(screen.getByText("-5.00% del ingreso")).toBeInTheDocument();
   });
 
   it("no longer shows the «todo el histórico» caption or a sparkline", () => {

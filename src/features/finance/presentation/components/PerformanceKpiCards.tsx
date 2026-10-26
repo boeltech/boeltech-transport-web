@@ -1,11 +1,12 @@
+import { useMemo, type ReactNode } from "react";
 import {
   computeVariation,
+  type AlignedPerformanceMonth,
   type PerformanceTotals,
   type VariationPolarity,
 } from "@features/finance/application";
 import type { MarginBasis } from "@features/finance/domain";
-import { Card, CardContent } from "@shared/ui/card";
-import { Skeleton } from "@shared/ui/skeleton";
+import { MetricTrendCard, Sparkline } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
@@ -41,62 +42,35 @@ interface PerformanceKpiCardsProps {
   /** ADR-0108 — personal de periodo aparte (meses del summary). */
   personnelCost?: number;
   previousPersonnelCost?: number;
+  /**
+   * Meses alineados (`aligned`) para sparklines de Ingreso y Margen.
+   * Si hay menos de 2 puntos, no se muestra sparkline (YoY sigue en `trend`).
+   */
+  months?: readonly AlignedPerformanceMonth[];
 }
 
-function KpiCard({
-  kpi,
-  compare,
-  isLoading,
-}: {
-  kpi: KpiDefinition;
-  compare: boolean;
-  isLoading: boolean;
-}) {
+function buildDetailSubtitle(kpi: KpiDefinition, compare: boolean): string {
+  if (!compare) return kpi.detail;
+  return [kpi.detail, copy.versusPrevious(formatMxCurrency(kpi.previousValue)), kpi.previousDetail]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function buildSubtitleWithYoy(kpi: KpiDefinition): ReactNode {
+  const text = buildDetailSubtitle(kpi, true);
   return (
-    <Card>
-      <CardContent className="space-y-1 p-4">
-        <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
-        {isLoading ? (
-          <>
-            <Skeleton className="h-8 w-36" />
-            <Skeleton className="h-3 w-28" />
-          </>
-        ) : (
-          <>
-            <p
-              className={cn(
-                "text-2xl font-bold tabular-nums tracking-tight",
-                kpi.key === "margin" && kpi.value < 0
-                  ? "text-destructive"
-                  : "text-foreground",
-              )}
-            >
-              {formatMxCurrency(kpi.value)}
-            </p>
-            <p className="text-xs text-muted-foreground tabular-nums">{kpi.detail}</p>
-            {compare ? (
-              <div className="mt-2 space-y-0.5 border-t pt-2 text-xs">
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="text-muted-foreground tabular-nums">
-                    {copy.versusPrevious(formatMxCurrency(kpi.previousValue))}
-                  </span>
-                  <PerformanceVariation
-                    variation={computeVariation(kpi.value, kpi.previousValue)}
-                    polarity={kpi.polarity}
-                  />
-                </p>
-                {kpi.previousDetail ? (
-                  <p className="text-muted-foreground tabular-nums">
-                    {kpi.previousDetail}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+      <span>{text}</span>
+      <PerformanceVariation
+        variation={computeVariation(kpi.value, kpi.previousValue)}
+        polarity={kpi.polarity}
+      />
+    </span>
   );
+}
+
+function marginTone(value: number): "success" | "destructive" {
+  return value < 0 ? "destructive" : "success";
 }
 
 export function PerformanceKpiCards({
@@ -109,6 +83,7 @@ export function PerformanceKpiCards({
   marginBasis = "operational",
   personnelCost,
   previousPersonnelCost,
+  months,
 }: PerformanceKpiCardsProps) {
   const operational = marginBasis === "operational";
   const showPersonnel = personnelCost != null;
@@ -156,6 +131,24 @@ export function PerformanceKpiCards({
     });
   }
 
+  const revenueSparkline = useMemo(() => {
+    const data = (months ?? []).map((month) => ({
+      value: month.current.actualRevenue,
+    }));
+    if (data.length < 2) return undefined;
+    return <Sparkline data={data} token="chart-1" height={40} />;
+  }, [months]);
+
+  const marginSparkline = useMemo(() => {
+    const data = (months ?? []).map((month) => ({
+      value: month.current.actualMargin,
+    }));
+    if (data.length < 2) return undefined;
+    return <Sparkline data={data} token="success" height={40} />;
+  }, [months]);
+
+  const cardCount = kpis.length;
+
   return (
     <div className="space-y-2">
       {periodNote && !isLoading ? (
@@ -169,13 +162,45 @@ export function PerformanceKpiCards({
       <section
         aria-label={copy.ariaLabel}
         className={cn(
-          "grid grid-cols-1 gap-4 md:grid-cols-3",
-          showPersonnel && "xl:grid-cols-4",
+          "grid grid-cols-1 gap-4 sm:grid-cols-2",
+          cardCount >= 3 && "lg:grid-cols-3",
+          cardCount >= 4 && "xl:grid-cols-4",
         )}
       >
-        {kpis.map((kpi) => (
-          <KpiCard key={kpi.key} kpi={kpi} compare={compare} isLoading={isLoading} />
-        ))}
+        {kpis.map((kpi) => {
+          const sparkline =
+            kpi.key === "revenue"
+              ? revenueSparkline
+              : kpi.key === "margin"
+                ? marginSparkline
+                : undefined;
+          const yoyInSubtitle = Boolean(sparkline && compare);
+
+          return (
+            <MetricTrendCard
+              key={kpi.key}
+              title={kpi.title}
+              subtitle={
+                yoyInSubtitle
+                  ? buildSubtitleWithYoy(kpi)
+                  : buildDetailSubtitle(kpi, compare)
+              }
+              value={formatMxCurrency(kpi.value)}
+              tone={kpi.key === "margin" ? marginTone(kpi.value) : "primary"}
+              isLoading={isLoading}
+              trend={
+                sparkline ??
+                (compare ? (
+                  <PerformanceVariation
+                    variation={computeVariation(kpi.value, kpi.previousValue)}
+                    polarity={kpi.polarity}
+                    className="justify-end"
+                  />
+                ) : undefined)
+              }
+            />
+          );
+        })}
       </section>
     </div>
   );

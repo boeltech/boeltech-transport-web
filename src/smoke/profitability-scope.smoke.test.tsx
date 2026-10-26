@@ -105,7 +105,9 @@ describe("profitability scope smoke", () => {
     await waitFor(() => {
       expect(screen.getByRole("combobox", { name: "Alcance" })).toBeInTheDocument();
       expect(screen.getByText("Ingreso")).toBeInTheDocument();
-      expect(screen.getByText("$3,000.00 · 75.00%")).toBeInTheDocument();
+      // TD6: monto primario + % en subtitle (no «$ · %» en un solo nodo)
+      expect(screen.getByText("$3,000.00")).toBeInTheDocument();
+      expect(screen.getByText("75.00% del ingreso")).toBeInTheDocument();
     });
 
     expect(

@@ -2,6 +2,7 @@ import { Fragment, useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
   Card,
@@ -169,7 +170,7 @@ function ProfitabilityTripDetailPanel({
     : financeCopy.profitability.table.margin;
 
   return (
-    <div className="border-t bg-muted/20 px-2 py-2 md:px-4">
+    <div className="overflow-x-auto border-t bg-muted/20 px-2 py-2 md:px-4">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -404,7 +405,7 @@ export function ProfitabilityMasterDetailTable({
         ) : showEmpty ? (
           emptyState
         ) : (
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <Table>
         <TableHeader>
           <TableRow>
@@ -449,21 +450,39 @@ export function ProfitabilityMasterDetailTable({
                       onClick={
                         canExpand ? () => toggleRow(item.key) : undefined
                       }
-                      aria-expanded={canExpand ? isExpanded : undefined}
                     >
                       <TableCell className="w-10 py-2">
                         {canExpand ? (
-                          isExpanded ? (
-                            <ChevronDown
-                              className="h-4 w-4 text-muted-foreground"
-                              aria-hidden
-                            />
-                          ) : (
-                            <ChevronRight
-                              className="h-4 w-4 text-muted-foreground"
-                              aria-hidden
-                            />
-                          )
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-expanded={isExpanded}
+                            aria-label={
+                              isExpanded
+                                ? financeCopy.profitability.masterDetail
+                                    .collapseRow
+                                : financeCopy.profitability.masterDetail
+                                    .expandRow
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleRow(item.key);
+                            }}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown
+                                className="h-4 w-4 text-muted-foreground"
+                                aria-hidden
+                              />
+                            ) : (
+                              <ChevronRight
+                                className="h-4 w-4 text-muted-foreground"
+                                aria-hidden
+                              />
+                            )}
+                          </Button>
                         ) : null}
                       </TableCell>
                       <TableCell className="font-medium">{item.label}</TableCell>

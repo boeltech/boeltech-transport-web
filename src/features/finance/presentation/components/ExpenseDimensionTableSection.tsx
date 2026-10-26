@@ -38,6 +38,45 @@ interface ExpenseDimensionTableSectionProps {
   isLoading?: boolean;
 }
 
+/** UUID v1–v5 shape; non-UUID keys (route labels, `unassigned`) stay plain text. */
+const ENTITY_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isEntityUuid(key: string): boolean {
+  return ENTITY_UUID_RE.test(key);
+}
+
+type DrillTarget = {
+  to: string;
+  ariaLabel: string;
+};
+
+function drillTargetForRow(
+  dimension: ExpenseDimension,
+  item: ExpensesByDimensionItem,
+): DrillTarget | null {
+  if (!isEntityUuid(item.key)) return null;
+  if (dimension === "vehicle") {
+    return {
+      to: `/vehicles/${item.key}`,
+      ariaLabel: financeCopy.expenses.table.viewVehicle(item.label),
+    };
+  }
+  if (dimension === "driver") {
+    return {
+      to: `/drivers/${item.key}`,
+      ariaLabel: financeCopy.expenses.table.viewDriver(item.label),
+    };
+  }
+  if (dimension === "client") {
+    return {
+      to: `/clients/${item.key}`,
+      ariaLabel: financeCopy.expenses.table.viewClient(item.label),
+    };
+  }
+  return null;
+}
+
 export function ExpenseDimensionTableSection({
   dimension,
   onDimensionChange,
@@ -95,7 +134,7 @@ export function ExpenseDimensionTableSection({
             description={financeCopy.expenses.empty.description}
           />
         ) : (
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -112,37 +151,38 @@ export function ExpenseDimensionTableSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((item, index) => (
-                  <TableRow
-                    key={`${dimension}-${item.key}`}
-                    className={cn(index === 0 && "bg-primary/5")}
-                  >
-                    <TableCell className="font-medium">
-                      {dimension === "vehicle" ? (
-                        <Link
-                          to={`/vehicles/${item.key}`}
-                          className="text-primary underline-offset-4 hover:underline"
-                          aria-label={financeCopy.expenses.table.viewVehicle(
-                            item.label,
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      ) : (
-                        item.label
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {item.tripCount}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatMxCurrency(item.totalExpenses)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatMxCurrency(item.avgExpensePerTrip)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {rows.map((item, index) => {
+                  const drill = drillTargetForRow(dimension, item);
+                  return (
+                    <TableRow
+                      key={`${dimension}-${item.key}`}
+                      className={cn(index === 0 && "bg-primary/5")}
+                    >
+                      <TableCell className="font-medium">
+                        {drill ? (
+                          <Link
+                            to={drill.to}
+                            className="text-primary underline-offset-4 hover:underline"
+                            aria-label={drill.ariaLabel}
+                          >
+                            {item.label}
+                          </Link>
+                        ) : (
+                          item.label
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {item.tripCount}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMxCurrency(item.totalExpenses)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMxCurrency(item.avgExpensePerTrip)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
