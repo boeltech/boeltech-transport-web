@@ -70,5 +70,51 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     expect(subtitle).not.toMatch(/cliente\/ruta|unidad\/operador/i);
     expect(subtitle.split(/\s+/).length).toBeLessThanOrEqual(15);
   });
+
+  it("Cartera F1: gasto de viaje, DSO/Vencido proxy 30d, bases IVA", () => {
+    expect(financeCopy.kpis.expensesThisMonth.title).toBe(
+      "Gasto de viaje del mes",
+    );
+    expect(financeCopy.kpis.expensesThisMonth.description).toMatch(
+      /Análisis.*Gastos/i,
+    );
+    expect(financeCopy.kpis.expensesThisMonth.description).toMatch(
+      /sin comisión/i,
+    );
+    expect(financeCopy.kpis.totalOverdue.description).toMatch(/estimación/i);
+    expect(financeCopy.kpis.totalOverdue.description).toMatch(/30/);
+    expect(financeCopy.kpis.totalOverdue.description).not.toMatch(
+      /credit_days|crédito pactado por cliente.*real/i,
+    );
+    expect(financeCopy.summary.dsoTitle).toMatch(/estimación/i);
+    expect(financeCopy.summary.dsoTitle).toMatch(/cartera/i);
+    expect(financeCopy.summary.dsoTitle).toMatch(/×\s*30|x\s*30|×30/i);
+    expect(financeCopy.kpis.totalReceivable.description).toMatch(/total CFDI/i);
+    expect(financeCopy.kpis.totalReceivable.description).toMatch(
+      /subtotal|tarifa/i,
+    );
+    expect(financeCopy.page.hub.orientation).toMatch(/PPD/i);
+    expect(financeCopy.page.hub.orientation).toMatch(/cartera en cero/i);
+  });
+
+  it("Cartera F2 Pulse: Ingreso/Margen operativo y línea no-P&L", () => {
+    expect(financeCopy.pulse.revenue.title).toBe("Ingreso");
+    expect(financeCopy.pulse.operationalMargin.title).toBe("Margen operativo");
+    expect(financeCopy.pulse.basisLine).toMatch(/base operativa/i);
+    expect(financeCopy.pulse.basisLine).toMatch(/no es P&L/i);
+    expect(financeCopy.pulse.ctaMonthOverMonth).toMatch(/mes a mes/i);
+    expect(financeCopy.pulse.revenue.description).toMatch(/subtotal|tarifa/i);
+    expect(financeCopy.pulse.receivable.description).toMatch(/total CFDI/i);
+  });
+
+  it("Análisis F4: caption sticky une periodo + base operativa · no es P&L", () => {
+    const line = financeCopy.analysisPeriod.stickyLine(
+      "Periodo: oct 2025 a sep 2026 · 12 meses completos",
+    );
+    expect(line).toMatch(/^Periodo:/i);
+    expect(line).toContain(financeCopy.pulse.basisLine);
+    expect(financeCopy.analysisPeriod.stickyAriaLabel).toMatch(/alcance/i);
+  });
 });
+
 

@@ -170,7 +170,7 @@ const cobrosCopy = {
   workbench: {
     title: "Cobros",
     description:
-      "Cola de cartera a crédito: registra depósitos por el mismo RFC (el lote es la página actual) y revisa comprobantes de pago pendientes.",
+      "Cola de facturas a crédito (PPD): registra depósitos por el mismo RFC (el lote es la página actual) y revisa comprobantes de pago pendientes. Vacía no significa que la cartera esté en cero.",
     bucketsAriaLabel: "Estado de cobranza",
     rfcFilterPlaceholder: "Filtrar por RFC…",
     rfcChipLabel: (rfc: string) => `RFC: ${rfc}`,
@@ -188,7 +188,7 @@ const cobrosCopy = {
       open: {
         title: "Nada por cobrar",
         description:
-          "No hay facturas a crédito con saldo pendiente en la cola actual.",
+          "No hay facturas a crédito (PPD) con saldo en esta cola. La cartera puede seguir con saldos: revísala en Cartera.",
       },
       partial: {
         title: "Sin pagos parciales",
@@ -247,13 +247,13 @@ export const financeCopy = {
       description:
         "Quién te debe, antigüedad de saldos y estado de cuenta por cliente.",
       orientation:
-        "El ciclo del dinero está arriba. Abajo están antigüedad y estado de cuenta.",
+        "El ciclo del dinero está arriba. Abajo están antigüedad y estado de cuenta. Cobros vacío (solo PPD) no significa cartera en cero.",
       /** Contador: Cartera es contexto de saldos; viajes a facturar van a Por facturar (D13). */
       orientationAccountant:
-        "Aquí ves saldos y antigüedad. Los viajes pendientes de factura no entran por Cartera: usa Por facturar o Atención fiscal.",
+        "Aquí ves saldos y antigüedad. Los viajes pendientes de factura no entran por Cartera: usa Por facturar o Atención fiscal. Cobros vacío (solo PPD) no significa cartera en cero.",
       /** Gerente: Cartera = saldos; SAT/altas no entran (D15). */
       orientationManager:
-        "Aquí ves saldos y antigüedad. El trámite SAT y las altas no entran por Cartera.",
+        "Aquí ves saldos y antigüedad. El trámite SAT y las altas no entran por Cartera. Cobros vacío (solo PPD) no significa cartera en cero.",
       cycle: {
         ariaLabel: "Ciclo del dinero",
         invoiceable: {
@@ -270,11 +270,6 @@ export const financeCopy = {
           verb: "Cobrar",
           label: "Cobros",
           hint: "Registrar un pago a crédito.",
-        },
-        approvals: {
-          verb: "Aprobar",
-          label: "Aprobaciones",
-          hint: "Revisar solicitudes pendientes.",
         },
       },
     },
@@ -297,7 +292,7 @@ export const financeCopy = {
       cobros: {
         title: "Cobros",
         subtitle:
-          "Cola de cartera a crédito y comprobantes de pago pendientes.",
+          "Cola PPD a crédito y comprobantes pendientes. Vacía ≠ cartera en cero.",
       },
       analysis: {
         title: "Análisis",
@@ -319,6 +314,38 @@ export const financeCopy = {
   cobros: cobrosCopy,
   /** Alias de compatibilidad para imports existentes. */
   cobranza: cobrosCopy,
+  /**
+   * Pulse ejecutivo ATF del hub Cartera (ingreso + margen operativo + CxC).
+   * Margen = operational_*; no es P&L (HB-T12 / TD4).
+   */
+  pulse: {
+    ariaLabel: "Pulse del mes",
+    basisLine: "Base operativa · no es P&L",
+    ctaMonthOverMonth: "Ver mes a mes",
+    periodNote: (month: string) => `Mes en curso · ${month}`,
+    revenue: {
+      title: "Ingreso",
+      description:
+        "Subtotal facturado o tarifa del viaje (sin IVA). Distinto del por cobrar (total CFDI).",
+    },
+    operationalMargin: {
+      title: "Margen operativo",
+      description: "Ingreso menos costo operativo del mes",
+      shareOfRevenue: (pct: string) => `${pct} del ingreso`,
+    },
+    receivable: {
+      title: "Por cobrar",
+      description:
+        "Cartera a total CFDI (con IVA). Distinto del ingreso operativo (subtotal o tarifa).",
+    },
+    overdue: {
+      title: "Vencido",
+      description:
+        "Estimación: saldo con más de 30 días desde emisión (proxy; no usa el crédito pactado).",
+    },
+    receivableLinkAria: "Por cobrar — abrir Cobros",
+    overdueLinkAria: "Vencido — abrir Cobros",
+  },
   summary: {
     sections: {
       indicators: "Indicadores",
@@ -326,7 +353,9 @@ export const financeCopy = {
     },
     accountStatement: {
       description:
-        "Por cobrar es el saldo pendiente. Abiertas son facturas PPD con saldo (cola Cobros). Pagado es facturado menos por cobrar.",
+        "Por cobrar es el saldo pendiente a total CFDI. Abiertas son facturas PPD con saldo (cola Cobros). Pagado es facturado menos por cobrar. El ingreso operativo (Análisis) usa subtotal o tarifa, no el total con IVA.",
+      searchPlaceholder: "Buscar por cliente o RFC…",
+      searchAriaLabel: "Filtrar estado de cuenta por cliente o RFC",
       collectAction: "Cobrar",
       collectActionAria: (clientName: string) =>
         `Cobrar a ${clientName}`,
@@ -334,8 +363,13 @@ export const financeCopy = {
       downloadPdfActionAria: (clientName: string) =>
         `Descargar estado de cuenta de ${clientName}`,
       downloadPdfError: "No se pudo descargar el estado de cuenta",
+      filterEmpty: {
+        title: "Ningún cliente coincide",
+        description: "Prueba con otro nombre o RFC.",
+      },
     },
-    dsoTitle: "Días promedio de cobro (30 días)",
+    /** Ratio cartera÷facturación×30; no es DSO contable ni credit_days. */
+    dsoTitle: "Estimación de cobro (cartera÷facturación×30)",
     daysSuffix: "días",
     agingBuckets: {
       "0-30": "0–30 días",
@@ -348,6 +382,8 @@ export const financeCopy = {
       summary: "Error al cargar resumen financiero",
       statement: "Error al cargar estado de cuenta",
       aging: "Error al cargar antigüedad de saldos",
+      performance: "Error al cargar el Pulse del mes",
+      retry: "Reintentar",
     },
     empty: {
       title: "Sin datos de cobro",
@@ -367,7 +403,8 @@ export const financeCopy = {
     charts: {
       agingBuckets: {
         title: "Antigüedad de saldos",
-        description: "Por cobrar pendiente por rango de días vencidos",
+        description:
+          "Estimación por días desde emisión (proxy a 30 días; no es el crédito pactado por cliente)",
         balanceLabel: "Por cobrar",
         footer: (totalReceivable: string) =>
           `Cartera total por antigüedad: ${totalReceivable}`,
@@ -713,6 +750,13 @@ export const financeCopy = {
     customPlaceholder: "Elegir fechas",
     caption: (rangeLabel: string, detail?: string) =>
       detail ? `Periodo: ${rangeLabel} · ${detail}` : `Periodo: ${rangeLabel}`,
+    /**
+     * Caption sticky always-on del hub Análisis (PD5 / F4):
+     * periodo + base operativa · no es P&L.
+     */
+    stickyLine: (periodCaption: string) =>
+      `${periodCaption} · ${financeCopy.pulse.basisLine}`,
+    stickyAriaLabel: "Alcance del análisis",
     completedMonths: (months: number) =>
       `${months} ${months === 1 ? "mes completo" : "meses completos"}`,
     currentMonth: "mes en curso",
@@ -1001,7 +1045,8 @@ export const financeCopy = {
   kpis: {
     totalReceivable: {
       title: "Por cobrar",
-      description: "Total con saldo pendiente de cobro",
+      description:
+        "Cartera a total CFDI (con IVA). Distinto del ingreso operativo (subtotal o tarifa).",
     },
     collectedThisMonth: {
       title: "Cobrado este mes",
@@ -1009,11 +1054,13 @@ export const financeCopy = {
     },
     totalOverdue: {
       title: "Vencido",
-      description: "Parte del saldo que ya pasó la fecha de pago",
+      description:
+        "Estimación: saldo con más de 30 días desde emisión (proxy; no usa el crédito pactado).",
     },
     expensesThisMonth: {
-      title: "Gastos del mes",
-      description: "Gastos operativos aprobados",
+      title: "Gasto de viaje del mes",
+      description:
+        "Solo gasto de viaje aprobado (sin comisión). Detalle en Análisis → Gastos.",
     },
   },
 } as const;

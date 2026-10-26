@@ -73,3 +73,14 @@ export function formatAnalysisPeriodCaption(
     analysisPeriodDetail(period, today),
   );
 }
+
+/**
+ * Caption sticky always-on del hub Análisis:
+ * «Periodo: … · Base operativa · no es P&L».
+ */
+export function formatAnalysisStickyCaption(
+  period: ResolvedAnalysisPeriod,
+  today: string = getTodayString(),
+): string {
+  return copy.stickyLine(formatAnalysisPeriodCaption(period, today));
+}

@@ -192,7 +192,7 @@ describe("FinanceCobrosPage", () => {
 
     expect(screen.getByRole("heading", { name: "Cobros" })).toBeInTheDocument();
     expect(
-      screen.getByText(/Cola de cartera a crédito/),
+      screen.getByText(/Cola de facturas a crédito/),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "A-10" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("tab", { name: /Por cobrar/i })).toBeInTheDocument();

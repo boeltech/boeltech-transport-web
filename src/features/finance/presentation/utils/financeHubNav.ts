@@ -1,22 +1,17 @@
 import {
-  FINANCE_APPROVALS_PATH,
   FINANCE_COBROS_PATH,
   FINANCE_DISPATCH_PATH,
   FINANCE_INVOICEABLE_PATH,
 } from "../../application/financeRoutes";
 import { financeCopy } from "../copy";
 
-export type FinanceCycleStepId =
-  | "invoiceable"
-  | "dispatch"
-  | "cobros"
-  | "approvals";
+/** Ciclo CxC: Emitir → Enviar → Cobrar. Aprobaciones vive en sidebar, no aquí. */
+export type FinanceCycleStepId = "invoiceable" | "dispatch" | "cobros";
 
 export interface FinanceCycleCan {
   invoiceable: boolean;
   dispatch: boolean;
   cobros: boolean;
-  approvals: boolean;
 }
 
 export interface FinanceCycleStep {
@@ -31,10 +26,9 @@ const CYCLE_HREFS: Record<FinanceCycleStepId, string> = {
   invoiceable: FINANCE_INVOICEABLE_PATH,
   dispatch: FINANCE_DISPATCH_PATH,
   cobros: FINANCE_COBROS_PATH,
-  approvals: FINANCE_APPROVALS_PATH,
 };
 
-/** Pasos del ciclo del dinero. Sin Cartera ni Facturas; se encoge por permiso. */
+/** Pasos del ciclo del dinero. Sin Cartera, Facturas ni Aprobaciones; se encoge por permiso. */
 export function buildFinanceCycleSteps(can: FinanceCycleCan): FinanceCycleStep[] {
   const copy = financeCopy.page.hub.cycle;
   const steps: FinanceCycleStep[] = [];
@@ -64,15 +58,6 @@ export function buildFinanceCycleSteps(can: FinanceCycleCan): FinanceCycleStep[]
       label: copy.cobros.label,
       hint: copy.cobros.hint,
       href: CYCLE_HREFS.cobros,
-    });
-  }
-  if (can.approvals) {
-    steps.push({
-      id: "approvals",
-      verb: copy.approvals.verb,
-      label: copy.approvals.label,
-      hint: copy.approvals.hint,
-      href: CYCLE_HREFS.approvals,
     });
   }
 

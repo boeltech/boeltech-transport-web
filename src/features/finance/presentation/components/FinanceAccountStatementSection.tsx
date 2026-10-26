@@ -1,7 +1,9 @@
-import { Download, Loader2, Receipt } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download, Loader2, Receipt, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import { Input } from "@shared/ui/input";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
   Card,
@@ -36,6 +38,18 @@ interface FinanceAccountStatementSectionProps {
   downloadingRfc?: string | null;
 }
 
+function matchesClientFilter(
+  row: AccountStatementItem,
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    row.clientName.toLowerCase().includes(q) ||
+    row.clientRfc.toLowerCase().includes(q)
+  );
+}
+
 export function FinanceAccountStatementSection({
   rows,
   isLoading = false,
@@ -43,15 +57,39 @@ export function FinanceAccountStatementSection({
   onDownloadPdf,
   downloadingRfc = null,
 }: FinanceAccountStatementSectionProps) {
+  const [filterQuery, setFilterQuery] = useState("");
   const showDownload = typeof onDownloadPdf === "function";
   const showActions = showCollectAction || showDownload;
   const copy = financeCopy.summary.accountStatement;
 
+  const filteredRows = useMemo(
+    () => rows.filter((row) => matchesClientFilter(row, filterQuery)),
+    [rows, filterQuery],
+  );
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{financeCopy.summary.sections.accountStatement}</CardTitle>
-        <CardDescription>{copy.description}</CardDescription>
+      <CardHeader className="space-y-3">
+        <div className="space-y-1.5">
+          <CardTitle>{financeCopy.summary.sections.accountStatement}</CardTitle>
+          <CardDescription>{copy.description}</CardDescription>
+        </div>
+        {!isLoading && rows.length > 0 ? (
+          <div className="relative max-w-sm">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={filterQuery}
+              onChange={(event) => setFilterQuery(event.target.value)}
+              placeholder={copy.searchPlaceholder}
+              aria-label={copy.searchAriaLabel}
+              className="pl-8"
+            />
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -65,6 +103,12 @@ export function FinanceAccountStatementSection({
             icon={<Receipt className="h-10 w-10 text-muted-foreground" />}
             title={financeCopy.summary.empty.title}
             description={financeCopy.summary.empty.description}
+          />
+        ) : filteredRows.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-10 w-10 text-muted-foreground" />}
+            title={copy.filterEmpty.title}
+            description={copy.filterEmpty.description}
           />
         ) : (
           <div className="overflow-hidden rounded-md border">
@@ -96,7 +140,7 @@ export function FinanceAccountStatementSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row) => {
+                {filteredRows.map((row) => {
                   const isDownloading = downloadingRfc === row.clientRfc;
                   const cobrosHref = buildFinanceCobrosPath(row.clientRfc);
                   const showCollect =

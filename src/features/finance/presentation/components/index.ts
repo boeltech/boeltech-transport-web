@@ -1,4 +1,5 @@
 export { FinanceCycleStepper } from "./FinanceCycleStepper";
+export { FinancePulseCards } from "./FinancePulseCards";
 export { FinanceSummaryCards } from "./FinanceSummaryCards";
 export { FinanceAccountStatementSection } from "./FinanceAccountStatementSection";
 export { FinanceAgingChart } from "./FinanceAgingChart";

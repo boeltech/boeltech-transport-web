@@ -4,11 +4,26 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { FinanceSummary } from "@features/finance/domain";
 import { financeCopy } from "../copy";
 
+export type FinanceSummaryCardKey =
+  | "totalReceivable"
+  | "collectedThisMonth"
+  | "totalOverdue"
+  | "expensesThisMonth";
+
+const DEFAULT_KEYS: FinanceSummaryCardKey[] = [
+  "totalReceivable",
+  "collectedThisMonth",
+  "totalOverdue",
+  "expensesThisMonth",
+];
+
 interface FinanceSummaryCardsProps {
   summary?: FinanceSummary;
   isLoading?: boolean;
   collectedTrendData?: { value: number }[];
   collectedTrendLoading?: boolean;
+  /** Subconjunto de KPI (p. ej. Cobrado + Gasto bajo el Pulse). */
+  keys?: readonly FinanceSummaryCardKey[];
 }
 
 export function FinanceSummaryCards({
@@ -16,15 +31,16 @@ export function FinanceSummaryCards({
   isLoading,
   collectedTrendData,
   collectedTrendLoading = false,
+  keys = DEFAULT_KEYS,
 }: FinanceSummaryCardsProps) {
   const collectedSparkline = useMemo(() => {
     if (!collectedTrendData || collectedTrendData.length < 2) return undefined;
     return <Sparkline data={collectedTrendData} token="success" height={40} />;
   }, [collectedTrendData]);
 
-  const cards = [
+  const allCards = [
     {
-      key: "totalReceivable",
+      key: "totalReceivable" as const,
       title: financeCopy.kpis.totalReceivable.title,
       subtitle: financeCopy.kpis.totalReceivable.description,
       value: summary ? formatMxCurrency(summary.totalReceivable) : "—",
@@ -33,7 +49,7 @@ export function FinanceSummaryCards({
       cardLoading: isLoading,
     },
     {
-      key: "collectedThisMonth",
+      key: "collectedThisMonth" as const,
       title: financeCopy.kpis.collectedThisMonth.title,
       subtitle: financeCopy.kpis.collectedThisMonth.description,
       value: summary ? formatMxCurrency(summary.collectedThisMonth) : "—",
@@ -42,7 +58,7 @@ export function FinanceSummaryCards({
       cardLoading: isLoading || collectedTrendLoading,
     },
     {
-      key: "totalOverdue",
+      key: "totalOverdue" as const,
       title: financeCopy.kpis.totalOverdue.title,
       subtitle: financeCopy.kpis.totalOverdue.description,
       value: summary ? formatMxCurrency(summary.totalOverdue) : "—",
@@ -51,7 +67,7 @@ export function FinanceSummaryCards({
       cardLoading: isLoading,
     },
     {
-      key: "expensesThisMonth",
+      key: "expensesThisMonth" as const,
       title: financeCopy.kpis.expensesThisMonth.title,
       subtitle: financeCopy.kpis.expensesThisMonth.description,
       value: summary ? formatMxCurrency(summary.expensesThisMonth) : "—",
@@ -61,8 +77,17 @@ export function FinanceSummaryCards({
     },
   ];
 
+  const keySet = new Set(keys);
+  const cards = allCards.filter((card) => keySet.has(card.key));
+  const colClass =
+    cards.length >= 4
+      ? "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      : cards.length === 3
+        ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        : "grid grid-cols-1 gap-4 sm:grid-cols-2";
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={colClass}>
       {cards.map((card) => (
         <MetricTrendCard
           key={card.key}

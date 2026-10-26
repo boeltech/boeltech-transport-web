@@ -13,7 +13,7 @@ export function FinanceCycleStepper({ steps }: FinanceCycleStepperProps) {
 
   return (
     <nav aria-label={copy.ariaLabel}>
-      <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {steps.map((step, index) => (
           <li key={step.id}>
             <Link

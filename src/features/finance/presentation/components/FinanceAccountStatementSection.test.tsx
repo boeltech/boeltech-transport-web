@@ -187,4 +187,62 @@ describe("FinanceAccountStatementSection", () => {
       }),
     ).toBeDisabled();
   });
+
+  it("filtra client-side por RFC (CA 6)", async () => {
+    const user = userEvent.setup();
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[
+          buildRow({
+            clientRfc: "IIA040805DZ4",
+            clientName: "INDUSTRIA ILUMINADORA DE ALMACENES",
+          }),
+          buildRow({
+            clientRfc: "XAXX010101000",
+            clientName: "CLIENTE GENERICO",
+            totalInvoiced: 1000,
+            totalPaid: 0,
+            balanceDue: 1000,
+            openInvoiceCount: 1,
+          }),
+        ]}
+        isLoading={false}
+      />,
+    );
+
+    const search = screen.getByRole("searchbox", {
+      name: financeCopy.summary.accountStatement.searchAriaLabel,
+    });
+    await user.type(search, "xaxx010101");
+
+    expect(
+      screen.getByRole("row", { name: /CLIENTE GENERICO/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("row", {
+        name: /INDUSTRIA ILUMINADORA DE ALMACENES/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra vacío de filtro cuando ningún RFC coincide", async () => {
+    const user = userEvent.setup();
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[buildRow()]}
+        isLoading={false}
+      />,
+    );
+
+    await user.type(
+      screen.getByRole("searchbox", {
+        name: financeCopy.summary.accountStatement.searchAriaLabel,
+      }),
+      "NOEXISTE",
+    );
+
+    expect(
+      screen.getByText(financeCopy.summary.accountStatement.filterEmpty.title),
+    ).toBeInTheDocument();
+  });
 });

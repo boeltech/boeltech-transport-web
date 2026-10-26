@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { resolveAnalysisPeriod } from "@features/finance/application";
+import { financeCopy } from "../copy";
 import {
   formatAnalysisPeriodCaption,
   formatAnalysisPeriodRange,
+  formatAnalysisStickyCaption,
 } from "./analysisPeriodFormat";
 
 const TODAY = "2026-10-06";
@@ -37,9 +39,20 @@ describe("formatAnalysisPeriodCaption", () => {
   });
 });
 
+describe("formatAnalysisStickyCaption", () => {
+  it("appends base operativa · no es P&L to the period caption", () => {
+    const period = resolveAnalysisPeriod({ from: "", to: "" }, TODAY);
+    const sticky = formatAnalysisStickyCaption(period, TODAY);
+    expect(sticky).toBe(
+      `Periodo: oct 2025 a sep 2026 · 12 meses completos · ${financeCopy.pulse.basisLine}`,
+    );
+  });
+});
+
 describe("formatAnalysisPeriodRange", () => {
   it("handles open-ended ranges", () => {
     expect(formatAnalysisPeriodRange("2026-09-10", undefined)).toMatch(/^desde 10 \S+ 2026$/);
     expect(formatAnalysisPeriodRange(undefined, undefined)).toBe("");
   });
 });
+
