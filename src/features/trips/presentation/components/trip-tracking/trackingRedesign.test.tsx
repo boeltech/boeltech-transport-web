@@ -1807,7 +1807,7 @@ describe("TripTrackingObjectiveHub compact (overflow PD5 / D5)", () => {
       sequenceOrder: 2,
       stopType: [StopType.DESTINATION],
       locationName: "Cliente CDMX",
-      status: "arrived",
+      status: "in_progress",
       actualArrival: new Date("2026-07-12T16:00:00.000Z"),
     });
     const originDone = stop({

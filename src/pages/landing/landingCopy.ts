@@ -324,7 +324,7 @@ export const landingCopy = {
         linkHref: "#opcionales",
         linkLabel: "Ver opcionales",
       },
-    ] as const satisfies readonly LandingFaqItem[],
+    ] satisfies readonly LandingFaqItem[],
     /**
      * Solo si `registrationOpen` (PD2/PD3). Insertar tras CSD para conservar orden histórico.
      */
@@ -339,7 +339,7 @@ export const landingCopy = {
         answer:
           "Habla con ventas para continuar en un plan Operación. La prueba no se convierte sola en un plan de pago.",
       },
-    ] as const satisfies readonly LandingFaqItem[],
+    ] satisfies readonly LandingFaqItem[],
   },
 
   cta: {
