@@ -21,6 +21,7 @@ interface ImportMetaEnv {
   readonly VITE_HELP_DOCS_URL?: string;
   readonly VITE_HELP_SPOTLIGHT_ENABLED?: string;
   readonly VITE_HELP_TICKETS_ENABLED?: string;
+  readonly VITE_STRIPE_PUBLISHABLE_KEY?: string;
 }
 
 interface ImportMeta {
