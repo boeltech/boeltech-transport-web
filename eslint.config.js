@@ -23,7 +23,14 @@ export default defineConfig([
       // F4b sprint-cero-seguridad (CEO 2026-10-16, opción 1): deuda histórica a warn.
       // Baseline congelado en package.json --max-warnings; cleanup futuro puede restaurar error.
       'no-unused-labels': 'warn',
-      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
       '@typescript-eslint/no-explicit-any': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/refs': 'warn',

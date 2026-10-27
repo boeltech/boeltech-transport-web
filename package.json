@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint . --max-warnings 163",
+    "lint": "eslint . --max-warnings 152",
     "lint:design-tokens": "eslint src/features --config eslint.design-tokens.config.js --max-warnings 0",
     "audit:contrast": "tsx scripts/audit-contrast.ts --theme=dark",
     "audit:contrast:light": "tsx scripts/audit-contrast.ts --theme=light",
