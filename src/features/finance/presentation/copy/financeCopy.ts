@@ -188,7 +188,7 @@ const cobrosCopy = {
       open: {
         title: "Nada por cobrar",
         description:
-          "No hay facturas a crédito (PPD) con saldo en esta cola. La cartera puede seguir con saldos: revísala en Cartera.",
+          "Es normal si aún no has emitido facturas a crédito (PPD) con saldo: no es un fallo de carga. Cuando timbres una factura PPD, aparecerá aquí. La cartera puede seguir con otros saldos: revísala en Cartera.",
       },
       partial: {
         title: "Sin pagos parciales",
@@ -482,13 +482,13 @@ export const financeCopy = {
       tooltip:
         "Abre el listado de viajes para generar una factura desde un viaje con facturación disponible",
       emptyDescription:
-        "Genera una factura desde un viaje elegible en el módulo Viajes.",
+        "Aún no hay facturas emitidas. Factura desde un viaje elegible en Viajes o abre Por facturar cuando tengas candidatos.",
     },
     newInvoiceCta: {
       label: "Nueva factura",
       tooltip: "Selecciona un viaje facturable para generar una nueva factura",
       emptyDescription:
-        "Crea tu primera factura seleccionando un viaje facturable.",
+        "Aún no hay facturas emitidas. Elige un viaje elegible con Nueva factura o abre Por facturar cuando tengas candidatos.",
     },
     workbench: {
       bucketsAriaLabel: "Estado de facturas",
@@ -532,7 +532,7 @@ export const financeCopy = {
     empty: {
       title: "Nada por facturar",
       description:
-        "No hay candidatos fiscales pendientes en la cola.",
+        "No hay candidatos pendientes. Si aún no tienes viajes, reserva uno en Viajes; si ya hay, completa ruta y datos SAT y volverán a aparecer aquí.",
       withFilters:
         "No hay resultados con la búsqueda actual. Prueba otro folio o cliente.",
       clearFilters: "Limpiar búsqueda",
@@ -570,7 +570,7 @@ export const financeCopy = {
         ready: {
           title: "Nada listo para facturar",
           description:
-            "No hay viajes con todos los requisitos cumplidos en la cola actual.",
+            "Nada listo por ahora: no es un error. Si aún no tienes viajes, reserva uno en Viajes; si ya hay, completa ruta y datos SAT para que aparezcan aquí.",
         },
         proration_pending: {
           title: "Sin prorrateos pendientes",

@@ -26,6 +26,10 @@ const VEHICLE_DETAIL_CODES = new Set([
   "CP31_REMOLQUES_REQUIRED",
 ]);
 
+/** Paridad API `PAC_STAMP_CONFIG_MESSAGE` (client-safe). */
+const PAC_STAMP_CONFIG_MESSAGE =
+  "No se pudo timbrar: la cuenta o el RFC emisor no están listos en el proveedor de timbrado.";
+
 function formatCp31Path(path: string): string {
   const tripStop =
     /^trip\.([^.\s]+)\.stop\.(\d+)\.distance_from_previous_km$/.exec(path);
@@ -80,9 +84,48 @@ function isVehiclePrestampError(error: ApiError): boolean {
   );
 }
 
+function readStampHint(error: ApiError): string {
+  return typeof error.details?.hint === "string"
+    ? error.details.hint.trim()
+    : "";
+}
+
+function readPacCode(error: ApiError): string {
+  const raw = error.details?.pac_code;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+/**
+ * PAC cuenta / RFC emisor no listo: código `PAC_CONFIG_ERROR`, mensaje stamp
+ * config estable, o hint / pac_code 702.
+ */
+function isPacStampConfigError(error: ApiError): boolean {
+  if (error.code === "PAC_CONFIG_ERROR") return true;
+  if (error.message.includes(PAC_STAMP_CONFIG_MESSAGE)) return true;
+  if (error.message.includes("Registre el RFC emisor")) return true;
+  const pacCode = readPacCode(error);
+  if (pacCode === "702") return true;
+  const hint = readStampHint(error);
+  if (hint.includes("Registre el RFC emisor")) return true;
+  if (hint.includes("RFC emisor") && /panel del proveedor/i.test(hint)) {
+    return true;
+  }
+  return false;
+}
+
+function describePacStampConfigError(error: ApiError): string {
+  const hint = readStampHint(error);
+  const parts = [error.message.trim()].filter((part) => part.length > 0);
+  if (hint && !parts.some((part) => part.includes(hint))) {
+    parts.push(hint);
+  }
+  return tripFiscalCopy.stamp.pacStampConfigDescription(parts.join(" "));
+}
+
 /**
  * Mensaje de toast/UI para errores de `POST .../stamp`.
  * Vehículo incompleto / placas / remolques → apunta al catálogo de vehículos.
+ * CSD / PAC config → next-step a Datos para facturar.
  */
 export function describeStampApiError(error: unknown): string {
   if (!isApiError(error)) {
@@ -96,6 +139,14 @@ export function describeStampApiError(error: unknown): string {
     error.code === RECEIVER_GENERIC_RFC_FISCAL_MISMATCH_CODE
   ) {
     return error.message;
+  }
+
+  if (error.code === "CSD_PASSWORD_NOT_CONFIGURED") {
+    return tripFiscalCopy.stamp.csdPasswordNotConfigured;
+  }
+
+  if (isPacStampConfigError(error)) {
+    return describePacStampConfigError(error);
   }
 
   if (error.code === "CP31_INVALID_NUMERIC_DATA") {
@@ -143,8 +194,7 @@ export function describeStampApiError(error: unknown): string {
   }
 
   // Defensa: si el mensaje quedó genérico pero el PAC envió hint (p. ej. CFDI40147).
-  const hint =
-    typeof error.details?.hint === "string" ? error.details.hint.trim() : "";
+  const hint = readStampHint(error);
   if (
     hint &&
     error.code === "PAC_VALIDATION_ERROR" &&

@@ -1,8 +1,69 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@shared/api/interceptors/error-handler";
+import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import { describeStampApiError } from "./stampErrorDescription";
 
 describe("describeStampApiError", () => {
+  it("CSD_PASSWORD_NOT_CONFIGURED apunta a Datos para facturar", () => {
+    const error = new ApiError(
+      "No se encontró la contraseña del CSD para este tenant. Re-suba el certificado con contraseña o configure el secreto correspondiente.",
+      422,
+      "CSD_PASSWORD_NOT_CONFIGURED",
+    );
+
+    const message = describeStampApiError(error);
+
+    expect(message).toBe(tripFiscalCopy.stamp.csdPasswordNotConfigured);
+    expect(message).toMatch(/Datos para facturar/i);
+    expect(message).toMatch(/CSD|sello/i);
+  });
+
+  it("PAC_CONFIG_ERROR con mensaje stamp config añade next-step a Datos para facturar", () => {
+    const apiMessage =
+      "No se pudo timbrar: la cuenta o el RFC emisor no están listos en el proveedor de timbrado.";
+    const error = new ApiError(apiMessage, 422, "PAC_CONFIG_ERROR", {
+      pac_provider: "finkok",
+      pac_code: "701",
+    });
+
+    const message = describeStampApiError(error);
+
+    expect(message).toContain(apiMessage);
+    expect(message).toMatch(/Datos para facturar/i);
+    expect(message).toMatch(/soporte/i);
+  });
+
+  it("PAC_CONFIG_ERROR con hint 702 conserva el hint y apunta a Datos para facturar", () => {
+    const apiMessage =
+      "No se pudo timbrar: la cuenta o el RFC emisor no están listos en el proveedor de timbrado.";
+    const hint =
+      "En el panel del proveedor (demo), agregue el RFC emisor en Clientes y vuelva a timbrar.";
+    const error = new ApiError(apiMessage, 422, "PAC_CONFIG_ERROR", {
+      pac_provider: "finkok",
+      pac_code: "702",
+      hint,
+    });
+
+    const message = describeStampApiError(error);
+
+    expect(message).toContain(hint);
+    expect(message).toMatch(/Datos para facturar/i);
+    expect(message).not.toMatch(/Error genérico/i);
+  });
+
+  it("no duplica next-step si el mensaje API ya nombra Datos para facturar", () => {
+    const apiMessage =
+      "No se pudo timbrar: la cuenta o el RFC emisor no están listos. Registre el RFC emisor en Datos para facturar o en el panel del timbrador.";
+    const error = new ApiError(apiMessage, 422, "PAC_CONFIG_ERROR", {
+      pac_code: "702",
+    });
+
+    const message = describeStampApiError(error);
+
+    expect(message).toBe(apiMessage);
+    expect(message.match(/Datos para facturar/gi)?.length).toBe(1);
+  });
+
   it("apunta al catálogo de vehículos cuando falta Autotransporte CP3.1", () => {
     const error = new ApiError(
       "Datos del vehículo incompletos para Carta Porte 3.1 (configuración vehicular SAT...). Complételos en el catálogo de vehículos y vuelva a timbrar.",

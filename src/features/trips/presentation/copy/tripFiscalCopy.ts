@@ -132,6 +132,20 @@ export const tripFiscalCopy = {
         "Datos del vehículo incompletos para Carta Porte 3.1.";
       return `${base} Abra Vehículos, edite la unidad asignada al viaje y complete los datos de Carta Porte; luego vuelva a timbrar.`;
     },
+    /** Go-live: CSD password ausente → Datos para facturar (`CSD_PASSWORD_NOT_CONFIGURED`). */
+    csdPasswordNotConfigured:
+      "Falta la contraseña del sello (CSD) o no está configurada. Cárguela en Configuración → Datos para facturar y vuelva a timbrar.",
+    /**
+     * PAC cuenta / RFC emisor no listo (`PAC_CONFIG_ERROR` + mensaje stamp config / hint 702).
+     * Si el detalle ya nombra Datos para facturar, no se duplica el next-step.
+     */
+    pacStampConfigDescription: (detail?: string) => {
+      const base =
+        detail?.trim() ||
+        "No se pudo timbrar: la cuenta o el RFC emisor no están listos en el proveedor de timbrado.";
+      if (/Datos para facturar/i.test(base)) return base;
+      return `${base} Verifique el RFC emisor y el sello en Configuración → Datos para facturar; si el problema continúa, pida apoyo a soporte.`;
+    },
   },
   genericReceiverStamp: {
     preflightTitle: (kind: GenericRfcKind) =>
