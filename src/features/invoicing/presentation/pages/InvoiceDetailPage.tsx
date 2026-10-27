@@ -122,7 +122,11 @@ export function InvoiceDetailPage() {
   const linkedPrimaryTrip = invoice?.trips.find(
     (trip) => parseInvoiceBillingScope(trip.billingScope) === "primary_transport",
   );
-  const linkedTripIdForFiscal = linkedPrimaryTrip?.tripId ?? invoice?.trips[0]?.tripId;
+  const linkedTripRef = linkedPrimaryTrip ?? invoice?.trips[0];
+  const linkedTripIdForFiscal = linkedTripRef?.tripId;
+  const invoiceBillingScope = parseInvoiceBillingScope(
+    linkedTripRef?.billingScope,
+  );
   const { data: linkedTripForFiscal } = useTrip(linkedTripIdForFiscal ?? "", {
     enabled: Boolean(
       !isClientPortal &&
@@ -176,7 +180,7 @@ export function InvoiceDetailPage() {
     !isClientPortal &&
     invoice?.status === "stamped" &&
     // El ingreso false_trip es el CFDI legítimo — no pedir cancelarlo.
-    invoice.billingScope !== "false_trip" &&
+    invoiceBillingScope !== "false_trip" &&
     Boolean(linkedTripForFiscal?.invoicing) &&
     shouldShowFalseTripCancelCfdiBanner({
       operationalOutcome: linkedTripForFiscal!.operationalOutcome,
