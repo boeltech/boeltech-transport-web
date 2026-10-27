@@ -14,6 +14,7 @@ import {
   type TripStop,
 } from "@features/trips/domain";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
+import { TooltipProvider } from "@shared/ui/tooltip";
 
 import { tripDetailCopy } from "../../copy";
 import { TripDetailRouteTab } from "./TripDetailRouteTab";
@@ -261,7 +262,9 @@ function renderTab(ui: ReactElement) {
   });
   return render(
     <MemoryRouter>
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>
     </MemoryRouter>,
   );
 }

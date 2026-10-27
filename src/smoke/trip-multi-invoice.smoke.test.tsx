@@ -2,7 +2,7 @@
  * Smoke ADR-0068 — multifactura por viaje (flete + accesoria).
  * Mock de API; no requiere backend ni PAC.
  *
- * Flujo UI: primaria existente → CTA «Facturar servicios adicionales»
+ * Flujo UI: primaria existente → menú Facturación → «Facturar servicios adicionales»
  * → editor accesorio sin flete → payload `billing_scope=accessory`.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -124,23 +124,35 @@ describe("smoke ADR-0068 trip multi-invoice", () => {
     const user = userEvent.setup();
     render(
       <TestProviders>
-        <TripInvoiceActions trip={makeTrip()} presentation="inline" />
+        <TripInvoiceActions trip={makeTrip()} presentation="headerMenu" />
       </TestProviders>,
     );
 
-    const cta = screen.getByRole("button", {
-      name: tripFiscalCopy.invoiceActions.generateAccessory,
-    });
-    expect(cta).toBeInTheDocument();
+    // Accessory-only no eleva «Facturar»; vive en el menú tipado (D24).
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
 
-    await user.click(cta);
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: tripFiscalCopy.invoiceActions.generateAccessory,
+      }),
+    );
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}&scope=accessory`,
       { state: { from: `/trips/${TRIP_ID}` } },
     );
   });
 
-  it("no muestra CTA accesoria sin canGenerateAccessoryInvoice", () => {
+  it("no muestra CTA accesoria sin canGenerateAccessoryInvoice", async () => {
+    const user = userEvent.setup();
     render(
       <TestProviders>
         <TripInvoiceActions
@@ -153,15 +165,28 @@ describe("smoke ADR-0068 trip multi-invoice", () => {
               invoiceId: PRIMARY_INVOICE_ID,
               invoiceFolio: "A-100",
               invoiceStatus: "stamped",
+              accessoryInvoices: [
+                {
+                  id: ACCESSORY_INVOICE_ID,
+                  folio: "A-101",
+                  status: "draft",
+                  total: 1500,
+                },
+              ],
             }),
           })}
-          presentation="inline"
+          presentation="headerMenu"
         />
       </TestProviders>,
     );
 
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    );
     expect(
-      screen.queryByRole("button", {
+      screen.queryByRole("menuitem", {
         name: tripFiscalCopy.invoiceActions.generateAccessory,
       }),
     ).not.toBeInTheDocument();

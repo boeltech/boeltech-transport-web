@@ -2,8 +2,8 @@
  * Smoke ADR-0079 — viaje en falso (ingreso sin Carta Porte).
  * Mock de API; no requiere backend ni PAC.
  *
- * Flujo UI: outcome falso → oculta CTA de flete+CP → «Facturar viaje en falso»
- * con `?scope=false_trip` → editor solo servicios → payload `billing_scope=false_trip`.
+ * Flujo UI: outcome falso → oculta CTA de flete+CP → «Facturar» (skip 1 scope)
+ * navega a `?scope=false_trip` → editor solo servicios → payload `billing_scope=false_trip`.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -117,8 +117,9 @@ describe("smoke ADR-0079 trip false-trip", () => {
       </TestProviders>,
     );
 
+    // Freight-family skip (1 scope): CTA genérico «Facturar» → false_trip.
     const cta = screen.getByRole("button", {
-      name: tripFiscalCopy.invoiceActions.generateFalseTrip,
+      name: tripFiscalCopy.invoiceActions.generatePrimary,
     });
     expect(cta).toBeInTheDocument();
     expect(

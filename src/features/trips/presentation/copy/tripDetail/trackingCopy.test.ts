@@ -31,7 +31,8 @@ describe("trackingCopy — StartTripSheet (PD6 / CA5)", () => {
   it("separa despacho de salida de origen y ofrece intención de ubicación", () => {
     expect(trackingCopy.sheet.startDescription).toMatch(/despachar/i);
     expect(trackingCopy.sheet.startDescription).toMatch(/salida de origen/i);
-    expect(trackingCopy.sheet.startDescription).not.toMatch(/En Ruta/i);
+    // Evita el status label «En Ruta»; «en ruta» en prosa operativa sí es válido.
+    expect(trackingCopy.sheet.startDescription).not.toMatch(/\bEn Ruta\b/);
     expect(trackingCopy.sheet.dispatchIntentAtDock).toMatch(/andén de carga/i);
     expect(trackingCopy.sheet.dispatchIntentEnRoute).toMatch(/va en camino/i);
     expect(trackingCopy.action.dispatchAtDock).toBe("Despachar en origen");

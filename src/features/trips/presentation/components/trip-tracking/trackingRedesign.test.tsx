@@ -1797,54 +1797,77 @@ describe("TripTrackingObjectiveHub compact (overflow PD5 / D5)", () => {
   });
 
   it("defiere apertura de QuickClose desde ⋯ (sheet-from-menu-focus)", async () => {
-    vi.useFakeTimers();
-    const user = userEvent.setup({
-      advanceTimers: vi.advanceTimersByTime.bind(vi),
-    });
+    const user = userEvent.setup();
     const onQuickCloseTrip = vi.fn();
-    const destinationArrived = stop({
-      id: "s2",
-      sequenceOrder: 2,
-      stopType: [StopType.DESTINATION],
-      locationName: "Cliente CDMX",
-      status: "in_progress",
-      actualArrival: new Date("2026-07-12T16:00:00.000Z"),
-    });
-    const originDone = stop({
-      id: "s1",
-      sequenceOrder: 1,
-      stopType: [StopType.ORIGIN],
-      locationName: "Bodega QRO",
-      status: "completed",
-      actualArrival: new Date("2026-07-12T10:00:00.000Z"),
-      actualDeparture: new Date("2026-07-12T10:30:00.000Z"),
-    });
+    const deferred: Array<() => void> = [];
+    const realSetTimeout = window.setTimeout.bind(window);
+    // Solo retiene el tick de openSheetFromMenu(onQuickCloseTrip); el resto
+    // (Radix / userEvent) sigue en timers reales para no colgar el click.
+    const setTimeoutSpy = vi
+      .spyOn(window, "setTimeout")
+      .mockImplementation(((
+        handler: TimerHandler,
+        timeout?: number,
+        ...args: unknown[]
+      ) => {
+        if (timeout === 0 && handler === onQuickCloseTrip) {
+          deferred.push(onQuickCloseTrip);
+          return 0 as unknown as ReturnType<typeof setTimeout>;
+        }
+        return realSetTimeout(
+          handler as never,
+          timeout as never,
+          ...(args as never[]),
+        );
+      }) as typeof setTimeout);
 
-    render(
-      <TripTrackingObjectiveHub
-        compact
-        stops={[originDone, destinationArrived]}
-        tripStatus={TripStatus.IN_PROGRESS}
-        cargos={[]}
-        canOperateTracking
-        onCloseTrip={vi.fn()}
-        onQuickCloseTrip={onQuickCloseTrip}
-        cfdiEmissionIntent="emitir_cfdi"
-      />,
-    );
+    try {
+      const destinationArrived = stop({
+        id: "s2",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION],
+        locationName: "Cliente CDMX",
+        status: "in_progress",
+        actualArrival: new Date("2026-07-12T16:00:00.000Z"),
+      });
+      const originDone = stop({
+        id: "s1",
+        sequenceOrder: 1,
+        stopType: [StopType.ORIGIN],
+        locationName: "Bodega QRO",
+        status: "completed",
+        actualArrival: new Date("2026-07-12T10:00:00.000Z"),
+        actualDeparture: new Date("2026-07-12T10:30:00.000Z"),
+      });
 
-    await user.click(
-      screen.getByRole("button", { name: trackingCopy.action.moreActions }),
-    );
-    await user.click(
-      await screen.findByRole("menuitem", {
-        name: trackingCopy.action.quickClose,
-      }),
-    );
-    expect(onQuickCloseTrip).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(onQuickCloseTrip).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
+      render(
+        <TripTrackingObjectiveHub
+          compact
+          stops={[originDone, destinationArrived]}
+          tripStatus={TripStatus.IN_PROGRESS}
+          cargos={[]}
+          canOperateTracking
+          onCloseTrip={vi.fn()}
+          onQuickCloseTrip={onQuickCloseTrip}
+          cfdiEmissionIntent="emitir_cfdi"
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: trackingCopy.action.moreActions }),
+      );
+      await user.click(
+        await screen.findByRole("menuitem", {
+          name: trackingCopy.action.quickClose,
+        }),
+      );
+      expect(onQuickCloseTrip).not.toHaveBeenCalled();
+      expect(deferred).toHaveLength(1);
+      deferred[0]!();
+      expect(onQuickCloseTrip).toHaveBeenCalledTimes(1);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
   });
 
   it("restaura microcopy de transición bajo CTA primario (PD3)", () => {
