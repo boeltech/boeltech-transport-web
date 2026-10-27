@@ -95,6 +95,7 @@ function renderLanding() {
 
 describe("LandingPage /welcome polish", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     registrationState.open = true;
     viewportState.reducedMotion = true;
     viewportState.mobilePricing = false;
@@ -122,9 +123,11 @@ describe("LandingPage /welcome polish", () => {
     expect(hero!.querySelector("[data-landing-hero-chrome]")).toBeTruthy();
     expect(hero!.querySelectorAll('a[href="/welcome"]')).toHaveLength(1);
     expect(container.querySelectorAll('a[href="/welcome"]')).toHaveLength(1);
-    /* Copy column starts at H1 — no duplicate lockup above the title. */
-    expect(container.querySelector(".landing-hero-brand")).toBeNull();
-    expect(container.querySelector(".landing-hero-brand-rule")).toBeNull();
+    /* Brand tipográfico hero-level (D-M5). Sin ICP 1–30 en hero (D5′). */
+    expect(container.querySelector(".landing-hero-brand")).toBeTruthy();
+    expect(
+      screen.queryByText(/Para flotas de 1 a 30 motrices/i),
+    ).not.toBeInTheDocument();
   });
 
   it("uses hero chrome lockup on load and elevated sticky chrome past the hero", () => {
@@ -424,8 +427,8 @@ describe("LandingPage /welcome polish", () => {
     });
   });
 
-  it("autoplays evidence beats when the section is in view", async () => {
-    viewportState.reducedMotion = true;
+  it("autoplays evidence beats when the section is in view (motion ok)", async () => {
+    viewportState.reducedMotion = false;
     stubViewportApis();
     vi.useFakeTimers();
 
@@ -440,6 +443,9 @@ describe("LandingPage /welcome polish", () => {
       expect(
         document.querySelector("#evidencia"),
       ).toHaveAttribute("data-landing-evidence-autoplay", "on");
+      expect(
+        screen.getByRole("button", { name: landingCopy.evidence.pauseLabel }),
+      ).toBeInTheDocument();
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5500);
@@ -451,6 +457,67 @@ describe("LandingPage /welcome polish", () => {
       ).toHaveAttribute("aria-selected", "true");
       expect(
         screen.getByRole("heading", { level: 3, name: second.benefitTitle }),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not autoplay evidence when prefers-reduced-motion", async () => {
+    viewportState.reducedMotion = true;
+    stubViewportApis();
+    vi.useFakeTimers();
+
+    try {
+      renderLanding();
+      const first = landingCopy.product.items[0]!;
+      expect(
+        document.querySelector("#evidencia"),
+      ).toHaveAttribute("data-landing-evidence-autoplay", "reduced");
+      expect(
+        screen.queryByRole("button", { name: landingCopy.evidence.pauseLabel }),
+      ).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5500);
+        await vi.advanceTimersByTimeAsync(280);
+      });
+
+      expect(
+        screen.getByRole("tab", { name: first.title }),
+      ).toHaveAttribute("aria-selected", "true");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("pauses evidence autoplay when the toggle is pressed", async () => {
+    viewportState.reducedMotion = false;
+    stubViewportApis();
+    vi.useFakeTimers();
+
+    try {
+      renderLanding();
+      const first = landingCopy.product.items[0]!;
+      act(() => {
+        screen
+          .getByRole("button", { name: landingCopy.evidence.pauseLabel })
+          .click();
+      });
+      expect(
+        document.querySelector("#evidencia"),
+      ).toHaveAttribute("data-landing-evidence-autoplay", "paused");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5500);
+        await vi.advanceTimersByTimeAsync(280);
+      });
+
+      expect(
+        screen.getByRole("tab", { name: first.title }),
+      ).toHaveAttribute("aria-selected", "true");
+      expect(
+        screen.getByRole("button", { name: landingCopy.evidence.playLabel }),
       ).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
@@ -668,6 +735,12 @@ describe("LandingPage /welcome polish", () => {
       name: first.question,
     });
     expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
+    /* Open mode: trial FAQs visibles. */
+    expect(
+      within(faq as HTMLElement).getByRole("button", {
+        name: landingCopy.faq.trialItems[0]!.question,
+      }),
+    ).toBeInTheDocument();
 
     await user.click(
       within(faq as HTMLElement).getByRole("button", {
@@ -831,6 +904,7 @@ describe("LandingPage /welcome polish", () => {
 
 describe("LandingPage closed registration", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     registrationState.open = false;
     viewportState.reducedMotion = true;
     stubViewportApis();
@@ -917,5 +991,28 @@ describe("LandingPage closed registration", () => {
         hidden: true,
       }),
     ).toHaveAttribute("href", "#pricing");
+  });
+
+  it("hides trial FAQ items when registration is closed", () => {
+    renderLanding();
+    const faq = document.querySelector("#faq");
+    expect(faq).toBeTruthy();
+    for (const item of landingCopy.faq.trialItems) {
+      expect(
+        within(faq as HTMLElement).queryByRole("button", {
+          name: item.question,
+        }),
+      ).not.toBeInTheDocument();
+    }
+    expect(
+      within(faq as HTMLElement).getByRole("button", {
+        name: landingCopy.faq.items[0]!.question,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Micro/Pequeña focus cue in pricing", () => {
+    renderLanding();
+    expect(screen.getByText(landingCopy.pricing.focusCue)).toBeInTheDocument();
   });
 });

@@ -3,9 +3,17 @@
  * Namespace: landing.copy.*
  * Alineado a SoT comercial v5 motriz (bandas Micro/Pequeña/Mediana/Grande).
  * Handoff Capa 1 (D1–D12): embudo outcome → prueba → precio.
- * F3: evidencia (#evidencia), FAQ, selector de motrices.
+ * Pedido 2026-10-26: FAQ/CTA honestos (PD2–PD3), beats dueño (PD4).
+ * D5′: sin ICP 1–30 en hero (no excluir flotas grandes).
  */
 import { BRAND } from "@shared/ui/brand";
+
+export type LandingFaqItem = {
+  question: string;
+  answer: string;
+  linkHref?: string;
+  linkLabel?: string;
+};
 
 export const landingCopy = {
   brand: BRAND.productName,
@@ -146,13 +154,13 @@ export const landingCopy = {
       },
       {
         title: "Clientes",
-        benefitTitle: "Gente y permisos claros",
+        benefitTitle: "Quién te contrata, claro",
         description:
-          "Quién contrata, quién maneja y quién puede operar en el sistema.",
+          "Clientes y contactos listos para operar el viaje y preparar el cobro.",
         bullets: [
           "Clientes y contactos",
-          "Conductores y licencias",
-          "Permisos por rol",
+          "Datos para cotizar y facturar",
+          "Historial de viajes por cliente",
         ],
         previewNavIndex: 3,
         previewAssetId: "product-preview-clients" as const,
@@ -173,13 +181,15 @@ export const landingCopy = {
     ],
   },
 
-  /** F3: evidencia con tabs; copy de beats = product.items. */
+  /** Evidencia con tabs; copy de beats = product.items. */
   evidence: {
     id: "evidencia",
     title: "Cómo funciona en tu patio",
     subtitle:
       "Las mismas funciones en todos los planes. Lo que cambia con el tamaño de flota son los cupos (motrices, usuarios, sucursales), no lo que puedes hacer.",
     tablistLabel: "Áreas del producto",
+    pauseLabel: "Pausar recorrido",
+    playLabel: "Reanudar recorrido",
   },
 
   optionals: {
@@ -187,7 +197,7 @@ export const landingCopy = {
     title: "Más adelante, sobre el mismo núcleo",
     subtitle:
       "El núcleo operativo ya está en tu plan. Combustible, mantenimiento y GPS se contratan aparte cuando estén disponibles.",
-    /** Leyenda única a nivel sección (no por celda). */
+    /** Leyenda única a nivel sección (no por celda). Sentence-case patio. */
     badge: "En preparación",
     items: [
       {
@@ -216,6 +226,8 @@ export const landingCopy = {
     title: "Planes según el tamaño de tu flota",
     subtitle:
       "Pagas por motriz al mes, sin cargo fijo de cuenta. Mismo núcleo operativo en todos los planes; cambian cupos y precio.",
+    /** Cue Micro/Pequeña (PD5 / D5) sin ocultar Mediana/Grande. */
+    focusCue: "Ideal para flotas Micro y Pequeña (1–30 motrices).",
     /**
      * Footnote de sección (D6): anual + opcionales se renderizan juntos.
      * Sin promesa de descuento anual como SoT.
@@ -289,16 +301,12 @@ export const landingCopy = {
   faq: {
     id: "faq",
     title: "Preguntas frecuentes",
+    /** Siempre visibles (PD3). */
     items: [
       {
         question: "¿Necesito CSD el día 1?",
         answer:
           "No. Opera primero con el núcleo incluido. Factura en México cuando cargues tu sello (CSD).",
-      },
-      {
-        question: "¿Qué incluye la prueba?",
-        answer:
-          "14 días · sin tarjeta · 15 timbres de prueba · empiezas en Operación Micro.",
       },
       {
         question: "¿Qué es una motriz?",
@@ -316,12 +324,22 @@ export const landingCopy = {
         linkHref: "#opcionales",
         linkLabel: "Ver opcionales",
       },
+    ] as const satisfies readonly LandingFaqItem[],
+    /**
+     * Solo si `registrationOpen` (PD2/PD3). Insertar tras CSD para conservar orden histórico.
+     */
+    trialItems: [
+      {
+        question: "¿Qué incluye la prueba?",
+        answer:
+          "14 días · sin tarjeta · 15 timbres de prueba · empiezas en Operación Micro.",
+      },
       {
         question: "¿Qué pasa al día 15?",
         answer:
           "Habla con ventas para continuar en un plan Operación. La prueba no se convierte sola en un plan de pago.",
       },
-    ],
+    ] as const satisfies readonly LandingFaqItem[],
   },
 
   cta: {
@@ -349,3 +367,13 @@ export const landingCopy = {
       `© ${year} ${BRAND.companyName}. Todos los derechos reservados.`,
   },
 } as const;
+
+/** FAQ visible según self-serve: sin ítems de prueba cuando el registro está cerrado. */
+export function getLandingFaqItems(
+  registrationOpen: boolean,
+): LandingFaqItem[] {
+  const always = landingCopy.faq.items as unknown as LandingFaqItem[];
+  if (!registrationOpen) return [...always];
+  const trial = landingCopy.faq.trialItems as unknown as LandingFaqItem[];
+  return [always[0]!, ...trial, ...always.slice(1)];
+}

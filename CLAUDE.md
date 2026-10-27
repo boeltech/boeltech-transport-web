@@ -174,7 +174,7 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 
 **Skills versionadas (Cloud Agents y `/frontend-senior`):** `.agents/skills/` — `design-system`, `frontend-component`, `frontend-module-scaffold`, `vitest-testing-patterns`, `detail-sheet-master-detail`.
 
-**Skills locales (gitignored):** `.agents/skills/` y `.claude/skills/` — `frontend-design`, `web-design-guidelines`, `vercel-react-best-practices`, `impeccable`, `design-taste-frontend`, `neversight-skills_feed-tremor-design-system` (`tremor-design-system`, dashboards/charts vía LobeHub). Subordinadas al `design-system` versionado: DS gana ante taste/impeccable. `design-taste-frontend` no aplica a tablas ni wizards densos.
+**Skills locales (gitignored):** `.agents/skills/` y `.claude/skills/` — `frontend-design`, `web-design-guidelines`, `vercel-react-best-practices`, `impeccable`, `design-taste-frontend`, `neversight-skills_feed-tremor-design-system` (`tremor-design-system`, dashboards/charts vía LobeHub). **Conform:** DS versionado gana en *piezas* (tokens/shells); `impeccable` gana en *craft Operate* (densidad/estados); taste/frontend-design no mutan tipografía/color/shells en features (`design-taste` no aplica a tablas ni wizards densos). **Evolve** del DS: capacidad `ux-ui-mejoras` modos `propose-ds` / `evolve-ds` con gate `ds_evolution` (pedido puntual; OK CEO) — ver skill `design-system` §Evolución.
 
 ## Git
 

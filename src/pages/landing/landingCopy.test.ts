@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OPERATIONAL_PLAN_CATALOG } from "@shared/commercial/operationalPlanCatalog";
-import { landingCopy } from "./landingCopy";
+import { getLandingFaqItems, landingCopy } from "./landingCopy";
 
 const SOT_V5_CODES = [
   "operacion_micro",
@@ -187,8 +187,9 @@ describe("landingCopy visitor MX (D6–D13)", () => {
     ]);
   });
 
-  it("keeps exact hero marketing copy (title, support, closed hint)", () => {
+  it("keeps exact hero marketing copy (title, support, closed hint; sin ICP 1–30)", () => {
     expect(landingCopy.hero.title).toBe("Opera tu flota y factura en México.");
+    expect(landingCopy.hero).not.toHaveProperty("audience");
     expect(landingCopy.hero.subtitle).toBe(
       "Viajes, unidades y clientes en un solo lugar. Facturas con tu CSD cuando la operación lo pida.",
     );
@@ -215,11 +216,13 @@ describe("landingCopy visitor MX (D6–D13)", () => {
     expect(flattenCopy(landingCopy.optionals.items)).not.toMatch(/paywall/i);
   });
 
-  it("keeps evidence beat labels short and visitor-facing", () => {
+  it("keeps evidence beat labels short and visitor-facing (no RBAC in Clientes)", () => {
     const bullets = landingCopy.product.items.flatMap((item) => item.bullets);
     expect(bullets).toContain("Alta de viaje");
-    expect(bullets).toContain("Permisos por rol");
+    expect(bullets).toContain("Historial de viajes por cliente");
     expect(bullets).toContain("Gastos y aprobaciones");
+    expect(bullets).not.toContain("Permisos por rol");
+    expect(bullets).not.toContain("Conductores y licencias");
     expect(bullets).toHaveLength(12);
     expect(landingCopy.pricing.featureLabels.fleet).toBe("Motrices");
   });
@@ -230,6 +233,9 @@ describe("landingCopy visitor MX (D6–D13)", () => {
     );
     expect(landingCopy.pricing.subtitle).toBe(
       "Pagas por motriz al mes, sin cargo fijo de cuenta. Mismo núcleo operativo en todos los planes; cambian cupos y precio.",
+    );
+    expect(landingCopy.pricing.focusCue).toBe(
+      "Ideal para flotas Micro y Pequeña (1–30 motrices).",
     );
     expect(landingCopy.pricing.fleetSelector.label).toBe(
       "¿Cuántas motrices operas?",
@@ -259,6 +265,8 @@ describe("landingCopy F3 conversion (evidence / FAQ / fleet selector)", () => {
       "Las mismas funciones en todos los planes. Lo que cambia con el tamaño de flota son los cupos (motrices, usuarios, sucursales), no lo que puedes hacer.",
     );
     expect(landingCopy.evidence.tablistLabel).toBe("Áreas del producto");
+    expect(landingCopy.evidence.pauseLabel).toMatch(/pausar/i);
+    expect(landingCopy.evidence.playLabel).toMatch(/reanudar/i);
     expect(landingCopy.product.items).toHaveLength(4);
     expect(landingCopy.product.items.map((i) => i.title)).toEqual([
       "Flota",
@@ -269,7 +277,7 @@ describe("landingCopy F3 conversion (evidence / FAQ / fleet selector)", () => {
     expect(landingCopy.product.items.map((i) => i.benefitTitle)).toEqual([
       "Tus unidades bajo control",
       "El viaje, de punta a punta",
-      "Gente y permisos claros",
+      "Quién te contrata, claro",
       "Del viaje al CFDI",
     ]);
   });
@@ -286,10 +294,18 @@ describe("landingCopy F3 conversion (evidence / FAQ / fleet selector)", () => {
     expect(fleetSelector.defaultOptionId).toBe("6-30");
   });
 
-  it("keeps FAQ facts aligned to SoT without inventing post-trial prices", () => {
+  it("keeps FAQ facts aligned to SoT; trial items only when registration open", () => {
     expect(landingCopy.faq.id).toBe("faq");
-    expect(landingCopy.faq.items.length).toBeGreaterThanOrEqual(5);
-    expect(landingCopy.faq.items.length).toBeLessThanOrEqual(6);
+    expect(landingCopy.faq.items).toHaveLength(4);
+    expect(landingCopy.faq.trialItems).toHaveLength(2);
+    const closed = getLandingFaqItems(false);
+    const open = getLandingFaqItems(true);
+    expect(closed).toHaveLength(4);
+    expect(open).toHaveLength(6);
+    expect(closed.map((i) => i.question)).not.toContain(
+      "¿Qué incluye la prueba?",
+    );
+    expect(open.map((i) => i.question)).toContain("¿Qué incluye la prueba?");
     const motrizFaq = landingCopy.faq.items.find(
       (item) => item.question === "¿Qué es una motriz?",
     );
@@ -308,9 +324,6 @@ describe("landingCopy F3 conversion (evidence / FAQ / fleet selector)", () => {
     const optionalsFaq = landingCopy.faq.items.find((i) =>
       i.question.toLowerCase().includes("combustible"),
     );
-    expect(optionalsFaq && "linkHref" in optionalsFaq).toBe(true);
-    if (optionalsFaq && "linkHref" in optionalsFaq) {
-      expect(optionalsFaq.linkHref).toBe("#opcionales");
-    }
+    expect(optionalsFaq?.linkHref).toBe("#opcionales");
   });
 });

@@ -14,8 +14,27 @@ description: Design system del ERP-T. App shell (sidebar, header, navegación, t
 - Usar un badge / button / alert y no saber la variante correcta
 - Revisar si un color, spacing o tipografía sigue las convenciones
 - Agregar un token nuevo al sistema
+- Trabajar la landing pública `/welcome` (superficie **Patio Marketing** — ver sección homónima)
 
-Fuente en vivo: ruta `/design-system` dentro de la app (light/dark).
+Fuente en vivo: ruta `/design-system` dentro de la app (light/dark). Landing: `/welcome`.
+
+### Evolución del DS (fábrica)
+
+El día a día es **Conform**: features usan las piezas de este skill; no inventan tipografía,
+color ni shells locales. Craft Operate (`impeccable`) mejora densidad/estados *dentro* de
+esas piezas.
+
+Para **cambiar el sistema** (tokens, shells, primitivos, empty/hub patterns):
+
+1. Capacidad `ux-ui-mejoras` modo **`propose-ds`** → RFC (skills de diseño pueden proponer).
+2. CEO aprueba **`ds_evolution`** en el pedido (Evolve por pedido puntual).
+3. Modo **`evolve-ds`** aterriza aquí + `src/app/styles/index.css` / `@shared/ui` + demo
+   `/design-system` + docs cowork — **antes** de adoptar en pantallas.
+4. Pantallas vuelven a Conform con el DS ya actualizado.
+
+Sin `ds_evolution.approved` → no mutar tipografía/paleta/shells del sistema desde un pedido
+de feature. Cloud Agents solo ven este skill versionado; las skills taste/impeccable locales
+no sustituyen este SoT.
 
 ---
 
@@ -752,6 +771,30 @@ usar `entityListCardMenuTriggerClassName` (touch no ve el menú).
 
 ---
 
+## Patio Marketing (`/welcome`) — superficie vitrina
+
+Landing pública light-only (`src/pages/landing/`). **No** es Operate: no usar shells
+List/Detail/Form ni mutar `--palette-*` / tipografía del ERP desde esta superficie.
+Tokens y tipografía viven scoped bajo `.landing-root` en `landing.css`.
+
+| Decisión | Regla |
+|---|---|
+| **D-M1** | Namespace `.landing-*` / `--landing-*` = superficie DS (vitrina), no one-off de feature. |
+| **D-M2** | CTA ámbar (`.landing-cta-amber`) = excepción marketing permanente; sombra quieta (borde + 1 capa corta). **Sin** bloom/glow multi-capa. No migrar a teal/`--primary`. |
+| **D-M3** | Tipografía marketing (Schibsted Grotesk + IBM Plex) solo bajo `.landing-root`; no contaminar app shell. |
+| **D-M4** | Sentence-case patio en labels marketing (badges, eyebrows). Sin ALL-CAPS tracked. |
+| **D-M5** | Brand lockup/wordmark = señal **hero-level** en `/welcome` (chrome + ancla tipográfica en el bloque hero), no solo nav. |
+
+**Motion ceilings (trust-first):** Ken Burns hero ≤1% / enter corto; autoplay de evidencia
+pausable y **off** con `prefers-reduced-motion`. Copy: `landingCopy.ts`.
+
+**ICP de mensaje (producto, no token):** primer viewport declara flotas **1–30 motrices
+(Micro / Pequeña)**; Mediana/Grande solo en `#pricing`.
+
+Pedido de formalización: `pedidos/2026-10-26-landing-profesional-mercado` (`ds_evolution`).
+
+---
+
 ## Familia Location (ADR-0092)
 
 Patrón transversal **BUSCAR → ENCONTRAR → CONFIRMAR → USAR** sobre `addresses` (no inventar tabla `locations` en v1).
@@ -786,3 +829,4 @@ README: `src/shared/ui/location/README.md` · Guía: `docs/direcciones/patron-lo
 | Detail+Sheet+MD | `.agents/skills/detail-sheet-master-detail/SKILL.md` |
 | Página de tokens CSS | `src/app/styles/index.css` |
 | Design system showcase | `src/pages/design-system/` |
+| Patio Marketing `/welcome` | `src/pages/landing/` · §Patio Marketing arriba |

@@ -1,13 +1,16 @@
 /**
- * FAQ accesible (accordion) — F3. Solo hechos SoT/copy.
+ * FAQ accesible (accordion). Solo hechos SoT/copy; sin prueba si registro cerrado.
  */
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-import { landingCopy } from "./landingCopy";
+import { usePublicSelfServeRegister } from "@shared/commercial/usePublicSelfServeRegister";
+import { getLandingFaqItems, landingCopy } from "./landingCopy";
 
 export function LandingFaq() {
   const { faq } = landingCopy;
+  const { open: registrationOpen } = usePublicSelfServeRegister();
+  const items = getLandingFaqItems(registrationOpen);
   const baseId = useId();
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
@@ -22,7 +25,7 @@ export function LandingFaq() {
         </div>
 
         <div className="landing-faq-list mx-auto mt-10 max-w-2xl">
-          {faq.items.map((item, index) => {
+          {items.map((item, index) => {
             const isOpen = openIndex === index;
             const panelId = `${baseId}-panel-${index}`;
             const buttonId = `${baseId}-btn-${index}`;
@@ -59,7 +62,7 @@ export function LandingFaq() {
                   className="landing-faq-panel"
                 >
                   <p>{item.answer}</p>
-                  {"linkHref" in item && item.linkHref && item.linkLabel ? (
+                  {item.linkHref && item.linkLabel ? (
                     <p className="landing-faq-link-wrap">
                       <a href={item.linkHref} className="landing-faq-link">
                         {item.linkLabel}

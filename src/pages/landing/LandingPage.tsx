@@ -241,7 +241,7 @@ const HeroChrome = () => {
 };
 
 const HeroSection = () => {
-  const { hero } = landingCopy;
+  const { brand, hero } = landingCopy;
   const { open: registrationOpen } = usePublicSelfServeRegister();
 
   return (
@@ -252,10 +252,18 @@ const HeroSection = () => {
       <HeroChrome />
 
       <div className="landing-shell landing-hero-content">
-        {/* Patio + copy/CTA; prueba de UI solo en #evidencia (sin preview en hero). */}
+        {/* Patio + marca ATF + copy/CTA; prueba de UI solo en #evidencia. */}
         <div className="landing-hero-stack relative z-10">
           <div className="landing-hero-copy mx-auto w-full max-w-2xl text-center">
             <LandingReveal eager>
+              <p className="landing-hero-enter-item landing-hero-brand">
+                <Wordmark
+                  variant="current"
+                  decorative
+                  className="landing-hero-brand-wordmark"
+                />
+                <span className="sr-only">{brand}</span>
+              </p>
               <h1 className="landing-hero-enter-item landing-display text-[color:var(--landing-on-dark)]">
                 {hero.title}
               </h1>
@@ -335,13 +343,15 @@ const EVIDENCE_AUTOPLAY_RESUME_MS = 8000;
 /** Fade+slide del copy al cambiar beat (alineado a crossfade crop). */
 const EVIDENCE_COPY_FADE_MS = 280;
 
-/** F3: tabs + crops A3 por beat (fallback mock si asset disabled). F1: fade copy + crossfade crop. F2: prefetch crops. */
+/** Tabs + crops A3 por beat. Autoplay pausable; off con prefers-reduced-motion. */
 const EvidenceSection = () => {
   const { evidence, product } = landingCopy;
   const [activeIndex, setActiveIndex] = useState(0);
   const [displayedIndex, setDisplayedIndex] = useState(0);
   const [copyFading, setCopyFading] = useState(false);
   const [sectionInView, setSectionInView] = useState(true);
+  const [autoplayPaused, setAutoplayPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeIndexRef = useRef(0);
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -349,6 +359,8 @@ const EvidenceSection = () => {
   const active = product.items[displayedIndex] ?? product.items[0]!;
   const tablistId = "landing-evidence-tabs";
   const beatCount = product.items.length;
+  const autoplayActive =
+    sectionInView && !autoplayPaused && !reducedMotion && beatCount >= 2;
 
   activeIndexRef.current = activeIndex;
 
@@ -358,7 +370,16 @@ const EvidenceSection = () => {
     };
   }, []);
 
-  /* F2 D2: al montar, prefetch del siguiente beat (index+1). */
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  /* Prefetch del siguiente beat (index+1). */
   useEffect(() => {
     const nextBeat = product.items[1];
     if (nextBeat) prefetchCommercialAsset(nextBeat.previewAssetId);
@@ -398,11 +419,11 @@ const EvidenceSection = () => {
   );
 
   /*
-   * Carrusel: avanza en vista; fade+slide en copy/crop (carouselMotion).
-   * No pausa en hover. Tras click manual espera EVIDENCE_AUTOPLAY_RESUME_MS.
+   * Carrusel: avanza en vista si no hay reduced-motion ni pausa manual.
+   * Tras click manual espera EVIDENCE_AUTOPLAY_RESUME_MS.
    */
   useEffect(() => {
-    if (!sectionInView || beatCount < 2) return;
+    if (!autoplayActive) return;
 
     const id = window.setInterval(() => {
       if (Date.now() < resumeAtRef.current) return;
@@ -412,19 +433,27 @@ const EvidenceSection = () => {
     }, EVIDENCE_AUTOPLAY_MS);
 
     return () => window.clearInterval(id);
-  }, [sectionInView, beatCount, product.items, selectBeat]);
+  }, [autoplayActive, beatCount, product.items, selectBeat]);
 
   const prefetchBeat = (index: number) => {
     const beat = product.items[index];
     if (beat) prefetchCommercialAsset(beat.previewAssetId);
   };
 
+  const autoplayAttr = reducedMotion
+    ? "reduced"
+    : !sectionInView
+      ? "offscreen"
+      : autoplayPaused
+        ? "paused"
+        : "on";
+
   return (
     <section
       ref={sectionRef}
       id={evidence.id}
       className="landing-band landing-band-surface landing-evidence scroll-mt-20 py-16 md:py-20"
-      data-landing-evidence-autoplay={sectionInView ? "on" : "offscreen"}
+      data-landing-evidence-autoplay={autoplayAttr}
     >
       <div className="landing-shell">
         <div className="mx-auto max-w-2xl text-center">
@@ -529,24 +558,36 @@ const EvidenceSection = () => {
           </div>
 
           {beatCount > 1 ? (
-            <div
-              className="landing-evidence-dots"
-              role="group"
-              aria-label="Progreso del recorrido"
-            >
-              {product.items.map((beat, index) => (
+            <div className="landing-evidence-progress">
+              <div
+                className="landing-evidence-dots"
+                role="group"
+                aria-label="Progreso del recorrido"
+              >
+                {product.items.map((beat, index) => (
+                  <button
+                    key={beat.title}
+                    type="button"
+                    className={cn(
+                      "landing-evidence-dot",
+                      index === activeIndex && "is-active",
+                    )}
+                    aria-label={`${beat.title}${index === activeIndex ? ", actual" : ""}`}
+                    aria-current={index === activeIndex ? "true" : undefined}
+                    onClick={() => selectBeatManual(index)}
+                  />
+                ))}
+              </div>
+              {!reducedMotion ? (
                 <button
-                  key={beat.title}
                   type="button"
-                  className={cn(
-                    "landing-evidence-dot",
-                    index === activeIndex && "is-active",
-                  )}
-                  aria-label={`${beat.title}${index === activeIndex ? ", actual" : ""}`}
-                  aria-current={index === activeIndex ? "true" : undefined}
-                  onClick={() => selectBeatManual(index)}
-                />
-              ))}
+                  className="landing-evidence-autoplay-toggle"
+                  aria-pressed={autoplayPaused}
+                  onClick={() => setAutoplayPaused((prev) => !prev)}
+                >
+                  {autoplayPaused ? evidence.playLabel : evidence.pauseLabel}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -590,6 +631,9 @@ const PricingSection = () => {
           <h2 className="landing-section-title">{pricing.title}</h2>
           <p className="landing-muted-text mt-4 text-base md:text-lg">
             {pricing.subtitle}
+          </p>
+          <p className="landing-pricing-focus-cue mt-3">
+            {pricing.focusCue}
           </p>
           <p className="landing-muted-text mt-2 text-sm">
             {registrationOpen ? pricing.priceHint : pricing.priceHintClosed}
