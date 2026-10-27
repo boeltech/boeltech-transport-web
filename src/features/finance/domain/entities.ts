@@ -328,6 +328,10 @@ export interface PeriodFinancials {
   /** ADR-0108 — siempre aditivo cuando el API lo envía. */
   operationalCost?: number;
   operationalMargin?: number;
+  /** Gasto de viaje aprobado del mes (`trip_expenses_cost`); con la comisión suma `operationalCost`. */
+  tripExpensesCost?: number;
+  /** Comisión a operador autorizada del mes (`trip_commission_cost`). */
+  tripCommissionCost?: number;
   /** ADR-0108 — personal de periodo aparte (no resta del costo de viajes). */
   periodPersonnelCost?: number;
   tripCount: number;

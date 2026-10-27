@@ -43,22 +43,23 @@ export function MetricTrendCard({
   const content = (
     <Card
       className={cn(
+        "flex h-full w-full flex-col",
         onClick && "transition-shadow hover:shadow-md",
         className,
       )}
     >
-      <CardContent className="flex items-center justify-between gap-4 p-4">
-        <div className="min-w-0 flex-1 space-y-0.5">
+      <CardContent className="flex flex-1 items-start justify-between gap-4 p-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           {subtitle ? (
             <p className="text-xs text-muted-foreground">{subtitle}</p>
           ) : null}
           {isLoading ? (
-            <Skeleton className="mt-1 h-8 w-28" />
+            <Skeleton className="mt-auto h-8 w-28" />
           ) : (
             <p
               className={cn(
-                "text-2xl font-bold tabular-nums tracking-tight",
+                "mt-auto pt-1 text-2xl font-bold tabular-nums tracking-tight",
                 TONE_VALUE_CLASSES[tone],
               )}
             >
@@ -67,11 +68,11 @@ export function MetricTrendCard({
           )}
         </div>
         {trend && !isLoading ? (
-          <div className="flex w-[100px] shrink-0 justify-end">
+          <div className="flex w-[100px] shrink-0 justify-end self-center">
             {trend}
           </div>
         ) : isLoading && trend ? (
-          <Skeleton className="h-8 w-[100px] shrink-0 rounded" />
+          <Skeleton className="h-8 w-[100px] shrink-0 self-center rounded" />
         ) : null}
       </CardContent>
     </Card>
@@ -80,7 +81,11 @@ export function MetricTrendCard({
   if (!onClick) return content;
 
   return (
-    <button type="button" className="w-full text-left" onClick={onClick}>
+    <button
+      type="button"
+      className="h-full w-full text-left"
+      onClick={onClick}
+    >
       {content}
     </button>
   );

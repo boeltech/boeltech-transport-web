@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { PieChart } from "lucide-react";
+import { BarChart3, PieChart } from "lucide-react";
 import {
   BoeltechBarChart,
-  BoeltechDonutChart,
+  BoeltechBarList,
   ChartCard,
   type ChartSeries,
 } from "@shared/ui/data-display";
@@ -12,22 +12,24 @@ import {
   formatMxCurrencyCompact,
 } from "@shared/utils/formatMxCurrency";
 import type { ExpensesByCategory } from "@features/finance/domain";
-import { buildExpenseCategoryChartSeries, pickFinanceExpenseChartToken } from "../config/financeChartConfig";
+import {
+  buildExpenseCategoryChartSeries,
+  pickFinanceExpenseChartToken,
+} from "../config/financeChartConfig";
 import { financeCopy } from "../copy";
 import { expenseCategoryLabel } from "../utils/expenseCategoryLabel";
 import {
-  filterNonZeroChartSlices,
   financeCurrencyValueFormatter,
-  formatFinancePeriodLabel,
-  formatFinanceReferencePeriod,
+  formatFinanceChartPeriodLabel,
+  type FinanceChartGranularity,
 } from "../utils/financeChartHelpers";
 
 interface ExpenseAnalysisChartsProps {
   byCategory?: ExpensesByCategory;
+  /** Totales por concepto en el periodo completo (misma base que el KPI). */
   categorySummary: { category: string; amount: number }[];
-  latestPeriodIndex: number;
-  latestPeriod?: string;
-  periodLabel: string;
+  /** Resolución del gráfico: redefine etiquetas de eje (día / semana / mes). */
+  granularity?: FinanceChartGranularity;
   isLoading?: boolean;
 }
 
@@ -45,9 +47,7 @@ function ChartEmptyState({ description }: { description: string }) {
 export function ExpenseAnalysisCharts({
   byCategory,
   categorySummary,
-  latestPeriodIndex,
-  latestPeriod,
-  periodLabel,
+  granularity = "month",
   isLoading = false,
 }: ExpenseAnalysisChartsProps) {
   const { timeSeriesData, timeSeriesChartSeries } = useMemo(() => {
@@ -59,7 +59,7 @@ export function ExpenseAnalysisCharts({
     const series = buildExpenseCategoryChartSeries(categories, expenseCategoryLabel);
 
     const data = byCategory.periods.map((period, periodIndex) => ({
-      label: formatFinancePeriodLabel(period),
+      label: formatFinanceChartPeriodLabel(period, granularity),
       ...Object.fromEntries(
         categories.map((cat) => [
           cat,
@@ -69,29 +69,19 @@ export function ExpenseAnalysisCharts({
     }));
 
     return { timeSeriesData: data, timeSeriesChartSeries: series };
-  }, [byCategory]);
+  }, [byCategory, granularity]);
 
-  const donutSlices = useMemo(() => {
-    const data = categorySummary.map(({ category, amount }) => ({
-      label: expenseCategoryLabel(category),
-      value: amount,
-    }));
-    const series = categorySummary.map((item, index) => ({
-      dataKey: "value",
-      label: expenseCategoryLabel(item.category),
-      token: pickFinanceExpenseChartToken(index),
-    }));
-
-    return filterNonZeroChartSlices(data, series);
-  }, [categorySummary]);
-
-  const periodTotal =
-    latestPeriodIndex >= 0 && byCategory
-      ? (byCategory.total[latestPeriodIndex] ?? 0)
-      : 0;
-
-  const compositionTitle = financeCopy.expenses.charts.latestPeriod.title(
-    periodLabel === "—" ? "" : periodLabel,
+  const rankingItems = useMemo(
+    () =>
+      categorySummary
+        .filter((item) => item.amount > 0)
+        .map((item, index) => ({
+          key: item.category,
+          label: expenseCategoryLabel(item.category),
+          value: item.amount,
+          token: pickFinanceExpenseChartToken(index),
+        })),
+    [categorySummary],
   );
 
   return (
@@ -127,39 +117,25 @@ export function ExpenseAnalysisCharts({
       </ChartCard>
 
       <ChartCard
-        title={compositionTitle}
-        description={financeCopy.expenses.charts.latestPeriod.description}
+        title={financeCopy.expenses.charts.composition.title}
+        description={financeCopy.expenses.charts.composition.description}
         isLoading={isLoading}
-        aria-label={financeCopy.expenses.charts.latestPeriod.ariaLabel}
-        footer={
-          latestPeriod ? (
-            <p className="text-xs text-muted-foreground">
-              {financeCopy.expenses.charts.latestPeriod.footer(
-                formatFinanceReferencePeriod(latestPeriod),
-              )}
-            </p>
-          ) : undefined
-        }
+        aria-label={financeCopy.expenses.charts.composition.ariaLabel}
       >
-        {!isLoading && donutSlices.data.length === 0 ? (
-          <ChartEmptyState
-            description={financeCopy.expenses.charts.latestPeriod.emptyDescription}
+        {!isLoading && rankingItems.length === 0 ? (
+          <EmptyState
+            size="sm"
+            icon={<BarChart3 className="h-8 w-8 text-muted-foreground" />}
+            title={financeCopy.expenses.charts.empty.title}
+            description={
+              financeCopy.expenses.charts.composition.emptyDescription
+            }
           />
         ) : (
-          <BoeltechDonutChart
-            data={donutSlices.data}
-            series={donutSlices.series}
-            valueFormatter={financeCurrencyValueFormatter}
-            centerLabel={
-              <div>
-                <p className="text-2xl font-bold tabular-nums">
-                  {formatMxCurrency(periodTotal)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {financeCopy.expenses.charts.latestPeriod.centerLabel}
-                </p>
-              </div>
-            }
+          <BoeltechBarList
+            items={rankingItems}
+            valueFormatter={formatMxCurrency}
+            aria-label={financeCopy.expenses.charts.composition.ariaLabel}
           />
         )}
       </ChartCard>

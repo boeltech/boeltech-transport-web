@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { formatDate } from "@shared/utils/dateUtils";
 import {
   filterNonZeroChartSlices,
+  formatFinanceChartPeriodLabel,
   formatFinancePeriodLabel,
 } from "./financeChartHelpers";
 
@@ -12,6 +14,32 @@ describe("formatFinancePeriodLabel", () => {
 
   it("returns the raw value when it is not a period", () => {
     expect(formatFinancePeriodLabel("bad")).toBe("bad");
+  });
+});
+
+describe("formatFinanceChartPeriodLabel", () => {
+  it("month: abreviado con año", () => {
+    expect(formatFinanceChartPeriodLabel("2026-10-01", "month")).toBe(
+      "oct 2026",
+    );
+  });
+
+  it("day: fecha civil (no colapsa a mes)", () => {
+    expect(formatFinanceChartPeriodLabel("2026-10-06", "day")).toBe(
+      formatDate("2026-10-06"),
+    );
+    expect(formatFinanceChartPeriodLabel("2026-10-07", "day")).not.toBe(
+      formatFinanceChartPeriodLabel("2026-10-06", "day"),
+    );
+  });
+
+  it("week: rango lunes–domingo (inicio ISO del API)", () => {
+    expect(formatFinanceChartPeriodLabel("2026-10-05", "week")).toBe(
+      "5–11 oct",
+    );
+    expect(formatFinanceChartPeriodLabel("2026-09-28", "week")).toBe(
+      "28 sep – 4 oct 2026",
+    );
   });
 });
 

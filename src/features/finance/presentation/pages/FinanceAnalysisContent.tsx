@@ -1,10 +1,9 @@
-import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
 import {
-  resolveAnalysisPeriod,
+  useAnalysisPeriod,
   type FinanceAnalysisView,
 } from "@features/finance/application";
-import { getTodayString } from "@shared/utils/dateUtils";
+import { AnalysisPeriodSelector } from "../components/AnalysisPeriodSelector";
+import { OperatingResultSection } from "../components/OperatingResultCascade";
 import { financeCopy } from "../copy";
 import { formatAnalysisStickyCaption } from "../utils/analysisPeriodFormat";
 import { ExpenseAnalysisTab } from "./ExpenseAnalysisTab";
@@ -26,33 +25,36 @@ function renderView(view: FinanceAnalysisView) {
   }
 }
 
-/** Children del hub Análisis: caption sticky always-on + vista activa (nav en HubPageShell). */
+/**
+ * Children del hub Análisis: franja fija con el selector de periodo único y su
+ * caption (D2/D3) + Resultado operativo (ATF, todas las vistas) + vista activa.
+ */
 export function FinanceAnalysisContent({ view }: FinanceAnalysisContentProps) {
-  const [searchParams] = useSearchParams();
-  const today = getTodayString();
-  const period = useMemo(
-    () =>
-      resolveAnalysisPeriod(
-        {
-          from: searchParams.get("from"),
-          to: searchParams.get("to"),
-        },
-        today,
-      ),
-    [searchParams, today],
-  );
+  const { period, today, setRange } = useAnalysisPeriod();
   const stickyCaption = formatAnalysisStickyCaption(period, today);
   const stickyCopy = financeCopy.analysisPeriod;
 
   return (
     <div className="space-y-4">
-      <p
-        role="note"
-        aria-label={stickyCopy.stickyAriaLabel}
-        className="sticky top-0 z-10 -mx-1 border-b border-border/60 bg-background/95 px-1 py-2 text-xs text-muted-foreground backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      <div
+        data-testid="analysis-period-strip"
+        className="sticky top-0 z-10 -mx-1 flex flex-col gap-2 border-b border-border/60 bg-background/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-4"
       >
-        {stickyCaption}
-      </p>
+        <AnalysisPeriodSelector
+          period={period}
+          onRangeChange={setRange}
+          today={today}
+          idPrefix="analysis-period"
+        />
+        <p
+          role="note"
+          aria-label={stickyCopy.stickyAriaLabel}
+          className="text-xs text-muted-foreground sm:pb-2.5"
+        >
+          {stickyCaption}
+        </p>
+      </div>
+      <OperatingResultSection period={period} today={today} onRangeChange={setRange} />
       {renderView(view)}
     </div>
   );

@@ -7,6 +7,7 @@ import {
   monthlyPerformanceRequestMonths,
   summarizePerformanceWindow,
   summarizePeriodPersonnelCost,
+  supportsOperatingResult,
   useMonthlyPerformance,
   type MonthlyPerformanceMonths,
 } from "@features/finance/application";
@@ -23,12 +24,15 @@ import { Label } from "@shared/ui/label";
 import { Switch } from "@shared/ui/switch";
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
+import { getTodayString } from "@shared/utils/dateUtils";
+import { formatMonthPeriodShort, shiftMonthPeriod } from "@shared/utils/monthPeriod";
 import {
   PerformanceComparisonChart,
   PerformanceKpiCards,
   PerformanceMonthlyTable,
 } from "../components";
 import { financeCopy } from "../copy";
+import { formatMonthSpan } from "../utils/analysisPeriodFormat";
 import { exportMonthlyPerformanceCsv } from "../utils/financeExportHelpers";
 import {
   formatPerformanceMonth,
@@ -72,6 +76,53 @@ function MonthsSelector({
   );
 }
 
+/** Banner de alcance (D1–D4): mismo patrón que Gasto / ExpenseScopeAlert, sin CTAs. */
+function PerformanceScopeAlert({
+  title,
+  open,
+  onOpenChange,
+}: {
+  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <DetailAlertCard
+      severity="info"
+      icon={<Info className="h-5 w-5" aria-hidden />}
+      title={title}
+    >
+      <p>{copy.scopeNote}</p>
+      <Collapsible open={open} onOpenChange={onOpenChange}>
+        <CollapsibleTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 h-auto px-2 py-1 text-xs"
+          >
+            {open ? copy.scopeIncludesHide : copy.scopeIncludesShow}
+            <ChevronDown
+              className={cn(
+                "ml-1 h-3.5 w-3.5 transition-transform",
+                open && "rotate-180",
+              )}
+              aria-hidden
+            />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-1 pt-1">
+          <ul className="list-disc space-y-1 pl-4">
+            {copy.scopeNoteDetail.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
+    </DetailAlertCard>
+  );
+}
+
 export function PerformanceTab() {
   const { toast } = useToast();
   const compareSwitchId = useId();
@@ -82,6 +133,11 @@ export function PerformanceTab() {
   /** `null` = sin elección del usuario: se compara cuando hay datos del año anterior. */
   const [compareChoice, setCompareChoice] = useState<boolean | null>(null);
   const [scopeOpen, setScopeOpen] = useState(false);
+  const [currentMonth] = useState(() => getTodayString().slice(0, 7));
+  const windowNote = copy.controls.windowNote(
+    formatMonthSpan(shiftMonthPeriod(currentMonth, -months), shiftMonthPeriod(currentMonth, -1)),
+    formatMonthPeriodShort(currentMonth),
+  );
 
   const { data, isLoading, isError, refetch } = useMonthlyPerformance(
     monthlyPerformanceRequestMonths(months),
@@ -109,6 +165,9 @@ export function PerformanceTab() {
       summary.completed.map((month) => month.previous),
     );
   }, [personnelCost, summary.completed]);
+
+  /** Con el Resultado operativo arriba, las KPI de Ingreso/Costo/Margen/Personal lo duplican (D7). */
+  const showKpis = !supportsOperatingResult(data);
 
   const isEmpty = !isLoading && !isError && !hasCurrent;
   const showContent = !isError && !isEmpty;
@@ -139,24 +198,38 @@ export function PerformanceTab() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <MonthsSelector value={months} onChange={setMonths} />
-          <div className="flex items-center gap-2">
-            <Switch
-              id={compareSwitchId}
-              checked={compare}
-              onCheckedChange={setCompareChoice}
-              disabled={isLoading || !canCompare}
-              aria-describedby={showNoPreviousNotice ? noPreviousNoticeId : undefined}
-            />
-            <Label
-              htmlFor={compareSwitchId}
-              className={
-                compareUnavailable
-                  ? "cursor-not-allowed text-sm text-muted-foreground"
-                  : "cursor-pointer text-sm"
-              }
-            >
-              {copy.controls.compareLabel}
-            </Label>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Switch
+                id={compareSwitchId}
+                checked={compare}
+                onCheckedChange={setCompareChoice}
+                disabled={isLoading || !canCompare}
+                aria-describedby={
+                  showNoPreviousNotice ? noPreviousNoticeId : undefined
+                }
+              />
+              <Label
+                htmlFor={compareSwitchId}
+                className={
+                  compareUnavailable
+                    ? "cursor-not-allowed text-sm text-muted-foreground"
+                    : "cursor-pointer text-sm"
+                }
+              >
+                {copy.controls.compareLabel}
+              </Label>
+            </div>
+            {showNoPreviousNotice ? (
+              <p
+                id={noPreviousNoticeId}
+                role="status"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+              >
+                <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {copy.noPreviousData(previousRangeLabel)}
+              </p>
+            ) : null}
           </div>
         </div>
         <Button
@@ -171,43 +244,11 @@ export function PerformanceTab() {
         </Button>
       </div>
 
-      <div className="space-y-1.5">
-        <p className="text-xs text-muted-foreground">{copy.scopeNote}</p>
-        <Collapsible open={scopeOpen} onOpenChange={setScopeOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="-ml-2 h-auto px-2 py-0.5 text-xs text-muted-foreground"
-            >
-              {scopeOpen ? copy.scopeIncludesHide : copy.scopeIncludesShow}
-              <ChevronDown
-                className={cn(
-                  "ml-1 h-3.5 w-3.5 transition-transform",
-                  scopeOpen && "rotate-180",
-                )}
-                aria-hidden
-              />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <p className="pt-1 text-xs text-muted-foreground">
-              {copy.scopeNoteDetail}
-            </p>
-          </CollapsibleContent>
-        </Collapsible>
-        {showNoPreviousNotice ? (
-          <p
-            id={noPreviousNoticeId}
-            role="status"
-            className="flex items-center gap-1.5 text-xs text-muted-foreground"
-          >
-            <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {copy.noPreviousData(previousRangeLabel)}
-          </p>
-        ) : null}
-      </div>
+      <PerformanceScopeAlert
+        title={windowNote}
+        open={scopeOpen}
+        onOpenChange={setScopeOpen}
+      />
 
       {isError ? (
         <DetailAlertCard
@@ -236,21 +277,20 @@ export function PerformanceTab() {
         />
       ) : (
         <>
-          <PerformanceKpiCards
-            current={summary.current}
-            previous={summary.previous}
-            compare={compare}
-            isLoading={isLoading}
-            periodNote={periodNote}
-            provisionalNote={provisionalKpiNote}
-            marginBasis={marginBasis}
-            personnelCost={personnelCost}
-            previousPersonnelCost={previousPersonnelCost}
-            months={aligned}
-          />
-          <p className="text-xs text-muted-foreground">
-            {copy.operationalCostLegend}
-          </p>
+          {showKpis ? (
+            <PerformanceKpiCards
+              current={summary.current}
+              previous={summary.previous}
+              compare={compare}
+              isLoading={isLoading}
+              periodNote={periodNote}
+              provisionalNote={provisionalKpiNote}
+              marginBasis={marginBasis}
+              personnelCost={personnelCost}
+              previousPersonnelCost={previousPersonnelCost}
+              months={aligned}
+            />
+          ) : null}
           <PerformanceComparisonChart
             months={aligned}
             compare={compare}

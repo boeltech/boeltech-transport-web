@@ -22,8 +22,19 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     expect(financeCopy.performance.kpis.personnelCost).toBe("Costo de personal");
     expect(financeCopy.performance.table.personnelCost).toBe("Costo de personal");
     expect(financeCopy.performance.scopeNote).not.toMatch(/P&L contable|caja/i);
-    expect(financeCopy.performance.scopeNoteDetail).not.toMatch(
+    expect(financeCopy.performance.scopeNoteDetail).toHaveLength(4);
+    expect(financeCopy.performance.scopeNoteDetail.join("\n")).not.toMatch(
       /P&L contable|caja/i,
+    );
+    expect(financeCopy.performance.scopeNoteDetail[0]).toMatch(/^Ingreso:/);
+    expect(financeCopy.performance.scopeNoteDetail[1]).toMatch(
+      /^Costo operativo:/,
+    );
+    expect(financeCopy.performance.scopeNoteDetail[2]).toMatch(
+      /costo de personal/i,
+    );
+    expect(financeCopy.performance.scopeNoteDetail[3]).toMatch(
+      /Gasto de viaje/i,
     );
     expect(financeCopy.performance.operationalCostLegend).toMatch(
       /gasto de viaje aprobado/i,
@@ -33,8 +44,8 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     );
   });
 
-  it("Gastos = gasto de viaje; resolución del gráfico; sin comisión en copy de alcance", () => {
-    expect(financeCopy.expenses.metrics.totalExpense).toMatch(/Gasto de viaje/);
+  it("Gasto de viaje: KPI corto, ranking del periodo, CTAs Tendencia/Margen", () => {
+    expect(financeCopy.expenses.metrics.totalExpense).toBe("Gasto de viaje");
     expect(financeCopy.expenses.filters.granularity).toBe(
       "Resolución del gráfico",
     );
@@ -43,16 +54,23 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     expect(financeCopy.expenses.alert.includesShow).toMatch(
       /qué incluye esta vista/i,
     );
-    expect(financeCopy.expenses.charts.latestPeriod.description).toMatch(
-      /último tramo/i,
+    expect(financeCopy.expenses.alert.goToProfitability).toMatch(/margen/i);
+    expect(financeCopy.expenses.charts.composition.description).toMatch(
+      /periodo/i,
+    );
+    expect(financeCopy.expenses.charts.composition.description).not.toMatch(
+      /tramo/i,
     );
     expect(financeCopy.expenses.charts.timeSeries.ariaLabel).toMatch(
       /barras apiladas/i,
     );
-    expect(financeCopy.expenses.charts.latestPeriod.ariaLabel).toMatch(
-      /dona/i,
+    expect(financeCopy.expenses.charts.composition.ariaLabel).toMatch(
+      /ranking/i,
     );
-    expect(financeCopy.expenses.empty.viewPerformance).toMatch(/mes a mes/i);
+    expect(financeCopy.expenses.charts.timeSeries.footer(1, 2)).not.toMatch(
+      /tramo/i,
+    );
+    expect(financeCopy.expenses.empty.viewPerformance).toMatch(/tendencia/i);
     expect(financeCopy.expenses.table.viewDriver("Ana")).toMatch(
       /detalle del operador Ana/i,
     );
@@ -64,11 +82,17 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
 
   it("subtítulo de Análisis es orientador (no listado técnico)", () => {
     const subtitle = financeCopy.page.sections.analysis.subtitle;
-    expect(subtitle).toMatch(/rentabilidad/i);
     expect(subtitle).toMatch(/tendencia/i);
-    expect(subtitle).toMatch(/gastos/i);
+    expect(subtitle).toMatch(/margen/i);
+    expect(subtitle).toMatch(/gasto de viaje/i);
     expect(subtitle).not.toMatch(/cliente\/ruta|unidad\/operador/i);
     expect(subtitle.split(/\s+/).length).toBeLessThanOrEqual(15);
+  });
+
+  it("tab Margen (URL view=margin) y alert Gasto sin «Por dimensión»", () => {
+    expect(financeCopy.page.analysisViews.margin).toBe("Margen");
+    expect(financeCopy.expenses.alert.summary).toMatch(/Margen/);
+    expect(financeCopy.expenses.alert.summary).not.toMatch(/Por dimensión/);
   });
 
   it("Cartera F1: gasto de viaje, DSO/Vencido proxy 30d, bases IVA", () => {
@@ -76,7 +100,7 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
       "Gasto de viaje del mes",
     );
     expect(financeCopy.kpis.expensesThisMonth.description).toMatch(
-      /Análisis.*Gastos/i,
+      /Análisis.*Gasto de viaje/i,
     );
     expect(financeCopy.kpis.expensesThisMonth.description).toMatch(
       /sin comisión/i,
@@ -97,14 +121,21 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     expect(financeCopy.page.hub.orientation).toMatch(/cartera en cero/i);
   });
 
-  it("Cartera F2 Pulse: Ingreso/Margen operativo y línea no-P&L", () => {
+  it("Cartera F2 Pulse: Ingreso/Margen operativo y leyenda de bases", () => {
     expect(financeCopy.pulse.revenue.title).toBe("Ingreso");
     expect(financeCopy.pulse.operationalMargin.title).toBe("Margen operativo");
-    expect(financeCopy.pulse.basisLine).toMatch(/base operativa/i);
+    expect(financeCopy.pulse.basisLine).toMatch(/operativo/i);
+    expect(financeCopy.pulse.basisLine).toMatch(/subtotal|tarifa/i);
+    expect(financeCopy.pulse.basisLine).toMatch(/total CFDI/i);
     expect(financeCopy.pulse.basisLine).toMatch(/no es P&L/i);
     expect(financeCopy.pulse.ctaMonthOverMonth).toMatch(/mes a mes/i);
     expect(financeCopy.pulse.revenue.description).toMatch(/subtotal|tarifa/i);
     expect(financeCopy.pulse.receivable.description).toMatch(/total CFDI/i);
+    // Subtítulos cortos: sin espejo mutuo Ingreso↔Por cobrar
+    expect(financeCopy.pulse.revenue.description).not.toMatch(/por cobrar/i);
+    expect(financeCopy.pulse.receivable.description).not.toMatch(
+      /subtotal|tarifa|ingreso operativo/i,
+    );
   });
 
   it("Análisis F4: caption sticky une periodo + base operativa · no es P&L", () => {

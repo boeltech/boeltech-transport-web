@@ -122,6 +122,8 @@ function emptyPeriod(period: string): PeriodFinancials {
     actualMargin: 0,
     operationalCost: 0,
     operationalMargin: 0,
+    tripExpensesCost: 0,
+    tripCommissionCost: 0,
     periodPersonnelCost: 0,
     tripCount: 0,
     incompleteTripCount: 0,

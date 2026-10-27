@@ -58,7 +58,8 @@ describe("FinancePulseCards", () => {
     expect(screen.getByText(financeCopy.pulse.overdue.title)).toBeInTheDocument();
 
     expect(screen.getByText(financeCopy.pulse.basisLine)).toBeInTheDocument();
-    expect(financeCopy.pulse.basisLine).toMatch(/base operativa/i);
+    expect(financeCopy.pulse.basisLine).toMatch(/operativo/i);
+    expect(financeCopy.pulse.basisLine).toMatch(/total CFDI/i);
     expect(financeCopy.pulse.basisLine).toMatch(/no es P&L/i);
 
     const cta = screen.getByRole("link", {

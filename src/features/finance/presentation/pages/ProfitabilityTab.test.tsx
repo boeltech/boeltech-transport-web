@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
+import { useLocation } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { financeCopy } from "../copy";
@@ -58,12 +59,29 @@ vi.mock("../components", async (importOriginal) => {
       emptyState: ReactNode;
     }) => <div data-testid="margin-table">{emptyState}</div>,
     ProfitabilityScopeToolbar: () => <div data-testid="margin-scope" />,
-    AnalysisPeriodSelector: () => <div data-testid="margin-period" />,
-    AnalysisPeriodCaption: () => null,
   };
 });
 
 const copy = financeCopy.profitability;
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.search}</div>;
+}
+
+function renderTab(search: string) {
+  return renderWithTheme(
+    <>
+      <ProfitabilityTab />
+      <LocationProbe />
+    </>,
+    { route: [`/finance/analysis${search}`], resolvedTheme: "light" },
+  );
+}
+
+function currentSearch(): URLSearchParams {
+  return new URLSearchParams(screen.getByTestId("location").textContent ?? "");
+}
 
 describe("ProfitabilityTab — F2 empty/error + F3 chips/toolbar", () => {
   beforeEach(() => {
@@ -77,19 +95,57 @@ describe("ProfitabilityTab — F2 empty/error + F3 chips/toolbar", () => {
     aggregateQuery.refetch.mockClear();
   });
 
-  it("empty de vista: un EmptyState con CTAs", () => {
-    renderWithTheme(<ProfitabilityTab />, {
-      route: ["/finance/analysis?view=margin"],
-      resolvedTheme: "light",
+  describe("with today fixed at 2026-10-06", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-06T18:00:00Z"));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
     });
 
-    expect(screen.getByText(copy.empty.absoluteTitle)).toBeInTheDocument();
+    it("empty en «Este mes» (default): ofrece mes anterior y ampliar a 12 meses (P1-a)", async () => {
+      const user = userEvent.setup();
+      renderTab("?view=margin");
+
+      expect(screen.getByText(copy.empty.currentMonthTitle)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: copy.empty.viewPreviousMonth }));
+      expect(currentSearch().get("from")).toBe("2026-09-01");
+      expect(currentSearch().get("to")).toBe("2026-09-30");
+    });
+
+    it("«Ampliar a 12 meses» escribe last_12 explícito en la URL (D9)", async () => {
+      const user = userEvent.setup();
+      renderTab("?view=margin");
+
+      await user.click(screen.getByRole("button", { name: copy.empty.widenPeriod }));
+      expect(currentSearch().get("from")).toBe("2025-10-01");
+      expect(currentSearch().get("to")).toBe("2026-09-30");
+    });
+
+    it("empty en 12 meses: sin ampliar, con CTA a Tendencia", () => {
+      renderTab("?view=margin&from=2025-10-01&to=2026-09-30");
+
+      expect(screen.getByText(copy.empty.absoluteTitle)).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: copy.empty.widenPeriod }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: copy.empty.viewPerformance }),
+      ).toHaveAttribute("href", "/finance/analysis?view=performance");
+    });
+  });
+
+  it("muestra la base de fechas de la vista (D6)", () => {
+    renderTab("?view=margin");
+    expect(screen.getByText(copy.dateBasis)).toBeInTheDocument();
+  });
+
+  it("no muestra leyenda suelta de costo operativo bajo KPIs (D2)", () => {
+    renderTab("?view=margin");
     expect(
-      screen.queryByRole("button", { name: copy.empty.widenPeriod }),
+      screen.queryByText(financeCopy.performance.operationalCostLegend),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: copy.empty.viewPerformance }),
-    ).toHaveAttribute("href", "/finance/analysis?view=performance");
   });
 
   it("error de carga usa DetailAlertCard con Reintentar en action", async () => {
@@ -110,16 +166,15 @@ describe("ProfitabilityTab — F2 empty/error + F3 chips/toolbar", () => {
     expect(aggregateQuery.refetch).toHaveBeenCalled();
   });
 
-  it("toolbar periodo/alcance sin ListingFilterPanel; chips ActiveFilterChips + Limpiar", async () => {
+  it("toolbar de alcance sin selector de periodo; chips + Limpiar conserva from/to (D2/D9)", async () => {
     const user = userEvent.setup();
-    renderWithTheme(<ProfitabilityTab />, {
-      route: [
-        "/finance/analysis?view=margin&scope=pipeline&dimension=vehicle",
-      ],
-      resolvedTheme: "light",
-    });
+    renderTab(
+      "?view=margin&scope=pipeline&dimension=vehicle&from=2026-07-01&to=2026-09-30",
+    );
 
-    expect(screen.getByTestId("margin-period")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: financeCopy.analysisPeriod.label }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("margin-scope")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /^Filtros/ }),
@@ -137,6 +192,9 @@ describe("ProfitabilityTab — F2 empty/error + F3 chips/toolbar", () => {
     expect(
       screen.queryByRole("button", { name: financeCopy.page.clearFilters }),
     ).not.toBeInTheDocument();
+    expect(currentSearch().get("scope")).toBeNull();
+    expect(currentSearch().get("from")).toBe("2026-07-01");
+    expect(currentSearch().get("to")).toBe("2026-09-30");
   });
 
   it("export CSV usa variante outline", () => {

@@ -319,6 +319,43 @@ describe("mapMonthlyPerformance", () => {
     });
   });
 
+  it("maps trip_expenses_cost and trip_commission_cost; absent stays undefined", () => {
+    const result = mapMonthlyPerformance({
+      periods: ["2026-09"],
+      current: [
+        {
+          period: "2026-09",
+          actual_revenue: 1000,
+          actual_cost: 700,
+          actual_margin: 300,
+          operational_cost: 700,
+          operational_margin: 300,
+          trip_expenses_cost: "450.50",
+          trip_commission_cost: 249.5,
+          trip_count: 2,
+        },
+      ],
+      previous: [
+        {
+          period: "2025-09",
+          actual_revenue: 0,
+          actual_cost: 0,
+          actual_margin: 0,
+          trip_count: 0,
+        },
+      ],
+      meta: { margin_basis: "trip_expenses" },
+    });
+
+    expect(result.marginBasis).toBe("trip_expenses");
+    expect(result.current[0]).toMatchObject({
+      tripExpensesCost: 450.5,
+      tripCommissionCost: 249.5,
+    });
+    expect(result.previous[0]?.tripExpensesCost).toBeUndefined();
+    expect(result.previous[0]?.tripCommissionCost).toBeUndefined();
+  });
+
   it("defaults provisional fields when the payload omits them", () => {
     const result = mapMonthlyPerformance({
       periods: ["2026-09"],

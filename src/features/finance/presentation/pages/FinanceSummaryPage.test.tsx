@@ -122,7 +122,7 @@ describe("FinanceSummaryPage", () => {
     refetchAging.mockClear();
   });
 
-  it("renderiza Cartera con stepper de ciclo y sin tabs", () => {
+  it("renderiza Cartera con Pulse primero, atajos de ciclo quietos y sin tabs", () => {
     setMockAuthUser({ role: "accountant" });
     renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
 
@@ -132,6 +132,8 @@ describe("FinanceSummaryPage", () => {
     expect(
       screen.getByText(financeCopy.page.hub.description),
     ).toBeInTheDocument();
+    expect(financeCopy.page.hub.description).toMatch(/mes/i);
+    expect(financeCopy.page.hub.description).toMatch(/debe/i);
     expect(
       screen.getByText(financeCopy.page.hub.orientationAccountant),
     ).toBeInTheDocument();
@@ -144,9 +146,16 @@ describe("FinanceSummaryPage", () => {
 
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
 
+    const pulse = screen.getByRole("region", {
+      name: financeCopy.pulse.ariaLabel,
+    });
     const cycle = screen.getByRole("navigation", {
       name: financeCopy.page.hub.cycle.ariaLabel,
     });
+    expect(
+      pulse.compareDocumentPosition(cycle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
     expect(
       within(cycle).getByRole("link", { name: "Emitir: Por facturar" }),
     ).toHaveAttribute("href", "/finance/invoiceable");
@@ -161,6 +170,10 @@ describe("FinanceSummaryPage", () => {
     ).not.toBeInTheDocument();
     expect(
       within(cycle).queryByRole("link", { name: /Facturas/i }),
+    ).not.toBeInTheDocument();
+    // Ciclo reducido: sin cards hero (hint de paso no se pinta como cuerpo)
+    expect(
+      within(cycle).queryByText(financeCopy.page.hub.cycle.cobros.hint),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Volver a reportes" }),
@@ -182,7 +195,7 @@ describe("FinanceSummaryPage", () => {
     );
   });
 
-  it("Pulse ATF: Ingreso, Margen operativo, línea no-P&L y CTA a Mes a mes", () => {
+  it("Pulse ATF: Ingreso, Margen operativo, leyenda de bases y CTA a Mes a mes", () => {
     setMockAuthUser({ role: "manager" });
     renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
 
@@ -200,7 +213,12 @@ describe("FinanceSummaryPage", () => {
     });
     expect(cta).toHaveAttribute("href", "/finance/analysis?view=performance");
 
-    // Cobrado / Gasto de viaje siguen abajo (sin saturar Pulse)
+    // Cobrado / Gasto demotados en «Contexto del mes»
+    expect(
+      screen.getByRole("region", {
+        name: financeCopy.page.hub.monthContextTitle,
+      }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(financeCopy.kpis.collectedThisMonth.title),
     ).toBeInTheDocument();

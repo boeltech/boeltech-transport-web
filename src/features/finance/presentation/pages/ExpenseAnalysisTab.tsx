@@ -19,29 +19,36 @@ import {
 } from "@shared/ui/select";
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
-import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import {
+  ANALYSIS_PERIOD_URL_PARAMS,
+  WIDEST_ANALYSIS_PERIOD_PRESET,
+  analysisPeriodDayCount,
+  analysisPeriodUrlRange,
   parseExpenseDimension,
   parseExpenseGranularity,
-  resolveAnalysisPeriod,
+  previousMonthDateRange,
+  useAnalysisPeriod,
   useExpensesByCategory,
   useExpensesByDimension,
   useFinanceListingFilters,
-  type FinanceDateRange,
+  type ExpenseGranularity,
 } from "@features/finance/application";
 import { financeCopy } from "../copy";
 import {
-  AnalysisPeriodCaption,
-  AnalysisPeriodSelector,
   ExpenseAnalysisCharts,
   ExpenseAnalysisKpiCards,
   ExpenseDimensionTableSection,
 } from "../components";
 import { exportExpensesByDimensionCsv } from "../utils/financeExportHelpers";
-import { formatFinancePeriodLabel } from "../utils/financeChartHelpers";
 
 const DEFAULT_DIMENSION = "vehicle";
-const DEFAULT_GRANULARITY = "month";
+/** D8: periodos de un mes o menos se grafican por día; más largos, por mes. */
+const DAY_GRANULARITY_MAX_DAYS = 31;
+
+function defaultGranularityFor(period: { from?: string; to?: string }): ExpenseGranularity {
+  const days = analysisPeriodDayCount(period);
+  return days != null && days <= DAY_GRANULARITY_MAX_DAYS ? "day" : "month";
+}
 
 function ExpenseScopeAlert({
   open,
@@ -104,24 +111,22 @@ function ExpenseScopeAlert({
 
 export function ExpenseAnalysisTab() {
   const { toast } = useToast();
-  const [today] = useState(getTodayString);
+  const { period, today, setRange } = useAnalysisPeriod();
   const [alertOpen, setAlertOpen] = useState(false);
+  const defaultGranularity = defaultGranularityFor(period);
 
-  const filters = useFinanceListingFilters<
-    "dimension" | "granularity" | "from" | "to" | "vehicleId"
-  >({
+  const filters = useFinanceListingFilters<"dimension" | "granularity" | "vehicleId">({
     filters: {
       dimension: {},
       granularity: {},
-      from: {},
-      to: {},
       vehicleId: {},
     },
     defaultFilterValues: {
       dimension: "",
-      granularity: "",
+      granularity: defaultGranularity,
     },
     resetPageOnFilterChange: false,
+    preserveParamsOnClear: [...ANALYSIS_PERIOD_URL_PARAMS],
     chipLabels: {
       dimension: financeCopy.expenses.filters.chipDimension,
       granularity: financeCopy.expenses.filters.chipGranularity,
@@ -130,28 +135,19 @@ export function ExpenseAnalysisTab() {
   });
 
   const dimension = parseExpenseDimension(filters.filters.dimension);
-  const granularity = parseExpenseGranularity(filters.filters.granularity);
-  const period = useMemo(
-    () =>
-      resolveAnalysisPeriod(
-        { from: filters.filters.from, to: filters.filters.to },
-        today,
-      ),
-    [filters.filters.from, filters.filters.to, today],
-  );
+  const granularity = filters.filters.granularity
+    ? parseExpenseGranularity(filters.filters.granularity)
+    : defaultGranularity;
   const { from, to } = period;
   const vehicleId = filters.filters.vehicleId;
 
-  const handlePeriodChange = useCallback(
-    (range: FinanceDateRange) => {
-      filters.setFilters({ from: range.from, to: range.to });
-    },
-    [filters],
-  );
-
   const handleWidenPeriod = useCallback(() => {
-    filters.setFilters({ from: "", to: "" });
-  }, [filters]);
+    setRange(analysisPeriodUrlRange(WIDEST_ANALYSIS_PERIOD_PRESET, today));
+  }, [setRange, today]);
+
+  const handleViewPreviousMonth = useCallback(() => {
+    setRange(previousMonthDateRange(today));
+  }, [setRange, today]);
 
   const handleDimensionChange = useCallback(
     (value: "vehicle" | "driver" | "client" | "route") => {
@@ -161,10 +157,10 @@ export function ExpenseAnalysisTab() {
   );
 
   const handleGranularityChange = useCallback(
-    (value: "day" | "week" | "month") => {
-      filters.setFilter("granularity", value === DEFAULT_GRANULARITY ? "" : value);
+    (value: ExpenseGranularity) => {
+      filters.setFilter("granularity", value === defaultGranularity ? "" : value);
     },
-    [filters],
+    [defaultGranularity, filters],
   );
 
   const byCategoryFilters = useMemo(
@@ -208,34 +204,26 @@ export function ExpenseAnalysisTab() {
     void refetchByDimension();
   }, [refetchByCategory, refetchByDimension]);
 
-  const latestPeriod = byCategory?.periods.at(-1);
-  const latestPeriodIndex = latestPeriod && byCategory
-    ? byCategory.periods.findIndex((item) => item === latestPeriod)
-    : -1;
-
+  /** Suma del periodo completo — misma base que el KPI (D2). */
   const categorySummary = useMemo(() => {
-    if (!byCategory || latestPeriodIndex < 0) return [];
+    if (!byCategory) return [];
     return Object.entries(byCategory.series)
       .map(([category, values]) => ({
         category,
-        amount: values[latestPeriodIndex] ?? 0,
+        amount: values.reduce((sum, value) => sum + value, 0),
       }))
       .sort((a, b) => b.amount - a.amount);
-  }, [byCategory, latestPeriodIndex]);
+  }, [byCategory]);
 
   const dimensionRows = byDimension ?? [];
   const dimensionLabel = financeCopy.expenses.filters.dimensionValues[dimension];
-  const latestBucketLabel = latestPeriod
-    ? granularity === "month"
-      ? formatFinancePeriodLabel(latestPeriod)
-      : formatDate(latestPeriod)
-    : "";
 
   const hasExpenseData =
     (byCategory?.total.some((value) => value > 0) ?? false) ||
     dimensionRows.length > 0;
   const isEmpty = !isLoading && !isLoadError && !hasExpenseData;
-  const isDefaultPeriod = period.choice === "last_12";
+  const isWidestPeriod = period.choice === WIDEST_ANALYSIS_PERIOD_PRESET;
+  const isCurrentMonth = period.choice === "this_month";
 
   const errorCopy = financeCopy.expenses.error;
 
@@ -243,12 +231,6 @@ export function ExpenseAnalysisTab() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <AnalysisPeriodSelector
-            period={period}
-            onRangeChange={handlePeriodChange}
-            today={today}
-            idPrefix="expense-analysis-period"
-          />
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">
               {financeCopy.expenses.filters.granularity}
@@ -256,7 +238,7 @@ export function ExpenseAnalysisTab() {
             <Select
               value={granularity}
               onValueChange={(value) =>
-                handleGranularityChange(value as "day" | "week" | "month")
+                handleGranularityChange(value as ExpenseGranularity)
               }
             >
               <SelectTrigger
@@ -314,7 +296,7 @@ export function ExpenseAnalysisTab() {
         </div>
       ) : null}
 
-      <AnalysisPeriodCaption period={period} today={today} />
+      <p className="text-xs text-muted-foreground">{financeCopy.expenses.dateBasis}</p>
 
       {isLoadError ? (
         <DetailAlertCard
@@ -341,7 +323,17 @@ export function ExpenseAnalysisTab() {
             description={financeCopy.expenses.empty.description}
           />
           <div className="flex flex-wrap justify-center gap-2">
-            {!isDefaultPeriod ? (
+            {isCurrentMonth ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleViewPreviousMonth}
+              >
+                {financeCopy.expenses.empty.viewPreviousMonth}
+              </Button>
+            ) : null}
+            {!isWidestPeriod ? (
               <Button
                 type="button"
                 size="sm"
@@ -374,9 +366,7 @@ export function ExpenseAnalysisTab() {
           <ExpenseAnalysisCharts
             byCategory={byCategory}
             categorySummary={categorySummary}
-            latestPeriodIndex={latestPeriodIndex}
-            latestPeriod={latestPeriod}
-            periodLabel={latestBucketLabel}
+            granularity={granularity}
             isLoading={byCategoryLoading}
           />
 

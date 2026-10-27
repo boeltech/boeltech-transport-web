@@ -245,17 +245,19 @@ export const financeCopy = {
     hub: {
       title: "Cartera",
       description:
-        "Quién te debe, antigüedad de saldos y estado de cuenta por cliente.",
+        "Mes en curso y quién te debe — saldos, antigüedad y estado de cuenta.",
       orientation:
-        "El ciclo del dinero está arriba. Abajo están antigüedad y estado de cuenta. Cobros vacío (solo PPD) no significa cartera en cero.",
-      /** Contador: Cartera es contexto de saldos; viajes a facturar van a Por facturar (D13). */
+        "Aquí ves el mes (ingreso y margen) y lo que te deben. Cobros vacío (solo PPD) no significa cartera en cero.",
+      /** Contador: mes + saldos; viajes a facturar van a Por facturar (D13). */
       orientationAccountant:
-        "Aquí ves saldos y antigüedad. Los viajes pendientes de factura no entran por Cartera: usa Por facturar o Atención fiscal. Cobros vacío (solo PPD) no significa cartera en cero.",
-      /** Gerente: Cartera = saldos; SAT/altas no entran (D15). */
+        "Aquí ves el mes y los saldos. Viajes pendientes de factura: Por facturar o Atención fiscal. Cobros vacío (solo PPD) no significa cartera en cero.",
+      /** Gerente: mes + saldos; SAT/altas no entran (D15). */
       orientationManager:
-        "Aquí ves saldos y antigüedad. El trámite SAT y las altas no entran por Cartera. Cobros vacío (solo PPD) no significa cartera en cero.",
+        "Aquí ves el mes y los saldos. El trámite SAT y las altas no entran por Cartera. Cobros vacío (solo PPD) no significa cartera en cero.",
+      /** Fila secundaria bajo Pulse (Cobrado / Gasto) — peso menor que el Pulse. */
+      monthContextTitle: "Contexto del mes",
       cycle: {
-        ariaLabel: "Ciclo del dinero",
+        ariaLabel: "Atajos del ciclo del dinero",
         invoiceable: {
           verb: "Emitir",
           label: "Por facturar",
@@ -296,7 +298,7 @@ export const financeCopy = {
       },
       analysis: {
         title: "Análisis",
-        subtitle: "Rentabilidad, tendencia y gastos de tu operación.",
+        subtitle: "Tendencia, margen y gasto de viaje de tu operación.",
       },
       approvals: {
         title: "Aprobaciones",
@@ -304,9 +306,9 @@ export const financeCopy = {
       },
     },
     analysisViews: {
-      performance: "Mes a mes",
-      margin: "Rentabilidad",
-      expenses: "Gastos",
+      performance: "Tendencia",
+      margin: "Margen",
+      expenses: "Gasto de viaje",
       ariaLabel: "Tipo de análisis",
     },
     clearFilters: "Limpiar filtros",
@@ -320,28 +322,27 @@ export const financeCopy = {
    */
   pulse: {
     ariaLabel: "Pulse del mes",
-    basisLine: "Base operativa · no es P&L",
+    /** Una leyenda de bases (HB-T12): operativo ≠ cartera ≠ P&L. */
+    basisLine:
+      "Operativo = subtotal o tarifa · Cartera = total CFDI · no es P&L",
     ctaMonthOverMonth: "Ver mes a mes",
     periodNote: (month: string) => `Mes en curso · ${month}`,
     revenue: {
       title: "Ingreso",
-      description:
-        "Subtotal facturado o tarifa del viaje (sin IVA). Distinto del por cobrar (total CFDI).",
+      description: "Subtotal o tarifa del mes (sin IVA)",
     },
     operationalMargin: {
       title: "Margen operativo",
-      description: "Ingreso menos costo operativo del mes",
+      description: "Ingreso menos costo operativo",
       shareOfRevenue: (pct: string) => `${pct} del ingreso`,
     },
     receivable: {
       title: "Por cobrar",
-      description:
-        "Cartera a total CFDI (con IVA). Distinto del ingreso operativo (subtotal o tarifa).",
+      description: "Saldo a total CFDI (con IVA)",
     },
     overdue: {
       title: "Vencido",
-      description:
-        "Estimación: saldo con más de 30 días desde emisión (proxy; no usa el crédito pactado).",
+      description: "Saldo con más de 30 días desde emisión (proxy)",
     },
     receivableLinkAria: "Por cobrar — abrir Cobros",
     overdueLinkAria: "Vencido — abrir Cobros",
@@ -406,8 +407,9 @@ export const financeCopy = {
         description:
           "Estimación por días desde emisión (proxy a 30 días; no es el crédito pactado por cliente)",
         balanceLabel: "Por cobrar",
-        footer: (totalReceivable: string) =>
-          `Cartera total por antigüedad: ${totalReceivable}`,
+        /** Sin re-KPI de Por cobrar (ya está en el Pulse). */
+        footer:
+          "Tramos por días desde emisión (proxy; no es el crédito pactado).",
       },
     },
   },
@@ -594,6 +596,8 @@ export const financeCopy = {
     },
   },
   profitability: {
+    /** Base de fecha de la vista (D6 / DOM C1). */
+    dateBasis: "Viajes por fecha de salida programada.",
     scope: {
       label: "Alcance",
       operational: "Operativo",
@@ -707,6 +711,10 @@ export const financeCopy = {
       absoluteTitle: "Sin viajes completados en los últimos 12 meses",
       absoluteDescription:
         "Cuando completes viajes, aquí verás qué clientes, rutas, unidades y operadores te dejan margen.",
+      currentMonthTitle: "Sin viajes completados con salida este mes",
+      currentMonthDescription:
+        "Al inicio del mes es normal: los viajes cuentan cuando se completan. Revisa el mes anterior o amplía el periodo.",
+      viewPreviousMonth: "Ver mes anterior",
       pipelineTitle: "Sin viajes por iniciar en el periodo",
       pipelineDescription:
         "No hay viajes en Reserva ni Programados con salida en este periodo.",
@@ -736,7 +744,7 @@ export const financeCopy = {
       trips: (limit: number) => `Muestra de viajes (máx. ${limit})`,
     },
   },
-  /** Periodo compartido por Rentabilidad y Gastos. */
+  /** Periodo único del hub Análisis (franja fija; gobierna las tres vistas). */
   analysisPeriod: {
     label: "Periodo",
     options: {
@@ -748,11 +756,14 @@ export const financeCopy = {
     },
     customHeading: "Rango de fechas",
     customPlaceholder: "Elegir fechas",
-    caption: (rangeLabel: string, detail?: string) =>
-      detail ? `Periodo: ${rangeLabel} · ${detail}` : `Periodo: ${rangeLabel}`,
+    /** «Octubre 2026 · mes en curso · datos al 26 oct». */
+    caption: (rangeLabel: string, detail?: string, asOf?: string) =>
+      [rangeLabel, detail, asOf ? `datos al ${asOf}` : undefined]
+        .filter(Boolean)
+        .join(" · "),
     /**
      * Caption sticky always-on del hub Análisis (PD5 / F4):
-     * periodo + base operativa · no es P&L.
+     * periodo + leyenda de bases (misma que Pulse).
      */
     stickyLine: (periodCaption: string) =>
       `${periodCaption} · ${financeCopy.pulse.basisLine}`,
@@ -760,15 +771,15 @@ export const financeCopy = {
     completedMonths: (months: number) =>
       `${months} ${months === 1 ? "mes completo" : "meses completos"}`,
     currentMonth: "mes en curso",
-    rangeLabel: (from: string, to: string) =>
-      from === to ? from : `${from} a ${to}`,
+    daysSuffix: "(días)",
     since: (from: string) => `desde ${from}`,
     until: (to: string) => `hasta ${to}`,
+    viewPreviousMonth: "Ver mes anterior",
   },
   expenses: {
     alert: {
       summary:
-        "Solo gasto de viaje aprobado. La comisión de liquidación está en Rentabilidad y Mes a mes.",
+        "Solo gasto de viaje aprobado. La comisión de liquidación está en el Resultado operativo, Margen y Tendencia.",
       includesShow: "¿Qué incluye esta vista?",
       includesHide: "Ocultar detalle",
       body: "Se incluyen conceptos de gasto del viaje ya aprobados. Los pendientes aparecen cuando un gerente o administrador los aprueba en el detalle del viaje. No incluye comisión de liquidación, sueldo ni anticipos.",
@@ -777,16 +788,18 @@ export const financeCopy = {
       bodyRouteSuffix:
         ". La tarifa base y los costos presupuestados no alimentan este análisis.",
       goToTrips: "Ir a Viajes",
-      goToProfitability: "Ver rentabilidad",
+      goToProfitability: "Ver margen",
     },
     error: {
       title: "No se pudieron cargar los gastos",
       description: "Revisa tu conexión e intenta de nuevo.",
       retry: "Reintentar",
     },
+    /** Base de fecha de la vista (D6 / DOM C2). */
+    dateBasis: "Gastos por fecha del gasto (no por salida del viaje).",
     metrics: {
-      totalExpense: "Gasto de viaje del periodo (rango)",
-      totalExpenseHint: "Suma de todos los tramos del rango elegido",
+      totalExpense: "Gasto de viaje",
+      totalExpenseHint: "Gastos de viaje aprobados en el periodo",
       topConcentration: {
         title: "Mayor concentración",
         empty: "Sin agrupación con gasto",
@@ -826,7 +839,7 @@ export const financeCopy = {
       category: "Concepto",
       amount: "Monto",
       dimensionTripCount: "Viajes",
-      totalExpense: "Gasto de viaje",
+      totalExpense: "Gasto por fecha del gasto",
       avgExpensePerTrip: "Promedio por viaje",
       viewVehicle: (label: string) => `Ver detalle de la unidad ${label}`,
       viewDriver: (label: string) => `Ver detalle del operador ${label}`,
@@ -841,9 +854,10 @@ export const financeCopy = {
     empty: {
       title: "Sin gasto de viaje en el periodo",
       description:
-        "No hay gastos de viaje aprobados para los filtros actuales. Amplía el periodo o revisa la tendencia en Mes a mes.",
+        "No hay gastos de viaje aprobados para los filtros actuales. Amplía el periodo o revisa la vista Tendencia.",
       widenPeriod: "Ampliar a 12 meses",
-      viewPerformance: "Ver mes a mes",
+      viewPreviousMonth: "Ver mes anterior",
+      viewPerformance: "Ver tendencia",
     },
     charts: {
       empty: {
@@ -854,37 +868,92 @@ export const financeCopy = {
         description: "Evolución del gasto de viaje aprobado en el tiempo",
         ariaLabel:
           "Gráfico de barras apiladas: gastos por concepto en el tiempo",
-        footer: (periodCount: number, categoryCount: number) =>
-          `${periodCount} tramo(s) · ${categoryCount} concepto(s)`,
+        footer: (periodCount: number, categoryCount: number) => {
+          const periods =
+            periodCount === 1 ? "1 periodo" : `${periodCount} periodos`;
+          const concepts =
+            categoryCount === 1 ? "1 concepto" : `${categoryCount} conceptos`;
+          return `${periods} · ${concepts}`;
+        },
       },
-      latestPeriod: {
-        title: (periodLabel: string) =>
-          periodLabel
-            ? `En qué se fue el gasto de viaje — último tramo (${periodLabel})`
-            : "En qué se fue el gasto de viaje — último tramo",
+      /** Composición del periodo completo (ranking; no «último bucket»). */
+      composition: {
+        title: "¿En qué conceptos se fue?",
         description:
-          "Distribución por concepto del último tramo del rango (no es el total del periodo)",
-        ariaLabel: "Gráfico de dona: composición de gastos del tramo",
-        centerLabel: "Total",
-        footer: (referencePeriod: string) => referencePeriod,
+          "Distribución del gasto de viaje aprobado en el periodo seleccionado",
+        ariaLabel: "Ranking de gasto de viaje por concepto en el periodo",
         emptyDescription:
-          "No hay gasto de viaje aprobado en este tramo del rango.",
+          "No hay gasto de viaje aprobado en el periodo.",
       },
     },
     exportCsv: "Exportar listado (CSV)",
   },
+  /** Suma vertical ATF del hub Análisis (pedido 2026-10-26; glosario ADR-0108). */
+  operatingResult: {
+    title: "Resultado operativo",
+    /** «Resultado operativo · octubre 2026 (en curso)». */
+    titleWithPeriod: (periodLabel: string) => `Resultado operativo · ${periodLabel}`,
+    inProgressSuffix: "(en curso)",
+    description:
+      "Viajes completados con salida programada en el periodo; personal por inicio de su periodo de liquidación.",
+    ariaLabel: "Resultado operativo del periodo",
+    rows: {
+      revenue: "Ingreso",
+      tripExpenses: "Gasto de viaje",
+      tripCommission: "Comisión a operador",
+      operationalCostGroup: "Conforman el costo operativo",
+      operationalMargin: "Margen operativo",
+      personnelCost: "Costo de personal",
+      afterPersonnel: "Después de personal",
+    },
+    hints: {
+      revenue:
+        "Subtotal facturado o tarifa del viaje (sin IVA), por mes de salida.",
+      tripExpenses:
+        "Gastos del viaje Aprobados, por mes de salida del viaje; no incluye comisión ni sueldo.",
+      tripCommission: "Comisión en liquidación autorizada; no es el SPEI.",
+      operationalCostGroup: "Gasto de viaje + comisión autorizada.",
+      operationalMargin: "Ingreso menos costo operativo. No resta personal.",
+      personnelCost:
+        "Sueldo, bonos y ajustes sin viaje, en el mes en que inicia su periodo de liquidación; no se reparte a viajes.",
+      afterPersonnel: "Margen operativo menos costo de personal del periodo.",
+    },
+    hintAriaLabel: (row: string) => `Qué incluye: ${row}`,
+    /** Alerta en línea junto al título (D4): el Resultado suma meses enteros. */
+    partialMonthsAlert: (monthsLabel: string, months: number, periodLabel: string) =>
+      `Suma meses completos: ${monthsLabel} ${months === 1 ? "entero" : "enteros"}, aunque el periodo es ${periodLabel}.`,
+    truncatedNote: (months: number) =>
+      `Se suman solo los últimos ${months} meses (incluido el mes en curso).`,
+    /** DOM C3: provisional con dirección (el margen suele bajar). */
+    provisionalNote: (asOf?: string) =>
+      `${asOf ? `Provisional · datos al ${asOf}` : "Provisional"}: hay meses en curso, viajes sin terminar o gastos sin aprobar. El margen suele bajar cuando se completan viajes y se aprueban gastos.`,
+    error: {
+      title: "No se pudo cargar el resultado operativo",
+      description: "Revisa tu conexión e intenta de nuevo.",
+      retry: "Reintentar",
+    },
+  },
   performance: {
     controls: {
-      monthsAriaLabel: "Meses a mostrar",
-      monthsOption: (months: number) => `${months} meses`,
+      monthsAriaLabel: "Meses de la gráfica",
+      monthsOption: (months: number) => `Últimos ${months} meses completos`,
       compareLabel: "Comparar con año anterior",
+      /** D5 / DOM C4: la ventana de Tendencia no sigue al periodo del hub. */
+      windowNote: (completedRange: string, currentMonth: string) =>
+        `Ventana de la gráfica: ${completedRange} + ${currentMonth} en curso. No cambia con el periodo de arriba.`,
     },
     scopeNote:
       "Solo viajes completados, contados en el mes de su salida programada.",
-    scopeNoteDetail:
-      "Ingreso: lo facturado o, si aún no se factura, la tarifa del viaje. Costo operativo: gasto de viaje aprobado + comisión de liquidación autorizada, en ese mismo mes. El personal de periodo va aparte y no se resta del costo de viajes. La vista Gastos cuenta cada gasto de viaje en la fecha en que se hizo.",
+    /** Colapsable Tendencia: máx. 4 unidades de lectura (lista PRD). */
+    scopeNoteDetail: [
+      "Ingreso: lo facturado o, si aún no hay factura, la tarifa del viaje.",
+      "Costo operativo: gasto de viaje aprobado más comisión de liquidación autorizada, en ese mismo mes.",
+      "El costo de personal del periodo se muestra aparte; no se resta del costo de los viajes.",
+      "En la vista Gasto de viaje, cada gasto se cuenta en la fecha en que se hizo (no en el mes de salida del viaje).",
+    ],
     scopeIncludesShow: "¿Qué incluye?",
     scopeIncludesHide: "Ocultar",
+    /** Glosario corto; no se renderiza suelto bajo KPIs (D2). Sigue en Tendencia («¿Qué incluye?»). */
     operationalCostLegend:
       "Costo operativo = gasto de viaje aprobado + comisión de liquidación autorizada.",
     noPreviousData: (rangeLabel: string) =>
@@ -1060,7 +1129,7 @@ export const financeCopy = {
     expensesThisMonth: {
       title: "Gasto de viaje del mes",
       description:
-        "Solo gasto de viaje aprobado (sin comisión). Detalle en Análisis → Gastos.",
+        "Solo gasto de viaje aprobado (sin comisión). Detalle en Análisis → Gasto de viaje.",
     },
   },
 } as const;

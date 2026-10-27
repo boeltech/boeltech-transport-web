@@ -348,6 +348,12 @@ export function mapPeriodFinancials(raw: Record<string, unknown>): PeriodFinanci
       raw.operational_margin == null && !hasOperational
         ? undefined
         : asNumber(raw.operational_margin),
+    tripExpensesCost:
+      raw.trip_expenses_cost == null ? undefined : asNumber(raw.trip_expenses_cost),
+    tripCommissionCost:
+      raw.trip_commission_cost == null
+        ? undefined
+        : asNumber(raw.trip_commission_cost),
     periodPersonnelCost:
       raw.period_personnel_cost == null
         ? undefined

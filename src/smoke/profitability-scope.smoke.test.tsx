@@ -1,6 +1,6 @@
 /**
  * Smoke — Análisis › Rentabilidad (ADR-0050 alcance + F1 consolidación, mock API):
- * periodo de 12 meses completos por defecto, sin gráfica mensual, tabla por Margen $,
+ * periodo del hub («Este mes» por defecto), sin gráfica mensual, tabla por Margen $,
  * tarjeta «Viajes con pérdida» que solo filtra los viajes de un grupo abierto.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -99,7 +99,7 @@ describe("profitability scope smoke", () => {
     vi.useRealTimers();
   });
 
-  it("defaults to the last 12 complete months with the period next to the KPIs", async () => {
+  it("defaults to «Este mes» (hub period) with the date basis next to the KPIs", async () => {
     renderTab();
 
     await waitFor(() => {
@@ -110,12 +110,9 @@ describe("profitability scope smoke", () => {
       expect(screen.getByText("75.00% del ingreso")).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText("Periodo: oct 2025 a sep 2026 · 12 meses completos"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Periodo" })).toHaveTextContent(
-      "Últimos 12 meses",
-    );
+    expect(screen.getByText("Viajes por fecha de salida programada.")).toBeInTheDocument();
+    // El selector de periodo vive en la franja del hub, no en la vista (D2).
+    expect(screen.queryByRole("combobox", { name: "Periodo" })).not.toBeInTheDocument();
     expect(screen.queryByText(/todo el histórico/i)).not.toBeInTheDocument();
 
     const tripsCalls = mockGetProfitabilityTrips.mock.calls.map(
@@ -124,8 +121,8 @@ describe("profitability scope smoke", () => {
     expect(tripsCalls).toContainEqual(
       expect.objectContaining({
         scope: "operational",
-        from: "2025-10-01",
-        to: "2026-09-30",
+        from: "2026-10-01",
+        to: "2026-10-31",
       }),
     );
     expect(tripsCalls.map((call) => call.scope)).not.toContain("all");
@@ -149,8 +146,8 @@ describe("profitability scope smoke", () => {
         dimension: "client",
         sortBy: "blendedMargin",
         sortOrder: "desc",
-        from: "2025-10-01",
-        to: "2026-09-30",
+        from: "2026-10-01",
+        to: "2026-10-31",
       }),
     );
   });
@@ -211,13 +208,7 @@ describe("profitability scope smoke", () => {
   it("opens a single month from «Cifras por mes» as the period (D5)", async () => {
     renderTab("/finance/analysis?view=margin&from=2026-09-01&to=2026-09-30");
 
-    expect(
-      await screen.findByText("Periodo: sep 2026 · 1 mes completo"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Periodo" })).toHaveTextContent(
-      "Personalizado",
-    );
-    expect(screen.getByTestId("profitability-table-stub")).toHaveAttribute(
+    expect(await screen.findByTestId("profitability-table-stub")).toHaveAttribute(
       "data-from",
       "2026-09-01",
     );

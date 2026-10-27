@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { financeCopy } from "../copy";
-import { formatAnalysisPeriodCaption } from "../utils/analysisPeriodFormat";
 
 const copy = financeCopy.analysisPeriod;
 
@@ -27,7 +26,7 @@ interface AnalysisPeriodSelectorProps {
   idPrefix: string;
 }
 
-/** Opciones rápidas de periodo + rango personalizado (Rentabilidad y Gastos). */
+/** Opciones rápidas de periodo + rango personalizado (franja fija del hub Análisis). */
 export function AnalysisPeriodSelector({
   period,
   onRangeChange,
@@ -83,20 +82,5 @@ export function AnalysisPeriodSelector({
         />
       ) : null}
     </div>
-  );
-}
-
-/** Periodo siempre visible junto a los indicadores (D4). */
-export function AnalysisPeriodCaption({
-  period,
-  today,
-}: {
-  period: ResolvedAnalysisPeriod;
-  today: string;
-}) {
-  return (
-    <p className="text-xs text-muted-foreground">
-      {formatAnalysisPeriodCaption(period, today)}
-    </p>
   );
 }

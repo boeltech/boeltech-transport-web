@@ -115,7 +115,7 @@ export function FinancePulseCards({
           <Link to={analysisHref}>{copy.ctaMonthOverMonth}</Link>
         </Button>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const metric = (
             <MetricTrendCard
@@ -124,16 +124,25 @@ export function FinancePulseCards({
               value={card.value}
               tone={card.tone}
               isLoading={card.cardLoading}
-              className={cn(card.href && "transition-shadow hover:shadow-md")}
+              className={cn(
+                "h-full w-full",
+                card.href && "transition-shadow hover:shadow-md",
+              )}
             />
           );
-          if (!card.href) return <div key={card.key}>{metric}</div>;
+          if (!card.href) {
+            return (
+              <div key={card.key} className="min-h-0 min-w-0 h-full w-full">
+                {metric}
+              </div>
+            );
+          }
           return (
             <Link
               key={card.key}
               to={card.href}
               aria-label={card.linkAria}
-              className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-full w-full min-h-0 min-w-0 flex-col rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {metric}
             </Link>

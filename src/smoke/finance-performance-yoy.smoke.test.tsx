@@ -116,22 +116,27 @@ describe("finance performance YoY smoke", () => {
     mockGetMonthlyPerformance.mockReset();
   });
 
-  it("is the default view of Análisis, ordered Mes a mes · Rentabilidad · Gastos", async () => {
+  it("is the default view of Análisis, ordered Tendencia · Margen · Gasto de viaje", async () => {
     mockGetMonthlyPerformance.mockResolvedValue(performanceWithPreviousYear());
     renderPage("/finance/analysis");
 
     const nav = screen.getByRole("tablist", { name: "Tipo de análisis" });
     expect(
-      screen.getByRole("tab", { name: "Mes a mes", selected: true }),
+      screen.getByRole("tab", { name: "Tendencia", selected: true }),
     ).toBeInTheDocument();
     expect(
       within(nav)
         .getAllByRole("tab")
         .map((tab) => tab.textContent),
-    ).toEqual(["Mes a mes", "Rentabilidad", "Gastos"]);
+    ).toEqual(["Tendencia", "Margen", "Gasto de viaje"]);
     expect(
       await screen.findByText("Ingreso, costo operativo y margen mes a mes"),
     ).toBeInTheDocument();
+    // D1/D3: periodo por defecto «Este mes» con fecha de corte en la franja fija
+    expect(screen.getByRole("combobox", { name: "Periodo" })).toHaveTextContent("Este mes");
+    expect(screen.getByRole("note", { name: "Alcance del análisis" })).toHaveTextContent(
+      /mes en curso · datos al \d{2} \S+/,
+    );
   });
 
   it("totals only complete months and shows the month in progress without comparison", async () => {
@@ -139,11 +144,16 @@ describe("finance performance YoY smoke", () => {
     renderPage();
 
     expect(
-      screen.getByRole("tab", { name: "Mes a mes", selected: true }),
+      screen.getByRole("tab", { name: "Tendencia", selected: true }),
     ).toBeInTheDocument();
-
     const kpis = screen.getByRole("region", { name: "Totales del rango" });
     expect(await within(kpis).findByText("$3,000.00")).toBeInTheDocument();
+    // Sin meta.margin_basis operativa no hay Resultado: las KPI siguen en Tendencia.
+    expect(
+      screen.queryByRole("region", { name: /^Resultado operativo/ }),
+    ).not.toBeInTheDocument();
+    // D5: la ventana de Tendencia es propia, no la del periodo del hub
+    expect(screen.getByText(/^Ventana de la gráfica: .*No cambia con el periodo de arriba\.$/)).toBeInTheDocument();
     // F4: YoY va en subtitle compuesto (detalle · vs año ant. · Variation)
     expect(
       within(kpis).getByText(/vs \$2,300\.00 año anterior/),
@@ -167,6 +177,58 @@ describe("finance performance YoY smoke", () => {
     expect(screen.getByText("Se compara cuando termine el mes")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Ingreso vs año ant." })).toBeInTheDocument();
     expect(mockGetMonthlyPerformance).toHaveBeenCalledWith(13);
+  });
+
+  it("shows the Resultado operativo first with operational basis and drops duplicated KPIs", async () => {
+    const base = performanceWithPreviousYear();
+    const withSplit = (row: PeriodFinancials, expenses: number): PeriodFinancials => ({
+      ...row,
+      operationalCost: row.actualCost,
+      operationalMargin: row.actualMargin,
+      tripExpensesCost: expenses,
+      tripCommissionCost: row.actualCost - expenses,
+      periodPersonnelCost: 100,
+    });
+    mockGetMonthlyPerformance.mockResolvedValue({
+      ...base,
+      current: [
+        withSplit(base.current[0]!, 450),
+        withSplit(base.current[1]!, 800),
+        withSplit(base.current[2]!, 100),
+      ],
+      previous: base.previous.map((row) => withSplit(row, row.actualCost)),
+      marginBasis: "operational",
+    } satisfies MonthlyPerformance);
+    renderPage("/finance/analysis?view=performance&from=2026-08-01&to=2026-09-30");
+
+    const result = await screen.findByRole("region", {
+      name: "Resultado operativo · ago–sep 2026",
+    });
+    await within(result).findByText("$3,000.00");
+    const row = (label: string) =>
+      within(result).getByText(label).closest("[data-row]") as HTMLElement;
+    // ago + sep: ingreso 3,000 · gasto 1,250 + comisión 350 = costo 1,600
+    expect(within(row("Ingreso")).getByText("$3,000.00")).toBeInTheDocument();
+    expect(within(row("Gasto de viaje")).getByText("$1,250.00")).toBeInTheDocument();
+    expect(within(row("Comisión a operador")).getByText("$350.00")).toBeInTheDocument();
+    expect(
+      within(row("Conforman el costo operativo")).getByText("$1,600.00"),
+    ).toBeInTheDocument();
+    expect(within(row("Margen operativo")).getByText("$1,400.00")).toBeInTheDocument();
+    expect(within(row("Costo de personal")).getByText("$200.00")).toBeInTheDocument();
+    expect(within(row("Después de personal")).getByText("$1,200.00")).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("region", { name: "Totales del rango" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Ingreso, costo operativo y margen mes a mes"),
+    ).toBeInTheDocument();
+    expect(
+      result.compareDocumentPosition(
+        screen.getByRole("switch", { name: "Comparar con año anterior" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("links each month to Rentabilidad for that month (D5)", async () => {
@@ -195,7 +257,7 @@ describe("finance performance YoY smoke", () => {
       screen.queryByRole("columnheader", { name: "Ingreso vs año ant." }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "6 meses" }));
+    await user.click(screen.getByRole("button", { name: "Últimos 6 meses completos" }));
     expect(mockGetMonthlyPerformance).toHaveBeenCalledWith(7);
   });
 

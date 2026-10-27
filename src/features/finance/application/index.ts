@@ -44,6 +44,14 @@ export {
   type VariationPolarity,
   type VariationSentiment,
 } from "./monthlyPerformance";
+export {
+  OPERATING_RESULT_MAX_MONTHS,
+  resolveOperatingResultWindow,
+  summarizeOperatingResult,
+  supportsOperatingResult,
+  type OperatingResult,
+  type OperatingResultWindow,
+} from "./operatingResult";
 export { useFinanceInvoicesList } from "./hooks/useFinanceInvoicesList";
 export {
   OPEN_PPD_INVOICES_PAGE_SIZE,
@@ -55,6 +63,7 @@ export {
   useRetryFinanceRepStamp,
 } from "./hooks/useFinancePayments";
 export { useFinanceListingFilters } from "./hooks/useFinanceListingFilters";
+export { useAnalysisPeriod } from "./hooks/useAnalysisPeriod";
 export {
   billingDispatchRunKeys,
   useBillingDispatchRuns,
@@ -72,9 +81,14 @@ export {
 export {
   ANALYSIS_PERIOD_PRESETS,
   ANALYSIS_PERIOD_PRESET_MONTHS,
+  ANALYSIS_PERIOD_URL_PARAMS,
   DEFAULT_ANALYSIS_PERIOD_PRESET,
+  WIDEST_ANALYSIS_PERIOD_PRESET,
+  analysisPeriodDayCount,
+  analysisPeriodIncludesCurrentMonth,
   analysisPeriodUrlRange,
   monthPeriodDateRange,
+  previousMonthDateRange,
   resolveAnalysisPeriod,
   resolveAnalysisPeriodPreset,
   type AnalysisPeriodChoice,

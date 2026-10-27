@@ -1,11 +1,50 @@
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { ChartSeries } from "@shared/ui/data-display";
+import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { formatMonthPeriodShort } from "@shared/utils/monthPeriod";
+import {
+  formatMonthAbbr,
+  formatMonthPeriodShort,
+} from "@shared/utils/monthPeriod";
+
+export type FinanceChartGranularity = "day" | "week" | "month";
 
 /** `2026-09-01` → `sep 2026`, igual que Rendimiento y el dashboard. */
 export function formatFinancePeriodLabel(period: string): string {
   return formatMonthPeriodShort(period);
+}
+
+/**
+ * Etiqueta de eje/tooltip del chart de Gasto de viaje.
+ * El API entrega siempre `YYYY-MM-DD` (inicio de día / semana ISO lunes / mes).
+ */
+export function formatFinanceChartPeriodLabel(
+  period: string,
+  granularity: FinanceChartGranularity,
+): string {
+  if (granularity === "month") return formatMonthPeriodShort(period);
+  if (granularity === "day") return formatDate(period);
+  return formatWeekPeriodLabel(period);
+}
+
+/** Semana ISO (lunes → domingo): `6–12 oct` o `28 sep – 4 oct`. */
+function formatWeekPeriodLabel(periodStart: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart)) return periodStart;
+  const start = new Date(`${periodStart}T12:00:00Z`);
+  if (Number.isNaN(start.getTime())) return periodStart;
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+
+  const startDay = start.getUTCDate();
+  const endDay = end.getUTCDate();
+  const startMonth = start.getUTCMonth() + 1;
+  const endMonth = end.getUTCMonth() + 1;
+  const endYear = end.getUTCFullYear();
+
+  if (startMonth === endMonth) {
+    return `${startDay}–${endDay} ${formatMonthAbbr(endMonth)}`;
+  }
+  return `${startDay} ${formatMonthAbbr(startMonth)} – ${endDay} ${formatMonthAbbr(endMonth)} ${endYear}`;
 }
 
 export function formatFinanceReferencePeriod(period: string): string {

@@ -59,9 +59,7 @@ export function FinanceAgingChart({
       footer={
         agingSummary ? (
           <p className="text-xs text-muted-foreground">
-            {financeCopy.summary.charts.agingBuckets.footer(
-              financeCurrencyValueFormatter(agingSummary.totalReceivable),
-            )}
+            {financeCopy.summary.charts.agingBuckets.footer}
           </p>
         ) : undefined
       }

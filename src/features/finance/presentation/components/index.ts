@@ -6,13 +6,17 @@ export { FinanceAgingChart } from "./FinanceAgingChart";
 export { ExpenseAnalysisCharts } from "./ExpenseAnalysisCharts";
 export { ExpenseAnalysisKpiCards } from "./ExpenseAnalysisKpiCards";
 export { ExpenseDimensionTableSection } from "./ExpenseDimensionTableSection";
-export { AnalysisPeriodCaption, AnalysisPeriodSelector } from "./AnalysisPeriodSelector";
+export { AnalysisPeriodSelector } from "./AnalysisPeriodSelector";
 export { ProfitabilityKpiCards } from "./ProfitabilityKpiCards";
 export { ProfitabilityMasterDetailTable } from "./ProfitabilityMasterDetailTable";
 export { ProfitabilityScopeToolbar } from "./ProfitabilityScopeToolbar";
 export { PerformanceComparisonChart } from "./PerformanceComparisonChart";
 export { PerformanceKpiCards } from "./PerformanceKpiCards";
 export { PerformanceMonthlyTable } from "./PerformanceMonthlyTable";
+export {
+  OperatingResultCascade,
+  OperatingResultSection,
+} from "./OperatingResultCascade";
 export { FinanceInvoiceListTable } from "./FinanceInvoiceListTable";
 export { FinanceDispatchRunsTable } from "./FinanceDispatchRunsTable";
 export { FinanceDispatchPeriodFilters } from "./FinanceDispatchPeriodFilters";

@@ -183,7 +183,6 @@ export function FinanceSummaryPage() {
       }}
     >
       <ReportsReturnLink />
-      <FinanceCycleStepper steps={cycleSteps} />
 
       {summaryError ? (
         <HubQueryError
@@ -238,7 +237,10 @@ export function FinanceSummaryPage() {
         collectedTrendData={collectedTrendData}
         collectedTrendLoading={incomeLoading}
         keys={["collectedThisMonth", "expensesThisMonth"]}
+        density="stat"
+        sectionTitle={hub.monthContextTitle}
       />
+      <FinanceCycleStepper steps={cycleSteps} />
 
       <FinanceAgingChart
         agingSummary={agingSummary}

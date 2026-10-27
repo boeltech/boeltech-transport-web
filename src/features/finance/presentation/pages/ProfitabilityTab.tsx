@@ -2,17 +2,20 @@ import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, ChevronDown, Download, TrendingUp } from "lucide-react";
 import {
+  ANALYSIS_PERIOD_URL_PARAMS,
   DEFAULT_MARGIN_DIMENSION,
   DEFAULT_PROFITABILITY_SCOPE,
   PROFITABILITY_LOSS_FILTER,
+  WIDEST_ANALYSIS_PERIOD_PRESET,
+  analysisPeriodUrlRange,
   parseProfitabilityDimension,
   parseProfitabilityLossFilter,
   parseProfitabilityScope,
-  resolveAnalysisPeriod,
+  previousMonthDateRange,
+  useAnalysisPeriod,
   useFinanceListingFilters,
   useProfitabilityAggregate,
   useProfitabilityTrips,
-  type FinanceDateRange,
   type MarginAnalysisDimension,
   type ResolvedAnalysisPeriod,
 } from "@features/finance/application";
@@ -28,10 +31,8 @@ import {
 import { EmptyState } from "@shared/ui/feedback-states";
 import { ActiveFilterChips } from "@shared/ui/listing";
 import { useToast } from "@shared/hooks";
-import { formatDate, getTodayString } from "@shared/utils/dateUtils";
+import { formatDate } from "@shared/utils/dateUtils";
 import {
-  AnalysisPeriodCaption,
-  AnalysisPeriodSelector,
   ProfitabilityKpiCards,
   ProfitabilityMasterDetailTable,
   ProfitabilityScopeToolbar,
@@ -50,12 +51,15 @@ function ProfitabilityEmptyState({
   scope,
   period,
   onWidenPeriod,
+  onViewPreviousMonth,
 }: {
   scope: ProfitabilityScope;
   period: ResolvedAnalysisPeriod;
   onWidenPeriod: () => void;
+  onViewPreviousMonth: () => void;
 }) {
-  const isDefaultPeriod = period.choice === "last_12";
+  const isWidestPeriod = period.choice === WIDEST_ANALYSIS_PERIOD_PRESET;
+  const isCurrentMonth = period.choice === "this_month";
   const operational = scope === "operational" || scope === "with_in_progress";
 
   let title: string;
@@ -69,9 +73,12 @@ function ProfitabilityEmptyState({
   } else if (scope === "all") {
     title = copy.empty.allTitle;
     description = copy.empty.allDescription;
-  } else if (isDefaultPeriod) {
+  } else if (isWidestPeriod) {
     title = copy.empty.absoluteTitle;
     description = copy.empty.absoluteDescription;
+  } else if (isCurrentMonth) {
+    title = copy.empty.currentMonthTitle;
+    description = copy.empty.currentMonthDescription;
   } else {
     title = copy.empty.periodTitle(
       formatDate(period.from ?? ""),
@@ -88,7 +95,12 @@ function ProfitabilityEmptyState({
         description={description}
       />
       <div className="flex flex-wrap justify-center gap-2">
-        {!isDefaultPeriod ? (
+        {isCurrentMonth ? (
+          <Button type="button" size="sm" variant="outline" onClick={onViewPreviousMonth}>
+            {copy.empty.viewPreviousMonth}
+          </Button>
+        ) : null}
+        {!isWidestPeriod ? (
           <Button type="button" size="sm" variant="outline" onClick={onWidenPeriod}>
             {copy.empty.widenPeriod}
           </Button>
@@ -107,18 +119,23 @@ function ProfitabilityEmptyState({
 
 export function ProfitabilityTab() {
   const { toast } = useToast();
-  const [today] = useState(getTodayString);
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const { period, today, setRange } = useAnalysisPeriod();
+  /** El grupo abierto se cierra al cambiar el periodo del hub. */
+  const periodKey = `${period.from ?? ""}|${period.to ?? ""}`;
+  const [expanded, setExpanded] = useState<{ key: string | null; periodKey: string }>(
+    () => ({ key: null, periodKey }),
+  );
+  const expandedKey = expanded.periodKey === periodKey ? expanded.key : null;
+  const setExpandedKey = useCallback(
+    (key: string | null) => setExpanded({ key, periodKey }),
+    [periodKey],
+  );
 
-  const filters = useFinanceListingFilters<
-    "scope" | "dimension" | "status" | "from" | "to"
-  >({
+  const filters = useFinanceListingFilters<"scope" | "dimension" | "status">({
     filters: {
       scope: {},
       dimension: {},
       status: {},
-      from: {},
-      to: {},
     },
     defaultFilterValues: {
       scope: "",
@@ -126,6 +143,7 @@ export function ProfitabilityTab() {
       status: "",
     },
     resetPageOnFilterChange: false,
+    preserveParamsOnClear: [...ANALYSIS_PERIOD_URL_PARAMS],
     chipLabels: {
       scope: copy.filters.chipScope,
       dimension: copy.filters.chipDimension,
@@ -137,14 +155,6 @@ export function ProfitabilityTab() {
   const dimension = parseProfitabilityDimension(filters.filters.dimension);
   const lossOnly =
     showsMarginForScope(scope) && parseProfitabilityLossFilter(filters.filters.status);
-  const period = useMemo(
-    () =>
-      resolveAnalysisPeriod(
-        { from: filters.filters.from, to: filters.filters.to },
-        today,
-      ),
-    [filters.filters.from, filters.filters.to, today],
-  );
   const { from, to } = period;
 
   const handleScopeChange = useCallback(
@@ -155,7 +165,7 @@ export function ProfitabilityTab() {
       });
       setExpandedKey(null);
     },
-    [filters],
+    [filters, setExpandedKey],
   );
 
   const handleDimensionChange = useCallback(
@@ -163,16 +173,16 @@ export function ProfitabilityTab() {
       filters.setFilter("dimension", value === DEFAULT_MARGIN_DIMENSION ? "" : value);
       setExpandedKey(null);
     },
-    [filters],
+    [filters, setExpandedKey],
   );
 
-  const handlePeriodChange = useCallback(
-    (range: FinanceDateRange) => {
-      filters.setFilters({ from: range.from, to: range.to });
-      setExpandedKey(null);
-    },
-    [filters],
-  );
+  const handleWidenPeriod = useCallback(() => {
+    setRange(analysisPeriodUrlRange(WIDEST_ANALYSIS_PERIOD_PRESET, today));
+  }, [setRange, today]);
+
+  const handleViewPreviousMonth = useCallback(() => {
+    setRange(previousMonthDateRange(today));
+  }, [setRange, today]);
 
   const handleLossOnlyChange = useCallback(
     (next: boolean) => {
@@ -184,7 +194,7 @@ export function ProfitabilityTab() {
   const handleClearFilters = useCallback(() => {
     filters.clearAll();
     setExpandedKey(null);
-  }, [filters]);
+  }, [filters, setExpandedKey]);
 
   const tripFilters = useMemo(
     () => ({
@@ -258,12 +268,6 @@ export function ProfitabilityTab() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-6">
-          <AnalysisPeriodSelector
-            period={period}
-            onRangeChange={handlePeriodChange}
-            today={today}
-            idPrefix="profitability-period"
-          />
           <ProfitabilityScopeToolbar scope={scope} onScopeChange={handleScopeChange} />
         </div>
         <DropdownMenu>
@@ -311,7 +315,7 @@ export function ProfitabilityTab() {
         </div>
       ) : null}
 
-      <AnalysisPeriodCaption period={period} today={today} />
+      <p className="text-xs text-muted-foreground">{copy.dateBasis}</p>
 
       {isLoadError ? (
         <DetailAlertCard
@@ -339,9 +343,6 @@ export function ProfitabilityTab() {
             lossOnly={lossOnly}
             onLossOnlyChange={handleLossOnlyChange}
           />
-          <p className="text-xs text-muted-foreground">
-            {financeCopy.performance.operationalCostLegend}
-          </p>
 
           <ProfitabilityMasterDetailTable
             scope={scope}
@@ -356,7 +357,8 @@ export function ProfitabilityTab() {
               <ProfitabilityEmptyState
                 scope={scope}
                 period={period}
-                onWidenPeriod={() => handlePeriodChange({ from: "", to: "" })}
+                onWidenPeriod={handleWidenPeriod}
+                onViewPreviousMonth={handleViewPreviousMonth}
               />
             }
             expandedKey={expandedKey}

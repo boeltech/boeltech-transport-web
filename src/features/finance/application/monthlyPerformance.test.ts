@@ -33,6 +33,8 @@ function period(
     actualMargin: revenue - cost,
     operationalCost: cost,
     operationalMargin: revenue - cost,
+    tripExpensesCost: cost,
+    tripCommissionCost: 0,
     periodPersonnelCost: 0,
     tripCount,
     incompleteTripCount: provisional.incompleteTripCount ?? 0,

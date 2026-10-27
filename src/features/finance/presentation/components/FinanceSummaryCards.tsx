@@ -1,5 +1,6 @@
-import { useMemo } from "react";
-import { MetricTrendCard, Sparkline } from "@shared/ui/data-display";
+import { useMemo, type ReactNode } from "react";
+import { Banknote, Receipt } from "lucide-react";
+import { MetricTrendCard, Sparkline, StatCard } from "@shared/ui/data-display";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { FinanceSummary } from "@features/finance/domain";
 import { financeCopy } from "../copy";
@@ -24,7 +25,21 @@ interface FinanceSummaryCardsProps {
   collectedTrendLoading?: boolean;
   /** Subconjunto de KPI (p. ej. Cobrado + Gasto bajo el Pulse). */
   keys?: readonly FinanceSummaryCardKey[];
+  /**
+   * `stat` = StatCard quieto (secundario bajo Pulse).
+   * `trend` = MetricTrendCard (histórico / franja completa).
+   */
+  density?: "trend" | "stat";
+  /** Título de sección cuando density=stat (p. ej. Contexto del mes). */
+  sectionTitle?: string;
 }
+
+const STAT_ICONS: Partial<Record<FinanceSummaryCardKey, ReactNode>> = {
+  collectedThisMonth: <Banknote className="h-4 w-4" aria-hidden />,
+  expensesThisMonth: <Receipt className="h-4 w-4" aria-hidden />,
+  totalReceivable: <Banknote className="h-4 w-4" aria-hidden />,
+  totalOverdue: <Banknote className="h-4 w-4" aria-hidden />,
+};
 
 export function FinanceSummaryCards({
   summary,
@@ -32,6 +47,8 @@ export function FinanceSummaryCards({
   collectedTrendData,
   collectedTrendLoading = false,
   keys = DEFAULT_KEYS,
+  density = "trend",
+  sectionTitle,
 }: FinanceSummaryCardsProps) {
   const collectedSparkline = useMemo(() => {
     if (!collectedTrendData || collectedTrendData.length < 2) return undefined;
@@ -45,7 +62,7 @@ export function FinanceSummaryCards({
       subtitle: financeCopy.kpis.totalReceivable.description,
       value: summary ? formatMxCurrency(summary.totalReceivable) : "—",
       tone: "warning" as const,
-      trend: undefined,
+      trend: undefined as ReactNode | undefined,
       cardLoading: isLoading,
     },
     {
@@ -84,7 +101,38 @@ export function FinanceSummaryCards({
       ? "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       : cards.length === 3
         ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        : "grid grid-cols-1 gap-4 sm:grid-cols-2";
+        : "grid grid-cols-1 gap-3 sm:grid-cols-2";
+
+  if (density === "stat") {
+    return (
+      <section
+        aria-label={sectionTitle ?? financeCopy.page.hub.monthContextTitle}
+        className="space-y-2"
+      >
+        {sectionTitle ? (
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {sectionTitle}
+          </h2>
+        ) : null}
+        <div className={colClass}>
+          {cards.map((card) => (
+            <StatCard
+              key={card.key}
+              title={card.title}
+              value={card.value}
+              description={card.subtitle}
+              tone={card.tone}
+              icon={STAT_ICONS[card.key] ?? (
+                <Banknote className="h-4 w-4" aria-hidden />
+              )}
+              trend={card.trend}
+              isLoading={card.cardLoading}
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className={colClass}>

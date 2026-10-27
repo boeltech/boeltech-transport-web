@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
+import { useLocation } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { financeCopy } from "../copy";
@@ -59,12 +60,29 @@ vi.mock("../components", async (importOriginal) => {
     ExpenseAnalysisKpiCards: () => <div data-testid="expense-kpis" />,
     ExpenseAnalysisCharts: () => <div data-testid="expense-charts" />,
     ExpenseDimensionTableSection: () => <div data-testid="expense-table" />,
-    AnalysisPeriodSelector: () => <div data-testid="expense-period" />,
-    AnalysisPeriodCaption: () => null,
   };
 });
 
 const copy = financeCopy.expenses;
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.search}</div>;
+}
+
+function renderTab(search: string) {
+  return renderWithTheme(
+    <>
+      <ExpenseAnalysisTab />
+      <LocationProbe />
+    </>,
+    { route: [`/finance/analysis${search}`], resolvedTheme: "light" },
+  );
+}
+
+function currentSearch(): URLSearchParams {
+  return new URLSearchParams(screen.getByTestId("location").textContent ?? "");
+}
 
 describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () => {
   beforeEach(() => {
@@ -128,7 +146,7 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
     ).toHaveAttribute("href", "/finance/analysis?view=margin");
   });
 
-  it("con datos: KPIs antes del alert; Export en toolbar de periodo (fuera del alert)", () => {
+  it("con datos: KPIs antes del alert; Export en toolbar (fuera del alert)", () => {
     dimensionQuery.data = [
       {
         key: "v1",
@@ -151,13 +169,13 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
 
     const kpis = screen.getByTestId("expense-kpis");
     const alert = screen.getByText(copy.alert.summary);
-    const period = screen.getByTestId("expense-period");
+    const granularity = screen.getByLabelText(copy.filters.granularity);
     const exportBtn = screen.getByRole("button", { name: copy.exportCsv });
     expect(
       kpis.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      period.compareDocumentPosition(exportBtn) &
+      granularity.compareDocumentPosition(exportBtn) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
@@ -168,11 +186,8 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
   });
 
 
-  it("empty accionable: Mes a mes siempre; ampliar periodo si no es default", () => {
-    renderWithTheme(<ExpenseAnalysisTab />, {
-      route: ["/finance/analysis?view=expenses&from=2026-01-01&to=2026-01-31"],
-      resolvedTheme: "light",
-    });
+  it("empty accionable: Ver tendencia; ampliar periodo si no es 12 meses", () => {
+    renderTab("?view=expenses&from=2026-01-01&to=2026-01-31");
 
     expect(screen.getByText(copy.empty.title)).toBeInTheDocument();
     expect(
@@ -181,16 +196,62 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
     expect(
       screen.getByRole("button", { name: copy.empty.widenPeriod }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.empty.viewPreviousMonth }),
+    ).not.toBeInTheDocument();
   });
 
-  it("toolbar periodo/granularidad sin ListingFilterPanel; chips + Limpiar", async () => {
-    const user = userEvent.setup();
-    renderWithTheme(<ExpenseAnalysisTab />, {
-      route: ["/finance/analysis?view=expenses&granularity=week&dimension=client"],
-      resolvedTheme: "light",
+  it("muestra la base de fechas de la vista (D6)", () => {
+    renderTab("?view=expenses");
+    expect(screen.getByText(copy.dateBasis)).toBeInTheDocument();
+  });
+
+  it("granularidad por defecto: Día con ≤31 días, Mes con periodos largos (D8)", () => {
+    const { unmount } = renderTab("?view=expenses&from=2026-09-01&to=2026-09-30");
+    expect(screen.getByLabelText(copy.filters.granularity)).toHaveTextContent(
+      copy.filters.granularityValues.day,
+    );
+    expect(screen.queryByText("Filtros activos:")).not.toBeInTheDocument();
+    unmount();
+
+    renderTab("?view=expenses&from=2026-07-01&to=2026-09-30");
+    expect(screen.getByLabelText(copy.filters.granularity)).toHaveTextContent(
+      copy.filters.granularityValues.month,
+    );
+  });
+
+  describe("with today fixed at 2026-10-06", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-06T18:00:00Z"));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
     });
 
-    expect(screen.getByTestId("expense-period")).toBeInTheDocument();
+    it("empty en «Este mes»: «Ver mes anterior» y «Ampliar» escriben from/to (P1-a / D9)", async () => {
+      const user = userEvent.setup();
+      renderTab("?view=expenses");
+
+      await user.click(screen.getByRole("button", { name: copy.empty.viewPreviousMonth }));
+      expect(currentSearch().get("from")).toBe("2026-09-01");
+      expect(currentSearch().get("to")).toBe("2026-09-30");
+
+      await user.click(screen.getByRole("button", { name: copy.empty.widenPeriod }));
+      expect(currentSearch().get("from")).toBe("2025-10-01");
+      expect(currentSearch().get("to")).toBe("2026-09-30");
+    });
+  });
+
+  it("toolbar granularidad sin selector de periodo; chips + Limpiar conserva from/to", async () => {
+    const user = userEvent.setup();
+    renderTab(
+      "?view=expenses&granularity=week&dimension=client&from=2026-07-01&to=2026-09-30",
+    );
+
+    expect(
+      screen.queryByRole("combobox", { name: financeCopy.analysisPeriod.label }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByLabelText(financeCopy.expenses.filters.granularity),
     ).toBeInTheDocument();
@@ -209,6 +270,9 @@ describe("ExpenseAnalysisTab — F2 empty/error/alerta + F3 chips/toolbar", () =
       screen.getByRole("button", { name: financeCopy.page.clearFilters }),
     );
     expect(screen.queryByText("Filtros activos:")).not.toBeInTheDocument();
+    expect(currentSearch().get("granularity")).toBeNull();
+    expect(currentSearch().get("from")).toBe("2026-07-01");
+    expect(currentSearch().get("to")).toBe("2026-09-30");
   });
 
   it("export CSV usa variante outline", () => {
