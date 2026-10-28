@@ -24,6 +24,7 @@ import {
   useMemo,
   useRef,
 } from "react";
+import { isGenericRfc } from "@boeltech/cfdi-domain";
 import { useForm, useFormState, useWatch, Controller } from "react-hook-form";
 import {
   Sheet,
@@ -140,6 +141,8 @@ import {
   getPrimaryFiscalSectionCopy,
   publicGeneralRfcNotice,
   resolveStopFiscalUiContext,
+  stopRfcNotClientOrCompanyNotice,
+  ubicacionRfcSatNotice,
   type CfdiDocumentIntent,
 } from "./stopDialogFiscalCopy";
 import { PartnerSnapshotPicker } from "@features/partners";
@@ -180,6 +183,16 @@ export interface StopFormSheetProps {
   variant?: "sheet" | "inline";
   /** True mientras el caller persiste (p. ej. replace-stops); deshabilita Guardar. */
   isPending?: boolean;
+}
+
+function stopUbicacionRfcDescription(rfc: string | null | undefined) {
+  const satNotice = isGenericRfc(rfc) ? null : ubicacionRfcSatNotice();
+  return (
+    <>
+      {satNotice ? <span className="block">{satNotice}</span> : null}
+      <span className="block">{stopRfcNotClientOrCompanyNotice()}</span>
+    </>
+  );
 }
 
 const STOP_OPERATION_OPTIONS = [
@@ -1277,6 +1290,7 @@ export function StopFormSheet({
                               label={primaryFiscalCopy.rfcLabel}
                               required={fiscalRequired}
                               errorMessage={errorMessage}
+                              description={stopUbicacionRfcDescription(field.value)}
                             >
                               <Input
                                 id={fieldId}
@@ -1425,6 +1439,7 @@ export function StopFormSheet({
                                 label={primaryFiscalCopy.rfcLabel}
                                 required={fiscalRequired}
                                 errorMessage={errorMessage}
+                                description={stopUbicacionRfcDescription(field.value)}
                               >
                                 <Input
                                   id={fieldId}
@@ -1496,6 +1511,9 @@ export function StopFormSheet({
                                       label={rfcLabel}
                                       required={fiscalRequired}
                                       errorMessage={errorMessage}
+                                      description={stopUbicacionRfcDescription(
+                                        field.value,
+                                      )}
                                     >
                                       <Input
                                         id={rfcFieldId}

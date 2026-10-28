@@ -30,7 +30,8 @@ import {
   type UseFormTrigger,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FieldInlineError, getFieldErrorAriaProps } from "@shared/ui/form";
+import { isGenericRfc } from "@boeltech/cfdi-domain";
+import { FieldInlineError, FormFieldShell, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import {
@@ -827,8 +828,16 @@ const ClientAddressFormRoot = forwardRef<
           </Button>
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="rfcRemitenteDestinatario">{fiscalCopy.rfcLabel}</Label>
+          <FormFieldShell
+            fieldId="rfcRemitenteDestinatario"
+            label={fiscalCopy.rfcLabel}
+            errorMessage={errors.rfcRemitenteDestinatario?.message}
+            description={
+              isGenericRfc(formValues.rfcRemitenteDestinatario)
+                ? undefined
+                : fiscalCopy.rfcSatRegistered
+            }
+          >
             <Input
               id="rfcRemitenteDestinatario"
               placeholder={fiscalCopy.rfcPlaceholder}
@@ -845,11 +854,7 @@ const ClientAddressFormRoot = forwardRef<
                 errors.rfcRemitenteDestinatario?.message,
               )}
             />
-            <FieldInlineError
-              fieldId="rfcRemitenteDestinatario"
-              message={errors.rfcRemitenteDestinatario?.message}
-            />
-          </div>
+          </FormFieldShell>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="nombreRemitenteDestinatario">
               {fiscalCopy.nombreLabel}

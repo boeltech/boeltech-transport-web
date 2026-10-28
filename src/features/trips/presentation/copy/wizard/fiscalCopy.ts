@@ -104,6 +104,10 @@ const fiscalStrings = {
   },
   publicGeneralNotice:
     "Usas el RFC genérico de público en general. Verifica con tu área contable antes de facturar.",
+  rfcSatRegistered:
+    "RFC inscrito y vigente ante el SAT. Va en la Carta Porte; si no está registrado, el timbrado no pasa.",
+  rfcNotClientOrCompany:
+    "No es el RFC del cliente de la factura ni el de tu empresa, salvo que sea la misma persona.",
   missingLabels: {
     primaryRfc: "RFC de quien entrega o recibe",
     primaryName: "Nombre de quien entrega o recibe",
@@ -172,6 +176,14 @@ export function getDeliveryFiscalCopy(): {
 
 export function publicGeneralRfcNotice(): string {
   return fiscalStrings.publicGeneralNotice;
+}
+
+export function ubicacionRfcSatNotice(): string {
+  return fiscalStrings.rfcSatRegistered;
+}
+
+export function stopRfcNotClientOrCompanyNotice(): string {
+  return fiscalStrings.rfcNotClientOrCompany;
 }
 
 export const fiscalCopy = fiscalStrings;

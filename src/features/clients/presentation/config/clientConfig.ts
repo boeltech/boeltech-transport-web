@@ -339,7 +339,9 @@ export const CLIENT_ADDRESS_FISCAL_COPY = {
     "RFC y nombre del remitente o destinatario en este lugar de viaje. Se copian al snapshot de la parada al timbrar Carta Porte. No sustituyen el RFC del cliente receptor.",
   rfcLabel: "RFC remitente/destinatario",
   rfcPlaceholder: "Ej. XAXX010101000",
+  rfcSatRegistered:
+    "RFC inscrito y vigente ante el SAT. Va en la Carta Porte; si no está registrado, el timbrado no pasa.",
   nombreLabel: "Nombre o razón social",
-  nombrePlaceholder: "Como aparece ante el SAT",
+  nombrePlaceholder: "Ej. Logística del Centro SA de CV",
   useClientData: "Usar datos fiscales del cliente",
 } as const;

@@ -7,6 +7,8 @@ export {
   getPrimaryFiscalSectionCopy,
   publicGeneralRfcNotice,
   resolveStopFiscalUiContext,
+  stopRfcNotClientOrCompanyNotice,
+  ubicacionRfcSatNotice,
 } from "../../../copy/wizard/fiscalCopy";
 export type {
   CfdiDocumentIntent,
