@@ -20,7 +20,7 @@ vi.mock("../providers/PlatformAuthProvider", () => ({
   }),
 }));
 
-describe("PlatformOpsRail (L1 BrandMark)", () => {
+describe("PlatformOpsRail (L1 BrandMark + F1 nav activa)", () => {
   it("uses OpsBrandMark and retires Ops badge", () => {
     renderWithTheme(
       <div className="platform-ops" data-ops-theme="dark">
@@ -33,4 +33,20 @@ describe("PlatformOpsRail (L1 BrandMark)", () => {
     expect(brand).toHaveTextContent(opsCopy.wordmark);
     expect(screen.queryByText(/^Ops$/)).not.toBeInTheDocument();
   });
+
+  it("marks Hoy as current page for rail tick+fill", () => {
+    renderWithTheme(
+      <div className="platform-ops" data-ops-theme="light">
+        <PlatformOpsRail pathname="/platform" />
+      </div>,
+    );
+
+    const hoy = screen.getByRole("link", {
+      name: opsCopy.nav.hoy,
+      hidden: true,
+    });
+    expect(hoy).toHaveAttribute("aria-current", "page");
+    expect(hoy).toHaveClass("ops-nav-link");
+  });
 });
+

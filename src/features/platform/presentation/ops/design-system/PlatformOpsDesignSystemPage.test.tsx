@@ -250,6 +250,79 @@ describe("PlatformOpsDesignSystemPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("F3 Components matrix covers forced hover/focus, outline, command empty", async () => {
+    authState.platformRole = "platform_owner";
+    authState.consoleV1 = true;
+    const user = userEvent.setup();
+
+    renderWithTheme(
+      <OpsWrap>
+        <PlatformOpsDesignSystemPage />
+      </OpsWrap>,
+      { route: ["/platform/design-system"] },
+    );
+
+    await user.click(screen.getByTestId("ops-ds-nav-components"));
+    const preview = screen.getByTestId("ops-ds-preview-root");
+
+    expect(within(preview).getByTestId("ops-ds-matrix-buttons")).toBeInTheDocument();
+    expect(within(preview).getByTestId("ops-ds-matrix-forms")).toBeInTheDocument();
+    expect(within(preview).getByTestId("ops-ds-matrix-controls")).toBeInTheDocument();
+    expect(within(preview).getByTestId("ops-ds-matrix-command")).toBeInTheDocument();
+
+    const forcedHover = preview.querySelectorAll('[data-ops-force="hover"]');
+    expect(forcedHover.length).toBeGreaterThanOrEqual(4);
+    const forcedFocus = preview.querySelectorAll('[data-ops-force="focus"]');
+    expect(forcedFocus.length).toBeGreaterThanOrEqual(3);
+
+    const outlineButtons = within(preview)
+      .getAllByRole("button")
+      .filter((btn) => btn.getAttribute("data-ops-button") === "outline");
+    expect(outlineButtons.length).toBeGreaterThanOrEqual(4);
+    expect(
+      within(preview).getByTestId("ops-ds-input-force-focus"),
+    ).toHaveAttribute("data-ops-force", "focus");
+    expect(within(preview).getByTestId("ops-ds-command-empty")).toBeInTheDocument();
+    expect(
+      within(preview).getByText("Revisa los siguientes campos"),
+    ).toBeInTheDocument();
+  });
+
+  it("F3 Patterns inventory includes empty loading and table skeleton", async () => {
+    authState.platformRole = "platform_owner";
+    authState.consoleV1 = true;
+    const user = userEvent.setup();
+
+    renderWithTheme(
+      <OpsWrap>
+        <PlatformOpsDesignSystemPage />
+      </OpsWrap>,
+      { route: ["/platform/design-system"] },
+    );
+
+    await user.click(screen.getByTestId("ops-ds-nav-patterns"));
+    const preview = screen.getByTestId("ops-ds-preview-root");
+
+    expect(
+      within(preview).getByTestId("ops-ds-patterns-inventory"),
+    ).toBeInTheDocument();
+    expect(
+      within(preview).getByTestId("ops-ds-patterns-empty"),
+    ).toBeInTheDocument();
+
+    const empties = within(preview).getAllByTestId("ops-empty-state");
+    const loading = empties.find(
+      (node) => node.getAttribute("data-ops-empty") === "loading",
+    );
+    expect(loading).toBeTruthy();
+    expect(loading).toHaveAttribute("aria-busy", "true");
+
+    const skeletonWrap = within(preview).getByTestId("ops-ds-patterns-skeleton");
+    expect(
+      within(skeletonWrap).getByTestId("ops-table-skeleton"),
+    ).toBeInTheDocument();
+  });
+
   it("redirects when flag is OFF", () => {
     authState.platformRole = "platform_owner";
     authState.consoleV1 = false;

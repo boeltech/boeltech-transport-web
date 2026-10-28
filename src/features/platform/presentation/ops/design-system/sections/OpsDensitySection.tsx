@@ -14,8 +14,8 @@ export function OpsDensitySection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Densidad / Espaciado</OpsPanelTitle>
           <OpsPanelDescription>
-            Torre denser que patio: row 37 (body 15), radius 3 (LID-D9), hairline
-            antes que card shadow.
+            Craft A · Primer denso: row 37, radius 3, hairline 1px antes que
+            sombra. Ladder: flat → Panel (surface) → elevated (sheets/CmdK).
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-4">
@@ -69,7 +69,8 @@ export function OpsDensitySection() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <OpsButton>Primary 34</OpsButton>
+            <OpsButton variant="solid">Solid 34</OpsButton>
+            <OpsButton variant="outline">Outline</OpsButton>
             <OpsButton variant="ghost" size="sm">
               Ghost sm 30
             </OpsButton>

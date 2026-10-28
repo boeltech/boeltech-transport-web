@@ -55,9 +55,18 @@ export {
   OpsTable,
   OpsTableBody,
   OpsTableCell,
+  OpsTableEllipsis,
   OpsTableHead,
   OpsTableHeader,
+  OpsTablePrimary,
   OpsTableRow,
+  OpsTableStatus,
+} from "./OpsTable";
+export type {
+  OpsTableEllipsisProps,
+  OpsTablePrimaryProps,
+  OpsTableStatusProps,
+  OpsTableStatusTone,
 } from "./OpsTable";
 
 export {
@@ -95,6 +104,22 @@ export {
   OpsCommandList,
 } from "./OpsCommand";
 export type { OpsCommandDialogContentProps } from "./OpsCommand";
+
+export { OpsCheckbox } from "./OpsCheckbox";
+export type { OpsCheckboxProps } from "./OpsCheckbox";
+
+export { OpsRadio, OpsRadioGroup } from "./OpsRadio";
+export type { OpsRadioGroupProps, OpsRadioProps } from "./OpsRadio";
+
+export { OpsSwitch } from "./OpsSwitch";
+export type { OpsSwitchProps } from "./OpsSwitch";
+
+export { OpsSpinner } from "./OpsSpinner";
+export type {
+  OpsSpinnerProps,
+  OpsSpinnerSize,
+  OpsSpinnerVariant,
+} from "./OpsSpinner";
 
 export {
   OPS_PORTAL_ROOT_ID,

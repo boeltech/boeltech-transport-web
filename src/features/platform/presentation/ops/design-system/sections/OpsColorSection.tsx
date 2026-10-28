@@ -30,25 +30,25 @@ const ROLES: readonly ColorRole[] = [
     avoid: "Mezclar con surface de contenido",
   },
   {
-    role: "elevated",
-    token: "--ops-bg-elevated",
-    swatch: "var(--ops-bg-elevated)",
-    use: "Topbar, popovers, sheets, filas money base",
-    avoid: "Canvas full-page sin sheet",
-  },
-  {
     role: "surface",
     token: "--ops-surface",
     swatch: "var(--ops-surface)",
-    use: "Paneles, thead, chips idle",
+    use: "Paneles, thead, chips idle (entre canvas y elevated)",
     avoid: "Card blanca / soft teal",
+  },
+  {
+    role: "elevated",
+    token: "--ops-bg-elevated",
+    swatch: "var(--ops-bg-elevated)",
+    use: "Topbar, popovers, sheets, outline btn (F2) — ladder más clara",
+    avoid: "Canvas full-page sin sheet",
   },
   {
     role: "border",
     token: "--ops-border",
     swatch: "var(--ops-border)",
-    use: "Hairlines, inputs",
-    avoid: "Borders brand purple / thick aesthetic",
+    use: "Hairline 1px (oficio GH), inputs",
+    avoid: "Borders brand purple / thick aesthetic / #0969DA",
   },
   {
     role: "fg",
@@ -68,8 +68,15 @@ const ROLES: readonly ColorRole[] = [
     role: "accent",
     token: "--ops-accent",
     swatch: "var(--ops-accent)",
-    use: "Azul acero · CTA primary, focus ring, nav/cola activa, chip active",
-    avoid: "Igualar a --ops-fg (tinta≠acción); teal Patio; lavanda; sustituir danger",
+    use: "Azul acero Mando · CTA primary, focus ring, nav/cola activa, chip active",
+    avoid: "#0969DA GH; tinta=acción; teal Patio; lavanda; sustituir danger",
+  },
+  {
+    role: "notice",
+    token: "--ops-notice",
+    swatch: "var(--ops-notice)",
+    use: "F2 · señal banner info (Alert notice); acero tintado",
+    avoid: "Usar como CTA/accent; azul Primer de marca",
   },
   {
     role: "ok",
@@ -129,9 +136,9 @@ export function OpsColorSection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Roles de color</OpsPanelTitle>
           <OpsPanelDescription>
-            Pares light/dark «Mando acero» (neutros fríos hue ~250 · accent
-            acero A). Semánticos solo estado. Dinero SaaS ≠ CFDI de patio. Sin
-            Conform tlamx.
+            Pares light/dark «Mando acero» × craft A (neutros fríos hue ~250 ·
+            accent acero · notice banner). Semánticos solo estado. Dinero SaaS ≠
+            CFDI. Sin Conform ERP · sin #0969DA.
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-2">

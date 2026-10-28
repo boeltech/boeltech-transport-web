@@ -42,7 +42,7 @@ export const opsCopy = {
     brand: "Boeltech Ops",
     badge: "Design System",
     subtitle:
-      "Referencia viva «Mando acero» (`--ops-*`). Accent acero · neutros fríos · light + dark aislado del ERP.",
+      "SoT visual craft A «Primer denso» × «Mando acero» (`--ops-*`). Hairline · status icon · pills · outline. Accent acero (≠ #0969DA) · light + dark aislado del ERP.",
     preview: {
       label: "Vista previa",
       light: "Claro",

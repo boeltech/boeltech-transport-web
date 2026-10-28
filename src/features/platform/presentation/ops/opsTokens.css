@@ -1,8 +1,9 @@
 /**
- * Kit Ops «Mando acero» (evolve-ds · V3 C-estructura + A-acento).
+ * Kit Ops «Mando acero» × craft A «Primer denso» (F1 foundations · evolve-ds).
  * Scope: .platform-ops — no muta tokens ERP-T globales.
  * Colores solo bajo [data-ops-theme="light"|"dark"].
- * Accent = azul acero (≠ tinta, ≠ Tlamx, ≠ lavanda). Semánticos solo estado.
+ * Accent = azul acero (≠ #0969DA GH, ≠ tinta, ≠ Tlamx, ≠ lavanda). Semánticos solo estado.
+ * Oficio GH/Primer = hairline / densidad / rail tick+fill — no marca Primer.
  */
 @import "@fontsource/ibm-plex-sans/400.css";
 @import "@fontsource/ibm-plex-sans/500.css";
@@ -11,11 +12,14 @@
 
 .platform-ops {
   /* Tipografía / layout / radius — tema-agnóstico (TEC §C.6) */
-  --ops-radius: 3px; /* LID-D9 */
+  --ops-radius: 3px; /* LID-D9 · locked Mando acero */
   --ops-tick-w: 3px;
   --ops-row-h: 37px;
   --ops-topbar-h: 42px;
   --ops-rail-w: 168px;
+  --ops-focus-ring-w: 2px;
+  /* F2-ready · outline button surface (no cablear OpsButton aquí) */
+  --ops-btn-outline-bg: var(--ops-bg-elevated);
   --ops-font:
     "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --ops-font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -73,44 +77,50 @@
   line-height: var(--ops-type-body-lh);
 }
 
-/* Light — neutros fríos GH-like hue ~250. rail < canvas < surface < elevated. */
+/* Light — neutros fríos hue ~250. Ladder: rail < canvas < surface < elevated. */
 .platform-ops[data-ops-theme="light"] {
   color-scheme: light;
-  --ops-bg: oklch(0.972 0.003 250); /* ~#F6F8FA */
+  --ops-bg: oklch(0.972 0.003 250); /* canvas · ~#F6F8FA */
   --ops-rail: oklch(0.94 0.008 250);
   --ops-surface: oklch(0.985 0.002 250);
   --ops-bg-elevated: oklch(0.995 0.001 250);
-  --ops-border: oklch(0.88 0.01 250);
+  /* Hairline 1px legible (oficio GH · no thick aesthetic) */
+  --ops-border: oklch(0.855 0.012 250);
   --ops-fg: oklch(0.28 0.02 250);
   --ops-fg-muted: oklch(0.46 0.015 250);
-  --ops-accent: oklch(0.45 0.07 250); /* acero A · CTA / focus / tick */
+  --ops-accent: oklch(0.45 0.07 250); /* acero Mando · CTA / focus / tick · ≠ #0969DA */
   --ops-accent-fg: var(--ops-bg-elevated);
   --ops-ok: oklch(0.42 0.11 158);
   --ops-warn: oklch(0.44 0.11 58);
   --ops-danger: oklch(0.44 0.16 27);
   --ops-lime: oklch(0.44 0.13 118); /* instrumento, no lifecycle */
+  /* F2 · alert notice/info fill signal — acero tintado, no CTA, no azul GH */
+  --ops-notice: oklch(0.5 0.055 250);
   --ops-skeleton: oklch(0.72 0.01 250);
   --ops-scrim: oklch(0.28 0.02 250 / 0.4);
   --ops-shadow-overlay: 0 16px 48px oklch(0.28 0.02 250 / 0.16);
 }
 
-/* Dark — carbón frío hue ~250, coherente con acero. */
+/* Dark — carbón frío hue ~250. Ladder: rail < canvas < surface < elevated. */
 .platform-ops[data-ops-theme="dark"] {
   color-scheme: dark;
   --ops-bg: oklch(0.185 0.01 255);
   --ops-rail: oklch(0.155 0.01 255);
-  --ops-surface: oklch(0.248 0.012 255);
-  --ops-bg-elevated: oklch(0.215 0.01 255);
-  --ops-border: oklch(0.42 0.015 255);
+  --ops-surface: oklch(0.228 0.011 255);
+  --ops-bg-elevated: oklch(0.275 0.012 255);
+  /* Hairline 1px legible sobre canvas oscuro */
+  --ops-border: oklch(0.45 0.014 255);
   --ops-fg: oklch(0.925 0.008 255);
   --ops-fg-muted: oklch(0.76 0.012 255);
-  --ops-accent: oklch(0.78 0.08 250); /* acero A · CTA / focus / tick */
+  --ops-accent: oklch(0.78 0.08 250); /* acero Mando · CTA / focus / tick · ≠ #0969DA */
   --ops-accent-fg: var(--ops-bg);
   --ops-ok: oklch(0.78 0.13 158);
   /* P1 ancla: warn ámbar vs danger rojo — más hue separation; L en danger para AA soft badge */
   --ops-warn: oklch(0.85 0.14 78);
   --ops-danger: oklch(0.76 0.17 22);
   --ops-lime: oklch(0.84 0.14 118); /* instrumento, no lifecycle */
+  /* F2 · alert notice/info fill signal — acero tintado, no CTA, no azul GH */
+  --ops-notice: oklch(0.72 0.07 250);
   --ops-skeleton: oklch(0.55 0.012 255);
   --ops-scrim: oklch(0.12 0.01 255 / 0.72);
   --ops-shadow-overlay: 0 16px 48px oklch(0 0 0 / 0.45);
@@ -184,7 +194,7 @@
   background: color-mix(in oklch, var(--ops-danger) 18%, transparent);
 }
 .platform-ops .ops-ring-accent:focus-visible {
-  outline: 2px solid var(--ops-accent);
+  outline: var(--ops-focus-ring-w) solid var(--ops-accent);
   outline-offset: 2px;
 }
 .platform-ops .ops-chip:focus-visible,
@@ -193,13 +203,13 @@
 .platform-ops .ops-menu-item:focus-visible,
 .platform-ops .ops-sheet-close:focus-visible,
 .platform-ops .ops-cmdk-item:focus-visible {
-  outline: 2px solid var(--ops-accent);
+  outline: var(--ops-focus-ring-w) solid var(--ops-accent);
   outline-offset: 2px;
 }
 .platform-ops .ops-input:focus-visible,
 .platform-ops .ops-textarea:focus-visible,
 .platform-ops .ops-select-trigger:focus-visible {
-  outline: 2px solid var(--ops-accent);
+  outline: var(--ops-focus-ring-w) solid var(--ops-accent);
   outline-offset: 2px;
   border-color: color-mix(in oklch, var(--ops-accent) 55%, var(--ops-border));
 }
@@ -234,31 +244,52 @@
     display: none;
   }
 }
+/* solid = primary CTA acero · outline = oficio GH “New workflow” · ghost sin hairline idle */
+.platform-ops .ops-btn-solid,
 .platform-ops .ops-btn-primary {
   background: var(--ops-accent);
   color: var(--ops-accent-fg);
+  border-color: transparent;
+  box-shadow: none;
 }
+.platform-ops .ops-btn-solid:hover:not(:disabled),
 .platform-ops .ops-btn-primary:hover:not(:disabled) {
   background: color-mix(in oklch, var(--ops-fg) 6%, var(--ops-accent));
+}
+.platform-ops .ops-btn-outline {
+  background: var(--ops-btn-outline-bg);
+  color: var(--ops-fg);
+  border-color: var(--ops-border);
+  box-shadow: none;
+}
+.platform-ops .ops-btn-outline:hover:not(:disabled) {
+  background: var(--ops-btn-outline-bg);
+  border-color: color-mix(in oklch, var(--ops-fg) 22%, var(--ops-border));
 }
 .platform-ops .ops-btn-ghost {
   background: transparent;
   color: var(--ops-fg);
-  border-color: var(--ops-border);
+  border-color: transparent;
+  box-shadow: none;
 }
 .platform-ops .ops-btn-ghost:hover:not(:disabled) {
-  background: var(--ops-bg-elevated);
+  background: color-mix(in oklch, var(--ops-fg) 6%, transparent);
 }
 .platform-ops .ops-btn-danger {
   background: var(--ops-danger);
   color: var(--ops-accent-fg);
+  border-color: transparent;
+  box-shadow: none;
 }
 .platform-ops .ops-btn-danger:hover:not(:disabled) {
   background: color-mix(in oklch, var(--ops-fg) 6%, var(--ops-danger));
 }
+.platform-ops .ops-btn-solid:disabled,
 .platform-ops .ops-btn-primary:disabled,
+.platform-ops .ops-btn-outline:disabled,
 .platform-ops .ops-btn-ghost:disabled,
-.platform-ops .ops-btn-danger:disabled {
+.platform-ops .ops-btn-danger:disabled,
+.platform-ops .ops-btn[data-loading="true"] {
   color: var(--ops-fg-muted);
   background: transparent;
   border-color: var(--ops-border);
@@ -269,6 +300,12 @@
   height: 30px;
   padding: 0 0.6rem;
   font-size: 12px;
+}
+.platform-ops .ops-btn-loading {
+  gap: 0.5rem;
+}
+.platform-ops .ops-btn-loading .ops-btn-loading-label {
+  opacity: 0.85;
 }
 .platform-ops .ops-badge {
   display: inline-flex;
@@ -374,6 +411,82 @@
 .platform-ops .ops-table tbody tr:hover td {
   background: color-mix(in oklch, var(--ops-fg) 5%, transparent);
 }
+/* F2 · status disco circular + título/meta + ellipsis (oficio GH Actions) */
+.platform-ops .ops-table-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  color: var(--ops-bg-elevated);
+}
+.platform-ops .ops-table-status-icon {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+.platform-ops .ops-table-status-dot {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 9999px;
+  background: var(--ops-bg-elevated);
+}
+.platform-ops .ops-table-status[data-ops-table-status="ok"] {
+  background: var(--ops-ok);
+}
+.platform-ops .ops-table-status[data-ops-table-status="warn"] {
+  background: var(--ops-warn);
+}
+.platform-ops .ops-table-status[data-ops-table-status="danger"] {
+  background: var(--ops-danger);
+}
+.platform-ops .ops-table-primary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.platform-ops .ops-table-primary-title {
+  font-size: var(--ops-type-body-size);
+  font-weight: 500;
+  color: var(--ops-fg);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.platform-ops .ops-table-primary-meta {
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  color: var(--ops-fg-muted);
+  line-height: var(--ops-type-caption-lh);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.platform-ops .ops-table-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: var(--ops-radius);
+  background: transparent;
+  color: var(--ops-fg-muted);
+  cursor: pointer;
+}
+.platform-ops .ops-table-ellipsis:hover {
+  background: color-mix(in oklch, var(--ops-fg) 8%, transparent);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-table-cell-lead {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
 /* Ola 2 — Money: denser AR rows, hairline only (no Card blanca) */
 .platform-ops .ops-money-table.ops-table-wrap,
 .platform-ops .ops-table-wrap:has(.ops-money-table) {
@@ -440,11 +553,40 @@
 .platform-ops .ops-sheet-footer {
   flex-shrink: 0;
 }
+.platform-ops .ops-sheet-footer {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--ops-border);
+  margin-top: auto;
+}
+@media (min-width: 640px) {
+  .platform-ops .ops-sheet-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+  }
+}
 .platform-ops .ops-sheet-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+.platform-ops .ops-dialog-footer {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--ops-border);
+}
+@media (min-width: 640px) {
+  .platform-ops .ops-dialog-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+  }
 }
 .platform-ops .ops-sheet-content[data-side="right"] {
   inset-block: 0;
@@ -651,31 +793,73 @@
   justify-content: center;
 }
 .platform-ops .ops-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
   border-radius: var(--ops-radius);
   border: 1px solid var(--ops-border);
   background: var(--ops-surface);
   padding: 0.65rem 0.75rem;
   font-size: var(--ops-type-caption-size);
   color: var(--ops-fg);
+  box-shadow: none;
+}
+.platform-ops .ops-alert-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-alert-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.platform-ops .ops-alert-dismiss {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: -0.15rem -0.2rem 0 0;
+  border: none;
+  border-radius: var(--ops-radius);
+  background: transparent;
+  color: var(--ops-fg-muted);
+  cursor: pointer;
+}
+.platform-ops .ops-alert-dismiss:hover {
+  background: color-mix(in oklch, var(--ops-fg) 8%, transparent);
+  color: var(--ops-fg);
 }
 .platform-ops .ops-alert[data-tone="notice"],
 .platform-ops .ops-alert[data-tone="default"] {
-  border-color: var(--ops-border);
+  border-color: color-mix(in oklch, var(--ops-notice) 35%, var(--ops-border));
+  background: color-mix(in oklch, var(--ops-notice) 10%, var(--ops-surface));
   color: var(--ops-fg);
-  box-shadow: none;
+}
+.platform-ops .ops-alert[data-tone="notice"] .ops-alert-icon,
+.platform-ops .ops-alert[data-tone="default"] .ops-alert-icon {
+  color: var(--ops-notice);
 }
 .platform-ops .ops-alert[data-tone="danger"] {
   border-color: color-mix(in oklch, var(--ops-danger) 45%, var(--ops-border));
   background: color-mix(in oklch, var(--ops-danger) 12%, var(--ops-surface));
   color: var(--ops-fg);
 }
+.platform-ops .ops-alert[data-tone="danger"] .ops-alert-icon {
+  color: var(--ops-danger);
+}
 .platform-ops .ops-alert[data-tone="warn"] {
   border-color: color-mix(in oklch, var(--ops-warn) 40%, var(--ops-border));
   background: color-mix(in oklch, var(--ops-warn) 10%, var(--ops-surface));
 }
+.platform-ops .ops-alert[data-tone="warn"] .ops-alert-icon {
+  color: var(--ops-warn);
+}
 .platform-ops .ops-alert-title {
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  margin: 0 0 0.25rem;
 }
 .platform-ops .ops-preview {
   border-radius: var(--ops-radius);
@@ -911,14 +1095,28 @@
   text-decoration: none;
 }
 .platform-ops .ops-nav-link:hover {
-  background: var(--ops-bg-elevated);
+  background: color-mix(in oklch, var(--ops-fg) 6%, transparent);
   color: var(--ops-fg);
 }
+/* Craft A · rail activa = tick 3px acero + fill sutil (oficio sidebar GH) */
 .platform-ops .ops-nav-link[aria-current="page"] {
-  background: var(--ops-surface);
+  background: color-mix(in oklch, var(--ops-fg) 9%, transparent);
   color: var(--ops-fg);
-  /* Tick acero — selección / nav activa */
+  font-weight: 600;
   box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-accent);
+}
+/* Topbar search — hairline Primer (pulido chrome; no rediseño IA) */
+.platform-ops .ops-btn.ops-topbar-search {
+  height: 30px;
+  background: var(--ops-bg);
+  border-color: var(--ops-border);
+  color: var(--ops-fg-muted);
+  box-shadow: none;
+}
+.platform-ops .ops-btn.ops-topbar-search:hover:not(:disabled) {
+  background: var(--ops-bg);
+  border-color: color-mix(in oklch, var(--ops-fg) 22%, var(--ops-border));
+  color: var(--ops-fg);
 }
 .platform-ops .ops-menu-item {
   display: block;
@@ -1678,4 +1876,200 @@
   font-family: var(--ops-font-mono);
   font-size: var(--ops-type-caption-size);
   color: var(--ops-fg);
+}
+
+/* F2 · spinner (alineado a --ops-skeleton; sin pulse ERP) */
+.platform-ops .ops-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.platform-ops .ops-spinner[data-size="sm"] {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+.platform-ops .ops-spinner[data-size="md"] {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+.platform-ops .ops-spinner[data-size="lg"] {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.platform-ops .ops-spinner-block {
+  display: flex;
+  width: 100%;
+  min-height: var(--ops-row-h);
+  padding: 0.75rem 0;
+}
+.platform-ops .ops-spinner-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklch, var(--ops-skeleton) 55%, transparent);
+  border-top-color: var(--ops-fg-muted);
+  animation: ops-spin 0.7s linear infinite;
+}
+@keyframes ops-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* F2 · checkbox / radio / switch in-kit */
+.platform-ops .ops-check-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: var(--ops-type-body-size);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-check-field-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.platform-ops .ops-check-label {
+  font-size: var(--ops-type-body-size);
+  line-height: 1.3;
+  user-select: none;
+}
+.platform-ops .ops-checkbox,
+.platform-ops .ops-radio {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  margin: 0;
+  border: 1px solid var(--ops-border);
+  background: var(--ops-bg);
+  color: var(--ops-accent-fg);
+  cursor: pointer;
+}
+.platform-ops .ops-checkbox {
+  position: relative;
+  border-radius: var(--ops-radius);
+}
+.platform-ops .ops-radio {
+  border-radius: 999px;
+}
+.platform-ops .ops-checkbox:checked,
+.platform-ops .ops-radio:checked {
+  background: var(--ops-accent);
+  border-color: var(--ops-accent);
+}
+.platform-ops .ops-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 0.28rem;
+  top: 0.08rem;
+  width: 0.28rem;
+  height: 0.55rem;
+  border: solid var(--ops-accent-fg);
+  border-width: 0 1.75px 1.75px 0;
+  transform: rotate(45deg);
+}
+.platform-ops .ops-radio:checked {
+  box-shadow: inset 0 0 0 3px var(--ops-bg-elevated);
+}
+.platform-ops .ops-checkbox:focus-visible,
+.platform-ops .ops-radio:focus-visible {
+  outline: var(--ops-focus-ring-w) solid var(--ops-accent);
+  outline-offset: 2px;
+}
+.platform-ops .ops-checkbox:disabled,
+.platform-ops .ops-radio:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.platform-ops .ops-radio-group {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.platform-ops .ops-radio-group legend.ops-label {
+  margin-bottom: 0.35rem;
+  padding: 0;
+}
+.platform-ops .ops-radio-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.platform-ops .ops-radio-group-row .ops-radio-group-items {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+.platform-ops .ops-switch {
+  position: relative;
+  display: inline-flex;
+  width: 2rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  align-items: center;
+  border: 1px solid var(--ops-border);
+  border-radius: 999px;
+  background: var(--ops-surface);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.platform-ops .ops-switch[data-state="checked"] {
+  background: var(--ops-accent);
+  border-color: var(--ops-accent);
+}
+.platform-ops .ops-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.platform-ops .ops-switch-thumb {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-left: 0.125rem;
+  border-radius: 999px;
+  background: var(--ops-fg-muted);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.platform-ops .ops-switch[data-state="checked"] .ops-switch-thumb {
+  transform: translateX(0.8rem);
+  background: var(--ops-accent-fg);
+}
+
+/* F3 · vitrina — estados forzados (matriz Components; pointer-events none) */
+.platform-ops [data-ops-force] {
+  pointer-events: none;
+}
+.platform-ops .ops-btn[data-ops-force="hover"].ops-btn-solid,
+.platform-ops .ops-btn[data-ops-force="hover"].ops-btn-primary {
+  background: color-mix(in oklch, var(--ops-fg) 6%, var(--ops-accent));
+}
+.platform-ops .ops-btn[data-ops-force="hover"].ops-btn-outline {
+  background: var(--ops-btn-outline-bg);
+  border-color: color-mix(in oklch, var(--ops-fg) 22%, var(--ops-border));
+}
+.platform-ops .ops-btn[data-ops-force="hover"].ops-btn-ghost {
+  background: color-mix(in oklch, var(--ops-fg) 6%, transparent);
+}
+.platform-ops .ops-btn[data-ops-force="hover"].ops-btn-danger {
+  background: color-mix(in oklch, var(--ops-fg) 6%, var(--ops-danger));
+}
+.platform-ops .ops-btn[data-ops-force="focus"],
+.platform-ops .ops-input[data-ops-force="focus"],
+.platform-ops .ops-textarea[data-ops-force="focus"],
+.platform-ops .ops-select-trigger[data-ops-force="focus"],
+.platform-ops .ops-checkbox[data-ops-force="focus"],
+.platform-ops .ops-radio[data-ops-force="focus"],
+.platform-ops .ops-switch[data-ops-force="focus"] {
+  outline: var(--ops-focus-ring-w) solid var(--ops-accent);
+  outline-offset: 2px;
+}
+.platform-ops .ops-input[data-ops-force="focus"],
+.platform-ops .ops-textarea[data-ops-force="focus"],
+.platform-ops .ops-select-trigger[data-ops-force="focus"] {
+  border-color: color-mix(in oklch, var(--ops-accent) 55%, var(--ops-border));
 }

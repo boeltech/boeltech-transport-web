@@ -48,7 +48,8 @@ describe("Ops UI kit (Ola 0)", () => {
             <OpsPanelTitle>Demo panel</OpsPanelTitle>
           </OpsPanelHeader>
           <OpsPanelBody className="flex flex-wrap items-center gap-2">
-            <OpsButton variant="primary">Primary</OpsButton>
+            <OpsButton variant="solid">Primary</OpsButton>
+            <OpsButton variant="outline">Outline</OpsButton>
             <OpsButton variant="ghost">Ghost</OpsButton>
             <OpsButton variant="danger">Danger</OpsButton>
             <OpsBadge tone="ok">Al día</OpsBadge>
@@ -82,7 +83,11 @@ describe("Ops UI kit (Ola 0)", () => {
     expect(screen.getByTestId("ops-table")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Primary" })).toHaveAttribute(
       "data-ops-button",
-      "primary",
+      "solid",
+    );
+    expect(screen.getByRole("button", { name: "Outline" })).toHaveAttribute(
+      "data-ops-button",
+      "outline",
     );
     expect(screen.getByText("Al día")).toHaveAttribute("data-ops-badge", "ok");
     expect(screen.getByLabelText("Demo input")).toHaveAttribute(

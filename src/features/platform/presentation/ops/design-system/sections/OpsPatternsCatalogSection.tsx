@@ -28,6 +28,7 @@ import {
   OpsRiskSheetShell,
   OpsSecretList,
   OpsSectionRule,
+  OpsTableSkeleton,
   OpsTenantRow,
 } from "../../patterns";
 import { lifecycleStageSealTone } from "../../opsStatusTones";
@@ -98,12 +99,25 @@ export function OpsPatternsCatalogSection() {
 
   return (
     <div className="space-y-4" data-testid="ops-ds-patterns">
+      <OpsPanel data-testid="ops-ds-patterns-inventory">
+        <OpsPanelHeader>
+          <OpsPanelTitle>Inventario Patterns (craft A)</OpsPanelTitle>
+          <OpsPanelDescription>
+            Anatomía visual · hairline · status · densidad. Sin reabrir CMP de
+            negocio. Cubierto: KpiStrip · HoyQueues · HubHeader · MoneyTable ·
+            RiskSheetShell · SectionRule · TenantRow · CollectionsBand ·
+            AuditLine · EmptyState · HealthLedger · QuotaLine · OperatorMark ·
+            SecretList · TableSkeleton.
+          </OpsPanelDescription>
+        </OpsPanelHeader>
+      </OpsPanel>
+
       <OpsPanel>
         <OpsPanelHeader>
           <OpsPanelTitle>Hub / Hoy</OpsPanelTitle>
           <OpsPanelDescription>
-            Composiciones <code>ops/patterns</code> — estructura C: KPI → colas
-            → filas. No shells ERP.
+            HubHeader · SectionRule · KpiStrip · HoyQueues. Estructura KPI →
+            colas → filas. No shells ERP.
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-4">
@@ -270,8 +284,9 @@ export function OpsPatternsCatalogSection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Fila, cobranza, auditoría</OpsPanelTitle>
           <OpsPanelDescription>
-            Una fila, una banda, una línea. Danger solo en el atraso y en el
-            verbo destructivo.
+            Una fila, una banda, una línea. Risk-rail = tick ≤3px
+            (<code>--ops-tick-w</code>). Danger solo en el atraso y en el verbo
+            destructivo.
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-4">
@@ -393,9 +408,13 @@ export function OpsPatternsCatalogSection() {
         </OpsPanelBody>
       </OpsPanel>
 
-      <OpsPanel>
+      <OpsPanel data-testid="ops-ds-patterns-empty">
         <OpsPanelHeader>
-          <OpsPanelTitle>Risk sheet & empty</OpsPanelTitle>
+          <OpsPanelTitle>Empty · loading · skeleton · Risk</OpsPanelTitle>
+          <OpsPanelDescription>
+            OpsEmptyState empty/error/loading · OpsTableSkeleton ·
+            OpsRiskSheetShell (stub).
+          </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-3">
           <OpsButton
@@ -425,6 +444,14 @@ export function OpsPatternsCatalogSection() {
               </OpsButton>
             }
           />
+          <OpsEmptyState
+            variant="loading"
+            title="Cargando…"
+            description="Marca de carga sin shimmer."
+          />
+          <div data-testid="ops-ds-patterns-skeleton">
+            <OpsTableSkeleton rows={3} />
+          </div>
         </OpsPanelBody>
       </OpsPanel>
 
@@ -441,7 +468,7 @@ export function OpsPatternsCatalogSection() {
         }
       >
         <p className="ops-type-body ops-text-muted">
-          Stub de patrón Risk (FOUNDATIONS Patterns).
+          Stub de patrón Risk (craft A · F3).
         </p>
       </OpsRiskSheetShell>
     </div>

@@ -66,8 +66,8 @@ export function OpsBrandSection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Wordmark y monograma</OpsPanelTitle>
           <OpsPanelDescription>
-            LID-D8 — sin Shield ni badge «Ops». Acento = azul acero (≠ tinta,
-            ≠ Tlamx, ≠ lavanda).
+            LID-D8 — sin Shield ni badge «Ops». Acento = acero Mando (≠ #0969DA
+            GH, ≠ tinta, ≠ teal Patio, ≠ lavanda).
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="flex flex-wrap items-end gap-8">

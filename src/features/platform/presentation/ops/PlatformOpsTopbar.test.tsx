@@ -45,6 +45,20 @@ describe("PlatformOpsTopbar (L1 ThemeToggle)", () => {
     ).toBeInTheDocument();
   });
 
+  it("exposes hairline search trigger (F1 chrome)", () => {
+    renderWithTheme(
+      <div className="platform-ops" data-ops-theme="light">
+        <OpsThemeProvider>
+          <PlatformOpsTopbar onOpenCommand={vi.fn()} />
+        </OpsThemeProvider>
+      </div>,
+    );
+
+    const search = screen.getByTestId("ops-topbar-search");
+    expect(search).toHaveClass("ops-topbar-search");
+    expect(search).toHaveAttribute("aria-label", opsCopy.cmdk.trigger);
+  });
+
   it("shows platform_owner in mono and drops the Consola badge", () => {
     renderWithTheme(
       <div className="platform-ops" data-ops-theme="dark">

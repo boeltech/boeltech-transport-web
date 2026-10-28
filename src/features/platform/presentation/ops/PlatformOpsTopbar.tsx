@@ -40,8 +40,9 @@ export function PlatformOpsTopbar({
       <OpsButton
         variant="ghost"
         onClick={onOpenCommand}
-        className="ops-text-muted max-w-md flex-1 justify-start gap-2"
+        className="ops-topbar-search max-w-md flex-1 justify-start gap-2"
         aria-label={opsCopy.cmdk.trigger}
+        data-testid="ops-topbar-search"
       >
         <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span className="truncate text-left">{opsCopy.cmdk.placeholder}</span>

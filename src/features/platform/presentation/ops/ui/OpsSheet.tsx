@@ -159,15 +159,7 @@ export function OpsSheetFooter({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        "ops-sheet-footer flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <div className={cn("ops-sheet-footer", className)} {...props} />;
 }
 OpsSheetFooter.displayName = "OpsSheetFooter";
 

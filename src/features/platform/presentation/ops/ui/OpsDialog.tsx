@@ -69,13 +69,7 @@ export function OpsDialogFooter({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className,
-      )}
-      {...props}
-    />
+    <div className={cn("ops-dialog-footer", className)} {...props} />
   );
 }
 

@@ -1,8 +1,9 @@
 import * as React from "react";
+import { Check, MoreHorizontal, X } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 
 /**
- * Skeleton denso Ops (Ola 0). Consumir para listados/money tables en O1–O2;
+ * Skeleton denso Ops. Consumir para listados/money tables;
  * no reutilizar `@shared/ui/table` desde `ops/**` fuera de este kit.
  */
 export function OpsTable({
@@ -65,3 +66,91 @@ export const OpsTableCell = React.forwardRef<
   <td ref={ref} className={className} {...props} />
 ));
 OpsTableCell.displayName = "OpsTableCell";
+
+export type OpsTableStatusTone = "ok" | "warn" | "danger";
+
+const statusGlyph: Record<
+  OpsTableStatusTone,
+  React.ComponentType<{ className?: string; strokeWidth?: number }> | null
+> = {
+  ok: Check,
+  warn: null,
+  danger: X,
+};
+
+export interface OpsTableStatusProps
+  extends React.HTMLAttributes<HTMLSpanElement> {
+  tone: OpsTableStatusTone;
+  label: string;
+}
+
+/** Disco circular semántico a la izquierda de fila (oficio GH ✓/✗). */
+export function OpsTableStatus({
+  tone,
+  label,
+  className,
+  ...props
+}: OpsTableStatusProps) {
+  const Icon = statusGlyph[tone];
+  return (
+    <span
+      data-ops-table-status={tone}
+      className={cn("ops-table-status", className)}
+      title={label}
+      {...props}
+    >
+      {Icon ? (
+        <Icon className="ops-table-status-icon" strokeWidth={2.5} aria-hidden />
+      ) : (
+        <span className="ops-table-status-dot" aria-hidden />
+      )}
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
+export interface OpsTablePrimaryProps
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
+  title: React.ReactNode;
+  meta?: React.ReactNode;
+}
+
+/** Título + meta caption (fila densa Primer). */
+export function OpsTablePrimary({
+  title,
+  meta,
+  className,
+  ...props
+}: OpsTablePrimaryProps) {
+  return (
+    <div className={cn("ops-table-primary", className)} {...props}>
+      <span className="ops-table-primary-title">{title}</span>
+      {meta != null ? (
+        <span className="ops-table-primary-meta">{meta}</span>
+      ) : null}
+    </div>
+  );
+}
+
+export interface OpsTableEllipsisProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  label?: string;
+}
+
+/** Acción `…` de fila (demo / menú). */
+export const OpsTableEllipsis = React.forwardRef<
+  HTMLButtonElement,
+  OpsTableEllipsisProps
+>(({ className, label = "Más acciones", ...props }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    aria-label={label}
+    data-ops-table-ellipsis=""
+    className={cn("ops-table-ellipsis ops-ring-accent", className)}
+    {...props}
+  >
+    <MoreHorizontal className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+  </button>
+));
+OpsTableEllipsis.displayName = "OpsTableEllipsis";

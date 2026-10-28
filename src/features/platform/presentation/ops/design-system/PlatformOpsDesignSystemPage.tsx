@@ -59,7 +59,8 @@ const SECTIONS: readonly SectionConfig[] = [
     key: "color",
     label: opsCopy.designSystem.sections.color,
     icon: Palette,
-    description: "Roles --ops-* · acero A · neutros fríos · lima no-lifecycle",
+    description:
+      "Roles --ops-* · acero Mando · notice · neutros fríos · anti #0969DA",
     group: "Foundations",
   },
   {
@@ -73,7 +74,7 @@ const SECTIONS: readonly SectionConfig[] = [
     key: "density",
     label: opsCopy.designSystem.sections.density,
     icon: Ruler,
-    description: "Row 37 · radius 3 · hairline vs Panel vs elevated",
+    description: "Row 37 · radius 3 · hairline > sombra · ladder superficies",
     group: "Foundations",
   },
   {
@@ -87,14 +88,16 @@ const SECTIONS: readonly SectionConfig[] = [
     key: "components",
     label: opsCopy.designSystem.sections.components,
     icon: Layers,
-    description: "Catálogo OpsButton, Badge, Panel, Table, forms, overlays",
+    description:
+      "Matriz estados · outline/loading · checks · spinner · Command · overlays",
     group: "Components",
   },
   {
     key: "patterns",
     label: opsCopy.designSystem.sections.patterns,
     icon: LayoutTemplate,
-    description: "Hub · Hoy · fila · cobranza · auditoría · Money · Risk",
+    description:
+      "Inventario craft A · Hub/Hoy · Money · Empty/loading · Risk",
     group: "Patterns",
   },
 ] as const;
