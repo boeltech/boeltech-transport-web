@@ -1,6 +1,13 @@
 export { OpsHoyQueues } from "./OpsHoyQueues";
 export type { OpsHoyQueueChip, OpsHoyQueuesProps } from "./OpsHoyQueues";
 
+export { OpsKpiStrip } from "./OpsKpiStrip";
+export type {
+  OpsKpiCell,
+  OpsKpiStripProps,
+  OpsKpiTone,
+} from "./OpsKpiStrip";
+
 export { OpsHubHeader } from "./OpsHubHeader";
 export type { OpsHubHeaderProps } from "./OpsHubHeader";
 

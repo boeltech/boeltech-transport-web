@@ -107,6 +107,7 @@ describe("PlatformOpsDesignSystemPage", () => {
     );
     expect(screen.getByTestId("ops-ds-motif-m1")).toBeInTheDocument();
     expect(screen.getByTestId("ops-ds-motif-m5")).toBeInTheDocument();
+    expect(screen.getByTestId("ops-ds-motif-m6")).toBeInTheDocument();
   });
 
   it("contrast section shows dual themes with measured ratios (not Pass hardcoded)", async () => {

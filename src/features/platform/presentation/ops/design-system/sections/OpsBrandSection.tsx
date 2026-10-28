@@ -45,13 +45,19 @@ const MOTIFS: readonly MotifRow[] = [
   {
     id: "m5",
     name: "M5 · Contadores de cola",
-    yes: "Hoy — display mono en chips de cola",
-    no: "Sustituto de semáforos Hub / KPI cards",
+    yes: "Hoy — display mono en chips de cola (bajo el KPI strip)",
+    no: "Sustituto del KPI strip; semáforos Hub",
+  },
+  {
+    id: "m6",
+    name: "M6 · KPI strip",
+    yes: "Hoy — 4 celdas (mora $, suspendidos, activación, trial); número ≥28–32px",
+    no: "Cards con sombra; sparklines en ancla; radio ≠ 3 px; lavanda",
   },
 ] as const;
 
 /**
- * Marca Ops (LID-D8 / M4) + motivos M1–M5 con usos sí/no (PRD §B1 · L3).
+ * Marca Ops (LID-D8 / M4) + motivos M1–M6 con usos sí/no (Mando acero).
  */
 export function OpsBrandSection() {
   return (
@@ -60,7 +66,8 @@ export function OpsBrandSection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Wordmark y monograma</OpsPanelTitle>
           <OpsPanelDescription>
-            LID-D8 — sin Shield ni badge «Ops». Acento = tinta/papel (no ámbar).
+            LID-D8 — sin Shield ni badge «Ops». Acento = azul acero (≠ tinta,
+            ≠ Tlamx, ≠ lavanda).
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="flex flex-wrap items-end gap-8">
@@ -86,9 +93,9 @@ export function OpsBrandSection() {
 
       <OpsPanel>
         <OpsPanelHeader>
-          <OpsPanelTitle>Motivos M1–M5</OpsPanelTitle>
+          <OpsPanelTitle>Motivos M1–M6</OpsPanelTitle>
           <OpsPanelDescription>
-            Usos sí / no — dirección «Tinta y Señal» (LID-D9).
+            Usos sí / no — dirección «Mando acero» (M1–M6).
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-3">

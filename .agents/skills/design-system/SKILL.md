@@ -33,7 +33,11 @@ Para **cambiar el sistema** (tokens, shells, primitivos, empty/hub patterns):
 4. Pantallas vuelven a Conform con el DS ya actualizado.
 
 Sin `ds_evolution.approved` → no mutar tipografía/paleta/shells del sistema desde un pedido
-de feature. Cloud Agents solo ven este skill versionado; las skills taste/impeccable locales
+de feature.
+
+Superficie nueva, rediseño, Evolve o vitrina pasan además por el **carril de diseño (VIS)**:
+dirección elegida por el CEO sobre prototipos (`visual_direction.approved`), pantalla ancla
+primero y gate visual de `/director-visual` sobre capturas reales antes de propagar. Cloud Agents solo ven este skill versionado; las skills taste/impeccable locales
 no sustituyen este SoT.
 
 ---

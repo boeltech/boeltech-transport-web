@@ -6,6 +6,8 @@ import { mapBackendError } from "@shared/utils/errorMapper";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import {
   AdminActivationStatus,
+  PLATFORM_HEALTH_AT_RISK_THRESHOLD,
+  PLATFORM_TENANT_STATUS_LABELS,
   PlatformTenantStatus,
   isPlatformOwner,
   type PlatformTenantStatusType,
@@ -42,6 +44,7 @@ import {
 import { resolveHubPrimaryKind } from "./hubPrimaryCta";
 import { OpsEmptyState } from "./patterns/OpsEmptyState";
 import { OpsHubHeader } from "./patterns/OpsHubHeader";
+import { OpsKpiStrip, type OpsKpiCell } from "./patterns/OpsKpiStrip";
 import { OpsAlert } from "./ui/OpsAlert";
 import { OpsButton } from "./ui/OpsButton";
 
@@ -214,6 +217,7 @@ export function PlatformTenantHubPage() {
 
   const health = tenant.health ?? emptyPlatformTenantHealth();
   const tabs = opsCopy.hub.tabs;
+  const kpiCopy = opsCopy.hub.kpi;
   const isPastDue = subscriptionStatus === "past_due";
   const graceDeadline = isPastDue
     ? resolvePastDueGraceDeadline(subscription?.currentPeriodStart)
@@ -227,6 +231,56 @@ export function PlatformTenantHubPage() {
     subscriptionStatus === "trialing" && subscription?.trialEndsAt
       ? `Fin de prueba: ${formatDateTime(subscription.trialEndsAt)}`
       : null;
+
+  const openInvoiceCount = saasInvoices?.filter(
+    (invoice) => invoice.status === "open",
+  ).length ?? 0;
+  const activationPending =
+    activationStatus === AdminActivationStatus.PENDING ||
+    activationStatus === AdminActivationStatus.EMAIL_FAILED ||
+    activationStatus === AdminActivationStatus.EXPIRED;
+  const hubKpiCells: OpsKpiCell[] = [
+    {
+      id: "health",
+      label: kpiCopy.health.label,
+      value:
+        health.score == null ? kpiCopy.health.empty : Math.round(health.score),
+      caption: kpiCopy.health.caption,
+      tone:
+        health.score != null &&
+        health.score < PLATFORM_HEALTH_AT_RISK_THRESHOLD
+          ? "warn"
+          : undefined,
+    },
+    {
+      id: "open-ar",
+      label: kpiCopy.openAr.label,
+      value: openInvoiceCount,
+      caption: kpiCopy.openAr.caption(openInvoiceCount),
+      tone: openInvoiceCount > 0 || isPastDue ? "warn" : undefined,
+    },
+    {
+      id: "access",
+      label: kpiCopy.access.label,
+      value: PLATFORM_TENANT_STATUS_LABELS[tenant.status] ?? tenant.status,
+      caption: kpiCopy.access.caption,
+      tone:
+        tenant.status === PlatformTenantStatus.SUSPENDED
+          ? "danger"
+          : undefined,
+    },
+    {
+      id: "activation",
+      label: kpiCopy.activation.label,
+      value: activationPending
+        ? kpiCopy.activation.pending
+        : kpiCopy.activation.ready,
+      caption: activationPending
+        ? kpiCopy.activation.captionPending
+        : kpiCopy.activation.captionOk,
+      tone: activationPending ? "warn" : undefined,
+    },
+  ];
 
   return (
     <div data-testid="platform-tenant-hub" className="space-y-3">
@@ -369,6 +423,8 @@ export function PlatformTenantHubPage() {
       {!canMutate ? (
         <OpsAlert tone="notice">{opsCopy.tenants.readOnly}</OpsAlert>
       ) : null}
+
+      <OpsKpiStrip aria-label={opsCopy.hub.kpiAria} cells={hubKpiCells} />
 
       <div
         className="ops-border flex flex-wrap gap-0 border-b"

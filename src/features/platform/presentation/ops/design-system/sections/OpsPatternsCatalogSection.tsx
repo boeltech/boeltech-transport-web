@@ -15,6 +15,7 @@ import {
   OpsHealthLedger,
   OpsHoyQueues,
   OpsHubHeader,
+  OpsKpiStrip,
   OpsMoneyAmount,
   OpsMoneyTable,
   OpsMoneyTableBody,
@@ -101,7 +102,8 @@ export function OpsPatternsCatalogSection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Hub / Hoy</OpsPanelTitle>
           <OpsPanelDescription>
-            Composiciones <code>ops/patterns</code> — no shells ERP.
+            Composiciones <code>ops/patterns</code> — estructura C: KPI → colas
+            → filas. No shells ERP.
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-4">
@@ -129,7 +131,39 @@ export function OpsPatternsCatalogSection() {
               <OpsAlert tone="notice">{opsCopy.tenants.readOnly}</OpsAlert>
             </div>
           </div>
-          <OpsSectionRule label="Colas" meta="stub" />
+          <OpsSectionRule label="KPI strip" meta="M6" />
+          <OpsKpiStrip
+            aria-label="Indicadores de Hoy"
+            cells={[
+              {
+                id: "mora",
+                label: "Mora abierta",
+                value: "$36.6k",
+                caption: "4 empresas · cobro pendiente",
+                tone: "warn",
+              },
+              {
+                id: "suspended",
+                label: "Suspendidos",
+                value: 2,
+                caption: "Acceso cortado",
+                tone: "danger",
+              },
+              {
+                id: "activation",
+                label: "Activación",
+                value: 3,
+                caption: "Admin pendiente",
+              },
+              {
+                id: "trial",
+                label: "Trial",
+                value: 5,
+                caption: "≤ 7 días restantes",
+              },
+            ]}
+          />
+          <OpsSectionRule label="Colas" meta="M5" />
           <OpsHoyQueues
             chips={HOY_CHIPS}
             activeQueue={queue}

@@ -44,7 +44,8 @@ export function OpsComponentsCatalogSection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Botones & badges</OpsPanelTitle>
           <OpsPanelDescription>
-            Solo primitivos <code>ops/ui</code>. Cero Card/Badge/Button ERP.
+            Primary = azul acero (<code>--ops-accent</code>), no tinta. Solo
+            primitivos <code>ops/ui</code>. Cero Card/Badge/Button ERP.
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="flex flex-wrap items-center gap-2">

@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithTheme } from "@/test/renderWithTheme";
+import { platformCopy } from "../copy/platformCopy";
 import { PlatformHoyPage } from "./PlatformHoyPage";
 import { opsCopy } from "./opsCopy";
+
+function hoyDesktop() {
+  return screen.getByTestId("ops-hoy-desktop-table");
+}
 
 const mockUsePlatformPulse = vi.fn();
 
@@ -53,7 +58,7 @@ describe("PlatformHoyPage", () => {
     authState.platformRole = "platform_owner";
   });
 
-  it("shows queue chips and empty state from pulse", () => {
+  it("shows KPI strip, queue chips and empty state from pulse", () => {
     mockUsePlatformPulse.mockReturnValue({
       data: {
         generatedAt: "2026-10-27T12:00:00.000Z",
@@ -69,6 +74,19 @@ describe("PlatformHoyPage", () => {
     renderWithTheme(<PlatformHoyPage />, { route: ["/platform"] });
 
     expect(screen.getByTestId("platform-hoy-page")).toBeInTheDocument();
+    expect(screen.getByTestId("ops-kpi-strip")).toBeInTheDocument();
+    expect(document.querySelector('[data-ops-kpi-cell="mora"]')).toHaveTextContent(
+      opsCopy.hoy.kpi.mora.label,
+    );
+    expect(
+      document.querySelector('[data-ops-kpi-cell="suspended"]'),
+    ).toHaveTextContent(opsCopy.hoy.kpi.suspended.label);
+    expect(
+      document.querySelector('[data-ops-kpi-cell="activation"]'),
+    ).toHaveTextContent(opsCopy.hoy.kpi.activation.label);
+    expect(document.querySelector('[data-ops-kpi-cell="trial"]')).toHaveTextContent(
+      opsCopy.hoy.kpi.trial.label,
+    );
     expect(
       screen.getByRole("tab", {
         name: new RegExp(opsCopy.hoy.chips.activation),
@@ -130,12 +148,32 @@ describe("PlatformHoyPage", () => {
         name: new RegExp(opsCopy.hoy.chips.pastDue),
       }),
     ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("ops-kpi-value-mora")).toHaveTextContent("$1.2k");
+    expect(screen.getByTestId("ops-kpi-value-mora")).toHaveAttribute(
+      "data-tone",
+      "warn",
+    );
+    const desktop = hoyDesktop();
+    const acmeRow = within(desktop).getByText("Acme").closest("tr");
+    const nameLink = within(desktop).getByRole("link", { name: "Acme" });
+    expect(nameLink).toHaveClass("ops-text");
+    expect(nameLink).not.toHaveClass("ops-text-accent");
+    const planCell = acmeRow?.querySelectorAll("td")[1];
+    // Plan ≠ Señal: past_due → «Cobro pendiente» es eco de reason; em dash.
+    expect(planCell).toHaveTextContent("—");
+    expect(planCell?.textContent).not.toMatch(/Cobro pendiente|past_due/);
+    expect(acmeRow).toHaveTextContent(
+      platformCopy.pulse.reasonCodes.past_due,
+    );
     expect(
-      screen.getByRole("button", { name: opsCopy.hoy.cta.registerPayment }),
+      within(desktop).getByRole("button", {
+        name: opsCopy.hoy.cta.registerPayment,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: opsCopy.hoy.cta.resend }),
+      within(desktop).queryByRole("button", { name: opsCopy.hoy.cta.resend }),
     ).not.toBeInTheDocument();
+    expect(screen.getByTestId("ops-hoy-mobile-list")).toBeInTheDocument();
   });
 
   it("opens on activar admin when earlier queues are empty", () => {
@@ -171,7 +209,9 @@ describe("PlatformHoyPage", () => {
       }),
     ).toHaveAttribute("aria-selected", "true");
     expect(
-      screen.getByRole("button", { name: opsCopy.hoy.cta.resend }),
+      within(hoyDesktop()).getByRole("button", {
+        name: opsCopy.hoy.cta.resend,
+      }),
     ).toBeInTheDocument();
   });
 
@@ -209,12 +249,56 @@ describe("PlatformHoyPage", () => {
       }),
     );
 
+    const desktop = hoyDesktop();
     expect(
-      screen.getByRole("button", { name: opsCopy.hoy.cta.registerPayment }),
+      within(desktop).getByRole("button", {
+        name: opsCopy.hoy.cta.registerPayment,
+      }),
     ).toBeEnabled();
     expect(
-      screen.getByRole("button", { name: opsCopy.hoy.cta.suspend }),
+      within(desktop).getByRole("button", { name: opsCopy.hoy.cta.suspend }),
     ).toBeEnabled();
+  });
+
+  it("shows humanized subscription status in Plan when it is not a Señal echo", async () => {
+    const user = userEvent.setup();
+    mockUsePlatformPulse.mockReturnValue({
+      data: {
+        generatedAt: "2026-10-27T12:00:00.000Z",
+        healthAsOf: null,
+        kpis: {},
+        attentionQueue: [
+          {
+            tenantId: "trial",
+            name: "Prueba",
+            subdomain: "prueba",
+            lifecycleStage: "trialing",
+            healthScore: 80,
+            reasonCodes: ["trial_ending"],
+            cxcOverdueCents: 0,
+            subscriptionStatus: "trialing",
+            accessStatus: "active",
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderWithTheme(<PlatformHoyPage />, { route: ["/platform"] });
+    await user.click(
+      screen.getByRole("tab", { name: new RegExp(opsCopy.hoy.chips.trial) }),
+    );
+
+    const planCell = within(hoyDesktop())
+      .getByText("Prueba")
+      .closest("tr")
+      ?.querySelectorAll("td")[1];
+    expect(planCell).toHaveTextContent(
+      platformCopy.tenants.detail.subscription.statusLabels.trialing,
+    );
+    expect(planCell?.textContent).not.toMatch(/Trial por vencer/);
   });
 
   it("hides mutation buttons for platform_support and keeps view links", async () => {
@@ -257,20 +341,27 @@ describe("PlatformHoyPage", () => {
 
     renderWithTheme(<PlatformHoyPage />, { route: ["/platform"] });
 
+    const desktop = hoyDesktop();
     expect(
-      screen.queryByRole("button", { name: opsCopy.hoy.cta.registerPayment }),
+      within(desktop).queryByRole("button", {
+        name: opsCopy.hoy.cta.registerPayment,
+      }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: opsCopy.hoy.cta.suspend }),
+      within(desktop).queryByRole("button", {
+        name: opsCopy.hoy.cta.suspend,
+      }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: opsCopy.hoy.cta.resend }),
+      within(desktop).queryByRole("button", { name: opsCopy.hoy.cta.resend }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: opsCopy.hoy.cta.reactivate }),
+      within(desktop).queryByRole("button", {
+        name: opsCopy.hoy.cta.reactivate,
+      }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: opsCopy.hoy.view }),
+      within(desktop).getByRole("link", { name: opsCopy.hoy.view }),
     ).toBeInTheDocument();
 
     await user.click(
@@ -278,10 +369,14 @@ describe("PlatformHoyPage", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: opsCopy.hoy.cta.viewHub }),
+      within(hoyDesktop()).getByRole("link", {
+        name: opsCopy.hoy.cta.viewHub,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: opsCopy.hoy.cta.viewHub }),
+      within(hoyDesktop()).queryByRole("button", {
+        name: opsCopy.hoy.cta.viewHub,
+      }),
     ).not.toBeInTheDocument();
   });
 });

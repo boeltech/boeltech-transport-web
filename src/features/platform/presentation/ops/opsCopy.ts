@@ -42,7 +42,7 @@ export const opsCopy = {
     brand: "Boeltech Ops",
     badge: "Design System",
     subtitle:
-      "Referencia viva «Tinta y Señal» (`--ops-*`). Light + dark · tema Ops aislado del ERP.",
+      "Referencia viva «Mando acero» (`--ops-*`). Accent acero · neutros fríos · light + dark aislado del ERP.",
     preview: {
       label: "Vista previa",
       light: "Claro",
@@ -69,9 +69,32 @@ export const opsCopy = {
   },
   hoy: {
     title: "Hoy",
-    description: "Colas de activación, trial, cobro pendiente y suspendidos.",
+    description:
+      "Mando operativo · métricas primero, luego la cola de atención.",
     queuesRule: "Colas",
+    kpiAria: "Indicadores de Hoy",
     generatedAt: (iso: string) => `Actualizado ${iso}`,
+    kpi: {
+      mora: {
+        label: "Mora abierta",
+        caption: (n: number) =>
+          n === 1
+            ? "1 empresa · cobro pendiente"
+            : `${n} empresas · cobro pendiente`,
+      },
+      suspended: {
+        label: "Suspendidos",
+        caption: "Acceso cortado",
+      },
+      activation: {
+        label: "Activación",
+        caption: "Admin pendiente",
+      },
+      trial: {
+        label: "Trial",
+        caption: "≤ 7 días restantes",
+      },
+    },
     chips: {
       activation: "Activar admin",
       trial: "Trial ≤7d",
@@ -124,6 +147,30 @@ export const opsCopy = {
     back: "Empresas",
     saasBanner: "Factura SaaS · no es CFDI de transporte",
     statusRule: "Estado",
+    kpiAria: "Indicadores de la empresa",
+    kpi: {
+      health: {
+        label: "Salud",
+        caption: "Score operativo",
+        empty: "—",
+      },
+      openAr: {
+        label: "CxC abierta",
+        caption: (n: number) =>
+          n === 1 ? "1 factura abierta" : `${n} facturas abiertas`,
+      },
+      access: {
+        label: "Acceso",
+        caption: "Estado de plataforma",
+      },
+      activation: {
+        label: "Activación",
+        captionPending: "Admin pendiente",
+        captionOk: "Admin listo",
+        pending: "Pendiente",
+        ready: "Listo",
+      },
+    },
     strip: {
       accessLabel: "Acceso",
       subscriptionLabel: "Suscripción",

@@ -68,8 +68,8 @@ const ROLES: readonly ColorRole[] = [
     role: "accent",
     token: "--ops-accent",
     swatch: "var(--ops-accent)",
-    use: "CTA primary, focus ring, nav current, chip active",
-    avoid: "Decoración masiva; sustituir danger",
+    use: "Azul acero · CTA primary, focus ring, nav/cola activa, chip active",
+    avoid: "Igualar a --ops-fg (tinta≠acción); teal Patio; lavanda; sustituir danger",
   },
   {
     role: "ok",
@@ -129,9 +129,9 @@ export function OpsColorSection() {
         <OpsPanelHeader>
           <OpsPanelTitle>Roles de color</OpsPanelTitle>
           <OpsPanelDescription>
-            Pares light/dark «Tinta y Señal» (hue ~80 · LID-D7). Riesgo
-            semántico &gt; branding. Dinero SaaS ≠ CFDI de patio. Sin Conform
-            tlamx.
+            Pares light/dark «Mando acero» (neutros fríos hue ~250 · accent
+            acero A). Semánticos solo estado. Dinero SaaS ≠ CFDI de patio. Sin
+            Conform tlamx.
           </OpsPanelDescription>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-2">

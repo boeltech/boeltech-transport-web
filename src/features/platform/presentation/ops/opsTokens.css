@@ -1,7 +1,8 @@
 /**
- * Kit Ops «Tinta y Señal» (LID-D1 · PRD §B1/§C · TEC §D).
+ * Kit Ops «Mando acero» (evolve-ds · V3 C-estructura + A-acento).
  * Scope: .platform-ops — no muta tokens ERP-T globales.
  * Colores solo bajo [data-ops-theme="light"|"dark"].
+ * Accent = azul acero (≠ tinta, ≠ Tlamx, ≠ lavanda). Semánticos solo estado.
  */
 @import "@fontsource/ibm-plex-sans/400.css";
 @import "@fontsource/ibm-plex-sans/500.css";
@@ -72,45 +73,46 @@
   line-height: var(--ops-type-body-lh);
 }
 
-/* Light — papel cálido hue ~80. Canvas más bajo que el panel; rail más bajo que el canvas. */
+/* Light — neutros fríos GH-like hue ~250. rail < canvas < surface < elevated. */
 .platform-ops[data-ops-theme="light"] {
   color-scheme: light;
-  --ops-bg: oklch(0.948 0.008 80);
-  --ops-rail: oklch(0.918 0.01 80);
-  --ops-surface: oklch(0.978 0.004 80);
-  --ops-bg-elevated: oklch(0.995 0.002 80);
-  --ops-border: oklch(0.78 0.012 80);
-  --ops-fg: oklch(0.2 0.01 80);
-  --ops-fg-muted: oklch(0.46 0.012 80);
-  --ops-accent: var(--ops-fg); /* tinta = acción */
+  --ops-bg: oklch(0.972 0.003 250); /* ~#F6F8FA */
+  --ops-rail: oklch(0.94 0.008 250);
+  --ops-surface: oklch(0.985 0.002 250);
+  --ops-bg-elevated: oklch(0.995 0.001 250);
+  --ops-border: oklch(0.88 0.01 250);
+  --ops-fg: oklch(0.28 0.02 250);
+  --ops-fg-muted: oklch(0.46 0.015 250);
+  --ops-accent: oklch(0.45 0.07 250); /* acero A · CTA / focus / tick */
   --ops-accent-fg: var(--ops-bg-elevated);
   --ops-ok: oklch(0.42 0.11 158);
   --ops-warn: oklch(0.44 0.11 58);
   --ops-danger: oklch(0.44 0.16 27);
   --ops-lime: oklch(0.44 0.13 118); /* instrumento, no lifecycle */
-  --ops-skeleton: oklch(0.62 0.014 80);
-  --ops-scrim: oklch(0.2 0.01 80 / 0.4);
-  --ops-shadow-overlay: 0 16px 48px oklch(0.2 0.01 80 / 0.16);
+  --ops-skeleton: oklch(0.72 0.01 250);
+  --ops-scrim: oklch(0.28 0.02 250 / 0.4);
+  --ops-shadow-overlay: 0 16px 48px oklch(0.28 0.02 250 / 0.16);
 }
 
-/* Dark — carbón cálido hue ~80. */
+/* Dark — carbón frío hue ~250, coherente con acero. */
 .platform-ops[data-ops-theme="dark"] {
   color-scheme: dark;
-  --ops-bg: oklch(0.185 0.008 80);
-  --ops-rail: oklch(0.155 0.008 80);
-  --ops-surface: oklch(0.248 0.009 80);
-  --ops-bg-elevated: oklch(0.215 0.008 80);
-  --ops-border: oklch(0.42 0.012 80);
-  --ops-fg: oklch(0.925 0.006 85);
-  --ops-fg-muted: oklch(0.76 0.01 85);
-  --ops-accent: var(--ops-fg); /* papel = acción */
+  --ops-bg: oklch(0.185 0.01 255);
+  --ops-rail: oklch(0.155 0.01 255);
+  --ops-surface: oklch(0.248 0.012 255);
+  --ops-bg-elevated: oklch(0.215 0.01 255);
+  --ops-border: oklch(0.42 0.015 255);
+  --ops-fg: oklch(0.925 0.008 255);
+  --ops-fg-muted: oklch(0.76 0.012 255);
+  --ops-accent: oklch(0.78 0.08 250); /* acero A · CTA / focus / tick */
   --ops-accent-fg: var(--ops-bg);
   --ops-ok: oklch(0.78 0.13 158);
-  --ops-warn: oklch(0.82 0.12 62);
-  --ops-danger: oklch(0.74 0.15 27);
+  /* P1 ancla: warn ámbar vs danger rojo — más hue separation; L en danger para AA soft badge */
+  --ops-warn: oklch(0.85 0.14 78);
+  --ops-danger: oklch(0.76 0.17 22);
   --ops-lime: oklch(0.84 0.14 118); /* instrumento, no lifecycle */
-  --ops-skeleton: oklch(0.55 0.01 80);
-  --ops-scrim: oklch(0.12 0.008 80 / 0.72);
+  --ops-skeleton: oklch(0.55 0.012 255);
+  --ops-scrim: oklch(0.12 0.01 255 / 0.72);
   --ops-shadow-overlay: 0 16px 48px oklch(0 0 0 / 0.45);
 }
 
@@ -151,7 +153,7 @@
   color: var(--ops-fg-muted);
 }
 .platform-ops .ops-text-accent {
-  color: var(--ops-fg);
+  color: var(--ops-accent);
 }
 .platform-ops a.ops-text-accent:hover {
   text-decoration: underline;
@@ -756,7 +758,7 @@
 .platform-ops .ops-chip[data-active="true"] {
   border-color: transparent;
   color: var(--ops-accent-fg);
-  background: var(--ops-fg);
+  background: var(--ops-accent);
 }
 .platform-ops .ops-cmdk-dialog {
   position: fixed;
@@ -915,7 +917,7 @@
 .platform-ops .ops-nav-link[aria-current="page"] {
   background: var(--ops-surface);
   color: var(--ops-fg);
-  /* Acento acromático (tinta/papel) — LID-D6 · tick token */
+  /* Tick acero — selección / nav activa */
   box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-accent);
 }
 .platform-ops .ops-menu-item {
@@ -1036,7 +1038,7 @@
   color: var(--ops-lime);
 }
 
-/* ——— L2 «Tinta y Señal» motifs (M1–M5 · LID-D10) ——— */
+/* ——— L2 motifs (M1–M6 · Mando acero) ——— */
 
 /* M2 — tick 3px warn/danger (token --ops-tick-w) */
 .platform-ops [data-ops-tick="warn"] {
@@ -1111,6 +1113,13 @@
   background: transparent;
   box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-accent);
 }
+/* P7 — tick semántico si la cola activa es warn/danger (mora / suspendidos). */
+.platform-ops .ops-hoy-queue-chip[data-active="true"][data-tick-tone="warn"] {
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-warn);
+}
+.platform-ops .ops-hoy-queue-chip[data-active="true"][data-tick-tone="danger"] {
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-danger);
+}
 .platform-ops .ops-hoy-queue-count {
   font-family: var(--ops-font-mono);
   font-size: var(--ops-type-title-size);
@@ -1133,6 +1142,165 @@
   font-size: var(--ops-type-caption-size);
   font-weight: 500;
   line-height: var(--ops-type-caption-lh);
+}
+
+/* M6 — KPI strip Hoy (estructura C · radio 3px · números ≥28–32px) */
+.platform-ops .ops-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+@media (max-width: 47.99rem) {
+  .platform-ops .ops-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.platform-ops .ops-kpi-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-bg-elevated);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-kpi-label {
+  margin: 0;
+  font-size: var(--ops-type-caption-size);
+  font-weight: var(--ops-type-caption-weight);
+  line-height: var(--ops-type-caption-lh);
+  letter-spacing: var(--ops-type-caption-tracking);
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-kpi-value {
+  margin: 0;
+  font-family: var(--ops-font-mono);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ops-fg);
+  /* V5: no recortar sufijo k ($36.6k) */
+  overflow: visible;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.platform-ops .ops-kpi-value[data-tone="warn"] {
+  color: var(--ops-warn);
+}
+.platform-ops .ops-kpi-value[data-tone="danger"] {
+  color: var(--ops-danger);
+}
+.platform-ops .ops-kpi-caption {
+  margin: 0;
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+  color: var(--ops-fg-muted);
+}
+@media (max-width: 47.99rem) {
+  .platform-ops .ops-kpi-cell {
+    padding: 0.65rem 0.7rem;
+  }
+  .platform-ops .ops-kpi-value {
+    font-size: clamp(1.25rem, 6.2vw, 1.875rem);
+  }
+}
+
+/* V5 — Hoy: tabla desktop · cards hairline < md */
+.platform-ops .ops-hoy-desktop-table {
+  display: block;
+}
+.platform-ops .ops-hoy-mobile-list {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.platform-ops .ops-hoy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-bg-elevated);
+}
+.platform-ops .ops-hoy-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+}
+.platform-ops .ops-hoy-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+}
+.platform-ops .ops-hoy-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.15rem;
+}
+@media (max-width: 47.99rem) {
+  .platform-ops .ops-hoy-desktop-table {
+    display: none;
+  }
+  .platform-ops .ops-hoy-mobile-list {
+    display: flex;
+  }
+}
+
+/* V5 — AR: sticky empresa en scroll horizontal < md */
+@media (max-width: 47.99rem) {
+  .platform-ops .ops-money-table thead th:first-child,
+  .platform-ops .ops-money-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--ops-bg-elevated);
+    box-shadow: 1px 0 0 0 var(--ops-border);
+  }
+  .platform-ops .ops-money-table thead th:first-child {
+    background: var(--ops-surface);
+  }
+}
+
+/* V5 — targets táctiles ≥44px bajo lg (chrome + CTAs) */
+@media (max-width: 63.99rem) {
+  .platform-ops {
+    --ops-topbar-h: 48px;
+  }
+  .platform-ops .ops-btn,
+  .platform-ops .ops-btn-sm {
+    min-height: 44px;
+    height: auto;
+  }
+  .platform-ops .ops-nav-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 0.65rem;
+  }
+  .platform-ops .ops-hoy-queue-chip {
+    min-height: 44px;
+    height: auto;
+    align-items: center;
+    padding-block: 0.35rem;
+  }
+  .platform-ops .ops-chip {
+    min-height: 44px;
+  }
+  .platform-ops .ops-tab {
+    min-height: 44px;
+  }
+  .platform-ops .ops-tenant-row {
+    min-height: 44px;
+  }
 }
 
 /* M3 — folio money */

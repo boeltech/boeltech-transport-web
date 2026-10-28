@@ -52,14 +52,14 @@ const SECTIONS: readonly SectionConfig[] = [
     key: "brand",
     label: opsCopy.designSystem.sections.brand,
     icon: Sparkles,
-    description: "Wordmark · monograma · motivos M1–M5 sí/no",
+    description: "Wordmark · monograma · motivos M1–M6 sí/no",
     group: "Foundations",
   },
   {
     key: "color",
     label: opsCopy.designSystem.sections.color,
     icon: Palette,
-    description: "Roles --ops-* · light/dark · lima no-lifecycle",
+    description: "Roles --ops-* · acero A · neutros fríos · lima no-lifecycle",
     group: "Foundations",
   },
   {

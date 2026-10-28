@@ -125,7 +125,7 @@ function ExceptionsMoneyTable({
           <OpsMoneyTableRow key={item.tenantId}>
             <OpsMoneyTableCell>
               <Link
-                className="font-medium underline-offset-2 hover:underline ops-text-accent"
+                className="font-medium underline-offset-2 hover:underline ops-text"
                 to={tenantHubHref(item.tenantId)}
               >
                 {item.tenantName}
@@ -730,7 +730,7 @@ export function PlatformArWorkbenchPage() {
                 >
                   <OpsMoneyTableCell>
                     <Link
-                      className="font-medium underline-offset-2 hover:underline ops-text-accent"
+                      className="font-medium underline-offset-2 hover:underline ops-text"
                       to={tenantHubHref(row.tenantId)}
                     >
                       {row.tenantName}

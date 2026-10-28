@@ -89,6 +89,7 @@ export function OpsHoyQueues({
               aria-controls={HOY_PANEL_ID}
               data-active={activeQueue === chip.id}
               data-ops-hoy-chip={chip.id}
+              data-tick-tone={tone}
               className="ops-hoy-queue-chip"
               onClick={() => onQueueChange(chip.id)}
             >
@@ -115,7 +116,7 @@ export function OpsHoyQueues({
       >
         {isLoading ? (
           <OpsTableSkeleton />
-        ) : isEmpty ? (
+        ) : error ? null : isEmpty ? (
           <div data-testid="ops-hoy-empty">
             <OpsEmptyState title={emptyTitle} description={emptyDescription} />
           </div>
