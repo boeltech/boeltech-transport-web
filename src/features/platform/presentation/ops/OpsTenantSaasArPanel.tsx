@@ -271,12 +271,12 @@ export function OpsTenantSaasArPanel({
             data-testid="ops-ar-skip-banner"
           >
             <OpsPanelBody>
-              <p className="text-sm font-medium ops-text">
+              <p className="ops-type-body font-medium ops-text">
                 {isPolicySkip
                   ? copy.card.skipBannerPolicy
                   : copy.card.skipBannerTitle}
               </p>
-              <p className="mt-1 text-xs ops-text-muted">
+              <p className="mt-1 ops-type-caption ops-text-muted">
                 {copy.skipReasons[closeRunItem.skipReason]}
               </p>
             </OpsPanelBody>
@@ -286,10 +286,10 @@ export function OpsTenantSaasArPanel({
         {canExport ? (
           <div className="ops-hairline ops-rounded px-3 py-3 space-y-2">
             <div>
-              <p className="text-xs font-medium ops-text">
+              <p className="ops-type-caption font-medium ops-text">
                 {copy.card.closeExportTitle}
               </p>
-              <p className="mt-0.5 text-[11px] ops-text-muted">
+              <p className="mt-0.5 ops-type-caption ops-text-muted">
                 {copy.card.closeExportDescription}
               </p>
             </div>
@@ -327,7 +327,9 @@ export function OpsTenantSaasArPanel({
         !paymentMethods.isLoading &&
         !hasDefaultPaymentMethod &&
         openCount > 0 ? (
-          <p className="text-xs ops-text-muted">{copy.card.chargeNeedsCard}</p>
+          <p className="ops-type-caption ops-text-muted">
+            {copy.card.chargeNeedsCard}
+          </p>
         ) : null}
 
         {isLoading ? (

@@ -27,7 +27,7 @@ import { OpsTenantActivationPanel } from "./OpsTenantActivationPanel";
 import { OpsTenantActivityPanel } from "./OpsTenantActivityPanel";
 import { OpsManageSubscriptionSheet } from "./OpsManageSubscriptionSheet";
 import { OpsSuspendTenantDialog } from "./OpsSuspendTenantDialog";
-import { RotateAdminCredentialsDialog } from "../components/RotateAdminCredentialsDialog";
+import { OpsRotateAdminCredentialsDialog } from "./OpsRotateAdminCredentialsDialog";
 import { emptyPlatformTenantHealth } from "../../infrastructure/mappers";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
 import { resolvePastDueGraceDeadline } from "@features/billing/presentation/utils/billingGrace";
@@ -180,7 +180,10 @@ export function PlatformTenantHubPage() {
   if (isLoadError || isNotFound) {
     return (
       <div className="space-y-3" data-testid="platform-tenant-hub">
-        <Link to="/platform/tenants" className="text-xs ops-text-accent">
+        <Link
+          to="/platform/tenants"
+          className="ops-type-caption ops-text-accent"
+        >
           ← {opsCopy.hub.back}
         </Link>
         <OpsEmptyState
@@ -495,7 +498,7 @@ export function PlatformTenantHubPage() {
         onOpenChange={setManageOpen}
         tenant={tenant}
       />
-      <RotateAdminCredentialsDialog
+      <OpsRotateAdminCredentialsDialog
         open={rotateOpen}
         onOpenChange={setRotateOpen}
         tenantId={tenant.id}

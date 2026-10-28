@@ -10,6 +10,7 @@ import { getLifecycleStageLabel } from "../../config/platformLifecycleConfig";
 import { opsCopy } from "../opsCopy";
 import { lifecycleStageSealTone } from "../opsStatusTones";
 import { OpsBadge, type OpsBadgeTone } from "../ui/OpsBadge";
+import { OpsButton } from "../ui/OpsButton";
 import { OpsLifecycleSeal } from "../ui/OpsLifecycleSeal";
 import { OpsPanel, OpsPanelBody } from "../ui/OpsPanel";
 import { OpsPlanSeal } from "../ui/OpsPlanSeal";
@@ -102,13 +103,14 @@ export function OpsHubHeader({
                 >
                   <span>{pastDueLabel}</span>
                   {onViewCollections ? (
-                    <button
+                    <OpsButton
                       type="button"
-                      className="ops-btn ops-btn-ghost ops-btn-sm"
+                      variant="ghost"
+                      size="sm"
                       onClick={onViewCollections}
                     >
                       {opsCopy.hub.strip.viewAr}
-                    </button>
+                    </OpsButton>
                   ) : null}
                 </div>
               ) : null}

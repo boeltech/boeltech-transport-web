@@ -10,7 +10,7 @@ import {
 } from "../../domain/entities";
 import { useResendPlatformTenantActivation } from "../../application/hooks/usePlatformTenants";
 import { platformCopy } from "../copy/platformCopy";
-import { RotateAdminCredentialsDialog } from "../components/RotateAdminCredentialsDialog";
+import { OpsRotateAdminCredentialsDialog } from "./OpsRotateAdminCredentialsDialog";
 import { activationStatusTone } from "./opsStatusTones";
 import { OpsAlert } from "./ui/OpsAlert";
 import { OpsBadge } from "./ui/OpsBadge";
@@ -42,7 +42,7 @@ const COMPACT_STATUSES: ReadonlySet<AdminActivationStatusType> = new Set([
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-wrap justify-between gap-2 text-xs">
+    <div className="flex flex-wrap justify-between gap-2 ops-type-caption">
       <span className="ops-text-muted">{label}</span>
       <span className="ops-text">{value}</span>
     </div>
@@ -82,13 +82,15 @@ export function OpsTenantActivationPanel({
         data-testid="ops-tenant-activation"
         className="ops-rounded ops-hairline ops-bg-surface flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2"
       >
-        <span className="text-xs font-medium ops-text">{copy.title}</span>
+        <span className="ops-type-caption font-medium ops-text">
+          {copy.title}
+        </span>
         <OpsBadge tone={activationStatusTone(status)}>
           {copy.statusLabels[status] ??
             ADMIN_ACTIVATION_STATUS_LABELS[status] ??
             status}
         </OpsBadge>
-        <span className="text-[11px] ops-text-muted">
+        <span className="ops-type-caption ops-text-muted">
           {copy.statusHints[status] ?? copy.statusHints.none}
         </span>
       </div>
@@ -110,7 +112,7 @@ export function OpsTenantActivationPanel({
           </OpsBadge>
         </OpsPanelHeader>
         <OpsPanelBody className="space-y-3">
-          <p className="text-xs ops-text-muted">
+          <p className="ops-type-caption ops-text-muted">
             {copy.statusHints[status] ?? copy.statusHints.none}
           </p>
           {activation ? (
@@ -166,12 +168,12 @@ export function OpsTenantActivationPanel({
           ) : null}
 
           {!canMutate && MUTABLE_STATUSES.has(status) ? (
-            <p className="text-[11px] ops-text-muted">{copy.readOnlyHint}</p>
+            <p className="ops-type-caption ops-text-muted">{copy.readOnlyHint}</p>
           ) : null}
         </OpsPanelBody>
       </OpsPanel>
 
-      <RotateAdminCredentialsDialog
+      <OpsRotateAdminCredentialsDialog
         tenantId={tenantId}
         open={rotateOpen}
         onOpenChange={setRotateOpen}

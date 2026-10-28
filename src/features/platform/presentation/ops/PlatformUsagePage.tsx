@@ -7,6 +7,7 @@ import {
 import { getMexicoCityPeriodKey } from "../utils/billingPeriod";
 import { opsCopy } from "./opsCopy";
 import { OpsEmptyState } from "./patterns/OpsEmptyState";
+import { OpsTableSkeleton } from "./patterns/OpsTableSkeleton";
 import { OpsButton } from "./ui/OpsButton";
 import { OpsPanel, OpsPanelBody } from "./ui/OpsPanel";
 import {
@@ -63,9 +64,7 @@ export function PlatformUsagePage() {
         />
       ) : null}
 
-      {isLoading ? (
-        <OpsEmptyState variant="loading" title={copy.loading} panel />
-      ) : null}
+      {isLoading ? <OpsTableSkeleton /> : null}
 
       {!isLoading && !isError && rows.length === 0 ? (
         <OpsEmptyState

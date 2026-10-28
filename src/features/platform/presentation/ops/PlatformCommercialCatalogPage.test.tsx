@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { PlatformCommercialCatalogPage } from "./PlatformCommercialCatalogPage";
 import { opsCopy } from "./opsCopy";
@@ -34,7 +35,14 @@ vi.mock("../../application/hooks/usePlatformBilling", () => ({
     refetch: vi.fn(),
   }),
   usePlatformStampPackCatalog: () => ({
-    data: [],
+    data: [
+      {
+        code: "pack_500",
+        name: "Pack 500",
+        stamps: 500,
+        isActive: true,
+      },
+    ],
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -42,7 +50,7 @@ vi.mock("../../application/hooks/usePlatformBilling", () => ({
 }));
 
 describe("PlatformCommercialCatalogPage", () => {
-  it("lists plans with Usar en empresa CTA and price pending copy", () => {
+  it("lists plans with thead and Usar en empresa CTA", () => {
     renderWithTheme(<PlatformCommercialCatalogPage />, {
       route: ["/platform/plans"],
     });
@@ -52,8 +60,41 @@ describe("PlatformCommercialCatalogPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(opsCopy.catalog.pricePending)).toBeInTheDocument();
     expect(screen.getByText("Operación Crecimiento")).toBeInTheDocument();
+    const table = screen.getByTestId("ops-table");
+    const heads = within(table).getAllByRole("columnheader");
+    expect(heads.map((h) => h.textContent)).toEqual([
+      opsCopy.catalog.columns.name,
+      opsCopy.catalog.columns.code,
+      opsCopy.catalog.columns.capacity,
+      opsCopy.catalog.columns.stamps,
+      opsCopy.catalog.columns.action,
+    ]);
     expect(
       screen.getByRole("button", { name: opsCopy.catalog.useInTenant }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Precio column on packs tab (not Acción)", async () => {
+    const user = userEvent.setup();
+    renderWithTheme(<PlatformCommercialCatalogPage />, {
+      route: ["/platform/plans"],
+    });
+
+    await user.click(
+      screen.getByRole("tab", { name: opsCopy.catalog.tabs.packs }),
+    );
+
+    const table = screen.getByTestId("ops-table");
+    const heads = within(table).getAllByRole("columnheader");
+    expect(heads.map((h) => h.textContent)).toEqual([
+      opsCopy.catalog.columns.name,
+      opsCopy.catalog.columns.code,
+      opsCopy.catalog.columns.stamps,
+      opsCopy.catalog.columns.price,
+    ]);
+    expect(screen.getByText("Pack 500")).toBeInTheDocument();
+    expect(
+      within(table).getByText(opsCopy.catalog.pricePending),
     ).toBeInTheDocument();
   });
 });

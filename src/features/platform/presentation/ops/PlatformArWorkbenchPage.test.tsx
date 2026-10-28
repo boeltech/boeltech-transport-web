@@ -63,7 +63,7 @@ vi.mock("./OpsVoidSaasInvoiceDialog", () => ({
   OpsVoidSaasInvoiceDialog: () => null,
 }));
 
-describe("PlatformArWorkbenchPage (Ola 2)", () => {
+describe("PlatformArWorkbenchPage (craft A / oleada 3)", () => {
   beforeEach(() => {
     mockUsePlatformAuth.mockReturnValue({
       user: { platformRole: "platform_owner" },
@@ -160,5 +160,14 @@ describe("PlatformArWorkbenchPage (Ola 2)", () => {
     expect(container.querySelector(".bg-card")).toBeNull();
     expect(screen.queryByText(/Tlamx/i)).toBeNull();
     expect(screen.getByText(/Factura SaaS/i)).toBeInTheDocument();
+
+    const banners = screen.getAllByTestId("ops-ar-banner");
+    expect(banners.length).toBeGreaterThan(0);
+    for (const banner of banners) {
+      expect(banner).toHaveAttribute("data-testid", "ops-ar-banner");
+      expect(banner.className).toContain("ops-alert");
+    }
+    expect(container.querySelector('[data-slot="alert"]')).toBeNull();
+    expect(container.querySelector(".bg-destructive")).toBeNull();
   });
 });

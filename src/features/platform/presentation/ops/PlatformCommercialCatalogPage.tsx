@@ -8,6 +8,7 @@ import { usePlatformPlans } from "../../application/hooks/usePlatformTenants";
 import { opsCopy } from "./opsCopy";
 import { OpsUseInTenantSheet } from "./OpsUseInTenantSheet";
 import { OpsEmptyState } from "./patterns/OpsEmptyState";
+import { OpsTableSkeleton } from "./patterns/OpsTableSkeleton";
 import { OpsButton } from "./ui/OpsButton";
 import {
   OpsTable,
@@ -102,9 +103,7 @@ export function PlatformCommercialCatalogPage() {
         />
       ) : null}
 
-      {isLoading ? (
-        <OpsEmptyState variant="loading" title={copy.loading} panel />
-      ) : null}
+      {isLoading ? <OpsTableSkeleton /> : null}
 
       {!isLoading && !isError && tab === "plans" ? (
         plans.length === 0 ? (
@@ -206,7 +205,7 @@ export function PlatformCommercialCatalogPage() {
                 <OpsTableHead>{copy.columns.name}</OpsTableHead>
                 <OpsTableHead>{copy.columns.code}</OpsTableHead>
                 <OpsTableHead>{copy.columns.stamps}</OpsTableHead>
-                <OpsTableHead>{copy.columns.action}</OpsTableHead>
+                <OpsTableHead>{copy.columns.price}</OpsTableHead>
               </OpsTableRow>
             </OpsTableHeader>
             <OpsTableBody>

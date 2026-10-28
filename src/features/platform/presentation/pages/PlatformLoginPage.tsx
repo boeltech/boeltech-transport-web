@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useEffect, useState, type BaseSyntheticEvent } from "react";
+import { useForm, type Resolver, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
+import { AlertWithIcon } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import {
   FieldInlineError,
   FormValidationSummary,
   getRegisterFieldErrorProps,
 } from "@shared/ui/form";
-import { PasswordVisibilityToggle } from "@pages/auth/PasswordVisibilityToggle";
+import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
 import { mapBackendError } from "@shared/utils/errorMapper";
 import {
   markPlatformFreshLoginSession,
@@ -26,7 +31,10 @@ import {
   OpsAlert,
   OpsBrandMark,
   OpsButton,
+  OpsFieldError,
+  OpsFormErrors,
   OpsInput,
+  OpsLabel,
   OpsPanel,
   OpsPanelBody,
   OpsPanelDescription,
@@ -34,22 +42,48 @@ import {
   OpsPanelTitle,
 } from "../ops/ui";
 import { OpsThemeProvider, useOpsTheme } from "../ops/OpsThemeProvider";
+import { isPlatformConsoleV1Enabled } from "../ops/platformConsoleV1";
+import { PlatformBrandMark } from "../layout/PlatformBrandMark";
+import { usePlatformDocumentChrome } from "../layout/usePlatformDocumentChrome";
 import "../ops/opsTokens.css";
 
 /**
- * Login platform Ops — `.platform-ops` + tema resuelto (sin ThemeToggle, LID-D4).
- * Marca = OpsBrandMark M4 (sin Shield / card-escudo). Auth API intacta.
+ * Puerta de `/platform/login`. El mismo flag que PlatformShell:
+ * off → marca PlatformBrandMark, sin piel Ops; on → login Ops.
+ * Arriba de la tarjeta hay un solo nombre de consola.
  */
 export function PlatformLoginPage() {
+  usePlatformDocumentChrome();
+
+  if (!isPlatformConsoleV1Enabled()) {
+    return <PlatformLoginClassic />;
+  }
+
   return (
     <OpsThemeProvider>
-      <PlatformLoginPageInner />
+      <PlatformLoginOps />
     </OpsThemeProvider>
   );
 }
 
-function PlatformLoginPageInner() {
-  const { resolved } = useOpsTheme();
+type LoginController = {
+  showPassword: boolean;
+  togglePassword: () => void;
+  isSubmitting: boolean;
+  error: string | null;
+  showFieldSummary: boolean;
+  mfaChallengeToken: string | null;
+  sessionExpired: boolean;
+  loginForm: UseFormReturn<PlatformLoginFormData>;
+  mfaForm: UseFormReturn<PlatformMfaCodeFormData>;
+  loginFieldSummaryMessages: string[];
+  mfaFieldSummaryMessages: string[];
+  onSubmit: (event?: BaseSyntheticEvent) => Promise<void>;
+  onMfaSubmit: (event?: BaseSyntheticEvent) => Promise<void>;
+  leaveMfa: () => void;
+};
+
+function usePlatformLoginController(): LoginController {
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -150,6 +184,33 @@ function PlatformLoginPageInner() {
     () => setShowFieldSummary(true),
   );
 
+  return {
+    showPassword,
+    togglePassword: () => setShowPassword((value) => !value),
+    isSubmitting,
+    error,
+    showFieldSummary,
+    mfaChallengeToken,
+    sessionExpired,
+    loginForm,
+    mfaForm,
+    loginFieldSummaryMessages,
+    mfaFieldSummaryMessages,
+    onSubmit,
+    onMfaSubmit,
+    leaveMfa: () => {
+      setMfaChallengeToken(null);
+      setError(null);
+      setShowFieldSummary(false);
+    },
+  };
+}
+
+function PlatformLoginOps() {
+  const { resolved } = useOpsTheme();
+  const login = usePlatformLoginController();
+  const { mfaChallengeToken } = login;
+
   return (
     <div
       className="platform-ops flex min-h-screen items-center justify-center ops-bg p-6"
@@ -161,16 +222,11 @@ function PlatformLoginPageInner() {
         <OpsBrandMark size="hero" className="justify-center self-center" />
         <OpsPanel className="w-full">
           <OpsPanelHeader className="space-y-2 text-center">
-            <div className="space-y-1">
-              <OpsPanelTitle className="ops-type-h1">
-                {mfaChallengeToken
-                  ? platformCopy.login.mfa.title
-                  : platformCopy.login.title}
-              </OpsPanelTitle>
-              <p className="ops-type-caption ops-text-muted">
-                {platformCopy.brand.subtitle}
-              </p>
-            </div>
+            <OpsPanelTitle className="ops-type-h1">
+              {mfaChallengeToken
+                ? platformCopy.login.mfa.title
+                : platformCopy.brand.subtitle}
+            </OpsPanelTitle>
             <OpsPanelDescription>
               {mfaChallengeToken
                 ? platformCopy.login.mfa.description
@@ -178,51 +234,51 @@ function PlatformLoginPageInner() {
             </OpsPanelDescription>
           </OpsPanelHeader>
           <OpsPanelBody>
-          {sessionExpired && !mfaChallengeToken ? (
+          {login.sessionExpired && !mfaChallengeToken ? (
             <OpsAlert tone="warn" className="mb-4" title="Sesión">
               {platformCopy.login.errors.sessionExpired}
             </OpsAlert>
           ) : null}
-          {error ? (
+          {login.error ? (
             <OpsAlert tone="danger" className="mb-4" title="Error">
-              {error}
+              {login.error}
             </OpsAlert>
           ) : null}
 
           {mfaChallengeToken ? (
-            <form onSubmit={onMfaSubmit} className="space-y-4">
+            <form onSubmit={login.onMfaSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="mfa-code" className="ops-label">
+                <OpsLabel htmlFor="mfa-code">
                   {platformCopy.login.mfa.codeLabel}
-                </label>
+                </OpsLabel>
                 <OpsInput
                   id="mfa-code"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  {...mfaForm.register("code")}
+                  {...login.mfaForm.register("code")}
                   {...getRegisterFieldErrorProps(
                     "mfa-code",
-                    mfaForm.formState.errors.code?.message,
+                    login.mfaForm.formState.errors.code?.message,
                   )}
-                  error={Boolean(mfaForm.formState.errors.code?.message)}
+                  error={Boolean(login.mfaForm.formState.errors.code?.message)}
                 />
-                <FieldInlineError
+                <OpsFieldError
                   fieldId="mfa-code"
-                  message={mfaForm.formState.errors.code?.message}
+                  message={login.mfaForm.formState.errors.code?.message}
                 />
               </div>
-              {showFieldSummary && mfaFieldSummaryMessages.length > 0 ? (
-                <FormValidationSummary
+              {login.showFieldSummary && login.mfaFieldSummaryMessages.length > 0 ? (
+                <OpsFormErrors
                   title={platformCopy.login.mfa.validationSummaryTitle}
-                  messages={mfaFieldSummaryMessages}
+                  messages={login.mfaFieldSummaryMessages}
                 />
               ) : null}
               <OpsButton
                 type="submit"
                 className="w-full"
-                disabled={isSubmitting}
+                disabled={login.isSubmitting}
               >
-                {isSubmitting
+                {login.isSubmitting
                   ? platformCopy.login.mfa.submitting
                   : platformCopy.login.mfa.submit}
               </OpsButton>
@@ -230,84 +286,90 @@ function PlatformLoginPageInner() {
                 type="button"
                 variant="ghost"
                 className="w-full"
-                disabled={isSubmitting}
-                onClick={() => {
-                  setMfaChallengeToken(null);
-                  setError(null);
-                  setShowFieldSummary(false);
-                }}
+                disabled={login.isSubmitting}
+                onClick={login.leaveMfa}
               >
                 {platformCopy.login.mfa.back}
               </OpsButton>
             </form>
           ) : (
-            <form onSubmit={onSubmit} className="space-y-4">
+            <form onSubmit={login.onSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="ops-label">
+                <OpsLabel htmlFor="email">
                   {platformCopy.login.emailLabel}
-                </label>
+                </OpsLabel>
                 <OpsInput
                   id="email"
                   type="email"
                   autoComplete="username"
-                  {...loginForm.register("email")}
+                  {...login.loginForm.register("email")}
                   {...getRegisterFieldErrorProps(
                     "email",
-                    loginForm.formState.errors.email?.message,
+                    login.loginForm.formState.errors.email?.message,
                   )}
-                  error={Boolean(loginForm.formState.errors.email?.message)}
+                  error={Boolean(login.loginForm.formState.errors.email?.message)}
                 />
-                <FieldInlineError
+                <OpsFieldError
                   fieldId="email"
-                  message={loginForm.formState.errors.email?.message}
+                  message={login.loginForm.formState.errors.email?.message}
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="password" className="ops-label">
+                <OpsLabel htmlFor="password">
                   {platformCopy.login.passwordLabel}
-                </label>
+                </OpsLabel>
                 <div className="relative">
                   <OpsInput
                     id="password"
-                    type={showPassword ? "text" : "password"}
+                    type={login.showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     className="pr-10"
-                    {...loginForm.register("password")}
+                    {...login.loginForm.register("password")}
                     {...getRegisterFieldErrorProps(
                       "password",
-                      loginForm.formState.errors.password?.message,
+                      login.loginForm.formState.errors.password?.message,
                     )}
                     error={Boolean(
-                      loginForm.formState.errors.password?.message,
+                      login.loginForm.formState.errors.password?.message,
                     )}
                   />
-                  <PasswordVisibilityToggle
-                    visible={showPassword}
-                    onToggle={() => setShowPassword((value) => !value)}
-                    showLabel={platformCopy.login.showPassword}
-                    hideLabel={platformCopy.login.hidePassword}
-                  />
+                  <button
+                    type="button"
+                    className="absolute top-1/2 right-3 -translate-y-1/2 ops-rounded ops-text-muted ops-ring-accent p-0.5"
+                    aria-label={
+                      login.showPassword
+                        ? platformCopy.login.hidePassword
+                        : platformCopy.login.showPassword
+                    }
+                    onClick={login.togglePassword}
+                  >
+                    {login.showPassword ? (
+                      <EyeOff className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden />
+                    )}
+                  </button>
                 </div>
-                <FieldInlineError
+                <OpsFieldError
                   fieldId="password"
-                  message={loginForm.formState.errors.password?.message}
+                  message={login.loginForm.formState.errors.password?.message}
                 />
               </div>
 
-              {showFieldSummary && loginFieldSummaryMessages.length > 0 ? (
-                <FormValidationSummary
+              {login.showFieldSummary && login.loginFieldSummaryMessages.length > 0 ? (
+                <OpsFormErrors
                   title={platformCopy.login.validationSummaryTitle}
-                  messages={loginFieldSummaryMessages}
+                  messages={login.loginFieldSummaryMessages}
                 />
               ) : null}
 
               <OpsButton
                 type="submit"
                 className="w-full"
-                disabled={isSubmitting}
+                disabled={login.isSubmitting}
               >
-                {isSubmitting
+                {login.isSubmitting
                   ? platformCopy.login.submitting
                   : platformCopy.login.submit}
               </OpsButton>
@@ -315,7 +377,7 @@ function PlatformLoginPageInner() {
           )}
 
           {!mfaChallengeToken ? (
-            <p className="mt-6 text-center text-sm ops-text-muted">
+            <p className="mt-6 text-center ops-type-caption ops-text-muted">
               {platformCopy.login.tenantLink}{" "}
               <Link to="/login" className="ops-text-accent hover:underline">
                 {platformCopy.login.tenantLinkAction}
@@ -324,6 +386,187 @@ function PlatformLoginPageInner() {
           ) : null}
           </OpsPanelBody>
         </OpsPanel>
+      </div>
+    </div>
+  );
+}
+
+function PlatformLoginClassic() {
+  const login = usePlatformLoginController();
+  const { mfaChallengeToken } = login;
+
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center bg-background p-6"
+      data-testid="platform-login"
+    >
+      <div className="flex w-full max-w-md flex-col gap-6">
+        <PlatformBrandMark className="justify-center self-center" />
+        <Card className="w-full">
+          <CardHeader className="text-center">
+            {mfaChallengeToken ? (
+              <CardTitle>{platformCopy.login.mfa.title}</CardTitle>
+            ) : null}
+            <CardDescription>
+              {mfaChallengeToken
+                ? platformCopy.login.mfa.description
+                : platformCopy.login.description}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {login.sessionExpired && !mfaChallengeToken ? (
+              <AlertWithIcon variant="warning" title="Sesión" className="mb-4">
+                {platformCopy.login.errors.sessionExpired}
+              </AlertWithIcon>
+            ) : null}
+            {login.error ? (
+              <AlertWithIcon variant="destructive" title="Error" className="mb-4">
+                {login.error}
+              </AlertWithIcon>
+            ) : null}
+
+            {mfaChallengeToken ? (
+              <form onSubmit={login.onMfaSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="mfa-code">
+                    {platformCopy.login.mfa.codeLabel}
+                  </Label>
+                  <Input
+                    id="mfa-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    {...login.mfaForm.register("code")}
+                    {...getRegisterFieldErrorProps(
+                      "mfa-code",
+                      login.mfaForm.formState.errors.code?.message,
+                    )}
+                    error={Boolean(login.mfaForm.formState.errors.code?.message)}
+                  />
+                  <FieldInlineError
+                    fieldId="mfa-code"
+                    message={login.mfaForm.formState.errors.code?.message}
+                  />
+                </div>
+                {login.showFieldSummary && login.mfaFieldSummaryMessages.length > 0 ? (
+                  <FormValidationSummary
+                    title={platformCopy.login.mfa.validationSummaryTitle}
+                    messages={login.mfaFieldSummaryMessages}
+                  />
+                ) : null}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={login.isSubmitting}
+                >
+                  {login.isSubmitting
+                    ? platformCopy.login.mfa.submitting
+                    : platformCopy.login.mfa.submit}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  disabled={login.isSubmitting}
+                  onClick={login.leaveMfa}
+                >
+                  {platformCopy.login.mfa.back}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={login.onSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">{platformCopy.login.emailLabel}</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="username"
+                    {...login.loginForm.register("email")}
+                    {...getRegisterFieldErrorProps(
+                      "email",
+                      login.loginForm.formState.errors.email?.message,
+                    )}
+                    error={Boolean(
+                      login.loginForm.formState.errors.email?.message,
+                    )}
+                  />
+                  <FieldInlineError
+                    fieldId="email"
+                    message={login.loginForm.formState.errors.email?.message}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">
+                    {platformCopy.login.passwordLabel}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={login.showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      className="pr-10"
+                      {...login.loginForm.register("password")}
+                      {...getRegisterFieldErrorProps(
+                        "password",
+                        login.loginForm.formState.errors.password?.message,
+                      )}
+                      error={Boolean(
+                        login.loginForm.formState.errors.password?.message,
+                      )}
+                    />
+                    <button
+                      type="button"
+                      className="absolute top-1/2 right-3 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={
+                        login.showPassword
+                          ? platformCopy.login.hidePassword
+                          : platformCopy.login.showPassword
+                      }
+                      onClick={login.togglePassword}
+                    >
+                      {login.showPassword ? (
+                        <EyeOff className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden />
+                      )}
+                    </button>
+                  </div>
+                  <FieldInlineError
+                    fieldId="password"
+                    message={login.loginForm.formState.errors.password?.message}
+                  />
+                </div>
+
+                {login.showFieldSummary &&
+                login.loginFieldSummaryMessages.length > 0 ? (
+                  <FormValidationSummary
+                    title={platformCopy.login.validationSummaryTitle}
+                    messages={login.loginFieldSummaryMessages}
+                  />
+                ) : null}
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={login.isSubmitting}
+                >
+                  {login.isSubmitting
+                    ? platformCopy.login.submitting
+                    : platformCopy.login.submit}
+                </Button>
+              </form>
+            )}
+
+            {!mfaChallengeToken ? (
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                {platformCopy.login.tenantLink}{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  {platformCopy.login.tenantLinkAction}
+                </Link>
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -3,7 +3,6 @@ import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { Copy, Sparkles } from "lucide-react";
-import { UnsavedChangesDialog } from "@shared/ui/form";
 import { getRegisterFieldErrorProps } from "@shared/ui/form";
 import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
@@ -33,6 +32,7 @@ import {
   type DeclaredFleetBand,
 } from "../utils/recommendOperationalPlan";
 import { opsCopy } from "./opsCopy";
+import { OpsUnsavedChangesDialog } from "./OpsUnsavedChangesDialog";
 import { OpsAlert } from "./ui/OpsAlert";
 import { OpsBadge } from "./ui/OpsBadge";
 import { OpsButton } from "./ui/OpsButton";
@@ -611,7 +611,7 @@ export function OpsTenantCreatePage() {
           </div>
         </form>
       </div>
-      <UnsavedChangesDialog blocker={blocker} />
+      <OpsUnsavedChangesDialog blocker={blocker} />
     </>
   );
 }

@@ -12,9 +12,10 @@ import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { getLifecycleStageLabel } from "../config/platformLifecycleConfig";
 import { opsCopy } from "./opsCopy";
 import { lifecycleStageSealTone, tenantListTick } from "./opsStatusTones";
-import { OpsTenantRow } from "./patterns/OpsTenantRow";
 import { OpsButton } from "./ui/OpsButton";
 import { OpsInput } from "./ui/OpsInput";
+import { OpsLifecycleSeal } from "./ui/OpsLifecycleSeal";
+import { OpsPlanSeal } from "./ui/OpsPlanSeal";
 import {
   OpsSelect,
   OpsSelectContent,
@@ -22,13 +23,21 @@ import {
   OpsSelectTrigger,
   OpsSelectValue,
 } from "./ui/OpsSelect";
+import {
+  OpsTable,
+  OpsTableBody,
+  OpsTableCell,
+  OpsTableHead,
+  OpsTableHeader,
+  OpsTableRow,
+} from "./ui/OpsTable";
 import { OpsEmptyState } from "./patterns/OpsEmptyState";
 import { OpsTableSkeleton } from "./patterns/OpsTableSkeleton";
 
 const ACCESS_ALL = "__all__";
 
 /**
- * Listado Empresas Ops (flag ON) — fila de 37px, sin tabla de badges.
+ * Listado Empresas Ops (flag ON) — OpsTable + thead (PROP-T1 A).
  */
 export function OpsTenantsListPage() {
   const copy = opsCopy.tenants;
@@ -163,32 +172,65 @@ export function OpsTenantsListPage() {
       ) : null}
 
       {!isLoading && !isError && tenants.length > 0 ? (
-        <div className="ops-line-list">
-          {tenants.map((tenant) => (
-            <OpsTenantRow
-              key={tenant.id}
-              idLabel={tenant.subdomain}
-              name={tenant.name}
-              href={`/platform/tenants/${tenant.id}`}
-              planName={tenant.planName ?? tenant.planCode}
-              lifecycleLabel={getLifecycleStageLabel(tenant.lifecycleStage)}
-              lifecycleTone={lifecycleStageSealTone(tenant.lifecycleStage)}
-              time={formatDateTime(tenant.suspendedAt ?? tenant.createdAt)}
-              tick={tenantListTick(tenant)}
-              action={
-                tenant.subscriptionStatus === "past_due" ? (
-                  <OpsButton variant="ghost" size="sm" asChild>
-                    <Link
-                      to={`/platform/billing/ar?status=open&tenant_id=${tenant.id}`}
+        <OpsTable>
+          <OpsTableHeader>
+            <OpsTableRow>
+              <OpsTableHead>{copy.columns.name}</OpsTableHead>
+              <OpsTableHead>{copy.columns.plan}</OpsTableHead>
+              <OpsTableHead>{copy.columns.stage}</OpsTableHead>
+              <OpsTableHead>{copy.columns.date}</OpsTableHead>
+              <OpsTableHead>{copy.columns.action}</OpsTableHead>
+            </OpsTableRow>
+          </OpsTableHeader>
+          <OpsTableBody>
+            {tenants.map((tenant) => {
+              const tick = tenantListTick(tenant);
+              return (
+                <OpsTableRow key={tenant.id} tick={tick}>
+                  <OpsTableCell>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="ops-tenant-row-id">
+                        {tenant.subdomain}
+                      </span>
+                      <Link
+                        to={`/platform/tenants/${tenant.id}`}
+                        className="ops-tenant-row-name ops-ring-accent"
+                      >
+                        {tenant.name}
+                      </Link>
+                    </div>
+                  </OpsTableCell>
+                  <OpsTableCell>
+                    <OpsPlanSeal name={tenant.planName ?? tenant.planCode} />
+                  </OpsTableCell>
+                  <OpsTableCell>
+                    <OpsLifecycleSeal
+                      tone={lifecycleStageSealTone(tenant.lifecycleStage)}
                     >
-                      {copy.viewAr}
-                    </Link>
-                  </OpsButton>
-                ) : undefined
-              }
-            />
-          ))}
-        </div>
+                      {getLifecycleStageLabel(tenant.lifecycleStage)}
+                    </OpsLifecycleSeal>
+                  </OpsTableCell>
+                  <OpsTableCell>
+                    <span className="ops-font-mono ops-type-caption ops-text-muted tabular-nums">
+                      {formatDateTime(tenant.suspendedAt ?? tenant.createdAt)}
+                    </span>
+                  </OpsTableCell>
+                  <OpsTableCell>
+                    {tenant.subscriptionStatus === "past_due" ? (
+                      <OpsButton variant="ghost" size="sm" asChild>
+                        <Link
+                          to={`/platform/billing/ar?status=open&tenant_id=${tenant.id}`}
+                        >
+                          {copy.viewAr}
+                        </Link>
+                      </OpsButton>
+                    ) : null}
+                  </OpsTableCell>
+                </OpsTableRow>
+              );
+            })}
+          </OpsTableBody>
+        </OpsTable>
       ) : null}
 
       {pagination && pagination.totalPages > 1 ? (

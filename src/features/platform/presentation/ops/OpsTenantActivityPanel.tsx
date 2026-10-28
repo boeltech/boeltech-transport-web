@@ -103,10 +103,10 @@ export function OpsTenantActivityPanel({
                 const summary = getAuditMetadataSummary(entry);
                 return (
                   <OpsTableRow key={entry.id}>
-                    <OpsTableCell className="whitespace-nowrap ops-font-mono text-[11px] ops-text-muted">
+                    <OpsTableCell className="whitespace-nowrap ops-font-mono ops-type-caption ops-text-muted">
                       {formatDateTime(entry.createdAt)}
                     </OpsTableCell>
-                    <OpsTableCell className="text-xs ops-text">
+                    <OpsTableCell className="ops-type-caption ops-text">
                       {getAuditOperatorLabel(entry)}
                     </OpsTableCell>
                     <OpsTableCell>
@@ -115,7 +115,7 @@ export function OpsTenantActivityPanel({
                       </OpsBadge>
                     </OpsTableCell>
                     <OpsTableCell
-                      className="max-w-xs truncate text-[11px] ops-text-muted"
+                      className="max-w-xs truncate ops-type-caption ops-text-muted"
                       title={summary || undefined}
                     >
                       {summary || "—"}

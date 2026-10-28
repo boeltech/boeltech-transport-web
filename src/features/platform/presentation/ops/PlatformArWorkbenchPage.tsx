@@ -46,9 +46,9 @@ import {
 } from "./patterns/OpsMoneyTable";
 import { OpsEmptyState } from "./patterns/OpsEmptyState";
 import { OpsTableSkeleton } from "./patterns/OpsTableSkeleton";
+import { OpsAlert } from "./ui/OpsAlert";
 import { OpsBadge } from "./ui/OpsBadge";
 import { OpsButton } from "./ui/OpsButton";
-import { OpsPanel, OpsPanelBody } from "./ui/OpsPanel";
 
 type ArView = "pending" | "overdue" | "all" | "exceptions";
 
@@ -70,6 +70,7 @@ function resolveArView(
   return "all";
 }
 
+/** Banners close/charge run — OpsAlert kit (sin Panel ad-hoc). */
 function OpsBanner({
   tone,
   title,
@@ -82,19 +83,16 @@ function OpsBanner({
   action?: ReactNode;
 }) {
   return (
-    <OpsPanel
-      className={tone === "warn" ? "ops-bg-warn-soft" : undefined}
-      data-ops-tick={tone === "warn" ? "warn" : undefined}
+    <OpsAlert
+      tone={tone === "warn" ? "warn" : "notice"}
+      title={title}
       data-testid="ops-ar-banner"
     >
-      <OpsPanelBody className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1">
-          <p className="text-sm font-medium ops-text">{title}</p>
-          {children}
-        </div>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 space-y-1">{children}</div>
         {action}
-      </OpsPanelBody>
-    </OpsPanel>
+      </div>
+    </OpsAlert>
   );
 }
 
@@ -427,7 +425,7 @@ export function PlatformArWorkbenchPage() {
         <OpsBanner tone="info" title={copy.closeRun.loading} />
       ) : closeRunQuery.isError ? (
         <OpsBanner tone="warn" title={copy.closeRun.errorTitle}>
-          <p className="text-xs ops-text-muted">
+          <p className="ops-type-caption ops-text-muted">
             {copy.closeRun.errorDescription}
           </p>
         </OpsBanner>
@@ -460,7 +458,7 @@ export function PlatformArWorkbenchPage() {
             ) : undefined
           }
         >
-          <p className="text-xs ops-text-muted">
+          <p className="ops-type-caption ops-text-muted">
             {!closeRun.run.ran
               ? copy.closeRun.notYetDescription
               : closeRun.counts.actionable === 0
@@ -470,7 +468,7 @@ export function PlatformArWorkbenchPage() {
                   : copy.closeRun.actionableDescription}
           </p>
           {closeRunMeta ? (
-            <p className="mt-1 text-[11px] ops-text-muted">{closeRunMeta}</p>
+            <p className="mt-1 ops-type-caption ops-text-muted">{closeRunMeta}</p>
           ) : null}
         </OpsBanner>
       ) : null}
@@ -479,7 +477,7 @@ export function PlatformArWorkbenchPage() {
         <OpsBanner tone="info" title={copy.chargeRun.loading} />
       ) : chargeRunQuery.isError ? (
         <OpsBanner tone="warn" title={copy.chargeRun.errorTitle}>
-          <p className="text-xs ops-text-muted">
+          <p className="ops-type-caption ops-text-muted">
             {copy.chargeRun.errorDescription}
           </p>
         </OpsBanner>
@@ -508,7 +506,7 @@ export function PlatformArWorkbenchPage() {
             ) : undefined
           }
         >
-          <p className="text-xs ops-text-muted">
+          <p className="ops-type-caption ops-text-muted">
             {!chargeRun.run.ran
               ? page.chargeNotYetDescription
               : chargeNeedsAttention
@@ -518,12 +516,12 @@ export function PlatformArWorkbenchPage() {
                 : copy.chargeRun.zeroDescription}
           </p>
           {chargeRun.run.ran ? (
-            <p className="mt-1 text-xs ops-text">
+            <p className="mt-1 ops-type-caption ops-text">
               {copy.chargeRun.countsLine(chargeRun.counts)}
             </p>
           ) : null}
           {chargeRun.run.ranAt ? (
-            <p className="mt-1 text-[11px] ops-text-muted">
+            <p className="mt-1 ops-type-caption ops-text-muted">
               {copy.chargeRun.ranAt(formatDateTime(chargeRun.run.ranAt))}
             </p>
           ) : null}
@@ -789,7 +787,7 @@ export function PlatformArWorkbenchPage() {
       )}
 
       {pagination && pagination.totalPages > 1 ? (
-        <div className="flex items-center justify-between gap-2 text-xs ops-text-muted">
+        <div className="flex items-center justify-between gap-2 ops-type-caption ops-text-muted">
           <span>
             Página {pagination.page} de {pagination.totalPages}
           </span>

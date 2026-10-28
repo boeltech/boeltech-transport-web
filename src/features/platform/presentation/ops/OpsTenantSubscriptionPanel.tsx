@@ -27,7 +27,7 @@ interface OpsTenantSubscriptionPanelProps {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-wrap justify-between gap-2 text-xs">
+    <div className="flex flex-wrap justify-between gap-2 ops-type-caption">
       <span className="ops-text-muted">{label}</span>
       <span className="ops-text tabular-nums">{value}</span>
     </div>
@@ -70,7 +70,7 @@ export function OpsTenantSubscriptionPanel({
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium ops-text">
+              <span className="ops-type-body font-medium ops-text">
                 {subscription.planName}
               </span>
               <OpsBadge tone={subscriptionStatusTone(subscription.status)}>
@@ -89,7 +89,7 @@ export function OpsTenantSubscriptionPanel({
                   ? platformCopy.tenants.detail.planPrice.labelQuote
                   : platformCopy.tenants.detail.planPrice.labelLegacy} value={planPrice.primary} />
             {planPrice.secondary ? (
-              <p className="text-[11px] ops-text-muted tabular-nums">
+              <p className="ops-type-caption ops-text-muted tabular-nums">
                 {planPrice.secondary}
               </p>
             ) : null}
@@ -151,7 +151,7 @@ export function OpsTenantSubscriptionPanel({
             {subscription.notes ? (
               <Row label={copy.fields.notes} value={subscription.notes} />
             ) : null}
-            <p className="text-[11px] ops-text-muted">{copy.periodPulseHint}</p>
+            <p className="ops-type-caption ops-text-muted">{copy.periodPulseHint}</p>
           </>
         )}
       </OpsPanelBody>

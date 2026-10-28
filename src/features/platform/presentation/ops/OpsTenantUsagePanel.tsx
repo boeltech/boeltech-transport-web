@@ -122,7 +122,7 @@ export function OpsTenantUsagePanel({
                   used={stampsUsed}
                   included={includedStamps}
                 />
-                <p className="text-[11px] ops-text-muted">
+                <p className="ops-type-caption ops-text-muted">
                   {stampCopy.remaining(stampsRemaining)}
                 </p>
               </div>
