@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { AlertTriangle, Info } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -24,7 +23,6 @@ import { platformCopy } from "../copy/platformCopy";
 import { getPlatformSubscriptionStatusLabel } from "../utils/platformBillingFormatters";
 
 export interface TenantCommercialStatusStripProps {
-  tenantId: string;
   accessStatus: PlatformTenantStatusType;
   subscriptionStatus: string | null;
   planName: string | null;
@@ -32,20 +30,23 @@ export interface TenantCommercialStatusStripProps {
   /** Period start used to compute past_due grace reference. */
   currentPeriodStart?: string | null;
   trialEndsAt?: string | null;
+  /** Same-page Cobros (tab Comercial · AR). Required when past_due. */
+  onViewCollections?: () => void;
 }
 
 /**
  * First-paint commercial strip for tenant detail (all tabs).
  * Acceso = tenants.status; Suscripción = subscription.status; lifecycle = tooltip only.
+ * Badges here are canonical (Governance must not twin them).
  */
 export function TenantCommercialStatusStrip({
-  tenantId,
   accessStatus,
   subscriptionStatus,
   planName,
   lifecycleStage,
   currentPeriodStart,
   trialEndsAt,
+  onViewCollections,
 }: TenantCommercialStatusStripProps) {
   const copy = platformCopy.tenants.detail.commercialStrip;
   const isPastDue = subscriptionStatus === "past_due";
@@ -125,13 +126,11 @@ export function TenantCommercialStatusStrip({
           icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
           title={copy.pastDueOperating}
           action={
-            <Button size="sm" variant="outline" asChild>
-              <Link
-                to={`/platform/billing/ar?tenant_id=${encodeURIComponent(tenantId)}`}
-              >
+            onViewCollections ? (
+              <Button size="sm" variant="outline" onClick={onViewCollections}>
                 {copy.viewAr}
-              </Link>
-            </Button>
+              </Button>
+            ) : undefined
           }
         >
           <p className="text-sm">

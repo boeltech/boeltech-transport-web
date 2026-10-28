@@ -53,6 +53,13 @@ interface AppConfig {
     /** Kill-switch tickets de soporte; ausente = on. */
     ticketsEnabled: boolean;
   };
+  /**
+   * Consola platform v1 (pedido consola-saas-platform-v1 · CEO TEC-Q3/Q4).
+   * Ausente / false = chrome actual (Conform interino). true = shell D4 ops-*.
+   */
+  platform: {
+    consoleV1Enabled: boolean;
+  };
 }
 
 const config: AppConfig = {
@@ -118,6 +125,12 @@ const config: AppConfig = {
       true,
     ),
   },
+  platform: {
+    consoleV1Enabled: parseEnvBool(
+      import.meta.env.VITE_PLATFORM_CONSOLE_V1_ENABLED,
+      false,
+    ),
+  },
 };
 
 // Freeze para evitar modificaciones accidentales
@@ -131,6 +144,7 @@ Object.freeze(config.support);
 Object.freeze(config.observability);
 Object.freeze(config.stripe);
 Object.freeze(config.help);
+Object.freeze(config.platform);
 
 export default config;
 

@@ -1,0 +1,1513 @@
+/**
+ * Kit Ops «Tinta y Señal» (LID-D1 · PRD §B1/§C · TEC §D).
+ * Scope: .platform-ops — no muta tokens ERP-T globales.
+ * Colores solo bajo [data-ops-theme="light"|"dark"].
+ */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+
+.platform-ops {
+  /* Tipografía / layout / radius — tema-agnóstico (TEC §C.6) */
+  --ops-radius: 3px; /* LID-D9 */
+  --ops-tick-w: 3px;
+  --ops-row-h: 37px;
+  --ops-topbar-h: 42px;
+  --ops-rail-w: 168px;
+  --ops-font:
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ops-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /*
+   * Tipografía nombrada (FOUND-D3 + AUDIT-D11):
+   * H1/display · H2/title · H3 · body · caption — IBM Plex, sin peso 700
+   */
+  --ops-type-display-size: 25px;
+  --ops-type-display-weight: 600;
+  --ops-type-display-lh: 1.2;
+  --ops-type-display-tracking: -0.01em;
+  --ops-type-title-size: 19px;
+  --ops-type-title-weight: 600;
+  --ops-type-title-lh: 1.25;
+  --ops-type-title-tracking: 0.005em;
+  --ops-type-h3-size: 16px;
+  --ops-type-h3-weight: 600;
+  --ops-type-h3-lh: 1.3;
+  --ops-type-h3-tracking: 0.01em;
+  --ops-type-body-size: 15px;
+  --ops-type-body-weight: 400;
+  --ops-type-body-lh: 1.45;
+  --ops-type-caption-size: 12.5px;
+  --ops-type-caption-weight: 500;
+  --ops-type-caption-lh: 1.35;
+  --ops-type-caption-tracking: 0.01em;
+
+  /*
+   * Remap shadcn/Tailwind theme vars ONLY under .platform-ops
+   * (wrappers Radix + utilidades bg-background / text-muted-foreground).
+   * Prohibido mutar :root / .dark globales.
+   */
+  --background: var(--ops-bg-elevated);
+  --foreground: var(--ops-fg);
+  --muted: var(--ops-surface);
+  --muted-foreground: var(--ops-fg-muted);
+  --border: var(--ops-border);
+  --input: var(--ops-border);
+  --ring: var(--ops-accent);
+  --primary: var(--ops-accent);
+  --primary-foreground: var(--ops-accent-fg);
+  --destructive: var(--ops-danger);
+  --destructive-foreground: var(--ops-fg);
+  --popover: var(--ops-bg-elevated);
+  --popover-foreground: var(--ops-fg);
+  --accent: color-mix(in oklch, var(--ops-fg) 10%, var(--ops-surface));
+  --accent-foreground: var(--ops-fg);
+  --card: var(--ops-surface);
+  --card-foreground: var(--ops-fg);
+
+  color: var(--ops-fg);
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+  line-height: var(--ops-type-body-lh);
+}
+
+/* Light — papel cálido hue ~80. Canvas más bajo que el panel; rail más bajo que el canvas. */
+.platform-ops[data-ops-theme="light"] {
+  color-scheme: light;
+  --ops-bg: oklch(0.948 0.008 80);
+  --ops-rail: oklch(0.918 0.01 80);
+  --ops-surface: oklch(0.978 0.004 80);
+  --ops-bg-elevated: oklch(0.995 0.002 80);
+  --ops-border: oklch(0.78 0.012 80);
+  --ops-fg: oklch(0.2 0.01 80);
+  --ops-fg-muted: oklch(0.46 0.012 80);
+  --ops-accent: var(--ops-fg); /* tinta = acción */
+  --ops-accent-fg: var(--ops-bg-elevated);
+  --ops-ok: oklch(0.42 0.11 158);
+  --ops-warn: oklch(0.44 0.11 58);
+  --ops-danger: oklch(0.44 0.16 27);
+  --ops-lime: oklch(0.44 0.13 118); /* instrumento, no lifecycle */
+  --ops-skeleton: oklch(0.62 0.014 80);
+  --ops-scrim: oklch(0.2 0.01 80 / 0.4);
+  --ops-shadow-overlay: 0 16px 48px oklch(0.2 0.01 80 / 0.16);
+}
+
+/* Dark — carbón cálido hue ~80. */
+.platform-ops[data-ops-theme="dark"] {
+  color-scheme: dark;
+  --ops-bg: oklch(0.185 0.008 80);
+  --ops-rail: oklch(0.155 0.008 80);
+  --ops-surface: oklch(0.248 0.009 80);
+  --ops-bg-elevated: oklch(0.215 0.008 80);
+  --ops-border: oklch(0.42 0.012 80);
+  --ops-fg: oklch(0.925 0.006 85);
+  --ops-fg-muted: oklch(0.76 0.01 85);
+  --ops-accent: var(--ops-fg); /* papel = acción */
+  --ops-accent-fg: var(--ops-bg);
+  --ops-ok: oklch(0.78 0.13 158);
+  --ops-warn: oklch(0.82 0.12 62);
+  --ops-danger: oklch(0.74 0.15 27);
+  --ops-lime: oklch(0.84 0.14 118); /* instrumento, no lifecycle */
+  --ops-skeleton: oklch(0.55 0.01 80);
+  --ops-scrim: oklch(0.12 0.008 80 / 0.72);
+  --ops-shadow-overlay: 0 16px 48px oklch(0 0 0 / 0.45);
+}
+
+/* Layout shell only — portals/fallback usan .platform-ops sin este bloque */
+.platform-ops[data-ops-shell="true"] {
+  background: var(--ops-bg);
+  min-height: 100vh;
+}
+
+/* Portal mount — no layout; overlays inherit --ops-* / remaps from .platform-ops */
+.platform-ops #ops-portal-root {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: 50;
+}
+
+.platform-ops .ops-bg {
+  background: var(--ops-bg);
+}
+.platform-ops .ops-bg-rail {
+  background: var(--ops-rail);
+}
+.platform-ops .ops-bg-surface {
+  background: var(--ops-surface);
+}
+.platform-ops .ops-bg-elevated {
+  background: var(--ops-bg-elevated);
+}
+.platform-ops .ops-border {
+  border-color: var(--ops-border);
+}
+.platform-ops .ops-text {
+  color: var(--ops-fg);
+}
+.platform-ops .ops-text-muted {
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-text-accent {
+  color: var(--ops-fg);
+}
+.platform-ops a.ops-text-accent:hover {
+  text-decoration: underline;
+}
+.platform-ops .ops-font-mono {
+  font-family: var(--ops-font-mono);
+}
+.platform-ops .ops-text-ok {
+  color: var(--ops-ok);
+}
+.platform-ops .ops-text-warn {
+  color: var(--ops-warn);
+}
+.platform-ops .ops-text-danger {
+  color: var(--ops-danger);
+}
+.platform-ops .ops-bg-accent {
+  background: var(--ops-accent);
+  color: var(--ops-accent-fg);
+}
+.platform-ops .ops-bg-ok-soft {
+  background: color-mix(in oklch, var(--ops-ok) 18%, transparent);
+}
+.platform-ops .ops-bg-warn-soft {
+  background: color-mix(in oklch, var(--ops-warn) 18%, transparent);
+}
+.platform-ops .ops-bg-danger-soft {
+  background: color-mix(in oklch, var(--ops-danger) 18%, transparent);
+}
+.platform-ops .ops-ring-accent:focus-visible {
+  outline: 2px solid var(--ops-accent);
+  outline-offset: 2px;
+}
+.platform-ops .ops-chip:focus-visible,
+.platform-ops .ops-tab:focus-visible,
+.platform-ops .ops-nav-link:focus-visible,
+.platform-ops .ops-menu-item:focus-visible,
+.platform-ops .ops-sheet-close:focus-visible,
+.platform-ops .ops-cmdk-item:focus-visible {
+  outline: 2px solid var(--ops-accent);
+  outline-offset: 2px;
+}
+.platform-ops .ops-input:focus-visible,
+.platform-ops .ops-textarea:focus-visible,
+.platform-ops .ops-select-trigger:focus-visible {
+  outline: 2px solid var(--ops-accent);
+  outline-offset: 2px;
+  border-color: color-mix(in oklch, var(--ops-accent) 55%, var(--ops-border));
+}
+.platform-ops .ops-rounded {
+  border-radius: var(--ops-radius);
+}
+.platform-ops .ops-hairline {
+  border: 1px solid var(--ops-border);
+}
+.platform-ops .ops-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 34px;
+  padding: 0 0.75rem;
+  border-radius: var(--ops-radius);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.platform-ops .ops-btn:disabled {
+  color: var(--ops-fg-muted);
+  opacity: 1;
+  cursor: not-allowed;
+}
+/* .ops-btn (especificidad 0,2,0) gana a `lg:hidden`. El corte del riel es 64rem. */
+@media (min-width: 64rem) {
+  .platform-ops .ops-nav-toggle {
+    display: none;
+  }
+}
+.platform-ops .ops-btn-primary {
+  background: var(--ops-accent);
+  color: var(--ops-accent-fg);
+}
+.platform-ops .ops-btn-primary:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--ops-fg) 6%, var(--ops-accent));
+}
+.platform-ops .ops-btn-ghost {
+  background: transparent;
+  color: var(--ops-fg);
+  border-color: var(--ops-border);
+}
+.platform-ops .ops-btn-ghost:hover:not(:disabled) {
+  background: var(--ops-bg-elevated);
+}
+.platform-ops .ops-btn-danger {
+  background: var(--ops-danger);
+  color: var(--ops-accent-fg);
+}
+.platform-ops .ops-btn-danger:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--ops-fg) 6%, var(--ops-danger));
+}
+.platform-ops .ops-btn-primary:disabled,
+.platform-ops .ops-btn-ghost:disabled,
+.platform-ops .ops-btn-danger:disabled {
+  color: var(--ops-fg-muted);
+  background: transparent;
+  border-color: var(--ops-border);
+  opacity: 1;
+  cursor: not-allowed;
+}
+.platform-ops .ops-btn-sm {
+  height: 30px;
+  padding: 0 0.6rem;
+  font-size: 12px;
+}
+.platform-ops .ops-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 24px;
+  padding: 0 0.5rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid transparent;
+  font-size: var(--ops-type-caption-size);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.platform-ops .ops-badge-default {
+  background: var(--ops-surface);
+  color: var(--ops-fg);
+  border-color: var(--ops-border);
+}
+.platform-ops .ops-badge-muted {
+  background: transparent;
+  color: var(--ops-fg-muted);
+  border-color: var(--ops-border);
+}
+/* Trial y meta sin semáforo: contorno de tinta, no muted ni lime. */
+.platform-ops .ops-badge-accent {
+  background: var(--ops-surface);
+  color: var(--ops-fg);
+  border-color: var(--ops-fg);
+}
+.platform-ops .ops-badge-ok {
+  background: color-mix(in oklch, var(--ops-ok) 18%, transparent);
+  color: var(--ops-ok);
+}
+.platform-ops .ops-badge-warn {
+  background: color-mix(in oklch, var(--ops-warn) 18%, transparent);
+  color: var(--ops-warn);
+}
+.platform-ops .ops-badge-danger {
+  background: color-mix(in oklch, var(--ops-danger) 18%, transparent);
+  color: var(--ops-danger);
+}
+.platform-ops .ops-panel {
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-surface);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0.875rem 0;
+}
+.platform-ops .ops-panel-title {
+  margin: 0;
+  font-size: var(--ops-type-h3-size);
+  font-weight: var(--ops-type-h3-weight);
+  line-height: var(--ops-type-h3-lh);
+  letter-spacing: var(--ops-type-h3-tracking);
+}
+.platform-ops .ops-panel-description {
+  margin: 0;
+  font-size: var(--ops-type-caption-size);
+  line-height: var(--ops-type-caption-lh);
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-panel-body {
+  padding: 0.75rem 0.875rem;
+}
+.platform-ops .ops-table-wrap {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-bg-elevated);
+}
+.platform-ops .ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ops-type-body-size);
+}
+.platform-ops .ops-table thead th {
+  height: var(--ops-row-h);
+  padding: 0 0.65rem;
+  text-align: left;
+  font-size: var(--ops-type-caption-size);
+  font-weight: var(--ops-type-caption-weight);
+  color: var(--ops-fg-muted);
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-surface);
+}
+.platform-ops .ops-table tbody td {
+  height: var(--ops-row-h);
+  padding: 0 0.65rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--ops-border) 70%, transparent);
+  color: var(--ops-fg);
+  vertical-align: middle;
+}
+.platform-ops .ops-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.platform-ops .ops-table tbody tr:hover td {
+  background: color-mix(in oklch, var(--ops-fg) 5%, transparent);
+}
+/* Ola 2 — Money: denser AR rows, hairline only (no Card blanca) */
+.platform-ops .ops-money-table.ops-table-wrap,
+.platform-ops .ops-table-wrap:has(.ops-money-table) {
+  background: transparent;
+  border-radius: var(--ops-radius);
+}
+.platform-ops .ops-money-table thead th {
+  height: 32px;
+  font-size: var(--ops-type-caption-size);
+  font-weight: var(--ops-type-caption-weight);
+  letter-spacing: var(--ops-type-caption-tracking);
+  background: transparent;
+  border-bottom: 1px solid var(--ops-border);
+}
+.platform-ops .ops-money-table tbody td {
+  height: var(--ops-row-h);
+  font-size: var(--ops-type-body-size);
+  border-bottom: 1px solid color-mix(in oklch, var(--ops-border) 55%, transparent);
+}
+.platform-ops .ops-money-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+}
+.platform-ops .ops-money-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: flex-end;
+}
+.platform-ops .ops-money-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 8rem;
+}
+.platform-ops .ops-money-filter-field .ops-label {
+  font-size: var(--ops-type-caption-size);
+}
+.platform-ops .ops-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--ops-scrim);
+}
+.platform-ops .ops-sheet-content {
+  position: fixed;
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--ops-bg-elevated);
+  color: var(--ops-fg);
+  border-color: var(--ops-border);
+  padding: 1.25rem;
+  box-shadow: var(--ops-shadow-overlay);
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.platform-ops .ops-sheet-header,
+.platform-ops .ops-sheet-footer {
+  flex-shrink: 0;
+}
+.platform-ops .ops-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.platform-ops .ops-sheet-content[data-side="right"] {
+  inset-block: 0;
+  right: 0;
+  width: min(100%, 28rem);
+  border-left: 1px solid var(--ops-border);
+}
+.platform-ops .ops-sheet-content[data-side="left"] {
+  inset-block: 0;
+  left: 0;
+  width: min(100%, 16.5rem);
+  border-right: 1px solid var(--ops-border);
+  overflow: hidden;
+}
+.platform-ops .ops-sheet-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: var(--ops-radius);
+  background: transparent;
+  color: var(--ops-fg-muted);
+  cursor: pointer;
+}
+.platform-ops .ops-sheet-close:hover {
+  background: var(--ops-surface);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--ops-scrim);
+}
+.platform-ops .ops-dialog-content {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 51;
+  width: min(calc(100% - 2rem), 28rem);
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-bg-elevated);
+  color: var(--ops-fg);
+  box-shadow: var(--ops-shadow-overlay);
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+}
+.platform-ops .ops-dialog-content[data-tone="danger"] {
+  border-color: color-mix(in oklch, var(--ops-danger) 45%, var(--ops-border));
+}
+.platform-ops .ops-dialog-content .ops-type-title {
+  color: var(--ops-fg);
+}
+.platform-ops .ops-input {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  padding: 0 0.75rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: var(--ops-bg);
+  color: var(--ops-fg);
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+}
+.platform-ops .ops-input::placeholder {
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-input[data-error="true"] {
+  border-color: var(--ops-danger);
+}
+.platform-ops .ops-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.platform-ops .ops-input.ops-font-mono {
+  font-family: var(--ops-font-mono);
+}
+.platform-ops .ops-label {
+  display: block;
+  font-size: var(--ops-type-caption-size);
+  font-weight: var(--ops-type-caption-weight);
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-label-mark {
+  margin-left: 0.15rem;
+  color: var(--ops-fg);
+}
+.platform-ops .ops-textarea {
+  display: block;
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: var(--ops-bg);
+  color: var(--ops-fg);
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+  resize: vertical;
+}
+.platform-ops .ops-textarea::placeholder {
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-textarea[data-error="true"] {
+  border-color: var(--ops-danger);
+}
+.platform-ops .ops-textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.platform-ops .ops-textarea-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+.platform-ops .ops-textarea-count {
+  margin: 0.25rem 0 0;
+  text-align: right;
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  line-height: var(--ops-type-caption-lh);
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-select-trigger {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.75rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: var(--ops-bg);
+  color: var(--ops-fg);
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+  cursor: pointer;
+}
+.platform-ops .ops-select-trigger[data-placeholder] {
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-select-trigger[data-error="true"] {
+  border-color: var(--ops-danger);
+}
+.platform-ops .ops-select-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.platform-ops .ops-select-content {
+  z-index: 60;
+  max-height: 16rem;
+  min-width: var(--radix-select-trigger-width);
+  overflow: auto;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: var(--ops-bg-elevated);
+  color: var(--ops-fg);
+  box-shadow: var(--ops-shadow-overlay);
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+  padding: 0.25rem;
+}
+.platform-ops .ops-select-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  cursor: default;
+  user-select: none;
+  align-items: center;
+  border-radius: calc(var(--ops-radius) - 1px);
+  padding: 0.4rem 1.75rem 0.4rem 0.5rem;
+  outline: none;
+}
+.platform-ops .ops-select-item[data-highlighted] {
+  background: color-mix(in oklch, var(--ops-fg) 8%, var(--ops-bg-elevated));
+  color: var(--ops-fg);
+  outline: 2px solid var(--ops-accent);
+  outline-offset: -2px;
+}
+.platform-ops .ops-select-item[data-disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.platform-ops .ops-select-item-check {
+  position: absolute;
+  right: 0.4rem;
+  display: inline-flex;
+  width: 0.875rem;
+  height: 0.875rem;
+  align-items: center;
+  justify-content: center;
+}
+.platform-ops .ops-alert {
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: var(--ops-surface);
+  padding: 0.65rem 0.75rem;
+  font-size: var(--ops-type-caption-size);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-alert[data-tone="notice"],
+.platform-ops .ops-alert[data-tone="default"] {
+  border-color: var(--ops-border);
+  color: var(--ops-fg);
+  box-shadow: none;
+}
+.platform-ops .ops-alert[data-tone="danger"] {
+  border-color: color-mix(in oklch, var(--ops-danger) 45%, var(--ops-border));
+  background: color-mix(in oklch, var(--ops-danger) 12%, var(--ops-surface));
+  color: var(--ops-fg);
+}
+.platform-ops .ops-alert[data-tone="warn"] {
+  border-color: color-mix(in oklch, var(--ops-warn) 40%, var(--ops-border));
+  background: color-mix(in oklch, var(--ops-warn) 10%, var(--ops-surface));
+}
+.platform-ops .ops-alert-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.platform-ops .ops-preview {
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: var(--ops-surface);
+  padding: 0.75rem;
+  font-size: var(--ops-type-body-size);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-preview dt {
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-risk-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.25rem 0 0.25rem 0.65rem;
+  border-bottom: 1px solid var(--ops-border);
+}
+.platform-ops .ops-risk-header[data-tone="default"] {
+  border-bottom-color: var(--ops-border);
+  padding-left: 0;
+}
+.platform-ops .ops-risk-header[data-tone="danger"] {
+  border-bottom-color: color-mix(
+    in oklch,
+    var(--ops-danger) 35%,
+    var(--ops-border)
+  );
+}
+.platform-ops .ops-risk-header[data-tone="warn"] {
+  border-bottom-color: color-mix(
+    in oklch,
+    var(--ops-warn) 35%,
+    var(--ops-border)
+  );
+}
+.platform-ops .ops-field-error {
+  font-size: var(--ops-type-caption-size);
+  color: var(--ops-danger);
+}
+.platform-ops .ops-form-errors {
+  border-radius: var(--ops-radius);
+  border: 1px solid color-mix(in oklch, var(--ops-danger) 45%, var(--ops-border));
+  background: color-mix(in oklch, var(--ops-danger) 12%, var(--ops-surface));
+  padding: 0.65rem 0.75rem;
+  font-size: var(--ops-type-caption-size);
+}
+.platform-ops .ops-form-errors ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+}
+.platform-ops .ops-form-error-jump {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.platform-ops .ops-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 28px;
+  padding: 0 0.65rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: transparent;
+  color: var(--ops-fg-muted);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  cursor: pointer;
+}
+.platform-ops .ops-chip[data-active="true"] {
+  border-color: transparent;
+  color: var(--ops-accent-fg);
+  background: var(--ops-fg);
+}
+.platform-ops .ops-cmdk-dialog {
+  position: fixed;
+  left: 50%;
+  top: 20%;
+  z-index: 50;
+  width: min(32rem, calc(100vw - 1.5rem));
+  transform: translateX(-50%);
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-bg-elevated);
+  color: var(--ops-fg);
+  box-shadow: var(--ops-shadow-overlay);
+  overflow: hidden;
+  font-family: var(--ops-font);
+}
+.platform-ops .ops-cmdk {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+  color: var(--ops-fg);
+}
+.platform-ops .ops-cmdk-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--ops-border);
+  padding: 0 0.75rem;
+}
+.platform-ops .ops-cmdk-input {
+  height: 44px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ops-fg);
+  font-size: var(--ops-type-body-size);
+  font-family: var(--ops-font);
+}
+.platform-ops .ops-cmdk-input::placeholder {
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-cmdk-input:focus-visible {
+  outline: 2px solid var(--ops-accent);
+  outline-offset: -2px;
+}
+.platform-ops .ops-cmdk-list {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.35rem;
+}
+.platform-ops .ops-cmdk-empty {
+  padding: 1.75rem 1rem;
+  text-align: center;
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-cmdk-group {
+  overflow: hidden;
+  padding: 0.25rem;
+}
+.platform-ops .ops-cmdk-group [cmdk-group-heading] {
+  padding: 0.35rem 0.5rem;
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-cmdk-item {
+  display: flex;
+  cursor: default;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--ops-radius);
+  padding: 0.45rem 0.5rem;
+  font-size: var(--ops-type-body-size);
+  outline: none;
+  color: var(--ops-fg);
+}
+.platform-ops .ops-cmdk-item[data-selected="true"] {
+  background: color-mix(in oklch, var(--ops-fg) 8%, var(--ops-bg-elevated));
+  color: var(--ops-fg);
+  outline: 2px solid var(--ops-accent);
+  outline-offset: -2px;
+}
+.platform-ops .ops-cmdk-item[data-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.platform-ops .ops-empty {
+  padding: 0.5rem 0 0.5rem 0.15rem;
+  text-align: left;
+}
+.platform-ops .ops-empty-title {
+  font-size: var(--ops-type-body-size);
+  font-weight: var(--ops-type-body-weight);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-empty-description {
+  margin-top: 0.25rem;
+  font-size: var(--ops-type-caption-size);
+  color: var(--ops-fg-muted);
+  max-width: 36rem;
+  margin-left: 0;
+  margin-right: 0;
+}
+.platform-ops .ops-empty-action {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.platform-ops .ops-empty-loading {
+  padding: 0.5rem 0;
+}
+.platform-ops .ops-empty-loading .ops-empty-title {
+  font-weight: 500;
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-tab {
+  height: 34px;
+  padding: 0 0.7rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ops-fg-muted);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  cursor: pointer;
+}
+.platform-ops .ops-tab[data-active="true"] {
+  color: var(--ops-fg);
+  border-bottom-color: var(--ops-fg);
+}
+.platform-ops .ops-row {
+  min-height: var(--ops-row-h);
+}
+.platform-ops .ops-nav-link {
+  border-radius: var(--ops-radius);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  color: var(--ops-fg-muted);
+  text-decoration: none;
+}
+.platform-ops .ops-nav-link:hover {
+  background: var(--ops-bg-elevated);
+  color: var(--ops-fg);
+}
+.platform-ops .ops-nav-link[aria-current="page"] {
+  background: var(--ops-surface);
+  color: var(--ops-fg);
+  /* Acento acromático (tinta/papel) — LID-D6 · tick token */
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-accent);
+}
+.platform-ops .ops-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+  font-size: var(--ops-type-caption-size);
+  background: transparent;
+  border: none;
+  color: var(--ops-fg);
+  cursor: pointer;
+}
+.platform-ops .ops-menu-item:hover:not(:disabled) {
+  background: var(--ops-surface);
+}
+.platform-ops .ops-menu-item:disabled {
+  color: var(--ops-fg-muted);
+  cursor: not-allowed;
+}
+.platform-ops .ops-theme-menu .ops-menu-item[aria-checked="true"] {
+  background: transparent;
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-fg);
+}
+.platform-ops .ops-theme-menu .ops-menu-item[aria-checked="true"]:hover {
+  background: transparent;
+}
+
+/* Marca: monograma + wordmark en una línea, dentro de la topbar. */
+.platform-ops .ops-brand-mark {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+  max-height: var(--ops-topbar-h);
+  overflow: hidden;
+}
+.platform-ops .ops-brand-mark-hero {
+  flex-direction: column;
+  max-height: none;
+  overflow: visible;
+  gap: 0.75rem;
+}
+.platform-ops .ops-brand-mark-line {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+}
+.platform-ops .ops-brand-mark-hero .ops-brand-mark-line {
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+  gap: 0;
+}
+.platform-ops .ops-brand-mark-name,
+.platform-ops .ops-brand-mark-env {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.platform-ops .ops-brand-mark-name {
+  flex: 0 0 auto;
+}
+.platform-ops .ops-brand-mark-env {
+  flex: 1 1 auto;
+}
+.platform-ops .ops-brand-mark-hero .ops-brand-mark-name,
+.platform-ops .ops-brand-mark-hero .ops-brand-mark-env {
+  white-space: normal;
+  overflow: visible;
+}
+
+/* Tipografía nombrada — utilidades (FOUND-D3 + AUDIT-D11); sin peso 700 */
+.platform-ops .ops-type-display,
+.platform-ops .ops-type-h1 {
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-display-size);
+  font-weight: var(--ops-type-display-weight);
+  line-height: var(--ops-type-display-lh);
+  letter-spacing: var(--ops-type-display-tracking);
+}
+.platform-ops .ops-type-title,
+.platform-ops .ops-type-h2 {
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-title-size);
+  font-weight: var(--ops-type-title-weight);
+  line-height: var(--ops-type-title-lh);
+  letter-spacing: var(--ops-type-title-tracking);
+}
+.platform-ops .ops-type-h3 {
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-h3-size);
+  font-weight: var(--ops-type-h3-weight);
+  line-height: var(--ops-type-h3-lh);
+  letter-spacing: var(--ops-type-h3-tracking);
+}
+.platform-ops .ops-type-body {
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-body-size);
+  font-weight: var(--ops-type-body-weight);
+  line-height: var(--ops-type-body-lh);
+}
+.platform-ops .ops-type-caption {
+  font-family: var(--ops-font);
+  font-size: var(--ops-type-caption-size);
+  font-weight: var(--ops-type-caption-weight);
+  line-height: var(--ops-type-caption-lh);
+  letter-spacing: var(--ops-type-caption-tracking);
+}
+.platform-ops .ops-text-lime {
+  color: var(--ops-lime);
+}
+
+/* ——— L2 «Tinta y Señal» motifs (M1–M5 · LID-D10) ——— */
+
+/* M2 — tick 3px warn/danger (token --ops-tick-w) */
+.platform-ops [data-ops-tick="warn"] {
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-warn);
+}
+.platform-ops [data-ops-tick="danger"] {
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-danger);
+}
+.platform-ops tr[data-ops-tick="warn"] > td:first-child {
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-warn);
+}
+.platform-ops tr[data-ops-tick="danger"] > td:first-child {
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-danger);
+}
+
+/* M1 — regla de sección */
+.platform-ops .ops-section-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 1.25rem;
+}
+.platform-ops .ops-section-rule-label {
+  flex-shrink: 0;
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  font-weight: var(--ops-type-caption-weight);
+  line-height: var(--ops-type-caption-lh);
+  letter-spacing: var(--ops-type-caption-tracking);
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-section-rule-line {
+  flex: 1 1 auto;
+  min-width: 1.5rem;
+  height: 1px;
+  background: var(--ops-border);
+}
+.platform-ops .ops-section-rule-meta {
+  flex-shrink: 0;
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  line-height: var(--ops-type-caption-lh);
+  color: var(--ops-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* M5 — contadores cola mono display */
+.platform-ops .ops-hoy-queue-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.platform-ops .ops-hoy-queue-chip {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+  height: var(--ops-row-h);
+  padding: 0 0.65rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: transparent;
+  color: var(--ops-fg-muted);
+  cursor: pointer;
+  text-align: left;
+}
+.platform-ops .ops-hoy-queue-chip[data-active="true"] {
+  border-color: transparent;
+  color: var(--ops-fg);
+  background: transparent;
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-accent);
+}
+.platform-ops .ops-hoy-queue-count {
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-title-size);
+  font-weight: var(--ops-type-title-weight);
+  line-height: var(--ops-type-title-lh);
+  letter-spacing: var(--ops-type-title-tracking);
+  color: var(--ops-fg);
+  font-variant-numeric: tabular-nums;
+}
+.platform-ops .ops-hoy-queue-count[data-empty="true"] {
+  color: var(--ops-fg-muted);
+}
+.platform-ops .ops-hoy-queue-count[data-count-tone="warn"] {
+  color: var(--ops-warn);
+}
+.platform-ops .ops-hoy-queue-count[data-count-tone="danger"] {
+  color: var(--ops-danger);
+}
+.platform-ops .ops-hoy-queue-label {
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+}
+
+/* M3 — folio money */
+.platform-ops .ops-money-amount {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.platform-ops .ops-money-currency {
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+}
+.platform-ops .ops-money-table td:has(.ops-money-amount) {
+  text-align: right;
+}
+
+/* Sello de etapa: barra 3px + palabra. Trial es tinta, no semáforo. */
+.platform-ops .ops-lifecycle-seal {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 0.5rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: transparent;
+  color: var(--ops-fg-muted);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.platform-ops .ops-lifecycle-seal[data-tone="ok"] {
+  border-color: transparent;
+  background: color-mix(in oklch, var(--ops-ok) 18%, transparent);
+  color: var(--ops-ok);
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-ok);
+}
+.platform-ops .ops-lifecycle-seal[data-tone="warn"] {
+  border-color: transparent;
+  background: color-mix(in oklch, var(--ops-warn) 18%, transparent);
+  color: var(--ops-warn);
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-warn);
+}
+.platform-ops .ops-lifecycle-seal[data-tone="danger"] {
+  border-color: transparent;
+  background: color-mix(in oklch, var(--ops-danger) 18%, transparent);
+  color: var(--ops-danger);
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-danger);
+}
+.platform-ops .ops-lifecycle-seal[data-tone="trial"] {
+  background: var(--ops-surface);
+  color: var(--ops-fg);
+  border-color: var(--ops-fg);
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-fg);
+}
+
+/* Sello de plan: código mono, sin color de tier. */
+.platform-ops .ops-plan-seal {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 0.45rem;
+  border-radius: var(--ops-radius);
+  border: 1px solid var(--ops-border);
+  background: transparent;
+  color: var(--ops-fg);
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.platform-ops .ops-plan-seal[data-empty="true"] {
+  color: var(--ops-fg-muted);
+}
+
+/* Lista de filas: hairline, sin card kit. */
+.platform-ops .ops-line-list {
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-surface);
+  overflow: hidden;
+}
+.platform-ops .ops-line-list > :last-child {
+  border-bottom: none;
+}
+
+/* Fila de empresa — 37px, un tick, sellos a la derecha del nombre. */
+.platform-ops .ops-tenant-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  min-height: var(--ops-row-h);
+  padding: 0 0.5rem 0 0.75rem;
+  border-bottom: 1px solid var(--ops-border);
+  background: transparent;
+}
+.platform-ops .ops-tenant-row:hover {
+  background: color-mix(in oklch, var(--ops-fg) 4%, transparent);
+}
+.platform-ops .ops-tenant-row-id {
+  flex-shrink: 0;
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+  color: var(--ops-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.platform-ops .ops-tenant-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ops-fg);
+  font-size: var(--ops-type-body-size);
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.platform-ops a.ops-tenant-row-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.platform-ops .ops-tenant-row-seals {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+@media (max-width: 39.99rem) {
+  .platform-ops .ops-tenant-row-time {
+    display: none;
+  }
+}
+.platform-ops .ops-tenant-row-time {
+  flex-shrink: 0;
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+  color: var(--ops-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.platform-ops .ops-tenant-row-action {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Banda de cobranza — montos mono en una fila. Danger solo en el bucket atrasado. */
+.platform-ops .ops-collections-empty {
+  margin: 0;
+}
+.platform-ops .ops-collections-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  min-height: var(--ops-row-h);
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius);
+  background: var(--ops-surface);
+  overflow: hidden;
+}
+.platform-ops .ops-collections-bucket {
+  flex: 1 1 8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--ops-row-h);
+  padding: 0 0.75rem;
+  border-right: 1px solid var(--ops-border);
+  min-width: 0;
+}
+.platform-ops .ops-collections-bucket[data-overdue="true"] {
+  box-shadow: inset var(--ops-tick-w) 0 0 0 var(--ops-danger);
+}
+.platform-ops .ops-collections-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ops-fg-muted);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+}
+.platform-ops .ops-collections-bucket .ops-money-amount {
+  width: auto;
+  flex-shrink: 0;
+}
+.platform-ops .ops-collections-bucket[data-overdue="true"] .ops-money-amount,
+.platform-ops .ops-collections-bucket[data-overdue="true"] .ops-money-currency {
+  color: var(--ops-danger);
+}
+.platform-ops .ops-collections-action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 0.35rem;
+}
+
+/* Línea de auditoría — sin icono. Danger solo en el verbo destructivo. */
+.platform-ops .ops-audit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  min-height: var(--ops-row-h);
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--ops-border);
+}
+.platform-ops .ops-audit-time {
+  flex-shrink: 0;
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+  color: var(--ops-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.platform-ops .ops-audit-actor,
+.platform-ops .ops-audit-object {
+  color: var(--ops-fg);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+}
+.platform-ops .ops-audit-object {
+  min-width: 0;
+  text-decoration: none;
+}
+.platform-ops a.ops-audit-object:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.platform-ops .ops-audit-verb {
+  color: var(--ops-fg-muted);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+}
+.platform-ops .ops-audit-verb[data-destructive="true"] {
+  color: var(--ops-danger);
+}
+.platform-ops .ops-audit-detail {
+  min-width: 0;
+  color: var(--ops-fg-muted);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+  line-height: var(--ops-type-caption-lh);
+}
+
+/* Carga de tabla — barras estáticas. No es texto y no anima. */
+.platform-ops .ops-table-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.platform-ops .ops-table-skeleton-bar {
+  height: var(--ops-row-h);
+  background: var(--ops-skeleton);
+  border-radius: var(--ops-radius);
+  animation: none;
+}
+
+/* Ledger de salud — el número lleva el tono; las señales no. */
+.platform-ops .ops-health-score {
+  margin: 0.35rem 0 0;
+  font-family: var(--ops-font-mono);
+  font-size: 1.25rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.platform-ops .ops-health-signals {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+.platform-ops .ops-health-signal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 0.75rem;
+  min-height: var(--ops-row-h);
+  border-bottom: 1px solid var(--ops-border);
+}
+.platform-ops .ops-health-signal-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ops-fg);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+}
+.platform-ops .ops-health-signal-value {
+  font-family: var(--ops-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ops-fg);
+  font-size: var(--ops-type-caption-size);
+}
+.platform-ops .ops-health-signal-weight {
+  color: var(--ops-fg-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--ops-type-caption-size);
+}
+
+/* Medidor de cupo. La pista es --ops-border; lime solo bajo 70% de timbres. */
+.platform-ops .ops-quota-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-height: var(--ops-row-h);
+}
+.platform-ops .ops-quota-label {
+  min-width: 0;
+  color: var(--ops-fg);
+  font-size: var(--ops-type-caption-size);
+  font-weight: 500;
+}
+.platform-ops .ops-quota-value {
+  font-family: var(--ops-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ops-fg);
+  font-size: var(--ops-type-caption-size);
+}
+.platform-ops .ops-quota-track {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: var(--ops-radius);
+  background: var(--ops-border);
+  overflow: hidden;
+}
+.platform-ops .ops-quota-fill {
+  height: 100%;
+  border-radius: var(--ops-radius);
+}
+.platform-ops .ops-quota-fill[data-ops-quota-fill="lime"] {
+  background: var(--ops-lime);
+}
+.platform-ops .ops-quota-fill[data-ops-quota-fill="ink"] {
+  background: var(--ops-fg);
+}
+.platform-ops .ops-quota-fill[data-ops-quota-fill="warn"] {
+  background: var(--ops-warn);
+}
+.platform-ops .ops-quota-fill[data-ops-quota-fill="danger"] {
+  background: var(--ops-danger);
+}
+
+.platform-ops .ops-secret-list {
+  list-style: none;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0;
+}
+.platform-ops .ops-secret-code {
+  display: flex;
+  align-items: center;
+  min-height: var(--ops-row-h);
+  border-bottom: 1px solid var(--ops-border);
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-caption-size);
+  color: var(--ops-fg);
+}

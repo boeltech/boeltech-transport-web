@@ -99,4 +99,20 @@ describe("TenantAdminActivationCard", () => {
       }),
     ).toBeNull();
   });
+
+  it("activated: compact strip (no full Card description)", () => {
+    renderCard(true, {
+      ...pendingActivation,
+      status: "activated",
+      lastSendError: null,
+    });
+    expect(
+      screen.getByTestId("tenant-admin-activation-compact"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        platformCopy.tenants.detail.adminActivation.description,
+      ),
+    ).not.toBeInTheDocument();
+  });
 });

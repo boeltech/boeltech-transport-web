@@ -234,7 +234,7 @@ export function TenantSaasArCard({
 
   return (
     <>
-      <Card>
+      <Card id="tenant-saas-ar">
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
           <div>
             <CardTitle className="text-base">{copy.card.title}</CardTitle>

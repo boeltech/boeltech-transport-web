@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TenantGovernanceControls } from "./TenantGovernanceControls";
 import { platformCopy } from "../copy/platformCopy";
@@ -13,8 +14,17 @@ import type {
 vi.mock("../../infrastructure/platformApi", () => ({
   platformApi: {
     getTenantSubscription: vi.fn(),
+    updateDeclaredFleet: vi.fn(),
   },
 }));
+
+vi.mock("@shared/hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/hooks")>();
+  return {
+    ...actual,
+    useToast: () => ({ toast: vi.fn() }),
+  };
+});
 
 const mockedApi = vi.mocked(platformApi);
 
@@ -70,6 +80,7 @@ const subscription: PlatformTenantSubscription = {
 function renderControls(
   tenant: PlatformTenantDetail,
   canMutate = true,
+  onManage = vi.fn(),
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -79,7 +90,7 @@ function renderControls(
       <TenantGovernanceControls
         tenant={tenant}
         canMutate={canMutate}
-        onManageSubscription={vi.fn()}
+        onManageSubscription={onManage}
       />
     </QueryClientProvider>,
   );
@@ -123,7 +134,50 @@ describe("TenantGovernanceControls", () => {
     ).toBeInTheDocument();
   });
 
-  it("support RO: estados visibles sin CTA de gestionar suscripción en gracia", async () => {
+  it("no muestra badges Acceso/Suscripción (canónicos en strip)", async () => {
+    renderControls(baseTenant);
+    await screen.findByText(
+      platformCopy.tenants.detail.governance.accessEffect.active,
+    );
+    expect(
+      screen.queryByText(
+        platformCopy.tenants.detail.subscription.statusLabels.active,
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("past_due: sin DetailAlertCard gemelo; orientación + Gestionar secundaria", async () => {
+    mockedApi.getTenantSubscription.mockResolvedValue({
+      ...subscription,
+      status: "past_due",
+    });
+    const onManage = vi.fn();
+    const user = userEvent.setup();
+
+    renderControls(
+      { ...baseTenant, subscriptionStatus: "past_due" },
+      true,
+      onManage,
+    );
+
+    expect(
+      await screen.findByText(
+        platformCopy.tenants.detail.governance.commercialEffect.past_due,
+      ),
+    ).toBeInTheDocument();
+    // Old twin alert title removed
+    expect(
+      screen.queryByText("Cobro pendiente — acción manual"),
+    ).not.toBeInTheDocument();
+
+    const cta = screen.getByRole("button", {
+      name: platformCopy.tenants.detail.governance.grace.openSubscription,
+    });
+    await user.click(cta);
+    expect(onManage).toHaveBeenCalled();
+  });
+
+  it("support RO past_due: sin CTA Gestionar", async () => {
     mockedApi.getTenantSubscription.mockResolvedValue({
       ...subscription,
       status: "past_due",
@@ -133,11 +187,6 @@ describe("TenantGovernanceControls", () => {
 
     expect(
       await screen.findByText(
-        platformCopy.tenants.detail.governance.grace.title,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
         platformCopy.tenants.detail.governance.grace.readOnlyHint,
       ),
     ).toBeInTheDocument();
@@ -148,30 +197,19 @@ describe("TenantGovernanceControls", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("past_due owner: CTA Gestionar suscripción en DetailAlertCard.action", async () => {
-    const onManage = vi.fn();
-    mockedApi.getTenantSubscription.mockResolvedValue({
-      ...subscription,
-      status: "past_due",
-    });
+  it("owner: puede abrir editor de flota declarada", async () => {
+    const user = userEvent.setup();
+    renderControls(baseTenant);
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <TenantGovernanceControls
-          tenant={{ ...baseTenant, subscriptionStatus: "past_due" }}
-          canMutate
-          onManageSubscription={onManage}
-        />
-      </QueryClientProvider>,
+    await user.click(
+      await screen.findByRole("button", {
+        name: platformCopy.tenants.detail.governance.declaredFleetEdit,
+      }),
     );
-
-    const cta = await screen.findByRole("button", {
-      name: platformCopy.tenants.detail.governance.grace.openSubscription,
-    });
-    cta.click();
-    expect(onManage).toHaveBeenCalled();
+    expect(
+      screen.getByLabelText(
+        platformCopy.tenants.detail.governance.declaredFleetBandLabel,
+      ),
+    ).toBeInTheDocument();
   });
 });

@@ -2,17 +2,6 @@ import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
-import { Label } from "@shared/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
-import { AlertWithIcon } from "@shared/ui/alert";
 import {
   FieldInlineError,
   FormValidationSummary,
@@ -33,9 +22,34 @@ import {
   type PlatformMfaCodeFormData,
 } from "../validation";
 import { platformCopy } from "../copy/platformCopy";
-import { PlatformBrandMark } from "../layout/PlatformBrandMark";
+import {
+  OpsAlert,
+  OpsBrandMark,
+  OpsButton,
+  OpsInput,
+  OpsPanel,
+  OpsPanelBody,
+  OpsPanelDescription,
+  OpsPanelHeader,
+  OpsPanelTitle,
+} from "../ops/ui";
+import { OpsThemeProvider, useOpsTheme } from "../ops/OpsThemeProvider";
+import "../ops/opsTokens.css";
 
+/**
+ * Login platform Ops — `.platform-ops` + tema resuelto (sin ThemeToggle, LID-D4).
+ * Marca = OpsBrandMark M4 (sin Shield / card-escudo). Auth API intacta.
+ */
 export function PlatformLoginPage() {
+  return (
+    <OpsThemeProvider>
+      <PlatformLoginPageInner />
+    </OpsThemeProvider>
+  );
+}
+
+function PlatformLoginPageInner() {
+  const { resolved } = useOpsTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -137,50 +151,51 @@ export function PlatformLoginPage() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-muted/40 to-muted p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-3 text-center">
-          <div className="flex justify-center">
-            <PlatformBrandMark
-              compact
-              iconClassName="h-12 w-12 rounded-xl"
-            />
-          </div>
-          <div className="space-y-1">
-            <CardTitle className="text-xl font-bold">
+    <div
+      className="platform-ops flex min-h-screen items-center justify-center ops-bg p-6"
+      data-ops-login="true"
+      data-ops-theme={resolved}
+      data-testid="platform-ops-login"
+    >
+      <div className="flex w-full max-w-md flex-col gap-6">
+        <OpsBrandMark size="hero" className="justify-center self-center" />
+        <OpsPanel className="w-full">
+          <OpsPanelHeader className="space-y-2 text-center">
+            <div className="space-y-1">
+              <OpsPanelTitle className="ops-type-h1">
+                {mfaChallengeToken
+                  ? platformCopy.login.mfa.title
+                  : platformCopy.login.title}
+              </OpsPanelTitle>
+              <p className="ops-type-caption ops-text-muted">
+                {platformCopy.brand.subtitle}
+              </p>
+            </div>
+            <OpsPanelDescription>
               {mfaChallengeToken
-                ? platformCopy.login.mfa.title
-                : platformCopy.login.title}
-            </CardTitle>
-            <p className="text-muted-foreground text-xs">
-              {platformCopy.brand.subtitle}
-            </p>
-          </div>
-          <CardDescription>
-            {mfaChallengeToken
-              ? platformCopy.login.mfa.description
-              : platformCopy.login.description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+                ? platformCopy.login.mfa.description
+                : platformCopy.login.description}
+            </OpsPanelDescription>
+          </OpsPanelHeader>
+          <OpsPanelBody>
           {sessionExpired && !mfaChallengeToken ? (
-            <AlertWithIcon variant="warning" className="mb-4">
+            <OpsAlert tone="warn" className="mb-4" title="Sesión">
               {platformCopy.login.errors.sessionExpired}
-            </AlertWithIcon>
+            </OpsAlert>
           ) : null}
           {error ? (
-            <AlertWithIcon variant="destructive" className="mb-4">
+            <OpsAlert tone="danger" className="mb-4" title="Error">
               {error}
-            </AlertWithIcon>
+            </OpsAlert>
           ) : null}
 
           {mfaChallengeToken ? (
             <form onSubmit={onMfaSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="mfa-code">
+                <label htmlFor="mfa-code" className="ops-label">
                   {platformCopy.login.mfa.codeLabel}
-                </Label>
-                <Input
+                </label>
+                <OpsInput
                   id="mfa-code"
                   inputMode="numeric"
                   autoComplete="one-time-code"
@@ -189,6 +204,7 @@ export function PlatformLoginPage() {
                     "mfa-code",
                     mfaForm.formState.errors.code?.message,
                   )}
+                  error={Boolean(mfaForm.formState.errors.code?.message)}
                 />
                 <FieldInlineError
                   fieldId="mfa-code"
@@ -201,17 +217,16 @@ export function PlatformLoginPage() {
                   messages={mfaFieldSummaryMessages}
                 />
               ) : null}
-              <Button
+              <OpsButton
                 type="submit"
                 className="w-full"
                 disabled={isSubmitting}
-                isLoading={isSubmitting}
               >
                 {isSubmitting
                   ? platformCopy.login.mfa.submitting
                   : platformCopy.login.mfa.submit}
-              </Button>
-              <Button
+              </OpsButton>
+              <OpsButton
                 type="button"
                 variant="ghost"
                 className="w-full"
@@ -223,13 +238,15 @@ export function PlatformLoginPage() {
                 }}
               >
                 {platformCopy.login.mfa.back}
-              </Button>
+              </OpsButton>
             </form>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">{platformCopy.login.emailLabel}</Label>
-                <Input
+                <label htmlFor="email" className="ops-label">
+                  {platformCopy.login.emailLabel}
+                </label>
+                <OpsInput
                   id="email"
                   type="email"
                   autoComplete="username"
@@ -238,6 +255,7 @@ export function PlatformLoginPage() {
                     "email",
                     loginForm.formState.errors.email?.message,
                   )}
+                  error={Boolean(loginForm.formState.errors.email?.message)}
                 />
                 <FieldInlineError
                   fieldId="email"
@@ -246,11 +264,11 @@ export function PlatformLoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">
+                <label htmlFor="password" className="ops-label">
                   {platformCopy.login.passwordLabel}
-                </Label>
+                </label>
                 <div className="relative">
-                  <Input
+                  <OpsInput
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
@@ -258,6 +276,9 @@ export function PlatformLoginPage() {
                     {...loginForm.register("password")}
                     {...getRegisterFieldErrorProps(
                       "password",
+                      loginForm.formState.errors.password?.message,
+                    )}
+                    error={Boolean(
                       loginForm.formState.errors.password?.message,
                     )}
                   />
@@ -281,29 +302,29 @@ export function PlatformLoginPage() {
                 />
               ) : null}
 
-              <Button
+              <OpsButton
                 type="submit"
                 className="w-full"
                 disabled={isSubmitting}
-                isLoading={isSubmitting}
               >
                 {isSubmitting
                   ? platformCopy.login.submitting
                   : platformCopy.login.submit}
-              </Button>
+              </OpsButton>
             </form>
           )}
 
           {!mfaChallengeToken ? (
-            <p className="mt-6 text-center text-sm text-muted-foreground">
+            <p className="mt-6 text-center text-sm ops-text-muted">
               {platformCopy.login.tenantLink}{" "}
-              <Link to="/login" className="text-primary hover:underline">
+              <Link to="/login" className="ops-text-accent hover:underline">
                 {platformCopy.login.tenantLinkAction}
               </Link>
             </p>
           ) : null}
-        </CardContent>
-      </Card>
+          </OpsPanelBody>
+        </OpsPanel>
+      </div>
     </div>
   );
 }

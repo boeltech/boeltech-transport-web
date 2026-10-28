@@ -3,17 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shar
 import { InfoRow } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { formatDateTime } from "@shared/utils/dateUtils";
-import {
-  usePlatformTenantStampUsage,
-  usePlatformTenantSubscription,
-} from "../../application/hooks/usePlatformBilling";
+import { usePlatformTenantSubscription } from "../../application/hooks/usePlatformBilling";
 import { platformCopy } from "../copy/platformCopy";
 import {
   formatPlatformHistoryMonthsConsultable,
   formatPlatformUsageGranted,
   getPlatformBillingCycleLabel,
-  getPlatformQuotaPolicyDescription,
-  getPlatformQuotaPolicyLabel,
   getPlatformSubscriptionStatusLabel,
   getProfitabilityLevelDetail,
 } from "../utils/platformBillingFormatters";
@@ -42,10 +37,8 @@ function planPriceRowLabel(
 /** Detalle avanzado del plan (límites, margen, política de excedente, notas). */
 export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps) {
   const copy = platformCopy.tenants.detail.subscription;
-  const stampCopy = platformCopy.tenants.detail.stampUsage;
   const { data: subscription, isLoading, isError } =
     usePlatformTenantSubscription(tenantId);
-  const { data: usage } = usePlatformTenantStampUsage(tenantId);
   const planPrice = subscription
     ? resolvePlatformPlanPriceDisplay(subscription)
     : null;
@@ -157,20 +150,6 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
                 value={formatDateTime(subscription.trialEndsAt)}
               />
             ) : null}
-            {usage ? (
-              <>
-                <InfoRow
-                  variant="inline"
-                  label={stampCopy.quotaPolicy}
-                  value={getPlatformQuotaPolicyLabel(usage.quotaPolicy)}
-                />
-                {getPlatformQuotaPolicyDescription(usage.quotaPolicy) ? (
-                  <p className="text-xs text-muted-foreground">
-                    {getPlatformQuotaPolicyDescription(usage.quotaPolicy)}
-                  </p>
-                ) : null}
-              </>
-            ) : null}
             <InfoRow
               variant="inline"
               label={copy.fields.profitabilityLevel}
@@ -190,6 +169,7 @@ export function TenantSubscriptionCard({ tenantId }: TenantSubscriptionCardProps
                 value={subscription.notes}
               />
             ) : null}
+            <p className="text-xs text-muted-foreground">{copy.periodPulseHint}</p>
           </>
         )}
       </CardContent>

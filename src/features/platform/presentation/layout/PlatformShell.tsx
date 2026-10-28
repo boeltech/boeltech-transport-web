@@ -12,15 +12,22 @@ import {
   PlatformSidebarProvider,
   usePlatformSidebar,
 } from "../providers/PlatformSidebarProvider";
+import { isPlatformConsoleV1Enabled } from "../ops/platformConsoleV1";
+import { PlatformOpsShell } from "../ops/PlatformOpsShell";
 import { PlatformHeader } from "./PlatformHeader";
 import { PlatformMobileSidebar } from "./PlatformMobileSidebar";
 import { PlatformSidebar } from "./PlatformSidebar";
 
 /**
  * Chrome aislado de `/platform/*` (ADR-0062).
+ * Flag `VITE_PLATFORM_CONSOLE_V1_ENABLED` ON → shell ops D4; OFF → consola actual.
  * No monta AppLayout / AuthProvider / PermissionProvider del ERP.
  */
 export function PlatformShell() {
+  if (isPlatformConsoleV1Enabled()) {
+    return <PlatformOpsShell />;
+  }
+
   return (
     <PlatformAuthProvider>
       <PlatformSidebarProvider>

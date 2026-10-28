@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { PAST_DUE_DAYS_UNTIL_PAUSE } from "@features/billing/presentation/utils/billingGrace";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
@@ -13,19 +14,24 @@ import { PLATFORM_TENANT_STATUS_LABELS } from "../../domain/entities";
 const stripCopy = platformCopy.tenants.detail.commercialStrip;
 
 function renderStrip(
-  props: Omit<TenantCommercialStatusStripProps, "tenantId"> & {
-    tenantId?: string;
+  props: Omit<TenantCommercialStatusStripProps, "onViewCollections"> & {
+    onViewCollections?: () => void;
   },
 ) {
   return render(
     <MemoryRouter>
-      <TenantCommercialStatusStrip tenantId="tenant-1" {...props} />
+      <TenantCommercialStatusStrip
+        onViewCollections={props.onViewCollections ?? vi.fn()}
+        {...props}
+      />
     </MemoryRouter>,
   );
 }
 
 describe("TenantCommercialStatusStrip", () => {
-  it("past_due + acceso active: DetailAlertCard.action Ver en Cobros", () => {
+  it("past_due + acceso active: DetailAlertCard.action Cobros (same-page callback)", async () => {
+    const user = userEvent.setup();
+    const onViewCollections = vi.fn();
     const periodStart = "2026-08-01T06:00:00.000Z";
     const grace = new Date(periodStart);
     grace.setUTCDate(grace.getUTCDate() + PAST_DUE_DAYS_UNTIL_PAUSE);
@@ -36,6 +42,7 @@ describe("TenantCommercialStatusStrip", () => {
       planName: "Operación Pequeña",
       lifecycleStage: "at_risk",
       currentPeriodStart: periodStart,
+      onViewCollections,
     });
 
     expect(
@@ -47,19 +54,16 @@ describe("TenantCommercialStatusStrip", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Operación Pequeña")).toBeInTheDocument();
-    expect(
-      screen.getByText(stripCopy.pastDueOperating),
-    ).toBeInTheDocument();
+    expect(screen.getByText(stripCopy.pastDueOperating)).toBeInTheDocument();
     expect(
       screen.getByText(stripCopy.graceRef(formatDate(grace.toISOString()))),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: stripCopy.viewAr }),
-    ).toHaveAttribute(
-      "href",
-      "/platform/billing/ar?tenant_id=tenant-1",
-    );
-    expect(screen.queryByText(/Pago pendiente/i)).not.toBeInTheDocument();
+      screen.queryByRole("link", { name: stripCopy.viewAr }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: stripCopy.viewAr }));
+    expect(onViewCollections).toHaveBeenCalledTimes(1);
   });
 
   it("trialing: muestra fin de prueba sin ocultar ejes", () => {

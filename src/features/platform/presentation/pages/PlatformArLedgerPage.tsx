@@ -61,6 +61,8 @@ import {
   chargeRunNeedsAttention,
   resolveAutoChargeChip,
 } from "../utils/autoChargeChip";
+import { isPlatformConsoleV1Enabled } from "../ops/platformConsoleV1";
+import { PlatformArWorkbenchPage } from "../ops/PlatformArWorkbenchPage";
 
 function ArJobBanner({
   severity,
@@ -220,6 +222,13 @@ function resolveArView(
 }
 
 export function PlatformArLedgerPage() {
+  if (isPlatformConsoleV1Enabled()) {
+    return <PlatformArWorkbenchPage />;
+  }
+  return <PlatformArLedgerPageConform />;
+}
+
+function PlatformArLedgerPageConform() {
   const copy = platformCopy.ar;
   const { toast } = useToast();
   const { user } = usePlatformAuth();

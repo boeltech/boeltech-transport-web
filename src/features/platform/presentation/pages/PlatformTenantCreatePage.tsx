@@ -59,10 +59,19 @@ import {
   recommendOperationalPlanCode,
   type DeclaredFleetBand,
 } from "../utils/recommendOperationalPlan";
+import { isPlatformConsoleV1Enabled } from "../ops/platformConsoleV1";
+import { OpsTenantCreatePage } from "../ops/OpsTenantCreatePage";
 
 const FLEET_BAND_NONE = "__none__";
 
 export function PlatformTenantCreatePage() {
+  if (isPlatformConsoleV1Enabled()) {
+    return <OpsTenantCreatePage />;
+  }
+  return <PlatformTenantCreatePageConform />;
+}
+
+function PlatformTenantCreatePageConform() {
   const copy = platformCopy.tenants.create;
   const navigate = useNavigate();
   const { toast } = useToast();

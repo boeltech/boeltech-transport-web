@@ -513,6 +513,19 @@ const PlatformSecurityPage = lazyWithRetry(() =>
     (m) => ({ default: m.PlatformSecurityPage }),
   ),
 );
+const PlatformUsagePage = lazyWithRetry(() =>
+  import("@features/platform/presentation/ops/PlatformUsagePage").then(
+    (m) => ({ default: m.PlatformUsagePage }),
+  ),
+);
+const PlatformCommercialCatalogPage = lazyWithRetry(() =>
+  import(
+    "@features/platform/presentation/ops/PlatformCommercialCatalogPage"
+  ).then((m) => ({ default: m.PlatformCommercialCatalogPage })),
+);
+const PlatformOpsDesignSystemPage = lazyWithRetry(() =>
+  import("@features/platform/presentation/ops/design-system"),
+);
 
 // Errors
 const NotFoundPage = lazyWithRetry(() => import("@/pages/errors/not-found"));
@@ -1343,6 +1356,10 @@ export const router = createBrowserRouter([
             element: withSuspense(PlatformGlobalCatalogsPage),
           },
           {
+            path: "/platform/plans",
+            element: withSuspense(PlatformCommercialCatalogPage),
+          },
+          {
             path: "/platform/audit",
             element: withSuspense(PlatformAuditLogPage),
           },
@@ -1353,6 +1370,14 @@ export const router = createBrowserRouter([
           {
             path: "/platform/security",
             element: withSuspense(PlatformSecurityPage),
+          },
+          {
+            path: "/platform/usage",
+            element: withSuspense(PlatformUsagePage),
+          },
+          {
+            path: "/platform/design-system",
+            element: withSuspense(PlatformOpsDesignSystemPage),
           },
         ],
       },

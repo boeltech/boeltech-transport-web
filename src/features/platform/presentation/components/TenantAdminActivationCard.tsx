@@ -34,6 +34,11 @@ const MUTABLE_STATUSES: ReadonlySet<AdminActivationStatusType> = new Set([
   AdminActivationStatus.EXPIRED,
 ]);
 
+const COMPACT_STATUSES: ReadonlySet<AdminActivationStatusType> = new Set([
+  AdminActivationStatus.ACTIVATED,
+  AdminActivationStatus.NONE,
+]);
+
 export function TenantAdminActivationCard({
   tenantId,
   activation,
@@ -45,6 +50,7 @@ export function TenantAdminActivationCard({
 
   const status = activation?.status ?? AdminActivationStatus.NONE;
   const canActOnActivation = canMutate && MUTABLE_STATUSES.has(status);
+  const isCompact = COMPACT_STATUSES.has(status);
 
   const resendMutation = useResendPlatformTenantActivation({
     onSuccess: () => {
@@ -62,9 +68,25 @@ export function TenantAdminActivationCard({
     },
   });
 
+  if (isCompact) {
+    return (
+      <div
+        id="tenant-admin-activation"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/20 px-3 py-2"
+        data-testid="tenant-admin-activation-compact"
+      >
+        <span className="text-sm font-medium">{copy.title}</span>
+        <AdminActivationStatusBadge status={status} />
+        <span className="text-xs text-muted-foreground">
+          {copy.statusHints[status] ?? copy.statusHints.none}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <>
-      <Card>
+      <Card id="tenant-admin-activation">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">

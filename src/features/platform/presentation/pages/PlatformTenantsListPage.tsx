@@ -38,6 +38,8 @@ import { PlatformTenantListFilters } from "../components/PlatformTenantListFilte
 import { platformCopy } from "../copy/platformCopy";
 import { resolvePlanDisplayName } from "../utils/formatPlanLabel";
 import { getPlatformSubscriptionStatusLabel } from "../utils/platformBillingFormatters";
+import { isPlatformConsoleV1Enabled } from "../ops/platformConsoleV1";
+import { OpsTenantsListPage } from "../ops/OpsTenantsListPage";
 
 function resolveHealthBand(band: string): {
   healthMin?: number;
@@ -76,6 +78,13 @@ function countTenantPanelFilters(filters: {
 }
 
 export function PlatformTenantsListPage() {
+  if (isPlatformConsoleV1Enabled()) {
+    return <OpsTenantsListPage />;
+  }
+  return <PlatformTenantsListPageConform />;
+}
+
+function PlatformTenantsListPageConform() {
   const copy = platformCopy.tenants.list;
   const navigate = useNavigate();
   const { toast } = useToast();

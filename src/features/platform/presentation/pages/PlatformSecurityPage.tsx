@@ -16,8 +16,17 @@ import { platformQueryKeys, isPlatformOwner } from "../../domain/entities";
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { platformCopy } from "../copy/platformCopy";
 import { PlatformTotpSetupQr } from "../components/PlatformTotpSetupQr";
+import { isPlatformConsoleV1Enabled } from "../ops/platformConsoleV1";
+import { OpsSecurityPage } from "../ops/OpsSecurityPage";
 
 export function PlatformSecurityPage() {
+  if (isPlatformConsoleV1Enabled()) {
+    return <OpsSecurityPage />;
+  }
+  return <PlatformSecurityPageConform />;
+}
+
+function PlatformSecurityPageConform() {
   const copy = platformCopy.security;
   const { toast } = useToast();
   const { user, refreshUser } = usePlatformAuth();

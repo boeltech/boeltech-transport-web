@@ -1,26 +1,40 @@
 import { useState } from "react";
-import { AlertTriangle, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import { Input } from "@shared/ui/input";
+import { Label } from "@shared/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
-import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
+import { useToast } from "@shared/hooks";
+import { mapBackendError } from "@shared/utils/errorMapper";
 import { resolvePastDueGraceDeadline } from "@features/billing/presentation/utils/billingGrace";
+import {
+  DECLARED_FLEET_BANDS,
+  type DeclaredFleetBand,
+} from "@shared/commercial/recommendOperationalPlan";
 import {
   PlatformTenantStatus,
   type PlatformTenantDetail,
   type PlatformTenantStatusType,
 } from "../../domain/entities";
 import { usePlatformTenantSubscription } from "../../application/hooks/usePlatformBilling";
-import { PlatformTenantStatusBadge } from "../config/platformTenantStatusConfig";
+import { useUpdateDeclaredFleet } from "../../application/hooks/usePlatformTenants";
 import { platformCopy } from "../copy/platformCopy";
-import { getPlatformSubscriptionStatusLabel } from "../utils/platformBillingFormatters";
+
+const FLEET_BAND_NONE = "__none__";
 
 interface TenantGovernanceControlsProps {
   tenant: PlatformTenantDetail;
@@ -38,13 +52,7 @@ function accessEffect(status: PlatformTenantStatusType): string {
 function commercialEffect(status: string | null | undefined): string {
   const effects = platformCopy.tenants.detail.governance.commercialEffect;
   if (!status) return effects.missing;
-  return (
-    effects[status as keyof typeof effects] ??
-    platformCopy.tenants.detail.subscription.statusLabels[
-      status as keyof typeof platformCopy.tenants.detail.subscription.statusLabels
-    ] ??
-    status
-  );
+  return effects[status as keyof typeof effects] ?? status;
 }
 
 function declaredFleetDisplay(
@@ -53,8 +61,7 @@ function declaredFleetDisplay(
 ): string {
   const copy = platformCopy.tenants.detail.governance;
   if (!band) return copy.declaredFleetNone;
-  const bandLabel =
-    platformCopy.tenants.create.fleetBands[band] ?? band;
+  const bandLabel = platformCopy.tenants.create.fleetBands[band] ?? band;
   return copy.declaredFleetValue(bandLabel, units);
 }
 
@@ -64,10 +71,33 @@ export function TenantGovernanceControls({
   onManageSubscription,
 }: TenantGovernanceControlsProps) {
   const copy = platformCopy.tenants.detail.governance;
+  const { toast } = useToast();
   const [helpOpen, setHelpOpen] = useState(false);
+  const [editingFleet, setEditingFleet] = useState(false);
+  const [fleetBand, setFleetBand] = useState<string>(
+    tenant.declaredFleetBand ?? FLEET_BAND_NONE,
+  );
+  const [fleetUnits, setFleetUnits] = useState(
+    tenant.declaredFleetUnits != null ? String(tenant.declaredFleetUnits) : "",
+  );
+
   const { data: subscription, isLoading } = usePlatformTenantSubscription(
     tenant.id,
   );
+
+  const fleetMutation = useUpdateDeclaredFleet({
+    onSuccess: () => {
+      toast({ title: copy.declaredFleetSuccess, variant: "success" });
+      setEditingFleet(false);
+    },
+    onError: (error) => {
+      toast({
+        title: copy.declaredFleetError,
+        description: mapBackendError(error).message,
+        variant: "error",
+      });
+    },
+  });
 
   const commercialStatus = subscription?.status ?? tenant.subscriptionStatus;
   const isPastDue = commercialStatus === "past_due";
@@ -77,6 +107,37 @@ export function TenantGovernanceControls({
   const graceDeadlineLabel = graceDeadline
     ? formatDate(graceDeadline.toISOString())
     : "";
+
+  const startEditFleet = () => {
+    setFleetBand(tenant.declaredFleetBand ?? FLEET_BAND_NONE);
+    setFleetUnits(
+      tenant.declaredFleetUnits != null
+        ? String(tenant.declaredFleetUnits)
+        : "",
+    );
+    setEditingFleet(true);
+  };
+
+  const saveFleet = () => {
+    const band: DeclaredFleetBand | null =
+      fleetBand === FLEET_BAND_NONE
+        ? null
+        : (fleetBand as DeclaredFleetBand);
+    const unitsRaw = fleetUnits.trim();
+    const units =
+      unitsRaw === ""
+        ? null
+        : Number.isFinite(Number(unitsRaw))
+          ? Math.max(0, Math.floor(Number(unitsRaw)))
+          : null;
+    fleetMutation.mutate({
+      id: tenant.id,
+      payload: {
+        declaredFleetBand: band,
+        declaredFleetUnits: units,
+      },
+    });
+  };
 
   return (
     <Card>
@@ -106,17 +167,13 @@ export function TenantGovernanceControls({
         </Collapsible>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Effects only — badges live in ATF strip (H4 / D5). */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border bg-muted/20 p-3">
             <p className="text-xs font-medium text-muted-foreground">
               {copy.accessTitle}
             </p>
-            <div className="mt-2">
-              <PlatformTenantStatusBadge status={tenant.status} />
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {accessEffect(tenant.status)}
-            </p>
+            <p className="mt-2 text-sm">{accessEffect(tenant.status)}</p>
           </div>
 
           <div className="rounded-lg border bg-muted/20 p-3">
@@ -128,67 +185,116 @@ export function TenantGovernanceControls({
                 {copy.commercialLoading}
               </p>
             ) : (
-              <>
-                <div className="mt-2">
-                  <Badge
-                    tone="soft"
-                    variant={isPastDue ? "warning" : "secondary"}
-                  >
-                    {commercialStatus
-                      ? getPlatformSubscriptionStatusLabel(commercialStatus)
-                      : copy.commercialEffect.missing}
-                  </Badge>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {commercialEffect(commercialStatus)}
-                </p>
-              </>
+              <p className="mt-2 text-sm">
+                {commercialEffect(commercialStatus)}
+              </p>
             )}
           </div>
         </div>
 
-        <InfoRow
-          variant="inline"
-          label={copy.declaredFleetLabel}
-          value={declaredFleetDisplay(
-            tenant.declaredFleetBand,
-            tenant.declaredFleetUnits,
-          )}
-        />
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">{copy.declaredFleetLabel}</p>
+            {canMutate && !editingFleet ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={startEditFleet}
+              >
+                {copy.declaredFleetEdit}
+              </Button>
+            ) : null}
+          </div>
 
-        {isPastDue ? (
-          <DetailAlertCard
-            severity="warning"
-            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
-            title={copy.grace.title}
-            action={
-              canMutate ? (
+          {editingFleet && canMutate ? (
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="space-y-2">
+                <Label htmlFor="declared-fleet-band">
+                  {copy.declaredFleetBandLabel}
+                </Label>
+                <Select value={fleetBand} onValueChange={setFleetBand}>
+                  <SelectTrigger id="declared-fleet-band">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={FLEET_BAND_NONE}>
+                      {copy.declaredFleetBandNone}
+                    </SelectItem>
+                    {DECLARED_FLEET_BANDS.map((band) => (
+                      <SelectItem key={band} value={band}>
+                        {platformCopy.tenants.create.fleetBands[band]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="declared-fleet-units">
+                  {copy.declaredFleetUnitsLabel}
+                </Label>
+                <Input
+                  id="declared-fleet-units"
+                  inputMode="numeric"
+                  value={fleetUnits}
+                  onChange={(e) => setFleetUnits(e.target.value)}
+                  placeholder="—"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <Button
+                  type="button"
+                  size="sm"
+                  isLoading={fleetMutation.isPending}
+                  onClick={saveFleet}
+                >
+                  {fleetMutation.isPending
+                    ? copy.declaredFleetSaving
+                    : copy.declaredFleetSave}
+                </Button>
+                <Button
+                  type="button"
                   size="sm"
                   variant="outline"
-                  onClick={onManageSubscription}
+                  disabled={fleetMutation.isPending}
+                  onClick={() => setEditingFleet(false)}
                 >
-                  {copy.grace.openSubscription}
+                  {copy.declaredFleetCancel}
                 </Button>
-              ) : undefined
-            }
-          >
-            <p className="text-sm">
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {declaredFleetDisplay(
+                tenant.declaredFleetBand,
+                tenant.declaredFleetUnits,
+              )}
+            </p>
+          )}
+        </div>
+
+        {isPastDue ? (
+          <div className="space-y-2 rounded-lg border border-dashed p-3">
+            <p className="text-sm text-muted-foreground">
               {graceDeadlineLabel
                 ? copy.grace.orientation(graceDeadlineLabel)
                 : copy.grace.orientationMissing}
             </p>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
-              <li>{copy.grace.itemNotes}</li>
-              <li>{copy.grace.itemPause}</li>
-              <li>{copy.grace.itemActive}</li>
-            </ul>
-            {!canMutate ? (
-              <p className="mt-3 text-xs text-muted-foreground">
+            {canMutate ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onManageSubscription}
+              >
+                {copy.grace.openSubscription}
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">
                 {copy.grace.readOnlyHint}
               </p>
-            ) : null}
-          </DetailAlertCard>
+            )}
+          </div>
         ) : null}
       </CardContent>
     </Card>

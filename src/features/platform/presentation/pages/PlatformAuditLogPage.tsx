@@ -30,6 +30,8 @@ import {
   getAuditOperatorLabel,
   getAuditTenantLabel,
 } from "../utils/platformAuditFormatters";
+import { isPlatformConsoleV1Enabled } from "../ops/platformConsoleV1";
+import { OpsAuditLogPage } from "../ops/OpsAuditLogPage";
 
 function toIsoStartOfDay(date: string): string {
   return new Date(`${date}T00:00:00.000`).toISOString();
@@ -40,6 +42,13 @@ function toIsoEndOfDay(date: string): string {
 }
 
 export function PlatformAuditLogPage() {
+  if (isPlatformConsoleV1Enabled()) {
+    return <OpsAuditLogPage />;
+  }
+  return <PlatformAuditLogPageConform />;
+}
+
+function PlatformAuditLogPageConform() {
   const copy = platformCopy.audit;
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
