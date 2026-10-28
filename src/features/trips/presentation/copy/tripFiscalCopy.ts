@@ -96,12 +96,15 @@ export const tripFiscalCopy = {
       "También se actualizó la dirección guardada del cliente",
   },
   pickerSheet: {
-    title: "Selecciona la parada a corregir",
+    title: "Revisa el RFC de las paradas",
     description:
-      "El PAC rechazó el timbrado por RFC inválido. Elige la parada que debes corregir.",
+      "Hay un RFC de parada con formato inválido o faltante. Elige la parada a revisar. No uses el RFC del cliente facturado salvo que sea el mismo.",
     allStopsDescription:
-      "El PAC rechazó el timbrado, pero no se identificó la parada automáticamente. Revisa el RFC de cada parada y corrige la que corresponda.",
-    fixAction: "Corregir RFC",
+      "No se pudo timbrar: el SAT rechazó el RFC de remitente o destinatario de una ubicación del viaje. El sistema no pudo señalar cuál. Revisa Origen y Destino (y escalas si hay): el RFC debe ser el del dueño real del punto, con homoclave correcta y vigente. No uses el RFC del cliente facturado salvo que sea el mismo.",
+    /** Heurística Ops (v1); no es regla de negocio. */
+    fallbackTip:
+      "Si no sabes cuál falló, empieza por Destino; corrige uno, retimbra y, si falla otra vez, prueba la otra.",
+    fixAction: "Revisar RFC",
     empty: "No hay paradas disponibles en este contexto. Cierra y vuelve a abrir el detalle del viaje o de la factura.",
   },
   preflightSheet: {
@@ -114,12 +117,13 @@ export const tripFiscalCopy = {
   },
   stamp: {
     errorTitle: "Error al timbrar",
-    fixAction: "Corregir RFC",
+    /** Toast CTA cuando INVALID_RFC_AT_STOP trae stopId. */
+    fixAction: "Corregir esta parada",
     /** `displayOrder` ya es 1-based (usar `toFiscalStopDisplayOrder`). */
     invalidRfcDescription: (displayOrder: number | null) =>
       displayOrder != null
-        ? `RFC inválido en parada #${displayOrder}.`
-        : "RFC inválido en una parada del viaje.",
+        ? `El RFC de la parada #${displayOrder} no está registrado o vigente ante el SAT. Corrígelo en la parada del viaje y vuelve a timbrar.`
+        : "El RFC de una parada del viaje no está registrado o vigente ante el SAT. Corrígelo en la parada y vuelve a timbrar.",
     tripLoadFailed:
       "No se pudieron cargar los datos del viaje para validar el RFC. Reintenta timbrar.",
     /**

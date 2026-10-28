@@ -373,7 +373,7 @@ describe("smoke fiscal-edit workflow", () => {
 
     await waitFor(() => {
       expect(lastDestructiveToast?.title).toBe("Error al timbrar");
-      expect(lastDestructiveToast?.action?.label).toBe("Corregir RFC");
+      expect(lastDestructiveToast?.action?.label).toBe("Corregir esta parada");
     });
 
     lastDestructiveToast?.action?.onClick();
@@ -454,12 +454,143 @@ describe("smoke fiscal-edit workflow", () => {
     await user.click(screen.getByRole("button", { name: "Timbrar" }));
 
     expect(
-      await screen.findByText(
-        "El PAC rechazó el timbrado, pero no se identificó la parada automáticamente. Revisa el RFC de cada parada y corrige la que corresponda.",
+      await screen.findByRole("heading", {
+        name: "Revisa el RFC de las paradas",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /el SAT rechazó el RFC de remitente o destinatario de una ubicación del viaje/i,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/cliente facturado/i)).toBeInTheDocument();
     expect(screen.getByText("Parada #1")).toBeInTheDocument();
     expect(screen.getByText("Parada #2")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Revisar RFC" }).length,
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("opens candidate picker with Origen/Destino when resolution is ambiguous", async () => {
+    const user = userEvent.setup();
+    mockStamp.mockReset();
+    mockStamp.mockRejectedValueOnce(
+      new ApiError(
+        "RFC inválido en una parada del viaje",
+        422,
+        "INVALID_RFC_AT_STOP",
+        {
+          stopId: null,
+          currentRfc: null,
+          stopOrder: null,
+          resolution: "ambiguous",
+          candidate_stops: [
+            {
+              stop_id: "stop-origin",
+              stop_order: 1,
+              tipo_ubicacion: "Origen",
+              current_rfc: "AAA010101AAA",
+            },
+            {
+              stop_id: STOP_ID,
+              stop_order: 2,
+              tipo_ubicacion: "Destino",
+              current_rfc: "XAXX010101000",
+            },
+          ],
+        },
+      ),
+    );
+
+    const trip = createTrip([
+      createStop({
+        id: "stop-origin",
+        sequenceOrder: 1,
+        stopType: ["origin"],
+        rfcRemitenteDestinatario: "AAA010101AAA",
+      }),
+      createStop({
+        id: STOP_ID,
+        sequenceOrder: 2,
+        stopType: ["destination"],
+        clientAddressId: "client-addr-1",
+        rfcRemitenteDestinatario: "XAXX010101000",
+      }),
+      createStop({
+        id: "stop-extra",
+        sequenceOrder: 3,
+        stopType: ["waypoint"],
+        rfcRemitenteDestinatario: "EKU9003173C9",
+      }),
+    ]);
+
+    renderInvoiceActions(trip);
+
+    await user.click(screen.getByRole("button", { name: "Timbrar" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Revisa el RFC de las paradas",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("#1 · Origen")).toBeInTheDocument();
+    expect(screen.getByText("#2 · Destino")).toBeInTheDocument();
+    expect(screen.queryByText("Parada #3")).not.toBeInTheDocument();
+    expect(screen.queryByText("#3")).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Revisar RFC" }),
+    ).toHaveLength(2);
+  });
+
+  it("opens fix sheet directly when ambiguous has a single candidate", async () => {
+    const user = userEvent.setup();
+    mockStamp.mockReset();
+    mockStamp.mockRejectedValueOnce(
+      new ApiError(
+        "RFC inválido en una parada del viaje",
+        422,
+        "INVALID_RFC_AT_STOP",
+        {
+          stopId: null,
+          resolution: "ambiguous",
+          candidate_stops: [
+            {
+              stop_id: STOP_ID,
+              stop_order: 2,
+              tipo_ubicacion: "Destino",
+              current_rfc: "XAXX010101000",
+            },
+          ],
+        },
+      ),
+    );
+
+    const trip = createTrip([
+      createStop({
+        id: "stop-origin",
+        sequenceOrder: 1,
+        stopType: ["origin"],
+        rfcRemitenteDestinatario: "AAA010101AAA",
+      }),
+      createStop({
+        id: STOP_ID,
+        sequenceOrder: 2,
+        stopType: ["destination"],
+        clientAddressId: "client-addr-1",
+        rfcRemitenteDestinatario: "XAXX010101000",
+      }),
+    ]);
+
+    renderInvoiceActions(trip);
+
+    await user.click(screen.getByRole("button", { name: "Timbrar" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Corregir datos fiscales" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Revisa el RFC de las paradas" }),
+    ).not.toBeInTheDocument();
   });
 
   it("blocks stamp when preflight detects invalid RFC format", async () => {
@@ -519,7 +650,7 @@ describe("smoke fiscal-edit workflow", () => {
     await user.click(screen.getByRole("button", { name: "Timbrar" }));
 
     await waitFor(() => {
-      expect(lastDestructiveToast?.action?.label).toBe("Corregir RFC");
+      expect(lastDestructiveToast?.action?.label).toBe("Corregir esta parada");
     });
 
     lastDestructiveToast?.action?.onClick();

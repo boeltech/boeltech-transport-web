@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { TripStop } from "@features/trips/domain";
+import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import { StopPickerSheet } from "./StopPickerSheet";
+
+const pickerCopy = tripFiscalCopy.pickerSheet;
 
 const stop: TripStop = {
   id: "stop-1",
@@ -54,6 +57,14 @@ const stop: TripStop = {
   updatedAt: new Date(),
 };
 
+const originStop: TripStop = {
+  ...stop,
+  id: "stop-origin",
+  sequenceOrder: 1,
+  stopType: ["origin"],
+  rfcRemitenteDestinatario: "EKU9003173C9",
+};
+
 describe("StopPickerSheet", () => {
   it("lists stops with invalid-format copy by default", () => {
     render(
@@ -66,10 +77,10 @@ describe("StopPickerSheet", () => {
     );
 
     expect(
-      screen.getByText(
-        "El PAC rechazó el timbrado por RFC inválido. Elige la parada que debes corregir.",
-      ),
+      screen.getByRole("heading", { name: pickerCopy.title }),
     ).toBeInTheDocument();
+    expect(screen.getByText(pickerCopy.description)).toBeInTheDocument();
+    expect(screen.queryByText(pickerCopy.fallbackTip)).not.toBeInTheDocument();
     expect(screen.getByText("Parada #2")).toBeInTheDocument();
   });
 
@@ -88,12 +99,16 @@ describe("StopPickerSheet", () => {
     );
 
     expect(
-      screen.getByText(
-        "El PAC rechazó el timbrado, pero no se identificó la parada automáticamente. Revisa el RFC de cada parada y corrige la que corresponda.",
-      ),
+      screen.getByRole("heading", { name: pickerCopy.title }),
     ).toBeInTheDocument();
+    expect(screen.getByText(pickerCopy.allStopsDescription)).toBeInTheDocument();
+    expect(screen.getByText(pickerCopy.fallbackTip)).toBeInTheDocument();
+    expect(pickerCopy.allStopsDescription).not.toMatch(/CP132|l_RFC|\bPAC\b/i);
+    expect(pickerCopy.allStopsDescription).toMatch(/cliente facturado/i);
 
-    await user.click(screen.getByRole("button", { name: "Corregir RFC" }));
+    await user.click(
+      screen.getByRole("button", { name: pickerCopy.fixAction }),
+    );
     expect(onSelectStop).toHaveBeenCalledWith("stop-1");
   });
 
@@ -108,10 +123,41 @@ describe("StopPickerSheet", () => {
       />,
     );
 
+    expect(screen.getByText(pickerCopy.empty)).toBeInTheDocument();
+  });
+
+  it("renders candidate rows with Origen/Destino role and RFC from API", () => {
+    render(
+      <StopPickerSheet
+        open
+        onOpenChange={vi.fn()}
+        stops={[originStop, stop]}
+        listMode="candidates"
+        candidates={[
+          {
+            stopId: "stop-origin",
+            stopOrder: 1,
+            tipoUbicacion: "Origen",
+            currentRfc: "EKU9003173C9",
+          },
+          {
+            stopId: "stop-1",
+            stopOrder: 2,
+            tipoUbicacion: "Destino",
+            currentRfc: "URE180429TM6",
+          },
+        ]}
+        onSelectStop={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("#1 · Origen")).toBeInTheDocument();
+    expect(screen.getByText("#2 · Destino")).toBeInTheDocument();
+    expect(screen.getByText("EKU9003173C9")).toBeInTheDocument();
+    expect(screen.getByText("URE180429TM6")).toBeInTheDocument();
+    expect(screen.queryByText(pickerCopy.fallbackTip)).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        "No hay paradas disponibles en este contexto. Cierra y vuelve a abrir el detalle del viaje o de la factura.",
-      ),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: pickerCopy.fixAction }),
+    ).toHaveLength(2);
   });
 });

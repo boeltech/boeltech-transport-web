@@ -29,7 +29,10 @@ import {
   type TripStop,
 } from "@features/trips/domain";
 import { tripRepository } from "@features/trips/infrastructure";
-import { parseInvalidRfcAtStopDetails } from "@shared/api/errors/invalidRfcAtStopError";
+import {
+  parseInvalidRfcAtStopDetails,
+  type InvalidRfcAtStopCandidate,
+} from "@shared/api/errors/invalidRfcAtStopError";
 import {
   getErrorMessage,
   isApiError,
@@ -107,6 +110,10 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   const [fixSubmitLabel, setFixSubmitLabel] = useState<string | undefined>();
   const [fixCorrectionKind, setFixCorrectionKind] = useState<"rfc" | "address">("rfc");
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** Candidatos API (`ambiguous`); null = fallback v1 (invalid-only / all-stops). */
+  const [pickerCandidates, setPickerCandidates] = useState<
+    InvalidRfcAtStopCandidate[] | null
+  >(null);
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [preflightResult, setPreflightResult] =
     useState<StopRfcPreflightResult | null>(null);
@@ -182,14 +189,39 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
   );
 
   const pickerStops = useMemo(() => {
+    if (pickerCandidates && pickerCandidates.length > 0) {
+      const ordered: TripStop[] = [];
+      for (const candidate of pickerCandidates) {
+        const stop = stopsById.get(candidate.stopId);
+        if (stop) ordered.push(stop);
+      }
+      return ordered;
+    }
     if (invalidPickerStops.length > 0) {
       return invalidPickerStops;
     }
     return [...allStops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
-  }, [allStops, invalidPickerStops]);
+  }, [allStops, invalidPickerStops, pickerCandidates, stopsById]);
 
   const pickerListMode =
-    invalidPickerStops.length > 0 ? "invalid-only" : "all-stops-fallback";
+    pickerCandidates && pickerCandidates.length > 0
+      ? "candidates"
+      : invalidPickerStops.length > 0
+        ? "invalid-only"
+        : "all-stops-fallback";
+
+  const openPicker = useCallback(
+    (candidates: InvalidRfcAtStopCandidate[] | null = null) => {
+      setPickerCandidates(candidates);
+      setPickerOpen(true);
+    },
+    [],
+  );
+
+  const handlePickerOpenChange = useCallback((open: boolean) => {
+    setPickerOpen(open);
+    if (!open) setPickerCandidates(null);
+  }, []);
 
   const resolveTripForStop = useCallback(
     (stopId: string): Trip | null => {
@@ -322,7 +354,9 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
       const parsed = parseInvalidRfcAtStopDetails(error);
       if (parsed) {
         if (invoiceId) setPendingStampInvoiceId(invoiceId);
+        const pendingInvoiceId = invoiceId ?? pendingStampInvoiceId;
 
+        // identified / legado con stopId: toast Corregir esta parada (v1).
         if (parsed.stopId) {
           toast({
             variant: "destructive",
@@ -336,14 +370,34 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
               label: stampCopy.fixAction,
               onClick: () =>
                 openFixSheet(parsed.stopId!, {
-                  pendingInvoiceId: invoiceId ?? pendingStampInvoiceId,
+                  pendingInvoiceId,
                 }),
             },
           });
           return;
         }
 
-        setPickerOpen(true);
+        // Ambiguous con un solo candidato: atajo UX al sheet (contrato sigue ambiguous).
+        if (
+          parsed.resolution === "ambiguous" &&
+          parsed.candidateStops.length === 1
+        ) {
+          const only = parsed.candidateStops[0]!;
+          openFixSheet(only.stopId, { pendingInvoiceId });
+          return;
+        }
+
+        // Ambiguous con ≥2 candidatos: picker solo esas paradas.
+        if (
+          parsed.resolution === "ambiguous" &&
+          parsed.candidateStops.length >= 2
+        ) {
+          openPicker(parsed.candidateStops);
+          return;
+        }
+
+        // unknown / sin candidatos / legado sin resolution → fallback v1.
+        openPicker(null);
         return;
       }
 
@@ -386,6 +440,7 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
       getStampErrorDescription,
       invoiceReceiver?.receiverRfc,
       openFixSheet,
+      openPicker,
       pendingStampInvoiceId,
       toast,
     ],
@@ -581,9 +636,10 @@ export function useTripFiscalSheets(options: UseTripFiscalSheetsOptions = {}) {
 
       <StopPickerSheet
         open={pickerOpen}
-        onOpenChange={setPickerOpen}
+        onOpenChange={handlePickerOpenChange}
         stops={pickerStops}
         listMode={pickerListMode}
+        candidates={pickerCandidates ?? undefined}
         onSelectStop={(stopId) =>
           openFixSheet(stopId, {
             pendingInvoiceId: pendingStampInvoiceId,
