@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import {
   platformQueryKeys,
+  type AssignPlatformPlanPayload,
   type CreatePlatformTenantPayload,
   type PlatformTenantsQueryParams,
   type RotateAdminCredentialsPayload,
@@ -101,6 +102,43 @@ export const useUpdatePlatformTenantStatus = (
       queryClient.invalidateQueries({
         queryKey: platformQueryKeys.tenantDetail(variables.id),
       });
+      queryClient.invalidateQueries({ queryKey: platformQueryKeys.metrics() });
+      onSuccess?.(result, variables, ...rest);
+    },
+    ...restOptions,
+  });
+};
+
+export const useAssignPlatformTenantPlan = (
+  options?: Omit<
+    UseMutationOptions<
+      Awaited<ReturnType<typeof platformApi.assignTenantPlan>>,
+      Error,
+      { tenantId: string; payload: AssignPlatformPlanPayload }
+    >,
+    "mutationFn"
+  >,
+) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restOptions } = options ?? {};
+  return useMutation({
+    mutationFn: ({ tenantId, payload }) =>
+      platformApi.assignTenantPlan(tenantId, payload),
+    onSuccess: (result, variables, ...rest) => {
+      queryClient.invalidateQueries({
+        queryKey: platformQueryKeys.tenantDetail(variables.tenantId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: platformQueryKeys.tenantSubscription(variables.tenantId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: platformQueryKeys.tenantEntitlements(variables.tenantId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: platformQueryKeys.tenantStampUsage(variables.tenantId),
+      });
+      queryClient.invalidateQueries({ queryKey: platformQueryKeys.tenantLists() });
+      queryClient.invalidateQueries({ queryKey: platformQueryKeys.auditLog() });
       queryClient.invalidateQueries({ queryKey: platformQueryKeys.metrics() });
       onSuccess?.(result, variables, ...rest);
     },

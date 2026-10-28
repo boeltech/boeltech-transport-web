@@ -28,6 +28,11 @@ import type {
   PlatformSaasInvoiceStatusType,
   PlatformSaasPaymentMethod,
   PlatformReconciliationPreview,
+  PlatformPlanChangePreview,
+  PlatformEntitlementMutationPreview,
+  PlatformPlanPriceEstimate,
+  PlatformPreviewCapacityMetric,
+  AssignPlatformPlanResult,
   PlatformCloseRun,
   PlatformCloseRunItem,
   PlatformCloseRunSkipGroup,
@@ -463,9 +468,15 @@ export const toApiUpdateDeclaredFleet = (payload: {
 export const toApiUpdatePlatformTenantStatus = (payload: {
   status: string;
   reason?: string;
+  reasonCode?: string;
+  reasonDetail?: string;
 }) => ({
   status: payload.status,
   ...(payload.reason ? { reason: payload.reason } : {}),
+  ...(payload.reasonCode ? { reason_code: payload.reasonCode } : {}),
+  ...(payload.reasonDetail?.trim()
+    ? { reason_detail: payload.reasonDetail.trim() }
+    : {}),
 });
 
 export type ApiPlatformAuditLogItem = {
@@ -1020,4 +1031,172 @@ export const mapPlatformReconciliationPreview = (
   subtotalCents: raw.subtotal_cents,
   ivaCents: raw.iva_cents,
   totalCents: raw.total_cents,
+});
+
+type ApiPreviewCapacityMetric = {
+  from: number | null;
+  to: number | null;
+  delta: number | null;
+};
+
+type ApiPlanPriceEstimate = {
+  currency: "MXN";
+  estimated_monthly_cents: number | null;
+  estimate_available: boolean;
+};
+
+export type ApiPlatformPlanChangePreview = {
+  current: {
+    plan_code: string;
+    name: string;
+    max_users: number | null;
+    max_branches: number | null;
+    history_months: number | null;
+  };
+  target: {
+    plan_code: string;
+    name: string;
+    max_users: number | null;
+    max_branches: number | null;
+    history_months: number | null;
+  };
+  modules_gained: string[];
+  modules_lost: string[];
+  capacity_delta: {
+    max_users: ApiPreviewCapacityMetric;
+    max_branches: ApiPreviewCapacityMetric;
+    history_months: ApiPreviewCapacityMetric;
+    included_stamps: ApiPreviewCapacityMetric;
+    stamps_per_motriz: ApiPreviewCapacityMetric;
+  };
+  price_estimate: ApiPlanPriceEstimate;
+  effective_at: string;
+  warnings: string[];
+};
+
+export type ApiPlatformEntitlementMutationPreview = {
+  current: {
+    module_code: string;
+    status: "active" | "inactive";
+    effective_module_codes: string[];
+  };
+  target: {
+    module_code: string;
+    action: "activate" | "cancel";
+    status: "active" | "inactive";
+    effective_module_codes: string[];
+  };
+  modules_gained: string[];
+  modules_lost: string[];
+  capacity_delta: Record<string, never>;
+  price_estimate: ApiPlanPriceEstimate;
+  effective_at: string;
+  warnings: string[];
+};
+
+export type ApiAssignPlatformPlanResult = {
+  tenant: {
+    id: string;
+    name: string;
+    subdomain: string;
+    status: string;
+    plan_code: string | null;
+    suspended_at: string | null;
+  };
+  plan: {
+    code: string;
+    name: string;
+    max_users: number | null;
+    max_branches: number | null;
+    history_months: number | null;
+  };
+};
+
+const mapPriceEstimate = (
+  raw: ApiPlanPriceEstimate,
+): PlatformPlanPriceEstimate => ({
+  currency: "MXN",
+  estimatedMonthlyCents: raw.estimated_monthly_cents,
+  estimateAvailable: raw.estimate_available,
+});
+
+const mapCapacityMetric = (
+  raw: ApiPreviewCapacityMetric,
+): PlatformPreviewCapacityMetric => ({
+  from: raw.from,
+  to: raw.to,
+  delta: raw.delta,
+});
+
+export const mapPlatformPlanChangePreview = (
+  raw: ApiPlatformPlanChangePreview,
+): PlatformPlanChangePreview => ({
+  current: {
+    planCode: raw.current.plan_code,
+    name: raw.current.name,
+    maxUsers: raw.current.max_users,
+    maxBranches: raw.current.max_branches,
+    historyMonths: raw.current.history_months,
+  },
+  target: {
+    planCode: raw.target.plan_code,
+    name: raw.target.name,
+    maxUsers: raw.target.max_users,
+    maxBranches: raw.target.max_branches,
+    historyMonths: raw.target.history_months,
+  },
+  modulesGained: raw.modules_gained ?? [],
+  modulesLost: raw.modules_lost ?? [],
+  capacityDelta: {
+    maxUsers: mapCapacityMetric(raw.capacity_delta.max_users),
+    maxBranches: mapCapacityMetric(raw.capacity_delta.max_branches),
+    historyMonths: mapCapacityMetric(raw.capacity_delta.history_months),
+    includedStamps: mapCapacityMetric(raw.capacity_delta.included_stamps),
+    stampsPerMotriz: mapCapacityMetric(raw.capacity_delta.stamps_per_motriz),
+  },
+  priceEstimate: mapPriceEstimate(raw.price_estimate),
+  effectiveAt: raw.effective_at,
+  warnings: raw.warnings ?? [],
+});
+
+export const mapPlatformEntitlementMutationPreview = (
+  raw: ApiPlatformEntitlementMutationPreview,
+): PlatformEntitlementMutationPreview => ({
+  current: {
+    moduleCode: raw.current.module_code,
+    status: raw.current.status,
+    effectiveModuleCodes: raw.current.effective_module_codes ?? [],
+  },
+  target: {
+    moduleCode: raw.target.module_code,
+    action: raw.target.action,
+    status: raw.target.status,
+    effectiveModuleCodes: raw.target.effective_module_codes ?? [],
+  },
+  modulesGained: raw.modules_gained ?? [],
+  modulesLost: raw.modules_lost ?? [],
+  capacityDelta: {},
+  priceEstimate: mapPriceEstimate(raw.price_estimate),
+  effectiveAt: raw.effective_at,
+  warnings: raw.warnings ?? [],
+});
+
+export const mapAssignPlatformPlanResult = (
+  raw: ApiAssignPlatformPlanResult,
+): AssignPlatformPlanResult => ({
+  tenant: {
+    id: raw.tenant.id,
+    name: raw.tenant.name,
+    subdomain: raw.tenant.subdomain,
+    status: raw.tenant.status,
+    planCode: raw.tenant.plan_code,
+    suspendedAt: raw.tenant.suspended_at,
+  },
+  plan: {
+    code: raw.plan.code,
+    name: raw.plan.name,
+    maxUsers: raw.plan.max_users,
+    maxBranches: raw.plan.max_branches,
+    historyMonths: raw.plan.history_months,
+  },
 });

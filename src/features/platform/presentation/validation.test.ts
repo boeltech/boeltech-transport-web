@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  assignPlatformPlanSchema,
   createPlatformTenantSchema,
   issueSaasInvoiceSchema,
   markSaasInvoicePaidSchema,
+  matchesTypedTenantConfirmation,
+  typedSuspendPlatformTenantSchema,
 } from "./validation";
 import {
   getLastClosedMexicoCityPeriodKey,
@@ -117,5 +120,59 @@ describe("markSaasInvoicePaidSchema", () => {
     expect(
       markSaasInvoicePaidSchema.safeParse({ method: "spei" }).success,
     ).toBe(false);
+  });
+});
+
+describe("typedSuspendPlatformTenantSchema", () => {
+  it("requires reasonDetail when reasonCode is other", () => {
+    expect(
+      typedSuspendPlatformTenantSchema.safeParse({
+        reasonCode: "other",
+        confirmation: "acme",
+        reasonDetail: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      typedSuspendPlatformTenantSchema.safeParse({
+        reasonCode: "past_due_policy",
+        confirmation: "acme",
+      }).success,
+    ).toBe(true);
+    expect(
+      typedSuspendPlatformTenantSchema.safeParse({
+        reasonCode: "other",
+        confirmation: "acme",
+        reasonDetail: "Cliente pidió baja temporal",
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe("matchesTypedTenantConfirmation", () => {
+  const tenant = { name: "Acme Transportes", subdomain: "acme-mx" };
+
+  it("matches subdomain or name case-insensitively", () => {
+    expect(matchesTypedTenantConfirmation("acme-mx", tenant)).toBe(true);
+    expect(matchesTypedTenantConfirmation("ACME Transportes", tenant)).toBe(
+      true,
+    );
+    expect(matchesTypedTenantConfirmation("otro", tenant)).toBe(false);
+  });
+});
+
+describe("assignPlatformPlanSchema", () => {
+  it("requires reason 10–500", () => {
+    expect(
+      assignPlatformPlanSchema.safeParse({
+        planCode: "operacion_crecimiento",
+        reason: "corto",
+      }).success,
+    ).toBe(false);
+    expect(
+      assignPlatformPlanSchema.safeParse({
+        planCode: "operacion_crecimiento",
+        reason: "Upgrade solicitado por deal desk",
+      }).success,
+    ).toBe(true);
   });
 });

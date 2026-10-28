@@ -63,6 +63,11 @@ function formatTotalCents(metadata: Record<string, unknown>): string | null {
   return cents != null ? formatBillingPriceCents(cents) : null;
 }
 
+function formatAmountCents(metadata: Record<string, unknown>): string | null {
+  const cents = metadataNumber(metadata, "amount_cents");
+  return cents != null ? formatBillingPriceCents(cents) : null;
+}
+
 export function getAuditOperatorLabel(item: PlatformAuditLogItem): string {
   if (item.platformUserEmail) return item.platformUserEmail;
   if (item.action === PlatformAuditAction.TENANT_SELF_SERVE_REGISTERED) {
@@ -205,10 +210,43 @@ export function getAuditMetadataSummary(
         metadataNumber(metadata, "overdue_open_count"),
       );
     case PlatformAuditAction.SUBSCRIPTION_ACTIVE_RESTORED_AUTO:
-      return copy.subscriptionActiveRestoredAuto();
+      return platformCopy.audit.noDetail;
+    case "saas_stripe_charge_failed": {
+      const amountLabel = formatAmountCents(metadata);
+      const failureCode = metadataString(metadata, "failure_code");
+      if (!amountLabel && !failureCode) return platformCopy.audit.noDetail;
+      return copy.stripeChargeFailed(amountLabel, failureCode);
+    }
+    case "saas_stripe_charge_requires_action": {
+      const amountLabel = formatAmountCents(metadata);
+      return amountLabel
+        ? copy.stripeChargeRequiresAction(amountLabel)
+        : platformCopy.audit.noDetail;
+    }
+    case "tenant_approval_policies_viewed":
+      return platformCopy.audit.noDetail;
+    case "tenant_demo_seed_applied":
+      return typeof metadata.include_draft_trip === "boolean"
+        ? copy.demoSeedApplied(metadata.include_draft_trip)
+        : platformCopy.audit.noDetail;
     default:
       return platformCopy.audit.noDetail;
   }
+}
+
+const DESTRUCTIVE_AUDIT_ACTIONS = new Set<string>([
+  PlatformAuditAction.SAAS_INVOICE_VOIDED,
+  PlatformAuditAction.MODULE_REVOKED,
+]);
+
+/** Danger solo en verbo destructivo: anular, revocar, o dejar el acceso suspendido/cancelado. */
+export function isDestructiveAuditAction(
+  item: Pick<PlatformAuditLogItem, "action" | "metadata">,
+): boolean {
+  if (DESTRUCTIVE_AUDIT_ACTIONS.has(item.action)) return true;
+  if (item.action !== PlatformAuditAction.TENANT_STATUS_CHANGED) return false;
+  const status = item.metadata.status;
+  return status === "suspended" || status === "cancelled" || status === "canceled";
 }
 
 export { getActionLabel as getAuditActionLabel };

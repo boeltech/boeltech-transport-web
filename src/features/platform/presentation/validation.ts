@@ -65,9 +65,23 @@ export type CreatePlatformTenantFormData = z.infer<
 
 export const assignPlatformPlanSchema = z.object({
   planCode: z.string().min(1, "Selecciona un plan"),
+  reason: z
+    .string()
+    .trim()
+    .min(10, "La razón debe tener entre 10 y 500 caracteres")
+    .max(500, "La razón debe tener entre 10 y 500 caracteres"),
 });
 
 export type AssignPlatformPlanFormData = z.infer<typeof assignPlatformPlanSchema>;
+
+/** Preview add-on (activate) — sin reason en API (audit MODULE_ENTITLED). */
+export const attachPlatformAddonSchema = z.object({
+  moduleCode: z.string().min(1, "Selecciona un complemento"),
+});
+
+export type AttachPlatformAddonFormData = z.infer<
+  typeof attachPlatformAddonSchema
+>;
 
 export const suspendPlatformTenantSchema = z.object({
   reason: z.string().max(500, "Máximo 500 caracteres").optional(),
@@ -76,6 +90,64 @@ export const suspendPlatformTenantSchema = z.object({
 export type SuspendPlatformTenantFormData = z.infer<
   typeof suspendPlatformTenantSchema
 >;
+
+/** Suspend tipado F1 + confirmación tipada PRD (match se valida en UI). */
+export const typedSuspendPlatformTenantSchema = z
+  .object({
+    reasonCode: z.enum([
+      "past_due_policy",
+      "customer_request",
+      "abuse",
+      "other",
+    ]),
+    reasonDetail: z
+      .string()
+      .max(500, "Máximo 500 caracteres")
+      .optional()
+      .or(z.literal("")),
+    confirmation: z
+      .string()
+      .trim()
+      .min(1, "Escribe el identificador de la empresa para confirmar"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.reasonCode === "other" && !data.reasonDetail?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reasonDetail"],
+        message: "Describe el motivo cuando eliges Otro",
+      });
+    }
+    if (
+      data.reasonCode === "other" &&
+      data.reasonDetail &&
+      data.reasonDetail.trim().length > 0 &&
+      data.reasonDetail.trim().length < 3
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reasonDetail"],
+        message: "Mínimo 3 caracteres",
+      });
+    }
+  });
+
+export type TypedSuspendPlatformTenantFormData = z.infer<
+  typeof typedSuspendPlatformTenantSchema
+>;
+
+/** Normaliza para comparar subdomain o nombre comercial. */
+export function matchesTypedTenantConfirmation(
+  input: string,
+  tenant: { name: string; subdomain: string },
+): boolean {
+  const normalized = input.trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === tenant.subdomain.trim().toLowerCase() ||
+    normalized === tenant.name.trim().toLowerCase()
+  );
+}
 
 export const rotateAdminCredentialsSchema = z.object({
   password: z

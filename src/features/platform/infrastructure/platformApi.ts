@@ -40,6 +40,11 @@ import type {
   PlatformSaasInvoice,
   PlatformSaasInvoiceDetail,
   PlatformReconciliationPreview,
+  PlatformPlanChangePreview,
+  PlatformEntitlementMutationPreview,
+  PlatformEntitlementPreviewAction,
+  AssignPlatformPlanPayload,
+  AssignPlatformPlanResult,
   IssuePlatformSaasInvoicePayload,
   IssuePlatformSaasInvoiceDraftPayload,
   MarkPlatformSaasInvoicePaidPayload,
@@ -72,6 +77,9 @@ import {
   mapPlatformCloseRun,
   mapPlatformChargeRun,
   mapPlatformReconciliationPreview,
+  mapPlatformPlanChangePreview,
+  mapPlatformEntitlementMutationPreview,
+  mapAssignPlatformPlanResult,
   mapAdminActivation,
   mapCreatePlatformTenantResult,
   toApiCreatePlatformTenant,
@@ -94,6 +102,9 @@ import {
   type ApiPlatformCloseRun,
   type ApiPlatformChargeRun,
   type ApiPlatformReconciliationRow,
+  type ApiPlatformPlanChangePreview,
+  type ApiPlatformEntitlementMutationPreview,
+  type ApiAssignPlatformPlanResult,
   type ApiPlatformLoginData,
   mapBillingPaymentMethod,
   mapSaasInvoicePayResult,
@@ -409,6 +420,75 @@ export const platformApi = {
       },
       message: response.message,
     };
+  },
+
+  previewTenantPlan: async (
+    tenantId: string,
+    planCode: string,
+  ): Promise<PlatformPlanChangePreview> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformPlanChangePreview>
+    >(
+      `${BASE}/tenants/${tenantId}/plan:preview`,
+      { plan_code: planCode },
+      { authScope: "platform" },
+    );
+    return mapPlatformPlanChangePreview(response.data);
+  },
+
+  assignTenantPlan: async (
+    tenantId: string,
+    payload: AssignPlatformPlanPayload,
+  ): Promise<MappedSingleResult<AssignPlatformPlanResult>> => {
+    const response = await apiClient.patch<
+      ApiSingleResponse<ApiAssignPlatformPlanResult>
+    >(
+      `${BASE}/tenants/${tenantId}/plan`,
+      {
+        plan_code: payload.planCode,
+        reason: payload.reason,
+      },
+      { authScope: "platform" },
+    );
+    return {
+      data: mapAssignPlatformPlanResult(response.data),
+      message: response.message,
+    };
+  },
+
+  previewTenantEntitlement: async (
+    tenantId: string,
+    payload: {
+      moduleCode: string;
+      action: PlatformEntitlementPreviewAction;
+    },
+  ): Promise<PlatformEntitlementMutationPreview> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformEntitlementMutationPreview>
+    >(
+      `${BASE}/tenants/${tenantId}/entitlements:preview`,
+      {
+        module_code: payload.moduleCode,
+        action: payload.action,
+      },
+      { authScope: "platform" },
+    );
+    return mapPlatformEntitlementMutationPreview(response.data);
+  },
+
+  listBillingReconciliation: async (
+    periodKey: string,
+  ): Promise<PlatformReconciliationPreview[]> => {
+    const response = await apiClient.get<
+      ApiSingleResponse<ApiPlatformReconciliationRow[]>
+    >(`${BASE}/billing/reconciliation`, {
+      params: {
+        period_key: periodKey,
+        format: "json",
+      },
+      authScope: "platform",
+    });
+    return (response.data ?? []).map(mapPlatformReconciliationPreview);
   },
 
   listAuditLog: async (

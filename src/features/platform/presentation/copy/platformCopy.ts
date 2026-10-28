@@ -278,10 +278,14 @@ export const platformCopy = {
         title: "Empresa no encontrada",
         description: "La empresa no existe o fue eliminada.",
       },
+      loadError: {
+        title: "No se pudo cargar la empresa",
+        description: "Revisa tu conexión e intenta de nuevo.",
+        retry: "Reintentar",
+      },
       tabs: {
         summary: "Resumen",
         commercial: "Comercial",
-        operation: "Operación",
         activity: "Actividad",
       },
       activity: {
@@ -296,7 +300,8 @@ export const platformCopy = {
           description: "Intenta recargar o abre el historial completo.",
           retry: "Reintentar",
         },
-        viewAll: "Ver en historial",
+        /** Same label as header «Más → Historial» (D6). */
+        viewAll: "Historial",
         columns: {
           date: "Fecha",
           operator: "Quién",
@@ -311,7 +316,7 @@ export const platformCopy = {
         planFallback: "Plan comercial",
         overview: "Datos de alta",
         usage: "Capacidad",
-        operation: "Capacidad de la empresa",
+        capacity: "Capacidad de la empresa",
         /** usage · branches; con granted (ADR-0095) muestra usage/granted. */
         capacitySummary: (
           users: number,
@@ -340,6 +345,8 @@ export const platformCopy = {
         breakdownShow: "Ver desglose",
         breakdownHide: "Ocultar desglose",
         adminActivation: "Activación del administrador",
+        healthShow: "Ver salud",
+        healthHide: "Ocultar salud",
       },
       adminActivation: {
         title: "Activación del administrador",
@@ -402,7 +409,8 @@ export const platformCopy = {
         graceRef: (deadlineLabel: string) =>
           `Referencia de gracia: ${deadlineLabel}`,
         graceMissing: "Referencia de gracia no disponible",
-        viewAr: "Ver en Cobros",
+        /** Same-page Cobros (tab Comercial · AR); not global ledger. */
+        viewAr: "Cobros",
         trialEnds: (dateLabel: string) => `Fin de prueba: ${dateLabel}`,
         lifecycleLabel: "Etapa",
         lifecycleTooltip: (stageLabel: string) =>
@@ -434,15 +442,21 @@ export const platformCopy = {
         declaredFleetNone: "Sin declarar",
         declaredFleetValue: (bandLabel: string, units?: number | null) =>
           units != null ? `${bandLabel} · ${units}` : bandLabel,
+        declaredFleetEdit: "Editar flota",
+        declaredFleetBandLabel: "Banda",
+        declaredFleetUnitsLabel: "Unidades (opcional)",
+        declaredFleetBandNone: "Sin declarar",
+        declaredFleetSave: "Guardar",
+        declaredFleetSaving: "Guardando…",
+        declaredFleetCancel: "Cancelar",
+        declaredFleetSuccess: "Flota declarada actualizada",
+        declaredFleetError: "No se pudo actualizar la flota",
         grace: {
-          title: "Cobro pendiente — acción manual",
+          /** Compact orientation under effects — ATF banner owns the job (D4). */
           orientation: (deadlineLabel: string) =>
-            `Referencia de gracia: ${deadlineLabel}. No hay corte automático; decide Pausada o Activa según el cobro.`,
+            `Referencia de gracia: ${deadlineLabel}. Para pausar o reactivar el plan usa Gestionar suscripción.`,
           orientationMissing:
-            "Referencia de gracia no disponible. Decide Pausada o Activa según el cobro.",
-          itemNotes: "Anotar cobro o acuerdo en las notas de la suscripción",
-          itemPause: "Si venció la gracia → marcar suscripción como Pausada",
-          itemActive: "Si pagó → volver suscripción a Activa",
+            "Referencia de gracia no disponible. Para pausar o reactivar el plan usa Gestionar suscripción.",
           openSubscription: "Gestionar suscripción",
           readOnlyHint: "Solo el propietario puede cambiar el estado comercial.",
         },
@@ -487,6 +501,8 @@ export const platformCopy = {
         unavailable: "Sin suscripción comercial registrada.",
         description:
           "Límites del plan, periodo, notas internas e indicador de margen.",
+        periodPulseHint:
+          "El consumo de timbres del periodo está en Resumen → Este mes.",
         levelBadge: (level: string) => `Indicador ${level}`,
         trialQuotaHint:
           "En prueba: cupo de 15 timbres. Al pasar a Activa se restaura el paquete del plan.",
@@ -597,12 +613,14 @@ export const platformCopy = {
       actions: {
         manageSubscription: "Gestionar suscripción",
         manageEntitlements: "Módulos",
-        grantStampPack: "Acreditar timbres",
+        grantStampPack: "Acreditar prepago",
+        viewCollections: "Cobros",
         viewHistory: "Historial",
         moreActions: "Más acciones",
         suspend: "Suspender",
         reactivate: "Reactivar",
         cancel: "Cancelar cuenta",
+        manageEntitlementsFromCapacity: "Gestionar módulos",
       },
       suspendedAt: (date: string) => `Suspendida el ${date}`,
     },
@@ -829,21 +847,39 @@ export const platformCopy = {
         "Precios de lista mensuales sin IVA en líneas; el total incluye IVA. El cobro y la factura los gestiona Boeltech fuera del producto.",
     },
     suspend: {
-      suspendTitle: "Suspender acceso",
-      reactivateTitle: "Reactivar acceso",
+      suspendTitle: "Suspender empresa",
+      reactivateTitle: "Reactivar empresa",
       cancelTitle: "Cancelar cuenta (acceso)",
       suspendDescription:
         "Bloquea el inicio de sesión de todos los usuarios hasta reactivar. No cambia la suscripción ni los módulos.",
+      suspendImpact:
+        "Impacto: nadie de esta empresa podrá entrar al ERP hasta que la reactives. La factura SaaS y el saldo AR no se borran.",
       reactivateDescription:
         "Restaura el inicio de sesión. Si la suscripción está pausada o cancelada, la empresa podría seguir sin poder operar.",
+      reactivatePastDueHint:
+        "Hay saldo o cobro pendiente. Registra el pago SaaS antes de reactivar si la política lo exige.",
+      reactivateRegisterPayment: "Registrar pago",
       cancelDescription:
         "Baja definitiva de acceso. No cancela la suscripción ni revoca módulos; usa Gestionar suscripción para el eje comercial.",
       reasonLabel: "Motivo (opcional)",
       reasonPlaceholder: "Ej. impago, solicitud del cliente…",
-      cancel: "Cancelar",
-      confirmSuspend: "Suspender acceso",
-      confirmReactivate: "Reactivar acceso",
+      reasonCodeLabel: "Motivo",
+      reasonCodes: {
+        past_due_policy: "Política por mora",
+        customer_request: "Solicitud del cliente",
+        abuse: "Abuso",
+        other: "Otro",
+      },
+      reasonDetailLabel: "Detalle del motivo",
+      reasonDetailPlaceholder: "Describe el motivo (obligatorio si eliges Otro)",
+      confirmationLabel: "Escribe el identificador de la empresa para confirmar",
+      confirmationHint: (subdomain: string, name: string) =>
+        `Escribe «${subdomain}» o «${name}» exactamente.`,
+      confirmationMismatch: "No suspendimos: el nombre no coincide.",
+      confirmSuspend: "Confirmar suspensión",
+      confirmReactivate: "Reactivar empresa",
       confirmCancel: "Confirmar cancelación de acceso",
+      cancel: "Cancelar",
       success: "Acceso actualizado",
       error: "No se pudo actualizar el acceso",
     },
@@ -957,8 +993,14 @@ export const platformCopy = {
       saas_invoice_issued: "Cobro emitido",
       saas_invoice_paid: "Cobro pagado",
       saas_invoice_voided: "Cobro anulado",
-      subscription_past_due_auto: "Suscripción → past_due (auto)",
-      subscription_active_restored_auto: "Suscripción → active (auto)",
+      saas_invoice_auto_issue_sweep: "Barrido de emisión",
+      saas_invoice_auto_charge_sweep: "Barrido de cobro",
+      saas_stripe_charge_failed: "Cobro con tarjeta rechazado",
+      saas_stripe_charge_requires_action: "Cobro requiere autenticación",
+      tenant_approval_policies_viewed: "Reglas de autorización consultadas",
+      tenant_demo_seed_applied: "Datos de ejemplo cargados",
+      subscription_past_due_auto: "Suscripción → cobro pendiente (auto)",
+      subscription_active_restored_auto: "Suscripción → activa (auto)",
     },
     systemOperator: "Sistema",
     selfServeOperator: "Alta pública",
@@ -1058,9 +1100,20 @@ export const platformCopy = {
         reason ? `Anulado · ${reason}` : "Cobro anulado",
       subscriptionPastDueAuto: (overdueCount?: number | null) =>
         overdueCount != null
-          ? `past_due · ${overdueCount} cobro(s) vencido(s)`
-          : "Suscripción → past_due",
-      subscriptionActiveRestoredAuto: () => "Suscripción → active",
+          ? `Cobro pendiente · ${overdueCount} cobro(s) vencido(s)`
+          : "Suscripción → cobro pendiente",
+      stripeChargeFailed: (
+        amountLabel?: string | null,
+        failureCode?: string | null,
+      ) => {
+        const parts: string[] = [];
+        if (amountLabel) parts.push(amountLabel);
+        if (failureCode) parts.push(failureCode);
+        return parts.join(" · ");
+      },
+      stripeChargeRequiresAction: (amountLabel: string) => amountLabel,
+      demoSeedApplied: (includeDraftTrip: boolean) =>
+        includeDraftTrip ? "Con viaje en borrador" : "Sin viaje en borrador",
     },
   },
   ar: {
@@ -1342,7 +1395,8 @@ export const platformCopy = {
     },
     markPaid: {
       title: "Registrar pago",
-      description: "Marca el cobro como pagado (pago completo).",
+      description:
+        "Marca el cobro SaaS como pagado (pago completo). Factura SaaS · no es CFDI de transporte.",
       paidAt: "Fecha de pago",
       method: "Forma de pago",
       methods: {

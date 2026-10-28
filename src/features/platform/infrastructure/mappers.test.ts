@@ -6,6 +6,8 @@ import {
   mapPlatformTenantListItem,
   mapPlatformUser,
   mapPlatformAuditLogItem,
+  mapPlatformPlanChangePreview,
+  mapPlatformEntitlementMutationPreview,
   mapPlatformTenantStampUsage,
   mapPlatformTenantSubscription,
   mapPlatformTenantEntitlements,
@@ -16,6 +18,7 @@ import {
   mapPlatformChargeRun,
   mapPlatformReconciliationPreview,
   toApiCreatePlatformTenant,
+  toApiUpdatePlatformTenantStatus,
 } from "./mappers";
 import type { ApiBillingUsage } from "@features/billing/infrastructure/mappers";
 
@@ -396,6 +399,29 @@ describe("platform mappers", () => {
     expect(body.declared_fleet_band).toBe("11_30");
   });
 
+  it("toApiUpdatePlatformTenantStatus maps typed suspend fields", () => {
+    expect(
+      toApiUpdatePlatformTenantStatus({
+        status: "suspended",
+        reasonCode: "past_due_policy",
+        reasonDetail: "  mora  ",
+      }),
+    ).toEqual({
+      status: "suspended",
+      reason_code: "past_due_policy",
+      reason_detail: "mora",
+    });
+    expect(
+      toApiUpdatePlatformTenantStatus({
+        status: "active",
+        reason: "Pago recibido",
+      }),
+    ).toEqual({
+      status: "active",
+      reason: "Pago recibido",
+    });
+  });
+
   it("mapPlatformAuditLogItem maps snake_case audit entry", () => {
     const item = mapPlatformAuditLogItem({
       id: "a1",
@@ -416,6 +442,72 @@ describe("platform mappers", () => {
     expect(item.targetTenantSubdomain).toBe("acme");
     expect(item.targetTenantName).toBe("Acme Transportes");
     expect(item.metadata.status).toBe("suspended");
+  });
+
+  it("mapPlatformPlanChangePreview maps estimate_available false", () => {
+    const preview = mapPlatformPlanChangePreview({
+      current: {
+        plan_code: "operacion_esencial",
+        name: "Esencial",
+        max_users: 3,
+        max_branches: 1,
+        history_months: 6,
+      },
+      target: {
+        plan_code: "operacion_crecimiento",
+        name: "Crecimiento",
+        max_users: 10,
+        max_branches: 3,
+        history_months: 12,
+      },
+      modules_gained: [],
+      modules_lost: [],
+      capacity_delta: {
+        max_users: { from: 3, to: 10, delta: 7 },
+        max_branches: { from: 1, to: 3, delta: 2 },
+        history_months: { from: 6, to: 12, delta: 6 },
+        included_stamps: { from: 0, to: 0, delta: 0 },
+        stamps_per_motriz: { from: 30, to: 30, delta: 0 },
+      },
+      price_estimate: {
+        currency: "MXN",
+        estimated_monthly_cents: null,
+        estimate_available: false,
+      },
+      effective_at: "2026-10-27T12:00:00.000Z",
+      warnings: ["PLAN_UNCHANGED"],
+    });
+    expect(preview.priceEstimate.estimateAvailable).toBe(false);
+    expect(preview.capacityDelta.maxUsers.delta).toBe(7);
+    expect(preview.warnings).toEqual(["PLAN_UNCHANGED"]);
+  });
+
+  it("mapPlatformEntitlementMutationPreview maps modules gained", () => {
+    const preview = mapPlatformEntitlementMutationPreview({
+      current: {
+        module_code: "liquidaciones",
+        status: "inactive",
+        effective_module_codes: [],
+      },
+      target: {
+        module_code: "liquidaciones",
+        action: "activate",
+        status: "active",
+        effective_module_codes: ["liquidaciones"],
+      },
+      modules_gained: ["liquidaciones"],
+      modules_lost: [],
+      capacity_delta: {},
+      price_estimate: {
+        currency: "MXN",
+        estimated_monthly_cents: null,
+        estimate_available: false,
+      },
+      effective_at: "2026-10-27T12:00:00.000Z",
+      warnings: [],
+    });
+    expect(preview.modulesGained).toEqual(["liquidaciones"]);
+    expect(preview.target.action).toBe("activate");
   });
 
   it("mapPlatformAuditLogItem null-safes missing tenant display fields", () => {

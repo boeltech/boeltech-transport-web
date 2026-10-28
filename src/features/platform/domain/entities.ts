@@ -302,9 +302,24 @@ export interface UpdateDeclaredFleetPayload {
   declaredFleetUnits?: number | null;
 }
 
+/** F1 API — reason_code al suspender (PATCH …/status). */
+export const SUSPEND_REASON_CODES = [
+  "past_due_policy",
+  "customer_request",
+  "abuse",
+  "other",
+] as const;
+
+export type SuspendReasonCodeType = (typeof SUSPEND_REASON_CODES)[number];
+
 export interface UpdatePlatformTenantStatusPayload {
   status: PlatformTenantStatusType;
+  /** Free-text audit/notify (reactivate/cancel; optional on suspend). */
   reason?: string;
+  /** Required when status=suspended (API F1). */
+  reasonCode?: SuspendReasonCodeType;
+  /** Required when reasonCode=other. */
+  reasonDetail?: string;
 }
 
 import type {
@@ -392,6 +407,94 @@ export interface UpsertPlatformTenantSubscriptionPayload {
 export interface MutatePlatformEntitlementPayload {
   moduleCode: string;
   action: "activate" | "deactivate";
+}
+
+/** Preview capacity metric from plan:preview / entitlements:preview (F0). */
+export interface PlatformPreviewCapacityMetric {
+  from: number | null;
+  to: number | null;
+  delta: number | null;
+}
+
+export interface PlatformPlanPriceEstimate {
+  currency: "MXN";
+  estimatedMonthlyCents: number | null;
+  estimateAvailable: boolean;
+}
+
+export interface PlatformPlanChangePreview {
+  current: {
+    planCode: string;
+    name: string;
+    maxUsers: number | null;
+    maxBranches: number | null;
+    historyMonths: number | null;
+  };
+  target: {
+    planCode: string;
+    name: string;
+    maxUsers: number | null;
+    maxBranches: number | null;
+    historyMonths: number | null;
+  };
+  modulesGained: string[];
+  modulesLost: string[];
+  capacityDelta: {
+    maxUsers: PlatformPreviewCapacityMetric;
+    maxBranches: PlatformPreviewCapacityMetric;
+    historyMonths: PlatformPreviewCapacityMetric;
+    includedStamps: PlatformPreviewCapacityMetric;
+    stampsPerMotriz: PlatformPreviewCapacityMetric;
+  };
+  priceEstimate: PlatformPlanPriceEstimate;
+  effectiveAt: string;
+  warnings: string[];
+}
+
+export type PlatformEntitlementPreviewAction = "activate" | "cancel";
+
+export interface PlatformEntitlementMutationPreview {
+  current: {
+    moduleCode: string;
+    status: "active" | "inactive";
+    effectiveModuleCodes: string[];
+  };
+  target: {
+    moduleCode: string;
+    action: PlatformEntitlementPreviewAction;
+    status: "active" | "inactive";
+    effectiveModuleCodes: string[];
+  };
+  modulesGained: string[];
+  modulesLost: string[];
+  capacityDelta: Record<string, never>;
+  priceEstimate: PlatformPlanPriceEstimate;
+  effectiveAt: string;
+  warnings: string[];
+}
+
+export interface AssignPlatformPlanPayload {
+  planCode: string;
+  /** Audit CA#3 — UI v1 requiere 10–500. */
+  reason: string;
+}
+
+export interface AssignPlatformPlanResult {
+  tenant: {
+    id: string;
+    name: string;
+    subdomain: string;
+    status: string;
+    planCode: string | null;
+    suspendedAt: string | null;
+  };
+  plan: {
+    code: string;
+    name: string;
+    maxUsers: number | null;
+    maxBranches: number | null;
+    historyMonths: number | null;
+  };
 }
 
 /** Cargo SaaS (CxC) statuses — ADR-0072. */
@@ -759,6 +862,8 @@ export const platformQueryKeys = {
   auditLog: () => [...platformQueryKeys.all, "audit-log"] as const,
   auditLogList: (params?: PlatformAuditLogQueryParams) =>
     [...platformQueryKeys.auditLog(), params] as const,
+  billingReconciliation: (periodKey: string) =>
+    [...platformQueryKeys.all, "billing-reconciliation", periodKey] as const,
   ar: () => [...platformQueryKeys.all, "ar"] as const,
   arList: (params?: PlatformArListQueryParams) =>
     [...platformQueryKeys.ar(), "list", params] as const,

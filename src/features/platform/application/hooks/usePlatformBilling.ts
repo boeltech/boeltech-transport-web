@@ -58,6 +58,14 @@ export const usePlatformModules = () =>
     staleTime: 300_000,
   });
 
+export const usePlatformBillingReconciliation = (periodKey: string) =>
+  useQuery({
+    queryKey: platformQueryKeys.billingReconciliation(periodKey),
+    queryFn: () => platformApi.listBillingReconciliation(periodKey),
+    enabled: !!periodKey,
+    staleTime: 60_000,
+  });
+
 export const useUpsertPlatformTenantSubscription = (
   options?: Omit<
     UseMutationOptions<
