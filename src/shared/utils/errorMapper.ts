@@ -220,6 +220,8 @@ export interface MappedError {
   message: string;
   originalMessage?: string;
   statusCode?: number;
+  /** Payload estructurado del API (p. ej. `details.conflicts`). */
+  details?: Record<string, unknown>;
 }
 
 export interface ApiErrorResponse {
@@ -296,6 +298,7 @@ export function mapBackendError(error: unknown): MappedError {
         BACKEND_ERROR_MESSAGES.UNKNOWN_ERROR,
       originalMessage: error.message,
       statusCode: error.status,
+      ...(error.details ? { details: error.details } : {}),
     };
   }
 

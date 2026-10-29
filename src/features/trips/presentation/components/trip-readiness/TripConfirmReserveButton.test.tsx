@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 import { TripStatus, type Trip } from "@features/trips/domain";
+import { FLEET_AVAILABILITY_CONFLICT_CODE } from "@shared/api/errors/fleetAvailabilityConflictError";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { tripDetailCopy } from "../../copy";
 import {
@@ -22,6 +23,7 @@ const scheduleOptions = vi.hoisted(() => ({
           trip: Trip;
           warnings?: Array<{ code: string; message: string }>;
         }) => void;
+        onError?: (error: Error) => void;
       }
     | undefined,
 }));
@@ -43,6 +45,7 @@ vi.mock("@features/trips/application", () => ({
       trip: Trip;
       warnings?: Array<{ code: string; message: string }>;
     }) => void;
+    onError?: (error: Error) => void;
   }) => {
     scheduleOptions.current = options;
     return {
@@ -239,5 +242,65 @@ describe("TripConfirmReserveButton", () => {
         variant: "warning",
       }),
     );
+  });
+
+  it("shows fleet conflict Alert without twin toast; Reasignar flota closes dialog", async () => {
+    const user = userEvent.setup();
+    const onReassignFleet = vi.fn();
+    renderButton({ onReassignFleet });
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.confirmReserve }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: copy.action.confirm }),
+    );
+
+    const conflictError = Object.assign(
+      new Error(
+        "Hay 2 conflictos de disponibilidad de flota. Reasigna o cambia fechas.",
+      ),
+      {
+        code: FLEET_AVAILABILITY_CONFLICT_CODE,
+        details: {
+          conflicts: [
+            {
+              resource_type: "vehicle",
+              resource_id: "veh-1",
+              display_label: "UNI-01",
+              conflicting_trip_code: "TR-PEER",
+              conflict_kind: "fleet_overlap",
+            },
+            {
+              resource_type: "internal_staff",
+              resource_id: "emp-1",
+              display_label: "Ana López",
+              role: "helper",
+              conflicting_trip_code: "TR-2",
+              conflict_kind: "staff_on_peer_primary",
+            },
+          ],
+        },
+      },
+    );
+    scheduleOptions.current?.onError?.(conflictError);
+
+    const alert = await screen.findByTestId(
+      "fleet-availability-conflict-alert",
+    );
+    expect(alert).toHaveTextContent(copy.fleetAvailability.confirmTitle);
+    expect(alert).toHaveTextContent("Unidad · UNI-01 · TR-PEER");
+    expect(alert).toHaveTextContent("Apoyo (ayudante) · Ana López · TR-2");
+    expect(mockToast).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: copy.fleetAvailability.reassignCta,
+      }),
+    );
+    expect(onReassignFleet).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
   });
 });

@@ -1248,6 +1248,12 @@ export function TripDetailPage() {
       fleetReady={tripReadiness?.fleetReady ?? true}
       startMileage={trip.mileage.start}
       suggestedStartMileage={vehicle?.currentMileage}
+      onReassignFleet={() => {
+        setSearchParams(
+          (prev) => applyOpenAssignFleetSearchParams(prev),
+          { replace: true },
+        );
+      }}
       onActionComplete={(updated) => {
         const f = updated?.fiscalActionRequired;
         if (f) {

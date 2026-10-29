@@ -13,6 +13,10 @@ import {
   Users,
 } from "lucide-react";
 
+import {
+  parseFleetAvailabilityConflicts,
+  type FleetAvailabilityConflict,
+} from "@shared/api/errors/fleetAvailabilityConflictError";
 import { useToast } from "@shared/hooks";
 import { useAuth } from "@features/auth";
 import { ROLES, type UserRole } from "@shared/constants/roles";
@@ -20,6 +24,7 @@ import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import { FleetAvailabilityConflictAlert } from "../trip-readiness/FleetAvailabilityConflictAlert";
 import {
   FormFieldShell,
   FormValidationSummary,
@@ -143,6 +148,9 @@ export function TripFleetAssignmentSheet({
     employeeName: string;
   } | null>(null);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const [fleetConflicts, setFleetConflicts] = useState<
+    FleetAvailabilityConflict[] | null
+  >(null);
 
   const [supportStaffPositionFilter, setSupportStaffPositionFilter] =
     useState<SupportStaffPositionFilter>("Conductor");
@@ -218,6 +226,7 @@ export function TripFleetAssignmentSheet({
       setDraftStaffEmployeeId("");
       setStaffAddError(null);
       setShowValidationSummary(false);
+      setFleetConflicts(null);
     }
     prevOpenRef.current = open;
   }, [open, defaultValues, reset]);
@@ -726,6 +735,7 @@ export function TripFleetAssignmentSheet({
   // ADR-0093 — flota vía PATCH /fleet (funciona mid-trip; no usa canEditTrip)
   const reassignFleetMutation = useReassignTripFleet(trip.id, {
     onSuccess: async (result) => {
+      setFleetConflicts(null);
       await invalidateTripAssignmentResources(queryClient);
       toast({
         title: copy.toasts.success,
@@ -743,6 +753,13 @@ export function TripFleetAssignmentSheet({
       onOpenChange(false);
     },
     onError: (err) => {
+      const conflicts = parseFleetAvailabilityConflicts(err);
+      if (conflicts !== null) {
+        // Sheet abierto: Alert inline, sin toast gemelo.
+        setFleetConflicts(conflicts);
+        return;
+      }
+      setFleetConflicts(null);
       toast({
         title: copy.toasts.error,
         description: err.message,
@@ -808,6 +825,7 @@ export function TripFleetAssignmentSheet({
   };
 
   const executeUpdate = (values: TripFleetAssignmentFormValues) => {
+    setFleetConflicts(null);
     const internalStaff = getValues("internalStaff") ?? values.internalStaff ?? [];
     reassignFleetMutation.mutate({
       vehicleId: values.vehicleId,
@@ -904,6 +922,13 @@ export function TripFleetAssignmentSheet({
                 >
                   <p>{copy.alerts.fiscalImpactBody}</p>
                 </DetailAlertCard>
+              ) : null}
+
+              {fleetConflicts !== null ? (
+                <FleetAvailabilityConflictAlert
+                  conflicts={fleetConflicts}
+                  title={tripDetailCopy.shell.fleetAvailability.saveTitle}
+                />
               ) : null}
 
               {expiredAssignmentAlertItems.length > 0 ? (

@@ -102,7 +102,11 @@ export function useUpdateTrip(
     mutationFn: async ({ id, data }) => {
       const result = await updateTripUseCase.execute(id, data);
       if (!result.success) {
-        throw new Error(result.error.message);
+        throw Object.assign(new Error(result.error.message), {
+          code: result.error.code,
+          details: result.error.details,
+          originalMessage: result.error.originalMessage,
+        });
       }
       return result.data;
     },

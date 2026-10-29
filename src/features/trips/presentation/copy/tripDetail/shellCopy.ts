@@ -197,6 +197,22 @@ export const shellCopy = {
     scheduleError: "No se pudo programar",
     overlapWarningTitle: "Posible traslape con una reserva",
   },
+  /**
+   * Hard collect-all `FLEET_AVAILABILITY_CONFLICT` (0071).
+   * Lista: tipo · identidad · viaje peer.
+   */
+  fleetAvailability: {
+    confirmTitle: "No se puede confirmar: flota en conflicto",
+    saveTitle: "No se puede guardar: flota en conflicto",
+    createTitle: "No se puede crear: flota en conflicto",
+    reassignCta: "Reasignar flota",
+    typeVehicle: "Unidad",
+    typeTrailer: "Remolque",
+    typeDriver: "Operador",
+    typeStaff: "Apoyo",
+    roleHelper: "ayudante",
+    roleSecondaryDriver: "2º conductor",
+  },
   readiness: {
     title: "Reserva guardada",
     titleScheduled: "Viaje programado",

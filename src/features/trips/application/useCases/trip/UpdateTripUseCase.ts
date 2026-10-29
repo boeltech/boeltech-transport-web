@@ -6,7 +6,10 @@ import {
   type UpdateTripInput,
   isUnifiedAddressId,
 } from "@features/trips/domain";
-import type { UseCaseResult } from "@shared/utils/errorMapper";
+import {
+  mapBackendError,
+  type UseCaseResult,
+} from "@shared/utils/errorMapper";
 
 // ============================================================================
 // UPDATE TRIP USE CASE
@@ -70,14 +73,20 @@ export class UpdateTripUseCase implements IUpdateTripUseCase {
 
       return { success: true, data: updatedTrip.data };
     } catch (error) {
+      const mapped = mapBackendError(error);
       return {
         success: false,
         error: {
-          code: "UPDATE_TRIP_ERROR",
+          ...mapped,
+          code:
+            mapped.code === "UNKNOWN_ERROR"
+              ? "UPDATE_TRIP_ERROR"
+              : mapped.code,
           message:
-            error instanceof Error
+            mapped.message ||
+            (error instanceof Error
               ? error.message
-              : "Error al actualizar viaje",
+              : "Error al actualizar viaje"),
         },
       };
     }

@@ -93,11 +93,14 @@ import {
   stopHasUnifiedAddressId,
 } from "./components";
 import type { TripWizardFormValues } from "./components";
-import { wizardCopy } from "../../copy";
+import { tripDetailCopy, wizardCopy } from "../../copy";
+import { parseFleetAvailabilityConflicts } from "@shared/api/errors/fleetAvailabilityConflictError";
+import { formatFleetAvailabilityConflictToastDescription } from "../../helpers/formatFleetAvailabilityConflict";
 
 const shell = wizardCopy.shell;
 const route = wizardCopy.route;
 const cargo = wizardCopy.cargo;
+const fleetAvailabilityCopy = tripDetailCopy.shell.fleetAvailability;
 
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import { buildUpdateTripInputFromWizardValues } from "./wizardToUpdateTripInput";
@@ -911,6 +914,17 @@ export function TripFormPage() {
 
       navigate(`/trips/${result.trip.id}`);
     } catch (error) {
+      const fleetConflicts = parseFleetAvailabilityConflicts(error);
+      if (fleetConflicts !== null) {
+        // Sin dialog/sheet de error: toast con la misma lista.
+        toast({
+          title: fleetAvailabilityCopy.createTitle,
+          description:
+            formatFleetAvailabilityConflictToastDescription(fleetConflicts),
+          variant: "error",
+        });
+        return;
+      }
       if (error instanceof TripCreationError) {
         toast({
           title: shell.toast.createError,

@@ -19,12 +19,19 @@ import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
 export class TripActionError extends Error {
   code: string;
   originalMessage?: string;
+  details?: Record<string, unknown>;
 
-  constructor(code: string, message: string, originalMessage?: string) {
+  constructor(
+    code: string,
+    message: string,
+    originalMessage?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "TripActionError";
     this.code = code;
     this.originalMessage = originalMessage;
+    this.details = details;
   }
 }
 
@@ -62,7 +69,8 @@ export function useScheduleTrip(
         throw new TripActionError(
           result.error.code,
           result.error.message,
-          result.error.message,
+          result.error.originalMessage ?? result.error.message,
+          result.error.details,
         );
       }
 

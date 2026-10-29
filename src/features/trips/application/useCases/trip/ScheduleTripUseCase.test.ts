@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { ITripRepository, Trip } from "@features/trips/domain";
 import { TripStatus } from "@features/trips/domain";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
+import { ApiError } from "@shared/api/interceptors/error-handler";
+import { FLEET_AVAILABILITY_CONFLICT_CODE } from "@shared/api/errors/fleetAvailabilityConflictError";
 import { ScheduleTripUseCase } from "./ScheduleTripUseCase";
 
 function draftTrip(over: Partial<Trip> = {}): Trip {
@@ -219,5 +221,47 @@ describe("ScheduleTripUseCase route validation", () => {
     if (result.success) return;
     expect(result.error.code).toBe("SCHEDULE_NOT_READY");
     expect(repository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("preserva code + details de FLEET_AVAILABILITY_CONFLICT (0071 hard)", async () => {
+    const conflicts = [
+      {
+        resource_type: "vehicle",
+        resource_id: "veh-1",
+        display_label: "UNI-01",
+        conflicting_trip_code: "TR-PEER",
+        conflict_kind: "fleet_overlap",
+      },
+    ];
+    const repository = {
+      findById: vi.fn().mockResolvedValue({
+        data: draftTrip({
+          mileage: { start: 12_000, end: null },
+          costs: {
+            baseRate: 35_000,
+            fuelCost: 0,
+            tollCost: 0,
+            otherCosts: 0,
+            totalCost: 35_000,
+          },
+        }),
+      }),
+      updateStatus: vi.fn().mockRejectedValue(
+        new ApiError(
+          "Hay 1 conflicto de disponibilidad de flota. Reasigna o cambia fechas.",
+          400,
+          FLEET_AVAILABILITY_CONFLICT_CODE,
+          { conflicts },
+        ),
+      ),
+    } as unknown as ITripRepository;
+    const useCase = new ScheduleTripUseCase(repository);
+
+    const result = await useCase.execute("trip-1");
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.code).toBe(FLEET_AVAILABILITY_CONFLICT_CODE);
+    expect(result.error.details).toEqual({ conflicts });
   });
 });

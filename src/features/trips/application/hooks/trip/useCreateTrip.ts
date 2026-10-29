@@ -30,12 +30,19 @@ import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentRes
 export class TripCreationError extends Error {
   code: string;
   originalMessage?: string;
+  details?: Record<string, unknown>;
 
-  constructor(code: string, message: string, originalMessage?: string) {
+  constructor(
+    code: string,
+    message: string,
+    originalMessage?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "TripCreationError";
     this.code = code;
     this.originalMessage = originalMessage;
+    this.details = details;
   }
 }
 
@@ -106,6 +113,7 @@ export function useCreateTrip(
           result.error.code,
           result.error.message,
           result.error.originalMessage,
+          result.error.details,
         );
       }
 

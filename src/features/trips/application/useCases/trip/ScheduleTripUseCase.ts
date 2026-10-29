@@ -6,7 +6,10 @@ import {
   validateStatusTransition,
   validateTripRouteForScheduling,
 } from "@features/trips/domain";
-import type { UseCaseResult } from "@shared/utils/errorMapper";
+import {
+  mapBackendError,
+  type UseCaseResult,
+} from "@shared/utils/errorMapper";
 import { assertCommercialScheduleReadiness } from "@boeltech/cfdi-domain";
 
 // ============================================================================
@@ -75,14 +78,20 @@ export class ScheduleTripUseCase implements IScheduleTripUseCase {
         },
       };
     } catch (error) {
+      const mapped = mapBackendError(error);
       return {
         success: false,
         error: {
-          code: "SCHEDULE_TRIP_ERROR",
+          ...mapped,
+          code:
+            mapped.code === "UNKNOWN_ERROR"
+              ? "SCHEDULE_TRIP_ERROR"
+              : mapped.code,
           message:
-            error instanceof Error
+            mapped.message ||
+            (error instanceof Error
               ? error.message
-              : "Error al programar el viaje",
+              : "Error al programar el viaje"),
         },
       };
     }

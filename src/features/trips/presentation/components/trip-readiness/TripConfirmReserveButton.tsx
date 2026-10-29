@@ -4,6 +4,10 @@ import { Calendar, Loader2 } from "lucide-react";
 import { useClientCreditSummary } from "@features/clients/application";
 import { useScheduleTrip, useUpdateTrip } from "@features/trips/application";
 import { TripStatus, type Trip, type TripStatusType } from "@features/trips/domain";
+import {
+  parseFleetAvailabilityConflicts,
+  type FleetAvailabilityConflict,
+} from "@shared/api/errors/fleetAvailabilityConflictError";
 import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import {
@@ -32,6 +36,7 @@ import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils"
 import { parseStartMileageInput } from "../startTripMileage";
 import { tripDetailCopy, wizardCopy } from "../../copy";
 import { tripScheduleDateTimeFieldProps } from "../../scheduleDateTimeField";
+import { FleetAvailabilityConflictAlert } from "./FleetAvailabilityConflictAlert";
 
 const copy = tripDetailCopy.shell;
 const basic = wizardCopy.basicInfo;
@@ -50,6 +55,8 @@ export interface TripConfirmReserveButtonProps {
   startMileage?: number | null;
   /** Sugerencia desde el odómetro actual de la unidad (incluye 0). */
   suggestedStartMileage?: number | null;
+  /** Cierra dialog y abre `TripFleetAssignmentSheet` (deep-link o state). */
+  onReassignFleet?: () => void;
   onActionComplete?: (trip?: Trip) => void;
 }
 
@@ -64,6 +71,7 @@ export function TripConfirmReserveButton({
   fleetReady = true,
   startMileage,
   suggestedStartMileage,
+  onReassignFleet,
   onActionComplete,
 }: TripConfirmReserveButtonProps) {
   const { toast } = useToast();
@@ -76,6 +84,9 @@ export function TripConfirmReserveButton({
   const [arrivalError, setArrivalError] = useState<string | null>(null);
   const [rateError, setRateError] = useState<string | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [fleetConflicts, setFleetConflicts] = useState<
+    FleetAvailabilityConflict[] | null
+  >(null);
 
   const canSchedule =
     status === TripStatus.DRAFT && hasPermission("trips", "update");
@@ -91,6 +102,29 @@ export function TripConfirmReserveButton({
   );
 
   const updateTrip = useUpdateTrip();
+
+  const applyScheduleFailure = (error: unknown) => {
+    const conflicts = parseFleetAvailabilityConflicts(error);
+    if (conflicts !== null) {
+      setFleetConflicts(conflicts);
+      setScheduleError(null);
+      // Dialog abierto: solo Alert (sin toast gemelo).
+      return;
+    }
+    setFleetConflicts(null);
+    const message =
+      error instanceof Error
+        ? error.message
+        : copy.alert.draftConfirmMileageRequired;
+    setScheduleError(message);
+    if (message.length <= LONG_ERROR_CHARS) {
+      toast({
+        title: copy.toast.scheduleError,
+        description: message,
+        variant: "error",
+      });
+    }
+  };
 
   const scheduleMutation = useScheduleTrip({
     onSuccess: (result) => {
@@ -111,17 +145,10 @@ export function TripConfirmReserveButton({
       onActionComplete?.(result.trip);
       setOpen(false);
       setScheduleError(null);
+      setFleetConflicts(null);
     },
     onError: (error) => {
-      const message = error.message;
-      setScheduleError(message);
-      if (message.length <= LONG_ERROR_CHARS) {
-        toast({
-          title: copy.toast.scheduleError,
-          description: message,
-          variant: "error",
-        });
-      }
+      applyScheduleFailure(error);
     },
   });
 
@@ -133,6 +160,7 @@ export function TripConfirmReserveButton({
     setArrivalError(null);
     setRateError(null);
     setScheduleError(null);
+    setFleetConflicts(null);
     setMileageInput(
       suggestedStartMileage != null ? String(suggestedStartMileage) : "",
     );
@@ -147,12 +175,20 @@ export function TripConfirmReserveButton({
     setOpen(true);
   };
 
+  const handleReassignFleet = () => {
+    setOpen(false);
+    setFleetConflicts(null);
+    setScheduleError(null);
+    onReassignFleet?.();
+  };
+
   const handleConfirm = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
     setMileageError(null);
     setArrivalError(null);
     setRateError(null);
     setScheduleError(null);
+    setFleetConflicts(null);
 
     const patch: {
       startMileage?: number;
@@ -193,18 +229,7 @@ export function TripConfirmReserveButton({
         });
       }
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : copy.alert.draftConfirmMileageRequired;
-      setScheduleError(message);
-      if (message.length <= LONG_ERROR_CHARS) {
-        toast({
-          title: copy.toast.scheduleError,
-          description: message,
-          variant: "error",
-        });
-      }
+      applyScheduleFailure(error);
       return;
     }
     scheduleMutation.mutate(tripId);
@@ -320,7 +345,15 @@ export function TripConfirmReserveButton({
               />
             </FormFieldShell>
           ) : null}
-          {scheduleError ? (
+          {fleetConflicts !== null ? (
+            <FleetAvailabilityConflictAlert
+              conflicts={fleetConflicts}
+              title={copy.fleetAvailability.confirmTitle}
+              onReassignFleet={
+                onReassignFleet ? handleReassignFleet : undefined
+              }
+            />
+          ) : scheduleError ? (
             <Alert variant="destructive">
               <AlertDescription>{scheduleError}</AlertDescription>
             </Alert>
