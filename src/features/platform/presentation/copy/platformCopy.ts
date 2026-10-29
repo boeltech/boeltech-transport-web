@@ -682,10 +682,12 @@ export const platformCopy = {
         recommendedBadge: "Recomendado",
       },
       fleetBands: {
-        "1_10": "1–10 unidades",
-        "11_30": "11–30 unidades",
+        "1_5": "1–5 unidades",
+        "6_30": "6–30 unidades",
         "31_100": "31–100 unidades",
         "100_plus": "Más de 100 unidades",
+        "1_10": "1–10 unidades (declaración anterior)",
+        "11_30": "11–30 unidades (declaración anterior)",
       } as Record<string, string>,
       hints: {
         subdomain:
@@ -998,6 +1000,23 @@ export const platformCopy = {
       saas_stripe_charge_failed: "Cobro con tarjeta rechazado",
       saas_stripe_charge_requires_action: "Cobro requiere autenticación",
       tenant_approval_policies_viewed: "Reglas de autorización consultadas",
+      tenant_viewed: "Empresa consultada",
+      tenant_health_viewed: "Salud de empresa consultada",
+      tenant_usage_viewed: "Uso consultado",
+      tenant_subscription_viewed: "Suscripción consultada",
+      tenant_q_fact_viewed: "Diagnóstico de facturación consultado",
+      tenant_entitlements_viewed: "Módulos consultados",
+      tenant_stamp_packs_viewed: "Prepagos consultados",
+      tenant_saas_invoices_viewed: "Cobros consultados",
+      tenant_saas_invoice_viewed: "Cobro consultado",
+      tenant_payment_methods_viewed: "Métodos de pago consultados",
+      tenants_listed: "Listado de empresas consultado",
+      platform_metrics_viewed: "Métricas consultadas",
+      platform_pulse_viewed: "Pulso consultado",
+      platform_ar_listed: "Cobranza consultada",
+      platform_ar_close_run_viewed: "Cierre de mes consultado",
+      platform_ar_charge_run_viewed: "Cobro automático consultado",
+      platform_billing_reconciliation_viewed: "Conciliación de cobro consultada",
       tenant_demo_seed_applied: "Datos de ejemplo cargados",
       subscription_past_due_auto: "Suscripción → cobro pendiente (auto)",
       subscription_active_restored_auto: "Suscripción → activa (auto)",
@@ -1190,7 +1209,7 @@ export const platformCopy = {
       ranAt: (when: string) => `Corrida ${when}`,
       notYetTitle: "Aún no corre el cobro automático",
       notYetDescription:
-        "Si hay cargo pendiente y tarjeta, Tlamx intenta cobrar solo.",
+        "Si hay cargo pendiente y tarjeta, Ops intenta cobrar solo.",
       ranTitle: "Cobro automático",
       countsLine: (counts: {
         charged: number;

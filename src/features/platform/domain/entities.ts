@@ -807,6 +807,24 @@ export const PlatformAuditAction = {
   SAAS_INVOICE_VOIDED: "saas_invoice_voided",
   SUBSCRIPTION_PAST_DUE_AUTO: "subscription_past_due_auto",
   SUBSCRIPTION_ACTIVE_RESTORED_AUTO: "subscription_active_restored_auto",
+  TENANT_VIEWED: "tenant_viewed",
+  TENANT_HEALTH_VIEWED: "tenant_health_viewed",
+  TENANT_USAGE_VIEWED: "tenant_usage_viewed",
+  TENANT_SUBSCRIPTION_VIEWED: "tenant_subscription_viewed",
+  TENANT_Q_FACT_VIEWED: "tenant_q_fact_viewed",
+  TENANT_ENTITLEMENTS_VIEWED: "tenant_entitlements_viewed",
+  TENANT_STAMP_PACKS_VIEWED: "tenant_stamp_packs_viewed",
+  TENANT_SAAS_INVOICES_VIEWED: "tenant_saas_invoices_viewed",
+  TENANT_SAAS_INVOICE_VIEWED: "tenant_saas_invoice_viewed",
+  TENANT_PAYMENT_METHODS_VIEWED: "tenant_payment_methods_viewed",
+  TENANTS_LISTED: "tenants_listed",
+  PLATFORM_METRICS_VIEWED: "platform_metrics_viewed",
+  PLATFORM_PULSE_VIEWED: "platform_pulse_viewed",
+  PLATFORM_AR_LISTED: "platform_ar_listed",
+  PLATFORM_AR_CLOSE_RUN_VIEWED: "platform_ar_close_run_viewed",
+  PLATFORM_AR_CHARGE_RUN_VIEWED: "platform_ar_charge_run_viewed",
+  PLATFORM_BILLING_RECONCILIATION_VIEWED:
+    "platform_billing_reconciliation_viewed",
 } as const;
 
 export type PlatformAuditActionType =

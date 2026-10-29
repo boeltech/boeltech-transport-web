@@ -223,6 +223,23 @@ export function getAuditMetadataSummary(
         ? copy.stripeChargeRequiresAction(amountLabel)
         : platformCopy.audit.noDetail;
     }
+    case PlatformAuditAction.TENANT_VIEWED:
+    case PlatformAuditAction.TENANT_HEALTH_VIEWED:
+    case PlatformAuditAction.TENANT_USAGE_VIEWED:
+    case PlatformAuditAction.TENANT_SUBSCRIPTION_VIEWED:
+    case PlatformAuditAction.TENANT_Q_FACT_VIEWED:
+    case PlatformAuditAction.TENANT_ENTITLEMENTS_VIEWED:
+    case PlatformAuditAction.TENANT_STAMP_PACKS_VIEWED:
+    case PlatformAuditAction.TENANT_SAAS_INVOICES_VIEWED:
+    case PlatformAuditAction.TENANT_SAAS_INVOICE_VIEWED:
+    case PlatformAuditAction.TENANT_PAYMENT_METHODS_VIEWED:
+    case PlatformAuditAction.TENANTS_LISTED:
+    case PlatformAuditAction.PLATFORM_METRICS_VIEWED:
+    case PlatformAuditAction.PLATFORM_PULSE_VIEWED:
+    case PlatformAuditAction.PLATFORM_AR_LISTED:
+    case PlatformAuditAction.PLATFORM_AR_CLOSE_RUN_VIEWED:
+    case PlatformAuditAction.PLATFORM_AR_CHARGE_RUN_VIEWED:
+    case PlatformAuditAction.PLATFORM_BILLING_RECONCILIATION_VIEWED:
     case "tenant_approval_policies_viewed":
       return platformCopy.audit.noDetail;
     case "tenant_demo_seed_applied":

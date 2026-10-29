@@ -70,6 +70,30 @@ describe("platformAuditFormatters", () => {
         PlatformAuditAction.SUBSCRIPTION_ACTIVE_RESTORED_AUTO,
       ),
     ).toBe("Suscripción → activa (auto)");
+    expect(getAuditActionLabel(PlatformAuditAction.TENANT_VIEWED)).toBe(
+      "Empresa consultada",
+    );
+    expect(getAuditActionLabel(PlatformAuditAction.PLATFORM_PULSE_VIEWED)).toBe(
+      "Pulso consultado",
+    );
+    expect(
+      getAuditActionLabel(
+        PlatformAuditAction.PLATFORM_BILLING_RECONCILIATION_VIEWED,
+      ),
+    ).toBe("Conciliación de cobro consultada");
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.PLATFORM_BILLING_RECONCILIATION_VIEWED,
+          metadata: {
+            format: "csv",
+            period_key: "2026-10",
+            tenant_id: "t1",
+            total_cents: 150000,
+          },
+        }),
+      ),
+    ).toBe(platformCopy.audit.noDetail);
   });
 
   it("summarizes activation sent with email and optional send failure", () => {

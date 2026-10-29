@@ -36,6 +36,10 @@ describe("platformCopy.ar views counts", () => {
 
   it("keeps charge-run copy free of CFDI/flete and points to Pendientes", () => {
     const { chargeRun, chargeChip } = platformCopy.ar;
+    expect(chargeRun.notYetDescription).toBe(
+      "Si hay cargo pendiente y tarjeta, Ops intenta cobrar solo.",
+    );
+    expect(chargeRun.notYetDescription).not.toMatch(/tlamx/i);
     expect(chargeRun.notYetDescription).not.toMatch(/CSV|CFDI|flete/i);
     expect(chargeRun.attentionDescription).not.toMatch(/CSV|CFDI|flete/i);
     expect(chargeRun.attentionOnPending).not.toMatch(/CSV|CFDI|flete/i);
