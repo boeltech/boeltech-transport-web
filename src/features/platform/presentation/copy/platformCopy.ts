@@ -355,10 +355,12 @@ export const platformCopy = {
         fields: {
           status: "Estado",
           email: "Correo",
+          name: "Nombre",
           expiresAt: "Vence",
           lastSentAt: "Último envío",
           sendAttempts: "Intentos de envío",
           lastSendError: "Último error de envío",
+          activatedAt: "Activó el",
         },
         statusLabels: {
           pending: "Pendiente",
@@ -1050,8 +1052,18 @@ export const platformCopy = {
           ? `${previousStatus} → ${status} · ${reason}`
           : `${previousStatus} → ${status}`,
       planAssigned: (planCode: string) => `Plan: ${planCode}`,
-      tenantCreated: (subdomain: string, planCode?: string | null) =>
-        planCode ? `${subdomain} · ${planCode}` : subdomain,
+      tenantCreated: (
+        subdomain: string,
+        planCode?: string | null,
+        adminEmail?: string | null,
+      ) =>
+        adminEmail
+          ? planCode
+            ? `${subdomain} · ${planCode} · ${adminEmail}`
+            : `${subdomain} · ${adminEmail}`
+          : planCode
+            ? `${subdomain} · ${planCode}`
+            : subdomain,
       catalogImport: (typeCode?: string | null, version?: string | null) =>
         typeCode
           ? version
@@ -1070,10 +1082,18 @@ export const platformCopy = {
           : "Flota declarada",
       stampPackGranted: (catalogCode?: string | null) =>
         catalogCode ? `Pack: ${catalogCode}` : "Prepago acreditado",
-      selfServeRegistered: (subdomain: string, planCode?: string | null) =>
-        planCode
-          ? `${subdomain} · ${planCode} · en prueba`
-          : `${subdomain} · en prueba`,
+      selfServeRegistered: (
+        subdomain: string,
+        planCode?: string | null,
+        adminEmail?: string | null,
+      ) =>
+        adminEmail
+          ? planCode
+            ? `${subdomain} · ${planCode} · ${adminEmail}`
+            : `${subdomain} · ${adminEmail}`
+          : planCode
+            ? `${subdomain} · ${planCode} · en prueba`
+            : `${subdomain} · en prueba`,
       trialAutoCut: (reason?: string | null, planCode?: string | null) => {
         const parts = ["→ Cancelada"];
         if (reason) parts.unshift(reason);

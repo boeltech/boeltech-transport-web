@@ -275,12 +275,14 @@ export function PlatformTenantHubPage() {
     {
       id: "activation",
       label: kpiCopy.activation.label,
-      value: activationPending
-        ? kpiCopy.activation.pending
-        : kpiCopy.activation.ready,
-      caption: activationPending
-        ? kpiCopy.activation.captionPending
-        : kpiCopy.activation.captionOk,
+      value:
+        platformCopy.tenants.detail.adminActivation.statusLabels[
+          activationStatus
+        ],
+      caption:
+        platformCopy.tenants.detail.adminActivation.statusHints[
+          activationStatus
+        ],
       tone: activationPending ? "warn" : undefined,
     },
   ];

@@ -162,6 +162,9 @@ export interface ApiPlatformAdminActivation {
   last_sent_at: string | null;
   last_send_error: string | null;
   send_attempts: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  used_at?: string | null;
 }
 
 export interface ApiPlatformTenantAdmin {
@@ -314,6 +317,9 @@ export const mapAdminActivation = (
   lastSentAt: raw.last_sent_at,
   lastSendError: raw.last_send_error,
   sendAttempts: raw.send_attempts,
+  firstName: raw.first_name ?? null,
+  lastName: raw.last_name ?? null,
+  usedAt: raw.used_at ?? null,
 });
 
 export const mapPlatformTenantAdmin = (

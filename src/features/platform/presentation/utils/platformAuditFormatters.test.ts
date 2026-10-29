@@ -7,6 +7,7 @@ import { platformCopy } from "../copy/platformCopy";
 import {
   getAuditActionLabel,
   getAuditMetadataSummary,
+  getAuditOperatorLabel,
   getAuditTenantLabel,
   isDestructiveAuditAction,
 } from "./platformAuditFormatters";
@@ -330,6 +331,100 @@ describe("platformAuditFormatters", () => {
         }),
       ),
     ).toBe(platformCopy.audit.noDetail);
+  });
+
+  it("appends admin_email to tenant created and self-serve summaries", () => {
+    const plans = [{ code: "operacion_esencial", name: "Operación Esencial" }];
+    const created = baseItem({
+      action: PlatformAuditAction.TENANT_CREATED,
+      metadata: {
+        subdomain: "acme",
+        plan_code: "operacion_esencial",
+        admin_email: "admin@acme.mx",
+      },
+    });
+
+    expect(getAuditMetadataSummary(created, plans)).toBe(
+      "acme · Operación Esencial · admin@acme.mx",
+    );
+    expect(getAuditOperatorLabel(created)).toBe("ops@boeltech.com");
+
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.TENANT_CREATED,
+          metadata: {
+            subdomain: "acme",
+            admin_email: "admin@acme.mx",
+          },
+        }),
+        plans,
+      ),
+    ).toBe("acme · admin@acme.mx");
+
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.TENANT_CREATED,
+          metadata: {
+            subdomain: "acme",
+            plan_code: "operacion_esencial",
+          },
+        }),
+        plans,
+      ),
+    ).toBe("acme · Operación Esencial");
+
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.TENANT_CREATED,
+          metadata: { subdomain: "acme", admin_email: "   " },
+        }),
+      ),
+    ).toBe("acme");
+
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.TENANT_SELF_SERVE_REGISTERED,
+          metadata: {
+            subdomain: "acme",
+            plan_code: "operacion_esencial",
+            admin_email: "admin@acme.mx",
+          },
+        }),
+        plans,
+      ),
+    ).toBe("acme · Operación Esencial · admin@acme.mx");
+
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.TENANT_SELF_SERVE_REGISTERED,
+          metadata: { subdomain: "acme", admin_email: "admin@acme.mx" },
+        }),
+      ),
+    ).toBe("acme · admin@acme.mx");
+
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.TENANT_SELF_SERVE_REGISTERED,
+          metadata: { subdomain: "acme", plan_code: "operacion_esencial" },
+        }),
+        plans,
+      ),
+    ).toBe("acme · Operación Esencial · en prueba");
+
+    expect(
+      getAuditMetadataSummary(
+        baseItem({
+          action: PlatformAuditAction.TENANT_SELF_SERVE_REGISTERED,
+          metadata: { subdomain: "acme" },
+        }),
+      ),
+    ).toBe("acme · en prueba");
   });
 
   describe("getAuditTenantLabel", () => {

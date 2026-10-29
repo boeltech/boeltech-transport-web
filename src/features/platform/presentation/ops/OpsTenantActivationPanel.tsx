@@ -49,6 +49,24 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+function activationAdminName(
+  activation: PlatformAdminActivation | null,
+): string | null {
+  if (!activation) return null;
+  const name = [activation.firstName, activation.lastName]
+    .map((part) => part?.trim() ?? "")
+    .filter((part) => part.length > 0)
+    .join(" ");
+  return name.length > 0 ? name : null;
+}
+
+function activationEmail(
+  activation: PlatformAdminActivation | null,
+): string | null {
+  const email = activation?.email?.trim() ?? "";
+  return email.length > 0 ? email : null;
+}
+
 export function OpsTenantActivationPanel({
   tenantId,
   activation,
@@ -61,6 +79,13 @@ export function OpsTenantActivationPanel({
   const status = activation?.status ?? AdminActivationStatus.NONE;
   const canActOnActivation = canMutate && MUTABLE_STATUSES.has(status);
   const isCompact = COMPACT_STATUSES.has(status);
+  const email = activationEmail(activation);
+  const adminName = activationAdminName(activation);
+  const usedAt = activation?.usedAt?.trim() ?? "";
+  const activatedAtLabel =
+    status === AdminActivationStatus.ACTIVATED && usedAt.length > 0
+      ? `${copy.fields.activatedAt} ${formatDateTime(usedAt)}`
+      : null;
 
   const resendMutation = useResendPlatformTenantActivation({
     onSuccess: () => {
@@ -93,6 +118,17 @@ export function OpsTenantActivationPanel({
         <span className="ops-type-caption ops-text-muted">
           {copy.statusHints[status] ?? copy.statusHints.none}
         </span>
+        {email ? (
+          <span className="ops-type-caption ops-text">{email}</span>
+        ) : null}
+        {adminName ? (
+          <span className="ops-type-caption ops-text">{adminName}</span>
+        ) : null}
+        {activatedAtLabel ? (
+          <span className="ops-type-caption ops-text-muted">
+            {activatedAtLabel}
+          </span>
+        ) : null}
       </div>
     );
   }
@@ -117,9 +153,10 @@ export function OpsTenantActivationPanel({
           </p>
           {activation ? (
             <div className="space-y-2">
-              {activation.email ? (
-                <Row label={copy.fields.email} value={activation.email} />
+              {adminName ? (
+                <Row label={copy.fields.name} value={adminName} />
               ) : null}
+              {email ? <Row label={copy.fields.email} value={email} /> : null}
               {activation.expiresAt ? (
                 <Row
                   label={copy.fields.expiresAt}

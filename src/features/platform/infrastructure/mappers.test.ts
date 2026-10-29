@@ -244,6 +244,9 @@ describe("platform mappers", () => {
       last_sent_at: "2026-08-07T18:00:00.000Z",
       last_send_error: null,
       send_attempts: 1,
+      first_name: "Ada",
+      last_name: "Admin",
+      used_at: "2026-08-08T12:00:00.000Z",
     });
     expect(activation).toEqual({
       status: "pending",
@@ -252,6 +255,9 @@ describe("platform mappers", () => {
       lastSentAt: "2026-08-07T18:00:00.000Z",
       lastSendError: null,
       sendAttempts: 1,
+      firstName: "Ada",
+      lastName: "Admin",
+      usedAt: "2026-08-08T12:00:00.000Z",
     });
 
     const detail = mapPlatformTenantDetail({
@@ -277,6 +283,9 @@ describe("platform mappers", () => {
     });
     expect(detail.adminActivation?.status).toBe("email_failed");
     expect(detail.adminActivation?.lastSendError).toBe("EMAIL_SEND_FAILED");
+    expect(detail.adminActivation?.firstName).toBeNull();
+    expect(detail.adminActivation?.lastName).toBeNull();
+    expect(detail.adminActivation?.usedAt).toBeNull();
 
     const created = mapCreatePlatformTenantResult({
       tenant: {
@@ -311,7 +320,32 @@ describe("platform mappers", () => {
     });
     expect(created.admin.firstName).toBe("Ada");
     expect(created.adminActivation.status).toBe("pending");
+    expect(created.adminActivation.firstName).toBeNull();
+    expect(created.adminActivation.lastName).toBeNull();
+    expect(created.adminActivation.usedAt).toBeNull();
     expect(created.tenant.subdomain).toBe("demo");
+  });
+
+  it("mapAdminActivation coerces explicit null identity fields to null", async () => {
+    const { mapAdminActivation } = await import("./mappers");
+    expect(
+      mapAdminActivation({
+        status: "none",
+        email: null,
+        expires_at: null,
+        last_sent_at: null,
+        last_send_error: null,
+        send_attempts: 0,
+        first_name: null,
+        last_name: null,
+        used_at: null,
+      }),
+    ).toMatchObject({
+      email: null,
+      firstName: null,
+      lastName: null,
+      usedAt: null,
+    });
   });
 
   it("mapPlatformMetrics maps KPI fields", () => {

@@ -165,10 +165,6 @@ export const opsCopy = {
       },
       activation: {
         label: "Activación",
-        captionPending: "Admin pendiente",
-        captionOk: "Admin listo",
-        pending: "Pendiente",
-        ready: "Listo",
       },
     },
     strip: {

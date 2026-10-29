@@ -254,6 +254,9 @@ function createActiveTenant(): PlatformTenantDetail {
       lastSentAt: "2026-06-01T10:00:00.000Z",
       lastSendError: null,
       sendAttempts: 1,
+      firstName: null,
+      lastName: null,
+      usedAt: null,
     },
     health: {
       score: 72,

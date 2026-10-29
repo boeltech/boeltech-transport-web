@@ -93,6 +93,9 @@ const PENDING_ACTIVATION: PlatformAdminActivation = {
   lastSentAt: "2026-08-07T18:00:00.000Z",
   lastSendError: null,
   sendAttempts: 1,
+  firstName: null,
+  lastName: null,
+  usedAt: null,
 };
 
 function seedPlatformSession(user: PlatformUserJSON = PLATFORM_OWNER) {

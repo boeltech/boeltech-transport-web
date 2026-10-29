@@ -132,6 +132,7 @@ export function getAuditMetadataSummary(
         typeof metadata.plan_code === "string"
           ? resolvePlanLabel(metadata.plan_code, plans)
           : null,
+        metadataString(metadata, "admin_email"),
       );
     case PlatformAuditAction.TENANT_SELF_SERVE_REGISTERED:
       return copy.selfServeRegistered(
@@ -139,6 +140,7 @@ export function getAuditMetadataSummary(
         typeof metadata.plan_code === "string"
           ? resolvePlanLabel(metadata.plan_code, plans)
           : null,
+        metadataString(metadata, "admin_email"),
       );
     case PlatformAuditAction.TENANT_FLEET_DECLARED:
       return copy.fleetDeclared(

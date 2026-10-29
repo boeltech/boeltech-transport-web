@@ -176,6 +176,9 @@ export interface PlatformAdminActivation {
   lastSentAt: string | null;
   lastSendError: string | null;
   sendAttempts: number;
+  firstName: string | null;
+  lastName: string | null;
+  usedAt: string | null;
 }
 
 export interface PlatformTenantAdmin {
