@@ -7,10 +7,6 @@ import { renderWithTheme } from "@/test/renderWithTheme";
 import { PlatformShell } from "../layout/PlatformShell";
 import { opsCopy } from "./opsCopy";
 
-vi.mock("./platformConsoleV1", () => ({
-  isPlatformConsoleV1Enabled: () => true,
-}));
-
 vi.mock("../providers/PlatformAuthProvider", () => ({
   PlatformAuthProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>

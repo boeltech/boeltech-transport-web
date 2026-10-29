@@ -473,6 +473,11 @@ const PlatformShell = lazyWithRetry(() =>
     default: m.PlatformShell,
   })),
 );
+const PlatformNotFoundPage = lazyWithRetry(() =>
+  import("@features/platform/presentation/pages/PlatformNotFoundPage").then(
+    (m) => ({ default: m.PlatformNotFoundPage }),
+  ),
+);
 const PlatformDashboardPage = lazyWithRetry(() =>
   import("@features/platform/presentation/pages/PlatformDashboardPage").then(
     (m) => ({ default: m.PlatformDashboardPage }),
@@ -1378,6 +1383,10 @@ export const router = createBrowserRouter([
           {
             path: "/platform/design-system",
             element: withSuspense(PlatformOpsDesignSystemPage),
+          },
+          {
+            path: "/platform/*",
+            element: withSuspense(PlatformNotFoundPage),
           },
         ],
       },

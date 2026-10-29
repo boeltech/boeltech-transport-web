@@ -35,7 +35,7 @@ export const opsCopy = {
     seguridad: "Seguridad",
     designSystem: "Design System",
     logout: "Cerrar sesión",
-    erpLink: "Ir al ERP",
+    erpLink: "Ir al login de tlamx",
     openMenu: "Abrir menú",
   },
   designSystem: {

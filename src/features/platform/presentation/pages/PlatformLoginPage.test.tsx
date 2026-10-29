@@ -7,12 +7,6 @@ import { platformCopy } from "../copy/platformCopy";
 import { opsCopy } from "../ops/opsCopy";
 import { PLATFORM_CONSOLE_FAVICON_HREF } from "../layout/usePlatformDocumentChrome";
 
-const consoleFlag = vi.hoisted(() => ({ enabled: true }));
-
-vi.mock("../ops/platformConsoleV1", () => ({
-  isPlatformConsoleV1Enabled: () => consoleFlag.enabled,
-}));
-
 vi.mock("../../infrastructure/platformTokenStorage", () => ({
   platformTokenStorage: {
     hasSession: () => false,
@@ -30,9 +24,8 @@ vi.mock("../../infrastructure/platformApi", () => ({
   },
 }));
 
-describe("PlatformLoginPage (Ops cuando el flag está on)", () => {
+describe("PlatformLoginPage (Ops)", () => {
   beforeEach(() => {
-    consoleFlag.enabled = true;
     document.title = "tlamx";
   });
 
@@ -93,32 +86,5 @@ describe("PlatformLoginPage (Ops cuando el flag está on)", () => {
     expect(document.querySelector(".ops-form-errors")).not.toBeNull();
     expect(document.querySelector('[data-slot="alert"]')).toBeNull();
     expect(document.querySelector(".bg-destructive")).toBeNull();
-  });
-});
-
-describe("PlatformLoginPage (marca clásica cuando el flag está off)", () => {
-  beforeEach(() => {
-    consoleFlag.enabled = false;
-    document.title = "tlamx";
-  });
-
-  it("shows PlatformBrandMark once and does not mount the Ops hero", () => {
-    renderWithTheme(<PlatformLoginPage />, { route: ["/platform/login"] });
-
-    expect(screen.getByTestId("platform-login")).toBeInTheDocument();
-    expect(screen.queryByTestId("platform-ops-login")).not.toBeInTheDocument();
-    expect(document.querySelector(".platform-ops")).toBeNull();
-    expect(screen.queryByTestId("ops-brand-mark")).not.toBeInTheDocument();
-    expect(document.querySelector("svg.lucide-shield")).not.toBeNull();
-
-    expect(screen.getAllByText(platformCopy.brand.name)).toHaveLength(1);
-    expect(screen.queryByText(opsCopy.wordmark)).not.toBeInTheDocument();
-    expect(screen.getByText(platformCopy.login.description)).toBeInTheDocument();
-
-    expect(document.title).toBe(platformCopy.brand.name);
-    expect(document.title).not.toBe("tlamx");
-    expect(
-      document.querySelector('link[rel="icon"]')?.getAttribute("href"),
-    ).toBe(PLATFORM_CONSOLE_FAVICON_HREF);
   });
 });

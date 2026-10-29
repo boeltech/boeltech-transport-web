@@ -12,11 +12,6 @@ import { PlatformOpsRail } from "../PlatformOpsRail";
 
 const authState = vi.hoisted(() => ({
   platformRole: "platform_owner" as "platform_owner" | "platform_support",
-  consoleV1: true,
-}));
-
-vi.mock("../platformConsoleV1", () => ({
-  isPlatformConsoleV1Enabled: () => authState.consoleV1,
 }));
 
 vi.mock("../../providers/PlatformAuthProvider", () => ({
@@ -48,7 +43,6 @@ function OpsWrap({ children }: { children: ReactNode }) {
 describe("PlatformOpsDesignSystemPage", () => {
   it("renders Marca by default, preview light/dark, no ThemeCycle ERP", async () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
     const user = userEvent.setup();
 
     renderWithTheme(
@@ -89,8 +83,6 @@ describe("PlatformOpsDesignSystemPage", () => {
 
   it("shows brand wordmark and motif yes/no rows", async () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
-
     renderWithTheme(
       <OpsWrap>
         <PlatformOpsDesignSystemPage />
@@ -112,7 +104,6 @@ describe("PlatformOpsDesignSystemPage", () => {
 
   it("contrast section shows dual themes with measured ratios (not Pass hardcoded)", async () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
     const user = userEvent.setup();
 
     renderWithTheme(
@@ -140,7 +131,6 @@ describe("PlatformOpsDesignSystemPage", () => {
 
   it("shows ledger, quota, roles and example codes inside the preview", async () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
     const user = userEvent.setup();
 
     renderWithTheme(
@@ -219,7 +209,6 @@ describe("PlatformOpsDesignSystemPage", () => {
 
   it("shows the static table skeleton and a disabled primary", async () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
     const user = userEvent.setup();
 
     renderWithTheme(
@@ -252,7 +241,6 @@ describe("PlatformOpsDesignSystemPage", () => {
 
   it("F3 Components matrix covers forced hover/focus, outline, command empty", async () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
     const user = userEvent.setup();
 
     renderWithTheme(
@@ -290,7 +278,6 @@ describe("PlatformOpsDesignSystemPage", () => {
 
   it("F3 Patterns inventory includes empty loading and table skeleton", async () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
     const user = userEvent.setup();
 
     renderWithTheme(
@@ -323,35 +310,9 @@ describe("PlatformOpsDesignSystemPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("redirects when flag is OFF", () => {
-    authState.platformRole = "platform_owner";
-    authState.consoleV1 = false;
-
-    renderWithTheme(
-      <Routes>
-        <Route
-          path="/platform/design-system"
-          element={
-            <OpsWrap>
-              <PlatformOpsDesignSystemPage />
-            </OpsWrap>
-          }
-        />
-        <Route path="/platform" element={<div data-testid="hoy">hoy</div>} />
-      </Routes>,
-      { route: ["/platform/design-system"] },
-    );
-
-    expect(screen.getByTestId("hoy")).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("platform-ops-design-system"),
-    ).not.toBeInTheDocument();
-  });
 
   it("redirects platform_support away from the page", () => {
     authState.platformRole = "platform_support";
-    authState.consoleV1 = true;
-
     renderWithTheme(
       <Routes>
         <Route
@@ -374,8 +335,6 @@ describe("PlatformOpsDesignSystemPage", () => {
 describe("PlatformOpsRail design-system link", () => {
   it("shows Design System link for owner and hides for support", () => {
     authState.platformRole = "platform_owner";
-    authState.consoleV1 = true;
-
     const { unmount } = renderWithTheme(
       <OpsWrap>
         <PlatformOpsRail pathname="/platform" />

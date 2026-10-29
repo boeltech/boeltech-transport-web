@@ -1,6 +1,5 @@
 export { PlatformLoginPage } from "./pages/PlatformLoginPage";
 export { PlatformDashboardPage } from "./pages/PlatformDashboardPage";
-export { PlatformPulsePage } from "./pages/PlatformPulsePage";
 export { PlatformTenantsListPage } from "./pages/PlatformTenantsListPage";
 export { PlatformTenantDetailPage } from "./pages/PlatformTenantDetailPage";
 export { PlatformTenantCreatePage } from "./pages/PlatformTenantCreatePage";
@@ -14,5 +13,4 @@ export { PlatformHoyPage } from "./ops/PlatformHoyPage";
 export { PlatformTenantHubPage } from "./ops/PlatformTenantHubPage";
 export { PlatformCommercialCatalogPage } from "./ops/PlatformCommercialCatalogPage";
 export { PlatformUsagePage } from "./ops/PlatformUsagePage";
-export { isPlatformConsoleV1Enabled } from "./ops/platformConsoleV1";
 export { PlatformAuthProvider, usePlatformAuth } from "./providers/PlatformAuthProvider";

@@ -16,7 +16,7 @@ import type {
   BillingSubscription,
   BillingUsage,
 } from "@features/billing/domain/entities";
-import { TenantSaasArCard } from "@features/platform/presentation/components/TenantSaasArCard";
+import { OpsTenantSaasArPanel } from "@features/platform/presentation/ops/OpsTenantSaasArPanel";
 import { platformCopy } from "@features/platform/presentation/copy/platformCopy";
 import { formatBillingPeriodKey } from "@features/platform/presentation/utils/platformBillingFormatters";
 import { TooltipProvider } from "@shared/ui/tooltip";
@@ -383,11 +383,13 @@ describe("billing-stripe-b smoke (Stripe-B F3)", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <TenantSaasArCard
-            tenantId="tenant-1"
-            tenantLabel="Demo"
-            canMutate
-          />
+          <div className="platform-ops">
+            <OpsTenantSaasArPanel
+              tenantId="tenant-1"
+              tenantLabel="Demo"
+              canMutate
+            />
+          </div>
         </MemoryRouter>
       </QueryClientProvider>,
     );

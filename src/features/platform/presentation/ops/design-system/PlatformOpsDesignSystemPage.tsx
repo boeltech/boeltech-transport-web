@@ -12,7 +12,6 @@ import {
 import { isPlatformOwner } from "../../../domain/entities";
 import { usePlatformAuth } from "../../providers/PlatformAuthProvider";
 import { opsCopy } from "../opsCopy";
-import { isPlatformConsoleV1Enabled } from "../platformConsoleV1";
 import { OpsBadge } from "../ui/OpsBadge";
 import { OpsButton } from "../ui/OpsButton";
 import {
@@ -131,17 +130,14 @@ function PreviewRoot({
 
 /**
  * Referencia viva Ops Foundations (`/platform/design-system`).
- * Owner + flag V1. Preview light/dark local — sin ThemeCycle ERP (LID-D* · L3).
+ * Solo platform_owner. Preview light/dark local — sin ThemeCycle ERP (LID-D* · L3).
  */
 export function PlatformOpsDesignSystemPage() {
   const { user } = usePlatformAuth();
   const [activeSection, setActiveSection] = useState<SectionKey>("brand");
   const [previewTheme, setPreviewTheme] = useState<PreviewTheme>("light");
 
-  if (
-    !isPlatformConsoleV1Enabled() ||
-    !isPlatformOwner(user?.platformRole)
-  ) {
+  if (!isPlatformOwner(user?.platformRole)) {
     return <Navigate to="/platform" replace />;
   }
 

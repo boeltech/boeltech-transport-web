@@ -17,7 +17,7 @@
  *   - `onInk`: tipografía sobre chrome ink (`bg-sidebar` / superficies ink).
  *     Usa `text-palette-brand-on-ink` (teal-light tipográfico hue 205) —
  *     no blanco plano ni `text-primary` del CTA/mark.
- *   - Consola platform NO usa este wordmark; usa PlatformBrandMark
+ *   - Consola platform NO usa este wordmark; usa OpsBrandMark
  */
 
 import { memo, type CSSProperties } from "react";

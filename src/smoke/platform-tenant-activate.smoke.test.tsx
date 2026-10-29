@@ -22,7 +22,7 @@ import type {
   PlatformUserJSON,
 } from "@features/platform/domain/entities";
 import { PlatformTenantCreatePage } from "@features/platform/presentation/pages/PlatformTenantCreatePage";
-import { TenantAdminActivationCard } from "@features/platform/presentation/components/TenantAdminActivationCard";
+import { OpsTenantActivationPanel } from "@features/platform/presentation/ops/OpsTenantActivationPanel";
 import { PlatformAuthProvider } from "@features/platform/presentation/providers/PlatformAuthProvider";
 import {
   markPlatformFreshLoginSession,
@@ -132,11 +132,13 @@ function renderActivationCard(canMutate: boolean) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <TenantAdminActivationCard
-          tenantId={TENANT_ID}
-          activation={PENDING_ACTIVATION}
-          canMutate={canMutate}
-        />
+        <div className="platform-ops">
+          <OpsTenantActivationPanel
+            tenantId={TENANT_ID}
+            activation={PENDING_ACTIVATION}
+            canMutate={canMutate}
+          />
+        </div>
       </MemoryRouter>
     </QueryClientProvider>,
   );

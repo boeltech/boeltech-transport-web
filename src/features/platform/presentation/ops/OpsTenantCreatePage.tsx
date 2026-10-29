@@ -29,7 +29,6 @@ import {
   DECLARED_FLEET_BANDS,
   DEFAULT_OPERATIONAL_PLAN_CODE,
   recommendOperationalPlanCode,
-  type DeclaredFleetBand,
 } from "../utils/recommendOperationalPlan";
 import { opsCopy } from "./opsCopy";
 import { OpsUnsavedChangesDialog } from "./OpsUnsavedChangesDialog";
@@ -179,7 +178,9 @@ export function OpsTenantCreatePage() {
 
   const handleFleetBandChange = (value: string) => {
     const band =
-      value === FLEET_BAND_NONE ? null : (value as DeclaredFleetBand);
+      value === FLEET_BAND_NONE
+        ? null
+        : (value as (typeof DECLARED_FLEET_BANDS)[number]);
     setValue("declaredFleetBand", band, { shouldValidate: true });
     if (!planManuallyOverridden.current) {
       setValue("planCode", recommendOperationalPlanCode({ band }), {

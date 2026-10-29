@@ -1,13 +1,12 @@
 # Ops UI kit (Boeltech Ops)
 
-Primitivos de **contenido** para la consola platform (flag `VITE_PLATFORM_CONSOLE_V1_ENABLED`). Scope CSS: `.platform-ops` + tokens `--ops-*` en `../opsTokens.css`.
+Primitivos de **contenido** para la consola platform (única UI `/platform/*`). Scope CSS: `.platform-ops` + tokens `--ops-*` en `../opsTokens.css`.
 
 ## Reglas
 
 - Importar desde este barrel (`./ui` o `…/ops/ui`).
 - **No** montar `@shared/ui/{card,badge,table,button,sheet,dialog,tabs}` ni page-shells ERP desde `ops/**` fuera de `ops/ui/**` (ESLint error).
 - Overlays (`OpsSheet` / `OpsDialog` / `OpsCommandDialog`) portalan a `#ops-portal-root` vía `OpsPortalHost` en `PlatformOpsShell` (hereda tema dark Ops).
-- Flag OFF / Conform ERP: no tocar — vive fuera de este árbol.
 
 ## Primitivos
 

@@ -1,13 +1,9 @@
 /**
- * Smoke ADR-0062 + ADR-0097 — consola plataforma (Pulso → empresas → suspender).
+ * Smoke ADR-0062 — consola Ops (Hoy → Empresas → Hub).
  * Mock de API; no requiere backend ni Playwright.
  *
- * ADR-0097 F1b: landing Pulso (GET /platform/pulse), health/stage en lista,
- * detalle con tabs Resumen | Comercial | Operación | Actividad.
- *
- * SoT v5 (Fase 4): detalle monta TenantThisMonthCard con suscripción motriz
- * (Q=14 × P=31900¢ = 446600¢) + capacity ADR-0095 (OVER_LIMIT observable).
- * Activate / AR smokes no ejercitan el hero de precio; este es el camino de evidencia.
+ * Cutover sin flag: única UI `.platform-ops` (opsCopy).
+ * SoT v5: Hub → Suscripción con cargo Q×P motriz.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -35,8 +31,10 @@ import {
   platformTokenStorage,
 } from "@features/platform/infrastructure/platformTokenStorage";
 import { platformCopy } from "@features/platform/presentation/copy/platformCopy";
+import { opsCopy } from "@features/platform/presentation/ops/opsCopy";
 import { formatBillingPriceCents } from "@features/platform/presentation/utils/platformBillingFormatters";
 import { emptyPlatformTenantHealth } from "@features/platform/infrastructure/mappers";
+import { getLifecycleStageLabel } from "@features/platform/presentation/config/platformLifecycleConfig";
 
 const TENANT_ID = "tenant-smoke-1";
 
@@ -326,10 +324,7 @@ function seedPlatformSession() {
   markPlatformFreshLoginSession();
 }
 
-function renderPlatform(
-  ui: ReactNode,
-  initialEntry = "/platform",
-) {
+function renderPlatform(ui: ReactNode, initialEntry = "/platform") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -337,13 +332,15 @@ function renderPlatform(
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <PlatformAuthProvider>{ui}</PlatformAuthProvider>
+        <div className="platform-ops" data-ops-shell="true">
+          <PlatformAuthProvider>{ui}</PlatformAuthProvider>
+        </div>
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
-describe("smoke platform admin workflow", () => {
+describe("smoke platform admin workflow (Ops)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     seedPlatformSession();
@@ -389,26 +386,22 @@ describe("smoke platform admin workflow", () => {
     });
   });
 
-  it("renders Pulso KPIs and attention queue from platform pulse", async () => {
+  it("renders Hoy KPIs and attention queue from platform pulse", async () => {
     renderPlatform(<PlatformDashboardPage />);
 
+    expect(await screen.findByTestId("platform-hoy-page")).toBeInTheDocument();
     expect(
-      await screen.findByText(platformCopy.pulse.title),
+      screen.getByRole("heading", { name: opsCopy.hoy.title }),
     ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockGetPulse).toHaveBeenCalled();
     });
 
-    expect(screen.getByText(platformCopy.pulse.kpis.mrr)).toBeInTheDocument();
+    expect(screen.getByTestId("ops-kpi-strip")).toBeInTheDocument();
     expect(
-      screen.getByText(formatBillingPriceCents(1_250_000)),
-    ).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(
-      screen.getByText(platformCopy.pulse.queue.title),
-    ).toBeInTheDocument();
+      document.querySelector('[data-ops-kpi-cell="mora"]'),
+    ).toHaveTextContent(opsCopy.hoy.kpi.mora.label);
     expect(screen.getAllByText("Transporte Demo").length).toBeGreaterThan(0);
     expect(
       screen.getAllByText(
@@ -417,7 +410,7 @@ describe("smoke platform admin workflow", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("lists tenants with health score and lifecycle stage", async () => {
+  it("lists tenants with lifecycle stage in Ops table", async () => {
     const tenant = createActiveTenant();
     mockListTenants.mockResolvedValue({
       data: [tenant as PlatformTenantListItem],
@@ -427,36 +420,18 @@ describe("smoke platform admin workflow", () => {
     renderPlatform(<PlatformTenantsListPage />, "/platform/tenants");
 
     expect(
-      (await screen.findAllByText("Transporte Demo")).length,
-    ).toBeGreaterThan(0);
-    expect(screen.getAllByText("72").length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText(platformCopy.lifecycle.labels.active).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("lists null health_score as em dash (R1)", async () => {
-    const tenant = {
-      ...createActiveTenant(),
-      healthScore: null,
-      healthAsOf: null,
-    };
-    mockListTenants.mockResolvedValue({
-      data: [tenant as PlatformTenantListItem],
-      pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
-    });
-
-    renderPlatform(<PlatformTenantsListPage />, "/platform/tenants");
-
+      await screen.findByTestId("platform-ops-tenants"),
+    ).toBeInTheDocument();
     expect(
       (await screen.findAllByText("Transporte Demo")).length,
     ).toBeGreaterThan(0);
+    expect(screen.getAllByText("demo-transporte").length).toBeGreaterThan(0);
     expect(
-      screen.getAllByText(platformCopy.health.nullLabel).length,
+      screen.getAllByText(getLifecycleStageLabel("active")).length,
     ).toBeGreaterThan(0);
   });
 
-  it("lists tenants, opens detail with SoT v5 Q×P + OVER_LIMIT, and suspends", async () => {
+  it("opens Hub, shows motriz Q×P on Suscripción, and suspends with typed confirm", async () => {
     const user = userEvent.setup();
     let tenantState = createActiveTenant();
 
@@ -496,20 +471,23 @@ describe("smoke platform admin workflow", () => {
       "/platform/tenants",
     );
 
-    const tenantNameMatches = await screen.findAllByText("Transporte Demo");
-    expect(tenantNameMatches.length).toBeGreaterThan(0);
-    expect(screen.getAllByText("demo-transporte").length).toBeGreaterThan(0);
+    const tenantLink = await screen.findByRole("link", {
+      name: "Transporte Demo",
+    });
+    await user.click(tenantLink);
 
-    await user.click(tenantNameMatches[0]);
-
+    expect(await screen.findByTestId("platform-tenant-hub")).toBeInTheDocument();
     expect(
       await screen.findByRole("heading", { name: "Transporte Demo" }),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText(platformCopy.tenants.detail.sections.thisMonth),
-    ).toBeInTheDocument();
 
-    // SoT v5 evidencia: cargo Q×P en hero de «Este mes» (no flat $749).
+    await user.click(
+      screen.getByRole("tab", { name: opsCopy.hub.tabs.suscripcion }),
+    );
+
+    expect(
+      await screen.findByTestId("ops-tenant-subscription"),
+    ).toBeInTheDocument();
     expect(
       await screen.findByText(formatBillingPriceCents(MOTRIZ_CARGO_CENTS)),
     ).toBeInTheDocument();
@@ -523,52 +501,28 @@ describe("smoke platform admin workflow", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(formatBillingPriceCents(74900))).toBeNull();
 
-    // Capacity ADR-0095: usage/granted + OVER_LIMIT en card Operación.
-    expect(
-      await screen.findByText(
-        platformCopy.tenants.detail.sections.capacitySummary(8, 1, {
-          users: 5,
-          branches: 3,
-        }),
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(platformCopy.tenants.detail.subscription.overLimitHint),
-    ).toBeInTheDocument();
-
-    // Estimado comercial coherente con Q×P (no $937 de flat v3).
-    expect(
-      screen.getAllByText(formatBillingPriceCents(ESTIMATED_TOTAL_CENTS))
-        .length,
-    ).toBeGreaterThan(0);
-
     await user.click(
-      screen.getByRole("button", {
-        name: platformCopy.tenants.detail.sections.breakdownShow,
-      }),
-    );
-    expect(
-      await screen.findByText("Rastreo GPS en tiempo real"),
-    ).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: platformCopy.tenants.detail.actions.moreActions,
-      }),
+      screen.getByRole("button", { name: opsCopy.hub.overflow.more }),
     );
     await user.click(
       await screen.findByRole("menuitem", {
-        name: platformCopy.tenants.detail.actions.suspend,
+        name: opsCopy.hub.overflow.suspend,
       }),
     );
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByTestId("ops-suspend-tenant-dialog");
     expect(
       within(dialog).getByRole("heading", {
         name: platformCopy.tenants.suspend.suspendTitle,
       }),
     ).toBeInTheDocument();
 
+    await user.type(
+      within(dialog).getByLabelText(
+        platformCopy.tenants.suspend.confirmationLabel,
+      ),
+      "demo-transporte",
+    );
     await user.click(
       within(dialog).getByRole("button", {
         name: platformCopy.tenants.suspend.confirmSuspend,
@@ -578,31 +532,21 @@ describe("smoke platform admin workflow", () => {
     await waitFor(() => {
       expect(mockUpdateTenantStatus).toHaveBeenCalledWith(TENANT_ID, {
         status: "suspended",
-        reason: "",
+        reasonCode: "past_due_policy",
+        reasonDetail: undefined,
       });
     });
 
-    await waitFor(async () => {
-      await user.click(
-        screen.getByRole("button", {
-          name: platformCopy.tenants.detail.actions.moreActions,
-        }),
-      );
+    await waitFor(() => {
       expect(
-        screen.getByRole("menuitem", {
-          name: platformCopy.tenants.detail.actions.reactivate,
+        screen.getByRole("button", {
+          name: opsCopy.hub.primary.reactivate,
         }),
       ).toBeInTheDocument();
     });
-
-    expect(
-      screen.queryByRole("menuitem", {
-        name: platformCopy.tenants.detail.actions.suspend,
-      }),
-    ).not.toBeInTheDocument();
   });
 
-  it("cancelled tenant menu shows reactivate only (no suspend/cancel)", async () => {
+  it("cancelled tenant has no Suspender in overflow", async () => {
     const user = userEvent.setup();
     const cancelled = {
       ...createActiveTenant(),
@@ -634,24 +578,12 @@ describe("smoke platform admin workflow", () => {
     ).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", {
-        name: platformCopy.tenants.detail.actions.moreActions,
-      }),
+      screen.getByRole("button", { name: opsCopy.hub.overflow.more }),
     );
 
     expect(
-      screen.getByRole("menuitem", {
-        name: platformCopy.tenants.detail.actions.reactivate,
-      }),
-    ).toBeInTheDocument();
-    expect(
       screen.queryByRole("menuitem", {
-        name: platformCopy.tenants.detail.actions.suspend,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", {
-        name: platformCopy.tenants.detail.actions.cancel,
+        name: opsCopy.hub.overflow.suspend,
       }),
     ).not.toBeInTheDocument();
   });

@@ -26,17 +26,8 @@ describe("PlatformPageShell (D3)", () => {
   });
 
   it("platform pages never import SettingsPageShell", () => {
-    const pageFiles = [
-      "PlatformAuditLogPage.tsx",
-      "PlatformArLedgerPage.tsx",
-      "PlatformDashboardPage.tsx",
-      "PlatformGlobalCatalogsPage.tsx",
-      "PlatformPulsePage.tsx",
-      "PlatformSecurityPage.tsx",
-      "PlatformTenantCreatePage.tsx",
-      "PlatformTenantDetailPage.tsx",
-      "PlatformTenantsListPage.tsx",
-    ];
+    // Kept for PlatformGlobalCatalogsPage (isla SAT Conform bajo shell Ops).
+    const pageFiles = ["PlatformGlobalCatalogsPage.tsx"];
 
     for (const file of pageFiles) {
       const source = readFileSync(join(pagesDir, file), "utf8");

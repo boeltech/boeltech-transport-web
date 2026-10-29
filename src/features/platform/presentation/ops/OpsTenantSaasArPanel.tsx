@@ -63,9 +63,7 @@ function lastPaymentMethodLabel(invoice: PlatformSaasInvoice): string {
   return platformCopy.ar.markPaid.methods[method] ?? "—";
 }
 
-/**
- * Hub Cobranza Money (flag ON). Fork de TenantSaasArCard — Conform intacta (DS-D5).
- */
+/** Hub Cobranza Money — panel SaaS AR del tenant. */
 export function OpsTenantSaasArPanel({
   tenantId,
   tenantLabel,
