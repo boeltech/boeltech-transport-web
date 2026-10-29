@@ -96,10 +96,12 @@ export const OPERATIONAL_PLAN_CATALOG: readonly OperationalPlanCatalogItem[] = [
 
 /** Etiquetas de banda declarada en UI (Register/Onboarding). Códigos DeclaredFleetBand intactos. */
 export const FLEET_BAND_LABELS: Record<DeclaredFleetBand, string> = {
-  "1_10": "1–10 unidades",
-  "11_30": "11–30 unidades",
+  "1_5": "1–5 unidades",
+  "6_30": "6–30 unidades",
   "31_100": "31–100 unidades",
   "100_plus": "Más de 100 unidades",
+  "1_10": "1–10 unidades (declaración anterior)",
+  "11_30": "11–30 unidades (declaración anterior)",
 };
 
 export function getOperationalPlanByCode(

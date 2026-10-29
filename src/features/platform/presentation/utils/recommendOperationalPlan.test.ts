@@ -14,10 +14,12 @@ describe("recommendOperationalPlanCode", () => {
   });
 
   it.each([
-    ["1_10", "operacion_micro"],
-    ["11_30", "operacion_pequena"],
+    ["1_5", "operacion_micro"],
+    ["6_30", "operacion_pequena"],
     ["31_100", "operacion_mediana"],
     ["100_plus", "operacion_grande"],
+    ["1_10", "operacion_micro"],
+    ["11_30", "operacion_pequena"],
   ] as const)("band %s → %s", (band, planCode) => {
     expect(recommendOperationalPlanCode({ band })).toBe(planCode);
   });

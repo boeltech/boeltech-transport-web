@@ -54,7 +54,7 @@ export const createPlatformTenantSchema = z.object({
     .max(100, createValidation.adminLastNameMax),
   planCode: z.string().min(1, createValidation.planRequired),
   declaredFleetBand: z
-    .enum(["1_10", "11_30", "31_100", "100_plus"])
+    .enum(["1_5", "6_30", "31_100", "100_plus"])
     .optional()
     .nullable(),
 });

@@ -182,7 +182,11 @@ describe("OnboardingPage families", () => {
       "href",
       "/settings/subscription",
     );
-    expect(screen.getByText(/Flota que indicaste: 1–10 unidades/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Flota que indicaste: 1–10 unidades (declaración anterior)",
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Desde $389 / motriz")).not.toBeInTheDocument();
     expect(screen.queryByText("1–5 unidades")).not.toBeInTheDocument();
     expect(screen.queryByText("30 timbres/motriz")).not.toBeInTheDocument();

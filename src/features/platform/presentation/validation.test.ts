@@ -32,9 +32,24 @@ describe("createPlatformTenantSchema", () => {
     const result = createPlatformTenantSchema.safeParse({
       ...validBase,
       planCode: "operacion_crecimiento",
-      declaredFleetBand: "11_30",
+      declaredFleetBand: "6_30",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects a previous-declaration band on create", () => {
+    expect(
+      createPlatformTenantSchema.safeParse({
+        ...validBase,
+        declaredFleetBand: "1_10",
+      }).success,
+    ).toBe(false);
+    expect(
+      createPlatformTenantSchema.safeParse({
+        ...validBase,
+        declaredFleetBand: "11_30",
+      }).success,
+    ).toBe(false);
   });
 
   it("normalizes subdomain to lowercase", () => {
