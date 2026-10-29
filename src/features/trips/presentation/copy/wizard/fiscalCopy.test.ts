@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveStopFiscalUiContext } from "./fiscalCopy";
+import {
+  resolveStopFiscalUiContext,
+  stopRfcNotClientOrCompanyNotice,
+  ubicacionRfcSatNotice,
+} from "./fiscalCopy";
 
 describe("resolveStopFiscalUiContext", () => {
   it("does not assume pickup when waypoint has no operation", () => {
@@ -26,5 +30,16 @@ describe("resolveStopFiscalUiContext", () => {
         "delivery",
       ]),
     ).toBe("waypoint_pickup_and_delivery");
+  });
+});
+
+describe("avisos del RFC de la ubicación", () => {
+  it("fija la frase de inscripción y la de que no es el RFC del cliente", () => {
+    expect(ubicacionRfcSatNotice()).toBe(
+      "RFC inscrito y vigente ante el SAT. Va en la Carta Porte; si no está registrado, el timbrado no pasa.",
+    );
+    expect(stopRfcNotClientOrCompanyNotice()).toBe(
+      "No es el RFC del cliente de la factura ni el de tu empresa, salvo que sea la misma persona.",
+    );
   });
 });
