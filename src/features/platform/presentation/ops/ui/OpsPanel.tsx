@@ -34,7 +34,7 @@ interface HeaderParts {
 function takeHeaderParts(children: React.ReactNode, parts: HeaderParts) {
   React.Children.forEach(children, (child) => {
     if (child == null || typeof child === "boolean") return;
-    if (!React.isValidElement(child)) return;
+    if (!React.isValidElement<{ children?: React.ReactNode }>(child)) return;
 
     if (child.type === OpsPanelTitle) {
       const text = textOf(child.props.children).trim();
