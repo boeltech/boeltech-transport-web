@@ -4,7 +4,8 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Search } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { opsCopy } from "../opsCopy";
-import { OpsPortalThemeScope, useOpsPortalContainer } from "./opsPortal";
+import { OpsPortalThemeScope } from "./opsPortal";
+import { useOpsPortalContainer } from "./opsPortalContext";
 
 export const OpsCommand = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,

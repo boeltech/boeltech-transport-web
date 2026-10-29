@@ -6,7 +6,8 @@ import { opsCopy } from "../opsCopy";
 import { useOpsTheme } from "../OpsThemeProvider";
 import type { OpsThemeMode } from "../opsTheme";
 import { OpsButton } from "./OpsButton";
-import { OpsPortalThemeScope, useOpsPortalContainer } from "./opsPortal";
+import { OpsPortalThemeScope } from "./opsPortal";
+import { useOpsPortalContainer } from "./opsPortalContext";
 
 const THEME_OPTIONS: {
   value: OpsThemeMode;

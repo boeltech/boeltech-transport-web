@@ -58,9 +58,11 @@ export function OpsChargeSaasInvoiceStripeSheet({
 
   const chargeMutation = useChargeSaasInvoiceStripe();
 
-  useEffect(() => {
+  const [authSessionOpen, setAuthSessionOpen] = useState(open);
+  if (open !== authSessionOpen) {
+    setAuthSessionOpen(open);
     if (!open) setAuthenticating(false);
-  }, [open]);
+  }
 
   useEffect(() => {
     if (!open || !paymentMethods.isError) return;

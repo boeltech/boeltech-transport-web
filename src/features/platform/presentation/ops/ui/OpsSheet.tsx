@@ -4,7 +4,8 @@ import { X } from "lucide-react";
 import { useBodyScrollLock } from "@shared/hooks/useBodyScrollLock";
 import { cn } from "@shared/lib/utils/cn";
 import { preventDismissOnSonnerToast } from "@shared/ui/toast/sonnerDismissGuard";
-import { OpsPortalThemeScope, useOpsPortalContainer } from "./opsPortal";
+import { OpsPortalThemeScope } from "./opsPortal";
+import { useOpsPortalContainer } from "./opsPortalContext";
 
 const OpsSheetOpenContext = React.createContext(false);
 

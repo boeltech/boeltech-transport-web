@@ -3,7 +3,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { useOpsResolvedTheme } from "../OpsThemeProvider";
-import { useOpsPortalContainer } from "./opsPortal";
+import { useOpsPortalContainer } from "./opsPortalContext";
 
 export const OpsSelect = SelectPrimitive.Root;
 export const OpsSelectValue = SelectPrimitive.Value;

@@ -158,7 +158,7 @@ export function PlatformTenantHubPage() {
   const openRegisterPayment = useCallback(() => {
     setActiveTab(TAB.cobranza);
     setPaymentOpen(true);
-  }, [setActiveTab]);
+  }, [setActiveTab, setPaymentOpen]);
 
   const queryState = resolveDetailQueryErrorState({
     missingId: !id,

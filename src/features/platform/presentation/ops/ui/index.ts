@@ -121,10 +121,9 @@ export type {
   OpsSpinnerVariant,
 } from "./OpsSpinner";
 
+export { OpsPortalHost, OpsPortalThemeScope } from "./opsPortal";
 export {
   OPS_PORTAL_ROOT_ID,
-  OpsPortalHost,
-  OpsPortalThemeScope,
   getOpsPortalContainer,
   useOpsPortalContainer,
-} from "./opsPortal";
+} from "./opsPortalContext";

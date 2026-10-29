@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { PlatformAuthProvider } from "../providers/PlatformAuthProvider";
 import { PlatformMfaEnrollmentGate } from "../providers/PlatformMfaEnrollmentGate";
@@ -31,13 +31,14 @@ function PlatformOpsShellLayout() {
   const { pathname } = useLocation();
   const { resolved } = useOpsTheme();
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [menuPath, setMenuPath] = useState(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
+  if (pathname !== menuPath) {
+    setMenuPath(pathname);
+    setMenuOpen(false);
+  }
   const openCmd = useCallback(() => setCmdOpen(true), []);
   usePlatformCommandPaletteHotkey(openCmd);
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
 
   return (
     <div

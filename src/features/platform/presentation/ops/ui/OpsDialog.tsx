@@ -2,7 +2,8 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-import { OpsPortalThemeScope, useOpsPortalContainer } from "./opsPortal";
+import { OpsPortalThemeScope } from "./opsPortal";
+import { useOpsPortalContainer } from "./opsPortalContext";
 
 export const OpsDialog = DialogPrimitive.Root;
 export const OpsDialogTrigger = DialogPrimitive.Trigger;

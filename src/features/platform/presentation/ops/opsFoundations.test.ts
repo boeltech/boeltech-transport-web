@@ -25,11 +25,11 @@ describe("Ops foundations F1 (Primer denso × Mando acero)", () => {
     expect(css).toMatch(/IBM Plex Mono/);
   });
 
-  it("declares F2-ready outline + notice tokens without wiring primitives", () => {
+  it("declares outline + notice tokens and wires the outline button", () => {
     expect(css).toMatch(/--ops-btn-outline-bg:\s*var\(--ops-bg-elevated\)/);
     expect(css).toMatch(/--ops-notice:/);
     expect(css).toMatch(/--ops-focus-ring-w:\s*2px/);
-    expect(css).not.toMatch(/\.ops-btn-outline\b/);
+    expect(css).toMatch(/\.platform-ops \.ops-btn-outline\b/);
   });
 
   it("styles nav active as tick + fill (oficio GH sidebar)", () => {
