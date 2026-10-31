@@ -436,6 +436,7 @@ describe("tripExpenseSchema — moneda", () => {
       category: "fuel",
       description: "Diesel",
       amount: 1200,
+      paymentSource: "driver",
     });
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -449,6 +450,7 @@ describe("tripExpenseSchema — moneda", () => {
       description: "Diesel",
       amount: 1200,
       currency: "USD",
+      paymentSource: "driver",
     });
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -461,6 +463,7 @@ describe("tripExpenseSchema — moneda", () => {
       description: "Diesel",
       amount: 1200,
       currency: "JPY",
+      paymentSource: "driver",
     });
     expect(result.success).toBe(false);
   });
@@ -470,6 +473,7 @@ describe("tripExpenseSchema — moneda", () => {
       category: "fuel",
       description: "Diesel",
       amount: 0,
+      paymentSource: "driver",
     });
     expect(result.success).toBe(false);
   });
@@ -552,11 +556,26 @@ describe("tripWizardSchema — paso costos", () => {
 });
 
 describe("tripExpenseSchema — paymentSource", () => {
-  it("defaults paymentSource to driver when omitted", () => {
+  it("rejects when paymentSource is omitted", () => {
     const result = tripExpenseSchema.safeParse({
       category: "fuel",
       description: "Diesel",
       amount: 1200,
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const issue = result.error.issues.find((i) =>
+      i.path.includes("paymentSource"),
+    );
+    expect(issue).toBeDefined();
+  });
+
+  it("accepts driver as paymentSource", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diesel",
+      amount: 1200,
+      paymentSource: "driver",
     });
     expect(result.success).toBe(true);
     if (!result.success) return;

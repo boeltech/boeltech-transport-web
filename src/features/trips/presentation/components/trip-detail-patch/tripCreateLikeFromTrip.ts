@@ -98,6 +98,7 @@ export function buildCreateLikeFromTrip(
       description: expense.description,
       amount: expense.amount,
       currency: expense.currency,
+      paymentSource: expense.paymentSource,
       expenseDate: expense.expenseDate.toISOString(),
       location: expense.location ?? undefined,
       vendorName: expense.vendorName ?? undefined,

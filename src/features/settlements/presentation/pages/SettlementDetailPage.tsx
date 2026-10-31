@@ -62,6 +62,7 @@ import {
   LateReimbursementsAlert,
 } from "../components";
 import { MissingDataAckGate } from "../components/MissingDataAckGate";
+import { ReimbursementsAckGate } from "../components/ReimbursementsAckGate";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
@@ -141,6 +142,8 @@ export function SettlementDetailPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [acknowledgeMissingData, setAcknowledgeMissingData] = useState(false);
   const [missingDataAckError, setMissingDataAckError] = useState(false);
+  const [acknowledgeReimbursements, setAcknowledgeReimbursements] = useState(false);
+  const [reimbursementsAckError, setReimbursementsAckError] = useState(false);
 
   const isReturned = settlement ? isSettlementReturned(settlement) : false;
   const canCorrect = Boolean(
@@ -170,11 +173,21 @@ export function SettlementDetailPage() {
     [settlement?.items],
   );
   const hasMissingDataGaps = missingDataGaps.length > 0;
+  const returnedReimbursements = settlement?.totalReimbursableExpenses ?? 0;
+  const hasReturnedReimbursements = returnedReimbursements > 0;
+  const resubmitAckBlocked =
+    (hasMissingDataGaps && !acknowledgeMissingData) ||
+    (hasReturnedReimbursements && !acknowledgeReimbursements);
 
   const handleResubmitUnchanged = async () => {
     if (!settlement) return;
-    if (hasMissingDataGaps && !acknowledgeMissingData) {
-      setMissingDataAckError(true);
+    if (resubmitAckBlocked) {
+      if (hasReturnedReimbursements && !acknowledgeReimbursements) {
+        setReimbursementsAckError(true);
+      }
+      if (hasMissingDataGaps && !acknowledgeMissingData) {
+        setMissingDataAckError(true);
+      }
       return;
     }
     try {
@@ -189,6 +202,8 @@ export function SettlementDetailPage() {
       await submitMutation.mutateAsync(vars);
       setAcknowledgeMissingData(false);
       setMissingDataAckError(false);
+      setAcknowledgeReimbursements(false);
+      setReimbursementsAckError(false);
       toast({ title: flowCopy.toasts.resubmitted, variant: "success" });
       void refetch();
     } catch (error) {
@@ -263,6 +278,10 @@ export function SettlementDetailPage() {
 
   const tripsCount =
     settlement?.items?.filter((it) => it.itemType === "trip_commission").length ?? 0;
+
+  const compensationAmount = settlement
+    ? roundCents(settlement.grossAmount - returnedReimbursements)
+    : 0;
 
   const advancesDeducted = settlement?.totalAdvancesDeducted ?? 0;
   const otherDeductions = settlement?.totalOtherDeductions ?? 0;
@@ -350,19 +369,35 @@ export function SettlementDetailPage() {
           <div className="space-y-6">
             {isReturned ? (
               <div className="space-y-3">
-                {canUpdate && hasMissingDataGaps ? (
-                  <MissingDataAckGate
-                    gaps={missingDataGaps}
-                    acknowledged={acknowledgeMissingData}
-                    onAcknowledgedChange={(value) => {
-                      setAcknowledgeMissingData(value);
-                      if (value) setMissingDataAckError(false);
-                    }}
-                    errorMessage={
-                      missingDataAckError ? missingDataGateCopy.submitBlockedHint : null
-                    }
-                    checkboxId="acknowledge-missing-data-detail"
-                  />
+                {canUpdate && (hasReturnedReimbursements || hasMissingDataGaps) ? (
+                  <div className="space-y-2">
+                    <ReimbursementsAckGate
+                      amount={returnedReimbursements}
+                      acknowledged={acknowledgeReimbursements}
+                      onAcknowledgedChange={(value) => {
+                        setAcknowledgeReimbursements(value);
+                        if (value) setReimbursementsAckError(false);
+                      }}
+                      errorMessage={
+                        reimbursementsAckError
+                          ? copy.createPage.reimbursementsAckGate.submitBlockedHint
+                          : null
+                      }
+                      checkboxId="acknowledge-reimbursements-detail"
+                    />
+                    <MissingDataAckGate
+                      gaps={missingDataGaps}
+                      acknowledged={acknowledgeMissingData}
+                      onAcknowledgedChange={(value) => {
+                        setAcknowledgeMissingData(value);
+                        if (value) setMissingDataAckError(false);
+                      }}
+                      errorMessage={
+                        missingDataAckError ? missingDataGateCopy.submitBlockedHint : null
+                      }
+                      checkboxId="acknowledge-missing-data-detail"
+                    />
+                  </div>
                 ) : null}
                 <ReturnedAlert
                   approval={settlement.approval}
@@ -379,16 +414,17 @@ export function SettlementDetailPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            disabled={
-                              submitMutation.isPending ||
-                              (hasMissingDataGaps && !acknowledgeMissingData)
-                            }
+                            disabled={submitMutation.isPending || resubmitAckBlocked}
                             onClick={() => void handleResubmitUnchanged()}
                           >
                             <Send className="mr-1.5 h-3.5 w-3.5" />
                             {flowCopy.returnedAlert.resubmitUnchanged}
                           </Button>
-                          {hasMissingDataGaps && !acknowledgeMissingData ? (
+                          {hasReturnedReimbursements && !acknowledgeReimbursements ? (
+                            <p className="text-xs leading-snug text-warning">
+                              {copy.createPage.reimbursementsAckGate.submitBlockedHint}
+                            </p>
+                          ) : hasMissingDataGaps && !acknowledgeMissingData ? (
                             <p className="text-xs leading-snug text-warning">
                               {missingDataGateCopy.submitBlockedHint}
                             </p>
@@ -459,12 +495,51 @@ export function SettlementDetailPage() {
               </div>
             ) : null}
 
-            {/* D2: strip 3 celdas — grossAmount ya incluye reembolsos */}
-            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            {/* F3: Compensación | Reembolsos | Total — encima de Descuentos | A pagar */}
+            <div
+              className="rounded-xl border bg-card shadow-sm overflow-hidden"
+              data-testid="settlement-perception-strip"
+            >
+              <div
+                className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border"
+                aria-label={dCopy.balanceStrip.perceptionAriaLabel}
+              >
                 <div className="p-4 sm:p-5 flex flex-col justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {dCopy.balanceStrip.grossEarnings}
+                    {dCopy.balanceStrip.compensation}
+                  </span>
+                  <div className="mt-2">
+                    <p className="text-2xl font-bold tabular-nums text-foreground">
+                      {formatMxCurrency(compensationAmount)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {dCopy.balanceStrip.compensationSubtext}
+                      {!isReimbursementOnly && tripsCount > 0
+                        ? ` · ${dCopy.balanceStrip.tripsCount(tripsCount)}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-5 flex flex-col justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {dCopy.balanceStrip.reimbursements}
+                  </span>
+                  <div className="mt-2">
+                    <p className="text-2xl font-bold tabular-nums text-foreground">
+                      {formatMxCurrency(returnedReimbursements)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {hasReturnedReimbursements
+                        ? dCopy.balanceStrip.reimbursementsSubtext
+                        : dCopy.balanceStrip.reimbursementsNone}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-5 flex flex-col justify-between bg-muted/20">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {dCopy.balanceStrip.totalGross}
                   </span>
                   <div className="mt-2">
                     <p className="text-2xl font-bold tabular-nums text-foreground">
@@ -473,14 +548,13 @@ export function SettlementDetailPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {isReimbursementOnly
                         ? copy.reimbursements.detail.grossSubtext
-                        : dCopy.balanceStrip.grossEarningsSubtext}
-                      {!isReimbursementOnly && tripsCount > 0
-                        ? ` · ${dCopy.balanceStrip.tripsCount(tripsCount)}`
-                        : ""}
+                        : dCopy.balanceStrip.totalGrossSubtext}
                     </p>
                   </div>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border border-t">
                 <div className="p-4 sm:p-5 flex flex-col justify-between bg-destructive/5">
                   <span className="text-xs font-semibold uppercase tracking-wider text-destructive">
                     {dCopy.balanceStrip.discounts}

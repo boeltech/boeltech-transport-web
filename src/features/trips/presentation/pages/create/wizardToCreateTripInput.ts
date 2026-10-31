@@ -123,7 +123,7 @@ export function buildCreateTripInputFromWizardValues(
       description: expense.description,
       amount: expense.amount,
       currency: expense.currency as CurrencyType,
-      paymentSource: expense.paymentSource ?? "driver",
+      paymentSource: expense.paymentSource,
       vendorName: expense.vendorName || undefined,
       notes: expense.notes || undefined,
     })),

@@ -261,8 +261,24 @@ describe("SettlementCreatePage Component", () => {
     expect(channelsTeaching).toHaveTextContent(/Anticipo/i);
     expect(channelsTeaching).toHaveTextContent(/Pago fijo de tarifa/i);
 
-    // Abrir diálogo mínimo de confirmación
+    // F3: desglose compensación | reembolsos | total + ack de reembolsos
+    const perception = screen.getByTestId("create-perception-breakdown");
+    expect(perception).toHaveTextContent("Compensación");
+    expect(perception).toHaveTextContent("Reembolsos");
+    expect(perception).toHaveTextContent("Total");
+    expect(perception).toHaveTextContent(/bolsa/i);
+    const reimbAck = screen.getByTestId("reimbursements-ack-gate");
+    expect(reimbAck).toHaveTextContent(/reembolsos/i);
     const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
+    expect(submitBtn).toBeDisabled();
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /Confirmo el subtotal de reembolsos/i,
+      }),
+    );
+    expect(submitBtn).toBeEnabled();
+
+    // Abrir diálogo mínimo de confirmación
     await user.click(submitBtn);
 
     expect(screen.getByRole("heading", { name: /¿Enviar a autorización?/i })).toBeInTheDocument();
@@ -335,6 +351,11 @@ describe("SettlementCreatePage Component", () => {
     expect(screen.queryByText(/Registrar solo reembolsos y anticipos/i)).not.toBeInTheDocument();
 
     await user.click(within(payeeCard).getByRole("checkbox"));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /Confirmo el subtotal de reembolsos/i,
+      }),
+    );
     await user.click(screen.getByRole("button", { name: /Enviar a autorización/i }));
     await user.click(screen.getByRole("button", { name: /Confirmar y enviar/i }));
 
@@ -574,8 +595,9 @@ describe("SettlementCreatePage Component", () => {
       summary: {
         ...mockPreview.summary,
         totalCommissions: 0,
-        grossAmount: 3800,
-        netAmount: 800,
+        totalReimbursements: 0,
+        grossAmount: 3500,
+        netAmount: 500,
       },
     });
 
@@ -655,6 +677,12 @@ describe("SettlementCreatePage Component", () => {
             minimumGuaranteedApplied: false,
           }),
         ],
+        summary: {
+          ...mockPreview.summary,
+          totalReimbursements: 0,
+          grossAmount: 8000,
+          netAmount: 5000,
+        },
       });
       renderPage();
 
@@ -706,6 +734,12 @@ describe("SettlementCreatePage Component", () => {
             minimumGuaranteedApplied: true,
           }),
         ],
+        summary: {
+          ...mockPreview.summary,
+          totalReimbursements: 0,
+          grossAmount: 8000,
+          netAmount: 5000,
+        },
       });
       renderPage();
 
@@ -907,6 +941,12 @@ describe("SettlementCreatePage Component", () => {
             zeroCommissionReason: "zero_freight",
           }),
         ],
+        summary: {
+          ...mockPreview.summary,
+          totalReimbursements: 0,
+          grossAmount: 8000,
+          netAmount: 5000,
+        },
       });
       mockCreateSettlement.mockRejectedValueOnce(
         new ApiError("x", 422, "ZERO_FREIGHT_ACK_REQUIRED", { trip_codes: ["VIA-100"] }),
@@ -2147,8 +2187,16 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
     expect(screen.getByTestId("create-advances-max-hint")).toHaveTextContent(
       "Máximo a descontar en este pago: $500.00",
     );
+    expect(screen.getByTestId("create-perception-breakdown")).toHaveTextContent(
+      /Si el gasto fue de su bolsa/i,
+    );
+    expect(screen.getByTestId("reimbursements-ack-gate")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("checkbox"));
+    const advanceCheckbox = screen
+      .getAllByRole("checkbox")
+      .find((el) => el.id !== "acknowledge-reimbursements-create");
+    expect(advanceCheckbox).toBeTruthy();
+    await user.click(advanceCheckbox!);
     expect(amountInput("ANT-10")).toHaveValue("500.00");
   });
 

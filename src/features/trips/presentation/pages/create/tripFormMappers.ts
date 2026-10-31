@@ -118,7 +118,7 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
     description: expense.description,
     amount: expense.amount,
     currency: "MXN" as const,
-    paymentSource: expense.paymentSource ?? ("driver" as const),
+    paymentSource: expense.paymentSource,
     expenseDate: expense.expenseDate
       ? utcIsoToLocalInput(expense.expenseDate.toISOString())
       : undefined,

@@ -66,6 +66,58 @@ describe("settlementsCopy — F2 clase de ruta", () => {
   });
 });
 
+describe("settlementsCopy — F3 desglose compensación | reembolsos | total", () => {
+  it("create summary separa compensación, reembolsos y total con hint de bolsa", () => {
+    const { summary, reimbursementsAckGate } = settlementsCopy.createPage;
+    expect(summary.compensationLabel).toBe("Compensación");
+    expect(summary.compensationSubtext).toMatch(/sueldo/i);
+    expect(summary.compensationSubtext).not.toMatch(/reembolso/i);
+    expect(summary.reimbursementsLabel).toBe("Reembolsos");
+    expect(summary.reimbursementsHint).toMatch(/bolsa/i);
+    expect(summary.reimbursementsHint).toMatch(/regresas/i);
+    expect(summary.totalGrossLabel).toBe("Total");
+    expect(summary.totalGrossSubtext).toMatch(/compensación \+ reembolsos/i);
+    expect(reimbursementsAckGate.ackLabel("$100.00")).toMatch(/reembolsos/i);
+    expect(reimbursementsAckGate.submitBlockedHint).toMatch(/confirma el subtotal/i);
+  });
+
+  it("detalle balanceStrip: tres lecturas + copy de bolsa; Total no es solo tarifa", () => {
+    const { balanceStrip } = settlementsCopy.detailPage;
+    expect(balanceStrip.compensation).toBe("Compensación");
+    expect(balanceStrip.reimbursements).toBe("Reembolsos");
+    expect(balanceStrip.reimbursementsSubtext).toMatch(/bolsa/i);
+    expect(balanceStrip.totalGross).toBe("Total");
+    expect(balanceStrip.grossEarningsSubtext).not.toMatch(
+      /sueldo, viajes, prestaciones y reembolsos/i,
+    );
+  });
+});
+
+describe("settlementsCopy — F2 claridad piloto (wayfinding / disclaimer)", () => {
+  it("hub declara caja operativa ≠ recibo de nómina", () => {
+    expect(settlementsCopy.hub.description).toMatch(/caja operativa/i);
+    expect(settlementsCopy.hub.description).toMatch(/nómina/i);
+    expect(settlementsCopy.hub.employeesSalaryAction).toMatch(/Empleados/i);
+  });
+
+  it("readiness de sueldo no afirma «ya tienen sueldo»", () => {
+    const { readiness } = settlementsCopy.workbench;
+    expect(readiness.operatorsSalaryLabel).toMatch(/empleados activos/i);
+    expect(readiness.operatorsSalaryLabel).toMatch(/captura sueldo/i);
+    expect(readiness.operatorsSalaryLabel).not.toMatch(/sueldo en ficha\)/i);
+    expect(readiness.cta.operatorsSalary).toMatch(/Capturar sueldo/i);
+  });
+
+  it("Armar pago: frecuencia ↔ período + enlace a Empleados", () => {
+    const { header, sections } = settlementsCopy.createPage;
+    expect(header.subtitle).toMatch(/caja operativa/i);
+    expect(header.subtitle).toMatch(/nómina/i);
+    expect(sections.filtersDescription).toMatch(/frecuencia/i);
+    expect(sections.periodFrequencyHint).toMatch(/Empleados/i);
+    expect(sections.agreementProfileSalaryHintLink).toMatch(/sueldo y frecuencia/i);
+  });
+});
+
 describe("settlementsCopy — banner sin tarifa / incompleta", () => {
   it("missing apunta a Tarifas y no a ficha de empleado", () => {
     const { empty } = settlementsCopy.createPage;

@@ -264,8 +264,8 @@ export interface CreateExpenseInput {
   cfdiUuid?: string; // UUID del CFDI
   cfdiFolio?: string; // Folio fiscal
 
-  // Fuente de pago (quién pagó — 0.35.0)
-  paymentSource?: PaymentSource;
+  // Fuente de pago (quién fondeó — create required, cfdi-domain 0.43.0)
+  paymentSource: PaymentSource;
 
   // Proveedor
   vendorName?: string;

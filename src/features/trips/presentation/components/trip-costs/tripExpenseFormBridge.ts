@@ -9,7 +9,7 @@ export function tripExpenseToFormValues(expense: TripExpense): TripExpenseFormVa
     description: expense.description,
     amount: expense.amount,
     currency: expense.currency ?? "MXN",
-    paymentSource: expense.paymentSource ?? "driver",
+    paymentSource: expense.paymentSource,
     vendorName: expense.vendorName ?? "",
     notes: expense.notes ?? "",
   };
@@ -23,7 +23,7 @@ export function formValuesToCreateExpenseInput(
     description: values.description,
     amount: values.amount,
     currency: values.currency,
-    paymentSource: values.paymentSource ?? "driver",
+    paymentSource: values.paymentSource,
     vendorName: values.vendorName?.trim() || undefined,
     notes: values.notes?.trim() || undefined,
   };
@@ -32,15 +32,19 @@ export function formValuesToCreateExpenseInput(
 export function formValuesToUpdateExpenseInput(
   values: TripExpenseFormValues,
 ): UpdateExpenseInput {
-  return {
+  const input: UpdateExpenseInput = {
     category: values.category,
     description: values.description,
     amount: values.amount,
     currency: values.currency,
-    paymentSource: values.paymentSource ?? "driver",
     vendorName: values.vendorName?.trim() || null,
     notes: values.notes?.trim() || null,
   };
+  // Update: omit payment_source if absent — do not reinject "driver"
+  if (values.paymentSource !== undefined) {
+    input.paymentSource = values.paymentSource;
+  }
+  return input;
 }
 
 export function tripExpensesToListItems(expenses: TripExpense[]): TripExpenseListItem[] {

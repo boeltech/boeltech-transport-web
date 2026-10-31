@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm, Controller, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, AlertTriangle, X } from "lucide-react";
@@ -35,6 +36,7 @@ import type {
   BatchAssignmentConflict,
   BatchAssignmentResult,
   BatchTemplateAssignmentPayload,
+  TemplateAssignment,
 } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
 import {
@@ -46,11 +48,28 @@ import {
   type BatchConflictLink,
   type BatchConflictPrimaryAction,
 } from "../utils/resolveBatchConflictView";
+import { getAssignmentDisplayStatus } from "../utils/getAssignmentDisplayStatus";
+import { settlementCreatePath } from "@features/settlements/application/settlementsRoutes";
 import { BatchAssignmentConflictRow } from "./BatchAssignmentConflictRow";
 
 const copy = compensationCopy.sheet;
 const batchCopy = compensationCopy.batchAssignment;
+const toastCopy = compensationCopy.toasts;
 const BATCH_FORM_ID = "template-assignment-batch-form";
+
+function batchSuccessDescription(
+  created: readonly TemplateAssignment[],
+  today: string,
+): string {
+  const count = created.length;
+  if (count === 0) return "";
+  const statuses = created.map((row) => getAssignmentDisplayStatus(row, today));
+  const allCurrent = statuses.every((status) => status === "current");
+  const allScheduled = statuses.every((status) => status === "scheduled");
+  if (allCurrent) return toastCopy.batchSuccessCurrent(count);
+  if (allScheduled) return toastCopy.batchSuccessScheduled(count);
+  return toastCopy.batchSuccessMixed(count);
+}
 
 export interface BatchAssignmentFormSnapshot {
   employeeIds: string[];
@@ -115,6 +134,7 @@ export function TemplateAssignmentBatchSheet({
   onOpenBlockingAssignment,
 }: TemplateAssignmentBatchSheetProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const batchMutation = useBatchCreateTemplateAssignments();
   const today = useMemo(() => getTodayString(), []);
   const startEffectiveFrom = resolveBatchInitialEffectiveFrom({
@@ -278,8 +298,28 @@ export function TemplateAssignmentBatchSheet({
 
       if (result.createdCount > 0) onAssignmentsCreated?.(result);
 
+      const firstCreatedEmployeeId = result.created[0]?.employeeId;
+      const armarPagoAction =
+        firstCreatedEmployeeId != null
+          ? {
+              label:
+                result.skippedCount === 0
+                  ? toastCopy.batchSuccessArmarPago
+                  : toastCopy.batchPartialArmarPago,
+              onClick: () =>
+                navigate(
+                  settlementCreatePath({ employeeId: firstCreatedEmployeeId }),
+                ),
+            }
+          : undefined;
+
       if (result.skippedCount === 0) {
-        toast({ title: compensationCopy.toasts.batchSuccess, variant: "success" });
+        toast({
+          title: toastCopy.batchSuccess,
+          description: batchSuccessDescription(result.created, today),
+          variant: "success",
+          action: armarPagoAction,
+        });
         onOpenChange(false);
         onSuccess?.();
         return;
@@ -307,14 +347,15 @@ export function TemplateAssignmentBatchSheet({
 
       if (result.createdCount > 0) {
         toast({
-          title: compensationCopy.toasts.batchPartial(result.createdCount, total),
-          description: compensationCopy.toasts.batchPartialDescription,
+          title: toastCopy.batchPartial(result.createdCount, total),
+          description: toastCopy.batchPartialDescription,
           variant: "warning",
+          action: armarPagoAction,
         });
       } else {
         toast({
-          title: compensationCopy.toasts.batchNone,
-          description: compensationCopy.toasts.batchNoneDescription,
+          title: toastCopy.batchNone,
+          description: toastCopy.batchNoneDescription,
           variant: "error",
         });
       }

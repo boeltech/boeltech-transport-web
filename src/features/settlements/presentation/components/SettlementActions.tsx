@@ -79,6 +79,7 @@ import { settlementsCopy } from "../copy/settlementsCopy";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
 import { SettlementCancelDialog } from "./SettlementCancelDialog";
 import { MissingDataAckGate } from "./MissingDataAckGate";
+import { ReimbursementsAckGate } from "./ReimbursementsAckGate";
 import {
   canDisburse,
   canSubmitVobo,
@@ -151,6 +152,8 @@ export function SettlementActions({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [acknowledgeMissingData, setAcknowledgeMissingData] = useState(false);
   const [missingDataAckError, setMissingDataAckError] = useState(false);
+  const [acknowledgeReimbursements, setAcknowledgeReimbursements] = useState(false);
+  const [reimbursementsAckError, setReimbursementsAckError] = useState(false);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
 
   const submitMutation = useSubmitSettlement();
@@ -168,6 +171,8 @@ export function SettlementActions({
     [settlement.items],
   );
   const hasMissingDataGaps = missingDataGaps.length > 0;
+  const totalReimbursements = settlement.totalReimbursableExpenses ?? 0;
+  const hasReimbursementsSubtotal = totalReimbursements > 0;
   const isOwn = isSettlementMaker(settlement, user?.id);
   // ADR-0099: una sola función decide la acción (con o sin bloque `approval`).
   const approvalUi = resolveApprovalActionUi(settlement.approval, {
@@ -260,10 +265,17 @@ export function SettlementActions({
     return true;
   };
 
-  const resetMissingDataAck = () => {
+  const resetSubmitAcks = () => {
     setAcknowledgeMissingData(false);
     setMissingDataAckError(false);
+    setAcknowledgeReimbursements(false);
+    setReimbursementsAckError(false);
   };
+
+  const reimbursementsAckBlocked =
+    hasReimbursementsSubtotal && !acknowledgeReimbursements;
+  const missingDataAckBlocked = hasMissingDataGaps && !acknowledgeMissingData;
+  const submitAckBlocked = reimbursementsAckBlocked || missingDataAckBlocked;
 
   const runSubmit = async () => {
     try {
@@ -277,7 +289,7 @@ export function SettlementActions({
           : settlement.id;
       await submitMutation.mutateAsync(vars);
       setSubmitConfirmOpen(false);
-      resetMissingDataAck();
+      resetSubmitAcks();
       toast({
         title: isReturned ? flowCopy.toasts.resubmitted : copy.toasts.submitSettlementSuccess,
         variant: "success",
@@ -304,12 +316,13 @@ export function SettlementActions({
   };
 
   const handleSubmit = () => {
-    if (hasMissingDataGaps && !acknowledgeMissingData) {
+    if (submitAckBlocked) {
       if (variant === "dropdown") {
         setSubmitConfirmOpen(true);
         return;
       }
-      setMissingDataAckError(true);
+      if (reimbursementsAckBlocked) setReimbursementsAckError(true);
+      if (missingDataAckBlocked) setMissingDataAckError(true);
       return;
     }
     void runSubmit();
@@ -537,7 +550,7 @@ export function SettlementActions({
         onOpenChange={(open) => {
           if (!open && !submitMutation.isPending) {
             setSubmitConfirmOpen(false);
-            resetMissingDataAck();
+            resetSubmitAcks();
           }
         }}
       >
@@ -546,6 +559,20 @@ export function SettlementActions({
             <AlertDialogTitle>{submitLabel}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
+                <ReimbursementsAckGate
+                  amount={totalReimbursements}
+                  acknowledged={acknowledgeReimbursements}
+                  onAcknowledgedChange={(value) => {
+                    setAcknowledgeReimbursements(value);
+                    if (value) setReimbursementsAckError(false);
+                  }}
+                  errorMessage={
+                    reimbursementsAckError
+                      ? copy.createPage.reimbursementsAckGate.submitBlockedHint
+                      : null
+                  }
+                  checkboxId="acknowledge-reimbursements-actions-menu"
+                />
                 <MissingDataAckGate
                   gaps={missingDataGaps}
                   acknowledged={acknowledgeMissingData}
@@ -567,10 +594,7 @@ export function SettlementActions({
             </AlertDialogCancel>
             <Button
               type="button"
-              disabled={
-                submitMutation.isPending ||
-                (hasMissingDataGaps && !acknowledgeMissingData)
-              }
+              disabled={submitMutation.isPending || submitAckBlocked}
               onClick={() => void runSubmit()}
             >
               <Send className="mr-2 h-4 w-4" />
@@ -601,8 +625,22 @@ export function SettlementActions({
     return (
       <>
         <div className="flex max-w-full flex-col items-end gap-2">
-          {canSubmit && !isReturned && hasMissingDataGaps ? (
-            <div className="w-full max-w-md">
+          {canSubmit && !isReturned && (hasReimbursementsSubtotal || hasMissingDataGaps) ? (
+            <div className="w-full max-w-md space-y-2">
+              <ReimbursementsAckGate
+                amount={totalReimbursements}
+                acknowledged={acknowledgeReimbursements}
+                onAcknowledgedChange={(value) => {
+                  setAcknowledgeReimbursements(value);
+                  if (value) setReimbursementsAckError(false);
+                }}
+                errorMessage={
+                  reimbursementsAckError
+                    ? copy.createPage.reimbursementsAckGate.submitBlockedHint
+                    : null
+                }
+                checkboxId="acknowledge-reimbursements-actions"
+              />
               <MissingDataAckGate
                 gaps={missingDataGaps}
                 acknowledged={acknowledgeMissingData}
@@ -649,15 +687,16 @@ export function SettlementActions({
               <div className="flex flex-col items-end gap-1">
                 <Button
                   onClick={handleSubmit}
-                  disabled={
-                    submitMutation.isPending ||
-                    (hasMissingDataGaps && !acknowledgeMissingData)
-                  }
+                  disabled={submitMutation.isPending || submitAckBlocked}
                 >
                   <Send className="mr-2 h-4 w-4" />
                   {submitLabel}
                 </Button>
-                {hasMissingDataGaps && !acknowledgeMissingData ? (
+                {reimbursementsAckBlocked ? (
+                  <p className="max-w-[14rem] text-xs leading-snug text-warning">
+                    {copy.createPage.reimbursementsAckGate.submitBlockedHint}
+                  </p>
+                ) : missingDataAckBlocked ? (
                   <p className="max-w-[14rem] text-xs leading-snug text-warning">
                     {missingDataGateCopy.submitBlockedHint}
                   </p>

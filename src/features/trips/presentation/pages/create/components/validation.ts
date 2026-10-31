@@ -593,8 +593,10 @@ export const tripExpenseSchema = z.object({
   amount: z.coerce.number().min(0.01, "El monto debe ser mayor a cero"),
   currency: z.enum(["MXN", "USD", "EUR"]).default("MXN"),
 
-  // Fuente de pago (quién pagó — 0.35.0)
-  paymentSource: z.enum(["driver", "company", "advance"]).default("driver"),
+  // Fuente de pago (quién fondeó — create exige elección; sin default)
+  paymentSource: z.enum(["driver", "company", "advance"], {
+    message: "Elige quién fondeó este gasto",
+  }),
 
   // Proveedor (opcional, para referencia operativa)
   vendorName: z.string().optional(),

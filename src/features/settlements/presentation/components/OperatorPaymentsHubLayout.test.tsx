@@ -72,6 +72,7 @@ function renderHub(
         </Route>
         <Route path="/settings/approvals" element={<div>reglas</div>} />
         <Route path="/finance/settlements/new" element={<div>alta</div>} />
+        <Route path="/employees" element={<div>empleados</div>} />
       </Routes>
       <LocationProbe />
     </MemoryRouter>,
@@ -111,6 +112,22 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: copy.registryRelated.label }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("en por pagar ofrece CTA Sueldo en Empleados (≤2 clics)", async () => {
+    const user = userEvent.setup();
+    renderHub(SETTLEMENTS_LIST_PATH);
+    await user.click(
+      screen.getByRole("button", { name: copy.employeesSalaryAction }),
+    );
+    expect(screen.getByTestId("location")).toHaveTextContent("/employees");
+  });
+
+  it("en Anticipos no muestra Sueldo en Empleados", () => {
+    renderHub(SETTLEMENTS_ADVANCES_PATH);
+    expect(
+      screen.queryByRole("button", { name: copy.employeesSalaryAction }),
     ).not.toBeInTheDocument();
   });
 

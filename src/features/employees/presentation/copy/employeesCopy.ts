@@ -60,7 +60,8 @@ export const employeesCopy = {
       },
       baseSalary: {
         title: "Salario base",
-        description: "Importe base registrado en nómina",
+        description:
+          "Importe base del corte operativo (caja a dispersar; no es recibo de nómina)",
       },
       contractType: {
         title: "Tipo de contrato",
@@ -187,11 +188,12 @@ export const employeesCopy = {
       },
       compensation: {
         title: "Compensación",
-        description: "Salario base, frecuencia y método de pago declarados.",
+        description:
+          "Salario base y frecuencia para el corte operativo; el método de pago es de referencia.",
       },
       banking: {
         title: "Datos bancarios",
-        description: "Cuenta y CLABE para dispersión de nómina.",
+        description: "Cuenta y CLABE para dispersión del pago al operador.",
       },
     },
     label: {
@@ -352,11 +354,12 @@ export const employeesCopy = {
       compensation: {
         nav: "Compensación",
         title: "Salario y pago",
-        description: "Salario base, frecuencia y método de pago.",
+        description:
+          "Salario base y frecuencia del corte operativo (no recibo de nómina).",
       },
       banking: {
         title: "Datos bancarios",
-        description: "Cuenta y CLABE para dispersión de nómina.",
+        description: "Cuenta y CLABE para dispersión del pago al operador.",
       },
       review: {
         title: "Revisión",

@@ -46,6 +46,7 @@ const VALID_CREATE_TRIP_SNAKE = {
       category: "fuel",
       description: "Gasolina",
       amount: 500,
+      payment_source: "driver",
     },
   ],
   internal_staff: [

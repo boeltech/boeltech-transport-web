@@ -658,7 +658,7 @@ describe("SettlementDetailPage F2 DetailAlertCard.action (D7)", () => {
   });
 });
 
-describe("SettlementDetailPage franja Lo ganado − Descuentos = A pagar", () => {
+describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Descuentos = A pagar", () => {
   function settlementItem(
     overrides: Partial<NonNullable<DriverSettlement["items"]>[number]>,
   ): NonNullable<DriverSettlement["items"]>[number] {
@@ -765,9 +765,14 @@ describe("SettlementDetailPage franja Lo ganado − Descuentos = A pagar", () =>
 
     await screen.findByText("LIQ-202609-0001");
 
-    expect(
-      screen.getByText("Sueldo, viajes, prestaciones y reembolsos · 1 viaje"),
-    ).toBeInTheDocument();
+    const perception = screen.getByTestId("settlement-perception-strip");
+    expect(perception).toHaveTextContent("Compensación");
+    expect(perception).toHaveTextContent("Sueldo, viajes, prestaciones y bonos · 1 viaje");
+    expect(perception).toHaveTextContent("Reembolsos");
+    expect(perception).toHaveTextContent("Sin reembolsos en este pago");
+    expect(perception).toHaveTextContent("Total");
+    expect(perception).toHaveTextContent("Compensación + reembolsos");
+    expect(perception).toHaveTextContent("$8,033.00");
     expect(screen.getByText("Descuentos")).toBeInTheDocument();
     expect(screen.getByText("-$2,700.00")).toBeInTheDocument();
     expect(
@@ -822,8 +827,11 @@ describe("SettlementDetailPage franja Lo ganado − Descuentos = A pagar", () =>
 
     await screen.findByText("LIQ-202609-0001");
 
-    expect(screen.getByText("$0.00")).toBeInTheDocument();
-    expect(screen.getByText("Sin descuentos en este pago")).toBeInTheDocument();
+    const perception = screen.getByTestId("settlement-perception-strip");
+    expect(perception).toHaveTextContent("Sin descuentos en este pago");
+    // Descuentos en $0 sin signo negativo (además de reembolsos $0 en la franja).
+    expect(screen.getAllByText("$0.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("-$0.00")).not.toBeInTheDocument();
   });
 
   it("descuentos mayores que lo ganado: a pagar en $0.00 con aviso del excedente", async () => {
@@ -840,9 +848,8 @@ describe("SettlementDetailPage franja Lo ganado − Descuentos = A pagar", () =>
 
     expect(screen.getByText("-$2,500.00")).toBeInTheDocument();
     expect(screen.getByText("Anticipos descontados en este pago")).toBeInTheDocument();
-    expect(screen.getByText("$0.00")).toBeInTheDocument();
     expect(
-      screen.getByText("Los descuentos superan lo ganado por $500.00; a pagar queda en $0.00."),
+      screen.getByText("Los descuentos superan el total por $500.00; a pagar queda en $0.00."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Lo que recibe el operador")).not.toBeInTheDocument();
   });
@@ -861,7 +868,29 @@ describe("SettlementDetailPage franja Lo ganado − Descuentos = A pagar", () =>
     await screen.findByText("LIQ-202609-0001");
 
     expect(
-      screen.getByText("Los descuentos superan lo ganado por $300.00; a pagar queda en $0.00."),
+      screen.getByText("Los descuentos superan el total por $300.00; a pagar queda en $0.00."),
     ).toBeInTheDocument();
+  });
+
+  it("con reembolsos: strip separa compensación, reembolsos y total", async () => {
+    mockGetSettlementById.mockResolvedValue({
+      ...pendingSettlement,
+      totalTripsCommission: 2000,
+      totalBaseSalary: 0,
+      totalReimbursableExpenses: 500,
+      grossAmount: 2500,
+      netAmount: 2500,
+    });
+    renderDetail();
+
+    await screen.findByText("LIQ-202609-0001");
+
+    const perception = screen.getByTestId("settlement-perception-strip");
+    expect(perception).toHaveTextContent("$2,000.00");
+    expect(perception).toHaveTextContent("$500.00");
+    expect(perception).toHaveTextContent("$2,500.00");
+    expect(perception).toHaveTextContent(
+      "Si el gasto fue de su bolsa, aquí se lo regresas",
+    );
   });
 });

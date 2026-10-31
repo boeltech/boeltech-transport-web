@@ -1,13 +1,15 @@
 export const settlementsCopy = {
   title: "Pagos a operadores",
   description:
-    "Arma el pago, pide autorización cuando aplique y regístralo al operador.",
+    "Arma el pago, pide autorización cuando aplique y regístralo al operador. Es caja operativa, no un recibo de nómina.",
   hub: {
     title: "Pagos a operadores",
     description:
-      "Arma el pago, pide autorización cuando aplique y regístralo al operador.",
+      "Arma el pago, pide autorización cuando aplique y regístralo al operador. Es caja operativa, no un recibo de nómina.",
     navAriaLabel: "Secciones de pagos a operadores",
     approvalPoliciesAction: "Reglas de autorización",
+    /** Wayfinding F1: sueldo + frecuencia viven en Empleados (≤2 clics desde Por pagar). */
+    employeesSalaryAction: "Sueldo en Empleados",
     registryRelated: {
       label: "Volver a por pagar",
       description: "Cola operativa de cortes y pagos pendientes",
@@ -219,8 +221,9 @@ export const settlementsCopy = {
       clearFilters: "Limpiar filtros",
       schemesBridgeTitle: "¿Listo para armar un pago?",
       schemesBridgeDescription:
-        "Si aún no hay operadores por pagar, verifica que tengan tarifa asignada y sueldo configurado en Empleados.",
+        "Si aún no hay operadores por pagar, verifica tarifa asignada y sueldo + frecuencia de pago en Empleados (esa frecuencia sugiere el período del corte).",
       schemesBridgeAction: "Ir a Tarifas",
+      schemesBridgeEmployeesAction: "Ir a Empleados",
     },
     loadErrorTitle: "No se pudo cargar la cola",
     loadError:
@@ -230,14 +233,18 @@ export const settlementsCopy = {
       title: "Antes de armar un pago, verifica que la configuración esté completa.",
       ariaLabel: "Prerrequisitos para pagar a operadores",
       chipsAriaLabel: "Estado de configuración de pagos a operadores",
-      operatorsSalaryLabel: "operadores activos (sueldo en ficha)",
+      /**
+       * Proxy sin endpoint de baseSalary: el conteo es empleados activos;
+       * el copy empuja a capturar sueldo en la ficha (no afirma «ya tienen sueldo»).
+       */
+      operatorsSalaryLabel: "empleados activos — captura sueldo en ficha",
       templatesActiveLabel: "tarifas activas",
       assignmentsActiveLabel: "operadores asignados a una tarifa",
       tripsCompletedLabel: "viajes completados",
       relatedConfigDescription:
         "Tarifas y asignación de operadores",
       cta: {
-        operatorsSalary: "Ir a Empleados",
+        operatorsSalary: "Capturar sueldo en Empleados",
         templatesActive: "Ir a Tarifas",
         assignmentsActive: "Ir a Tarifas → Operadores",
         tripsCompleted: "Ir a Viajes",
@@ -578,8 +585,18 @@ export const settlementsCopy = {
       printDocumentTitle: (folio: string) => `Recibo-${folio}`,
     },
     balanceStrip: {
-      grossEarnings: "Lo ganado",
-      grossEarningsSubtext: "Sueldo, viajes, prestaciones y reembolsos",
+      /** F3: desglose compensación | reembolsos | total (antes de VoBo/dispersión). */
+      compensation: "Compensación",
+      compensationSubtext: "Sueldo, viajes, prestaciones y bonos",
+      reimbursements: "Reembolsos",
+      reimbursementsSubtext:
+        "Si el gasto fue de su bolsa, aquí se lo regresas",
+      reimbursementsNone: "Sin reembolsos en este pago",
+      totalGross: "Total",
+      totalGrossSubtext: "Compensación + reembolsos",
+      /** Compat / recibo: el total bruto del corte (antes = «Lo ganado»). */
+      grossEarnings: "Total",
+      grossEarningsSubtext: "Compensación + reembolsos",
       tripsCount: (count: number) => (count === 1 ? "1 viaje" : `${count} viajes`),
       discounts: "Descuentos",
       discountsBreakdown: (advances: string, otherDeductions: string) =>
@@ -590,7 +607,8 @@ export const settlementsCopy = {
       netToPay: "A pagar",
       netSubtext: "Lo que recibe el operador",
       netShortfall: (excess: string, zero: string) =>
-        `Los descuentos superan lo ganado por ${excess}; a pagar queda en ${zero}.`,
+        `Los descuentos superan el total por ${excess}; a pagar queda en ${zero}.`,
+      perceptionAriaLabel: "Desglose de compensación, reembolsos y total",
     },
     workflow: {
       title: "Progreso del pago",
@@ -631,13 +649,14 @@ export const settlementsCopy = {
     },
     items: {
       title: "Desglose",
-      subtitle: "Conceptos de lo ganado y descuentos aplicados.",
+      subtitle: "Compensación, reembolsos y descuentos aplicados.",
       expandLabel: "Ver desglose",
       collapseLabel: "Ocultar desglose",
       earningsTitle: "1. Ingresos del período (+)",
-      earningsSubtitle: "Sueldo base, viajes, prestaciones, bonos y reembolsos.",
+      earningsSubtitle:
+        "Compensación (sueldo, viajes, prestaciones, bonos) y reembolsos por separado.",
       deductionsTitle: "2. Descuentos (−)",
-      deductionsSubtitle: "Anticipos y otras deducciones que se restan de lo ganado.",
+      deductionsSubtitle: "Anticipos y otras deducciones que se restan del total.",
       subtotalEarnings: "Subtotal ingresos:",
       subtotalAdvances: "Anticipos:",
       subtotalOtherDeductions: "Otros descuentos:",
@@ -756,17 +775,22 @@ export const settlementsCopy = {
   createPage: {
     header: {
       title: "Armar pago",
-      subtitle: "Calcula lo ganado por viajes y descuenta anticipos entregados.",
+      subtitle:
+        "Calcula lo ganado por viajes y descuenta anticipos. Es caja operativa a dispersar, no un recibo de nómina.",
     },
     sections: {
       filtersTitle: "1. Operador y período",
-      filtersDescription: "Selecciona el operador y el rango de fechas para consultar viajes y anticipos abiertos.",
+      filtersDescription:
+        "Selecciona el operador y el rango de fechas. El período sugerido sigue la frecuencia de pago de su ficha en Empleados.",
+      /** Bajo el stepper cuando hay operador: dónde editar sueldo + frecuencia. */
+      periodFrequencyHint:
+        "Sueldo y frecuencia de pago se editan en Empleados; esa frecuencia alimenta el período sugerido del corte.",
       agreementActiveLabel: "Tarifa de pago aplicada",
       templateAppliedValue: (name: string, version?: number) =>
         version != null ? `${name} versión ${version}` : name,
       agreementProfileSalaryHint:
         "El sueldo base se toma de la ficha del empleado al armar el pago; asigna una tarifa si aún no tiene una.",
-      agreementProfileSalaryHintLink: "Abrir ficha del empleado para configurar sueldo base",
+      agreementProfileSalaryHintLink: "Editar sueldo y frecuencia en Empleados",
       tripsTitle: "2. Viajes del período",
       tripsDescription:
         "Viajes finalizados con pago calculado según la tarifa del operador.",
@@ -780,11 +804,15 @@ export const settlementsCopy = {
     summary: {
       cardTitle: "Resumen a pagar",
       cardSubtitle: "Cálculo en vivo",
-      earnedLabel: "Lo ganado",
+      /** F3: compensación agregada (sin mezclar reembolsos). */
+      compensationLabel: "Compensación",
+      compensationSubtext: "Sueldo, viajes, prestaciones y bonos",
+      /** @deprecated Prefer compensationLabel — se mantiene por tests legacy. */
+      earnedLabel: "Compensación",
       advancesLabel: "Anticipos",
       netTotalLabel: "A pagar",
       netTotalSubtext: "Lo que recibirá el operador",
-      earnedBreakdownTitle: "Detalle de lo ganado",
+      earnedBreakdownTitle: "Detalle de la compensación",
       fixedSalaryLabel: "Sueldo base",
       fixedSalaryLabelWithPeriod: (periodLabel: string) =>
         `Sueldo base (${periodLabel.toLowerCase()})`,
@@ -794,6 +822,11 @@ export const settlementsCopy = {
       deductionsLabel: "Deducciones de tarifa",
       commissionsLabel: "Pago por viajes",
       reimbursementsLabel: "Reembolsos",
+      reimbursementsHint:
+        "Si el gasto fue de su bolsa, aquí se lo regresas. Suma al total a dispersar.",
+      totalGrossLabel: "Total",
+      totalGrossSubtext: "Compensación + reembolsos",
+      perceptionAriaLabel: "Desglose de compensación, reembolsos y total",
       submitApprovalBtn: "Enviar a autorización",
       pedirVoboBtn: "Enviar a autorización",
       submitApprovalSegregationHint:
@@ -884,6 +917,16 @@ export const settlementsCopy = {
       missingKm: "sin km",
       missingFreight: "sin flete",
       moreTrips: (count: number) => `y ${count} más`,
+    },
+    /** F3 claridad piloto: ack local del subtotal de reembolsos antes de VoBo (sin campo API). */
+    reimbursementsAckGate: {
+      alertTitle: "Este pago incluye reembolsos",
+      alertDescription: (amount: string) =>
+        `Hay ${amount} de reembolsos (gastos que el operador cubrió de su bolsa). Se suman al total a dispersar; no son solo tarifa o comisión.`,
+      ackLabel: (amount: string) =>
+        `Confirmo el subtotal de reembolsos (${amount}) en este pago`,
+      submitBlockedHint:
+        "No se puede enviar: confirma el subtotal de reembolsos",
     },
     /** ADR-0085 E11 — por qué un viaje entra en $0. */
     zeroReason: {
@@ -1434,3 +1477,4 @@ export const settlementsCopy = {
     nextAriaLabel: "Período siguiente",
   },
 } as const;
+

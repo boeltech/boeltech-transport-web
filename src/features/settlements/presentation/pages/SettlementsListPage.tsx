@@ -598,14 +598,24 @@ export function SettlementsListPage() {
                   title={workbenchCopy.empty.schemesBridgeTitle}
                   items={[{ text: workbenchCopy.empty.schemesBridgeDescription }]}
                   action={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(COMPENSATION_TEMPLATES_PATH)}
-                    >
-                      {workbenchCopy.empty.schemesBridgeAction}
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(COMPENSATION_TEMPLATES_PATH)}
+                      >
+                        {workbenchCopy.empty.schemesBridgeAction}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate("/employees")}
+                      >
+                        {workbenchCopy.empty.schemesBridgeEmployeesAction}
+                      </Button>
+                    </div>
                   }
                 />
               );

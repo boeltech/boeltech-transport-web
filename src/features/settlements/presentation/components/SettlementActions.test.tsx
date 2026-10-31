@@ -812,6 +812,42 @@ describe("SettlementActions", () => {
       await waitFor(() => expect(mockSubmitSettlement).toHaveBeenCalledWith("set-1"));
     });
 
+    it("F3: con reembolsos bloquea Enviar hasta confirmar el subtotal", async () => {
+      const user = userEvent.setup();
+      mockSubmitSettlement.mockResolvedValue({
+        ...draftSettlement,
+        status: "pending_approval",
+      });
+      renderWithProviders(
+        <SettlementActions
+          variant="buttons"
+          settlement={{
+            ...draftSettlement,
+            voboRequired: true,
+            createdBy: "user-creator-123",
+            totalReimbursableExpenses: 450,
+            grossAmount: 2950,
+            netAmount: 2950,
+            items: [],
+          }}
+        />,
+      );
+
+      expect(screen.getByTestId("reimbursements-ack-gate")).toHaveTextContent(
+        /incluye reembolsos/i,
+      );
+      const submitBtn = screen.getByRole("button", { name: /Enviar a autorización/i });
+      expect(submitBtn).toBeDisabled();
+      await user.click(
+        screen.getByRole("checkbox", {
+          name: /Confirmo el subtotal de reembolsos/i,
+        }),
+      );
+      expect(submitBtn).toBeEnabled();
+      await user.click(submitBtn);
+      await waitFor(() => expect(mockSubmitSettlement).toHaveBeenCalledWith("set-1"));
+    });
+
     it("422 ZERO_KM_ACK_REQUIRED apaga el checkbox y muestra toast", async () => {
       const user = userEvent.setup();
       mockSubmitSettlement.mockRejectedValueOnce(

@@ -124,15 +124,19 @@ export const costsCopy = {
     baseRateSavedWithWarning: "Tarifa guardada con advertencia",
   },
   paymentSource: {
-    sectionTitle: "¿Quién pagó?",
+    sectionTitle: "¿Quién fondeó?",
     driver: "Pagó el operador (de su bolsillo)",
     company: "Pagó la empresa (tarjeta, TAG)",
     advance: "Con anticipo de la empresa",
+    required: "Elige quién fondeó este gasto",
+    hintUnset:
+      "Debes elegir una opción. Operador = reembolso en su pago; empresa o anticipo = no se reembolsa.",
     hintDriver:
-      "Este gasto aparecerá como reembolso en el pago al operador.",
-    hintCompany: "No se reembolsará. Queda como costo del viaje.",
+      "Reembolso: este monto se suma al pago del operador en la liquidación.",
+    hintCompany:
+      "No es reembolso. Queda como costo del viaje a cargo de la empresa.",
     hintAdvance:
-      "No se reembolsará; el anticipo se descuenta por separado.",
+      "No es reembolso; el anticipo ya se descuenta por separado en el corte.",
     badgeCompany: "Empresa",
     badgeAdvance: "Con anticipo",
   },

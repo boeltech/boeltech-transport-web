@@ -1,7 +1,8 @@
 export const compensationCopy = {
   hub: {
     title: "Tarifas de pago",
-    description: "Define cómo se paga a cada operador antes de armar el pago.",
+    description:
+      "Define pago por viaje, rutas fijas y prestaciones. El sueldo base no se captura aquí: va en Empleados.",
     settlementsBridge: "Al armar el pago se usa la tarifa asignada al operador.",
     settlementsLink: "Ir a Pagos a operadores",
     guideTitle: "Cómo dejar listo el pago a operadores",
@@ -10,7 +11,7 @@ export const compensationCopy = {
       corridors: "Rutas con tarifa fija",
     },
     steps: [
-      "Crea una tarifa",
+      "Crea una tarifa (sin sueldo: ese va en Empleados)",
       "Define cómo se paga (reglas o rutas fijas)",
       "Asigna operadores",
     ],
@@ -37,11 +38,11 @@ export const compensationCopy = {
   templates: {
     title: "Tarifas de pago",
     description:
-      "Tarifas reutilizables que puedes asignar a varios operadores con las mismas reglas.",
+      "Reglas de pago por viaje, rutas fijas y prestaciones reutilizables. El sueldo base se captura en Empleados, no en la tarifa.",
     create: "Nueva tarifa",
     emptyTitle: "Aún no hay tarifas de pago",
     emptyDescription:
-      "Crea la primera, define cómo se paga y asígnala a operadores.",
+      "Crea la primera (cubre viajes y prestaciones; el sueldo va en Empleados), define cómo se paga y asígnala.",
     loadErrorTitle: "No se pudieron cargar las tarifas",
     loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
     retry: "Reintentar",
@@ -534,10 +535,10 @@ export const compensationCopy = {
   sheet: {
     templateCreateTitle: "Nueva tarifa",
     templateCreateHelp:
-      "Se crea como borrador. Después defines cómo se paga y la activas cuando esté lista.",
+      "Borrador de cómo se paga por viaje, rutas fijas y prestaciones. El sueldo base no se captura aquí: edítalo en Empleados.",
     templateEditTitle: "Editar configuración",
     templateEditHelp:
-      "Define reglas por clase de ruta, prestaciones fijas y rutas vinculadas. El sueldo se toma de la ficha del operador; crea rutas con tarifa fija en la pestaña Rutas con tarifa fija.",
+      "Define reglas por clase de ruta, prestaciones fijas y rutas vinculadas. El sueldo se toma de la ficha del operador (Empleados); crea rutas con tarifa fija en la pestaña Rutas con tarifa fija.",
     schemaDataTitle: "Datos de la tarifa",
     corridorsSectionHelp:
       "Selecciona rutas del tabulador. Si el viaje coincide, se paga la tarifa fija en lugar del pago por viaje (la regla genérica no se aplica).",
@@ -837,14 +838,14 @@ export const compensationCopy = {
     title: "Nueva tarifa de pago",
     subtitle: "¿Cómo quieres comenzar?",
     subtitleDescription:
-      "Elige una plantilla como punto de partida. Puedes cambiar todo después.",
+      "La tarifa cubre pago por viaje, rutas fijas y prestaciones. El sueldo base no se captura aquí: va en Empleados.",
     blankName: "Desde cero",
-    blankDescription: "Define tus propios conceptos de pago.",
+    blankDescription: "Define tus propios conceptos de pago (sin sueldo: ese va en Empleados).",
     step2Title: "Nombre de la tarifa",
     step2Back: "Cambiar plantilla",
     prefilledHint: "Se creará como borrador con:",
     customizeHint:
-      "Después configurarás el pago y la activarás cuando esté lista.",
+      "Después configurarás el pago (no el sueldo) y la activarás cuando esté lista.",
     nameLabel: "Nombre",
     namePlaceholder: "Ej. Operador Foráneo Norte",
     descriptionLabel: "Nota (opcional)",
@@ -866,12 +867,26 @@ export const compensationCopy = {
     corridorSaveError: "No se pudo guardar la ruta",
     corridorDeleted: "Ruta eliminada",
     batchSuccess: "Asignación completada",
+    /** Estado vigente|programada + cierre de job (F3 piloto). */
+    batchSuccessCurrent: (count: number) =>
+      count === 1
+        ? "Quedó vigente. Ya puedes armar el pago de este operador."
+        : `${count} asignaciones quedaron vigentes. Ya puedes armar el pago.`,
+    batchSuccessScheduled: (count: number) =>
+      count === 1
+        ? "Quedó programada (empieza después de hoy). Puedes previsualizar el pago desde la fecha de inicio."
+        : `${count} asignaciones quedaron programadas (empiezan después de hoy).`,
+    batchSuccessMixed: (count: number) =>
+      `${count} operadores asignados (vigentes y programadas). Revisa el estado en la lista.`,
+    batchSuccessArmarPago: "Armar pago",
     batchPartial: (created: number, total: number) =>
       `Se asignaron ${created} de ${total} operadores`,
     batchPartialDescription: "Revisa en el panel por qué se omitieron los demás.",
+    batchPartialArmarPago: "Armar pago del asignado",
     batchNone: "No se asignó ningún operador",
     batchNoneDescription: "Revisa el motivo en el panel.",
     batchError: "No se pudo completar la asignación",
     dataRefreshed: "Datos actualizados",
   },
 } as const;
+

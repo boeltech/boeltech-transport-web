@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TripExpense } from "@features/trips/domain";
+import type { TripExpenseFormValues } from "../../pages/create/components/validation";
 import {
   formValuesToCreateExpenseInput,
   formValuesToUpdateExpenseInput,
@@ -96,12 +97,23 @@ describe("tripExpenseFormBridge paymentSource", () => {
     expect(updateInput.paymentSource).toBe("company");
   });
 
-  it("defaults to driver when paymentSource is undefined", () => {
-    const expense = makeExpense({
-      paymentSource: undefined as unknown as TripExpense["paymentSource"],
-    });
-    const formValues = tripExpenseToFormValues(expense);
-    expect(formValues.paymentSource).toBe("driver");
+  it("does not reinject driver when paymentSource is missing on update", () => {
+    const formValues = tripExpenseToFormValues(makeExpense());
+    const withoutSource = {
+      ...formValues,
+      paymentSource: undefined as unknown as TripExpenseFormValues["paymentSource"],
+    };
+    const updateInput = formValuesToUpdateExpenseInput(withoutSource);
+    expect(updateInput).not.toHaveProperty("paymentSource");
+  });
+
+  it("create requires explicit paymentSource (no driver fallback)", () => {
+    const formValues = tripExpenseToFormValues(
+      makeExpense({ paymentSource: "company" }),
+    );
+    const createInput = formValuesToCreateExpenseInput(formValues);
+    expect(createInput.paymentSource).toBe("company");
+    expect(createInput.paymentSource).not.toBeUndefined();
   });
 
   it("preserves advance through round-trip", () => {

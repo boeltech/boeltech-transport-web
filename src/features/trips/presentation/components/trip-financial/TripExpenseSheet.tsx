@@ -32,7 +32,9 @@ import {
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
 import {
+  FieldInlineError,
   FormValidationSummary,
+  getFieldErrorAriaProps,
   MoneyInput,
   RHFMoneyField,
   RHFSelectField,
@@ -100,7 +102,7 @@ function buildEmptyExpense(
     category: getDefaultCategoryForKind(kind),
     description: "",
     currency: "MXN",
-    paymentSource: "driver",
+    // Sin preselección: el operador debe elegir quién fondeó (D3)
     vendorName: "",
     notes: "",
   };
@@ -110,7 +112,7 @@ function buildEditDefaults(expense: TripExpenseFormValues): TripExpenseFormValue
   return {
     ...expense,
     currency: expense.currency ?? "MXN",
-    paymentSource: expense.paymentSource ?? "driver",
+    paymentSource: expense.paymentSource,
     vendorName: expense.vendorName ?? "",
     notes: expense.notes ?? "",
   };
@@ -174,9 +176,10 @@ function TripExpenseSheetSession({
   const { control, handleSubmit, reset, setValue, getValues, formState } = form;
 
   const category = useWatch({ control, name: "category" });
-  const paymentSource = useWatch({ control, name: "paymentSource" }) ?? "driver";
+  const paymentSource = useWatch({ control, name: "paymentSource" });
   const vendorName = useWatch({ control, name: "vendorName" });
   const notesValue = useWatch({ control, name: "notes" });
+  const paymentSourceError = formState.errors.paymentSource?.message;
 
   const categoryOptions = useMemo(
     () =>
@@ -429,8 +432,13 @@ function TripExpenseSheetSession({
             name="paymentSource"
             render={({ field }) => (
               <div
+                id="expense-payment-source"
                 role="radiogroup"
                 aria-label={psCopy.sectionTitle}
+                {...getFieldErrorAriaProps(
+                  "expense-payment-source",
+                  paymentSourceError,
+                )}
                 className="space-y-2"
               >
                 {PAYMENT_SOURCE_OPTIONS.map((opt) => {
@@ -446,6 +454,7 @@ function TripExpenseSheetSession({
                         selected
                           ? "border-primary bg-primary/5 font-medium"
                           : "border-border hover:bg-muted/50",
+                        paymentSourceError && !selected && "border-destructive/50",
                       )}
                       onClick={() => field.onChange(opt.value)}
                     >
@@ -459,8 +468,14 @@ function TripExpenseSheetSession({
               </div>
             )}
           />
+          <FieldInlineError
+            fieldId="expense-payment-source"
+            message={paymentSourceError}
+          />
           <p className="text-xs text-muted-foreground">
-            {PAYMENT_SOURCE_HINTS[paymentSource]}
+            {paymentSource
+              ? PAYMENT_SOURCE_HINTS[paymentSource]
+              : psCopy.hintUnset}
           </p>
         </FormSectionCard>
 

@@ -438,7 +438,10 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Lo ganado")).toBeInTheDocument();
+    const perception = screen.getByTestId("settlement-perception-strip");
+    expect(perception).toHaveTextContent("Compensación");
+    expect(perception).toHaveTextContent("Reembolsos");
+    expect(perception).toHaveTextContent("Total");
     expect(screen.getByText("Descuentos")).toBeInTheDocument();
     expect(screen.getByText("A pagar")).toBeInTheDocument();
     expect(screen.getAllByText(formatMxCurrency(4000)).length).toBeGreaterThanOrEqual(1);

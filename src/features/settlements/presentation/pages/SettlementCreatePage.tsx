@@ -94,6 +94,7 @@ import {
   type CreateSettlementFormData,
 } from "../validation/settlementSchemas";
 import { ManualItemsEditor } from "../components/ManualItemsEditor";
+import { ReimbursementsAckGate } from "../components/ReimbursementsAckGate";
 import {
   manualItemErrorsFromIssues,
   type ManualItemRow,
@@ -262,6 +263,9 @@ export function SettlementCreatePage() {
   const [acknowledgeMissingDataTrips, setAcknowledgeMissingDataTrips] = useState(false);
   // 422 de datos faltantes al enviar: vigente mientras no cambien operador ni fechas.
   const [missingDataAckErrorKey, setMissingDataAckErrorKey] = useState<string | null>(null);
+  // F3: ack local del subtotal de reembolsos antes de VoBo (sin campo API).
+  const [acknowledgeReimbursements, setAcknowledgeReimbursements] = useState(false);
+  const [reimbursementsAckError, setReimbursementsAckError] = useState(false);
   // ADR-0085 E11: viajes sin regla entran en $0 solo con confirmación explícita.
   const [acknowledgeNoRuleTrips, setAcknowledgeNoRuleTrips] = useState(false);
   const [noRuleDialog, setNoRuleDialog] = useState<{
@@ -411,7 +415,6 @@ export function SettlementCreatePage() {
   };
   const calculatedGross =
     totalCommissions + totalBaseSalary + totalFixedAllowances + totalReimbursements;
-
   const totalAdvancesDeducted = roundCents(
     Object.values(advanceDeductions).reduce((acc, val) => acc + val, 0),
   );
@@ -422,6 +425,10 @@ export function SettlementCreatePage() {
   // TEC-6: mismos totales que el API (paridad en settlementTotals.test).
   const liveManual = normalizeManualItems(liveManualItems(manualItems));
   const manualSums = sumManualItems(liveManual);
+  /** Compensación agregada (sueldo/viajes/prestaciones/bonos; sin reembolsos) — F3. */
+  const compensationAmount = roundCents(
+    totalCommissions + totalBaseSalary + totalFixedAllowances + manualSums.additions,
+  );
   // La tarifa consume lo ganado (con bonos manuales) por prioridad; lo que no cabe se omite.
   // E11 punto 6: los reembolsos no son base de las deducciones de tarifa (igual que el API).
   const templateLines = preview?.deductions ?? [];
@@ -558,6 +565,10 @@ export function SettlementCreatePage() {
       setNoRuleDialog({ submit: true, tripCodes: noRuleTrips.map((trip) => trip.tripCode) });
       return;
     }
+    if (totalReimbursements > 0 && !acknowledgeReimbursements) {
+      setReimbursementsAckError(true);
+      return;
+    }
     setConfirmDialogOpen(true);
   };
 
@@ -660,6 +671,8 @@ export function SettlementCreatePage() {
       setPeriodEnd(period.periodEnd);
       setAdvanceDeductions({});
       setAcknowledgeMissingDataTrips(false);
+      setAcknowledgeReimbursements(false);
+      setReimbursementsAckError(false);
     }
   }
 
@@ -700,13 +713,19 @@ export function SettlementCreatePage() {
     tripConflictAlert?.key === periodConflictKey ? tripConflictAlert.conflicts : null;
   const containedBlockSettlement =
     periodicBlock?.status === "excluded_contained" ? periodicBlock.settlement : null;
+  const hasReimbursementsSubtotal = totalReimbursements > 0;
   const canSubmitForApproval =
     canProceedWithSave &&
     !isPeriodBlocked &&
-    (!hasMissingDataGaps || acknowledgeMissingDataTrips);
+    (!hasMissingDataGaps || acknowledgeMissingDataTrips) &&
+    (!hasReimbursementsSubtotal || acknowledgeReimbursements);
   const missingDataAckError =
     missingDataAckErrorKey === periodConflictKey && !acknowledgeMissingDataTrips
       ? createCopy.missingDataGate.serverAckRequired
+      : undefined;
+  const reimbursementsAckErrorMessage =
+    reimbursementsAckError && hasReimbursementsSubtotal && !acknowledgeReimbursements
+      ? createCopy.reimbursementsAckGate.submitBlockedHint
       : undefined;
 
   const tripDetailReturnHref = useMemo(
@@ -721,12 +740,14 @@ export function SettlementCreatePage() {
 
   // Reset de confirmaciones al cambiar preview / gaps (adjust state during render —
   // evita react-hooks/set-state-in-effect).
-  const ackSyncKey = `${preview?.employeeId ?? ""}|${preview?.periodStart ?? ""}|${preview?.periodEnd ?? ""}|${missingDataTrips.length}|${noRuleTrips.length}`;
+  const ackSyncKey = `${preview?.employeeId ?? ""}|${preview?.periodStart ?? ""}|${preview?.periodEnd ?? ""}|${missingDataTrips.length}|${noRuleTrips.length}|${totalReimbursements}`;
   const [prevAckSyncKey, setPrevAckSyncKey] = useState(ackSyncKey);
   if (ackSyncKey !== prevAckSyncKey) {
     setPrevAckSyncKey(ackSyncKey);
     setAcknowledgeMissingDataTrips(false);
     setAcknowledgeNoRuleTrips(false);
+    setAcknowledgeReimbursements(false);
+    setReimbursementsAckError(false);
   }
 
   const handleStartOnSuggested = (date: string) => {
@@ -1001,6 +1022,19 @@ export function SettlementCreatePage() {
                 )}
               </div>
             </div>
+
+            {selectedEmployeeId ? (
+              <p className="text-xs text-muted-foreground">
+                {createCopy.sections.periodFrequencyHint}{" "}
+                <Link
+                  to={`/employees/${selectedEmployeeId}/edit`}
+                  state={createReturnState}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {createCopy.sections.agreementProfileSalaryHintLink}
+                </Link>
+              </p>
+            ) : null}
 
             {templateChangeAlert && (
               <div data-testid="settlement-template-change-alert">
@@ -1751,17 +1785,27 @@ export function SettlementCreatePage() {
                     </ul>
                   </div>
 
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">{createCopy.summary.earnedLabel}</span>
+                  <div
+                    className="space-y-2 text-xs"
+                    aria-label={createCopy.summary.perceptionAriaLabel}
+                    data-testid="create-perception-breakdown"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-muted-foreground block">
+                          {createCopy.summary.compensationLabel}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground/90">
+                          {createCopy.summary.compensationSubtext}
+                        </span>
+                      </div>
                       <span className="font-semibold tabular-nums text-foreground">
-                        {formatMxCurrency(grossAmount)}
+                        {formatMxCurrency(compensationAmount)}
                       </span>
                     </div>
                     {(totalBaseSalary > 0 ||
                       totalFixedAllowances > 0 ||
                       totalCommissions > 0 ||
-                      totalReimbursements > 0 ||
                       manualSums.additions > 0) && (
                       <div className="pl-2 space-y-1 border-l border-border/60 text-muted-foreground">
                         {totalBaseSalary > 0 && (
@@ -1796,14 +1840,6 @@ export function SettlementCreatePage() {
                           </span>
                           <span className="tabular-nums">{formatMxCurrency(totalCommissions)}</span>
                         </div>
-                        {totalReimbursements > 0 && (
-                          <div className="flex justify-between gap-2">
-                            <span>{createCopy.summary.reimbursementsLabel}</span>
-                            <span className="tabular-nums">
-                              {formatMxCurrency(totalReimbursements)}
-                            </span>
-                          </div>
-                        )}
                         {manualSums.additions > 0 && (
                           <div className="flex justify-between gap-2">
                             <span>{copy.settlementFlow.create.manualAdditionsLabel}</span>
@@ -1814,6 +1850,32 @@ export function SettlementCreatePage() {
                         )}
                       </div>
                     )}
+                    <div className="flex justify-between items-start gap-2 pt-1 border-t border-dashed">
+                      <div>
+                        <span className="text-muted-foreground block">
+                          {createCopy.summary.reimbursementsLabel}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground/90 leading-snug">
+                          {createCopy.summary.reimbursementsHint}
+                        </span>
+                      </div>
+                      <span className="font-semibold tabular-nums text-foreground shrink-0">
+                        {formatMxCurrency(totalReimbursements)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-start gap-2 pt-1 border-t border-border/60">
+                      <div>
+                        <span className="font-medium text-foreground block">
+                          {createCopy.summary.totalGrossLabel}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {createCopy.summary.totalGrossSubtext}
+                        </span>
+                      </div>
+                      <span className="font-bold tabular-nums text-foreground">
+                        {formatMxCurrency(grossAmount)}
+                      </span>
+                    </div>
                     {manualSums.deductions > 0 ? (
                       <div className="flex justify-between items-center text-destructive pt-1 border-t border-dashed">
                         <span>{copy.settlementFlow.create.manualDeductionsLabel}</span>
@@ -1942,6 +2004,18 @@ export function SettlementCreatePage() {
                             </AlertDescription>
                           </Alert>
                         ) : null}
+                        {hasReimbursementsSubtotal ? (
+                          <ReimbursementsAckGate
+                            amount={totalReimbursements}
+                            acknowledged={acknowledgeReimbursements}
+                            onAcknowledgedChange={(value) => {
+                              setAcknowledgeReimbursements(value);
+                              if (value) setReimbursementsAckError(false);
+                            }}
+                            errorMessage={reimbursementsAckErrorMessage}
+                            checkboxId="acknowledge-reimbursements-create"
+                          />
+                        ) : null}
                         {hasMissingDataGaps ? (
                           <div
                             className="rounded-lg border border-warning/30 bg-warning-soft/40 p-3 space-y-2"
@@ -2011,9 +2085,11 @@ export function SettlementCreatePage() {
                             }
                             onClick={requestSubmitForApproval}
                             title={
-                              hasMissingDataGaps && !acknowledgeMissingDataTrips
-                                ? createCopy.missingDataGate.submitBlockedHint
-                                : undefined
+                              hasReimbursementsSubtotal && !acknowledgeReimbursements
+                                ? createCopy.reimbursementsAckGate.submitBlockedHint
+                                : hasMissingDataGaps && !acknowledgeMissingDataTrips
+                                  ? createCopy.missingDataGate.submitBlockedHint
+                                  : undefined
                             }
                           >
                             <Send className="mr-2 h-4 w-4" />
@@ -2056,6 +2132,14 @@ export function SettlementCreatePage() {
                                     : createCopy.periodicBlock.submitBlockedHintNoSuggestion,
                                   tone: "warning" as const,
                                 }
+                              : hasReimbursementsSubtotal &&
+                                  !acknowledgeReimbursements &&
+                                  createCta !== "guardar_borrador"
+                                ? {
+                                    text: createCopy.reimbursementsAckGate
+                                      .submitBlockedHint,
+                                    tone: "warning" as const,
+                                  }
                               : hasMissingDataGaps &&
                                   !acknowledgeMissingDataTrips &&
                                   createCta !== "guardar_borrador"
@@ -2242,6 +2326,24 @@ export function SettlementCreatePage() {
                 {formatDate(periodStart)} – {formatDate(periodEnd)}
               </span>
             </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-xs">
+                {createCopy.summary.compensationLabel}
+              </span>
+              <span className="text-xs font-medium text-foreground tabular-nums">
+                {formatMxCurrency(compensationAmount)}
+              </span>
+            </div>
+            {hasReimbursementsSubtotal ? (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground text-xs">
+                  {createCopy.summary.reimbursementsLabel}
+                </span>
+                <span className="text-xs font-medium text-foreground tabular-nums">
+                  {formatMxCurrency(totalReimbursements)}
+                </span>
+              </div>
+            ) : null}
             {hasManualAdjustments ? (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground text-xs">

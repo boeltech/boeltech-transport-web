@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Plus, ShieldCheck } from "lucide-react";
+import { Plus, ShieldCheck, Users } from "lucide-react";
 import { HubPageShell } from "@shared/ui/page-shells";
 import { usePermissions } from "@shared/permissions";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
@@ -102,6 +102,47 @@ export function OperatorPaymentsHubLayout() {
         }
       : undefined;
 
+  const secondaryActions = useMemo(() => {
+    const queueState = { from: `${pathname}${search}` };
+    const actions: Array<{
+      id: string;
+      label: string;
+      onClick: () => void;
+      variant: "outline";
+      icon: ReactNode;
+    }> = [];
+    if (activeTab === "por-pagar" && !onRegistry) {
+      actions.push({
+        id: "employees-salary",
+        label: copy.employeesSalaryAction,
+        onClick: () => navigate("/employees", { state: queueState }),
+        variant: "outline",
+        icon: <Users className="mr-2 h-4 w-4" />,
+      });
+    }
+    if (canReadApprovalPolicies && approvalConcept) {
+      actions.push({
+        id: "approval-policies",
+        label: copy.approvalPoliciesAction,
+        onClick: () =>
+          navigate(approvalPoliciesPath(approvalConcept), {
+            state: queueState,
+          }),
+        variant: "outline",
+        icon: <ShieldCheck className="mr-2 h-4 w-4" />,
+      });
+    }
+    return actions.length > 0 ? actions : undefined;
+  }, [
+    activeTab,
+    approvalConcept,
+    canReadApprovalPolicies,
+    navigate,
+    onRegistry,
+    pathname,
+    search,
+  ]);
+
   return (
     <HubPageShell
       title={copy.title}
@@ -120,22 +161,7 @@ export function OperatorPaymentsHubLayout() {
             ? [registeredCreate]
             : undefined
       }
-      secondaryActions={
-        canReadApprovalPolicies && approvalConcept
-          ? [
-              {
-                id: "approval-policies",
-                label: copy.approvalPoliciesAction,
-                onClick: () =>
-                  navigate(approvalPoliciesPath(approvalConcept), {
-                    state: fromState,
-                  }),
-                variant: "outline" as const,
-                icon: <ShieldCheck className="mr-2 h-4 w-4" />,
-              },
-            ]
-          : undefined
-      }
+      secondaryActions={secondaryActions}
       nav={[
         {
           id: "por-pagar",

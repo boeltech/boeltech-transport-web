@@ -40,6 +40,15 @@ vi.mock("@shared/hooks", () => ({
   useToast: () => ({ toast: mockToast }),
 }));
 
+const mockNavigate = vi.hoisted(() => vi.fn());
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 vi.mock("@shared/ui/employee-async-combobox", () => ({
   EmployeeAsyncCombobox: ({
     value,
@@ -278,6 +287,7 @@ describe("TemplateAssignmentBatchSheet", () => {
       title: "Se asignaron 2 de 3 operadores",
       description: "Revisa en el panel por qué se omitieron los demás.",
       variant: "warning",
+      action: expect.objectContaining({ label: "Armar pago del asignado" }),
     });
     expect(screen.queryByTestId("batch-preview-conflicts")).not.toBeInTheDocument();
 
@@ -317,7 +327,12 @@ describe("TemplateAssignmentBatchSheet", () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onAssignmentsCreated).toHaveBeenCalledWith(result);
-    expect(mockToast).toHaveBeenCalledWith({ title: "Asignación completada", variant: "success" });
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Asignación completada",
+      description: "2 asignaciones quedaron vigentes. Ya puedes armar el pago.",
+      variant: "success",
+      action: expect.objectContaining({ label: "Armar pago" }),
+    });
     expect(screen.queryByTestId("batch-assignment-result")).not.toBeInTheDocument();
   });
 

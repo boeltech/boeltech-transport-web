@@ -194,7 +194,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     ).toBeInTheDocument();
   });
 
-  it("bucket vacío listo → bridge tarifas en DetailAlertCard.action", async () => {
+  it("bucket vacío listo → bridge tarifas + Empleados en DetailAlertCard.action", async () => {
     renderWithTheme(<SettlementsListPage />, {
       route: ["/finance/settlements?bucket=pending"],
     });
@@ -205,6 +205,11 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     expect(
       screen.getByRole("button", {
         name: workbenchCopy.empty.schemesBridgeAction,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: workbenchCopy.empty.schemesBridgeEmployeesAction,
       }),
     ).toBeInTheDocument();
     expect(
