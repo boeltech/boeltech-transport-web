@@ -14,6 +14,9 @@ import { invalidateNotificationsQueries } from "@features/notifications/applicat
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
 
+/** Prefijo de React Query para workbench de liquidaciones (evitar import circular). */
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+
 type UpdateTripStatusVariables = { id: string; status: TripStatusType };
 type UpdateTripStatusContext = { previous: Trip | undefined };
 
@@ -81,6 +84,8 @@ export function useUpdateTripStatus(
       });
       await invalidateTripAssignmentResources(queryClient);
       invalidateNotificationsQueries(queryClient);
+      // F7: cambio de status afecta readiness de liquidaciones
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
       userOnSettled?.(data, err, variables, context, mutation);
     },
     onSuccess: (data, variables, onMutateResult, context) => {

@@ -3,6 +3,9 @@ import { settlementsApi } from "../../infrastructure/settlementsApi";
 import { settlementsQueryKeys } from "../settlementsQueryKeys";
 import type { CompensationAgreementFormData } from "../../presentation/validation/settlementSchemas";
 
+/** Prefijo de React Query para workbench de liquidaciones (evitar dependencia pesada). */
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+
 export function useCompensationAgreements(employeeId?: string) {
   return useQuery({
     queryKey: settlementsQueryKeys.agreementsList(employeeId),
@@ -44,6 +47,8 @@ function invalidateAgreementQueries(
   queryClient.invalidateQueries({
     queryKey: [...settlementsQueryKeys.all, "preview"],
   });
+  // F6: cambio de acuerdo afecta readiness del workbench
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
 }
 
 export function useUpdateCompensationAgreement() {

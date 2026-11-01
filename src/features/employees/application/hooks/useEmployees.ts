@@ -34,6 +34,10 @@ import { employeeQueryKeys } from "../employeeQueryKeys";
 
 export { employeeQueryKeys };
 
+/** Prefijos de React Query cross-feature (evitar import circular del barrel). */
+const COMPENSATION_ASSIGNMENTS_KEY = ["compensation", "assignments"] as const;
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+
 // ============================================================================
 // LIST HOOK
 // ============================================================================
@@ -167,6 +171,11 @@ export function useUpdateEmployee(id: string) {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: employeeQueryKeys.lists() });
       queryClient.setQueryData(employeeQueryKeys.detail(id), result);
+      // F1+F5: basic() alimenta create liquidación (salaryType, compensationFrequency)
+      queryClient.invalidateQueries({ queryKey: employeeQueryKeys.basic(id) });
+      // F4: salaryType/frequency afectan workbench y asignaciones vigentes
+      queryClient.invalidateQueries({ queryKey: COMPENSATION_ASSIGNMENTS_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
     },
   });
 }
@@ -191,6 +200,8 @@ export function useTerminateEmployee() {
     onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: employeeQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: employeeQueryKeys.detail(id) });
+      // F5: basic() puede estar cacheado para este empleado
+      queryClient.invalidateQueries({ queryKey: employeeQueryKeys.basic(id) });
       queryClient.invalidateQueries({
         queryKey: employeeQueryKeys.availableForDriver(),
       });

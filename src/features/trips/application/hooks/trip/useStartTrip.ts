@@ -9,6 +9,9 @@ import { tripRepository, trackingRepository } from "@features/trips/infrastructu
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 import { refetchTripTrackingViews } from "../tracking/syncTripDetailFromTimeline";
 
+/** Prefijo de React Query para workbench de liquidaciones (evitar import circular). */
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+
 /**
  * Hook para iniciar viaje
  */
@@ -61,6 +64,8 @@ export function useStartTrip(
       await invalidateTripAssignmentResources(queryClient);
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       invalidateDashboardLiveQueries(queryClient);
+      // F7: inicio de viaje afecta readiness de liquidaciones (viajes del periodo)
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
       options?.onSuccess?.(trip, variables, onMutateResult, context);
     },
   });

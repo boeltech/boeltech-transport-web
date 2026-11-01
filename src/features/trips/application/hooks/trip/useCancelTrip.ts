@@ -9,6 +9,9 @@ import { tripRepository } from "@features/trips/infrastructure";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
 
+/** Prefijo de React Query para workbench de liquidaciones (evitar import circular). */
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+
 /**
  * Hook para cancelar viaje
  */
@@ -32,6 +35,8 @@ export function useCancelTrip(
         status: TripStatus.CANCELLED,
       });
       await invalidateTripAssignmentResources(queryClient);
+      // F7: cancelación de viaje afecta readiness de liquidaciones
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
       options?.onSuccess?.(trip, variables, onMutateResult, context);
     },
   });

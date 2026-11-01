@@ -168,6 +168,9 @@ export function useDeleteTemplateAssignment() {
 function invalidateAfterAssignmentChange(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: compensationQueryKeys.assignments() });
   queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
+  // F2+F3: delete/update de asignación afecta preview y workbench de liquidaciones
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
 }
 
 export function useFixedAllowanceOverrides(params?: {
