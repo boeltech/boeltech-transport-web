@@ -38,6 +38,7 @@ import {
   Mail,
   Banknote,
   FileWarning,
+  HandCoins,
 } from "lucide-react";
 import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
 import { navigationCopy } from "../copy/navigationCopy";
@@ -162,6 +163,14 @@ export const navigationConfig: NavGroup[] = [
         icon: Wallet,
         module: "finance",
         action: "create",
+      },
+      {
+        id: "finance-efectivo-por-cobrar",
+        label: copy.item.financeEfectivoPorCobrar,
+        path: "/finance/efectivo-por-cobrar",
+        icon: HandCoins,
+        module: "finance",
+        action: "read",
       },
     ],
   },

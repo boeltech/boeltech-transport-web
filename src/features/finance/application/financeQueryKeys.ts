@@ -59,4 +59,13 @@ export const financeQueryKeys = {
     [...financeQueryKeys.all, "open-ppd-summary"] as const,
   openPpdSummary: (receiverRfc: string | null, search: string | null) =>
     [...financeQueryKeys.openPpdSummaryRoot(), receiverRfc, search] as const,
+  /** Prefijo de invalidación bandeja Efectivo por cobrar. */
+  operationalCashPendingRoot: () =>
+    [...financeQueryKeys.all, "operational-cash-pending"] as const,
+  operationalCashPending: (filters: {
+    clientId: string | null;
+    page: number;
+    limit: number;
+  }) =>
+    [...financeQueryKeys.operationalCashPendingRoot(), filters] as const,
 };

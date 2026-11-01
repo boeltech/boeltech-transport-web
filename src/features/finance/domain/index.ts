@@ -1,4 +1,16 @@
 export type {
+  OperationalCashPendingTrip,
+  OperationalCashPendingByClient,
+  OperationalCashPendingTotals,
+  OperationalCashPendingResult,
+  OperationalCashPendingQueryParams,
+  OperationalCashPendingTripStatus,
+} from "./operationalCashPending";
+export {
+  FINANCE_EFECTIVO_CLIENT_ID_PARAM,
+  OPERATIONAL_CASH_PENDING_PAGE_SIZE,
+} from "./operationalCashPending";
+export type {
   ProfitabilityStatus,
   ProfitabilityScope,
   FinancialBucket,

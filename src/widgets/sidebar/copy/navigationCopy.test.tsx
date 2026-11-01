@@ -115,12 +115,14 @@ describe("navigationConfig", () => {
       "finance-invoices",
       "finance-dispatch",
       "finance-cobros",
+      "finance-efectivo-por-cobrar",
     ]);
     expect(billing?.items.map((item) => item.label)).toEqual([
       "Por facturar",
       "Facturas",
       "Envíos",
       "Cobros",
+      "Efectivo por cobrar",
     ]);
 
     expect(finance?.title).toBe("Finanzas");

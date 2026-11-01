@@ -191,6 +191,7 @@ describe("filterNavigation", () => {
       "finance-invoices",
       "finance-dispatch",
       "finance-cobros",
+      "finance-efectivo-por-cobrar",
     ]);
 
     const financeGroup = filtered.find((g) => g.id === "finance");

@@ -55,6 +55,7 @@ export {
   FinanceInvoicesPage,
   FinanceInvoiceablePage,
   FinanceCobrosPage,
+  FinanceEfectivoPorCobrarPage,
   FinanceApprovalsPage,
   FinanceDispatchPage,
   FinanceDispatchPeriodPage,

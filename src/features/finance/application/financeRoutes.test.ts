@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   FINANCE_APPROVALS_PATH,
   FINANCE_COBROS_PATH,
+  FINANCE_EFECTIVO_POR_COBRAR_PATH,
   FINANCE_HUB_PATH,
   FINANCE_INVOICEABLE_PATH,
   FINANCE_INVOICES_PATH,
   buildFinanceAnalysisHref,
   buildFinanceAnalysisSearchParams,
+  buildFinanceEfectivoPorCobrarPath,
   buildFinanceMarginMonthHref,
+  buildTripCostsHref,
   resolveLegacyFinanceLocation,
 } from "./financeRoutes";
 
@@ -17,7 +20,27 @@ describe("financeRoutes", () => {
     expect(FINANCE_INVOICEABLE_PATH).toBe("/finance/invoiceable");
     expect(FINANCE_INVOICES_PATH).toBe("/finance/invoices");
     expect(FINANCE_COBROS_PATH).toBe("/finance/cobros");
+    expect(FINANCE_EFECTIVO_POR_COBRAR_PATH).toBe(
+      "/finance/efectivo-por-cobrar",
+    );
     expect(FINANCE_APPROVALS_PATH).toBe("/finance/approvals");
+  });
+
+  it("buildFinanceEfectivoPorCobrarPath supports optional clientId deep-link", () => {
+    expect(buildFinanceEfectivoPorCobrarPath()).toBe(
+      "/finance/efectivo-por-cobrar",
+    );
+    expect(
+      buildFinanceEfectivoPorCobrarPath(
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      ),
+    ).toBe(
+      "/finance/efectivo-por-cobrar?clientId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    );
+  });
+
+  it("buildTripCostsHref opens the Costos tab", () => {
+    expect(buildTripCostsHref("trip-1")).toBe("/trips/trip-1?tab=costs");
   });
 
   it("resolveLegacyFinanceLocation maps summary to /finance", () => {

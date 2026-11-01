@@ -36,7 +36,7 @@ npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de e
 | `platform-tenant-activate` | ADR-0073 activación admin |
 | `platform-catalogs-import` | release kit SAT |
 | `billing-workflow` · `billing-ar` · `billing-stripe` | ADR-0064 plan/consumo · ADR-0072 saldo AR · ADR-0076 Stripe-A/B |
-| `billing-dispatch` · `invoice-auto-dispatch` · `finance-dispatch-workbench` · `invoice-bulk-download` | ADR-0082 corrida · ADR-0083 envío automático · workbench Finanzas · ADR-0104 descarga masiva CFDI |
+| `billing-dispatch` · `invoice-auto-dispatch` · `finance-dispatch-workbench` · `invoice-bulk-download` · `efectivo-por-cobrar` | ADR-0082 corrida · ADR-0083 envío automático · workbench Finanzas · ADR-0104 descarga masiva CFDI · ADR-0096 addendum efectivo por cobrar |
 | `auth-phase2` | ADR-0070 MFA/sesiones/cookies |
 | `catalogs-tenant` · `imports-workflow` | catálogos tenant · importaciones |
 | `credit-exposure` · `profitability-scope` | OP-L0.9 crédito · rentabilidad |

@@ -2,6 +2,7 @@ export { FinanceSummaryPage } from "./FinanceSummaryPage";
 export { FinanceInvoicesPage } from "./FinanceInvoicesPage";
 export { FinanceInvoiceablePage } from "./FinanceInvoiceablePage";
 export { FinanceCobrosPage } from "./FinanceCobrosPage";
+export { FinanceEfectivoPorCobrarPage } from "./FinanceEfectivoPorCobrarPage";
 export { FinanceApprovalsPage } from "./FinanceApprovalsPage";
 export { FinanceDispatchPage } from "./FinanceDispatchPage";
 export { FinanceDispatchPeriodPage } from "./FinanceDispatchPeriodPage";

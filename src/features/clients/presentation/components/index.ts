@@ -16,6 +16,7 @@ export { ClientForm } from "./ClientForm";
 export { ClientActions } from "./ClientActions";
 export { ClientDetailDataTab } from "./ClientDetailDataTab";
 export { ClientDetailCommercialTab } from "./ClientDetailCommercialTab";
+export { ClientOperationalCashPendingCard } from "./ClientOperationalCashPendingCard";
 export { ClientDetailHeaderSubtitle } from "./ClientDetailHeaderSubtitle";
 
 // Contact components (WS-B)

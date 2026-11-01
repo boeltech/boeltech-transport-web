@@ -18,6 +18,9 @@ export const FINANCE_COBROS_BUCKET_PARAM = "bucket";
 /** Query param del workbench Envío de facturas (`?tab=`). */
 export const FINANCE_DISPATCH_TAB_PARAM = "tab";
 
+/** Deep-link bandeja Efectivo por cobrar (`?clientId=`). */
+export { FINANCE_EFECTIVO_CLIENT_ID_PARAM } from "../domain/operationalCashPending";
+
 /** Query params que no se borran al limpiar filtros de listado. */
 export const FINANCE_PRESERVED_URL_PARAMS = [
   FINANCE_ANALYSIS_VIEW_PARAM,

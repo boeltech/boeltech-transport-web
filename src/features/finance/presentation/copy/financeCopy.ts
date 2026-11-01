@@ -317,6 +317,61 @@ export const financeCopy = {
   /** Alias de compatibilidad para imports existentes. */
   cobranza: cobrosCopy,
   /**
+   * Bandeja Efectivo por cobrar (ADR-0096 addendum lectura).
+   * Canal operativo ≠ Cobros / REP / cobrado_viaje.
+   */
+  efectivoPorCobrar: {
+    title: "Efectivo por cobrar",
+    description:
+      "Viajes de efectivo sin factura con saldo pendiente. Canal operativo: el abono se registra en Costos del viaje, no en Cobros de facturas.",
+    entityLabelPlural: "viajes",
+    channelHint:
+      "Esto no es la cola de Cobros (facturas CFDI / REP). Aquí solo ves efectivo sin factura.",
+    totals: {
+      pending: "Por cobrar operativo",
+      trips: "Viajes",
+      clients: "Clientes",
+    },
+    clientSubtotal: (amount: string, tripCount: number) =>
+      tripCount === 1
+        ? `Subtotal ${amount} · 1 viaje`
+        : `Subtotal ${amount} · ${tripCount} viajes`,
+    clientUnknown: "Sin cliente",
+    clientChip: (name: string) => `Cliente: ${name}`,
+    clearClientFilter: "Quitar filtro de cliente",
+    columns: {
+      trip: "Viaje",
+      departure: "Salida",
+      status: "Estado",
+      baseRate: "Tarifa",
+      collected: "Acumulado",
+      pending: "Por cobrar",
+      cashStatus: "Cobro",
+      action: "",
+    },
+    openCostsCta: "Abrir Costos",
+    openCostsAria: (code: string) => `Abrir Costos del viaje ${code}`,
+    cashStatus: {
+      pending: "Pendiente",
+      partial: "Parcial",
+      collected: "Cobrado",
+    },
+    empty: {
+      title: "Nada por cobrar en efectivo",
+      description:
+        "No hay viajes de efectivo sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos, el viaje sale de esta bandeja. Esto no es Cobros de facturas.",
+    },
+    emptyFiltered: {
+      title: "Sin saldo operativo para este cliente",
+      description:
+        "Este cliente no tiene viajes de efectivo sin factura con saldo pendiente en la cohorte. Quita el filtro para ver toda la bandeja.",
+    },
+    loadErrorTitle: "No se pudo cargar",
+    loadError:
+      "No se pudo consultar el efectivo por cobrar. Reintenta en un momento.",
+    retry: "Reintentar",
+  },
+  /**
    * Pulse ejecutivo ATF del hub Cartera (ingreso + margen operativo + CxC).
    * Margen = operational_*; no es P&L (HB-T12 / TD4).
    */

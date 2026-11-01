@@ -292,6 +292,11 @@ const FinanceInvoiceablePage = lazyWithRetry(() =>
 const FinanceCobrosPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinanceCobrosPage })),
 );
+const FinanceEfectivoPorCobrarPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.FinanceEfectivoPorCobrarPage,
+  })),
+);
 const FinanceApprovalsPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinanceApprovalsPage })),
 );
@@ -1108,6 +1113,10 @@ export const router = createBrowserRouter([
               {
                 element: <PermissionRoute module="finance" action="read" />,
                 children: [
+                  {
+                    path: "/finance/efectivo-por-cobrar",
+                    element: withSuspense(FinanceEfectivoPorCobrarPage),
+                  },
                   {
                     path: "/finance/analysis",
                     element: withSuspense(FinanceAnalysisPage),

@@ -1,6 +1,7 @@
 /**
  * Bloque de términos comerciales en el tab Cliente del detalle.
  * Crédito solo aquí (CreditExposureCard) — no en stats del shell.
+ * Card operativa «Efectivo por cobrar» (F3) — canal ≠ Cobros fiscales.
  */
 
 import type { ComponentType } from "react";
@@ -14,6 +15,7 @@ import { useClientCreditSummary } from "../../application";
 import type { Client } from "../../domain";
 import type { PaymentTermsConfig } from "../config/clientConfig";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
+import { ClientOperationalCashPendingCard } from "./ClientOperationalCashPendingCard";
 
 export interface ClientDetailCommercialTabProps {
   client: Client;
@@ -69,6 +71,8 @@ export function ClientDetailCommercialTab({
           ) : null}
         </CardContent>
       </Card>
+
+      <ClientOperationalCashPendingCard clientId={client.id} />
 
       <CreditExposureCard
         variant="full"

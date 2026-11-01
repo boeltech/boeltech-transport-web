@@ -105,6 +105,25 @@ export const clientDetailCopy = {
     creditDays: "Días de crédito",
     creditDaysValue: (days: number) => `${days} días`,
   },
+  /**
+   * Card operativa (ADR-0096 / F3): efectivo sin factura ≠ Cobros CFDI.
+   * Visible solo con finance.read y pending_amount > 0.
+   */
+  operationalCashPending: {
+    title: "Efectivo por cobrar",
+    description:
+      "Saldo de viajes de efectivo sin factura. Canal operativo: el abono se registra en Costos del viaje, no en Cobros de facturas.",
+    pendingLabel: "Por cobrar operativo",
+    tripsSummary: (tripCount: number) =>
+      tripCount === 1 ? "1 viaje con saldo" : `${tripCount} viajes con saldo`,
+    viewCta: "Ver por cobrar",
+    viewCtaAria: "Ver efectivo por cobrar de este cliente",
+    openCostsAria: (code: string) => `Abrir Costos del viaje ${code}`,
+    previewMore: (remaining: number) =>
+      remaining === 1
+        ? "1 viaje más en la bandeja"
+        : `${remaining} viajes más en la bandeja`,
+  },
   contacts: {
     title: "Contactos",
     emptyTitle: "No hay contactos registrados",

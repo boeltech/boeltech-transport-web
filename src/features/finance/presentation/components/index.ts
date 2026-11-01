@@ -30,6 +30,7 @@ export { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
 export { DispatchRunStatusBadge } from "./DispatchRunStatusBadge";
 export { DispatchRunActions } from "./DispatchRunActions";
 export { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
+export { OperationalCashPendingTable } from "./OperationalCashPendingTable";
 export {
   DispatchRunClientReceipts,
   DispatchRunRecipientsEditor,

@@ -11,6 +11,7 @@ import {
   parseProfitabilityLossFilter,
   sanitizeAnalysisDimension,
 } from "./financeListingFilters";
+import { FINANCE_EFECTIVO_CLIENT_ID_PARAM } from "../domain/operationalCashPending";
 
 /** Parámetros que cada vista aplica; el resto se quita de la URL al cambiar de vista. */
 const FINANCE_ANALYSIS_VIEW_PARAMS: Record<FinanceAnalysisView, readonly string[]> = {
@@ -40,6 +41,12 @@ export const FINANCE_INVOICES_PATH = "/finance/invoices";
 
 /** Workbench Cobros. */
 export const FINANCE_COBROS_PATH = "/finance/cobros";
+
+/**
+ * Bandeja Efectivo por cobrar (canal operativo sin CFDI).
+ * Query deep-link: `?clientId=` (F3 card cliente).
+ */
+export const FINANCE_EFECTIVO_POR_COBRAR_PATH = "/finance/efectivo-por-cobrar";
 
 /** Bandeja de aprobaciones (finanzas). */
 export const FINANCE_APPROVALS_PATH = "/finance/approvals";
@@ -96,6 +103,20 @@ export function buildFinanceCobrosPath(rfc?: string | null): string {
   const normalized = rfc?.trim().toUpperCase();
   if (!normalized) return FINANCE_COBROS_PATH;
   return `${FINANCE_COBROS_PATH}?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(normalized)}`;
+}
+
+/** Deep-link bandeja operativa; opcional filtro por cliente (F3). */
+export function buildFinanceEfectivoPorCobrarPath(
+  clientId?: string | null,
+): string {
+  const id = clientId?.trim();
+  if (!id) return FINANCE_EFECTIVO_POR_COBRAR_PATH;
+  return `${FINANCE_EFECTIVO_POR_COBRAR_PATH}?${FINANCE_EFECTIVO_CLIENT_ID_PARAM}=${encodeURIComponent(id)}`;
+}
+
+/** CTA fila → detalle viaje en tab Costos (única escritura de abonos). */
+export function buildTripCostsHref(tripId: string): string {
+  return `/trips/${tripId}?tab=costs`;
 }
 
 export function buildFinanceAnalysisSearchParams(
