@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Label } from "@shared/ui/label";
 import { Switch } from "@shared/ui/switch";
 import { DateField } from "@shared/ui/form";
@@ -22,6 +22,8 @@ import { compensationCopy } from "../copy/compensationCopy";
 
 const copy = compensationCopy.allowanceOverrides;
 
+type PeriodBounds = { start: string; end: string };
+
 function resolveUsableSalaryPeriod(
   salaryType?: string | null,
 ): SalaryPeriodKind | null {
@@ -31,35 +33,34 @@ function resolveUsableSalaryPeriod(
   return null;
 }
 
-function resolveInitialPeriod(opts: {
+function resolveSuggestedPeriod(opts: {
   paymentPeriodStart?: string;
   paymentPeriodEnd?: string;
   salaryType?: string | null;
-}): { start: string; end: string } {
+}): PeriodBounds {
   const ps = opts.paymentPeriodStart?.trim();
   const pe = opts.paymentPeriodEnd?.trim();
-  if (ps && pe && ps <= pe) return { start: ps, end: pe };
+  const next: PeriodBounds =
+    ps && pe && ps <= pe
+      ? { start: ps, end: pe }
+      : (() => {
+          const salaryPeriod: SalaryPeriodKind =
+            opts.salaryType === "biweekly" || opts.salaryType === "monthly"
+              ? opts.salaryType
+              : "weekly";
+          const suggested = buildSuggestedSettlementPeriod({ salaryPeriod });
+          return { start: suggested.periodStart, end: suggested.periodEnd };
+        })();
 
-  const salaryPeriod: SalaryPeriodKind =
-    opts.salaryType === "biweekly" || opts.salaryType === "monthly"
-      ? opts.salaryType
-      : "weekly";
-  const suggested = buildSuggestedSettlementPeriod({ salaryPeriod });
-  return { start: suggested.periodStart, end: suggested.periodEnd };
-}
+  const usable = resolveUsableSalaryPeriod(opts.salaryType);
+  if (!usable) return next;
 
-/** Si el rango no es ventana canónica del ritmo, snappear a la que contiene `start`. */
-function snapToCanonicalPeriod(
-  salaryPeriod: SalaryPeriodKind,
-  start: string,
-  end: string,
-): { start: string; end: string } {
   const canonical = buildSuggestedSettlementPeriod({
-    salaryPeriod,
-    asOfDate: start,
+    salaryPeriod: usable,
+    asOfDate: next.start,
   });
-  if (canonical.periodStart === start && canonical.periodEnd === end) {
-    return { start, end };
+  if (canonical.periodStart === next.start && canonical.periodEnd === next.end) {
+    return next;
   }
   return { start: canonical.periodStart, end: canonical.periodEnd };
 }
@@ -84,35 +85,20 @@ export function FixedAllowanceOverridePanel({
   const { data: employeeBasic } = useEmployeeBasic(assignment.employeeId);
   const salaryPeriod = resolveUsableSalaryPeriod(employeeBasic?.salaryType);
 
-  const [{ start: periodStart, end: periodEnd }, setPeriod] = useState(() => {
-    const initial = resolveInitialPeriod({
-      paymentPeriodStart,
-      paymentPeriodEnd,
-      salaryType: employeeBasic?.salaryType,
-    });
-    const usable = resolveUsableSalaryPeriod(employeeBasic?.salaryType);
-    return usable
-      ? snapToCanonicalPeriod(usable, initial.start, initial.end)
-      : initial;
-  });
-  const periodTouchedRef = useRef(false);
+  const suggestedPeriod = useMemo(
+    () =>
+      resolveSuggestedPeriod({
+        paymentPeriodStart,
+        paymentPeriodEnd,
+        salaryType: employeeBasic?.salaryType,
+      }),
+    [paymentPeriodStart, paymentPeriodEnd, employeeBasic?.salaryType],
+  );
+  /** Solo se llena cuando el usuario edita el período; si no, manda el sugerido. */
+  const [manualPeriod, setManualPeriod] = useState<PeriodBounds | null>(null);
+  const periodStart = manualPeriod?.start ?? suggestedPeriod.start;
+  const periodEnd = manualPeriod?.end ?? suggestedPeriod.end;
   const upsertMutation = useUpsertFixedAllowanceOverride();
-
-  useEffect(() => {
-    if (periodTouchedRef.current) return;
-    let next = resolveInitialPeriod({
-      paymentPeriodStart,
-      paymentPeriodEnd,
-      salaryType: employeeBasic?.salaryType,
-    });
-    const usable = resolveUsableSalaryPeriod(employeeBasic?.salaryType);
-    if (usable) {
-      next = snapToCanonicalPeriod(usable, next.start, next.end);
-    }
-    setPeriod((prev) =>
-      prev.start === next.start && prev.end === next.end ? prev : next,
-    );
-  }, [paymentPeriodStart, paymentPeriodEnd, employeeBasic?.salaryType]);
 
   const { data: overrides = [], isLoading } = useFixedAllowanceOverrides({
     employeeId: assignment.employeeId,
@@ -135,14 +121,15 @@ export function FixedAllowanceOverridePanel({
     );
   }
 
-  const handlePeriodChange = (patch: Partial<{ start: string; end: string }>) => {
-    periodTouchedRef.current = true;
-    setPeriod((prev) => ({ ...prev, ...patch }));
+  const handlePeriodChange = (patch: Partial<PeriodBounds>) => {
+    setManualPeriod({
+      start: patch.start ?? periodStart,
+      end: patch.end ?? periodEnd,
+    });
   };
 
   const handleStepperChange = (start: string, end: string) => {
-    periodTouchedRef.current = true;
-    setPeriod({ start, end });
+    setManualPeriod({ start, end });
   };
 
   const handleToggle = async (allowance: TemplateFixedAllowance, nextSuspended: boolean) => {
