@@ -25,7 +25,7 @@ const fiscalStrings = {
     ingreso: {
       sectionTitle: "Quién entrega aquí",
       sectionHint:
-        "Quién entrega la mercancía al transportista en el origen (no es necesariamente el cliente que paga el flete).",
+        "Quién entrega la mercancía aquí. No es el Cliente de la factura, salvo que sea la misma razón.",
       rfcLabel: "RFC",
       rfcPlaceholder: "Ej. ABC123456789",
       nombrePlaceholder: "Nombre o razón social de quien entrega",
@@ -42,7 +42,8 @@ const fiscalStrings = {
   destination: {
     ingreso: {
       sectionTitle: "Quién recibe aquí",
-      sectionHint: "Quién recibe la mercancía en el destino final.",
+      sectionHint:
+        "Quién recibe la mercancía aquí. No es el Cliente de la factura, salvo que sea la misma razón.",
       rfcLabel: "RFC",
       rfcPlaceholder: "Ej. XYZ987654321",
       nombrePlaceholder: "Nombre o razón social de quien recibe",
@@ -58,14 +59,16 @@ const fiscalStrings = {
   },
   waypointPickup: {
     sectionTitle: "Quién entrega aquí",
-    sectionHint: "Quién entrega la mercancía en esta escala (operación de carga).",
+    sectionHint:
+      "Quién entrega la mercancía en esta escala. No es el Cliente de la factura, salvo que sea la misma razón.",
     rfcLabel: "RFC",
     rfcPlaceholder: "Ej. ABC123456789",
     nombrePlaceholder: "Nombre o razón social de quien entrega",
   },
   waypointDelivery: {
     sectionTitle: "Quién recibe aquí",
-    sectionHint: "Quién recibe la mercancía en esta escala (operación de entrega).",
+    sectionHint:
+      "Quién recibe la mercancía en esta escala. No es el Cliente de la factura, salvo que sea la misma razón.",
     rfcLabel: "RFC",
     rfcPlaceholder: "Ej. XYZ987654321",
     nombrePlaceholder: "Nombre o razón social de quien recibe",
@@ -73,7 +76,7 @@ const fiscalStrings = {
   waypointBoth: {
     sectionTitle: "Quién entrega y quién recibe",
     sectionHint:
-      "Captura quién entrega (carga) y quién recibe (entrega) cuando ambas operaciones aplican en la misma ubicación.",
+      "Captura quién entrega (carga) y quién recibe (entrega) en esta punta. No es el Cliente de la factura, salvo que sea la misma razón.",
     rfcLabel: "RFC de quien entrega",
     rfcPlaceholder: "Ej. ABC123456789",
     nombrePlaceholder: "Nombre de quien entrega",
@@ -81,7 +84,7 @@ const fiscalStrings = {
   waypointPending: {
     sectionTitle: "Quién entrega o recibe",
     sectionHint:
-      "Elige arriba si aquí se carga, se entrega o ambas para capturar la contraparte.",
+      "Elige arriba si aquí se carga, se entrega o ambas. La contraparte no es el Cliente de la factura, salvo que sea la misma razón.",
     rfcLabel: "RFC",
     rfcPlaceholder: "Ej. ABC123456789",
     nombrePlaceholder: "Nombre o razón social",
@@ -107,7 +110,7 @@ const fiscalStrings = {
   rfcSatRegistered:
     "RFC inscrito y vigente ante el SAT. Va en la Carta Porte; si no está registrado, el timbrado no pasa.",
   rfcNotClientOrCompany:
-    "No es el RFC del cliente de la factura ni el de tu empresa, salvo que sea la misma persona.",
+    "No es el RFC del Cliente (quien paga) ni el de tu empresa, salvo que sea la misma razón.",
   missingLabels: {
     primaryRfc: "RFC de quien entrega o recibe",
     primaryName: "Nombre de quien entrega o recibe",

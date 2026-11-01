@@ -39,7 +39,7 @@ describe("avisos del RFC de la ubicación", () => {
       "RFC inscrito y vigente ante el SAT. Va en la Carta Porte; si no está registrado, el timbrado no pasa.",
     );
     expect(stopRfcNotClientOrCompanyNotice()).toBe(
-      "No es el RFC del cliente de la factura ni el de tu empresa, salvo que sea la misma persona.",
+      "No es el RFC del Cliente (quien paga) ni el de tu empresa, salvo que sea la misma razón.",
     );
   });
 });

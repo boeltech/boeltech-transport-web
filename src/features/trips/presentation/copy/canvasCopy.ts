@@ -81,7 +81,7 @@ export const canvasCopy = {
       newClientEscalate:
         "Si no está en la lista, pide el alta a administración.",
       arrival: "Opcional; puedes completarla al confirmar.",
-      client: "Quién solicita el viaje.",
+      client: "Quién contrata, paga y recibe la factura.",
       routeType:
         "Define cómo se paga al operador: entrega urbana (Local), trayecto foráneo, o maniobra patio↔patio (Transfer / Patio). No es el CFDI.",
     },

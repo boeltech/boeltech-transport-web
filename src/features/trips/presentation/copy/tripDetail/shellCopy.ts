@@ -282,7 +282,7 @@ export const shellCopy = {
       "Asigna unidad y conductor antes de confirmar. Llegada, tarifa y kilometraje se piden al confirmar.",
     /** D16 A · create freight-family elegible. */
     descriptionScheduledCreate:
-      "Puedes facturar el flete desde Programado. Para sacar el viaje, inicia desde Seguimiento.",
+      "Desde Programado puedes facturar el flete al Cliente del viaje; la Carta Porte toma los datos de las paradas. Para sacar el viaje, inicia desde Seguimiento.",
     /** D16 B · ≥1 borrador. */
     descriptionScheduledWithDraft:
       "Ya hay factura en borrador. Continúa el timbrado desde Facturación. Para sacar el viaje, inicia desde Seguimiento.",

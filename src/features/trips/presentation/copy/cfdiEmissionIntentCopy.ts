@@ -5,9 +5,9 @@
 
 export const cfdiEmissionIntentCopy = {
   field: {
-    /** D8: label Operate-first; jerga CFDI solo en hint. */
+    /** D8: label Operate-first; jerga CFDI solo en hint. D7 intermediario: CP ⇒ Con factura. */
     label: "Liquidación",
-    hint: "Hereda del perfil del cliente. Con factura se emite CFDI; en efectivo el cobro va sin CFDI. Puedes cambiarlo en este viaje.",
+    hint: "Hereda del perfil del cliente. Si necesitas Carta Porte, usa Con factura (el efectivo va en el CFDI). Efectivo sin factura no emite CFDI ni Carta Porte.",
   },
   options: {
     emitir_cfdi: "Con factura",
@@ -22,7 +22,7 @@ export const cfdiEmissionIntentCopy = {
   overrideConfirm: {
     title: "¿Liquidar sin factura?",
     description:
-      "Este viaje no aparecerá en Por facturar. El cobro se registra en Costos (sin CFDI).",
+      "Este viaje no aparecerá en Por facturar ni llevará Carta Porte. Si el patio necesita Carta Porte, elige Con factura y registra el efectivo en el CFDI.",
     confirm: "Usar Efectivo sin factura",
     cancel: "Cancelar",
   },

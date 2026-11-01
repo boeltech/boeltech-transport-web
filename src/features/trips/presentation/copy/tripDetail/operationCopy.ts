@@ -6,14 +6,14 @@ import type { Trip, TripInternalStaff } from "@features/trips/domain";
  */
 export const operationCopy = {
   section: {
-    client: "Cliente",
+    client: "Cliente (quien paga)",
     schedule: "Programación",
     assignment: "Flota y tripulación",
     mileage: "Kilometraje",
     notes: "Notas",
   },
   hint: {
-    client: "Quién contrata el viaje.",
+    client: "Quién contrata, paga y recibe la factura.",
     schedule: "Salida y llegada programadas. Los tiempos reales se registran al operar.",
     assignment: "Unidad, remolques, operador principal y equipo de apoyo.",
     mileage: "Kilometraje al salir y al cerrar.",
