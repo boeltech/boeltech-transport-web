@@ -53,6 +53,9 @@ interface TemplateAssignmentsTableProps {
   /** PRD D20: fila resaltada, desplazada a la vista y con el foco en su «···». */
   focusedAssignmentId?: string;
   onActionComplete?: () => void;
+  /** Período del corte (deep-link desde Pagos); precarga el panel de suspensión. */
+  paymentPeriodStart?: string;
+  paymentPeriodEnd?: string;
 }
 
 /** Botón «···» de la fila; si no hay menú (sin permisos), la fila misma recibe el foco. */
@@ -122,6 +125,8 @@ export function TemplateAssignmentsTable({
   isLoading,
   focusedAssignmentId,
   onActionComplete,
+  paymentPeriodStart,
+  paymentPeriodEnd,
 }: TemplateAssignmentsTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showDeactivated, setShowDeactivated] = useState(false);
@@ -253,6 +258,8 @@ export function TemplateAssignmentsTable({
                         <FixedAllowanceOverridePanel
                           assignment={assignment}
                           fixedAllowances={fixedAllowances}
+                          paymentPeriodStart={paymentPeriodStart}
+                          paymentPeriodEnd={paymentPeriodEnd}
                         />
                       </div>
                     </TableCell>

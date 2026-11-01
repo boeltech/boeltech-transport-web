@@ -155,15 +155,15 @@ export function TemplateOperatorsPanel({
         </div>
       ) : null}
 
-      <div className="max-h-[min(480px,calc(100vh-320px))] overflow-y-auto">
-        <TemplateAssignmentsTable
-          assignments={assignments}
-          fixedAllowances={template.fixedAllowances}
-          isLoading={assignmentsLoading}
-          focusedAssignmentId={focused.status === "found" ? focused.assignment.id : undefined}
-          onActionComplete={handleActionComplete}
-        />
-      </div>
+      <TemplateAssignmentsTable
+        assignments={assignments}
+        fixedAllowances={template.fixedAllowances}
+        isLoading={assignmentsLoading}
+        focusedAssignmentId={focused.status === "found" ? focused.assignment.id : undefined}
+        onActionComplete={handleActionComplete}
+        paymentPeriodStart={paymentPeriodStart}
+        paymentPeriodEnd={paymentPeriodEnd}
+      />
 
       <TemplateAssignmentBatchSheet
         open={batchOpen}

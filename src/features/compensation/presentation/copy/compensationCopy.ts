@@ -794,11 +794,13 @@ export const compensationCopy = {
   allowanceOverrides: {
     title: "Suspensión de prestaciones por período",
     description:
-      "Suspende una prestación fija para este operador en el rango indicado. El pago del período omitirá el monto suspendido.",
+      "Omite una prestación fija de este operador en el corte indicado. Solo aplica si el período coincide exactamente con el del pago.",
+    periodLabel: "Período de pago",
     periodStart: "Inicio del período",
     periodEnd: "Fin del período",
-    suspendedLabel: "Suspendida",
-    activeLabel: "Activa",
+    includeLabel: "Se incluye en el pago",
+    omitLabel: "Omitida en este período",
+    exactMatchHint: "Debe coincidir con el período del corte.",
     noAllowancesOnTemplate: "Esta tarifa no define prestaciones fijas.",
     missingAllowanceId: "No se pudo identificar la prestación. Recarga la tarifa.",
     toasts: {
