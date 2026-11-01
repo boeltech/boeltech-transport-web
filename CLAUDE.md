@@ -194,6 +194,13 @@ Conventional Commits · ramas `feature/...`, `bugfix/...`.
 Core en .cursor/rules/ (Cloud Agents las ven): `form-validation-ux`, `overlays-toast`, `sheet-from-menu-focus`, `frontend-api-env`, `cfdi-domain-adr-0043`. (`database-timestamptz` vive en la API, por glob de SQL.)
 `.cursor/plans/` sigue gitignored — no always-on.
 
+## IDE + agentes (ERP + Android)
+
+**Cursor** = cerebro de IA (Factory). Pedidos ERP: `../boeltech-erp.code-workspace`.
+Cruzados API↔app: `../boeltech-transport.code-workspace`. No uses un segundo asistente
+de código en Android Studio. SoT: `software-factory/factory/GROK_CURSOR_ADDENDUM.md` §1b
+«Setup IDE: ERP + Android».
+
 ## Capacidades Cursor (Software Factory)
 
 Los prompts de revisión, auditoría y planeación **ya no viven en este repo**. Fuente de verdad:
