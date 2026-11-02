@@ -28,8 +28,8 @@ export const navigationCopy = {
     /** Viajes entregados sin factura: cola de trabajo del contador. */
     financeInvoiceable: "Por facturar",
     /** Facturas a crédito con saldo: cola de trabajo de cobranza (mismo hub). */
-    financeCobros: "Cobros",
-    /** Efectivo sin factura con saldo (ADR-0096 bandeja lectura). Hermano de Cobros. */
+    financeCobros: "Facturas por cobrar",
+    /** Efectivo sin factura con saldo (ADR-0096 bandeja lectura). Hermano de Facturas por cobrar. */
     financeEfectivoPorCobrar: "Efectivo por cobrar",
     financeApprovals: "Aprobaciones",
     financeSettlements: "Liquidaciones",

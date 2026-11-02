@@ -94,7 +94,7 @@ describe("FinanceAccountStatementSection", () => {
     expect(within(row).queryByText("9")).not.toBeInTheDocument();
   });
 
-  it("shows Cobrar with deep-link /finance/cobros?rfc= when openInvoiceCount > 0", () => {
+  it("shows Cobrar with deep-link /finance/payments?rfc= when openInvoiceCount > 0", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[
@@ -116,7 +116,7 @@ describe("FinanceAccountStatementSection", () => {
     });
     expect(collect).toHaveAttribute(
       "href",
-      "/finance/cobros?rfc=IIA040805DZ4",
+      "/finance/payments?rfc=IIA040805DZ4",
     );
   });
 

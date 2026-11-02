@@ -159,7 +159,7 @@ export const navigationConfig: NavGroup[] = [
       {
         id: "finance-cobros",
         label: copy.item.financeCobros,
-        path: "/finance/cobros",
+        path: "/finance/payments",
         icon: Wallet,
         module: "finance",
         action: "create",
@@ -167,7 +167,7 @@ export const navigationConfig: NavGroup[] = [
       {
         id: "finance-efectivo-por-cobrar",
         label: copy.item.financeEfectivoPorCobrar,
-        path: "/finance/efectivo-por-cobrar",
+        path: "/finance/operational-cash-pending",
         icon: HandCoins,
         module: "finance",
         action: "read",

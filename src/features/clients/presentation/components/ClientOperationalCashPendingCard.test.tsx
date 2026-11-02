@@ -120,7 +120,7 @@ describe("ClientOperationalCashPendingCard", () => {
     const cta = screen.getByRole("link", { name: copy.viewCtaAria });
     expect(cta).toHaveAttribute(
       "href",
-      `/finance/efectivo-por-cobrar?clientId=${CLIENT_ID}`,
+      `/finance/operational-cash-pending?clientId=${CLIENT_ID}`,
     );
     expect(cta).toHaveTextContent(copy.viewCta);
 
@@ -140,7 +140,7 @@ describe("ClientOperationalCashPendingCard", () => {
       screen.queryByRole("link", { name: "Cobrar facturas de este cliente" }),
     ).toBeNull();
     expect(
-      document.querySelector('a[href*="/finance/cobros"]'),
+      document.querySelector('a[href*="/finance/payments"]'),
     ).toBeNull();
   });
 

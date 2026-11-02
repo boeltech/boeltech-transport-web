@@ -462,7 +462,7 @@ export const invoicingCopy = {
     paymentForm: {
       title: "Registrar pago",
       ppdHint:
-        "Factura a crédito. Este pago es una parcialidad de esta factura y genera un comprobante de pago (REP). Para cobrar varias facturas a la vez por el saldo completo, usa Cobros.",
+        "Factura a crédito. Este pago es una parcialidad de esta factura y genera un comprobante de pago (REP). Para cobrar varias facturas a la vez por el saldo completo, usa Facturas por cobrar.",
       ppdHintLabel: "Más sobre factura a crédito",
       contextLine: (serie: string, folio: number, clientName: string) =>
         `${serie}-${folio} · ${clientName}`,
@@ -822,7 +822,7 @@ export const invoicingCopy = {
       cancelBlocked:
         "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar mientras haya cobros.",
       cancelBlockedViewPayments: "Ver pagos",
-      cancelBlockedGoToCobros: "Ir a cobros",
+      cancelBlockedGoToCobros: "Ir a Facturas por cobrar",
       cancelBlockedDismiss: "Entendido",
       pdfError: "No se pudo abrir el PDF",
       xmlError: "No se pudo descargar el XML",
@@ -873,7 +873,7 @@ export const invoicingCopy = {
       title: "Factura",
       backLabel: "Volver",
       backToInvoiceable: "Volver a Por facturar",
-      backToCobros: "Volver a cobros",
+      backToCobros: "Volver a Facturas por cobrar",
       backToDispatch: "Volver a envíos",
       backToDispatchPeriod: "Volver a envíos del periodo",
       backToDispatchRun: "Volver al envío",

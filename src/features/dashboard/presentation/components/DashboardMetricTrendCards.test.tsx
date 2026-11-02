@@ -457,7 +457,7 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
         name: dashboardCopy.scorecard.receivable.ariaLabel,
       }),
     );
-    expect(navigate).toHaveBeenCalledWith("/finance/cobros", {
+    expect(navigate).toHaveBeenCalledWith("/finance/payments", {
       state: { from: "/dashboard" },
     });
 
@@ -467,7 +467,7 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
         name: dashboardCopy.scorecard.overdue.ariaLabel,
       }),
     );
-    expect(navigate).toHaveBeenCalledWith("/finance/cobros", {
+    expect(navigate).toHaveBeenCalledWith("/finance/payments", {
       state: { from: "/dashboard" },
     });
 
@@ -477,7 +477,7 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
         name: dashboardCopy.scorecard.collected.ariaLabel,
       }),
     );
-    expect(navigate).toHaveBeenCalledWith("/finance/cobros", {
+    expect(navigate).toHaveBeenCalledWith("/finance/payments", {
       state: { from: "/dashboard" },
     });
   });

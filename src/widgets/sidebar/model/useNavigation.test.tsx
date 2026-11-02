@@ -25,7 +25,7 @@ const invoiceable: NavItem = {
 const cobros: NavItem = {
   id: "finance-cobros",
   label: "Cobros",
-  path: "/finance/cobros",
+  path: "/finance/payments",
   icon: Circle,
 };
 const dispatch: NavItem = {
@@ -58,7 +58,7 @@ describe("findActiveNavItem", () => {
     expect(findActiveNavItem("/finance/invoiceable", [hub, invoiceable], "")?.id).toBe(
       "finance-invoiceable",
     );
-    expect(findActiveNavItem("/finance/cobros", [hub, cobros], "")?.id).toBe(
+    expect(findActiveNavItem("/finance/payments", [hub, cobros], "")?.id).toBe(
       "finance-cobros",
     );
     expect(findActiveNavItem("/finance", [hub, invoiceable], "")?.id).toBe(
@@ -104,10 +104,10 @@ describe("findActiveNavItem", () => {
   });
 
   it("does not mark Cartera active on nested finance routes", () => {
-    expect(findActiveNavItem("/finance/cobros", [hub, cobros], "")?.id).toBe(
+    expect(findActiveNavItem("/finance/payments", [hub, cobros], "")?.id).toBe(
       "finance-cobros",
     );
-    expect(findActiveNavItem("/finance/cobros", [hub, invoiceable], "")).toBeUndefined();
+    expect(findActiveNavItem("/finance/payments", [hub, invoiceable], "")).toBeUndefined();
   });
 
   it("still wins by longest pathname over shorter siblings", () => {

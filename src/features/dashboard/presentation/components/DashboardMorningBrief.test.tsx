@@ -148,7 +148,7 @@ describe("DashboardMorningBrief", () => {
         ),
       }),
     );
-    expect(navigate).toHaveBeenCalledWith("/finance/cobros", {
+    expect(navigate).toHaveBeenCalledWith("/finance/payments", {
       state: { from: "/dashboard" },
     });
   });

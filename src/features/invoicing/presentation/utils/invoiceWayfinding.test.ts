@@ -25,7 +25,7 @@ describe("invoiceWayfinding", () => {
     expect(
       isSafeInvoiceReturnHref("/finance/invoiceable?bucket=ready"),
     ).toBe(true);
-    expect(isSafeInvoiceReturnHref("/finance/cobros")).toBe(true);
+    expect(isSafeInvoiceReturnHref("/finance/payments")).toBe(true);
     expect(isSafeInvoiceReturnHref("/finance/dispatch?tab=sent")).toBe(true);
     expect(isSafeInvoiceReturnHref("/trips/t-1")).toBe(true);
     expect(isSafeInvoiceReturnHref("/settings")).toBe(false);
@@ -80,7 +80,7 @@ describe("invoiceWayfinding", () => {
 
   it("label Volver a cobros / envíos", () => {
     expect(
-      resolveInvoiceWayfindingBackLabel("/finance/cobros?rfc=AAA"),
+      resolveInvoiceWayfindingBackLabel("/finance/payments?rfc=AAA"),
     ).toBe(invoicingCopy.detail.header.backToCobros);
     expect(
       resolveInvoiceWayfindingBackLabel("/finance/dispatch?tab=sent"),

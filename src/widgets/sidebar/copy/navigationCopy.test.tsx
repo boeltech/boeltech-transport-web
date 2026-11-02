@@ -30,7 +30,7 @@ describe("navigationCopy", () => {
     expect(labels).toContain("Historial de usuarios");
     expect(labels).toContain("Configuración");
     expect(labels).toContain("Por facturar");
-    expect(labels).toContain("Cobros");
+    expect(labels).toContain("Facturas por cobrar");
     expect(labels).toContain("Envíos");
   });
 
@@ -121,7 +121,7 @@ describe("navigationConfig", () => {
       "Por facturar",
       "Facturas",
       "Envíos",
-      "Cobros",
+      "Facturas por cobrar",
       "Efectivo por cobrar",
     ]);
 

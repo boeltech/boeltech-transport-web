@@ -24,7 +24,8 @@ const LEGACY_TAB_ALIASES: Record<
   string,
   { segment: string; view?: FinanceAnalysisView }
 > = {
-  cobranza: { segment: "cobros" },
+  /** Legacy ES tab → workbench Cobros (path canónico EN). */
+  cobranza: { segment: "payments" },
   profitability: { segment: "analysis", view: "margin" },
   expenses: { segment: "analysis", view: "expenses" },
   reports: { segment: "analysis", view: "margin" },
@@ -39,14 +40,26 @@ export const FINANCE_INVOICEABLE_PATH = "/finance/invoiceable";
 /** Registro / listado de facturas. */
 export const FINANCE_INVOICES_PATH = "/finance/invoices";
 
-/** Workbench Cobros. */
-export const FINANCE_COBROS_PATH = "/finance/cobros";
+/**
+ * Workbench Cobros (facturas a crédito).
+ * Canónico EN; legacy `/finance/cobros` redirige aquí.
+ */
+export const FINANCE_COBROS_PATH = "/finance/payments";
+
+/** Path ES legacy del workbench Cobros (redirect → {@link FINANCE_COBROS_PATH}). */
+export const FINANCE_COBROS_LEGACY_PATH = "/finance/cobros";
 
 /**
  * Bandeja Efectivo por cobrar (canal operativo sin CFDI).
- * Query deep-link: `?clientId=` (F3 card cliente).
+ * Canónico EN; query deep-link: `?clientId=` (F3 card cliente).
+ * Legacy `/finance/efectivo-por-cobrar` redirige aquí.
  */
-export const FINANCE_EFECTIVO_POR_COBRAR_PATH = "/finance/efectivo-por-cobrar";
+export const FINANCE_EFECTIVO_POR_COBRAR_PATH =
+  "/finance/operational-cash-pending";
+
+/** Path ES legacy de la bandeja operativa (redirect → {@link FINANCE_EFECTIVO_POR_COBRAR_PATH}). */
+export const FINANCE_EFECTIVO_POR_COBRAR_LEGACY_PATH =
+  "/finance/efectivo-por-cobrar";
 
 /** Bandeja de aprobaciones (finanzas). */
 export const FINANCE_APPROVALS_PATH = "/finance/approvals";
@@ -66,6 +79,7 @@ const TAB_TO_PATH: Record<string, string> = {
   summary: FINANCE_HUB_PATH,
   invoiceable: FINANCE_INVOICEABLE_PATH,
   cobros: FINANCE_COBROS_PATH,
+  payments: FINANCE_COBROS_PATH,
   approvals: FINANCE_APPROVALS_PATH,
   "dispatch-runs": FINANCE_DISPATCH_PERIOD_PATH,
   dispatch: FINANCE_DISPATCH_PATH,

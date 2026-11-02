@@ -65,10 +65,10 @@ describe("FinanceCobrosInvoiceTable", () => {
     }
 
     render(
-      <MemoryRouter initialEntries={["/finance/cobros?rfc=XAXX010101000"]}>
+      <MemoryRouter initialEntries={["/finance/payments?rfc=XAXX010101000"]}>
         <Routes>
           <Route
-            path="/finance/cobros"
+            path="/finance/payments"
             element={
               <FinanceCobrosInvoiceTable
                 invoices={[buildInvoice()]}
@@ -86,7 +86,7 @@ describe("FinanceCobrosInvoiceTable", () => {
     await user.click(screen.getAllByRole("link", { name: "A-10" })[0]);
     expect(
       screen.getByText(
-        JSON.stringify({ from: "/finance/cobros?rfc=XAXX010101000" }),
+        JSON.stringify({ from: "/finance/payments?rfc=XAXX010101000" }),
       ),
     ).toBeInTheDocument();
   });

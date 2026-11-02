@@ -234,7 +234,7 @@ export function ClientDetailPage() {
     if (!client) return undefined;
     const rfcValue = (client.taxId ?? "").trim().toUpperCase();
     return canCollect && rfcValue
-      ? `/finance/cobros?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfcValue)}`
+      ? `/finance/payments?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfcValue)}`
       : undefined;
   }, [client, canCollect]);
 

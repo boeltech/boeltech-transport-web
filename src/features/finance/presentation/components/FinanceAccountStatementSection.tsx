@@ -30,7 +30,7 @@ import { getAccountStatementDisplayPaid } from "../utils/accountStatementDisplay
 interface FinanceAccountStatementSectionProps {
   rows: AccountStatementItem[];
   isLoading?: boolean;
-  /** CTA Cobrar → /finance/cobros?rfc= (deep-link observable). */
+  /** CTA Cobrar → /finance/payments?rfc= (deep-link observable). */
   showCollectAction?: boolean;
   /** Descarga PDF estado de cuenta (finance.read). */
   onDownloadPdf?: (clientRfc: string) => void;

@@ -72,5 +72,10 @@ export {
   FinanceDispatchRunDetailLegacyRedirect,
 } from "./presentation/routes/FinanceDispatchLegacyRedirects";
 
+export {
+  FinanceCobrosLegacyRedirect,
+  FinanceEfectivoPorCobrarLegacyRedirect,
+} from "./presentation/routes/FinancePathLegacyRedirects";
+
 export { FinanceIndexRoute } from "./presentation/routes/FinanceIndexRoute";
 export { StaffFinanceRoute } from "./presentation/routes/StaffFinanceRoute";

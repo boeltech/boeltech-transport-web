@@ -1210,7 +1210,7 @@ export function InvoiceActions({
                 variant="outline"
                 onClick={() => {
                   setCancelBlockedDialogOpen(false);
-                  navigate("/finance/cobros");
+                  navigate("/finance/payments");
                 }}
               >
                 {actionsCopy.cancelBlockedGoToCobros}

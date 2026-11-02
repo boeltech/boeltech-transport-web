@@ -1,11 +1,12 @@
 /**
- * Smoke F4 — Efectivo por cobrar (ADR-0096 addendum lectura).
- * Nav hermano de Cobros → bandeja mock → deep-link Costos;
- * card cliente → bandeja ?clientId=. Sin backend.
+ * Smoke — Efectivo por cobrar (ADR-0096 addendum lectura + F3 chrome Conform).
+ * Nav hermano de Facturas por cobrar → bandeja mock → deep-link Costos;
+ * card cliente → bandeja ?clientId=; KPI/related/columna. Sin backend.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -22,6 +23,8 @@ import { ClientOperationalCashPendingCard } from "@features/clients/presentation
 import { clientDetailCopy } from "@features/clients/presentation/copy/clientDetailCopy";
 import { navigationConfig } from "@widgets/sidebar/model/navigation";
 import { navigationCopy } from "@widgets/sidebar/copy/navigationCopy";
+
+Element.prototype.hasPointerCapture ??= () => false;
 
 const copy = financeCopy.efectivoPorCobrar;
 const cardCopy = clientDetailCopy.operationalCashPending;
@@ -55,6 +58,24 @@ vi.mock("@shared/hooks", async (importOriginal) => {
     useQueryErrorToast: vi.fn(),
   };
 });
+
+vi.mock("@features/clients/application", () => ({
+  useActiveClients: () => ({
+    data: [
+      {
+        id: "client-a",
+        legalName: "Cliente Alpha SA",
+        tradeName: "Cliente Alpha",
+      },
+      {
+        id: "client-b",
+        legalName: "Cliente Beta SA",
+        tradeName: "Cliente Beta",
+      },
+    ],
+    isLoading: false,
+  }),
+}));
 
 vi.mock("@features/finance/application", async (importOriginal) => {
   const actual =
@@ -205,7 +226,7 @@ describe("smoke: efectivo-por-cobrar", () => {
     );
   });
 
-  it("nav Facturación tiene Efectivo por cobrar como hermano de Cobros", () => {
+  it("nav Facturación tiene Efectivo por cobrar como hermano de Facturas por cobrar", () => {
     const billing = navigationConfig.find((group) => group.id === "billing");
     expect(billing).toBeDefined();
 
@@ -227,6 +248,8 @@ describe("smoke: efectivo-por-cobrar", () => {
     expect(efectivo?.action).toBe("read");
 
     const cobros = billing!.items[cobrosIdx];
+    expect(cobros?.label).toBe(navigationCopy.item.financeCobros);
+    expect(cobros?.label).toBe("Facturas por cobrar");
     expect(cobros?.path).toBe(FINANCE_COBROS_PATH);
     expect(cobros?.path).not.toBe(FINANCE_EFECTIVO_POR_COBRAR_PATH);
   });
@@ -238,6 +261,8 @@ describe("smoke: efectivo-por-cobrar", () => {
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
     expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
+    expect(screen.getByText(copy.totals.pending)).toBeInTheDocument();
+    expect(screen.getByText(copy.totals.trips)).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", { name: "Cliente Alpha" }),
@@ -248,6 +273,14 @@ describe("smoke: efectivo-por-cobrar", () => {
 
     expect(screen.getByText("V-100")).toBeInTheDocument();
     expect(screen.getByText("V-200")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("columnheader", { name: copy.columns.pending })
+        .length,
+    ).toBeGreaterThan(0);
+    expect(copy.columns.pending).toBe("Saldo");
+    expect(
+      screen.queryByRole("columnheader", { name: "Por cobrar" }),
+    ).not.toBeInTheDocument();
 
     const openCostsA = screen.getByRole("link", {
       name: copy.openCostsAria("V-100"),
@@ -261,11 +294,52 @@ describe("smoke: efectivo-por-cobrar", () => {
     expect(openCostsB).toHaveAttribute("href", buildTripCostsHref("trip-2"));
 
     expect(
-      screen.queryByRole("heading", { name: "Cobros" }),
+      screen.queryByRole("heading", { name: "Facturas por cobrar" }),
     ).not.toBeInTheDocument();
-    expect(
-      document.querySelector(`a[href="${FINANCE_COBROS_PATH}"]`),
-    ).toBeNull();
+
+    const related = screen.getByRole("link", {
+      name: copy.relatedConfig.label,
+    });
+    expect(related).toHaveAttribute("href", FINANCE_COBROS_PATH);
+  });
+
+  it("chrome vacío: KPI en ceros + filtro usable + empty operativo", async () => {
+    useOperationalCashPendingMock.mockReturnValue(
+      hookResult({
+        data: [],
+        meta: {
+          totals: { pendingAmount: 0, tripCount: 0, clientCount: 0 },
+          byClient: [],
+          eligibility: {
+            intent: "sin_cfdi_efectivo",
+            pendingGt: 0,
+            statuses: ["scheduled", "in_progress", "completed"],
+          },
+        },
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderBandeja();
+
+    expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
+    expect(screen.getByText(copy.totals.pending)).toBeInTheDocument();
+    expect(screen.getByText(copy.totals.trips)).toBeInTheDocument();
+    expect(screen.getByLabelText("Actualizar lista")).toBeInTheDocument();
+    expect(screen.getByText(copy.empty.title)).toBeInTheDocument();
+    expect(screen.queryByText("Nada por cobrar")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("combobox", { name: copy.clientFilterLabel }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Cliente Alpha" }),
+    );
+
+    expect(useOperationalCashPendingMock).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: CLIENT_A }),
+    );
   });
 
   it("deep-link ?clientId= filtra la bandeja vía hook", () => {

@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   FINANCE_APPROVALS_PATH,
+  FINANCE_COBROS_LEGACY_PATH,
   FINANCE_COBROS_PATH,
+  FINANCE_EFECTIVO_POR_COBRAR_LEGACY_PATH,
   FINANCE_EFECTIVO_POR_COBRAR_PATH,
   FINANCE_HUB_PATH,
   FINANCE_INVOICEABLE_PATH,
   FINANCE_INVOICES_PATH,
   buildFinanceAnalysisHref,
   buildFinanceAnalysisSearchParams,
+  buildFinanceCobrosPath,
   buildFinanceEfectivoPorCobrarPath,
   buildFinanceMarginMonthHref,
   buildTripCostsHref,
@@ -19,23 +22,39 @@ describe("financeRoutes", () => {
     expect(FINANCE_HUB_PATH).toBe("/finance");
     expect(FINANCE_INVOICEABLE_PATH).toBe("/finance/invoiceable");
     expect(FINANCE_INVOICES_PATH).toBe("/finance/invoices");
-    expect(FINANCE_COBROS_PATH).toBe("/finance/cobros");
+    expect(FINANCE_COBROS_PATH).toBe("/finance/payments");
     expect(FINANCE_EFECTIVO_POR_COBRAR_PATH).toBe(
-      "/finance/efectivo-por-cobrar",
+      "/finance/operational-cash-pending",
     );
     expect(FINANCE_APPROVALS_PATH).toBe("/finance/approvals");
+    expect(FINANCE_COBROS_LEGACY_PATH).toBe("/finance/cobros");
+    expect(FINANCE_EFECTIVO_POR_COBRAR_LEGACY_PATH).toBe(
+      "/finance/efectivo-por-cobrar",
+    );
+  });
+
+  it("legacy ?tab=cobranza y ?tab=cobros resuelven al workbench payments", () => {
+    expect(resolveLegacyFinanceLocation("?tab=cobranza")).toBe(
+      "/finance/payments",
+    );
+    expect(resolveLegacyFinanceLocation("?tab=cobros&rfc=XAXX010101000")).toBe(
+      "/finance/payments?rfc=XAXX010101000",
+    );
+    expect(buildFinanceCobrosPath("xaxx010101000")).toBe(
+      "/finance/payments?rfc=XAXX010101000",
+    );
   });
 
   it("buildFinanceEfectivoPorCobrarPath supports optional clientId deep-link", () => {
     expect(buildFinanceEfectivoPorCobrarPath()).toBe(
-      "/finance/efectivo-por-cobrar",
+      "/finance/operational-cash-pending",
     );
     expect(
       buildFinanceEfectivoPorCobrarPath(
         "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       ),
     ).toBe(
-      "/finance/efectivo-por-cobrar?clientId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "/finance/operational-cash-pending?clientId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     );
   });
 

@@ -187,10 +187,12 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
-    expect(screen.getByRole("heading", { name: "Cobros" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Facturas por cobrar" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/Cola de facturas a crédito/),
     ).toBeInTheDocument();
@@ -210,7 +212,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros?rfc=xaxx010101000"],
+      route: ["/finance/payments?rfc=xaxx010101000"],
     });
 
     expect(screen.getByText("RFC: XAXX010101000")).toBeInTheDocument();
@@ -234,7 +236,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros?bucket=partial&rfc=XAXX010101000"],
+      route: ["/finance/payments?bucket=partial&rfc=XAXX010101000"],
     });
 
     expect(screen.getByRole("tab", { name: /Pago parcial/i })).toHaveAttribute(
@@ -256,7 +258,7 @@ describe("FinanceCobrosPage", () => {
         <FinanceCobrosPage />
         <LocationProbe />
       </>,
-      { route: ["/finance/cobros?rfc=XAXX010101000"] },
+      { route: ["/finance/payments?rfc=XAXX010101000"] },
     );
 
     await user.click(screen.getByRole("tab", { name: /Pago parcial/i }));
@@ -265,7 +267,7 @@ describe("FinanceCobrosPage", () => {
       const href = screen.getByTestId("location-probe").textContent ?? "";
       expect(href).toContain("rfc=XAXX010101000");
       expect(href).toContain("bucket=partial");
-      expect(href.startsWith("/finance/cobros?")).toBe(true);
+      expect(href.startsWith("/finance/payments?")).toBe(true);
     });
   });
 
@@ -285,7 +287,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     await user.click(
@@ -314,7 +316,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     await user.click(
@@ -344,7 +346,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     await user.click(
@@ -413,7 +415,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     await user.click(
@@ -486,7 +488,7 @@ describe("FinanceCobrosPage", () => {
     ];
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
@@ -514,7 +516,7 @@ describe("FinanceCobrosPage", () => {
     );
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
@@ -562,7 +564,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
@@ -605,7 +607,7 @@ describe("FinanceCobrosPage", () => {
     ];
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
@@ -655,7 +657,7 @@ describe("FinanceCobrosPage", () => {
     ];
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
@@ -669,7 +671,7 @@ describe("FinanceCobrosPage", () => {
     openPpd.refetch = vi.fn().mockResolvedValue(undefined);
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     expect(screen.getByText("No se pudo consultar")).toBeInTheDocument();
@@ -689,7 +691,7 @@ describe("FinanceCobrosPage", () => {
     repExceptions.refetch = vi.fn().mockResolvedValue(undefined);
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
@@ -763,7 +765,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
@@ -824,7 +826,7 @@ describe("FinanceCobrosPage", () => {
     };
 
     renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/cobros"],
+      route: ["/finance/payments"],
     });
 
     await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));

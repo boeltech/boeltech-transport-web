@@ -35,7 +35,7 @@ describe("matchHelpScreen", () => {
 
   it("does not match a different static route", () => {
     expect(
-      matchHelpScreen("/finance/cobros", [
+      matchHelpScreen("/finance/payments", [
         "/finance/invoiceable",
         "/invoices/:id",
       ]),

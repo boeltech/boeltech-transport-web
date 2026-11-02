@@ -332,6 +332,16 @@ const FinanceDispatchRunDetailLegacyRedirect = lazyWithRetry(() =>
     default: m.FinanceDispatchRunDetailLegacyRedirect,
   })),
 );
+const FinanceCobrosLegacyRedirect = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.FinanceCobrosLegacyRedirect,
+  })),
+);
+const FinanceEfectivoPorCobrarLegacyRedirect = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.FinanceEfectivoPorCobrarLegacyRedirect,
+  })),
+);
 const DispatchRunDetailPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.DispatchRunDetailPage })),
 );
@@ -1062,8 +1072,12 @@ export const router = createBrowserRouter([
                 element: <PermissionRoute module="finance" action="create" />,
                 children: [
                   {
-                    path: "/finance/cobros",
+                    path: "/finance/payments",
                     element: withSuspense(FinanceCobrosPage),
+                  },
+                  {
+                    path: "/finance/cobros",
+                    element: withSuspense(FinanceCobrosLegacyRedirect),
                   },
                 ],
               },
@@ -1114,8 +1128,12 @@ export const router = createBrowserRouter([
                 element: <PermissionRoute module="finance" action="read" />,
                 children: [
                   {
-                    path: "/finance/efectivo-por-cobrar",
+                    path: "/finance/operational-cash-pending",
                     element: withSuspense(FinanceEfectivoPorCobrarPage),
+                  },
+                  {
+                    path: "/finance/efectivo-por-cobrar",
+                    element: withSuspense(FinanceEfectivoPorCobrarLegacyRedirect),
                   },
                   {
                     path: "/finance/analysis",

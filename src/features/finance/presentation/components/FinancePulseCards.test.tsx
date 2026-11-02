@@ -79,8 +79,8 @@ describe("FinancePulseCards", () => {
         summary={summary}
         pulseMonth={pulseMonth}
         analysisHref="/finance/analysis?view=performance"
-        receivableHref="/finance/cobros"
-        overdueHref="/finance/cobros"
+        receivableHref="/finance/payments"
+        overdueHref="/finance/payments"
       />,
     );
 
@@ -88,12 +88,12 @@ describe("FinancePulseCards", () => {
       screen.getByRole("link", {
         name: financeCopy.pulse.receivableLinkAria,
       }),
-    ).toHaveAttribute("href", "/finance/cobros");
+    ).toHaveAttribute("href", "/finance/payments");
     expect(
       screen.getByRole("link", {
         name: financeCopy.pulse.overdueLinkAria,
       }),
-    ).toHaveAttribute("href", "/finance/cobros");
+    ).toHaveAttribute("href", "/finance/payments");
   });
 
   it("no muestra Cobrado en el Pulse (opcional omitido para no saturar)", () => {

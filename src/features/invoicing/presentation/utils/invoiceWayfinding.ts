@@ -4,7 +4,7 @@ import { invoicingCopy } from "../copy/invoicingCopy";
 /** Paths finance allowlist — literales (invoicing no puede importar finance). */
 const FINANCE_INVOICES_PATH = "/finance/invoices";
 const FINANCE_INVOICEABLE_PATH = "/finance/invoiceable";
-const FINANCE_COBROS_PATH = "/finance/cobros";
+const FINANCE_COBROS_PATH = "/finance/payments";
 const FINANCE_DISPATCH_PATH = "/finance/dispatch";
 
 function pathOnly(href: string): string {

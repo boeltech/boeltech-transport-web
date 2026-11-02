@@ -73,7 +73,7 @@ describe("useNavigationWithBadges", () => {
   });
 
   it("marks cobros as the active finance job when that route is open", () => {
-    const { result } = renderNavigation("/finance/cobros?rfc=XAXX010101000");
+    const { result } = renderNavigation("/finance/payments?rfc=XAXX010101000");
     const cobros = itemById(result.current.navigation, "finance-cobros");
     const hub = itemById(result.current.navigation, "finance-hub");
 

@@ -21,7 +21,7 @@ import {
 
 describe("resolveLegacyFinanceLocation", () => {
   it("maps hub tabs to clean routes", () => {
-    expect(resolveLegacyFinanceLocation("?tab=cobros")).toBe("/finance/cobros");
+    expect(resolveLegacyFinanceLocation("?tab=cobros")).toBe("/finance/payments");
     expect(resolveLegacyFinanceLocation("?tab=analysis&view=expenses")).toBe(
       "/finance/analysis?view=expenses",
     );
@@ -31,7 +31,7 @@ describe("resolveLegacyFinanceLocation", () => {
   });
 
   it("redirects legacy tab aliases", () => {
-    expect(resolveLegacyFinanceLocation("?tab=cobranza")).toBe("/finance/cobros");
+    expect(resolveLegacyFinanceLocation("?tab=cobranza")).toBe("/finance/payments");
     expect(resolveLegacyFinanceLocation("?tab=profitability")).toBe(
       "/finance/analysis?view=margin",
     );
@@ -42,16 +42,16 @@ describe("resolveLegacyFinanceLocation", () => {
 
   it("preserves cobros rfc when redirecting", () => {
     expect(resolveLegacyFinanceLocation("?tab=cobros&rfc=XAXX010101000")).toBe(
-      "/finance/cobros?rfc=XAXX010101000",
+      "/finance/payments?rfc=XAXX010101000",
     );
   });
 });
 
 describe("buildFinanceCobrosPath", () => {
   it("builds cobros path with optional rfc", () => {
-    expect(buildFinanceCobrosPath()).toBe("/finance/cobros");
+    expect(buildFinanceCobrosPath()).toBe("/finance/payments");
     expect(buildFinanceCobrosPath("xaxx010101000")).toBe(
-      "/finance/cobros?rfc=XAXX010101000",
+      "/finance/payments?rfc=XAXX010101000",
     );
   });
 });

@@ -195,17 +195,17 @@ export const dashboardCopy = {
     collected: {
       title: "Cobrado",
       subtitle: "Pagos de facturas · sin efectivo sin CFDI",
-      ariaLabel: "Cobrado este mes: ir a Cobros",
+      ariaLabel: "Cobrado este mes: ir a Facturas por cobrar",
     },
     receivable: {
       title: "Por cobrar",
       subtitle: "Facturas con saldo pendiente",
-      ariaLabel: "Por cobrar: ir a Cobros",
+      ariaLabel: "Por cobrar: ir a Facturas por cobrar",
     },
     overdue: {
       title: "Vencido",
       subtitle: "Saldo con pago atrasado",
-      ariaLabel: "Vencido: ir a Cobros",
+      ariaLabel: "Vencido: ir a Facturas por cobrar",
     },
   },
   /**

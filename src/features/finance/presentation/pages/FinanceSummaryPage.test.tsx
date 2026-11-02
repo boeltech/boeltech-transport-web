@@ -163,14 +163,20 @@ describe("FinanceSummaryPage", () => {
       within(cycle).getByRole("link", { name: "Enviar: Envíos" }),
     ).toHaveAttribute("href", "/finance/dispatch");
     expect(
-      within(cycle).getByRole("link", { name: "Cobrar: Cobros" }),
-    ).toHaveAttribute("href", "/finance/cobros");
+      within(cycle).getByRole("link", {
+        name: "Cobrar: Facturas por cobrar",
+      }),
+    ).toHaveAttribute("href", "/finance/payments");
     expect(
       within(cycle).queryByRole("link", { name: /Aprobar|Aprobaciones/i }),
     ).not.toBeInTheDocument();
+    // Lista «Facturas» no entra al ciclo; «Facturas por cobrar» sí (D3).
     expect(
-      within(cycle).queryByRole("link", { name: /Facturas/i }),
+      within(cycle).queryByRole("link", { name: /^Facturas$/ }),
     ).not.toBeInTheDocument();
+    expect(
+      within(cycle).queryByRole("link", { name: /Cobrar: Facturas por cobrar/ }),
+    ).toBeInTheDocument();
     // Ciclo reducido: sin cards hero (hint de paso no se pinta como cuerpo)
     expect(
       within(cycle).queryByText(financeCopy.page.hub.cycle.cobros.hint),
@@ -227,7 +233,7 @@ describe("FinanceSummaryPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("Por cobrar y Vencido del Pulse navegan a /finance/cobros (CA 4)", () => {
+  it("Por cobrar y Vencido del Pulse navegan a /finance/payments (CA 4)", () => {
     setMockAuthUser({ role: "manager" });
     renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
 
@@ -235,12 +241,12 @@ describe("FinanceSummaryPage", () => {
       screen.getByRole("link", {
         name: financeCopy.pulse.receivableLinkAria,
       }),
-    ).toHaveAttribute("href", "/finance/cobros");
+    ).toHaveAttribute("href", "/finance/payments");
     expect(
       screen.getByRole("link", {
         name: financeCopy.pulse.overdueLinkAria,
       }),
-    ).toHaveAttribute("href", "/finance/cobros");
+    ).toHaveAttribute("href", "/finance/payments");
   });
 
   it("error de summary muestra Reintentar inline (no solo toast)", async () => {

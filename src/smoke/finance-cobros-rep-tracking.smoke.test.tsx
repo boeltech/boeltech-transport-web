@@ -159,9 +159,9 @@ function renderCobros() {
   });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={["/finance/cobros"]}>
+      <MemoryRouter initialEntries={["/finance/payments"]}>
         <Routes>
-          <Route path="/finance/cobros" element={<FinanceCobrosPage />} />
+          <Route path="/finance/payments" element={<FinanceCobrosPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -287,9 +287,9 @@ describe("smoke: finance-cobros-rep-tracking", () => {
           })
         }
       >
-        <MemoryRouter initialEntries={["/finance/cobros"]}>
+        <MemoryRouter initialEntries={["/finance/payments"]}>
           <Routes>
-            <Route path="/finance/cobros" element={<FinanceCobrosPage />} />
+            <Route path="/finance/payments" element={<FinanceCobrosPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
