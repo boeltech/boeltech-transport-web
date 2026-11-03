@@ -107,6 +107,8 @@ export const generalSettingsCopy = {
     sheetTitle: "Editar contacto",
     sheetDescription: "Datos de contacto que compartes con tus clientes.",
     email: "Correo",
+    emailHint:
+      "Las respuestas a los correos de facturas llegan a esta dirección.",
     emailPlaceholder: "contacto@empresa.com",
     phone: "Teléfono",
     phonePlaceholder: "(55) 1234-5678",

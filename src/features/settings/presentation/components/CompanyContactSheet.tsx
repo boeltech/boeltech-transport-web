@@ -132,6 +132,7 @@ export const CompanyContactSheet = memo(function CompanyContactSheet({
               name="email"
               type="email"
               label={copy.email}
+              description={copy.emailHint}
               placeholder={copy.emailPlaceholder}
               disabled={isSaving}
               required
