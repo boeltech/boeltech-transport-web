@@ -81,15 +81,25 @@ export const clientDetailCopy = {
     invoiceAutoDispatchOn: "Sí, sin confirmar",
     invoiceAutoDispatchOff: "No — pide confirmación",
     invoiceAutoDispatchHint:
-      "Si está activo y el cliente tiene frecuencia, el sistema arma y manda el correo del periodo sin que lo confirmes.",
+      "Si está activo y el cliente tiene frecuencia, el sistema arma y manda el correo del periodo sin que lo confirmes. Solo aplica a facturas; los comprobantes de pago (REP) tienen su propio interruptor.",
     invoiceAutoDispatchNoSchemeTitle: "Sin frecuencia de envío",
     invoiceAutoDispatchNoSchemeText:
       "Sin frecuencia el automático no tiene efecto: el cliente no entra a los envíos del periodo. Sí puedes mandarle facturas sueltas desde Finanzas → Envíos → Pendientes.",
+    repAutoDispatch:
+      "Envío automático de comprobantes de pago (REP)",
+    repAutoDispatchOn: "Sí, sin confirmar",
+    repAutoDispatchOff: "No — pide confirmación",
+    repAutoDispatchHint:
+      "Independiente del envío automático de facturas. Si está activo y el cliente tiene frecuencia, el correo del periodo puede incluir comprobantes de pago (REP) timbrados sin confirmación.",
+    repAutoDispatchNoSchemeTitle: "Sin frecuencia de envío",
+    repAutoDispatchNoSchemeText:
+      "Sin frecuencia el automático de comprobantes de pago no tiene efecto: el cliente no entra a los envíos del periodo. En una corrida manual sí puedes incluir REPs elegibles.",
   },
   /** Card/sección separada de Identificación (D1). */
   invoiceDispatch: {
     title: "Envío de facturas",
-    description: "Cada cuánto y si el correo del periodo sale solo.",
+    description:
+      "Cada cuánto y si el correo del periodo sale solo (facturas y/o comprobantes de pago).",
   },
   notes: {
     title: "Notas",
@@ -106,18 +116,18 @@ export const clientDetailCopy = {
     creditDaysValue: (days: number) => `${days} días`,
   },
   /**
-   * Card operativa (ADR-0096 / F3): efectivo sin factura ≠ Facturas por cobrar (CFDI).
-   * Visible solo con finance.read y pending_amount > 0.
+   * Card operativa (ADR-0096 / F3): efectivo sin factura ≠ Facturas a crédito (CFDI).
+   * Visible solo con finance.read y pending_amount > 0. D7: título = menú.
    */
   operationalCashPending: {
-    title: "Efectivo por cobrar",
+    title: "Efectivo sin factura",
     description:
-      "Saldo de viajes de efectivo sin factura. Canal operativo: el abono se registra en Costos del viaje, no en Facturas por cobrar.",
+      "Saldo de viajes de efectivo sin factura. Canal operativo: el abono se registra en Costos del viaje, no en Facturas a crédito.",
     pendingLabel: "Por cobrar operativo",
     tripsSummary: (tripCount: number) =>
       tripCount === 1 ? "1 viaje con saldo" : `${tripCount} viajes con saldo`,
-    viewCta: "Ver por cobrar",
-    viewCtaAria: "Ver efectivo por cobrar de este cliente",
+    viewCta: "Ver efectivo sin factura",
+    viewCtaAria: "Ver efectivo sin factura de este cliente",
     openCostsAria: (code: string) => `Abrir Costos del viaje ${code}`,
     previewMore: (remaining: number) =>
       remaining === 1

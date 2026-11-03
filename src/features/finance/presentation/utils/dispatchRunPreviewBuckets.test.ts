@@ -26,8 +26,10 @@ function item(
     Pick<BillingDispatchRunItem, "id" | "itemKind" | "clientId" | "status">,
 ): BillingDispatchRunItem {
   return {
+    documentKind: "invoice",
     tripId: null,
     invoiceId: null,
+    paymentId: null,
     billingScope: null,
     emailMessageId: null,
     errorMessage: null,
@@ -44,7 +46,28 @@ describe("dispatchRunPreviewBuckets", () => {
       pendingStampCount: 0,
       readyToSendCount: 0,
       alreadySentSkipped: 0,
+      readyToSendRepCount: 0,
+      alreadySentSkippedRep: 0,
+      readyTotalCount: 0,
     });
+  });
+
+  it("isAlreadySentBucket uses paymentRepDispatchSentAt for REP", () => {
+    const { alreadySent, readyToSend } = splitDispatchRunItems([
+      item({
+        id: "rep-resent",
+        itemKind: "ready_to_send",
+        documentKind: "rep",
+        paymentId: "pay-1",
+        clientId: "c1",
+        status: "sent",
+        folio: "uuid-1",
+        paymentRepDispatchSentAt: "2026-09-20T12:00:00.000Z",
+        sentAt: "2026-09-28T18:00:00.000Z",
+      }),
+    ]);
+    expect(alreadySent).toHaveLength(1);
+    expect(readyToSend).toHaveLength(0);
   });
 
   it("splitDispatchRunItems separates kinds and skipped", () => {
@@ -175,6 +198,8 @@ describe("dispatchRunPreviewBuckets", () => {
     expect(summarizeReadyToSend(items)).toEqual({
       clientCount: 1,
       folioCount: 1,
+      invoiceCount: 1,
+      repCount: 0,
     });
   });
 

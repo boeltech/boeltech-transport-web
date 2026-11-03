@@ -59,7 +59,11 @@ export const CLIENT_EDIT_SECTION_FIELDS: Record<
     "taxRegime",
     "billingEmail",
   ],
-  dispatch: ["billingSchemeId", "invoiceAutoDispatchEnabled"],
+  dispatch: [
+    "billingSchemeId",
+    "invoiceAutoDispatchEnabled",
+    "repAutoDispatchEnabled",
+  ],
   commercial: ["paymentTerms", "creditDays", "creditLimit"],
   notes: ["notes"],
 };

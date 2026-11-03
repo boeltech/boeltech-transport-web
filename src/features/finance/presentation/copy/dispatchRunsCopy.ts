@@ -4,7 +4,7 @@ export const dispatchRunsCopy = {
   workbench: {
     title: "Envío de facturas",
     description:
-      "Mandar por correo las facturas ya emitidas. Puedes mandar ahora o armar el lote del periodo.",
+      "Mandar por correo las facturas ya emitidas. Puedes mandar ahora o armar el lote del periodo. También incluye comprobantes de pago (REP) del periodo en Envíos del periodo.",
     bucketsAriaLabel: "Etapas del envío de facturas",
     armPeriodCta: "Armar envío del periodo",
     buckets: {
@@ -15,7 +15,8 @@ export const dispatchRunsCopy = {
     bucketDescriptions: {
       pending: "Facturas por mandar o reenviar",
       sent: "Ya se mandaron por correo",
-      period: "Envíos armados o enviados del corte",
+      period:
+        "Envíos armados o enviados del corte (facturas y comprobantes de pago REP)",
     },
     periodLinkAria: "Ver envíos del periodo",
     relatedConfig: {
@@ -182,7 +183,7 @@ export const dispatchRunsCopy = {
   tab: {
     title: "Envíos del periodo",
     subtitle:
-      "Revisa el lote, confirma y manda un correo por cliente. No genera facturas nuevas. Si el automático no encontró listos, arma el envío cuando ya haya facturas listas.",
+      "Revisa el lote, confirma y manda un correo por cliente con facturas y comprobantes de pago (REP) del periodo. No genera documentos nuevos. Si el automático no encontró listos, arma el envío cuando ya haya documentos listos.",
     executeCta: "Armar envío del periodo",
     backToWorkbench: "Volver a envíos",
     /** Atajo page-local (no ListPageShell.relatedConfig) → Configuración. */
@@ -300,9 +301,9 @@ export const dispatchRunsCopy = {
   } satisfies Record<DispatchRunStatus, string>,
   /** Presentación: origin=scheduled + status=cancelled (sin status API nuevo). */
   emptyScheduled: {
-    label: "Sin facturas listas",
+    label: "Sin documentos listos",
     tooltip:
-      "Evaluación automática: no había facturas listas al corte",
+      "Evaluación automática: no había facturas ni comprobantes de pago listos al corte",
   },
   itemStatus: {
     listed: "En lista",
@@ -322,8 +323,8 @@ export const dispatchRunsCopy = {
     loadError: "Intenta de nuevo. Si persiste, vuelve a envíos del periodo.",
     retry: "Reintentar",
     emptyScheduledAlert: {
-      title: "No había facturas listas al corte",
-      body: "El automático ya evaluó este periodo. Si generas las facturas después el mismo día, arma un envío del periodo. En corte semanal, el siguiente corte no incluye este periodo.",
+      title: "No había documentos listos al corte",
+      body: "El automático ya evaluó este periodo. Si generas facturas o comprobantes de pago (REP) después el mismo día, arma un envío del periodo. En corte semanal, el siguiente corte no incluye este periodo.",
       cta: "Armar envío del periodo",
     },
     periodCalendar: (
@@ -340,49 +341,82 @@ export const dispatchRunsCopy = {
     originManual: "Manual",
     refreshPreview: "Actualizar lista",
     cancelRun: "Cancelar envío",
-    sendCta: "Enviar facturas",
-    resendCta: "Reenviar seleccionadas",
+    sendCta: "Enviar por correo",
+    resendCta: "Reenviar seleccionados",
     moreActions: "Más",
     backToList: "Volver a envíos del periodo",
     backToWorkbench: "Volver a envíos",
     backToInvoice: "Volver a la factura",
     decisionSummary: (
-      readyCount: number,
+      invoiceCount: number,
+      repCount: number,
       clientCount: number,
       pendingCount: number,
     ) => {
-      const facturas =
-        readyCount === 1 ? "1 factura lista" : `${readyCount} facturas listas`;
+      const parts: string[] = [];
+      if (invoiceCount > 0) {
+        parts.push(
+          invoiceCount === 1
+            ? "1 factura lista"
+            : `${invoiceCount} facturas listas`,
+        );
+      }
+      if (repCount > 0) {
+        parts.push(
+          repCount === 1
+            ? "1 comprobante de pago (REP) listo"
+            : `${repCount} comprobantes de pago (REP) listos`,
+        );
+      }
+      if (parts.length === 0) {
+        parts.push("Nada listo");
+      }
       const clientes =
         clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
       const pendientes =
         pendingCount === 1
           ? "1 pendiente por generar"
           : `${pendingCount} pendientes por generar`;
-      return `${facturas} para ${clientes} · ${pendientes}`;
+      return `${parts.join(" · ")} para ${clientes} · ${pendientes}`;
     },
+    onlyRepsInBatch: "Solo comprobantes de pago en este lote.",
     linkHint:
       "Los archivos se descargan desde el correo (enlace), no van adjuntos.",
     zipTooLargeError:
-      "El paquete de facturas excede el tamaño de correo. Reenvía en lotes menores o envía facturas individuales.",
+      "El paquete excede el tamaño de correo. Reenvía en lotes menores o envía documentos individuales.",
     sendingBanner: "Envío en curso. Esta pantalla se actualiza sola.",
     counts: {
       pendingStamp: "Faltan por generar",
-      readyToSend: "Listas para enviar",
-      alreadySent: "Ya enviadas",
+      readyToSend: "Listos para enviar",
+      readyInvoices: "Facturas listas",
+      readyReps: "Comprobantes (REP)",
+      alreadySent: "Ya enviados",
     },
     skippedNote: (count: number) =>
       count === 1
-        ? "1 factura ya enviada en envíos anteriores (omitida de este envío)."
-        : `${count} facturas ya enviadas en envíos anteriores (omitidas de este envío).`,
+        ? "1 documento ya enviado en envíos anteriores (omitido de este envío)."
+        : `${count} documentos ya enviados en envíos anteriores (omitidos de este envío).`,
     alreadySent: {
-      title: "Ya enviadas",
+      title: "Ya enviados",
       description:
-        "Facturas de este periodo que ya se enviaron antes. Quedan fuera del envío normal; puedes reenviar el correo si lo necesitas.",
-      selectAll: "Seleccionar todas",
+        "Documentos de este periodo que ya se enviaron antes. Quedan fuera del envío normal; puedes reenviar el correo si lo necesitas.",
+      selectAll: "Seleccionar todos",
       clearSelection: "Quitar selección",
       selectClient: "Seleccionar del cliente",
-      emptyBucket: "Ninguna factura ya enviada en este periodo.",
+      emptyBucket: "Ningún documento ya enviado en este periodo.",
+      emptyInvoices: "Ninguna factura ya enviada en este periodo.",
+      emptyReps:
+        "No hay comprobantes de pago timbrados en este periodo ya enviados.",
+    },
+    sections: {
+      invoices: "Facturas",
+      reps: "Comprobantes de pago (REP)",
+      repsPeriodHint: "Comprobantes de pago timbrados en este periodo",
+      emptyReadyInvoices: "Ninguna factura lista en este periodo.",
+      emptyReadyReps:
+        "No hay comprobantes de pago timbrados en este periodo.",
+      emptyReadyRepsHint:
+        "Si faltan, revisa Cobros / pagos timbrados del cliente.",
     },
     buckets: {
       pendingTitle: "Faltan por generar",
@@ -394,15 +428,17 @@ export const dispatchRunsCopy = {
           : `${count} pendientes por generar (no van en este correo)`,
       expandPending: "Ver pendientes",
       collapsePending: "Ocultar pendientes",
-      readyTitle: "Listas para enviar",
+      readyTitle: "Listos para enviar",
       emptyBucket: "Ninguno en este periodo.",
       stampCta: "Generar factura",
       tripFallback: "Viaje",
       invoiceLabel: (number: string) => `Factura ${number}`,
       invoiceFallback: "Sin número de factura",
+      repLabel: (folio: string) => `Comprobante de pago (REP) · ${folio}`,
+      repFallback: "Comprobante de pago (REP)",
       clientFallback: (shortId: string) => `Cliente ${shortId}`,
       clientGroup: (name: string, count: number) =>
-        `${name} (${count} factura${count === 1 ? "" : "s"})`,
+        `${name} (${count} documento${count === 1 ? "" : "s"})`,
       clientGroupPending: (name: string, count: number) =>
         `${name} (${count} pendiente${count === 1 ? "" : "s"})`,
       recipientsSelected: (selected: number, total: number) =>
@@ -423,13 +459,17 @@ export const dispatchRunsCopy = {
       receiptEmpty: "Sin snapshot de destinatarios.",
     },
     confirm: {
-      title: "¿Enviar facturas por correo?",
+      title: "¿Enviar por correo?",
       emailNote:
-        "Se enviará un correo por cliente con la lista de facturas y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
+        "Se enviará un correo por cliente con la lista de facturas y comprobantes de pago (REP), y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
       summaryClients: (n: number) =>
         n === 1 ? "1 cliente" : `${n} clientes`,
       summaryInvoices: (n: number) =>
         n === 1 ? "1 factura" : `${n} facturas`,
+      summaryReps: (n: number) =>
+        n === 1
+          ? "1 comprobante de pago (REP)"
+          : `${n} comprobantes de pago (REP)`,
       summaryRecipients: (n: number) =>
         n === 1 ? "1 destinatario" : `${n} destinatarios`,
       recipientsNote:
@@ -440,22 +480,26 @@ export const dispatchRunsCopy = {
       submit: "Confirmar y enviar",
       cancel: "Cancelar",
       noReady:
-        "No hay facturas listas para enviar. Genera al menos una o actualiza la lista.",
+        "No hay facturas ni comprobantes de pago listos para enviar. Genera al menos uno o actualiza la lista.",
       recipientsRequired:
         "Hay clientes sin destinatarios. Marca al menos un correo por cliente o corrige el maestro del cliente.",
       recipientKeyInvalid:
         "Algún destinatario ya no es válido. Actualiza la lista e inténtalo de nuevo.",
     },
     resendConfirm: {
-      title: "¿Reenviar facturas ya enviadas?",
+      title: "¿Reenviar documentos ya enviados?",
       riskNote:
-        "No se regeneran el PDF ni el XML. Solo se reenvía el correo con los archivos ya generados. Por defecto estas facturas se omiten del envío normal.",
+        "No se regeneran el PDF ni el XML. Solo se reenvía el correo con los archivos ya generados. Por defecto estos documentos se omiten del envío normal.",
       emailNote:
-        "Se reenviará un correo por cliente solo con las facturas que marcaste y un enlace nuevo para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
+        "Se reenviará un correo por cliente solo con los documentos que marcaste y un enlace nuevo para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
       summaryClients: (n: number) =>
         n === 1 ? "1 cliente" : `${n} clientes`,
       summaryInvoices: (n: number) =>
         n === 1 ? "1 factura" : `${n} facturas`,
+      summaryReps: (n: number) =>
+        n === 1
+          ? "1 comprobante de pago (REP)"
+          : `${n} comprobantes de pago (REP)`,
       summaryRecipients: (n: number) =>
         n === 1 ? "1 destinatario" : `${n} destinatarios`,
       recipientsNote:
@@ -465,9 +509,9 @@ export const dispatchRunsCopy = {
       zeroSelected:
         "Marca al menos un destinatario por cliente del reenvío antes de confirmar.",
       forceResendInvalid:
-        "Alguna factura ya no se puede reenviar en este envío. Actualiza la lista e inténtalo de nuevo.",
+        "Algún documento ya no se puede reenviar en este envío. Actualiza la lista e inténtalo de nuevo.",
       cooldown:
-        "Espera unos segundos antes de reenviar estas facturas.",
+        "Espera unos segundos antes de reenviar estos documentos.",
     },
     result: {
       title: "Envío en curso",
@@ -482,19 +526,19 @@ export const dispatchRunsCopy = {
         "Revisa el resultado por cliente o arma un nuevo envío del periodo para reintentar.",
       byClientTitle: "Resultado por cliente",
       byClientDescription:
-        "Resumen de a quién se envió el correo y qué facturas se incluyeron.",
+        "Resumen de a quién se envió el correo y qué documentos se incluyeron.",
       colClient: "Cliente",
       colRecipients: "Destinatarios",
-      colFolios: "Facturas",
+      colFolios: "Documentos",
       colStatus: "Estado",
       statusSent: "Enviado",
       statusFailed: "Fallido",
       statusMixed: "Parcial",
       folioCount: (n: number) =>
-        n === 1 ? "1 factura" : `${n} facturas`,
+        n === 1 ? "1 documento" : `${n} documentos`,
       recipientCount: (n: number) =>
         n === 1 ? "1 destinatario" : `${n} destinatarios`,
-      expandFolios: "Ver facturas",
+      expandFolios: "Ver documentos",
       noReceipts: "Sin detalle de destinatarios para este cliente.",
     },
   },

@@ -22,6 +22,7 @@ const clientData: ClientFormData = {
   creditLimit: undefined,
   notes: "",
   invoiceAutoDispatchEnabled: false,
+  repAutoDispatchEnabled: false,
 };
 
 const addressData = {

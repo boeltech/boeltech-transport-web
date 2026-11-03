@@ -73,12 +73,14 @@ import {
   clientIdsFromItems,
   countDispatchPreviewBuckets,
   countFailedClientResults,
+  formatDispatchDocumentLabel,
   formatPendingStampTripLabel,
   groupAlreadySentByClient,
   groupPendingStampByClient,
   groupReadyToSendByClient,
   isDispatchRunInFlight,
   isDispatchRunTerminal,
+  partitionByDocumentKind,
   shouldCollapseClientGroups,
   shouldCollapsePendingCard,
   splitDispatchRunItems,
@@ -99,12 +101,14 @@ import {
 } from "../utils/dispatchRunRecipientSelection";
 import {
   buildForceResendPayload,
-  clearInvoiceSelection,
-  selectAllSkippedInvoiceIds,
-  selectClientSkippedInvoiceIds,
+  clearResendSelection,
+  resendSelectionCount,
+  selectAllSkippedDocuments,
+  selectClientSkippedDocuments,
   skippedItemsForSelection,
   toggleInvoiceId,
-  type InvoiceSelectionState,
+  togglePaymentId,
+  type ResendSelectionState,
 } from "../utils/dispatchRunResendSelection";
 
 const copy = dispatchRunsCopy.detail;
@@ -183,6 +187,133 @@ function PendingStampRows({
   );
 }
 
+function ReadyDocumentKindBlock({
+  title,
+  description,
+  emptyCopy,
+  emptyHint,
+  items,
+  recipientsByClient,
+  clientReceipts,
+  selection,
+  editable,
+  collapseGroups,
+  showRecipientsForClient,
+  onToggleRecipient,
+}: {
+  title: string;
+  description?: string;
+  emptyCopy: string;
+  emptyHint?: string;
+  items: BillingDispatchRunItem[];
+  recipientsByClient: RecipientsByClient[];
+  clientReceipts: BillingDispatchClientReceipt[] | null | undefined;
+  selection: RecipientSelectionState;
+  editable: boolean;
+  collapseGroups: boolean;
+  showRecipientsForClient: (clientId: string) => boolean;
+  onToggleRecipient: (clientId: string, key: string, checked: boolean) => void;
+}) {
+  const byClient = groupReadyToSendByClient(items);
+  const recipientsMap = useMemo(() => {
+    const map = new Map<string, RecipientsByClient>();
+    for (const group of recipientsByClient) {
+      map.set(group.clientId, group);
+    }
+    return map;
+  }, [recipientsByClient]);
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <h4 className="text-sm font-medium text-foreground">{title}</h4>
+        {description ? (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      {items.length === 0 ? (
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">{emptyCopy}</p>
+          {emptyHint ? (
+            <p className="text-xs text-muted-foreground">{emptyHint}</p>
+          ) : null}
+        </div>
+      ) : (
+        Array.from(byClient.entries()).map(([clientId, clientItems]) => {
+          const label = clientDisplayName(
+            clientItems[0]!,
+            copy.buckets.clientFallback,
+          );
+          const group = recipientsMap.get(clientId);
+          const showRecipients = showRecipientsForClient(clientId);
+          const selectedKeys = selection[clientId] ?? [];
+          const recipientTotal = group?.recipients.length ?? 0;
+          const hasZero =
+            editable &&
+            showRecipients &&
+            (recipientTotal === 0 || selectedKeys.length === 0);
+
+          return (
+            <DispatchRunClientGroup
+              key={`${title}-${clientId}`}
+              title={label}
+              invoiceCount={clientItems.length}
+              recipientSelected={
+                editable && showRecipients ? selectedKeys.length : undefined
+              }
+              recipientTotal={
+                editable && showRecipients ? recipientTotal : undefined
+              }
+              hasZeroRecipients={hasZero}
+              defaultOpen={!collapseGroups}
+            >
+              <DispatchRunFolioList
+                items={clientItems}
+                renderItem={(item) => (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span>
+                        {formatDispatchDocumentLabel(item, {
+                          invoice: copy.buckets.invoiceLabel,
+                          invoiceFallback: copy.buckets.invoiceFallback,
+                          rep: copy.buckets.repLabel,
+                          repFallback: copy.buckets.repFallback,
+                        })}
+                      </span>
+                      <DispatchRunItemStatusBadge status={item.status} />
+                    </div>
+                    {item.status === "failed" && item.errorMessage ? (
+                      <span className="text-xs text-destructive">
+                        {item.errorMessage}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              />
+              {editable && showRecipients && group ? (
+                <DispatchRunRecipientsEditor
+                  groups={[group]}
+                  selection={selection}
+                  onToggle={onToggleRecipient}
+                />
+              ) : null}
+              {!editable && showRecipients && clientReceipts ? (
+                <DispatchRunClientReceipts
+                  receipts={clientReceipts}
+                  clientId={clientId}
+                />
+              ) : null}
+              {!editable && showRecipients && !clientReceipts && group ? (
+                <DispatchRunRecipientsReadOnly group={group} />
+              ) : null}
+            </DispatchRunClientGroup>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 function ReadyToSendRows({
   items,
   recipientsByClient,
@@ -200,83 +331,38 @@ function ReadyToSendRows({
   collapseGroups: boolean;
   onToggleRecipient: (clientId: string, key: string, checked: boolean) => void;
 }) {
-  const byClient = groupReadyToSendByClient(items);
-  const recipientsMap = useMemo(() => {
-    const map = new Map<string, RecipientsByClient>();
-    for (const group of recipientsByClient) {
-      map.set(group.clientId, group);
-    }
-    return map;
-  }, [recipientsByClient]);
-
-  if (items.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">{copy.buckets.emptyBucket}</p>
-    );
-  }
+  const { invoices, reps } = partitionByDocumentKind(items);
+  /** Destinatarios una sola vez: en Facturas si el cliente tiene factura; si no, en REP. */
+  const invoiceClientIds = new Set(invoices.map((i) => i.clientId));
 
   return (
-    <div className="space-y-3">
-      {Array.from(byClient.entries()).map(([clientId, clientItems]) => {
-        const label = clientDisplayName(
-          clientItems[0]!,
-          copy.buckets.clientFallback,
-        );
-        const group = recipientsMap.get(clientId);
-        const selectedKeys = selection[clientId] ?? [];
-        const recipientTotal = group?.recipients.length ?? 0;
-        const hasZero =
-          editable && (recipientTotal === 0 || selectedKeys.length === 0);
-
-        return (
-          <DispatchRunClientGroup
-            key={clientId}
-            title={label}
-            invoiceCount={clientItems.length}
-            recipientSelected={editable ? selectedKeys.length : undefined}
-            recipientTotal={editable ? recipientTotal : undefined}
-            hasZeroRecipients={hasZero}
-            defaultOpen={!collapseGroups}
-          >
-            <DispatchRunFolioList
-              items={clientItems}
-              renderItem={(item) => (
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span>
-                      {item.folio
-                        ? copy.buckets.invoiceLabel(item.folio)
-                        : copy.buckets.invoiceFallback}
-                    </span>
-                    <DispatchRunItemStatusBadge status={item.status} />
-                  </div>
-                  {item.status === "failed" && item.errorMessage ? (
-                    <span className="text-xs text-destructive">
-                      {item.errorMessage}
-                    </span>
-                  ) : null}
-                </div>
-              )}
-            />
-            {editable && group ? (
-              <DispatchRunRecipientsEditor
-                groups={[group]}
-                selection={selection}
-                onToggle={onToggleRecipient}
-              />
-            ) : null}
-            {!editable && clientReceipts ? (
-              <DispatchRunClientReceipts
-                receipts={clientReceipts}
-                clientId={clientId}
-              />
-            ) : null}
-            {!editable && !clientReceipts && group ? (
-              <DispatchRunRecipientsReadOnly group={group} />
-            ) : null}
-          </DispatchRunClientGroup>
-        );
-      })}
+    <div className="space-y-6">
+      <ReadyDocumentKindBlock
+        title={copy.sections.invoices}
+        emptyCopy={copy.sections.emptyReadyInvoices}
+        items={invoices}
+        recipientsByClient={recipientsByClient}
+        clientReceipts={clientReceipts}
+        selection={selection}
+        editable={editable}
+        collapseGroups={collapseGroups}
+        showRecipientsForClient={() => true}
+        onToggleRecipient={onToggleRecipient}
+      />
+      <ReadyDocumentKindBlock
+        title={copy.sections.reps}
+        description={copy.sections.repsPeriodHint}
+        emptyCopy={copy.sections.emptyReadyReps}
+        emptyHint={copy.sections.emptyReadyRepsHint}
+        items={reps}
+        recipientsByClient={recipientsByClient}
+        clientReceipts={clientReceipts}
+        selection={selection}
+        editable={editable}
+        collapseGroups={collapseGroups}
+        showRecipientsForClient={(clientId) => !invoiceClientIds.has(clientId)}
+        onToggleRecipient={onToggleRecipient}
+      />
     </div>
   );
 }
@@ -306,8 +392,9 @@ export function DispatchRunDetailPage() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
   const [selection, setSelection] = useState<RecipientSelectionState>({});
-  const [invoiceSelection, setInvoiceSelection] =
-    useState<InvoiceSelectionState>([]);
+  const [resendSelection, setResendSelection] = useState<ResendSelectionState>(
+    clearResendSelection(),
+  );
   const [pendingOpen, setPendingOpen] = useState<boolean | null>(null);
   const confirmInFlight = useRef(false);
   const resendInFlight = useRef(false);
@@ -337,15 +424,16 @@ export function DispatchRunDetailPage() {
 
   const selectedResendItems = skippedItemsForSelection(
     alreadySent,
-    invoiceSelection,
+    resendSelection,
   );
   const resendClientIds = clientIdsFromItems(selectedResendItems);
   const resendRecipientGroups = filterRecipientGroupsByClientIds(
     recipientsByClient,
     resendClientIds,
   );
+  const selectedResendCount = resendSelectionCount(resendSelection);
 
-  const showConfirm = canConfirmSend(run?.status ?? "", counts.readyToSendCount);
+  const showConfirm = canConfirmSend(run?.status ?? "", counts.readyTotalCount);
   const terminal = isDispatchRunTerminal(run?.status ?? "");
   const inFlight = isDispatchRunInFlight(run?.status ?? "");
   const editableRecipients = Boolean(canExecute && showConfirm && !terminal);
@@ -419,7 +507,7 @@ export function DispatchRunDetailPage() {
     if (selectionSyncedFor.current === syncKey) return;
     selectionSyncedFor.current = syncKey;
     setSelection(defaultRecipientSelection(recipientsByClient));
-    setInvoiceSelection(clearInvoiceSelection());
+    setResendSelection(clearResendSelection());
   }, [run?.id, run?.previewedAt, recipientsByClient]);
 
   useEffect(() => {
@@ -434,10 +522,13 @@ export function DispatchRunDetailPage() {
     : null;
 
   const decisionSummaryText = copy.decisionSummary(
-    readyToSend.length,
+    readySummary.invoiceCount,
+    readySummary.repCount,
     readySummary.clientCount,
     pendingStamp.length,
   );
+  const onlyRepsBatch =
+    readySummary.invoiceCount === 0 && readySummary.repCount > 0;
 
   const pendingCardOpen =
     pendingOpen ?? !collapsePendingByDefault;
@@ -450,7 +541,7 @@ export function DispatchRunDetailPage() {
 
   const handleConfirm = async () => {
     if (!id || confirmInFlight.current) return;
-    if (!canConfirmSend(run?.status ?? "", counts.readyToSendCount)) {
+    if (!canConfirmSend(run?.status ?? "", counts.readyTotalCount)) {
       setConfirmOpen(false);
       await refetch();
       return;
@@ -482,7 +573,7 @@ export function DispatchRunDetailPage() {
 
   const handleResendConfirm = async () => {
     if (!id || resendInFlight.current) return;
-    if (!canConfirmForceResend(run?.status ?? "", invoiceSelection.length)) {
+    if (!canConfirmForceResend(run?.status ?? "", selectedResendCount)) {
       setResendOpen(false);
       await refetch();
       return;
@@ -495,14 +586,14 @@ export function DispatchRunDetailPage() {
     setResendError(null);
     try {
       const payload = buildForceResendPayload(
-        invoiceSelection,
+        resendSelection,
         recipientsByClient,
         selection,
         resendClientIds,
       );
       await confirmMutation.mutateAsync({ id, payload });
       setResendOpen(false);
-      setInvoiceSelection(clearInvoiceSelection());
+      setResendSelection(clearResendSelection());
       await refetch();
     } catch {
       await refetch();
@@ -567,13 +658,13 @@ export function DispatchRunDetailPage() {
   }
 
   const confirmDisabled =
-    isPending || counts.readyToSendCount < 1 || hasZeroSelected;
+    isPending || counts.readyTotalCount < 1 || hasZeroSelected;
   const resendDisabled =
-    isPending || invoiceSelection.length < 1 || hasResendZeroSelected;
+    isPending || selectedResendCount < 1 || hasResendZeroSelected;
   const alreadySentCount = alreadySent.length;
   const showEmptyScheduledAlert =
     isEmptyScheduledCancelled(run.origin, run.status) &&
-    counts.readyToSendCount === 0;
+    counts.readyTotalCount === 0;
 
   return (
     <>
@@ -616,8 +707,8 @@ export function DispatchRunDetailPage() {
             variant="buttons"
             runId={run.id}
             status={run.status}
-            readyCount={counts.readyToSendCount}
-            selectedResendCount={invoiceSelection.length}
+            readyCount={counts.readyTotalCount}
+            selectedResendCount={selectedResendCount}
             hasZeroSelected={hasZeroSelected}
             hasResendZeroSelected={hasResendZeroSelected}
             isPending={isPending}
@@ -639,8 +730,14 @@ export function DispatchRunDetailPage() {
       }}
       stats={[
         {
-          title: copy.counts.readyToSend,
-          value: readyToSend.length,
+          title: copy.counts.readyInvoices,
+          value: readySummary.invoiceCount,
+          icon: <Mail className="h-4 w-4" />,
+          tone: "success",
+        },
+        {
+          title: copy.counts.readyReps,
+          value: readySummary.repCount,
           icon: <Mail className="h-4 w-4" />,
           tone: "success",
         },
@@ -659,9 +756,16 @@ export function DispatchRunDetailPage() {
       ]}
     >
       <div className="space-y-6">
-        <p className="text-sm font-medium text-foreground">
-          {decisionSummaryText}
-        </p>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">
+            {decisionSummaryText}
+          </p>
+          {onlyRepsBatch ? (
+            <p className="text-xs text-muted-foreground">
+              {copy.onlyRepsInBatch}
+            </p>
+          ) : null}
+        </div>
 
         {showEmptyScheduledAlert ? (
           <DetailAlertCard
@@ -705,7 +809,7 @@ export function DispatchRunDetailPage() {
         ) : null}
 
         {editableResend &&
-        invoiceSelection.length > 0 &&
+        selectedResendCount > 0 &&
         hasResendZeroSelected ? (
           <DetailAlertCard
             severity="critical"
@@ -715,7 +819,7 @@ export function DispatchRunDetailPage() {
         ) : null}
 
         {!showConfirm &&
-        counts.readyToSendCount === 0 &&
+        counts.readyTotalCount === 0 &&
         !terminal &&
         !showEmptyScheduledAlert ? (
           <DetailAlertCard
@@ -875,25 +979,30 @@ export function DispatchRunDetailPage() {
                   clientReceipts={
                     editableResend ? undefined : run.clientReceipts
                   }
-                  invoiceSelection={invoiceSelection}
+                  resendSelection={resendSelection}
                   recipientSelection={selection}
                   editable={editableResend}
                   listedClientIds={listedClientIds}
                   collapseGroups={collapseAlreadySentGroups}
                   onToggleInvoice={(invoiceId, checked) => {
-                    setInvoiceSelection((prev) =>
+                    setResendSelection((prev) =>
                       toggleInvoiceId(prev, invoiceId, checked),
                     );
                   }}
+                  onTogglePayment={(paymentId, checked) => {
+                    setResendSelection((prev) =>
+                      togglePaymentId(prev, paymentId, checked),
+                    );
+                  }}
                   onSelectAll={() => {
-                    setInvoiceSelection(selectAllSkippedInvoiceIds(alreadySent));
+                    setResendSelection(selectAllSkippedDocuments(alreadySent));
                   }}
                   onClearSelection={() => {
-                    setInvoiceSelection(clearInvoiceSelection());
+                    setResendSelection(clearResendSelection());
                   }}
                   onSelectClient={(clientId) => {
-                    setInvoiceSelection((prev) =>
-                      selectClientSkippedInvoiceIds(
+                    setResendSelection((prev) =>
+                      selectClientSkippedDocuments(
                         alreadySent,
                         clientId,
                         prev,
@@ -930,10 +1039,17 @@ export function DispatchRunDetailPage() {
               <p className="font-medium">
                 {copy.confirm.summaryClients(readySummary.clientCount)}
                 {" · "}
-                {copy.confirm.summaryInvoices(readySummary.folioCount)}
+                {copy.confirm.summaryInvoices(readySummary.invoiceCount)}
+                {" · "}
+                {copy.confirm.summaryReps(readySummary.repCount)}
                 {" · "}
                 {copy.confirm.summaryRecipients(selectedRecipientCount)}
               </p>
+              {onlyRepsBatch ? (
+                <p className="mt-2 text-muted-foreground">
+                  {copy.onlyRepsInBatch}
+                </p>
+              ) : null}
               <p className="mt-2 text-muted-foreground">
                 {copy.confirm.recipientsNote}
               </p>
@@ -1002,7 +1118,13 @@ export function DispatchRunDetailPage() {
               <p className="font-medium">
                 {copy.resendConfirm.summaryClients(resendClientIds.length)}
                 {" · "}
-                {copy.resendConfirm.summaryInvoices(invoiceSelection.length)}
+                {copy.resendConfirm.summaryInvoices(
+                  resendSelection.invoiceIds.length,
+                )}
+                {" · "}
+                {copy.resendConfirm.summaryReps(
+                  resendSelection.paymentIds.length,
+                )}
                 {" · "}
                 {copy.resendConfirm.summaryRecipients(resendRecipientCount)}
               </p>

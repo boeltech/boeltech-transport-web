@@ -30,6 +30,7 @@ export const paymentTermsSchema = clientPaymentTermsSchema;
 export const clientEditFormSchema = updateClientFormSchema.extend({
   billingSchemeId: billingSchemeIdSchema,
   invoiceAutoDispatchEnabled: z.boolean().default(false),
+  repAutoDispatchEnabled: z.boolean().default(false),
 });
 
 /**
@@ -58,6 +59,7 @@ export const clientFormSchema = createClientFormSchema.superRefine(
 export type ClientFormData = z.infer<typeof createClientFormSchema> & {
   billingSchemeId?: string | null;
   invoiceAutoDispatchEnabled?: boolean;
+  repAutoDispatchEnabled?: boolean;
 };
 export type UpdateClientFormData = z.infer<typeof clientEditFormSchema>;
 
@@ -79,6 +81,7 @@ export const defaultClientFormValues: ClientFormData = {
   creditLimit: undefined,
   notes: "",
   invoiceAutoDispatchEnabled: false,
+  repAutoDispatchEnabled: false,
 };
 
 export function clientToFormValues(client: Client): ClientFormData {
@@ -97,6 +100,7 @@ export function clientToFormValues(client: Client): ClientFormData {
     billingEmail: client.billingEmail ?? "",
     billingSchemeId: client.billingSchemeId ?? undefined,
     invoiceAutoDispatchEnabled: Boolean(client.invoiceAutoDispatchEnabled),
+    repAutoDispatchEnabled: Boolean(client.repAutoDispatchEnabled),
     paymentTerms: client.paymentTerms,
     creditDays: client.creditDays,
     creditLimit: client.creditLimit ?? undefined,
@@ -138,6 +142,10 @@ export function clientFormDataToUpdateDto(data: ClientFormData): UpdateClientDTO
       profile === "comercial_only"
         ? false
         : Boolean(data.invoiceAutoDispatchEnabled),
+    repAutoDispatchEnabled:
+      profile === "comercial_only"
+        ? false
+        : Boolean(data.repAutoDispatchEnabled),
     paymentTerms: data.paymentTerms,
     creditDays: data.creditDays,
     creditLimit: data.creditLimit ?? null,

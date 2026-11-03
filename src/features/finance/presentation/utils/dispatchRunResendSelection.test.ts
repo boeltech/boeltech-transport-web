@@ -5,19 +5,23 @@ import type {
 } from "../../domain/billingDispatchRun.types";
 import {
   buildForceResendPayload,
-  clearInvoiceSelection,
-  selectAllSkippedInvoiceIds,
-  selectClientSkippedInvoiceIds,
+  clearResendSelection,
+  resendSelectionCount,
+  selectAllSkippedDocuments,
+  selectClientSkippedDocuments,
   skippedItemsForSelection,
   toggleInvoiceId,
+  togglePaymentId,
 } from "./dispatchRunResendSelection";
 
 const skipped: BillingDispatchRunItem[] = [
   {
     id: "1",
     itemKind: "ready_to_send",
+    documentKind: "invoice",
     tripId: "t1",
     invoiceId: "inv-a",
+    paymentId: null,
     billingScope: null,
     clientId: "c1",
     status: "skipped",
@@ -31,8 +35,10 @@ const skipped: BillingDispatchRunItem[] = [
   {
     id: "2",
     itemKind: "ready_to_send",
+    documentKind: "invoice",
     tripId: "t2",
     invoiceId: "inv-b",
+    paymentId: null,
     billingScope: null,
     clientId: "c1",
     status: "skipped",
@@ -46,12 +52,14 @@ const skipped: BillingDispatchRunItem[] = [
   {
     id: "3",
     itemKind: "ready_to_send",
-    tripId: "t3",
-    invoiceId: "inv-c",
+    documentKind: "rep",
+    tripId: null,
+    invoiceId: null,
+    paymentId: "pay-1",
     billingScope: null,
     clientId: "c2",
     status: "skipped",
-    folio: "B-1",
+    folio: "uuid-rep-1",
     emailMessageId: null,
     errorMessage: null,
     sentAt: null,
@@ -95,30 +103,49 @@ const groups: RecipientsByClient[] = [
 ];
 
 describe("dispatchRunResendSelection", () => {
-  it("toggleInvoiceId adds and removes", () => {
-    let selection = clearInvoiceSelection();
+  it("toggleInvoiceId and togglePaymentId add and remove", () => {
+    let selection = clearResendSelection();
     selection = toggleInvoiceId(selection, "inv-a", true);
-    expect(selection).toEqual(["inv-a"]);
+    expect(selection).toEqual({ invoiceIds: ["inv-a"], paymentIds: [] });
+    selection = togglePaymentId(selection, "pay-1", true);
+    expect(selection).toEqual({
+      invoiceIds: ["inv-a"],
+      paymentIds: ["pay-1"],
+    });
     selection = toggleInvoiceId(selection, "inv-a", false);
-    expect(selection).toEqual([]);
+    expect(selection).toEqual({ invoiceIds: [], paymentIds: ["pay-1"] });
   });
 
-  it("selectAllSkippedInvoiceIds and selectClient", () => {
-    expect(selectAllSkippedInvoiceIds(skipped)).toEqual([
-      "inv-a",
-      "inv-b",
-      "inv-c",
-    ]);
-    expect(selectClientSkippedInvoiceIds(skipped, "c1", ["inv-c"])).toEqual([
-      "inv-c",
-      "inv-a",
-      "inv-b",
-    ]);
+  it("selectAllSkippedDocuments and selectClient include REP payment ids", () => {
+    expect(selectAllSkippedDocuments(skipped)).toEqual({
+      invoiceIds: ["inv-a", "inv-b"],
+      paymentIds: ["pay-1"],
+    });
+    expect(
+      selectClientSkippedDocuments(skipped, "c2", clearResendSelection()),
+    ).toEqual({
+      invoiceIds: [],
+      paymentIds: ["pay-1"],
+    });
   });
 
-  it("buildForceResendPayload includes forceResend + ids; overrides only subset", () => {
+  it("buildForceResendPayload accepts only paymentIds", () => {
     const payload = buildForceResendPayload(
-      ["inv-a"],
+      { invoiceIds: [], paymentIds: ["pay-1"] },
+      groups,
+      { c2: ["billing_email"] },
+      ["c2"],
+    );
+    expect(payload).toEqual({
+      forceResend: true,
+      paymentIds: ["pay-1"],
+      recipientOverrides: undefined,
+    });
+  });
+
+  it("buildForceResendPayload includes forceResend + mixed ids; overrides only subset", () => {
+    const payload = buildForceResendPayload(
+      { invoiceIds: ["inv-a"], paymentIds: ["pay-1"] },
       groups,
       {
         c1: ["contact:x"],
@@ -129,27 +156,19 @@ describe("dispatchRunResendSelection", () => {
     expect(payload).toEqual({
       forceResend: true,
       invoiceIds: ["inv-a"],
+      paymentIds: ["pay-1"],
       recipientOverrides: [{ clientId: "c1", recipientKeys: ["contact:x"] }],
     });
   });
 
-  it("buildForceResendPayload omits overrides when all selected", () => {
-    const payload = buildForceResendPayload(
-      ["inv-a", "inv-c"],
-      groups,
-      {
-        c1: ["billing_email", "contact:x"],
-        c2: ["billing_email"],
-      },
-      ["c1", "c2"],
-    );
-    expect(payload.forceResend).toBe(true);
-    expect(payload.invoiceIds).toEqual(["inv-a", "inv-c"]);
-    expect(payload.recipientOverrides).toBeUndefined();
-  });
-
-  it("skippedItemsForSelection filters by invoice id", () => {
-    expect(skippedItemsForSelection(skipped, ["inv-b", "inv-c"])).toHaveLength(
+  it("skippedItemsForSelection filters by typed ids", () => {
+    expect(
+      skippedItemsForSelection(skipped, {
+        invoiceIds: ["inv-b"],
+        paymentIds: ["pay-1"],
+      }),
+    ).toHaveLength(2);
+    expect(resendSelectionCount({ invoiceIds: ["a"], paymentIds: ["b"] })).toBe(
       2,
     );
   });

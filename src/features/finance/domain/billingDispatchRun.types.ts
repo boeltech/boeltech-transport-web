@@ -51,6 +51,11 @@ export const DISPATCH_ITEM_KINDS = ["pending_stamp", "ready_to_send"] as const;
 
 export type DispatchItemKind = (typeof DISPATCH_ITEM_KINDS)[number];
 
+/** Addendum 0082 — tipado factura vs comprobante de pago (REP). */
+export const DISPATCH_DOCUMENT_KINDS = ["invoice", "rep"] as const;
+
+export type DispatchDocumentKind = (typeof DISPATCH_DOCUMENT_KINDS)[number];
+
 export type DispatchRecipientKind = "billing_email" | "contact";
 
 /** Destinatario elegible / snapshot (addendum destinatarios). */
@@ -86,15 +91,23 @@ export interface RecipientOverrideEntry {
 
 export interface BillingDispatchRunSummary {
   pendingStampCount: number;
+  /** Facturas listed ready_to_send (D8 — no mezcla REP). */
   readyToSendCount: number;
   alreadySentSkipped: number;
+  /** REPs listed ready_to_send. */
+  readyToSendRepCount: number;
+  alreadySentSkippedRep: number;
 }
 
 export interface BillingDispatchRunItem {
   id: string;
   itemKind: DispatchItemKind;
+  /** invoice | rep; pending_stamp siempre invoice. */
+  documentKind: DispatchDocumentKind;
   tripId: string | null;
   invoiceId: string | null;
+  /** Presente cuando documentKind=rep. */
+  paymentId: string | null;
   billingScope: string | null;
   clientId: string;
   clientName?: string | null;
@@ -105,6 +118,8 @@ export interface BillingDispatchRunItem {
   destinationCity?: string | null;
   /** Primer envío de la factura; si es anterior a `sentAt`, el ítem nació en Ya enviadas. */
   invoiceDispatchSentAt?: string | null;
+  /** Primer envío del REP (`payments.rep_dispatch_sent_at`). */
+  paymentRepDispatchSentAt?: string | null;
   status: string;
   folio?: string | null;
   emailMessageId: string | null;
@@ -166,6 +181,8 @@ export interface CreateBillingDispatchRunResult {
 export interface ConfirmSendDispatchRunPayload {
   forceResend?: boolean;
   invoiceIds?: string[];
+  /** Addendum 0082 force_resend tipado — REPs por payment_id. */
+  paymentIds?: string[];
   /** Solo clientes con subset ≠ all elegibles (compat A1). */
   recipientOverrides?: RecipientOverrideEntry[];
 }

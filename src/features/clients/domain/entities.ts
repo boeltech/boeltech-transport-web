@@ -194,6 +194,8 @@ export interface Client {
   billingSchemeId?: string | null;
   /** ADR-0083: opt-in a corridas programadas del esquema asignado */
   invoiceAutoDispatchEnabled?: boolean;
+  /** Addendum 0083: opt-in automático de comprobantes de pago (REP); default off. */
+  repAutoDispatchEnabled?: boolean;
 
   // Términos comerciales
   paymentTerms: PaymentTerms;

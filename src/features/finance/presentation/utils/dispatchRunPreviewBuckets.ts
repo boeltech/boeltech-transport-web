@@ -4,18 +4,48 @@ import type {
   BillingDispatchRunSummary,
 } from "../../domain/billingDispatchRun.types";
 
+export function isRepDocument(item: BillingDispatchRunItem): boolean {
+  return item.documentKind === "rep";
+}
+
+export function isInvoiceDocument(item: BillingDispatchRunItem): boolean {
+  return !isRepDocument(item);
+}
+
 export function countDispatchPreviewBuckets(
   summary?: BillingDispatchRunSummary,
 ): {
   pendingStampCount: number;
   readyToSendCount: number;
   alreadySentSkipped: number;
+  readyToSendRepCount: number;
+  alreadySentSkippedRep: number;
+  /** Facturas + REPs listos (gate de Enviar). */
+  readyTotalCount: number;
 } {
+  const readyToSendCount = summary?.readyToSendCount ?? 0;
+  const readyToSendRepCount = summary?.readyToSendRepCount ?? 0;
   return {
     pendingStampCount: summary?.pendingStampCount ?? 0,
-    readyToSendCount: summary?.readyToSendCount ?? 0,
+    readyToSendCount,
     alreadySentSkipped: summary?.alreadySentSkipped ?? 0,
+    readyToSendRepCount,
+    alreadySentSkippedRep: summary?.alreadySentSkippedRep ?? 0,
+    readyTotalCount: readyToSendCount + readyToSendRepCount,
   };
+}
+
+export function partitionByDocumentKind(items: BillingDispatchRunItem[]): {
+  invoices: BillingDispatchRunItem[];
+  reps: BillingDispatchRunItem[];
+} {
+  const invoices: BillingDispatchRunItem[] = [];
+  const reps: BillingDispatchRunItem[] = [];
+  for (const item of items) {
+    if (isRepDocument(item)) reps.push(item);
+    else invoices.push(item);
+  }
+  return { invoices, reps };
 }
 
 /** Primer envío y este lote: si difieren >2s, el folio nació en Ya enviadas. */
@@ -31,7 +61,11 @@ function parseInstantMs(value: string | null | undefined): number | null {
 export function isAlreadySentBucket(item: BillingDispatchRunItem): boolean {
   if (item.itemKind !== "ready_to_send") return false;
   if (item.status === "skipped") return true;
-  const firstDispatched = parseInstantMs(item.invoiceDispatchSentAt);
+  const firstDispatched = parseInstantMs(
+    isRepDocument(item)
+      ? item.paymentRepDispatchSentAt
+      : item.invoiceDispatchSentAt,
+  );
   const sentThisRun = parseInstantMs(item.sentAt);
   if (
     firstDispatched != null &&
@@ -96,25 +130,56 @@ export function groupPendingStampByClient(items: BillingDispatchRunItem[]) {
 export function summarizeReadyToSend(items: BillingDispatchRunItem[]): {
   clientCount: number;
   folioCount: number;
+  invoiceCount: number;
+  repCount: number;
 } {
   const ready = items.filter(
     (i) => i.itemKind === "ready_to_send" && !isAlreadySentBucket(i),
   );
+  const { invoices, reps } = partitionByDocumentKind(ready);
   return {
     clientCount: groupReadyToSendByClient(ready).size,
     folioCount: ready.length,
+    invoiceCount: invoices.length,
+    repCount: reps.length,
   };
 }
 
 export function summarizeAlreadySent(items: BillingDispatchRunItem[]): {
   clientCount: number;
   folioCount: number;
+  invoiceCount: number;
+  repCount: number;
 } {
   const skipped = items.filter(isAlreadySentBucket);
+  const { invoices, reps } = partitionByDocumentKind(skipped);
   return {
     clientCount: groupAlreadySentByClient(skipped).size,
     folioCount: skipped.length,
+    invoiceCount: invoices.length,
+    repCount: reps.length,
   };
+}
+
+/** Etiqueta de fila: Factura N · o Comprobante de pago (REP) · folio/uuid. */
+export function formatDispatchDocumentLabel(
+  item: BillingDispatchRunItem,
+  labels: {
+    invoice: (folio: string) => string;
+    invoiceFallback: string;
+    rep: (folio: string) => string;
+    repFallback: string;
+  },
+): string {
+  if (isRepDocument(item)) {
+    const folio = item.folio?.trim();
+    if (folio) return labels.rep(folio);
+    if (item.paymentId) return labels.rep(shortId(item.paymentId, 8));
+    return labels.repFallback;
+  }
+  return item.folio?.trim()
+    ? labels.invoice(item.folio.trim())
+    : labels.invoiceFallback;
 }
 
 /** D10: badge de scope solo si el grupo del cliente mezcla más de un scope. */
@@ -173,16 +238,17 @@ export function canRefreshPreview(status: string): boolean {
   return ["draft", "previewed", "failed"].includes(status);
 }
 
+/** readyCount = facturas + REPs listos (D11 / D8 tipados sumados solo para el gate). */
 export function canConfirmSend(status: string, readyCount: number): boolean {
   return status === "previewed" && readyCount >= 1;
 }
 
-/** D6: reenvío solo en previewed con ≥1 folio seleccionado. */
+/** D6 / D10: reenvío solo en previewed con ≥1 documento tipado seleccionado. */
 export function canConfirmForceResend(
   status: string,
-  selectedInvoiceCount: number,
+  selectedDocumentCount: number,
 ): boolean {
-  return status === "previewed" && selectedInvoiceCount >= 1;
+  return status === "previewed" && selectedDocumentCount >= 1;
 }
 
 export function isDispatchRunTerminal(status: string): boolean {

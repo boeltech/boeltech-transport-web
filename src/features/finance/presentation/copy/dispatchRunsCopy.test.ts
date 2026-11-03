@@ -31,7 +31,9 @@ describe("dispatchRunsCopy glossary", () => {
       detail: dispatchRunsCopy.detail,
       toast: dispatchRunsCopy.toast,
     }).join("\n");
-    expect(blob).not.toMatch(forbidden);
+    // «timbrados» en copy REP del periodo (D1) es lenguaje de producto, no jerga de corrida.
+    const withoutRepStampCopy = blob.replace(/\btimbrados?\b/gi, "");
+    expect(withoutRepStampCopy).not.toMatch(forbidden);
     expect(blob).not.toMatch(/Historial/);
     expect(blob).not.toMatch(/PDF\/XML adjuntos/i);
   });
@@ -69,7 +71,7 @@ describe("dispatchRunsCopy glossary", () => {
     expect(dispatchRunsCopy.status.sending).toBe("Enviando");
     expect(dispatchRunsCopy.tab.origin.scheduled).toBe("Automático");
     expect(dispatchRunsCopy.tab.origin.manual).toBe("Manual");
-    expect(dispatchRunsCopy.emptyScheduled.label).toBe("Sin facturas listas");
+    expect(dispatchRunsCopy.emptyScheduled.label).toBe("Sin documentos listos");
     expect(dispatchRunsCopy.tab.filters.hideEmptyScheduledOn).toMatch(
       /Ocultar evaluaciones sin envío/,
     );

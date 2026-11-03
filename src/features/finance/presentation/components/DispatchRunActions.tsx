@@ -1,7 +1,7 @@
 /**
  * Acciones de un envío del periodo.
  * - dropdown: listado (Abrir · Cancelar envío)
- * - buttons: detalle (Enviar facturas + Más)
+ * - buttons: detalle (Enviar por correo + Más)
  */
 
 import { useState } from "react";

@@ -148,6 +148,7 @@ const CLIENT_NOTIFY_KEYS = [
   "billingEmail",
   "billingSchemeId",
   "invoiceAutoDispatchEnabled",
+  "repAutoDispatchEnabled",
   "paymentTerms",
   "creditDays",
   "creditLimit",
@@ -813,6 +814,41 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
                 <AlertTitle>{idCopy.invoiceAutoDispatchNoSchemeTitle}</AlertTitle>
                 <AlertDescription>
                   {idCopy.invoiceAutoDispatchNoSchemeText}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <div className="flex items-center gap-2">
+              <Controller
+                name="repAutoDispatchEnabled"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    id="repAutoDispatchEnabled"
+                    checked={Boolean(field.value)}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                )}
+              />
+              <Label
+                htmlFor="repAutoDispatchEnabled"
+                className="cursor-pointer"
+              >
+                {idCopy.repAutoDispatch}
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {idCopy.repAutoDispatchHint}
+            </p>
+            {Boolean(formValues?.repAutoDispatchEnabled) &&
+            !formValues?.billingSchemeId ? (
+              <Alert variant="warning">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{idCopy.repAutoDispatchNoSchemeTitle}</AlertTitle>
+                <AlertDescription>
+                  {idCopy.repAutoDispatchNoSchemeText}
                 </AlertDescription>
               </Alert>
             ) : null}

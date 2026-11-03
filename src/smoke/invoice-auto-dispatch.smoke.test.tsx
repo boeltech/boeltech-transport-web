@@ -1,7 +1,8 @@
 /**
- * Smoke ADR-0083 — envío automático de facturas (F2 UI + contrato visible).
+ * Smoke ADR-0083 — envío automático (F2 UI + contrato visible + addendum REP F5).
  * Mock de hooks; no requiere backend, worker ni SMTP.
- * Cubre: toggle cliente + warning sin frecuencia, badge origen, alerta failed en factura.
+ * Cubre: toggle facturas + warning sin frecuencia, toggle REP independiente,
+ * badge origen, alerta failed en factura.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -267,6 +268,41 @@ describe("invoice auto-dispatch workflow smoke (ADR-0083)", () => {
     ).toBeInTheDocument();
   });
 
+  it("edición de cliente: toggle REP aparte (default off) y warning sin frecuencia", async () => {
+    const user = userEvent.setup();
+    render(
+      <TestProviders>
+        <ClientForm
+          mode="edit"
+          client={baseClient}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </TestProviders>,
+    );
+
+    expect(screen.getByText(idCopy.repAutoDispatch)).toBeInTheDocument();
+    expect(screen.getByText(idCopy.repAutoDispatchHint)).toBeInTheDocument();
+
+    const repSwitch = screen.getByRole("switch", {
+      name: idCopy.repAutoDispatch,
+    });
+    expect(repSwitch).not.toBeChecked();
+
+    await user.click(repSwitch);
+
+    expect(
+      screen.getByText(idCopy.repAutoDispatchNoSchemeTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(idCopy.repAutoDispatchNoSchemeText),
+    ).toBeInTheDocument();
+    // Flag de facturas sigue off: independencia observable.
+    expect(
+      screen.getByRole("switch", { name: idCopy.invoiceAutoDispatch }),
+    ).not.toBeChecked();
+  });
+
   it("detalle cliente muestra Activado cuando el flag está on", () => {
     render(
       <TestProviders>
@@ -284,6 +320,27 @@ describe("invoice auto-dispatch workflow smoke (ADR-0083)", () => {
 
     expect(screen.getByText(idCopy.invoiceAutoDispatch)).toBeInTheDocument();
     expect(screen.getByText(idCopy.invoiceAutoDispatchOn)).toBeInTheDocument();
+  });
+
+  it("detalle cliente muestra flag REP on independiente del de facturas", () => {
+    render(
+      <TestProviders>
+        <ClientDetailDataTab
+          client={{
+            ...baseClient,
+            invoiceAutoDispatchEnabled: false,
+            repAutoDispatchEnabled: true,
+            billingSchemeId: "scheme-1",
+          }}
+          taxRegimeLabel="General de Ley"
+          billingSchemeLabel="Corte semanal"
+        />
+      </TestProviders>,
+    );
+
+    expect(screen.getByText(idCopy.repAutoDispatch)).toBeInTheDocument();
+    expect(screen.getByText(idCopy.repAutoDispatchOn)).toBeInTheDocument();
+    expect(screen.getByText(idCopy.invoiceAutoDispatchOff)).toBeInTheDocument();
   });
 
   it("listado de lotes distingue Manual vs Automático", () => {

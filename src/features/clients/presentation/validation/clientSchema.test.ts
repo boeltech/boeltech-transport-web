@@ -84,17 +84,19 @@ describe("clientSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("clientFormDataToUpdateDto incluye invoiceAutoDispatchEnabled", () => {
+  it("clientFormDataToUpdateDto incluye invoice y rep auto dispatch", () => {
     const dto = clientFormDataToUpdateDto({
       ...validCompanyValues,
       invoiceAutoDispatchEnabled: true,
+      repAutoDispatchEnabled: true,
       billingSchemeId: "11111111-1111-4111-8111-111111111111",
     });
     expect(dto.invoiceAutoDispatchEnabled).toBe(true);
+    expect(dto.repAutoDispatchEnabled).toBe(true);
     expect(dto.billingSchemeId).toBe("11111111-1111-4111-8111-111111111111");
   });
 
-  it("clientToFormValues defaulta invoiceAutoDispatchEnabled a false", () => {
+  it("clientToFormValues defaulta invoice y rep auto dispatch a false", () => {
     const client = {
       id: "c1",
       tenantId: "t1",
@@ -111,6 +113,7 @@ describe("clientSchema", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     } as Client;
     expect(clientToFormValues(client).invoiceAutoDispatchEnabled).toBe(false);
+    expect(clientToFormValues(client).repAutoDispatchEnabled).toBe(false);
     expect(clientToFormValues(client).cfdiReceptorProfile).toBe("receptor_cfdi");
   });
 
@@ -145,6 +148,7 @@ describe("clientSchema", () => {
     expect(dto).not.toHaveProperty("secondaryPhone");
     expect(dto).not.toHaveProperty("email");
     expect(dto.invoiceAutoDispatchEnabled).toBe(false);
+    expect(dto.repAutoDispatchEnabled).toBe(false);
   });
 
   it("clientFormDataToUpdateDto omite contactos legacy aunque el form los tenga", () => {

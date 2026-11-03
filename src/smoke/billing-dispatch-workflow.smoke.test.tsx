@@ -1,8 +1,9 @@
 /**
- * Smoke ADR-0082 — envío de facturas del periodo: revisión → destinatarios → confirmar.
+ * Smoke ADR-0082 — envío del periodo: revisión → destinatarios → confirmar.
  * Mock de hooks; no requiere backend ni correo real.
  * Addendum destinatarios (A3): lista visible, override efímero, dialog delgado.
- * Addendum force_resend (R3): Ya enviadas, reenvío con forceResend + invoiceIds.
+ * Addendum force_resend (R3): Ya enviados, reenvío tipado invoiceIds ∪ paymentIds.
+ * Addendum REP (F5): secciones Facturas · Comprobantes de pago (REP); reenvío solo REP.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -86,6 +87,8 @@ const previewedRun: BillingDispatchRun = {
     pendingStampCount: 1,
     readyToSendCount: 2,
     alreadySentSkipped: 0,
+    readyToSendRepCount: 0,
+    alreadySentSkippedRep: 0,
   },
   recipientsByClient: [
     {
@@ -113,6 +116,8 @@ const previewedRun: BillingDispatchRun = {
     {
       id: "item-pending",
       itemKind: "pending_stamp",
+      documentKind: "invoice",
+      paymentId: null,
       tripId: "trip-1",
       invoiceId: null,
       billingScope: "primary_transport",
@@ -129,6 +134,8 @@ const previewedRun: BillingDispatchRun = {
     {
       id: "item-ready-1",
       itemKind: "ready_to_send",
+      documentKind: "invoice",
+      paymentId: null,
       tripId: "trip-2",
       invoiceId: "inv-1",
       billingScope: "primary_transport",
@@ -145,6 +152,8 @@ const previewedRun: BillingDispatchRun = {
     {
       id: "item-ready-2",
       itemKind: "ready_to_send",
+      documentKind: "invoice",
+      paymentId: null,
       tripId: "trip-3",
       invoiceId: "inv-2",
       billingScope: "primary_transport",
@@ -162,6 +171,8 @@ const previewedRun: BillingDispatchRun = {
 };
 
 const skippedInvoiceId = "inv-skipped-1";
+const skippedPaymentId = "pay-skipped-1";
+const readyPaymentId = "pay-ready-1";
 
 const previewedRunWithSkipped: BillingDispatchRun = {
   ...previewedRun,
@@ -169,12 +180,16 @@ const previewedRunWithSkipped: BillingDispatchRun = {
     pendingStampCount: 1,
     readyToSendCount: 2,
     alreadySentSkipped: 1,
+    readyToSendRepCount: 0,
+    alreadySentSkippedRep: 0,
   },
   items: [
     ...previewedRun.items!,
     {
       id: "item-skipped-1",
       itemKind: "ready_to_send",
+      documentKind: "invoice",
+      paymentId: null,
       tripId: "trip-4",
       invoiceId: skippedInvoiceId,
       billingScope: "primary_transport",
@@ -182,6 +197,86 @@ const previewedRunWithSkipped: BillingDispatchRun = {
       clientName: "Cliente Demo",
       status: "skipped",
       folio: "B-200",
+      emailMessageId: null,
+      errorMessage: null,
+      sentAt: null,
+      createdAt: "2026-08-08T12:00:00.000Z",
+      updatedAt: "2026-08-08T12:00:00.000Z",
+    },
+  ],
+};
+
+const previewedRunWithRep: BillingDispatchRun = {
+  ...previewedRun,
+  summary: {
+    pendingStampCount: 0,
+    readyToSendCount: 1,
+    alreadySentSkipped: 0,
+    readyToSendRepCount: 1,
+    alreadySentSkippedRep: 0,
+  },
+  items: [
+    {
+      id: "item-ready-inv",
+      itemKind: "ready_to_send",
+      documentKind: "invoice",
+      paymentId: null,
+      tripId: "trip-2",
+      invoiceId: "inv-1",
+      billingScope: "primary_transport",
+      clientId: "client-1",
+      clientName: "Cliente Demo",
+      status: "listed",
+      folio: "A-100",
+      emailMessageId: null,
+      errorMessage: null,
+      sentAt: null,
+      createdAt: "2026-08-08T12:00:00.000Z",
+      updatedAt: "2026-08-08T12:00:00.000Z",
+    },
+    {
+      id: "item-ready-rep",
+      itemKind: "ready_to_send",
+      documentKind: "rep",
+      paymentId: readyPaymentId,
+      tripId: null,
+      invoiceId: null,
+      billingScope: null,
+      clientId: "client-1",
+      clientName: "Cliente Demo",
+      status: "listed",
+      folio: "P-900",
+      emailMessageId: null,
+      errorMessage: null,
+      sentAt: null,
+      createdAt: "2026-08-08T12:00:00.000Z",
+      updatedAt: "2026-08-08T12:00:00.000Z",
+    },
+  ],
+};
+
+const previewedRunWithSkippedRep: BillingDispatchRun = {
+  ...previewedRun,
+  summary: {
+    pendingStampCount: 0,
+    readyToSendCount: 0,
+    alreadySentSkipped: 0,
+    readyToSendRepCount: 0,
+    alreadySentSkippedRep: 1,
+  },
+  items: [
+    {
+      id: "item-skipped-rep",
+      itemKind: "ready_to_send",
+      documentKind: "rep",
+      paymentId: skippedPaymentId,
+      tripId: null,
+      invoiceId: null,
+      billingScope: null,
+      clientId: "client-1",
+      clientName: "Cliente Demo",
+      status: "skipped",
+      folio: "P-800",
       emailMessageId: null,
       errorMessage: null,
       sentAt: null,
@@ -199,6 +294,8 @@ const previewedRunSplitShare: BillingDispatchRun = {
     pendingStampCount: 0,
     readyToSendCount: 2,
     alreadySentSkipped: 0,
+    readyToSendRepCount: 0,
+    alreadySentSkippedRep: 0,
   },
   recipientsByClient: [
     {
@@ -230,6 +327,8 @@ const previewedRunSplitShare: BillingDispatchRun = {
     {
       id: "item-split-a5",
       itemKind: "ready_to_send",
+      documentKind: "invoice",
+      paymentId: null,
       tripId: sharedSplitTripId,
       invoiceId: "inv-a5",
       billingScope: "split_share",
@@ -247,6 +346,8 @@ const previewedRunSplitShare: BillingDispatchRun = {
     {
       id: "item-split-a6",
       itemKind: "ready_to_send",
+      documentKind: "invoice",
+      paymentId: null,
       tripId: sharedSplitTripId,
       invoiceId: "inv-a6",
       billingScope: "split_share",
@@ -351,14 +452,14 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(screen.queryByText(/Viajes cerrados entre/)).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        dispatchRunsCopy.detail.decisionSummary(2, 1, 1),
+        dispatchRunsCopy.detail.decisionSummary(2, 0, 1, 1),
       ),
     ).toBeInTheDocument();
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.counts.pendingStamp).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByText(dispatchRunsCopy.detail.counts.readyToSend).length,
+      screen.getAllByText(dispatchRunsCopy.detail.counts.readyInvoices).length,
     ).toBeGreaterThan(0);
     expect(
       screen.getByText(
@@ -369,6 +470,15 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(screen.getByText(/A-101/)).toBeInTheDocument();
     expect(
       screen.getByText(dispatchRunsCopy.detail.buckets.pendingNote),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.invoices),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.reps),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.emptyReadyReps),
     ).toBeInTheDocument();
 
     expect(
@@ -393,7 +503,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(within(dialog).queryByText(/adjuntos/i)).not.toBeInTheDocument();
     expect(
       within(dialog).getByText(
-        `${dispatchRunsCopy.detail.confirm.summaryClients(1)} · ${dispatchRunsCopy.detail.confirm.summaryInvoices(2)} · ${dispatchRunsCopy.detail.confirm.summaryRecipients(2)}`,
+        `${dispatchRunsCopy.detail.confirm.summaryClients(1)} · ${dispatchRunsCopy.detail.confirm.summaryInvoices(2)} · ${dispatchRunsCopy.detail.confirm.summaryReps(0)} · ${dispatchRunsCopy.detail.confirm.summaryRecipients(2)}`,
       ),
     ).toBeInTheDocument();
     expect(
@@ -453,7 +563,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     ).toBeInTheDocument();
     expect(
       within(dialog).getByText(
-        `${dispatchRunsCopy.detail.resendConfirm.summaryClients(1)} · ${dispatchRunsCopy.detail.resendConfirm.summaryInvoices(1)} · ${dispatchRunsCopy.detail.resendConfirm.summaryRecipients(2)}`,
+        `${dispatchRunsCopy.detail.resendConfirm.summaryClients(1)} · ${dispatchRunsCopy.detail.resendConfirm.summaryInvoices(1)} · ${dispatchRunsCopy.detail.resendConfirm.summaryReps(0)} · ${dispatchRunsCopy.detail.resendConfirm.summaryRecipients(2)}`,
       ),
     ).toBeInTheDocument();
 
@@ -468,6 +578,110 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       payload: {
         forceResend: true,
         invoiceIds: [skippedInvoiceId],
+        recipientOverrides: undefined,
+      },
+    });
+  });
+
+  it("muestra secciones Facturas · Comprobantes de pago (REP) y confirma lote mixto", async () => {
+    mocks.run = previewedRunWithRep;
+    const user = userEvent.setup();
+    renderDetail();
+
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.decisionSummary(1, 1, 1, 0)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.invoices),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.reps),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.repsPeriodHint),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.buckets.invoiceLabel("A-100")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.buckets.repLabel("P-900")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.counts.readyReps),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.sendCta,
+      }),
+    );
+
+    const dialog = screen.getByRole("alertdialog", {
+      name: dispatchRunsCopy.detail.confirm.title,
+    });
+    expect(
+      within(dialog).getByText(
+        `${dispatchRunsCopy.detail.confirm.summaryClients(1)} · ${dispatchRunsCopy.detail.confirm.summaryInvoices(1)} · ${dispatchRunsCopy.detail.confirm.summaryReps(1)} · ${dispatchRunsCopy.detail.confirm.summaryRecipients(2)}`,
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: dispatchRunsCopy.detail.confirm.submit,
+      }),
+    );
+
+    expect(mocks.confirmMutateAsync).toHaveBeenCalledWith({
+      id: "run-1",
+      payload: { recipientOverrides: undefined },
+    });
+  });
+
+  it("permite reenviar solo un comprobante de pago (REP) con paymentIds", async () => {
+    mocks.run = previewedRunWithSkippedRep;
+    const user = userEvent.setup();
+    renderDetail();
+
+    expect(
+      screen.getAllByText(dispatchRunsCopy.detail.alreadySent.title).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.buckets.repLabel("P-800")),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /Comprobante de pago \(REP\) · P-800/i,
+      }),
+    );
+
+    // Sin facturas listas, Reenviar es CTA primario (no menú «Más»).
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.resendCta,
+      }),
+    );
+
+    const dialog = screen.getByRole("alertdialog", {
+      name: dispatchRunsCopy.detail.resendConfirm.title,
+    });
+    expect(
+      within(dialog).getByText(
+        `${dispatchRunsCopy.detail.resendConfirm.summaryClients(1)} · ${dispatchRunsCopy.detail.resendConfirm.summaryInvoices(0)} · ${dispatchRunsCopy.detail.resendConfirm.summaryReps(1)} · ${dispatchRunsCopy.detail.resendConfirm.summaryRecipients(2)}`,
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: dispatchRunsCopy.detail.resendConfirm.submit,
+      }),
+    );
+
+    expect(mocks.confirmMutateAsync).toHaveBeenCalledWith({
+      id: "run-1",
+      payload: {
+        forceResend: true,
+        paymentIds: [skippedPaymentId],
         recipientOverrides: undefined,
       },
     });
@@ -552,6 +766,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
         pendingStampCount: 0,
         readyToSendCount: 6,
         alreadySentSkipped: 0,
+        readyToSendRepCount: 0,
+        alreadySentSkippedRep: 0,
       },
       recipientsByClient: Array.from({ length: 6 }, (_, i) => ({
         clientId: `client-${i + 1}`,
@@ -568,6 +784,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       items: Array.from({ length: 6 }, (_, i) => ({
         id: `item-ready-${i + 1}`,
         itemKind: "ready_to_send" as const,
+        documentKind: "invoice",
+        paymentId: null,
         tripId: `trip-${i + 1}`,
         invoiceId: `inv-${i + 1}`,
         billingScope: "primary_transport",
@@ -612,6 +830,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
         pendingStampCount: 0,
         readyToSendCount: 2,
         alreadySentSkipped: 0,
+        readyToSendRepCount: 0,
+        alreadySentSkippedRep: 0,
       },
       errorSummary: "1 cliente falló",
       recipientsByClient: [
@@ -680,6 +900,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
         {
           id: "item-ready-1",
           itemKind: "ready_to_send",
+          documentKind: "invoice",
+          paymentId: null,
           tripId: "trip-2",
           invoiceId: "inv-1",
           billingScope: "primary_transport",
@@ -696,6 +918,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
         {
           id: "item-ready-2",
           itemKind: "ready_to_send",
+          documentKind: "invoice",
+          paymentId: null,
           tripId: "trip-3",
           invoiceId: "inv-2",
           billingScope: "primary_transport",
@@ -768,12 +992,12 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(screen.getByText("facturacion@luces.test")).toBeInTheDocument();
     expect(
       screen.getByText(
-        dispatchRunsCopy.detail.decisionSummary(2, 2, 0),
+        dispatchRunsCopy.detail.decisionSummary(2, 0, 2, 0),
       ),
     ).toBeInTheDocument();
   });
 
-  it("pide confirmación al cancelar y pone Enviar facturas en el header", async () => {
+  it("pide confirmación al cancelar y pone Enviar por correo en el header", async () => {
     const user = userEvent.setup();
     renderDetail();
 

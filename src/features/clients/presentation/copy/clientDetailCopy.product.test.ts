@@ -54,6 +54,14 @@ describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
     );
     expect(id.invoiceAutoDispatchNoSchemeText).toMatch(/envíos del periodo/i);
 
+    expect(id.repAutoDispatch).toBe(
+      "Envío automático de comprobantes de pago (REP)",
+    );
+    expect(id.repAutoDispatchOn).toBe("Sí, sin confirmar");
+    expect(id.repAutoDispatchOff).toBe("No — pide confirmación");
+    expect(id.repAutoDispatchHint).toMatch(/Independiente/i);
+    expect(id.repAutoDispatchNoSchemeText).toMatch(/corrida manual/i);
+
     const surfaceBlob = [
       dispatch.title,
       dispatch.description,
@@ -67,9 +75,18 @@ describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
       id.invoiceAutoDispatchHint,
       id.invoiceAutoDispatchNoSchemeTitle,
       id.invoiceAutoDispatchNoSchemeText,
+      id.repAutoDispatch,
+      id.repAutoDispatchOn,
+      id.repAutoDispatchOff,
+      id.repAutoDispatchHint,
+      id.repAutoDispatchNoSchemeTitle,
+      id.repAutoDispatchNoSchemeText,
     ].join("\n");
     expect(surfaceBlob).not.toMatch(/\blote\b/i);
-    expect(surfaceBlob).not.toMatch(/\bcorrida\b/i);
+    // «corrida manual» en hint REP es copy de producto permitido (addendum D4).
+    expect(surfaceBlob.replace(/corrida manual/gi, "")).not.toMatch(
+      /\bcorrida\b/i,
+    );
   });
 
   it("rol de contacto sin jerga Carta Porte en superficie (D5)", () => {

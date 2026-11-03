@@ -17,6 +17,7 @@ import type {
   CreateBillingDispatchRunPayload,
   CreateBillingDispatchRunResult,
   DispatchCadenceKind,
+  DispatchDocumentKind,
   DispatchItemKind,
   DispatchPeriodWindowFields,
   DispatchRecipient,
@@ -57,8 +58,10 @@ type ApiClientReceiptRaw = {
 type ApiRunItemRaw = {
   id: string;
   item_kind: string;
+  document_kind?: string | null;
   trip_id: string | null;
   invoice_id: string | null;
+  payment_id?: string | null;
   billing_scope: string | null;
   client_id: string;
   client_name?: string | null;
@@ -66,6 +69,7 @@ type ApiRunItemRaw = {
   origin_city?: string | null;
   destination_city?: string | null;
   invoice_dispatch_sent_at?: string | null;
+  payment_rep_dispatch_sent_at?: string | null;
   status: string;
   folio?: string | null;
   email_message_id: string | null;
@@ -103,6 +107,8 @@ type ApiRunRaw = {
     pending_stamp_count: number;
     ready_to_send_count: number;
     already_sent_skipped: number;
+    ready_to_send_rep_count?: number;
+    already_sent_skipped_rep?: number;
   };
   items?: ApiRunItemRaw[];
   recipients_by_client?: ApiRecipientsByClientRaw[];
@@ -190,7 +196,15 @@ function mapSummary(
     pendingStampCount: raw.pendingStampCount,
     readyToSendCount: raw.readyToSendCount,
     alreadySentSkipped: raw.alreadySentSkipped,
+    readyToSendRepCount: raw.readyToSendRepCount ?? 0,
+    alreadySentSkippedRep: raw.alreadySentSkippedRep ?? 0,
   };
+}
+
+function mapDocumentKind(
+  value: string | null | undefined,
+): DispatchDocumentKind {
+  return value === "rep" ? "rep" : "invoice";
 }
 
 function mapItem(
@@ -199,8 +213,10 @@ function mapItem(
   return {
     id: raw.id,
     itemKind: raw.itemKind as DispatchItemKind,
+    documentKind: mapDocumentKind(raw.documentKind),
     tripId: raw.tripId,
     invoiceId: raw.invoiceId,
+    paymentId: raw.paymentId ?? null,
     billingScope: raw.billingScope,
     clientId: raw.clientId,
     clientName: raw.clientName ?? undefined,
@@ -208,6 +224,7 @@ function mapItem(
     originCity: raw.originCity ?? undefined,
     destinationCity: raw.destinationCity ?? undefined,
     invoiceDispatchSentAt: raw.invoiceDispatchSentAt ?? undefined,
+    paymentRepDispatchSentAt: raw.paymentRepDispatchSentAt ?? undefined,
     status: raw.status,
     folio: raw.folio ?? undefined,
     emailMessageId: raw.emailMessageId,
@@ -379,7 +396,19 @@ export async function confirmSendBillingDispatchRun(
   const body: Record<string, unknown> = {};
   if (payload?.forceResend === true) {
     body.force_resend = true;
-    body.invoice_ids = payload.invoiceIds;
+    if (payload.invoiceIds?.length) {
+      body.invoice_ids = payload.invoiceIds;
+    }
+    if (payload.paymentIds?.length) {
+      body.payment_ids = payload.paymentIds;
+    }
+  } else {
+    if (payload?.invoiceIds?.length) {
+      body.invoice_ids = payload.invoiceIds;
+    }
+    if (payload?.paymentIds?.length) {
+      body.payment_ids = payload.paymentIds;
+    }
   }
   if (payload?.recipientOverrides?.length) {
     body.recipient_overrides = payload.recipientOverrides.map((entry) => ({

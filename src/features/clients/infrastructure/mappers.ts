@@ -130,6 +130,7 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     billingEmail: raw.billingEmail ?? undefined,
     billingSchemeId: raw.billingSchemeId ?? undefined,
     invoiceAutoDispatchEnabled: Boolean(raw.invoiceAutoDispatchEnabled),
+    repAutoDispatchEnabled: Boolean(raw.repAutoDispatchEnabled),
     paymentTerms: raw.paymentTerms as PaymentTerms,
     creditDays: raw.creditDays,
     creditLimit: raw.creditLimit ?? undefined,
@@ -429,6 +430,9 @@ export function toApiUpdateClient(
   }
   if (dto.invoiceAutoDispatchEnabled !== undefined) {
     result.invoice_auto_dispatch_enabled = dto.invoiceAutoDispatchEnabled;
+  }
+  if (dto.repAutoDispatchEnabled !== undefined) {
+    result.rep_auto_dispatch_enabled = dto.repAutoDispatchEnabled;
   }
   // Términos comerciales
   if (dto.paymentTerms !== undefined) result.payment_terms = dto.paymentTerms;

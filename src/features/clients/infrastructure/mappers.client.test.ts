@@ -33,6 +33,7 @@ const snakeClient: ClientApiResponse = {
   billing_email: "billing@acme.test",
   billing_scheme_id: "scheme-1",
   invoice_auto_dispatch_enabled: false,
+  rep_auto_dispatch_enabled: false,
   notes: null,
   created_at: "2026-01-01T00:00:00.000Z",
   updated_at: "2026-01-02T00:00:00.000Z",
@@ -51,6 +52,7 @@ describe("client mappers (mapSingleResponse / mapPaginatedResponse)", () => {
     expect(data.billingEmail).toBe("billing@acme.test");
     expect(data.billingSchemeId).toBe("scheme-1");
     expect(data.invoiceAutoDispatchEnabled).toBe(false);
+    expect(data.repAutoDispatchEnabled).toBe(false);
     expect(data.cfdiReceptorProfile).toBe("receptor_cfdi");
   });
 
@@ -195,9 +197,12 @@ describe("toApiUpdateClient", () => {
     });
   });
 
-  it("envía invoice_auto_dispatch_enabled", () => {
+  it("envía invoice_auto_dispatch_enabled y rep_auto_dispatch_enabled", () => {
     expect(toApiUpdateClient({ invoiceAutoDispatchEnabled: true })).toEqual({
       invoice_auto_dispatch_enabled: true,
+    });
+    expect(toApiUpdateClient({ repAutoDispatchEnabled: true })).toEqual({
+      rep_auto_dispatch_enabled: true,
     });
   });
 

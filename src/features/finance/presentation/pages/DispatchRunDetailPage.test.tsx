@@ -104,6 +104,8 @@ const baseRun: BillingDispatchRun = {
     pendingStampCount: 0,
     readyToSendCount: 0,
     alreadySentSkipped: 0,
+    readyToSendRepCount: 0,
+    alreadySentSkippedRep: 0,
   },
   recipientsByClient: [],
   clientReceipts: null,
@@ -208,6 +210,8 @@ describe("DispatchRunDetailPage F3", () => {
         pendingStampCount: 0,
         readyToSendCount: 1,
         alreadySentSkipped: 0,
+        readyToSendRepCount: 0,
+        alreadySentSkippedRep: 0,
       },
       clientReceipts: [
         {
@@ -232,8 +236,10 @@ describe("DispatchRunDetailPage F3", () => {
         {
           id: "item-1",
           itemKind: "ready_to_send",
+          documentKind: "invoice",
           tripId: "trip-1",
           invoiceId: "inv-1",
+          paymentId: null,
           billingScope: "primary_transport",
           clientId: "client-1",
           clientName: "Cliente Demo",
@@ -266,6 +272,8 @@ describe("DispatchRunDetailPage F3", () => {
         pendingStampCount: 0,
         readyToSendCount: 1,
         alreadySentSkipped: 0,
+        readyToSendRepCount: 0,
+        alreadySentSkippedRep: 0,
       },
       recipientsByClient: [
         {
@@ -285,8 +293,10 @@ describe("DispatchRunDetailPage F3", () => {
         {
           id: "item-1",
           itemKind: "ready_to_send",
+          documentKind: "invoice",
           tripId: "trip-1",
           invoiceId: "inv-1",
+          paymentId: null,
           billingScope: "primary_transport",
           clientId: "client-1",
           clientName: "Cliente Demo",

@@ -126,6 +126,8 @@ export interface UpdateClientDTO {
   billingSchemeId?: string | null;
   /** ADR-0083: opt-in corrida programada. */
   invoiceAutoDispatchEnabled?: boolean;
+  /** Addendum 0083: opt-in automático REP. */
+  repAutoDispatchEnabled?: boolean;
   paymentTerms?: PaymentTerms;
   creditDays?: number;
   creditLimit?: number | null;
@@ -371,6 +373,7 @@ export interface ClientApiResponse {
   billing_email: string | null;
   billing_scheme_id: string | null;
   invoice_auto_dispatch_enabled: boolean;
+  rep_auto_dispatch_enabled?: boolean;
   // Términos comerciales
   payment_terms: string;
   credit_days: number;

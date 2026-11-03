@@ -48,7 +48,9 @@ export function ClientDetailDataTab({
   const showInvoiceDispatch = client.cfdiReceptorProfile !== "comercial_only";
   const hasBillingScheme = Boolean(billingSchemeLabel?.trim());
   const autoOnWithoutScheme =
-    Boolean(client.invoiceAutoDispatchEnabled) && !client.billingSchemeId;
+    (Boolean(client.invoiceAutoDispatchEnabled) ||
+      Boolean(client.repAutoDispatchEnabled)) &&
+    !client.billingSchemeId;
 
   return (
     <div
@@ -216,12 +218,24 @@ export function ClientDetailDataTab({
                     : idCopy.invoiceAutoDispatchOff
                 }
               />
+              <InfoRow
+                variant="inline"
+                label={idCopy.repAutoDispatch}
+                value={
+                  client.repAutoDispatchEnabled
+                    ? idCopy.repAutoDispatchOn
+                    : idCopy.repAutoDispatchOff
+                }
+              />
               {autoOnWithoutScheme ? (
                 <Alert variant="warning">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>{idCopy.invoiceAutoDispatchNoSchemeTitle}</AlertTitle>
                   <AlertDescription>
-                    {idCopy.invoiceAutoDispatchNoSchemeText}
+                    {client.repAutoDispatchEnabled &&
+                    !client.invoiceAutoDispatchEnabled
+                      ? idCopy.repAutoDispatchNoSchemeText
+                      : idCopy.invoiceAutoDispatchNoSchemeText}
                   </AlertDescription>
                 </Alert>
               ) : null}
