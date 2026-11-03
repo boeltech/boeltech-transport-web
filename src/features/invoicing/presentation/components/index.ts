@@ -9,6 +9,7 @@ export { InvoiceCard } from "./InvoiceCard";
 export { InvoiceCardSkeleton } from "./InvoiceCardSkeleton";
 export { InvoiceActions } from "./InvoiceActions";
 export { SendInvoiceDialog } from "./SendInvoiceDialog";
+export { SendRepDialog } from "./SendRepDialog";
 export { PaymentFormDialog } from "./PaymentFormDialog";
 export { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 export { ResumeSubstitutionCancelDialog } from "./ResumeSubstitutionCancelDialog";

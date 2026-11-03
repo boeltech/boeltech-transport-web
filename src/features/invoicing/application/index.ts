@@ -26,8 +26,11 @@ export {
   useDownloadInvoiceXml,
   useDownloadRepXml,
   useInvoiceSendRecipients,
+  usePaymentSendRecipients,
   useSendInvoice,
 } from "./hooks/useInvoices";
+
+export { useDispatchDocuments } from "./hooks/useDispatchDocuments";
 
 export { useInvoiceReceiverClientType } from "./hooks/useInvoiceReceiverClientType";
 

@@ -1,5 +1,5 @@
 /**
- * Workbench unificado de envío de facturas.
+ * Workbench unificado de Envíos (facturas + comprobantes de pago REP).
  * Tabs: Pendientes · Enviadas. Lotes del periodo vía crossLink + CTA de cabecera.
  */
 
@@ -9,12 +9,14 @@ import { Plus } from "lucide-react";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
-import { useInvoices } from "@features/invoicing";
-import type { InvoiceListItem } from "@features/invoicing";
+import { useDispatchDocuments } from "@features/invoicing/application";
+import type { DispatchDocumentItem } from "@features/invoicing/domain";
 import { useBillingDispatchRuns } from "@features/finance/application";
 import {
   DEFAULT_DISPATCH_TAB,
+  DISPATCH_DOCUMENT_KIND_PARAM,
   DISPATCH_TAB_PARAM,
+  parseDispatchDocumentKindFilter,
   parseDispatchWorkbenchTab,
   type DispatchWorkbenchTabId,
 } from "../config/dispatchWorkbenchConfig";
@@ -39,6 +41,9 @@ export function FinanceDispatchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { from: returnTo } = useInvoiceQueueFromState();
   const tabParam = searchParams.get(DISPATCH_TAB_PARAM);
+  const documentKind = parseDispatchDocumentKindFilter(
+    searchParams.get(DISPATCH_DOCUMENT_KIND_PARAM),
+  );
   const { hasPermission } = usePermissions();
   const canExecute = hasPermission("invoices", "execute");
   const activeTab = parseDispatchWorkbenchTab(tabParam);
@@ -48,24 +53,24 @@ export function FinanceDispatchPage() {
   const [createRunOpen, setCreateRunOpen] = useState(false);
   const [confirmMode, setConfirmMode] =
     useState<FinanceDispatchConfirmSheetMode>("send");
-  const [confirmInvoices, setConfirmInvoices] = useState<InvoiceListItem[]>(
-    [],
-  );
+  const [confirmDocuments, setConfirmDocuments] = useState<
+    DispatchDocumentItem[]
+  >([]);
   /** Incrementa tras batch ok → Pending/Sent panel limpia selección. */
   const [selectionResetKey, setSelectionResetKey] = useState(0);
 
-  const { data: pendingMeta } = useInvoices({
-    status: "stamped",
-    emailDispatch: "unsent",
+  const { data: pendingMeta } = useDispatchDocuments({
+    bucket: "pending",
+    documentKind,
     page: 1,
     limit: 1,
   });
   const pendingCount =
     pendingMeta?.pagination?.total ?? pendingCountFromPanel;
 
-  const { data: sentMeta } = useInvoices({
-    status: "stamped",
-    emailDispatch: "sent",
+  const { data: sentMeta } = useDispatchDocuments({
+    bucket: "sent",
+    documentKind,
     page: 1,
     limit: 1,
   });
@@ -102,17 +107,17 @@ export function FinanceDispatchPage() {
     [setSearchParams],
   );
 
-  const requestSend = useCallback((selected: InvoiceListItem[]) => {
+  const requestSend = useCallback((selected: DispatchDocumentItem[]) => {
     if (selected.length === 0) return;
     setConfirmMode("send");
-    setConfirmInvoices(selected);
+    setConfirmDocuments(selected);
     setConfirmOpen(true);
   }, []);
 
-  const requestResend = useCallback((selected: InvoiceListItem[]) => {
+  const requestResend = useCallback((selected: DispatchDocumentItem[]) => {
     if (selected.length === 0) return;
     setConfirmMode("resend");
-    setConfirmInvoices(selected);
+    setConfirmDocuments(selected);
     setConfirmOpen(true);
   }, []);
 
@@ -187,11 +192,11 @@ export function FinanceDispatchPage() {
         onOpenChange={(open) => {
           setConfirmOpen(open);
           if (!open) {
-            setConfirmInvoices([]);
+            setConfirmDocuments([]);
             setConfirmMode("send");
           }
         }}
-        invoices={confirmInvoices}
+        documents={confirmDocuments}
         mode={confirmMode}
         onBatchComplete={handleBatchComplete}
       />

@@ -1,6 +1,6 @@
 /**
- * Envío batch digest async (F4′): 1 POST /invoices/send-batch → 202 + batch_id.
- * Toast inmediato = encolado (ConfirmSheet); poll GET send-batches para toast diferido.
+ * Envío batch digest async (F4′ / P1 tipado): 1 POST /invoices/send-batch → 202 + batch_id.
+ * Soporta invoice_ids y/o payment_ids por grupo. Toast inmediato = encolado; poll diferido.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -23,6 +23,7 @@ export type SendInvoiceBatchGroupItem = {
   groupKey: string;
   clientLabel: string;
   invoiceIds: string[];
+  paymentIds?: string[];
   folioLabels: string[];
   /** Keys del cliente. undefined = todos los elegibles (contrato API). */
   recipientKeys?: string[];
@@ -32,6 +33,7 @@ export type SendInvoiceBatchResultItem = {
   groupKey: string;
   clientLabel: string;
   invoiceIds: string[];
+  paymentIds: string[];
   folioLabels: string[];
   /** true = grupo aceptado en cola (`queued`). */
   ok: boolean;
@@ -53,12 +55,15 @@ function toastForSettledBatch(
 ): void {
   const sent = poll.groups.filter((g) => g.status === "sent");
   const failed = poll.groups.filter((g) => g.status === "failed");
-  const sentInvoices = sent.reduce((n, g) => n + g.invoiceIds.length, 0);
+  const sentDocs = sent.reduce(
+    (n, g) => n + g.invoiceIds.length + g.paymentIds.length,
+    0,
+  );
 
   if (failed.length === 0 && sent.length > 0) {
     toast({
       variant: "success",
-      title: pollCopy.toastCompleted(sentInvoices, sent.length),
+      title: pollCopy.toastCompleted(sentDocs, sent.length),
     });
     return;
   }
@@ -104,6 +109,7 @@ export function useSendInvoicesBatch() {
         const response = await invoicingApi.sendInvoicesBatch({
           groups: groups.map((group) => ({
             invoiceIds: group.invoiceIds,
+            paymentIds: group.paymentIds ?? [],
             recipientKeys: group.recipientKeys,
           })),
         });
@@ -114,15 +120,22 @@ export function useSendInvoicesBatch() {
         const byFirstInvoice = new Map(
           response.groups.map((g) => [g.invoiceIds[0] ?? "", g] as const),
         );
+        const byFirstPayment = new Map(
+          response.groups.map((g) => [g.paymentIds[0] ?? "", g] as const),
+        );
 
         const results: SendInvoiceBatchResultItem[] = groups.map((group) => {
+          const paymentIds = group.paymentIds ?? [];
           const apiGroup =
             byKey.get(group.groupKey) ??
             byFirstInvoice.get(group.invoiceIds[0] ?? "") ??
+            byFirstPayment.get(paymentIds[0] ?? "") ??
             response.groups.find(
               (g) =>
                 g.invoiceIds.length === group.invoiceIds.length &&
-                group.invoiceIds.every((id) => g.invoiceIds.includes(id)),
+                paymentIds.length === g.paymentIds.length &&
+                group.invoiceIds.every((id) => g.invoiceIds.includes(id)) &&
+                paymentIds.every((id) => g.paymentIds.includes(id)),
             );
 
           if (!apiGroup) {
@@ -130,6 +143,7 @@ export function useSendInvoicesBatch() {
               groupKey: group.groupKey,
               clientLabel: group.clientLabel,
               invoiceIds: group.invoiceIds,
+              paymentIds,
               folioLabels: group.folioLabels,
               ok: false,
               status: "failed" as const,
@@ -144,6 +158,9 @@ export function useSendInvoicesBatch() {
             invoiceIds: apiGroup.invoiceIds.length
               ? apiGroup.invoiceIds
               : group.invoiceIds,
+            paymentIds: apiGroup.paymentIds.length
+              ? apiGroup.paymentIds
+              : paymentIds,
             folioLabels: group.folioLabels,
             ok,
             status: apiGroup.status,
@@ -182,6 +199,7 @@ export function useSendInvoicesBatch() {
           groupKey: group.groupKey,
           clientLabel: group.clientLabel,
           invoiceIds: group.invoiceIds,
+          paymentIds: group.paymentIds ?? [],
           folioLabels: group.folioLabels,
           ok: false,
           status: "failed" as const,

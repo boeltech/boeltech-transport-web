@@ -332,16 +332,51 @@ export const invoicingCopy = {
       toastCompletedFail: "No se pudo completar el envío",
       errorToast: "No se pudo encolar el envío",
     },
-    /** Toasts diferidos del poll GET send-batches (workbench multi-cliente). */
+    /** Cobros N=1 / fila Enviadas REP — POST send-batch con payment_ids. */
+    repDialog: {
+      cta: "Enviar comprobante",
+      ctaResend: "Reenviar",
+      documentLabel: "Comprobante de pago (REP)",
+      title: "Enviar comprobante de pago (REP) por correo",
+      titleResend: "Reenviar comprobante de pago (REP) por correo",
+      description:
+        "Se enviará un correo con el comprobante de pago (REP) y un enlace para descargar PDF y XML en un ZIP. No se vuelve a timbrar ni se regeneran los archivos. El envío se procesa en segundo plano.",
+      resendWarning:
+        "Este comprobante de pago (REP) ya se envió antes. Reenviar puede duplicar el correo en la bandeja del cliente y genera un enlace nuevo. No se regenera el PDF ni el XML y no se vuelve a timbrar.",
+      recipientsHeading: "Destinatarios",
+      recipientsHint:
+        "Correo de facturación y contactos que reciben facturas. Por defecto van todos marcados.",
+      submit: "Enviar",
+      submitResend: "Reenviar",
+      submitting: "Encolando…",
+      cancel: "Cancelar",
+      loading: "Cargando destinatarios…",
+      retry: "Reintentar",
+      loadError: "No se pudieron cargar los destinatarios.",
+      noRecipients:
+        "Sin destinatarios elegibles. Agrega correo de facturación o contactos que reciban facturas en el cliente:",
+      clientLink: "Ir a la ficha del cliente",
+      zeroSelected: "Marca al menos un destinatario antes de enviar.",
+      recipientsSelected: (selected: number) =>
+        selected === 1
+          ? "1 destinatario seleccionado"
+          : `${selected} destinatarios seleccionados`,
+      successToast: "Envío encolado · 1 comprobante de pago (REP)",
+      successToastResend: "Reenvío encolado · 1 comprobante de pago (REP)",
+      errorToast: "No se pudo encolar el envío",
+      disabledNotStamped:
+        "Solo comprobantes de pago (REP) timbrados se pueden enviar por correo.",
+    },
+    /** Toasts diferidos del poll GET send-batches (workbench multi-cliente tipado). */
     batchPoll: {
-      toastCompleted: (invoiceCount: number, clientCount: number) => {
-        const facturas =
-          invoiceCount === 1
-            ? "1 factura"
-            : `${invoiceCount} facturas`;
+      toastCompleted: (documentCount: number, clientCount: number) => {
+        const docs =
+          documentCount === 1
+            ? "1 documento"
+            : `${documentCount} documentos`;
         const clientes =
           clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
-        return `${facturas} enviadas · ${clientes}`;
+        return `${docs} enviados · ${clientes}`;
       },
       toastJobPartial: (okClients: number, failClients: number) =>
         `Envío parcial: ${okClients} cliente${okClients === 1 ? "" : "s"} ok, ${failClients} con error.`,
@@ -462,7 +497,7 @@ export const invoicingCopy = {
     paymentForm: {
       title: "Registrar pago",
       ppdHint:
-        "Factura a crédito. Este pago es una parcialidad de esta factura y genera un comprobante de pago (REP). Para cobrar varias facturas a la vez por el saldo completo, usa Facturas por cobrar.",
+        "Factura a crédito. Este pago es una parcialidad de esta factura y genera un comprobante de pago (REP). Para cobrar varias facturas a la vez por el saldo completo, usa Facturas a crédito.",
       ppdHintLabel: "Más sobre factura a crédito",
       contextLine: (serie: string, folio: number, clientName: string) =>
         `${serie}-${folio} · ${clientName}`,
@@ -822,7 +857,7 @@ export const invoicingCopy = {
       cancelBlocked:
         "Esta factura tiene pagos aplicados. En esta versión no se puede cancelar mientras haya cobros.",
       cancelBlockedViewPayments: "Ver pagos",
-      cancelBlockedGoToCobros: "Ir a Facturas por cobrar",
+      cancelBlockedGoToCobros: "Ir a Facturas a crédito",
       cancelBlockedDismiss: "Entendido",
       pdfError: "No se pudo abrir el PDF",
       xmlError: "No se pudo descargar el XML",
@@ -873,7 +908,7 @@ export const invoicingCopy = {
       title: "Factura",
       backLabel: "Volver",
       backToInvoiceable: "Volver a Por facturar",
-      backToCobros: "Volver a Facturas por cobrar",
+      backToCobros: "Volver a Facturas a crédito",
       backToDispatch: "Volver a envíos",
       backToDispatchPeriod: "Volver a envíos del periodo",
       backToDispatchRun: "Volver al envío",

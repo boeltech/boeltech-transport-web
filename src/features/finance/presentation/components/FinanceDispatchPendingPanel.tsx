@@ -1,7 +1,5 @@
 /**
- * Cola Pendientes del workbench Envío de facturas (F2).
- * Listado stamped + email_dispatch=unsent con selección multi-cliente.
- * CTA → `requestSend` abre Sheet de confirmación (F3).
+ * Cola Pendientes del workbench Envíos (tipado factura + REP).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,16 +11,24 @@ import { Card, CardContent } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useFinanceListingFilters } from "@features/finance/application";
-import { useInvoices } from "@features/invoicing";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import { useDispatchDocuments } from "@features/invoicing/application";
+import type {
+  DispatchDocumentItem,
+  DispatchDocumentKindFilter,
+} from "@features/invoicing/domain";
 import {
+  DISPATCH_DOCUMENT_KIND_PARAM,
   DISPATCH_PENDING_PAGE_SIZE,
   DISPATCH_TAB_PARAM,
+  parseDispatchDocumentKindFilter,
 } from "../config/dispatchWorkbenchConfig";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
+import { dispatchDocumentSelectionKey } from "../utils/groupDispatchDocumentsForSend";
+import { FinanceDispatchDocumentKindFilter } from "./FinanceDispatchDocumentKindFilter";
 import { FinanceDispatchPendingTable } from "./FinanceDispatchPendingTable";
 
 const copy = dispatchRunsCopy.workbench.pending;
+const typeCopy = dispatchRunsCopy.workbench.typeFilter;
 
 function PendingSendBar({
   count,
@@ -43,16 +49,8 @@ function PendingSendBar({
 }
 
 export interface FinanceDispatchPendingPanelProps {
-  /**
-   * Callback al pulsar «Enviar N» — abre Sheet de confirmación (F3).
-   */
-  requestSend: (selected: InvoiceListItem[]) => void;
-  /** Notifica el total de la cola para el badge del bucket Pendientes. */
+  requestSend: (selected: DispatchDocumentItem[]) => void;
   onPendingTotalChange?: (total: number) => void;
-  /**
-   * Cuando cambia (p. ej. tras batch con al menos un ok), limpia la selección.
-   * La página incrementa tras `onBatchComplete` del Sheet.
-   */
   selectionResetKey?: number;
 }
 
@@ -63,7 +61,11 @@ export function FinanceDispatchPendingPanel({
 }: FinanceDispatchPendingPanelProps) {
   const { hasPermission } = usePermissions();
   const canSend = hasPermission("invoices", "execute");
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const documentKind = parseDispatchDocumentKindFilter(
+    searchParams.get(DISPATCH_DOCUMENT_KIND_PARAM),
+  );
 
   const filters = useFinanceListingFilters({
     filters: {},
@@ -74,22 +76,24 @@ export function FinanceDispatchPendingPanel({
 
   useEffect(() => {
     setSelected({});
-  }, [filters.search, filters.page]);
+  }, [filters.search, filters.page, documentKind]);
 
   useEffect(() => {
     if (selectionResetKey === 0) return;
     setSelected({});
   }, [selectionResetKey]);
 
-  const { data, isLoading, isError, refetch, isFetching } = useInvoices({
-    status: "stamped",
-    emailDispatch: "unsent",
-    search: filters.search || undefined,
-    page: filters.page,
-    limit: DISPATCH_PENDING_PAGE_SIZE,
-  });
+  const { data, isLoading, isError, refetch, isFetching } = useDispatchDocuments(
+    {
+      bucket: "pending",
+      documentKind,
+      search: filters.search || undefined,
+      page: filters.page,
+      limit: DISPATCH_PENDING_PAGE_SIZE,
+    },
+  );
 
-  const invoices = useMemo(() => data?.data ?? [], [data?.data]);
+  const documents = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.pagination;
   const pendingTotal = pagination?.total ?? 0;
 
@@ -97,16 +101,39 @@ export function FinanceDispatchPendingPanel({
     onPendingTotalChange?.(pendingTotal);
   }, [onPendingTotalChange, pendingTotal]);
 
-  const selectedInvoices = useMemo(
-    () => invoices.filter((invoice) => selected[invoice.id]),
-    [invoices, selected],
+  const selectedDocuments = useMemo(
+    () =>
+      documents.filter((doc) => selected[dispatchDocumentSelectionKey(doc)]),
+    [documents, selected],
   );
 
-  const showSendBar = canSend && selectedInvoices.length > 0;
+  const showSendBar = canSend && selectedDocuments.length > 0;
 
-  const toggleInvoice = useCallback(
-    (invoice: InvoiceListItem, checked: boolean) => {
-      setSelected((prev) => ({ ...prev, [invoice.id]: checked }));
+  const handleDocumentKindChange = useCallback(
+    (next: DispatchDocumentKindFilter) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (next === "all") {
+            params.delete(DISPATCH_DOCUMENT_KIND_PARAM);
+          } else {
+            params.set(DISPATCH_DOCUMENT_KIND_PARAM, next);
+          }
+          params.delete("page");
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const toggleDocument = useCallback(
+    (doc: DispatchDocumentItem, checked: boolean) => {
+      setSelected((prev) => ({
+        ...prev,
+        [dispatchDocumentSelectionKey(doc)]: checked,
+      }));
     },
     [],
   );
@@ -115,13 +142,13 @@ export function FinanceDispatchPendingPanel({
     (checked: boolean) => {
       setSelected((prev) => {
         const next = { ...prev };
-        for (const invoice of invoices) {
-          next[invoice.id] = checked;
+        for (const doc of documents) {
+          next[dispatchDocumentSelectionKey(doc)] = checked;
         }
         return next;
       });
     },
-    [invoices],
+    [documents],
   );
 
   const handleRefresh = useCallback(async () => {
@@ -150,10 +177,19 @@ export function FinanceDispatchPendingPanel({
   }, [setSearchParams]);
 
   const handleSendClick = useCallback(() => {
-    requestSend(selectedInvoices);
-  }, [requestSend, selectedInvoices]);
+    requestSend(selectedDocuments);
+  }, [requestSend, selectedDocuments]);
 
   const hasSearch = Boolean(filters.search.trim());
+  const hasTypeFilter = documentKind !== "all";
+  const hasActiveFilters = hasSearch || hasTypeFilter;
+
+  const typeChipLabel =
+    documentKind === "invoice"
+      ? typeCopy.invoice
+      : documentKind === "rep"
+        ? typeCopy.rep
+        : typeCopy.all;
 
   if (isError) {
     return (
@@ -179,7 +215,7 @@ export function FinanceDispatchPendingPanel({
   }
 
   return (
-    <ListPageShell<InvoiceListItem>
+    <ListPageShell<DispatchDocumentItem>
       showHeader={false}
       title={dispatchRunsCopy.workbench.buckets.pending}
       toolbar={{
@@ -187,13 +223,33 @@ export function FinanceDispatchPendingPanel({
           ...filters.searchProps,
           placeholder: copy.searchPlaceholder,
         },
+        filters: (
+          <FinanceDispatchDocumentKindFilter
+            value={documentKind}
+            onChange={handleDocumentKindChange}
+          />
+        ),
         onRefresh: handleRefresh,
         isRefreshing: isFetching,
-        hasFilters: hasSearch,
-        onClearFilters: hasSearch ? filters.clearAll : undefined,
+        hasFilters: hasActiveFilters,
+        onClearFilters: hasActiveFilters
+          ? () => {
+              filters.clearAll();
+              if (hasTypeFilter) handleDocumentKindChange("all");
+            }
+          : undefined,
+        activeFilterChips: hasTypeFilter
+          ? [
+              {
+                id: "document_kind",
+                label: typeCopy.chip(typeChipLabel),
+                onRemove: () => handleDocumentKindChange("all"),
+              },
+            ]
+          : undefined,
       }}
       isLoading={isLoading}
-      items={invoices}
+      items={documents}
       pagination={
         pagination
           ? {
@@ -209,18 +265,18 @@ export function FinanceDispatchPendingPanel({
       renderTable={() => (
         <div className="space-y-4">
           <FinanceDispatchPendingTable
-            invoices={invoices}
+            documents={documents}
             selected={selected}
             selectable={canSend}
             isLoading={isLoading}
-            onToggle={toggleInvoice}
+            onToggle={toggleDocument}
             onTogglePage={togglePage}
           />
           {showSendBar ? (
             <Card className="sticky bottom-4 border-primary/30 bg-primary/5 shadow-md">
               <CardContent className="p-4">
                 <PendingSendBar
-                  count={selectedInvoices.length}
+                  count={selectedDocuments.length}
                   onSend={handleSendClick}
                 />
               </CardContent>
@@ -230,16 +286,19 @@ export function FinanceDispatchPendingPanel({
       )}
       emptyState={{
         icon: <Mail className="h-10 w-10 text-muted-foreground" />,
-        title: hasSearch
+        title: hasActiveFilters
           ? copy.empty.noResultsTitle
           : copy.empty.title,
-        description: hasSearch
+        description: hasActiveFilters
           ? copy.empty.withFilters
           : copy.empty.description,
-        cta: hasSearch
+        cta: hasActiveFilters
           ? {
               label: copy.empty.clearFilters,
-              onClick: filters.clearAll,
+              onClick: () => {
+                filters.clearAll();
+                if (hasTypeFilter) handleDocumentKindChange("all");
+              },
               variant: "outline",
             }
           : {

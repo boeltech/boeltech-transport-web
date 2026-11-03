@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Receipt, X } from "lucide-react";
@@ -18,10 +18,12 @@ import {
   useRepStatusByIds,
   useRetryFinanceRepStamp,
 } from "@features/finance/application";
+import { SendRepDialog } from "@features/invoicing";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
@@ -87,8 +89,15 @@ export function FinanceCobrosTodayTray({
   onEntryLiveUpdate,
 }: FinanceCobrosTodayTrayProps) {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canSendRep = hasPermission("invoices", "execute");
   const queryClient = useQueryClient();
   const fromState = useInvoiceQueueFromState();
+  const [sendPaymentId, setSendPaymentId] = useState<string | null>(null);
+  /** Session-local: after N=1 enqueue, tray shows Reenviar until refresh. */
+  const [sentInSession, setSentInSession] = useState<Record<string, true>>(
+    {},
+  );
   const paymentIds = useMemo(
     () => entries.map((entry) => entry.paymentId),
     [entries],
@@ -177,6 +186,7 @@ export function FinanceCobrosTodayTray({
   const severity = traySeverity(summary.needsAction);
 
   return (
+    <>
     <DetailAlertCard
       severity={severity}
       icon={<Receipt className="h-5 w-5" aria-hidden />}
@@ -343,6 +353,18 @@ export function FinanceCobrosTodayTray({
                         )}
                       </Button>
                     ) : null}
+                    {canSendRep && stage === "ready" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSendPaymentId(entry.paymentId)}
+                      >
+                        {sentInSession[entry.paymentId]
+                          ? copy.resendRep
+                          : copy.sendRep}
+                      </Button>
+                    ) : null}
                     <CobrosInvoiceNavCta
                       invoices={navInvoices}
                       linkState={fromState}
@@ -365,5 +387,21 @@ export function FinanceCobrosTodayTray({
         </ul>
       </div>
     </DetailAlertCard>
+    {sendPaymentId ? (
+      <SendRepDialog
+        paymentId={sendPaymentId}
+        open
+        onOpenChange={(open) => {
+          if (!open) setSendPaymentId(null);
+        }}
+        alreadySent={Boolean(sentInSession[sendPaymentId])}
+        onSent={() => {
+          const id = sendPaymentId;
+          setSentInSession((prev) => ({ ...prev, [id]: true }));
+          setSendPaymentId(null);
+        }}
+      />
+    ) : null}
+    </>
   );
 }

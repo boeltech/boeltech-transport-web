@@ -2,10 +2,10 @@ import type { DispatchRunStatus } from "../../domain/billingDispatchRun.types";
 
 export const dispatchRunsCopy = {
   workbench: {
-    title: "Envío de facturas",
+    title: "Envíos",
     description:
-      "Mandar por correo las facturas ya emitidas. Puedes mandar ahora o armar el lote del periodo. También incluye comprobantes de pago (REP) del periodo en Envíos del periodo.",
-    bucketsAriaLabel: "Etapas del envío de facturas",
+      "Mandar por correo facturas y comprobantes de pago (REP) ya emitidos. Puedes mandar ahora o armar el lote del periodo.",
+    bucketsAriaLabel: "Etapas de envíos",
     armPeriodCta: "Armar envío del periodo",
     buckets: {
       pending: "Pendientes",
@@ -13,7 +13,7 @@ export const dispatchRunsCopy = {
       period: "Por periodo",
     },
     bucketDescriptions: {
-      pending: "Facturas por mandar o reenviar",
+      pending: "Documentos por mandar o reenviar",
       sent: "Ya se mandaron por correo",
       period:
         "Envíos armados o enviados del corte (facturas y comprobantes de pago REP)",
@@ -23,58 +23,70 @@ export const dispatchRunsCopy = {
       label: "Ver registro de facturas",
       description: "Listado completo de facturas emitidas.",
     },
+    /** D12 — etiquetas tipadas de fila / sheet. */
+    documentLabels: {
+      invoice: (folio: string) => folio,
+      invoiceFallback: "Factura",
+      rep: (folio: string) => `Comprobante de pago (REP) · ${folio}`,
+      repFallback: "Comprobante de pago (REP)",
+      typeInvoice: "Factura",
+      typeRep: "Comprobante de pago (REP)",
+    },
+    typeFilter: {
+      label: "Tipo",
+      all: "Todos",
+      invoice: "Facturas",
+      rep: "Comprobantes de pago (REP)",
+      chip: (label: string) => `Tipo: ${label}`,
+      ariaLabel: "Filtrar por tipo de documento",
+    },
     pending: {
       searchPlaceholder: "Buscar por folio o cliente…",
-      entityLabelPlural: "facturas",
+      entityLabelPlural: "documentos",
       loadErrorTitle: "No se pudo cargar la cola",
-      loadError: "Error al cargar las facturas pendientes de envío",
+      loadError: "Error al cargar los documentos pendientes de envío",
       retry: "Reintentar",
-      selectAllAria: "Seleccionar todas las facturas de esta página",
-      selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
+      selectAllAria: "Seleccionar todos los documentos de esta página",
+      selectDocument: (label: string) => `Seleccionar ${label}`,
       columns: {
-        invoice: "Factura",
+        document: "Documento",
         client: "Cliente",
         issuedAt: "Fecha",
         total: "Total",
-        trips: "Viajes",
-        note: "Nota",
+        type: "Tipo",
       },
-      badges: {
-        autoFail: "Envío auto falló",
-        autoCutoff: "Automático al corte",
-      },
-      selectedHint: "Puedes seleccionar facturas de distintos clientes.",
+      selectedHint:
+        "Puedes seleccionar facturas y comprobantes de pago de distintos clientes.",
       sendCta: (count: number) =>
-        count === 1 ? "Enviar 1 factura" : `Enviar ${count} facturas`,
+        count === 1 ? "Enviar 1 documento" : `Enviar ${count} documentos`,
       empty: {
-        title: "Todas las facturas ya emitidas ya fueron enviadas",
+        title: "Todos los documentos listos ya fueron enviados",
         description:
-          "No hay facturas pendientes de envío por correo. Revisa las enviadas o Por periodo.",
-        ctaSent: "Ver facturas enviadas",
+          "No hay facturas ni comprobantes de pago pendientes de envío por correo. Revisa las enviadas o Por periodo.",
+        ctaSent: "Ver enviadas",
         noResultsTitle: "Sin resultados",
         withFilters:
-          "No hay pendientes con la búsqueda actual. Prueba otro folio o cliente.",
-        clearFilters: "Limpiar búsqueda",
+          "No hay pendientes con los filtros actuales. Prueba otro folio, cliente o tipo.",
+        clearFilters: "Limpiar filtros",
       },
     },
-    /** Cola Enviadas del workbench (F4). */
+    /** Cola Enviadas del workbench. */
     sent: {
       searchPlaceholder: "Buscar por folio o cliente…",
-      entityLabelPlural: "facturas",
+      entityLabelPlural: "documentos",
       loadErrorTitle: "No se pudo cargar la cola",
-      loadError: "Error al cargar las facturas enviadas",
+      loadError: "Error al cargar los documentos enviados",
       retry: "Reintentar",
-      selectAllAria: "Seleccionar todas las facturas de esta página",
-      selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
-      rowActionsAria: (folio: string) => `Acciones de factura ${folio}`,
+      selectAllAria: "Seleccionar todos los documentos de esta página",
+      selectDocument: (label: string) => `Seleccionar ${label}`,
+      rowActionsAria: (label: string) => `Acciones de ${label}`,
       columns: {
-        invoice: "Factura",
+        document: "Documento",
         client: "Cliente",
         issuedAt: "Fecha emisión",
-        sentAt: "Enviada el",
+        sentAt: "Enviado el",
         total: "Total",
-        origin: "Origen",
-        trips: "Viajes",
+        type: "Tipo",
         actions: "Acciones",
       },
       actions: {
@@ -87,43 +99,44 @@ export const dispatchRunsCopy = {
         chipFrom: (value: string) => `Desde: ${value}`,
         chipTo: (value: string) => `Hasta: ${value}`,
       },
-      selectedHint: "Puedes seleccionar facturas de distintos clientes.",
+      selectedHint:
+        "Puedes seleccionar facturas y comprobantes de pago de distintos clientes.",
       resendCta: (count: number) =>
-        count === 1 ? "Reenviar 1 factura" : `Reenviar ${count} facturas`,
+        count === 1 ? "Reenviar 1 documento" : `Reenviar ${count} documentos`,
       empty: {
-        title: "Aún no hay facturas enviadas por correo",
+        title: "Aún no hay documentos enviados por correo",
         description:
-          "Cuando mandes facturas ya emitidas desde Pendientes, aparecerán aquí para consultar o reenviar.",
+          "Cuando mandes facturas o comprobantes de pago desde Pendientes, aparecerán aquí para consultar o reenviar.",
         ctaPending: "Ir a pendientes",
         noResultsTitle: "Sin resultados",
         withFilters:
-          "No hay enviadas con los filtros actuales. Prueba otra búsqueda o periodo.",
+          "No hay enviadas con los filtros actuales. Prueba otra búsqueda, periodo o tipo.",
         clearFilters: "Limpiar filtros",
       },
     },
-    /** Sheet de confirmación multi-cliente (F3 → F4′ async + link). */
+    /** Sheet de confirmación multi-cliente (mixto factura + REP). */
     confirmSheet: {
       title: "Confirmar envío",
       titleResend: "Confirmar reenvío",
       description:
-        "Se enviará un correo por cliente con la lista de facturas y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos. El envío se procesa en segundo plano.",
+        "Se enviará un correo por cliente con la lista de facturas y comprobantes de pago (REP), y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos. El envío se procesa en segundo plano.",
       resendWarning:
-        "Estas facturas ya se enviaron antes. Reenviar puede duplicar el correo en la bandeja del cliente y genera un enlace nuevo. No se regenera el PDF ni el XML.",
+        "Estos documentos ya se enviaron antes. Reenviar puede duplicar el correo en la bandeja del cliente y genera un enlace nuevo. No se regenera el PDF ni el XML.",
       /** P12 — hint único (sin umbral >4). */
       linkHint:
         "Los archivos se descargan desde el correo (enlace), no van adjuntos.",
-      summary: (invoiceCount: number, clientCount: number) => {
-        const facturas =
-          invoiceCount === 1
-            ? "1 factura"
-            : `${invoiceCount} facturas`;
+      summary: (documentCount: number, clientCount: number) => {
+        const docs =
+          documentCount === 1
+            ? "1 documento"
+            : `${documentCount} documentos`;
         const clientes =
           clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
-        return `${facturas} · ${clientes}`;
+        return `${docs} · ${clientes}`;
       },
       groupTotal: (amountLabel: string) => `Total ${amountLabel}`,
       groupFolioCount: (n: number) =>
-        n === 1 ? "1 factura" : `${n} facturas`,
+        n === 1 ? "1 documento" : `${n} documentos`,
       recipientsHeading: "Destinatarios",
       recipientsHint:
         "Correo de facturación y contactos que reciben facturas. Puedes desmarcar alguno para este envío.",
@@ -151,29 +164,29 @@ export const dispatchRunsCopy = {
       close: "Cerrar",
       submitting: "Preparando…",
       nothingSendable:
-        "No hay facturas listas para enviar. Agrega destinatarios o marca al menos un correo por cliente.",
+        "No hay documentos listos para enviar. Agrega destinatarios o marca al menos un correo por cliente.",
       resultTitle: "Resultado",
       resultOk: "Preparado",
       resultFail: "Error",
       resultSkipped: "Omitido",
       /** P13 — ack inmediato; no afirmar «enviadas». */
-      toastQueued: (invoiceCount: number, clientCount: number) => {
-        const facturas =
-          invoiceCount === 1
-            ? "1 factura"
-            : `${invoiceCount} facturas`;
+      toastQueued: (documentCount: number, clientCount: number) => {
+        const docs =
+          documentCount === 1
+            ? "1 documento"
+            : `${documentCount} documentos`;
         const clientes =
           clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
-        return `Correo preparado · ${facturas} · ${clientes}`;
+        return `Correo preparado · ${docs} · ${clientes}`;
       },
-      toastQueuedResend: (invoiceCount: number, clientCount: number) => {
-        const facturas =
-          invoiceCount === 1
-            ? "1 factura"
-            : `${invoiceCount} facturas`;
+      toastQueuedResend: (documentCount: number, clientCount: number) => {
+        const docs =
+          documentCount === 1
+            ? "1 documento"
+            : `${documentCount} documentos`;
         const clientes =
           clientCount === 1 ? "1 cliente" : `${clientCount} clientes`;
-        return `Reenvío preparado · ${facturas} · ${clientes}`;
+        return `Reenvío preparado · ${docs} · ${clientes}`;
       },
       toastPartial: (okClients: number, failClients: number) =>
         `Parcial: ${okClients} cliente${okClients === 1 ? "" : "s"} preparados, ${failClients} con error. Revisa el detalle.`,

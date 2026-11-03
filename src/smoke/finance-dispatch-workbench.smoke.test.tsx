@@ -1,13 +1,13 @@
 /**
- * Smoke F5 — workbench unificado Envío de facturas (/finance/dispatch).
+ * Smoke F5 — workbench tipado Envíos (/finance/dispatch).
  * Mock de hooks; no requiere backend ni SMTP.
- * Cubre: Pendientes (tabla/empty), tab Enviadas, crossLink Por periodo,
+ * Cubre: Pendientes/Enviadas tipadas, filtro Tipo + fila D12 REP,
+ * ConfirmSheet mixto (invoice_ids + payment_ids), crossLink Por periodo,
  * CTA Armar envío, redirects legacy, sidebar un solo Envíos.
- * sidebar un solo Envíos, copy sin send-invoices, link auto-fail.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,13 +24,20 @@ import {
   FinanceSendInvoicesLegacyRedirect,
 } from "@features/finance/presentation/routes/FinanceDispatchLegacyRedirects";
 import { dispatchRunsCopy } from "@features/finance/presentation/copy/dispatchRunsCopy";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing/domain";
 import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
 import { navigationConfig } from "@widgets/sidebar/model/navigation";
 import { navigationCopy } from "@widgets/sidebar/copy/navigationCopy";
 
-const mockUseInvoices = vi.fn();
+const mockUseDispatchDocuments = vi.fn();
 const mockUseBillingDispatchRuns = vi.fn();
+const mockSendBatch = vi.fn();
+const mockUseInvoiceSendRecipients = vi.fn();
+const mockUsePaymentSendRecipients = vi.fn();
+
+const copy = dispatchRunsCopy.workbench;
+const typeCopy = copy.typeFilter;
+const confirmCopy = copy.confirmSheet;
 
 vi.mock("@shared/permissions", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/permissions")>();
@@ -56,41 +63,21 @@ vi.mock("@shared/hooks", async (importOriginal) => {
   };
 });
 
-/** Mock al path que consumen page + paneles (barrel + application). */
-vi.mock("@features/invoicing/application/hooks/useInvoices", async (importOriginal) => {
+vi.mock("@features/invoicing/application", async (importOriginal) => {
   const actual =
     await importOriginal<
-      typeof import("@features/invoicing/application/hooks/useInvoices")
+      typeof import("@features/invoicing/application")
     >();
   return {
     ...actual,
-    useInvoices: (...args: unknown[]) => mockUseInvoices(...args),
-  };
-});
-
-vi.mock("@features/invoicing", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@features/invoicing")>();
-  return {
-    ...actual,
-    useInvoices: (...args: unknown[]) => mockUseInvoices(...args),
-    SendInvoiceDialog: () => null,
-  };
-});
-
-vi.mock("@features/invoicing/application", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@features/invoicing/application")>();
-  return {
-    ...actual,
-    useInvoices: (...args: unknown[]) => mockUseInvoices(...args),
-    useInvoiceSendRecipients: () => ({
-      data: null,
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    }),
+    useDispatchDocuments: (...args: unknown[]) =>
+      mockUseDispatchDocuments(...args),
+    useInvoiceSendRecipients: (...args: unknown[]) =>
+      mockUseInvoiceSendRecipients(...args),
+    usePaymentSendRecipients: (...args: unknown[]) =>
+      mockUsePaymentSendRecipients(...args),
     useSendInvoicesBatch: () => ({
-      sendBatch: vi.fn(),
+      sendBatch: mockSendBatch,
       isPending: false,
       progress: null,
     }),
@@ -127,49 +114,46 @@ vi.mock("@features/settings/application/hooks/useBillingSchemes", () => ({
   }),
 }));
 
-function buildInvoice(
-  overrides: Partial<InvoiceListItem> = {},
-): InvoiceListItem {
+function buildDocument(
+  overrides: Partial<DispatchDocumentItem> = {},
+): DispatchDocumentItem {
   return {
     id: "inv-1",
-    tenantId: "t-1",
-    serie: "A",
-    folio: 45,
-    cfdiUuid: null,
-    receiverRfc: "XAXX010101000",
-    receiverName: "Receptor Demo",
+    documentKind: "invoice",
     clientId: "client-a",
     clientName: "Cliente A",
-    issuedAt: "2026-09-18T12:00:00.000Z",
-    paymentForm: "99",
-    paymentMethod: "PPD",
+    receiverRfc: "XAXX010101000",
+    folioLabel: "A-45",
+    amount: 1160,
     currency: "MXN",
-    subtotal: 1000,
-    totalTax: 160,
-    total: 1160,
-    status: "stamped",
-    satCancellationStatus: "none",
-    satCancellationMessage: null,
     stampedAt: "2026-09-18T12:00:00.000Z",
     dispatchSentAt: null,
-    tripCount: 1,
-    tripCodes: ["TRP-001"],
-    totalPaid: 0,
-    balanceDue: 1160,
-    createdAt: "2026-09-18T10:00:00.000Z",
-    createdByName: null,
+    groupKey: "client-a",
     ...overrides,
   };
 }
 
+const recipientsA = {
+  clientId: "client-a",
+  clientName: "Cliente A",
+  recipients: [
+    {
+      key: "billing_email",
+      kind: "billing_email" as const,
+      label: "Facturación",
+      email: "a@example.com",
+    },
+  ],
+};
+
 function emptyList() {
   return {
-    data: [] as InvoiceListItem[],
+    data: [] as DispatchDocumentItem[],
     pagination: { page: 1, limit: 25, total: 0, totalPages: 0 },
   };
 }
 
-function invoicesQueryResult(list: ReturnType<typeof emptyList>) {
+function documentsQueryResult(list: ReturnType<typeof emptyList>) {
   return {
     data: list,
     isLoading: false,
@@ -216,27 +200,83 @@ function TestProviders({
 describe("finance-dispatch-workbench smoke (F5)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseInvoices.mockImplementation(
-      (params?: { emailDispatch?: string }) => {
-        if (params?.emailDispatch === "unsent") {
-          return invoicesQueryResult({
-            data: [buildInvoice()],
-            pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+    mockSendBatch.mockResolvedValue([]);
+    mockUseInvoiceSendRecipients.mockReturnValue({
+      data: recipientsA,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    mockUsePaymentSendRecipients.mockReturnValue({
+      data: recipientsA,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    mockUseDispatchDocuments.mockImplementation(
+      (params?: {
+        bucket?: string;
+        documentKind?: string;
+        limit?: number;
+      }) => {
+        // Badge meta queries (limit 1) — totals for tab badges.
+        if (params?.limit === 1) {
+          const total =
+            params.bucket === "pending"
+              ? params.documentKind === "rep"
+                ? 1
+                : 2
+              : params.bucket === "sent"
+                ? 1
+                : 0;
+          return documentsQueryResult({
+            data: [],
+            pagination: { page: 1, limit: 1, total, totalPages: total > 0 ? 1 : 0 },
           });
         }
-        if (params?.emailDispatch === "sent") {
-          return invoicesQueryResult({
+
+        if (params?.bucket === "pending") {
+          const allPending = [
+            buildDocument(),
+            buildDocument({
+              id: "pay-1",
+              documentKind: "rep",
+              folioLabel: "REP-abcdef12",
+              amount: 500,
+              groupKey: "client-a",
+            }),
+          ];
+          const filtered =
+            params.documentKind === "rep"
+              ? allPending.filter((d) => d.documentKind === "rep")
+              : params.documentKind === "invoice"
+                ? allPending.filter((d) => d.documentKind === "invoice")
+                : allPending;
+          return documentsQueryResult({
+            data: filtered,
+            pagination: {
+              page: 1,
+              limit: 25,
+              total: filtered.length,
+              totalPages: 1,
+            },
+          });
+        }
+
+        if (params?.bucket === "sent") {
+          return documentsQueryResult({
             data: [
-              buildInvoice({
+              buildDocument({
                 id: "inv-sent",
-                folio: 99,
+                folioLabel: "A-99",
                 dispatchSentAt: "2026-09-19T09:00:00.000Z",
               }),
             ],
             pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
           });
         }
-        return invoicesQueryResult(emptyList());
+
+        return documentsQueryResult(emptyList());
       },
     );
     mockUseBillingDispatchRuns.mockReturnValue({
@@ -252,7 +292,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     });
   });
 
-  it("abre Pendientes con tabla de facturas no enviadas", () => {
+  it("abre Pendientes con tabla tipada (factura + REP D12)", () => {
     render(
       <TestProviders>
         <FinanceDispatchPage />
@@ -260,20 +300,113 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     );
 
     expect(
-      screen.getByRole("heading", {
-        name: dispatchRunsCopy.workbench.title,
+      screen.getByRole("heading", { name: copy.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(copy.description)).toBeInTheDocument();
+    expect(screen.getAllByText("A-45").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(copy.documentLabels.typeRep).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("filtra por Tipo = REP vía URL, chip y fila D12 (sin factura)", () => {
+    render(
+      <TestProviders initialEntry="/finance/dispatch?document_kind=rep">
+        <FinanceDispatchPage />
+      </TestProviders>,
+    );
+
+    expect(mockUseDispatchDocuments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "pending",
+        documentKind: "rep",
+      }),
+    );
+    expect(
+      screen.getByRole("combobox", { name: typeCopy.ariaLabel }),
+    ).toHaveTextContent(typeCopy.chip(typeCopy.rep));
+    expect(
+      screen.getByRole("button", {
+        name: `Quitar filtro ${typeCopy.chip(typeCopy.rep)}`,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dispatchRunsCopy.workbench.description),
+      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("A-45")).not.toBeInTheDocument();
+  });
+
+  it("ConfirmSheet mixto: selecciona factura+REP y confirma con payment_ids", async () => {
+    const user = userEvent.setup();
+    mockSendBatch.mockResolvedValue([
+      {
+        groupKey: "client-a",
+        clientLabel: "Cliente A",
+        invoiceIds: ["inv-1"],
+        paymentIds: ["pay-1"],
+        folioLabels: [
+          "A-45",
+          "Comprobante de pago (REP) · REP-abcdef12",
+        ],
+        ok: true,
+        status: "queued",
+      },
+    ]);
+
+    render(
+      <TestProviders>
+        <FinanceDispatchPage />
+      </TestProviders>,
+    );
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "Seleccionar A-45" })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", {
+        name: "Seleccionar Comprobante de pago (REP) · REP-abcdef12",
+      })[0]!,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Enviar 2 documentos" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: confirmCopy.title }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("A-45").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Receptor Demo").length).toBeGreaterThan(0);
+
+    const group = await screen.findByTestId("dispatch-confirm-group-client-a");
+    expect(within(group).getByText("A-45")).toBeInTheDocument();
+    expect(
+      within(group).getByText("Comprobante de pago (REP) · REP-abcdef12"),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(within(group).getByText("a@example.com")).toBeInTheDocument();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: confirmCopy.confirm }),
+    );
+
+    await waitFor(() => expect(mockSendBatch).toHaveBeenCalledTimes(1));
+    const [groups] = mockSendBatch.mock.calls[0]!;
+    expect(groups).toEqual([
+      expect.objectContaining({
+        groupKey: "client-a",
+        invoiceIds: ["inv-1"],
+        paymentIds: ["pay-1"],
+      }),
+    ]);
   });
 
   it("muestra empty de Pendientes cuando la cola está vacía", () => {
-    mockUseInvoices.mockImplementation(() =>
-      invoicesQueryResult(emptyList()),
+    mockUseDispatchDocuments.mockReturnValue(
+      documentsQueryResult(emptyList()),
     );
 
     render(
@@ -283,11 +416,11 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     );
 
     expect(
-      screen.getByText(dispatchRunsCopy.workbench.pending.empty.title),
+      screen.getByText(copy.pending.empty.title),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: dispatchRunsCopy.workbench.pending.empty.ctaSent,
+        name: copy.pending.empty.ctaSent,
       }),
     ).toBeInTheDocument();
   });
@@ -302,18 +435,18 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
 
     await user.click(
       screen.getByRole("tab", {
-        name: new RegExp(dispatchRunsCopy.workbench.buckets.sent),
+        name: new RegExp(copy.buckets.sent),
       }),
     );
     expect(screen.getAllByText("A-99").length).toBeGreaterThan(0);
 
     const periodLink = screen.getByRole("link", {
-      name: dispatchRunsCopy.workbench.periodLinkAria,
+      name: copy.periodLinkAria,
     });
     expect(periodLink).toHaveAttribute("href", FINANCE_DISPATCH_PERIOD_PATH);
     expect(
       screen.getByRole("button", {
-        name: dispatchRunsCopy.workbench.armPeriodCta,
+        name: copy.armPeriodCta,
       }),
     ).toBeInTheDocument();
     expect(
@@ -338,9 +471,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
       </TestProviders>,
     );
     expect(
-      screen.getByRole("heading", {
-        name: dispatchRunsCopy.workbench.title,
-      }),
+      screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
     unmount();
 
@@ -358,7 +489,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     expect(resolveLegacyFinanceLocation("?tab=dispatch-runs")).toBe(
       FINANCE_DISPATCH_PERIOD_PATH,
     );
-    expect(dispatchRunsCopy.workbench.title).toBe("Envío de facturas");
+    expect(copy.title).toBe("Envíos");
     expect(navigationCopy.item.financeDispatch).toBe("Envíos");
   });
 
@@ -386,21 +517,21 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
 
   it("empty Pendientes CTA cambia a tab Enviadas", async () => {
     const user = userEvent.setup();
-    mockUseInvoices.mockImplementation(
-      (params?: { emailDispatch?: string }) => {
-        if (params?.emailDispatch === "sent") {
-          return invoicesQueryResult({
+    mockUseDispatchDocuments.mockImplementation(
+      (params?: { bucket?: string }) => {
+        if (params?.bucket === "sent") {
+          return documentsQueryResult({
             data: [
-              buildInvoice({
+              buildDocument({
                 id: "inv-sent",
-                folio: 99,
+                folioLabel: "A-99",
                 dispatchSentAt: "2026-09-19T09:00:00.000Z",
               }),
             ],
             pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
           });
         }
-        return invoicesQueryResult(emptyList());
+        return documentsQueryResult(emptyList());
       },
     );
 
@@ -412,13 +543,13 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: dispatchRunsCopy.workbench.pending.empty.ctaSent,
+        name: copy.pending.empty.ctaSent,
       }),
     );
 
     expect(screen.getAllByText("A-99").length).toBeGreaterThan(0);
     const sentBucket = screen.getByRole("tab", {
-      name: new RegExp(dispatchRunsCopy.workbench.buckets.sent),
+      name: new RegExp(copy.buckets.sent),
     });
     expect(sentBucket).toHaveAttribute("aria-selected", "true");
   });

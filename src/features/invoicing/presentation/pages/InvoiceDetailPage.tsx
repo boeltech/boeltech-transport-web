@@ -929,6 +929,7 @@ export function InvoiceDetailPage() {
                   invoiceSerieFolio={`${invoice.serie}-${invoice.folio}`}
                   canExportFiles={canExportFiles}
                   canRetryRep={canRetryRep}
+                  canSendRep={canExecuteInvoice}
                   onRetry={retryRep}
                   retryingPaymentId={retryingPaymentId}
                 />

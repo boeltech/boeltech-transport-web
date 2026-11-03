@@ -545,12 +545,27 @@ describe("toApiSendInvoiceBatch / mapSendInvoiceBatchResult", () => {
         groups: [
           { invoiceIds: ["a", "b"], recipientKeys: ["billing_email"] },
           { invoiceIds: ["c"] },
+          { paymentIds: ["pay-1"], recipientKeys: ["billing_email"] },
+          {
+            invoiceIds: ["inv-9"],
+            paymentIds: ["pay-2"],
+          },
         ],
       }),
     ).toEqual({
       groups: [
-        { invoice_ids: ["a", "b"], recipient_keys: ["billing_email"] },
-        { invoice_ids: ["c"] },
+        {
+          invoice_ids: ["a", "b"],
+          payment_ids: [],
+          recipient_keys: ["billing_email"],
+        },
+        { invoice_ids: ["c"], payment_ids: [] },
+        {
+          invoice_ids: [],
+          payment_ids: ["pay-1"],
+          recipient_keys: ["billing_email"],
+        },
+        { invoice_ids: ["inv-9"], payment_ids: ["pay-2"] },
       ],
     });
   });
@@ -568,6 +583,7 @@ describe("toApiSendInvoiceBatch / mapSendInvoiceBatchResult", () => {
             error_message: null,
             error_code: null,
             invoice_ids: ["inv-1", "inv-2"],
+            payment_ids: ["pay-1"],
           },
           {
             group_key: "client-b",
@@ -583,6 +599,7 @@ describe("toApiSendInvoiceBatch / mapSendInvoiceBatchResult", () => {
           clients_skipped: 1,
           clients_failed: 0,
           invoices_queued: 2,
+          payments_queued: 1,
         },
       }),
     ).toEqual({
@@ -596,6 +613,7 @@ describe("toApiSendInvoiceBatch / mapSendInvoiceBatchResult", () => {
           errorMessage: null,
           errorCode: null,
           invoiceIds: ["inv-1", "inv-2"],
+          paymentIds: ["pay-1"],
         },
         {
           groupKey: "client-b",
@@ -604,6 +622,7 @@ describe("toApiSendInvoiceBatch / mapSendInvoiceBatchResult", () => {
           errorMessage: "Sin destinatarios",
           errorCode: "NO_RECIPIENTS",
           invoiceIds: ["inv-3"],
+          paymentIds: [],
         },
       ],
       summary: {
@@ -611,6 +630,7 @@ describe("toApiSendInvoiceBatch / mapSendInvoiceBatchResult", () => {
         clientsSkipped: 1,
         clientsFailed: 0,
         invoicesQueued: 2,
+        paymentsQueued: 1,
       },
     });
   });
@@ -652,6 +672,7 @@ describe("mapSendBatchPollResult", () => {
           errorCode: null,
           errorMessage: null,
           invoiceIds: ["inv-1"],
+          paymentIds: [],
         },
         {
           groupKey: "client-b",
@@ -660,6 +681,7 @@ describe("mapSendBatchPollResult", () => {
           errorCode: "SMTP",
           errorMessage: "timeout",
           invoiceIds: ["inv-2"],
+          paymentIds: [],
         },
       ],
     });

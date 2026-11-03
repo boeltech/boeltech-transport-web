@@ -75,6 +75,13 @@ describe("dispatchRunsCopy glossary", () => {
     expect(dispatchRunsCopy.tab.filters.hideEmptyScheduledOn).toMatch(
       /Ocultar evaluaciones sin envío/,
     );
+    expect(dispatchRunsCopy.workbench.title).toBe("Envíos");
+    expect(dispatchRunsCopy.workbench.typeFilter.chip("Facturas")).toBe(
+      "Tipo: Facturas",
+    );
+    expect(dispatchRunsCopy.workbench.documentLabels.rep("REP-aa")).toBe(
+      "Comprobante de pago (REP) · REP-aa",
+    );
     expect(dispatchRunsCopy.workbench.bucketDescriptions.period).toMatch(
       /Envíos armados o enviados del corte/,
     );

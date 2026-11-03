@@ -24,6 +24,7 @@ function makePayment(partial: Partial<Payment>): Payment {
     createdByName: null,
     repCfdiUuid: null,
     repStampedAt: null,
+    repDispatchSentAt: null,
     repStatus: "pending",
     repAttempts: 0,
     repLastError: null,

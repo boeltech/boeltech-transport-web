@@ -11,9 +11,9 @@ const copy = dispatchRunsCopy.workbench;
 export interface MapDispatchWorkbenchBucketsParams {
   activeTab: DispatchWorkbenchTabId;
   onTabChange: (tab: DispatchWorkbenchTabId) => void;
-  /** Total de facturas stamped + unsent (badge Pendientes). */
+  /** Total de documentos tipados pendientes (respeta filtro Tipo). */
   pendingCount?: number;
-  /** Total de facturas stamped + sent (badge Enviadas). */
+  /** Total de documentos tipados enviados (respeta filtro Tipo). */
   sentCount?: number;
   /** Total de envíos del periodo (`pagination.total`). */
   periodCount?: number;

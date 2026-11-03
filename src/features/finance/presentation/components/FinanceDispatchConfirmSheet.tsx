@@ -1,7 +1,6 @@
 /**
- * Sheet de confirmación multi-cliente para envío digest (F4′ async + link).
- * Un correo por cliente con enlace a ZIP; destinatarios por grupo.
- * No toca SendInvoiceDialog (atajo 1 folio).
+ * Sheet de confirmación multi-cliente para envío digest tipado (factura + REP).
+ * Un correo por cliente con enlace a ZIP; destinatarios efímeros por grupo.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +21,7 @@ import { useToast } from "@shared/hooks";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import {
   useInvoiceSendRecipients,
+  usePaymentSendRecipients,
   useSendInvoicesBatch,
 } from "@features/invoicing/application";
 import type {
@@ -29,7 +29,7 @@ import type {
   SendInvoiceBatchResultItem,
 } from "@features/invoicing/application";
 import type {
-  InvoiceListItem,
+  DispatchDocumentItem,
   InvoiceSendRecipients,
 } from "@features/invoicing/domain";
 import { InvoiceRecipientsChecklist } from "@features/invoicing/presentation/components/InvoiceRecipientsChecklist";
@@ -40,10 +40,10 @@ import {
 } from "@features/invoicing/presentation/utils/invoiceSendRecipientSelection";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import {
-  groupInvoicesForDispatch,
-  invoiceFolioLabel,
-  type DispatchInvoiceGroup,
-} from "../utils/groupInvoicesForDispatch";
+  formatDispatchDocumentLabel,
+  groupDispatchDocumentsForSend,
+  type DispatchDocumentGroup,
+} from "../utils/groupDispatchDocumentsForSend";
 
 const copy = dispatchRunsCopy.workbench.confirmSheet;
 /** PRD §F: error largo → Alert inline (umbral overlays ~160). */
@@ -54,9 +54,9 @@ export type FinanceDispatchConfirmSheetMode = "send" | "resend";
 export interface FinanceDispatchConfirmSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  invoices: InvoiceListItem[];
+  documents: DispatchDocumentItem[];
   /** Tras un enqueue con al menos un grupo queued — limpiar selección / refresh. */
-  onBatchComplete?: (okInvoiceIds: string[]) => void;
+  onBatchComplete?: (okDocumentIds: string[]) => void;
   /** Reenvío con warning de duplicado. Default first-send. */
   mode?: FinanceDispatchConfirmSheetMode;
 }
@@ -67,7 +67,7 @@ type GroupRecipientState = {
   status: "idle" | "ready" | "empty" | "error";
 };
 
-function groupDisplayName(group: DispatchInvoiceGroup): string {
+function groupDisplayName(group: DispatchDocumentGroup): string {
   const receiverLabel = group.clientName.trim();
   if (receiverLabel) return receiverLabel;
   const rfc = group.receiverRfc.trim();
@@ -84,6 +84,29 @@ function resultStatusLabel(item: SendInvoiceBatchResultItem): string {
   return copy.resultFail;
 }
 
+function useGroupSendRecipients(
+  group: DispatchDocumentGroup,
+  open: boolean,
+) {
+  const invoiceEnabled = open && Boolean(group.sampleInvoiceId);
+  const paymentEnabled =
+    open && !group.sampleInvoiceId && Boolean(group.samplePaymentId);
+
+  const invoiceQuery = useInvoiceSendRecipients(
+    group.sampleInvoiceId ?? "",
+    invoiceEnabled,
+  );
+  const paymentQuery = usePaymentSendRecipients(
+    group.samplePaymentId ?? "",
+    paymentEnabled,
+  );
+
+  if (group.sampleInvoiceId) {
+    return invoiceQuery;
+  }
+  return paymentQuery;
+}
+
 function DispatchConfirmClientGroup({
   group,
   open,
@@ -91,7 +114,7 @@ function DispatchConfirmClientGroup({
   state,
   onStateChange,
 }: {
-  group: DispatchInvoiceGroup;
+  group: DispatchDocumentGroup;
   open: boolean;
   disabled: boolean;
   state: GroupRecipientState;
@@ -102,7 +125,7 @@ function DispatchConfirmClientGroup({
     isLoading,
     isError,
     refetch,
-  } = useInvoiceSendRecipients(group.sampleInvoiceId, open);
+  } = useGroupSendRecipients(group, open);
   const initKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -138,10 +161,11 @@ function DispatchConfirmClientGroup({
     });
   }, [open, isLoading, isError, recipientsPayload, onStateChange]);
 
-  const groupTotal = group.invoices.reduce((sum, inv) => sum + inv.total, 0);
+  const groupTotal = group.documents.reduce((sum, doc) => sum + doc.amount, 0);
   const clientHref =
     group.clientId ?? recipientsPayload?.clientId ?? null;
-  const showLoading = isLoading && state.status !== "ready" && state.status !== "empty";
+  const showLoading =
+    isLoading && state.status !== "ready" && state.status !== "empty";
 
   return (
     <section
@@ -163,14 +187,16 @@ function DispatchConfirmClientGroup({
       </div>
 
       <ul className="space-y-1.5">
-        {group.invoices.map((invoice) => (
+        {group.documents.map((doc) => (
           <li
-            key={invoice.id}
+            key={`${doc.documentKind}:${doc.id}`}
             className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm"
           >
-            <span className="font-medium">{invoiceFolioLabel(invoice)}</span>
+            <span className="font-medium">
+              {formatDispatchDocumentLabel(doc)}
+            </span>
             <span className="tabular-nums text-muted-foreground">
-              {formatMxCurrency(invoice.total)}
+              {formatMxCurrency(doc.amount)}
             </span>
           </li>
         ))}
@@ -257,7 +283,7 @@ function DispatchConfirmClientGroup({
 export function FinanceDispatchConfirmSheet({
   open,
   onOpenChange,
-  invoices,
+  documents,
   onBatchComplete,
   mode = "send",
 }: FinanceDispatchConfirmSheetProps) {
@@ -271,8 +297,8 @@ export function FinanceDispatchConfirmSheet({
   );
 
   const groups = useMemo(
-    () => groupInvoicesForDispatch(invoices),
-    [invoices],
+    () => groupDispatchDocumentsForSend(documents),
+    [documents],
   );
 
   useEffect(() => {
@@ -310,11 +336,18 @@ export function FinanceDispatchConfirmSheet({
       if (state.selectedKeys.length === 0) continue;
 
       const keys = buildSendRecipientKeys(state.payload, state.selectedKeys);
+      const invoiceIds = group.documents
+        .filter((d) => d.documentKind === "invoice")
+        .map((d) => d.id);
+      const paymentIds = group.documents
+        .filter((d) => d.documentKind === "rep")
+        .map((d) => d.id);
       items.push({
         groupKey: group.groupKey,
         clientLabel: groupDisplayName(group),
-        invoiceIds: group.invoices.map((inv) => inv.id),
-        folioLabels: group.invoices.map((inv) => invoiceFolioLabel(inv)),
+        invoiceIds,
+        paymentIds,
+        folioLabels: group.documents.map((d) => formatDispatchDocumentLabel(d)),
         recipientKeys: keys,
       });
     }
@@ -345,19 +378,22 @@ export function FinanceDispatchConfirmSheet({
 
     const okGroups = batchResults.filter((r) => r.ok);
     const failGroups = batchResults.filter((r) => !r.ok);
-    const okInvoiceIds = okGroups.flatMap((r) => r.invoiceIds);
-    const okInvoiceCount = okInvoiceIds.length;
+    const okDocumentIds = okGroups.flatMap((r) => [
+      ...r.invoiceIds,
+      ...r.paymentIds,
+    ]);
+    const okDocumentCount = okDocumentIds.length;
 
-    if (okInvoiceIds.length > 0) {
-      onBatchComplete?.(okInvoiceIds);
+    if (okDocumentIds.length > 0) {
+      onBatchComplete?.(okDocumentIds);
     }
 
     if (failGroups.length === 0) {
       toast({
         variant: "success",
         title: isResend
-          ? copy.toastQueuedResend(okInvoiceCount, okGroups.length)
-          : copy.toastQueued(okInvoiceCount, okGroups.length),
+          ? copy.toastQueuedResend(okDocumentCount, okGroups.length)
+          : copy.toastQueued(okDocumentCount, okGroups.length),
       });
       onOpenChange(false);
       return;
@@ -423,7 +459,7 @@ export function FinanceDispatchConfirmSheet({
           ) : null}
 
           <p className="text-sm font-medium text-foreground">
-            {copy.summary(invoices.length, groups.length)}
+            {copy.summary(documents.length, groups.length)}
           </p>
 
           {showResults && results ? (

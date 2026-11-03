@@ -50,6 +50,7 @@ describe("useSendInvoicesBatch", () => {
           errorMessage: null,
           errorCode: null,
           invoiceIds: ["inv-1", "inv-2"],
+          paymentIds: ["pay-1"],
         },
         {
           groupKey: "client-b",
@@ -58,6 +59,7 @@ describe("useSendInvoicesBatch", () => {
           errorMessage: "ZIP too large",
           errorCode: "INVOICE_DISPATCH_ZIP_TOO_LARGE",
           invoiceIds: ["inv-3"],
+          paymentIds: [],
         },
       ],
       summary: {
@@ -65,6 +67,7 @@ describe("useSendInvoicesBatch", () => {
         clientsSkipped: 0,
         clientsFailed: 1,
         invoicesQueued: 2,
+        paymentsQueued: 1,
       },
     });
 
@@ -77,7 +80,8 @@ describe("useSendInvoicesBatch", () => {
           groupKey: "client-a",
           clientLabel: "Cliente A",
           invoiceIds: ["inv-1", "inv-2"],
-          folioLabels: ["A-1", "A-2"],
+          paymentIds: ["pay-1"],
+          folioLabels: ["A-1", "A-2", "Comprobante de pago (REP) · REP-aaaa"],
           recipientKeys: undefined,
         },
         {
@@ -93,8 +97,16 @@ describe("useSendInvoicesBatch", () => {
     expect(sendInvoicesBatch).toHaveBeenCalledTimes(1);
     expect(sendInvoicesBatch).toHaveBeenCalledWith({
       groups: [
-        { invoiceIds: ["inv-1", "inv-2"], recipientKeys: undefined },
-        { invoiceIds: ["inv-3"], recipientKeys: ["billing_email"] },
+        {
+          invoiceIds: ["inv-1", "inv-2"],
+          paymentIds: ["pay-1"],
+          recipientKeys: undefined,
+        },
+        {
+          invoiceIds: ["inv-3"],
+          paymentIds: [],
+          recipientKeys: ["billing_email"],
+        },
       ],
     });
 
@@ -103,7 +115,8 @@ describe("useSendInvoicesBatch", () => {
         groupKey: "client-a",
         clientLabel: "Cliente A",
         invoiceIds: ["inv-1", "inv-2"],
-        folioLabels: ["A-1", "A-2"],
+        paymentIds: ["pay-1"],
+        folioLabels: ["A-1", "A-2", "Comprobante de pago (REP) · REP-aaaa"],
         ok: true,
         status: "queued",
         errorMessage: undefined,
@@ -112,6 +125,7 @@ describe("useSendInvoicesBatch", () => {
         groupKey: "client-b",
         clientLabel: "Cliente B",
         invoiceIds: ["inv-3"],
+        paymentIds: [],
         folioLabels: ["A-3"],
         ok: false,
         status: "failed",
@@ -174,6 +188,7 @@ describe("pollSendBatchUntilSettled", () => {
             errorCode: null,
             errorMessage: null,
             invoiceIds: ["inv-1"],
+            paymentIds: [],
           },
         ],
       });

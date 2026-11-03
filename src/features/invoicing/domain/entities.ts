@@ -266,6 +266,8 @@ export interface Payment {
   /** UUID del CFDI complemento REP (tipo P), si se timbró. */
   readonly repCfdiUuid: string | null;
   readonly repStampedAt: string | null;
+  /** Primer envío por correo del REP (`payments.rep_dispatch_sent_at`). */
+  readonly repDispatchSentAt: string | null;
   readonly repStatus: RepStatus;
   readonly repAttempts: number;
   readonly repLastError: string | null;
@@ -452,9 +454,10 @@ export interface SendInvoicePayload {
   readonly recipientKeys?: string[];
 }
 
-/** Un grupo-cliente para POST /invoices/send-batch (digest ADR-0082). */
+/** Un grupo-cliente para POST /invoices/send-batch (digest ADR-0082 / P1 tipado). */
 export interface SendInvoiceBatchGroupPayload {
-  readonly invoiceIds: string[];
+  readonly invoiceIds?: string[];
+  readonly paymentIds?: string[];
   readonly recipientKeys?: string[];
 }
 
@@ -472,6 +475,7 @@ export interface SendInvoiceBatchGroupResult {
   readonly errorMessage: string | null;
   readonly errorCode: string | null;
   readonly invoiceIds: string[];
+  readonly paymentIds: string[];
 }
 
 export interface SendInvoiceBatchSummary {
@@ -479,6 +483,7 @@ export interface SendInvoiceBatchSummary {
   readonly clientsSkipped: number;
   readonly clientsFailed: number;
   readonly invoicesQueued: number;
+  readonly paymentsQueued: number;
 }
 
 /** POST /invoices/send-batch and unitario send — 202 Accepted (TEC §E.1/E.2). */
@@ -510,12 +515,54 @@ export interface SendBatchPollGroup {
   readonly errorCode: string | null;
   readonly errorMessage: string | null;
   readonly invoiceIds: string[];
+  readonly paymentIds: string[];
 }
 
 export interface SendBatchPollResult {
   readonly batchId: string;
   readonly status: SendBatchPollStatus;
   readonly groups: SendBatchPollGroup[];
+}
+
+// ============================================================================
+// DISPATCH DOCUMENTS (P1 workbench tipado — GET /invoices/dispatch-documents)
+// ============================================================================
+
+export type DispatchDocumentKindFilter = "all" | "invoice" | "rep";
+export type DispatchDocumentBucket = "pending" | "sent";
+export type DispatchDocumentKind = "invoice" | "rep";
+
+/** Fila tipada del listado unificado Pendientes·Enviadas. */
+export interface DispatchDocumentItem {
+  readonly documentKind: DispatchDocumentKind;
+  /** invoice_id | payment_id según documentKind */
+  readonly id: string;
+  readonly clientId: string | null;
+  readonly clientName: string | null;
+  readonly receiverRfc: string;
+  readonly folioLabel: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly stampedAt: string | null;
+  /** invoices.dispatch_sent_at | payments.rep_dispatch_sent_at */
+  readonly dispatchSentAt: string | null;
+  /** client UUID o `rfc:{RFC}` (paridad send-batch). */
+  readonly groupKey: string;
+}
+
+export interface DispatchDocumentsFilters {
+  readonly bucket: DispatchDocumentBucket;
+  readonly documentKind?: DispatchDocumentKindFilter;
+  readonly dateFrom?: string;
+  readonly dateTo?: string;
+  readonly search?: string;
+  readonly page?: number;
+  readonly limit?: number;
+}
+
+export interface PaginatedDispatchDocuments {
+  readonly data: DispatchDocumentItem[];
+  readonly pagination: InvoicePagination;
 }
 
 export interface CreatePaymentPayload {

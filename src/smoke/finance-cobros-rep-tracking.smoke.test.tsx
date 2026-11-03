@@ -1,5 +1,6 @@
 /**
- * Smoke F1-Web — Cobros: bandeja «Cobros de hoy» + poll rep-status + excepciones.
+ * Smoke — Cobros: bandeja «Cobros de hoy» + poll rep-status + excepciones
+ * + F5 atajo N=1 Enviar comprobante (SendRepDialog + send-recipients mock).
  * Mock de hooks; no requiere backend ni worker.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +19,7 @@ import { FinanceCobrosPage } from "@features/finance/presentation/pages/FinanceC
 import {
   COBROS_TODAY_TRAY_STORAGE_KEY,
 } from "@features/finance/presentation/utils/cobrosFollowThrough";
+import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
 
 const {
   openPpd,
@@ -26,6 +28,7 @@ const {
   repExceptions,
   repStatusByIds,
   retryFinanceRepStamp,
+  sendBatch,
 } = vi.hoisted(() => ({
   openPpd: {
     data: undefined as
@@ -79,6 +82,7 @@ const {
     isPending: false,
     variables: undefined as { invoiceId: string; paymentId: string } | undefined,
   },
+  sendBatch: vi.fn(),
 }));
 
 vi.mock("@shared/permissions", () => ({
@@ -129,6 +133,45 @@ vi.mock("@features/finance/application", async (importOriginal) => {
     useRepExceptions: () => repExceptions,
     useRepStatusByIds: () => repStatusByIds,
     useRetryFinanceRepStamp: () => retryFinanceRepStamp,
+  };
+});
+
+vi.mock("@features/invoicing/application", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@features/invoicing/application")
+    >();
+  return {
+    ...actual,
+    usePaymentSendRecipients: () => ({
+      data: {
+        clientId: "client-1",
+        clientName: "Cliente Demo",
+        recipients: [
+          {
+            key: "billing_email",
+            kind: "billing_email",
+            label: "Correo de facturación",
+            email: "billing@demo.test",
+          },
+          {
+            key: "contact:ana",
+            kind: "contact",
+            contactId: "ana",
+            label: "Ana Contabilidad",
+            email: "ana@demo.test",
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }),
+    useSendInvoicesBatch: () => ({
+      sendBatch,
+      isPending: false,
+      progress: null,
+    }),
   };
 });
 
@@ -188,6 +231,18 @@ describe("smoke: finance-cobros-rep-tracking", () => {
     repExceptions.data = undefined;
     repStatusByIds.data = undefined;
     retryFinanceRepStamp.mutate = vi.fn();
+    sendBatch.mockReset();
+    sendBatch.mockResolvedValue([
+      {
+        groupKey: "payment:pay-a",
+        clientLabel: "Cliente Demo",
+        invoiceIds: [],
+        paymentIds: ["pay-a"],
+        folioLabels: [invoicingCopy.send.repDialog.documentLabel],
+        ok: true,
+        status: "queued",
+      },
+    ]);
     sessionStorage.removeItem(COBROS_TODAY_TRAY_STORAGE_KEY);
   });
 
@@ -343,6 +398,64 @@ describe("smoke: finance-cobros-rep-tracking", () => {
     expect(
       screen.getByRole("link", { name: "Ir a factura" }),
     ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
+  });
+
+  it("F5: bandeja Enviar comprobante abre SendRepDialog con destinatarios mock", async () => {
+    const user = userEvent.setup();
+    const repCopy = invoicingCopy.send.repDialog;
+    sessionStorage.setItem(
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-a",
+          receiverRfc: "XAXX010101000",
+          amount: 1160,
+          paymentDate: "2026-10-10",
+          repStatus: "stamped",
+          invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+          recordedAt: "2026-10-10T12:00:00.000Z",
+        },
+      ]),
+    );
+    repStatusByIds.data = [
+      {
+        paymentId: "pay-a",
+        repStatus: "stamped",
+        repAttempts: 1,
+        repLastError: null,
+        repCfdiUuid: "uuid-a",
+        repStampedAt: "2026-10-10T12:02:00.000Z",
+        repNextAttemptAt: null,
+        waitReason: null,
+        repErrorKind: null,
+        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+      },
+    ];
+
+    renderCobros();
+
+    await user.click(
+      screen.getByRole("button", { name: repCopy.cta }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: repCopy.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(repCopy.recipientsHeading)).toBeInTheDocument();
+    expect(screen.getByText("Correo de facturación")).toBeInTheDocument();
+    expect(screen.getByText("Ana Contabilidad")).toBeInTheDocument();
+    expect(screen.getByText("billing@demo.test")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: repCopy.submit }));
+
+    await waitFor(() => {
+      expect(sendBatch).toHaveBeenCalledWith([
+        expect.objectContaining({
+          paymentIds: ["pay-a"],
+          invoiceIds: [],
+        }),
+      ]);
+    });
   });
 
   it("multi-invoice Cobros de hoy uses Ver en factura… without auto-nav to [0]", async () => {

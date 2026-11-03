@@ -88,6 +88,23 @@ vi.mock("@shared/permissions", () => ({
   }),
 }));
 
+vi.mock("@features/invoicing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/invoicing")>();
+  return {
+    ...actual,
+    SendRepDialog: ({
+      paymentId,
+      open,
+    }: {
+      paymentId: string;
+      open: boolean;
+    }) =>
+      open ? (
+        <div data-testid="send-rep-dialog">dialog:{paymentId}</div>
+      ) : null,
+  };
+});
+
 vi.mock("@features/catalogs", () => ({
   useFormaPagoLabel: () => ({
     label: "03 - Transferencia",
@@ -191,7 +208,7 @@ describe("FinanceCobrosPage", () => {
     });
 
     expect(
-      screen.getByRole("heading", { name: "Facturas por cobrar" }),
+      screen.getByRole("heading", { name: "Facturas a crédito" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Cola de facturas a crédito/),
@@ -662,7 +679,53 @@ describe("FinanceCobrosPage", () => {
 
     expect(screen.getByText("Cobros de hoy")).toBeInTheDocument();
     expect(screen.getByText("Comprobante timbrado")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Enviar comprobante" }),
+    ).toBeInTheDocument();
     expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("opens SendRepDialog N=1 from tray Enviar comprobante", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem(
+      COBROS_TODAY_TRAY_STORAGE_KEY,
+      JSON.stringify([
+        {
+          paymentId: "pay-1",
+          receiverRfc: "XAXX010101000",
+          amount: 1160,
+          paymentDate: "2026-08-18",
+          repStatus: "stamped",
+          invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+          recordedAt: "2026-08-18T12:00:00.000Z",
+        },
+      ]),
+    );
+    repStatusByIds.data = [
+      {
+        paymentId: "pay-1",
+        repStatus: "stamped",
+        repAttempts: 1,
+        repLastError: null,
+        repCfdiUuid: "uuid-1",
+        repStampedAt: "2026-08-18T12:05:00.000Z",
+        repNextAttemptAt: null,
+        waitReason: null,
+        repErrorKind: null,
+        invoices: [{ id: "inv-1", serie: "A", folio: 10, amount: 1160 }],
+      },
+    ];
+
+    renderWithTheme(<FinanceCobrosPage />, {
+      route: ["/finance/payments"],
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Enviar comprobante" }),
+    );
+    expect(await screen.findByTestId("send-rep-dialog")).toHaveTextContent(
+      "dialog:pay-1",
+    );
   });
 
   it("queue load error uses DetailAlertCard with Reintentar in action", async () => {

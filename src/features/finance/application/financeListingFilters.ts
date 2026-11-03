@@ -15,8 +15,11 @@ export const FINANCE_COBROS_RFC_PARAM = "rfc";
 /** Bucket del workbench Cobros (`?bucket=open|partial|rep_exceptions`). */
 export const FINANCE_COBROS_BUCKET_PARAM = "bucket";
 
-/** Query param del workbench Envío de facturas (`?tab=`). */
+/** Query param del workbench Envíos (`?tab=`). */
 export const FINANCE_DISPATCH_TAB_PARAM = "tab";
+
+/** Filtro Tipo del workbench Envíos (`?document_kind=`). */
+export const FINANCE_DISPATCH_DOCUMENT_KIND_PARAM = "document_kind";
 
 /** Deep-link bandeja Efectivo por cobrar (`?clientId=`). */
 export { FINANCE_EFECTIVO_CLIENT_ID_PARAM } from "../domain/operationalCashPending";
@@ -26,6 +29,7 @@ export const FINANCE_PRESERVED_URL_PARAMS = [
   FINANCE_ANALYSIS_VIEW_PARAM,
   FINANCE_COBROS_RFC_PARAM,
   FINANCE_DISPATCH_TAB_PARAM,
+  FINANCE_DISPATCH_DOCUMENT_KIND_PARAM,
 ] as const;
 
 /** Orden de las vistas en pantalla: de lo general (Mes a mes) al detalle. */

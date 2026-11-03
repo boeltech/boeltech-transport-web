@@ -3,40 +3,24 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import type { ComponentProps } from "react";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing/domain";
 import { FinanceDispatchPendingTable } from "./FinanceDispatchPendingTable";
 
-function buildInvoice(
-  overrides: Partial<InvoiceListItem> = {},
-): InvoiceListItem {
+function buildDocument(
+  overrides: Partial<DispatchDocumentItem> = {},
+): DispatchDocumentItem {
   return {
     id: "inv-1",
-    tenantId: "t-1",
-    serie: "A",
-    folio: 10,
-    cfdiUuid: null,
-    receiverRfc: "XAXX010101000",
-    receiverName: "Receptor Demo",
+    documentKind: "invoice",
     clientId: "client-a",
-    clientName: "Cliente A",
-    issuedAt: "2026-08-01T12:00:00.000Z",
-    paymentForm: "99",
-    paymentMethod: "PPD",
+    clientName: "Receptor Demo",
+    receiverRfc: "XAXX010101000",
+    folioLabel: "A-10",
+    amount: 1160,
     currency: "MXN",
-    subtotal: 1000,
-    totalTax: 160,
-    total: 1160,
-    status: "stamped",
-    satCancellationStatus: "none",
-    satCancellationMessage: null,
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: null,
-    tripCount: 1,
-    tripCodes: ["TRP-001", "TRP-002", "TRP-003"],
-    totalPaid: 0,
-    balanceDue: 1160,
-    createdAt: "2026-08-01T10:00:00.000Z",
-    createdByName: null,
+    groupKey: "client-a",
     ...overrides,
   };
 }
@@ -44,11 +28,11 @@ function buildInvoice(
 function renderTable(
   props: Partial<ComponentProps<typeof FinanceDispatchPendingTable>> = {},
 ) {
-  const invoices = props.invoices ?? [buildInvoice()];
+  const documents = props.documents ?? [buildDocument()];
   return render(
     <MemoryRouter>
       <FinanceDispatchPendingTable
-        invoices={invoices}
+        documents={documents}
         selected={props.selected ?? {}}
         selectable={props.selectable}
         onToggle={props.onToggle ?? vi.fn()}
@@ -60,16 +44,14 @@ function renderTable(
 }
 
 describe("FinanceDispatchPendingTable", () => {
-  it("links folio and shows receiverName + RFC, not trip clientName", () => {
+  it("links folio and shows receptor + RFC", () => {
     renderTable();
 
     const folioLinks = screen.getAllByRole("link", { name: "A-10" });
     expect(folioLinks[0]).toHaveAttribute("href", "/invoices/inv-1");
     expect(screen.getAllByText("Receptor Demo").length).toBeGreaterThan(0);
     expect(screen.getAllByText("XAXX010101000").length).toBeGreaterThan(0);
-    expect(screen.queryAllByText("Cliente A")).toHaveLength(0);
-    expect(screen.getAllByText("TRP-001").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("+1").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Factura").length).toBeGreaterThan(0);
   });
 
   it("preserves the envíos queue in location.state.from", async () => {
@@ -86,7 +68,7 @@ describe("FinanceDispatchPendingTable", () => {
             path="/finance/dispatch"
             element={
               <FinanceDispatchPendingTable
-                invoices={[buildInvoice()]}
+                documents={[buildDocument()]}
                 selected={{}}
                 onToggle={vi.fn()}
                 onTogglePage={vi.fn()}
@@ -106,26 +88,27 @@ describe("FinanceDispatchPendingTable", () => {
     ).toBeInTheDocument();
   });
 
-  it("allows selecting invoices from different clients (no RFC anchor)", async () => {
+  it("allows selecting documents from different clients", async () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
     renderTable({
-      invoices: [
-        buildInvoice(),
-        buildInvoice({
+      documents: [
+        buildDocument(),
+        buildDocument({
           id: "inv-2",
-          folio: 11,
+          folioLabel: "A-11",
           clientId: "client-b",
           clientName: "Cliente B",
           receiverRfc: "XEXX010101000",
+          groupKey: "client-b",
         }),
       ],
-      selected: { "inv-1": true },
+      selected: { "invoice:inv-1": true },
       onToggle,
     });
 
     const second = screen.getAllByRole("checkbox", {
-      name: "Seleccionar factura A-11",
+      name: "Seleccionar A-11",
     })[0]!;
     expect(second).toBeEnabled();
     await user.click(second);
@@ -135,39 +118,19 @@ describe("FinanceDispatchPendingTable", () => {
     );
   });
 
-  it("shows Envío auto falló badge when lastItemStatus is failed", () => {
+  it("shows D12 label for REP rows", () => {
     renderTable({
-      invoices: [
-        buildInvoice({
-          autoDispatch: {
-            enabledForClient: true,
-            lastScheduledRunId: "run-1",
-            lastItemStatus: "failed",
-            lastError: "SMTP",
-          },
-        }),
-      ],
-    });
-
-    expect(screen.getAllByText("Envío auto falló").length).toBeGreaterThan(0);
-  });
-
-  it("shows Automático al corte when enabled and not failed", () => {
-    renderTable({
-      invoices: [
-        buildInvoice({
-          autoDispatch: {
-            enabledForClient: true,
-            lastScheduledRunId: null,
-            lastItemStatus: null,
-            lastError: null,
-          },
+      documents: [
+        buildDocument({
+          id: "pay-1",
+          documentKind: "rep",
+          folioLabel: "REP-abcdef12",
         }),
       ],
     });
 
     expect(
-      screen.getAllByText("Automático al corte").length,
+      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
     ).toBeGreaterThan(0);
   });
 

@@ -12,95 +12,82 @@ import {
 } from "@shared/ui/table";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing/domain";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
-import { resolveDispatchPendingNote } from "../utils/dispatchPendingNote";
+import {
+  dispatchDocumentSelectionKey,
+  formatDispatchDocumentLabel,
+} from "../utils/groupDispatchDocumentsForSend";
 import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = dispatchRunsCopy.workbench.pending;
+const typeCopy = dispatchRunsCopy.workbench.documentLabels;
 const SKELETON_ROWS = 8;
 
-function invoiceFolio(invoice: InvoiceListItem): string {
-  return `${invoice.serie}-${invoice.folio}`;
-}
-
-function TripCodes({ codes }: { codes: string[] }) {
-  if (codes.length === 0) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-  return (
-    <div className="flex flex-wrap gap-1">
-      {codes.slice(0, 2).map((code) => (
-        <Badge key={code} variant="secondary" className="text-xs">
-          {code}
-        </Badge>
-      ))}
-      {codes.length > 2 ? (
-        <Badge variant="secondary" className="text-xs">
-          +{codes.length - 2}
-        </Badge>
-      ) : null}
-    </div>
-  );
-}
-
-function ClientCell({ invoice }: { invoice: InvoiceListItem }) {
-  const name = invoice.receiverName?.trim();
+function ClientCell({ doc }: { doc: DispatchDocumentItem }) {
+  const name = doc.clientName?.trim();
   return (
     <div className="min-w-0">
-      <p className="truncate text-sm">{name || invoice.receiverRfc}</p>
+      <p className="truncate text-sm">{name || doc.receiverRfc}</p>
       {name ? (
         <p className="font-mono text-xs text-muted-foreground">
-          {invoice.receiverRfc}
+          {doc.receiverRfc}
         </p>
       ) : null}
     </div>
   );
 }
 
-function NoteCell({ invoice }: { invoice: InvoiceListItem }) {
-  const note = resolveDispatchPendingNote(invoice.autoDispatch);
-  if (note === "failed") {
+function TypeBadge({ doc }: { doc: DispatchDocumentItem }) {
+  return (
+    <Badge variant="neutral" tone="soft" className="text-xs font-medium">
+      {doc.documentKind === "rep" ? typeCopy.typeRep : typeCopy.typeInvoice}
+    </Badge>
+  );
+}
+
+function DocumentCell({ doc }: { doc: DispatchDocumentItem }) {
+  const fromState = useInvoiceQueueFromState();
+  const label = formatDispatchDocumentLabel(doc);
+  if (doc.documentKind === "invoice") {
     return (
-      <Badge variant="destructive" tone="soft" className="text-xs font-medium">
-        {copy.badges.autoFail}
-      </Badge>
+      <Link
+        to={`/invoices/${doc.id}`}
+        state={fromState}
+        className="font-mono text-primary hover:underline"
+      >
+        {label}
+      </Link>
     );
   }
-  if (note === "auto_cutoff") {
-    return (
-      <Badge variant="neutral" tone="soft" className="text-xs font-medium">
-        {copy.badges.autoCutoff}
-      </Badge>
-    );
-  }
-  return <span className="text-muted-foreground">—</span>;
+  return <span className="font-medium">{label}</span>;
 }
 
 interface FinanceDispatchPendingTableProps {
-  invoices: InvoiceListItem[];
+  documents: DispatchDocumentItem[];
   selected: Record<string, boolean>;
   /** Si false, tabla read-only sin checkboxes (sin invoices.execute). */
   selectable?: boolean;
   isLoading?: boolean;
-  onToggle: (invoice: InvoiceListItem, checked: boolean) => void;
+  onToggle: (doc: DispatchDocumentItem, checked: boolean) => void;
   onTogglePage: (checked: boolean) => void;
 }
 
 export function FinanceDispatchPendingTable({
-  invoices,
+  documents,
   selected,
   selectable = true,
   isLoading = false,
   onToggle,
   onTogglePage,
 }: FinanceDispatchPendingTableProps) {
-  const fromState = useInvoiceQueueFromState();
-  const selectedOnPage = invoices.filter((invoice) => selected[invoice.id]);
+  const selectedOnPage = documents.filter(
+    (doc) => selected[dispatchDocumentSelectionKey(doc)],
+  );
   const allSelected =
     selectable &&
-    invoices.length > 0 &&
-    selectedOnPage.length === invoices.length;
+    documents.length > 0 &&
+    selectedOnPage.length === documents.length;
   const someSelected =
     selectable && selectedOnPage.length > 0 && !allSelected;
   const selectAllState = allSelected
@@ -117,12 +104,11 @@ export function FinanceDispatchPendingTable({
             <TableHeader>
               <TableRow>
                 {selectable ? <TableHead className="w-10" /> : null}
-                <TableHead>{copy.columns.invoice}</TableHead>
+                <TableHead>{copy.columns.document}</TableHead>
                 <TableHead>{copy.columns.client}</TableHead>
                 <TableHead>{copy.columns.issuedAt}</TableHead>
                 <TableHead className="text-right">{copy.columns.total}</TableHead>
-                <TableHead>{copy.columns.trips}</TableHead>
-                <TableHead>{copy.columns.note}</TableHead>
+                <TableHead>{copy.columns.type}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -134,7 +120,7 @@ export function FinanceDispatchPendingTable({
                     </TableCell>
                   ) : null}
                   <TableCell>
-                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-28" />
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-4 w-36" />
@@ -144,9 +130,6 @@ export function FinanceDispatchPendingTable({
                   </TableCell>
                   <TableCell>
                     <Skeleton className="ml-auto h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-4 w-24" />
@@ -179,56 +162,49 @@ export function FinanceDispatchPendingTable({
                       onTogglePage(checked === true)
                     }
                     aria-label={copy.selectAllAria}
-                    disabled={invoices.length === 0}
+                    disabled={documents.length === 0}
                   />
                 </TableHead>
               ) : null}
-              <TableHead>{copy.columns.invoice}</TableHead>
+              <TableHead>{copy.columns.document}</TableHead>
               <TableHead>{copy.columns.client}</TableHead>
               <TableHead>{copy.columns.issuedAt}</TableHead>
               <TableHead className="text-right">{copy.columns.total}</TableHead>
-              <TableHead>{copy.columns.trips}</TableHead>
-              <TableHead>{copy.columns.note}</TableHead>
+              <TableHead>{copy.columns.type}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.map((invoice) => {
-              const folio = invoiceFolio(invoice);
-              const isChecked = Boolean(selected[invoice.id]);
+            {documents.map((doc) => {
+              const key = dispatchDocumentSelectionKey(doc);
+              const label = formatDispatchDocumentLabel(doc);
+              const isChecked = Boolean(selected[key]);
               return (
-                <TableRow key={invoice.id}>
+                <TableRow key={key}>
                   {selectable ? (
                     <TableCell>
                       <Checkbox
                         checked={isChecked}
                         onCheckedChange={(checked) =>
-                          onToggle(invoice, checked === true)
+                          onToggle(doc, checked === true)
                         }
-                        aria-label={copy.selectInvoice(folio)}
+                        aria-label={copy.selectDocument(label)}
                       />
                     </TableCell>
                   ) : null}
                   <TableCell className="font-medium">
-                    <Link
-                      to={`/invoices/${invoice.id}`}
-                      state={fromState}
-                      className="font-mono text-primary hover:underline"
-                    >
-                      {folio}
-                    </Link>
+                    <DocumentCell doc={doc} />
                   </TableCell>
                   <TableCell>
-                    <ClientCell invoice={invoice} />
+                    <ClientCell doc={doc} />
                   </TableCell>
-                  <TableCell>{formatDate(invoice.issuedAt)}</TableCell>
+                  <TableCell>
+                    {doc.stampedAt ? formatDate(doc.stampedAt) : "—"}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatMxCurrency(invoice.total)}
+                    {formatMxCurrency(doc.amount)}
                   </TableCell>
                   <TableCell>
-                    <TripCodes codes={invoice.tripCodes} />
-                  </TableCell>
-                  <TableCell>
-                    <NoteCell invoice={invoice} />
+                    <TypeBadge doc={doc} />
                   </TableCell>
                 </TableRow>
               );
@@ -244,47 +220,42 @@ export function FinanceDispatchPendingTable({
               checked={selectAllState}
               onCheckedChange={(checked) => onTogglePage(checked === true)}
               aria-label={copy.selectAllAria}
-              disabled={invoices.length === 0}
+              disabled={documents.length === 0}
             />
             <span className="text-sm font-medium">{copy.selectAllAria}</span>
           </div>
         ) : null}
-        {invoices.map((invoice) => {
-          const folio = invoiceFolio(invoice);
+        {documents.map((doc) => {
+          const key = dispatchDocumentSelectionKey(doc);
+          const label = formatDispatchDocumentLabel(doc);
           return (
-            <div key={invoice.id} className="flex items-start gap-3 py-3">
+            <div key={key} className="flex items-start gap-3 py-3">
               {selectable ? (
                 <div className="pt-1">
                   <Checkbox
-                    checked={Boolean(selected[invoice.id])}
+                    checked={Boolean(selected[key])}
                     onCheckedChange={(checked) =>
-                      onToggle(invoice, checked === true)
+                      onToggle(doc, checked === true)
                     }
-                    aria-label={copy.selectInvoice(folio)}
+                    aria-label={copy.selectDocument(label)}
                   />
                 </div>
               ) : null}
               <div className="min-w-0 flex-1 space-y-1">
-                <Link
-                  to={`/invoices/${invoice.id}`}
-                  state={fromState}
-                  className="font-mono font-medium text-primary hover:underline"
-                >
-                  {folio}
-                </Link>
-                <ClientCell invoice={invoice} />
+                <DocumentCell doc={doc} />
+                <ClientCell doc={doc} />
                 <p className="text-xs text-muted-foreground">
-                  {copy.columns.issuedAt}: {formatDate(invoice.issuedAt)}
+                  {copy.columns.issuedAt}:{" "}
+                  {doc.stampedAt ? formatDate(doc.stampedAt) : "—"}
                 </p>
-                <TripCodes codes={invoice.tripCodes} />
-                <NoteCell invoice={invoice} />
+                <TypeBadge doc={doc} />
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-xs text-muted-foreground">
                   {copy.columns.total}
                 </p>
                 <p className="font-semibold tabular-nums">
-                  {formatMxCurrency(invoice.total)}
+                  {formatMxCurrency(doc.amount)}
                 </p>
               </div>
             </div>

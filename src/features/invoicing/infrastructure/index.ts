@@ -3,6 +3,7 @@ export {
   mapInvoice,
   mapInvoiceListItem,
   mapInvoicePrefill,
+  mapDispatchDocumentItem,
   toApiCreateInvoice,
   toApiUpdateInvoice,
   toApiCancelInvoice,

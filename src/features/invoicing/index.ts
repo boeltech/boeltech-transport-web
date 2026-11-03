@@ -56,6 +56,7 @@ export {
   InvoiceTable,
   InvoiceBillingScopeBadge,
   SendInvoiceDialog,
+  SendRepDialog,
   PaymentFormDialog,
   CancelInvoiceDialog,
   SubstituteInvoiceSheet,

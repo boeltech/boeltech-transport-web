@@ -5,15 +5,16 @@ import { FinanceDispatchPage } from "./FinanceDispatchPage";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 
 const mockHasPermission = vi.fn();
-const mockUseInvoices = vi.fn();
+const mockUseDispatchDocuments = vi.fn();
 const mockUseBillingDispatchRuns = vi.fn();
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
 }));
 
-vi.mock("@features/invoicing", () => ({
-  useInvoices: (...args: unknown[]) => mockUseInvoices(...args),
+vi.mock("@features/invoicing/application", () => ({
+  useDispatchDocuments: (...args: unknown[]) =>
+    mockUseDispatchDocuments(...args),
 }));
 
 vi.mock("@features/finance/application", async (importOriginal) => {
@@ -51,7 +52,7 @@ describe("FinanceDispatchPage", () => {
       (module: string, action: string) =>
         module === "invoices" && action === "execute",
     );
-    mockUseInvoices.mockReturnValue({
+    mockUseDispatchDocuments.mockReturnValue({
       data: {
         data: [],
         pagination: { page: 1, limit: 1, total: 0, totalPages: 0 },
@@ -73,20 +74,46 @@ describe("FinanceDispatchPage", () => {
     });
   });
 
-  it("renders Armar envío del periodo as outline secondaryAction (not solid primary)", () => {
+  it("renders Envíos title and Armar as outline secondaryAction", () => {
     renderWithTheme(<FinanceDispatchPage />, {
       route: ["/finance/dispatch"],
     });
+
+    expect(
+      screen.getByRole("heading", { name: dispatchRunsCopy.workbench.title }),
+    ).toBeInTheDocument();
 
     const arm = screen.getByRole("button", {
       name: dispatchRunsCopy.workbench.armPeriodCta,
     });
     expect(arm).toBeInTheDocument();
-    // outline secondary — not Workbench solid primary (bg-primary text-primary-foreground)
     expect(arm.className).toMatch(/border-input|bg-background/);
     expect(arm.className).not.toMatch(/\bbg-primary\b/);
 
     expect(screen.getByTestId("dispatch-pending-panel")).toBeInTheDocument();
+  });
+
+  it("loads badge totals from dispatch-documents with documentKind filter", () => {
+    renderWithTheme(<FinanceDispatchPage />, {
+      route: ["/finance/dispatch?document_kind=rep"],
+    });
+
+    expect(mockUseDispatchDocuments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "pending",
+        documentKind: "rep",
+        page: 1,
+        limit: 1,
+      }),
+    );
+    expect(mockUseDispatchDocuments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "sent",
+        documentKind: "rep",
+        page: 1,
+        limit: 1,
+      }),
+    );
   });
 
   it("hides Armar without invoices.execute", () => {

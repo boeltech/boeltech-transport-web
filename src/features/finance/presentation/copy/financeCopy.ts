@@ -121,6 +121,9 @@ const cobrosCopy = {
       `Revisa el cobro de ${amount} en la bandeja o en Comprobantes por atender.`,
     toastRetrySuccess: "Timbrado reencolado",
     toastRetryError: "No se pudo reencolar el timbrado",
+    /** Atajo N=1 (PRD D2) — copy alineada a D12. */
+    sendRep: "Enviar comprobante",
+    resendRep: "Reenviar",
   },
   exceptions: {
     title: "Comprobantes por atender",

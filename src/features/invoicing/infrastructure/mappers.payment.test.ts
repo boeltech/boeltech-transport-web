@@ -47,6 +47,26 @@ describe("payment mappers", () => {
     expect(payment.paymentTime).toBe("15:30:00");
   });
 
+  it("maps rep_dispatch_sent_at from API", () => {
+    const payment = mapPayment({
+      id: "p1",
+      invoice_id: "inv",
+      amount: 100,
+      currency: "MXN",
+      exchange_rate: 1,
+      amount_mxn: 100,
+      payment_date: "2026-06-08",
+      payment_form: "03",
+      payment_form_name: null,
+      reference: null,
+      notes: null,
+      rep_dispatch_sent_at: "2026-06-09T18:00:00.000Z",
+      created_at: "2026-06-08T12:00:00Z",
+      created_by_name: null,
+    });
+    expect(payment.repDispatchSentAt).toBe("2026-06-09T18:00:00.000Z");
+  });
+
   it("defaults payment_time when absent", () => {
     const payment = mapPayment({
       id: "p1",

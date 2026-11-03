@@ -480,6 +480,19 @@ export function useInvoiceSendRecipients(
   });
 }
 
+/** Destinatarios de envío por payment (REP) — misma shape que invoice. */
+export function usePaymentSendRecipients(
+  paymentId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: invoiceQueryKeys.paymentSendRecipients(paymentId),
+    queryFn: () => invoicingApi.getPaymentSendRecipients(paymentId),
+    enabled: enabled && Boolean(paymentId),
+    staleTime: 30_000,
+  });
+}
+
 export function useSendInvoice(
   invoiceId: string,
   options?: Omit<

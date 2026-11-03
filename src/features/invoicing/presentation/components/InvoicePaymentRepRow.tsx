@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FileCode, Download, Loader2 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { useToast } from "@shared/hooks";
@@ -17,8 +18,10 @@ import {
   getRepFiscalDeadlineForPayment,
 } from "../helpers/repFiscalDeadlineUx";
 import { invoicingCopy } from "../copy/invoicingCopy";
+import { SendRepDialog } from "./SendRepDialog";
 
 const copy = invoicingCopy.detail;
+const sendCopy = invoicingCopy.send.repDialog;
 
 interface InvoicePaymentRepRowProps {
   payment: Payment;
@@ -27,8 +30,11 @@ interface InvoicePaymentRepRowProps {
   canExportFiles: boolean;
   /** invoices.execute — API POST …/retry-rep */
   canRetryRep: boolean;
+  /** invoices.execute — envío N=1 del REP timbrado */
+  canSendRep?: boolean;
   onRetry: (paymentId: string) => void;
   retryingPaymentId: string | null;
+  onRepSent?: () => void;
 }
 
 function buildRepXmlFilename(
@@ -85,10 +91,13 @@ export function InvoicePaymentRepRow({
   invoiceSerieFolio,
   canExportFiles,
   canRetryRep,
+  canSendRep = false,
   onRetry,
   retryingPaymentId,
+  onRepSent,
 }: InvoicePaymentRepRowProps) {
   const { toast } = useToast();
+  const [sendOpen, setSendOpen] = useState(false);
   const anyRetryPending = retryingPaymentId != null;
   const retrying = retryingPaymentId === payment.id;
   const fiscalDeadline =
@@ -111,6 +120,11 @@ export function InvoicePaymentRepRow({
     canExportFiles &&
     payment.repStatus === "stamped" &&
     (payment.hasRepXml || payment.repCfdiUuid);
+  const canOfferSend =
+    canSendRep &&
+    payment.repStatus === "stamped" &&
+    payment.hasRepXml;
+  const alreadySent = Boolean(payment.repDispatchSentAt);
 
   const { mutate: openRepPdf, isPending: openingRepPdf } = useOpenRepPdf({
     onError: (err) =>
@@ -143,6 +157,7 @@ export function InvoicePaymentRepRow({
   };
 
   return (
+    <>
     <div className="flex items-start justify-between gap-3 p-3 bg-muted/40 rounded-md text-sm">
       <div className="space-y-1 min-w-0">
         <p className="font-medium">{formatMxCurrency(displayAmountMxn)}</p>
@@ -254,6 +269,16 @@ export function InvoicePaymentRepRow({
             {payment.createdByName}
           </span>
         )}
+        {canOfferSend ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setSendOpen(true)}
+          >
+            {alreadySent ? sendCopy.ctaResend : sendCopy.cta}
+          </Button>
+        ) : null}
         {canRetryRep && payment.repStatus === "failed" && (
           <Button
             type="button"
@@ -271,5 +296,15 @@ export function InvoicePaymentRepRow({
         )}
       </div>
     </div>
+    {canOfferSend ? (
+      <SendRepDialog
+        paymentId={payment.id}
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        alreadySent={alreadySent}
+        onSent={onRepSent}
+      />
+    ) : null}
+    </>
   );
 }

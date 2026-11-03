@@ -7,8 +7,9 @@ import type { QueryClient } from "@tanstack/react-query";
 import { invoicingApi } from "@features/invoicing/infrastructure";
 import type { SendBatchPollResult } from "@features/invoicing/domain";
 
-/** Align with invoiceQueryKeys.lists() / finance root — avoid circular import. */
+/** Align with invoiceQueryKeys / finance root — avoid circular import. */
 const invoiceListsKey = ["invoices", "list"] as const;
+const dispatchDocumentsKey = ["invoices", "dispatch-documents"] as const;
 const financeQueryRoot = ["finance"] as const;
 
 export const SEND_BATCH_POLL_INTERVAL_MS = 3_000;
@@ -24,6 +25,7 @@ export async function invalidateDispatchLists(
   queryClient: QueryClient,
 ): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: invoiceListsKey });
+  await queryClient.invalidateQueries({ queryKey: dispatchDocumentsKey });
   await queryClient.invalidateQueries({ queryKey: financeQueryRoot });
 }
 

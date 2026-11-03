@@ -1,4 +1,5 @@
 import type {
+  DispatchDocumentsFilters,
   InvoiceBillingScope,
   InvoiceFilters,
 } from "@features/invoicing/domain";
@@ -12,6 +13,10 @@ export const invoiceQueryKeys = {
   lists: () => [...invoiceQueryKeys.all, "list"] as const,
   list: (filters?: InvoiceFilters) =>
     [...invoiceQueryKeys.lists(), filters] as const,
+  dispatchDocuments: () =>
+    [...invoiceQueryKeys.all, "dispatch-documents"] as const,
+  dispatchDocumentsList: (filters?: DispatchDocumentsFilters) =>
+    [...invoiceQueryKeys.dispatchDocuments(), filters] as const,
   details: () => [...invoiceQueryKeys.all, "detail"] as const,
   detail: (id: string) => [...invoiceQueryKeys.details(), id] as const,
   payments: (id: string) =>
@@ -24,4 +29,6 @@ export const invoiceQueryKeys = {
   ) => [...invoiceQueryKeys.prefills(), tripId, scope, legId ?? null] as const,
   sendRecipients: (id: string) =>
     [...invoiceQueryKeys.detail(id), "send-recipients"] as const,
+  paymentSendRecipients: (paymentId: string) =>
+    [...invoiceQueryKeys.all, "payment-send-recipients", paymentId] as const,
 };

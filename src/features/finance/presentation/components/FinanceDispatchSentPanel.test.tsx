@@ -3,18 +3,17 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing/domain";
 import { FinanceDispatchSentPanel } from "./FinanceDispatchSentPanel";
 
 const mockHasPermission = vi.fn();
-const mockUseInvoices = vi.fn();
+const mockUseDispatchDocuments = vi.fn();
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
 }));
 
 vi.mock("@features/invoicing", () => ({
-  useInvoices: (...args: unknown[]) => mockUseInvoices(...args),
   SendInvoiceDialog: ({
     invoiceId,
     open,
@@ -25,53 +24,53 @@ vi.mock("@features/invoicing", () => ({
     open ? (
       <div data-testid="send-invoice-dialog">dialog:{invoiceId}</div>
     ) : null,
+  SendRepDialog: ({
+    paymentId,
+    open,
+  }: {
+    paymentId: string;
+    open: boolean;
+  }) =>
+    open ? (
+      <div data-testid="send-rep-dialog">dialog:{paymentId}</div>
+    ) : null,
 }));
 
-function buildInvoice(
-  overrides: Partial<InvoiceListItem> = {},
-): InvoiceListItem {
+vi.mock("@features/invoicing/application", () => ({
+  useDispatchDocuments: (...args: unknown[]) =>
+    mockUseDispatchDocuments(...args),
+}));
+
+function buildDocument(
+  overrides: Partial<DispatchDocumentItem> = {},
+): DispatchDocumentItem {
   return {
     id: "inv-1",
-    tenantId: "t-1",
-    serie: "A",
-    folio: 10,
-    cfdiUuid: null,
-    receiverRfc: "XAXX010101000",
-    receiverName: "Receptor Demo",
+    documentKind: "invoice",
     clientId: "client-a",
-    clientName: "Cliente A",
-    issuedAt: "2026-08-01T12:00:00.000Z",
-    paymentForm: "99",
-    paymentMethod: "PPD",
+    clientName: "Receptor Demo",
+    receiverRfc: "XAXX010101000",
+    folioLabel: "A-10",
+    amount: 1160,
     currency: "MXN",
-    subtotal: 1000,
-    totalTax: 160,
-    total: 1160,
-    status: "stamped",
-    satCancellationStatus: "none",
-    satCancellationMessage: null,
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: "2026-08-02T09:00:00.000Z",
-    tripCount: 1,
-    tripCodes: ["TRP-001"],
-    totalPaid: 0,
-    balanceDue: 1160,
-    createdAt: "2026-08-01T10:00:00.000Z",
-    createdByName: null,
+    groupKey: "client-a",
     ...overrides,
   };
 }
 
 function renderPanel(
   requestResend = vi.fn(),
-  invoices: InvoiceListItem[] = [
-    buildInvoice(),
-    buildInvoice({
+  documents: DispatchDocumentItem[] = [
+    buildDocument(),
+    buildDocument({
       id: "inv-2",
-      folio: 11,
+      folioLabel: "A-11",
       clientId: "client-b",
       clientName: "Cliente B",
       receiverRfc: "XEXX010101000",
+      groupKey: "client-b",
     }),
   ],
   queryOverrides: {
@@ -80,15 +79,15 @@ function renderPanel(
   } = {},
 ) {
   const refetch = queryOverrides.refetch ?? vi.fn();
-  mockUseInvoices.mockReturnValue({
+  mockUseDispatchDocuments.mockReturnValue({
     data: queryOverrides.isError
       ? undefined
       : {
-          data: invoices,
+          data: documents,
           pagination: {
             page: 1,
             limit: 25,
-            total: invoices.length,
+            total: documents.length,
             totalPages: 1,
           },
         },
@@ -130,14 +129,14 @@ describe("FinanceDispatchSentPanel", () => {
     const { requestResend } = renderPanel();
 
     await user.click(
-      screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
+      screen.getAllByRole("checkbox", { name: "Seleccionar A-10" })[0]!,
     );
     await user.click(
-      screen.getAllByRole("checkbox", { name: "Seleccionar factura A-11" })[0]!,
+      screen.getAllByRole("checkbox", { name: "Seleccionar A-11" })[0]!,
     );
 
     const resendButton = screen.getByRole("button", {
-      name: "Reenviar 2 facturas",
+      name: "Reenviar 2 documentos",
     });
     expect(resendButton).toBeInTheDocument();
     expect(resendButton.closest(".sticky")).toBeTruthy();
@@ -147,12 +146,12 @@ describe("FinanceDispatchSentPanel", () => {
     expect(requestResend.mock.calls[0]![0]).toHaveLength(2);
   });
 
-  it("opens SendInvoiceDialog from row Reenviar", async () => {
+  it("opens SendInvoiceDialog from row Reenviar for invoices", async () => {
     const user = userEvent.setup();
     renderPanel();
 
     await user.click(
-      screen.getAllByRole("button", { name: "Acciones de factura A-10" })[0]!,
+      screen.getAllByRole("button", { name: "Acciones de A-10" })[0]!,
     );
     await user.click(screen.getByRole("menuitem", { name: "Reenviar" }));
 
@@ -161,11 +160,33 @@ describe("FinanceDispatchSentPanel", () => {
     );
   });
 
+  it("opens SendRepDialog from row Reenviar for REP", async () => {
+    const user = userEvent.setup();
+    renderPanel(vi.fn(), [
+      buildDocument({
+        id: "pay-9",
+        documentKind: "rep",
+        folioLabel: "REP-abcdef12",
+      }),
+    ]);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /Acciones de Comprobante de pago/,
+      }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Reenviar" }));
+
+    expect(await screen.findByTestId("send-rep-dialog")).toHaveTextContent(
+      "dialog:pay-9",
+    );
+  });
+
   it("shows empty state when the sent queue is empty", () => {
     renderPanel(vi.fn(), []);
 
     expect(
-      screen.getByText("Aún no hay facturas enviadas por correo"),
+      screen.getByText("Aún no hay documentos enviados por correo"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Ir a pendientes" }),
@@ -181,7 +202,7 @@ describe("FinanceDispatchSentPanel", () => {
 
     expect(screen.getByText("No se pudo cargar la cola")).toBeInTheDocument();
     expect(
-      screen.getByText(/Error al cargar las facturas enviadas/),
+      screen.getByText(/Error al cargar los documentos enviados/),
     ).toBeInTheDocument();
     const retry = screen.getByRole("button", { name: "Reintentar" });
     await user.click(retry);

@@ -20,122 +20,71 @@ import {
 } from "@shared/ui/table";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing/domain";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
-import { resolveDispatchSentOrigin } from "../utils/dispatchSentOrigin";
+import {
+  dispatchDocumentSelectionKey,
+  formatDispatchDocumentLabel,
+} from "../utils/groupDispatchDocumentsForSend";
 import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
-import { DispatchRunOriginBadge } from "./DispatchRunOriginBadge";
 
 const copy = dispatchRunsCopy.workbench.sent;
+const typeCopy = dispatchRunsCopy.workbench.documentLabels;
 const SKELETON_ROWS = 8;
 
-function invoiceFolio(invoice: InvoiceListItem): string {
-  return `${invoice.serie}-${invoice.folio}`;
-}
-
-function TripCodes({ codes }: { codes: string[] }) {
-  if (codes.length === 0) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-  return (
-    <div className="flex flex-wrap gap-1">
-      {codes.slice(0, 2).map((code) => (
-        <Badge key={code} variant="secondary" className="text-xs">
-          {code}
-        </Badge>
-      ))}
-      {codes.length > 2 ? (
-        <Badge variant="secondary" className="text-xs">
-          +{codes.length - 2}
-        </Badge>
-      ) : null}
-    </div>
-  );
-}
-
-function ClientCell({ invoice }: { invoice: InvoiceListItem }) {
-  const name = invoice.receiverName?.trim();
+function ClientCell({ doc }: { doc: DispatchDocumentItem }) {
+  const name = doc.clientName?.trim();
   return (
     <div className="min-w-0">
-      <p className="truncate text-sm">{name || invoice.receiverRfc}</p>
+      <p className="truncate text-sm">{name || doc.receiverRfc}</p>
       {name ? (
         <p className="font-mono text-xs text-muted-foreground">
-          {invoice.receiverRfc}
+          {doc.receiverRfc}
         </p>
       ) : null}
     </div>
   );
 }
 
-function SentAtCell({ invoice }: { invoice: InvoiceListItem }) {
-  if (!invoice.dispatchSentAt) {
-    return <span className="text-muted-foreground">—</span>;
-  }
+function TypeBadge({ doc }: { doc: DispatchDocumentItem }) {
   return (
-    <span className="whitespace-nowrap text-sm">
-      {formatDateTime(invoice.dispatchSentAt)}
-    </span>
+    <Badge variant="neutral" tone="soft" className="text-xs font-medium">
+      {doc.documentKind === "rep" ? typeCopy.typeRep : typeCopy.typeInvoice}
+    </Badge>
   );
 }
 
-function RowActions({
-  invoice,
-  canResend,
-  onResend,
-  onView,
-}: {
-  invoice: InvoiceListItem;
-  canResend: boolean;
-  onResend: (invoice: InvoiceListItem) => void;
-  onView: (invoice: InvoiceListItem) => void;
-}) {
-  const folio = invoiceFolio(invoice);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          aria-label={copy.rowActionsAria(folio)}
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem onClick={() => onView(invoice)}>
-          {copy.actions.view}
-        </DropdownMenuItem>
-        {canResend ? (
-          <DropdownMenuItem
-            onSelect={() => {
-              // Diferir apertura del dialog: evita cierre por foco del menú.
-              setTimeout(() => onResend(invoice), 0);
-            }}
-          >
-            {copy.actions.resend}
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+function DocumentCell({ doc }: { doc: DispatchDocumentItem }) {
+  const fromState = useInvoiceQueueFromState();
+  const label = formatDispatchDocumentLabel(doc);
+  if (doc.documentKind === "invoice") {
+    return (
+      <Link
+        to={`/invoices/${doc.id}`}
+        state={fromState}
+        className="font-mono text-primary hover:underline"
+      >
+        {label}
+      </Link>
+    );
+  }
+  return <span className="font-medium">{label}</span>;
 }
 
 interface FinanceDispatchSentTableProps {
-  invoices: InvoiceListItem[];
+  documents: DispatchDocumentItem[];
   selected: Record<string, boolean>;
-  /** Si false, tabla read-only sin checkboxes ni Reenviar (sin invoices.execute). */
   selectable?: boolean;
   isLoading?: boolean;
-  onToggle: (invoice: InvoiceListItem, checked: boolean) => void;
+  onToggle: (doc: DispatchDocumentItem, checked: boolean) => void;
   onTogglePage: (checked: boolean) => void;
-  onResend: (invoice: InvoiceListItem) => void;
-  onView: (invoice: InvoiceListItem) => void;
+  /** Reenvío unitario: factura → SendInvoiceDialog; REP → SendRepDialog. */
+  onResend?: (doc: DispatchDocumentItem) => void;
+  onView?: (doc: DispatchDocumentItem) => void;
 }
 
 export function FinanceDispatchSentTable({
-  invoices,
+  documents,
   selected,
   selectable = true,
   isLoading = false,
@@ -144,12 +93,13 @@ export function FinanceDispatchSentTable({
   onResend,
   onView,
 }: FinanceDispatchSentTableProps) {
-  const fromState = useInvoiceQueueFromState();
-  const selectedOnPage = invoices.filter((invoice) => selected[invoice.id]);
+  const selectedOnPage = documents.filter(
+    (doc) => selected[dispatchDocumentSelectionKey(doc)],
+  );
   const allSelected =
     selectable &&
-    invoices.length > 0 &&
-    selectedOnPage.length === invoices.length;
+    documents.length > 0 &&
+    selectedOnPage.length === documents.length;
   const someSelected =
     selectable && selectedOnPage.length > 0 && !allSelected;
   const selectAllState = allSelected
@@ -166,14 +116,13 @@ export function FinanceDispatchSentTable({
             <TableHeader>
               <TableRow>
                 {selectable ? <TableHead className="w-10" /> : null}
-                <TableHead>{copy.columns.invoice}</TableHead>
+                <TableHead>{copy.columns.document}</TableHead>
                 <TableHead>{copy.columns.client}</TableHead>
                 <TableHead>{copy.columns.issuedAt}</TableHead>
                 <TableHead>{copy.columns.sentAt}</TableHead>
                 <TableHead className="text-right">{copy.columns.total}</TableHead>
-                <TableHead>{copy.columns.origin}</TableHead>
-                <TableHead>{copy.columns.trips}</TableHead>
-                <TableHead className="w-12" />
+                <TableHead>{copy.columns.type}</TableHead>
+                <TableHead className="w-10">{copy.columns.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -185,7 +134,7 @@ export function FinanceDispatchSentTable({
                     </TableCell>
                   ) : null}
                   <TableCell>
-                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-28" />
                   </TableCell>
                   <TableCell>
                     <Skeleton className="h-4 w-36" />
@@ -200,13 +149,10 @@ export function FinanceDispatchSentTable({
                     <Skeleton className="ml-auto h-4 w-16" />
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-24" />
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-4 w-6" />
                   </TableCell>
                 </TableRow>
               ))}
@@ -236,72 +182,93 @@ export function FinanceDispatchSentTable({
                       onTogglePage(checked === true)
                     }
                     aria-label={copy.selectAllAria}
-                    disabled={invoices.length === 0}
+                    disabled={documents.length === 0}
                   />
                 </TableHead>
               ) : null}
-              <TableHead>{copy.columns.invoice}</TableHead>
+              <TableHead>{copy.columns.document}</TableHead>
               <TableHead>{copy.columns.client}</TableHead>
               <TableHead>{copy.columns.issuedAt}</TableHead>
               <TableHead>{copy.columns.sentAt}</TableHead>
               <TableHead className="text-right">{copy.columns.total}</TableHead>
-              <TableHead>{copy.columns.origin}</TableHead>
-              <TableHead>{copy.columns.trips}</TableHead>
-              <TableHead className="w-12">
+              <TableHead>{copy.columns.type}</TableHead>
+              <TableHead className="w-10">
                 <span className="sr-only">{copy.columns.actions}</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.map((invoice) => {
-              const folio = invoiceFolio(invoice);
-              const isChecked = Boolean(selected[invoice.id]);
-              const origin = resolveDispatchSentOrigin(invoice);
+            {documents.map((doc) => {
+              const key = dispatchDocumentSelectionKey(doc);
+              const label = formatDispatchDocumentLabel(doc);
+              const isChecked = Boolean(selected[key]);
+              const showView = doc.documentKind === "invoice" && Boolean(onView);
+              const showRowActions = Boolean(onResend) || showView;
               return (
-                <TableRow key={invoice.id}>
+                <TableRow key={key}>
                   {selectable ? (
                     <TableCell>
                       <Checkbox
                         checked={isChecked}
                         onCheckedChange={(checked) =>
-                          onToggle(invoice, checked === true)
+                          onToggle(doc, checked === true)
                         }
-                        aria-label={copy.selectInvoice(folio)}
+                        aria-label={copy.selectDocument(label)}
                       />
                     </TableCell>
                   ) : null}
                   <TableCell className="font-medium">
-                    <Link
-                      to={`/invoices/${invoice.id}`}
-                      state={fromState}
-                      className="font-mono text-primary hover:underline"
-                    >
-                      {folio}
-                    </Link>
+                    <DocumentCell doc={doc} />
                   </TableCell>
                   <TableCell>
-                    <ClientCell invoice={invoice} />
+                    <ClientCell doc={doc} />
                   </TableCell>
-                  <TableCell>{formatDate(invoice.issuedAt)}</TableCell>
                   <TableCell>
-                    <SentAtCell invoice={invoice} />
+                    {doc.stampedAt ? formatDate(doc.stampedAt) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    {doc.dispatchSentAt ? (
+                      <span className="whitespace-nowrap text-sm">
+                        {formatDateTime(doc.dispatchSentAt)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatMxCurrency(invoice.total)}
+                    {formatMxCurrency(doc.amount)}
                   </TableCell>
                   <TableCell>
-                    <DispatchRunOriginBadge origin={origin} className="text-xs" />
+                    <TypeBadge doc={doc} />
                   </TableCell>
                   <TableCell>
-                    <TripCodes codes={invoice.tripCodes} />
-                  </TableCell>
-                  <TableCell>
-                    <RowActions
-                      invoice={invoice}
-                      canResend={selectable}
-                      onResend={onResend}
-                      onView={onView}
-                    />
+                    {showRowActions ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={copy.rowActionsAria(label)}
+                          >
+                            <MoreHorizontal className="h-4 w-4" aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {showView ? (
+                            <DropdownMenuItem onSelect={() => onView?.(doc)}>
+                              {copy.actions.view}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {onResend ? (
+                            <DropdownMenuItem onSelect={() => onResend(doc)}>
+                              {copy.actions.resend}
+                            </DropdownMenuItem>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               );
@@ -317,62 +284,44 @@ export function FinanceDispatchSentTable({
               checked={selectAllState}
               onCheckedChange={(checked) => onTogglePage(checked === true)}
               aria-label={copy.selectAllAria}
-              disabled={invoices.length === 0}
+              disabled={documents.length === 0}
             />
             <span className="text-sm font-medium">{copy.selectAllAria}</span>
           </div>
         ) : null}
-        {invoices.map((invoice) => {
-          const folio = invoiceFolio(invoice);
-          const origin = resolveDispatchSentOrigin(invoice);
+        {documents.map((doc) => {
+          const key = dispatchDocumentSelectionKey(doc);
+          const label = formatDispatchDocumentLabel(doc);
           return (
-            <div key={invoice.id} className="flex items-start gap-3 py-3">
+            <div key={key} className="flex items-start gap-3 py-3">
               {selectable ? (
                 <div className="pt-1">
                   <Checkbox
-                    checked={Boolean(selected[invoice.id])}
+                    checked={Boolean(selected[key])}
                     onCheckedChange={(checked) =>
-                      onToggle(invoice, checked === true)
+                      onToggle(doc, checked === true)
                     }
-                    aria-label={copy.selectInvoice(folio)}
+                    aria-label={copy.selectDocument(label)}
                   />
                 </div>
               ) : null}
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-start justify-between gap-2">
-                  <Link
-                    to={`/invoices/${invoice.id}`}
-                    state={fromState}
-                    className="font-mono font-medium text-primary hover:underline"
-                  >
-                    {folio}
-                  </Link>
-                  <RowActions
-                    invoice={invoice}
-                    canResend={selectable}
-                    onResend={onResend}
-                    onView={onView}
-                  />
-                </div>
-                <ClientCell invoice={invoice} />
-                <p className="text-xs text-muted-foreground">
-                  {copy.columns.issuedAt}: {formatDate(invoice.issuedAt)}
-                </p>
+                <DocumentCell doc={doc} />
+                <ClientCell doc={doc} />
                 <p className="text-xs text-muted-foreground">
                   {copy.columns.sentAt}:{" "}
-                  {invoice.dispatchSentAt
-                    ? formatDateTime(invoice.dispatchSentAt)
+                  {doc.dispatchSentAt
+                    ? formatDateTime(doc.dispatchSentAt)
                     : "—"}
                 </p>
-                <DispatchRunOriginBadge origin={origin} className="text-xs" />
-                <TripCodes codes={invoice.tripCodes} />
+                <TypeBadge doc={doc} />
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-xs text-muted-foreground">
                   {copy.columns.total}
                 </p>
                 <p className="font-semibold tabular-nums">
-                  {formatMxCurrency(invoice.total)}
+                  {formatMxCurrency(doc.amount)}
                 </p>
               </div>
             </div>

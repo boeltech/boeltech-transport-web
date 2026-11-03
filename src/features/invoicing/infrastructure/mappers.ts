@@ -29,6 +29,8 @@ import {
   type SendBatchPollGroup,
   type SendBatchPollStatus,
   type SendBatchPollGroupStatus,
+  type DispatchDocumentItem,
+  type DispatchDocumentKind,
 } from "@features/invoicing/domain";
 import { sanitizeRepLastErrorForDisplay } from "./sanitizeRepLastErrorForDisplay";
 
@@ -51,6 +53,7 @@ interface ApiPayment {
   notes: string | null;
   rep_cfdi_uuid?: string | null;
   rep_stamped_at?: string | null;
+  rep_dispatch_sent_at?: string | null;
   rep_status?: string;
   rep_attempts?: number;
   rep_last_error?: string | null;
@@ -257,6 +260,7 @@ export function mapPayment(raw: unknown): Payment {
     createdByName: payment.created_by_name,
     repCfdiUuid: payment.rep_cfdi_uuid ?? null,
     repStampedAt: payment.rep_stamped_at ?? null,
+    repDispatchSentAt: payment.rep_dispatch_sent_at ?? null,
     repStatus: (payment.rep_status ?? "not_required") as Payment["repStatus"],
     repAttempts: payment.rep_attempts ?? 0,
     repLastError: sanitizeRepLastErrorForDisplay(payment.rep_last_error),
@@ -715,13 +719,18 @@ export function toApiSendInvoice(payload: SendInvoicePayload) {
 export function toApiSendInvoiceBatch(payload: SendInvoiceBatchPayload) {
   return {
     groups: payload.groups.map((group) => {
-      if (group.recipientKeys === undefined) {
-        return { invoice_ids: group.invoiceIds };
-      }
-      return {
-        invoice_ids: group.invoiceIds,
-        recipient_keys: group.recipientKeys,
+      const body: {
+        invoice_ids: string[];
+        payment_ids: string[];
+        recipient_keys?: string[];
+      } = {
+        invoice_ids: group.invoiceIds ?? [],
+        payment_ids: group.paymentIds ?? [],
       };
+      if (group.recipientKeys !== undefined) {
+        body.recipient_keys = group.recipientKeys;
+      }
+      return body;
     }),
   };
 }
@@ -733,6 +742,7 @@ interface ApiSendInvoiceBatchGroupResult {
   error_message: string | null;
   error_code: string | null;
   invoice_ids: string[];
+  payment_ids?: string[];
 }
 
 interface ApiSendInvoiceBatchSummary {
@@ -740,6 +750,7 @@ interface ApiSendInvoiceBatchSummary {
   clients_skipped: number;
   clients_failed: number;
   invoices_queued: number;
+  payments_queued?: number;
 }
 
 interface ApiSendInvoiceBatchResult {
@@ -768,6 +779,7 @@ function mapSendInvoiceBatchGroupResult(
     errorMessage: raw.error_message,
     errorCode: raw.error_code,
     invoiceIds: raw.invoice_ids ?? [],
+    paymentIds: raw.payment_ids ?? [],
   };
 }
 
@@ -779,6 +791,7 @@ function mapSendInvoiceBatchSummary(
     clientsSkipped: raw.clients_skipped,
     clientsFailed: raw.clients_failed,
     invoicesQueued: raw.invoices_queued,
+    paymentsQueued: raw.payments_queued ?? 0,
   };
 }
 
@@ -796,6 +809,7 @@ export function mapSendInvoiceBatchResult(
         clients_skipped: 0,
         clients_failed: 0,
         invoices_queued: 0,
+        payments_queued: 0,
       },
     ),
   };
@@ -808,6 +822,7 @@ interface ApiSendBatchPollGroup {
   error_code: string | null;
   error_message: string | null;
   invoice_ids: string[];
+  payment_ids?: string[];
 }
 
 interface ApiSendBatchPollResult {
@@ -851,6 +866,7 @@ function mapSendBatchPollGroup(raw: ApiSendBatchPollGroup): SendBatchPollGroup {
     errorCode: raw.error_code,
     errorMessage: raw.error_message,
     invoiceIds: raw.invoice_ids ?? [],
+    paymentIds: raw.payment_ids ?? [],
   };
 }
 
@@ -860,5 +876,42 @@ export function mapSendBatchPollResult(raw: unknown): SendBatchPollResult {
     batchId: data.batch_id,
     status: mapSendBatchPollStatus(data.status),
     groups: (data.groups ?? []).map(mapSendBatchPollGroup),
+  };
+}
+
+interface ApiDispatchDocumentItem {
+  document_kind: string;
+  id: string;
+  client_id: string | null;
+  client_name: string | null;
+  receiver_rfc: string;
+  folio_label: string;
+  amount: number | string;
+  currency: string;
+  stamped_at: string | null;
+  dispatch_sent_at: string | null;
+  group_key: string;
+}
+
+function mapDispatchDocumentKind(raw: string): DispatchDocumentKind {
+  return raw === "rep" ? "rep" : "invoice";
+}
+
+export function mapDispatchDocumentItem(
+  raw: unknown,
+): DispatchDocumentItem {
+  const data = raw as ApiDispatchDocumentItem;
+  return {
+    documentKind: mapDispatchDocumentKind(data.document_kind),
+    id: data.id,
+    clientId: data.client_id ?? null,
+    clientName: data.client_name ?? null,
+    receiverRfc: data.receiver_rfc,
+    folioLabel: data.folio_label,
+    amount: Number(data.amount ?? 0),
+    currency: data.currency || "MXN",
+    stampedAt: data.stamped_at ?? null,
+    dispatchSentAt: data.dispatch_sent_at ?? null,
+    groupKey: data.group_key,
   };
 }

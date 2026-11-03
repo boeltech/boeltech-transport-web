@@ -13,6 +13,7 @@ import type {
   Payment,
   InvoicePrefill,
   PaginatedInvoices,
+  PaginatedDispatchDocuments,
   CreateInvoicePayload,
   UpdateInvoicePayload,
   CancelInvoicePayload,
@@ -22,6 +23,7 @@ import type {
   InvoiceFilters,
   InvoiceBillingScope,
   InvoiceSendRecipients,
+  DispatchDocumentsFilters,
   SendInvoicePayload,
   SendInvoiceBatchPayload,
   SendInvoiceBatchResult,
@@ -33,6 +35,7 @@ import {
   mapPayment,
   mapInvoicePrefill,
   mapInvoiceSendRecipients,
+  mapDispatchDocumentItem,
   mapSendInvoiceBatchResult,
   mapSendBatchPollResult,
   toApiCreateInvoice,
@@ -45,6 +48,7 @@ import {
 } from "./mappers";
 
 const INVOICES = "/invoices";
+const PAYMENTS = "/payments";
 const FINANCE = "/finance";
 
 export const invoicingApi = {
@@ -77,6 +81,43 @@ export const invoicingApi = {
     return {
       data: (response.data as unknown[]).map((item) =>
         mapInvoiceListItem(item as Record<string, unknown>),
+      ),
+      pagination: {
+        page: response.pagination.page,
+        limit: response.pagination.limit,
+        total: response.pagination.total,
+        totalPages: response.pagination.total_pages,
+      },
+    };
+  },
+
+  /**
+   * Workbench tipado Pendientes·Enviadas (GET /invoices/dispatch-documents).
+   */
+  listDispatchDocuments: async (
+    filters: DispatchDocumentsFilters,
+  ): Promise<PaginatedDispatchDocuments> => {
+    const params = new URLSearchParams();
+    params.append("bucket", filters.bucket);
+    if (filters.documentKind && filters.documentKind !== "all") {
+      params.append("document_kind", filters.documentKind);
+    } else if (filters.documentKind === "all") {
+      params.append("document_kind", "all");
+    }
+    if (filters.dateFrom) params.append("date_from", filters.dateFrom);
+    if (filters.dateTo) params.append("date_to", filters.dateTo);
+    if (filters.search) params.append("search", filters.search);
+    if (filters.page) params.append("page", String(filters.page));
+    if (filters.limit) params.append("limit", String(filters.limit));
+
+    const response = await apiClient.get<{
+      data: unknown[];
+      pagination: ApiPagination;
+    }>(`${INVOICES}/dispatch-documents?${params.toString()}`);
+
+    return {
+      data: (response.data as unknown[]).map((item) =>
+        mapDispatchDocumentItem(item),
       ),
       pagination: {
         page: response.pagination.page,
@@ -180,6 +221,19 @@ export const invoicingApi = {
   getSendRecipients: async (id: string): Promise<InvoiceSendRecipients> => {
     const response = await apiClient.get<{ data: unknown }>(
       `${INVOICES}/${id}/send-recipients`,
+    );
+    return mapInvoiceSendRecipients(response.data);
+  },
+
+  /**
+   * Destinatarios de envío por payment (REP) — shape idéntico a invoice.
+   * GET /payments/:paymentId/send-recipients
+   */
+  getPaymentSendRecipients: async (
+    paymentId: string,
+  ): Promise<InvoiceSendRecipients> => {
+    const response = await apiClient.get<{ data: unknown }>(
+      `${PAYMENTS}/${paymentId}/send-recipients`,
     );
     return mapInvoiceSendRecipients(response.data);
   },
