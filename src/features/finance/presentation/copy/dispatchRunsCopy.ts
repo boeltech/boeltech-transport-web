@@ -23,20 +23,24 @@ export const dispatchRunsCopy = {
       label: "Ver registro de facturas",
       description: "Listado completo de facturas emitidas.",
     },
-    /** D12 — etiquetas tipadas de fila / sheet. */
+    /** Etiquetas tipadas de fila / sheet (F0: anti-redundancia REP). */
     documentLabels: {
       invoice: (folio: string) => folio,
       invoiceFallback: "Factura",
-      rep: (folio: string) => `Comprobante de pago (REP) · ${folio}`,
-      repFallback: "Comprobante de pago (REP)",
+      /** Documento = seudofolio API; sin prefijo largo. */
+      rep: (folio: string) => folio,
+      repFallback: "REP",
       typeInvoice: "Factura",
-      typeRep: "Comprobante de pago (REP)",
+      typeRep: "REP",
+      /** Aria / tooltip del badge Tipo (explicación larga). */
+      typeRepLong: "Comprobante de pago (REP)",
     },
     typeFilter: {
+      showFilters: "Filtros",
       label: "Tipo",
       all: "Todos",
       invoice: "Facturas",
-      rep: "Comprobantes de pago (REP)",
+      rep: "REPs",
       chip: (label: string) => `Tipo: ${label}`,
       ariaLabel: "Filtrar por tipo de documento",
     },
@@ -326,19 +330,23 @@ export const dispatchRunsCopy = {
     failed: "Fallido",
   },
   detail: {
-    titleFallback: "Envío del periodo",
+    titleFallback: "Lista del periodo",
     titleCalendar: (inclusiveStart: string, inclusiveEnd: string) =>
-      `Envío ${inclusiveStart}–${inclusiveEnd}`,
-    titleEvent: (hours: number) => `Envío de las últimas ${hours} h`,
+      `Lista del periodo · ${inclusiveStart}–${inclusiveEnd}`,
+    titleEvent: (hours: number) => `Lista del periodo · últimas ${hours} h`,
+    pageSubtitle:
+      "Revisa lo listo y manda un correo por cliente con las secciones Facturas y/o Comprobantes de pago que correspondan a este corte.",
     subtitleClosedCut: (schemeName: string) =>
       `Último corte cerrado · ${schemeName}`,
-    loadErrorTitle: "No se pudo cargar el envío",
-    loadError: "Intenta de nuevo. Si persiste, vuelve a envíos del periodo.",
+    loadErrorTitle: "No se pudo cargar la lista del periodo",
+    loadError: "Intenta de nuevo. Si persiste, vuelve a Correo del periodo.",
     retry: "Reintentar",
+    i1Banner:
+      "Esto solo manda por correo lo ya timbrado. No factura ni cobra.",
     emptyScheduledAlert: {
-      title: "No había documentos listos al corte",
-      body: "El automático ya evaluó este periodo. Si generas facturas o comprobantes de pago (REP) después el mismo día, arma un envío del periodo. En corte semanal, el siguiente corte no incluye este periodo.",
-      cta: "Armar envío del periodo",
+      title: "No se mandó nada en el corte automático",
+      body: "No había facturas ni comprobantes de pago listos al corte. Si generas documentos después el mismo día, arma la lista del periodo. En corte semanal, el siguiente corte no incluye este periodo.",
+      cta: "Armar lista del periodo",
     },
     periodCalendar: (
       inclusiveStart: string,
@@ -348,18 +356,31 @@ export const dispatchRunsCopy = {
       `Viajes que cerraron del ${inclusiveStart} al ${inclusiveEnd}. El ${cutDate} es el día del corte y no entra.`,
     periodEvent: (hours: number) =>
       `Viajes que cerraron en las últimas ${hours} horas, hasta ahora.`,
+    periodShortCalendar: (inclusiveStart: string, inclusiveEnd: string) =>
+      `${inclusiveStart} – ${inclusiveEnd}`,
+    periodShortEvent: (hours: number) => `Últimas ${hours} h`,
     datesFixedNote: "Las fechas las fija la frecuencia; no se pueden cambiar.",
     schemeTypeLabel: (name: string) => `Frecuencia de envío: ${name}`,
-    originScheduled: "Automático",
-    originManual: "Manual",
+    originScheduled: "Sin confirmar (automático)",
+    originManual: "Con confirmar",
     refreshPreview: "Actualizar lista",
     cancelRun: "Cancelar envío",
-    sendCta: "Enviar por correo",
+    sendCta: "Mandar el correo del periodo",
     resendCta: "Reenviar seleccionados",
     moreActions: "Más",
-    backToList: "Volver a envíos del periodo",
+    backToList: "Volver a Correo del periodo",
     backToWorkbench: "Volver a envíos",
     backToInvoice: "Volver a la factura",
+    cutBar: {
+      ariaLabel: "Contexto del corte",
+      periodLabel: "Periodo",
+      frequencyLabel: "Frecuencia de envío",
+      countsAria: "Conteos tipados",
+      pendingNote: (count: number) =>
+        count === 1
+          ? "Falta 1 por generar: no se incluye en este correo."
+          : `Faltan ${count} por generar: no se incluyen en este correo.`,
+    },
     decisionSummary: (
       invoiceCount: number,
       repCount: number,
@@ -377,8 +398,8 @@ export const dispatchRunsCopy = {
       if (repCount > 0) {
         parts.push(
           repCount === 1
-            ? "1 comprobante de pago (REP) listo"
-            : `${repCount} comprobantes de pago (REP) listos`,
+            ? "1 comprobante de pago listo"
+            : `${repCount} comprobantes de pago listos`,
         );
       }
       if (parts.length === 0) {
@@ -392,27 +413,34 @@ export const dispatchRunsCopy = {
           : `${pendingCount} pendientes por generar`;
       return `${parts.join(" · ")} para ${clientes} · ${pendientes}`;
     },
-    onlyRepsInBatch: "Solo comprobantes de pago en este lote.",
+    onlyRepsInBatch: "Solo comprobantes de pago en esta lista.",
     linkHint:
       "Los archivos se descargan desde el correo (enlace), no van adjuntos.",
     zipTooLargeError:
       "El paquete excede el tamaño de correo. Reenvía en lotes menores o envía documentos individuales.",
     sendingBanner: "Envío en curso. Esta pantalla se actualiza sola.",
+    footNote:
+      "Destinatarios de este envío se confirman al mandar (lista efímera). Un correo por cliente; no borra contactos del maestro.",
     counts: {
-      pendingStamp: "Faltan por generar",
-      readyToSend: "Listos para enviar",
-      readyInvoices: "Facturas listas",
-      readyReps: "Comprobantes (REP)",
+      pendingStamp: "Faltan",
+      readyToSend: "Listos",
+      readyInvoices: "Facturas",
+      readyReps: "Comprobantes",
       alreadySent: "Ya enviados",
+      readyBadge: "Listos",
     },
     skippedNote: (count: number) =>
       count === 1
-        ? "1 documento ya enviado en envíos anteriores (omitido de este envío)."
-        : `${count} documentos ya enviados en envíos anteriores (omitidos de este envío).`,
+        ? "1 documento ya enviado antes (omitido de este correo)."
+        : `${count} documentos ya enviados antes (omitidos de este correo).`,
     alreadySent: {
-      title: "Ya enviados",
+      title: "Ya enviados en este periodo",
       description:
-        "Documentos de este periodo que ya se enviaron antes. Quedan fuera del envío normal; puedes reenviar el correo si lo necesitas.",
+        "No compite con Mandar. Solo reenvía lo ya despachado.",
+      collapsedHint: (count: number) =>
+        count === 1 ? "· 1 documento" : `· ${count} documentos`,
+      expand: "Ver ya enviados",
+      collapse: "Ocultar ya enviados",
       selectAll: "Seleccionar todos",
       clearSelection: "Quitar selección",
       selectClient: "Seleccionar del cliente",
@@ -423,8 +451,11 @@ export const dispatchRunsCopy = {
     },
     sections: {
       invoices: "Facturas",
-      reps: "Comprobantes de pago (REP)",
-      repsPeriodHint: "Comprobantes de pago timbrados en este periodo",
+      invoicesAnchor: "Viajes que ya cerraron en este periodo",
+      reps: "Comprobantes de pago",
+      repsAnchor: "Comprobantes timbrados en este periodo",
+      /** @deprecated usar repsAnchor — se conserva por tests legacy de hint. */
+      repsPeriodHint: "Comprobantes timbrados en este periodo",
       emptyReadyInvoices: "Ninguna factura lista en este periodo.",
       emptyReadyReps:
         "No hay comprobantes de pago timbrados en este periodo.",
@@ -447,8 +478,8 @@ export const dispatchRunsCopy = {
       tripFallback: "Viaje",
       invoiceLabel: (number: string) => `Factura ${number}`,
       invoiceFallback: "Sin número de factura",
-      repLabel: (folio: string) => `Comprobante de pago (REP) · ${folio}`,
-      repFallback: "Comprobante de pago (REP)",
+      repLabel: (folio: string) => `Comprobante de pago · ${folio}`,
+      repFallback: "Comprobante de pago",
       clientFallback: (shortId: string) => `Cliente ${shortId}`,
       clientGroup: (name: string, count: number) =>
         `${name} (${count} documento${count === 1 ? "" : "s"})`,
@@ -462,38 +493,40 @@ export const dispatchRunsCopy = {
       zeroRecipientsBadge: "Sin destinatarios",
     },
     recipients: {
-      title: "Destinatarios del correo",
+      title: "Destinatarios de este envío",
       empty:
         "Sin destinatarios. Agrega correo de facturación o contactos que reciban facturas en el cliente.",
       zeroSelected:
-        "Marca al menos un destinatario por cliente antes de enviar.",
+        "Marca al menos un destinatario por cliente antes de mandar.",
+      hint:
+        "Correo de facturación y contactos que reciben facturas. Los cambios solo aplican a este envío; no borra contactos del maestro.",
       sentTitle: "Enviado a",
       failedTitle: "No se pudo enviar a",
       receiptEmpty: "Sin snapshot de destinatarios.",
     },
     confirm: {
-      title: "¿Enviar por correo?",
+      title: "¿Mandar el correo del periodo?",
       emailNote:
-        "Se enviará un correo por cliente con la lista de facturas y comprobantes de pago (REP), y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
+        "Se enviará un correo por cliente con Facturas y/o Comprobantes de pago, y un enlace para descargar PDF y XML en un ZIP. No se regeneran los archivos.",
       summaryClients: (n: number) =>
         n === 1 ? "1 cliente" : `${n} clientes`,
       summaryInvoices: (n: number) =>
         n === 1 ? "1 factura" : `${n} facturas`,
       summaryReps: (n: number) =>
         n === 1
-          ? "1 comprobante de pago (REP)"
-          : `${n} comprobantes de pago (REP)`,
+          ? "1 comprobante de pago"
+          : `${n} comprobantes de pago`,
       summaryRecipients: (n: number) =>
         n === 1 ? "1 destinatario" : `${n} destinatarios`,
       recipientsNote:
-        "Revisa y ajusta los destinatarios en la lista antes de confirmar. Los cambios solo aplican a este envío.",
+        "Ajusta los destinatarios de este envío. No borra contactos del maestro.",
       pendingWarningTitle: "Faltan por generar",
       pendingWarning:
-        "Hay facturas pendientes por generar que no se incluirán en este envío. Puedes confirmar igualmente o generarlas y actualizar la lista.",
-      submit: "Confirmar y enviar",
+        "Hay facturas pendientes por generar que no se incluirán. Puedes mandar igualmente o generarlas y actualizar la lista.",
+      submit: "Mandar el correo",
       cancel: "Cancelar",
       noReady:
-        "No hay facturas ni comprobantes de pago listos para enviar. Genera al menos uno o actualiza la lista.",
+        "No hay facturas ni comprobantes de pago listos. Genera al menos uno o actualiza la lista.",
       recipientsRequired:
         "Hay clientes sin destinatarios. Marca al menos un correo por cliente o corrige el maestro del cliente.",
       recipientKeyInvalid:
@@ -511,12 +544,12 @@ export const dispatchRunsCopy = {
         n === 1 ? "1 factura" : `${n} facturas`,
       summaryReps: (n: number) =>
         n === 1
-          ? "1 comprobante de pago (REP)"
-          : `${n} comprobantes de pago (REP)`,
+          ? "1 comprobante de pago"
+          : `${n} comprobantes de pago`,
       summaryRecipients: (n: number) =>
         n === 1 ? "1 destinatario" : `${n} destinatarios`,
       recipientsNote:
-        "Se usan los destinatarios marcados en la lista (solo clientes del reenvío). Los cambios solo aplican a este envío.",
+        "Destinatarios de este envío (solo clientes del reenvío). No borra contactos del maestro.",
       submit: "Confirmar reenvío",
       cancel: "Cancelar",
       zeroSelected:

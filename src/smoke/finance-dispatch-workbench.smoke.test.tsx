@@ -1,9 +1,10 @@
 /**
  * Smoke F5 — workbench tipado Envíos (/finance/dispatch).
  * Mock de hooks; no requiere backend ni SMTP.
- * Cubre: Pendientes/Enviadas tipadas, filtro Tipo + fila D12 REP,
- * ConfirmSheet mixto (invoice_ids + payment_ids), crossLink Por periodo,
- * CTA Armar envío, redirects legacy, sidebar un solo Envíos.
+ * Cubre: Pendientes/Enviadas tipadas, filtro Tipo (Todos/Facturas/REPs),
+ * fila REP F0/F3 (badge REP + seudofolio ± related), ConfirmSheet mixto
+ * (invoice_ids + payment_ids), crossLink Por periodo, CTA Armar envío,
+ * redirects legacy, sidebar un solo Envíos.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -11,6 +12,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Radix Select en jsdom (abrir menú Tipo).
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.setPointerCapture ??= () => undefined;
+Element.prototype.releasePointerCapture ??= () => undefined;
 
 import {
   FINANCE_DISPATCH_HISTORY_HREF,
@@ -129,6 +135,7 @@ function buildDocument(
     stampedAt: "2026-09-18T12:00:00.000Z",
     dispatchSentAt: null,
     groupKey: "client-a",
+    relatedInvoices: [],
     ...overrides,
   };
 }
@@ -292,7 +299,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     });
   });
 
-  it("abre Pendientes con tabla tipada (factura + REP D12)", () => {
+  it("abre Pendientes con tabla tipada (factura + REP corto F0)", () => {
     render(
       <TestProviders>
         <FinanceDispatchPage />
@@ -304,15 +311,17 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(copy.description)).toBeInTheDocument();
     expect(screen.getAllByText("A-45").length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP-abcdef12").length).toBeGreaterThan(0);
     expect(
       screen.getAllByText(copy.documentLabels.typeRep).length,
     ).toBeGreaterThan(0);
+    expect(
+      screen.queryByText("Comprobante de pago (REP) · REP-abcdef12"),
+    ).not.toBeInTheDocument();
   });
 
-  it("filtra por Tipo = REP vía URL, chip y fila D12 (sin factura)", () => {
+  it("filtra por Tipo = REPs vía URL: chip Tipo:, select sin prefijo, fila seudofolio", async () => {
+    const user = userEvent.setup();
     render(
       <TestProviders initialEntry="/finance/dispatch?document_kind=rep">
         <FinanceDispatchPage />
@@ -325,18 +334,86 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
         documentKind: "rep",
       }),
     );
-    expect(
-      screen.getByRole("combobox", { name: typeCopy.ariaLabel }),
-    ).toHaveTextContent(typeCopy.chip(typeCopy.rep));
+
+    // Panel abierto por activeCount; trigger cerrado = REPs (sin «Tipo:»).
+    const typeSelect = screen.getByRole("combobox", {
+      name: typeCopy.ariaLabel,
+    });
+    expect(typeSelect).toHaveTextContent(typeCopy.rep);
+    expect(typeSelect).not.toHaveTextContent("Tipo:");
+    expect(screen.getByLabelText(typeCopy.label)).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: `Quitar filtro ${typeCopy.chip(typeCopy.rep)}`,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP-abcdef12").length).toBeGreaterThan(0);
     expect(screen.queryByText("A-45")).not.toBeInTheDocument();
+
+    await user.click(typeSelect);
+    for (const option of [typeCopy.all, typeCopy.invoice, typeCopy.rep]) {
+      expect(
+        await screen.findByRole("option", { name: option }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("option", { name: `Tipo: ${option}` }),
+      ).not.toBeInTheDocument();
+    }
+    expect(
+      [typeCopy.all, typeCopy.invoice, typeCopy.rep].every(
+        (label) => !label.startsWith("Tipo:"),
+      ),
+    ).toBe(true);
+  });
+
+  it("Documento REP con related muestra seudofolio · folio ingreso", () => {
+    mockUseDispatchDocuments.mockImplementation(
+      (params?: {
+        bucket?: string;
+        documentKind?: string;
+        limit?: number;
+      }) => {
+        if (params?.limit === 1) {
+          return documentsQueryResult({
+            data: [],
+            pagination: { page: 1, limit: 1, total: 1, totalPages: 1 },
+          });
+        }
+        if (params?.bucket === "pending") {
+          return documentsQueryResult({
+            data: [
+              buildDocument({
+                id: "pay-1",
+                documentKind: "rep",
+                folioLabel: "REP-abcdef12",
+                amount: 500,
+                groupKey: "client-a",
+                relatedInvoices: [
+                  { id: "inv-related", folioLabel: "A-71" },
+                ],
+              }),
+            ],
+            pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+          });
+        }
+        return documentsQueryResult(emptyList());
+      },
+    );
+
+    render(
+      <TestProviders>
+        <FinanceDispatchPage />
+      </TestProviders>,
+    );
+
+    // Desktop + mobile: seudofolio + « · » + link de ingreso.
+    expect(screen.getAllByText(/REP-abcdef12/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("link", { name: "A-71" })[0],
+    ).toHaveAttribute("href", "/invoices/inv-related");
+    expect(
+      screen.queryByText("Comprobante de pago (REP) · REP-abcdef12"),
+    ).not.toBeInTheDocument();
   });
 
   it("ConfirmSheet mixto: selecciona factura+REP y confirma con payment_ids", async () => {
@@ -347,10 +424,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
         clientLabel: "Cliente A",
         invoiceIds: ["inv-1"],
         paymentIds: ["pay-1"],
-        folioLabels: [
-          "A-45",
-          "Comprobante de pago (REP) · REP-abcdef12",
-        ],
+        folioLabels: ["A-45", "REP-abcdef12"],
         ok: true,
         status: "queued",
       },
@@ -367,7 +441,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     );
     await user.click(
       screen.getAllByRole("checkbox", {
-        name: "Seleccionar Comprobante de pago (REP) · REP-abcdef12",
+        name: "Seleccionar REP-abcdef12",
       })[0]!,
     );
 
@@ -381,9 +455,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
 
     const group = await screen.findByTestId("dispatch-confirm-group-client-a");
     expect(within(group).getByText("A-45")).toBeInTheDocument();
-    expect(
-      within(group).getByText("Comprobante de pago (REP) · REP-abcdef12"),
-    ).toBeInTheDocument();
+    expect(within(group).getByText("REP-abcdef12")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(within(group).getByText("a@example.com")).toBeInTheDocument();
@@ -493,7 +565,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     expect(navigationCopy.item.financeDispatch).toBe("Envíos");
   });
 
-  it("sidebar Facturación tiene un solo ítem Envíos", () => {
+  it("sidebar Facturación separa Envíos puntual y Correo del periodo", () => {
     const billing = navigationConfig.find((group) => group.id === "billing");
     const dispatchItems =
       billing?.items.filter(
@@ -501,9 +573,15 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
           item.id.includes("dispatch") || item.id.includes("send-invoice"),
       ) ?? [];
 
-    expect(dispatchItems.map((item) => item.id)).toEqual(["finance-dispatch"]);
+    expect(dispatchItems.map((item) => item.id)).toEqual([
+      "finance-dispatch",
+      "finance-dispatch-period",
+    ]);
     expect(dispatchItems[0]?.label).toBe("Envíos");
     expect(dispatchItems[0]?.path).toBe("/finance/dispatch");
+    expect(dispatchItems[0]?.exactPath).toBe(true);
+    expect(dispatchItems[1]?.label).toBe("Correo del periodo");
+    expect(dispatchItems[1]?.path).toBe("/finance/dispatch/period");
   });
 
   it("alerta auto-fail en detalle apunta a /finance/dispatch/:runId (copy coherente)", () => {

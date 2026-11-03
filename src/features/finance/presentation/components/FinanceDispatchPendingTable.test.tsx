@@ -21,6 +21,7 @@ function buildDocument(
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: null,
     groupKey: "client-a",
+    relatedInvoices: [],
     ...overrides,
   };
 }
@@ -118,7 +119,7 @@ describe("FinanceDispatchPendingTable", () => {
     );
   });
 
-  it("shows D12 label for REP rows", () => {
+  it("shows short seudofolio for REP rows without related", () => {
     renderTable({
       documents: [
         buildDocument({
@@ -129,9 +130,35 @@ describe("FinanceDispatchPendingTable", () => {
       ],
     });
 
-    expect(
-      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP-abcdef12").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "A-71" })).not.toBeInTheDocument();
+  });
+
+  it("links related income folios for REP (cap 2 +N)", () => {
+    renderTable({
+      documents: [
+        buildDocument({
+          id: "pay-1",
+          documentKind: "rep",
+          folioLabel: "REP-abcdef12",
+          relatedInvoices: [
+            { id: "inv-a", folioLabel: "A-71" },
+            { id: "inv-b", folioLabel: "B-2" },
+            { id: "inv-c", folioLabel: "C-3" },
+          ],
+        }),
+      ],
+    });
+
+    expect(screen.getAllByText(/REP-abcdef12/).length).toBeGreaterThan(0);
+    const linkA = screen.getAllByRole("link", { name: "A-71" })[0];
+    const linkB = screen.getAllByRole("link", { name: "B-2" })[0];
+    expect(linkA).toHaveAttribute("href", "/invoices/inv-a");
+    expect(linkB).toHaveAttribute("href", "/invoices/inv-b");
+    expect(screen.queryByRole("link", { name: "C-3" })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/\+1/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP").length).toBeGreaterThan(0);
   });
 
   it("hides checkboxes when selectable is false", () => {

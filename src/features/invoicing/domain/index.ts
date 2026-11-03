@@ -35,6 +35,7 @@ export type {
   DispatchDocumentKindFilter,
   DispatchDocumentBucket,
   DispatchDocumentKind,
+  DispatchRelatedInvoice,
   DispatchDocumentItem,
   DispatchDocumentsFilters,
   PaginatedDispatchDocuments,

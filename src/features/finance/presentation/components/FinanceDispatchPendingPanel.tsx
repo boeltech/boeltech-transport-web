@@ -24,7 +24,7 @@ import {
 } from "../config/dispatchWorkbenchConfig";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { dispatchDocumentSelectionKey } from "../utils/groupDispatchDocumentsForSend";
-import { FinanceDispatchDocumentKindFilter } from "./FinanceDispatchDocumentKindFilter";
+import { FinanceDispatchListFilters } from "./FinanceDispatchListFilters";
 import { FinanceDispatchPendingTable } from "./FinanceDispatchPendingTable";
 
 const copy = dispatchRunsCopy.workbench.pending;
@@ -183,6 +183,7 @@ export function FinanceDispatchPendingPanel({
   const hasSearch = Boolean(filters.search.trim());
   const hasTypeFilter = documentKind !== "all";
   const hasActiveFilters = hasSearch || hasTypeFilter;
+  const activePanelFilterCount = hasTypeFilter ? 1 : 0;
 
   const typeChipLabel =
     documentKind === "invoice"
@@ -224,9 +225,13 @@ export function FinanceDispatchPendingPanel({
           placeholder: copy.searchPlaceholder,
         },
         filters: (
-          <FinanceDispatchDocumentKindFilter
-            value={documentKind}
-            onChange={handleDocumentKindChange}
+          <FinanceDispatchListFilters
+            key={
+              activePanelFilterCount > 0 ? "filters-active" : "filters-idle"
+            }
+            documentKind={documentKind}
+            activePanelFilterCount={activePanelFilterCount}
+            onDocumentKindChange={handleDocumentKindChange}
           />
         ),
         onRefresh: handleRefresh,

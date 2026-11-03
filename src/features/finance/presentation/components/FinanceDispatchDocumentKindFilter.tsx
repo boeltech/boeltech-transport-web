@@ -1,5 +1,6 @@
 /**
- * Chip/filtro Tipo del workbench Envíos: Todos | Facturas | Comprobantes de pago (REP).
+ * Select Tipo del workbench Envíos (Todos | Facturas | REPs).
+ * Label visible; opciones sin prefijo «Tipo:» (el chip activo sí lo usa).
  */
 
 import { Label } from "@shared/ui/label";
@@ -27,31 +28,23 @@ export function FinanceDispatchDocumentKindFilter({
   id = "dispatch-document-kind",
 }: FinanceDispatchDocumentKindFilterProps) {
   return (
-    <div className="flex min-w-[11rem] flex-col gap-1.5">
-      <Label htmlFor={id} className="sr-only">
-        {copy.label}
-      </Label>
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{copy.label}</Label>
       <Select
         value={value}
         onValueChange={(next) => onChange(next as DispatchDocumentKindFilter)}
       >
         <SelectTrigger
           id={id}
-          className="w-full sm:w-[14rem]"
+          className="w-full"
           aria-label={copy.ariaLabel}
         >
           <SelectValue placeholder={copy.label} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">
-            {copy.chip(copy.all)}
-          </SelectItem>
-          <SelectItem value="invoice">
-            {copy.chip(copy.invoice)}
-          </SelectItem>
-          <SelectItem value="rep">
-            {copy.chip(copy.rep)}
-          </SelectItem>
+          <SelectItem value="all">{copy.all}</SelectItem>
+          <SelectItem value="invoice">{copy.invoice}</SelectItem>
+          <SelectItem value="rep">{copy.rep}</SelectItem>
         </SelectContent>
       </Select>
     </div>

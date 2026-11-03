@@ -49,6 +49,7 @@ function buildDocument(
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: null,
     groupKey: "client-a",
+    relatedInvoices: [],
     ...overrides,
   };
 }
@@ -203,9 +204,7 @@ describe("FinanceDispatchConfirmSheet", () => {
       }),
     ]);
 
-    expect(
-      screen.getByText("Comprobante de pago (REP) · REP-abcdef12"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("REP-abcdef12")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockUsePaymentSendRecipients).toHaveBeenCalledWith(
@@ -329,7 +328,7 @@ describe("FinanceDispatchConfirmSheet", () => {
         clientLabel: "Receptor A",
         invoiceIds: ["inv-1"],
         paymentIds: ["pay-1"],
-        folioLabels: ["A-10", "Comprobante de pago (REP) · REP-abcdef12"],
+        folioLabels: ["A-10", "REP-abcdef12"],
         ok: true,
         status: "queued",
       },
@@ -355,7 +354,7 @@ describe("FinanceDispatchConfirmSheet", () => {
         clientLabel: "Receptor A",
         invoiceIds: ["inv-1"],
         paymentIds: ["pay-1"],
-        folioLabels: ["A-10", "Comprobante de pago (REP) · REP-abcdef12"],
+        folioLabels: ["A-10", "REP-abcdef12"],
         recipientKeys: ["billing_email"],
       },
       {

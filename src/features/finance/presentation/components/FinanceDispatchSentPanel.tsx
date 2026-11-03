@@ -9,7 +9,6 @@ import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
-import { ListingDateRangeFilter } from "@shared/ui/listing";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useFinanceListingFilters } from "@features/finance/application";
 import { SendInvoiceDialog, SendRepDialog } from "@features/invoicing";
@@ -27,7 +26,7 @@ import {
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { dispatchDocumentSelectionKey } from "../utils/groupDispatchDocumentsForSend";
 import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
-import { FinanceDispatchDocumentKindFilter } from "./FinanceDispatchDocumentKindFilter";
+import { FinanceDispatchListFilters } from "./FinanceDispatchListFilters";
 import { FinanceDispatchSentTable } from "./FinanceDispatchSentTable";
 
 const copy = dispatchRunsCopy.workbench.sent;
@@ -230,6 +229,8 @@ export function FinanceDispatchSentPanel({
     Boolean(filters.filters.dateFrom) || Boolean(filters.filters.dateTo);
   const hasTypeFilter = documentKind !== "all";
   const hasActiveFilters = hasSearch || hasDateFilter || hasTypeFilter;
+  const activePanelFilterCount =
+    (hasTypeFilter ? 1 : 0) + (hasDateFilter ? 1 : 0);
 
   const typeChipLabel =
     documentKind === "invoice"
@@ -285,25 +286,23 @@ export function FinanceDispatchSentPanel({
             placeholder: copy.searchPlaceholder,
           },
           filters: (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <FinanceDispatchDocumentKindFilter
-                value={documentKind}
-                onChange={handleDocumentKindChange}
-              />
-              <ListingDateRangeFilter
-                fromDate={filters.filters.dateFrom}
-                toDate={filters.filters.dateTo}
-                onApply={(nextFrom, nextTo) =>
-                  filters.setFilters({ dateFrom: nextFrom, dateTo: nextTo })
-                }
-                onClear={() =>
-                  filters.setFilters({ dateFrom: "", dateTo: "" })
-                }
-                heading={copy.filters.dateRangeHeading}
-                placeholder={copy.filters.dateRangePlaceholder}
-                idPrefix="dispatch-sent-date"
-              />
-            </div>
+            <FinanceDispatchListFilters
+              key={
+                activePanelFilterCount > 0 ? "filters-active" : "filters-idle"
+              }
+              documentKind={documentKind}
+              activePanelFilterCount={activePanelFilterCount}
+              onDocumentKindChange={handleDocumentKindChange}
+              showDateRange
+              dateFrom={filters.filters.dateFrom}
+              dateTo={filters.filters.dateTo}
+              onApplyDateRange={(nextFrom, nextTo) =>
+                filters.setFilters({ dateFrom: nextFrom, dateTo: nextTo })
+              }
+              onClearDateRange={() =>
+                filters.setFilters({ dateFrom: "", dateTo: "" })
+              }
+            />
           ),
           onRefresh: handleRefresh,
           isRefreshing: isFetching,

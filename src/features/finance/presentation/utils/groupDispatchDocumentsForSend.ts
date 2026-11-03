@@ -1,7 +1,13 @@
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import type {
+  DispatchDocumentItem,
+  DispatchRelatedInvoice,
+} from "@features/invoicing/domain";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 
 const labels = dispatchRunsCopy.workbench.documentLabels;
+
+/** Cap de folios de ingreso visibles en Documento REP (TEC-5 / CA #10). */
+export const RELATED_INVOICES_UI_CAP = 2;
 
 /**
  * Agrupa documentos tipados del workbench por `groupKey` del API (paridad send-batch).
@@ -24,12 +30,52 @@ export function dispatchDocumentSelectionKey(
   return `${doc.documentKind}:${doc.id}`;
 }
 
+/**
+ * Trunca related para UI: hasta `cap` ítems + conteo `+N` del resto.
+ * No inventa filas — array vacío → visible vacío.
+ */
+export function sliceRelatedInvoicesForDisplay(
+  related: ReadonlyArray<DispatchRelatedInvoice>,
+  cap: number = RELATED_INVOICES_UI_CAP,
+): {
+  readonly visible: ReadonlyArray<DispatchRelatedInvoice>;
+  readonly extraCount: number;
+} {
+  if (related.length === 0) {
+    return { visible: [], extraCount: 0 };
+  }
+  return {
+    visible: related.slice(0, cap),
+    extraCount: Math.max(0, related.length - cap),
+  };
+}
+
+/** Sufijo plano `{f1}, {f2} +N` o `null` si no hay related. */
+export function formatRelatedInvoicesPlain(
+  related: ReadonlyArray<Pick<DispatchRelatedInvoice, "folioLabel">>,
+  cap: number = RELATED_INVOICES_UI_CAP,
+): string | null {
+  if (related.length === 0) return null;
+  const labelsPart = related
+    .slice(0, cap)
+    .map((item) => item.folioLabel.trim())
+    .filter(Boolean);
+  if (labelsPart.length === 0) return null;
+  const extra = Math.max(0, related.length - cap);
+  const joined = labelsPart.join(", ");
+  return extra > 0 ? `${joined} +${extra}` : joined;
+}
+
 export function formatDispatchDocumentLabel(
-  doc: Pick<DispatchDocumentItem, "documentKind" | "folioLabel">,
+  doc: Pick<DispatchDocumentItem, "documentKind" | "folioLabel"> & {
+    relatedInvoices?: ReadonlyArray<Pick<DispatchRelatedInvoice, "folioLabel">>;
+  },
 ): string {
   if (doc.documentKind === "rep") {
     const folio = doc.folioLabel.trim();
-    return folio ? labels.rep(folio) : labels.repFallback;
+    const base = folio ? labels.rep(folio) : labels.repFallback;
+    const relatedPart = formatRelatedInvoicesPlain(doc.relatedInvoices ?? []);
+    return relatedPart ? `${base} · ${relatedPart}` : base;
   }
   const folio = doc.folioLabel.trim();
   return folio ? labels.invoice(folio) : labels.invoiceFallback;

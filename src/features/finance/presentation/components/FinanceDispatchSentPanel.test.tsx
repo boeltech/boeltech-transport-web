@@ -56,6 +56,7 @@ function buildDocument(
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: "2026-08-02T09:00:00.000Z",
     groupKey: "client-a",
+    relatedInvoices: [],
     ...overrides,
   };
 }
@@ -172,7 +173,7 @@ describe("FinanceDispatchSentPanel", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: /Acciones de Comprobante de pago/,
+        name: /Acciones de REP-abcdef12/,
       }),
     );
     await user.click(screen.getByRole("menuitem", { name: "Reenviar" }));

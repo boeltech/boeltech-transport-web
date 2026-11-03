@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -26,7 +25,7 @@ import {
   dispatchDocumentSelectionKey,
   formatDispatchDocumentLabel,
 } from "../utils/groupDispatchDocumentsForSend";
-import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
+import { DispatchDocumentCell } from "./DispatchDocumentCell";
 
 const copy = dispatchRunsCopy.workbench.sent;
 const typeCopy = dispatchRunsCopy.workbench.documentLabels;
@@ -47,28 +46,18 @@ function ClientCell({ doc }: { doc: DispatchDocumentItem }) {
 }
 
 function TypeBadge({ doc }: { doc: DispatchDocumentItem }) {
+  const isRep = doc.documentKind === "rep";
   return (
-    <Badge variant="neutral" tone="soft" className="text-xs font-medium">
-      {doc.documentKind === "rep" ? typeCopy.typeRep : typeCopy.typeInvoice}
+    <Badge
+      variant="neutral"
+      tone="soft"
+      className="text-xs font-medium"
+      title={isRep ? typeCopy.typeRepLong : undefined}
+      aria-label={isRep ? typeCopy.typeRepLong : undefined}
+    >
+      {isRep ? typeCopy.typeRep : typeCopy.typeInvoice}
     </Badge>
   );
-}
-
-function DocumentCell({ doc }: { doc: DispatchDocumentItem }) {
-  const fromState = useInvoiceQueueFromState();
-  const label = formatDispatchDocumentLabel(doc);
-  if (doc.documentKind === "invoice") {
-    return (
-      <Link
-        to={`/invoices/${doc.id}`}
-        state={fromState}
-        className="font-mono text-primary hover:underline"
-      >
-        {label}
-      </Link>
-    );
-  }
-  return <span className="font-medium">{label}</span>;
 }
 
 interface FinanceDispatchSentTableProps {
@@ -218,7 +207,7 @@ export function FinanceDispatchSentTable({
                     </TableCell>
                   ) : null}
                   <TableCell className="font-medium">
-                    <DocumentCell doc={doc} />
+                    <DispatchDocumentCell doc={doc} />
                   </TableCell>
                   <TableCell>
                     <ClientCell doc={doc} />
@@ -306,7 +295,7 @@ export function FinanceDispatchSentTable({
                 </div>
               ) : null}
               <div className="min-w-0 flex-1 space-y-1">
-                <DocumentCell doc={doc} />
+                <DispatchDocumentCell doc={doc} />
                 <ClientCell doc={doc} />
                 <p className="text-xs text-muted-foreground">
                   {copy.columns.sentAt}:{" "}

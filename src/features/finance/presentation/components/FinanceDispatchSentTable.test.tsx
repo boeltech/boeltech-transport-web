@@ -21,6 +21,7 @@ function buildDocument(
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: "2026-08-02T09:15:00.000Z",
     groupKey: "client-a",
+    relatedInvoices: [],
     ...overrides,
   };
 }
@@ -56,7 +57,7 @@ describe("FinanceDispatchSentTable", () => {
     expect(screen.getAllByText("Factura").length).toBeGreaterThan(0);
   });
 
-  it("renders D12 label for REP without row actions menu", () => {
+  it("renders short REP seudofolio with row actions menu", () => {
     renderTable({
       documents: [
         buildDocument({
@@ -67,12 +68,39 @@ describe("FinanceDispatchSentTable", () => {
       ],
     });
 
-    expect(
-      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP-abcdef12").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP").length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", {
-        name: /Acciones de Comprobante de pago/,
+        name: /Acciones de REP-abcdef12/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("links related income folios for REP Documento", () => {
+    renderTable({
+      documents: [
+        buildDocument({
+          id: "pay-1",
+          documentKind: "rep",
+          folioLabel: "REP-abcdef12",
+          relatedInvoices: [
+            { id: "inv-a", folioLabel: "A-71" },
+            { id: "inv-b", folioLabel: "B-2" },
+          ],
+        }),
+      ],
+    });
+
+    expect(
+      screen.getAllByRole("link", { name: "A-71" })[0],
+    ).toHaveAttribute("href", "/invoices/inv-a");
+    expect(
+      screen.getAllByRole("link", { name: "B-2" })[0],
+    ).toHaveAttribute("href", "/invoices/inv-b");
+    expect(
+      screen.getByRole("button", {
+        name: /Acciones de REP-abcdef12 · A-71, B-2/,
       }),
     ).toBeInTheDocument();
   });

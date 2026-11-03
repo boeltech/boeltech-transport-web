@@ -33,6 +33,7 @@ function buildDocument(
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: null,
     groupKey: "client-a",
+    relatedInvoices: [],
     ...overrides,
   };
 }
@@ -124,7 +125,7 @@ describe("FinanceDispatchPendingPanel", () => {
     expect(requestSend.mock.calls[0]![0]).toHaveLength(2);
   });
 
-  it("renders typed REP rows with D12 label", () => {
+  it("renders typed REP rows with short seudofolio label", () => {
     renderPanel(vi.fn(), [
       buildDocument({
         id: "pay-1",
@@ -134,9 +135,24 @@ describe("FinanceDispatchPendingPanel", () => {
       }),
     ]);
 
+    expect(screen.getAllByText("REP-abcdef12").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("REP").length).toBeGreaterThan(0);
     expect(
-      screen.getAllByText("Comprobante de pago (REP) · REP-abcdef12").length,
-    ).toBeGreaterThan(0);
+      screen.queryByText("Comprobante de pago (REP) · REP-abcdef12"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("exposes Filtros panel with Tipo select and closed value without Tipo: prefix", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(screen.getByRole("button", { name: /Filtros/ }));
+    expect(screen.getByLabelText("Tipo")).toBeInTheDocument();
+    const typeSelect = screen.getByRole("combobox", {
+      name: /Filtrar por tipo de documento/i,
+    });
+    expect(typeSelect).toHaveTextContent("Todos");
+    expect(typeSelect).not.toHaveTextContent("Tipo:");
   });
 
   it("shows empty state when the pending queue is empty", () => {

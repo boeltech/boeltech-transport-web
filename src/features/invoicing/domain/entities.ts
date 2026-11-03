@@ -532,6 +532,12 @@ export type DispatchDocumentKindFilter = "all" | "invoice" | "rep";
 export type DispatchDocumentBucket = "pending" | "sent";
 export type DispatchDocumentKind = "invoice" | "rep";
 
+/** Factura de ingreso ligada a un REP (G1 / F1 UI). */
+export interface DispatchRelatedInvoice {
+  readonly id: string;
+  readonly folioLabel: string;
+}
+
 /** Fila tipada del listado unificado Pendientes·Enviadas. */
 export interface DispatchDocumentItem {
   readonly documentKind: DispatchDocumentKind;
@@ -548,6 +554,11 @@ export interface DispatchDocumentItem {
   readonly dispatchSentAt: string | null;
   /** client UUID o `rfc:{RFC}` (paridad send-batch). */
   readonly groupKey: string;
+  /**
+   * Ingresos ligados al REP (`related_invoices` API). Invoice → `[]`.
+   * Ausente en payload viejo → mapper default `[]`. UI F1 no inventa vínculo.
+   */
+  readonly relatedInvoices: ReadonlyArray<DispatchRelatedInvoice>;
 }
 
 export interface DispatchDocumentsFilters {

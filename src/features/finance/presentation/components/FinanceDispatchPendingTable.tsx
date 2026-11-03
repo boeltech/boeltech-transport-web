@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { Badge } from "@shared/ui/badge";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Skeleton } from "@shared/ui/skeleton";
@@ -18,7 +17,7 @@ import {
   dispatchDocumentSelectionKey,
   formatDispatchDocumentLabel,
 } from "../utils/groupDispatchDocumentsForSend";
-import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
+import { DispatchDocumentCell } from "./DispatchDocumentCell";
 
 const copy = dispatchRunsCopy.workbench.pending;
 const typeCopy = dispatchRunsCopy.workbench.documentLabels;
@@ -39,28 +38,18 @@ function ClientCell({ doc }: { doc: DispatchDocumentItem }) {
 }
 
 function TypeBadge({ doc }: { doc: DispatchDocumentItem }) {
+  const isRep = doc.documentKind === "rep";
   return (
-    <Badge variant="neutral" tone="soft" className="text-xs font-medium">
-      {doc.documentKind === "rep" ? typeCopy.typeRep : typeCopy.typeInvoice}
+    <Badge
+      variant="neutral"
+      tone="soft"
+      className="text-xs font-medium"
+      title={isRep ? typeCopy.typeRepLong : undefined}
+      aria-label={isRep ? typeCopy.typeRepLong : undefined}
+    >
+      {isRep ? typeCopy.typeRep : typeCopy.typeInvoice}
     </Badge>
   );
-}
-
-function DocumentCell({ doc }: { doc: DispatchDocumentItem }) {
-  const fromState = useInvoiceQueueFromState();
-  const label = formatDispatchDocumentLabel(doc);
-  if (doc.documentKind === "invoice") {
-    return (
-      <Link
-        to={`/invoices/${doc.id}`}
-        state={fromState}
-        className="font-mono text-primary hover:underline"
-      >
-        {label}
-      </Link>
-    );
-  }
-  return <span className="font-medium">{label}</span>;
 }
 
 interface FinanceDispatchPendingTableProps {
@@ -192,7 +181,7 @@ export function FinanceDispatchPendingTable({
                     </TableCell>
                   ) : null}
                   <TableCell className="font-medium">
-                    <DocumentCell doc={doc} />
+                    <DispatchDocumentCell doc={doc} />
                   </TableCell>
                   <TableCell>
                     <ClientCell doc={doc} />
@@ -242,7 +231,7 @@ export function FinanceDispatchPendingTable({
                 </div>
               ) : null}
               <div className="min-w-0 flex-1 space-y-1">
-                <DocumentCell doc={doc} />
+                <DispatchDocumentCell doc={doc} />
                 <ClientCell doc={doc} />
                 <p className="text-xs text-muted-foreground">
                   {copy.columns.issuedAt}:{" "}

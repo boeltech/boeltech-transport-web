@@ -19,6 +19,7 @@ function makeDoc(
     currency: "MXN",
     stampedAt: "2026-08-01T12:00:00.000Z",
     dispatchSentAt: null,
+    relatedInvoices: [],
     ...overrides,
   };
 }
@@ -80,20 +81,49 @@ describe("groupDispatchDocumentsForSend", () => {
 });
 
 describe("formatDispatchDocumentLabel", () => {
-  it("uses D12 naming for REP", () => {
+  it("uses seudofolio only for REP without related (F0)", () => {
     expect(
       formatDispatchDocumentLabel({
         documentKind: "rep",
         folioLabel: "REP-abcdef12",
       }),
-    ).toBe("Comprobante de pago (REP) · REP-abcdef12");
+    ).toBe("REP-abcdef12");
+    expect(
+      formatDispatchDocumentLabel({
+        documentKind: "rep",
+        folioLabel: "REP-abcdef12",
+        relatedInvoices: [],
+      }),
+    ).toBe("REP-abcdef12");
   });
 
-  it("returns folio for invoices", () => {
+  it("appends related folios with UI cap 2 +N (F1)", () => {
+    expect(
+      formatDispatchDocumentLabel({
+        documentKind: "rep",
+        folioLabel: "REP-abcdef12",
+        relatedInvoices: [{ folioLabel: "A-71" }],
+      }),
+    ).toBe("REP-abcdef12 · A-71");
+    expect(
+      formatDispatchDocumentLabel({
+        documentKind: "rep",
+        folioLabel: "REP-abcdef12",
+        relatedInvoices: [
+          { folioLabel: "A-71" },
+          { folioLabel: "B-2" },
+          { folioLabel: "C-3" },
+        ],
+      }),
+    ).toBe("REP-abcdef12 · A-71, B-2 +1");
+  });
+
+  it("returns folio for invoices (ignores related)", () => {
     expect(
       formatDispatchDocumentLabel({
         documentKind: "invoice",
         folioLabel: "A-10",
+        relatedInvoices: [{ folioLabel: "X-1" }],
       }),
     ).toBe("A-10");
   });

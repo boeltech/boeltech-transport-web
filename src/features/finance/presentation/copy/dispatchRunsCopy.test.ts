@@ -76,11 +76,26 @@ describe("dispatchRunsCopy glossary", () => {
       /Ocultar evaluaciones sin envío/,
     );
     expect(dispatchRunsCopy.workbench.title).toBe("Envíos");
+    expect(dispatchRunsCopy.workbench.typeFilter.showFilters).toBe("Filtros");
+    expect(dispatchRunsCopy.workbench.typeFilter.all).toBe("Todos");
+    expect(dispatchRunsCopy.workbench.typeFilter.invoice).toBe("Facturas");
+    expect(dispatchRunsCopy.workbench.typeFilter.rep).toBe("REPs");
+    expect(
+      [
+        dispatchRunsCopy.workbench.typeFilter.all,
+        dispatchRunsCopy.workbench.typeFilter.invoice,
+        dispatchRunsCopy.workbench.typeFilter.rep,
+      ].every((label) => !label.startsWith("Tipo:")),
+    ).toBe(true);
     expect(dispatchRunsCopy.workbench.typeFilter.chip("Facturas")).toBe(
       "Tipo: Facturas",
     );
     expect(dispatchRunsCopy.workbench.documentLabels.rep("REP-aa")).toBe(
-      "Comprobante de pago (REP) · REP-aa",
+      "REP-aa",
+    );
+    expect(dispatchRunsCopy.workbench.documentLabels.typeRep).toBe("REP");
+    expect(dispatchRunsCopy.workbench.documentLabels.typeRepLong).toBe(
+      "Comprobante de pago (REP)",
     );
     expect(dispatchRunsCopy.workbench.bucketDescriptions.period).toMatch(
       /Envíos armados o enviados del corte/,
@@ -89,7 +104,17 @@ describe("dispatchRunsCopy glossary", () => {
       /Si el automático no encontró listos/,
     );
     expect(dispatchRunsCopy.detail.emptyScheduledAlert.cta).toBe(
-      "Armar envío del periodo",
+      "Armar lista del periodo",
+    );
+    expect(dispatchRunsCopy.detail.sendCta).toBe(
+      "Mandar el correo del periodo",
+    );
+    expect(dispatchRunsCopy.detail.i1Banner).toMatch(/No factura ni cobra/);
+    expect(dispatchRunsCopy.detail.sections.invoicesAnchor).toMatch(
+      /Viajes que ya cerraron/,
+    );
+    expect(dispatchRunsCopy.detail.sections.repsAnchor).toMatch(
+      /Comprobantes timbrados/,
     );
   });
 

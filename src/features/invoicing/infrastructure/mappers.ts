@@ -879,6 +879,11 @@ export function mapSendBatchPollResult(raw: unknown): SendBatchPollResult {
   };
 }
 
+interface ApiDispatchRelatedInvoice {
+  id?: string;
+  folio_label?: string;
+}
+
 interface ApiDispatchDocumentItem {
   document_kind: string;
   id: string;
@@ -891,10 +896,25 @@ interface ApiDispatchDocumentItem {
   stamped_at: string | null;
   dispatch_sent_at: string | null;
   group_key: string;
+  related_invoices?: ApiDispatchRelatedInvoice[] | null;
 }
 
 function mapDispatchDocumentKind(raw: string): DispatchDocumentKind {
   return raw === "rep" ? "rep" : "invoice";
+}
+
+function mapDispatchRelatedInvoices(
+  raw: ApiDispatchRelatedInvoice[] | null | undefined,
+): DispatchDocumentItem["relatedInvoices"] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  return raw
+    .filter((item): item is ApiDispatchRelatedInvoice & { id: string } =>
+      Boolean(item?.id),
+    )
+    .map((item) => ({
+      id: item.id,
+      folioLabel: typeof item.folio_label === "string" ? item.folio_label : "",
+    }));
 }
 
 export function mapDispatchDocumentItem(
@@ -913,5 +933,6 @@ export function mapDispatchDocumentItem(
     stampedAt: data.stamped_at ?? null,
     dispatchSentAt: data.dispatch_sent_at ?? null,
     groupKey: data.group_key,
+    relatedInvoices: mapDispatchRelatedInvoices(data.related_invoices),
   };
 }
