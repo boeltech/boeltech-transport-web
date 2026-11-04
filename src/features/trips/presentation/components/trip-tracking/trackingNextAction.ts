@@ -82,7 +82,7 @@ export function resolveTrackingPrimaryAction(
     };
   }
 
-  const next = resolveTrackingNextAction(ordered, cargos);
+  const next = resolveTrackingNextAction(ordered, cargos, tripStatus);
 
   if (next === "resolve_cargo_at_stop") {
     const stop = cargos?.length

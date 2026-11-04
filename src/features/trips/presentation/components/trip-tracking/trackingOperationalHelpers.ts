@@ -1,4 +1,8 @@
 import {
+  resolveTrackingNextAction as domainResolveTrackingNextAction,
+} from "@boeltech/cfdi-domain/reglas/tracking-rules";
+import type { TrackingNextActionKind } from "@boeltech/cfdi-domain/reglas/tracking-rules";
+import {
   TripStatus,
   type TripCargo,
   type TripStatusType,
@@ -7,6 +11,8 @@ import {
 import {
   getCargoBlockAtStop,
   hasUnresolvedCargoAtStop,
+  mapTripCargoToGatingLike,
+  mapTripStopToGatingLike,
 } from "../../utils/trackingCargoGating";
 import type { StopTransitionAction } from "./transitionCopy";
 import {
@@ -41,24 +47,21 @@ export type TrackingStopNextAction =
   | "resolve_cargo_at_stop"
   | null;
 
-const DEPARTURE_NEXT_ACTIONS = new Set<TrackingStopNextAction>([
-  "depart_origin",
-  "register_departure",
-  "close_at_destination",
-]);
-
-function getStopForDepartureNextAction(
-  action: TrackingStopNextAction,
-  ordered: readonly TripStop[],
-): TripStop | undefined {
-  if (action === "depart_origin") return findOriginAwaitingDeparture(ordered);
-  if (action === "register_departure") {
-    return findActiveEscalaForDeparture(ordered);
+function toTrackingStopNextAction(
+  kind: TrackingNextActionKind,
+): TrackingStopNextAction {
+  switch (kind) {
+    case "finalize_destination":
+      return "close_at_destination";
+    case "resolve_cargo":
+      return "resolve_cargo_at_stop";
+    case "register_arrival":
+    case "register_departure":
+    case "depart_origin":
+      return kind;
+    default:
+      return null;
   }
-  if (action === "close_at_destination") {
-    return findDestinationAwaitingTripArrival(ordered);
-  }
-  return undefined;
 }
 
 export function findStopAwaitingCargoResolution(
@@ -166,32 +169,14 @@ export function resolveInlineStopAction(
 export function resolveTrackingNextAction(
   stops: readonly TripStop[],
   cargos?: readonly TripCargo[],
+  tripStatus: TripStatusType = TripStatus.IN_PROGRESS,
 ): TrackingStopNextAction {
-  const ordered = [...stops];
-  let base: TrackingStopNextAction = null;
-  if (findOriginAwaitingDeparture(ordered)) base = "depart_origin";
-  else if (findActiveEscalaForDeparture(ordered)) base = "register_departure";
-  else if (findNextStopForArrival(ordered)) base = "register_arrival";
-  else if (findDestinationAwaitingTripArrival(ordered)) {
-    base = "close_at_destination";
-  }
-
-  if (
-    base &&
-    DEPARTURE_NEXT_ACTIONS.has(base) &&
-    cargos &&
-    cargos.length > 0
-  ) {
-    const targetStop = getStopForDepartureNextAction(base, ordered);
-    if (
-      targetStop &&
-      hasUnresolvedCargoAtStop(targetStop, cargos, ordered)
-    ) {
-      return "resolve_cargo_at_stop";
-    }
-  }
-
-  return base;
+  const action = domainResolveTrackingNextAction({
+    tripStatus,
+    stops: stops.map(mapTripStopToGatingLike),
+    cargos: cargos?.map(mapTripCargoToGatingLike),
+  });
+  return toTrackingStopNextAction(action.kind);
 }
 
 export function getTrackingNextActionLabel(action: TrackingStopNextAction): string | null {

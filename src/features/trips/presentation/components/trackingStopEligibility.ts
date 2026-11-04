@@ -1,9 +1,12 @@
+import { resolveTrackingNextAction as domainResolveTrackingNextAction } from "@boeltech/cfdi-domain/reglas/tracking-rules";
+import type { TrackingNextActionKind } from "@boeltech/cfdi-domain/reglas/tracking-rules";
 import {
   StopType,
   getOrderedStops,
   type StopTypeValue,
   type TripStop,
 } from "@features/trips/domain";
+import { mapTripStopToGatingLike } from "../utils/trackingCargoGating";
 
 function normalizeStopTypes(
   stopType: StopTypeValue | StopTypeValue[],
@@ -57,42 +60,39 @@ export function findOriginAwaitingArrival(
   return origin;
 }
 
+/**
+ * Hito de la secuencia en curso. Sin cargas: el paquete no convierte la
+ * salida en `resolve_cargo`, y estos find siguen localizando la parada.
+ */
+function findStopForInProgressKind(
+  stops: readonly TripStop[],
+  kind: TrackingNextActionKind,
+): TripStop | undefined {
+  const action = domainResolveTrackingNextAction({
+    tripStatus: "in_progress",
+    stops: stops.map(mapTripStopToGatingLike),
+  });
+  if (action.kind !== kind || action.stopId == null) return undefined;
+  return stops.find((stop) => stop.id === action.stopId);
+}
+
 /** Origen con llegada pero sin salida fiscal (trip_departed). */
 export function findOriginAwaitingDeparture(
   stops: readonly TripStop[],
 ): TripStop | undefined {
-  const origin = findOriginStop(stops);
-  if (!origin || !origin.actualArrival || origin.actualDeparture) {
-    return undefined;
-  }
-  return origin;
+  return findStopForInProgressKind(stops, "depart_origin");
 }
 
 export function findNextStopForArrival(
   stops: readonly TripStop[],
 ): TripStop | undefined {
-  return getOrderedStops(stops).find((stop) => {
-    if (!isManualArrivalStop(stop) || stop.actualArrival) return false;
-    // Origen cerrado con trip_departed no requiere stop_arrived previo.
-    if (
-      isOriginStop(stop) &&
-      (stop.status === "completed" || stop.actualDeparture != null)
-    ) {
-      return false;
-    }
-    return true;
-  });
+  return findStopForInProgressKind(stops, "register_arrival");
 }
 
 export function findActiveEscalaForDeparture(
   stops: readonly TripStop[],
 ): TripStop | undefined {
-  return getOrderedStops(stops).find(
-    (stop) =>
-      isTrackingEscalaStop(stop) &&
-      !!stop.actualArrival &&
-      !stop.actualDeparture,
-  );
+  return findStopForInProgressKind(stops, "register_departure");
 }
 
 /**
@@ -105,25 +105,5 @@ export function findActiveEscalaForDeparture(
 export function findDestinationAwaitingTripArrival(
   stops: readonly TripStop[],
 ): TripStop | undefined {
-  if (findOriginAwaitingDeparture(stops)) return undefined;
-  if (findNextStopForArrival(stops)) return undefined;
-  if (findActiveEscalaForDeparture(stops)) return undefined;
-
-  const ordered = getOrderedStops(stops);
-  for (let i = ordered.length - 1; i >= 0; i -= 1) {
-    const stop = ordered[i];
-    if (!stop || !isDestinationStop(stop)) continue;
-    if (!stop.actualArrival) return undefined;
-    return stop;
-  }
-
-  const allStopsCompleted =
-    ordered.length > 0 &&
-    ordered.every((stop) => stop.status === "completed" && stop.actualArrival);
-
-  if (allStopsCompleted) {
-    return ordered[ordered.length - 1];
-  }
-
-  return undefined;
+  return findStopForInProgressKind(stops, "finalize_destination");
 }
