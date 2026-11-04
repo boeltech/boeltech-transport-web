@@ -271,7 +271,7 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     );
   });
 
-  it("links relatedConfig to Facturas por cobrar", () => {
+  it("links relatedConfig to Facturas a crédito", () => {
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
       route: ["/finance/operational-cash-pending"],
     });
@@ -280,7 +280,7 @@ describe("FinanceEfectivoPorCobrarPage", () => {
       name: copy.relatedConfig.label,
     });
     expect(related).toHaveAttribute("href", FINANCE_COBROS_PATH);
-    expect(related).toHaveTextContent("Facturas por cobrar");
+    expect(related).toHaveTextContent("Facturas a crédito");
     expect(screen.getByText(copy.relatedConfig.description)).toBeInTheDocument();
   });
 
@@ -297,16 +297,17 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps page title Efectivo por cobrar (not Facturas heading)", () => {
+  it("keeps page title Efectivo sin factura (not Facturas a crédito heading)", () => {
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
       route: ["/finance/operational-cash-pending"],
     });
     expect(
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
+    expect(copy.title).toBe("Efectivo sin factura");
     expect(
       within(document.body).queryByRole("heading", {
-        name: "Facturas por cobrar",
+        name: "Facturas a crédito",
       }),
     ).not.toBeInTheDocument();
   });

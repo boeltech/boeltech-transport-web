@@ -106,7 +106,7 @@ describe("ClientOperationalCashPendingCard", () => {
     useOperationalCashPendingMock.mockReturnValue(pendingResult());
   });
 
-  it("shows total, trip count and Ver por cobrar deep-link when pending > 0", () => {
+  it("shows total, trip count and Ver efectivo sin factura deep-link when pending > 0", () => {
     renderWithProviders(
       <ClientOperationalCashPendingCard clientId={CLIENT_ID} />,
     );
@@ -134,7 +134,7 @@ describe("ClientOperationalCashPendingCard", () => {
       <ClientOperationalCashPendingCard clientId={CLIENT_ID} />,
     );
 
-    // Exact «Cobrar» fiscal (CreditExposureCard); no confligir con «Ver por cobrar».
+    // Exact «Cobrar» fiscal (CreditExposureCard); no confligir con «Ver efectivo sin factura».
     expect(screen.queryByRole("link", { name: "Cobrar" })).toBeNull();
     expect(
       screen.queryByRole("link", { name: "Cobrar facturas de este cliente" }),

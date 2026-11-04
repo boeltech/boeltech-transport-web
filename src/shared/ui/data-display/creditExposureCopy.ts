@@ -13,7 +13,7 @@ export const creditExposureCopy = {
   utilization: "Utilización del límite",
   breakdownTitle: "En qué está usado",
   breakdown: {
-    invoiced: "Facturas por cobrar",
+    invoiced: "Facturas a crédito",
     unbilled: "Viajes por facturar",
     pendingDraft: "Facturas en borrador",
   },
@@ -44,6 +44,6 @@ export const creditExposureCopy = {
       "El cliente ha usado al menos el 80% de su límite. Revisa el detalle en Crédito disponible.",
     exceededTitle: "Cliente excede su límite de crédito",
     exceededBody:
-      "Lo usado supera el límite autorizado. Revisa facturas por cobrar, viajes por facturar y borradores.",
+      "Lo usado supera el límite autorizado. Revisa el saldo de facturas a crédito, viajes por facturar y borradores.",
   },
 } as const;

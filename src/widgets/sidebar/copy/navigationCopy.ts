@@ -8,6 +8,8 @@ export const navigationCopy = {
     fleet: "Flota",
     commercial: "Comercial",
     billing: "Facturación",
+    /** Grupo Cobranza (id EN `collections`: paridad con billing/finance). */
+    collections: "Cobranza",
     finance: "Finanzas",
     reports: "Reportes",
     admin: "Administración",
@@ -27,16 +29,18 @@ export const navigationCopy = {
     financeHub: "Cartera",
     /** Viajes entregados sin factura: cola de trabajo del contador. */
     financeInvoiceable: "Por facturar",
-    /** Facturas a crédito con saldo: cola de trabajo de cobranza (mismo hub). */
-    financeCobros: "Facturas por cobrar",
-    /** Efectivo sin factura con saldo (ADR-0096 bandeja lectura). Hermano de Facturas por cobrar. */
-    financeEfectivoPorCobrar: "Efectivo por cobrar",
+    /** Cola fiscal PPD con saldo (grupo Cobranza). D7: Facturas a crédito. */
+    financeCobros: "Facturas a crédito",
+    /** Efectivo sin factura con saldo (ADR-0096). D7: Efectivo sin factura. */
+    financeEfectivoPorCobrar: "Efectivo sin factura",
     financeApprovals: "Aprobaciones",
     financeSettlements: "Liquidaciones",
     financeOperatorPayments: "Pagos a operadores",
     financeAgreements: "Tarifas de pago",
-    /** Workbench unificado de envío de facturas (pendientes / enviadas / historial). */
+    /** Workbench unificado de envío puntual (pendientes / enviadas). */
     financeDispatch: "Envíos",
+    /** Ritual periódico: armar → revisar → mandar (Opción A). */
+    financeDispatchPeriod: "Correo del periodo",
     /** /finance/analysis: vistas Mes a mes (por defecto), Rentabilidad y Gastos. */
     financeAnalysis: "Análisis",
     /** Listado de facturas (staff con invoices.read y portal client). */

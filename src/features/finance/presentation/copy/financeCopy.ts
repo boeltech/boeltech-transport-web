@@ -171,7 +171,7 @@ const cobrosCopy = {
     toastRetryError: "No se pudo reencolar el timbrado",
   },
   workbench: {
-    title: "Facturas por cobrar",
+    title: "Facturas a crédito",
     description:
       "Cola de facturas a crédito (PPD): registra depósitos por el mismo RFC (el lote es la página actual) y revisa comprobantes de pago pendientes. Vacía no significa que la cartera esté en cero.",
     bucketsAriaLabel: "Estado de cobranza",
@@ -211,7 +211,7 @@ const cobrosCopy = {
       clearFilters: "Quitar filtro RFC",
     },
     degradedMessage:
-      "No se pudo cargar la cola de Facturas por cobrar. Consulta Facturas o la Cartera mientras tanto.",
+      "No se pudo cargar la cola de Facturas a crédito. Consulta Facturas o la Cartera mientras tanto.",
     degradedLinkLabel: "Ir a facturas",
     relatedConfig: {
       label: "Ver cartera",
@@ -244,19 +244,19 @@ const cobrosCopy = {
 export const financeCopy = {
   page: {
     title: "Finanzas",
-    subtitle: "Facturas por cobrar, margen y gastos del negocio.",
+    subtitle: "Facturas a crédito, margen y gastos del negocio.",
     hub: {
       title: "Cartera",
       description:
         "Mes en curso y quién te debe — saldos, antigüedad y estado de cuenta.",
       orientation:
-        "Aquí ves el mes (ingreso y margen) y lo que te deben. Facturas por cobrar vacío (solo PPD) no significa cartera en cero.",
+        "Aquí ves el mes (ingreso y margen) y lo que te deben. Facturas a crédito vacío (solo PPD) no significa cartera en cero.",
       /** Contador: mes + saldos; viajes a facturar van a Por facturar (D13). */
       orientationAccountant:
-        "Aquí ves el mes y los saldos. Viajes pendientes de factura: Por facturar o Atención fiscal. Facturas por cobrar vacío (solo PPD) no significa cartera en cero.",
+        "Aquí ves el mes y los saldos. Viajes pendientes de factura: Por facturar o Atención fiscal. Facturas a crédito vacío (solo PPD) no significa cartera en cero.",
       /** Gerente: mes + saldos; SAT/altas no entran (D15). */
       orientationManager:
-        "Aquí ves el mes y los saldos. El trámite SAT y las altas no entran por Cartera. Facturas por cobrar vacío (solo PPD) no significa cartera en cero.",
+        "Aquí ves el mes y los saldos. El trámite SAT y las altas no entran por Cartera. Facturas a crédito vacío (solo PPD) no significa cartera en cero.",
       /** Fila secundaria bajo Pulse (Cobrado / Gasto) — peso menor que el Pulse. */
       monthContextTitle: "Contexto del mes",
       cycle: {
@@ -273,7 +273,7 @@ export const financeCopy = {
         },
         cobros: {
           verb: "Cobrar",
-          label: "Facturas por cobrar",
+          label: "Facturas a crédito",
           hint: "Registrar un pago a crédito.",
         },
       },
@@ -295,7 +295,7 @@ export const financeCopy = {
         subtitle: "Indicadores de cobro, antigüedad de saldos y estado de cuenta por cliente.",
       },
       cobros: {
-        title: "Facturas por cobrar",
+        title: "Facturas a crédito",
         subtitle:
           "Cola PPD a crédito y comprobantes pendientes. Vacía ≠ cartera en cero.",
       },
@@ -320,16 +320,16 @@ export const financeCopy = {
   /** Alias de compatibilidad para imports existentes. */
   cobranza: cobrosCopy,
   /**
-   * Bandeja Efectivo por cobrar (ADR-0096 addendum lectura).
-   * Canal operativo ≠ Facturas por cobrar / REP / cobrado_viaje.
+   * Bandeja Efectivo sin factura (ADR-0096 addendum lectura).
+   * Canal operativo ≠ Facturas a crédito / REP / cobrado_viaje.
    */
   efectivoPorCobrar: {
-    title: "Efectivo por cobrar",
+    title: "Efectivo sin factura",
     description:
-      "Viajes de efectivo sin factura con saldo pendiente. Canal operativo: el abono se registra en Costos del viaje, no en Facturas por cobrar.",
+      "Viajes de efectivo sin factura con saldo pendiente. Canal operativo: el abono se registra en Costos del viaje, no en Facturas a crédito.",
     entityLabelPlural: "viajes",
     channelHint:
-      "Esto no es la cola de Facturas por cobrar (CFDI / REP). Aquí solo ves efectivo sin factura.",
+      "Esto no es la cola de Facturas a crédito (CFDI / REP). Aquí solo ves efectivo sin factura.",
     totals: {
       pending: "Saldo operativo",
       trips: "Viajes",
@@ -365,7 +365,7 @@ export const financeCopy = {
     empty: {
       title: "Sin efectivo pendiente",
       description:
-        "No hay viajes de efectivo sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos, el viaje sale de esta bandeja. Esto no es Facturas por cobrar.",
+        "No hay viajes de efectivo sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos, el viaje sale de esta bandeja. Esto no es Facturas a crédito.",
     },
     emptyFiltered: {
       title: "Sin saldo operativo para este cliente",
@@ -373,13 +373,13 @@ export const financeCopy = {
         "Este cliente no tiene viajes de efectivo sin factura con saldo pendiente en la cohorte. Quita el filtro para ver toda la bandeja.",
     },
     relatedConfig: {
-      label: "Facturas por cobrar",
+      label: "Facturas a crédito",
       description:
         "Cola fiscal de facturas a crédito (PPD) con saldo. Abonos con CFDI / REP viven ahí, no en esta bandeja.",
     },
     loadErrorTitle: "No se pudo cargar",
     loadError:
-      "No se pudo consultar el efectivo por cobrar. Reintenta en un momento.",
+      "No se pudo consultar el efectivo sin factura. Reintenta en un momento.",
     retry: "Reintentar",
   },
   /**
@@ -410,8 +410,8 @@ export const financeCopy = {
       title: "Vencido",
       description: "Saldo con más de 30 días desde emisión (proxy)",
     },
-    receivableLinkAria: "Por cobrar — abrir Facturas por cobrar",
-    overdueLinkAria: "Vencido — abrir Facturas por cobrar",
+    receivableLinkAria: "Por cobrar — abrir Facturas a crédito",
+    overdueLinkAria: "Vencido — abrir Facturas a crédito",
   },
   summary: {
     sections: {
@@ -420,7 +420,7 @@ export const financeCopy = {
     },
     accountStatement: {
       description:
-        "Por cobrar es el saldo pendiente a total CFDI. Abiertas son facturas PPD con saldo (cola Facturas por cobrar). Pagado es facturado menos por cobrar. El ingreso operativo (Análisis) usa subtotal o tarifa, no el total con IVA.",
+        "Por cobrar es el saldo pendiente a total CFDI. Abiertas son facturas PPD con saldo (cola Facturas a crédito). Pagado es facturado menos por cobrar. El ingreso operativo (Análisis) usa subtotal o tarifa, no el total con IVA.",
       searchPlaceholder: "Buscar por cliente o RFC…",
       searchAriaLabel: "Filtrar estado de cuenta por cliente o RFC",
       collectAction: "Cobrar",
@@ -481,8 +481,10 @@ export const financeCopy = {
   },
   invoices: {
     title: "Facturas",
-    searchPlaceholder: "Buscar por cliente, RFC o folio…",
-    searchPlaceholderClient: "Buscar por folio…",
+    searchPlaceholder: "Cliente, RFC o serie-folio",
+    searchPlaceholderClient: "Serie-folio",
+    searchAriaLabel: "Buscar facturas por cliente, RFC o serie-folio",
+    searchAriaLabelClient: "Buscar por serie-folio",
     filters: {
       statusPlaceholder: "Estado",
       all: "Todos los estados",
@@ -578,7 +580,8 @@ export const financeCopy = {
     /** Contador: receptor de la primera factura del viaje (D6). Elegibles desde Programado (D1). */
     descriptionAccountant:
       "Esta cola es la primera factura del viaje: el aviso «Pendiente de facturar» de operación. Puedes facturar desde Programado cuando el viaje es elegible; no hace falta esperar a Completado. Si te pidieron revisar una factura ya emitida, no es esta cola: ve a Viajes → Atención fiscal.",
-    searchPlaceholder: "Buscar por folio de viaje, cliente o ruta…",
+    searchPlaceholder: "Folio de viaje, cliente o ruta",
+    searchAriaLabel: "Buscar por folio de viaje, cliente o ruta",
     entityLabelPlural: "viajes por facturar",
     invoiceAction: "Facturar",
     goToTripInvoicing: "Ir a facturación del viaje",

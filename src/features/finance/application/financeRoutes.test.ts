@@ -66,7 +66,7 @@ describe("financeRoutes", () => {
     expect(resolveLegacyFinanceLocation("?tab=summary")).toBe("/finance");
   });
 
-  it("resolveLegacyFinanceLocation maps dispatch-runs to envíos del periodo", () => {
+  it("resolveLegacyFinanceLocation maps dispatch-runs to Correo del periodo", () => {
     expect(resolveLegacyFinanceLocation("?tab=dispatch-runs")).toBe(
       "/finance/dispatch/period",
     );

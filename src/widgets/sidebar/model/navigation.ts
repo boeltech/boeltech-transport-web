@@ -36,6 +36,7 @@ import {
   UsersRound,
   ClipboardCheck,
   Mail,
+  CalendarRange,
   Banknote,
   FileWarning,
   HandCoins,
@@ -52,7 +53,7 @@ const copy = navigationCopy;
  * IMPORTANTE: Los valores de `module` deben coincidir con los
  * definidos en src/shared/auth/domain/entities.ts
  *
- * Siete grupos + Inicio suelto. Solo se listan pantallas montadas:
+ * Ocho grupos (Inicio suelto + siete con título). Solo se listan pantallas montadas:
  * un ítem del menú nunca anuncia funcionalidad inexistente.
  */
 export const navigationConfig: NavGroup[] = [
@@ -155,7 +156,31 @@ export const navigationConfig: NavGroup[] = [
         path: "/finance/dispatch",
         icon: Mail,
         roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT],
+        /** Solo workbench puntual (exacto / ?tab=); hijos van a Correo del periodo. */
+        exactPath: true,
       },
+      {
+        id: "finance-dispatch-period",
+        label: copy.item.financeDispatchPeriod,
+        path: "/finance/dispatch/period",
+        icon: CalendarRange,
+        roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.ACCOUNTANT],
+        /**
+         * Listado period + detalle `/finance/dispatch/:uuid`.
+         * `/*` = solo descendientes (no el exacto Envíos).
+         */
+        activePathPrefixes: ["/finance/dispatch/*"],
+      },
+    ],
+  },
+  /**
+   * Cobranza — id EN `collections` (paridad con billing/finance).
+   * Orden ítems D2: fiscal → operativo.
+   */
+  {
+    id: "collections",
+    title: copy.group.collections,
+    items: [
       {
         id: "finance-cobros",
         label: copy.item.financeCobros,

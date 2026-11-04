@@ -1,6 +1,6 @@
 /**
- * Smoke — Efectivo por cobrar (ADR-0096 addendum lectura + F3 chrome Conform).
- * Nav hermano de Facturas por cobrar → bandeja mock → deep-link Costos;
+ * Smoke — Efectivo sin factura (ADR-0096 addendum lectura + F3 chrome Conform).
+ * Nav Cobranza: hermano de Facturas a crédito → bandeja mock → deep-link Costos;
  * card cliente → bandeja ?clientId=; KPI/related/columna. Sin backend.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -226,30 +226,42 @@ describe("smoke: efectivo-por-cobrar", () => {
     );
   });
 
-  it("nav Facturación tiene Efectivo por cobrar como hermano de Facturas por cobrar", () => {
+  it("nav Cobranza tiene Efectivo sin factura como hermano de Facturas a crédito", () => {
     const billing = navigationConfig.find((group) => group.id === "billing");
-    expect(billing).toBeDefined();
+    const collections = navigationConfig.find(
+      (group) => group.id === "collections",
+    );
+    expect(collections).toBeDefined();
+    expect(collections?.title).toBe("Cobranza");
+    expect(
+      billing?.items.some((item) => item.id === "finance-cobros"),
+    ).toBe(false);
+    expect(
+      billing?.items.some(
+        (item) => item.id === "finance-efectivo-por-cobrar",
+      ),
+    ).toBe(false);
 
-    const cobrosIdx = billing!.items.findIndex(
+    const cobrosIdx = collections!.items.findIndex(
       (item) => item.id === "finance-cobros",
     );
-    const efectivoIdx = billing!.items.findIndex(
+    const efectivoIdx = collections!.items.findIndex(
       (item) => item.id === "finance-efectivo-por-cobrar",
     );
 
     expect(cobrosIdx).toBeGreaterThanOrEqual(0);
     expect(efectivoIdx).toBe(cobrosIdx + 1);
 
-    const efectivo = billing!.items[efectivoIdx];
+    const efectivo = collections!.items[efectivoIdx];
     expect(efectivo?.label).toBe(navigationCopy.item.financeEfectivoPorCobrar);
-    expect(efectivo?.label).toBe("Efectivo por cobrar");
+    expect(efectivo?.label).toBe("Efectivo sin factura");
     expect(efectivo?.path).toBe(FINANCE_EFECTIVO_POR_COBRAR_PATH);
     expect(efectivo?.module).toBe("finance");
     expect(efectivo?.action).toBe("read");
 
-    const cobros = billing!.items[cobrosIdx];
+    const cobros = collections!.items[cobrosIdx];
     expect(cobros?.label).toBe(navigationCopy.item.financeCobros);
-    expect(cobros?.label).toBe("Facturas por cobrar");
+    expect(cobros?.label).toBe("Facturas a crédito");
     expect(cobros?.path).toBe(FINANCE_COBROS_PATH);
     expect(cobros?.path).not.toBe(FINANCE_EFECTIVO_POR_COBRAR_PATH);
   });
@@ -294,7 +306,7 @@ describe("smoke: efectivo-por-cobrar", () => {
     expect(openCostsB).toHaveAttribute("href", buildTripCostsHref("trip-2"));
 
     expect(
-      screen.queryByRole("heading", { name: "Facturas por cobrar" }),
+      screen.queryByRole("heading", { name: "Facturas a crédito" }),
     ).not.toBeInTheDocument();
 
     const related = screen.getByRole("link", {

@@ -78,6 +78,7 @@ export const helpCenterCopy = {
     concepto_fiscal: "Conceptos de factura",
     administracion: "Administración",
     configuracion: "Configuración",
+    cobranza: "Cobranza",
   } as Record<string, string>,
   aria: {
     openHelp: "Ayuda",

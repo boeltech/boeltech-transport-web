@@ -49,6 +49,7 @@ describe("helpCenterCopy product labels (PRD D1–D5)", () => {
     expect(helpCenterCopy.groups.concepto_fiscal).toBe("Conceptos de factura");
     expect(helpCenterCopy.groups.flota).toBe("Flota");
     expect(helpCenterCopy.groups.configuracion).toBe("Configuración");
+    expect(helpCenterCopy.groups.cobranza).toBe("Cobranza");
     expect(helpCenterCopy.index.description).toBe(
       "Guías y artículos para operar día a día",
     );

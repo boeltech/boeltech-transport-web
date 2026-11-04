@@ -166,7 +166,7 @@ export const shellCopy = {
     backToApprovals: "Volver a aprobaciones",
     backToInvoiceable: "Volver a Por facturar",
     backToDispatch: "Volver a envíos",
-    backToDispatchPeriod: "Volver a envíos del periodo",
+    backToDispatchPeriod: "Volver a Correo del periodo",
     backToDispatchRun: "Volver al envío",
     /** Desde detalle viaje abierto desde liquidaciones (create/detalle). */
     backToSettlementPayment: "Volver al pago",

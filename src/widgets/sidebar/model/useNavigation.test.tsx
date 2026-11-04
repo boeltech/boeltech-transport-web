@@ -91,16 +91,32 @@ describe("findActiveNavItem", () => {
     ).toBe("finance-approvals");
   });
 
-  it("keeps Envíos active on period list and run detail", () => {
+  it("splits Envíos puntual vs Correo del periodo (exact + descendants /*)", () => {
+    const dispatchExact: NavItem = {
+      ...dispatch,
+      exactPath: true,
+    };
+    const dispatchPeriod: NavItem = {
+      id: "finance-dispatch-period",
+      label: "Correo del periodo",
+      path: "/finance/dispatch/period",
+      icon: Circle,
+      activePathPrefixes: ["/finance/dispatch/*"],
+    };
+    const items = [hub, dispatchExact, dispatchPeriod];
+
+    expect(findActiveNavItem("/finance/dispatch", items, "")?.id).toBe(
+      "finance-dispatch",
+    );
     expect(
-      findActiveNavItem("/finance/dispatch", [hub, dispatch], "")?.id,
+      findActiveNavItem("/finance/dispatch", items, "?tab=pending")?.id,
     ).toBe("finance-dispatch");
     expect(
-      findActiveNavItem("/finance/dispatch/period", [hub, dispatch], "")?.id,
-    ).toBe("finance-dispatch");
+      findActiveNavItem("/finance/dispatch/period", items, "")?.id,
+    ).toBe("finance-dispatch-period");
     expect(
-      findActiveNavItem("/finance/dispatch/run-1", [hub, dispatch], "")?.id,
-    ).toBe("finance-dispatch");
+      findActiveNavItem("/finance/dispatch/run-1", items, "")?.id,
+    ).toBe("finance-dispatch-period");
   });
 
   it("does not mark Cartera active on nested finance routes", () => {
@@ -176,12 +192,13 @@ describe("filterNavigation", () => {
     expect(withNeither.find((g) => g.id === "fleet")).toBeUndefined();
   });
 
-  it("allows accountant to see billing and finance (Reportes as finance item)", () => {
+  it("allows accountant to see billing, collections and finance (Reportes as finance item)", () => {
     const hasPermission = createPermissionChecker("accountant");
     const filtered = filterNavigation(navigationConfig, hasPermission, ROLES.ACCOUNTANT);
     const groupIds = filtered.map((g) => g.id);
 
     expect(groupIds).toContain("billing");
+    expect(groupIds).toContain("collections");
     expect(groupIds).toContain("finance");
     expect(groupIds).not.toContain("reports");
 
@@ -190,6 +207,11 @@ describe("filterNavigation", () => {
       "finance-invoiceable",
       "finance-invoices",
       "finance-dispatch",
+      "finance-dispatch-period",
+    ]);
+
+    const collectionsGroup = filtered.find((g) => g.id === "collections");
+    expect(collectionsGroup?.items.map((i) => i.id)).toEqual([
       "finance-cobros",
       "finance-efectivo-por-cobrar",
     ]);

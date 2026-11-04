@@ -107,13 +107,13 @@ function checkPathActive(
     return true;
   }
 
-  for (const prefix of extraPrefixes) {
-    if (
-      currentPath === prefix ||
-      (prefix !== "/" && currentPath.startsWith(`${prefix}/`))
-    ) {
-      return true;
-    }
+  for (const raw of extraPrefixes) {
+    // Sufijo `/*` = solo hijos del prefijo (no el path exacto del padre).
+    const descendantsOnly = raw.endsWith("/*");
+    const prefix = descendantsOnly ? raw.slice(0, -2) : raw;
+    if (!prefix || prefix === "/") continue;
+    if (!descendantsOnly && currentPath === prefix) return true;
+    if (currentPath.startsWith(`${prefix}/`)) return true;
   }
 
   return false;

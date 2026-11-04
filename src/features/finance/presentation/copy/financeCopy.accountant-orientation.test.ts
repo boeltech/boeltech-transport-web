@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest";
 import { financeCopy } from "./financeCopy";
 
 describe("financeCopy — orientación accountant", () => {
+  it("Por facturar: search placeholder corto + aria espejo", () => {
+    expect(financeCopy.invoiceable.searchPlaceholder).toBe(
+      "Folio de viaje, cliente o ruta",
+    );
+    expect(financeCopy.invoiceable.searchAriaLabel).toBe(
+      "Buscar por folio de viaje, cliente o ruta",
+    );
+  });
+
   it("Por facturar: primera factura del viaje y bloqueados = operación", () => {
     expect(financeCopy.invoiceable.descriptionAccountant).toMatch(
       /primera factura/i,

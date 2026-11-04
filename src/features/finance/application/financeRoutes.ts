@@ -72,7 +72,7 @@ export const FINANCE_DISPATCH_PERIOD_PATH = "/finance/dispatch/period";
 
 export const FINANCE_DISPATCH_PENDING_HREF = `${FINANCE_DISPATCH_PATH}?tab=pending`;
 
-/** Compat: historial de corridas → envíos del periodo. */
+/** Compat: historial de corridas → Correo del periodo. */
 export const FINANCE_DISPATCH_HISTORY_HREF = FINANCE_DISPATCH_PERIOD_PATH;
 
 const TAB_TO_PATH: Record<string, string> = {

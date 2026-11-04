@@ -30,7 +30,8 @@ describe("navigationCopy", () => {
     expect(labels).toContain("Historial de usuarios");
     expect(labels).toContain("Configuración");
     expect(labels).toContain("Por facturar");
-    expect(labels).toContain("Facturas por cobrar");
+    expect(labels).toContain("Facturas a crédito");
+    expect(labels).toContain("Efectivo sin factura");
     expect(labels).toContain("Envíos");
   });
 
@@ -53,7 +54,7 @@ describe("navigationCopy", () => {
 });
 
 describe("navigationConfig", () => {
-  it("shows the six group headers in semantic order", () => {
+  it("shows the seven group headers in semantic order", () => {
     const groupTitles = navigationConfig
       .map((group) => group.title)
       .filter((title) => title !== "");
@@ -63,6 +64,7 @@ describe("navigationConfig", () => {
       "Flota",
       "Comercial",
       "Facturación",
+      "Cobranza",
       "Finanzas",
       "Administración",
     ]);
@@ -103,8 +105,11 @@ describe("navigationConfig", () => {
     ]);
   });
 
-  it("exposes billing and finance groups with the agreed order and labels", () => {
+  it("exposes billing, collections and finance with agreed order and labels", () => {
     const billing = navigationConfig.find((group) => group.id === "billing");
+    const collections = navigationConfig.find(
+      (group) => group.id === "collections",
+    );
     const finance = navigationConfig.find((group) => group.id === "finance");
 
     expect(navigationConfig.find((group) => group.id === "reports")).toBeUndefined();
@@ -114,15 +119,31 @@ describe("navigationConfig", () => {
       "finance-invoiceable",
       "finance-invoices",
       "finance-dispatch",
-      "finance-cobros",
-      "finance-efectivo-por-cobrar",
+      "finance-dispatch-period",
     ]);
     expect(billing?.items.map((item) => item.label)).toEqual([
       "Por facturar",
       "Facturas",
       "Envíos",
-      "Facturas por cobrar",
-      "Efectivo por cobrar",
+      "Correo del periodo",
+    ]);
+    expect(navigationCopy.item.financeDispatchPeriod).toBe("Correo del periodo");
+    const dispatch = billing?.items.find((i) => i.id === "finance-dispatch");
+    const period = billing?.items.find(
+      (i) => i.id === "finance-dispatch-period",
+    );
+    expect(dispatch?.exactPath).toBe(true);
+    expect(period?.path).toBe("/finance/dispatch/period");
+    expect(period?.activePathPrefixes).toEqual(["/finance/dispatch/*"]);
+
+    expect(collections?.title).toBe("Cobranza");
+    expect(collections?.items.map((item) => item.id)).toEqual([
+      "finance-cobros",
+      "finance-efectivo-por-cobrar",
+    ]);
+    expect(collections?.items.map((item) => item.label)).toEqual([
+      "Facturas a crédito",
+      "Efectivo sin factura",
     ]);
 
     expect(finance?.title).toBe("Finanzas");
@@ -142,9 +163,11 @@ describe("navigationConfig", () => {
     ]);
   });
 
-  it("uses distinct Lucide icons across billing and finance", () => {
+  it("uses distinct Lucide icons across billing, collections and finance", () => {
     const relevantItems = navigationConfig
-      .filter((group) => ["billing", "finance"].includes(group.id))
+      .filter((group) =>
+        ["billing", "collections", "finance"].includes(group.id),
+      )
       .flatMap((group) => group.items);
 
     const icons = relevantItems.map((item) => item.icon);

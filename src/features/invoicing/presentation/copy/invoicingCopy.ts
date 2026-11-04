@@ -296,7 +296,8 @@ export const invoicingCopy = {
     listColumn: "Envío",
     listSentTitle: "Enviada por correo al cliente",
     listNotSentTitle: "Aún no enviada por correo",
-    listAutoFailTitle: "Falló el envío automático; reintenta desde Envíos",
+    listAutoFailTitle:
+      "Falló el envío automático; reintenta desde Correo del periodo",
     stampSuccessTitle: "Factura timbrada exitosamente",
     stampSuccessAction: "Enviar",
     disabledNotStamped:
@@ -910,7 +911,7 @@ export const invoicingCopy = {
       backToInvoiceable: "Volver a Por facturar",
       backToCobros: "Volver a Facturas a crédito",
       backToDispatch: "Volver a envíos",
-      backToDispatchPeriod: "Volver a envíos del periodo",
+      backToDispatchPeriod: "Volver a Correo del periodo",
       backToDispatchRun: "Volver al envío",
       backToClientInvoices: "Volver a Mis facturas",
       pdf: "Descargar PDF",

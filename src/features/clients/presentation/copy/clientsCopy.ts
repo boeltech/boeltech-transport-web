@@ -84,7 +84,7 @@ export const clientsCopy = {
     section: {
       type: { nav: "Tipo" },
       fiscal: { nav: "Fiscal" },
-      dispatch: { nav: "Envío" },
+      dispatch: { nav: "Correo" },
       commercial: { nav: "Comercial" },
       notes: { nav: "Notas" },
     },
