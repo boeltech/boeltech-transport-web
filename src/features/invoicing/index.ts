@@ -20,6 +20,7 @@ export type {
   InvoiceSendRecipients,
   DispatchDocumentKindFilter,
   DispatchDocumentItem,
+  DispatchRelatedInvoice,
 } from "./domain";
 export {
   InvoiceStatusLabels,
