@@ -25,6 +25,16 @@ import {
 } from "@shared/ui/sheet";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
+import { Checkbox } from "@shared/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@shared/ui/dialog";
+import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import {
   Collapsible,
@@ -46,6 +56,14 @@ import { cn } from "@shared/lib/utils/cn";
 import { useToast } from "@shared/hooks";
 
 import { formatMxCurrency } from "./financialSummary";
+import {
+  emptyReturnSaveShape,
+  formatKmInput,
+  parseReturnKm,
+  quoteEmptyReturnFuel,
+  type EmptyReturnScope,
+  type FuelPortionQuote,
+} from "./emptyReturnFuel";
 import { tripDetailCopy } from "../../copy";
 import {
   getCategoriesForKind,
@@ -69,6 +87,12 @@ const PAYMENT_SOURCE_OPTIONS = [
   { value: "advance" as const, emoji: "💰", label: psCopy.advance },
 ];
 
+const EMPTY_RETURN_SCOPES: { value: EmptyReturnScope; label: string }[] = [
+  { value: "route", label: copy.emptyReturn.scopeRoute },
+  { value: "both", label: copy.emptyReturn.scopeBoth },
+  { value: "return", label: copy.emptyReturn.scopeReturn },
+];
+
 const PAYMENT_SOURCE_HINTS: Record<string, string> = {
   driver: psCopy.hintDriver,
   company: psCopy.hintCompany,
@@ -83,12 +107,14 @@ export interface TripExpenseSheetProps {
   editingIndex: number | null;
   totalDistanceKm: number;
   expectedFuelEfficiency: number | null;
+  /** Fuel sin marca ya capturado. El modo combinado no vuelve a crear la ruta. */
+  hasUnmarkedRouteFuel?: boolean;
   isSubmitting?: boolean;
   onSubmit: (
     values: TripExpenseFormValues,
     editingIndex: number | null,
-    options?: { keepOpen?: boolean },
-  ) => void | Promise<void>;
+    options?: { keepOpen?: boolean; companion?: TripExpenseFormValues },
+  ) => void | boolean | Promise<void | boolean>;
   /** Aviso al inicio del cuerpo (p. ej. motivo de devolución, ADR-0099 D15). */
   notice?: ReactNode;
   /** Sustituye el texto del primario en edición (p. ej. «Guardar y reenviar»). */
@@ -105,6 +131,7 @@ function buildEmptyExpense(
     // Sin preselección: el operador debe elegir quién fondeó (D3)
     vendorName: "",
     notes: "",
+    isEmptyReturn: false,
   };
 }
 
@@ -115,8 +142,14 @@ function buildEditDefaults(expense: TripExpenseFormValues): TripExpenseFormValue
     paymentSource: expense.paymentSource,
     vendorName: expense.vendorName ?? "",
     notes: expense.notes ?? "",
+    isEmptyReturn: expense.isEmptyReturn === true,
   };
 }
+
+type ArmedEstimate =
+  | { shape: "route" }
+  | { shape: "return" }
+  | { shape: "pair"; emptyReturn: FuelPortionQuote };
 
 function getSheetTitle(kind: TripExpenseSheetKind, isEdit: boolean): string {
   if (kind === "cost") {
@@ -147,6 +180,7 @@ function TripExpenseSheetSession({
   editingIndex,
   totalDistanceKm,
   expectedFuelEfficiency,
+  hasUnmarkedRouteFuel = false,
   isSubmitting = false,
   onSubmit,
   notice,
@@ -155,6 +189,10 @@ function TripExpenseSheetSession({
   const { success: showSuccessToast } = useToast();
   const [dieselPricePerLiter, setDieselPricePerLiter] =
     useState(DEFAULT_DIESEL_PRICE);
+  const [scope, setScope] = useState<EmptyReturnScope>("route");
+  const [returnKm, setReturnKm] = useState("");
+  const [applied, setApplied] = useState<ArmedEstimate | null>(null);
+  const [distanceDialogOpen, setDistanceDialogOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(() =>
     Boolean(
@@ -195,43 +233,114 @@ function TripExpenseSheetSession({
     [expenseKind],
   );
 
-  const dieselSuggestion = useMemo(() => {
-    if (
-      !expectedFuelEfficiency ||
-      expectedFuelEfficiency <= 0 ||
-      totalDistanceKm <= 0 ||
-      dieselPricePerLiter <= 0
-    ) {
-      return null;
-    }
-    const liters = totalDistanceKm / expectedFuelEfficiency;
-    const cost = liters * dieselPricePerLiter;
-    return {
-      liters: Math.round(liters * 10) / 10,
-      cost: Math.round(cost * 100) / 100,
-    };
-  }, [dieselPricePerLiter, expectedFuelEfficiency, totalDistanceKm]);
+  const isEdit = editingIndex !== null;
+  const editingReturn =
+    isEdit && category === "fuel" && initialValues?.isEmptyReturn === true;
+  const activeScope: EmptyReturnScope = editingReturn
+    ? "return"
+    : isEdit
+      ? "route"
+      : scope;
 
   const showDieselEstimation =
     expenseKind === "cost" &&
     category === "fuel" &&
     totalDistanceKm > 0 &&
-    !!expectedFuelEfficiency;
+    !!expectedFuelEfficiency &&
+    expectedFuelEfficiency > 0;
 
-  const applyDieselSuggestion = () => {
-    if (!dieselSuggestion) return;
+  const showEmptyReturnCheckbox =
+    expenseKind === "cost" &&
+    category === "fuel" &&
+    (!showDieselEstimation || editingReturn);
+
+  const parsedReturnKm = parseReturnKm(returnKm);
+  const showReturnKm = showDieselEstimation && activeScope !== "route";
+  const returnKmMissing = showReturnKm && parsedReturnKm == null;
+  const returnKmError = returnKmMissing ? copy.emptyReturn.returnKmError : undefined;
+
+  const fuelQuote = useMemo(() => {
+    if (!showDieselEstimation || !expectedFuelEfficiency) {
+      return { route: null, emptyReturn: null, total: 0 };
+    }
+    return quoteEmptyReturnFuel({
+      scope: activeScope,
+      routeKm: totalDistanceKm,
+      returnKm: parsedReturnKm ?? 0,
+      kmPerLiter: expectedFuelEfficiency,
+      pricePerLiter: dieselPricePerLiter,
+    });
+  }, [
+    activeScope,
+    dieselPricePerLiter,
+    expectedFuelEfficiency,
+    parsedReturnKm,
+    showDieselEstimation,
+    totalDistanceKm,
+  ]);
+
+  const saveShape = emptyReturnSaveShape({
+    scope: activeScope,
+    hasUnmarkedRouteFuel: !isEdit && hasUnmarkedRouteFuel,
+  });
+
+  const canApplyEstimate =
+    showDieselEstimation &&
+    (saveShape === "route"
+      ? fuelQuote.route != null
+      : saveShape === "return"
+        ? fuelQuote.emptyReturn != null
+        : fuelQuote.route != null && fuelQuote.emptyReturn != null);
+
+  const fillPortion = (portion: FuelPortionQuote, kind: "route" | "return") => {
     const currentDescription = getValues("description")?.trim();
+    const defaultDescription =
+      kind === "return"
+        ? copy.format.dieselEmptyReturnDescription
+        : copy.format.dieselDescription;
     setValue("category", "fuel", { shouldDirty: true });
-    setValue("description", currentDescription || copy.format.dieselDescription, {
+    setValue("description", currentDescription || defaultDescription, {
       shouldDirty: true,
     });
-    setValue("amount", dieselSuggestion.cost, { shouldDirty: true });
+    setValue("amount", portion.amount, { shouldDirty: true });
     setValue(
       "notes",
-      copy.format.dieselNotes(dieselSuggestion.liters, dieselPricePerLiter),
+      copy.format.dieselNotes(portion.litersDisplay, dieselPricePerLiter),
       { shouldDirty: true },
     );
+    setValue("isEmptyReturn", kind === "return", { shouldDirty: true });
     setExtrasOpen(true);
+  };
+
+  const applyDieselSuggestion = () => {
+    if (!canApplyEstimate) return;
+    if (saveShape === "pair" && fuelQuote.route && fuelQuote.emptyReturn) {
+      fillPortion(fuelQuote.route, "route");
+      setApplied({ shape: "pair", emptyReturn: fuelQuote.emptyReturn });
+      return;
+    }
+    if (saveShape === "return" && fuelQuote.emptyReturn) {
+      fillPortion(fuelQuote.emptyReturn, "return");
+      setApplied({ shape: "return" });
+      return;
+    }
+    if (fuelQuote.route) {
+      fillPortion(fuelQuote.route, "route");
+      setApplied({ shape: "route" });
+    }
+  };
+
+  const confirmRouteDistance = () => {
+    setReturnKm(formatKmInput(totalDistanceKm));
+    setApplied(null);
+    setDistanceDialogOpen(false);
+  };
+
+  const resolveEmptyReturn = (values: TripExpenseFormValues): boolean => {
+    if (values.category !== "fuel") return false;
+    if (!isEdit && applied?.shape === "pair") return false;
+    if (showEmptyReturnCheckbox) return values.isEmptyReturn === true;
+    return applied?.shape === "return";
   };
 
   const buildPayload = (values: TripExpenseFormValues): TripExpenseFormValues => ({
@@ -241,31 +350,76 @@ function TripExpenseSheetSession({
     description: values.description.trim(),
     vendorName: values.vendorName?.trim() || undefined,
     notes: values.notes?.trim() || undefined,
+    isEmptyReturn: resolveEmptyReturn(values),
   });
+
+  const buildReturnCompanion = (
+    base: TripExpenseFormValues,
+    portion: FuelPortionQuote,
+  ): TripExpenseFormValues => ({
+    category: "fuel",
+    description: copy.format.dieselEmptyReturnDescription,
+    amount: portion.amount,
+    currency: base.currency ?? "MXN",
+    paymentSource: base.paymentSource,
+    vendorName: base.vendorName,
+    notes: copy.format.dieselNotes(portion.litersDisplay, dieselPricePerLiter),
+    isEmptyReturn: true,
+  });
+
+  const submitValues = (
+    values: TripExpenseFormValues,
+    index: number | null,
+    options?: { keepOpen?: boolean },
+  ) => {
+    const payload = buildPayload(values);
+    const companion =
+      !isEdit && applied?.shape === "pair"
+        ? buildReturnCompanion(
+            { ...payload, isEmptyReturn: false },
+            applied.emptyReturn,
+          )
+        : undefined;
+    if (companion) payload.isEmptyReturn = false;
+    return onSubmit(payload, index, { ...options, companion });
+  };
 
   const submitSheet = handleSubmit(
     (values) => {
-      void (async () => {
-        await onSubmit(buildPayload(values), editingIndex);
-      })();
+      void submitValues(values, editingIndex);
     },
     () => {
       setShowSummary(true);
     },
   );
 
+  const resetEmptyReturnAssist = () => {
+    setScope("route");
+    setReturnKm("");
+    setApplied(null);
+    setDistanceDialogOpen(false);
+    setDieselPricePerLiter(DEFAULT_DIESEL_PRICE);
+  };
+
   const handleAddAnother = () => {
     void handleSubmit(
       async (values) => {
         const result = buildPayload(values);
-        await onSubmit(result, null, { keepOpen: true });
+        const saved = await submitValues(values, null, { keepOpen: true });
+        if (saved === false) return;
         reset(buildEmptyExpense(expenseKind));
-        setDieselPricePerLiter(DEFAULT_DIESEL_PRICE);
+        resetEmptyReturnAssist();
         setExtrasOpen(false);
         setShowSummary(false);
+        const companionDescription =
+          !isEdit && applied?.shape === "pair"
+            ? copy.format.dieselEmptyReturnDescription
+            : null;
         showSuccessToast(
           copy.toast.addedTitle,
-          copy.toast.addedBody(result.description),
+          companionDescription
+            ? copy.toast.addedPairBody(result.description, companionDescription)
+            : copy.toast.addedBody(result.description),
         );
       },
       () => {
@@ -282,11 +436,11 @@ function TripExpenseSheetSession({
     [formState.errors],
   );
   const isSummaryVisible = showSummary && summaryMessages.length > 0;
-  const isEdit = editingIndex !== null;
   const hasExtras =
     Boolean(vendorName?.trim()) || Boolean(notesValue?.trim());
 
   return (
+    <>
     <SheetContent
       side="right"
       className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
@@ -355,7 +509,51 @@ function TripExpenseSheetSession({
               <p className="text-sm font-medium text-info-soft-foreground">
                 {copy.section.dieselHelp}
               </p>
-              {expectedFuelEfficiency ? (
+              {!isEdit ? (
+                <div
+                  role="radiogroup"
+                  aria-label={copy.emptyReturn.scopeLegend}
+                  className="space-y-2"
+                >
+                  {EMPTY_RETURN_SCOPES.map((option) => {
+                    const selected = scope === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={cn(
+                          "flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                          selected
+                            ? "border-primary bg-primary/5 font-medium"
+                            : "border-border hover:bg-muted/50",
+                        )}
+                        onClick={() => {
+                          setScope(option.value);
+                          setApplied(null);
+                          if (option.value === "route") {
+                            setValue("isEmptyReturn", false, { shouldDirty: true });
+                          }
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {isEdit && !editingReturn ? (
+                <p className="text-xs text-muted-foreground">
+                  {copy.emptyReturn.routeEditHint}
+                </p>
+              ) : null}
+              {!isEdit && scope === "both" && hasUnmarkedRouteFuel ? (
+                <p className="text-sm text-info-soft-foreground">
+                  {copy.emptyReturn.alreadyHasRouteFuel}
+                </p>
+              ) : null}
+              {activeScope !== "return" && expectedFuelEfficiency ? (
                 <p className="text-xs text-muted-foreground">
                   {copy.format.dieselHelpBody(
                     totalDistanceKm,
@@ -363,28 +561,119 @@ function TripExpenseSheetSession({
                   )}
                 </p>
               ) : null}
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    {copy.label.totalDistance}
-                  </p>
-                  <p className="font-medium">{totalDistanceKm.toFixed(1)} km</p>
+              {activeScope !== "return" ? (
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.label.totalDistance}
+                    </p>
+                    <p className="font-medium">{totalDistanceKm.toFixed(1)} km</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.label.fuelEfficiency}
+                    </p>
+                    <p className="font-medium">{expectedFuelEfficiency} km/L</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.label.estimatedConsumption}
+                    </p>
+                    <p className="font-medium">
+                      {fuelQuote.route ? `${fuelQuote.route.litersDisplay} L` : "—"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    {copy.label.fuelEfficiency}
-                  </p>
-                  <p className="font-medium">{expectedFuelEfficiency} km/L</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.label.fuelEfficiency}
+                    </p>
+                    <p className="font-medium">{expectedFuelEfficiency} km/L</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.label.estimatedConsumption}
+                    </p>
+                    <p className="font-medium">
+                      {fuelQuote.emptyReturn
+                        ? `${fuelQuote.emptyReturn.litersDisplay} L`
+                        : "—"}
+                    </p>
+                  </div>
                 </div>
-                <div>
+              )}
+              {showReturnKm ? (
+                <div className="space-y-1">
+                  <Label htmlFor="empty-return-km" className="text-xs">
+                    {copy.emptyReturn.returnKm}
+                  </Label>
+                  <Input
+                    id="empty-return-km"
+                    inputMode="decimal"
+                    className="h-8 text-sm"
+                    error={returnKmMissing}
+                    value={returnKm}
+                    onChange={(event) => {
+                      setReturnKm(event.target.value);
+                      setApplied(null);
+                    }}
+                    {...getFieldErrorAriaProps("empty-return-km", returnKmError)}
+                  />
                   <p className="text-xs text-muted-foreground">
-                    {copy.label.estimatedConsumption}
+                    {copy.emptyReturn.returnKmHelp}
                   </p>
-                  <p className="font-medium">
-                    {dieselSuggestion?.liters ?? "—"} L
-                  </p>
+                  <FieldInlineError
+                    fieldId="empty-return-km"
+                    message={returnKmError}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setDistanceDialogOpen(true)}
+                  >
+                    {copy.emptyReturn.useRouteDistance}
+                  </Button>
                 </div>
-              </div>
+              ) : null}
+              {saveShape === "pair" &&
+              fuelQuote.route &&
+              fuelQuote.emptyReturn ? (
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.emptyReturn.amountRoute}
+                    </p>
+                    <p className="font-medium">
+                      {formatMxCurrency(fuelQuote.route.amount)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.emptyReturn.amountReturn}
+                    </p>
+                    <p className="font-medium">
+                      {formatMxCurrency(fuelQuote.emptyReturn.amount)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      {copy.emptyReturn.amountTotal}
+                    </p>
+                    <p className="font-medium">
+                      {formatMxCurrency(fuelQuote.total)}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              {applied?.shape === "pair" ? (
+                <p className="text-xs text-muted-foreground">
+                  {copy.emptyReturn.pairArmedHint}
+                </p>
+              ) : null}
               <div className="flex flex-wrap items-end gap-3">
                 <div className="w-44 space-y-1">
                   <Label className="text-xs">{copy.label.dieselPrice}</Label>
@@ -392,19 +681,30 @@ function TripExpenseSheetSession({
                     id="diesel-price-per-liter"
                     className="h-8 text-sm"
                     value={dieselPricePerLiter}
-                    onValueChange={(next) =>
-                      setDieselPricePerLiter(next ?? DEFAULT_DIESEL_PRICE)
-                    }
+                    onValueChange={(next) => {
+                      setDieselPricePerLiter(next ?? DEFAULT_DIESEL_PRICE);
+                      setApplied(null);
+                    }}
                   />
                 </div>
                 <div className="flex-1">
                   <p className="mb-1 text-xs text-muted-foreground">
-                    {copy.label.estimatedCost}
+                    {saveShape === "pair"
+                      ? copy.emptyReturn.amountTotal
+                      : saveShape === "return"
+                        ? copy.emptyReturn.amountReturn
+                        : copy.label.estimatedCost}
                   </p>
                   <p className="text-lg font-bold text-info-soft-foreground">
-                    {dieselSuggestion
-                      ? formatMxCurrency(dieselSuggestion.cost)
-                      : "—"}
+                    {saveShape === "return"
+                      ? fuelQuote.emptyReturn
+                        ? formatMxCurrency(fuelQuote.emptyReturn.amount)
+                        : "—"
+                      : saveShape === "pair" && fuelQuote.emptyReturn
+                        ? formatMxCurrency(fuelQuote.total)
+                        : fuelQuote.route
+                          ? formatMxCurrency(fuelQuote.route.amount)
+                          : "—"}
                   </p>
                 </div>
                 <Button
@@ -412,13 +712,41 @@ function TripExpenseSheetSession({
                   size="sm"
                   variant="outline"
                   onClick={applyDieselSuggestion}
-                  disabled={!dieselSuggestion}
+                  disabled={!canApplyEstimate}
                 >
                   <Fuel className="mr-1 h-3.5 w-3.5" />
                   {copy.action.useEstimate}
                 </Button>
               </div>
             </div>
+          ) : null}
+          {showEmptyReturnCheckbox ? (
+            <Controller
+              control={control}
+              name="isEmptyReturn"
+              render={({ field }) => (
+                <div className="space-y-1">
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="expense-empty-return"
+                      checked={field.value === true}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                    />
+                    <Label
+                      htmlFor="expense-empty-return"
+                      className="text-sm font-normal leading-snug"
+                    >
+                      {copy.emptyReturn.checkbox}
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {copy.emptyReturn.checkboxHelp}
+                  </p>
+                </div>
+              )}
+            />
           ) : null}
         </FormSectionCard>
 
@@ -557,10 +885,37 @@ function TripExpenseSheetSession({
           onClick={() => void submitSheet()}
           disabled={isSubmitting}
         >
-          {isEdit ? (submitLabel ?? copy.action.saveChanges) : copy.action.addConcept}
+          {isEdit
+            ? (submitLabel ?? copy.action.saveChanges)
+            : applied?.shape === "pair"
+              ? copy.action.addTwoConcepts
+              : copy.action.addConcept}
         </Button>
       </SheetFooter>
     </SheetContent>
+    <Dialog open={distanceDialogOpen} onOpenChange={setDistanceDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{copy.emptyReturn.useRouteDistanceTitle}</DialogTitle>
+          <DialogDescription>
+            {copy.emptyReturn.useRouteDistanceBody}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setDistanceDialogOpen(false)}
+          >
+            {copy.action.cancel}
+          </Button>
+          <Button type="button" onClick={confirmRouteDistance}>
+            {copy.emptyReturn.useRouteDistanceConfirm}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
@@ -572,7 +927,7 @@ export function TripExpenseSheet({
   editingIndex,
   ...rest
 }: TripExpenseSheetProps) {
-  const sessionKey = `${editingIndex ?? "new"}-${expenseKind}-${initialValues?.category ?? ""}-${initialValues?.description ?? ""}`;
+  const sessionKey = `${editingIndex ?? "new"}-${expenseKind}-${initialValues?.category ?? ""}-${initialValues?.description ?? ""}-${initialValues?.isEmptyReturn ? "er" : "rt"}`;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -126,6 +126,7 @@ export function buildCreateTripInputFromWizardValues(
       paymentSource: expense.paymentSource,
       vendorName: expense.vendorName || undefined,
       notes: expense.notes || undefined,
+      isEmptyReturn: expense.category === "fuel" && expense.isEmptyReturn === true,
     })),
     allowExpiredDocs,
   };

@@ -437,6 +437,12 @@ export interface TripExpense {
   // Fuente de pago (0.35.0 — quién pagó)
   readonly paymentSource: PaymentSource;
 
+  /**
+   * Porción de combustible del regreso vacío a cuenta de la empresa.
+   * Ausente se lee como false (respuesta vieja o fixture).
+   */
+  readonly isEmptyReturn?: boolean;
+
   // Estado y aprobación
   readonly status: ExpenseStatusType;
   /** Legacy API may still send `is_estimated`; UI no longer uses it. */

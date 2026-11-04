@@ -267,6 +267,9 @@ export interface CreateExpenseInput {
   // Fuente de pago (quién fondeó — create required, cfdi-domain 0.43.0)
   paymentSource: PaymentSource;
 
+  /** Porción de combustible del regreso vacío. El bridge siempre la envía. */
+  isEmptyReturn?: boolean;
+
   // Proveedor
   vendorName?: string;
   vendorRfc?: string;
@@ -323,6 +326,9 @@ export interface UpdateExpenseInput {
 
   // Fuente de pago (quién pagó — 0.35.0)
   paymentSource?: PaymentSource;
+
+  /** Porción de combustible del regreso vacío. El bridge siempre la envía para poder desmarcar. */
+  isEmptyReturn?: boolean;
 
   // Proveedor
   vendorName?: string | null;

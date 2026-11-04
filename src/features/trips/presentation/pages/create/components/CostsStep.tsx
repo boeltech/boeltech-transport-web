@@ -10,6 +10,7 @@ import { CreditExposureCard } from "@shared/ui/data-display";
 import { RHFMoneyField } from "@shared/ui/form";
 import { TripExpenseEditableList } from "../../../components/trip-costs";
 
+import { hasUnmarkedRouteFuel } from "../../../components/trip-financial/emptyReturnFuel";
 import {
   getSheetKindForCategory,
   isIndirectExpenseCategory,
@@ -89,6 +90,10 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
     () => buildTripWizardFinancialSnapshot(baseRate, fields),
     [baseRate, fields],
   );
+  const unmarkedRouteFuel = useMemo(
+    () => hasUnmarkedRouteFuel(fields),
+    [fields],
+  );
   const { financial } = financialSnapshot;
 
   const handleOpenAdd = (kind: TripExpenseSheetKind) => {
@@ -110,12 +115,13 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
   const handleSubmitFromSheet = (
     values: TripExpenseFormValues,
     submittedIndex: number | null,
-    options?: { keepOpen?: boolean },
+    options?: { keepOpen?: boolean; companion?: TripExpenseFormValues },
   ) => {
     if (submittedIndex !== null) {
       update(submittedIndex, values);
     } else {
       append(values);
+      if (options?.companion) append(options.companion);
     }
     setInitialExpense(null);
     setEditingIndex(null);
@@ -259,6 +265,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
         editingIndex={editingIndex}
         totalDistanceKm={totalDistanceKm}
         expectedFuelEfficiency={expectedFuelEfficiency}
+        hasUnmarkedRouteFuel={unmarkedRouteFuel}
         onSubmit={handleSubmitFromSheet}
       />
     </div>

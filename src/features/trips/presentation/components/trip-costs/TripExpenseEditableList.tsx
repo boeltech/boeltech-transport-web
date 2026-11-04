@@ -54,6 +54,8 @@ export interface TripExpenseListItem {
   /** ADR-0099: `undefined` = API sin bloque; se conserva el comportamiento previo. */
   approval?: ApprovalBlock | null;
   approvalRevision?: string | null;
+  /** Porción de combustible del regreso vacío. El badge lee esta marca. */
+  isEmptyReturn?: boolean;
 }
 
 export interface TripExpenseEditableListProps {
@@ -227,6 +229,11 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
                 {copy.paymentSource.badgeAdvance}
               </Badge>
             ) : null}
+            {expense.isEmptyReturn ? (
+              <Badge variant="secondary" className="text-xs font-normal">
+                {copy.emptyReturn.badge}
+              </Badge>
+            ) : null}
             {showDetailMeta &&
             showsSelfApprovedBadge({
               kind: "tripExpense",
@@ -348,6 +355,11 @@ const TripExpenseEditableListItem = memo(function TripExpenseEditableListItem({
           ) : null}
         </div>
       </div>
+      {expense.isEmptyReturn && showRemove ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {copy.emptyReturn.deleteHint}
+        </p>
+      ) : null}
       {returned ? (
         <ReturnedAlert
           className="mt-2"

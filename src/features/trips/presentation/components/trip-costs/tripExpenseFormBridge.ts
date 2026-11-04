@@ -12,6 +12,7 @@ export function tripExpenseToFormValues(expense: TripExpense): TripExpenseFormVa
     paymentSource: expense.paymentSource,
     vendorName: expense.vendorName ?? "",
     notes: expense.notes ?? "",
+    isEmptyReturn: expense.isEmptyReturn === true,
   };
 }
 
@@ -26,6 +27,7 @@ export function formValuesToCreateExpenseInput(
     paymentSource: values.paymentSource,
     vendorName: values.vendorName?.trim() || undefined,
     notes: values.notes?.trim() || undefined,
+    isEmptyReturn: values.category === "fuel" && values.isEmptyReturn === true,
   };
 }
 
@@ -39,6 +41,7 @@ export function formValuesToUpdateExpenseInput(
     currency: values.currency,
     vendorName: values.vendorName?.trim() || null,
     notes: values.notes?.trim() || null,
+    isEmptyReturn: values.category === "fuel" && values.isEmptyReturn === true,
   };
   // Update: omit payment_source if absent — do not reinject "driver"
   if (values.paymentSource !== undefined) {
@@ -64,6 +67,7 @@ export function tripExpensesToListItems(expenses: TripExpense[]): TripExpenseLis
     ...(expense.approvalRevision !== undefined
       ? { approvalRevision: expense.approvalRevision }
       : {}),
+    isEmptyReturn: expense.isEmptyReturn === true,
   }));
 }
 
@@ -84,5 +88,6 @@ export function tripExpensesToWizardLines(
     amount: expense.amount,
     vendorName: expense.vendorName ?? undefined,
     status: expense.status,
+    isEmptyReturn: expense.isEmptyReturn === true,
   }));
 }

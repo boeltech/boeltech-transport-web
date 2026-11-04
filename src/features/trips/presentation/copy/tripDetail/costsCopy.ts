@@ -104,9 +104,18 @@ export const costsCopy = {
     windowClosedRow: (date: string) =>
       `La ventana para corregir gastos de este viaje cerró el ${date}.`,
   },
+  emptyReturn: {
+    badge: "Regreso vacío",
+    deleteHint:
+      "Si ese tramo se opera en otro viaje, elimine este concepto antes de aprobarlo.",
+  },
   toast: {
     updated: "Registro actualizado",
     created: "Registro guardado",
+    createdPair: (routeDescription: string, returnDescription: string) =>
+      `Se guardaron «${routeDescription}» y «${returnDescription}».`,
+    createdRoutePendingReturn:
+      "Se guardó el combustible de la ruta. El regreso vacío no quedó registrado; agréguelo de nuevo.",
     saveError: "No se pudo guardar",
     removed: "Registro eliminado",
     removeError: "No se pudo eliminar",

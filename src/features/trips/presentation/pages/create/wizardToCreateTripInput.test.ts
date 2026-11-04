@@ -398,3 +398,49 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
     expect(apiCheck.ok).toBe(true);
   });
 });
+
+describe("buildCreateTripInputFromWizardValues — regreso vacío", () => {
+  it("keeps isEmptyReturn on estimated expenses", () => {
+    const values = {
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      clientId: "33333333-3333-4333-8333-333333333333",
+      scheduledDeparture: "2030-01-15T14:00",
+      originCity: "CDMX",
+      destinationCity: "MTY",
+      stops: [],
+      cargos: [],
+      internalStaff: [],
+      expenses: [
+        {
+          category: "fuel",
+          description: "Carga de diésel",
+          amount: 240,
+          currency: "MXN",
+          paymentSource: "company",
+        },
+        {
+          category: "fuel",
+          description: "Diésel del regreso vacío",
+          amount: 120,
+          currency: "MXN",
+          paymentSource: "company",
+          isEmptyReturn: true,
+        },
+        {
+          category: "tolls",
+          description: "Casetas",
+          amount: 80,
+          currency: "MXN",
+          paymentSource: "company",
+          isEmptyReturn: true,
+        },
+      ],
+    } as unknown as TripWizardFormValues;
+
+    const payload = buildCreateTripInputFromWizardValues(values);
+    expect(payload.estimatedExpenses?.[0].isEmptyReturn).toBe(false);
+    expect(payload.estimatedExpenses?.[1].isEmptyReturn).toBe(true);
+    expect(payload.estimatedExpenses?.[2].isEmptyReturn).toBe(false);
+  });
+});

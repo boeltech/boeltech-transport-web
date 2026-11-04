@@ -287,6 +287,9 @@ export interface ApiExpenseResponse {
   // Fuente de pago (0.35.0)
   payment_source?: string | null;
 
+  /** Porción de combustible del regreso vacío. Ausente en respuestas anteriores a F2. */
+  is_empty_return?: boolean;
+
   // Estado
   status: ExpenseStatusType;
   /** Legacy; API may omit or always send false. Not used by UI. */

@@ -137,3 +137,46 @@ describe("tripExpenseFormBridge paymentSource", () => {
     expect(items[2].paymentSource).toBe("advance");
   });
 });
+
+describe("tripExpenseFormBridge isEmptyReturn", () => {
+  it("sends the boolean on create and update, including false", () => {
+    const marked = tripExpenseToFormValues(
+      makeExpense({ isEmptyReturn: true, description: "Diésel del regreso vacío" }),
+    );
+    expect(marked.isEmptyReturn).toBe(true);
+    expect(formValuesToCreateExpenseInput(marked).isEmptyReturn).toBe(true);
+    expect(formValuesToUpdateExpenseInput(marked).isEmptyReturn).toBe(true);
+
+    const unmarked = tripExpenseToFormValues(makeExpense());
+    expect(unmarked.isEmptyReturn).toBe(false);
+    expect(formValuesToCreateExpenseInput(unmarked).isEmptyReturn).toBe(false);
+    expect(formValuesToUpdateExpenseInput(unmarked).isEmptyReturn).toBe(false);
+  });
+
+  it("turns the mark off when the category leaves fuel", () => {
+    const formValues = tripExpenseToFormValues(
+      makeExpense({ isEmptyReturn: true, category: "fuel" }),
+    );
+    const asTolls = { ...formValues, category: "tolls" as const };
+    expect(formValuesToCreateExpenseInput(asTolls).isEmptyReturn).toBe(false);
+    expect(formValuesToUpdateExpenseInput(asTolls).isEmptyReturn).toBe(false);
+  });
+
+  it("keeps the mark on the list item when the description changes", () => {
+    const items = tripExpensesToListItems([
+      makeExpense({
+        id: "return-1",
+        description: "Nota libre que no es la marca",
+        isEmptyReturn: true,
+      }),
+      makeExpense({
+        id: "route-1",
+        description: "Diésel del regreso vacío",
+        isEmptyReturn: false,
+      }),
+    ]);
+    expect(items[0].isEmptyReturn).toBe(true);
+    expect(items[0].description).toBe("Nota libre que no es la marca");
+    expect(items[1].isEmptyReturn).toBe(false);
+  });
+});

@@ -555,6 +555,33 @@ describe("tripWizardSchema — paso costos", () => {
   });
 });
 
+describe("tripExpenseSchema — isEmptyReturn", () => {
+  it("defaults to false when the field is omitted", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Carga de diésel",
+      amount: 240,
+      paymentSource: "company",
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.isEmptyReturn).toBe(false);
+  });
+
+  it("accepts true on a fuel concept", () => {
+    const result = tripExpenseSchema.safeParse({
+      category: "fuel",
+      description: "Diésel del regreso vacío",
+      amount: 120,
+      paymentSource: "company",
+      isEmptyReturn: true,
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.isEmptyReturn).toBe(true);
+  });
+});
+
 describe("tripExpenseSchema — paymentSource", () => {
   it("rejects when paymentSource is omitted", () => {
     const result = tripExpenseSchema.safeParse({

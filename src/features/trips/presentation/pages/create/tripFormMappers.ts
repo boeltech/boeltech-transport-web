@@ -125,6 +125,7 @@ export function mapTripToWizardFormValues(trip: Trip): TripWizardFormValues {
     location: expense.location || undefined,
     vendorName: expense.vendorName || undefined,
     notes: expense.notes || undefined,
+    isEmptyReturn: expense.isEmptyReturn === true,
   }));
 
   const mappedInternalStaff = (trip.internalStaff || []).map((member) => ({

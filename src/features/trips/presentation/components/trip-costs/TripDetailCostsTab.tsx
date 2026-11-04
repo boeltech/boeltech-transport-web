@@ -79,6 +79,7 @@ import {
   operationalCashStatusLabel,
 } from "../../utils/operationalCashUi";
 
+import { hasUnmarkedRouteFuel } from "../trip-financial/emptyReturnFuel";
 import {
   getSheetKindForCategory,
   type TripExpenseSheetKind,
@@ -454,6 +455,10 @@ export function TripDetailCostsTab({
     isDeciding;
 
   const expenseLines = useMemo(() => tripExpensesToWizardLines(expenses), [expenses]);
+  const unmarkedRouteFuel = useMemo(
+    () => hasUnmarkedRouteFuel(expenses),
+    [expenses],
+  );
 
   const operationalItems = useMemo(
     () =>
@@ -732,8 +737,8 @@ export function TripDetailCostsTab({
   const handleSubmitFromSheet = async (
     values: TripExpenseFormValues,
     _editingIndex: number | null,
-    options?: { keepOpen?: boolean },
-  ) => {
+    options?: { keepOpen?: boolean; companion?: TripExpenseFormValues },
+  ): Promise<boolean> => {
     void _editingIndex;
     try {
       if (editingExpenseId) {
@@ -741,19 +746,44 @@ export function TripDetailCostsTab({
           expenseId: editingExpenseId,
           data: formValuesToUpdateExpenseInput(values),
         });
+        if (!options?.keepOpen) {
+          toast({
+            title: isCorrectingReturned ? copy.toast.resubmitted : copy.toast.updated,
+            variant: "success",
+          });
+          closeExpenseSheet();
+        }
+        return true;
+      }
+
+      const companion = options?.companion;
+      await addExpense.mutateAsync(formValuesToCreateExpenseInput(values));
+      if (companion) {
+        try {
+          await addExpense.mutateAsync(formValuesToCreateExpenseInput(companion));
+        } catch {
+          toast({
+            title: copy.toast.saveError,
+            description: copy.toast.createdRoutePendingReturn,
+            variant: "error",
+          });
+          closeExpenseSheet();
+          return false;
+        }
+      }
+
+      if (!options?.keepOpen) {
         toast({
-          title: isCorrectingReturned ? copy.toast.resubmitted : copy.toast.updated,
+          title: companion
+            ? copy.toast.createdPair(values.description, companion.description)
+            : copy.toast.created,
           variant: "success",
         });
-      } else {
-        await addExpense.mutateAsync(formValuesToCreateExpenseInput(values));
-        toast({ title: copy.toast.created, variant: "success" });
-      }
-      if (!options?.keepOpen) {
         closeExpenseSheet();
       }
+      return true;
     } catch (error) {
-      if (editingExpenseId != null && handleGuardError(error, closeExpenseSheet)) return;
+      if (editingExpenseId != null && handleGuardError(error, closeExpenseSheet)) return false;
       const notMutable = editingExpenseId != null && isExpenseNotMutableError(error);
       toast({
         title: copy.toast.saveError,
@@ -761,6 +791,7 @@ export function TripDetailCostsTab({
         variant: "error",
       });
       if (notMutable) closeExpenseSheet();
+      return false;
     }
   };
 
@@ -1079,6 +1110,7 @@ export function TripDetailCostsTab({
           editingIndex={editingExpenseId ? 0 : null}
           totalDistanceKm={totalDistanceKm}
           expectedFuelEfficiency={expectedFuelEfficiency}
+          hasUnmarkedRouteFuel={unmarkedRouteFuel}
           isSubmitting={isExpenseMutating}
           onSubmit={handleSubmitFromSheet}
           notice={

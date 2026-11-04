@@ -50,6 +50,38 @@ describe("TripExpenseEditableList — badge «Quién pagó»", () => {
     expect(screen.queryByText("Con anticipo")).not.toBeInTheDocument();
   });
 
+  it("muestra el badge Regreso vacío por la marca, no por la descripción", () => {
+    render(
+      <TripExpenseEditableList
+        items={[
+          makeItem({
+            category: "fuel",
+            description: "Carga de diésel",
+            isEmptyReturn: true,
+          }),
+        ]}
+        emptyTitle="Sin gastos"
+        emptyDescription="—"
+        onRemove={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Regreso vacío")).toBeInTheDocument();
+    expect(
+      screen.getByText(/elimine este concepto antes de aprobarlo/i),
+    ).toBeInTheDocument();
+  });
+
+  it("no muestra el badge si la descripción menciona el regreso pero no hay marca", () => {
+    renderList([
+      makeItem({
+        category: "fuel",
+        description: "Diésel del regreso vacío",
+        isEmptyReturn: false,
+      }),
+    ]);
+    expect(screen.queryByText("Regreso vacío")).not.toBeInTheDocument();
+  });
+
   it("sin paymentSource (legacy): sin badge adicional", () => {
     renderList([makeItem({})]);
     expect(screen.queryByText("Empresa")).not.toBeInTheDocument();

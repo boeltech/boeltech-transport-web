@@ -380,6 +380,16 @@ describe("mapApiExpense self-approval evidence (ADR-0098)", () => {
     expect(mapped.approverCountAtApprove).toBeNull();
   });
 
+  it("maps is_empty_return and treats a missing flag as false", () => {
+    expect(
+      mapApiExpense({ ...baseExpense, is_empty_return: true }).isEmptyReturn,
+    ).toBe(true);
+    expect(mapApiExpense(baseExpense).isEmptyReturn).toBe(false);
+    expect(
+      mapApiExpense({ ...baseExpense, is_empty_return: undefined }).isEmptyReturn,
+    ).toBe(false);
+  });
+
   it("mapea is_estimated legacy sin exigir el campo", () => {
     expect(mapApiExpense(baseExpense).isEstimated).toBe(false);
     expect(

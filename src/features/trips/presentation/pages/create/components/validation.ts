@@ -604,6 +604,9 @@ export const tripExpenseSchema = z.object({
   // Notas
   notes: z.string().optional(),
 
+  /** Porción de combustible del regreso vacío. El schema de contrato vive en el paquete. */
+  isEmptyReturn: z.boolean().default(false),
+
   // NOTA FUTURA: Los campos de contabilidad (CFDI UUID, RFC del proveedor,
   // clave SAT, forma de pago, tipo de cambio) deben capturarse en el módulo
   // de liquidación post-viaje, no durante la planeación.

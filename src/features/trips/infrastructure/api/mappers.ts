@@ -490,6 +490,7 @@ export function mapApiExpense(api: ApiExpenseResponse): TripExpense {
 
     // Fuente de pago
     paymentSource: mapPaymentSource(api.payment_source),
+    isEmptyReturn: api.is_empty_return === true,
 
     // Estado
     status: api.status,
