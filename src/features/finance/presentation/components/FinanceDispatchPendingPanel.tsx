@@ -223,6 +223,8 @@ export function FinanceDispatchPendingPanel({
         search: {
           ...filters.searchProps,
           placeholder: copy.searchPlaceholder,
+          ariaLabel: copy.searchAriaLabel,
+          className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
         },
         filters: (
           <FinanceDispatchListFilters

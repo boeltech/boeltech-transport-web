@@ -4,23 +4,20 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   Loader2,
   Mail,
   Plus,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@shared/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
+import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@shared/ui/card";
 import {
   Collapsible,
   CollapsibleContent,
@@ -43,23 +40,21 @@ import {
   usePreviewBillingDispatchRun,
 } from "../../application/hooks/useBillingDispatchRuns";
 import type {
-  BillingDispatchClientReceipt,
   BillingDispatchRunItem,
   RecipientsByClient,
 } from "../../domain/billingDispatchRun.types";
 import {
   DispatchRunAlreadySentSection,
   DispatchRunClientGroup,
-  DispatchRunClientReceipts,
   DispatchRunFolioList,
-  DispatchRunItemStatusBadge,
-  DispatchRunRecipientsEditor,
-  DispatchRunRecipientsReadOnly,
+  DispatchRunReadyTable,
   DispatchRunSendResults,
 } from "../components";
 import { DispatchRunStatusBadge } from "../components/DispatchRunStatusBadge";
 import { DispatchRunOriginBadge } from "../components/DispatchRunOriginBadge";
 import { DispatchRunActions } from "../components/DispatchRunActions";
+import { DispatchRunConfirmSheet } from "../components/DispatchRunConfirmSheet";
+import { DispatchRunCutBar } from "../components/DispatchRunCutBar";
 import { FinanceDispatchCreateRunDialog } from "../components/FinanceDispatchCreateRunDialog";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { isEmptyScheduledCancelled } from "../utils/dispatchRunStatusPresentation";
@@ -73,11 +68,9 @@ import {
   clientIdsFromItems,
   countDispatchPreviewBuckets,
   countFailedClientResults,
-  formatDispatchDocumentLabel,
   formatPendingStampTripLabel,
   groupAlreadySentByClient,
   groupPendingStampByClient,
-  groupReadyToSendByClient,
   isDispatchRunInFlight,
   isDispatchRunTerminal,
   partitionByDocumentKind,
@@ -86,10 +79,7 @@ import {
   splitDispatchRunItems,
   summarizeReadyToSend,
 } from "../utils/dispatchRunPreviewBuckets";
-import {
-  formatDispatchPeriodInclusiveCopy,
-  formatDispatchRunTitle,
-} from "../utils/formatDispatchPeriod";
+import { formatDispatchPeriodCutLabel } from "../utils/formatDispatchPeriodCutLabel";
 import {
   buildRecipientOverrides,
   clientsWithZeroSelected,
@@ -187,183 +177,85 @@ function PendingStampRows({
   );
 }
 
-function ReadyDocumentKindBlock({
+function TypedReadySection({
   title,
-  description,
+  anchor,
   emptyCopy,
   emptyHint,
   items,
-  recipientsByClient,
-  clientReceipts,
-  selection,
-  editable,
-  collapseGroups,
-  showRecipientsForClient,
-  onToggleRecipient,
+  quietCount,
+  collapsible = false,
+  defaultOpen = true,
 }: {
   title: string;
-  description?: string;
+  anchor: string;
   emptyCopy: string;
   emptyHint?: string;
   items: BillingDispatchRunItem[];
-  recipientsByClient: RecipientsByClient[];
-  clientReceipts: BillingDispatchClientReceipt[] | null | undefined;
-  selection: RecipientSelectionState;
-  editable: boolean;
-  collapseGroups: boolean;
-  showRecipientsForClient: (clientId: string) => boolean;
-  onToggleRecipient: (clientId: string, key: string, checked: boolean) => void;
+  quietCount: string;
+  /** Completada: tablas densas secundarias, colapsables. */
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
-  const byClient = groupReadyToSendByClient(items);
-  const recipientsMap = useMemo(() => {
-    const map = new Map<string, RecipientsByClient>();
-    for (const group of recipientsByClient) {
-      map.set(group.clientId, group);
-    }
-    return map;
-  }, [recipientsByClient]);
+  const [open, setOpen] = useState(defaultOpen);
 
-  return (
-    <div className="space-y-3">
+  const body =
+    items.length === 0 ? (
       <div className="space-y-1">
-        <h4 className="text-sm font-medium text-foreground">{title}</h4>
-        {description ? (
-          <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-sm text-muted-foreground">{emptyCopy}</p>
+        {emptyHint ? (
+          <p className="text-xs text-muted-foreground">{emptyHint}</p>
         ) : null}
       </div>
-      {items.length === 0 ? (
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{emptyCopy}</p>
-          {emptyHint ? (
-            <p className="text-xs text-muted-foreground">{emptyHint}</p>
-          ) : null}
-        </div>
-      ) : (
-        Array.from(byClient.entries()).map(([clientId, clientItems]) => {
-          const label = clientDisplayName(
-            clientItems[0]!,
-            copy.buckets.clientFallback,
-          );
-          const group = recipientsMap.get(clientId);
-          const showRecipients = showRecipientsForClient(clientId);
-          const selectedKeys = selection[clientId] ?? [];
-          const recipientTotal = group?.recipients.length ?? 0;
-          const hasZero =
-            editable &&
-            showRecipients &&
-            (recipientTotal === 0 || selectedKeys.length === 0);
+    ) : (
+      <div className="overflow-hidden rounded-md border border-border">
+        <DispatchRunReadyTable items={items} />
+      </div>
+    );
 
-          return (
-            <DispatchRunClientGroup
-              key={`${title}-${clientId}`}
-              title={label}
-              invoiceCount={clientItems.length}
-              recipientSelected={
-                editable && showRecipients ? selectedKeys.length : undefined
-              }
-              recipientTotal={
-                editable && showRecipients ? recipientTotal : undefined
-              }
-              hasZeroRecipients={hasZero}
-              defaultOpen={!collapseGroups}
-            >
-              <DispatchRunFolioList
-                items={clientItems}
-                renderItem={(item) => (
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span>
-                        {formatDispatchDocumentLabel(item, {
-                          invoice: copy.buckets.invoiceLabel,
-                          invoiceFallback: copy.buckets.invoiceFallback,
-                          rep: copy.buckets.repLabel,
-                          repFallback: copy.buckets.repFallback,
-                        })}
-                      </span>
-                      <DispatchRunItemStatusBadge status={item.status} />
-                    </div>
-                    {item.status === "failed" && item.errorMessage ? (
-                      <span className="text-xs text-destructive">
-                        {item.errorMessage}
-                      </span>
-                    ) : null}
-                  </div>
-                )}
+  const header = (
+    <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 space-y-0">
+      <div className="space-y-1.5">
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{anchor}</CardDescription>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {quietCount}
+        </span>
+        {collapsible && items.length > 0 ? (
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2">
+              {open ? copy.sections.collapseDocs : copy.sections.expandDocs}
+              <ChevronDown
+                className={`ml-1 h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+                aria-hidden
               />
-              {editable && showRecipients && group ? (
-                <DispatchRunRecipientsEditor
-                  groups={[group]}
-                  selection={selection}
-                  onToggle={onToggleRecipient}
-                />
-              ) : null}
-              {!editable && showRecipients && clientReceipts ? (
-                <DispatchRunClientReceipts
-                  receipts={clientReceipts}
-                  clientId={clientId}
-                />
-              ) : null}
-              {!editable && showRecipients && !clientReceipts && group ? (
-                <DispatchRunRecipientsReadOnly group={group} />
-              ) : null}
-            </DispatchRunClientGroup>
-          );
-        })
-      )}
-    </div>
+            </Button>
+          </CollapsibleTrigger>
+        ) : null}
+      </div>
+    </CardHeader>
   );
-}
 
-function ReadyToSendRows({
-  items,
-  recipientsByClient,
-  clientReceipts,
-  selection,
-  editable,
-  collapseGroups,
-  onToggleRecipient,
-}: {
-  items: BillingDispatchRunItem[];
-  recipientsByClient: RecipientsByClient[];
-  clientReceipts: BillingDispatchClientReceipt[] | null | undefined;
-  selection: RecipientSelectionState;
-  editable: boolean;
-  collapseGroups: boolean;
-  onToggleRecipient: (clientId: string, key: string, checked: boolean) => void;
-}) {
-  const { invoices, reps } = partitionByDocumentKind(items);
-  /** Destinatarios una sola vez: en Facturas si el cliente tiene factura; si no, en REP. */
-  const invoiceClientIds = new Set(invoices.map((i) => i.clientId));
+  if (collapsible && items.length > 0) {
+    return (
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <Card aria-label={title}>
+          {header}
+          <CollapsibleContent>
+            <CardContent>{body}</CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <ReadyDocumentKindBlock
-        title={copy.sections.invoices}
-        emptyCopy={copy.sections.emptyReadyInvoices}
-        items={invoices}
-        recipientsByClient={recipientsByClient}
-        clientReceipts={clientReceipts}
-        selection={selection}
-        editable={editable}
-        collapseGroups={collapseGroups}
-        showRecipientsForClient={() => true}
-        onToggleRecipient={onToggleRecipient}
-      />
-      <ReadyDocumentKindBlock
-        title={copy.sections.reps}
-        description={copy.sections.repsPeriodHint}
-        emptyCopy={copy.sections.emptyReadyReps}
-        emptyHint={copy.sections.emptyReadyRepsHint}
-        items={reps}
-        recipientsByClient={recipientsByClient}
-        clientReceipts={clientReceipts}
-        selection={selection}
-        editable={editable}
-        collapseGroups={collapseGroups}
-        showRecipientsForClient={(clientId) => !invoiceClientIds.has(clientId)}
-        onToggleRecipient={onToggleRecipient}
-      />
-    </div>
+    <Card aria-label={title}>
+      {header}
+      <CardContent>{body}</CardContent>
+    </Card>
   );
 }
 
@@ -396,6 +288,7 @@ export function DispatchRunDetailPage() {
     clearResendSelection(),
   );
   const [pendingOpen, setPendingOpen] = useState<boolean | null>(null);
+  const [alreadySentOpen, setAlreadySentOpen] = useState(false);
   const confirmInFlight = useRef(false);
   const resendInFlight = useRef(false);
   const selectionSyncedFor = useRef<string | null>(null);
@@ -410,6 +303,8 @@ export function DispatchRunDetailPage() {
     run?.items,
   );
   const readySummary = summarizeReadyToSend(readyToSend);
+  const { invoices: readyInvoices, reps: readyReps } =
+    partitionByDocumentKind(readyToSend);
   const recipientsByClient =
     run?.recipientsByClient ?? EMPTY_RECIPIENT_GROUPS;
 
@@ -436,7 +331,6 @@ export function DispatchRunDetailPage() {
   const showConfirm = canConfirmSend(run?.status ?? "", counts.readyTotalCount);
   const terminal = isDispatchRunTerminal(run?.status ?? "");
   const inFlight = isDispatchRunInFlight(run?.status ?? "");
-  const editableRecipients = Boolean(canExecute && showConfirm && !terminal);
   const editableResend = Boolean(
     canExecute && run?.status === "previewed" && !terminal,
   );
@@ -512,21 +406,13 @@ export function DispatchRunDetailPage() {
 
   useEffect(() => {
     setPendingOpen(null);
+    setAlreadySentOpen(false);
   }, [run?.id, run?.previewedAt]);
 
-  const periodTitle = run
-    ? formatDispatchRunTitle(run)
+  const periodCutLabel = run
+    ? formatDispatchPeriodCutLabel(run)
     : copy.titleFallback;
-  const periodInclusiveCopy = run
-    ? formatDispatchPeriodInclusiveCopy(run)
-    : null;
 
-  const decisionSummaryText = copy.decisionSummary(
-    readySummary.invoiceCount,
-    readySummary.repCount,
-    readySummary.clientCount,
-    pendingStamp.length,
-  );
   const onlyRepsBatch =
     readySummary.invoiceCount === 0 && readySummary.repCount > 0;
 
@@ -557,7 +443,6 @@ export function DispatchRunDetailPage() {
         listedRecipientGroups,
         selection,
       );
-      // Envío normal: nunca forceResend (D3 / SDD §5.5).
       await confirmMutation.mutateAsync({
         id,
         payload: { recipientOverrides },
@@ -665,6 +550,36 @@ export function DispatchRunDetailPage() {
   const showEmptyScheduledAlert =
     isEmptyScheduledCancelled(run.origin, run.status) &&
     counts.readyTotalCount === 0;
+  const isCompleted = run.status === "completed";
+  const showSendInCutBar = Boolean(canExecute && showConfirm && !terminal);
+  const showResendOutline = Boolean(
+    canExecute &&
+      editableResend &&
+      canConfirmForceResend(run.status, selectedResendCount),
+  );
+
+  const moreActions = canExecute ? (
+    <DispatchRunActions
+      variant="buttons"
+      omitPrimary
+      runId={run.id}
+      status={run.status}
+      readyCount={counts.readyTotalCount}
+      selectedResendCount={selectedResendCount}
+      hasZeroSelected={hasZeroSelected}
+      hasResendZeroSelected={hasResendZeroSelected}
+      isPending={isPending}
+      previewPending={previewMutation.isPending}
+      onRefresh={() => void handleRefresh()}
+      onResend={() => {
+        setResendError(null);
+        setResendOpen(true);
+      }}
+      onCancelled={() => {
+        /* stay on detalle */
+      }}
+    />
+  ) : null;
 
   return (
     <>
@@ -677,7 +592,7 @@ export function DispatchRunDetailPage() {
         iconVariant: "primary",
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
-            <span>{periodTitle}</span>
+            <span>{copy.titleFallback}</span>
             <DispatchRunStatusBadge
               status={run.status}
               origin={run.origin}
@@ -686,86 +601,37 @@ export function DispatchRunDetailPage() {
             />
             <DispatchRunOriginBadge
               origin={run.origin}
+              glossary="detail"
               className="text-xs font-medium"
             />
           </span>
         ),
-        subtitle: (
-          <div className="space-y-1">
-            <p>{copy.subtitleClosedCut(schemeName)}</p>
-            {periodInclusiveCopy ? (
-              <p>
-                {periodInclusiveCopy} {copy.datesFixedNote}
-              </p>
-            ) : (
-              <p>{copy.datesFixedNote}</p>
-            )}
-          </div>
-        ),
-        actions: canExecute ? (
-          <DispatchRunActions
-            variant="buttons"
-            runId={run.id}
-            status={run.status}
-            readyCount={counts.readyTotalCount}
-            selectedResendCount={selectedResendCount}
-            hasZeroSelected={hasZeroSelected}
-            hasResendZeroSelected={hasResendZeroSelected}
-            isPending={isPending}
-            previewPending={previewMutation.isPending}
-            onRefresh={() => void handleRefresh()}
-            onConfirm={() => {
-              setConfirmError(null);
-              setConfirmOpen(true);
-            }}
-            onResend={() => {
-              setResendError(null);
-              setResendOpen(true);
-            }}
-            onCancelled={() => {
-              /* stay on detalle: estado pasa a Cancelada */
-            }}
-          />
-        ) : undefined,
       }}
-      stats={[
-        {
-          title: copy.counts.readyInvoices,
-          value: readySummary.invoiceCount,
-          icon: <Mail className="h-4 w-4" />,
-          tone: "success",
-        },
-        {
-          title: copy.counts.readyReps,
-          value: readySummary.repCount,
-          icon: <Mail className="h-4 w-4" />,
-          tone: "success",
-        },
-        {
-          title: copy.counts.pendingStamp,
-          value: pendingStamp.length,
-          icon: <AlertTriangle className="h-4 w-4" />,
-          tone: "warning",
-        },
-        {
-          title: copy.counts.alreadySent,
-          value: alreadySentCount,
-          icon: <CheckCircle2 className="h-4 w-4" />,
-          tone: "neutral",
-        },
-      ]}
     >
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">
-            {decisionSummaryText}
-          </p>
-          {onlyRepsBatch ? (
-            <p className="text-xs text-muted-foreground">
-              {copy.onlyRepsInBatch}
-            </p>
-          ) : null}
-        </div>
+      <div className="space-y-5">
+        <Alert variant="info" className="border-info/25 py-2">
+          <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+          <AlertDescription className="text-xs leading-snug">
+            {copy.i1Banner}
+          </AlertDescription>
+        </Alert>
+
+        <DispatchRunCutBar
+          periodLabel={periodCutLabel}
+          frequencyName={schemeName}
+          invoiceCount={readySummary.invoiceCount}
+          repCount={readySummary.repCount}
+          pendingCount={pendingStamp.length}
+          showPendingRail={!pendingCardOpen}
+          showSend={showSendInCutBar}
+          sendDisabled={confirmDisabled}
+          isPending={isPending}
+          onSend={() => {
+            setConfirmError(null);
+            setConfirmOpen(true);
+          }}
+          secondaryActions={moreActions}
+        />
 
         {showEmptyScheduledAlert ? (
           <DetailAlertCard
@@ -798,24 +664,6 @@ export function DispatchRunDetailPage() {
           >
             <p>{copy.sendingBanner}</p>
           </DetailAlertCard>
-        ) : null}
-
-        {editableRecipients && hasZeroSelected ? (
-          <DetailAlertCard
-            severity="critical"
-            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
-            title={copy.recipients.zeroSelected}
-          />
-        ) : null}
-
-        {editableResend &&
-        selectedResendCount > 0 &&
-        hasResendZeroSelected ? (
-          <DetailAlertCard
-            severity="critical"
-            icon={<AlertTriangle className="h-5 w-5" aria-hidden />}
-            title={copy.resendConfirm.zeroSelected}
-          />
         ) : null}
 
         {!showConfirm &&
@@ -903,265 +751,244 @@ export function DispatchRunDetailPage() {
           <DispatchRunSendResults rows={sendResultRows} />
         ) : null}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{copy.buckets.readyTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ReadyToSendRows
-              items={readyToSend}
-              recipientsByClient={recipientsByClient}
-              clientReceipts={
-                editableRecipients ? null : run.clientReceipts
-              }
-              selection={selection}
-              editable={editableRecipients}
-              collapseGroups={collapseReadyGroups}
-              onToggleRecipient={(clientId, key, checked) => {
-                setSelection((prev) =>
-                  toggleRecipientKey(prev, clientId, key, checked),
-                );
-              }}
-            />
-          </CardContent>
-        </Card>
+        <TypedReadySection
+          title={copy.sections.invoices}
+          anchor={copy.sections.invoicesAnchor}
+          emptyCopy={copy.sections.emptyReadyInvoices}
+          items={readyInvoices}
+          quietCount={
+            isCompleted
+              ? copy.counts.quietIncluded(readyInvoices.length)
+              : copy.counts.quietReady(readyInvoices.length)
+          }
+          collapsible={isCompleted}
+          defaultOpen={!isCompleted}
+        />
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <Collapsible
-              open={pendingCardOpen}
-              onOpenChange={setPendingOpen}
-            >
-              <CardHeader className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle>{copy.buckets.pendingTitle}</CardTitle>
-                  {collapsePendingByDefault || pendingStamp.length > 0 ? (
-                    <CollapsibleTrigger asChild>
-                      <Button type="button" variant="ghost" size="sm">
-                        {pendingCardOpen
-                          ? copy.buckets.collapsePending
-                          : copy.buckets.expandPending}
-                      </Button>
-                    </CollapsibleTrigger>
-                  ) : null}
+        <TypedReadySection
+          title={copy.sections.reps}
+          anchor={copy.sections.repsAnchor}
+          emptyCopy={copy.sections.emptyReadyReps}
+          emptyHint={copy.sections.emptyReadyRepsHint}
+          items={readyReps}
+          quietCount={
+            isCompleted
+              ? copy.counts.quietIncluded(readyReps.length)
+              : copy.counts.quietReady(readyReps.length)
+          }
+          collapsible={isCompleted}
+          defaultOpen={!isCompleted}
+        />
+
+        {pendingStamp.length > 0 ? (
+          <Collapsible
+            open={pendingCardOpen}
+            onOpenChange={setPendingOpen}
+          >
+            <div className="rounded-lg border border-border bg-card">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {copy.buckets.pendingTitle}
+                  </p>
+                  {!pendingCardOpen ? (
+                    <p className="text-xs text-muted-foreground">
+                      {copy.buckets.pendingCollapsedSummary(pendingStamp.length)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {copy.buckets.pendingNote}
+                    </p>
+                  )}
                 </div>
-                {!pendingCardOpen && pendingStamp.length > 0 ? (
-                  <CardDescription>
-                    {copy.buckets.pendingCollapsedSummary(pendingStamp.length)}
-                  </CardDescription>
-                ) : pendingStamp.length > 0 ? (
-                  <CardDescription>{copy.buckets.pendingNote}</CardDescription>
-                ) : null}
-              </CardHeader>
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm">
+                    {pendingCardOpen
+                      ? copy.buckets.collapsePending
+                      : copy.buckets.expandPending}
+                    <ChevronDown
+                      className={`ml-1 h-4 w-4 transition-transform ${pendingCardOpen ? "rotate-180" : ""}`}
+                      aria-hidden
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
               <CollapsibleContent>
-                <CardContent>
+                <div className="border-t border-border px-3 py-3">
                   <PendingStampRows
                     items={pendingStamp}
                     canStamp={canExecute && !terminal}
                     runId={run.id}
                     collapseGroups={collapseReadyGroups}
                   />
-                </CardContent>
+                </div>
               </CollapsibleContent>
-            </Collapsible>
-          </Card>
+            </div>
+          </Collapsible>
+        ) : null}
 
-          {alreadySentCount > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>{copy.alreadySent.title}</CardTitle>
-                <CardDescription>{copy.alreadySent.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DispatchRunAlreadySentSection
-                  items={alreadySent}
-                  recipientsByClient={recipientsByClient}
-                  clientReceipts={
-                    editableResend ? undefined : run.clientReceipts
-                  }
-                  resendSelection={resendSelection}
-                  recipientSelection={selection}
-                  editable={editableResend}
-                  listedClientIds={listedClientIds}
-                  collapseGroups={collapseAlreadySentGroups}
-                  onToggleInvoice={(invoiceId, checked) => {
-                    setResendSelection((prev) =>
-                      toggleInvoiceId(prev, invoiceId, checked),
-                    );
-                  }}
-                  onTogglePayment={(paymentId, checked) => {
-                    setResendSelection((prev) =>
-                      togglePaymentId(prev, paymentId, checked),
-                    );
-                  }}
-                  onSelectAll={() => {
-                    setResendSelection(selectAllSkippedDocuments(alreadySent));
-                  }}
-                  onClearSelection={() => {
-                    setResendSelection(clearResendSelection());
-                  }}
-                  onSelectClient={(clientId) => {
-                    setResendSelection((prev) =>
-                      selectClientSkippedDocuments(
-                        alreadySent,
-                        clientId,
-                        prev,
-                      ),
-                    );
-                  }}
-                  onToggleRecipient={(clientId, key, checked) => {
-                    setSelection((prev) =>
-                      toggleRecipientKey(prev, clientId, key, checked),
-                    );
-                  }}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
+        {alreadySentCount > 0 ? (
+          <Collapsible
+            open={alreadySentOpen}
+            onOpenChange={setAlreadySentOpen}
+          >
+            <div className="rounded-lg border border-border bg-card">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {copy.alreadySent.title}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      {copy.alreadySent.collapsedHint(alreadySentCount)}
+                    </span>
+                  </p>
+                  {alreadySentOpen ? (
+                    <p className="text-xs text-muted-foreground">
+                      {copy.alreadySent.description}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {showResendOutline && alreadySentOpen ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        isPending ||
+                        selectedResendCount < 1 ||
+                        hasResendZeroSelected
+                      }
+                      onClick={() => {
+                        setResendError(null);
+                        setResendOpen(true);
+                      }}
+                    >
+                      {copy.resendCta}
+                    </Button>
+                  ) : null}
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" size="sm">
+                      {alreadySentOpen
+                        ? copy.alreadySent.collapse
+                        : copy.alreadySent.expand}
+                      <ChevronDown
+                        className={`ml-1 h-4 w-4 transition-transform ${alreadySentOpen ? "rotate-180" : ""}`}
+                        aria-hidden
+                      />
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              <CollapsibleContent>
+                <div className="border-t border-border px-3 py-3">
+                  <DispatchRunAlreadySentSection
+                    items={alreadySent}
+                    recipientsByClient={recipientsByClient}
+                    clientReceipts={
+                      editableResend ? undefined : run.clientReceipts
+                    }
+                    resendSelection={resendSelection}
+                    recipientSelection={selection}
+                    editable={editableResend}
+                    listedClientIds={listedClientIds}
+                    collapseGroups={collapseAlreadySentGroups}
+                    onToggleInvoice={(invoiceId, checked) => {
+                      setResendSelection((prev) =>
+                        toggleInvoiceId(prev, invoiceId, checked),
+                      );
+                    }}
+                    onTogglePayment={(paymentId, checked) => {
+                      setResendSelection((prev) =>
+                        togglePaymentId(prev, paymentId, checked),
+                      );
+                    }}
+                    onSelectAll={() => {
+                      setResendSelection(selectAllSkippedDocuments(alreadySent));
+                    }}
+                    onClearSelection={() => {
+                      setResendSelection(clearResendSelection());
+                    }}
+                    onSelectClient={(clientId) => {
+                      setResendSelection((prev) =>
+                        selectClientSkippedDocuments(
+                          alreadySent,
+                          clientId,
+                          prev,
+                        ),
+                      );
+                    }}
+                    onToggleRecipient={(clientId, key, checked) => {
+                      setSelection((prev) =>
+                        toggleRecipientKey(prev, clientId, key, checked),
+                      );
+                    }}
+                  />
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        ) : null}
+
+        <p className="max-w-prose text-xs text-muted-foreground">
+          {copy.footNote}
+        </p>
       </div>
 
-      <AlertDialog
+      <DispatchRunConfirmSheet
         open={confirmOpen}
         onOpenChange={(open) => {
           setConfirmOpen(open);
           if (!open) setConfirmError(null);
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.confirm.title}</AlertDialogTitle>
-            <AlertDialogDescription>{copy.confirm.emailNote}</AlertDialogDescription>
-          </AlertDialogHeader>
+        mode="send"
+        invoiceCount={readySummary.invoiceCount}
+        repCount={readySummary.repCount}
+        clientCount={readySummary.clientCount}
+        recipientCount={selectedRecipientCount}
+        pendingStampCount={counts.pendingStampCount}
+        onlyRepsBatch={onlyRepsBatch}
+        recipientGroups={listedRecipientGroups}
+        selection={selection}
+        onToggleRecipient={(clientId, key, checked) => {
+          setSelection((prev) =>
+            toggleRecipientKey(prev, clientId, key, checked),
+          );
+        }}
+        hasZeroSelected={hasZeroSelected}
+        errorMessage={confirmError}
+        isPending={confirmMutation.isPending}
+        confirmDisabled={confirmDisabled}
+        onConfirm={() => {
+          void handleConfirm();
+        }}
+      />
 
-          <div className="space-y-3 text-sm">
-            <div className="rounded-lg border bg-muted/40 px-4 py-3">
-              <p className="font-medium">
-                {copy.confirm.summaryClients(readySummary.clientCount)}
-                {" · "}
-                {copy.confirm.summaryInvoices(readySummary.invoiceCount)}
-                {" · "}
-                {copy.confirm.summaryReps(readySummary.repCount)}
-                {" · "}
-                {copy.confirm.summaryRecipients(selectedRecipientCount)}
-              </p>
-              {onlyRepsBatch ? (
-                <p className="mt-2 text-muted-foreground">
-                  {copy.onlyRepsInBatch}
-                </p>
-              ) : null}
-              <p className="mt-2 text-muted-foreground">
-                {copy.confirm.recipientsNote}
-              </p>
-            </div>
-
-            {counts.pendingStampCount > 0 ? (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>{copy.confirm.pendingWarningTitle}</AlertTitle>
-                <AlertDescription>{copy.confirm.pendingWarning}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            {confirmError || hasZeroSelected ? (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>
-                  {confirmError ?? copy.recipients.zeroSelected}
-                </AlertTitle>
-              </Alert>
-            ) : null}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>
-              {copy.confirm.cancel}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={confirmDisabled}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleConfirm();
-              }}
-            >
-              {confirmMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {copy.confirm.submit}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
+      <DispatchRunConfirmSheet
         open={resendOpen}
         onOpenChange={(open) => {
           setResendOpen(open);
           if (!open) setResendError(null);
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.resendConfirm.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {copy.resendConfirm.emailNote}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-3 text-sm">
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{copy.resendConfirm.riskNote}</AlertDescription>
-            </Alert>
-
-            <div className="rounded-lg border bg-muted/40 px-4 py-3">
-              <p className="font-medium">
-                {copy.resendConfirm.summaryClients(resendClientIds.length)}
-                {" · "}
-                {copy.resendConfirm.summaryInvoices(
-                  resendSelection.invoiceIds.length,
-                )}
-                {" · "}
-                {copy.resendConfirm.summaryReps(
-                  resendSelection.paymentIds.length,
-                )}
-                {" · "}
-                {copy.resendConfirm.summaryRecipients(resendRecipientCount)}
-              </p>
-              <p className="mt-2 text-muted-foreground">
-                {copy.resendConfirm.recipientsNote}
-              </p>
-            </div>
-
-            {resendError || hasResendZeroSelected ? (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>
-                  {resendError ?? copy.resendConfirm.zeroSelected}
-                </AlertTitle>
-              </Alert>
-            ) : null}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>
-              {copy.resendConfirm.cancel}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={resendDisabled}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleResendConfirm();
-              }}
-            >
-              {confirmMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {copy.resendConfirm.submit}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        mode="resend"
+        invoiceCount={resendSelection.invoiceIds.length}
+        repCount={resendSelection.paymentIds.length}
+        clientCount={resendClientIds.length}
+        recipientCount={resendRecipientCount}
+        recipientGroups={resendRecipientGroups}
+        selection={selection}
+        onToggleRecipient={(clientId, key, checked) => {
+          setSelection((prev) =>
+            toggleRecipientKey(prev, clientId, key, checked),
+          );
+        }}
+        hasZeroSelected={hasResendZeroSelected}
+        errorMessage={resendError}
+        isPending={confirmMutation.isPending}
+        confirmDisabled={resendDisabled}
+        onConfirm={() => {
+          void handleResendConfirm();
+        }}
+      />
     </DetailPageShell>
 
     <FinanceDispatchCreateRunDialog

@@ -6,7 +6,7 @@ export const dispatchRunsCopy = {
     description:
       "Mandar por correo facturas y comprobantes de pago (REP) ya emitidos. Puedes mandar ahora o armar el lote del periodo.",
     bucketsAriaLabel: "Etapas de envíos",
-    armPeriodCta: "Armar envío del periodo",
+    armPeriodCta: "Armar lista del periodo",
     buckets: {
       pending: "Pendientes",
       sent: "Enviadas",
@@ -16,9 +16,9 @@ export const dispatchRunsCopy = {
       pending: "Documentos por mandar o reenviar",
       sent: "Ya se mandaron por correo",
       period:
-        "Envíos armados o enviados del corte (facturas y comprobantes de pago REP)",
+        "Listas armadas o enviadas del corte (facturas y comprobantes de pago REP)",
     },
-    periodLinkAria: "Ver envíos del periodo",
+    periodLinkAria: "Ver correo del periodo",
     relatedConfig: {
       label: "Ver registro de facturas",
       description: "Listado completo de facturas emitidas.",
@@ -45,7 +45,8 @@ export const dispatchRunsCopy = {
       ariaLabel: "Filtrar por tipo de documento",
     },
     pending: {
-      searchPlaceholder: "Buscar por folio o cliente…",
+      searchPlaceholder: "Folio o cliente",
+      searchAriaLabel: "Buscar por folio o cliente",
       entityLabelPlural: "documentos",
       loadErrorTitle: "No se pudo cargar la cola",
       loadError: "Error al cargar los documentos pendientes de envío",
@@ -76,7 +77,8 @@ export const dispatchRunsCopy = {
     },
     /** Cola Enviadas del workbench. */
     sent: {
-      searchPlaceholder: "Buscar por folio o cliente…",
+      searchPlaceholder: "Folio o cliente",
+      searchAriaLabel: "Buscar por folio o cliente",
       entityLabelPlural: "documentos",
       loadErrorTitle: "No se pudo cargar la cola",
       loadError: "Error al cargar los documentos enviados",
@@ -198,10 +200,10 @@ export const dispatchRunsCopy = {
     },
   },
   tab: {
-    title: "Envíos del periodo",
+    title: "Correo del periodo",
     subtitle:
-      "Revisa el lote, confirma y manda un correo por cliente con facturas y comprobantes de pago (REP) del periodo. No genera documentos nuevos. Si el automático no encontró listos, arma el envío cuando ya haya documentos listos.",
-    executeCta: "Armar envío del periodo",
+      "Arma la lista del último corte, revisa Facturas y Comprobantes de pago, y manda un correo por cliente. No genera documentos nuevos.",
+    executeCta: "Armar lista del periodo",
     backToWorkbench: "Volver a envíos",
     /** Atajo page-local (no ListPageShell.relatedConfig) → Configuración. */
     relatedConfig: {
@@ -210,8 +212,19 @@ export const dispatchRunsCopy = {
         "Define cada cuánto se agrupa el correo a cada cliente.",
       href: "/settings/billing-schemes",
     },
-    entityLabelPlural: "envíos",
-    loadError: "Error al cargar los envíos del periodo",
+    entityLabelPlural: "listas",
+    loadError: "Error al cargar el correo del periodo",
+    /** Checklist Operate dismissible (localStorage). */
+    checklist: {
+      title: "Para mandar el correo del periodo",
+      steps: [
+        "Frecuencia de envío",
+        "Asignar en el cliente",
+        "Armar el día de corte",
+      ] as const,
+      dismiss: "Entendido",
+      dismissAriaLabel: "Cerrar guía rápida",
+    },
     filters: {
       showFilters: "Filtros",
       statusLabel: "Estado",
@@ -223,36 +236,26 @@ export const dispatchRunsCopy = {
       all: "Todos",
       chipStatus: (label: string) => `Estado: ${label}`,
       chipScheme: (name: string) => `Frecuencia: ${name}`,
-      /** Default on: oculta scheduled+cancelled (evaluación sin envío). */
-      hideEmptyScheduledOn: "Ocultar evaluaciones sin envío",
-      hideEmptyScheduledOff: "Incluir evaluaciones sin envío",
-      hideEmptyScheduledAria: "Ocultar evaluaciones automáticas sin envío",
+      /** Default on: oculta scheduled+cancelled (automático sin envío). */
+      hideEmptyScheduledOn: "Ocultar automáticos sin envío",
+      hideEmptyScheduledOff: "Incluir automáticos sin envío",
+      hideEmptyScheduledAria: "Ocultar envíos automáticos sin documentos",
     },
     empty: {
-      title: "Aún no hay envíos del periodo",
+      title: "Aún no hay listas del periodo",
       description:
-        "Primero define cada cuánto y asígnalo en los clientes.",
-      recorteTitle: "Ningún envío con estos filtros",
+        "Cuando armes el corte o el automático encuentre documentos listos, aparecerán aquí.",
+      noSchemesTitle: "Aún no hay frecuencias de envío",
+      noSchemesDescription:
+        "Agrupa y manda por correo facturas y comprobantes de pago ya emitidos, según el ritmo de cada cliente.",
+      noSchemesCta: "Crear frecuencia de envío",
+      autoEmptyTitle: "El envío automático no mandó nada",
+      autoEmptyDescription:
+        "En el corte no había facturas ni comprobantes de pago listos. Cuando ya estén emitidos, arma la lista del periodo. El automático no vuelve a intentar el mismo corte.",
+      recorteTitle: "Ninguna lista con estos filtros",
       withFilters:
-        "No hay envíos con los filtros actuales. Prueba otro estado o frecuencia de envío.",
+        "No hay listas con los filtros actuales. Prueba otro estado o frecuencia de envío.",
       clearFilters: "Limpiar filtros",
-      onboardingTitle: "Antes del primer envío",
-      onboardingSteps: [
-        {
-          label: "Crea una frecuencia de envío.",
-          href: "/settings/billing-schemes",
-          linkLabel: "Crear frecuencias",
-        },
-        {
-          label: "En cada cliente, elige cada cuánto y revisa el correo.",
-          href: "/clients",
-          linkLabel: "Ir a clientes",
-        },
-        {
-          label:
-            "Arma el envío del periodo (o activa que se mande solo).",
-        },
-      ] as const,
     },
     table: {
       period: "Periodo",
@@ -281,14 +284,14 @@ export const dispatchRunsCopy = {
       scheduled: "Automático",
     },
     createDialog: {
-      title: "Armar envío del periodo",
+      title: "Armar lista del periodo",
       description:
-        "Se arma el último corte ya cerrado de esa frecuencia. No es el periodo en curso y las fechas no se eligen a mano. Tras una evaluación automática sin listos, este es el camino si generaste las facturas después. En semanal, el siguiente viernes no rescata el periodo previo.",
+        "Se arma el último corte ya cerrado de esa frecuencia. No es el periodo en curso y las fechas no se eligen a mano. Si el automático no encontró listos y ya emitiste documentos, arma la lista aquí. En semanal, el siguiente corte no rescata el periodo previo.",
       schemeLabel: "Frecuencia de envío",
       schemeHint:
-        "Semanal, cortes del mes o mensual. El lote usa el corte que ya cerró, no el que está corriendo.",
+        "Semanal, cortes del mes o mensual. La lista usa el corte que ya cerró, no el que está corriendo.",
       schemeSummaryLabel: "Resumen de la frecuencia",
-      previewTitle: "Qué entra en este lote",
+      previewTitle: "Qué entra en esta lista",
       previewEmpty: "Elige una frecuencia para ver qué días entran.",
       previewLoading: "Calculando el último corte cerrado…",
       previewError: "No se pudo calcular el corte.",
@@ -296,13 +299,14 @@ export const dispatchRunsCopy = {
       submit: "Armar lista",
       cancel: "Cancelar",
       noSchemes: "No hay frecuencias de envío activas.",
-      settingsLink: "Crea una en Envíos del periodo",
+      settingsLink: "Crear frecuencia de envío",
+      settingsHref: "/settings/billing-schemes",
       alreadyOpen: {
-        title: "Ya hay un lote de este corte",
+        title: "Ya hay una lista de este corte",
         bodyOnList:
-          "Este corte ya tiene un envío Lista para revisar. No se armó otro. Ábrelo en la lista de esta pantalla.",
+          "Este corte ya tiene una lista en «Lista para revisar». No se armó otra. Ábrela en esta pantalla.",
         bodyFromWorkbench:
-          "Este corte ya tiene un envío Lista para revisar. No se armó otro. Entra a Por periodo y ábrelo en la lista.",
+          "Este corte ya tiene una lista en «Lista para revisar». No se armó otra. Entra a Correo del periodo y ábrela.",
         dismiss: "Entendido",
       },
     },
@@ -320,7 +324,7 @@ export const dispatchRunsCopy = {
   emptyScheduled: {
     label: "Sin documentos listos",
     tooltip:
-      "Evaluación automática: no había facturas ni comprobantes de pago listos al corte",
+      "Envío automático: no había facturas ni comprobantes de pago listos al corte",
   },
   itemStatus: {
     listed: "En lista",
@@ -334,8 +338,8 @@ export const dispatchRunsCopy = {
     titleCalendar: (inclusiveStart: string, inclusiveEnd: string) =>
       `Lista del periodo · ${inclusiveStart}–${inclusiveEnd}`,
     titleEvent: (hours: number) => `Lista del periodo · últimas ${hours} h`,
-    pageSubtitle:
-      "Revisa lo listo y manda un correo por cliente con las secciones Facturas y/o Comprobantes de pago que correspondan a este corte.",
+    /** Lead opcional ≤1 línea; detalle pulido omite subtítulo (CutBar + anclas bastan). */
+    pageSubtitle: "",
     subtitleClosedCut: (schemeName: string) =>
       `Último corte cerrado · ${schemeName}`,
     loadErrorTitle: "No se pudo cargar la lista del periodo",
@@ -427,7 +431,13 @@ export const dispatchRunsCopy = {
       readyInvoices: "Facturas",
       readyReps: "Comprobantes",
       alreadySent: "Ya enviados",
+      /** @deprecated pulido D5 — no badge «Listos»; usar quietCount. */
       readyBadge: "Listos",
+      quietReady: (count: number) =>
+        count === 1 ? "1 listo" : `${count} listos`,
+      /** Completada: sin «Listos»; evidencia de incluidos. */
+      quietIncluded: (count: number) =>
+        count === 1 ? "1 incluido" : `${count} incluidos`,
     },
     skippedNote: (count: number) =>
       count === 1
@@ -461,6 +471,17 @@ export const dispatchRunsCopy = {
         "No hay comprobantes de pago timbrados en este periodo.",
       emptyReadyRepsHint:
         "Si faltan, revisa Cobros / pagos timbrados del cliente.",
+      expandDocs: "Ver documentos",
+      collapseDocs: "Ocultar documentos",
+    },
+    /** Columnas de tablas densas Facturas / Comprobantes (Mesa de corte). */
+    table: {
+      folio: "Folio",
+      client: "Cliente",
+      /** @deprecated pulido D7 — columna Id retirada de la tabla ancla. */
+      id: "Id",
+      status: "Estado",
+      readyStatus: "Listo",
     },
     buckets: {
       pendingTitle: "Faltan por generar",

@@ -1,7 +1,8 @@
 /**
  * Acciones de un envío del periodo.
  * - dropdown: listado (Abrir · Cancelar envío)
- * - buttons: detalle (Enviar por correo + Más)
+ * - buttons: detalle (Mandar + Más). Con `omitPrimary`, solo Más
+ *   (la CTA Mandar vive en DispatchRunCutBar).
  */
 
 import { useState } from "react";
@@ -55,6 +56,8 @@ interface DispatchRunActionsProps {
   onConfirm?: () => void;
   onResend?: () => void;
   onCancelled?: () => void;
+  /** Mesa de corte: la primaria Mandar está en la franja sticky. */
+  omitPrimary?: boolean;
 }
 
 export function DispatchRunActions({
@@ -73,6 +76,7 @@ export function DispatchRunActions({
   onConfirm,
   onResend,
   onCancelled,
+  omitPrimary = false,
 }: DispatchRunActionsProps) {
   const { hasPermission } = usePermissions();
   const canExecute = hasPermission("invoices", "execute");
@@ -81,13 +85,14 @@ export function DispatchRunActions({
 
   const showCancel = canExecute && canCancelDispatchRun(status);
   const showRefresh = canExecute && canRefreshPreview(status);
-  const showConfirm = canExecute && canConfirmSend(status, readyCount);
-  const showResend =
+  const canSend = canExecute && canConfirmSend(status, readyCount);
+  const canResend =
     canExecute && canConfirmForceResend(status, selectedResendCount);
   const busy = isPending || cancelMutation.isPending;
-  /** D13: una sola primaria sólida — Enviar, o Reenviar si no hay envío normal. */
-  const primaryIsResend = !showConfirm && showResend;
-  const menuHasResend = showResend && showConfirm;
+  /** Primaria sólida en header (omitPrimary → vive en CutBar / sección Ya enviados). */
+  const showConfirm = !omitPrimary && canSend;
+  const primaryIsResend = !omitPrimary && !canSend && canResend;
+  const menuHasResend = canResend && (omitPrimary || canSend);
   const hasMore = showRefresh || showCancel || menuHasResend;
 
   const handleCancelConfirm = async () => {

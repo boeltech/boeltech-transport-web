@@ -16,7 +16,7 @@ export function DispatchRunItemStatusBadge({ status }: { status: string }) {
       status as keyof typeof dispatchRunsCopy.itemStatus
     ] ?? status;
   return (
-    <Badge variant={variant} className="shrink-0">
+    <Badge variant={variant} tone="soft" className="w-fit shrink-0">
       {label}
     </Badge>
   );

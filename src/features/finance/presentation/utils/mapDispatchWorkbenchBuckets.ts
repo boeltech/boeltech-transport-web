@@ -15,7 +15,7 @@ export interface MapDispatchWorkbenchBucketsParams {
   pendingCount?: number;
   /** Total de documentos tipados enviados (respeta filtro Tipo). */
   sentCount?: number;
-  /** Total de envíos del periodo (`pagination.total`). */
+  /** Total de listas en Correo del periodo (`pagination.total`). */
   periodCount?: number;
 }
 

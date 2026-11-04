@@ -526,7 +526,7 @@ describe("finance-dispatch-workbench smoke (F5)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("?tab=history redirige a envíos del periodo", () => {
+  it("?tab=history redirige a Correo del periodo", () => {
     render(
       <TestProviders initialEntry="/finance/dispatch?tab=history">
         <FinanceDispatchPage />

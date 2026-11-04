@@ -343,9 +343,10 @@ describe("dispatchRunPreviewBuckets", () => {
     expect(shouldCollapseClientGroups(10, 6)).toBe(true);
   });
 
-  it("shouldCollapsePendingCard when pending exceeds ready", () => {
-    expect(shouldCollapsePendingCard(5, 10)).toBe(false);
-    expect(shouldCollapsePendingCard(11, 10)).toBe(true);
+  it("shouldCollapsePendingCard when hay listos (pulido D4)", () => {
+    expect(shouldCollapsePendingCard(5, 10)).toBe(true);
+    expect(shouldCollapsePendingCard(11, 0)).toBe(false);
+    expect(shouldCollapsePendingCard(0, 1)).toBe(true);
   });
 
   it("shouldShowAttachmentsHint when avg folios per client > 4 (ZIP)", () => {

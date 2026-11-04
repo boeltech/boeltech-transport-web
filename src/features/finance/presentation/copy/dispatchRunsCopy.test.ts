@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dispatchRunsCopy } from "./dispatchRunsCopy";
 
 const forbidden =
-  /corrida|digest|despachar|encolar|esquema de facturación|timbrar|timbrad|cadence|ancla|exclusive|actual_arrival/i;
+  /corrida|digest|despachar|encolar|esquema de facturación|timbrar|timbrad|cadence|ancla|exclusive|actual_arrival|billing_scheme|force_resend|\bscheduled\b/i;
 
 function collectStrings(value: unknown, acc: string[] = []): string[] {
   if (typeof value === "string") {
@@ -38,17 +38,33 @@ describe("dispatchRunsCopy glossary", () => {
     expect(blob).not.toMatch(/PDF\/XML adjuntos/i);
   });
 
-  it("onboarding del periodo manda el paso 1 a frecuencias en settings", () => {
-    const steps = dispatchRunsCopy.tab.empty.onboardingSteps;
-    expect(steps).toHaveLength(3);
-    expect(steps[0]?.label).toMatch(/frecuencia de envío/i);
-    expect(steps[0]?.href).toBe("/settings/billing-schemes");
-    expect(steps[0]?.linkLabel).toBe("Crear frecuencias");
-    expect(steps[1]?.href).toBe("/clients");
-    expect(steps[2]?.label).toMatch(/Arma el envío del periodo/i);
-    expect(JSON.stringify(steps[2])).not.toMatch(/Pendientes/i);
+  it("Correo del periodo: Armar lista + empty sin frecuencias + checklist", () => {
+    expect(dispatchRunsCopy.tab.title).toBe("Correo del periodo");
+    expect(dispatchRunsCopy.tab.executeCta).toBe("Armar lista del periodo");
+    expect(dispatchRunsCopy.tab.createDialog.title).toBe(
+      "Armar lista del periodo",
+    );
+    expect(dispatchRunsCopy.tab.empty.noSchemesCta).toBe(
+      "Crear frecuencia de envío",
+    );
+    expect(dispatchRunsCopy.tab.createDialog.settingsHref).toBe(
+      "/settings/billing-schemes",
+    );
+    expect(dispatchRunsCopy.tab.createDialog.settingsLink).toBe(
+      "Crear frecuencia de envío",
+    );
     expect(dispatchRunsCopy.tab.relatedConfig.href).toBe(
       "/settings/billing-schemes",
+    );
+    expect(dispatchRunsCopy.tab.checklist.steps).toHaveLength(3);
+    expect(dispatchRunsCopy.tab.checklist.steps[0]).toMatch(/Frecuencia/i);
+    expect(dispatchRunsCopy.tab.checklist.steps[1]).toMatch(/cliente/i);
+    expect(dispatchRunsCopy.tab.checklist.steps[2]).toMatch(/Armar/i);
+    expect(dispatchRunsCopy.tab.empty.autoEmptyTitle).toMatch(
+      /envío automático no mandó nada/i,
+    );
+    expect(dispatchRunsCopy.workbench.armPeriodCta).toBe(
+      "Armar lista del periodo",
     );
   });
 
@@ -73,7 +89,7 @@ describe("dispatchRunsCopy glossary", () => {
     expect(dispatchRunsCopy.tab.origin.manual).toBe("Manual");
     expect(dispatchRunsCopy.emptyScheduled.label).toBe("Sin documentos listos");
     expect(dispatchRunsCopy.tab.filters.hideEmptyScheduledOn).toMatch(
-      /Ocultar evaluaciones sin envío/,
+      /Ocultar automáticos sin envío/,
     );
     expect(dispatchRunsCopy.workbench.title).toBe("Envíos");
     expect(dispatchRunsCopy.workbench.typeFilter.showFilters).toBe("Filtros");
@@ -98,10 +114,7 @@ describe("dispatchRunsCopy glossary", () => {
       "Comprobante de pago (REP)",
     );
     expect(dispatchRunsCopy.workbench.bucketDescriptions.period).toMatch(
-      /Envíos armados o enviados del corte/,
-    );
-    expect(dispatchRunsCopy.tab.subtitle).toMatch(
-      /Si el automático no encontró listos/,
+      /Listas armadas o enviadas del corte/,
     );
     expect(dispatchRunsCopy.detail.emptyScheduledAlert.cta).toBe(
       "Armar lista del periodo",
@@ -120,7 +133,7 @@ describe("dispatchRunsCopy glossary", () => {
 
   it("copy del corte cerrado y del lote habla de enlace ZIP, no adjuntos", () => {
     expect(dispatchRunsCopy.tab.createDialog.title).toBe(
-      "Armar envío del periodo",
+      "Armar lista del periodo",
     );
     expect(dispatchRunsCopy.tab.createDialog.description).toMatch(
       /último corte ya cerrado/i,
@@ -140,13 +153,28 @@ describe("dispatchRunsCopy glossary", () => {
       /adjunto/i,
     );
     expect(dispatchRunsCopy.tab.createDialog.alreadyOpen.title).toBe(
-      "Ya hay un lote de este corte",
+      "Ya hay una lista de este corte",
     );
     expect(dispatchRunsCopy.tab.createDialog.alreadyOpen.bodyOnList).toMatch(
-      /Ábrelo en la lista/i,
+      /Ábrela en esta pantalla/i,
     );
     expect(
       dispatchRunsCopy.tab.createDialog.alreadyOpen.bodyFromWorkbench,
-    ).toMatch(/Por periodo/i);
+    ).toMatch(/Correo del periodo/i);
+  });
+
+  it("Envíos pending/sent: placeholder corto + aria espejo", () => {
+    expect(dispatchRunsCopy.workbench.pending.searchPlaceholder).toBe(
+      "Folio o cliente",
+    );
+    expect(dispatchRunsCopy.workbench.sent.searchPlaceholder).toBe(
+      "Folio o cliente",
+    );
+    expect(dispatchRunsCopy.workbench.pending.searchAriaLabel).toBe(
+      "Buscar por folio o cliente",
+    );
+    expect(dispatchRunsCopy.workbench.sent.searchAriaLabel).toBe(
+      "Buscar por folio o cliente",
+    );
   });
 });

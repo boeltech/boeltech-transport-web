@@ -1,10 +1,8 @@
 /**
- * Envíos del periodo: listado de lotes (`ListPageShell`).
+ * Correo del periodo: listado de listas (`ListPageShell`).
  *
- * Dictamen toolbar: sin search (el API no busca); estado y frecuencia en
- * `ListingFilterPanel`. Hide-empty fuera del panel. CRUD de frecuencias vive
- * en `/settings/billing-schemes` (atajo relatedConfig page-local). Armar no
- * es un recorte. Empty: onboarding XOR EmptyState filtrado (D10).
+ * Empty: sin frecuencias XOR auto vacío XOR virgin XOR recorte (D10).
+ * Checklist Operate dismissible aparte. Atajo a frecuencias page-local.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -28,6 +26,7 @@ import {
   FinanceDispatchRunsTable,
 } from "../components/FinanceDispatchRunsTable";
 import { FinanceDispatchCreateRunDialog } from "../components/FinanceDispatchCreateRunDialog";
+import { FinanceDispatchPeriodChecklist } from "../components/FinanceDispatchPeriodChecklist";
 import { FinanceDispatchPeriodFilters } from "../components/FinanceDispatchPeriodFilters";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { FINANCE_DISPATCH_DETAIL_PATH } from "../../application/financeRoutes";
@@ -48,38 +47,6 @@ function parseDispatchRunStatus(
     : undefined;
 }
 
-/** Checklist de primer uso — va dentro del EmptyState (D10), no junto a él. */
-function DispatchPeriodOnboardingBody() {
-  return (
-    <div className="mx-auto max-w-md text-left">
-      <p className="mb-3 text-sm text-muted-foreground">
-        {emptyCopy.description}
-      </p>
-      <ol className="list-decimal space-y-3 pl-5 text-sm">
-        {emptyCopy.onboardingSteps.map((step) => (
-          <li key={step.label}>
-            <span className="text-foreground">{step.label}</span>
-            {"href" in step &&
-            step.href &&
-            "linkLabel" in step &&
-            step.linkLabel ? (
-              <>
-                {" "}
-                <Link
-                  to={step.href}
-                  className="text-primary underline underline-offset-2"
-                >
-                  {step.linkLabel}
-                </Link>
-              </>
-            ) : null}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
 export function FinanceDispatchPeriodPage() {
   const navigate = useNavigate();
   const { from: returnTo } = useListQueueFromState();
@@ -88,7 +55,7 @@ export function FinanceDispatchPeriodPage() {
   const { hasPermission } = usePermissions();
   const canExecute = hasPermission("invoices", "execute");
 
-  const { data: schemes = [] } = useBillingSchemes();
+  const { data: schemes = [], isLoading: schemesLoading } = useBillingSchemes();
   const [createOpen, setCreateOpen] = useState(false);
   /** PRD D4: default on — exclude scheduled+cancelled via API (not client-only). */
   const [excludeEmptyScheduled, setExcludeEmptyScheduled] = useState(true);
@@ -136,8 +103,36 @@ export function FinanceDispatchPeriodPage() {
     });
 
   const runs = data?.data ?? [];
-  const showOnboardingEmpty =
+  const schemesReady = !schemesLoading;
+  const hasSchemes = schemesReady && schemes.length > 0;
+  const noSchemes = schemesReady && schemes.length === 0;
+  const listIdle =
     !isLoading && !filters.hasFilters && runs.length === 0;
+
+  /** Si el listado ocultó solo automáticos vacíos, sondear para empty de rescate. */
+  const shouldProbeEmptyScheduled =
+    hasSchemes && listIdle && excludeEmptyScheduled;
+
+  const emptyScheduledProbe = useBillingDispatchRuns({
+    page: 1,
+    limit: 5,
+    excludeEmptyScheduled: false,
+    enabled: shouldProbeEmptyScheduled,
+  });
+
+  const probeSettled =
+    !shouldProbeEmptyScheduled ||
+    (!emptyScheduledProbe.isLoading && !emptyScheduledProbe.isFetching);
+  const hasHiddenEmptyScheduled =
+    shouldProbeEmptyScheduled &&
+    probeSettled &&
+    (emptyScheduledProbe.data?.data?.length ?? 0) > 0;
+
+  const showNoSchemesEmpty = listIdle && noSchemes;
+  const showAutoEmpty =
+    listIdle && hasSchemes && probeSettled && hasHiddenEmptyScheduled;
+  const showVirginEmpty =
+    listIdle && hasSchemes && probeSettled && !hasHiddenEmptyScheduled;
 
   useQueryErrorToast({
     isError,
@@ -166,15 +161,89 @@ export function FinanceDispatchPeriodPage() {
     setCreateOpen(true);
   }, []);
 
+  const handleCreateScheme = useCallback(() => {
+    navigate(copy.relatedConfig.href);
+  }, [navigate]);
+
+  const primaryAction =
+    canExecute && noSchemes
+      ? {
+          label: emptyCopy.noSchemesCta,
+          icon: <Plus className="h-4 w-4" />,
+          onClick: handleCreateScheme,
+          visible: true as const,
+        }
+      : {
+          label: copy.executeCta,
+          icon: <Plus className="h-4 w-4" />,
+          onClick: handleOpenCreate,
+          visible: canExecute,
+        };
+
+  const emptyState = filters.hasFilters
+    ? {
+        icon: <History className="h-10 w-10 text-muted-foreground" />,
+        title: emptyCopy.recorteTitle,
+        description: emptyCopy.withFilters,
+        secondaryCta: {
+          label: emptyCopy.clearFilters,
+          onClick: filters.clearAll,
+          variant: "outline" as const,
+        },
+      }
+    : showNoSchemesEmpty
+      ? {
+          icon: <History className="h-10 w-10 text-muted-foreground" />,
+          title: emptyCopy.noSchemesTitle,
+          description: emptyCopy.noSchemesDescription,
+          cta: canExecute
+            ? {
+                label: emptyCopy.noSchemesCta,
+                icon: <Plus className="h-4 w-4" />,
+                onClick: handleCreateScheme,
+              }
+            : undefined,
+        }
+      : showAutoEmpty
+        ? {
+            icon: <History className="h-10 w-10 text-muted-foreground" />,
+            title: emptyCopy.autoEmptyTitle,
+            description: emptyCopy.autoEmptyDescription,
+            cta: canExecute
+              ? {
+                  label: copy.executeCta,
+                  icon: <Plus className="h-4 w-4" />,
+                  onClick: handleOpenCreate,
+                }
+              : undefined,
+          }
+        : {
+            icon: <History className="h-10 w-10 text-muted-foreground" />,
+            title: emptyCopy.title,
+            description: emptyCopy.description,
+            cta:
+              canExecute && showVirginEmpty
+                ? {
+                    label: copy.executeCta,
+                    icon: <Plus className="h-4 w-4" />,
+                    onClick: handleOpenCreate,
+                  }
+                : undefined,
+          };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
-          <Link to={workbenchBackHref}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
-            {copy.backToWorkbench}
-          </Link>
-        </Button>
+        {workbenchBackHref ? (
+          <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
+            <Link to={workbenchBackHref}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
+              {copy.backToWorkbench}
+            </Link>
+          </Button>
+        ) : (
+          <span className="hidden sm:block" aria-hidden />
+        )}
         <div className="min-w-0 sm:text-right">
           <Link
             to={copy.relatedConfig.href}
@@ -188,15 +257,13 @@ export function FinanceDispatchPeriodPage() {
           </p>
         </div>
       </div>
+
+      <FinanceDispatchPeriodChecklist />
+
       <ListPageShell<BillingDispatchRunListItem>
         title={copy.title}
         description={copy.subtitle}
-        primaryAction={{
-          label: copy.executeCta,
-          icon: <Plus className="h-4 w-4" />,
-          onClick: handleOpenCreate,
-          visible: canExecute,
-        }}
+        primaryAction={primaryAction}
         toolbar={{
           filters: (
             <>
@@ -233,7 +300,11 @@ export function FinanceDispatchPeriodPage() {
           onClearFilters: filters.clearAll,
           hasFilters: filters.hasFilters,
         }}
-        isLoading={isLoading}
+        isLoading={
+          isLoading ||
+          schemesLoading ||
+          (shouldProbeEmptyScheduled && !probeSettled)
+        }
         items={runs}
         pagination={
           data?.pagination
@@ -255,50 +326,7 @@ export function FinanceDispatchPeriodPage() {
             onView={handleView}
           />
         )}
-        emptyState={
-          showOnboardingEmpty
-            ? {
-                // D10: onboarding (único empty sin recortes).
-                icon: (
-                  <History className="h-10 w-10 text-muted-foreground" />
-                ),
-                title: emptyCopy.onboardingTitle,
-                description: <DispatchPeriodOnboardingBody />,
-                cta: canExecute
-                  ? {
-                      label: copy.executeCta,
-                      icon: <Plus className="h-4 w-4" />,
-                      onClick: handleOpenCreate,
-                    }
-                  : undefined,
-              }
-            : {
-                icon: (
-                  <History className="h-10 w-10 text-muted-foreground" />
-                ),
-                title: filters.hasFilters
-                  ? emptyCopy.recorteTitle
-                  : emptyCopy.title,
-                description: filters.hasFilters
-                  ? emptyCopy.withFilters
-                  : emptyCopy.description,
-                cta:
-                  canExecute && !filters.hasFilters
-                    ? {
-                        label: copy.executeCta,
-                        icon: <Plus className="h-4 w-4" />,
-                        onClick: handleOpenCreate,
-                      }
-                    : undefined,
-                secondaryCta: filters.hasFilters
-                  ? {
-                      label: emptyCopy.clearFilters,
-                      onClick: filters.clearAll,
-                      variant: "outline",
-                    }
-                  : undefined,
-              }
-        }
+        emptyState={emptyState}
       />
 
       <FinanceDispatchCreateRunDialog

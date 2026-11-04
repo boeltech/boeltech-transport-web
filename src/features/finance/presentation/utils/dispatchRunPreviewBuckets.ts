@@ -284,12 +284,12 @@ export function shouldCollapseClientGroups(
   );
 }
 
-/** D5: card de pendientes colapsada cuando hay más pending que ready. */
+/** Pulido D4: card Faltan colapsada por defecto cuando hay listos (chip+riel bastan). */
 export function shouldCollapsePendingCard(
-  pendingCount: number,
+  _pendingCount: number,
   readyCount: number,
 ): boolean {
-  return pendingCount > readyCount;
+  return readyCount > 0;
 }
 
 export function shouldShowAttachmentsHint(

@@ -32,7 +32,7 @@ export interface FinanceDispatchPeriodFiltersProps {
 }
 
 /**
- * Recortes del listado de envíos del periodo (estado / frecuencia).
+ * Recortes del listado de Correo del periodo (estado / frecuencia).
  * Shell canónico: `ListingFilterPanel`. Hide-empty vive fuera (toolbar).
  * Armar y Nueva frecuencia no son recortes; no hay lookup.
  */

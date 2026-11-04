@@ -1,5 +1,5 @@
 /**
- * FinanceDispatchRunsTable — envíos del periodo (hub Finanzas).
+ * FinanceDispatchRunsTable — Correo del periodo (hub Finanzas).
  */
 
 import { Skeleton } from "@shared/ui/skeleton";

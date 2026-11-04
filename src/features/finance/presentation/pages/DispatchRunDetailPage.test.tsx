@@ -201,7 +201,7 @@ describe("DispatchRunDetailPage F3", () => {
     expect(screen.getByTestId("create-run-dialog")).toBeInTheDocument();
   });
 
-  it("monta DispatchRunSendResults tras envío completado", () => {
+  it("Completada: Resultado primero, sin Mandar ni badge Listos", () => {
     mocks.run = {
       ...baseRun,
       status: "completed",
@@ -256,15 +256,91 @@ describe("DispatchRunDetailPage F3", () => {
     renderPage();
 
     expect(
+      screen.getByText(dispatchRunsCopy.detail.result.completed),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(dispatchRunsCopy.detail.result.byClientTitle),
     ).toBeInTheDocument();
     expect(
       screen.getByText(dispatchRunsCopy.detail.result.byClientDescription),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Cliente Demo/).length).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("button", {
+        name: dispatchRunsCopy.detail.sendCta,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(dispatchRunsCopy.detail.counts.readyBadge),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.counts.quietIncluded(1)),
+    ).toBeInTheDocument();
   });
 
-  it("confirmación de envío usa AlertDialog con una primaria Confirmar", async () => {
+  it("pulido: H1 sin rango, CutBar con periodo, origen glosario detalle", () => {
+    mocks.run = {
+      ...baseRun,
+      summary: {
+        pendingStampCount: 0,
+        readyToSendCount: 1,
+        alreadySentSkipped: 0,
+        readyToSendRepCount: 0,
+        alreadySentSkippedRep: 0,
+      },
+      items: [
+        {
+          id: "item-1",
+          itemKind: "ready_to_send",
+          documentKind: "invoice",
+          tripId: "trip-1",
+          invoiceId: "inv-1",
+          paymentId: null,
+          billingScope: "primary_transport",
+          clientId: "client-1",
+          clientName: "Cliente Demo",
+          status: "listed",
+          folio: "A-100",
+          emailMessageId: null,
+          errorMessage: null,
+          sentAt: null,
+          createdAt: "2026-08-08T12:00:00.000Z",
+          updatedAt: "2026-08-08T12:00:00.000Z",
+        },
+      ],
+    };
+    renderPage();
+
+    expect(
+      screen.getByRole("heading", {
+        name: new RegExp(dispatchRunsCopy.detail.titleFallback),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: /Lista del periodo ·/,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText(dispatchRunsCopy.detail.cutBar.ariaLabel),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.originManual),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(dispatchRunsCopy.detail.counts.readyBadge),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.counts.quietReady(1)),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", {
+        name: dispatchRunsCopy.detail.table.id,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Mesa de corte: banner I1, anclas tipadas y Sheet de destinatarios al Mandar", async () => {
     const user = userEvent.setup();
     mocks.run = {
       ...baseRun,
@@ -312,16 +388,34 @@ describe("DispatchRunDetailPage F3", () => {
     };
     renderPage();
 
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.i1Banner),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.invoicesAnchor),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.detail.sections.repsAnchor),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(dispatchRunsCopy.detail.recipients.title),
+    ).not.toBeInTheDocument();
+
     await user.click(
       screen.getByRole("button", {
         name: dispatchRunsCopy.detail.sendCta,
       }),
     );
 
-    const dialog = screen.getByRole("alertdialog", {
-      name: dispatchRunsCopy.detail.confirm.title,
-    });
-    expect(dialog).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: dispatchRunsCopy.detail.confirm.title,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(dispatchRunsCopy.detail.recipients.title).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("facturas@demo.test")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: dispatchRunsCopy.detail.confirm.submit,
@@ -332,5 +426,78 @@ describe("DispatchRunDetailPage F3", () => {
         name: dispatchRunsCopy.detail.confirm.cancel,
       }),
     ).toBeInTheDocument();
+  });
+
+  it("F1b: Facturas y Comprobantes usan tablas densas (headers + filas)", () => {
+    mocks.run = {
+      ...baseRun,
+      summary: {
+        pendingStampCount: 0,
+        readyToSendCount: 1,
+        alreadySentSkipped: 0,
+        readyToSendRepCount: 1,
+        alreadySentSkippedRep: 0,
+      },
+      items: [
+        {
+          id: "item-inv",
+          itemKind: "ready_to_send",
+          documentKind: "invoice",
+          tripId: "trip-1",
+          invoiceId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          paymentId: null,
+          billingScope: "primary_transport",
+          clientId: "client-1",
+          clientName: "Cliente Factura",
+          status: "listed",
+          folio: "A-100",
+          emailMessageId: null,
+          errorMessage: null,
+          sentAt: null,
+          createdAt: "2026-08-08T12:00:00.000Z",
+          updatedAt: "2026-08-08T12:00:00.000Z",
+        },
+        {
+          id: "item-rep",
+          itemKind: "ready_to_send",
+          documentKind: "rep",
+          tripId: null,
+          invoiceId: null,
+          paymentId: "11111111-2222-3333-4444-555555555555",
+          billingScope: null,
+          clientId: "client-2",
+          clientName: "Cliente REP",
+          status: "listed",
+          folio: "P-221",
+          emailMessageId: null,
+          errorMessage: null,
+          sentAt: null,
+          createdAt: "2026-08-08T12:00:00.000Z",
+          updatedAt: "2026-08-08T12:00:00.000Z",
+        },
+      ],
+    };
+    renderPage();
+
+    const folioHeaders = screen.getAllByRole("columnheader", {
+      name: dispatchRunsCopy.detail.table.folio,
+    });
+    const clientHeaders = screen.getAllByRole("columnheader", {
+      name: dispatchRunsCopy.detail.table.client,
+    });
+    const statusHeaders = screen.getAllByRole("columnheader", {
+      name: dispatchRunsCopy.detail.table.status,
+    });
+    expect(folioHeaders.length).toBe(2);
+    expect(clientHeaders.length).toBe(2);
+    expect(statusHeaders.length).toBe(2);
+
+    expect(screen.getByText("A-100")).toBeInTheDocument();
+    expect(screen.getByText("Cliente Factura")).toBeInTheDocument();
+    expect(screen.getByText("P-221")).toBeInTheDocument();
+    expect(screen.getByText("Cliente REP")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(dispatchRunsCopy.detail.table.readyStatus).length,
+    ).toBe(2);
   });
 });

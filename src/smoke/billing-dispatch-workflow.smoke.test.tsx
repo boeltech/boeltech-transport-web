@@ -1,9 +1,10 @@
 /**
- * Smoke ADR-0082 — envío del periodo: revisión → destinatarios → confirmar.
+ * Smoke ADR-0082 — Correo del periodo: revisión → destinatarios → Mandar el correo.
  * Mock de hooks; no requiere backend ni correo real.
  * Addendum destinatarios (A3): lista visible, override efímero, dialog delgado.
  * Addendum force_resend (R3): Ya enviados, reenvío tipado invoiceIds ∪ paymentIds.
- * Addendum REP (F5): secciones Facturas · Comprobantes de pago (REP); reenvío solo REP.
+ * Pedido frecuencias (F5): copy Armar lista / Mandar / Frecuencias de envío / Sin confirmar;
+ * wayfinding ancla → Correo del periodo (no hub Envíos mezclado).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
@@ -430,6 +431,11 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     renderDetail();
 
     expect(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.backToList,
+      }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(
         dispatchRunsCopy.detail.titleCalendar(
           formatDate("2026-08-01"),
@@ -438,23 +444,13 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dispatchRunsCopy.detail.subtitleClosedCut("Corte semanal")),
+      screen.getByText(dispatchRunsCopy.detail.i1Banner),
     ).toBeInTheDocument();
+    expect(screen.getByText("Corte semanal")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        `${dispatchRunsCopy.detail.periodCalendar(
-          formatDate("2026-08-01"),
-          formatDate("2026-08-07"),
-          formatDate("2026-08-08"),
-        )} ${dispatchRunsCopy.detail.datesFixedNote}`,
-      ),
+      screen.getByText(dispatchRunsCopy.detail.pageSubtitle),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Viajes cerrados entre/)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        dispatchRunsCopy.detail.decisionSummary(2, 0, 1, 1),
-      ),
-    ).toBeInTheDocument();
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.counts.pendingStamp).length,
     ).toBeGreaterThan(0);
@@ -462,30 +458,34 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       screen.getAllByText(dispatchRunsCopy.detail.counts.readyInvoices).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getByText(
-        dispatchRunsCopy.detail.buckets.clientGroup("Cliente Demo", 2),
-      ),
+      screen.getByText(dispatchRunsCopy.detail.sections.invoicesAnchor),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", {
+        name: dispatchRunsCopy.detail.table.folio,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
     expect(screen.getByText(/A-100/)).toBeInTheDocument();
     expect(screen.getByText(/A-101/)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(dispatchRunsCopy.detail.table.readyStatus).length,
+    ).toBeGreaterThan(0);
     expect(
       screen.getByText(dispatchRunsCopy.detail.buckets.pendingNote),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dispatchRunsCopy.detail.sections.invoices),
-    ).toBeInTheDocument();
+      screen.getAllByText(dispatchRunsCopy.detail.sections.invoices).length,
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByText(dispatchRunsCopy.detail.sections.reps),
-    ).toBeInTheDocument();
+      screen.getAllByText(dispatchRunsCopy.detail.sections.reps).length,
+    ).toBeGreaterThan(0);
     expect(
       screen.getByText(dispatchRunsCopy.detail.sections.emptyReadyReps),
     ).toBeInTheDocument();
-
     expect(
-      screen.getByText(dispatchRunsCopy.detail.recipients.title),
-    ).toBeInTheDocument();
-    expect(screen.getByText("facturas@demo.test")).toBeInTheDocument();
-    expect(screen.getByText("ana@demo.test")).toBeInTheDocument();
+      screen.queryByText(dispatchRunsCopy.detail.recipients.title),
+    ).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", {
@@ -493,7 +493,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       }),
     );
 
-    const dialog = screen.getByRole("alertdialog", {
+    const dialog = screen.getByRole("dialog", {
       name: dispatchRunsCopy.detail.confirm.title,
     });
     expect(dialog).toBeInTheDocument();
@@ -501,6 +501,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       within(dialog).getByText(dispatchRunsCopy.detail.confirm.emailNote),
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(/adjuntos/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByText("facturas@demo.test")).toBeInTheDocument();
+    expect(within(dialog).getByText("ana@demo.test")).toBeInTheDocument();
     expect(
       within(dialog).getByText(
         `${dispatchRunsCopy.detail.confirm.summaryClients(1)} · ${dispatchRunsCopy.detail.confirm.summaryInvoices(2)} · ${dispatchRunsCopy.detail.confirm.summaryReps(0)} · ${dispatchRunsCopy.detail.confirm.summaryRecipients(2)}`,
@@ -536,6 +538,12 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.alreadySent.title).length,
     ).toBeGreaterThan(0);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.alreadySent.expand,
+      }),
+    );
     expect(screen.getByText(/B-200/)).toBeInTheDocument();
 
     const skippedCheckbox = screen.getByRole("checkbox", {
@@ -545,16 +553,11 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: dispatchRunsCopy.detail.moreActions,
-      }),
-    );
-    await user.click(
-      screen.getByRole("menuitem", {
         name: dispatchRunsCopy.detail.resendCta,
       }),
     );
 
-    const dialog = screen.getByRole("alertdialog", {
+    const dialog = screen.getByRole("dialog", {
       name: dispatchRunsCopy.detail.resendConfirm.title,
     });
     expect(dialog).toBeInTheDocument();
@@ -583,29 +586,25 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     });
   });
 
-  it("muestra secciones Facturas · Comprobantes de pago (REP) y confirma lote mixto", async () => {
+  it("muestra secciones Facturas · Comprobantes de pago y confirma lote mixto", async () => {
     mocks.run = previewedRunWithRep;
     const user = userEvent.setup();
     renderDetail();
 
     expect(
-      screen.getByText(dispatchRunsCopy.detail.decisionSummary(1, 1, 1, 0)),
+      screen.getByText(dispatchRunsCopy.detail.i1Banner),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dispatchRunsCopy.detail.sections.invoices),
-    ).toBeInTheDocument();
+      screen.getAllByText(dispatchRunsCopy.detail.sections.invoices).length,
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByText(dispatchRunsCopy.detail.sections.reps),
-    ).toBeInTheDocument();
+      screen.getAllByText(dispatchRunsCopy.detail.sections.reps).length,
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByText(dispatchRunsCopy.detail.sections.repsPeriodHint),
+      screen.getByText(dispatchRunsCopy.detail.sections.repsAnchor),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(dispatchRunsCopy.detail.buckets.invoiceLabel("A-100")),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(dispatchRunsCopy.detail.buckets.repLabel("P-900")),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/A-100/)).toBeInTheDocument();
+    expect(screen.getByText(/P-900/)).toBeInTheDocument();
     expect(
       screen.getByText(dispatchRunsCopy.detail.counts.readyReps),
     ).toBeInTheDocument();
@@ -616,7 +615,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       }),
     );
 
-    const dialog = screen.getByRole("alertdialog", {
+    const dialog = screen.getByRole("dialog", {
       name: dispatchRunsCopy.detail.confirm.title,
     });
     expect(
@@ -637,7 +636,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     });
   });
 
-  it("permite reenviar solo un comprobante de pago (REP) con paymentIds", async () => {
+  it("permite reenviar solo un comprobante de pago con paymentIds", async () => {
     mocks.run = previewedRunWithSkippedRep;
     const user = userEvent.setup();
     renderDetail();
@@ -645,24 +644,29 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.alreadySent.title).length,
     ).toBeGreaterThan(0);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.alreadySent.expand,
+      }),
+    );
     expect(
       screen.getByText(dispatchRunsCopy.detail.buckets.repLabel("P-800")),
     ).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("checkbox", {
-        name: /Comprobante de pago \(REP\) · P-800/i,
+        name: /Comprobante de pago · P-800/i,
       }),
     );
 
-    // Sin facturas listas, Reenviar es CTA primario (no menú «Más»).
     await user.click(
       screen.getByRole("button", {
         name: dispatchRunsCopy.detail.resendCta,
       }),
     );
 
-    const dialog = screen.getByRole("alertdialog", {
+    const dialog = screen.getByRole("dialog", {
       name: dispatchRunsCopy.detail.resendConfirm.title,
     });
     expect(
@@ -691,7 +695,16 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     const user = userEvent.setup();
     renderDetail();
 
-    const billingCheckbox = screen.getByRole("checkbox", {
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.sendCta,
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: dispatchRunsCopy.detail.confirm.title,
+    });
+    const billingCheckbox = within(dialog).getByRole("checkbox", {
       name: /Correo de facturación/i,
     });
     expect(billingCheckbox).toBeChecked();
@@ -699,15 +712,6 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     await user.click(billingCheckbox);
     expect(billingCheckbox).not.toBeChecked();
 
-    await user.click(
-      screen.getByRole("button", {
-        name: dispatchRunsCopy.detail.sendCta,
-      }),
-    );
-
-    const dialog = screen.getByRole("alertdialog", {
-      name: dispatchRunsCopy.detail.confirm.title,
-    });
     expect(
       within(dialog).getByText(
         dispatchRunsCopy.detail.confirm.summaryRecipients(1),
@@ -739,27 +743,55 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     renderDetail();
 
     await user.click(
-      screen.getByRole("checkbox", { name: /Correo de facturación/i }),
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.sendCta,
+      }),
     );
-    await user.click(screen.getByRole("checkbox", { name: /Ana Pérez/i }));
+
+    const dialog = screen.getByRole("dialog", {
+      name: dispatchRunsCopy.detail.confirm.title,
+    });
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: /Correo de facturación/i }),
+    );
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: /Ana Pérez/i }),
+    );
 
     expect(
-      screen.getByText(dispatchRunsCopy.detail.recipients.zeroSelected),
+      within(dialog).getByText(dispatchRunsCopy.detail.recipients.zeroSelected),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", {
-        name: dispatchRunsCopy.detail.sendCta,
+      within(dialog).getByRole("button", {
+        name: dispatchRunsCopy.detail.confirm.submit,
       }),
     ).toBeDisabled();
   });
 
-  it("catálogo de esquemas expone copy de cadencia", () => {
-    expect(billingSchemesCopy.page.title).toMatch(/Frecuencias de envío/i);
+  it("Frecuencias de envío + labels del ritual (Armar / Mandar / Sin confirmar)", () => {
+    expect(billingSchemesCopy.page.title).toBe("Frecuencias de envío");
+    expect(billingSchemesCopy.page.periodMailCta).toMatch(/Correo del periodo/i);
+    expect(billingSchemesCopy.page.periodMailHref).toBe(
+      "/finance/dispatch/period",
+    );
     expect(billingSchemesCopy.cadence.periodic_weekly).toBe("Semanal");
+    expect(dispatchRunsCopy.tab.title).toBe("Correo del periodo");
+    expect(dispatchRunsCopy.tab.executeCta).toBe("Armar lista del periodo");
+    expect(dispatchRunsCopy.tab.createDialog.submit).toBe("Armar lista");
+    expect(dispatchRunsCopy.detail.sendCta).toBe(
+      "Mandar el correo del periodo",
+    );
+    expect(dispatchRunsCopy.detail.confirm.submit).toBe("Mandar el correo");
+    expect(dispatchRunsCopy.detail.originScheduled).toBe(
+      "Sin confirmar (automático)",
+    );
+    expect(dispatchRunsCopy.detail.backToList).toBe(
+      "Volver a Correo del periodo",
+    );
   });
 
-  it("con muchos clientes colapsa grupos y requiere expandir para ver folios", async () => {
+  it("tabla densa lista folios de muchos clientes sin agrupar/colapsar", () => {
     const manyClients: BillingDispatchRun = {
       ...previewedRun,
       summary: {
@@ -801,25 +833,15 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       })),
     };
     mocks.run = manyClients;
-    const user = userEvent.setup();
     renderDetail();
 
-    expect(
-      screen.getByText(
-        dispatchRunsCopy.detail.buckets.clientGroup("Cliente 1", 1),
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/F-100/)).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: dispatchRunsCopy.detail.buckets.clientGroup("Cliente 1", 1),
-      }),
-    );
+    expect(screen.getByText("Cliente 1")).toBeInTheDocument();
+    expect(screen.getByText("Cliente 6")).toBeInTheDocument();
     expect(screen.getByText(/F-100/)).toBeInTheDocument();
+    expect(screen.getByText(/F-105/)).toBeInTheDocument();
     expect(
-      screen.getByText(dispatchRunsCopy.detail.recipients.title),
-    ).toBeInTheDocument();
+      screen.queryByText(dispatchRunsCopy.detail.recipients.title),
+    ).not.toBeInTheDocument();
   });
 
   it("post-send muestra resultado por cliente y banner con errores parciales", () => {
@@ -947,57 +969,52 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       screen.getByText(dispatchRunsCopy.detail.result.byClientTitle),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByText(dispatchRunsCopy.detail.buckets.readyTitle).length,
+      screen.getAllByText(dispatchRunsCopy.detail.sections.invoices).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(
-      dispatchRunsCopy.detail.buckets.clientGroup("Cliente Demo", 1),
-    )).toBeInTheDocument();
-    expect(screen.getByText(
-      dispatchRunsCopy.detail.buckets.clientGroup("Cliente Fallido", 1),
-    )).toBeInTheDocument();
-    expect(screen.getByText(
-      dispatchRunsCopy.detail.buckets.invoiceLabel("A-100"),
-    )).toBeInTheDocument();
-    expect(screen.getByText(
-      dispatchRunsCopy.detail.buckets.invoiceLabel("A-101"),
-    )).toBeInTheDocument();
+    expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Cliente Fallido").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 documento/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/A-100/)).toBeInTheDocument();
+    expect(screen.getByText(/A-101/)).toBeInTheDocument();
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.result.statusFailed).length,
     ).toBeGreaterThan(0);
   });
 
-  it("agrupa facturas split_share del mismo viaje bajo clientes distintos", () => {
+  it("muestra facturas split_share del mismo viaje bajo clientes distintos", async () => {
     mocks.run = previewedRunSplitShare;
+    const user = userEvent.setup();
     renderDetail();
 
     expect(
-      screen.getByText(
-        dispatchRunsCopy.detail.buckets.clientGroup(
-          "INDISTRIA ILUMINADORA · IIA040805DZ4",
-          1,
-        ),
-      ),
+      screen.getByText("INDISTRIA ILUMINADORA · IIA040805DZ4"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        dispatchRunsCopy.detail.buckets.clientGroup(
-          "LUCES & OBRAS · L&O950913MSA",
-          1,
-        ),
-      ),
+      screen.getByText("LUCES & OBRAS · L&O950913MSA"),
     ).toBeInTheDocument();
     expect(screen.getByText(/A-5/)).toBeInTheDocument();
     expect(screen.getByText(/A-6/)).toBeInTheDocument();
-    expect(screen.getByText("facturacion@industria.test")).toBeInTheDocument();
-    expect(screen.getByText("facturacion@luces.test")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        dispatchRunsCopy.detail.decisionSummary(2, 0, 2, 0),
-      ),
+      screen.getByText(dispatchRunsCopy.detail.sections.invoicesAnchor),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dispatchRunsCopy.detail.sendCta,
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: dispatchRunsCopy.detail.confirm.title,
+    });
+    expect(
+      within(dialog).getByText("facturacion@industria.test"),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("facturacion@luces.test"),
     ).toBeInTheDocument();
   });
 
-  it("pide confirmación al cancelar y pone Enviar por correo en el header", async () => {
+  it("pide confirmación al cancelar y pone Mandar en la franja de corte", async () => {
     const user = userEvent.setup();
     renderDetail();
 
@@ -1007,8 +1024,8 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByText(dispatchRunsCopy.detail.buckets.readyTitle).length,
-    ).toBeGreaterThan(0);
+      screen.getByText(dispatchRunsCopy.detail.sections.invoicesAnchor),
+    ).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", {

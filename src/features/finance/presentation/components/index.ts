@@ -46,5 +46,6 @@ export {
   DispatchRunClientGroup,
   DispatchRunFolioList,
 } from "./DispatchRunClientGroup";
+export { DispatchRunReadyTable } from "./DispatchRunReadyTable";
 export { DispatchRunSendResults } from "./DispatchRunSendResults";
 

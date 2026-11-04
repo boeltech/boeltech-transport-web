@@ -41,7 +41,6 @@ import {
 } from "@features/finance/application";
 import {
   FINANCE_DISPATCH_DETAIL_PATH,
-  FINANCE_DISPATCH_PATH,
   FINANCE_DISPATCH_PERIOD_PATH,
 } from "../../application/financeRoutes";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
@@ -124,11 +123,8 @@ export function FinanceDispatchCreateRunDialog({
         setAlreadyOpenAlert(true);
         return;
       }
-      const from =
-        returnTo ??
-        (alreadyOpenSource === "list"
-          ? FINANCE_DISPATCH_PERIOD_PATH
-          : FINANCE_DISPATCH_PATH);
+      // Ritual = Correo del periodo (aunque el CTA viva en el workbench puntual).
+      const from = returnTo ?? FINANCE_DISPATCH_PERIOD_PATH;
       navigate(FINANCE_DISPATCH_DETAIL_PATH(run.id), {
         replace: true,
         state: { from },
@@ -136,7 +132,7 @@ export function FinanceDispatchCreateRunDialog({
     } catch {
       setCreateError(dispatchRunsCopy.toast.error);
     }
-  }, [alreadyOpenSource, createMutation, handleOpenChange, navigate, resolvedSchemeId, returnTo]);
+  }, [createMutation, handleOpenChange, navigate, resolvedSchemeId, returnTo]);
 
   return (
     <>
@@ -215,7 +211,7 @@ export function FinanceDispatchCreateRunDialog({
             <p className="text-sm text-muted-foreground">
               {createCopy.noSchemes}{" "}
               <Link
-                to={FINANCE_DISPATCH_PERIOD_PATH}
+                to={createCopy.settingsHref}
                 className="text-primary underline underline-offset-2"
               >
                 {createCopy.settingsLink}

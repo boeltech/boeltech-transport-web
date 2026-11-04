@@ -1,4 +1,4 @@
-/** Recortes del panel «Filtros» en Envíos del periodo. No cuenta acciones. */
+/** Recortes del panel «Filtros» en Correo del periodo. No cuenta acciones. */
 export function countDispatchPeriodPanelFilters(input: {
   status: string;
   billingSchemeId: string;

@@ -26,7 +26,10 @@ function isInvoiceAppHref(href: string): boolean {
   );
 }
 
-/** Cola de envíos (workbench, lotes o factura de origen). */
+/**
+ * Cola de origen (workbench puntual, Correo del periodo o factura).
+ * Sin `from` (bookmark / deep link) → ritual Correo del periodo, no el hub Envíos.
+ */
 export function resolveDispatchRunBackHref(from: string | undefined): string {
   if (from && isFinanceDispatchWorkbenchHref(from)) {
     return resolveInternalAppHref(from, FINANCE_DISPATCH_PATH);
@@ -37,7 +40,7 @@ export function resolveDispatchRunBackHref(from: string | undefined): string {
   if (from && isInvoiceAppHref(from)) {
     return resolveInternalAppHref(from, FINANCE_DISPATCH_PATH);
   }
-  return FINANCE_DISPATCH_PATH;
+  return FINANCE_DISPATCH_PERIOD_PATH;
 }
 
 export function resolveDispatchRunBackLabel(from: string | undefined): string {
@@ -50,13 +53,18 @@ export function resolveDispatchRunBackLabel(from: string | undefined): string {
   if (from && isInvoiceAppHref(from)) {
     return dispatchRunsCopy.detail.backToInvoice;
   }
-  return dispatchRunsCopy.detail.backToWorkbench;
+  return dispatchRunsCopy.detail.backToList;
 }
 
-/** Volver del listado de lotes al workbench (conserva `?tab=` si venía de ahí). */
-export function resolvePeriodListBackHref(from: string | undefined): string {
+/**
+ * Volver del listado de lotes al workbench puntual solo si se llegó desde Envíos.
+ * Entrada directa por nav «Correo del periodo» → sin back a Envíos (Opción A / P2 VIS).
+ */
+export function resolvePeriodListBackHref(
+  from: string | undefined,
+): string | null {
   if (from && isFinanceDispatchWorkbenchHref(from)) {
     return resolveInternalAppHref(from, FINANCE_DISPATCH_PATH);
   }
-  return FINANCE_DISPATCH_PATH;
+  return null;
 }

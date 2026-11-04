@@ -49,14 +49,17 @@ describe("dispatchWayfinding", () => {
     expect(resolveDispatchRunBackLabel("/invoices/inv-1")).toBe(
       dispatchRunsCopy.detail.backToInvoice,
     );
-    expect(resolveDispatchRunBackHref(undefined)).toBe(FINANCE_DISPATCH_PATH);
+    expect(resolveDispatchRunBackHref(undefined)).toBe(
+      FINANCE_DISPATCH_PERIOD_PATH,
+    );
     expect(resolveDispatchRunBackLabel(undefined)).toBe(
-      dispatchRunsCopy.detail.backToWorkbench,
+      dispatchRunsCopy.detail.backToList,
     );
   });
 
-  it("del listado de lotes vuelve al workbench y conserva la pestaña", () => {
-    expect(resolvePeriodListBackHref(undefined)).toBe(FINANCE_DISPATCH_PATH);
+  it("del listado solo vuelve a Envíos si venía del workbench puntual", () => {
+    expect(resolvePeriodListBackHref(undefined)).toBeNull();
+    expect(resolvePeriodListBackHref(FINANCE_DISPATCH_PERIOD_PATH)).toBeNull();
     expect(
       resolvePeriodListBackHref(`${FINANCE_DISPATCH_PATH}?tab=sent`),
     ).toBe(`${FINANCE_DISPATCH_PATH}?tab=sent`);
