@@ -1,6 +1,7 @@
 ﻿/**
- * Card compacta de frecuencias de envio (ADR-0082).
- * Lista + Sheet de alta/edicion. Vive en Envios del periodo, no en Settings.
+ * Catálogo compacto de frecuencias de envío (ADR-0082 · capa A Configuración).
+ * Solo CRUD de cadencia: lista + Sheet alta/edición + Dialog desactivar.
+ * No arma corrida ni Mandar (atajo a Correo del periodo vive en la page).
  */
 
 import { useMemo, useState } from "react";
@@ -353,7 +354,7 @@ function BillingSchemeFormPanel({
           <SelectContent>
             {BILLING_CADENCE_KINDS.map((kind) => (
               <SelectItem key={kind} value={kind}>
-                {copy.cadence[kind]}
+                {copy.cadenceOption[kind]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -672,7 +673,7 @@ export function BillingSchemesCompactCard() {
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <CardTitle>{copy.page.title}</CardTitle>
+            <CardTitle>{copy.list.title}</CardTitle>
             <CardDescription>
               {copy.page.assignmentTip}{" "}
               <Button type="button" variant="link" className="h-auto p-0" asChild>
@@ -680,7 +681,7 @@ export function BillingSchemesCompactCard() {
               </Button>
             </CardDescription>
           </div>
-          {canMutate ? (
+          {canMutate && !isEmpty ? (
             <Button type="button" size="sm" onClick={handleOpenCreate}>
               <Plus className="mr-2 h-4 w-4" />
               {copy.list.add}
@@ -709,7 +710,10 @@ export function BillingSchemesCompactCard() {
               description={copy.list.emptyDescription}
               cta={
                 canMutate
-                  ? { label: copy.list.add, onClick: handleOpenCreate }
+                  ? {
+                      label: copy.list.emptyCta,
+                      onClick: handleOpenCreate,
+                    }
                   : undefined
               }
             />

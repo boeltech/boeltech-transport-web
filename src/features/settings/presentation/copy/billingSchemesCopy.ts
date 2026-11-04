@@ -1,29 +1,48 @@
 import type { BillingCadenceKind } from "../../domain/billingScheme.types";
 
+/**
+ * Copy patio — capa A Configuración (frecuencias de envío).
+ * Glosario PRD/DOM: al vuelo / semanal / cortes del mes / mensual.
+ * Sin jerga `billing_scheme` / «esquema de facturación» en chrome.
+ */
 export const billingSchemesCopy = {
   page: {
     title: "Frecuencias de envío",
     description:
-      "Define cada cuánto se agrupa el correo a cada cliente.",
+      "Aquí defines el ritmo con el que se agrupa el correo a cada cliente. La asignación se elige en la ficha del cliente; el envío del periodo se arma en Correo del periodo.",
     assignmentTip: "Se elige en la ficha de cada cliente",
     clientsCta: "Ir a clientes",
+    periodMailCta: "Ir a Correo del periodo",
+    periodMailHref: "/finance/dispatch/period",
   },
   list: {
     title: "Frecuencias",
     add: "Nueva frecuencia",
-    emptyTitle: "Sin frecuencias",
+    emptyTitle: "Aún no hay frecuencias de envío",
     emptyDescription:
-      "Define cada cuánto se agrupa el correo (semanal, cortes del mes, mensual o al cerrar el viaje).",
+      "Aquí se define el ritmo del correo: al vuelo, semanal, cortes del mes o mensual. Crea la primera para poder asignarla a tus clientes.",
+    emptyCta: "Crear primera frecuencia",
     loading: "Cargando frecuencias…",
     defaultBadge: "Predeterminado",
     inactiveBadge: "Inactivo",
     selectPrompt: "Selecciona una frecuencia de la lista para ver su detalle.",
     editRowAria: (name: string) => `Editar frecuencia ${name}`,
   },
+  /** Etiquetas cortas (lista, resumen, badges). */
   cadence: {
-    event: "Por cierre de viaje",
+    event: "Al vuelo",
     periodic_weekly: "Semanal",
     periodic_decadal: "Cortes del mes",
+    periodic_monthly: "Mensual",
+  } satisfies Record<BillingCadenceKind, string>,
+  /**
+   * Opciones del select: título patio + glosa humana.
+   * Nunca mostrar solo el kind crudo (`event`, `periodic_decadal`, …).
+   */
+  cadenceOption: {
+    event: "Al vuelo — en cuanto cierra el viaje",
+    periodic_weekly: "Semanal",
+    periodic_decadal: "Cortes del mes — p. ej. día 10, 20, fin",
     periodic_monthly: "Mensual",
   } satisfies Record<BillingCadenceKind, string>,
   weekdays: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] as const,
@@ -38,7 +57,7 @@ export const billingSchemesCopy = {
   ] as const,
   naturalDescription: {
     event: (hours: number) =>
-      `Cuando un viaje se cierra, sus facturas listas pueden incluirse en un envío hasta ${hours} horas después del cierre.`,
+      `Al vuelo: cuando un viaje se cierra, sus facturas listas pueden incluirse en un envío hasta ${hours} horas después del cierre.`,
     weekly: (weekdays: number[]) => {
       const days = weekdays
         .map((d) => billingSchemesCopy.weekdays[d] ?? d)
@@ -61,7 +80,7 @@ export const billingSchemesCopy = {
     detailsTitle: "Detalles",
     createdAt: (label: string) => `Creado: ${label}`,
     updatedAt: (label: string) => `Última actualización: ${label}`,
-    edit: "Editar frecuencia",
+    edit: "Editar",
     deactivate: "Desactivar",
     periodRules: {
       frequency: (label: string) => `Frecuencia: ${label}`,
@@ -76,7 +95,7 @@ export const billingSchemesCopy = {
     },
     periodExample: {
       event: (hours: number) =>
-        `Cada vez que se cierra un viaje, las facturas listas de ese viaje pueden incluirse en un envío hasta ${hours} horas después del cierre. No hay periodo fijo: el envío se activa por el cierre de cada viaje.`,
+        `Al vuelo: cada vez que se cierra un viaje, las facturas listas de ese viaje pueden incluirse en un envío hasta ${hours} horas después del cierre. No hay periodo fijo: el envío se activa por el cierre de cada viaje.`,
       weekly: (daysLong: string) =>
         `Ejemplo: cada ${daysLong} se prepara un envío con las facturas de viajes cerrados desde el último corte hasta ese día.`,
       decadal: (parts: string) => `Ejemplo: ${parts}`,
@@ -93,13 +112,14 @@ export const billingSchemesCopy = {
   form: {
     createTitle: "Nueva frecuencia",
     editTitle: "Editar frecuencia",
-    createDescription: "Nombra la frecuencia y configura cada cuánto se agrupa el correo.",
-    editDescription: "Ajusta la configuración de la frecuencia.",
+    createDescription:
+      "Nombra la frecuencia y elige el ritmo: al vuelo, semanal, cortes del mes o mensual.",
+    editDescription: "Ajusta el nombre, el ritmo o los días de corte.",
     name: "Nombre",
     nameHint: "Ej. Corte semanal jueves–viernes",
-    cadence: "¿Con qué frecuencia se prepara el envío?",
+    cadence: "¿Con qué ritmo se prepara el envío?",
     cadenceHint:
-      "Cada opción define un ciclo de corte distinto. Las facturas de viajes cerrados entre un corte y el siguiente se incluyen en el envío.",
+      "Cada opción define un ciclo distinto. Las facturas de viajes cerrados entre un corte y el siguiente entran en el envío.",
     isDefault: "Frecuencia predeterminada",
     isDefaultHint:
       "Se ofrece por defecto al asignar clientes (o si el cliente no tiene frecuencia). Solo una activa puede serlo.",
@@ -131,7 +151,7 @@ export const billingSchemesCopy = {
   delete: {
     title: "Desactivar frecuencia",
     description:
-      "La frecuencia dejará de estar disponible para nuevos envíos programados. Los clientes asignados conservan la referencia hasta que la cambies.",
+      "La frecuencia dejará de estar disponible para nuevos envíos del periodo. Los clientes asignados conservan la referencia hasta que la cambies.",
     confirm: "Desactivar",
     cancel: "Cancelar",
   },

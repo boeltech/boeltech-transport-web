@@ -59,7 +59,8 @@ export const settingsNavItems: SettingsNavItem[] = [
   {
     id: SettingsSection.BILLING_SCHEMES,
     label: "Frecuencias de envío",
-    description: "Define cada cuánto se agrupa el correo a cada cliente.",
+    description:
+      "Ritmo del correo a cada cliente: al vuelo, semanal, cortes del mes o mensual.",
     path: "/settings/billing-schemes",
     icon: CalendarClock,
     permission: { module: "settings", action: "read" },

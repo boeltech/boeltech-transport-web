@@ -1,7 +1,7 @@
 /**
  * Secciones del form de edición de cliente (D8) + conteo de errores por rail.
  * Alineado a la estructura real de ClientForm en mode="edit"
- * (Tipo · Fiscal · Envío · Comercial · Notas). Contacto solo en create.
+ * (Tipo · Fiscal · Correo · Comercial · Notas). Contacto solo en create.
  */
 
 import type { FieldErrors } from "react-hook-form";
@@ -29,7 +29,7 @@ export const CLIENT_EDIT_SECTION_IDS = {
 
 export type ClientEditSectionKey = keyof typeof CLIENT_EDIT_SECTION_IDS;
 
-/** Orden canónico; Envío se omite del rail cuando el perfil es Solo comercial. */
+/** Orden canónico; Correo se omite del rail cuando el perfil es Solo comercial. */
 export const CLIENT_EDIT_SECTION_ORDER: ClientEditSectionKey[] = [
   "type",
   "fiscal",
@@ -80,7 +80,7 @@ export function getClientEditSections(
   }));
 }
 
-/** Rail completo (con Envío) — útil en tests y demos. */
+/** Rail completo (con Correo) — útil en tests y demos. */
 export const CLIENT_EDIT_SECTIONS: LongFormSectionItem[] =
   getClientEditSections(true);
 

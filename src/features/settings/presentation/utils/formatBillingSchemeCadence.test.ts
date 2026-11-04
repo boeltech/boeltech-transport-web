@@ -25,14 +25,14 @@ function scheme(
 }
 
 describe("formatBillingSchemeCadenceSummary", () => {
-  it("resume por cierre de viaje con horas operativas", () => {
+  it("resume al vuelo con horas operativas", () => {
     const s = scheme({
       cadenceKind: "event",
       params: { windowHours: 48 },
     });
     expect(formatBillingSchemeParamsSummary(s)).toBe("48 h tras cerrar viaje");
     expect(formatBillingSchemeCadenceSummary(s)).toBe(
-      "Por cierre de viaje · 48 h tras cerrar viaje",
+      "Al vuelo · 48 h tras cerrar viaje",
     );
   });
 
@@ -66,13 +66,15 @@ describe("formatBillingSchemeCadenceSummary", () => {
 });
 
 describe("formatBillingSchemeNaturalDescription", () => {
-  it("describe evento por cierre de viaje", () => {
+  it("describe al vuelo por cierre de viaje", () => {
     const s = scheme({
       cadenceKind: "event",
       params: { windowHours: 48 },
     });
-    expect(formatBillingSchemeNaturalDescription(s)).toContain("48 horas");
-    expect(formatBillingSchemeNaturalDescription(s)).toContain("cierra");
+    const text = formatBillingSchemeNaturalDescription(s);
+    expect(text).toContain("Al vuelo");
+    expect(text).toContain("48 horas");
+    expect(text).toContain("cierra");
   });
 
   it("describe semanal en lenguaje natural", () => {
@@ -124,12 +126,13 @@ describe("formatBillingSchemePeriodRuleBullets", () => {
 });
 
 describe("formatBillingSchemePeriodExample", () => {
-  it("explica evento sin periodo fijo", () => {
+  it("explica al vuelo sin periodo fijo", () => {
     const s = scheme({
       cadenceKind: "event",
       params: { windowHours: 48 },
     });
     const text = formatBillingSchemePeriodExample(s);
+    expect(text).toContain("Al vuelo");
     expect(text).toContain("48 horas");
     expect(text).toContain("No hay periodo fijo");
   });

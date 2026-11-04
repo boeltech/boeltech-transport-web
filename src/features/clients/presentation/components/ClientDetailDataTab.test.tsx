@@ -31,7 +31,7 @@ const baseClient = {
 } as Client;
 
 describe("ClientDetailDataTab layout", () => {
-  it("con comercial: ID+Contacto en subgrid, Envío y Notas en columna izq, comercial a la der", () => {
+  it("con comercial: ID+Contacto en subgrid, Correo y Notas en columna izq, comercial a la der", () => {
     const { container } = render(
       <ClientDetailDataTab
         client={baseClient}
@@ -74,7 +74,7 @@ describe("ClientDetailDataTab layout", () => {
     expect(root.className).toContain("items-start");
   });
 
-  it("sin comercial: ID+Contacto en 2 cols y Envío/Notas debajo (paridad D6)", () => {
+  it("sin comercial: ID+Contacto en 2 cols y Correo/Notas debajo (paridad D6)", () => {
     const { container } = render(
       <ClientDetailDataTab client={baseClient} taxRegimeLabel={null} />,
     );
@@ -86,7 +86,7 @@ describe("ClientDetailDataTab layout", () => {
     expect(screen.getByText(notesCopy.title)).toBeInTheDocument();
   });
 
-  it("comercial_only: oculta Envío y no rompe layout", () => {
+  it("comercial_only: oculta Correo y no rompe layout", () => {
     render(
       <ClientDetailDataTab
         client={{ ...baseClient, cfdiReceptorProfile: "comercial_only" }}
@@ -100,6 +100,32 @@ describe("ClientDetailDataTab layout", () => {
     expect(screen.getByText(contactCopy.title)).toBeInTheDocument();
     expect(screen.getByText(notesCopy.title)).toBeInTheDocument();
     expect(screen.getByTestId("commercial-slot")).toBeInTheDocument();
+  });
+
+  it("capa B: una frecuencia + dos Sin confirmar tipados visibles (CA-4)", () => {
+    const id = clientDetailCopy.identification;
+
+    render(
+      <ClientDetailDataTab
+        client={{
+          ...baseClient,
+          invoiceAutoDispatchEnabled: true,
+          repAutoDispatchEnabled: false,
+        }}
+        taxRegimeLabel={null}
+        billingSchemeLabel="Semanal"
+        billingSchemeCadence="Cada lunes"
+      />,
+    );
+
+    expect(screen.getByText(dispatchCopy.title)).toBeInTheDocument();
+    expect(screen.getByText(id.billingScheme)).toBeInTheDocument();
+    expect(screen.getByText("Semanal")).toBeInTheDocument();
+    expect(screen.getByText(id.invoiceAutoDispatch)).toBeInTheDocument();
+    expect(screen.getByText(id.invoiceAutoDispatchOn)).toBeInTheDocument();
+    expect(screen.getByText(id.repAutoDispatch)).toBeInTheDocument();
+    expect(screen.getByText(id.repAutoDispatchOff)).toBeInTheDocument();
+    expect(screen.queryByText(/Pendientes/i)).not.toBeInTheDocument();
   });
 
   it("CTA Ir a Contactos dispara onGoToContacts (empty)", async () => {

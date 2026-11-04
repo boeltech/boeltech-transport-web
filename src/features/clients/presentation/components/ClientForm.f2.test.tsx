@@ -2,9 +2,11 @@ import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import { ClientForm } from "./ClientForm";
 import { CLIENT_EDIT_SECTION_IDS } from "./clientEditSections";
 import { clientsCopy } from "../copy/clientsCopy";
+import { clientDetailCopy } from "../copy/clientDetailCopy";
 import type { Client } from "../../domain";
 
 vi.mock("@shared/hooks", () => ({
@@ -63,7 +65,9 @@ function renderWithQuery(ui: ReactElement) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -112,7 +116,35 @@ describe("ClientForm edit F2 (D8)", () => {
     ).toBeDisabled();
   });
 
-  it("omite Envío del rail cuando el perfil es Solo comercial", () => {
+  it("capa B: título patio + una frecuencia + dos Sin confirmar tipados (CA-4)", () => {
+    const id = clientDetailCopy.identification;
+    const dispatch = clientDetailCopy.invoiceDispatch;
+
+    renderWithQuery(
+      <ClientForm
+        mode="edit"
+        client={editClient}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(dispatch.title)).toBeInTheDocument();
+    expect(screen.getByText(id.billingScheme)).toBeInTheDocument();
+    expect(screen.getByText(id.invoiceAutoDispatch)).toBeInTheDocument();
+    expect(screen.getByText(id.repAutoDispatch)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: id.billingSchemeCatalogLink }),
+    ).toHaveAttribute("href", id.billingSchemeCatalogHref);
+    expect(
+      screen.getByRole("switch", { name: id.invoiceAutoDispatch }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: id.repAutoDispatch }),
+    ).not.toBeChecked();
+  });
+
+  it("omite Correo del rail cuando el perfil es Solo comercial", () => {
     renderWithQuery(
       <ClientForm
         mode="edit"

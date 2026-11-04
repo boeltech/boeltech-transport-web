@@ -1,5 +1,6 @@
 /**
  * Producto — handoff Capa 1 → Capa 3: léxico operativo del detalle de cliente.
+ * F3 pedido rediseño frecuencias: capa B «Cómo le mandamos el correo» + glosario PRD.
  */
 import { describe, expect, it } from "vitest";
 import { CLIENT_CONTACT_ROLE_LABELS } from "../../domain";
@@ -29,38 +30,43 @@ describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
     expect(clientDetailCopy.address.emptyHints.fiscal).toMatch(/facturar/i);
   });
 
-  it("identificación + envío: frecuencia, empty corto y sin lote/corrida (D1–D7)", () => {
+  it("capa B: una frecuencia + dos Sin confirmar tipados; Correo del periodo (CA-4 · I3/I5)", () => {
     const id = clientDetailCopy.identification;
     const dispatch = clientDetailCopy.invoiceDispatch;
 
-    expect(dispatch.title).toBe("Envío de facturas");
-    expect(dispatch.description).toMatch(/correo del periodo/i);
+    expect(dispatch.title).toBe("Cómo le mandamos el correo");
+    expect(dispatch.description).toMatch(/frecuencia de envío/i);
+    expect(dispatch.description).toMatch(/sin confirmar/i);
+    expect(dispatch.description).toMatch(/comprobantes de pago/i);
 
-    expect(id.billingScheme).toBe("Cada cuánto le mandamos las facturas");
+    expect(id.billingScheme).toBe("Frecuencia de envío");
     expect(id.billingSchemeNone).toBe("Sin frecuencia");
-    expect(id.billingSchemeEmptyNote).toMatch(/envíos del periodo/i);
-    expect(id.billingSchemeEmptyNote).toMatch(/Finanzas → Envíos → Pendientes/i);
-    expect(id.billingSchemeHint).toMatch(/envíos del periodo/i);
+    expect(id.billingSchemeEmptyNote).toMatch(/correo del periodo/i);
+    expect(id.billingSchemeEmptyNote).toMatch(/Finanzas → Correo del periodo/i);
+    expect(id.billingSchemeEmptyNote).not.toMatch(/Pendientes/i);
+    expect(id.billingSchemeEmptyNote).not.toMatch(/Envíos →/i);
+    expect(id.billingSchemeHint).toMatch(/correo del periodo/i);
+    expect(id.billingSchemeHint).not.toMatch(/Pendientes/i);
     expect(id.billingSchemeHint).not.toMatch(/Por facturar/i);
+    expect(id.billingSchemeCatalogHref).toBe("/settings/billing-schemes");
+    expect(id.billingSchemeCatalogLink).toMatch(/frecuencias de envío/i);
 
-    expect(id.invoiceAutoDispatch).toBe(
-      "Mandar el correo del periodo sin confirmar",
-    );
+    expect(id.invoiceAutoDispatch).toBe("Sin confirmar · Facturas");
     expect(id.invoiceAutoDispatchOn).toBe("Sí, sin confirmar");
-    expect(id.invoiceAutoDispatchOff).toBe("No — pide confirmación");
+    expect(id.invoiceAutoDispatchOff).toBe("Con confirmar");
+    expect(id.invoiceAutoDispatchHint).toMatch(/No enciende el de comprobantes/i);
+    expect(id.invoiceAutoDispatchNoSchemeTitle).toBe("Sin frecuencia de envío");
     expect(id.invoiceAutoDispatchNoSchemeTitle).not.toMatch(/esquema/i);
-    expect(id.invoiceAutoDispatchNoSchemeText).toMatch(
-      /automático no tiene efecto/i,
-    );
-    expect(id.invoiceAutoDispatchNoSchemeText).toMatch(/envíos del periodo/i);
+    expect(id.invoiceAutoDispatchNoSchemeText).toMatch(/correo del periodo/i);
+    expect(id.invoiceAutoDispatchNoSchemeText).not.toMatch(/Pendientes/i);
 
-    expect(id.repAutoDispatch).toBe(
-      "Envío automático de comprobantes de pago (REP)",
-    );
+    expect(id.repAutoDispatch).toBe("Sin confirmar · Comprobantes de pago");
     expect(id.repAutoDispatchOn).toBe("Sí, sin confirmar");
-    expect(id.repAutoDispatchOff).toBe("No — pide confirmación");
+    expect(id.repAutoDispatchOff).toBe("Con confirmar");
     expect(id.repAutoDispatchHint).toMatch(/Independiente/i);
-    expect(id.repAutoDispatchNoSchemeText).toMatch(/corrida manual/i);
+    expect(id.repAutoDispatchHint).toMatch(/comprobantes de pago \(REP\)/i);
+    expect(id.repAutoDispatchNoSchemeText).toMatch(/correo del periodo/i);
+    expect(id.repAutoDispatchNoSchemeText).not.toMatch(/\bcorrida\b/i);
 
     const surfaceBlob = [
       dispatch.title,
@@ -69,6 +75,7 @@ describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
       id.billingSchemeNone,
       id.billingSchemeEmptyNote,
       id.billingSchemeHint,
+      id.billingSchemeCatalogLink,
       id.invoiceAutoDispatch,
       id.invoiceAutoDispatchOn,
       id.invoiceAutoDispatchOff,
@@ -83,10 +90,11 @@ describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
       id.repAutoDispatchNoSchemeText,
     ].join("\n");
     expect(surfaceBlob).not.toMatch(/\blote\b/i);
-    // «corrida manual» en hint REP es copy de producto permitido (addendum D4).
-    expect(surfaceBlob.replace(/corrida manual/gi, "")).not.toMatch(
-      /\bcorrida\b/i,
-    );
+    expect(surfaceBlob).not.toMatch(/\bcorrida\b/i);
+    expect(surfaceBlob).not.toMatch(/billing_scheme/i);
+    expect(surfaceBlob).not.toMatch(/\bscheduled\b/i);
+    expect(surfaceBlob).not.toMatch(/invoice_auto_dispatch/i);
+    expect(surfaceBlob).not.toMatch(/Envíos → Pendientes/i);
   });
 
   it("rol de contacto sin jerga Carta Porte en superficie (D5)", () => {
@@ -95,4 +103,3 @@ describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
     );
   });
 });
-

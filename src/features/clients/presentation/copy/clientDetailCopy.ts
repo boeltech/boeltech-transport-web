@@ -70,36 +70,41 @@ export const clientDetailCopy = {
     taxId: "RFC",
     taxRegime: "Régimen",
     billingEmail: "Correo de facturación",
-    billingScheme: "Cada cuánto le mandamos las facturas",
+    /** Glosario PRD: Frecuencia de envío (una sola · I5). */
+    billingScheme: "Frecuencia de envío",
     billingSchemeNone: "Sin frecuencia",
     billingSchemeEmptyNote:
-      "No entra a los envíos del periodo. Sí puedes mandarle facturas sueltas desde Finanzas → Envíos → Pendientes.",
+      "No entra al correo del periodo. Cuando le asignes una frecuencia, aparece en Finanzas → Correo del periodo.",
     billingSchemePlaceholder: "Seleccionar frecuencia",
     billingSchemeHint:
-      "Opcional. Con frecuencia, el cliente entra a los envíos del periodo; sin ella, no. Aun así puedes mandarle facturas sueltas desde Finanzas → Envíos → Pendientes.",
-    invoiceAutoDispatch: "Mandar el correo del periodo sin confirmar",
+      "Opcional. Con frecuencia, el cliente entra al correo del periodo; sin ella, no.",
+    /** Link permitido a catálogo (F4 fuera de alcance salvo link). */
+    billingSchemeCatalogLink: "Administrar frecuencias de envío",
+    billingSchemeCatalogHref: "/settings/billing-schemes",
+    /** Glosario PRD: Sin confirmar (automático) — tipado facturas (I3). */
+    invoiceAutoDispatch: "Sin confirmar · Facturas",
     invoiceAutoDispatchOn: "Sí, sin confirmar",
-    invoiceAutoDispatchOff: "No — pide confirmación",
+    invoiceAutoDispatchOff: "Con confirmar",
     invoiceAutoDispatchHint:
-      "Si está activo y el cliente tiene frecuencia, el sistema arma y manda el correo del periodo sin que lo confirmes. Solo aplica a facturas; los comprobantes de pago (REP) tienen su propio interruptor.",
+      "Si está activo y hay frecuencia, el sistema manda las facturas del periodo sin que confirmes. No enciende el de comprobantes de pago.",
     invoiceAutoDispatchNoSchemeTitle: "Sin frecuencia de envío",
     invoiceAutoDispatchNoSchemeText:
-      "Sin frecuencia el automático no tiene efecto: el cliente no entra a los envíos del periodo. Sí puedes mandarle facturas sueltas desde Finanzas → Envíos → Pendientes.",
-    repAutoDispatch:
-      "Envío automático de comprobantes de pago (REP)",
+      "Sin frecuencia, Sin confirmar no tiene efecto: el cliente no entra al correo del periodo.",
+    /** Glosario PRD: Sin confirmar — tipado comprobantes de pago / REP (I3). */
+    repAutoDispatch: "Sin confirmar · Comprobantes de pago",
     repAutoDispatchOn: "Sí, sin confirmar",
-    repAutoDispatchOff: "No — pide confirmación",
+    repAutoDispatchOff: "Con confirmar",
     repAutoDispatchHint:
-      "Independiente del envío automático de facturas. Si está activo y el cliente tiene frecuencia, el correo del periodo puede incluir comprobantes de pago (REP) timbrados sin confirmación.",
+      "Independiente del de facturas. Si está activo y hay frecuencia, el correo del periodo puede incluir comprobantes de pago (REP) timbrados sin confirmación.",
     repAutoDispatchNoSchemeTitle: "Sin frecuencia de envío",
     repAutoDispatchNoSchemeText:
-      "Sin frecuencia el automático de comprobantes de pago no tiene efecto: el cliente no entra a los envíos del periodo. En una corrida manual sí puedes incluir REPs elegibles.",
+      "Sin frecuencia, Sin confirmar no tiene efecto: el cliente no entra al correo del periodo. En un correo del periodo armado a mano sí puedes incluir comprobantes de pago elegibles.",
   },
-  /** Card/sección separada de Identificación (D1). */
+  /** Capa B PRD: ritmo del cliente (una frecuencia + dos Sin confirmar). */
   invoiceDispatch: {
-    title: "Envío de facturas",
+    title: "Cómo le mandamos el correo",
     description:
-      "Cada cuánto y si el correo del periodo sale solo (facturas y/o comprobantes de pago).",
+      "Una frecuencia de envío para facturas y comprobantes de pago, y si cada tipo sale sin confirmar.",
   },
   notes: {
     title: "Notas",

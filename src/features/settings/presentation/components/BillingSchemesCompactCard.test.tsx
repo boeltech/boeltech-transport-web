@@ -47,11 +47,14 @@ describe("BillingSchemesCompactCard", () => {
     );
   });
 
-  it("muestra frecuencias, empty y atajo a clientes", () => {
+  it("empty primer uso: ritmo + CTA crear + atajo a clientes (sin Mandar)", () => {
     renderCard();
 
     expect(
-      screen.getByText(billingSchemesCopy.page.title),
+      screen.getByText(billingSchemesCopy.list.title),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingSchemesCopy.list.emptyTitle),
     ).toBeInTheDocument();
     expect(
       screen.getByText(billingSchemesCopy.list.emptyDescription),
@@ -60,9 +63,14 @@ describe("BillingSchemesCompactCard", () => {
       screen.getByRole("link", { name: billingSchemesCopy.page.clientsCta }),
     ).toHaveAttribute("href", "/clients");
     expect(
-      screen.getAllByRole("button", { name: billingSchemesCopy.list.add })
-        .length,
-    ).toBeGreaterThan(0);
+      screen.getByRole("button", {
+        name: billingSchemesCopy.list.emptyCta,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mandar/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Armar/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("accountant sin update no ve el alta", () => {
@@ -73,10 +81,15 @@ describe("BillingSchemesCompactCard", () => {
     renderCard();
 
     expect(
+      screen.queryByRole("button", {
+        name: billingSchemesCopy.list.emptyCta,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: billingSchemesCopy.list.add }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(billingSchemesCopy.page.title),
+      screen.getByText(billingSchemesCopy.list.emptyTitle),
     ).toBeInTheDocument();
   });
 });

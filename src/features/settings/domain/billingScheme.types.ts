@@ -1,4 +1,4 @@
-/** ADR-0082 — esquemas de facturación (cadencia / corrida). */
+/** ADR-0082 — frecuencias de envío (cadencia del correo del periodo). */
 
 export const BILLING_CADENCE_KINDS = [
   "event",

@@ -72,6 +72,7 @@ import { useBillingSchemes } from "@features/settings/application/hooks/useBilli
 import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
 import { RHFSelect } from "@shared/ui/form/RHFSelect";
 import { Switch } from "@shared/ui/switch";
+import { Link } from "react-router-dom";
 
 import {
   CLIENT_TYPE_LABELS,
@@ -780,7 +781,12 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
               placeholder={idCopy.billingSchemePlaceholder}
             />
             <p className="text-xs text-muted-foreground">
-              {idCopy.billingSchemeHint}
+              {idCopy.billingSchemeHint}{" "}
+              <Button variant="link" className="h-auto p-0 text-xs" asChild>
+                <Link to={idCopy.billingSchemeCatalogHref}>
+                  {idCopy.billingSchemeCatalogLink}
+                </Link>
+              </Button>
             </p>
           </div>
           <div className="space-y-2 sm:col-span-2">

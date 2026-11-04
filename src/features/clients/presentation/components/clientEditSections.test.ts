@@ -9,17 +9,17 @@ import {
 } from "./clientEditSections";
 
 describe("clientEditSections", () => {
-  it("expone las 5 secciones de edit con Envío (D8)", () => {
+  it("expone las 5 secciones de edit con Correo (capa B)", () => {
     expect(CLIENT_EDIT_SECTIONS.map((s) => s.label)).toEqual([
       "Tipo",
       "Fiscal",
-      "Envío",
+      "Correo",
       "Comercial",
       "Notas",
     ]);
   });
 
-  it("omite Envío del rail cuando el perfil es Solo comercial", () => {
+  it("omite Correo del rail cuando el perfil es Solo comercial", () => {
     expect(getClientEditSections(false).map((s) => s.label)).toEqual([
       "Tipo",
       "Fiscal",
