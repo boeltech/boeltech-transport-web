@@ -240,4 +240,13 @@ describe("tripsListCopy", () => {
       "Código, cliente o ruta",
     );
   });
+
+  it("invoiceablePicker: placeholder corto + aria espejo", () => {
+    expect(tripsListCopy.invoiceablePicker.searchPlaceholder).toBe(
+      "Código, origen o destino",
+    );
+    expect(tripsListCopy.invoiceablePicker.searchAriaLabel).toBe(
+      "Buscar por código, origen o destino",
+    );
+  });
 });

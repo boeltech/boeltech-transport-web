@@ -6,6 +6,8 @@ interface ListingSearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  /** Nombre accesible distinto del placeholder (criterios completos). */
+  ariaLabel?: string;
   className?: string;
 }
 
@@ -13,6 +15,7 @@ export function ListingSearchInput({
   value,
   onChange,
   placeholder,
+  ariaLabel,
   className,
 }: ListingSearchInputProps) {
   return (
@@ -20,6 +23,7 @@ export function ListingSearchInput({
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         placeholder={placeholder}
+        aria-label={ariaLabel}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="pl-8"

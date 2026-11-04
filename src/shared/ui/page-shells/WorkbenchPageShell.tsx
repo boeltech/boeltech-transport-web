@@ -72,6 +72,8 @@ export interface WorkbenchPageShellToolbar {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    /** Nombre accesible; si falta, el lector usa el placeholder. */
+    ariaLabel?: string;
     className?: string;
   };
   filters?: ReactNode;
@@ -399,6 +401,7 @@ function WorkbenchPageShellInner({
                 value={toolbar.search.value}
                 onChange={toolbar.search.onChange}
                 placeholder={toolbar.search.placeholder ?? "Buscar..."}
+                ariaLabel={toolbar.search.ariaLabel}
                 className={toolbar.search.className}
               />
             ) : null}

@@ -135,6 +135,8 @@ export function InvoiceableTripPickerSheet({
             value={searchInput}
             onChange={setSearchInput}
             placeholder={copy.searchPlaceholder}
+            ariaLabel={copy.searchAriaLabel}
+            className="sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1"
           />
 
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">

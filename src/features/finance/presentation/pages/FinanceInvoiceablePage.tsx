@@ -347,6 +347,8 @@ export function FinanceInvoiceablePage() {
         search: {
           ...filters.searchProps,
           placeholder: copy.searchPlaceholder,
+          ariaLabel: copy.searchAriaLabel,
+          className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
         },
         onRefresh: handleRefresh,
         isRefreshing: isFetching,

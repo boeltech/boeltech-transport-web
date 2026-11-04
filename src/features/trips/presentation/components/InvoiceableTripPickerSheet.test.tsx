@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { TripListItem } from "@features/trips/domain";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
+import { tripsListCopy } from "../copy/listCopy";
 import { InvoiceableTripPickerSheet } from "./InvoiceableTripPickerSheet";
 
 const mockUseTrips = vi.fn();
@@ -79,6 +80,25 @@ describe("InvoiceableTripPickerSheet", () => {
       expect.objectContaining({ enabled: true }),
     );
     expect(screen.getByText("VJ-2026-001")).toBeInTheDocument();
+  });
+
+  it("search usa placeholder corto, aria y ancho listing maduro", () => {
+    render(
+      <InvoiceableTripPickerSheet
+        open
+        onOpenChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+    const copy = tripsListCopy.invoiceablePicker;
+    const input = screen.getByRole("textbox", { name: copy.searchAriaLabel });
+
+    expect(
+      screen.getByPlaceholderText(copy.searchPlaceholder),
+    ).toBeInTheDocument();
+    expect(input).toBeInTheDocument();
+    // Sheet portaliza fuera de `container`; el ancho vive en el wrapper del input.
+    expect(input.parentElement?.className).toMatch(/sm:min-w-\[20rem]/);
   });
 
   it("shows empty state when no trips", () => {

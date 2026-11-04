@@ -132,7 +132,8 @@ export const tripsListCopy = {
     title: "Seleccionar viaje facturable",
     description:
       "Elige un viaje elegible para generar la factura. Incluye flete y viajes en falso sin factura activa; puede haber candidatos desde Programado.",
-    searchPlaceholder: "Buscar por código, origen o destino…",
+    searchPlaceholder: "Código, origen o destino",
+    searchAriaLabel: "Buscar por código, origen o destino",
     empty: "No hay viajes facturables en este momento.",
     loadError: "No se pudo cargar la lista de viajes.",
     selectAction: "Facturar",

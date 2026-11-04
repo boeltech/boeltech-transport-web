@@ -242,6 +242,11 @@ describe("FinanceInvoicesPage — Workbench F1", () => {
     expect(
       screen.getByPlaceholderText(financeCopy.invoices.searchPlaceholder),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", {
+        name: financeCopy.invoices.searchAriaLabel,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("al ir a detalle propaga state.from con pathname+search (bucket/filtros)", async () => {

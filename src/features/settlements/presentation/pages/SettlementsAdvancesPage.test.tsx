@@ -97,6 +97,19 @@ describe("SettlementsAdvancesPage F3", () => {
     advancesQuery.refetch.mockClear();
   });
 
+  it("search usa placeholder corto, aria y ancho listing maduro", () => {
+    const { container } = renderWithTheme(<SettlementsAdvancesPage />);
+    expect(
+      screen.getByPlaceholderText(settlementsCopy.fields.searchPlaceholder),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", {
+        name: settlementsCopy.fields.searchAriaLabel,
+      }),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".sm\\:min-w-\\[20rem\\]")).toBeTruthy();
+  });
+
   it("CTA Ver en Aprobaciones apunta a la bandeja de anticipos", () => {
     renderWithTheme(<SettlementsAdvancesPage />);
     const link = screen.getByRole("link", {

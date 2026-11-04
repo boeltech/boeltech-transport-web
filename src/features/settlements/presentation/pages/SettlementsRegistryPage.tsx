@@ -198,6 +198,8 @@ export function SettlementsRegistryPage() {
           search: {
             ...filters.searchProps,
             placeholder: copy.fields.searchPlaceholder,
+            ariaLabel: copy.fields.searchAriaLabel,
+            className: "sm:w-auto sm:min-w-[20rem] sm:max-w-xl sm:flex-1",
           },
           onRefresh: handleRefresh,
           isRefreshing: isFetching,

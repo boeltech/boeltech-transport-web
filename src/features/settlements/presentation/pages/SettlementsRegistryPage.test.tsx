@@ -91,6 +91,19 @@ describe("SettlementsRegistryPage F3", () => {
     settlementsQuery.refetch.mockClear();
   });
 
+  it("search usa placeholder corto, aria y ancho listing maduro", () => {
+    const { container } = renderWithTheme(<SettlementsRegistryPage />);
+    expect(
+      screen.getByPlaceholderText(settlementsCopy.fields.searchPlaceholder),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", {
+        name: settlementsCopy.fields.searchAriaLabel,
+      }),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".sm\\:min-w-\\[20rem\\]")).toBeTruthy();
+  });
+
   it("usa ListingFilterPanel para estado y operador (Historial deep-link)", async () => {
     const user = userEvent.setup();
     renderWithTheme(<SettlementsRegistryPage />);
