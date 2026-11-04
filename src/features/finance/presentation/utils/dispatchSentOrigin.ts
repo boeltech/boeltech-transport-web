@@ -1,4 +1,4 @@
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { InvoiceListItem } from "@features/invoicing";
 import type { DispatchRunOrigin } from "../../domain/billingDispatchRun.types";
 
 /**

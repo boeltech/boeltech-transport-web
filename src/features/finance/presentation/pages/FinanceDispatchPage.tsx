@@ -9,8 +9,10 @@ import { Plus } from "lucide-react";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { usePermissions } from "@shared/permissions";
-import { useDispatchDocuments } from "@features/invoicing/application";
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import {
+  useDispatchDocuments,
+  type DispatchDocumentItem,
+} from "@features/invoicing";
 import { useBillingDispatchRuns } from "@features/finance/application";
 import {
   DEFAULT_DISPATCH_TAB,

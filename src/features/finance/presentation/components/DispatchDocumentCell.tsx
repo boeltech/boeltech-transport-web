@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing";
 import {
   formatDispatchDocumentLabel,
   sliceRelatedInvoicesForDisplay,

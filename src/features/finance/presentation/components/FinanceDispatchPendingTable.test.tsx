@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import type { ComponentProps } from "react";
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing";
 import { FinanceDispatchPendingTable } from "./FinanceDispatchPendingTable";
 
 function buildDocument(

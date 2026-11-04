@@ -8,7 +8,7 @@
  * El lote del periodo es crossLink (no tab).
  */
 
-import type { DispatchDocumentKindFilter } from "@features/invoicing/domain";
+import type { DispatchDocumentKindFilter } from "@features/invoicing";
 
 export type DispatchWorkbenchTabId = "pending" | "sent";
 

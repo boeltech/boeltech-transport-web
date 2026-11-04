@@ -11,12 +11,13 @@ import { Card, CardContent } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useFinanceListingFilters } from "@features/finance/application";
-import { SendInvoiceDialog, SendRepDialog } from "@features/invoicing";
-import { useDispatchDocuments } from "@features/invoicing/application";
-import type {
-  DispatchDocumentItem,
-  DispatchDocumentKindFilter,
-} from "@features/invoicing/domain";
+import {
+  SendInvoiceDialog,
+  SendRepDialog,
+  useDispatchDocuments,
+  type DispatchDocumentItem,
+  type DispatchDocumentKindFilter,
+} from "@features/invoicing";
 import {
   DISPATCH_DOCUMENT_KIND_PARAM,
   DISPATCH_SENT_PAGE_SIZE,
@@ -86,21 +87,19 @@ export function FinanceDispatchSentPanel({
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [resendInvoiceId, setResendInvoiceId] = useState<string | null>(null);
   const [resendPaymentId, setResendPaymentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSelected({});
-  }, [
+  const selectionScope = [
     filters.search,
     filters.page,
     filters.filters.dateFrom,
     filters.filters.dateTo,
     documentKind,
-  ]);
-
-  useEffect(() => {
-    if (selectionResetKey === 0) return;
+    selectionResetKey,
+  ].join("\0");
+  const [selectionEpoch, setSelectionEpoch] = useState(selectionScope);
+  if (selectionEpoch !== selectionScope) {
+    setSelectionEpoch(selectionScope);
     setSelected({});
-  }, [selectionResetKey]);
+  }
 
   const { data, isLoading, isError, refetch, isFetching } = useDispatchDocuments(
     {

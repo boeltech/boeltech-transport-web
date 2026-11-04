@@ -18,12 +18,14 @@ import type {
   FinanceInvoiceListItem,
   FinanceInvoiceStatus,
 } from "@features/finance/domain";
-import { getDisplayAmountsFromInvoiceFields } from "@features/invoicing/domain";
-import { InvoiceBillingScopeBadge } from "@features/invoicing/presentation/components/InvoiceBillingScopeBadge";
-import { InvoiceEmailDispatchBadge } from "@features/invoicing/presentation/components/InvoiceEmailDispatchBadge";
+import {
+  getDisplayAmountsFromInvoiceFields,
+  InvoiceBillingScopeBadge,
+  InvoiceEmailDispatchBadge,
+  invoicingCopy,
+} from "@features/invoicing";
 import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
-import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
 import { financeCopy } from "../copy";
 import { formatFinancePaymentMethodLabel } from "../utils/formatFinancePaymentMethod";
 

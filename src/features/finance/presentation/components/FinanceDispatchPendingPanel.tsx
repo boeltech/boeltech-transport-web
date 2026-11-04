@@ -11,11 +11,11 @@ import { Card, CardContent } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { useFinanceListingFilters } from "@features/finance/application";
-import { useDispatchDocuments } from "@features/invoicing/application";
-import type {
-  DispatchDocumentItem,
-  DispatchDocumentKindFilter,
-} from "@features/invoicing/domain";
+import {
+  useDispatchDocuments,
+  type DispatchDocumentItem,
+  type DispatchDocumentKindFilter,
+} from "@features/invoicing";
 import {
   DISPATCH_DOCUMENT_KIND_PARAM,
   DISPATCH_PENDING_PAGE_SIZE,
@@ -72,16 +72,13 @@ export function FinanceDispatchPendingPanel({
     searchParamName: "search",
   });
 
+  const selectionScope = `${filters.search}\0${filters.page}\0${documentKind}\0${selectionResetKey}`;
+  const [selectionEpoch, setSelectionEpoch] = useState(selectionScope);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
+  if (selectionEpoch !== selectionScope) {
+    setSelectionEpoch(selectionScope);
     setSelected({});
-  }, [filters.search, filters.page, documentKind]);
-
-  useEffect(() => {
-    if (selectionResetKey === 0) return;
-    setSelected({});
-  }, [selectionResetKey]);
+  }
 
   const { data, isLoading, isError, refetch, isFetching } = useDispatchDocuments(
     {

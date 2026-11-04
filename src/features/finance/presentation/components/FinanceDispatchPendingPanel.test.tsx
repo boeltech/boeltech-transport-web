@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { FinanceDispatchPendingPanel } from "./FinanceDispatchPendingPanel";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing";
 import {
   dispatchDocumentSelectionKey,
   formatDispatchDocumentLabel,

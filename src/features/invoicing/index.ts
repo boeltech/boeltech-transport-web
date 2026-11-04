@@ -17,6 +17,9 @@ export type {
   SubstituteStampedInvoiceResult,
   InvoiceFilters,
   InvoiceEmailDispatchFilter,
+  InvoiceSendRecipients,
+  DispatchDocumentKindFilter,
+  DispatchDocumentItem,
 } from "./domain";
 export {
   InvoiceStatusLabels,
@@ -41,6 +44,14 @@ export {
   useRegisterPayment,
   useSubstituteStampedInvoice,
   useResumeSubstitutionCancel,
+  useInvoiceSendRecipients,
+  usePaymentSendRecipients,
+  useDispatchDocuments,
+  useSendInvoicesBatch,
+} from "./application";
+export type {
+  SendInvoiceBatchGroupItem,
+  SendInvoiceBatchResultItem,
 } from "./application";
 
 // Infrastructure
@@ -60,9 +71,18 @@ export {
   PaymentFormDialog,
   CancelInvoiceDialog,
   SubstituteInvoiceSheet,
+  InvoiceRecipientsChecklist,
   INVOICE_STATUS_CONFIG,
   getInvoiceStatusConfig,
 } from "./presentation/components";
+
+export {
+  buildSendRecipientKeys,
+  defaultSelectedRecipientKeys,
+  toggleRecipientKey,
+} from "./presentation/utils/invoiceSendRecipientSelection";
+
+export { invoicingCopy } from "./presentation/copy/invoicingCopy";
 
 export {
   buildInvoiceCreateHref,

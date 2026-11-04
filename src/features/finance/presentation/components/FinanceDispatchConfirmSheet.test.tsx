@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing";
 import { FinanceDispatchConfirmSheet } from "./FinanceDispatchConfirmSheet";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 

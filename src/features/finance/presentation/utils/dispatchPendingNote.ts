@@ -1,4 +1,4 @@
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { InvoiceListItem } from "@features/invoicing";
 
 export type DispatchPendingNoteKind = "failed" | "auto_cutoff";
 

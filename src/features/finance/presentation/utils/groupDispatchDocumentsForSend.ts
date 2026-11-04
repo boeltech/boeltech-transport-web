@@ -1,7 +1,7 @@
 import type {
   DispatchDocumentItem,
   DispatchRelatedInvoice,
-} from "@features/invoicing/domain";
+} from "@features/invoicing";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 
 const labels = dispatchRunsCopy.workbench.documentLabels;

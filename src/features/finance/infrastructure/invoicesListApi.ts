@@ -14,7 +14,7 @@ import type {
   FinanceInvoiceStatus,
   PaginatedFinanceInvoices,
 } from "@features/finance/domain";
-import { parseInvoiceBillingScope } from "@features/invoicing/domain";
+import { parseInvoiceBillingScope } from "@features/invoicing";
 
 const INVOICES = "/invoices";
 

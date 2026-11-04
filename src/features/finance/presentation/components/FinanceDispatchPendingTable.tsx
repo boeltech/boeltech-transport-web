@@ -11,7 +11,7 @@ import {
 } from "@shared/ui/table";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import type { DispatchDocumentItem } from "@features/invoicing";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import {
   dispatchDocumentSelectionKey,

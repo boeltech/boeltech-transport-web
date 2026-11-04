@@ -23,21 +23,15 @@ import {
   useInvoiceSendRecipients,
   usePaymentSendRecipients,
   useSendInvoicesBatch,
-} from "@features/invoicing/application";
-import type {
-  SendInvoiceBatchGroupItem,
-  SendInvoiceBatchResultItem,
-} from "@features/invoicing/application";
-import type {
-  DispatchDocumentItem,
-  InvoiceSendRecipients,
-} from "@features/invoicing/domain";
-import { InvoiceRecipientsChecklist } from "@features/invoicing/presentation/components/InvoiceRecipientsChecklist";
-import {
+  InvoiceRecipientsChecklist,
   buildSendRecipientKeys,
   defaultSelectedRecipientKeys,
   toggleRecipientKey,
-} from "@features/invoicing/presentation/utils/invoiceSendRecipientSelection";
+  type SendInvoiceBatchGroupItem,
+  type SendInvoiceBatchResultItem,
+  type DispatchDocumentItem,
+  type InvoiceSendRecipients,
+} from "@features/invoicing";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import {
   formatDispatchDocumentLabel,
@@ -295,18 +289,19 @@ export function FinanceDispatchConfirmSheet({
   const [results, setResults] = useState<SendInvoiceBatchResultItem[] | null>(
     null,
   );
+  const [sheetOpen, setSheetOpen] = useState(open);
+  if (open !== sheetOpen) {
+    setSheetOpen(open);
+    if (!open) {
+      setGroupStates({});
+      setResults(null);
+    }
+  }
 
   const groups = useMemo(
     () => groupDispatchDocumentsForSend(documents),
     [documents],
   );
-
-  useEffect(() => {
-    if (!open) {
-      setGroupStates({});
-      setResults(null);
-    }
-  }, [open]);
 
   const setGroupState = useCallback(
     (groupKey: string, next: GroupRecipientState) => {

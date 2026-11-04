@@ -5,7 +5,7 @@
 
 import { Label } from "@shared/ui/label";
 import { ListingDateRangeFilter, ListingFilterPanel } from "@shared/ui/listing";
-import type { DispatchDocumentKindFilter } from "@features/invoicing/domain";
+import type { DispatchDocumentKindFilter } from "@features/invoicing";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { FinanceDispatchDocumentKindFilter } from "./FinanceDispatchDocumentKindFilter";
 

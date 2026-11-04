@@ -1,4 +1,4 @@
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { InvoiceListItem } from "@features/invoicing";
 
 /**
  * Agrupa facturas del workbench de envío por cliente de envío.

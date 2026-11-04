@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import type { DispatchDocumentKindFilter } from "@features/invoicing/domain";
+import type { DispatchDocumentKindFilter } from "@features/invoicing";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 
 const copy = dispatchRunsCopy.workbench.typeFilter;

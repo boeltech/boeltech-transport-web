@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { InvoiceListItem } from "@features/invoicing/domain";
+import type { InvoiceListItem } from "@features/invoicing";
 import { resolveDispatchSentOrigin } from "./dispatchSentOrigin";
 
 function buildInvoice(
