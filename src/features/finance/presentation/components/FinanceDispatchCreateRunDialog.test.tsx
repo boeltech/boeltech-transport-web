@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { formatDate } from "@shared/utils/dateUtils";
-import { FINANCE_DISPATCH_DETAIL_PATH } from "../../application/financeRoutes";
+import {
+  FINANCE_DISPATCH_DETAIL_PATH,
+  FINANCE_DISPATCH_PERIOD_PATH,
+} from "../../application/financeRoutes";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { FinanceDispatchCreateRunDialog } from "./FinanceDispatchCreateRunDialog";
 
@@ -158,7 +161,7 @@ describe("FinanceDispatchCreateRunDialog", () => {
     await waitFor(() => {
       expect(navigateMock).toHaveBeenCalledWith(
         FINANCE_DISPATCH_DETAIL_PATH("run-1"),
-        { replace: true, state: { from: "/finance/dispatch" } },
+        { replace: true, state: { from: FINANCE_DISPATCH_PERIOD_PATH } },
       );
     });
   });
@@ -190,7 +193,7 @@ describe("FinanceDispatchCreateRunDialog", () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it("desde el workbench indica entrar a Por periodo", async () => {
+  it("desde el workbench indica entrar a Correo del periodo", async () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue({
       run: { id: "run-existing" },

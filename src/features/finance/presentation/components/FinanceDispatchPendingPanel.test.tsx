@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import type { DispatchDocumentItem } from "@features/invoicing/domain";
+import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { FinanceDispatchPendingPanel } from "./FinanceDispatchPendingPanel";
 
 const mockHasPermission = vi.fn();
@@ -101,6 +102,19 @@ describe("FinanceDispatchPendingPanel", () => {
       (module: string, action: string) =>
         module === "invoices" && action === "execute",
     );
+  });
+
+  it("search usa placeholder corto, aria y ancho listing maduro", () => {
+    const { container } = renderPanel();
+    const copy = dispatchRunsCopy.workbench.pending;
+
+    expect(
+      screen.getByPlaceholderText(copy.searchPlaceholder),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: copy.searchAriaLabel }),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".sm\\:min-w-\\[20rem\\]")).toBeTruthy();
   });
 
   it("shows Enviar N with the correct count after multi-client selection", async () => {

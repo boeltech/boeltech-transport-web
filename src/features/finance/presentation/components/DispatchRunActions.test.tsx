@@ -107,7 +107,7 @@ describe("DispatchRunActions", () => {
     expect(mutateAsync).toHaveBeenCalledWith("run-1");
   });
 
-  it("buttons pone Enviar facturas como primaria y Reenviar en Más", async () => {
+  it("buttons pone Mandar como primaria y Reenviar en Más", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
     const onResend = vi.fn();
