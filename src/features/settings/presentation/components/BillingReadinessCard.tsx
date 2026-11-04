@@ -469,6 +469,12 @@ function describeCertificate(
   if (certificate.status === "pending" && uploadRestricted) {
     return copy.certificate.adminOnly;
   }
+  if (certificate.kindIssue === "not_csd") {
+    return copy.certificate.notCsd;
+  }
+  if (certificate.kindIssue === "unverified") {
+    return copy.certificate.unverified;
+  }
   if (!certificate.expiresAt) {
     return certificate.status === "pending"
       ? copy.certificate.missing

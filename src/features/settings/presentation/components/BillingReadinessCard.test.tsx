@@ -18,6 +18,7 @@ const READY_CERTIFICATE: CertificateReadiness = {
   status: "ready",
   expiresAt: new Date("2028-01-15T00:00:00.000Z"),
   daysRemaining: 500,
+  kindIssue: null,
 };
 const READY_NUMBERING: NumberingReadiness = { status: "ready", serie: "A" };
 
@@ -243,7 +244,12 @@ describe("BillingReadinessCard", () => {
 
   it("apunta al sello cuando falta cargarlo", () => {
     renderCard({
-      certificate: { status: "pending", expiresAt: null, daysRemaining: null },
+      certificate: {
+        status: "pending",
+        expiresAt: null,
+        daysRemaining: null,
+        kindIssue: null,
+      },
     });
 
     expect(
@@ -253,7 +259,12 @@ describe("BillingReadinessCard", () => {
 
   it("explica que el sello lo carga un admin cuando el rol no puede subirlo", () => {
     renderCard({
-      certificate: { status: "pending", expiresAt: null, daysRemaining: null },
+      certificate: {
+        status: "pending",
+        expiresAt: null,
+        daysRemaining: null,
+        kindIssue: null,
+      },
       certificateUploadRestricted: true,
     });
 
@@ -263,10 +274,52 @@ describe("BillingReadinessCard", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("muestra copy §E-d y CTA al sello cuando kind no es CSD", () => {
+    renderCard({
+      certificate: {
+        status: "pending",
+        expiresAt: null,
+        daysRemaining: null,
+        kindIssue: "not_csd",
+      },
+    });
+
+    expect(
+      screen.getByText(
+        "El archivo cargado no es el CSD de sello. Reemplázalo para poder facturar.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Cargar el sello digital" }),
+    ).toHaveAttribute("href", "#sello-digital");
+  });
+
+  it("muestra copy §E-e cuando el tipo no está verificado", () => {
+    renderCard({
+      certificate: {
+        status: "pending",
+        expiresAt: null,
+        daysRemaining: null,
+        kindIssue: "unverified",
+      },
+    });
+
+    expect(
+      screen.getByText(
+        "No confirmamos que el sello sea un CSD. Vuelve a cargar el Certificado de Sello Digital (.cer y .key) para verificarlo.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("avisa del vencimiento próximo del sello con la fecha visible", () => {
     const expiresAt = new Date("2026-09-20T12:00:00.000Z");
     renderCard({
-      certificate: { status: "warning", expiresAt, daysRemaining: 50 },
+      certificate: {
+        status: "warning",
+        expiresAt,
+        daysRemaining: 50,
+        kindIssue: null,
+      },
     });
 
     expect(screen.getByText("Tu sello digital está por vencer")).toBeInTheDocument();

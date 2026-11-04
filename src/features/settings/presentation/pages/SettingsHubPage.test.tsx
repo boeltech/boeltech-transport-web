@@ -23,6 +23,7 @@ vi.mock("../../application/hooks", () => ({
     data: {
       certificateConfigured: true,
       certificateExpiry: "2099-01-01T00:00:00.000Z",
+      certificateKind: "csd",
       serieFactura: "A",
       folioInicial: 1,
     },

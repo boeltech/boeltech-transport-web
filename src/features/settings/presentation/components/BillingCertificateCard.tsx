@@ -89,8 +89,51 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
     );
   }, [canUpload, certificate, privateKey, password, uploadMutation]);
 
-  const isExpired = readiness.status === "pending" && Boolean(readiness.expiresAt);
+  const kindIssue = readiness.kindIssue;
+  const isKindBlocked =
+    kindIssue === "not_csd" || kindIssue === "unverified";
+  const isExpired =
+    readiness.status === "pending" &&
+    Boolean(readiness.expiresAt) &&
+    !isKindBlocked;
   const isExpiring = readiness.status === "warning";
+
+  const statusBadge = (() => {
+    if (!settings.certificateConfigured) return null;
+    if (kindIssue === "not_csd") {
+      return {
+        variant: "destructive" as const,
+        label: copy.statusNotCsd,
+        warnIcon: true,
+      };
+    }
+    if (kindIssue === "unverified") {
+      return {
+        variant: "warning" as const,
+        label: copy.statusUnverified,
+        warnIcon: true,
+      };
+    }
+    if (isExpired) {
+      return {
+        variant: "destructive" as const,
+        label: copy.statusExpired,
+        warnIcon: true,
+      };
+    }
+    if (isExpiring) {
+      return {
+        variant: "warning" as const,
+        label: copy.statusExpiring,
+        warnIcon: true,
+      };
+    }
+    return {
+      variant: "success" as const,
+      label: copy.statusConfigured,
+      warnIcon: false,
+    };
+  })();
 
   return (
     <section
@@ -105,22 +148,18 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
               {copy.description}
             </p>
           </div>
-          {settings.certificateConfigured ? (
+          {statusBadge ? (
             <Badge
-              variant={isExpired ? "destructive" : isExpiring ? "warning" : "success"}
+              variant={statusBadge.variant}
               tone="soft"
               className="shrink-0"
             >
-              {isExpired || isExpiring ? (
+              {statusBadge.warnIcon ? (
                 <AlertTriangle className="mr-1 h-3 w-3" />
               ) : (
                 <CheckCircle2 className="mr-1 h-3 w-3" />
               )}
-              {isExpired
-                ? copy.statusExpired
-                : isExpiring
-                  ? copy.statusExpiring
-                  : copy.statusConfigured}
+              {statusBadge.label}
             </Badge>
           ) : null}
         </div>
@@ -138,6 +177,17 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
           alert={isExpired ? "expired" : isExpiring ? "warning" : undefined}
         />
 
+        {isKindBlocked ? (
+          <Alert variant="warning">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {kindIssue === "not_csd"
+                ? copy.notCsdWarning
+                : copy.unverifiedWarning}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         {isExpired || isExpiring ? (
           <Alert variant="warning">
             <AlertTriangle className="h-4 w-4" />
@@ -146,6 +196,8 @@ export const BillingCertificateCard = memo(function BillingCertificateCard({
             </AlertDescription>
           </Alert>
         ) : null}
+
+        <p className="text-sm text-muted-foreground">{copy.uploadHelper}</p>
 
         {canUpload ? (
           <div className="grid gap-4 sm:grid-cols-2">

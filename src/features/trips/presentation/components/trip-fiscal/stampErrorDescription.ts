@@ -30,6 +30,10 @@ const VEHICLE_DETAIL_CODES = new Set([
 const PAC_STAMP_CONFIG_MESSAGE =
   "No se pudo timbrar: la cuenta o el RFC emisor no están listos en el proveedor de timbrado.";
 
+/** Mensaje genérico que no debe explicar un 306 / certificado no CSD. */
+const PAC_GENERIC_XSD_MESSAGE =
+  "El PAC rechazó el CFDI por validación fiscal/XSD.";
+
 function formatCp31Path(path: string): string {
   const tripStop =
     /^trip\.([^.\s]+)\.stop\.(\d+)\.distance_from_previous_km$/.exec(path);
@@ -91,8 +95,36 @@ function readStampHint(error: ApiError): string {
 }
 
 function readPacCode(error: ApiError): string {
-  const raw = error.details?.pac_code;
-  return typeof raw === "string" ? raw.trim() : "";
+  const snake = error.details?.pac_code;
+  if (typeof snake === "string" && snake.trim()) return snake.trim();
+  const camel = error.details?.pacCode;
+  if (typeof camel === "string" && camel.trim()) return camel.trim();
+  return "";
+}
+
+function isPacCertificateNotCsdError(error: ApiError): boolean {
+  if (error.code === "PAC_CERTIFICATE_NOT_CSD") return true;
+  return readPacCode(error) === "306";
+}
+
+/**
+ * Preferir hint / message del API (F3); no usar el genérico XSD ni el raw
+ * `Stamp error [306]` como explicación al operador.
+ */
+function describePacCertificateNotCsdError(error: ApiError): string {
+  const hint = readStampHint(error);
+  if (hint) return hint;
+
+  const message = error.message.trim();
+  if (
+    message &&
+    message !== PAC_GENERIC_XSD_MESSAGE &&
+    !/^Stamp error\s*\[306\]/i.test(message)
+  ) {
+    return message;
+  }
+
+  return tripFiscalCopy.stamp.pacCertificateNotCsd;
 }
 
 /**
@@ -143,6 +175,10 @@ export function describeStampApiError(error: unknown): string {
 
   if (error.code === "CSD_PASSWORD_NOT_CONFIGURED") {
     return tripFiscalCopy.stamp.csdPasswordNotConfigured;
+  }
+
+  if (isPacCertificateNotCsdError(error)) {
+    return describePacCertificateNotCsdError(error);
   }
 
   if (isPacStampConfigError(error)) {
@@ -198,12 +234,10 @@ export function describeStampApiError(error: unknown): string {
   if (
     hint &&
     error.code === "PAC_VALIDATION_ERROR" &&
-    (error.message ===
-      "El PAC rechazó el CFDI por validación fiscal/XSD." ||
+    (error.message === PAC_GENERIC_XSD_MESSAGE ||
       !error.message.includes(hint))
   ) {
-    return error.message ===
-      "El PAC rechazó el CFDI por validación fiscal/XSD."
+    return error.message === PAC_GENERIC_XSD_MESSAGE
       ? hint
       : `${error.message} ${hint}`;
   }

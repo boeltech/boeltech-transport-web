@@ -140,6 +140,12 @@ export const tripFiscalCopy = {
     csdPasswordNotConfigured:
       "Falta la contraseña del sello (CSD) o no está configurada. Cárguela en Configuración → Datos para facturar y vuelva a timbrar.",
     /**
+     * PAC 306 / `PAC_CERTIFICATE_NOT_CSD` — PRD §E-(c). Preferir `details.hint` /
+     * `message` del API cuando existan; este texto es fallback.
+     */
+    pacCertificateNotCsd:
+      "No se timbró: el certificado cargado no es un CSD. Reemplázalo en Configuración → Datos para facturar (CSD, no e.firma) y vuelve a timbrar.",
+    /**
      * PAC cuenta / RFC emisor no listo (`PAC_CONFIG_ERROR` + mensaje stamp config / hint 702).
      * Si el detalle ya nombra Datos para facturar, no se duplica el next-step.
      */

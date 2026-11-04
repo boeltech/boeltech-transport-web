@@ -182,6 +182,83 @@ describe("describeStampApiError", () => {
     expect(describeStampApiError(error)).toBe(apiMessage);
   });
 
+  it("PAC_CERTIFICATE_NOT_CSD usa details.hint del API (PRD §E-c)", () => {
+    const hint =
+      "No se timbró: el certificado cargado no es un CSD. Reemplázalo en Configuración → Datos para facturar (CSD, no e.firma) y vuelve a timbrar.";
+    const error = new ApiError(hint, 422, "PAC_CERTIFICATE_NOT_CSD", {
+      pac_provider: "finkok",
+      pac_code: "306",
+      hint,
+    });
+
+    const message = describeStampApiError(error);
+
+    expect(message).toBe(hint);
+    expect(message).toMatch(/CSD/i);
+    expect(message).toMatch(/Datos para facturar/i);
+    expect(message).not.toContain("validación fiscal/XSD");
+  });
+
+  it("PAC_CERTIFICATE_NOT_CSD sin hint usa el message del API si no es genérico XSD", () => {
+    const apiMessage =
+      "No se timbró: el certificado cargado no es un CSD. Reemplázalo en Configuración → Datos para facturar (CSD, no e.firma) y vuelve a timbrar.";
+    const error = new ApiError(apiMessage, 422, "PAC_CERTIFICATE_NOT_CSD", {
+      pac_code: "306",
+      pac_provider: "finkok",
+    });
+
+    expect(describeStampApiError(error)).toBe(apiMessage);
+  });
+
+  it("pac_code 306 con PAC_VALIDATION_ERROR genérico no deja solo XSD (fallback PRD)", () => {
+    const error = new ApiError(
+      "El PAC rechazó el CFDI por validación fiscal/XSD.",
+      422,
+      "PAC_VALIDATION_ERROR",
+      {
+        pac_provider: "finkok",
+        pac_code: "306",
+      },
+    );
+
+    const message = describeStampApiError(error);
+
+    expect(message).toBe(tripFiscalCopy.stamp.pacCertificateNotCsd);
+    expect(message).not.toContain("validación fiscal/XSD");
+    expect(message).toMatch(/e\.firma/i);
+  });
+
+  it("pacCode camelCase 306 también dispara copy CSD (no XSD)", () => {
+    const error = new ApiError(
+      "El PAC rechazó el CFDI por validación fiscal/XSD.",
+      422,
+      "PAC_VALIDATION_ERROR",
+      {
+        pacProvider: "finkok",
+        pacCode: "306",
+      },
+    );
+
+    const message = describeStampApiError(error);
+
+    expect(message).toBe(tripFiscalCopy.stamp.pacCertificateNotCsd);
+    expect(message).not.toContain("validación fiscal/XSD");
+  });
+
+  it("PAC_CERTIFICATE_NOT_CSD con message crudo Stamp error [306] usa fallback PRD", () => {
+    const error = new ApiError(
+      "Stamp error [306]: EL certificado no es de tipo CSD",
+      422,
+      "PAC_CERTIFICATE_NOT_CSD",
+      { pac_code: "306" },
+    );
+
+    const message = describeStampApiError(error);
+
+    expect(message).toBe(tripFiscalCopy.stamp.pacCertificateNotCsd);
+    expect(message).not.toMatch(/Stamp error/i);
+  });
+
   it("incluye hint de PAC_ISSUED_AT_OUT_OF_RANGE cuando aporta reintento", () => {
     const hint =
       "Vuelve a intentar el timbrado; al timbrar se actualiza la fecha de emisión. Si el error persiste: (1) si Comprobante.Fecha va adelantada vs el reloj ProFact, ajusta PROFACT_FECHA_CLOCK_OFFSET_MINUTES (sandbox suele necesitar -60); (2) verifica la hora del servidor API.";

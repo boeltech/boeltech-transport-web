@@ -69,8 +69,16 @@ export const billingSettingsCopy = {
       missing: "Falta cargarlo",
       expired: "Venció el {date}",
       expiring: "Vence el {date}",
-      valid: "Vigente hasta el {date}",
-      validNoDate: "Cargado",
+      /** PRD §E-(f) + vigencia. */
+      valid: "Sello digital (CSD) cargado. Vigente hasta el {date}",
+      /** PRD §E-(f). */
+      validNoDate: "Sello digital (CSD) cargado.",
+      /** PRD §E-(d). */
+      notCsd:
+        "El archivo cargado no es el CSD de sello. Reemplázalo para poder facturar.",
+      /** PRD §E-(e). */
+      unverified:
+        "No confirmamos que el sello sea un CSD. Vuelve a cargar el Certificado de Sello Digital (.cer y .key) para verificarlo.",
       adminOnly: "Lo carga un administrador",
     },
     numbering: {
@@ -113,12 +121,17 @@ export const billingSettingsCopy = {
     title: "Sello digital de tu empresa (CSD)",
     description:
       "Los dos archivos que el SAT te entrega para firmar tus facturas. Se aplican al momento de cargarlos: no dependen del botón «Guardar cambios».",
+    /** PRD §E-(b) — helper siempre visible bajo el control de carga. */
+    uploadHelper:
+      "Usa el CSD (.cer y .key) del RFC de tu empresa, no la e.firma / FIEL de trámites.",
     restrictedTitle: "Solo el administrador puede cargar el sello",
     restrictedDescription:
       "Pide a quien administra la cuenta que cargue o renueve los archivos del sello digital.",
     statusConfigured: "Cargado",
     statusExpired: "Vencido",
     statusExpiring: "Por vencer",
+    statusNotCsd: "No es CSD",
+    statusUnverified: "Sin verificar",
     expiryLabel: "Vigencia",
     expiryValue: (date: string) => `Hasta el ${date}`,
     expiryMissing: "Sin cargar",
@@ -126,6 +139,10 @@ export const billingSettingsCopy = {
       "Tramita la renovación ante el SAT con tiempo: cuando el sello vence, dejas de poder facturar.",
     expiredWarning:
       "Tu sello venció. No podrás emitir facturas hasta que cargues uno vigente.",
+    notCsdWarning:
+      "El archivo cargado no es el CSD de sello. Reemplázalo para poder facturar.",
+    unverifiedWarning:
+      "No confirmamos que el sello sea un CSD. Vuelve a cargar el Certificado de Sello Digital (.cer y .key) para verificarlo.",
     certificateFile: "Archivo del certificado (.cer)",
     privateKeyFile: "Archivo de la llave privada (.key)",
     chooseFile: "Elegir archivo",
@@ -235,6 +252,9 @@ export const billingSettingsCopy = {
     certificateError: "No se pudo cargar el sello digital",
     certificateErrorDescription:
       "Revisa que los archivos y la contraseña sean correctos.",
+    /** PRD §E-(a) — fallback si el API no manda message en CERTIFICATE_NOT_CSD. */
+    certificateNotCsd:
+      "Este archivo no es el CSD para facturar. La e.firma / FIEL no sirve para timbrar. Descarga el Certificado de Sello Digital (CSD) y su llave desde Certifica (SAT) e inténtalo de nuevo.",
     connectionOk: "La conexión con el timbrador funciona",
     connectionOkDescription: "Puedes emitir facturas.",
     connectionUnavailable: "Este timbrador todavía no está disponible",

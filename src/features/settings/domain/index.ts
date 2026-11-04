@@ -22,6 +22,7 @@ export type {
   CompanySettings,
   CompanyAddress,
   BillingSettings,
+  CertificateKind,
   PacProvider,
   FinkokEmitter,
   FinkokEmitterStatus,

@@ -13,6 +13,7 @@ import {
   type CompanySettings,
   type CompanyAddress,
   type BillingSettings,
+  type CertificateKind,
   type FinkokEmitter,
   type FinkokEmitterStatus,
   type NotificationSettings,
@@ -95,6 +96,11 @@ export interface ApiBillingSettingsResponse {
   pac_password_configured: boolean;
   certificate_configured: boolean;
   certificate_expiry: string | null;
+  /** F4: `csd` | `fiel` | `unknown` | null (legado no verificado). */
+  certificate_kind?: string | null;
+  certificate_serial?: string | null;
+  certificate_fingerprint_sha256?: string | null;
+  certificate_classified_at?: string | null;
   default_uso_cfdi: string;
   default_forma_pago: string;
   default_metodo_pago: string;
@@ -218,6 +224,13 @@ export function mapEmbeddedCompanyAddress(
   return mapClientAddressFromApi(api.company_address);
 }
 
+function normalizeCertificateKind(raw: unknown): CertificateKind | null {
+  if (raw === "csd" || raw === "fiel" || raw === "unknown") {
+    return raw;
+  }
+  return null;
+}
+
 export function mapBillingSettings(
   api: ApiBillingSettingsResponse,
 ): BillingSettings {
@@ -239,6 +252,21 @@ export function mapBillingSettings(
     pacPasswordConfigured: api.pac_password_configured,
     certificateConfigured: api.certificate_configured,
     certificateExpiry: api.certificate_expiry,
+    certificateKind: normalizeCertificateKind(api.certificate_kind),
+    certificateSerial:
+      typeof api.certificate_serial === "string" && api.certificate_serial.trim()
+        ? api.certificate_serial.trim()
+        : null,
+    certificateFingerprintSha256:
+      typeof api.certificate_fingerprint_sha256 === "string" &&
+      api.certificate_fingerprint_sha256.trim()
+        ? api.certificate_fingerprint_sha256.trim()
+        : null,
+    certificateClassifiedAt:
+      typeof api.certificate_classified_at === "string" &&
+      api.certificate_classified_at.trim()
+        ? api.certificate_classified_at.trim()
+        : null,
     defaultUsoCfdi: api.default_uso_cfdi,
     defaultFormaPago: api.default_forma_pago,
     defaultMetodoPago: api.default_metodo_pago,

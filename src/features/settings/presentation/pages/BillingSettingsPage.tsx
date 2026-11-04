@@ -176,7 +176,11 @@ export const BillingSettingsPage = memo(function BillingSettingsPage() {
   const certificateReadiness = useMemo(
     () =>
       resolveCertificateReadiness(
-        settings ?? { certificateConfigured: false, certificateExpiry: null },
+        settings ?? {
+          certificateConfigured: false,
+          certificateExpiry: null,
+          certificateKind: null,
+        },
       ),
     [settings],
   );

@@ -84,6 +84,12 @@ export interface FinkokEmitter {
 }
 
 /**
+ * Clasificación del certificado de sello (GET billing / metadata F4).
+ * `null` = legado no verificado (TEC-7 / PRD §E-e).
+ */
+export type CertificateKind = "csd" | "fiel" | "unknown";
+
+/**
  * Configuración de facturación electrónica
  */
 export interface BillingSettings {
@@ -94,6 +100,12 @@ export interface BillingSettings {
   readonly pacPasswordConfigured: boolean; // No exponer el password real
   readonly certificateConfigured: boolean;
   readonly certificateExpiry: string | null;
+  /** Tipo de sello clasificado; `null` si no verificado o ausente. */
+  readonly certificateKind: CertificateKind | null;
+  readonly certificateSerial: string | null;
+  readonly certificateFingerprintSha256: string | null;
+  /** ISO 8601 UTC de la última clasificación; `null` si no aplica. */
+  readonly certificateClassifiedAt: string | null;
   readonly defaultUsoCfdi: string;
   readonly defaultFormaPago: string;
   readonly defaultMetodoPago: string;

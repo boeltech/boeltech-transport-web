@@ -22,11 +22,21 @@ export type BillingRequirementStatus =
   | "pending"
   | "unknown";
 
+/**
+ * Motivo de pending por tipo de sello (PRD §E-d/e), distinto de «falta» o vencido.
+ */
+export type CertificateKindIssue = "not_csd" | "unverified";
+
 export interface CertificateReadiness {
   status: BillingRequirementStatus;
   expiresAt: Date | null;
   /** Días restantes; negativo si ya venció. `null` si no hay fecha. */
   daysRemaining: number | null;
+  /**
+   * Presente cuando hay archivo pero el tipo no permite facturar
+   * (`fiel`/`unknown` → not_csd; `null` → unverified).
+   */
+  kindIssue: CertificateKindIssue | null;
 }
 
 export interface NumberingReadiness {
@@ -63,34 +73,94 @@ export function resolveIdentityReadiness(
   };
 }
 
-export function resolveCertificateReadiness(
-  settings: Pick<BillingSettings, "certificateConfigured" | "certificateExpiry">,
-  now: Date = new Date(),
-): CertificateReadiness {
-  if (!settings.certificateConfigured) {
-    return { status: "pending", expiresAt: null, daysRemaining: null };
+function parseCertificateExpiry(
+  raw: string | null,
+  now: Date,
+): { expiresAt: Date | null; daysRemaining: number | null } {
+  if (!raw) {
+    return { expiresAt: null, daysRemaining: null };
   }
-
-  if (!settings.certificateExpiry) {
-    return { status: "ready", expiresAt: null, daysRemaining: null };
-  }
-
-  const expiresAt = new Date(settings.certificateExpiry);
+  const expiresAt = new Date(raw);
   if (Number.isNaN(expiresAt.getTime())) {
-    return { status: "ready", expiresAt: null, daysRemaining: null };
+    return { expiresAt: null, daysRemaining: null };
   }
-
   const daysRemaining = Math.floor(
     (expiresAt.getTime() - now.getTime()) / MS_PER_DAY,
   );
+  return { expiresAt, daysRemaining };
+}
 
-  if (daysRemaining < 0) {
-    return { status: "pending", expiresAt, daysRemaining };
+export function resolveCertificateReadiness(
+  settings: Pick<
+    BillingSettings,
+    "certificateConfigured" | "certificateExpiry" | "certificateKind"
+  >,
+  now: Date = new Date(),
+): CertificateReadiness {
+  if (!settings.certificateConfigured) {
+    return {
+      status: "pending",
+      expiresAt: null,
+      daysRemaining: null,
+      kindIssue: null,
+    };
   }
-  if (daysRemaining <= CERTIFICATE_EXPIRY_WARNING_DAYS) {
-    return { status: "warning", expiresAt, daysRemaining };
+
+  const expiry = parseCertificateExpiry(settings.certificateExpiry, now);
+  const kind = settings.certificateKind;
+
+  // PRD §E-(d): fiel / unknown → no listo (antes de mirar vigencia).
+  if (kind === "fiel" || kind === "unknown") {
+    return {
+      status: "pending",
+      expiresAt: expiry.expiresAt,
+      daysRemaining: expiry.daysRemaining,
+      kindIssue: "not_csd",
+    };
   }
-  return { status: "ready", expiresAt, daysRemaining };
+
+  // PRD §E-(e): kind null con archivo → no verificado.
+  if (kind == null) {
+    return {
+      status: "pending",
+      expiresAt: expiry.expiresAt,
+      daysRemaining: expiry.daysRemaining,
+      kindIssue: "unverified",
+    };
+  }
+
+  // kind === "csd" — vigencia como hoy (PRD §E-f).
+  if (!expiry.expiresAt || expiry.daysRemaining == null) {
+    return {
+      status: "ready",
+      expiresAt: null,
+      daysRemaining: null,
+      kindIssue: null,
+    };
+  }
+
+  if (expiry.daysRemaining < 0) {
+    return {
+      status: "pending",
+      expiresAt: expiry.expiresAt,
+      daysRemaining: expiry.daysRemaining,
+      kindIssue: null,
+    };
+  }
+  if (expiry.daysRemaining <= CERTIFICATE_EXPIRY_WARNING_DAYS) {
+    return {
+      status: "warning",
+      expiresAt: expiry.expiresAt,
+      daysRemaining: expiry.daysRemaining,
+      kindIssue: null,
+    };
+  }
+  return {
+    status: "ready",
+    expiresAt: expiry.expiresAt,
+    daysRemaining: expiry.daysRemaining,
+    kindIssue: null,
+  };
 }
 
 /**

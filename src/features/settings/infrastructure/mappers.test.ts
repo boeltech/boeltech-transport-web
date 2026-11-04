@@ -111,4 +111,32 @@ describe("mapBillingSettings", () => {
     expect(mapped.finkokRegistrationEnabled).toBe(false);
     expect(mapped.finkokEmitter).toBeNull();
   });
+
+  it("mapea metadata de certificado CSD (F4/F5)", () => {
+    const mapped = mapBillingSettings(
+      buildApiBillingSettings({
+        certificate_configured: true,
+        certificate_kind: "csd",
+        certificate_serial: "30001000000500003416",
+        certificate_fingerprint_sha256: "a".repeat(64),
+        certificate_classified_at: "2026-11-02T20:50:34.000Z",
+      }),
+    );
+
+    expect(mapped.certificateKind).toBe("csd");
+    expect(mapped.certificateSerial).toBe("30001000000500003416");
+    expect(mapped.certificateFingerprintSha256).toBe("a".repeat(64));
+    expect(mapped.certificateClassifiedAt).toBe("2026-11-02T20:50:34.000Z");
+  });
+
+  it("kind ausente o inválido → null (legado no verificado)", () => {
+    expect(
+      mapBillingSettings(buildApiBillingSettings({})).certificateKind,
+    ).toBeNull();
+    expect(
+      mapBillingSettings(
+        buildApiBillingSettings({ certificate_kind: "weird" }),
+      ).certificateKind,
+    ).toBeNull();
+  });
 });

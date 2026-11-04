@@ -57,20 +57,30 @@ describe("resolveIdentityReadiness", () => {
 describe("resolveCertificateReadiness", () => {
   it("marca pendiente cuando no hay sello cargado", () => {
     const result = resolveCertificateReadiness(
-      { certificateConfigured: false, certificateExpiry: null },
+      {
+        certificateConfigured: false,
+        certificateExpiry: null,
+        certificateKind: null,
+      },
       NOW,
     );
     expect(result.status).toBe("pending");
     expect(result.expiresAt).toBeNull();
+    expect(result.kindIssue).toBeNull();
   });
 
   it("marca pendiente cuando el sello ya venció", () => {
     const result = resolveCertificateReadiness(
-      { certificateConfigured: true, certificateExpiry: daysFromNow(-1) },
+      {
+        certificateConfigured: true,
+        certificateExpiry: daysFromNow(-1),
+        certificateKind: "csd",
+      },
       NOW,
     );
     expect(result.status).toBe("pending");
     expect(result.daysRemaining).toBeLessThan(0);
+    expect(result.kindIssue).toBeNull();
   });
 
   it("avisa con 60 días de anticipación", () => {
@@ -78,6 +88,7 @@ describe("resolveCertificateReadiness", () => {
       {
         certificateConfigured: true,
         certificateExpiry: daysFromNow(CERTIFICATE_EXPIRY_WARNING_DAYS - 1),
+        certificateKind: "csd",
       },
       NOW,
     );
@@ -85,6 +96,7 @@ describe("resolveCertificateReadiness", () => {
       {
         certificateConfigured: true,
         certificateExpiry: daysFromNow(CERTIFICATE_EXPIRY_WARNING_DAYS + 1),
+        certificateKind: "csd",
       },
       NOW,
     );
@@ -93,12 +105,45 @@ describe("resolveCertificateReadiness", () => {
     expect(outside.status).toBe("ready");
   });
 
-  it("acepta un sello cargado sin fecha de vigencia", () => {
+  it("acepta un sello CSD cargado sin fecha de vigencia", () => {
     const result = resolveCertificateReadiness(
-      { certificateConfigured: true, certificateExpiry: null },
+      {
+        certificateConfigured: true,
+        certificateExpiry: null,
+        certificateKind: "csd",
+      },
       NOW,
     );
     expect(result.status).toBe("ready");
+    expect(result.kindIssue).toBeNull();
+  });
+
+  it("fiel / unknown → pending con kindIssue not_csd (PRD §E-d)", () => {
+    for (const certificateKind of ["fiel", "unknown"] as const) {
+      const result = resolveCertificateReadiness(
+        {
+          certificateConfigured: true,
+          certificateExpiry: daysFromNow(120),
+          certificateKind,
+        },
+        NOW,
+      );
+      expect(result.status).toBe("pending");
+      expect(result.kindIssue).toBe("not_csd");
+    }
+  });
+
+  it("kind null con archivo → pending unverified (PRD §E-e)", () => {
+    const result = resolveCertificateReadiness(
+      {
+        certificateConfigured: true,
+        certificateExpiry: daysFromNow(120),
+        certificateKind: null,
+      },
+      NOW,
+    );
+    expect(result.status).toBe("pending");
+    expect(result.kindIssue).toBe("unverified");
   });
 });
 

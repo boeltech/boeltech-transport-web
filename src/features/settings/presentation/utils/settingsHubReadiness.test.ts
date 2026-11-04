@@ -12,6 +12,7 @@ const companyReady = {
 const billingReady = {
   certificateConfigured: true,
   certificateExpiry: "2099-01-01T00:00:00.000Z",
+  certificateKind: "csd",
   serieFactura: "A",
   folioInicial: 1,
 } as BillingSettings;
@@ -19,6 +20,7 @@ const billingReady = {
 const billingPending = {
   certificateConfigured: false,
   certificateExpiry: null,
+  certificateKind: null,
   serieFactura: "",
   folioInicial: 0,
 } as BillingSettings;

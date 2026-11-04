@@ -27,6 +27,7 @@ import {
 } from "../../domain";
 import { settingsRepository } from "../../infrastructure";
 import { billingSettingsCopy } from "../../presentation/copy/billingSettingsCopy";
+import { describeCertificateUploadError } from "../../presentation/utils/certificateUploadError";
 
 const copy = billingSettingsCopy.toast;
 
@@ -141,7 +142,7 @@ export function useUploadCertificate(
     onError: (error) => {
       toast({
         title: copy.certificateError,
-        description: error.message ?? copy.certificateErrorDescription,
+        description: describeCertificateUploadError(error),
         variant: "destructive",
       });
     },
