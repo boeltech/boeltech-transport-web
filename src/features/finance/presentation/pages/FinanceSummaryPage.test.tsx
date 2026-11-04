@@ -164,18 +164,18 @@ describe("FinanceSummaryPage", () => {
     ).toHaveAttribute("href", "/finance/dispatch");
     expect(
       within(cycle).getByRole("link", {
-        name: "Cobrar: Facturas por cobrar",
+        name: "Cobrar: Facturas a crédito",
       }),
     ).toHaveAttribute("href", "/finance/payments");
     expect(
       within(cycle).queryByRole("link", { name: /Aprobar|Aprobaciones/i }),
     ).not.toBeInTheDocument();
-    // Lista «Facturas» no entra al ciclo; «Facturas por cobrar» sí (D3).
+    // Lista «Facturas» no entra al ciclo; «Facturas a crédito» sí (D3).
     expect(
       within(cycle).queryByRole("link", { name: /^Facturas$/ }),
     ).not.toBeInTheDocument();
     expect(
-      within(cycle).queryByRole("link", { name: /Cobrar: Facturas por cobrar/ }),
+      within(cycle).queryByRole("link", { name: /Cobrar: Facturas a crédito/ }),
     ).toBeInTheDocument();
     // Ciclo reducido: sin cards hero (hint de paso no se pinta como cuerpo)
     expect(
