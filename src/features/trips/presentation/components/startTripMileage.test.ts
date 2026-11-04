@@ -7,16 +7,31 @@ import {
 } from "./startTripMileage";
 
 describe("resolveSuggestedStartMileage", () => {
-  it("prioriza kilometraje actual del vehiculo", () => {
-    expect(resolveSuggestedStartMileage(125_000, 120_000)).toBe(125_000);
+  it("prioriza start_mileage del viaje sobre el odómetro del vehículo (StartTripSheet)", () => {
+    // trip km ≠ vehicle km → precarga = trip (bug de reserva → iniciar)
+    expect(resolveSuggestedStartMileage(125_000, 120_000)).toBe(120_000);
   });
 
-  it("usa start_mileage del viaje si no hay vehiculo", () => {
+  it("acepta 0 km del viaje aunque el vehículo tenga odómetro", () => {
+    expect(resolveSuggestedStartMileage(125_000, 0)).toBe(0);
+  });
+
+  it("usa kilometraje actual del vehículo si el viaje no tiene start_mileage", () => {
+    expect(resolveSuggestedStartMileage(125_000, undefined)).toBe(125_000);
+    expect(resolveSuggestedStartMileage(125_000, null)).toBe(125_000);
+  });
+
+  it("usa start_mileage del viaje si no hay vehículo", () => {
     expect(resolveSuggestedStartMileage(undefined, 120_000)).toBe(120_000);
   });
 
-  it("acepta 0 km del vehículo como sugerencia", () => {
+  it("acepta 0 km del vehículo como sugerencia cuando el viaje no tiene km", () => {
     expect(resolveSuggestedStartMileage(0, null)).toBe(0);
+  });
+
+  it("sin viaje ni vehículo no sugiere", () => {
+    expect(resolveSuggestedStartMileage(undefined, null)).toBeUndefined();
+    expect(resolveSuggestedStartMileage(undefined, undefined)).toBeUndefined();
   });
 });
 

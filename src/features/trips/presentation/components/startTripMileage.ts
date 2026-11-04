@@ -1,28 +1,28 @@
 import { useState } from "react";
 
 /**
- * Prioridad de sugerencia al iniciar viaje:
- * 1) odómetro actual del vehículo
- * 2) start_mileage ya guardado en el viaje (p. ej. desde el wizard)
+ * Prioridad de sugerencia al iniciar viaje (StartTripSheet / DeclareFalseTripSheet):
+ * 1) start_mileage ya guardado en el viaje (canvas / confirmar reserva), incl. 0
+ * 2) odómetro actual del vehículo solo si el viaje no tiene km
  */
 export function resolveSuggestedStartMileage(
   vehicleCurrentMileage: number | undefined,
   tripStartMileage: number | null | undefined,
 ): number | undefined {
   if (
-    typeof vehicleCurrentMileage === "number" &&
-    Number.isFinite(vehicleCurrentMileage) &&
-    vehicleCurrentMileage >= 0
-  ) {
-    return vehicleCurrentMileage;
-  }
-
-  if (
     typeof tripStartMileage === "number" &&
     Number.isFinite(tripStartMileage) &&
     tripStartMileage >= 0
   ) {
     return tripStartMileage;
+  }
+
+  if (
+    typeof vehicleCurrentMileage === "number" &&
+    Number.isFinite(vehicleCurrentMileage) &&
+    vehicleCurrentMileage >= 0
+  ) {
+    return vehicleCurrentMileage;
   }
 
   return undefined;
