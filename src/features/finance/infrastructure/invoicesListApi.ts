@@ -14,7 +14,9 @@ import type {
   FinanceInvoiceStatus,
   PaginatedFinanceInvoices,
 } from "@features/finance/domain";
-import { parseInvoiceBillingScope } from "@features/invoicing";
+// Domain only: the feature barrel loads auth storage and cycles into finance hooks.
+// eslint-disable-next-line no-restricted-imports -- barrel init breaks node tests
+import { parseInvoiceBillingScope } from "@features/invoicing/domain";
 
 const INVOICES = "/invoices";
 
