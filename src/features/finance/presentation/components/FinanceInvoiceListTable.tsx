@@ -30,7 +30,10 @@ import { financeCopy } from "../copy";
 import { formatFinancePaymentMethodLabel } from "../utils/formatFinancePaymentMethod";
 
 const copy = financeCopy.invoices;
-const splitShareCopy = invoicingCopy.splitShare;
+
+function splitSharePercentLabel(percent: number): string {
+  return invoicingCopy.splitShare.sharePercentShort(percent);
+}
 
 /** Saldo mostrado vía dominio compartido (PUE stamped sin cobro ≠ liquidada). */
 function getListDisplayAmounts(invoice: FinanceInvoiceListItem) {
@@ -154,7 +157,7 @@ export function FinanceInvoiceListTable({
                       {invoice.billingScope === "split_share" &&
                       invoice.sharePercent != null ? (
                         <span className="text-xs font-normal text-muted-foreground">
-                          {splitShareCopy.sharePercentShort(invoice.sharePercent)}
+                          {splitSharePercentLabel(invoice.sharePercent)}
                         </span>
                       ) : null}
                     </div>

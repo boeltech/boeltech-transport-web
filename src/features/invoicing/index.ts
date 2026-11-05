@@ -1,3 +1,6 @@
+// Copy first: finance list table reads it while this barrel is still loading.
+export { invoicingCopy } from "./presentation/copy/invoicingCopy";
+
 // Domain
 export type {
   InvoiceStatus,
@@ -82,8 +85,6 @@ export {
   defaultSelectedRecipientKeys,
   toggleRecipientKey,
 } from "./presentation/utils/invoiceSendRecipientSelection";
-
-export { invoicingCopy } from "./presentation/copy/invoicingCopy";
 
 export {
   buildInvoiceCreateHref,

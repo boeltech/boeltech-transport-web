@@ -15,6 +15,8 @@ vi.mock("@shared/permissions", () => ({
 }));
 
 vi.mock("@features/invoicing", () => ({
+  useDispatchDocuments: (...args: unknown[]) =>
+    mockUseDispatchDocuments(...args),
   SendInvoiceDialog: ({
     invoiceId,
     open,
