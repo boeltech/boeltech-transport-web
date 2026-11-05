@@ -1,6 +1,14 @@
+import {
+  classifyMaterialPeligrosoCatalogRequirement,
+  extractCargoRegulatoryFlags,
+  type MaterialPeligrosoCatalogRequirement,
+} from "@boeltech/cfdi-domain";
+import { StrictMode } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+import { fetchRegulatoryFlagsForSatProductCp } from "@shared/cfdi";
 
 import { wizardCopy } from "../../../copy";
 import {
@@ -28,25 +36,46 @@ vi.mock("@shared/cfdi", () => ({
   fetchRegulatoryFlagsForSatProductCp: vi.fn().mockResolvedValue({
     requiresHazmat: false,
     sectorRequirements: {},
+    materialPeligrosoRequirement: "unknown",
   }),
 }));
+
+let pickedProduct: {
+  code: string;
+  name: string;
+  metadata: Record<string, unknown> | null;
+} = {
+  code: "50202200",
+  name: "Bebidas alcohólicas",
+  metadata: { material_peligroso: "0,1" },
+};
 
 vi.mock("@features/catalogs", () => ({
   ProductoServicioCPSearch: ({
     id,
     error,
     "aria-invalid": ariaInvalid,
+    onSelect,
   }: {
     id?: string;
     error?: boolean;
     "aria-invalid"?: boolean;
+    onSelect?: (item: {
+      code: string;
+      name: string;
+      metadata: Record<string, unknown> | null;
+    }) => void;
   }) => (
     <div
       data-testid="product-search"
       id={id}
       data-error={error ? "true" : "false"}
       aria-invalid={ariaInvalid || undefined}
-    />
+    >
+      <button type="button" onClick={() => onSelect?.(pickedProduct)}>
+        Elegir clave de prueba
+      </button>
+    </div>
   ),
   UnidadMedidaSearch: () => <div data-testid="unit-search" />,
   MaterialPeligrosoSearch: () => <div data-testid="hazmat-search" />,
@@ -90,9 +119,23 @@ const validCargo: TripCargoFormValues = {
   ],
 };
 
+function mockCatalogMark(requirement: MaterialPeligrosoCatalogRequirement) {
+  vi.mocked(fetchRegulatoryFlagsForSatProductCp).mockResolvedValue({
+    requiresHazmat: requirement === "declare_required_si",
+    sectorRequirements: {},
+    materialPeligrosoRequirement: requirement,
+  });
+}
+
 describe("CargoMovementSheet", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pickedProduct = {
+      code: "50202200",
+      name: "Bebidas alcohólicas",
+      metadata: { material_peligroso: "0,1" },
+    };
+    mockCatalogMark("unknown");
   });
 
   it("keeps sheet open and disables submit while onSubmit is pending, then closes on success", async () => {
@@ -476,5 +519,280 @@ describe("CargoMovementSheet", () => {
     expect(screen.getByTestId("cargo-weight-suffix-spacer")).toHaveTextContent(
       "unidades",
     );
+  });
+
+  it("apaga y no guarda material peligroso cuando la marca es 0", async () => {
+    const user = userEvent.setup();
+    mockCatalogMark("omit");
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          hazardousMaterial: true,
+          requiresHazmat: true,
+          hazardousMaterialCode: "UN1263",
+          packagingType: "4G",
+          packagingDescription: "Cajas certificadas UN",
+        }}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      await screen.findByText(sheet.hint.materialPeligrosoOmit),
+    ).toBeInTheDocument();
+    const hazmat = screen.getByRole("checkbox", { name: sheet.label.isHazmat });
+    expect(hazmat).toBeDisabled();
+    expect(hazmat).not.toBeChecked();
+    expect(screen.queryByText(sheet.hint.hazmatRequired)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: sheet.action.save }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+    const submitted = onSubmit.mock.calls[0][0] as TripCargoFormValues;
+    expect(submitted.hazardousMaterial).toBe(false);
+    expect(submitted.requiresHazmat).toBe(false);
+    expect(submitted.hazardousMaterialCode).toBeUndefined();
+    expect(submitted.packagingType).toBeUndefined();
+    expect(submitted.packagingDescription).toBeUndefined();
+  });
+
+  it("anuncia No con marca 0,1 apagada y exige clave y embalaje al encenderla", async () => {
+    const user = userEvent.setup();
+    mockCatalogMark("declare_optional");
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={validCargo}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      await screen.findByText(sheet.hint.materialPeligrosoOptionalOff),
+    ).toBeInTheDocument();
+    const hazmat = screen.getByRole("checkbox", { name: sheet.label.isHazmat });
+    expect(hazmat).toBeEnabled();
+    expect(hazmat).not.toBeChecked();
+    expect(screen.queryByText(sheet.hint.hazmatRequired)).not.toBeInTheDocument();
+
+    await user.click(hazmat);
+
+    expect(
+      await screen.findByText(sheet.hint.materialPeligrosoOptionalOn),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: sheet.action.save }));
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("Selecciona la clave de material peligroso").length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+    expect(
+      screen.getAllByText("Selecciona el tipo de embalaje").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText("Captura la descripción del embalaje").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("deja encendida y deshabilitada la marca 1 y bloquea el guardado sin clave", async () => {
+    const user = userEvent.setup();
+    mockCatalogMark("declare_required_si");
+    const onSubmit = vi.fn();
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={validCargo}
+        editingIndex={null}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(await screen.findByText(sheet.hint.hazmatRequired)).toBeInTheDocument();
+    const hazmat = screen.getByRole("checkbox", { name: sheet.label.isHazmat });
+    expect(hazmat).toBeChecked();
+    expect(hazmat).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: sheet.action.add }));
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("Selecciona la clave de material peligroso").length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("avisa sin marca y deja guardar sin forzar el interruptor", async () => {
+    const user = userEvent.setup();
+    mockCatalogMark("unknown");
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          hazardousMaterial: true,
+          hazardousMaterialCode: "UN1263",
+          packagingType: "4G",
+          packagingDescription: "Cajas certificadas UN",
+        }}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      await screen.findByText(sheet.hint.materialPeligrosoUnknown),
+    ).toBeInTheDocument();
+    const hazmat = screen.getByRole("checkbox", { name: sheet.label.isHazmat });
+    expect(hazmat).toBeEnabled();
+    expect(hazmat).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: sheet.action.save }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+    const submitted = onSubmit.mock.calls[0][0] as TripCargoFormValues;
+    expect(submitted.hazardousMaterial).toBe(true);
+    expect(submitted.requiresHazmat).toBe(false);
+    expect(submitted.hazardousMaterialCode).toBe("UN1263");
+  });
+
+  it("clasifica la clave elegida en el alta: 0,1 no se trata como marca 1", async () => {
+    const user = userEvent.setup();
+    mockCatalogMark("declare_optional");
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          satProductCode: "",
+          hazardousMaterial: true,
+          requiresHazmat: true,
+        }}
+        editingIndex={null}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Elegir clave de prueba" }),
+    );
+
+    expect(
+      await screen.findByText(sheet.hint.materialPeligrosoOptionalOff),
+    ).toBeInTheDocument();
+    const hazmat = screen.getByRole("checkbox", { name: sheet.label.isHazmat });
+    expect(hazmat).toBeEnabled();
+    expect(hazmat).not.toBeChecked();
+    expect(screen.queryByText(sheet.hint.hazmatRequired)).not.toBeInTheDocument();
+  });
+
+  it("aplica la marca del GET aunque StrictMode cancele la primera hidratación", async () => {
+    const user = userEvent.setup();
+    pickedProduct = {
+      code: "50202200",
+      name: "Bebidas alcohólicas",
+      metadata: null,
+    };
+    vi.mocked(fetchRegulatoryFlagsForSatProductCp).mockImplementation(
+      async (code) => {
+        const body = {
+          data: {
+            code,
+            name: "Bebidas alcohólicas",
+            metadata: { material_peligroso: "0,1" },
+          },
+        };
+        const meta = body.data.metadata;
+        return {
+          ...extractCargoRegulatoryFlags(meta),
+          materialPeligrosoRequirement:
+            classifyMaterialPeligrosoCatalogRequirement(meta),
+        };
+      },
+    );
+
+    render(
+      <StrictMode>
+        <CargoMovementSheet
+          open
+          onOpenChange={vi.fn()}
+          pickupStop={pickupStop}
+          availableDeliveryStops={deliveryStops}
+          initialValues={{
+            ...validCargo,
+            satProductCode: "",
+            description: "",
+          }}
+          editingIndex={null}
+          vehicleCapacityKg={null}
+          baselineWeightKg={0}
+          stopCargoCount={0}
+          onSubmit={vi.fn()}
+        />
+      </StrictMode>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Elegir clave de prueba" }),
+    );
+
+    expect(
+      await screen.findByText(sheet.hint.materialPeligrosoOptionalOff),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(sheet.hint.materialPeligrosoUnknown),
+    ).not.toBeInTheDocument();
+    const hazmat = screen.getByRole("checkbox", { name: sheet.label.isHazmat });
+    expect(hazmat).toBeEnabled();
+    expect(hazmat).not.toBeChecked();
+    expect(fetchRegulatoryFlagsForSatProductCp).toHaveBeenCalledWith("50202200");
   });
 });

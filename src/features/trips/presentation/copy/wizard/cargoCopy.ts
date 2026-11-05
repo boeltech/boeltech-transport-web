@@ -4,7 +4,14 @@
  * Léxico operativo: el objeto que el usuario registra siempre es «mercancía»
  * (nunca «carga», reservada para la operación de la parada). Voz de usted, sin
  * mayúsculas de alarma y sin vocabulario fiscal o técnico en superficie.
+ * La marca de material peligroso es la excepción: el texto lo fija el pedido
+ * y nombra el atributo de la Carta Porte.
  */
+
+/** Marca SAT `1`. También es el aviso si intentan apagar el interruptor. */
+const MATERIAL_PELIGROSO_SIEMPRE =
+  'Esta clave siempre declara material peligroso: MaterialPeligroso="Sí". Hace falta la clave y el embalaje.';
+
 export const cargoCopy = {
   validation: {
     requireCargo:
@@ -214,7 +221,15 @@ export const cargoCopy = {
       unit: "Se conserva tal cual en los documentos del viaje.",
       insurance:
         "Capture la aseguradora y la póliza que cubren esta mercancía en el viaje.",
-      hazmatRequired: "El producto elegido obliga a declararla así.",
+      hazmatRequired: MATERIAL_PELIGROSO_SIEMPRE,
+      materialPeligrosoOmit:
+        "Esta clave no declara material peligroso. El atributo no va en la Carta Porte.",
+      materialPeligrosoOptionalOff:
+        'Puede ser o no ser material peligroso. Si no lo es, la Carta Porte lleva MaterialPeligroso="No".',
+      materialPeligrosoOptionalOn:
+        'La Carta Porte llevará MaterialPeligroso="Sí". Capture la clave y el embalaje.',
+      materialPeligrosoUnknown:
+        "Esta clave todavía no tiene la marca de material peligroso en el catálogo. No se podrá timbrar hasta que el catálogo la tenga.",
       pickupStop:
         "Elige en qué parada de recogida sale esta mercancía cuando el viaje tiene más de una.",
       requirements: "El producto elegido exige estos datos.",
@@ -254,8 +269,7 @@ export const cargoCopy = {
     },
     toast: {
       hazmatRequiredTitle: "No se puede desmarcar",
-      hazmatRequiredBody:
-        "El producto elegido obliga a declarar esta mercancía como material peligroso.",
+      hazmatRequiredBody: MATERIAL_PELIGROSO_SIEMPRE,
       addedTitle: "Mercancía agregada",
       addedBody: (description: string) =>
         `«${description}» quedó registrada en esta parada.`,

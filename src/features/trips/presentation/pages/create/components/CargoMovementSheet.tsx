@@ -19,7 +19,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
+import { Controller, useForm, useWatch, type Resolver, type UseFormSetValue } from "react-hook-form";
+import type { MaterialPeligrosoCatalogRequirement } from "@boeltech/cfdi-domain";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import {
@@ -71,6 +72,10 @@ import {
   getMissingSectorRequiredFields,
   hasAnySectorFieldValue,
 } from "./cargoRegulatory";
+import {
+  materialPeligrosoSheetHint,
+  materialPeligrosoSwitchLock,
+} from "./materialPeligrosoSheet";
 import { fetchRegulatoryFlagsForSatProductCp } from "@shared/cfdi";
 
 import { V1_CARGO_PLACEHOLDER_CLIENT_SENTINEL } from "@features/trips/domain/v1CargoPlaceholderClient";
@@ -157,6 +162,17 @@ export interface CargoMovementSheetProps {
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+function clearDeclaredHazmat(
+  setValue: UseFormSetValue<TripCargoFormValues>,
+  shouldDirty: boolean,
+) {
+  const opts = { shouldDirty } as const;
+  setValue("hazardousMaterial", false, opts);
+  setValue("hazardousMaterialCode", "", opts);
+  setValue("packagingType", "", opts);
+  setValue("packagingDescription", "", opts);
+}
 
 function buildEmptyCargo(pickupStopIndex: number): TripCargoFormValues {
   return {
@@ -290,7 +306,11 @@ function CargoMovementSheetSession({
       seeInlineCopy: sheet.toast.saveErrorSeeInline,
       toast,
     });
-  const catalogHydrateKeyRef = useRef<string | null>(null);
+  const catalogRequirementRef = useRef<MaterialPeligrosoCatalogRequirement | null>(
+    null,
+  );
+  const [catalogRequirement, setCatalogRequirement] =
+    useState<MaterialPeligrosoCatalogRequirement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deliveryStopError, setDeliveryStopError] = useState<string | null>(
     null,
@@ -320,6 +340,42 @@ function CargoMovementSheetSession({
     shouldUnregister: false,
   });
   const { control, handleSubmit, setValue, getValues, reset, formState } = form;
+
+  const applyMaterialPeligrosoRequirement = useCallback(
+    (
+      requirement: MaterialPeligrosoCatalogRequirement | null,
+      mode: "choose" | "sync" | "clear",
+    ) => {
+      catalogRequirementRef.current = requirement;
+      setCatalogRequirement(requirement);
+
+      if (requirement == null) {
+        setValue("requiresHazmat", false, {
+          shouldDirty: mode !== "sync",
+        });
+        return;
+      }
+
+      setValue("requiresHazmat", requirement === "declare_required_si", {
+        shouldDirty: mode === "choose",
+      });
+
+      const lock = materialPeligrosoSwitchLock(requirement);
+      if (lock === "on") {
+        setValue("hazardousMaterial", true, { shouldDirty: true });
+        return;
+      }
+      if (lock === "off") {
+        clearDeclaredHazmat(setValue, true);
+        return;
+      }
+      // Marca 0,1 recién elegida: arranca apagada. Al reabrir, se conserva.
+      if (mode === "choose" && requirement === "declare_optional") {
+        clearDeclaredHazmat(setValue, true);
+      }
+    },
+    [setValue],
+  );
 
   const pickupStopIndex = pickupStop?.index ?? 0;
 
@@ -356,7 +412,6 @@ function CargoMovementSheetSession({
     name: "specialInstructions",
   });
   const hazardousMaterial = useWatch({ control, name: "hazardousMaterial" });
-  const requiresHazmatFromCatalog = useWatch({ control, name: "requiresHazmat" });
   const sectorRequirements = useWatch({ control, name: "sectorRequirements" });
   const weightInKgWatch = useWatch({ control, name: "weightInKg" });
   const sectorValues = useWatch({
@@ -384,9 +439,6 @@ function CargoMovementSheetSession({
       "usoAutorizado",
     ],
   });
-
-  /** Solo el catálogo SAT puede bloquear desmarcar; la elección manual del usuario es reversible. */
-  const hazmatRequiredByCatalog = !!requiresHazmatFromCatalog;
 
   const hasSectorData = useMemo(() => {
     const hasAnyFlag = Object.values(sectorRequirements ?? {}).some(Boolean);
@@ -437,9 +489,8 @@ function CargoMovementSheetSession({
     return hasAnyFlag || hasAnyValue;
   }, [sectorRequirements, sectorValues]);
 
-  /** Solo se muestra el bloque si el catálogo exige algo o la mercancía ya trae datos. */
-  const showRequirementsSection =
-    hasSectorData || hazmatRequiredByCatalog || !!hazardousMaterial;
+  /** El bloque de clave y embalaje sale cuando la mercancía va declarada como peligrosa. */
+  const showRequirementsSection = hasSectorData || !!hazardousMaterial;
 
   const missingSectorFields = useMemo(() => {
     const [
@@ -491,17 +542,23 @@ function CargoMovementSheetSession({
     });
   }, [sectorRequirements, sectorValues]);
 
-  // Hidrata flags regulatorios al cambiar el producto SAT seleccionado.
+  // Clave con la que se abrió el sheet. La misma → sync (no apaga un 0,1 ya
+  // encendido). Otra → choose. No vive en un ref del efecto: en StrictMode el
+  // primer pase se cancela y el segundo tiene que aplicar el mismo resultado.
+  const openedProductCode = (initialValues?.satProductCode ?? "").trim();
+
+  // Hidrata la marca de material peligroso y, si aún no hay, los flags de sector.
+  // El buscador no clasifica: un hit sin metadata no puede dejar `unknown`.
   useEffect(() => {
     const code = satProductCode?.trim();
-    if (!code) return;
-    const currentRequirements = getValues("sectorRequirements") ?? {};
-    const noActiveFlags = !Object.values(currentRequirements).some(Boolean);
-    if (!noActiveFlags) return;
+    if (!code) {
+      catalogRequirementRef.current = null;
+      setCatalogRequirement(null);
+      return;
+    }
 
-    const key = `${editingIndex ?? "new"}:${code}`;
-    if (catalogHydrateKeyRef.current === key) return;
-    catalogHydrateKeyRef.current = key;
+    catalogRequirementRef.current = null;
+    setCatalogRequirement(null);
 
     let cancelled = false;
     void (async () => {
@@ -509,6 +566,10 @@ function CargoMovementSheetSession({
         const flags = await fetchRegulatoryFlagsForSatProductCp(code);
         if (cancelled) return;
         if (getValues("satProductCode")?.trim() !== code) return;
+        applyMaterialPeligrosoRequirement(
+          flags.materialPeligrosoRequirement,
+          code === openedProductCode ? "sync" : "choose",
+        );
         const stillEmpty = !Object.values(
           getValues("sectorRequirements") ?? {},
         ).some(Boolean);
@@ -521,19 +582,21 @@ function CargoMovementSheetSession({
           },
           { shouldDirty: true },
         );
-        if (flags.requiresHazmat) {
-          setValue("requiresHazmat", true, { shouldDirty: true });
-          setValue("hazardousMaterial", true, { shouldDirty: true });
-        }
       } catch {
-        catalogHydrateKeyRef.current = null;
+        // Sin respuesta del catálogo no hay marca: el aviso no se inventa.
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [satProductCode, editingIndex, getValues, setValue]);
+  }, [
+    satProductCode,
+    openedProductCode,
+    getValues,
+    setValue,
+    applyMaterialPeligrosoRequirement,
+  ]);
 
   // ============================================================================
   // Capacity projection
@@ -585,13 +648,15 @@ function CargoMovementSheetSession({
 
   const handleHazmatChange = useCallback(
     (checked: boolean) => {
-      if (!checked && hazmatRequiredByCatalog) {
+      const lock = materialPeligrosoSwitchLock(catalogRequirementRef.current);
+      if (lock === "on" && !checked) {
         showErrorToast(
           sheet.toast.hazmatRequiredTitle,
           sheet.toast.hazmatRequiredBody,
         );
         return;
       }
+      if (lock != null) return;
       setValue("hazardousMaterial", checked, { shouldDirty: true });
       if (!checked) {
         setValue("hazardousMaterialCode", "", { shouldDirty: true });
@@ -599,7 +664,7 @@ function CargoMovementSheetSession({
         setValue("packagingDescription", "", { shouldDirty: true });
       }
     },
-    [hazmatRequiredByCatalog, setValue, showErrorToast],
+    [setValue, showErrorToast],
   );
 
   // ============================================================================
@@ -628,6 +693,16 @@ function CargoMovementSheetSession({
           units: d.units,
           notes: d.notes,
         }));
+      const requirement = catalogRequirementRef.current;
+      // Marca 0: no persistir el interruptor ni la clave/embalaje.
+      const persistHazmat =
+        requirement === "omit" ? false : Boolean(values.hazardousMaterial);
+      const requiresHazmat =
+        requirement === "declare_required_si"
+          ? true
+          : requirement == null
+            ? Boolean(values.requiresHazmat)
+            : false;
       return {
         ...values,
         clientId: V1_CARGO_PLACEHOLDER_CLIENT_SENTINEL,
@@ -638,12 +713,13 @@ function CargoMovementSheetSession({
         declaredValue: values.isInsured ? values.declaredValue : undefined,
         aseguraCarga: values.isInsured ? values.aseguraCarga : undefined,
         polizaCarga: values.isInsured ? values.polizaCarga : undefined,
-        // Cuando no es hazmat, limpiar campos hazmat
-        hazardousMaterialCode: values.hazardousMaterial
+        hazardousMaterial: persistHazmat,
+        requiresHazmat,
+        hazardousMaterialCode: persistHazmat
           ? values.hazardousMaterialCode
           : undefined,
-        packagingType: values.hazardousMaterial ? values.packagingType : undefined,
-        packagingDescription: values.hazardousMaterial
+        packagingType: persistHazmat ? values.packagingType : undefined,
+        packagingDescription: persistHazmat
           ? values.packagingDescription
           : undefined,
       };
@@ -675,7 +751,6 @@ function CargoMovementSheetSession({
           reset(buildEmptyCargo(pickupStopIndex));
           setDeliveryAssignments([]);
           setShowSummary(false);
-          catalogHydrateKeyRef.current = null;
         } else {
           onOpenChange(false);
         }
@@ -742,6 +817,19 @@ function CargoMovementSheetSession({
   const isSummaryVisible = showSummary && summaryMessages.length > 0;
 
   const hazmatErrorMessage = formState.errors.hazardousMaterial?.message;
+  const catalogHint =
+    catalogRequirement != null
+      ? materialPeligrosoSheetHint(catalogRequirement, !!hazardousMaterial)
+      : null;
+  const hazmatSwitchDisabled =
+    materialPeligrosoSwitchLock(catalogRequirement) != null;
+  const hazmatDescribedBy =
+    [
+      catalogHint ? "cargo-hazmat-catalog-hint" : null,
+      hazmatErrorMessage ? "cargo-hazmat-checkbox-error" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   const hasNotes =
     Boolean(notesValue?.trim()) || Boolean(specialInstructionsValue?.trim());
@@ -789,18 +877,16 @@ function CargoMovementSheetSession({
             formatWeight={formatWeight}
           />
 
-          {/* Marca manual de material peligroso; el catálogo puede volverla obligatoria. */}
+          {/* Interruptor según la marca SAT del producto (0 / 0,1 / 1 / sin marca). */}
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3">
               <Checkbox
                 id="cargo-hazmat-checkbox"
                 checked={!!hazardousMaterial}
-                disabled={hazmatRequiredByCatalog}
+                disabled={hazmatSwitchDisabled}
                 onCheckedChange={(checked) => handleHazmatChange(!!checked)}
                 aria-invalid={Boolean(hazmatErrorMessage) || undefined}
-                aria-describedby={
-                  hazmatErrorMessage ? "cargo-hazmat-checkbox-error" : undefined
-                }
+                aria-describedby={hazmatDescribedBy}
               />
               <Label
                 htmlFor="cargo-hazmat-checkbox"
@@ -809,12 +895,23 @@ function CargoMovementSheetSession({
                 <AlertTriangle className="h-4 w-4 text-warning" />
                 {sheet.label.isHazmat}
               </Label>
-              {hazmatRequiredByCatalog && (
-                <span className="text-xs text-muted-foreground">
-                  {sheet.hint.hazmatRequired}
-                </span>
-              )}
             </div>
+            {catalogHint && catalogRequirement !== "unknown" && (
+              <p
+                id="cargo-hazmat-catalog-hint"
+                className="text-xs text-muted-foreground"
+              >
+                {catalogHint}
+              </p>
+            )}
+            {catalogHint && catalogRequirement === "unknown" && (
+              <Alert variant="warning">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription id="cargo-hazmat-catalog-hint">
+                  {catalogHint}
+                </AlertDescription>
+              </Alert>
+            )}
             <FieldInlineError
               fieldId="cargo-hazmat-checkbox"
               message={hazmatErrorMessage}

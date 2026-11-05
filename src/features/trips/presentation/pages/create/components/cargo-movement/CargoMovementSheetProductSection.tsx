@@ -58,12 +58,6 @@ export function CargoMovementSheetProductSection({
                   if (!getValues("description")?.trim()) {
                     setValue("description", item.name, { shouldDirty: true });
                   }
-                  setValue("requiresHazmat", flags.requiresHazmat, {
-                    shouldDirty: true,
-                  });
-                  if (flags.requiresHazmat) {
-                    setValue("hazardousMaterial", true, { shouldDirty: true });
-                  }
                   setValue(
                     "sectorRequirements",
                     flags.sectorRequirements ?? {},
@@ -73,7 +67,6 @@ export function CargoMovementSheetProductSection({
                 onClear={() => {
                   setValue("satProductCode", "", { shouldDirty: true });
                   setValue("satProductDescription", "", { shouldDirty: true });
-                  setValue("requiresHazmat", false, { shouldDirty: true });
                   setValue("sectorRequirements", {}, { shouldDirty: true });
                 }}
               />
