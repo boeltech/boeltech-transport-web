@@ -216,13 +216,13 @@ Puntero local: `.cursor/prompts/README.md`. No copiar los prompts de vuelta aqu�
 
 ### Roles invocables (subagentes)
 
-`/experto-transporte` · `/disenador-producto` · `/director-visual` · `/lider-tecnico` · `/qa` · `/arquitecto-saas` — los
+`/experto-transporte` · `/disenador-producto-web` · `/director-visual-web` · `/lider-tecnico` · `/qa` · `/arquitecto-saas` — los
 seis son `readonly` (techo L1: revisan y dictaminan, no implementan). Orden de capas:
-`DOM → PRD → (VIS) → TEC → BLD`. En este repo `/disenador-producto` decide flujo, navegación y
-densidad **antes** de tocar UI.
+`DOM → PRD → (VIS) → TEC → BLD`. En este repo `/disenador-producto-web` decide flujo, navegación y
+densidad **antes** de tocar UI. Los roles de la app Android no se invocan aquí.
 
 **Carril de diseño (VIS):** en superficie nueva, rediseño, `evolve-ds` o vitrina,
-`/director-visual` define la dirección con referencias reales, `/frontend-senior` prototipa
+`/director-visual-web` define la dirección con referencias reales, `/frontend-senior` prototipa
 2–3 direcciones (modo `prototipo`), el CEO elige, se construye una **pantalla ancla** y no se
 propaga sin PASS del gate visual sobre **capturas reales** (modo `captura`). Material en
 `pedidos/<slug>/visual/`. Detalle: `software-factory/factory/03-development-lifecycle/LIFECYCLE.md` §Carril de diseño.
