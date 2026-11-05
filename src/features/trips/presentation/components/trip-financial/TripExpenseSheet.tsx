@@ -174,6 +174,7 @@ function collectFormErrorMessages(
 }
 
 function TripExpenseSheetSession({
+  open,
   onOpenChange,
   expenseKind,
   initialValues,
@@ -185,7 +186,7 @@ function TripExpenseSheetSession({
   onSubmit,
   notice,
   submitLabel,
-}: Omit<TripExpenseSheetProps, "open">) {
+}: TripExpenseSheetProps) {
   const { success: showSuccessToast } = useToast();
   const [dieselPricePerLiter, setDieselPricePerLiter] =
     useState(DEFAULT_DIESEL_PRICE);
@@ -439,11 +440,30 @@ function TripExpenseSheetSession({
   const hasExtras =
     Boolean(vendorName?.trim()) || Boolean(notesValue?.trim());
 
+  // Sheet no-modal: el Dialog cuenta como "fuera" y cerraría el sheet (mismo
+  // patrón que TripFleetAssignmentSheet).
+  const handleSheetOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && distanceDialogOpen) return;
+    onOpenChange(nextOpen);
+  };
+
+  const preventSheetDismissWhileDialogOpen = (
+    event: CustomEvent<{ originalEvent: Event }>,
+  ) => {
+    if (distanceDialogOpen) {
+      event.preventDefault();
+    }
+  };
+
   return (
     <>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
     <SheetContent
       side="right"
       className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
+      onInteractOutside={preventSheetDismissWhileDialogOpen}
+      onPointerDownOutside={preventSheetDismissWhileDialogOpen}
+      onFocusOutside={preventSheetDismissWhileDialogOpen}
     >
       <SheetHeader className="shrink-0 space-y-2 border-b px-6 py-4">
         <SheetTitle className="pr-8">
@@ -893,6 +913,7 @@ function TripExpenseSheetSession({
         </Button>
       </SheetFooter>
     </SheetContent>
+    </Sheet>
     <Dialog open={distanceDialogOpen} onOpenChange={setDistanceDialogOpen}>
       <DialogContent>
         <DialogHeader>
@@ -929,18 +950,19 @@ export function TripExpenseSheet({
 }: TripExpenseSheetProps) {
   const sessionKey = `${editingIndex ?? "new"}-${expenseKind}-${initialValues?.category ?? ""}-${initialValues?.description ?? ""}-${initialValues?.isEmptyReturn ? "er" : "rt"}`;
 
+  if (!open) {
+    return <Sheet open={false} onOpenChange={onOpenChange} />;
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      {open ? (
-        <TripExpenseSheetSession
-          key={sessionKey}
-          onOpenChange={onOpenChange}
-          expenseKind={expenseKind}
-          initialValues={initialValues}
-          editingIndex={editingIndex}
-          {...rest}
-        />
-      ) : null}
-    </Sheet>
+    <TripExpenseSheetSession
+      key={sessionKey}
+      open={open}
+      onOpenChange={onOpenChange}
+      expenseKind={expenseKind}
+      initialValues={initialValues}
+      editingIndex={editingIndex}
+      {...rest}
+    />
   );
 }
