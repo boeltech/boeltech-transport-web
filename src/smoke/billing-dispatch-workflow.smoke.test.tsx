@@ -437,7 +437,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        dispatchRunsCopy.detail.titleCalendar(
+        dispatchRunsCopy.detail.periodShortCalendar(
           formatDate("2026-08-01"),
           formatDate("2026-08-07"),
         ),
@@ -447,9 +447,6 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       screen.getByText(dispatchRunsCopy.detail.i1Banner),
     ).toBeInTheDocument();
     expect(screen.getByText("Corte semanal")).toBeInTheDocument();
-    expect(
-      screen.getByText(dispatchRunsCopy.detail.pageSubtitle),
-    ).toBeInTheDocument();
     expect(screen.queryByText(/Viajes cerrados entre/)).not.toBeInTheDocument();
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.counts.pendingStamp).length,
@@ -472,7 +469,9 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       screen.getAllByText(dispatchRunsCopy.detail.table.readyStatus).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getByText(dispatchRunsCopy.detail.buckets.pendingNote),
+      screen.getByText(
+        dispatchRunsCopy.detail.buckets.pendingCollapsedSummary(1),
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.sections.invoices).length,
@@ -844,7 +843,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("post-send muestra resultado por cliente y banner con errores parciales", () => {
+  it("post-send muestra resultado por cliente y banner con errores parciales", async () => {
     mocks.run = {
       ...previewedRun,
       status: "completed",
@@ -958,6 +957,7 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
       ],
     };
 
+    const user = userEvent.setup();
     renderDetail();
 
     expect(
@@ -974,8 +974,14 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Cliente Fallido").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/1 documento/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/A-100/)).toBeInTheDocument();
-    expect(screen.getByText(/A-101/)).toBeInTheDocument();
+    const expandFolios = screen.getAllByRole("button", {
+      name: dispatchRunsCopy.detail.result.expandFolios,
+    });
+    for (const button of expandFolios) {
+      await user.click(button);
+    }
+    expect(screen.getAllByText(/A-100/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/A-101/).length).toBeGreaterThan(0);
     expect(
       screen.getAllByText(dispatchRunsCopy.detail.result.statusFailed).length,
     ).toBeGreaterThan(0);
