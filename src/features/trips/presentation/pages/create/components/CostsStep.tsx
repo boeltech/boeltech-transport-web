@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
 import { CircleDollarSign, DollarSign, Plus, Receipt } from "lucide-react";
 
@@ -42,6 +42,8 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
   const [initialExpense, setInitialExpense] = useState<TripExpenseFormValues | null>(
     null,
   );
+  const sheetSubmitLock = useRef(false);
+  const [isSheetSubmitting, setIsSheetSubmitting] = useState(false);
 
   const vehicleId = form.watch("vehicleId");
   const stops = form.watch("stops");
@@ -112,11 +114,32 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
     setSheetOpen(true);
   };
 
+  const releaseSheetSubmit = () => {
+    sheetSubmitLock.current = false;
+    setIsSheetSubmitting(false);
+  };
+
+  // Fuera del handler: un segundo onSubmit del mismo turno debe seguir
+  // bloqueado. Con keepOpen el sheet sigue abierto y, ya pintado, acepta
+  // otro alta. Sin keepOpen el padre cierra con setSheetOpen(false); el
+  // sheet controlado no llama onOpenChange, así que este commit también
+  // suelta. onOpenChange(false) suelta igual si el cierre llega por ahí.
+  useEffect(() => {
+    if (!isSheetSubmitting) return;
+    sheetSubmitLock.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- el lock no puede soltarse dentro de handleSubmitFromSheet
+    setIsSheetSubmitting(false);
+  }, [isSheetSubmitting]);
+
   const handleSubmitFromSheet = (
     values: TripExpenseFormValues,
     submittedIndex: number | null,
     options?: { keepOpen?: boolean; companion?: TripExpenseFormValues },
   ) => {
+    if (sheetSubmitLock.current) return;
+    sheetSubmitLock.current = true;
+    setIsSheetSubmitting(true);
+
     if (submittedIndex !== null) {
       update(submittedIndex, values);
     } else {
@@ -258,6 +281,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
           if (!open) {
             setEditingIndex(null);
             setInitialExpense(null);
+            releaseSheetSubmit();
           }
         }}
         expenseKind={sheetKind}
@@ -266,6 +290,7 @@ export function CostsStep({ form, expensesFieldArray }: CostsStepProps) {
         totalDistanceKm={totalDistanceKm}
         expectedFuelEfficiency={expectedFuelEfficiency}
         hasUnmarkedRouteFuel={unmarkedRouteFuel}
+        isSubmitting={isSheetSubmitting}
         onSubmit={handleSubmitFromSheet}
       />
     </div>
