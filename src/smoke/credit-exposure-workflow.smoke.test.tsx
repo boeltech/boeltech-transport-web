@@ -18,8 +18,13 @@ import {
 import { getPaymentTermsConfig } from "@features/clients/presentation/config/clientConfig";
 import { CreditCard } from "lucide-react";
 import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
+import { resetAuthMock, setMockAuthUser } from "@/test/mocks/auth";
 
 const mockUseClientCreditSummary = vi.fn();
+
+vi.mock("@features/auth", async () =>
+  (await import("@/test/mocks/auth")).authModuleMock(),
+);
 
 vi.mock("@features/clients/application/hooks/useClientCreditSummary", () => ({
   useClientCreditSummary: (...args: unknown[]) => mockUseClientCreditSummary(...args),
@@ -94,6 +99,8 @@ function CostsStepHarness({
 
 describe("credit exposure workflow smoke (OP-L0.9)", () => {
   beforeEach(() => {
+    resetAuthMock();
+    setMockAuthUser({ role: "admin" });
     mockUseClientCreditSummary.mockReset();
     mockUseClientCreditSummary.mockReturnValue({
       data: OK_SUMMARY,

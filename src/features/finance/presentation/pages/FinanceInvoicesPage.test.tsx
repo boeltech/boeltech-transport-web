@@ -59,12 +59,15 @@ vi.mock("@features/trips", () => ({
   InvoiceableTripPickerSheet: () => null,
 }));
 
-vi.mock("@features/invoicing", () => ({
-  canShowInvoiceFromTripCta: (...args: unknown[]) =>
-    mockCanShowInvoiceFromTripCta(...args),
-  InvoiceBulkDownloadSheet: () => null,
-  invoiceBulkDownloadCopy: { actionButton: "Descargar CFDI" },
-}));
+vi.mock("@features/invoicing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/invoicing")>();
+  return {
+    ...actual,
+    canShowInvoiceFromTripCta: (...args: unknown[]) =>
+      mockCanShowInvoiceFromTripCta(...args),
+    InvoiceBulkDownloadSheet: () => null,
+  };
+});
 
 vi.mock("@features/finance/application", async (importOriginal) => {
   const actual =
