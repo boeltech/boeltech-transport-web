@@ -2,6 +2,7 @@ export { FinanceCycleStepper } from "./FinanceCycleStepper";
 export { FinancePulseCards } from "./FinancePulseCards";
 export { FinanceSummaryCards } from "./FinanceSummaryCards";
 export { FinanceAccountStatementSection } from "./FinanceAccountStatementSection";
+export { PendingRelationSheet } from "./PendingRelationSheet";
 export { FinanceAgingChart } from "./FinanceAgingChart";
 export { ExpenseAnalysisCharts } from "./ExpenseAnalysisCharts";
 export { ExpenseAnalysisKpiCards } from "./ExpenseAnalysisKpiCards";

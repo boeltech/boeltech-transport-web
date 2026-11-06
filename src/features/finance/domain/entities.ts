@@ -45,6 +45,15 @@ export interface AccountStatementItem {
   overdueAmount: number;
 }
 
+/** Conteo de la relación de pendientes al corte (`format=count`). */
+export interface PendingRelationCount {
+  invoiceCount: number;
+  /** Día de corte `YYYY-MM-DD` (CDMX). Vacío si el API no lo trae así. */
+  generatedOn: string;
+}
+
+export type PendingRelationFileFormat = "pdf" | "csv";
+
 export type ProfitabilityRevenueSource = "trip_base_rate" | "invoice_subtotal";
 
 /** ADR-0108 — base de margen reportada en `meta.margin_basis` (opcional). */

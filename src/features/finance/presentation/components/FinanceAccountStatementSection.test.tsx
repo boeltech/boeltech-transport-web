@@ -142,7 +142,7 @@ describe("FinanceAccountStatementSection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Descargar PDF and calls onDownloadPdf with client RFC", async () => {
+  it("shows Resumen (PDF) and calls onDownloadPdf with client RFC", async () => {
     const user = userEvent.setup();
     const onDownloadPdf = vi.fn();
 
@@ -165,11 +165,14 @@ describe("FinanceAccountStatementSection", () => {
         "INDUSTRIA ILUMINADORA DE ALMACENES",
       ),
     });
+    expect(download).toHaveTextContent(
+      financeCopy.summary.accountStatement.downloadPdfAction,
+    );
     await user.click(download);
     expect(onDownloadPdf).toHaveBeenCalledWith("IIA040805DZ4");
   });
 
-  it("disables Descargar PDF while downloadingRfc matches the row", () => {
+  it("disables Resumen (PDF) while downloadingRfc matches the row", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[buildRow({ openInvoiceCount: 1, balanceDue: 100 })]}
@@ -244,5 +247,84 @@ describe("FinanceAccountStatementSection", () => {
     expect(
       screen.getByText(financeCopy.summary.accountStatement.filterEmpty.title),
     ).toBeInTheDocument();
+  });
+
+  it("shows Relación de pendientes when balanceDue > 0 and onDownloadPdf is set", () => {
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[buildRow({ balanceDue: 12000, openInvoiceCount: 1 })]}
+        isLoading={false}
+        onDownloadPdf={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
+          "INDUSTRIA ILUMINADORA DE ALMACENES",
+        ),
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides Relación de pendientes when balanceDue is 0", () => {
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[buildRow({ balanceDue: 0, openInvoiceCount: 2 })]}
+        isLoading={false}
+        onDownloadPdf={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
+          "INDUSTRIA ILUMINADORA DE ALMACENES",
+        ),
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Relación de pendientes and hides Cobrar when openInvoiceCount is 0", () => {
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[
+          buildRow({
+            openInvoiceCount: 0,
+            balanceDue: 5000,
+          }),
+        ]}
+        isLoading={false}
+        showCollectAction
+        onDownloadPdf={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
+          "INDUSTRIA ILUMINADORA DE ALMACENES",
+        ),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Cobrar/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides Relación de pendientes without onDownloadPdf even if there is balance", () => {
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[buildRow({ balanceDue: 8000, openInvoiceCount: 1 })]}
+        isLoading={false}
+        showCollectAction
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: /Relación de pendientes/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

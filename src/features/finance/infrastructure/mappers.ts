@@ -1,5 +1,6 @@
 import type {
   AccountStatementItem,
+  PendingRelationCount,
   AgingByClientItem,
   AgingClientInvoiceItem,
   AgingSummary,
@@ -66,6 +67,18 @@ export function mapAccountStatementItem(
     invoiceCount: asNumber(raw.invoice_count),
     openInvoiceCount: asNumber(raw.open_invoice_count),
     overdueAmount: asNumber(raw.overdue_amount),
+  };
+}
+
+const GENERATED_ON_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function mapPendingRelationCount(
+  raw: Record<string, unknown>,
+): PendingRelationCount {
+  const generatedOn = asString(raw.generated_on);
+  return {
+    invoiceCount: asNumber(raw.invoice_count),
+    generatedOn: GENERATED_ON_DATE.test(generatedOn) ? generatedOn : "",
   };
 }
 

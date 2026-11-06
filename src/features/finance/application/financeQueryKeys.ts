@@ -15,6 +15,8 @@ export const financeQueryKeys = {
   all: ["finance"] as const,
   summary: () => [...financeQueryKeys.all, "summary"] as const,
   statement: () => [...financeQueryKeys.all, "statement"] as const,
+  pendingRelationCount: (clientRfc: string) =>
+    [...financeQueryKeys.all, "pending-relation-count", clientRfc] as const,
   agingSummary: () => [...financeQueryKeys.all, "aging-summary"] as const,
   agingByClient: (clientRfc?: string) =>
     [...financeQueryKeys.all, "aging-by-client", clientRfc ?? "all"] as const,

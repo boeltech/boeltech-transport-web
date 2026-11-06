@@ -18,6 +18,8 @@ export type {
   MarginBasis,
   FinanceSummary,
   AccountStatementItem,
+  PendingRelationCount,
+  PendingRelationFileFormat,
   ProfitabilityTripItem,
   ProfitabilityTripsResponse,
   ProfitabilityAggregateItem,

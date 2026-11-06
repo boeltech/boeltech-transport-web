@@ -426,10 +426,28 @@ export const financeCopy = {
       collectAction: "Cobrar",
       collectActionAria: (clientName: string) =>
         `Cobrar a ${clientName}`,
-      downloadPdfAction: "Descargar PDF",
+      downloadPdfAction: "Resumen (PDF)",
       downloadPdfActionAria: (clientName: string) =>
-        `Descargar estado de cuenta de ${clientName}`,
+        `Resumen (PDF) de ${clientName}`,
       downloadPdfError: "No se pudo descargar el estado de cuenta",
+      pendingRelation: {
+        action: "Relación de pendientes",
+        actionAria: (clientName: string) =>
+          `Relación de pendientes de ${clientName}`,
+        sheetTitle: "Relación de pendientes",
+        legend: "Documento comercial de cobranza. No es CFDI.",
+        cutoffLabel: "Corte",
+        formatLabel: "Formato",
+        formatPdf: "PDF",
+        formatCsv: "CSV",
+        downloadAction: "Descargar",
+        countLabel: (count: number) =>
+          count === 1 ? "1 factura" : `${count} facturas`,
+        empty:
+          "No hay facturas de ingreso timbradas con saldo al corte de hoy",
+        countError: "No se pudo consultar la relación de pendientes.",
+        successToast: "Se descargó la relación de pendientes.",
+      },
       filterEmpty: {
         title: "Ningún cliente coincide",
         description: "Prueba con otro nombre o RFC.",

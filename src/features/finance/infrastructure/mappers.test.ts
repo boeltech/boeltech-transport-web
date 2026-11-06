@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapAgingSummary,
   mapAccountStatementItem,
+  mapPendingRelationCount,
   mapFinanceSummary,
   mapMonthlyPerformance,
   mapProfitabilityTripsResponse,
@@ -179,6 +180,27 @@ describe("mapAccountStatementItem", () => {
     });
     expect(row.openInvoiceCount).toBe(0);
     expect(row.invoiceCount).toBe(3);
+  });
+});
+
+describe("mapPendingRelationCount", () => {
+  it("maps invoice_count 0 and generated_on, ignoring open_invoice_count", () => {
+    const row = mapPendingRelationCount({
+      invoice_count: 0,
+      generated_on: "2026-11-06",
+      open_invoice_count: 9,
+    });
+    expect(row.invoiceCount).toBe(0);
+    expect(row.generatedOn).toBe("2026-11-06");
+  });
+
+  it("drops generated_on that is not a calendar date", () => {
+    const row = mapPendingRelationCount({
+      invoice_count: 2,
+      generated_on: "2026-11-06T00:00:00.000Z",
+    });
+    expect(row.invoiceCount).toBe(2);
+    expect(row.generatedOn).toBe("");
   });
 });
 

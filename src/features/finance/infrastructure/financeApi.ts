@@ -1,6 +1,8 @@
 import { apiClient } from "@shared/api";
 import type {
   AccountStatementItem,
+  PendingRelationCount,
+  PendingRelationFileFormat,
   AgingByClientItem,
   AgingClientInvoiceItem,
   AgingSummary,
@@ -21,6 +23,7 @@ import type {
 } from "@features/finance/domain";
 import {
   mapAccountStatementItem,
+  mapPendingRelationCount,
   mapAgingByClientItem,
   mapAgingClientInvoiceItem,
   mapAgingSummary,
@@ -40,6 +43,16 @@ const FINANCE_BASE = "/finance";
 export function buildAccountStatementPdfFileName(clientRfc: string): string {
   const rfc = clientRfc.trim().toUpperCase();
   return `estado-cuenta-${rfc}.pdf`;
+}
+
+/** Nombre de respaldo: el corte sale de `generated_on`, no del reloj del navegador. */
+export function buildPendingRelationFileName(
+  clientRfc: string,
+  generatedOn: string,
+  format: PendingRelationFileFormat,
+): string {
+  const rfc = clientRfc.trim().toUpperCase().replace(/\s+/g, "");
+  return `relacion-pendientes-${rfc}-${generatedOn}.${format}`;
 }
 
 const profitabilityTripsSortByApi: Record<
@@ -111,6 +124,42 @@ export const financeApi = {
     await apiClient.downloadFile(
       `${FINANCE_BASE}/account-statement/pdf?${params.toString()}`,
       buildAccountStatementPdfFileName(rfc),
+    );
+  },
+
+  /**
+   * Conteo de facturas de ingreso timbradas con saldo al corte.
+   * GET /finance/pending-relation?client_rfc=&format=count
+   */
+  getPendingRelationCount: async (
+    clientRfc: string,
+  ): Promise<PendingRelationCount> => {
+    const rfc = clientRfc.trim().toUpperCase();
+    const params = new URLSearchParams();
+    addOptionalParam(params, "client_rfc", rfc);
+    addOptionalParam(params, "format", "count");
+    const response = await apiClient.get<{ data?: Record<string, unknown> }>(
+      `${FINANCE_BASE}/pending-relation?${params.toString()}`,
+    );
+    return mapPendingRelationCount(response.data ?? {});
+  },
+
+  /**
+   * PDF o CSV de la misma consulta. El navegador no arma el archivo.
+   * GET /finance/pending-relation?client_rfc=&format=pdf|csv
+   */
+  downloadPendingRelation: async (
+    clientRfc: string,
+    format: PendingRelationFileFormat,
+    generatedOn: string,
+  ): Promise<void> => {
+    const rfc = clientRfc.trim().toUpperCase();
+    const params = new URLSearchParams();
+    addOptionalParam(params, "client_rfc", rfc);
+    addOptionalParam(params, "format", format);
+    await apiClient.downloadFile(
+      `${FINANCE_BASE}/pending-relation?${params.toString()}`,
+      buildPendingRelationFileName(rfc, generatedOn, format),
     );
   },
 

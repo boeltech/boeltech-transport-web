@@ -18,6 +18,8 @@ export {
   useMonthlyPerformance,
 } from "./hooks/useFinance";
 export { useDownloadAccountStatementPdf } from "./hooks/useDownloadAccountStatementPdf";
+export { usePendingRelationCount } from "./hooks/usePendingRelationCount";
+export { useDownloadPendingRelation } from "./hooks/useDownloadPendingRelation";
 export {
   MONTHLY_PERFORMANCE_MONTH_OPTIONS,
   DEFAULT_MONTHLY_PERFORMANCE_MONTHS,

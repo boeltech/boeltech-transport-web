@@ -26,6 +26,7 @@ import type { AccountStatementItem } from "@features/finance/domain";
 import { buildFinanceCobrosPath } from "@features/finance/application";
 import { financeCopy } from "../copy";
 import { getAccountStatementDisplayPaid } from "../utils/accountStatementDisplayPaid";
+import { PendingRelationSheet } from "./PendingRelationSheet";
 
 interface FinanceAccountStatementSectionProps {
   rows: AccountStatementItem[];
@@ -58,9 +59,13 @@ export function FinanceAccountStatementSection({
   downloadingRfc = null,
 }: FinanceAccountStatementSectionProps) {
   const [filterQuery, setFilterQuery] = useState("");
+  const [selectedRow, setSelectedRow] = useState<AccountStatementItem | null>(
+    null,
+  );
   const showDownload = typeof onDownloadPdf === "function";
   const showActions = showCollectAction || showDownload;
   const copy = financeCopy.summary.accountStatement;
+  const relationCopy = copy.pendingRelation;
 
   const filteredRows = useMemo(
     () => rows.filter((row) => matchesClientFilter(row, filterQuery)),
@@ -68,6 +73,7 @@ export function FinanceAccountStatementSection({
   );
 
   return (
+    <>
     <Card>
       <CardHeader className="space-y-3">
         <div className="space-y-1.5">
@@ -145,6 +151,7 @@ export function FinanceAccountStatementSection({
                   const cobrosHref = buildFinanceCobrosPath(row.clientRfc);
                   const showCollect =
                     showCollectAction && row.openInvoiceCount > 0;
+                  const showRelation = showDownload && row.balanceDue > 0;
 
                   return (
                     <TableRow key={row.clientRfc}>
@@ -187,8 +194,37 @@ export function FinanceAccountStatementSection({
                       </TableCell>
                       {showActions ? (
                         <TableCell className="text-right">
-                          {showDownload || showCollect ? (
+                          {showRelation || showDownload || showCollect ? (
                             <div className="flex flex-wrap items-center justify-end gap-2">
+                              {showRelation ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="default"
+                                  aria-label={relationCopy.actionAria(
+                                    row.clientName,
+                                  )}
+                                  onClick={() => setSelectedRow(row)}
+                                >
+                                  {relationCopy.action}
+                                </Button>
+                              ) : null}
+                              {showCollect ? (
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  <Link
+                                    to={cobrosHref}
+                                    aria-label={copy.collectActionAria(
+                                      row.clientName,
+                                    )}
+                                  >
+                                    {copy.collectAction}
+                                  </Link>
+                                </Button>
+                              ) : null}
                               {showDownload ? (
                                 <Button
                                   type="button"
@@ -208,22 +244,6 @@ export function FinanceAccountStatementSection({
                                   {copy.downloadPdfAction}
                                 </Button>
                               ) : null}
-                              {showCollect ? (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="outline"
-                                >
-                                  <Link
-                                    to={cobrosHref}
-                                    aria-label={copy.collectActionAria(
-                                      row.clientName,
-                                    )}
-                                  >
-                                    {copy.collectAction}
-                                  </Link>
-                                </Button>
-                              ) : null}
                             </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -239,5 +259,17 @@ export function FinanceAccountStatementSection({
         )}
       </CardContent>
     </Card>
+    {selectedRow ? (
+      <PendingRelationSheet
+        key={selectedRow.clientRfc}
+        open
+        clientName={selectedRow.clientName}
+        clientRfc={selectedRow.clientRfc}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setSelectedRow(null);
+        }}
+      />
+    ) : null}
+    </>
   );
 }
