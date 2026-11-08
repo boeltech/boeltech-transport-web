@@ -28,6 +28,7 @@ export { useRegisterTrackingEvent } from "./tracking/useRegisterTrackingEvent";
 export { useCreateTrackingEventBatch } from "./tracking/useCreateTrackingEventBatch";
 export { useCloseTrackingIncident } from "./tracking/useCloseTrackingIncident";
 export { useTripTimeline } from "./tracking/useTripTimeline";
+export { useSyncTripDetailOnTimelineEvents } from "./tracking/useSyncTripDetailOnTimelineEvents";
 
 export { useCancelTrip } from "./trip/useCancelTrip";
 export { useClientCorridors } from "./trip/useClientCorridors";

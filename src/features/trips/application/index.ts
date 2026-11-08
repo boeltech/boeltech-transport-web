@@ -62,6 +62,7 @@ export {
   useTripExpenses,
   useTripExpensesSummary,
   useTripTimeline,
+  useSyncTripDetailOnTimelineEvents,
   useTrips,
   useTripWorkbenchSummary,
   useInvoiceableWorkbenchSummary,

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { getOrderedStops, TripStatus, type CfdiEmissionIntent, type TripOperationalOutcomeType, type TripStatusType, type TripStop, type TripCargo } from "@features/trips/domain";
 import {
+  useSyncTripDetailOnTimelineEvents,
   useTripTimeline,
   useUpdateCargo,
 } from "@features/trips/application";
@@ -166,6 +167,10 @@ export function TripTrackingTab({
 
   const timelineQuery = useTripTimeline(tripId);
   const timeline = timelineQuery.data;
+  const refreshTripDetail = useSyncTripDetailOnTimelineEvents(
+    tripId,
+    timeline?.events,
+  );
   /** Prefer page prop when timeline cache still shows a divergent status. */
   const tripStatus =
     timeline?.trip.status === status
@@ -554,6 +559,7 @@ export function TripTrackingTab({
               size="sm"
               onClick={() => {
                 void timelineQuery.refetch();
+                refreshTripDetail();
               }}
               disabled={timelineQuery.isFetching}
               className="shrink-0 gap-1.5"

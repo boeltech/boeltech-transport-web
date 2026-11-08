@@ -1,11 +1,15 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import {
+  CargoStatus,
   TripStatus,
   tripQueryKeys,
+  type CargoStatusType,
   type CreateTrackingEventInput,
+  type TrackingEventType,
   type TrackingTimeline,
   type Trip,
+  type TripCargo,
   type TripStatusType,
 } from "@features/trips/domain";
 
@@ -104,6 +108,51 @@ export function applyTimelineToTripDetailCache(
         timeline.stops.length > 0 ? timeline.stops : previous.stops,
     };
   });
+}
+
+const CARGO_STATUS_BY_EVENT: Partial<Record<TrackingEventType, CargoStatusType>> = {
+  cargo_picked_up: CargoStatus.IN_TRANSIT,
+  cargo_delivered: CargoStatus.DELIVERED,
+};
+
+function readCargoId(payload: Record<string, unknown> | undefined): string | null {
+  const raw = payload?.cargo_id;
+  if (typeof raw !== "string" || raw.length === 0) return null;
+  return raw;
+}
+
+/**
+ * Aplica en la caché del detalle el estado que un evento nuevo de carga ya
+ * dejó en el servidor. El historial llega con el timeline; «Qué sigue» lee
+ * `trip.cargos` del detalle, cuya caché dura cinco minutos.
+ * Devuelve null si ninguna carga cambia.
+ */
+export function patchCargosFromTrackingEvents(
+  cargos: readonly TripCargo[],
+  events: readonly {
+    eventType: TrackingEventType;
+    payload?: Record<string, unknown>;
+  }[],
+): TripCargo[] | null {
+  let next: TripCargo[] | null = null;
+
+  for (const event of events) {
+    const status = CARGO_STATUS_BY_EVENT[event.eventType];
+    if (!status) continue;
+    const cargoId = readCargoId(event.payload);
+    if (!cargoId) continue;
+
+    const source = next ?? cargos;
+    const index = source.findIndex((cargo) => cargo.id === cargoId);
+    if (index < 0 || source[index]?.status === status) continue;
+
+    if (!next) next = [...cargos];
+    const current = next[index];
+    if (!current) continue;
+    next[index] = { ...current, status };
+  }
+
+  return next;
 }
 
 /**

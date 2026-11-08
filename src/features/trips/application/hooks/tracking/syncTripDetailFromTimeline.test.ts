@@ -2,15 +2,18 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
 import {
+  CargoStatus,
   TripStatus,
   tripQueryKeys,
   type Trip,
+  type TripCargo,
 } from "@features/trips/domain";
 
 import {
   applyTimelineToTripDetailCache,
   applyTripDetailTrackingPatch,
   buildTripDetailPatchFromTrackingEvent,
+  patchCargosFromTrackingEvents,
 } from "./syncTripDetailFromTimeline";
 import type { TrackingTimeline } from "@features/trips/domain";
 
@@ -150,5 +153,55 @@ describe("applyTimelineToTripDetailCache", () => {
     expect(cached?.status).toBe(TripStatus.COMPLETED);
     expect(cached?.mileage.end).toBe(101_000);
     expect(cached?.stops).toHaveLength(1);
+  });
+});
+
+describe("patchCargosFromTrackingEvents", () => {
+  const cargo = (status: TripCargo["status"]) =>
+    ({ id: "cargo-1", status }) as TripCargo;
+
+  it("pasa la carga a tránsito cuando llega una recogida nueva", () => {
+    const next = patchCargosFromTrackingEvents([cargo(CargoStatus.PENDING)], [
+      {
+        eventType: "cargo_picked_up",
+        payload: { cargo_id: "cargo-1" },
+      },
+    ]);
+
+    expect(next?.[0]?.status).toBe(CargoStatus.IN_TRANSIT);
+  });
+
+  it("pasa la carga a entregada cuando llega la entrega", () => {
+    const next = patchCargosFromTrackingEvents([cargo(CargoStatus.IN_TRANSIT)], [
+      {
+        eventType: "cargo_delivered",
+        payload: { cargo_id: "cargo-1" },
+      },
+    ]);
+
+    expect(next?.[0]?.status).toBe(CargoStatus.DELIVERED);
+  });
+
+  it("no toca la lista si el evento no cambia el estado o no trae carga", () => {
+    const cargos = [cargo(CargoStatus.IN_TRANSIT)];
+
+    expect(
+      patchCargosFromTrackingEvents(cargos, [
+        {
+          eventType: "cargo_picked_up",
+          payload: { cargo_id: "cargo-1" },
+        },
+      ]),
+    ).toBeNull();
+    expect(
+      patchCargosFromTrackingEvents(cargos, [
+        { eventType: "note", payload: { cargo_id: "cargo-1" } },
+      ]),
+    ).toBeNull();
+    expect(
+      patchCargosFromTrackingEvents(cargos, [
+        { eventType: "cargo_picked_up", payload: {} },
+      ]),
+    ).toBeNull();
   });
 });
