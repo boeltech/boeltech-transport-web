@@ -5,7 +5,7 @@
  * - Producto (tenant UI): tlamx
  * - Platform (tenant 0): Boeltech Platform — no usa el nombre del producto
  *
- * SoT: docs/design-system/branding-unification-checklist.md §0
+ * SoT: design/tlamx/brand/identity.md (repo erp-transport)
  * Lockup: isotipo portal B + wordmark Schibsted Grotesk · `brandLockupMetrics.ts`
  * Decisión brand 2026-10-15: Opción B (ops) · Schibsted unifica wordmark + display /welcome.
  */

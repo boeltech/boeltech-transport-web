@@ -279,9 +279,8 @@ export function AppShellSection() {
           <p className="mt-4 text-xs text-muted-foreground">
             Doc extendida:{" "}
             <code className="font-mono">
-              docs/design-system/app-shell.md
-            </code>{" "}
-            (repo erp-transport)
+              src/widgets/layout/README.md
+            </code>
           </p>
         </CardContent>
       </Card>

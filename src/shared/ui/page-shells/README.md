@@ -1,8 +1,10 @@
 # Page shells (`@shared/ui/page-shells`)
 
-Esqueletos estándar para pantallas del ERP. Este documento describe el **patrón de wizards de alta** (`WizardPageShell`). La validación inline y el resumen de errores se documentan en `@shared/ui/form/README.md` y en `D:\cowork\boeltech\erp-transport\docs\design-system\form-validation-pattern.md`.
+Esqueletos estándar para pantallas del ERP: contratos, anatomía y recetas. La validación
+inline y el resumen de errores viven en `@shared/ui/form/README.md`.
 
-Copia extendida (design system): `D:\cowork\boeltech\erp-transport\docs\design-system\wizard-page-pattern.md`.
+**Qué shell elegir y por qué** (job de pantalla, criterios Hub 3/5 · Workbench 4/7 ·
+Builder 4/6): SoT `D:\cowork\boeltech\erp-transport\design\tlamx\platforms\web\design.md` §4.
 
 ---
 
@@ -12,8 +14,8 @@ Copia extendida (design system): `D:\cowork\boeltech\erp-transport\docs\design-s
 |-------|-----|----------|
 | `WizardPageShell` | Alta por pasos (create) con navegación Siguiente/Anterior y revisión final | `DriverCreatePage`, `CreateVehiclePage`, `BranchCreatePage`, `ClientCreatePage`, `EmployeeFormPage`, `TripFormPage` (create/edit) |
 | `FormPageShell` | Edición en una sola vista (sin pasos) | `DriverEditPage`, `EmployeeEditPage`, `ClientEditPage`, `EditVehiclePage` |
-
-**Formularios largos (edit):** con `FormPageShell`, usar `FormStickyActions` + `LongFormSectionNav` / `LongFormEditLayout` + `useUnsavedChangesGuard` / `UnsavedChangesDialog` (D5/D6/D11). Canónico: `EditVehiclePage` / `VehicleForm`. Demo viva: `/design-system` → Form largo.
+| `DetailPageShell` | Detalle de entidad: header, alerts, KPIs, tabs, metadata | `InvoiceDetailPage` (canónico), `TripDetailPage`, `VehicleDetailPage` |
+| `SettingsPageShell` | Configuración con sidebar de secciones (wrapper de `SettingsLayout`) | `GeneralSettingsPage` |
 | `ListPageShell` | CRUD / registry: búsqueda, filtros, tabla/cards, paginación | Vehículos, clientes, registry de liquidaciones |
 | `HubPageShell` | Landing de módulo de config: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation` |
 | `BuilderPageShell` | Construcción no lineal: section nav + canvas + inspector + footer (ADR-0091) | `CompensationSchemeBuilderPage` |
@@ -21,8 +23,7 @@ Copia extendida (design system): `D:\cowork\boeltech\erp-transport\docs\design-s
 | Wizard en diálogo | Flujos acotados dentro de un modal, sin ruta propia | `CatalogImportWizard` |
 | Onboarding | Pasos siempre válidos; sin RHF por paso | `OnboardingPage` (excepción documentada) |
 
-**Taxonomía:** CRUD · Hub · Builder · Workbench — checklist y anatomía en
-`docs/design-system/patterns.md` (ADR-0090 / ADR-0091).
+**Formularios largos (edit):** con `FormPageShell`, usar `FormStickyActions` + `LongFormSectionNav` / `LongFormEditLayout` + `useUnsavedChangesGuard` / `UnsavedChangesDialog` (D5/D6/D11). Canónico: `EditVehiclePage` / `VehicleForm`. Demo viva: `/design-system` → Form largo.
 
 **Regla:** las `*Page` de features importan el shell desde `@shared/ui/page-shells/...`, no primitivas de `@shared/ui/wizard` (ESLint `no-restricted-imports` en `presentation/pages`).
 
@@ -105,6 +106,72 @@ import { WorkbenchPageShell } from "@shared/ui/page-shells";
 ```
 
 Tests: `WorkbenchPageShell.test.tsx`. Showcase: `/design-system` → Patrones.
+
+---
+
+## `DetailPageShell` — patrón Detail header
+
+El shell define slots (`icon`, `title`, `subtitle`, `statusBadge`, `actions`, `alerts`) y el
+peso del layout: en `xl+` info `min-w-[55%]` / acciones `max-w-[40%]`; debajo de `xl` el
+título va a ancho completo y las acciones debajo. Cada feature compone los slots.
+Canónico: `InvoiceDetailPage` + `InvoiceDetailHeaderSubtitle` + `InvoiceActions` (`variant="buttons"`).
+
+```
+[←] [icon 48]  IDENTIDAD (h1) + chips de estado/tipo     │  CTAs (≤40 %)
+                Contexto L1 (sm, muted)                   │  1 primaria + Más
+                Contexto L2 opcional (xs, muted)          │
+──────────────────────────────────────────────────────────
+Alerts (warning dominio → info relación → info utilidad)
+```
+
+| Slot | Qué poner | Evitar |
+|------|-----------|--------|
+| `icon` | Icono de entidad `h-6 w-6`, fondo `primary` (`muted` si cancelado) | — |
+| `title` | Ancla (folio/código, `shrink-0`) + `*StatusBadge size="sm" showIcon` + badge de tipo `tone="soft"` en un mismo cluster. Máx. ~3 chips | Chips solo en `statusBadge` con el título huérfano |
+| `subtitle` | L1 `text-sm text-muted-foreground truncate` (quién: cliente · RFC); L2 opcional `text-xs`; contenedor `space-y-0.5`. Sin UUID ni IDs técnicos | Chips de estado |
+| `statusBadge` | Omitir si los chips ya van en `title` | Duplicar la señal |
+| `actions` | Primaria contextual + overflow «Más» (`*Actions variant="buttons"`). `<2xl`: 1 primaria + Más; `2xl+`: + hasta 2 outline | Más de una `variant="default"` |
+| `alerts` | Orden: warning de dominio → info de relación → info de utilidad. Copy = el porqué; la CTA fuerte vive en el header | Botón outline en el banner con el mismo label que el header (usar link textual) |
+
+```tsx
+header={{
+  backHref,
+  icon: <EntityIcon className="h-6 w-6" />,
+  title: (
+    <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+      <span className="shrink-0">{entityCode}</span>
+      <EntityStatusBadge status={status} size="sm" showIcon />
+    </span>
+  ),
+  subtitle: (
+    <div className="space-y-0.5">
+      <p className="truncate text-sm text-muted-foreground">{primaryContext}</p>
+      {secondaryContext ? (
+        <p className="truncate text-xs text-muted-foreground">{secondaryContext}</p>
+      ) : null}
+    </div>
+  ),
+  actions: <EntityActions variant="buttons" />,
+}}
+```
+
+No usar `max-w-6xl` en un detalle si el listado hermano usa el `max-w-7xl` del `LayoutShell`.
+`isLoading` en `DetailPageShell` monta el skeleton internamente.
+
+---
+
+## Cómo agregar un nuevo shell
+
+Solo si ningún shell existente aplica (caso reciente: `WorkbenchPageShell`, ADR-0090 —
+taxonomía nueva, no extensión de `ListPageShell`).
+
+1. ADR si el shell es transversal. Si cambia la taxonomía de jobs → Evolve en la SoT
+   (`design/tlamx/platforms/web/design.md` §4) antes de implementar.
+2. Crear `src/shared/ui/page-shells/<NewShell>.tsx` con contrato tipado estricto (props/slots, cero dominio).
+3. Implementar loading / empty / error según el job (p. ej. empty por bucket en workbench).
+4. Migrar al menos una feature de prueba.
+5. Mockup en `src/pages/design-system/sections/PatternsSection.tsx`.
+6. Documentar aquí (anatomía, props, ejemplos) y actualizar la skill `design-system`.
 
 ---
 

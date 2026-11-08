@@ -121,7 +121,7 @@ En `src/widgets/layout/ui/AppLayout.tsx` (exterior → interior):
 
 ### Page shells
 
-Nuevas páginas en `presentation/pages` usan `@shared/ui/page-shells` (`ListPageShell`, `DetailPageShell`, `FormPageShell`, `WizardPageShell`, `SettingsPageShell`). No importar primitivas wizard sueltas desde páginas. Alta por pasos: `src/shared/ui/page-shells/README.md` · `D:\cowork\boeltech\erp-transport\docs\design-system\wizard-page-pattern.md`.
+Nuevas páginas en `presentation/pages` usan `@shared/ui/page-shells` (`ListPageShell`, `DetailPageShell`, `FormPageShell`, `WizardPageShell`, `SettingsPageShell`). No importar primitivas wizard sueltas desde páginas. Alta por pasos: `src/shared/ui/page-shells/README.md`.
 
 Detalle + Sheet + master-detail: skill `.agents/skills/detail-sheet-master-detail/SKILL.md` · ref. `ClientDetailPage`.
 
@@ -131,7 +131,7 @@ Edición: cargar data antes de montar el form; **`defaultValues`** (no solo `val
 
 ### Validación UX en formularios
 
-Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles, `FormValidationSummary` tras `trigger` fallido (wizards sin toast al avanzar). Primitivos: `@shared/ui/form` · guías: `form-validation-pattern.md` y `wizard-page-pattern.md` en `docs/design-system/` · regla Cursor: `.cursor/rules/form-validation-ux.mdc`.
+Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles, `FormValidationSummary` tras `trigger` fallido (wizards sin toast al avanzar). Primitivos: `@shared/ui/form` · contrato: `src/shared/ui/form/README.md` y `src/shared/ui/page-shells/README.md` · regla Cursor: `.cursor/rules/form-validation-ux.mdc`.
 
 ### Direcciones y SAT
 
@@ -149,15 +149,15 @@ Patrón homologado: `FieldInlineError` (`text-xs`), `error` + ARIA en controles,
 - Fechas al API: **ISO 8601 string** — no `new Date()` antes de enviar.
 - Permisos en tablas: centralizar en componentes `*Actions`.
 - Columnas BD en inglés snake_case (misma convención que API).
-- Facturas timbradas: sustitución = **`SubstituteInvoiceSheet`** (no Dialog); cancelar/pago siguen en Dialog — ver `docs/design-system/patterns.md` § detalle fiscal.
+- Facturas timbradas: sustitución = **`SubstituteInvoiceSheet`** (no Dialog); cancelar/pago siguen en Dialog — ver SoT `D:\cowork\boeltech\erp-transport\design\tlamx\platforms\web\design.md` §6 (overlays por tamaño y riesgo).
 
 ## Documentación detallada (fuente única)
 
 | Tema | Ruta |
 |---|---|
 | Índice general | `D:\cowork\boeltech\erp-transport\docs\README.md` |
-| Design system | `...\docs\design-system\` + `...\planes\cerrados\propuesta-shells-ux-ui-erp-t.md` |
-| Wizards (alta) | `src/shared/ui/page-shells/README.md` · `...\docs\design-system\wizard-page-pattern.md` |
+| Design system | SoT: `...\design\tlamx\` (principios: `design.md`; web: `platforms\web\design.md`) · Contratos: skill `design-system` + READMEs de `src/` · histórico: `...\planes\cerrados\propuesta-shells-ux-ui-erp-t.md` |
+| Wizards (alta) | `src/shared/ui/page-shells/README.md` |
 | Mejoras UX/UI / copy | capacidad `ux-ui-mejoras` (BLD) — ver **Capacidades Cursor** abajo |
 | Viajes / tracking paradas | `...\docs\viajes\tracking-paradas-campos.md` |
 | Viajes — edición híbrida (ADR-0044) | `...\design\adr\0044-viajes-edicion-hibrida-desde-detalle.md` · matriz `...\docs\viajes\edicion-viajes-matriz-ux.md` |

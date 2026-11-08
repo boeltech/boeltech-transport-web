@@ -9,7 +9,7 @@ Fuente única del ecosistema (fuera de este repo):
 - [Índice documental ERP-T](D:/cowork/boeltech/erp-transport/docs/README.md)
 - [Flujo Web → API → ProFact (PAC)](D:/cowork/boeltech/erp-transport/docs/facturacion/profact-flujo-web-api.md)
 - [Campos de parada por acción operativa (tracking)](D:/cowork/boeltech/erp-transport/docs/viajes/tracking-paradas-campos.md)
-- [Design system (tokens, componentes, patrones)](D:/cowork/boeltech/erp-transport/docs/design-system/)
+- [Design system — SoT tlamx (principios, marca, roles)](D:/cowork/boeltech/erp-transport/design/tlamx/) · contratos: skill `.agents/skills/design-system/` y READMEs de `src/`
 
 Guía para agentes: `CLAUDE.md` en la raíz del repo.
 

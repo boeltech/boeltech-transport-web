@@ -5,6 +5,38 @@ description: Design system del ERP-T. App shell (sidebar, header, navegación, t
 
 # Design System — boeltech-transport-web
 
+**SoT de producto Tlamx:** `D:\cowork\boeltech\erp-transport\design\tlamx\`
+
+| Qué | Documento SoT |
+|-----|---------------|
+| Principios cross-surface (P1–P8), identidad, superficies | `design/tlamx/design.md` |
+| Cómo Operate web aplica esos principios | `design/tlamx/platforms/web/design.md` |
+| Roles de color → tokens CSS (paletas v1/v2) | `design/tlamx/platforms/web/token-map.md` |
+
+Este skill = **Conform** del ERP web: contratos de implementación (tokens CSS, shells,
+props, primitivos, demo `/design-system`). No es la SoT multiplataforma; Android no hereda
+este skill como marca.
+
+**Precedencia:** si este skill y la SoT discrepan, gana la SoT; corregir este skill en el
+mismo cambio. Cambiar un principio = Evolve en la SoT primero (ver §Evolución del DS).
+
+### Principios (resumen vinculante)
+
+Los Cloud Agents no ven la carpeta cowork, así que este resumen es el mínimo que aplica
+siempre. Texto canónico y razones: `design/tlamx/design.md`. Si la SoT cambia un
+principio, actualizar este bloque en el mismo cambio.
+
+| # | Principio | En web significa |
+|---|-----------|------------------|
+| P1 | Paridad de negocio, no de cromo | Estados de dominio vía `StatusBadge` + config; no inventar estados ni copiar UI a Android |
+| P2 | Una primaria; la marca actúa, el ámbar avisa | Una sola `Button` sólida (`--primary`, teal) por vista; ámbar solo señal (riel, warning). Excepción: CTA ámbar en `/welcome` (D-M2) |
+| P3 | Densidad según el contexto | Operate = alta densidad (tablas, workbenches, KPIs) |
+| P4 | Primero el job, después el componente | Elegir el page shell por job (tabla de taxonomía abajo) |
+| P5 | Rol antes que valor | Solo tokens semánticos; nunca colores Tailwind crudos |
+| P6 | Ninguna pantalla sin sus estados | Empty vía shell · `LoadingPageState` · error → `DetailAlertCard` + Reintentar |
+| P7 | Calma operativa | Chrome sólido sin glass/blur; sentence-case; motion solo de feedback; `prefers-reduced-motion` |
+| P8 | Accesible por defecto | AA (`contrastPairs.test.ts`), focus visible, `Label htmlFor`, `aria-label` en icon buttons |
+
 ## Cuándo aplicar
 
 - Crear una pantalla nueva o componente UI
@@ -29,7 +61,7 @@ Para **cambiar el sistema** (tokens, shells, primitivos, empty/hub patterns):
 1. Capacidad `ux-ui-mejoras` modo **`propose-ds`** → RFC (skills de diseño pueden proponer).
 2. CEO aprueba **`ds_evolution`** en el pedido (Evolve por pedido puntual).
 3. Modo **`evolve-ds`** aterriza aquí + `src/app/styles/index.css` / `@shared/ui` + demo
-   `/design-system` + docs cowork — **antes** de adoptar en pantallas.
+   `/design-system` + SoT `design/tlamx/` (intención) + READMEs de `src/` (contratos) — **antes** de adoptar en pantallas.
 4. Pantallas vuelven a Conform con el DS ya actualizado.
 
 Sin `ds_evolution.approved` → no mutar tipografía/paleta/shells del sistema desde un pedido
@@ -52,14 +84,14 @@ AppLayout (providers) → LayoutShell → Sidebar + Header + main → Outlet →
 
 | Pieza | Ruta | Notas |
 |---|---|---|
-| Providers | `src/widgets/layout/ui/AppLayout.tsx` | Query → Auth → Permission → Theme → Toast → Sidebar → LayoutShell |
+| Providers | `src/app/App.tsx` · `src/widgets/layout/ui/AppLayout.tsx` | Global: Query → Theme → Toast → Router. Shell: Auth → ProductOnboardingGate → SubscriptionRequiredGate → Permission → Tooltip → Sidebar → LayoutShell |
 | Layout | `src/widgets/layout/ui/LayoutShell.tsx` | Sidebar **240/56px**, header **h-14** solid, skip link → `#contenido`, main `pt-16` + `max-w-7xl`. Un solo landmark `<aside>` (desktop). |
 | Sidebar | `src/widgets/sidebar/` | `navigation.ts` + RBAC via `useNavigation`; badges via `useNavigationWithBadges`. Active: `bg-sidebar-accent` + `text-sidebar-foreground` (neutro) + riel **3px** `bg-sidebar-primary` (ámbar; primary solo en riel) + `aria-current="page"`. Badge visible en colapsado (número o dot). Labels de grupo sentence-case (`text-sidebar-foreground/60`). Sin user/logout en footer (solo collapse). |
 | Header | `src/widgets/header/ui/Header.tsx` | Solid `bg-background` (sin glass/blur). Search ⌘K `bg-muted` + `border-border` (Operate cool; sin warm wash). **lupa móvil** `<md` abre el mismo menú. Campana inbox, tema, menú usuario (logout aquí; nombre/rol `lg+`). |
 | Estado sidebar | `src/app/providers/SidebarProvider.tsx` | Colapso persistido en localStorage |
 | Anchos | `sidebarLayout.ts` | `SIDEBAR_WIDTH_PX=240` / `SIDEBAR_COLLAPSED_WIDTH_PX=56` — alinear Header left + main margin |
 
-**Tokens sidebar:** `bg-sidebar`, `text-sidebar-foreground`, `bg-sidebar-primary` (ámbar en v2 Patio), `bg-sidebar-accent`, `border-sidebar-border` — ver `tokens.md`. No usar `--background` ni `bg-primary/10` en el ítem activo.
+**Tokens sidebar:** `bg-sidebar`, `text-sidebar-foreground`, `bg-sidebar-primary` (ámbar en v2 Patio), `bg-sidebar-accent`, `border-sidebar-border` — ver SoT `platforms/web/token-map.md` §Chrome. No usar `--background` ni `bg-primary/10` en el ítem activo.
 
 **Superficies:** light `--background` off-white (hue 250) vs `--card` blanco puro. `Card` default: `rounded-xl border shadow-sm`.
 
@@ -83,7 +115,7 @@ AppLayout (providers) → LayoutShell → Sidebar + Header + main → Outlet →
 
 `ToastProvider`: `top-right`, no montar otro `Toaster` en features.
 
-Demo viva: `/design-system` → App Shell. Doc: `docs/design-system/app-shell.md`.
+Demo viva: `/design-system` → App Shell. Contrato: `src/widgets/layout/README.md`.
 
 ---
 
@@ -325,7 +357,7 @@ gráficas del dashboard y módulo de finanzas.
 | Shell | Cuándo usar | Ejemplo real |
 |---|---|---|
 | `ListPageShell` | CRUD / registry: búsqueda, filtros, paginación | `VehicleListPage`, `SettlementsRegistryPage`, **`/notifications`** (Ola 2 #3 inbox) |
-| `DetailPageShell` | Detalle de entidad con tabs y KPIs; header canónico = patrón **Detail header** en `docs/design-system/patterns.md` | `InvoiceDetailPage`, `ClientDetailPage` |
+| `DetailPageShell` | Detalle de entidad con tabs y KPIs; header canónico = patrón **Detail header** en `src/shared/ui/page-shells/README.md` | `InvoiceDetailPage`, `ClientDetailPage` |
 | `FormPageShell` | Edición simple (un formulario, sin pasos) | `EditVehiclePage`, `EmployeeFormPage` |
 | `WizardPageShell` | Creación/edición por pasos con validación incremental | `TripFormPage` |
 | `HubPageShell` | Landing de módulo: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation`, **`/finance/analysis`** (Ola 3 #5) |
@@ -373,7 +405,7 @@ Empty/error **por bucket** en la feature. No ampliar `ListPageShell` ni fusionar
 
 **Builder** — usar si **≥ 4 de 6**: (1) múltiples secciones, (2) navegación no lineal, (3) inspector/resumen, (4) construcción iterativa, (5) lenguaje de negocio, (6) completitud progresiva. No extender Wizard con “navegación libre”.
 
-ADR-0090: `design/adr/0090-…` · ADR-0091: `design/adr/0091-…` · Hub SDD: `design/sdd/hub-page-shell/` · Doc: `docs/design-system/patterns.md`.
+ADR-0090: `design/adr/0090-…` · ADR-0091: `design/adr/0091-…` · Hub SDD: `design/sdd/hub-page-shell/` · Criterios: SoT `platforms/web/design.md` §4 · Anatomía: `src/shared/ui/page-shells/README.md`.
 
 ### `HubPageShell` — props esenciales
 
@@ -581,6 +613,8 @@ import { Button } from "@shared/ui/button";
 
 Variantes disponibles: `default`, `destructive`, `outline`, `secondary`, `ghost`, `link`, `success`, `warning`, `info`
 
+Con `asChild` no usar `leftIcon` / `rightIcon` / `isLoading` (Slot no los propaga): el ícono va dentro del child. Nunca una "variante" inline (`className="bg-red-500"`).
+
 ### Badge / StatusBadge
 
 ```tsx
@@ -601,6 +635,8 @@ export const TripStatusBadge = createStatusBadgeComponent(TRIP_STATUS_CONFIG);
 | Cancelado, error | `variant="destructive" tone="soft"` |
 | Borrador, inactivo | `variant="neutral" tone="soft"` |
 
+Config por feature en `presentation/config/xxxStatusConfig.ts`. `tone: "solid"` solo para estados activos / de atención. Alias aceptados en config: `danger` → `destructive`, `orange` → `warning`, `purple` → `info` solid.
+
 ### StatCard (KPIs)
 
 ```tsx
@@ -611,7 +647,7 @@ import { StatCard } from "@shared/ui/data-display/StatCard";
 
 **Dashboard KPI strip:** franja unida `DashboardKpiStrip` (`rounded-2xl border shadow-sm` + celdas con divisores) en `operations_snapshot` — no cuatro cards sueltas.
 
-Tones: `primary` (neutral), `success` (positivo), `warning` (atención), `info`, `destructive`, `neutral`.
+Tones: `primary` (neutral), `success` (positivo), `warning` (atención), `info`, `destructive`, `neutral`. El tone describe el significado del dato, no su magnitud: "Conductores activos" es `info`, no `destructive`.
 
 ### DetailAlertCard (banner de detalle)
 
@@ -672,12 +708,20 @@ toastSuccess("Viaje creado", "ID: #3421");
 toastError("Error al guardar");
 ```
 
+`AlertWithIcon` para título + descripción; ícono coherente con la variante (CheckCircle success, AlertTriangle warning). Un "Guardado" es toast, no `Alert`.
+
 ### EmptyState / LoadingPageState
 
 ```tsx
 <EmptyState icon={<Package />} title="Sin viajes" cta={{ label: "Crear viaje", onClick }} />
 <LoadingPageState variant="list" />  // list | detail | form | wizard
 ```
+
+Empty filtrado: `size="md"` + `secondaryCta` «Limpiar filtros». Empty sin filtros: `size="lg"` + `cta` de crear el primero. Paneles/campana: `size="sm"`. `DetailPageShell` con `isLoading` monta su skeleton; en componentes custom, `LoadingPageState` como fallback de `Suspense`.
+
+### Overlays de apoyo
+
+`Popover` para filtros rápidos y micro-formularios. `Tooltip` solo para etiquetas breves (nunca información esencial). Sheet / Dialog / AlertDialog: §Overlays arriba.
 
 ### Form con RHF
 
@@ -739,6 +783,8 @@ Demo viva: `/design-system` → sección Charts (`ChartPaletteSection.tsx`).
 - Todo botón con solo ícono tiene `aria-label`.
 - `:focus-visible` habilitado globalmente.
 - Nunca poner información esencial solo en un `Tooltip` (no accesible en touch).
+- Composition first: componer con `asChild` / slots; no agregar variantes específicas de una feature a los primitivos del DS.
+- Todo cambio visual se valida en `/design-system` con toggle light/dark antes de mergear.
 
 ---
 
@@ -821,16 +867,19 @@ README: `src/shared/ui/location/README.md` · Guía: `docs/direcciones/patron-lo
 
 | Documento | Ruta |
 |---|---|
-| App shell (chrome) | `D:\cowork\boeltech\erp-transport\docs\design-system\app-shell.md` |
-| Inbox notificaciones (usuario) | `...\docs\notificaciones\inbox-usuario.md` |
-| Tokens completos | `D:\cowork\boeltech\erp-transport\docs\design-system\tokens.md` |
-| Componentes base | `...\docs\design-system\components.md` |
-| Patrones de shell | `...\docs\design-system\patterns.md` |
-| Mapas + embeds (dark) | `...\docs\design-system\maps-embeds.md` |
-| Form validation UX | `...\docs\design-system\form-validation-pattern.md` |
-| Wizard pattern | `...\docs\design-system\wizard-page-pattern.md` |
+| Principios y decisiones de diseño (SoT) | `D:\cowork\boeltech\erp-transport\design\tlamx\design.md` · `...\platforms\web\design.md` |
+| Roles de color → tokens (SoT) | `...\design\tlamx\platforms\web\token-map.md` |
+| Marca (SoT) | `...\design\tlamx\brand\` |
+| App shell (contrato) | `src/widgets/layout/README.md` |
+| Page shells (contrato, Detail header, wizard) | `src/shared/ui/page-shells/README.md` |
+| Formularios y validación (contrato) | `src/shared/ui/form/README.md` |
+| Mapas + embeds (dark) | `src/shared/geolocation/README.md` |
+| Overlays + toast | `src/shared/ui/toast/README.md` |
+| Listados (filtros, cards) | `src/shared/ui/listing/README.md` |
+| Location / direcciones | `src/shared/ui/location/README.md` · `src/shared/ui/address-input/README.md` |
+| Inbox notificaciones (usuario) | `D:\cowork\boeltech\erp-transport\docs\notificaciones\inbox-usuario.md` |
 | Charts (ADR-0045) | `D:\cowork\boeltech\erp-transport\design\adr\0045-charts-library-y-patron-chartcard.md` |
 | Detail+Sheet+MD | `.agents/skills/detail-sheet-master-detail/SKILL.md` |
-| Página de tokens CSS | `src/app/styles/index.css` |
+| Tokens CSS (runtime) | `src/app/styles/index.css` |
 | Design system showcase | `src/pages/design-system/` |
 | Patio Marketing `/welcome` | `src/pages/landing/` · §Patio Marketing arriba |
