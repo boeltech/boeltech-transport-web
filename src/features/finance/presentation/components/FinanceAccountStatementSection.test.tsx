@@ -142,9 +142,10 @@ describe("FinanceAccountStatementSection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Resumen (PDF) and calls onDownloadPdf with client RFC", async () => {
+  it("shows Resumen (PDF) in the overflow menu and calls onDownloadPdf with client RFC", async () => {
     const user = userEvent.setup();
     const onDownloadPdf = vi.fn();
+    const clientName = "INDUSTRIA ILUMINADORA DE ALMACENES";
 
     renderSection(
       <FinanceAccountStatementSection
@@ -160,9 +161,14 @@ describe("FinanceAccountStatementSection", () => {
       />,
     );
 
-    const download = screen.getByRole("button", {
+    await user.click(
+      screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.moreActionsAria(clientName),
+      }),
+    );
+    const download = await screen.findByRole("menuitem", {
       name: financeCopy.summary.accountStatement.downloadPdfActionAria(
-        "INDUSTRIA ILUMINADORA DE ALMACENES",
+        clientName,
       ),
     });
     expect(download).toHaveTextContent(
@@ -172,7 +178,10 @@ describe("FinanceAccountStatementSection", () => {
     expect(onDownloadPdf).toHaveBeenCalledWith("IIA040805DZ4");
   });
 
-  it("disables Resumen (PDF) while downloadingRfc matches the row", () => {
+  it("disables Resumen (PDF) in the overflow menu while downloadingRfc matches the row", async () => {
+    const user = userEvent.setup();
+    const clientName = "INDUSTRIA ILUMINADORA DE ALMACENES";
+
     renderSection(
       <FinanceAccountStatementSection
         rows={[buildRow({ openInvoiceCount: 1, balanceDue: 100 })]}
@@ -182,13 +191,18 @@ describe("FinanceAccountStatementSection", () => {
       />,
     );
 
-    expect(
+    await user.click(
       screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.moreActionsAria(clientName),
+      }),
+    );
+    expect(
+      await screen.findByRole("menuitem", {
         name: financeCopy.summary.accountStatement.downloadPdfActionAria(
-          "INDUSTRIA ILUMINADORA DE ALMACENES",
+          clientName,
         ),
       }),
-    ).toBeDisabled();
+    ).toHaveAttribute("aria-disabled", "true");
   });
 
   it("filtra client-side por RFC (CA 6)", async () => {
@@ -249,7 +263,7 @@ describe("FinanceAccountStatementSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Relación de pendientes when balanceDue > 0 and onDownloadPdf is set", () => {
+  it("shows Relación when balanceDue > 0 and onDownloadPdf is set", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[buildRow({ balanceDue: 12000, openInvoiceCount: 1 })]}
@@ -258,16 +272,17 @@ describe("FinanceAccountStatementSection", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", {
-        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
-          "INDUSTRIA ILUMINADORA DE ALMACENES",
-        ),
-      }),
-    ).toBeInTheDocument();
+    const relation = screen.getByRole("button", {
+      name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
+        "INDUSTRIA ILUMINADORA DE ALMACENES",
+      ),
+    });
+    expect(relation).toHaveTextContent(
+      financeCopy.summary.accountStatement.pendingRelation.action,
+    );
   });
 
-  it("hides Relación de pendientes when balanceDue is 0", () => {
+  it("hides Relación when balanceDue is 0", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[buildRow({ balanceDue: 0, openInvoiceCount: 2 })]}
@@ -285,7 +300,7 @@ describe("FinanceAccountStatementSection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows Relación de pendientes and hides Cobrar when openInvoiceCount is 0", () => {
+  it("shows Relación and hides Cobrar when openInvoiceCount is 0", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[
@@ -312,7 +327,7 @@ describe("FinanceAccountStatementSection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides Relación de pendientes without onDownloadPdf even if there is balance", () => {
+  it("hides Relación without onDownloadPdf even if there is balance", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[buildRow({ balanceDue: 8000, openInvoiceCount: 1 })]}
@@ -323,7 +338,9 @@ describe("FinanceAccountStatementSection", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: /Relación de pendientes/i,
+        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
+          "INDUSTRIA ILUMINADORA DE ALMACENES",
+        ),
       }),
     ).not.toBeInTheDocument();
   });

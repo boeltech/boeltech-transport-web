@@ -1,8 +1,14 @@
 import { useMemo, useState } from "react";
-import { Download, Loader2, Receipt, Search } from "lucide-react";
+import { Download, Loader2, MoreHorizontal, Receipt, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@shared/ui/dropdown-menu";
 import { Input } from "@shared/ui/input";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
@@ -195,7 +201,7 @@ export function FinanceAccountStatementSection({
                       {showActions ? (
                         <TableCell className="text-right">
                           {showRelation || showDownload || showCollect ? (
-                            <div className="flex flex-wrap items-center justify-end gap-2">
+                            <div className="flex flex-nowrap items-center justify-end gap-2">
                               {showRelation ? (
                                 <Button
                                   type="button"
@@ -226,23 +232,39 @@ export function FinanceAccountStatementSection({
                                 </Button>
                               ) : null}
                               {showDownload ? (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={isDownloading}
-                                  aria-label={copy.downloadPdfActionAria(
-                                    row.clientName,
-                                  )}
-                                  onClick={() => onDownloadPdf(row.clientRfc)}
-                                >
-                                  {isDownloading ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Download className="mr-2 h-4 w-4" />
-                                  )}
-                                  {copy.downloadPdfAction}
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8"
+                                      aria-label={copy.moreActionsAria(
+                                        row.clientName,
+                                      )}
+                                    >
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      disabled={isDownloading}
+                                      aria-label={copy.downloadPdfActionAria(
+                                        row.clientName,
+                                      )}
+                                      onSelect={() =>
+                                        onDownloadPdf?.(row.clientRfc)
+                                      }
+                                    >
+                                      {isDownloading ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="mr-2 h-4 w-4" />
+                                      )}
+                                      {copy.downloadPdfAction}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               ) : null}
                             </div>
                           ) : (

@@ -101,16 +101,19 @@ function PendingRelationSheetBody({
   const generatedOn = countQuery.data?.generatedOn ?? "";
   const invoiceCount = countQuery.data?.invoiceCount;
   const countReady = countQuery.isSuccess;
+  const hasInvoices =
+    countReady &&
+    invoiceCount !== undefined &&
+    invoiceCount > 0 &&
+    !downloadEmpty;
   const downloadDisabled =
     countQuery.isPending ||
     countQuery.isError ||
     !countReady ||
     invoiceCount === 0 ||
     generatedOn === "" ||
-    download.isPending;
-
-  const showFormat =
-    countReady && generatedOn !== "" && invoiceCount !== undefined;
+    download.isPending ||
+    downloadEmpty;
 
   function handleFormatChange(value: string) {
     if (value === "pdf" || value === "csv") setFormat(value);
@@ -125,33 +128,27 @@ function PendingRelationSheetBody({
   return (
     <>
       <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <p className="text-sm">{copy.objective}</p>
+          <p className="text-sm text-muted-foreground">{copy.legend}</p>
+        </div>
+
         <div className="space-y-1">
           <p className="text-sm font-medium">{clientName}</p>
           <p className="font-mono text-sm text-muted-foreground">{clientRfc}</p>
         </div>
-        <p className="text-sm">{copy.legend}</p>
 
         {countQuery.isPending ? (
           <div className="space-y-2" aria-hidden>
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-9 w-full" />
           </div>
         ) : null}
 
-        {countReady && generatedOn !== "" ? (
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">
-              {copy.cutoffLabel}
-            </p>
-            <p className="text-sm">{formatDate(generatedOn)}</p>
-          </div>
-        ) : null}
-
-        {countReady &&
-        invoiceCount !== undefined &&
-        invoiceCount > 0 &&
-        !downloadEmpty ? (
-          <p className="text-sm">{copy.countLabel(invoiceCount)}</p>
+        {hasInvoices && generatedOn !== "" ? (
+          <p className="text-sm">
+            {copy.cutoffSummary(formatDate(generatedOn), invoiceCount)}
+          </p>
         ) : null}
 
         {countReady && invoiceCount === 0 ? (
@@ -182,7 +179,7 @@ function PendingRelationSheetBody({
           </div>
         ) : null}
 
-        {showFormat ? (
+        {hasInvoices ? (
           <div className="space-y-1.5">
             <Label htmlFor="pending-relation-format">{copy.formatLabel}</Label>
             <Select value={format} onValueChange={handleFormatChange}>

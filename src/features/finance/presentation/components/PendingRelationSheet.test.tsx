@@ -50,7 +50,7 @@ describe("PendingRelationSheet", () => {
     downloadPendingRelation.mockResolvedValue(undefined);
   });
 
-  it("shows the cutoff, count, legend and PDF with the RFC as text", async () => {
+  it("shows the objective, legend, cutoff summary and PDF with the RFC as text", async () => {
     getPendingRelationCount.mockResolvedValue({
       invoiceCount: 3,
       generatedOn: "2026-11-06",
@@ -58,11 +58,17 @@ describe("PendingRelationSheet", () => {
 
     renderSheet();
 
-    expect(await screen.findByText(copy.countLabel(3))).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        copy.cutoffSummary(formatDate("2026-11-06"), 3),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: copy.sheetTitle }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(copy.objective)).toBeInTheDocument();
     expect(screen.getByText(clientName)).toBeInTheDocument();
     expect(screen.getByText(clientRfc)).toBeInTheDocument();
-    expect(screen.getByText(copy.cutoffLabel)).toBeInTheDocument();
-    expect(screen.getByText(formatDate("2026-11-06"))).toBeInTheDocument();
     expect(screen.getByText(copy.legend)).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(
@@ -70,7 +76,7 @@ describe("PendingRelationSheet", () => {
     ).toHaveTextContent(copy.formatPdf);
   });
 
-  it("shows the empty phrase and does not download when the count is 0", async () => {
+  it("shows the empty phrase and hides the format when the count is 0", async () => {
     getPendingRelationCount.mockResolvedValue({
       invoiceCount: 0,
       generatedOn: "2026-11-06",
@@ -82,6 +88,9 @@ describe("PendingRelationSheet", () => {
     expect(
       screen.getByRole("button", { name: copy.downloadAction }),
     ).toBeDisabled();
+    expect(
+      screen.queryByRole("combobox", { name: copy.formatLabel }),
+    ).not.toBeInTheDocument();
     expect(downloadPendingRelation).not.toHaveBeenCalled();
   });
 
@@ -94,7 +103,9 @@ describe("PendingRelationSheet", () => {
 
     renderSheet();
 
-    await screen.findByText(copy.countLabel(3));
+    await screen.findByText(
+      copy.cutoffSummary(formatDate("2026-11-06"), 3),
+    );
     await user.click(
       screen.getByRole("button", { name: copy.downloadAction }),
     );
@@ -118,7 +129,9 @@ describe("PendingRelationSheet", () => {
 
     renderSheet();
 
-    await screen.findByText(copy.countLabel(3));
+    await screen.findByText(
+      copy.cutoffSummary(formatDate("2026-11-06"), 3),
+    );
     await user.click(screen.getByRole("combobox", { name: copy.formatLabel }));
     const listbox = await screen.findByRole("listbox");
     await user.click(within(listbox).getByRole("option", { name: copy.formatCsv }));
