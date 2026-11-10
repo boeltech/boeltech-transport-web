@@ -189,13 +189,15 @@ function FormulaNav({
         const isActive = term.isResult
           ? resultActive
           : !resultActive && term.id === activeSectionId;
-        const op = operators[index];
+        // operators[i] sits *between* term i and term i+1 → for term at index>0 use index-1
+        const op = operators[index - 1];
         return (
           <div key={term.id} className="contents">
             {index > 0 ? (
               <div
                 className="flex items-center justify-center text-xl font-medium text-muted-foreground"
                 aria-hidden
+                data-testid="builder-formula-operator"
               >
                 {op ?? "+"}
               </div>

@@ -212,4 +212,46 @@ describe("BuilderPageShell", () => {
       screen.queryByRole("button", { name: "Resumen" }),
     ).not.toBeInTheDocument();
   });
+
+  it("muestra operadores de fórmula en orden + − =", () => {
+    renderShell({
+      navVariant: "formula",
+      formulaTerms: [
+        {
+          id: "trips",
+          label: "1 · Por cada viaje",
+          value: "Clases",
+          summary: "2 clases",
+          status: "complete",
+        },
+        {
+          id: "allowances",
+          label: "2 · Fijos por pago",
+          value: "$700",
+          summary: "1 fijo",
+          status: "partial",
+        },
+        {
+          id: "deductions",
+          label: "3 · Descuentos",
+          value: "$0",
+          summary: "Sin descuentos",
+          status: "empty",
+        },
+        {
+          id: "result",
+          label: "Recibe el operador",
+          value: "$7,500.00",
+          summary: "en la semana de ejemplo",
+          status: "complete",
+          isResult: true,
+        },
+      ],
+      formulaOperators: ["+", "−", "="],
+    });
+
+    const nav = screen.getByTestId("builder-formula-nav");
+    const operators = within(nav).getAllByTestId("builder-formula-operator");
+    expect(operators.map((node) => node.textContent)).toEqual(["+", "−", "="]);
+  });
 });

@@ -7,9 +7,8 @@ import type { CompensationTemplate } from "../../domain/entities";
 import type { CompensationTemplateFormData } from "../validation/compensationSchemas";
 import { buildPaysHowProse } from "../utils/buildPaysHowProse";
 import {
-  DEFAULT_SAMPLE_WEEK_TRIPS,
+  buildSampleWeekTrips,
   simulateCompensationWeek,
-  type SampleWeekTrip,
 } from "../utils/simulateCompensation";
 import { compensationCopy } from "../copy/compensationCopy";
 import { BuilderHistoryPanel } from "./BuilderHistoryPanel";
@@ -51,13 +50,23 @@ export function BuilderPaysHowInspector({
   previewHref,
   onPreview,
 }: BuilderPaysHowInspectorProps) {
-  const [trips, setTrips] = useState<SampleWeekTrip[]>(DEFAULT_SAMPLE_WEEK_TRIPS);
+  const [compactTrips, setCompactTrips] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const values = useWatch({ control });
 
   const snapshot = useMemo(
     () => formSnapshot(template, (values ?? {}) as Partial<CompensationTemplateFormData>),
     [template, values],
+  );
+
+  const sampleTrips = useMemo(
+    () => buildSampleWeekTrips(snapshot.corridors),
+    [snapshot.corridors],
+  );
+
+  const trips = useMemo(
+    () => (compactTrips ? sampleTrips.slice(0, 2) : sampleTrips),
+    [compactTrips, sampleTrips],
   );
 
   const prose = useMemo(() => buildPaysHowProse(snapshot), [snapshot]);
@@ -91,9 +100,20 @@ export function BuilderPaysHowInspector({
   return (
     <div className="flex flex-col gap-4" data-testid="builder-pays-how-inspector">
       <section className="rounded-xl border bg-card">
-        <div className="px-5 pt-4">
-          <h2 className="text-base font-semibold leading-6">{copy.paysHowTitle}</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">{copy.paysHowSubtitle}</p>
+        <div className="flex items-start gap-2 px-5 pt-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold leading-6">{copy.paysHowTitle}</h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{copy.paysHowSubtitle}</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="shrink-0 text-muted-foreground"
+            onClick={() => setShowHistory(true)}
+          >
+            {copy.historyTabLabel}
+          </Button>
         </div>
         <ul className="space-y-1.5 px-5 py-4 text-[13px] leading-5">
           {prose.map((line) => (
@@ -119,13 +139,7 @@ export function BuilderPaysHowInspector({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() =>
-              setTrips((current) =>
-                current.length > 2
-                  ? current.slice(0, 2)
-                  : DEFAULT_SAMPLE_WEEK_TRIPS,
-              )
-            }
+            onClick={() => setCompactTrips((current) => !current)}
           >
             {copy.weekChangeTrips}
           </Button>
@@ -185,16 +199,6 @@ export function BuilderPaysHowInspector({
           </div>
         </div>
       </section>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="self-start text-muted-foreground"
-        onClick={() => setShowHistory(true)}
-      >
-        {copy.historyTabLabel}
-      </Button>
     </div>
   );
 }
@@ -226,13 +230,13 @@ function WeekLine({
 export function computeWeekTotalFormatted(
   template: CompensationTemplate,
   values: Partial<CompensationTemplateFormData>,
-  trips: SampleWeekTrip[] = DEFAULT_SAMPLE_WEEK_TRIPS,
+  trips?: ReturnType<typeof buildSampleWeekTrips>,
 ): string {
   const snapshot = formSnapshot(template, values);
   return simulateCompensationWeek(
     snapshot.rules,
     snapshot.fixedAllowances,
-    trips,
+    trips ?? buildSampleWeekTrips(snapshot.corridors),
     snapshot.deductions,
   ).formattedTotal;
 }
