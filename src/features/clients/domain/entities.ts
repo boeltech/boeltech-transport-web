@@ -218,6 +218,18 @@ export interface Client {
 
   /** Contacto principal desde `client_contacts` (WS-B). */
   primaryContact?: ClientContact;
+  /**
+   * D17. Solo GET detalle cuando el API manda el objeto (`receptor_cfdi`).
+   * Ausente en `comercial_only`: no se rellena con ceros.
+   */
+  sinCfdiExceptionCount?: SinCfdiExceptionCount;
+}
+
+/** Conteos de excepciones Sin factura del cliente (D17). */
+export interface SinCfdiExceptionCount {
+  total: number;
+  approved: number;
+  inProgress: number;
 }
 
 /**

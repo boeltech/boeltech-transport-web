@@ -87,6 +87,16 @@ export function ClientDetailDataTab({
                   )
                 }
               />
+              {client.cfdiReceptorProfile === "receptor_cfdi" &&
+              client.sinCfdiExceptionCount ? (
+                <InfoRow
+                  variant="inline"
+                  label={idCopy.sinFacturaExceptions}
+                  value={idCopy.formatSinFacturaExceptions(
+                    client.sinCfdiExceptionCount,
+                  )}
+                />
+              ) : null}
               <InfoRow
                 variant="inline"
                 label={idCopy.taxId}

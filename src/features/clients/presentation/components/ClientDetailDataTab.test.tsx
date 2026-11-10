@@ -174,4 +174,45 @@ describe("ClientDetailDataTab layout", () => {
     await user.click(screen.getByRole("button", { name: contactCopy.viewInContacts }));
     expect(onGoToContacts).toHaveBeenCalledOnce();
   });
+
+  it("receptor_cfdi con ceros muestra excepciones Sin factura", () => {
+    const count = { total: 0, approved: 0, inProgress: 0 };
+    render(
+      <ClientDetailDataTab
+        client={{
+          ...baseClient,
+          cfdiReceptorProfile: "receptor_cfdi",
+          sinCfdiExceptionCount: count,
+        }}
+        taxRegimeLabel={null}
+      />,
+    );
+
+    expect(screen.getByText(idCopy.sinFacturaExceptions)).toBeInTheDocument();
+    expect(
+      screen.getByText(idCopy.formatSinFacturaExceptions(count)),
+    ).toBeInTheDocument();
+  });
+
+  it("comercial_only no muestra excepciones Sin factura", () => {
+    render(
+      <ClientDetailDataTab
+        client={{ ...baseClient, cfdiReceptorProfile: "comercial_only" }}
+        taxRegimeLabel={null}
+      />,
+    );
+
+    expect(screen.queryByText(idCopy.sinFacturaExceptions)).not.toBeInTheDocument();
+  });
+
+  it("receptor_cfdi sin objeto no inventa el conteo", () => {
+    render(
+      <ClientDetailDataTab
+        client={{ ...baseClient, cfdiReceptorProfile: "receptor_cfdi" }}
+        taxRegimeLabel={null}
+      />,
+    );
+
+    expect(screen.queryByText(idCopy.sinFacturaExceptions)).not.toBeInTheDocument();
+  });
 });

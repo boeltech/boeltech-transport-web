@@ -389,6 +389,15 @@ export interface ClientApiResponse {
   created_by_name: string | null;
   updated_by_name: string | null;
   primary_contact?: ClientContactApiResponse | null;
+  /**
+   * D17. Presente solo en GET /clients/:id con perfil `receptor_cfdi`.
+   * La clave no viene en `comercial_only`.
+   */
+  sin_cfdi_exception_count?: {
+    total: number;
+    approved: number;
+    in_progress: number;
+  };
 }
 
 /**

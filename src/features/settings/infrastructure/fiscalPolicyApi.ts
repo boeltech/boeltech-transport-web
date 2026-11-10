@@ -9,6 +9,10 @@ export interface FiscalPolicy {
   sinCfdiMode: SinCfdiMode;
   createdAt: string;
   updatedAt: string;
+  /** UUID del último PUT. Null si nadie ha guardado la política. */
+  updatedBy: string | null;
+  /** Nombre del actor. Null si hay actor pero el nombre no está disponible. */
+  updatedByName: string | null;
 }
 
 interface ApiFiscalPolicy {
@@ -16,6 +20,8 @@ interface ApiFiscalPolicy {
   sin_cfdi_mode: SinCfdiMode;
   created_at: string;
   updated_at: string;
+  updated_by: string | null;
+  updated_by_name: string | null;
 }
 
 function mapFiscalPolicy(raw: ApiFiscalPolicy): FiscalPolicy {
@@ -24,6 +30,8 @@ function mapFiscalPolicy(raw: ApiFiscalPolicy): FiscalPolicy {
     sinCfdiMode: raw.sin_cfdi_mode,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
+    updatedBy: raw.updated_by ?? null,
+    updatedByName: raw.updated_by_name ?? null,
   };
 }
 

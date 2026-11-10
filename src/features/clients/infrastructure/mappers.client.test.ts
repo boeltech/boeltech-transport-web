@@ -241,4 +241,29 @@ describe("toApiUpdateClient", () => {
       tax_id: null,
     });
   });
+
+  it("mapClient incluye sinCfdiExceptionCount solo si el API manda el objeto", () => {
+    const withZeros = mapClient({
+      data: {
+        ...snakeClient,
+        cfdi_receptor_profile: "receptor_cfdi",
+        sin_cfdi_exception_count: { total: 0, approved: 0, in_progress: 0 },
+      },
+    }).data;
+    expect(withZeros.sinCfdiExceptionCount).toEqual({
+      total: 0,
+      approved: 0,
+      inProgress: 0,
+    });
+
+    const comercialOnly = mapClient({
+      data: {
+        ...snakeClient,
+        tax_id: null,
+        tax_regime: null,
+        cfdi_receptor_profile: "comercial_only",
+      },
+    }).data;
+    expect(comercialOnly).not.toHaveProperty("sinCfdiExceptionCount");
+  });
 });

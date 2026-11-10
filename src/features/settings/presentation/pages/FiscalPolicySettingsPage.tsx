@@ -10,7 +10,9 @@ import { SettingsPageShell } from "@shared/ui/page-shells";
 import { Skeleton } from "@shared/ui/skeleton";
 import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
+import { formatDateTime } from "@shared/utils/dateUtils";
 import { useFiscalPolicy, useUpdateFiscalPolicy } from "../../application";
+import type { FiscalPolicy } from "../../infrastructure/fiscalPolicyApi";
 
 const MODE_COPY: Record<SinCfdiMode, { label: string; description: string }> = {
   disabled: {
@@ -29,6 +31,21 @@ const MODE_COPY: Record<SinCfdiMode, { label: string; description: string }> = {
   },
 };
 
+/** Línea de auditoría. Null si nadie ha hecho PUT (`updatedBy` null). */
+function formatLastChange(policy: FiscalPolicy): string | null {
+  if (policy.updatedBy == null) return null;
+  const name = policy.updatedByName?.trim() || null;
+  const when =
+    typeof policy.updatedAt === "string" && policy.updatedAt.trim() !== ""
+      ? formatDateTime(policy.updatedAt)
+      : "";
+  const whenLabel = when !== "" && when !== "—" ? when : "";
+  if (name && whenLabel) return `Último cambio: ${name} · ${whenLabel}`;
+  if (name) return `Último cambio: ${name}`;
+  if (whenLabel) return `Último cambio · ${whenLabel}`;
+  return "Último cambio";
+}
+
 export function FiscalPolicySettingsPage() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
@@ -40,6 +57,7 @@ export function FiscalPolicySettingsPage() {
 
   const selected = draft ?? policy.data?.sinCfdiMode ?? null;
   const dirty = selected != null && selected !== policy.data?.sinCfdiMode;
+  const lastChange = policy.data ? formatLastChange(policy.data) : null;
 
   async function save() {
     if (!selected || !dirty) return;
@@ -127,6 +145,9 @@ export function FiscalPolicySettingsPage() {
               );
             })}
           </fieldset>
+          {lastChange ? (
+            <p className="text-sm text-muted-foreground">{lastChange}</p>
+          ) : null}
           {errorMessage ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />

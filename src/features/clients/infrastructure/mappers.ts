@@ -30,6 +30,7 @@ import type {
   // Domain types
   Client,
   ClientListItem,
+  SinCfdiExceptionCount,
   ClientAddress,
   ClientAddressListItem,
   ClientType,
@@ -52,6 +53,25 @@ function mapCfdiReceptorProfile(
   value: string | null | undefined,
 ): CfdiReceptorProfile {
   return value === "comercial_only" ? "comercial_only" : "receptor_cfdi";
+}
+
+/** Solo si el API mandó el objeto. Una clave ausente no se convierte en ceros. */
+function mapSinCfdiExceptionCount(
+  raw:
+    | {
+        total: number;
+        approved: number;
+        inProgress: number;
+      }
+    | null
+    | undefined,
+): SinCfdiExceptionCount | undefined {
+  if (raw == null) return undefined;
+  return {
+    total: raw.total,
+    approved: raw.approved,
+    inProgress: raw.inProgress,
+  };
 }
 
 // ============================================================================
@@ -112,6 +132,9 @@ function mapClientListItemToDomain(
 }
 
 function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
+  const sinCfdiExceptionCount = mapSinCfdiExceptionCount(
+    raw.sinCfdiExceptionCount,
+  );
   return {
     id: raw.id,
     tenantId: raw.tenantId,
@@ -142,6 +165,7 @@ function mapClientToDomain(raw: DeepCamelCase<ClientApiResponse>): Client {
     updatedBy: raw.updatedBy ?? undefined,
     createdByName: raw.createdByName ?? undefined,
     updatedByName: raw.updatedByName ?? undefined,
+    ...(sinCfdiExceptionCount !== undefined ? { sinCfdiExceptionCount } : {}),
     primaryContact: raw.primaryContact
       ? {
           id: raw.primaryContact.id,

@@ -67,6 +67,13 @@ export const clientDetailCopy = {
     legalName: "Razón social",
     tradeName: "Nombre comercial",
     billingProfile: "Perfil de facturación",
+    sinFacturaExceptions: "Excepciones Sin factura",
+    formatSinFacturaExceptions: (count: {
+      total: number;
+      approved: number;
+      inProgress: number;
+    }) =>
+      `${count.total} en total · ${count.approved} aprobadas · ${count.inProgress} en curso`,
     taxId: "RFC",
     taxRegime: "Régimen",
     billingEmail: "Correo de facturación",

@@ -13,6 +13,7 @@ export type {
   Client,
   ClientListItem,
   ClientOption,
+  SinCfdiExceptionCount,
   ClientType,
   PaymentTerms,
   CfdiReceptorProfile,
