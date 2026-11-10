@@ -21,13 +21,13 @@ describe("settlementWorkbenchConfig", () => {
 
   it("builds En autorización via settlementsPendingApprovalPath (S5-DUP-01)", () => {
     expect(settlementsPendingApprovalPath()).toBe(
-      "/finance/settlements?bucket=approval",
+      "/finance/operator-payments?bucket=approval",
     );
     expect(settlementsPendingApprovalPath({ driverId: "emp-9" })).toBe(
-      "/finance/settlements?bucket=approval&employeeId=emp-9",
+      "/finance/operator-payments?bucket=approval&employeeId=emp-9",
     );
     expect(settlementsPendingApprovalPath({ employeeId: "emp-9" })).toBe(
-      "/finance/settlements?bucket=approval&employeeId=emp-9",
+      "/finance/operator-payments?bucket=approval&employeeId=emp-9",
     );
   });
 
@@ -45,10 +45,10 @@ describe("settlementWorkbenchConfig", () => {
 
   it("redirects legacy pending-approval tab to the approval bucket", () => {
     expect(settlementsPendingApprovalRedirectPath()).toBe(
-      "/finance/settlements?bucket=approval",
+      "/finance/operator-payments?bucket=approval",
     );
     expect(settlementsPendingApprovalRedirectPath("?driverId=emp-9")).toBe(
-      "/finance/settlements?bucket=approval&employeeId=emp-9",
+      "/finance/operator-payments?bucket=approval&employeeId=emp-9",
     );
   });
 });

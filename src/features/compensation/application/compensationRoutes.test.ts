@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMPENSATION_CORRIDORS_HREF,
   COMPENSATION_CORRIDORS_PATH,
   COMPENSATION_TEMPLATES_PATH,
   compensationCorridorsCreatePath,
@@ -14,6 +15,7 @@ import {
   resolveBatchInitialEffectiveFrom,
   resolveCompensationTemplateDetailRedirect,
   resolveLegacyAgreementsPath,
+  resolveLegacyCompensationPath,
   withBatchCompleted,
   withBlockingAssignmentFocus,
   withFocusDismissed,
@@ -23,23 +25,28 @@ import {
 } from "./compensationRoutes";
 
 describe("compensationRoutes", () => {
-  it("expone rutas canónicas del hub", () => {
-    expect(COMPENSATION_TEMPLATES_PATH).toBe("/finance/compensation/templates");
-    expect(COMPENSATION_CORRIDORS_PATH).toBe("/finance/compensation/corridors");
+  it("expone rutas canónicas Tarifas (F2)", () => {
+    expect(COMPENSATION_TEMPLATES_PATH).toBe(
+      "/finance/operator-payments/tariffs",
+    );
+    expect(COMPENSATION_CORRIDORS_PATH).toBe(COMPENSATION_TEMPLATES_PATH);
+    expect(COMPENSATION_CORRIDORS_HREF).toBe(
+      "/finance/operator-payments/tariffs?tab=routes",
+    );
     expect(compensationCorridorsCreatePath()).toBe(
-      "/finance/compensation/corridors?create=1",
+      "/finance/operator-payments/tariffs?tab=routes&create=1",
     );
     expect(compensationTemplateOperatorsPath("tpl-1")).toBe(
-      "/finance/compensation/templates?operators=tpl-1",
+      "/finance/operator-payments/tariffs?operators=tpl-1",
     );
     expect(compensationTemplateDetailPath("tpl-1")).toBe(
-      "/finance/compensation/templates?operators=tpl-1",
+      "/finance/operator-payments/tariffs?operators=tpl-1",
     );
     expect(compensationTemplateAssignPath("tpl-1", "emp-1")).toBe(
-      "/finance/compensation/templates?operators=tpl-1&assign=emp-1",
+      "/finance/operator-payments/tariffs?operators=tpl-1&assign=emp-1",
     );
     expect(compensationTemplateBuildPath("tpl-1")).toBe(
-      "/finance/compensation/templates/tpl-1/build",
+      "/finance/operator-payments/tariffs/tpl-1/build",
     );
   });
 
@@ -54,36 +61,74 @@ describe("compensationRoutes", () => {
   it("resuelve redirect legacy agreements", () => {
     expect(resolveLegacyAgreementsPath("")).toBe(COMPENSATION_TEMPLATES_PATH);
     expect(resolveLegacyAgreementsPath("?employeeId=emp-1")).toBe(
-      "/finance/compensation/templates?employeeId=emp-1",
+      "/finance/operator-payments/tariffs?employeeId=emp-1",
     );
   });
 
-  it("detecta ruta legacy de detalle de plantilla", () => {
-    expect(isCompensationTemplateDetailPath("/finance/compensation/templates/tpl-1")).toBe(true);
-    expect(isCompensationTemplateDetailPath("/finance/compensation/templates/tpl-1/")).toBe(true);
-    expect(isCompensationTemplateDetailPath("/finance/compensation/templates")).toBe(false);
-    expect(isCompensationTemplateDetailPath("/finance/compensation/corridors")).toBe(false);
-    expect(isCompensationTemplateDetailPath("/finance/compensation/templates/tpl-1/edit")).toBe(
-      false,
+  it("redirige /finance/compensation/* a Tarifas", () => {
+    expect(resolveLegacyCompensationPath("/finance/compensation", "")).toBe(
+      COMPENSATION_TEMPLATES_PATH,
     );
-    expect(isCompensationTemplateDetailPath("/finance/compensation/templates/tpl-1/build")).toBe(
-      false,
-    );
+    expect(
+      resolveLegacyCompensationPath("/finance/compensation/templates", ""),
+    ).toBe(COMPENSATION_TEMPLATES_PATH);
+    expect(
+      resolveLegacyCompensationPath("/finance/compensation/corridors", ""),
+    ).toBe(COMPENSATION_CORRIDORS_HREF);
+    expect(
+      resolveLegacyCompensationPath(
+        "/finance/compensation/templates/tpl-1/build",
+        "",
+      ),
+    ).toBe("/finance/operator-payments/tariffs/tpl-1/build");
   });
 
-  it("resuelve redirect desde detalle legacy", () => {
+  it("detecta ruta de detalle de plantilla canónica", () => {
+    expect(
+      isCompensationTemplateDetailPath(
+        "/finance/operator-payments/tariffs/tpl-1",
+      ),
+    ).toBe(true);
+    expect(
+      isCompensationTemplateDetailPath(
+        "/finance/operator-payments/tariffs/tpl-1/",
+      ),
+    ).toBe(true);
+    expect(
+      isCompensationTemplateDetailPath("/finance/operator-payments/tariffs"),
+    ).toBe(false);
+    expect(
+      isCompensationTemplateDetailPath(
+        "/finance/operator-payments/tariffs/tpl-1/edit",
+      ),
+    ).toBe(false);
+    expect(
+      isCompensationTemplateDetailPath(
+        "/finance/operator-payments/tariffs/tpl-1/build",
+      ),
+    ).toBe(false);
+  });
+
+  it("resuelve redirect desde detalle", () => {
     expect(resolveCompensationTemplateDetailRedirect("tpl-1", "")).toBe(
-      "/finance/compensation/templates?operators=tpl-1",
+      "/finance/operator-payments/tariffs?operators=tpl-1",
     );
     expect(
       resolveCompensationTemplateDetailRedirect("tpl-1", "?assign=emp-1"),
-    ).toBe("/finance/compensation/templates?operators=tpl-1&assign=emp-1");
-    expect(
-      resolveCompensationTemplateDetailRedirect("tpl-1", "?assignEmployee=emp-1"),
-    ).toBe("/finance/compensation/templates?operators=tpl-1&assign=emp-1");
-    expect(resolveCompensationTemplateDetailRedirect("tpl-1", "?configure=true")).toBe(
-      "/finance/compensation/templates/tpl-1/build",
+    ).toBe(
+      "/finance/operator-payments/tariffs?operators=tpl-1&assign=emp-1",
     );
+    expect(
+      resolveCompensationTemplateDetailRedirect(
+        "tpl-1",
+        "?assignEmployee=emp-1",
+      ),
+    ).toBe(
+      "/finance/operator-payments/tariffs?operators=tpl-1&assign=emp-1",
+    );
+    expect(
+      resolveCompensationTemplateDetailRedirect("tpl-1", "?configure=true"),
+    ).toBe("/finance/operator-payments/tariffs/tpl-1/build");
   });
 });
 

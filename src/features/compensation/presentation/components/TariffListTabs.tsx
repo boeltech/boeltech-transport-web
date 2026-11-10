@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { cn } from "@shared/lib/utils/cn";
 import {
-  COMPENSATION_CORRIDORS_PATH,
+  COMPENSATION_CORRIDORS_HREF,
   COMPENSATION_TEMPLATES_PATH,
 } from "../../application/compensationRoutes";
 import { compensationCopy } from "../copy/compensationCopy";
@@ -41,7 +41,7 @@ export function TariffListTabs({
         label={tariffsLabel}
       />
       <TabLink
-        to={COMPENSATION_CORRIDORS_PATH}
+        to={COMPENSATION_CORRIDORS_HREF}
         active={active === "routes"}
         label={routesLabel}
       />
@@ -75,8 +75,7 @@ function TabLink({
   );
 }
 
-/** Destino canónico de la pestaña Rutas (también sirve redirect desde hub). */
-export const TARIFF_ROUTES_TAB_HREF = `${COMPENSATION_TEMPLATES_PATH}?tab=routes`;
+/** Destino canónico de la pestaña Rutas (TEC C.2). */
+export const TARIFF_ROUTES_TAB_HREF = COMPENSATION_CORRIDORS_HREF;
 
-/** Alias legacy corridors path still valid; prefer tab. */
-export { COMPENSATION_CORRIDORS_PATH };
+export { COMPENSATION_CORRIDORS_HREF };

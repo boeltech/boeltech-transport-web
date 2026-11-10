@@ -37,6 +37,10 @@ const APPROVAL_CONCEPT_BY_TAB: Partial<
   adelantos: "driver_advance",
 };
 
+/**
+ * @deprecated F2 retira el Hub con tabs. No montar en `routes.tsx`.
+ * Conservado solo para smokes legacy hasta que se actualicen.
+ */
 export function OperatorPaymentsHubLayout() {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();

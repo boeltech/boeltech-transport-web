@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import {
   COMPENSATION_HUB_PATH,
+  COMPENSATION_TEMPLATES_PATH,
   LEGACY_AGREEMENTS_PATH,
 } from "@features/compensation/application";
 import { FINANCE_APPROVALS_PATH } from "@features/finance/application";
@@ -13,7 +14,7 @@ import {
   SETTLEMENTS_CREATE_PATH,
   SETTLEMENTS_LIST_PATH,
   SETTLEMENTS_PENDING_APPROVAL_PATH,
-  SETTLEMENTS_REGISTRY_PATH,
+  SETTLEMENTS_REGISTRY_BUCKET,
 } from "../../application/settlementsRoutes";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
@@ -58,7 +59,12 @@ export function resolveSettlementWayfindingBackLabel(href: string): string {
   ) {
     return copy.backToPendingApproval;
   }
-  if (path === SETTLEMENTS_REGISTRY_PATH) return copy.backToRegistry;
+  if (
+    path === SETTLEMENTS_LIST_PATH &&
+    (bucket === SETTLEMENTS_REGISTRY_BUCKET || bucket === "paid")
+  ) {
+    return copy.backToRegistry;
+  }
   if (path === SETTLEMENTS_ADVANCES_PATH) return copy.backToAdvances;
   if (
     path === FINANCE_APPROVALS_PATH ||
@@ -69,6 +75,8 @@ export function resolveSettlementWayfindingBackLabel(href: string): string {
   if (
     path === COMPENSATION_HUB_PATH ||
     path.startsWith(`${COMPENSATION_HUB_PATH}/`) ||
+    path === COMPENSATION_TEMPLATES_PATH ||
+    path.startsWith(`${COMPENSATION_TEMPLATES_PATH}/`) ||
     path === LEGACY_AGREEMENTS_PATH
   ) {
     return copy.backToAgreements;

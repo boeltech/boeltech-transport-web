@@ -4,6 +4,8 @@ import {
   AlertCircle,
   History,
   ArrowUpRight,
+  Plus,
+  ShieldCheck,
   Wallet,
 } from "lucide-react";
 import {
@@ -18,8 +20,10 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
 import { useBranches } from "@features/branches";
 import { useHelpEmptySupport } from "@features/help-center/presentation";
+import { approvalPoliciesPath } from "@features/approval-policies/application";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
@@ -30,6 +34,7 @@ import {
 } from "../../application/hooks";
 import {
   resolveSettlementsListRedirect,
+  settlementCreatePath,
   settlementDetailPath,
   SETTLEMENTS_LIST_PATH,
   settlementsAdvancesPath,
@@ -61,20 +66,32 @@ const hubCopy = settlementsCopy.hub;
 function isWorkbenchBucket(
   value: string,
 ): value is SettlementWorkbenchNavBucket {
+  // TEC C.2: `paid` = Pagados; workbench usa `closed`.
+  if (value === "paid") return true;
   return SETTLEMENT_WORKBENCH_BUCKETS.includes(
     value as SettlementWorkbenchNavBucket,
   );
 }
 
+function normalizeWorkbenchBucket(
+  value: string,
+): SettlementWorkbenchNavBucket {
+  if (value === "paid") return "closed";
+  return value as SettlementWorkbenchNavBucket;
+}
+
 /**
- * Workbench de pagos a operadores — WorkbenchPageShell (ADR-0090 Fase 2).
- * Registry → /finance/settlements/registry · Anticipos → /finance/settlements/advances
+ * Workbench de pagos a operadores — WorkbenchPageShell (ADR-0090 / F2 sin hub tabs).
+ * Historial → ?bucket=closed · Anticipos → /finance/operator-payments/advances
  */
 export function SettlementsListPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const fromState = useSettlementQueueFromState();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("settlements", "create");
+  const canReadApprovalPolicies = hasPermission("approval_policies", "read");
   const defaultsAppliedRef = useRef(false);
 
   const { data: branchesData } = useBranches({
@@ -109,7 +126,7 @@ export function SettlementsListPage() {
   const activeBucket: SettlementWorkbenchNavBucket = isWorkbenchBucket(
     filters.filters.bucket,
   )
-    ? filters.filters.bucket
+    ? normalizeWorkbenchBucket(filters.filters.bucket)
     : "pending";
   const branchIdFilter = filters.filters.branchId || "";
   const includeContractors = filters.filters.includeContractors === "true";
@@ -453,7 +470,37 @@ export function SettlementsListPage() {
     <TooltipProvider delayDuration={0}>
       <WorkbenchPageShell
         title={hubCopy.title}
-        showHeader={false}
+        description={hubCopy.description}
+        showHeader
+        primaryAction={
+          canCreate
+            ? {
+                label: hubCopy.createCut,
+                onClick: () =>
+                  navigate(settlementCreatePath(), { state: fromState }),
+                icon: <Plus className="mr-2 h-4 w-4" />,
+                dataHelpAnchor: "stl-liquidar-periodo",
+              }
+            : undefined
+        }
+        secondaryActions={
+          canReadApprovalPolicies ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() =>
+                navigate(approvalPoliciesPath("settlement"), {
+                  state: { from: `${location.pathname}${location.search}` },
+                })
+              }
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {hubCopy.approvalPoliciesAction}
+            </Button>
+          ) : undefined
+        }
         buckets={buckets}
         bucketsAriaLabel={workbenchCopy.scorecards.settlements.ariaLabel}
         bucketsLoading={workbenchCountsLoading}

@@ -120,7 +120,7 @@ const template: CompensationTemplate = {
 };
 
 // Data router required: CompensationSchemeBuilderPage uses useUnsavedChangesGuard → useBlocker.
-function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build") {
+function renderPage(initialPath = "/finance/operator-payments/tariffs/tpl-1/build") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -128,7 +128,7 @@ function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build")
   const router = createMemoryRouter(
     [
       {
-        path: "/finance/compensation/templates/:id/build",
+        path: "/finance/operator-payments/tariffs/:id/build",
         element: (
           <QueryClientProvider client={client}>
             <CompensationSchemeBuilderPage />
@@ -136,11 +136,11 @@ function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build")
         ),
       },
       {
-        path: "/finance/compensation/templates",
+        path: "/finance/operator-payments/tariffs",
         element: <div>Lista de esquemas</div>,
       },
       {
-        path: "/finance/settlements/new",
+        path: "/finance/operator-payments/new",
         element: <div>Armar pago</div>,
       },
     ],
@@ -414,7 +414,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
 
   it("criterio 5: v2 reemplazada con v1 activa — aviso, «La versión activa hoy es la 1.» y «Abrir versión 1» abre v1", async () => {
     const user = userEvent.setup();
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(within(banner).getByText(builderCopy.supersededBanner.title)).toBeInTheDocument();
@@ -433,7 +433,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     expect(mockUseTemplateVersions).toHaveBeenCalledWith("tpl-v2", true);
 
     const openV1 = within(banner).getByRole("link", { name: "Abrir versión 1" });
-    expect(openV1).toHaveAttribute("href", "/finance/compensation/templates/tpl-v1/build");
+    expect(openV1).toHaveAttribute("href", "/finance/operator-payments/tariffs/tpl-v1/build");
     await user.click(openV1);
 
     expect(mockUseCompensationTemplate).toHaveBeenLastCalledWith("tpl-v1");
@@ -447,7 +447,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
       isLoading: false,
       isError: false,
     });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(
@@ -455,7 +455,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     ).toBeInTheDocument();
     expect(within(banner).getByRole("link", { name: "Abrir versión 1" })).toHaveAttribute(
       "href",
-      "/finance/compensation/templates/tpl-v1/build",
+      "/finance/operator-payments/tariffs/tpl-v1/build",
     );
   });
 
@@ -464,7 +464,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     [0, "Hoy no tiene operadores asignados y su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión."],
   ])("aviso de reemplazada con %i operadores", (count, expected) => {
     templatesById({ "tpl-v2": { ...superseded, activeAssignmentsCount: count } });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     expect(
       within(screen.getByTestId("builder-superseded-banner")).getByText(expected),
@@ -477,7 +477,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
       isLoading: false,
       isError: false,
     });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(
@@ -492,7 +492,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
 
   it("cargando versiones: sin frase de versión activa y solo «Crear nueva versión»", () => {
     mockUseTemplateVersions.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(within(banner).queryByText(/versión activa hoy|Ninguna versión/)).not.toBeInTheDocument();
@@ -528,7 +528,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
         reason: "superseded",
       });
     });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     await user.clear(screen.getByLabelText("Nombre"));
     await user.type(screen.getByLabelText("Nombre"), "Cambio en carrera");
@@ -582,7 +582,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     ).toBeInTheDocument();
     expect(within(banner).getByRole("link", { name: "Ver operadores" })).toHaveAttribute(
       "href",
-      "/finance/compensation/templates?operators=tpl-1",
+      "/finance/operator-payments/tariffs?operators=tpl-1",
     );
     expect(screen.getAllByText("Desactivada").length).toBeGreaterThan(0);
   });

@@ -250,7 +250,7 @@ describe("SettlementBacklogTable period_overlap soft CTA (F1)", () => {
       settlementsRegistryPath({ employeeId: "emp-42" }),
     );
     expect(overlapLink.getAttribute("href")).toBe(
-      "/finance/settlements/registry?employeeId=emp-42",
+      "/finance/operator-payments?bucket=closed&employeeId=emp-42",
     );
   });
 
@@ -473,7 +473,7 @@ describe("SettlementBacklogTable period_overlap CTA (F2)", () => {
       settlementsPendingApprovalPath({ driverId: "emp-77" }),
     );
     expect(overlapLink.getAttribute("href")).toBe(
-      "/finance/settlements?bucket=approval&employeeId=emp-77",
+      "/finance/operator-payments?bucket=approval&employeeId=emp-77",
     );
   });
 
@@ -501,7 +501,7 @@ describe("SettlementBacklogTable period_overlap CTA (F2)", () => {
 
   it("propaga state.from al detalle del solape (S5-02)", async () => {
     const user = userEvent.setup();
-    const queueFrom = "/finance/settlements?bucket=pending";
+    const queueFrom = "/finance/operator-payments?bucket=pending";
     function DetailProbe() {
       const location = useLocation();
       return <div data-testid="location-state">{JSON.stringify(location.state)}</div>;
@@ -512,7 +512,7 @@ describe("SettlementBacklogTable period_overlap CTA (F2)", () => {
         <TooltipProvider delayDuration={0}>
           <Routes>
             <Route
-              path="/finance/settlements"
+              path="/finance/operator-payments"
               element={
                 <SettlementBacklogTable
                   rows={[
@@ -532,7 +532,7 @@ describe("SettlementBacklogTable period_overlap CTA (F2)", () => {
               }
             />
             <Route
-              path="/finance/settlements/:id"
+              path="/finance/operator-payments/:id"
               element={<DetailProbe />}
             />
           </Routes>

@@ -1,45 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
+  LEGACY_FINANCE_SETTLEMENTS_ADVANCES_PATH,
+  LEGACY_FINANCE_SETTLEMENTS_PATH,
+  LEGACY_FINANCE_SETTLEMENTS_PENDING_APPROVAL_PATH,
+  LEGACY_FINANCE_SETTLEMENTS_REGISTRY_PATH,
+  OPERATOR_PAYMENTS_BASE_PATH,
   SETTLEMENTS_ADVANCES_PATH,
   SETTLEMENTS_CREATE_PATH,
   SETTLEMENTS_LIST_PATH,
-  SETTLEMENTS_REGISTRY_PATH,
+  SETTLEMENTS_OPERATORS_PATH,
   resolveLegacySettlementsPath,
   resolveSettlementsListRedirect,
   settlementCreatePath,
   settlementDetailPath,
-  settlementsAgreementsPath,
   settlementsAdvancesPath,
-  settlementsRegistryPath,
+  settlementsAgreementsPath,
   settlementsPendingApprovalPath,
+  settlementsRegistryPath,
   settlementsWorkbenchBucketPath,
-  resolveOperatorPaymentsHubTab,
-  isOperatorPaymentsRegistryPath,
-  SETTLEMENTS_PENDING_APPROVAL_PATH,
 } from "./settlementsRoutes";
+import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application";
 
-describe("settlementsRoutes", () => {
-  it("exposes canonical list and create paths", () => {
-    expect(SETTLEMENTS_LIST_PATH).toBe("/finance/settlements");
-    expect(SETTLEMENTS_CREATE_PATH).toBe("/finance/settlements/new");
-    expect(SETTLEMENTS_REGISTRY_PATH).toBe("/finance/settlements/registry");
-    expect(SETTLEMENTS_ADVANCES_PATH).toBe("/finance/settlements/advances");
-    expect(SETTLEMENTS_PENDING_APPROVAL_PATH).toBe(
-      "/finance/settlements/pending-approval",
+describe("settlementsRoutes (F2 canónicas)", () => {
+  it("expone paths canónicos bajo /finance/operator-payments", () => {
+    expect(OPERATOR_PAYMENTS_BASE_PATH).toBe("/finance/operator-payments");
+    expect(SETTLEMENTS_LIST_PATH).toBe("/finance/operator-payments");
+    expect(SETTLEMENTS_CREATE_PATH).toBe("/finance/operator-payments/new");
+    expect(SETTLEMENTS_ADVANCES_PATH).toBe(
+      "/finance/operator-payments/advances",
+    );
+    expect(SETTLEMENTS_OPERATORS_PATH).toBe(
+      "/finance/operator-payments/operators",
     );
   });
 
-  it("builds detail path from id", () => {
+  it("arma detail y create con query", () => {
     expect(settlementDetailPath("settlement-123")).toBe(
-      "/finance/settlements/settlement-123",
+      "/finance/operator-payments/settlement-123",
     );
-  });
-
-  it("builds create path without params", () => {
-    expect(settlementCreatePath()).toBe("/finance/settlements/new");
-  });
-
-  it("builds create path with query params", () => {
+    expect(settlementCreatePath()).toBe("/finance/operator-payments/new");
     expect(
       settlementCreatePath({
         employeeId: "emp-1",
@@ -47,150 +46,74 @@ describe("settlementsRoutes", () => {
         periodEnd: "2026-08-15",
       }),
     ).toBe(
-      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+      "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
     );
   });
 
-  it("builds agreements path with optional employee filter", () => {
-    expect(settlementsAgreementsPath()).toBe("/finance/compensation/templates");
+  it("apunta acuerdos/tarifas al listado canónico", () => {
+    expect(settlementsAgreementsPath()).toBe(COMPENSATION_TEMPLATES_PATH);
     expect(settlementsAgreementsPath({ employeeId: "emp-1" })).toBe(
-      "/finance/compensation/templates?employeeId=emp-1",
-    );
-    expect(
-      settlementsAgreementsPath({
-        employeeId: "emp-1",
-        periodStart: "2026-09-09",
-        periodEnd: "2026-09-26",
-      }),
-    ).toBe(
-      "/finance/compensation/templates?employeeId=emp-1&periodStart=2026-09-09&periodEnd=2026-09-26",
+      `${COMPENSATION_TEMPLATES_PATH}?employeeId=emp-1`,
     );
   });
 
-  it("redirects legacy agreements tab query to compensation templates", () => {
-    expect(
-      resolveSettlementsListRedirect("?tab=agreements&employeeId=emp-1"),
-    ).toBe("/finance/compensation/templates?employeeId=emp-1");
-    expect(resolveSettlementsListRedirect("?tab=settlements")).toBeNull();
-  });
-
-  it("redirects legacy registry and advances query to dedicated paths", () => {
-    expect(
-      resolveSettlementsListRedirect("?view=registry&tab=settlements"),
-    ).toBe("/finance/settlements/registry");
-    expect(
-      resolveSettlementsListRedirect(
-        "?view=registry&tab=settlements&status=approved",
-      ),
-    ).toBe("/finance/settlements/registry?status=approved");
-    expect(resolveSettlementsListRedirect("?tab=advances")).toBe(
-      "/finance/settlements/advances",
+  it("registry = Pagados (closed) y pending-approval = approval", () => {
+    expect(settlementsRegistryPath()).toBe(
+      "/finance/operator-payments?bucket=closed",
     );
-  });
-
-  it("builds registry, advances and bucket paths", () => {
-    expect(settlementsRegistryPath()).toBe("/finance/settlements/registry");
-    expect(settlementsRegistryPath({ status: "approved" })).toBe(
-      "/finance/settlements/registry?status=approved",
-    );
-    expect(settlementsRegistryPath({ employeeId: "emp-1" })).toBe(
-      "/finance/settlements/registry?employeeId=emp-1",
-    );
-    expect(settlementsAdvancesPath()).toBe("/finance/settlements/advances");
-    expect(settlementsWorkbenchBucketPath("payable")).toBe(
-      "/finance/settlements?bucket=payable",
-    );
-  });
-
-  it("builds approval-bucket path with optional driverId → employeeId", () => {
     expect(settlementsPendingApprovalPath()).toBe(
-      "/finance/settlements?bucket=approval",
+      "/finance/operator-payments?bucket=approval",
     );
-    expect(settlementsPendingApprovalPath({ driverId: "emp-9" })).toBe(
-      "/finance/settlements?bucket=approval&employeeId=emp-9",
+    expect(settlementsWorkbenchBucketPath("payable")).toBe(
+      "/finance/operator-payments?bucket=payable",
+    );
+    expect(settlementsAdvancesPath()).toBe(
+      "/finance/operator-payments/advances",
     );
   });
 
-  it("detecta historial bajo el hub", () => {
-    expect(isOperatorPaymentsRegistryPath("/finance/settlements/registry")).toBe(
-      true,
+  it("redirige query legacy del listado", () => {
+    expect(resolveSettlementsListRedirect("?view=registry")).toBe(
+      "/finance/operator-payments?bucket=closed",
     );
-    expect(isOperatorPaymentsRegistryPath("/finance/settlements")).toBe(false);
+    expect(resolveSettlementsListRedirect("?tab=advances")).toBe(
+      "/finance/operator-payments/advances",
+    );
+    expect(resolveSettlementsListRedirect("?tab=agreements")).toBe(
+      COMPENSATION_TEMPLATES_PATH,
+    );
   });
 
-  it("resuelve tabs del hub Pagos a operadores", () => {
-    expect(resolveOperatorPaymentsHubTab("/finance/settlements")).toBe(
-      "por-pagar",
-    );
-    expect(resolveOperatorPaymentsHubTab("/finance/settlements/registry")).toBe(
-      "por-pagar",
+  it("redirige /finance/settlements/* y /settlements/* sin 404", () => {
+    expect(resolveLegacySettlementsPath(LEGACY_FINANCE_SETTLEMENTS_PATH, "")).toBe(
+      SETTLEMENTS_LIST_PATH,
     );
     expect(
-      resolveOperatorPaymentsHubTab("/finance/settlements/pending-approval"),
-    ).toBe("por-pagar");
-    expect(resolveOperatorPaymentsHubTab("/finance/settlements/advances")).toBe(
-      "adelantos",
-    );
+      resolveLegacySettlementsPath(LEGACY_FINANCE_SETTLEMENTS_ADVANCES_PATH, ""),
+    ).toBe(SETTLEMENTS_ADVANCES_PATH);
     expect(
-      resolveOperatorPaymentsHubTab("/finance/compensation/templates"),
-    ).toBe("como-te-pago");
-    expect(resolveOperatorPaymentsHubTab("/finance/agreements")).toBe(
-      "como-te-pago",
-    );
+      resolveLegacySettlementsPath(
+        LEGACY_FINANCE_SETTLEMENTS_REGISTRY_PATH,
+        "",
+      ),
+    ).toBe("/finance/operator-payments?bucket=closed");
     expect(
-      resolveOperatorPaymentsHubTab("/finance/compensation/corridors"),
-    ).toBe("tabla-de-rutas");
-  });
-
-  describe("resolveLegacySettlementsPath", () => {
-    it("maps legacy list path", () => {
-      expect(resolveLegacySettlementsPath("/settlements", "")).toBe(
-        "/finance/settlements",
-      );
-    });
-
-    it("maps legacy list path with search", () => {
-      expect(resolveLegacySettlementsPath("/settlements", "?bucket=draft")).toBe(
-        "/finance/settlements?bucket=draft",
-      );
-    });
-
-    it("redirects legacy agreements tab on list path", () => {
-      expect(
-        resolveLegacySettlementsPath("/settlements", "?tab=agreements"),
-      ).toBe("/finance/compensation/templates");
-    });
-
-    it("redirects legacy registry query on list path", () => {
-      expect(
-        resolveLegacySettlementsPath(
-          "/settlements",
-          "?view=registry&tab=settlements",
-        ),
-      ).toBe("/finance/settlements/registry");
-    });
-
-    it("maps legacy create path with search", () => {
-      expect(
-        resolveLegacySettlementsPath(
-          "/settlements/new",
-          "?employeeId=emp-1&periodStart=2026-08-01",
-        ),
-      ).toBe(
-        "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01",
-      );
-    });
-
-    it("maps legacy detail path with search", () => {
-      expect(
-        resolveLegacySettlementsPath("/settlements/settlement-123", "?foo=bar"),
-      ).toBe("/finance/settlements/settlement-123?foo=bar");
-    });
-
-    it("falls back to list for unknown legacy path", () => {
-      expect(
-        resolveLegacySettlementsPath("/settlements/unknown/extra", ""),
-      ).toBe("/finance/settlements/unknown/extra");
-    });
+      resolveLegacySettlementsPath(
+        LEGACY_FINANCE_SETTLEMENTS_PENDING_APPROVAL_PATH,
+        "",
+      ),
+    ).toBe("/finance/operator-payments?bucket=approval");
+    expect(
+      resolveLegacySettlementsPath("/finance/settlements/new", ""),
+    ).toBe(SETTLEMENTS_CREATE_PATH);
+    expect(
+      resolveLegacySettlementsPath("/finance/settlements/abc", "?foo=1"),
+    ).toBe("/finance/operator-payments/abc?foo=1");
+    expect(resolveLegacySettlementsPath("/settlements", "")).toBe(
+      SETTLEMENTS_LIST_PATH,
+    );
+    expect(resolveLegacySettlementsPath("/settlements/xyz", "")).toBe(
+      "/finance/operator-payments/xyz",
+    );
   });
 });

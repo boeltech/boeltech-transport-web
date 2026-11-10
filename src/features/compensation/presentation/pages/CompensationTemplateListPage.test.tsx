@@ -113,7 +113,7 @@ function currentParams(): Record<string, string> {
   return Object.fromEntries(new URLSearchParams(search));
 }
 
-function renderPage(initialPath = "/finance/compensation/templates") {
+function renderPage(initialPath = "/finance/operator-payments/tariffs") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -121,7 +121,7 @@ function renderPage(initialPath = "/finance/compensation/templates") {
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
-          <Route path="/finance/compensation/templates" element={<CompensationTemplateListPage />} />
+          <Route path="/finance/operator-payments/tariffs" element={<CompensationTemplateListPage />} />
         </Routes>
         <LocationProbe />
       </MemoryRouter>
@@ -217,21 +217,21 @@ describe("CompensationTemplateListPage", () => {
     });
   });
 
-  it("muestra catálogo con Estado, Cómo se paga y operadores, sin columna Uso", () => {
+  it("muestra catálogo con Estado, Así paga y operadores, sin columna Uso", () => {
     renderPage();
 
     expect(screen.getByText("Página 1 de 2")).toBeInTheDocument();
     expect(screen.getByText("Operador foráneo")).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Uso" })).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Estado" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Cómo se paga" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Así paga" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Operadores" })).toBeInTheDocument();
     expect(screen.getAllByTestId("template-operators-count-trigger")[0]).toHaveTextContent(/^2$/);
     expect(screen.getByText("Falta definir el pago")).toBeInTheDocument();
     expect(screen.getByText("Local sin pago por viaje")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Completar pago/i }),
-    ).toHaveAttribute("href", "/finance/compensation/templates/tpl-1/build");
+    ).toHaveAttribute("href", "/finance/operator-payments/tariffs/tpl-1/build");
     expect(screen.queryByRole("link", { name: /^Editar$/i })).not.toBeInTheDocument();
   });
 
@@ -249,7 +249,7 @@ describe("CompensationTemplateListPage", () => {
 
   it("D12/CA21: ?status=inactive se rotula «Reemplazadas o desactivadas» y filtra inactive sin motivo", async () => {
     const user = userEvent.setup();
-    renderPage("/finance/compensation/templates?status=inactive");
+    renderPage("/finance/operator-payments/tariffs?status=inactive");
 
     expect(listQuery()).toEqual(
       expect.objectContaining({ groupBy: "family", status: "inactive" }),
@@ -310,7 +310,7 @@ describe("CompensationTemplateListPage", () => {
       ["deactivated", "Desactivadas", { status: "inactive", inactiveReason: "manual" }],
       ["draft", "Borradores", { status: "draft" }],
     ])("CA20: ?status=%s → «%s» con su motivo y chip", (status, label, query) => {
-      renderPage(`/finance/compensation/templates?status=${status}`);
+      renderPage(`/finance/operator-payments/tariffs?status=${status}`);
 
       expect(listQuery()).toEqual(expect.objectContaining({ groupBy: "family", ...query }));
       expect(listQuery()).not.toHaveProperty("scope");
@@ -342,7 +342,7 @@ describe("CompensationTemplateListPage", () => {
     });
 
     it("un ?status desconocido equivale a «Vigentes» sin chip", () => {
-      renderPage("/finance/compensation/templates?status=bogus");
+      renderPage("/finance/operator-payments/tariffs?status=bogus");
 
       expect(listQuery()).toEqual(expect.objectContaining({ scope: "current" }));
       expect(screen.queryByText(/^Estado: /)).not.toBeInTheDocument();
@@ -381,7 +381,9 @@ describe("CompensationTemplateListPage", () => {
       );
       expect(screen.getByText(copy.currentEmpty.title)).toBeInTheDocument();
       expect(screen.getByText(copy.currentEmpty.description)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: copy.create })).toBeInTheDocument();
+      expect(
+        screen.getAllByRole("button", { name: copy.create }).length,
+      ).toBeGreaterThanOrEqual(1);
 
       await user.click(screen.getByRole("button", { name: copy.currentEmpty.viewAll }));
 
@@ -398,7 +400,7 @@ describe("CompensationTemplateListPage", () => {
 
     it("con búsqueda o en otro filtro no consulta el total", () => {
       emptyCurrentList(3);
-      renderPage("/finance/compensation/templates?status=active");
+      renderPage("/finance/operator-payments/tariffs?status=active");
 
       expect(mockUseCompensationTemplates).toHaveBeenCalledWith(
         { groupBy: "family", page: 1, pageSize: 1 },
@@ -456,7 +458,7 @@ describe("CompensationTemplateListPage", () => {
 
     it("CA24: la familia abre por familyId y al cerrar el panel el foco vuelve a la sub-fila", async () => {
       const user = userEvent.setup();
-      renderPage("/finance/compensation/templates?operators=tpl-v1");
+      renderPage("/finance/operator-payments/tariffs?operators=tpl-v1");
 
       expect(
         await screen.findByRole("heading", { name: "Operadores — Operador foráneo versión 1" }),
@@ -476,7 +478,7 @@ describe("CompensationTemplateListPage", () => {
 
     it("cerrar el panel de una fila devuelve el foco a su nombre", async () => {
       const user = userEvent.setup();
-      renderPage("/finance/compensation/templates?operators=tpl-v2");
+      renderPage("/finance/operator-payments/tariffs?operators=tpl-v2");
 
       expect(
         await screen.findByRole("heading", { name: /Operadores — Operador foráneo/ }),
@@ -499,7 +501,7 @@ describe("CompensationTemplateListPage", () => {
       mockUseCompensationTemplate.mockImplementation((id?: string) => ({
         data: id === "tpl-v1" ? { ...v1, familyId: "fam-other" } : undefined,
       }));
-      renderPage("/finance/compensation/templates?operators=tpl-v1");
+      renderPage("/finance/operator-payments/tariffs?operators=tpl-v1");
 
       expect(
         await screen.findByRole("heading", { name: "Operadores — Operador foráneo versión 1" }),
@@ -561,7 +563,7 @@ describe("CompensationTemplateListPage", () => {
     });
 
     it("banner assign: CTAs en DetailAlertCard.action", () => {
-      renderPage("/finance/compensation/templates?employeeId=emp-1");
+      renderPage("/finance/operator-payments/tariffs?employeeId=emp-1");
 
       expect(
         screen.getByRole("button", {
@@ -573,7 +575,7 @@ describe("CompensationTemplateListPage", () => {
 
   it("abre Sheet de operadores al asignar desde banner employeeId solo en esquemas listos", async () => {
     const user = userEvent.setup();
-    renderPage("/finance/compensation/templates?employeeId=emp-1");
+    renderPage("/finance/operator-payments/tariffs?employeeId=emp-1");
 
     expect(
       screen.getByText(/Este operador aún no tiene tarifa de pago/i),
@@ -601,7 +603,7 @@ describe("CompensationTemplateListPage", () => {
   });
 
   it("abre Sheet de operadores con deep link ?operators=", async () => {
-    renderPage("/finance/compensation/templates?operators=tpl-1");
+    renderPage("/finance/operator-payments/tariffs?operators=tpl-1");
 
     expect(
       await screen.findByRole("heading", { name: /Operadores — Operador foráneo/i }),
@@ -616,12 +618,12 @@ describe("CompensationTemplateListPage", () => {
 
     expect(screen.getByRole("link", { name: /Completar pago/i })).toHaveAttribute(
       "href",
-      "/finance/compensation/templates/tpl-1/build",
+      "/finance/operator-payments/tariffs/tpl-1/build",
     );
   });
 
   it("abre operadores con assign pre-cargado", async () => {
-    renderPage("/finance/compensation/templates?operators=tpl-2&assign=emp-9");
+    renderPage("/finance/operator-payments/tariffs?operators=tpl-2&assign=emp-9");
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Operadores — Esquema local/i })).toBeInTheDocument();
@@ -632,7 +634,7 @@ describe("CompensationTemplateListPage", () => {
   it("tras confirmar asignación cierra sheets y limpia banner employeeId", async () => {
     const user = userEvent.setup();
     const employeeId = "11111111-1111-4111-8111-111111111111";
-    renderPage(`/finance/compensation/templates?employeeId=${employeeId}`);
+    renderPage(`/finance/operator-payments/tariffs?employeeId=${employeeId}`);
 
     expect(
       screen.getByText(/Este operador aún no tiene tarifa de pago/i),
@@ -710,7 +712,7 @@ describe("CompensationTemplateListPage", () => {
       "criterio 11: %s — título con versión, aviso y «Asignar operadores» disponible",
       async (_label, extra, notice) => {
         listWithInactiveVersion(extra);
-        renderPage("/finance/compensation/templates?operators=tpl-old");
+        renderPage("/finance/operator-payments/tariffs?operators=tpl-old");
 
         expect(
           await screen.findByRole("heading", {
@@ -726,7 +728,7 @@ describe("CompensationTemplateListPage", () => {
 
     it("inactiva sin motivo (API anterior) no muestra aviso", async () => {
       listWithInactiveVersion({});
-      renderPage("/finance/compensation/templates?operators=tpl-old");
+      renderPage("/finance/operator-payments/tariffs?operators=tpl-old");
 
       expect(
         await screen.findByRole("heading", {
@@ -757,7 +759,7 @@ describe("CompensationTemplateListPage", () => {
           },
         ]),
       );
-      renderPage("/finance/compensation/templates?operators=tpl-old");
+      renderPage("/finance/operator-payments/tariffs?operators=tpl-old");
 
       expect(
         await screen.findByRole("heading", {
@@ -841,7 +843,7 @@ describe("CompensationTemplateListPage", () => {
       }));
       mockUsePreview.mockReturnValue(previewWith(conflictIn("tpl-1", "Operador foráneo")));
       renderPage(
-        `/finance/compensation/templates?operators=tpl-2&assign=${FERNANDO}&assignFrom=2026-09-01&${PAYABLES}`,
+        `/finance/operator-payments/tariffs?operators=tpl-2&assign=${FERNANDO}&assignFrom=2026-09-01&${PAYABLES}`,
       );
 
       await user.click(
@@ -900,7 +902,7 @@ describe("CompensationTemplateListPage", () => {
       );
       mockUsePreview.mockReturnValue(previewWith(conflictIn("tpl-2", "Esquema local")));
       renderPage(
-        `/finance/compensation/templates?operators=tpl-2&assign=${FERNANDO}&assignFrom=2026-09-01`,
+        `/finance/operator-payments/tariffs?operators=tpl-2&assign=${FERNANDO}&assignFrom=2026-09-01`,
       );
 
       await user.click(await screen.findByRole("button", { name: "Ver su asignación" }));
@@ -918,7 +920,7 @@ describe("CompensationTemplateListPage", () => {
     it("criterio 17: en la versión destino no se abre el lote aunque haya employeeId; «Listo» quita foco y regreso", async () => {
       const user = userEvent.setup();
       renderPage(
-        `/finance/compensation/templates?operators=tpl-1&focus=${BLOCKING_ID}&returnTo=tpl-2&returnAssign=${FERNANDO}&returnFrom=2026-09-01&${PAYABLES}`,
+        `/finance/operator-payments/tariffs?operators=tpl-1&focus=${BLOCKING_ID}&returnTo=tpl-2&returnAssign=${FERNANDO}&returnFrom=2026-09-01&${PAYABLES}`,
       );
 
       expect(

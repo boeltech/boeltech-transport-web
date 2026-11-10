@@ -31,7 +31,17 @@ export const settlementsCopy = {
     advances: "Anticipos pendientes",
     agreements: "Tarifas",
   },
+  operatorsList: {
+    title: "Operadores",
+    description:
+      "Cómo se le paga a cada operador: tarifa, sueldo, ritmo y cuenta.",
+    entityLabelPlural: "operadores",
+    comingSoonTitle: "Próximo",
+    comingSoonDescription:
+      "El listado con readiness (tarifa, sueldo y cuenta) llega en la siguiente fase.",
+  },
   advancesList: {
+    title: "Anticipos",
     description:
       "Anticipos en gestión: en Aprobaciones, por entregar o con saldo pendiente de descontar.",
     deductInPayment: "Descontar en pago",

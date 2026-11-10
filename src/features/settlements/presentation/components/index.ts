@@ -21,6 +21,5 @@ export * from "./SettlementListFilters";
 export * from "./SettlementRegistryFilters";
 export * from "./SettlementPipelineQueue";
 export * from "./SettlementsSetupChecklist";
-export * from "./OperatorPaymentsHubLayout";
 export * from "./SettlementKindBadge";
 export * from "./LateReimbursementsAlert";

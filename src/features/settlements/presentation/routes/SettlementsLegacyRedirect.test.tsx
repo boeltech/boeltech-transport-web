@@ -10,9 +10,9 @@ function renderRedirect(initialEntry: string) {
         <Route path="/settlements/new" element={<SettlementsLegacyRedirect />} />
         <Route path="/settlements/:id" element={<SettlementsLegacyRedirect />} />
         <Route path="/settlements" element={<SettlementsLegacyRedirect />} />
-        <Route path="/finance/settlements" element={<div>list</div>} />
-        <Route path="/finance/settlements/new" element={<div>create</div>} />
-        <Route path="/finance/settlements/:id" element={<div>detail</div>} />
+        <Route path="/finance/operator-payments" element={<div>list</div>} />
+        <Route path="/finance/operator-payments/new" element={<div>create</div>} />
+        <Route path="/finance/operator-payments/:id" element={<div>detail</div>} />
       </Routes>
     </MemoryRouter>,
   );

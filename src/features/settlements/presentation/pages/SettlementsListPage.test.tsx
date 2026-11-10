@@ -161,7 +161,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
 
   it("usa Workbench sin header propio y deja contratistas fuera del panel", async () => {
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
@@ -182,7 +182,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
   it("sucursal vive en ListingFilterPanel", async () => {
     const user = userEvent.setup();
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     await user.click(screen.getByRole("button", { name: /Filtros/ }));
@@ -196,7 +196,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
 
   it("bucket vacío listo → bridge tarifas + Empleados en DetailAlertCard.action", async () => {
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
@@ -225,12 +225,12 @@ describe("SettlementsListPage — F1 Por pagar", () => {
         label: workbenchCopy.readiness.templatesActiveLabel,
         value: 0,
         status: "empty",
-        href: "/finance/compensation/templates",
+        href: "/finance/operator-payments/tariffs",
       },
     ];
 
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
@@ -250,7 +250,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     const user = userEvent.setup();
 
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
@@ -265,7 +265,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
 
   it("pipeline vacío usa EmptyState único (sin empty local de cola)", async () => {
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=payable"],
+      route: ["/finance/operator-payments?bucket=payable"],
     });
 
     expect(
@@ -278,7 +278,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
 
   it("H-02: chip de operador en En autorización usa nombre (sin UUID)", async () => {
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=approval&employeeId=emp-9"],
+      route: ["/finance/operator-payments?bucket=approval&employeeId=emp-9"],
     });
 
     expect(

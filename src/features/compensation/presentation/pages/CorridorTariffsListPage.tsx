@@ -28,7 +28,6 @@ import { CorridorTariffSheet, CorridorTariffsTable } from "../components";
 import { TariffListTabs } from "../components/TariffListTabs";
 import type { RouteCorridorTariff } from "../../domain/entities";
 import { buildDuplicateCorridorIndex } from "../utils/corridorMatchKey";
-import { useRegisterCompensationHubCreateAction } from "../hooks/useRegisterCompensationHubCreateAction";
 
 const copy = compensationCopy.corridors;
 const LIST_PAGE_SIZE = 20;
@@ -134,15 +133,6 @@ export function CorridorTariffsListPage() {
     );
   }, [canCreate, createQuery, openCreate, setSearchParams]);
 
-  const hubCreateAction = useMemo(
-    () =>
-      canCreate
-        ? { label: copy.create, onClick: openCreate }
-        : null,
-    [canCreate, openCreate],
-  );
-  useRegisterCompensationHubCreateAction(hubCreateAction);
-
   const openEdit = (corridor: RouteCorridorTariff) => {
     setEditingCorridor(corridor);
     setSheetOpen(true);
@@ -151,8 +141,17 @@ export function CorridorTariffsListPage() {
   return (
     <>
       <ListPageShell
-        showHeader={false}
+        showHeader
         title={copy.title}
+        primaryAction={
+          canCreate
+            ? {
+                label: copy.create,
+                onClick: openCreate,
+                icon: <Plus className="mr-2 h-4 w-4" />,
+              }
+            : undefined
+        }
         beforeToolbar={
           <>
             <TariffListTabs

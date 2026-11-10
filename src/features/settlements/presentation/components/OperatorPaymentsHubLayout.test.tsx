@@ -71,7 +71,7 @@ function renderHub(
           <Route path={COMPENSATION_CORRIDORS_PATH} element={<div>tab</div>} />
         </Route>
         <Route path="/settings/approvals" element={<div>reglas</div>} />
-        <Route path="/finance/settlements/new" element={<div>alta</div>} />
+        <Route path="/finance/operator-payments/new" element={<div>alta</div>} />
         <Route path="/employees" element={<div>empleados</div>} />
       </Routes>
       <LocationProbe />
@@ -133,7 +133,7 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
 
   it("en Tarifas con state.from del alta muestra relatedConfig de vuelta (S5-01)", () => {
     const createHref =
-      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
+      "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
     renderHub(COMPENSATION_TEMPLATES_PATH, { from: createHref });
     expect(
       screen.getByRole("link", { name: copy.createRelated.label }),

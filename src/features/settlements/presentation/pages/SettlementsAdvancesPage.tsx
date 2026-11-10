@@ -19,13 +19,11 @@ import {
 } from "../components";
 import { exportDriverAdvancesCsv } from "../utils/settlementExportHelpers";
 import { useEmployeeFilterChipLabel } from "../hooks/useEmployeeFilterChipLabel";
-import { useRegisterCompensationHubCreateAction } from "@features/compensation/presentation/hooks/useRegisterCompensationHubCreateAction";
-
 const copy = settlementsCopy;
 const advancesCopy = settlementsCopy.advancesList;
 
 /**
- * Gestión de anticipos — ListPageShell showHeader=false bajo el hub.
+ * Gestión de anticipos — ListPageShell con header propio (F2, sin hub).
  * Un filtro en toolbar (operador); no inventar ListingFilterPanel vacío.
  * Empty = shell; error = DetailAlertCard + Reintentar.
  */
@@ -38,14 +36,6 @@ export function SettlementsAdvancesPage() {
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
 
   const openCreate = useCallback(() => setAdvanceDialogOpen(true), []);
-  const hubCreateAction = useMemo(
-    () =>
-      canCreate
-        ? { label: copy.actions.createAdvance, onClick: openCreate }
-        : null,
-    [canCreate, openCreate],
-  );
-  useRegisterCompensationHubCreateAction(hubCreateAction);
 
   const filters = useListingFilters<"employeeId">({
     filters: {
@@ -128,9 +118,18 @@ export function SettlementsAdvancesPage() {
   return (
     <>
       <ListPageShell
-        showHeader={false}
-        title={copy.tabs.advances}
+        showHeader
+        title={advancesCopy.title}
         description={advancesCopy.description}
+        primaryAction={
+          canCreate
+            ? {
+                label: copy.actions.createAdvance,
+                onClick: openCreate,
+                icon: <Plus className="mr-2 h-4 w-4" />,
+              }
+            : undefined
+        }
         items={filteredAdvances}
         isLoading={isLoading || showLoadError}
         pagination={pagination}

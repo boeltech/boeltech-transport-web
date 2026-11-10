@@ -276,7 +276,7 @@ describe("CompensationTemplateActions", () => {
 
     expect(screen.getByRole("link", { name: "Completar pago" })).toHaveAttribute(
       "href",
-      "/finance/compensation/templates/tpl-draft/build",
+      "/finance/operator-payments/tariffs/tpl-draft/build",
     );
   });
 
@@ -316,7 +316,7 @@ describe("CompensationTemplateActions", () => {
     await user.click(within(dialog).getByRole("button", { name: "Crear versión" }));
 
     expect(mockCreateVersionMutateAsync).toHaveBeenCalledWith("tpl-1");
-    expect(mockNavigate).toHaveBeenCalledWith("/finance/compensation/templates/tpl-v2/build");
+    expect(mockNavigate).toHaveBeenCalledWith("/finance/operator-payments/tariffs/tpl-v2/build");
   });
 
   it("CA4: ningún enlace «Crear nueva versión» navega sin crear", async () => {

@@ -149,7 +149,7 @@ describe("SettlementsRegistryPage F3", () => {
 
   it("H-02: chip de operador usa nombre resuelto (sin UUID)", () => {
     renderWithTheme(<SettlementsRegistryPage />, {
-      route: ["/finance/settlements/registry?employeeId=emp-1"],
+      route: ["/finance/operator-payments?bucket=closed&employeeId=emp-1"],
     });
 
     expect(

@@ -54,7 +54,7 @@ describe("navigationCopy", () => {
 });
 
 describe("navigationConfig", () => {
-  it("shows the seven group headers in semantic order", () => {
+  it("shows the eight group headers in semantic order", () => {
     const groupTitles = navigationConfig
       .map((group) => group.title)
       .filter((title) => title !== "");
@@ -65,6 +65,7 @@ describe("navigationConfig", () => {
       "Comercial",
       "Facturación",
       "Cobranza",
+      "Pagos a operadores",
       "Finanzas",
       "Administración",
     ]);
@@ -150,16 +151,31 @@ describe("navigationConfig", () => {
     expect(finance?.items.map((item) => item.id)).toEqual([
       "finance-hub",
       "finance-approvals",
-      "finance-settlements",
       "finance-analysis",
       "reports-list",
     ]);
     expect(finance?.items.map((item) => item.label)).toEqual([
       "Cartera",
       "Aprobaciones",
-      "Pagos a operadores",
       "Análisis",
       "Reportes",
+    ]);
+
+    const operatorPayments = navigationConfig.find(
+      (group) => group.id === "operator-payments",
+    );
+    expect(operatorPayments?.title).toBe("Pagos a operadores");
+    expect(operatorPayments?.items.map((item) => item.id)).toEqual([
+      "operator-payments-pagos",
+      "operator-payments-advances",
+      "operator-payments-operators",
+      "operator-payments-tariffs",
+    ]);
+    expect(operatorPayments?.items.map((item) => item.label)).toEqual([
+      "Pagos",
+      "Anticipos",
+      "Operadores",
+      "Tarifas",
     ]);
   });
 

@@ -139,9 +139,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -167,15 +167,15 @@ describe("SettlementDetailPage self-approval (H9)", () => {
         <MemoryRouter
           initialEntries={[
             {
-              pathname: "/finance/settlements/set-detail-1",
-              state: { from: "/finance/settlements?bucket=approval" },
+              pathname: "/finance/operator-payments/set-detail-1",
+              state: { from: "/finance/operator-payments?bucket=approval" },
             },
           ]}
         >
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
             <Route
-              path="/finance/settlements"
+              path="/finance/operator-payments"
               element={<QueueProbe />}
             />
           </Routes>
@@ -190,7 +190,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     await user.click(
       screen.getByRole("button", { name: "Volver a en autorización" }),
     );
-    expect(screen.getByText("/finance/settlements?bucket=approval")).toBeInTheDocument();
+    expect(screen.getByText("/finance/operator-payments?bucket=approval")).toBeInTheDocument();
   });
 
   it("no muestra Autorizar cuando submittedBy === user.id", async () => {
@@ -206,9 +206,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -232,9 +232,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -253,9 +253,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -289,9 +289,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -323,9 +323,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -352,10 +352,10 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/new" element={<CreateProbe />} />
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/new" element={<CreateProbe />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -526,7 +526,7 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     );
 
     const target = screen.getByTestId("create-probe").textContent ?? "";
-    expect(target).toContain("/finance/settlements/new?");
+    expect(target).toContain("/finance/operator-payments/new?");
     expect(target).toContain("employeeId=emp-1");
     expect(target).toContain("periodStart=2026-09-01");
     expect(target).toContain("periodEnd=2026-09-15");
@@ -597,10 +597,10 @@ describe("SettlementDetailPage F2 DetailAlertCard.action (D7)", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/new" element={<CreateProbe />} />
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/new" element={<CreateProbe />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -634,7 +634,7 @@ describe("SettlementDetailPage F2 DetailAlertCard.action (D7)", () => {
     );
 
     const target = screen.getByTestId("create-probe").textContent ?? "";
-    expect(target).toContain("/finance/settlements/new?");
+    expect(target).toContain("/finance/operator-payments/new?");
     expect(target).toContain("employeeId=emp-1");
     expect(target).toContain("periodStart=2026-09-01");
     expect(target).toContain("periodEnd=2026-09-15");
@@ -683,9 +683,9 @@ describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Des
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,

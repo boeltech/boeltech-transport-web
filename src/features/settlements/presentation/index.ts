@@ -4,6 +4,7 @@ export * from "./pages/SettlementsListPage";
 export * from "./pages/SettlementsRegistryPage";
 export * from "./pages/SettlementsAdvancesPage";
 export * from "./pages/SettlementsPendingApprovalPage";
+export * from "./pages/OperatorPaymentsOperatorsPage";
 export * from "./pages/SettlementCreatePage";
 export * from "./pages/SettlementCreateEntryPage";
 export * from "./pages/SettlementReimbursementCreatePage";

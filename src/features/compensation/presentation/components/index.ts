@@ -1,4 +1,3 @@
-export * from "./CompensationHubLayout";
 export * from "./CompensationTemplateCreateDialog";
 export * from "./CompensationTemplateFormFields";
 export * from "./CompensationTemplateActions";

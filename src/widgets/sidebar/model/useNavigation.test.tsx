@@ -7,7 +7,6 @@ import type { NavItem } from "./types";
 import { navigationConfig } from "./navigation";
 import { filterNavigation, findActiveNavItem } from "./useNavigation";
 import { navigationCopy } from "../copy/navigationCopy";
-import { COMPENSATION_HUB_PATH } from "@features/compensation/application";
 
 const hub: NavItem = {
   id: "finance-hub",
@@ -220,22 +219,32 @@ describe("filterNavigation", () => {
     expect(financeGroup?.items.map((i) => i.id)).toEqual([
       "finance-hub",
       "finance-approvals",
-      "finance-settlements",
       "finance-analysis",
       "reports-list",
     ]);
+
+    const operatorPayments = filtered.find((g) => g.id === "operator-payments");
+    expect(operatorPayments?.items.map((i) => i.id)).toEqual([
+      "operator-payments-pagos",
+      "operator-payments-advances",
+      "operator-payments-operators",
+      "operator-payments-tariffs",
+    ]);
   });
 
-  it("declara Pagos a operadores directo con cobertura del hub compensación", () => {
-    const settlements = navigationConfig
-      .find((g) => g.id === "finance")
-      ?.items.find((i) => i.id === "finance-settlements");
-    expect(settlements?.label).toBe(navigationCopy.item.financeOperatorPayments);
-    expect(settlements?.activePathPrefixes).toEqual([COMPENSATION_HUB_PATH]);
+  it("declara grupo Pagos a operadores con 4 destinos (F2)", () => {
+    const group = navigationConfig.find((g) => g.id === "operator-payments");
+    expect(group?.title).toBe(navigationCopy.group.operatorPayments);
+    expect(group?.items.map((i) => i.label)).toEqual([
+      navigationCopy.item.operatorPaymentsPagos,
+      navigationCopy.item.operatorPaymentsAdvances,
+      navigationCopy.item.operatorPaymentsOperators,
+      navigationCopy.item.operatorPaymentsTariffs,
+    ]);
     expect(
       navigationConfig
         .find((g) => g.id === "finance")
-        ?.items.some((i) => i.id === "finance-agreements"),
+        ?.items.some((i) => i.id === "finance-settlements"),
     ).toBe(false);
   });
 

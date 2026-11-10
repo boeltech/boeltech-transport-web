@@ -8,11 +8,11 @@ function renderRedirect(initialPath: string) {
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route
-          path="/finance/compensation/templates/:id"
+          path="/finance/operator-payments/tariffs/:id"
           element={<CompensationTemplateDetailRedirect />}
         />
         <Route
-          path="/finance/compensation/templates"
+          path="/finance/operator-payments/tariffs"
           element={<div data-testid="templates-list">Listado</div>}
         />
       </Routes>
@@ -22,13 +22,13 @@ function renderRedirect(initialPath: string) {
 
 describe("CompensationTemplateDetailRedirect", () => {
   it("redirige al catálogo con Sheet de operadores", async () => {
-    renderRedirect("/finance/compensation/templates/tpl-1");
+    renderRedirect("/finance/operator-payments/tariffs/tpl-1");
 
     expect(await screen.findByTestId("templates-list")).toBeInTheDocument();
   });
 
   it("redirige con assign legacy en query", async () => {
-    renderRedirect("/finance/compensation/templates/tpl-1?assignEmployee=emp-1");
+    renderRedirect("/finance/operator-payments/tariffs/tpl-1?assignEmployee=emp-1");
 
     expect(await screen.findByTestId("templates-list")).toBeInTheDocument();
   });

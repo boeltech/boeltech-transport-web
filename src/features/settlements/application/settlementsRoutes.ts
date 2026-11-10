@@ -1,5 +1,4 @@
 import {
-  COMPENSATION_CORRIDORS_PATH,
   COMPENSATION_HUB_PATH,
   COMPENSATION_TEMPLATES_PATH,
   LEGACY_AGREEMENTS_PATH,
@@ -7,24 +6,52 @@ import {
 } from "@features/compensation/application";
 
 /**
- * Rutas UI de liquidaciones bajo /finance/settlements/*.
- * Redirects legacy /settlements/* → rutas canónicas.
- * ADR-0090: workbench en list path; registry y advances en rutas propias.
+ * Rutas UI canónicas bajo /finance/operator-payments/* (TEC C.2 / PRD F2).
+ * Redirects legacy: /finance/settlements/*, /settlements/*.
  */
 
-export const SETTLEMENTS_LIST_PATH = "/finance/settlements";
+export const OPERATOR_PAYMENTS_BASE_PATH = "/finance/operator-payments";
 
-export const SETTLEMENTS_CREATE_PATH = "/finance/settlements/new";
+/** Pagos (Workbench). */
+export const SETTLEMENTS_LIST_PATH = OPERATOR_PAYMENTS_BASE_PATH;
 
-export const SETTLEMENTS_REGISTRY_PATH = "/finance/settlements/registry";
+export const SETTLEMENTS_CREATE_PATH = `${OPERATOR_PAYMENTS_BASE_PATH}/new`;
 
-export const SETTLEMENTS_ADVANCES_PATH = "/finance/settlements/advances";
+/** Anticipos (Workbench). */
+export const SETTLEMENTS_ADVANCES_PATH = `${OPERATOR_PAYMENTS_BASE_PATH}/advances`;
 
-export const SETTLEMENTS_PENDING_APPROVAL_PATH =
+/** Operadores (List). */
+export const SETTLEMENTS_OPERATORS_PATH = `${OPERATOR_PAYMENTS_BASE_PATH}/operators`;
+
+/** Armar corte en lote (F6) — path reservado. */
+export const SETTLEMENTS_CUTS_NEW_PATH = `${OPERATOR_PAYMENTS_BASE_PATH}/cuts/new`;
+
+/**
+ * Historial / Pagados: canónico = bucket del workbench.
+ * TEC C.2 usa `paid`; el workbench actual identifica Pagados como `closed`.
+ * Aceptamos ambos en el listado (`paid` → `closed`).
+ */
+export const SETTLEMENTS_REGISTRY_BUCKET = "closed";
+
+/** @deprecated Prefer settlementsRegistryPath(); kept for callers that need a path string. */
+export const SETTLEMENTS_REGISTRY_PATH = SETTLEMENTS_LIST_PATH;
+
+/** Legacy path constants (redirect sources). */
+export const LEGACY_FINANCE_SETTLEMENTS_PATH = "/finance/settlements";
+export const LEGACY_FINANCE_SETTLEMENTS_CREATE_PATH =
+  "/finance/settlements/new";
+export const LEGACY_FINANCE_SETTLEMENTS_REGISTRY_PATH =
+  "/finance/settlements/registry";
+export const LEGACY_FINANCE_SETTLEMENTS_ADVANCES_PATH =
+  "/finance/settlements/advances";
+export const LEGACY_FINANCE_SETTLEMENTS_PENDING_APPROVAL_PATH =
   "/finance/settlements/pending-approval";
 
-const LEGACY_LIST_PATH = "/settlements";
+/** @deprecated Alias of legacy pending-approval path (redirect source). */
+export const SETTLEMENTS_PENDING_APPROVAL_PATH =
+  LEGACY_FINANCE_SETTLEMENTS_PENDING_APPROVAL_PATH;
 
+const LEGACY_LIST_PATH = "/settlements";
 const LEGACY_CREATE_PATH = "/settlements/new";
 
 export function settlementDetailPath(id: string): string {
@@ -83,21 +110,10 @@ export function settlementsAdvancesPath(
 export function settlementsRegistryPath(
   params?: Record<string, string>,
 ): string {
-  if (!params || Object.keys(params).length === 0) {
-    return SETTLEMENTS_REGISTRY_PATH;
-  }
-
-  const qs = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value) qs.set(key, value);
-  }
-
-  const search = qs.toString();
-
-  return search
-    ? `${SETTLEMENTS_REGISTRY_PATH}?${search}`
-    : SETTLEMENTS_REGISTRY_PATH;
+  return settlementsWorkbenchBucketPath(
+    SETTLEMENTS_REGISTRY_BUCKET,
+    params,
+  );
 }
 
 /**
@@ -131,9 +147,9 @@ export function settlementsWorkbenchBucketPath(
 
 /**
  * Redirects legacy query shapes on the list path:
- * - ?tab=agreements → hub compensación
- * - ?view=registry → /finance/settlements/registry
- * - ?tab=advances → /finance/settlements/advances
+ * - ?tab=agreements → Tarifas
+ * - ?view=registry → Pagos ?bucket=closed
+ * - ?tab=advances → Anticipos
  */
 export function resolveSettlementsListRedirect(search: string): string | null {
   const normalized = search.startsWith("?") ? search.slice(1) : search;
@@ -155,11 +171,14 @@ export function resolveSettlementsListRedirect(search: string): string | null {
     params.delete("tab");
     params.delete("bucket");
 
-    const qs = params.toString();
+    const rest: Record<string, string> = {};
+    for (const [key, value] of params.entries()) {
+      if (value) rest[key] = value;
+    }
 
-    return qs
-      ? `${SETTLEMENTS_REGISTRY_PATH}?${qs}`
-      : SETTLEMENTS_REGISTRY_PATH;
+    return settlementsRegistryPath(
+      Object.keys(rest).length > 0 ? rest : undefined,
+    );
   }
 
   if (params.get("tab") === "advances") {
@@ -177,7 +196,14 @@ export function resolveSettlementsListRedirect(search: string): string | null {
   return null;
 }
 
-/** Resuelve pathname legacy /settlements/* → ruta canónica (preserva search). */
+function appendSearch(path: string, search: string): string {
+  if (!search) return path;
+  return search.startsWith("?") ? `${path}${search}` : `${path}?${search}`;
+}
+
+/**
+ * Resuelve pathname legacy `/settlements/*` o `/finance/settlements/*` → canónico.
+ */
 export function resolveLegacySettlementsPath(
   pathname: string,
   search: string,
@@ -189,15 +215,50 @@ export function resolveLegacySettlementsPath(
   }
 
   const normalized = pathname.replace(/\/+$/, "") || "/";
+  const searchSuffix = search.startsWith("?") ? search : search ? `?${search}` : "";
 
-  if (normalized === LEGACY_LIST_PATH) {
-    return search ? `${SETTLEMENTS_LIST_PATH}${search}` : SETTLEMENTS_LIST_PATH;
+  if (
+    normalized === LEGACY_LIST_PATH ||
+    normalized === LEGACY_FINANCE_SETTLEMENTS_PATH
+  ) {
+    return searchSuffix
+      ? `${SETTLEMENTS_LIST_PATH}${searchSuffix}`
+      : SETTLEMENTS_LIST_PATH;
   }
 
-  if (normalized === LEGACY_CREATE_PATH) {
-    return search
-      ? `${SETTLEMENTS_CREATE_PATH}${search}`
-      : SETTLEMENTS_CREATE_PATH;
+  if (
+    normalized === LEGACY_CREATE_PATH ||
+    normalized === LEGACY_FINANCE_SETTLEMENTS_CREATE_PATH
+  ) {
+    return appendSearch(SETTLEMENTS_CREATE_PATH, searchSuffix);
+  }
+
+  if (normalized === LEGACY_FINANCE_SETTLEMENTS_ADVANCES_PATH) {
+    return appendSearch(SETTLEMENTS_ADVANCES_PATH, searchSuffix);
+  }
+
+  if (normalized === LEGACY_FINANCE_SETTLEMENTS_REGISTRY_PATH) {
+    return settlementsRegistryPath();
+  }
+
+  if (normalized === LEGACY_FINANCE_SETTLEMENTS_PENDING_APPROVAL_PATH) {
+    const params = new URLSearchParams(
+      searchSuffix.startsWith("?") ? searchSuffix.slice(1) : searchSuffix,
+    );
+    const employeeId =
+      params.get("employeeId") ?? params.get("driverId") ?? undefined;
+    return settlementsPendingApprovalPath(
+      employeeId ? { employeeId } : undefined,
+    );
+  }
+
+  const financePrefix = `${LEGACY_FINANCE_SETTLEMENTS_PATH}/`;
+  if (normalized.startsWith(financePrefix)) {
+    const id = normalized.slice(financePrefix.length);
+    if (id && !id.includes("/")) {
+      const target = settlementDetailPath(id);
+      return appendSearch(target, searchSuffix);
+    }
   }
 
   if (normalized.startsWith(`${LEGACY_LIST_PATH}/`)) {
@@ -206,11 +267,11 @@ export function resolveLegacySettlementsPath(
     if (id) {
       const target = settlementDetailPath(id);
 
-      return search ? `${target}${search}` : target;
+      return appendSearch(target, searchSuffix);
     }
   }
 
-  return search ? `${SETTLEMENTS_LIST_PATH}${search}` : SETTLEMENTS_LIST_PATH;
+  return appendSearch(SETTLEMENTS_LIST_PATH, searchSuffix);
 }
 
 export type OperatorPaymentsHubTab =
@@ -219,36 +280,41 @@ export type OperatorPaymentsHubTab =
   | "como-te-pago"
   | "tabla-de-rutas";
 
-/** Historial bajo el hub (sin tab propio; resalta Por pagar). */
+/** @deprecated Hub retirado (F2); Historial = bucket Pagados. */
 export function isOperatorPaymentsRegistryPath(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "") || "/";
   return (
-    normalized === SETTLEMENTS_REGISTRY_PATH ||
-    normalized.startsWith(`${SETTLEMENTS_REGISTRY_PATH}/`)
+    normalized === LEGACY_FINANCE_SETTLEMENTS_REGISTRY_PATH ||
+    normalized.startsWith(`${LEGACY_FINANCE_SETTLEMENTS_REGISTRY_PATH}/`)
   );
 }
 
+/** @deprecated Hub con tabs retirado en F2 — solo para tests/compat. */
 export function resolveOperatorPaymentsHubTab(
   pathname: string,
 ): OperatorPaymentsHubTab {
   const normalized = pathname.replace(/\/+$/, "") || "/";
 
-  // Ruta legacy del tab eliminado: el redirect del router aterriza en Por pagar.
-  if (normalized === SETTLEMENTS_PENDING_APPROVAL_PATH) return "por-pagar";
+  if (normalized === LEGACY_FINANCE_SETTLEMENTS_PENDING_APPROVAL_PATH) {
+    return "por-pagar";
+  }
   if (isOperatorPaymentsRegistryPath(normalized)) return "por-pagar";
   if (
     normalized === SETTLEMENTS_ADVANCES_PATH ||
-    normalized.startsWith(`${SETTLEMENTS_ADVANCES_PATH}/`)
+    normalized.startsWith(`${SETTLEMENTS_ADVANCES_PATH}/`) ||
+    normalized === LEGACY_FINANCE_SETTLEMENTS_ADVANCES_PATH
   ) {
     return "adelantos";
   }
   if (
-    normalized === COMPENSATION_CORRIDORS_PATH ||
-    normalized.startsWith(`${COMPENSATION_CORRIDORS_PATH}/`)
+    pathname.includes("tab=routes") ||
+    normalized.includes("/tariffs/routes")
   ) {
     return "tabla-de-rutas";
   }
   if (
+    normalized === COMPENSATION_TEMPLATES_PATH ||
+    normalized.startsWith(`${COMPENSATION_TEMPLATES_PATH}/`) ||
     normalized === COMPENSATION_HUB_PATH ||
     normalized.startsWith(`${COMPENSATION_HUB_PATH}/`) ||
     normalized === LEGACY_AGREEMENTS_PATH

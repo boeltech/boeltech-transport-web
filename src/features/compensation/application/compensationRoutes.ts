@@ -4,20 +4,104 @@
 
 import { BATCH_ASSIGNMENT_MAX_EMPLOYEES } from "../domain/enums";
 
+/** @deprecated Legacy hub path — redirect source only (F2). */
 export const COMPENSATION_HUB_PATH = "/finance/compensation";
-export const COMPENSATION_TEMPLATES_PATH = "/finance/compensation/templates";
-export const COMPENSATION_CORRIDORS_PATH = "/finance/compensation/corridors";
+
+/** Tarifas (List) — canónico TEC C.2 (mismo base que settlements OPERATOR_PAYMENTS_BASE_PATH). */
+export const COMPENSATION_TEMPLATES_PATH = "/finance/operator-payments/tariffs";
+
+/** Query canónica de la pestaña «Rutas con tarifa fija» (TEC C.2). */
+export const COMPENSATION_CORRIDORS_TAB_QUERY = "tab";
+export const COMPENSATION_CORRIDORS_TAB_VALUE = "routes";
+
+/**
+ * Href canónico del tab Rutas (`/tariffs?tab=routes`).
+ * Preferir esto para Links; el pathname sin query es COMPENSATION_TEMPLATES_PATH.
+ */
+export const COMPENSATION_CORRIDORS_HREF = `${COMPENSATION_TEMPLATES_PATH}?${COMPENSATION_CORRIDORS_TAB_QUERY}=${COMPENSATION_CORRIDORS_TAB_VALUE}`;
+
+/**
+ * @deprecated Pathname-only alias (mismo que Tarifas). Usar COMPENSATION_CORRIDORS_HREF
+ * para navegar al tab de rutas.
+ */
+export const COMPENSATION_CORRIDORS_PATH = COMPENSATION_TEMPLATES_PATH;
+
+/** Legacy corridors path — redirect source. */
+export const LEGACY_COMPENSATION_CORRIDORS_PATH =
+  "/finance/compensation/corridors";
+export const LEGACY_COMPENSATION_TEMPLATES_PATH =
+  "/finance/compensation/templates";
 
 /** Query flag: abre Sheet de alta de ruta con tarifa fija en el tab de rutas con tarifa fija. */
 export const COMPENSATION_CORRIDORS_CREATE_QUERY = "create";
 export const COMPENSATION_CORRIDORS_CREATE_VALUE = "1";
 
-/** Legacy agreements → hub plantillas. */
+/** Legacy agreements → Tarifas. */
 export const LEGACY_AGREEMENTS_PATH = "/finance/agreements";
 
 /** Deep link: tab Rutas con tarifa fija con Sheet de alta abierto. */
 export function compensationCorridorsCreatePath(): string {
-  return `${COMPENSATION_CORRIDORS_PATH}?${COMPENSATION_CORRIDORS_CREATE_QUERY}=${COMPENSATION_CORRIDORS_CREATE_VALUE}`;
+  const qs = new URLSearchParams({
+    [COMPENSATION_CORRIDORS_TAB_QUERY]: COMPENSATION_CORRIDORS_TAB_VALUE,
+    [COMPENSATION_CORRIDORS_CREATE_QUERY]: COMPENSATION_CORRIDORS_CREATE_VALUE,
+  });
+  return `${COMPENSATION_TEMPLATES_PATH}?${qs.toString()}`;
+}
+
+export function isCompensationCorridorsTab(
+  value: string | null | undefined,
+): boolean {
+  return (value ?? "").trim().toLowerCase() === COMPENSATION_CORRIDORS_TAB_VALUE;
+}
+
+/**
+ * Redirect `/finance/compensation/*` → canónico Tarifas / builder.
+ */
+export function resolveLegacyCompensationPath(
+  pathname: string,
+  search: string,
+): string {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  const searchSuffix = search.startsWith("?")
+    ? search
+    : search
+      ? `?${search}`
+      : "";
+  const params = new URLSearchParams(
+    searchSuffix.startsWith("?") ? searchSuffix.slice(1) : searchSuffix,
+  );
+
+  if (normalized === LEGACY_COMPENSATION_CORRIDORS_PATH) {
+    const create = params.get(COMPENSATION_CORRIDORS_CREATE_QUERY);
+    if (isCompensationCorridorsCreateQuery(create)) {
+      return compensationCorridorsCreatePath();
+    }
+    return COMPENSATION_CORRIDORS_HREF;
+  }
+
+  const templatesPrefix = `${LEGACY_COMPENSATION_TEMPLATES_PATH}/`;
+  if (normalized.startsWith(templatesPrefix)) {
+    const remainder = normalized.slice(templatesPrefix.length);
+    const buildMatch = remainder.match(/^([^/]+)\/build$/);
+    if (buildMatch?.[1]) {
+      return `${COMPENSATION_TEMPLATES_PATH}/${buildMatch[1]}/build${searchSuffix}`;
+    }
+    if (remainder && !remainder.includes("/")) {
+      return resolveCompensationTemplateDetailRedirect(remainder, searchSuffix);
+    }
+  }
+
+  if (
+    normalized === COMPENSATION_HUB_PATH ||
+    normalized === LEGACY_COMPENSATION_TEMPLATES_PATH
+  ) {
+    const qs = params.toString();
+    return qs
+      ? `${COMPENSATION_TEMPLATES_PATH}?${qs}`
+      : COMPENSATION_TEMPLATES_PATH;
+  }
+
+  return COMPENSATION_TEMPLATES_PATH;
 }
 
 export function isCompensationCorridorsCreateQuery(

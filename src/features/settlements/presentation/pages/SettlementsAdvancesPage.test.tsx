@@ -73,13 +73,6 @@ vi.mock("../../application/hooks", () => ({
   useDriverAdvances: () => advancesQuery,
 }));
 
-vi.mock(
-  "@features/compensation/presentation/hooks/useRegisterCompensationHubCreateAction",
-  () => ({
-    useRegisterCompensationHubCreateAction: () => undefined,
-  }),
-);
-
 describe("SettlementsAdvancesPage F3", () => {
   beforeEach(() => {
     mockPermissions.granted = new Set([
@@ -165,7 +158,7 @@ describe("SettlementsAdvancesPage F3", () => {
 
   it("H-02: chip de operador usa nombre resuelto (sin UUID)", () => {
     renderWithTheme(<SettlementsAdvancesPage />, {
-      route: ["/finance/settlements/advances?employeeId=emp-1"],
+      route: ["/finance/operator-payments/advances?employeeId=emp-1"],
     });
 
     expect(

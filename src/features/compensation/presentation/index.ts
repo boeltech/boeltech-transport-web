@@ -1,5 +1,4 @@
 export {
-  CompensationHubLayout,
   CompensationTemplateSheet,
   CompensationTemplatesTable,
   CorridorTariffSheet,
@@ -13,6 +12,7 @@ export {
   CompensationTemplateListPage,
   CompensationSchemeBuilderPage,
   CorridorTariffsListPage,
+  OperatorPaymentsTariffsPage,
 } from "./pages";
 
 export { AgreementsLegacyRedirect } from "./routes/AgreementsLegacyRedirect";
