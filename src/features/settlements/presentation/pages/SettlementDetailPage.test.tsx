@@ -139,9 +139,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -167,15 +167,15 @@ describe("SettlementDetailPage self-approval (H9)", () => {
         <MemoryRouter
           initialEntries={[
             {
-              pathname: "/finance/settlements/set-detail-1",
-              state: { from: "/finance/settlements?bucket=approval" },
+              pathname: "/finance/operator-payments/set-detail-1",
+              state: { from: "/finance/operator-payments?bucket=approval" },
             },
           ]}
         >
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
             <Route
-              path="/finance/settlements"
+              path="/finance/operator-payments"
               element={<QueueProbe />}
             />
           </Routes>
@@ -190,7 +190,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     await user.click(
       screen.getByRole("button", { name: "Volver a en autorización" }),
     );
-    expect(screen.getByText("/finance/settlements?bucket=approval")).toBeInTheDocument();
+    expect(screen.getByText("/finance/operator-payments?bucket=approval")).toBeInTheDocument();
   });
 
   it("no muestra Autorizar cuando submittedBy === user.id", async () => {
@@ -206,9 +206,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -232,9 +232,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -253,9 +253,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -289,9 +289,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -323,9 +323,9 @@ describe("SettlementDetailPage self-approval (H9)", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -352,10 +352,10 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/new" element={<CreateProbe />} />
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/new" element={<CreateProbe />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -526,7 +526,7 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     );
 
     const target = screen.getByTestId("create-probe").textContent ?? "";
-    expect(target).toContain("/finance/settlements/new?");
+    expect(target).toContain("/finance/operator-payments/new?");
     expect(target).toContain("employeeId=emp-1");
     expect(target).toContain("periodStart=2026-09-01");
     expect(target).toContain("periodEnd=2026-09-15");
@@ -597,10 +597,10 @@ describe("SettlementDetailPage F2 DetailAlertCard.action (D7)", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/new" element={<CreateProbe />} />
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/new" element={<CreateProbe />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -634,7 +634,7 @@ describe("SettlementDetailPage F2 DetailAlertCard.action (D7)", () => {
     );
 
     const target = screen.getByTestId("create-probe").textContent ?? "";
-    expect(target).toContain("/finance/settlements/new?");
+    expect(target).toContain("/finance/operator-payments/new?");
     expect(target).toContain("employeeId=emp-1");
     expect(target).toContain("periodStart=2026-09-01");
     expect(target).toContain("periodEnd=2026-09-15");
@@ -658,7 +658,7 @@ describe("SettlementDetailPage F2 DetailAlertCard.action (D7)", () => {
   });
 });
 
-describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Descuentos = A pagar", () => {
+describe("SettlementDetailPage F4 fórmula 5 términos + Regla aplicada", () => {
   function settlementItem(
     overrides: Partial<NonNullable<DriverSettlement["items"]>[number]>,
   ): NonNullable<DriverSettlement["items"]>[number] {
@@ -683,9 +683,9 @@ describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Des
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/set-detail-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/set-detail-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -700,8 +700,7 @@ describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Des
     });
   });
 
-  it("anticipos y otras deducciones: la franja y el desglose cuadran con el neto", async () => {
-    const user = userEvent.setup();
+  it("muestra fórmula 5 términos, columna Regla aplicada e inspector (CA F4.7–F4.9)", async () => {
     mockGetSettlementById.mockResolvedValue({
       ...pendingSettlement,
       totalTripsCommission: 2733,
@@ -719,20 +718,11 @@ describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Des
           description: "Comisión de viaje TRP-260908-0003 (Amazon México → Estadio BBVA · Foráneo)",
           unitRate: 2733,
           amount: 2733,
-        }),
-        settlementItem({
-          id: "viaticos",
-          description: "Prestación fija: Viáticos",
-          unitRate: 300,
-          amount: 300,
-          calculationDetails: { source: "fixed_allowance" },
-        }),
-        settlementItem({
-          id: "comidas",
-          description: "Prestación fija: Comidas",
-          unitRate: 500,
-          amount: 500,
-          calculationDetails: { source: "fixed_allowance" },
+          calculationDetails: {
+            appliedRule: "920 km × $3.00",
+            routeType: "long_haul",
+            distanceKm: 920,
+          },
         }),
         settlementItem({
           id: "salary",
@@ -740,15 +730,6 @@ describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Des
           description: "Sueldo base fijo (Semanal)",
           unitRate: 4500,
           amount: 4500,
-        }),
-        settlementItem({
-          id: "fondo",
-          itemType: "adjustment",
-          description: "Deducción de plantilla: Fondo de ahorro",
-          unitRate: 200,
-          amount: 200,
-          isDeduction: true,
-          calculationDetails: { source: "template_deduction" },
         }),
         settlementItem({
           id: "advance",
@@ -765,132 +746,20 @@ describe("SettlementDetailPage franja Compensación | Reembolsos | Total − Des
 
     await screen.findByText("LIQ-202609-0001");
 
-    const perception = screen.getByTestId("settlement-perception-strip");
-    expect(perception).toHaveTextContent("Compensación");
-    expect(perception).toHaveTextContent("Sueldo, viajes, prestaciones y bonos · 1 viaje");
-    expect(perception).toHaveTextContent("Reembolsos");
-    expect(perception).toHaveTextContent("Sin reembolsos en este pago");
-    expect(perception).toHaveTextContent("Total");
-    expect(perception).toHaveTextContent("Compensación + reembolsos");
-    expect(perception).toHaveTextContent("$8,033.00");
-    expect(screen.getByText("Descuentos")).toBeInTheDocument();
-    expect(screen.getByText("-$2,700.00")).toBeInTheDocument();
-    expect(
-      screen.getByText("Anticipos $2,500.00 · Otros descuentos $200.00"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("$5,333.00")).toBeInTheDocument();
-    expect(screen.getByText("Lo que recibe el operador")).toBeInTheDocument();
+    const formula = screen.getByTestId("settlement-payment-formula");
+    expect(formula).toHaveTextContent("Por viajes");
+    expect(formula).toHaveTextContent("Sueldo y fijos");
+    expect(formula).toHaveTextContent("Reembolsos");
+    expect(formula).toHaveTextContent("Anticipos y descuentos");
+    expect(formula).toHaveTextContent("A pagar");
+    expect(formula).toHaveTextContent("$5,333.00");
 
-    await user.click(screen.getByText(/Ver desglose/i));
-
-    expect(screen.getByText("2. Descuentos (−)")).toBeInTheDocument();
-    expect(screen.getByText("Viáticos")).toBeInTheDocument();
-    expect(screen.getAllByText("Prestación fija")).toHaveLength(2);
-    expect(screen.getByText("Fondo de ahorro")).toBeInTheDocument();
-    expect(screen.getByText("Deducción de tarifa")).toBeInTheDocument();
-    expect(screen.getByText("De la tarifa del operador")).toBeInTheDocument();
-
-    const deductionsTable = screen.getByRole("table", { name: "Desglose de descuentos" });
-    const bodyRows = deductionsTable.querySelectorAll("tbody tr");
-    expect(bodyRows[0]?.textContent).toContain("Descuento de anticipo");
-    expect(bodyRows[1]?.textContent).toContain("Fondo de ahorro");
-
-    const footer = deductionsTable.querySelector("tfoot")?.textContent ?? "";
-    expect(footer).toContain("Anticipos:-$2,500.00");
-    expect(footer).toContain("Otros descuentos:-$200.00");
-    expect(footer).toContain("Subtotal descuentos:-$2,700.00");
-
-    const earningsFooter =
-      screen.getByRole("table", { name: "Desglose de ingresos" }).querySelector("tfoot")
-        ?.textContent ?? "";
-    expect(earningsFooter).toContain("$8,033.00");
-  });
-
-  it("solo otras deducciones: muestra el total y el subtexto de deducciones", async () => {
-    mockGetSettlementById.mockResolvedValue({
-      ...pendingSettlement,
-      totalOtherDeductions: 200,
-      netAmount: 2300,
-    });
-    renderDetail();
-
-    await screen.findByText("LIQ-202609-0001");
-
-    expect(screen.getByText("-$200.00")).toBeInTheDocument();
-    expect(screen.getByText("Deducciones y ajustes en contra")).toBeInTheDocument();
-    expect(screen.getByText("$2,300.00")).toBeInTheDocument();
-  });
-
-  it("sin descuentos: $0.00 sin signo", async () => {
-    mockGetSettlementById.mockResolvedValue(pendingSettlement);
-    renderDetail();
-
-    await screen.findByText("LIQ-202609-0001");
-
-    const perception = screen.getByTestId("settlement-perception-strip");
-    expect(perception).toHaveTextContent("Sin descuentos en este pago");
-    // Descuentos en $0 sin signo negativo (además de reembolsos $0 en la franja).
-    expect(screen.getAllByText("$0.00").length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText("-$0.00")).not.toBeInTheDocument();
-  });
-
-  it("descuentos mayores que lo ganado: a pagar en $0.00 con aviso del excedente", async () => {
-    mockGetSettlementById.mockResolvedValue({
-      ...pendingSettlement,
-      totalTripsCommission: 2000,
-      grossAmount: 2000,
-      totalAdvancesDeducted: 2500,
-      netAmount: 0,
-    });
-    renderDetail();
-
-    await screen.findByText("LIQ-202609-0001");
-
-    expect(screen.getByText("-$2,500.00")).toBeInTheDocument();
-    expect(screen.getByText("Anticipos descontados en este pago")).toBeInTheDocument();
-    expect(
-      screen.getByText("Los descuentos superan el total por $500.00; a pagar queda en $0.00."),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Lo que recibe el operador")).not.toBeInTheDocument();
-  });
-
-  it("el aviso usa uncovered_deductions_amount del API cuando viene", async () => {
-    mockGetSettlementById.mockResolvedValue({
-      ...pendingSettlement,
-      totalTripsCommission: 2000,
-      grossAmount: 2000,
-      totalAdvancesDeducted: 2500,
-      netAmount: 0,
-      uncoveredDeductionsAmount: 300,
-    });
-    renderDetail();
-
-    await screen.findByText("LIQ-202609-0001");
-
-    expect(
-      screen.getByText("Los descuentos superan el total por $300.00; a pagar queda en $0.00."),
-    ).toBeInTheDocument();
-  });
-
-  it("con reembolsos: strip separa compensación, reembolsos y total", async () => {
-    mockGetSettlementById.mockResolvedValue({
-      ...pendingSettlement,
-      totalTripsCommission: 2000,
-      totalBaseSalary: 0,
-      totalReimbursableExpenses: 500,
-      grossAmount: 2500,
-      netAmount: 2500,
-    });
-    renderDetail();
-
-    await screen.findByText("LIQ-202609-0001");
-
-    const perception = screen.getByTestId("settlement-perception-strip");
-    expect(perception).toHaveTextContent("$2,000.00");
-    expect(perception).toHaveTextContent("$500.00");
-    expect(perception).toHaveTextContent("$2,500.00");
-    expect(perception).toHaveTextContent(
-      "Si el gasto fue de su bolsa, aquí se lo regresas",
+    expect(screen.getByTestId("settlement-trips-rule-table")).toHaveTextContent(
+      "Regla aplicada",
+    );
+    expect(screen.getByText("920 km × $3.00")).toBeInTheDocument();
+    expect(screen.getByTestId("settlement-detail-inspector")).toHaveTextContent(
+      "Por qué este monto",
     );
   });
 });

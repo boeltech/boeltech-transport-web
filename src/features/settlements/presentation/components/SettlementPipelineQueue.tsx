@@ -12,6 +12,10 @@ interface SettlementPipelineQueueProps {
   onView: (id: string) => void;
   onDisburse?: (settlement: DriverSettlement) => void;
   onActionComplete?: () => void;
+  selectedIds?: ReadonlySet<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: (checked: boolean) => void;
+  hasClabeByEmployeeId?: ReadonlyMap<string, boolean>;
 }
 
 export function SettlementPipelineQueue({
@@ -22,9 +26,14 @@ export function SettlementPipelineQueue({
   onView,
   onDisburse,
   onActionComplete,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
+  hasClabeByEmployeeId,
 }: SettlementPipelineQueueProps) {
   const hideDisburse = bucket !== "payable";
   const showRejectedCorrection = bucket === "draft";
+  const columnMode = bucket === "payable" ? "payable" : "pipeline";
 
   // Empty lo resuelve SettlementsListPage (EmptyState único).
   if (!isLoading && settlements.length === 0) return null;
@@ -64,7 +73,11 @@ export function SettlementPipelineQueue({
       onDisburse={hideDisburse ? undefined : onDisburse}
       onActionComplete={onActionComplete}
       showRejectedCorrection={showRejectedCorrection}
-      columnMode="pipeline"
+      columnMode={columnMode}
+      selectedIds={selectedIds}
+      onToggleSelect={onToggleSelect}
+      onToggleSelectAll={onToggleSelectAll}
+      hasClabeByEmployeeId={hasClabeByEmployeeId}
     />
   );
 }

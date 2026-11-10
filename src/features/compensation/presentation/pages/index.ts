@@ -2,3 +2,4 @@ export { CompensationTemplateDetailRedirect } from "./CompensationTemplateDetail
 export { CompensationTemplateListPage } from "./CompensationTemplateListPage";
 export { CompensationSchemeBuilderPage } from "./CompensationSchemeBuilderPage";
 export { CorridorTariffsListPage } from "./CorridorTariffsListPage";
+export { OperatorPaymentsTariffsPage } from "./OperatorPaymentsTariffsPage";

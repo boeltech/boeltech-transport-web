@@ -21,5 +21,11 @@ export function invalidateSettlementQueries(
   void queryClient.invalidateQueries({
     queryKey: settlementsQueryKeys.advances(),
   });
+  void queryClient.invalidateQueries({
+    queryKey: settlementsQueryKeys.workbench(),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: settlementsQueryKeys.navBadges(),
+  });
   invalidateApprovalsRelatedQueries(queryClient);
 }

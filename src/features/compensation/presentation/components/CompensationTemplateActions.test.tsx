@@ -40,9 +40,12 @@ vi.mock("../../application/hooks", () => ({
   }),
 }));
 
+const mockRole = vi.fn(() => "admin" as string | null);
+
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
     hasPermission: (...args: unknown[]) => mockHasPermission(...args),
+    role: mockRole(),
   }),
 }));
 
@@ -92,6 +95,7 @@ function menuEntries(menu: HTMLElement): string[] {
 describe("CompensationTemplateActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRole.mockReturnValue("admin");
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "delete",
     );
@@ -276,7 +280,7 @@ describe("CompensationTemplateActions", () => {
 
     expect(screen.getByRole("link", { name: "Completar pago" })).toHaveAttribute(
       "href",
-      "/finance/compensation/templates/tpl-draft/build",
+      "/finance/operator-payments/tariffs/tpl-draft/build",
     );
   });
 
@@ -316,7 +320,7 @@ describe("CompensationTemplateActions", () => {
     await user.click(within(dialog).getByRole("button", { name: "Crear versión" }));
 
     expect(mockCreateVersionMutateAsync).toHaveBeenCalledWith("tpl-1");
-    expect(mockNavigate).toHaveBeenCalledWith("/finance/compensation/templates/tpl-v2/build");
+    expect(mockNavigate).toHaveBeenCalledWith("/finance/operator-payments/tariffs/tpl-v2/build");
   });
 
   it("CA4: ningún enlace «Crear nueva versión» navega sin crear", async () => {
@@ -365,6 +369,25 @@ describe("CompensationTemplateActions", () => {
         "Esta versión vuelve a usarse en pagos y la versión activa quedará reemplazada. Los operadores no cambian de versión.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("F5 R3: Contador con update no ve «Activar tarifa» en inactiva", async () => {
+    const user = userEvent.setup();
+    allowAll();
+    mockRole.mockReturnValue("accountant");
+
+    renderActions({
+      template: makeCompensationTemplate({
+        id: "tpl-inactive",
+        name: "Inactiva",
+        status: "inactive",
+        rules: [payRule],
+        inactiveReason: "manual",
+      }),
+      onOpenOperators: vi.fn(),
+    });
+
+    expect(menuEntries(await openMenu(user))).not.toContain("Activar tarifa");
   });
 
   it("«Activar tarifa» en desactivada v2 conserva el aviso de reasignación", async () => {

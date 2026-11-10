@@ -57,7 +57,7 @@ vi.mock("@shared/hooks", async (importOriginal) => {
   };
 });
 
-function renderPage(initialEntry = "/finance/compensation/corridors") {
+function renderPage(initialEntry = "/finance/operator-payments/tariffs?tab=routes") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -175,7 +175,7 @@ describe("CorridorTariffsListPage", () => {
   });
 
   it("abre Sheet de alta con ?create=1", async () => {
-    renderPage("/finance/compensation/corridors?create=1");
+    renderPage("/finance/operator-payments/tariffs?tab=routes&create=1");
 
     expect(
       await screen.findByRole("heading", { name: /Nueva ruta con tarifa fija/i }),

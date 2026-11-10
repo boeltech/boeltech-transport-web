@@ -75,6 +75,7 @@ vi.mock("@features/branches", () => ({
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
     hasPermission: (...args: unknown[]) => mockHasPermission(...args),
+    role: "admin",
   }),
 }));
 
@@ -120,7 +121,7 @@ const template: CompensationTemplate = {
 };
 
 // Data router required: CompensationSchemeBuilderPage uses useUnsavedChangesGuard → useBlocker.
-function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build") {
+function renderPage(initialPath = "/finance/operator-payments/tariffs/tpl-1/build") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -128,7 +129,7 @@ function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build")
   const router = createMemoryRouter(
     [
       {
-        path: "/finance/compensation/templates/:id/build",
+        path: "/finance/operator-payments/tariffs/:id/build",
         element: (
           <QueryClientProvider client={client}>
             <CompensationSchemeBuilderPage />
@@ -136,11 +137,11 @@ function renderPage(initialPath = "/finance/compensation/templates/tpl-1/build")
         ),
       },
       {
-        path: "/finance/compensation/templates",
+        path: "/finance/operator-payments/tariffs",
         element: <div>Lista de esquemas</div>,
       },
       {
-        path: "/finance/settlements/new",
+        path: "/finance/operator-payments/new",
         element: <div>Armar pago</div>,
       },
     ],
@@ -175,18 +176,18 @@ describe("CompensationSchemeBuilderPage", () => {
       screen.getByText(/Define cuánto se paga a los operadores/i),
     ).toBeInTheDocument();
 
-    const desktopNav = screen.getByTestId("builder-section-nav-desktop");
+    const formulaNav = screen.getByTestId("builder-formula-nav");
     expect(
-      within(desktopNav).queryByRole("tab", { name: /Identidad/i }),
+      within(formulaNav).queryByRole("button", { name: /Identidad/i }),
     ).not.toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Pago por viaje/i }),
+      within(formulaNav).getByRole("button", { name: /Por cada viaje/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
+      within(formulaNav).getByRole("button", { name: /Fijos por pago/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
+      within(formulaNav).getByRole("button", { name: /Descuentos/i }),
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText("Nombre")).toHaveValue("Operador foráneo");
@@ -198,28 +199,27 @@ describe("CompensationSchemeBuilderPage", () => {
     const inspector = screen.getByTestId("builder-inspector-desktop");
     expect(within(inspector).queryByText(/Resumen en vivo/i)).not.toBeInTheDocument();
     expect(within(inspector).queryByText(/Completitud/i)).not.toBeInTheDocument();
-    expect(within(inspector).getByText(/Resumen en tiempo real/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/Cada extra fijo se suma una vez/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/no divide el monto/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/Tarifa lista para usar/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/Así le pagas/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/Semana de ejemplo/i)).toBeInTheDocument();
     expect(
       within(inspector).queryByRole("link", { name: /Vista previa/i }),
     ).not.toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: "Vista previa del pago" }),
+      screen.getByRole("button", { name: /Probar con un operador real/i }),
     ).toBeInTheDocument();
   });
 
-  it("arranca en Pago por viaje", () => {
+  it("arranca en Por cada viaje", () => {
     renderPage();
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Pago por viaje" }),
+      screen.getByRole("heading", { level: 2, name: "Por cada viaje" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Cada clase de ruta puede tener su propia regla de pago/i),
+      screen.getByText(
+        /Cada viaje se paga una sola vez\. Tlamx revisa en este orden/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -227,28 +227,33 @@ describe("CompensationSchemeBuilderPage", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const desktopNav = screen.getByTestId("builder-section-nav-desktop");
+    const formulaNav = screen.getByTestId("builder-formula-nav");
     await user.click(
-      within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
+      within(formulaNav).getByRole("button", { name: /Fijos por pago/i }),
     );
 
     expect(
       screen.getByText(/Montos fijos que se suman al pago del operador/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Descuentos al operador/i),
-    ).toBeInTheDocument();
 
     await user.click(
-      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
+      within(formulaNav).getByRole("button", { name: /Descuentos/i }),
     );
 
     expect(
-      screen.getByText(/Si el viaje coincide con una de estas rutas/i),
+      screen.getByText(/Montos que se descuentan del pago del operador/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(formulaNav).getByRole("button", { name: /Por cada viaje/i }),
+    );
+
+    expect(
+      screen.getByText(/¿Es una ruta con tarifa fija\?/i),
     ).toBeInTheDocument();
   });
 
-  it("muestra alert incompleto en el inspector cuando falta pago y rutas", () => {
+  it("marca Por cada viaje como vacío en la fórmula cuando falta pago y rutas", () => {
     mockUseCompensationTemplate.mockReturnValue({
       data: {
         ...template,
@@ -263,11 +268,11 @@ describe("CompensationSchemeBuilderPage", () => {
 
     renderPage();
 
-    const inspector = screen.getByTestId("builder-inspector-desktop");
+    const formulaNav = screen.getByTestId("builder-formula-nav");
     expect(
-      within(inspector).getByText(
-        /Para usar esta tarifa, agrega al menos una regla de pago/i,
-      ),
+      within(formulaNav).getByRole("button", {
+        name: /Por cada viaje:.*\(vacío\)/i,
+      }),
     ).toBeInTheDocument();
   });
 
@@ -414,7 +419,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
 
   it("criterio 5: v2 reemplazada con v1 activa — aviso, «La versión activa hoy es la 1.» y «Abrir versión 1» abre v1", async () => {
     const user = userEvent.setup();
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(within(banner).getByText(builderCopy.supersededBanner.title)).toBeInTheDocument();
@@ -433,7 +438,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     expect(mockUseTemplateVersions).toHaveBeenCalledWith("tpl-v2", true);
 
     const openV1 = within(banner).getByRole("link", { name: "Abrir versión 1" });
-    expect(openV1).toHaveAttribute("href", "/finance/compensation/templates/tpl-v1/build");
+    expect(openV1).toHaveAttribute("href", "/finance/operator-payments/tariffs/tpl-v1/build");
     await user.click(openV1);
 
     expect(mockUseCompensationTemplate).toHaveBeenLastCalledWith("tpl-v1");
@@ -447,7 +452,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
       isLoading: false,
       isError: false,
     });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(
@@ -455,7 +460,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     ).toBeInTheDocument();
     expect(within(banner).getByRole("link", { name: "Abrir versión 1" })).toHaveAttribute(
       "href",
-      "/finance/compensation/templates/tpl-v1/build",
+      "/finance/operator-payments/tariffs/tpl-v1/build",
     );
   });
 
@@ -464,7 +469,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     [0, "Hoy no tiene operadores asignados y su configuración ya no se puede cambiar. Para cambiarla, crea una nueva versión."],
   ])("aviso de reemplazada con %i operadores", (count, expected) => {
     templatesById({ "tpl-v2": { ...superseded, activeAssignmentsCount: count } });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     expect(
       within(screen.getByTestId("builder-superseded-banner")).getByText(expected),
@@ -477,7 +482,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
       isLoading: false,
       isError: false,
     });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(
@@ -492,7 +497,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
 
   it("cargando versiones: sin frase de versión activa y solo «Crear nueva versión»", () => {
     mockUseTemplateVersions.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     const banner = screen.getByTestId("builder-superseded-banner");
     expect(within(banner).queryByText(/versión activa hoy|Ninguna versión/)).not.toBeInTheDocument();
@@ -528,7 +533,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
         reason: "superseded",
       });
     });
-    renderPage("/finance/compensation/templates/tpl-v2/build");
+    renderPage("/finance/operator-payments/tariffs/tpl-v2/build");
 
     await user.clear(screen.getByLabelText("Nombre"));
     await user.type(screen.getByLabelText("Nombre"), "Cambio en carrera");
@@ -582,7 +587,7 @@ describe("CompensationSchemeBuilderPage — versiones reemplazadas y desactivada
     ).toBeInTheDocument();
     expect(within(banner).getByRole("link", { name: "Ver operadores" })).toHaveAttribute(
       "href",
-      "/finance/compensation/templates?operators=tpl-1",
+      "/finance/operator-payments/tariffs?operators=tpl-1",
     );
     expect(screen.getAllByText("Desactivada").length).toBeGreaterThan(0);
   });

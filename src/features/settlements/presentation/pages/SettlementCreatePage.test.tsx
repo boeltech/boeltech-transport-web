@@ -206,7 +206,7 @@ describe("SettlementCreatePage Component", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -337,7 +337,7 @@ describe("SettlementCreatePage Component", () => {
 
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -372,7 +372,7 @@ describe("SettlementCreatePage Component", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -428,7 +428,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -479,7 +479,7 @@ describe("SettlementCreatePage Component", () => {
 
     const queryClient = createTestQueryClient();
     const createHref =
-      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
+      "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
     function LocationProbe() {
       const location = useLocation();
       return (
@@ -490,8 +490,8 @@ describe("SettlementCreatePage Component", () => {
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[createHref]}>
           <Routes>
-            <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
-            <Route path="/finance/compensation/templates" element={<LocationProbe />} />
+            <Route path="/finance/operator-payments/new" element={<SettlementCreatePage />} />
+            <Route path="/finance/operator-payments/tariffs" element={<LocationProbe />} />
             <Route path="/employees/:id/edit" element={<LocationProbe />} />
           </Routes>
         </MemoryRouter>
@@ -543,7 +543,7 @@ describe("SettlementCreatePage Component", () => {
     });
 
     const createHref =
-      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
+      "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
     function LocationProbe() {
       const location = useLocation();
       return (
@@ -555,7 +555,7 @@ describe("SettlementCreatePage Component", () => {
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[createHref]}>
           <Routes>
-            <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
+            <Route path="/finance/operator-payments/new" element={<SettlementCreatePage />} />
             <Route path="/employees/:id/edit" element={<LocationProbe />} />
           </Routes>
         </MemoryRouter>
@@ -604,7 +604,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -641,7 +641,7 @@ describe("SettlementCreatePage Component", () => {
     const renderPage = () =>
       render(
         <QueryClientProvider client={createTestQueryClient()}>
-          <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
             <SettlementCreatePage />
           </MemoryRouter>
         </QueryClientProvider>,
@@ -1012,7 +1012,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1058,7 +1058,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1092,7 +1092,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1120,7 +1120,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1167,7 +1167,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1197,7 +1197,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1223,7 +1223,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1265,7 +1265,7 @@ describe("SettlementCreatePage Component", () => {
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1379,7 +1379,7 @@ describe("SettlementCreatePage Component", () => {
         <QueryClientProvider client={createTestQueryClient()}>
           <MemoryRouter
             initialEntries={[
-              "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-31",
+              "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-31",
             ]}
           >
             <SettlementCreatePage />
@@ -1577,7 +1577,7 @@ describe("SettlementCreatePage Component", () => {
         <QueryClientProvider client={createTestQueryClient()}>
           <MemoryRouter
             initialEntries={[
-              "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+              "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
             ]}
           >
             <SettlementCreatePage />
@@ -1677,7 +1677,7 @@ describe("SettlementCreatePage Component", () => {
         <QueryClientProvider client={createTestQueryClient()}>
           <MemoryRouter
             initialEntries={[
-              "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+              "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
             ]}
           >
             <SettlementCreatePage />
@@ -1782,7 +1782,7 @@ describe("SettlementCreatePage Component", () => {
 
         render(
           <QueryClientProvider client={createTestQueryClient()}>
-            <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1"]}>
+            <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1"]}>
               <SettlementCreatePage />
             </MemoryRouter>
           </QueryClientProvider>,
@@ -1813,7 +1813,7 @@ describe("SettlementCreatePage Component", () => {
       const queryClient = createTestQueryClient();
       render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+          <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
             <SettlementCreatePage />
           </MemoryRouter>
         </QueryClientProvider>,
@@ -2038,7 +2038,7 @@ describe("SettlementCreatePage — tope de descuentos contra el bruto", () => {
   function renderPage() {
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <MemoryRouter initialEntries={["/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15"]}>
           <SettlementCreatePage />
         </MemoryRouter>
       </QueryClientProvider>,

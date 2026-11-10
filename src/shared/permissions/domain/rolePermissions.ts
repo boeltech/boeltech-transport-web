@@ -178,9 +178,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "imports.read",
       "imports.execute",
 
-      // Liquidaciones y compensación a operadores (ADR-0085)
+      // Liquidaciones y compensación a operadores (ADR-0085 / F5 R1)
+      // R1: Gerente autoriza; no arma (sin settlements.create).
       "settlements.read",
-      "settlements.create",
       "settlements.update",
       "settlements.delete",
 
@@ -210,8 +210,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Sucursales - Lectura para contexto administrativo
       "branches.read",
 
-      // Empleados - Lectura para nómina
+      // Empleados — lectura + update (F5 R4: CLABE/banco; field-guard en API)
       "employees.read",
+      "employees.update",
 
       // Combustible - Control y aprobación
       "fuel.read",

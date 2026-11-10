@@ -11,6 +11,8 @@ export const navigationCopy = {
     /** Grupo Cobranza (id EN `collections`: paridad con billing/finance). */
     collections: "Cobranza",
     finance: "Finanzas",
+    /** Grupo sidebar Pagos a operadores (P1 / VIS E.0) — 4 destinos. */
+    operatorPayments: "Pagos a operadores",
     reports: "Reportes",
     admin: "Administración",
   },
@@ -35,8 +37,14 @@ export const navigationCopy = {
     financeEfectivoPorCobrar: "Cobros sin factura",
     financeApprovals: "Aprobaciones",
     financeSettlements: "Liquidaciones",
+    /** @deprecated Grupo propio; label histórico del ítem único. */
     financeOperatorPayments: "Pagos a operadores",
     financeAgreements: "Tarifas de pago",
+    /** Destinos del grupo Pagos a operadores (VIS E.0 / .dc.html). */
+    operatorPaymentsPagos: "Pagos",
+    operatorPaymentsAdvances: "Anticipos",
+    operatorPaymentsOperators: "Operadores",
+    operatorPaymentsTariffs: "Tarifas",
     /** Workbench unificado de envío puntual (pendientes / enviadas). */
     financeDispatch: "Envíos",
     /** Ritual periódico: armar → revisar → mandar (Opción A). */

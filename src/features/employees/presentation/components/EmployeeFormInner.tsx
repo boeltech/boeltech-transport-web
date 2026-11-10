@@ -53,6 +53,8 @@ import {
 } from "@shared/ui/wizard";
 import type { WizardFormRef } from "@shared/ui/page-shells/WizardPageShell";
 import { useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
+import { ROLES } from "@shared/constants/roles";
 import { cn } from "@shared/lib/utils/cn";
 import {
   CheckCircle,
@@ -363,6 +365,10 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
   );
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { role } = usePermissions();
+  // F5 R4: CLABE/banco solo admin|accountant (lockstep API employeeBankFieldGuard).
+  const canEditBankFields =
+    role === ROLES.ADMIN || role === ROLES.ACCOUNTANT;
 
   const [currentWizardStep, setCurrentWizardStep] = useState(0);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
@@ -668,6 +674,13 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
       clean(employeeRest as Record<string, unknown>),
     );
 
+    // R4: Gerente no debe enviar bank_* (API 403 en update).
+    if (!canEditBankFields) {
+      delete cleaned.bank_name;
+      delete cleaned.bank_account_number;
+      delete cleaned.bank_clabe;
+    }
+
     if (isEditing && dirtyFields.branch_id && values.branch_id === undefined) {
       cleaned.branch_id = null;
     }
@@ -782,6 +795,7 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
     }
   }, [
     applyDomicilioFieldErrors,
+    canEditBankFields,
     createMutation,
     dirtyFields,
     existing,
@@ -1239,7 +1253,11 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
 
           <FormSectionCard
             title={fc.section.banking.title}
-            description={fc.section.banking.description}
+            description={
+              canEditBankFields
+                ? fc.section.banking.description
+                : fc.section.banking.readOnlyReason
+            }
             icon={<Building2 className="h-4 w-4" />}
             contentClassName="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
@@ -1247,12 +1265,24 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
               <Input
                 {...form.register("bank_name")}
                 placeholder={fc.placeholder.bankName}
+                disabled={!canEditBankFields}
+                title={
+                  canEditBankFields
+                    ? undefined
+                    : fc.section.banking.readOnlyReason
+                }
               />
             </FormField>
             <FormField label={fc.label.bankAccount}>
               <Input
                 {...form.register("bank_account_number")}
                 placeholder={fc.placeholder.bankAccount}
+                disabled={!canEditBankFields}
+                title={
+                  canEditBankFields
+                    ? undefined
+                    : fc.section.banking.readOnlyReason
+                }
               />
             </FormField>
             <FormField label={fc.label.bankClabe}>
@@ -1260,6 +1290,12 @@ export const EmployeeFormInner = forwardRef<WizardFormRef, EmployeeFormInnerProp
                 {...form.register("bank_clabe")}
                 placeholder={fc.placeholder.bankClabe}
                 maxLength={18}
+                disabled={!canEditBankFields}
+                title={
+                  canEditBankFields
+                    ? undefined
+                    : fc.section.banking.readOnlyReason
+                }
               />
             </FormField>
           </FormSectionCard>

@@ -234,6 +234,178 @@ export function simulateCompensation(
   };
 }
 
+// ============================================================================
+// SEMANA DE EJEMPLO (F1 · T8)
+// ============================================================================
+
+export interface SampleWeekTrip {
+  id: string;
+  label: string;
+  input: SimulationInput;
+  /** Si se define, gana sobre la regla por clase (precedencia corredor). */
+  corridorFixedAmount?: number;
+  corridorName?: string;
+}
+
+export interface WeekSimulationLine {
+  id: string;
+  group: "trips" | "allowances" | "deductions";
+  label: string;
+  amount: number;
+  formattedAmount: string;
+  why: string;
+}
+
+export interface WeekSimulationResult {
+  lines: WeekSimulationLine[];
+  tripsTotal: number;
+  allowancesTotal: number;
+  deductionsTotal: number;
+  total: number;
+  formattedTotal: string;
+}
+
+export const DEFAULT_SAMPLE_WEEK_TRIPS: SampleWeekTrip[] = [
+  {
+    id: "sample-corridor",
+    label: "CDMX → Monterrey",
+    input: { routeType: "long_haul", distanceKm: 920, freightRevenue: 18_000 },
+    corridorFixedAmount: 6_500,
+    corridorName: "CDMX → Monterrey",
+  },
+  {
+    id: "sample-long-haul",
+    label: "Foráneo · 920 km",
+    input: { routeType: "long_haul", distanceKm: 920, freightRevenue: 18_000 },
+  },
+  {
+    id: "sample-long-haul-min",
+    label: "Foráneo · 380 km",
+    input: { routeType: "long_haul", distanceKm: 380, freightRevenue: 8_000 },
+  },
+  {
+    id: "sample-local",
+    label: "Local",
+    input: { routeType: "local", distanceKm: 45, freightRevenue: 2_500 },
+  },
+];
+
+function whyForTrip(
+  result: SimulationResult,
+  trip: SampleWeekTrip,
+): string {
+  if (result.corridorMatchName) {
+    return "Ruta con tarifa fija";
+  }
+  if (!result.matchedRule) {
+    return "Sin regla para esta clase";
+  }
+  const rule = result.matchedRule;
+  const commissionType = rule.commissionType as AgreementCommissionType;
+  if (result.minimumApplied) {
+    if (commissionType === "rate_per_km") {
+      const calc = Math.round(trip.input.distanceKm * rule.rateValue * 100) / 100;
+      return `${trip.input.distanceKm} km × ${formatMxCurrency(rule.rateValue)} = ${formatMxCurrency(calc)} → aplica el mínimo`;
+    }
+    return "Aplica el mínimo garantizado";
+  }
+  switch (commissionType) {
+    case "rate_per_km":
+      return `${trip.input.distanceKm} km × ${formatMxCurrency(rule.rateValue)}`;
+    case "percentage_of_freight":
+      return `${rule.rateValue}% del flete`;
+    case "fixed_per_trip":
+      return "Importe fijo por viaje";
+    default:
+      return "Sin pago por viaje";
+  }
+}
+
+/**
+ * Simula una semana de ejemplo: N viajes (cada uno vía `simulateCompensation`
+ * sin fijos/descuentos) + fijos y descuentos una sola vez.
+ * No duplica el motor: reutiliza `simulateCompensation` / golden cases.
+ */
+export function simulateCompensationWeek(
+  rules: CompensationTemplateRule[],
+  fixedAllowances: TemplateFixedAllowance[],
+  trips: SampleWeekTrip[],
+  deductions: TemplateDeduction[] = [],
+): WeekSimulationResult {
+  const lines: WeekSimulationLine[] = [];
+  let tripsTotal = 0;
+
+  for (const trip of trips) {
+    const result = simulateCompensation(
+      rules,
+      [],
+      trip.input,
+      trip.corridorFixedAmount,
+      trip.corridorName,
+      [],
+    );
+    const tripAmount = result.gross;
+    tripsTotal += tripAmount;
+    lines.push({
+      id: trip.id,
+      group: "trips",
+      label: trip.label,
+      amount: tripAmount,
+      formattedAmount: formatMxCurrency(tripAmount),
+      why: whyForTrip(result, trip),
+    });
+  }
+
+  let allowancesTotal = 0;
+  for (const [index, allowance] of fixedAllowances.entries()) {
+    if (!allowance) continue;
+    const amount =
+      typeof allowance.amount === "number" && Number.isFinite(allowance.amount)
+        ? allowance.amount
+        : 0;
+    if (amount <= 0) continue;
+    allowancesTotal += amount;
+    lines.push({
+      id: `allowance-${index}`,
+      group: "allowances",
+      label: allowance.label?.trim() || "Pago fijo",
+      amount,
+      formattedAmount: formatMxCurrency(amount),
+      why: "Una vez por periodo",
+    });
+  }
+
+  let deductionsTotal = 0;
+  for (const [index, deduction] of deductions.entries()) {
+    if (!deduction) continue;
+    const amount =
+      typeof deduction.amount === "number" && Number.isFinite(deduction.amount)
+        ? deduction.amount
+        : 0;
+    if (amount <= 0) continue;
+    deductionsTotal += amount;
+    lines.push({
+      id: `deduction-${index}`,
+      group: "deductions",
+      label: deduction.label?.trim() || "Deducción",
+      amount: -amount,
+      formattedAmount: `−${formatMxCurrency(amount)}`,
+      why: "Se resta antes de pagar",
+    });
+  }
+
+  const total = Math.max(0, tripsTotal + allowancesTotal - deductionsTotal);
+
+  return {
+    lines,
+    tripsTotal,
+    allowancesTotal,
+    deductionsTotal,
+    total,
+    formattedTotal: formatMxCurrency(total),
+  };
+}
+
 /**
  * Genera la descripción en prosa de una regla individual,
  * para mostrar inline debajo del componente editado.

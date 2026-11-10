@@ -71,7 +71,7 @@ function renderHub(
           <Route path={COMPENSATION_CORRIDORS_PATH} element={<div>tab</div>} />
         </Route>
         <Route path="/settings/approvals" element={<div>reglas</div>} />
-        <Route path="/finance/settlements/new" element={<div>alta</div>} />
+        <Route path="/finance/operator-payments/new" element={<div>alta</div>} />
         <Route path="/employees" element={<div>empleados</div>} />
       </Routes>
       <LocationProbe />
@@ -98,11 +98,15 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
     ).not.toBeInTheDocument();
   });
 
-  it("en historial muestra relatedConfig de vuelta a por pagar", () => {
+  it("Pagados (historial) ya no es tab: registry path = por pagar sin relatedConfig", () => {
+    expect(SETTLEMENTS_REGISTRY_PATH).toBe(SETTLEMENTS_LIST_PATH);
     renderHub(SETTLEMENTS_REGISTRY_PATH);
     expect(
-      screen.getByRole("link", { name: copy.registryRelated.label }),
-    ).toHaveAttribute("href", SETTLEMENTS_LIST_PATH);
+      screen.queryByRole("link", { name: copy.registryRelated.label }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: copy.tabs.porPagar }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   it("en por pagar no muestra relatedConfig (Tarifas ya es tab del hub)", () => {
@@ -133,7 +137,7 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
 
   it("en Tarifas con state.from del alta muestra relatedConfig de vuelta (S5-01)", () => {
     const createHref =
-      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
+      "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15";
     renderHub(COMPENSATION_TEMPLATES_PATH, { from: createHref });
     expect(
       screen.getByRole("link", { name: copy.createRelated.label }),

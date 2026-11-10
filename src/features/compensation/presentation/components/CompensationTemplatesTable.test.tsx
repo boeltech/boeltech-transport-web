@@ -22,6 +22,7 @@ vi.mock("../../application/hooks", () => ({
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
     hasPermission: (...args: unknown[]) => mockHasPermission(...args),
+    role: "admin",
   }),
 }));
 

@@ -14,8 +14,12 @@
  */
 
 import { ROLES } from "@shared/constants/roles";
-import { SETTLEMENTS_LIST_PATH } from "@features/settlements/application";
-import { COMPENSATION_HUB_PATH } from "@features/compensation/application";
+import {
+  SETTLEMENTS_ADVANCES_PATH,
+  SETTLEMENTS_LIST_PATH,
+  SETTLEMENTS_OPERATORS_PATH,
+} from "@features/settlements/application";
+import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application";
 import {
   LayoutDashboard,
   Truck,
@@ -40,6 +44,7 @@ import {
   Banknote,
   FileWarning,
   HandCoins,
+  FileSpreadsheet,
 } from "lucide-react";
 import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
 import { navigationCopy } from "../copy/navigationCopy";
@@ -53,7 +58,7 @@ const copy = navigationCopy;
  * IMPORTANTE: Los valores de `module` deben coincidir con los
  * definidos en src/shared/auth/domain/entities.ts
  *
- * Ocho grupos (Inicio suelto + siete con título). Solo se listan pantallas montadas:
+ * Nueve grupos (Inicio suelto + ocho con título). Solo se listan pantallas montadas:
  * un ítem del menú nunca anuncia funcionalidad inexistente.
  */
 export const navigationConfig: NavGroup[] = [
@@ -200,6 +205,41 @@ export const navigationConfig: NavGroup[] = [
     ],
   },
   {
+    id: "operator-payments",
+    title: copy.group.operatorPayments,
+    module: "settlements",
+    items: [
+      {
+        id: "operator-payments-pagos",
+        label: copy.item.operatorPaymentsPagos,
+        path: SETTLEMENTS_LIST_PATH,
+        icon: Banknote,
+        module: "settlements",
+      },
+      {
+        id: "operator-payments-advances",
+        label: copy.item.operatorPaymentsAdvances,
+        path: SETTLEMENTS_ADVANCES_PATH,
+        icon: HandCoins,
+        module: "settlements",
+      },
+      {
+        id: "operator-payments-operators",
+        label: copy.item.operatorPaymentsOperators,
+        path: SETTLEMENTS_OPERATORS_PATH,
+        icon: UsersRound,
+        module: "settlements",
+      },
+      {
+        id: "operator-payments-tariffs",
+        label: copy.item.operatorPaymentsTariffs,
+        path: COMPENSATION_TEMPLATES_PATH,
+        icon: FileSpreadsheet,
+        module: "settlements",
+      },
+    ],
+  },
+  {
     id: "finance",
     title: copy.group.finance,
     items: [
@@ -217,15 +257,6 @@ export const navigationConfig: NavGroup[] = [
         path: "/finance/approvals",
         icon: ClipboardCheck,
         module: "finance_approvals",
-      },
-      {
-        id: "finance-settlements",
-        label: copy.item.financeOperatorPayments,
-        path: SETTLEMENTS_LIST_PATH,
-        icon: Banknote,
-        module: "settlements",
-        // Hub Pagos a operadores: listado + compensación bajo el mismo ítem.
-        activePathPrefixes: [COMPENSATION_HUB_PATH],
       },
       {
         id: "finance-analysis",

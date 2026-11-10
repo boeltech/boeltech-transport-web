@@ -128,12 +128,12 @@ describe("ApprovalPoliciesPage", () => {
   it("muestra Volver a Pagos a operadores cuando state.from es cola del hub", async () => {
     renderPage({
       pathname: "/settings/approvals",
-      state: { from: "/finance/settlements/advances" },
+      state: { from: "/finance/operator-payments/advances" },
     });
     const link = await screen.findByRole("link", {
       name: approvalPoliciesCopy.page.backToOperatorPayments,
     });
-    expect(link).toHaveAttribute("href", "/finance/settlements/advances");
+    expect(link).toHaveAttribute("href", "/finance/operator-payments/advances");
   });
 
   it("no muestra Volver cuando state.from es externo o inseguro", () => {

@@ -60,6 +60,9 @@ import {
   SettlementCorrectionSheet,
   SettlementKindBadge,
   LateReimbursementsAlert,
+  SettlementPaymentFormula,
+  SettlementTripsRuleTable,
+  SettlementDetailInspector,
 } from "../components";
 import { MissingDataAckGate } from "../components/MissingDataAckGate";
 import { ReimbursementsAckGate } from "../components/ReimbursementsAckGate";
@@ -84,7 +87,6 @@ import {
   type TripRouteType,
 } from "../../domain/enums";
 import type { AgreementSnapshot } from "../../domain/entities";
-import { roundCents, uncoveredDeductionsAmount } from "../../domain/settlementTotals";
 import { isDeductionsExceedGrossError } from "../utils/settlementDeductionCapacity";
 import { isMissingDataAckRequiredError } from "../utils/settlementCreateConflicts";
 import { missingDataGapsFromItems } from "../utils/missingDataGapsFromItems";
@@ -276,35 +278,6 @@ export function SettlementDetailPage() {
     settlement?.status === "draft" || settlement?.status === "rejected";
   const isDisbursed = settlement?.status === "disbursed";
 
-  const tripsCount =
-    settlement?.items?.filter((it) => it.itemType === "trip_commission").length ?? 0;
-
-  const compensationAmount = settlement
-    ? roundCents(settlement.grossAmount - returnedReimbursements)
-    : 0;
-
-  const advancesDeducted = settlement?.totalAdvancesDeducted ?? 0;
-  const otherDeductions = settlement?.totalOtherDeductions ?? 0;
-  const totalDiscounts = roundCents(advancesDeducted + otherDeductions);
-  const discountsSubtext =
-    advancesDeducted > 0 && otherDeductions > 0
-      ? dCopy.balanceStrip.discountsBreakdown(
-          formatMxCurrency(advancesDeducted),
-          formatMxCurrency(otherDeductions),
-        )
-      : advancesDeducted > 0
-        ? dCopy.balanceStrip.discountsAdvancesOnly
-        : otherDeductions > 0
-          ? dCopy.balanceStrip.discountsOtherOnly
-          : dCopy.balanceStrip.discountsNone;
-  const uncoveredDeductions = settlement
-    ? (settlement.uncoveredDeductionsAmount ?? uncoveredDeductionsAmount(settlement))
-    : 0;
-  const netSubtext =
-    uncoveredDeductions > 0
-      ? dCopy.balanceStrip.netShortfall(formatMxCurrency(uncoveredDeductions), formatMxCurrency(0))
-      : dCopy.balanceStrip.netSubtext;
-
   return (
     <>
       <DetailPageShell
@@ -495,100 +468,16 @@ export function SettlementDetailPage() {
               </div>
             ) : null}
 
-            {/* F3: Compensación | Reembolsos | Total — encima de Descuentos | A pagar */}
-            <div
-              className="rounded-xl border bg-card shadow-sm overflow-hidden"
-              data-testid="settlement-perception-strip"
-            >
-              <div
-                className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border"
-                aria-label={dCopy.balanceStrip.perceptionAriaLabel}
-              >
-                <div className="p-4 sm:p-5 flex flex-col justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {dCopy.balanceStrip.compensation}
-                  </span>
-                  <div className="mt-2">
-                    <p className="text-2xl font-bold tabular-nums text-foreground">
-                      {formatMxCurrency(compensationAmount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {dCopy.balanceStrip.compensationSubtext}
-                      {!isReimbursementOnly && tripsCount > 0
-                        ? ` · ${dCopy.balanceStrip.tripsCount(tripsCount)}`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 sm:p-5 flex flex-col justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {dCopy.balanceStrip.reimbursements}
-                  </span>
-                  <div className="mt-2">
-                    <p className="text-2xl font-bold tabular-nums text-foreground">
-                      {formatMxCurrency(returnedReimbursements)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {hasReturnedReimbursements
-                        ? dCopy.balanceStrip.reimbursementsSubtext
-                        : dCopy.balanceStrip.reimbursementsNone}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 sm:p-5 flex flex-col justify-between bg-muted/20">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {dCopy.balanceStrip.totalGross}
-                  </span>
-                  <div className="mt-2">
-                    <p className="text-2xl font-bold tabular-nums text-foreground">
-                      {formatMxCurrency(settlement.grossAmount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {isReimbursementOnly
-                        ? copy.reimbursements.detail.grossSubtext
-                        : dCopy.balanceStrip.totalGrossSubtext}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border border-t">
-                <div className="p-4 sm:p-5 flex flex-col justify-between bg-destructive/5">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-destructive">
-                    {dCopy.balanceStrip.discounts}
-                  </span>
-                  <div className="mt-2">
-                    <p className="text-2xl font-bold tabular-nums text-destructive">
-                      {totalDiscounts > 0
-                        ? `-${formatMxCurrency(totalDiscounts)}`
-                        : formatMxCurrency(0)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {discountsSubtext}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 sm:p-5 flex flex-col justify-between bg-muted/30">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {dCopy.balanceStrip.netToPay}
-                  </span>
-                  <div className="mt-2">
-                    <p className="text-2xl sm:text-3xl font-extrabold tabular-nums text-foreground">
-                      {formatMxCurrency(settlement.netAmount)}
-                    </p>
-                    <p className="text-xs font-medium text-foreground mt-0.5">
-                      {netSubtext}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* F4: fórmula 5 términos above-the-fold (CA F4.7) */}
+            <SettlementPaymentFormula settlement={settlement} />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               <div className="lg:col-span-8 space-y-6">
+                <SettlementTripsRuleTable
+                  items={settlement.items ?? []}
+                  tripLinkFrom={settlementDetailPath(settlement.id)}
+                />
+
                 {/* D3: desglose colapsable según estado */}
                 <Collapsible defaultOpen={expandItemsByDefault} className="group">
                   <Card>
@@ -637,7 +526,9 @@ export function SettlementDetailPage() {
               </div>
 
               <div className="lg:col-span-4 space-y-4">
-                {/* D5: timeline compacta */}
+                <SettlementDetailInspector settlement={settlement} />
+
+                {/* D5 / CA F4.10: progreso Elaboró / Autorizó / Pagó */}
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-semibold">{dCopy.workflow.title}</CardTitle>

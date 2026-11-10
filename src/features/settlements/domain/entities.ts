@@ -13,6 +13,9 @@ import type {
   CompensationSalaryPeriod,
   DisbursementMethod,
   MidTripPayoutPolicy,
+  OperatorPaymentAttentionReason,
+  OperatorPaymentReadinessStatus,
+  OperatorTemplatePayability,
   SettlementItemType,
   SettlementStatus,
   TripRouteType,
@@ -107,8 +110,21 @@ export interface DriverAdvance {
   readonly approvalRevision?: string | null;
   /** ADR-0099: `undefined` = API sin bloque; `null` = registro previo al motor. */
   readonly approval?: ApprovalBlock | null;
+  /**
+   * P10 — tope de descuento por periodo (`period_deduction_cap`).
+   * `null` = sin plan (se descuenta todo lo que quepa en el pago).
+   */
+  readonly periodDeductionCap?: number | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/** PUT /settlements/advances/:id/period-deduction-plan — P10 / TEC §C.9 */
+export interface AdvancePeriodDeductionPlan {
+  readonly advanceId: string;
+  readonly amountPerPeriod: number;
+  readonly availableBalance: number;
+  readonly projectedPeriodsEstimate: number;
 }
 
 /** ADR-0099 D17: efecto de editar un anticipo sobre su autorización. */
@@ -601,6 +617,12 @@ export interface SettlementBacklogRow {
   readonly reimbursementsRequiringPayeeCount?: number;
 }
 
+/** KPI del workbench F4: conteo + monto (Operate-Pagos-Workbench). */
+export interface WorkbenchKpiBucket {
+  readonly count: number;
+  readonly amount: number;
+}
+
 export interface SettlementWorkbenchSummary {
   readonly pending: number;
   readonly draft: number;
@@ -608,11 +630,29 @@ export interface SettlementWorkbenchSummary {
   readonly payable: number;
   readonly closed: number;
   readonly openAdvances: number;
+  /** Días del pago en autorización más antiguo; `null` si no hay. */
+  readonly approvalAgingDaysMax?: number | null;
+  /** Suma de saldos libres de anticipos abiertos (respeta tope P10). */
+  readonly advancesDeductibleEstimate?: number;
+  readonly kpis?: {
+    readonly toArm: WorkbenchKpiBucket;
+    readonly inApproval: WorkbenchKpiBucket;
+    readonly authorizedUnpaid: WorkbenchKpiBucket;
+    readonly advancesToDeduct: WorkbenchKpiBucket;
+  };
 }
 
 export interface SettlementWorkbenchData {
   readonly summary: SettlementWorkbenchSummary;
   readonly backlog: readonly SettlementBacklogRow[];
+}
+
+/** GET /settlements/nav-badges — TEC §C.4 */
+export interface SettlementsNavBadges {
+  /** `to_arm` (backlog) + `payable` (approved). */
+  readonly payments: number;
+  /** Anticipos `pending_approval` + `pending_disbursement`. */
+  readonly advances: number;
 }
 
 export interface TenantSettlementSettings {
@@ -625,4 +665,37 @@ export interface TenantSettlementSettings {
   readonly activeApproverCount: number;
   /** Usuarios activos con settlements.execute (live; F17a). */
   readonly activeExecutorCount: number;
+}
+
+// ============================================================================
+// OPERATOR PAYMENT READINESS (F3)
+// ============================================================================
+
+export interface OperatorPaymentReadinessTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly version: number;
+  readonly effectiveFrom: string;
+  readonly payability: OperatorTemplatePayability;
+}
+
+export interface OperatorPaymentReadinessSalary {
+  /** `null` si la ficha no tiene sueldo base. */
+  readonly amount: number | null;
+  /** `employees.salary_type` (`weekly|biweekly|monthly|daily`); null si no aplica. */
+  readonly period: string | null;
+}
+
+/** Fila de `GET /settlements/operators` (HB-T5: solo `hasClabe`, nunca CLABE completa). */
+export interface OperatorPaymentReadiness {
+  readonly employeeId: string;
+  readonly fullName: string;
+  readonly employmentType: string;
+  readonly status: OperatorPaymentReadinessStatus;
+  readonly template: OperatorPaymentReadinessTemplate | null;
+  readonly salary: OperatorPaymentReadinessSalary;
+  readonly hasClabe: boolean;
+  readonly openAdvancesCount: number;
+  readonly openAdvancesBalance: number;
+  readonly attentionReasons: readonly OperatorPaymentAttentionReason[];
 }

@@ -120,11 +120,34 @@ vi.mock("@features/employees/application", () => ({
   }),
 }));
 
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({ user: { id: "user-1", fullName: "Tester" } }),
+}));
+
+vi.mock("@features/approvals/application", () => ({
+  useSelfApprovalPolicy: () => ({ data: null }),
+}));
+
 vi.mock("../../application/hooks", () => ({
   useSettlementWorkbench: () => workbench,
   useSettlementWorkbenchCounts: () => workbenchCounts,
   useSettlements: () => settlementsList,
   useSettlementsReadiness: () => readiness,
+  useOperatorPaymentReadiness: () => ({
+    data: { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 1 } },
+  }),
+  useBatchApproveSettlements: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useBatchRejectSettlements: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useBatchDisburseSettlements: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 describe("SettlementsListPage — F1 Por pagar", () => {
@@ -159,30 +182,67 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     readiness.isLoading = false;
   });
 
-  it("usa Workbench sin header propio y deja contratistas fuera del panel", async () => {
+  it("F4: header con Pago fuera de ciclo, KPIs y pipeline chevrons", async () => {
+    workbenchCounts.summary = {
+      pending: 2,
+      draft: 0,
+      approval: 1,
+      payable: 0,
+      closed: 0,
+      openAdvances: 0,
+      approvalAgingDaysMax: 2,
+      advancesDeductibleEstimate: 1000,
+      kpis: {
+        toArm: { count: 2, amount: 10_000 },
+        inApproval: { count: 1, amount: 5_000 },
+        authorizedUnpaid: { count: 0, amount: 0 },
+        advancesToDeduct: { count: 0, amount: 0 },
+      },
+    };
+    workbench.data = {
+      backlog: [
+        {
+          employeeId: "e1",
+          employeeFullName: "Juan",
+          branchId: null,
+          branchName: null,
+          periodStart: "2026-11-02",
+          periodEnd: "2026-11-08",
+          pendingTripsCount: 1,
+          oldestTripAgeDays: 1,
+          estimatedNetAmount: 5000,
+          rowType: "trips_pending",
+          warnings: [],
+          periodOverlap: null,
+        },
+      ],
+      summary: workbenchCounts.summary,
+    };
+
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
+      screen.getByRole("heading", { name: settlementsCopy.hub.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("pago-fuera-de-ciclo")).toBeInTheDocument();
+    expect(screen.getByTestId("settlement-workbench-kpis")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("settlement-pipeline-chevrons"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("settlement-closed-period-banner"),
+    ).toBeInTheDocument();
+    expect(
       screen.getByLabelText(workbenchCopy.actions.includeContractors),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Filtros/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(workbenchCopy.filter.searchPending),
-    ).toBeInTheDocument();
-    // Hub owns the page title; nested workbench keeps showHeader=false.
-    expect(
-      screen.queryByRole("heading", { name: settlementsCopy.hub.title }),
-    ).not.toBeInTheDocument();
   });
 
   it("sucursal vive en ListingFilterPanel", async () => {
     const user = userEvent.setup();
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     await user.click(screen.getByRole("button", { name: /Filtros/ }));
@@ -196,7 +256,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
 
   it("bucket vacío listo → bridge tarifas + Empleados en DetailAlertCard.action", async () => {
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
@@ -225,12 +285,12 @@ describe("SettlementsListPage — F1 Por pagar", () => {
         label: workbenchCopy.readiness.templatesActiveLabel,
         value: 0,
         status: "empty",
-        href: "/finance/compensation/templates",
+        href: "/finance/operator-payments/tariffs",
       },
     ];
 
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
@@ -250,7 +310,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     const user = userEvent.setup();
 
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=pending"],
+      route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
@@ -265,7 +325,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
 
   it("pipeline vacío usa EmptyState único (sin empty local de cola)", async () => {
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=payable"],
+      route: ["/finance/operator-payments?bucket=payable"],
     });
 
     expect(
@@ -278,7 +338,7 @@ describe("SettlementsListPage — F1 Por pagar", () => {
 
   it("H-02: chip de operador en En autorización usa nombre (sin UUID)", async () => {
     renderWithTheme(<SettlementsListPage />, {
-      route: ["/finance/settlements?bucket=approval&employeeId=emp-9"],
+      route: ["/finance/operator-payments?bucket=approval&employeeId=emp-9"],
     });
 
     expect(

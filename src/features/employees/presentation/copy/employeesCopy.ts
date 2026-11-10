@@ -194,6 +194,9 @@ export const employeesCopy = {
       banking: {
         title: "Datos bancarios",
         description: "Cuenta y CLABE para dispersión del pago al operador.",
+        /** F5 R4 — Gerente no edita CLABE (Roles.dc.html). */
+        readOnlyReason:
+          "La CLABE es a donde se manda el dinero: solo la editan Administrador o Contador.",
       },
     },
     label: {
@@ -360,6 +363,9 @@ export const employeesCopy = {
       banking: {
         title: "Datos bancarios",
         description: "Cuenta y CLABE para dispersión del pago al operador.",
+        /** F5 R4 — Gerente no edita CLABE (Roles.dc.html). */
+        readOnlyReason:
+          "La CLABE es a donde se manda el dinero: solo la editan Administrador o Contador.",
       },
       review: {
         title: "Revisión",

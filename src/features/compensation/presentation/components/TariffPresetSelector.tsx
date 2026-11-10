@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { ArrowLeft, Container, Car, Truck, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  MapPin,
+  Pencil,
+  Percent,
+  Plus,
+  Truck,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -10,24 +18,30 @@ import {
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import { Textarea } from "@shared/ui/text-area/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@shared/ui/select";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { cn } from "@shared/lib/utils/cn";
 import { useCreateCompensationTemplate } from "../../application/hooks";
-import { compensationCopy } from "../copy/compensationCopy";
-import {
-  TARIFF_PRESETS,
-  type TariffPreset,
-} from "../config/tariffPresets";
+import { TEMPLATE_PAYMENT_PERIOD_LABELS } from "../../domain/enums";
+import type { TemplatePaymentPeriod } from "../../domain/enums";
 import type { CreateCompensationTemplatePayload } from "../../domain/entities";
+import { compensationCopy } from "../copy/compensationCopy";
+import { TARIFF_PRESETS, type TariffPreset } from "../config/tariffPresets";
 
 const copy = compensationCopy.presets;
 
 const ICON_MAP = {
   truck: Truck,
-  car: Car,
-  container: Container,
+  percent: Percent,
+  "map-pin": MapPin,
+  calendar: Calendar,
   pencil: Pencil,
 } as const;
 
@@ -51,14 +65,15 @@ export function TariffPresetSelector({
   const [selectedPreset, setSelectedPreset] = useState<TariffPreset | null>(null);
   const [isBlank, setIsBlank] = useState(false);
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [paymentPeriod, setPaymentPeriod] =
+    useState<TemplatePaymentPeriod>("weekly");
 
   const resetState = useCallback(() => {
     setStep("select");
     setSelectedPreset(null);
     setIsBlank(false);
     setName("");
-    setDescription("");
+    setPaymentPeriod("weekly");
   }, []);
 
   const handleOpenChange = useCallback(
@@ -69,22 +84,19 @@ export function TariffPresetSelector({
     [onOpenChange, resetState],
   );
 
-  const handleSelectPreset = useCallback(
-    (preset: TariffPreset) => {
-      setSelectedPreset(preset);
-      setIsBlank(false);
-      setName(preset.suggestedName);
-      setDescription("");
-      setStep("name");
-    },
-    [],
-  );
+  const handleSelectPreset = useCallback((preset: TariffPreset) => {
+    setSelectedPreset(preset);
+    setIsBlank(false);
+    setName(preset.suggestedName);
+    setPaymentPeriod(preset.defaultPaymentPeriod ?? "weekly");
+    setStep("name");
+  }, []);
 
   const handleSelectBlank = useCallback(() => {
     setSelectedPreset(null);
     setIsBlank(true);
     setName("");
-    setDescription("");
+    setPaymentPeriod("weekly");
     setStep("name");
   }, []);
 
@@ -98,13 +110,21 @@ export function TariffPresetSelector({
 
     const payload: CreateCompensationTemplatePayload = {
       name: trimmedName,
-      description: description.trim() || undefined,
+      paymentPeriod,
+      salaryOnly: Boolean(selectedPreset?.salaryOnly),
     };
 
     if (selectedPreset && !isBlank) {
       payload.rules = selectedPreset.rules;
-      payload.fixedAllowances = selectedPreset.fixedAllowances;
-      payload.deductions = selectedPreset.deductions ?? [];
+      payload.fixedAllowances = selectedPreset.fixedAllowances.map((item) => ({
+        ...item,
+        period: paymentPeriod,
+      }));
+      payload.deductions = (selectedPreset.deductions ?? []).map((item) => ({
+        ...item,
+        period: paymentPeriod,
+      }));
+      payload.salaryOnly = Boolean(selectedPreset.salaryOnly);
     }
 
     try {
@@ -124,7 +144,7 @@ export function TariffPresetSelector({
     }
   }, [
     name,
-    description,
+    paymentPeriod,
     selectedPreset,
     isBlank,
     createMutation,
@@ -133,38 +153,11 @@ export function TariffPresetSelector({
     onCreated,
   ]);
 
-  const presetSummaryLines: string[] = selectedPreset
-    ? [
-        ...selectedPreset.rules.map((rule) => {
-          const routeLabels: Record<string, string> = {
-            ...compensationCopy.builder.routeTypeLabels,
-          };
-          const route = routeLabels[rule.routeType] ?? rule.routeType;
-          switch (rule.commissionType) {
-            case "rate_per_km":
-              return `Pago por km ${route.toLowerCase()} ($${rule.rateValue}/km)`;
-            case "percentage_of_freight":
-              return `${rule.rateValue}% del flete (${route.toLowerCase()})`;
-            case "fixed_per_trip":
-              return `$${rule.rateValue} por viaje (${route.toLowerCase()})`;
-            default:
-              return `Sin pago por viaje (${route.toLowerCase()})`;
-          }
-        }),
-        ...selectedPreset.fixedAllowances.map(
-          (a) => `${a.label} $${a.amount} (${a.period === "weekly" ? "semanal" : a.period === "biweekly" ? "quincenal" : "mensual"})`,
-        ),
-        ...(selectedPreset.deductions ?? []).map(
-          (d) => `− ${d.label} $${d.amount} (${d.period === "weekly" ? "semanal" : d.period === "biweekly" ? "quincenal" : "mensual"})`,
-        ),
-      ]
-    : [];
-
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-lg"
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-xl"
         onFocusOutside={(e) => e.preventDefault()}
       >
         <SheetHeader className="border-b px-6 py-4 text-left">
@@ -177,9 +170,7 @@ export function TariffPresetSelector({
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {step === "select" ? (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-foreground">
-                {copy.subtitle}
-              </p>
+              <p className="text-sm font-medium text-foreground">{copy.subtitle}</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {TARIFF_PRESETS.map((preset) => {
                   const Icon = ICON_MAP[preset.iconName];
@@ -193,9 +184,10 @@ export function TariffPresetSelector({
                         "hover:border-primary/50 hover:bg-primary/5",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       )}
+                      data-testid={`tariff-preset-${preset.id}`}
                     >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <Icon className="h-5 w-5" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground group-hover:bg-primary/15 group-hover:text-primary">
+                        <Icon className="h-4 w-4" />
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-foreground">
@@ -205,32 +197,36 @@ export function TariffPresetSelector({
                           {preset.description}
                         </p>
                       </div>
+                      <div className="mt-auto w-full rounded-md bg-background px-2 py-1.5 font-mono text-xs text-muted-foreground">
+                        {preset.formulaMini}
+                      </div>
                     </button>
                   );
                 })}
-
-                <button
-                  type="button"
-                  onClick={handleSelectBlank}
-                  className={cn(
-                    "group flex flex-col items-start gap-2 rounded-lg border border-dashed p-4 text-left transition-colors",
-                    "hover:border-primary/50 hover:bg-primary/5",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  )}
-                >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                    <Pencil className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {copy.blankName}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {copy.blankDescription}
-                    </p>
-                  </div>
-                </button>
               </div>
+
+              <button
+                type="button"
+                onClick={handleSelectBlank}
+                className={cn(
+                  "group flex w-full items-center gap-3 rounded-lg border border-dashed p-4 text-left transition-colors",
+                  "hover:border-primary/50 hover:bg-primary/5",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                )}
+                data-testid="tariff-preset-blank"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {copy.blankName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {copy.blankDescription}
+                  </p>
+                </div>
+              </button>
             </div>
           ) : (
             <div className="space-y-5">
@@ -245,7 +241,7 @@ export function TariffPresetSelector({
                 {copy.step2Back}
               </Button>
 
-              <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
                 <div className="space-y-1.5">
                   <Label htmlFor="preset-name">{copy.nameLabel}</Label>
                   <Input
@@ -255,39 +251,35 @@ export function TariffPresetSelector({
                     placeholder={copy.namePlaceholder}
                     autoFocus
                   />
+                  <p className="text-xs text-muted-foreground">{copy.nameHint}</p>
                 </div>
-
                 <div className="space-y-1.5">
-                  <Label htmlFor="preset-description">
-                    {copy.descriptionLabel}
-                  </Label>
-                  <Textarea
-                    id="preset-description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder={copy.descriptionPlaceholder}
-                    rows={2}
-                  />
-                </div>
-
-                {presetSummaryLines.length > 0 ? (
-                  <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                    <p className="text-xs font-medium text-foreground">
-                      {copy.prefilledHint}
-                    </p>
-                    <ul className="space-y-1 text-xs text-muted-foreground">
-                      {presetSummaryLines.map((line, i) => (
-                        <li key={i} className="flex items-start gap-1.5">
-                          <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" />
-                          {line}
-                        </li>
+                  <Label htmlFor="preset-period">{copy.paymentPeriodLabel}</Label>
+                  <Select
+                    value={paymentPeriod}
+                    onValueChange={(value) =>
+                      setPaymentPeriod(value as TemplatePaymentPeriod)
+                    }
+                  >
+                    <SelectTrigger id="preset-period">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(
+                        Object.entries(TEMPLATE_PAYMENT_PERIOD_LABELS) as Array<
+                          [TemplatePaymentPeriod, string]
+                        >
+                      ).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
                       ))}
-                    </ul>
-                    <p className="text-xs text-muted-foreground italic">
-                      {copy.customizeHint}
-                    </p>
-                  </div>
-                ) : null}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {copy.paymentPeriodHint}
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -298,7 +290,7 @@ export function TariffPresetSelector({
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => handleOpenChange(false)}
                 disabled={createMutation.isPending}
               >

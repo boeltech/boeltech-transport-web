@@ -94,9 +94,10 @@ describe("settlementsCopy — F3 desglose compensación | reembolsos | total", (
 });
 
 describe("settlementsCopy — F2 claridad piloto (wayfinding / disclaimer)", () => {
-  it("hub declara caja operativa ≠ recibo de nómina", () => {
-    expect(settlementsCopy.hub.description).toMatch(/caja operativa/i);
-    expect(settlementsCopy.hub.description).toMatch(/nómina/i);
+  it("módulo declara caja operativa ≠ recibo de nómina", () => {
+    // Disclaimer vive en copy raíz; hub.description sigue VIS (Operate-Pagos-*).
+    expect(settlementsCopy.description).toMatch(/caja operativa/i);
+    expect(settlementsCopy.description).toMatch(/nómina/i);
     expect(settlementsCopy.hub.employeesSalaryAction).toMatch(/Empleados/i);
   });
 

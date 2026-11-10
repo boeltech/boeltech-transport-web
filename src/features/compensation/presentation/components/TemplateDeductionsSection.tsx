@@ -18,10 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { MoneyInput } from "@shared/ui/form";
+import { FieldInlineError, MoneyInput } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
   FIXED_ALLOWANCE_PERIOD_LABELS,
+  type FixedAllowancePeriod,
   type TemplateDeductionType,
 } from "../../domain/enums";
 import { compensationCopy } from "../copy/compensationCopy";
@@ -41,6 +42,8 @@ interface TemplateDeductionsSectionProps {
   removeDeduction: UseFieldArrayRemove;
   stepPrefix?: string;
   operationalLexicon?: boolean;
+  defaultPeriod?: FixedAllowancePeriod;
+  mismatchPeriod?: FixedAllowancePeriod | null;
 }
 
 function defaultLabelForType(type: TemplateDeductionType): string {
@@ -56,6 +59,8 @@ export function TemplateDeductionsSection({
   removeDeduction,
   stepPrefix = "",
   operationalLexicon = true,
+  defaultPeriod = "weekly",
+  mismatchPeriod = null,
 }: TemplateDeductionsSectionProps) {
   const watchedDeductions = useWatch({ control, name: "deductions" });
   const typeLabels = builderCopy.deductionTypeLabels;
@@ -86,7 +91,7 @@ export function TemplateDeductionsSection({
               deductionType: "savings_fund",
               label: defaultLabelForType("savings_fund"),
               amount: 200,
-              period: "weekly",
+              period: defaultPeriod,
               isMandatory: true,
             })
           }
@@ -202,33 +207,50 @@ export function TemplateDeductionsSection({
                 <Controller
                   control={control}
                   name={`deductions.${index}.period`}
-                  render={({ field: periodField }) => (
-                    <Select
-                      value={periodField.value}
-                      onValueChange={periodField.onChange}
-                    >
-                      <SelectTrigger
-                        id={`deduction-period-${index}`}
-                        className="h-10"
-                        aria-label={sheetCopy.deductionPeriod}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(FIXED_ALLOWANCE_PERIOD_LABELS).map(
-                          ([key, label]) => (
-                            <SelectItem key={key} value={key}>
-                              {label}
-                            </SelectItem>
-                          ),
+                  render={({ field: periodField }) => {
+                    const mismatched =
+                      mismatchPeriod != null &&
+                      periodField.value !== mismatchPeriod;
+                    return (
+                      <>
+                        <Select
+                          value={periodField.value}
+                          onValueChange={periodField.onChange}
+                        >
+                          <SelectTrigger
+                            id={`deduction-period-${index}`}
+                            className="h-10"
+                            aria-invalid={mismatched || undefined}
+                            aria-label={sheetCopy.deductionPeriod}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(FIXED_ALLOWANCE_PERIOD_LABELS).map(
+                              ([key, label]) => (
+                                <SelectItem key={key} value={key}>
+                                  {label}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {mismatched ? (
+                          <FieldInlineError
+                            fieldId={`deduction-period-${index}`}
+                            message={builderCopy.periodMismatchField(
+                              FIXED_ALLOWANCE_PERIOD_LABELS[mismatchPeriod].toLowerCase(),
+                            )}
+                          />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {sheetCopy.deductionPeriodHint}
+                          </p>
                         )}
-                      </SelectContent>
-                    </Select>
-                  )}
+                      </>
+                    );
+                  }}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {sheetCopy.deductionPeriodHint}
-                </p>
               </div>
             </div>
 

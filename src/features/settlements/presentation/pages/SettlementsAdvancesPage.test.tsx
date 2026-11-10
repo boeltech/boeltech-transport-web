@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { SettlementsAdvancesPage } from "./SettlementsAdvancesPage";
-import { settlementsDriverAdvanceApprovalsPath } from "../config/settlementWorkbenchConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
 const advancesCopy = settlementsCopy.advancesList;
@@ -71,21 +70,32 @@ vi.mock("@features/employees/application", () => ({
 
 vi.mock("../../application/hooks", () => ({
   useDriverAdvances: () => advancesQuery,
+  useSettlementWorkbench: () => ({
+    data: {
+      backlog: [],
+      summary: {
+        pending: 0,
+        draft: 0,
+        approval: 0,
+        payable: 0,
+        closed: 0,
+        openAdvances: 0,
+      },
+    },
+    isLoading: false,
+  }),
+  useSetAdvancePeriodDeductionPlan: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
-vi.mock(
-  "@features/compensation/presentation/hooks/useRegisterCompensationHubCreateAction",
-  () => ({
-    useRegisterCompensationHubCreateAction: () => undefined,
-  }),
-);
-
-describe("SettlementsAdvancesPage F3", () => {
+describe("SettlementsAdvancesPage F4", () => {
   beforeEach(() => {
     mockPermissions.granted = new Set([
       "settlements.read",
       "settlements.create",
-      "finance_approvals.read",
+      "settlements.update",
     ]);
     advancesQuery.data = {
       data: [],
@@ -97,35 +107,32 @@ describe("SettlementsAdvancesPage F3", () => {
     advancesQuery.refetch.mockClear();
   });
 
-  it("search usa placeholder corto, aria y ancho listing maduro", () => {
-    const { container } = renderWithTheme(<SettlementsAdvancesPage />);
+  it("muestra pipeline 4 etapas y alerta anticipo≠reembolso", () => {
+    renderWithTheme(<SettlementsAdvancesPage />);
+    expect(screen.getByTestId("settlement-pipeline-chevrons")).toBeInTheDocument();
+    expect(screen.getByText(advancesCopy.pipeline.pendingApproval)).toBeInTheDocument();
+    expect(screen.getByText(advancesCopy.pipeline.open)).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText(settlementsCopy.fields.searchPlaceholder),
+      screen.getByTestId("advance-not-reimbursement-alert"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("textbox", {
-        name: settlementsCopy.fields.searchAriaLabel,
-      }),
+      screen.getByText(advancesCopy.notReimbursementAlert.title),
     ).toBeInTheDocument();
-    expect(container.querySelector(".sm\\:min-w-\\[20rem\\]")).toBeTruthy();
   });
 
-  it("CTA Ver en Aprobaciones apunta a la bandeja de anticipos", () => {
+  it("primaria Nuevo anticipo (CA F4.14)", () => {
     renderWithTheme(<SettlementsAdvancesPage />);
-    const link = screen.getByRole("link", {
-      name: advancesCopy.viewInApprovals,
-    });
-    expect(link).toHaveAttribute(
-      "href",
-      settlementsDriverAdvanceApprovalsPath(),
-    );
+    // Header + EmptyState CTA cuando la lista está vacía.
+    expect(
+      screen.getAllByRole("button", { name: advancesCopy.primaryAction }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
-  it("sin finance_approvals.read no muestra Ver en Aprobaciones", () => {
-    mockPermissions.granted = new Set(["settlements.read", "settlements.create"]);
+  it("F5 R1: sin settlements.create no muestra Nuevo anticipo", () => {
+    mockPermissions.granted = new Set(["settlements.read"]);
     renderWithTheme(<SettlementsAdvancesPage />);
     expect(
-      screen.queryByRole("link", { name: advancesCopy.viewInApprovals }),
+      screen.queryByRole("button", { name: advancesCopy.primaryAction }),
     ).not.toBeInTheDocument();
   });
 
@@ -155,7 +162,7 @@ describe("SettlementsAdvancesPage F3", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lista vacía usa EmptyState único del shell", () => {
+  it("lista vacía usa EmptyState", () => {
     renderWithTheme(<SettlementsAdvancesPage />);
 
     expect(
@@ -165,7 +172,7 @@ describe("SettlementsAdvancesPage F3", () => {
 
   it("H-02: chip de operador usa nombre resuelto (sin UUID)", () => {
     renderWithTheme(<SettlementsAdvancesPage />, {
-      route: ["/finance/settlements/advances?employeeId=emp-1"],
+      route: ["/finance/operator-payments/advances?employeeId=emp-1"],
     });
 
     expect(

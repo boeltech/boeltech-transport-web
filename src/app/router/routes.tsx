@@ -346,44 +346,35 @@ const DispatchRunDetailPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.DispatchRunDetailPage })),
 );
 
-// Settlements (Liquidaciones y operadores — ADR-0085)
+// Settlements / Pagos a operadores (canónico /finance/operator-payments — F2)
 const SettlementsListPage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementsListPage })),
-);
-const SettlementsRegistryPage = lazyWithRetry(() =>
-  import("@features/settlements").then((m) => ({
-    default: m.SettlementsRegistryPage,
-  })),
 );
 const SettlementsAdvancesPage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({
     default: m.SettlementsAdvancesPage,
   })),
 );
-const SettlementsPendingApprovalPage = lazyWithRetry(() =>
+const OperatorPaymentsOperatorsPage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({
-    default: m.SettlementsPendingApprovalPage,
-  })),
-);
-const OperatorPaymentsHubLayout = lazyWithRetry(() =>
-  import("@features/settlements").then((m) => ({
-    default: m.OperatorPaymentsHubLayout,
+    default: m.OperatorPaymentsOperatorsPage,
   })),
 );
 const SettlementCreatePage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementCreateEntryPage })),
 );
+const SettlementCutWizardPage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({
+    default: m.SettlementCutWizardPage,
+  })),
+);
 const SettlementDetailPage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementDetailPage })),
 );
 
-// Compensation templates hub (ADR-0089 F3)
-const CompensationHubLayout = lazyWithRetry(() =>
-  import("@features/compensation").then((m) => ({ default: m.CompensationHubLayout })),
-);
-const CompensationTemplateListPage = lazyWithRetry(() =>
+const OperatorPaymentsTariffsPage = lazyWithRetry(() =>
   import("@features/compensation").then((m) => ({
-    default: m.CompensationTemplateListPage,
+    default: m.OperatorPaymentsTariffsPage,
   })),
 );
 const CompensationSchemeBuilderPage = lazyWithRetry(() =>
@@ -396,19 +387,24 @@ const CompensationTemplateDetailRedirect = lazyWithRetry(() =>
     default: m.CompensationTemplateDetailRedirect,
   })),
 );
-const CorridorTariffsListPage = lazyWithRetry(() =>
-  import("@features/compensation").then((m) => ({
-    default: m.CorridorTariffsListPage,
-  })),
-);
 const AgreementsLegacyRedirect = lazyWithRetry(() =>
   import("@features/compensation").then((m) => ({
     default: m.AgreementsLegacyRedirect,
   })),
 );
+const CompensationLegacyRedirect = lazyWithRetry(() =>
+  import("@features/compensation/presentation/routes/CompensationLegacyRedirect").then(
+    (m) => ({ default: m.CompensationLegacyRedirect }),
+  ),
+);
 const SettlementsLegacyRedirect = lazyWithRetry(() =>
   import("@features/settlements/presentation/routes/SettlementsLegacyRedirect").then(
     (m) => ({ default: m.SettlementsLegacyRedirect }),
+  ),
+);
+const FinanceSettlementsLegacyRedirect = lazyWithRetry(() =>
+  import("@features/settlements/presentation/routes/FinanceSettlementsLegacyRedirect").then(
+    (m) => ({ default: m.FinanceSettlementsLegacyRedirect }),
   ),
 );
 
@@ -1145,7 +1141,11 @@ export const router = createBrowserRouter([
                 element: <PermissionRoute module="settlements" action="create" />,
                 children: [
                   {
-                    path: "/finance/settlements/new",
+                    path: "/finance/operator-payments/cuts/new",
+                    element: withSuspense(SettlementCutWizardPage),
+                  },
+                  {
+                    path: "/finance/operator-payments/new",
                     element: withSuspense(SettlementCreatePage),
                   },
                 ],
@@ -1154,59 +1154,54 @@ export const router = createBrowserRouter([
                 element: <ModuleRoute module="settlements" />,
                 children: [
                   {
-                    element: withSuspense(OperatorPaymentsHubLayout),
-                    children: [
-                  {
-                    path: "/finance/settlements/registry",
-                    element: withSuspense(SettlementsRegistryPage),
-                  },
-                  {
-                    path: "/finance/settlements/advances",
+                    path: "/finance/operator-payments/advances",
                     element: withSuspense(SettlementsAdvancesPage),
                   },
                   {
-                    path: "/finance/settlements/pending-approval",
-                    element: withSuspense(SettlementsPendingApprovalPage),
+                    path: "/finance/operator-payments/operators",
+                    element: withSuspense(OperatorPaymentsOperatorsPage),
                   },
                   {
-                    path: "/finance/settlements",
+                    path: "/finance/operator-payments/tariffs/:id/build",
+                    element: withSuspense(CompensationSchemeBuilderPage),
+                  },
+                  {
+                    path: "/finance/operator-payments/tariffs/:id",
+                    element: withSuspense(CompensationTemplateDetailRedirect),
+                  },
+                  {
+                    path: "/finance/operator-payments/tariffs",
+                    element: withSuspense(OperatorPaymentsTariffsPage),
+                  },
+                  {
+                    path: "/finance/operator-payments",
                     element: withSuspense(SettlementsListPage),
                   },
                   {
+                    path: "/finance/operator-payments/:id",
+                    element: withSuspense(SettlementDetailPage),
+                  },
+                  // Legacy /finance/settlements/* → canónico (sin 404)
+                  {
+                    path: "/finance/settlements/*",
+                    element: withSuspense(FinanceSettlementsLegacyRedirect),
+                  },
+                  {
+                    path: "/finance/settlements",
+                    element: withSuspense(FinanceSettlementsLegacyRedirect),
+                  },
+                  // Legacy /finance/compensation/* → Tarifas
+                  {
+                    path: "/finance/compensation/*",
+                    element: withSuspense(CompensationLegacyRedirect),
+                  },
+                  {
                     path: "/finance/compensation",
-                    element: withSuspense(CompensationHubLayout),
-                    children: [
-                      {
-                        index: true,
-                        element: <Navigate to="templates" replace />,
-                      },
-                      {
-                        path: "templates",
-                        element: withSuspense(CompensationTemplateListPage),
-                      },
-                      {
-                        path: "templates/:id",
-                        element: withSuspense(CompensationTemplateDetailRedirect),
-                      },
-                      {
-                        path: "corridors",
-                        element: withSuspense(CorridorTariffsListPage),
-                      },
-                    ],
+                    element: withSuspense(CompensationLegacyRedirect),
                   },
                   {
                     path: "/finance/agreements",
                     element: withSuspense(AgreementsLegacyRedirect),
-                  },
-                    ],
-                  },
-                  {
-                    path: "/finance/settlements/:id",
-                    element: withSuspense(SettlementDetailPage),
-                  },
-                  {
-                    path: "/finance/compensation/templates/:id/build",
-                    element: withSuspense(CompensationSchemeBuilderPage),
                   },
                 ],
               },

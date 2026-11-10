@@ -23,9 +23,11 @@ describe("getTemplateCompleteness", () => {
     const result = getTemplateCompleteness(baseTemplate);
     expect(result.isComplete).toBe(false);
     expect(result.missingSteps).toEqual(["rules", "corridors"]);
-    expect(result.sectionStatuses.payment).toBe("empty");
-    expect(result.sectionStatuses.corridors).toBe("empty");
+    expect(result.sectionStatuses.trips).toBe("empty");
     expect(result.sectionStatuses.allowances).toBe("empty");
+    expect(result.sectionStatuses.deductions).toBe("empty");
+    expect(result.sectionStatuses).not.toHaveProperty("payment");
+    expect(result.sectionStatuses).not.toHaveProperty("corridors");
     expect(result.sectionStatuses).not.toHaveProperty("review");
     expect(result.sectionStatuses).not.toHaveProperty("identity");
   });
@@ -44,7 +46,17 @@ describe("getTemplateCompleteness", () => {
     });
     expect(result.isComplete).toBe(true);
     expect(result.missingSteps).toEqual([]);
-    expect(result.sectionStatuses.payment).toBe("complete");
+    expect(result.sectionStatuses.trips).toBe("partial");
+  });
+
+  it("is complete with salaryOnly + paymentPeriod", () => {
+    const result = getTemplateCompleteness({
+      ...baseTemplate,
+      salaryOnly: true,
+      paymentPeriod: "weekly",
+    });
+    expect(result.isComplete).toBe(true);
+    expect(result.sectionStatuses.trips).toBe("complete");
   });
 
   it("is complete with only linked corridors", () => {
@@ -54,7 +66,7 @@ describe("getTemplateCompleteness", () => {
     });
     expect(result.isComplete).toBe(true);
     expect(result.missingSteps).toEqual([]);
-    expect(result.sectionStatuses.corridors).toBe("complete");
+    expect(result.sectionStatuses.trips).toBe("partial");
   });
 });
 

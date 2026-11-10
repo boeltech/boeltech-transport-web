@@ -62,9 +62,9 @@ export const approvalsCopy = {
       `Incluye ${count} solicitud(es) enviadas por ti; quedarán marcadas como autoaprobadas.`,
     ownChip: "Enviada por ti",
     ownTooltip:
-      "Debe autorizarla otra persona. Pídeselo a un gerente, contador o administrador.",
+      "Quien arma un pago no lo autoriza. Debe autorizarla otra persona (según las reglas de la empresa).",
     ownDisburseTooltip:
-      "Debe registrar el pago otra persona. Pídeselo a un contador o administrador.",
+      "Quien arma un pago no lo registra si hay otra persona con permiso. Pídeselo a un contador o administrador.",
     serverRejected:
       "No puedes autorizar esta solicitud: la enviaste tú y hay otro autorizador activo en la empresa.",
     filterChip: "Autoaprobadas",

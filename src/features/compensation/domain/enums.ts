@@ -21,11 +21,16 @@ export const FIXED_ALLOWANCE_TYPE_LABELS: Record<FixedAllowanceType, string> = {
 
 export type FixedAllowancePeriod = "weekly" | "biweekly" | "monthly";
 
+/** Ritmo de pago de la plantilla (Q2 · payment_period). Alias del periodo de fijos/descuentos. */
+export type TemplatePaymentPeriod = FixedAllowancePeriod;
+
 export const FIXED_ALLOWANCE_PERIOD_LABELS: Record<FixedAllowancePeriod, string> = {
   weekly: "Semanal",
   biweekly: "Quincenal",
   monthly: "Mensual",
 };
+
+export const TEMPLATE_PAYMENT_PERIOD_LABELS = FIXED_ALLOWANCE_PERIOD_LABELS;
 
 export type TemplateDeductionType =
   | "savings_fund"

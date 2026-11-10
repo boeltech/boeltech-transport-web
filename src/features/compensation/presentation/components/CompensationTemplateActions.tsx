@@ -112,9 +112,11 @@ export function CompensationTemplateActions({
 }: CompensationTemplateActionsProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, role } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
   const canDelete = hasPermission("settlements", "delete");
+  // F5 R3: Activar solo admin|manager.
+  const canActivateRole = role === "admin" || role === "manager";
 
   const activateMutation = useActivateCompensationTemplate();
   const deactivateMutation = useDeactivateCompensationTemplate();
@@ -141,7 +143,7 @@ export function CompensationTemplateActions({
   const canCreateVersion =
     canUpdate && template.status === "active" && !draftVersion && !familyHasDraft;
   const canDeactivate = canUpdate && template.status === "active";
-  const canActivateFromMenu = canUpdate && isInactive;
+  const canActivateFromMenu = canUpdate && canActivateRole && isInactive;
 
   const activeVersion = resolveFamilyActiveVersion(template, familyActiveVersion);
   const replacedVersion =

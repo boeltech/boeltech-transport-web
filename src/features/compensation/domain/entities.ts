@@ -13,6 +13,7 @@ import type {
   FixedAllowancePeriod,
   FixedAllowanceType,
   TemplateDeductionType,
+  TemplatePaymentPeriod,
 } from "./enums";
 import type { MidTripPayoutPolicy } from "@features/settlements/domain/enums";
 
@@ -87,6 +88,16 @@ export interface CompensationTemplate {
   supersededByTemplateId?: string | null;
   inactivatedAt?: string | null;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
+  /**
+   * Ritmo de pago de la tarifa (Q2). Ausente = API aún no envía el campo.
+   * Default UX al crear: weekly.
+   */
+  paymentPeriod?: TemplatePaymentPeriod;
+  /**
+   * Preset «Solo sueldo»: sin reglas/corredores; activable cuando la API lo soporte.
+   * Ausente = API aún no envía el campo (tratar como false).
+   */
+  salaryOnly?: boolean;
   rules: CompensationTemplateRule[];
   fixedAllowances: TemplateFixedAllowance[];
   deductions: TemplateDeduction[];
@@ -267,6 +278,10 @@ export interface CreateCompensationTemplatePayload {
   /** Ignorado por API (siempre nace draft). Conservado por compat de callers. */
   isActive?: boolean;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
+  /** Q2 · ritmo a nivel tarifa. */
+  paymentPeriod?: TemplatePaymentPeriod;
+  /** T10 · preset Solo sueldo. */
+  salaryOnly?: boolean;
   rules?: CompensationTemplateRule[];
   fixedAllowances?: TemplateFixedAllowance[];
   deductions?: TemplateDeduction[];
@@ -289,6 +304,8 @@ export interface UpdateCompensationTemplatePayload {
   description?: string | null;
   isActive?: boolean;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
+  paymentPeriod?: TemplatePaymentPeriod;
+  salaryOnly?: boolean;
   rules?: CompensationTemplateRule[];
   fixedAllowances?: TemplateFixedAllowance[];
   /** Si se omite, el API preserva las deducciones existentes. */

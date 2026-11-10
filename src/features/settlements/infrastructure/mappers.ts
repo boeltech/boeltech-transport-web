@@ -10,6 +10,7 @@ import type {
   EligibleTripPreview,
   LateReimbursementsSummary,
   OpenAdvancePreview,
+  OperatorPaymentReadiness,
   PeriodicBlockPreview,
   ReimbursementPreviewLine,
   ReimbursementRequiringPayeeLine,
@@ -18,19 +19,44 @@ import type {
   SettlementBacklogRow,
   SettlementPeriodOverlap,
   SettlementPeriodOverlapStatus,
+  AdvancePeriodDeductionPlan,
   SettlementWorkbenchData,
   SettlementTemplateChange,
   SettlementTemplateSuperseded,
   SettlementWorkbenchSummary,
+  SettlementsNavBadges,
   TemplatePeriodAssignmentRef,
   TemplateVersionReplacementRef,
   TenantSettlementSettings,
+  WorkbenchKpiBucket,
   ZeroCommissionReason,
 } from "../domain/entities";
+import type {
+  SettlementCutCreateResult,
+  SettlementCutCreatedRow,
+  SettlementCutEffect,
+  SettlementCutOmittedRow,
+  SettlementCutPreview,
+  SettlementCutPreviewRow,
+  SettlementCutPreviewSummary,
+  SettlementCutSalaryPeriod,
+  SettlementCutWarning,
+  SettlementCutWarningCode,
+} from "../domain/settlementCut";
+import type {
+  SettlementBatchActionResult,
+  SettlementBatchOmittedRow,
+  SettlementBatchProcessedRow,
+  SettlementBatchReasonCode,
+} from "../domain/settlementBatch";
 import {
   DEFAULT_MID_TRIP_PAYOUT_POLICY,
   DEFAULT_VOBO_THRESHOLD_MXN,
+  type CompensationSalaryPeriod,
   type MidTripPayoutPolicy,
+  type OperatorPaymentAttentionReason,
+  type OperatorPaymentReadinessStatus,
+  type OperatorTemplatePayability,
 } from "../domain/enums";
 
 export interface ApiCompensationAgreementRuleRaw {
@@ -103,6 +129,7 @@ export interface ApiDriverAdvanceRaw {
   executor_count_at_disburse?: number | null;
   approval_revision?: string | null;
   approval?: ApiApprovalBlockRaw | null;
+  period_deduction_cap?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -498,6 +525,12 @@ export function mapAdvance(raw: ApiDriverAdvanceRaw): DriverAdvance {
     ...(raw.approval !== undefined
       ? { approval: raw.approval ? mapApprovalBlock(raw.approval) : null }
       : {}),
+    periodDeductionCap:
+      raw.period_deduction_cap === undefined
+        ? undefined
+        : raw.period_deduction_cap === null
+          ? null
+          : Number(raw.period_deduction_cap),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };
@@ -958,6 +991,11 @@ export interface ApiSettlementBacklogRowRaw {
   reimbursements_requiring_payee_count?: number;
 }
 
+export interface ApiWorkbenchKpiBucketRaw {
+  count?: number;
+  amount?: number;
+}
+
 export interface ApiSettlementWorkbenchRaw {
   summary?: {
     pending?: number;
@@ -966,8 +1004,28 @@ export interface ApiSettlementWorkbenchRaw {
     payable?: number;
     closed?: number;
     open_advances?: number;
+    approval_aging_days_max?: number | null;
+    advances_deductible_estimate?: number;
+    kpis?: {
+      to_arm?: ApiWorkbenchKpiBucketRaw;
+      in_approval?: ApiWorkbenchKpiBucketRaw;
+      authorized_unpaid?: ApiWorkbenchKpiBucketRaw;
+      advances_to_deduct?: ApiWorkbenchKpiBucketRaw;
+    };
   };
   backlog?: ApiSettlementBacklogRowRaw[];
+}
+
+export interface ApiSettlementsNavBadgesRaw {
+  payments?: number;
+  advances?: number;
+}
+
+export interface ApiAdvancePeriodDeductionPlanRaw {
+  advance_id: string;
+  amount_per_period: number;
+  available_balance: number;
+  projected_periods_estimate: number;
 }
 
 function mapPeriodOverlap(
@@ -1014,9 +1072,17 @@ export function mapBacklogRow(raw: ApiSettlementBacklogRowRaw): SettlementBacklo
   };
 }
 
+function mapKpiBucket(raw: ApiWorkbenchKpiBucketRaw | undefined): WorkbenchKpiBucket {
+  return {
+    count: Number(raw?.count ?? 0),
+    amount: Number(raw?.amount ?? 0),
+  };
+}
+
 export function mapWorkbenchResponse(raw: unknown): SettlementWorkbenchData {
   const payload = (raw ?? {}) as ApiSettlementWorkbenchRaw;
   const summaryRaw = payload.summary ?? {};
+  const kpisRaw = summaryRaw.kpis;
   const summary: SettlementWorkbenchSummary = {
     pending: Number(summaryRaw.pending ?? 0),
     draft: Number(summaryRaw.draft ?? 0),
@@ -1024,9 +1090,48 @@ export function mapWorkbenchResponse(raw: unknown): SettlementWorkbenchData {
     payable: Number(summaryRaw.payable ?? 0),
     closed: Number(summaryRaw.closed ?? 0),
     openAdvances: Number(summaryRaw.open_advances ?? 0),
+    approvalAgingDaysMax:
+      summaryRaw.approval_aging_days_max === undefined
+        ? undefined
+        : summaryRaw.approval_aging_days_max === null
+          ? null
+          : Number(summaryRaw.approval_aging_days_max),
+    advancesDeductibleEstimate:
+      summaryRaw.advances_deductible_estimate === undefined
+        ? undefined
+        : Number(summaryRaw.advances_deductible_estimate),
+    ...(kpisRaw
+      ? {
+          kpis: {
+            toArm: mapKpiBucket(kpisRaw.to_arm),
+            inApproval: mapKpiBucket(kpisRaw.in_approval),
+            authorizedUnpaid: mapKpiBucket(kpisRaw.authorized_unpaid),
+            advancesToDeduct: mapKpiBucket(kpisRaw.advances_to_deduct),
+          },
+        }
+      : {}),
   };
   const backlog = (payload.backlog ?? []).map(mapBacklogRow);
   return { summary, backlog };
+}
+
+export function mapNavBadgesResponse(raw: unknown): SettlementsNavBadges {
+  const payload = (raw ?? {}) as ApiSettlementsNavBadgesRaw;
+  return {
+    payments: Number(payload.payments ?? 0),
+    advances: Number(payload.advances ?? 0),
+  };
+}
+
+export function mapAdvancePeriodDeductionPlan(
+  raw: ApiAdvancePeriodDeductionPlanRaw,
+): AdvancePeriodDeductionPlan {
+  return {
+    advanceId: raw.advance_id,
+    amountPerPeriod: Number(raw.amount_per_period),
+    availableBalance: Number(raw.available_balance),
+    projectedPeriodsEstimate: Number(raw.projected_periods_estimate),
+  };
 }
 
 export function mapSettlementSettings(
@@ -1041,5 +1146,331 @@ export function mapSettlementSettings(
           : Number(raw.vobo_threshold_mxn),
     activeApproverCount: Number(raw.active_approver_count) || 0,
     activeExecutorCount: Number(raw.active_executor_count) || 0,
+  };
+}
+
+// ============================================================================
+// OPERATOR PAYMENT READINESS (F3)
+// ============================================================================
+
+export interface ApiOperatorPaymentReadinessTemplateRaw {
+  id: string;
+  name: string;
+  version: number;
+  effective_from: string;
+  payability: string;
+}
+
+export interface ApiOperatorPaymentReadinessSalaryRaw {
+  amount: number | null;
+  period: string | null;
+}
+
+/** Snake_case de `GET /settlements/operators` — HB-T5: nunca `bank_clabe` / CLABE. */
+export interface ApiOperatorPaymentReadinessRaw {
+  employee_id: string;
+  full_name: string;
+  employment_type: string;
+  status: string;
+  template: ApiOperatorPaymentReadinessTemplateRaw | null;
+  salary: ApiOperatorPaymentReadinessSalaryRaw | null;
+  has_clabe: boolean;
+  open_advances_count: number;
+  open_advances_balance: number;
+  attention_reasons: string[];
+}
+
+const OPERATOR_STATUS_SET = new Set<OperatorPaymentReadinessStatus>([
+  "ready",
+  "no_template",
+  "dual_template",
+  "no_clabe",
+  "version_superseded",
+]);
+
+function asOperatorStatus(raw: string): OperatorPaymentReadinessStatus {
+  return OPERATOR_STATUS_SET.has(raw as OperatorPaymentReadinessStatus)
+    ? (raw as OperatorPaymentReadinessStatus)
+    : "no_template";
+}
+
+function asAttentionReasons(
+  raw: string[] | undefined,
+): OperatorPaymentAttentionReason[] {
+  if (!raw?.length) return [];
+  return raw.filter(
+    (code): code is OperatorPaymentAttentionReason =>
+      code !== "ready" && OPERATOR_STATUS_SET.has(code as OperatorPaymentReadinessStatus),
+  );
+}
+
+export function mapOperatorPaymentReadiness(
+  raw: ApiOperatorPaymentReadinessRaw,
+): OperatorPaymentReadiness {
+  const templateRaw = raw.template;
+  return {
+    employeeId: raw.employee_id,
+    fullName: raw.full_name,
+    employmentType: raw.employment_type,
+    status: asOperatorStatus(raw.status),
+    template: templateRaw
+      ? {
+          id: templateRaw.id,
+          name: templateRaw.name,
+          version: Number(templateRaw.version) || 0,
+          effectiveFrom: String(templateRaw.effective_from ?? "").slice(0, 10),
+          payability:
+            templateRaw.payability === "superseded"
+              ? ("superseded" as OperatorTemplatePayability)
+              : ("active" as OperatorTemplatePayability),
+        }
+      : null,
+    salary: {
+      amount:
+        raw.salary?.amount === undefined || raw.salary?.amount === null
+          ? null
+          : Number(raw.salary.amount),
+      period: raw.salary?.period ?? null,
+    },
+    hasClabe: Boolean(raw.has_clabe),
+    openAdvancesCount: Number(raw.open_advances_count) || 0,
+    openAdvancesBalance: Number(raw.open_advances_balance) || 0,
+    attentionReasons: asAttentionReasons(raw.attention_reasons),
+  };
+}
+
+export function mapListOperatorsResponse(response: {
+  data: ApiOperatorPaymentReadinessRaw[];
+  pagination: ApiPaginationRaw;
+}): MappedPaginatedResult<OperatorPaymentReadiness> {
+  return {
+    data: (response.data || []).map(mapOperatorPaymentReadiness),
+    pagination: extractPagination(response.pagination, 1, 25),
+  };
+}
+
+// ============================================================================
+// SETTLEMENT CUT (F6)
+// ============================================================================
+
+export interface ApiSettlementCutWarningRaw {
+  code: string;
+  message: string;
+}
+
+export interface ApiSettlementCutPreviewRowRaw {
+  employee_id: string;
+  employee_full_name: string;
+  employment_type: string;
+  salary_period: string;
+  estimated_net: number | null;
+  estimated_gross: number | null;
+  max_advance_deductible: number | null;
+  suggested_advance_deduction: number | null;
+  trip_ids: string[];
+  warnings: ApiSettlementCutWarningRaw[];
+  effect: string;
+  primary_reason: string | null;
+  period_overlap: ApiSettlementPeriodOverlapRaw | null;
+  suggested_period_start: string | null;
+  open_advances_balance: number;
+}
+
+export interface ApiSettlementCutPreviewSummaryRaw {
+  eligible_count: number;
+  includable_count: number;
+  blocking_count: number;
+  excluded_count: number;
+  estimated_net_total: number;
+  max_rows: number;
+}
+
+export interface ApiSettlementCutPreviewRaw {
+  period_start: string;
+  period_end: string;
+  salary_period: string;
+  include_contractors: boolean;
+  eligible: ApiSettlementCutPreviewRowRaw[];
+  excluded: ApiSettlementCutPreviewRowRaw[];
+  summary: ApiSettlementCutPreviewSummaryRaw;
+}
+
+export interface ApiSettlementCutCreatedRowRaw {
+  employee_id: string;
+  settlement_id: string;
+  settlement_number: string;
+  status: string;
+  net_amount: number;
+}
+
+export interface ApiSettlementCutOmittedRowRaw {
+  employee_id: string;
+  reason_code: string;
+  message: string;
+  http_status: number;
+}
+
+export interface ApiSettlementCutCreateRaw {
+  created: ApiSettlementCutCreatedRowRaw[];
+  omitted: ApiSettlementCutOmittedRowRaw[];
+  idempotent_replay: boolean;
+}
+
+function mapCutWarning(raw: ApiSettlementCutWarningRaw): SettlementCutWarning {
+  return {
+    code: raw.code as SettlementCutWarningCode,
+    message: raw.message,
+  };
+}
+
+function mapCutPreviewRow(raw: ApiSettlementCutPreviewRowRaw): SettlementCutPreviewRow {
+  return {
+    employeeId: raw.employee_id,
+    employeeFullName: raw.employee_full_name,
+    employmentType: raw.employment_type,
+    salaryPeriod: raw.salary_period as CompensationSalaryPeriod,
+    estimatedNet:
+      raw.estimated_net === null || raw.estimated_net === undefined
+        ? null
+        : Number(raw.estimated_net),
+    estimatedGross:
+      raw.estimated_gross === null || raw.estimated_gross === undefined
+        ? null
+        : Number(raw.estimated_gross),
+    maxAdvanceDeductible:
+      raw.max_advance_deductible === null ||
+      raw.max_advance_deductible === undefined
+        ? null
+        : Number(raw.max_advance_deductible),
+    suggestedAdvanceDeduction:
+      raw.suggested_advance_deduction === null ||
+      raw.suggested_advance_deduction === undefined
+        ? null
+        : Number(raw.suggested_advance_deduction),
+    tripIds: raw.trip_ids ?? [],
+    warnings: (raw.warnings ?? []).map(mapCutWarning),
+    effect: raw.effect as SettlementCutEffect,
+    primaryReason: (raw.primary_reason as SettlementCutWarningCode | null) ?? null,
+    periodOverlap: mapPeriodOverlap(raw.period_overlap),
+    suggestedPeriodStart: raw.suggested_period_start ?? null,
+    openAdvancesBalance: Number(raw.open_advances_balance ?? 0),
+  };
+}
+
+function mapCutPreviewSummary(
+  raw: ApiSettlementCutPreviewSummaryRaw,
+): SettlementCutPreviewSummary {
+  return {
+    eligibleCount: Number(raw.eligible_count ?? 0),
+    includableCount: Number(raw.includable_count ?? 0),
+    blockingCount: Number(raw.blocking_count ?? 0),
+    excludedCount: Number(raw.excluded_count ?? 0),
+    estimatedNetTotal: Number(raw.estimated_net_total ?? 0),
+    maxRows: Number(raw.max_rows ?? 100),
+  };
+}
+
+export function mapSettlementCutPreview(
+  raw: ApiSettlementCutPreviewRaw,
+): SettlementCutPreview {
+  return {
+    periodStart: raw.period_start,
+    periodEnd: raw.period_end,
+    salaryPeriod: raw.salary_period as SettlementCutSalaryPeriod,
+    includeContractors: Boolean(raw.include_contractors),
+    eligible: (raw.eligible ?? []).map(mapCutPreviewRow),
+    excluded: (raw.excluded ?? []).map(mapCutPreviewRow),
+    summary: mapCutPreviewSummary(raw.summary),
+  };
+}
+
+function mapCutCreatedRow(raw: ApiSettlementCutCreatedRowRaw): SettlementCutCreatedRow {
+  return {
+    employeeId: raw.employee_id,
+    settlementId: raw.settlement_id,
+    settlementNumber: raw.settlement_number,
+    status: raw.status,
+    netAmount: Number(raw.net_amount ?? 0),
+  };
+}
+
+function mapCutOmittedRow(raw: ApiSettlementCutOmittedRowRaw): SettlementCutOmittedRow {
+  return {
+    employeeId: raw.employee_id,
+    reasonCode: raw.reason_code,
+    message: raw.message,
+    httpStatus: Number(raw.http_status ?? 0),
+  };
+}
+
+export function mapSettlementCutCreateResult(
+  raw: ApiSettlementCutCreateRaw,
+  message?: string,
+): SettlementCutCreateResult {
+  return {
+    created: (raw.created ?? []).map(mapCutCreatedRow),
+    omitted: (raw.omitted ?? []).map(mapCutOmittedRow),
+    idempotentReplay: Boolean(raw.idempotent_replay),
+    message,
+  };
+}
+
+// =============================================================================
+// F7 — batch approve / reject / disburse
+// =============================================================================
+
+export interface ApiSettlementBatchProcessedRowRaw {
+  settlement_id: string;
+  settlement_number: string;
+  status: string;
+  net_amount: number;
+  approval_outcome?: "approved" | "step_signed" | "rejected" | null;
+  disbursement_method?: string | null;
+}
+
+export interface ApiSettlementBatchOmittedRowRaw {
+  settlement_id: string;
+  reason_code: string;
+  reason: string;
+  http_status: number;
+}
+
+export interface ApiSettlementBatchActionRaw {
+  processed: ApiSettlementBatchProcessedRowRaw[];
+  omitted: ApiSettlementBatchOmittedRowRaw[];
+}
+
+function mapBatchProcessedRow(
+  raw: ApiSettlementBatchProcessedRowRaw,
+): SettlementBatchProcessedRow {
+  return {
+    settlementId: raw.settlement_id,
+    settlementNumber: raw.settlement_number,
+    status: raw.status,
+    netAmount: Number(raw.net_amount ?? 0),
+    approvalOutcome: raw.approval_outcome ?? null,
+    disbursementMethod: raw.disbursement_method ?? null,
+  };
+}
+
+function mapBatchOmittedRow(
+  raw: ApiSettlementBatchOmittedRowRaw,
+): SettlementBatchOmittedRow {
+  return {
+    settlementId: raw.settlement_id,
+    reasonCode: raw.reason_code as SettlementBatchReasonCode,
+    reason: raw.reason,
+    httpStatus: Number(raw.http_status ?? 0),
+  };
+}
+
+export function mapSettlementBatchActionResult(
+  raw: ApiSettlementBatchActionRaw,
+  message?: string,
+): SettlementBatchActionResult {
+  return {
+    processed: (raw.processed ?? []).map(mapBatchProcessedRow),
+    omitted: (raw.omitted ?? []).map(mapBatchOmittedRow),
+    message,
   };
 }

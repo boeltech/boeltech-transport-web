@@ -17,8 +17,16 @@ export interface TemplateCompositionBlock {
 
 export type TemplateCompletenessStep = CompositionBlockId;
 
-/** Secciones del Builder (ADR-0091 · Addendum D5.1 — identidad fuera del nav). */
-export type BuilderSectionId = "payment" | "allowances" | "corridors";
+/**
+ * Secciones del Builder F1 (fórmula visible).
+ * `trips` = Por cada viaje (corredores + reglas + medio viaje).
+ * `result` = término «Recibe el operador» (enfoca inspector; no es canvas).
+ */
+export type BuilderSectionId = "trips" | "allowances" | "deductions";
+
+/** Término de resultado de la fórmula (no navega a sección de canvas). */
+export const BUILDER_RESULT_TERM_ID = "result" as const;
+export type BuilderFormulaTermId = BuilderSectionId | typeof BUILDER_RESULT_TERM_ID;
 
 export type BuilderSectionStatus = "complete" | "partial" | "empty";
 

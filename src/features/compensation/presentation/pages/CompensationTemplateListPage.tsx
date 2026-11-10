@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCircle, AlertTriangle, ListFilter, Plus } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import { Button } from "@shared/ui/button";
@@ -49,7 +49,8 @@ import {
   type TemplateListStatusFilter,
 } from "../utils/templateListStatusFilter";
 import { TariffPresetSelector } from "../components/TariffPresetSelector";
-import { useRegisterCompensationHubCreateAction } from "../hooks/useRegisterCompensationHubCreateAction";
+import { TariffListTabs } from "../components/TariffListTabs";
+import { COMPENSATION_CORRIDORS_PATH } from "../../application/compensationRoutes";
 
 const copy = compensationCopy.templates;
 const hubCopy = compensationCopy.hub;
@@ -72,8 +73,13 @@ export function CompensationTemplateListPage() {
   const assignRaw = searchParams.get(TEMPLATE_OPERATORS_PARAMS.assign) ?? "";
   const assignFrom =
     searchParams.get(TEMPLATE_OPERATORS_PARAMS.assignFrom)?.trim() || undefined;
+  const listTab = searchParams.get("tab")?.trim() || "tariffs";
   const paymentPeriodStart = searchParams.get("periodStart")?.trim() || undefined;
   const paymentPeriodEnd = searchParams.get("periodEnd")?.trim() || undefined;
+
+  if (listTab === "routes") {
+    return <Navigate to={COMPENSATION_CORRIDORS_PATH} replace />;
+  }
   const focusAssignmentId =
     searchParams.get(TEMPLATE_OPERATORS_PARAMS.focus)?.trim() || undefined;
   const returnTemplateId =
@@ -330,13 +336,6 @@ export function CompensationTemplateListPage() {
 
   const openCreate = useCallback(() => setDialogOpen(true), [setDialogOpen]);
 
-  const hubCreateAction = useMemo(
-    () =>
-      canCreate ? { label: copy.create, onClick: openCreate } : null,
-    [canCreate, openCreate],
-  );
-  useRegisterCompensationHubCreateAction(hubCreateAction);
-
   const handleTemplateCreated = useCallback(
     (template: { id: string }) => {
       navigate(compensationTemplateBuildPath(template.id));
@@ -365,9 +364,18 @@ export function CompensationTemplateListPage() {
   return (
     <>
       <ListPageShell
-        showHeader={false}
+        showHeader
         title={copy.title}
         description={copy.description}
+        primaryAction={
+          canCreate
+            ? {
+                label: copy.create,
+                onClick: openCreate,
+                icon: <Plus className="mr-2 h-4 w-4" />,
+              }
+            : undefined
+        }
         items={templates}
         isLoading={
           isLoading ||
@@ -388,6 +396,10 @@ export function CompensationTemplateListPage() {
         onPageChange={filters.setPage}
         beforeToolbar={
           <>
+            <TariffListTabs
+              active="tariffs"
+              tariffsCount={data?.pagination.total}
+            />
             {showLoadError ? (
               <DetailAlertCard
                 severity="critical"

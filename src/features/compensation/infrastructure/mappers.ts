@@ -17,6 +17,7 @@ import {
   type FixedAllowancePeriod,
   type FixedAllowanceType,
   type TemplateDeductionType,
+  type TemplatePaymentPeriod,
 } from "../domain/enums";
 import type {
   AssignmentBlockingSettlement,
@@ -39,6 +40,13 @@ import type {
 } from "../domain/entities";
 
 const SALARY_PERIODS = new Set<string>(["weekly", "biweekly", "monthly"]);
+
+function parseTemplatePaymentPeriod(
+  value: string | null | undefined,
+): TemplatePaymentPeriod | undefined {
+  if (value == null) return undefined;
+  return SALARY_PERIODS.has(value) ? (value as TemplatePaymentPeriod) : undefined;
+}
 
 export interface ApiCompensationTemplateRuleRaw {
   id?: string;
@@ -107,6 +115,8 @@ export interface ApiCompensationTemplateRaw {
   superseded_by_template_id?: string | null;
   inactivated_at?: string | null;
   mid_trip_payout_policy?: string;
+  payment_period?: string;
+  salary_only?: boolean;
   rules: ApiCompensationTemplateRuleRaw[];
   fixed_allowances: ApiTemplateFixedAllowanceRaw[];
   deductions?: ApiTemplateDeductionRaw[];
@@ -338,6 +348,10 @@ export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTempla
     midTripPayoutPolicy:
       (raw.mid_trip_payout_policy as MidTripPayoutPolicy | undefined) ??
       DEFAULT_MID_TRIP_PAYOUT_POLICY,
+    ...(parseTemplatePaymentPeriod(raw.payment_period)
+      ? { paymentPeriod: parseTemplatePaymentPeriod(raw.payment_period) }
+      : {}),
+    ...(raw.salary_only !== undefined ? { salaryOnly: Boolean(raw.salary_only) } : {}),
     rules: (raw.rules ?? []).map(mapTemplateRule),
     fixedAllowances: (raw.fixed_allowances ?? []).map(mapFixedAllowance),
     deductions: (raw.deductions ?? []).map(mapDeduction),
@@ -476,6 +490,8 @@ export interface ApiCompensationTemplateCamel {
   supersededByTemplateId?: string | null;
   inactivatedAt?: string | null;
   midTripPayoutPolicy?: MidTripPayoutPolicy;
+  paymentPeriod?: string;
+  salaryOnly?: boolean;
   rules: ApiCompensationTemplateRuleCamel[];
   fixedAllowances: ApiTemplateFixedAllowanceCamel[];
   deductions?: ApiTemplateDeductionCamel[];
@@ -698,6 +714,10 @@ export function mapTemplateFromApi(raw: ApiCompensationTemplateCamel): Compensat
     }),
     midTripPayoutPolicy:
       raw.midTripPayoutPolicy ?? DEFAULT_MID_TRIP_PAYOUT_POLICY,
+    ...(parseTemplatePaymentPeriod(raw.paymentPeriod)
+      ? { paymentPeriod: parseTemplatePaymentPeriod(raw.paymentPeriod) }
+      : {}),
+    ...(raw.salaryOnly !== undefined ? { salaryOnly: Boolean(raw.salaryOnly) } : {}),
     rules: (raw.rules ?? []).map(mapTemplateRuleFromApi),
     fixedAllowances: (raw.fixedAllowances ?? []).map(mapFixedAllowanceFromApi),
     deductions: (raw.deductions ?? []).map(mapDeductionFromApi),

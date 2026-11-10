@@ -24,6 +24,14 @@ vi.mock("@features/approvals", () => ({
   usePendingApprovalsCount: () => pendingCount(),
 }));
 
+vi.mock("@features/settlements/application", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@features/settlements/application")>()),
+  useSettlementsNavBadges: () => ({
+    data: { payments: 0, advances: 0 },
+    isLoading: false,
+  }),
+}));
+
 function renderNavigation(initialEntry: string) {
   return renderHook(() => useNavigationWithBadges(), {
     wrapper: ({ children }: { children: ReactNode }) => (
@@ -44,14 +52,20 @@ describe("useNavigationWithBadges", () => {
     pendingCount.mockReturnValue({ data: 3 });
   });
 
-  it("exposes Pagos a operadores and hides Esquemas (D-P1 hub always)", () => {
-    const { result } = renderNavigation("/finance/settlements");
-    const settlements = itemById(result.current.navigation, "finance-settlements");
+  it("exposes grupo Pagos a operadores con 4 destinos (F2)", () => {
+    const { result } = renderNavigation("/finance/operator-payments");
+    const pagos = itemById(result.current.navigation, "operator-payments-pagos");
+    const advances = itemById(
+      result.current.navigation,
+      "operator-payments-advances",
+    );
     const agreements = itemById(result.current.navigation, "finance-agreements");
 
-    expect(settlements?.label).toBe("Pagos a operadores");
+    expect(pagos?.label).toBe("Pagos");
+    expect(advances?.label).toBe("Anticipos");
     expect(agreements).toBeUndefined();
-    expect(result.current.isItemActive(settlements!)).toBe(true);
+    expect(result.current.isItemActive(pagos!)).toBe(true);
+    expect(result.current.isItemActive(advances!)).toBe(false);
   });
   it("marks the badged approvals item as active on its route", () => {
     const { result } = renderNavigation("/finance/approvals?status=pending");

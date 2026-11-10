@@ -1,28 +1,44 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   History,
-  ArrowUpRight,
+  MoreHorizontal,
+  Plus,
   Wallet,
 } from "lucide-react";
-import {
-  WorkbenchPageShell,
-  type WorkbenchBucket,
-} from "@shared/ui/page-shells";
+import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Label } from "@shared/ui/label";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@shared/ui/dropdown-menu";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
+import { usePermissions } from "@shared/permissions";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { useBranches } from "@features/branches";
+import { useAuth } from "@features/auth";
+import { useSelfApprovalPolicy } from "@features/approvals/application";
+import {
+  DecisionReasonSheet,
+  type DecisionReasonInput,
+} from "@features/approvals/presentation/components";
 import { useHelpEmptySupport } from "@features/help-center/presentation";
+import { approvalPoliciesPath } from "@features/approval-policies/application";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
+  useBatchApproveSettlements,
+  useBatchRejectSettlements,
+  useOperatorPaymentReadiness,
   useSettlements,
   useSettlementWorkbench,
   useSettlementWorkbenchCounts,
@@ -30,9 +46,10 @@ import {
 } from "../../application/hooks";
 import {
   resolveSettlementsListRedirect,
+  settlementCreatePath,
+  settlementCutsNewPath,
   settlementDetailPath,
   SETTLEMENTS_LIST_PATH,
-  settlementsAdvancesPath,
   settlementsRegistryPath,
 } from "../../application/settlementsRoutes";
 import { useSettlementQueueFromState } from "../utils/settlementWayfinding";
@@ -45,14 +62,25 @@ import {
 import {
   DisburseSettlementDialog,
   SettlementBacklogTable,
+  SettlementBatchRegisterSheet,
+  SettlementBulkBar,
+  SettlementClosedPeriodBanner,
+  SettlementPipelineChevrons,
   SettlementPipelineQueue,
   SettlementListFilters,
+  SettlementWorkbenchKpis,
   SettlementsSetupChecklist,
 } from "../components";
 import { filterSettlementBacklog } from "../utils/filterSettlementBacklog";
-import { mapSettlementWorkbenchBuckets } from "../utils/mapSettlementWorkbenchBuckets";
+import { resolveClosedPeriodBanner } from "../utils/closedPeriodBanner";
 import { useEmployeeFilterChipLabel } from "../hooks/useEmployeeFilterChipLabel";
+import { settlementToApprovableItem } from "../utils/settlementApprovableItem";
+import {
+  partitionSettlementsForBatch,
+  summarizeBatchOmits,
+} from "../utils/settlementBatchOmit";
 import type { DriverSettlement } from "../../domain/entities";
+import { roundCents } from "../../domain/settlementTotals";
 
 const copy = settlementsCopy;
 const workbenchCopy = settlementsCopy.workbench;
@@ -61,20 +89,39 @@ const hubCopy = settlementsCopy.hub;
 function isWorkbenchBucket(
   value: string,
 ): value is SettlementWorkbenchNavBucket {
+  // TEC C.2: `paid` = Pagados; workbench usa `closed`.
+  if (value === "paid") return true;
   return SETTLEMENT_WORKBENCH_BUCKETS.includes(
     value as SettlementWorkbenchNavBucket,
   );
 }
 
+function normalizeWorkbenchBucket(
+  value: string,
+): SettlementWorkbenchNavBucket {
+  if (value === "paid") return "closed";
+  return value as SettlementWorkbenchNavBucket;
+}
+
 /**
- * Workbench de pagos a operadores — WorkbenchPageShell (ADR-0090 Fase 2).
- * Registry → /finance/settlements/registry · Anticipos → /finance/settlements/advances
+ * Workbench de pagos a operadores — WorkbenchPageShell (ADR-0090 / F2 sin hub tabs).
+ * Historial → ?bucket=closed · Anticipos → /finance/operator-payments/advances
  */
 export function SettlementsListPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const fromState = useSettlementQueueFromState();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("settlements", "create");
+  const canUpdate = hasPermission("settlements", "update");
+  const canExecute = hasPermission("settlements", "execute");
+  const canReadSettlements = hasPermission("settlements", "read");
+  const canReadApprovalPolicies = hasPermission("approval_policies", "read");
+  const { data: selfApprovalPolicy } = useSelfApprovalPolicy();
+  const batchApproveMutation = useBatchApproveSettlements();
+  const batchRejectMutation = useBatchRejectSettlements();
   const defaultsAppliedRef = useRef(false);
 
   const { data: branchesData } = useBranches({
@@ -109,7 +156,7 @@ export function SettlementsListPage() {
   const activeBucket: SettlementWorkbenchNavBucket = isWorkbenchBucket(
     filters.filters.bucket,
   )
-    ? filters.filters.bucket
+    ? normalizeWorkbenchBucket(filters.filters.bucket)
     : "pending";
   const branchIdFilter = filters.filters.branchId || "";
   const includeContractors = filters.filters.includeContractors === "true";
@@ -169,6 +216,13 @@ export function SettlementsListPage() {
 
   const [disburseSettlement, setDisburseSettlement] =
     useState<DriverSettlement | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [registerSheetOpen, setRegisterSheetOpen] = useState(false);
+  const [registerEligible, setRegisterEligible] = useState<DriverSettlement[]>(
+    [],
+  );
+  const [rejectSheetOpen, setRejectSheetOpen] = useState(false);
+  const [rejectEligible, setRejectEligible] = useState<DriverSettlement[]>([]);
 
   const pipelineStatus =
     activeBucket !== "pending"
@@ -266,6 +320,7 @@ export function SettlementsListPage() {
       // Una sola llamada a setSearchParams: setFilters ya resetea page=1.
       // Un setPage() seguido sobrescribe la URL (RR no encadena updaters).
       // Contratistas / employeeId no aplican fuera de su bucket: limpiar.
+      setSelectedIds(new Set());
       filters.setFilters({
         bucket,
         includeContractors: "",
@@ -275,15 +330,285 @@ export function SettlementsListPage() {
     [filters],
   );
 
-  const buckets: WorkbenchBucket[] = useMemo(
+  const pipelineChevrons = useMemo(
     () =>
-      mapSettlementWorkbenchBuckets({
-        summary: workbenchSummary,
-        activeBucket,
-        onBucketChange: handleBucketChange,
+      SETTLEMENT_WORKBENCH_BUCKETS.map((bucket) => {
+        const count =
+          bucket === "pending"
+            ? workbenchSummary.pending
+            : bucket === "draft"
+              ? workbenchSummary.draft
+              : bucket === "approval"
+                ? workbenchSummary.approval
+                : bucket === "payable"
+                  ? workbenchSummary.payable
+                  : workbenchSummary.closed;
+        const amount =
+          bucket === "pending"
+            ? workbenchSummary.kpis?.toArm.amount
+            : bucket === "approval"
+              ? workbenchSummary.kpis?.inApproval.amount
+              : bucket === "payable"
+                ? workbenchSummary.kpis?.authorizedUnpaid.amount
+                : undefined;
+        return {
+          id: bucket,
+          label: workbenchCopy.buckets[bucket],
+          count,
+          amount,
+          isActive: activeBucket === bucket,
+          onClick: () => handleBucketChange(bucket),
+        };
       }),
     [activeBucket, handleBucketChange, workbenchSummary],
   );
+
+  const closedPeriod = useMemo(
+    () =>
+      resolveClosedPeriodBanner(
+        workbenchSummary,
+        workbenchData?.backlog ?? [],
+      ),
+    [workbenchData?.backlog, workbenchSummary],
+  );
+
+  const selectionEnabled =
+    activeBucket === "payable" || activeBucket === "approval";
+
+  const { data: operatorsData } = useOperatorPaymentReadiness({
+    attention: "all",
+    page: 1,
+    pageSize: 100,
+    enabled: selectionEnabled,
+  });
+
+  const hasClabeByEmployeeId = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const row of operatorsData?.data ?? []) {
+      map.set(row.employeeId, row.hasClabe);
+    }
+    return map;
+  }, [operatorsData?.data]);
+
+  const selectedSettlements = useMemo(
+    () => pipelineSettlements.filter((s) => selectedIds.has(s.id)),
+    [pipelineSettlements, selectedIds],
+  );
+  const hasSelection = selectedIds.size > 0 && selectionEnabled;
+  const selectedTotal = useMemo(
+    () =>
+      roundCents(
+        selectedSettlements.reduce((sum, s) => sum + s.netAmount, 0),
+      ),
+    [selectedSettlements],
+  );
+  const withoutClabeCount = useMemo(
+    () =>
+      selectedSettlements.filter(
+        (s) => hasClabeByEmployeeId.get(s.employeeId) === false,
+      ).length,
+    [hasClabeByEmployeeId, selectedSettlements],
+  );
+
+  const notifyLocalOmits = useCallback(
+    (omitted: ReturnType<typeof partitionSettlementsForBatch>["omitted"]) => {
+      if (omitted.length === 0) return;
+      toast({
+        title: workbenchCopy.bulkBar.omittedLeaveBatch(
+          omitted.length,
+          summarizeBatchOmits(omitted),
+        ),
+        variant: "warning",
+      });
+    },
+    [toast],
+  );
+
+  const handleOpenRegisterBatch = useCallback(() => {
+    const { eligible, omitted } = partitionSettlementsForBatch({
+      settlements: selectedSettlements,
+      kind: "disburse",
+      userId: user?.id,
+      selfApprovalPolicy,
+      canUpdate,
+      canExecute,
+    });
+    notifyLocalOmits(omitted);
+    if (eligible.length === 0) {
+      toast({
+        title: workbenchCopy.batchRegister.emptyEligible,
+        variant: "warning",
+      });
+      return;
+    }
+    setRegisterEligible([...eligible]);
+    setRegisterSheetOpen(true);
+  }, [
+    canExecute,
+    canUpdate,
+    notifyLocalOmits,
+    selectedSettlements,
+    selfApprovalPolicy,
+    toast,
+    user?.id,
+  ]);
+
+  const handleApproveBatch = useCallback(async () => {
+    const { eligible, omitted } = partitionSettlementsForBatch({
+      settlements: selectedSettlements,
+      kind: "approve",
+      userId: user?.id,
+      selfApprovalPolicy,
+      canUpdate,
+      canExecute,
+    });
+    notifyLocalOmits(omitted);
+    if (eligible.length === 0) {
+      toast({
+        title: workbenchCopy.batchApprove.emptyEligible,
+        variant: "warning",
+      });
+      return;
+    }
+    try {
+      const result = await batchApproveMutation.mutateAsync({
+        settlementIds: eligible.map((s) => s.id),
+      });
+      const processed = result.processed.length;
+      const apiOmitted = result.omitted.length;
+      toast({
+        title:
+          apiOmitted > 0
+            ? workbenchCopy.batchApprove.successPartial(processed, apiOmitted)
+            : workbenchCopy.batchApprove.successTitle(processed),
+        description:
+          apiOmitted > 0
+            ? result.omitted.map((o) => o.reason).slice(0, 3).join("; ")
+            : undefined,
+        variant: "success",
+      });
+      setSelectedIds(new Set());
+      void refetchPipelinePrimary();
+      void refetchWorkbenchCounts();
+    } catch (error) {
+      toast({
+        title: workbenchCopy.batchApprove.errorTitle,
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  }, [
+    batchApproveMutation,
+    canExecute,
+    canUpdate,
+    notifyLocalOmits,
+    refetchPipelinePrimary,
+    refetchWorkbenchCounts,
+    selectedSettlements,
+    selfApprovalPolicy,
+    toast,
+    user?.id,
+  ]);
+
+  const handleOpenRejectBatch = useCallback(() => {
+    const { eligible, omitted } = partitionSettlementsForBatch({
+      settlements: selectedSettlements,
+      kind: "reject",
+      userId: user?.id,
+      selfApprovalPolicy,
+      canUpdate,
+      canExecute,
+    });
+    notifyLocalOmits(omitted);
+    if (eligible.length === 0) {
+      toast({
+        title: workbenchCopy.batchReject.emptyEligible,
+        variant: "warning",
+      });
+      return;
+    }
+    setRejectEligible([...eligible]);
+    setRejectSheetOpen(true);
+  }, [
+    canExecute,
+    canUpdate,
+    notifyLocalOmits,
+    selectedSettlements,
+    selfApprovalPolicy,
+    toast,
+    user?.id,
+  ]);
+
+  const handleRejectBatchSubmit = useCallback(
+    async (input: DecisionReasonInput) => {
+      try {
+        const result = await batchRejectMutation.mutateAsync({
+          settlementIds: rejectEligible.map((s) => s.id),
+          reason: input.reason,
+        });
+        const processed = result.processed.length;
+        const apiOmitted = result.omitted.length;
+        toast({
+          title:
+            apiOmitted > 0
+              ? workbenchCopy.batchReject.successPartial(processed, apiOmitted)
+              : workbenchCopy.batchReject.successTitle(processed),
+          description:
+            apiOmitted > 0
+              ? result.omitted.map((o) => o.reason).slice(0, 3).join("; ")
+              : undefined,
+          variant: "success",
+        });
+        setRejectSheetOpen(false);
+        setRejectEligible([]);
+        setSelectedIds(new Set());
+        void refetchPipelinePrimary();
+        void refetchWorkbenchCounts();
+      } catch (error) {
+        toast({
+          title: workbenchCopy.batchReject.errorTitle,
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      }
+    },
+    [
+      batchRejectMutation,
+      refetchPipelinePrimary,
+      refetchWorkbenchCounts,
+      rejectEligible,
+      toast,
+    ],
+  );
+
+  const rejectApprovableItems = useMemo(
+    () => rejectEligible.map(settlementToApprovableItem),
+    [rejectEligible],
+  );
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (!checked) {
+        setSelectedIds(new Set());
+        return;
+      }
+      setSelectedIds(new Set(pipelineSettlements.map((s) => s.id)));
+    },
+    [pipelineSettlements],
+  );
+
+  useEffect(() => {
+    if (!selectionEnabled) setSelectedIds(new Set());
+  }, [selectionEnabled]);
 
   const activeLoading = useMemo(() => {
     if (activeBucket === "pending") {
@@ -449,31 +774,121 @@ export function SettlementsListPage() {
     return <Navigate to={listRedirect} replace />;
   }
 
+  const armCut = () =>
+    navigate(settlementCutsNewPath(), { state: fromState });
+
   return (
     <TooltipProvider delayDuration={0}>
       <WorkbenchPageShell
         title={hubCopy.title}
-        showHeader={false}
-        buckets={buckets}
-        bucketsAriaLabel={workbenchCopy.scorecards.settlements.ariaLabel}
-        bucketsLoading={workbenchCountsLoading}
-        afterAwareness={
-          !workbenchCountsLoading && workbenchSummary.openAdvances > 0 ? (
-            <div className="space-y-1">
-              <Link
-                to={settlementsAdvancesPath()}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+        description={hubCopy.description}
+        showHeader
+        primaryAction={
+          canReadSettlements && !hasSelection
+            ? {
+                label: hubCopy.createCut,
+                onClick: armCut,
+                icon: <Plus className="mr-2 h-4 w-4" />,
+                dataHelpAnchor: "stl-liquidar-periodo",
+                // F5 R1: Gerente ve CTA + motivo; Contador/Admin arman.
+                disabled: !canCreate,
+                disabledTitle: !canCreate
+                  ? hubCopy.createCutDisabledReason
+                  : undefined,
+              }
+            : undefined
+        }
+        secondaryActions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={() => navigate(settlementsRegistryPath())}
+            >
+              <History className="h-4 w-4" />
+              {workbenchCopy.actions.viewFullHistory}
+            </Button>
+            {canReadSettlements ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canCreate}
+                title={
+                  !canCreate ? hubCopy.outOfCycleDisabledReason : undefined
+                }
+                onClick={() =>
+                  navigate(settlementCreatePath(), { state: fromState })
+                }
+                data-testid="pago-fuera-de-ciclo"
               >
-                {workbenchCopy.openAdvancesBridge.linkLabel(
-                  workbenchSummary.openAdvances,
-                )}
-                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-              <p className="text-xs text-muted-foreground">
-                {workbenchCopy.openAdvancesBridge.description}
-              </p>
-            </div>
-          ) : undefined
+                {hubCopy.outOfCycle}
+              </Button>
+            ) : null}
+            {canReadSettlements && hasSelection ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={armCut}
+                disabled={!canCreate}
+                title={
+                  !canCreate ? hubCopy.createCutDisabledReason : undefined
+                }
+                data-help-anchor="stl-liquidar-periodo"
+              >
+                <Plus className="h-4 w-4" />
+                {hubCopy.createCut}
+              </Button>
+            ) : null}
+            {canReadApprovalPolicies ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Más</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() =>
+                      navigate(approvalPoliciesPath("settlement"), {
+                        state: {
+                          from: `${location.pathname}${location.search}`,
+                        },
+                      })
+                    }
+                  >
+                    {hubCopy.approvalPoliciesAction}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </>
+        }
+        buckets={[]}
+        beforeAwareness={
+          <div className="space-y-4">
+            {closedPeriod ? (
+              <SettlementClosedPeriodBanner
+                model={closedPeriod}
+                onArmCut={armCut}
+                canArmCut={canCreate}
+                armCutDisabledReason={hubCopy.createCutDisabledReason}
+              />
+            ) : null}
+            <SettlementWorkbenchKpis
+              summary={workbenchSummary}
+              isLoading={workbenchCountsLoading}
+            />
+            <SettlementPipelineChevrons
+              buckets={pipelineChevrons}
+              isLoading={workbenchCountsLoading}
+            />
+          </div>
         }
         toolbar={{
           search: {
@@ -489,18 +904,6 @@ export function SettlementsListPage() {
           activeFilterChips,
           onClearFilters: filters.clearAll,
           hasFilters: hasToolbarFilters,
-          extraActions: (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(settlementsRegistryPath())}
-              className="gap-2"
-            >
-              <History className="h-4 w-4" />
-              {workbenchCopy.actions.viewFullHistory}
-            </Button>
-          ),
           viewMode: filters.viewModeProps,
           filters: (
             <>
@@ -663,19 +1066,53 @@ export function SettlementsListPage() {
               }
             />
           ) : (
-            <SettlementPipelineQueue
-              bucket={activeBucket}
-              settlements={pipelineSettlements}
-              isLoading={false}
-              viewMode={filters.viewMode}
-              onView={handleViewSettlement}
-              onDisburse={setDisburseSettlement}
-              onActionComplete={() => {
-                void refetchPipelinePrimary();
-                if (activeBucket === "draft") void refetchRejectedPipeline();
-                void refetchWorkbenchCounts();
-              }}
-            />
+            <div className="space-y-2">
+              {activeBucket === "payable" ? (
+                <SettlementBulkBar
+                  mode="payable"
+                  selectedCount={selectedIds.size}
+                  selectedTotal={selectedTotal}
+                  withoutClabeCount={withoutClabeCount}
+                  onRegisterBatch={handleOpenRegisterBatch}
+                />
+              ) : null}
+              {activeBucket === "approval" ? (
+                <SettlementBulkBar
+                  mode="approval"
+                  selectedCount={selectedIds.size}
+                  selectedTotal={selectedTotal}
+                  onApproveBatch={() => void handleApproveBatch()}
+                  onRejectBatch={handleOpenRejectBatch}
+                  isBusy={
+                    batchApproveMutation.isPending ||
+                    batchRejectMutation.isPending
+                  }
+                />
+              ) : null}
+              <SettlementPipelineQueue
+                bucket={activeBucket}
+                settlements={pipelineSettlements}
+                isLoading={false}
+                viewMode={filters.viewMode}
+                onView={handleViewSettlement}
+                onDisburse={setDisburseSettlement}
+                selectedIds={selectionEnabled ? selectedIds : undefined}
+                onToggleSelect={
+                  selectionEnabled ? handleToggleSelect : undefined
+                }
+                onToggleSelectAll={
+                  selectionEnabled ? handleToggleSelectAll : undefined
+                }
+                hasClabeByEmployeeId={
+                  activeBucket === "payable" ? hasClabeByEmployeeId : undefined
+                }
+                onActionComplete={() => {
+                  void refetchPipelinePrimary();
+                  if (activeBucket === "draft") void refetchRejectedPipeline();
+                  void refetchWorkbenchCounts();
+                }}
+              />
+            </div>
           );
         }}
         pagination={activePagination}
@@ -693,6 +1130,41 @@ export function SettlementsListPage() {
             void refetchPipelinePrimary();
             void refetchWorkbenchCounts();
             setDisburseSettlement(null);
+          }}
+        />
+      ) : null}
+
+      {registerSheetOpen ? (
+        <SettlementBatchRegisterSheet
+          open={registerSheetOpen}
+          onOpenChange={(open) => {
+            setRegisterSheetOpen(open);
+            if (!open) setRegisterEligible([]);
+          }}
+          settlements={registerEligible}
+          hasClabeByEmployeeId={hasClabeByEmployeeId}
+          onSuccess={() => {
+            setSelectedIds(new Set());
+            void refetchPipelinePrimary();
+            void refetchWorkbenchCounts();
+          }}
+        />
+      ) : null}
+
+      {rejectSheetOpen ? (
+        <DecisionReasonSheet
+          mode="reject"
+          open={rejectSheetOpen}
+          onOpenChange={(open) => {
+            setRejectSheetOpen(open);
+            if (!open) setRejectEligible([]);
+          }}
+          item={rejectApprovableItems[0] ?? null}
+          bulkItems={rejectApprovableItems}
+          isSubmitting={batchRejectMutation.isPending}
+          type="internal_staff_compensation"
+          onSubmit={(input) => {
+            void handleRejectBatchSubmit(input);
           }}
         />
       ) : null}

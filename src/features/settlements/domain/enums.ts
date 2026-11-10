@@ -201,3 +201,38 @@ export const DISBURSEMENT_METHOD_LABELS: Record<DisbursementMethod, string> = {
   cash: "Efectivo",
   electronic_wallet: "Monedero / Tarjeta",
 };
+
+// ============================================================================
+// OPERATOR PAYMENT READINESS (F3 / TEC §C.3)
+// ============================================================================
+
+/** Badge primario; precedencia API: no_template > dual_template > no_clabe > version_superseded > ready. */
+export type OperatorPaymentReadinessStatus =
+  | "ready"
+  | "no_template"
+  | "dual_template"
+  | "no_clabe"
+  | "version_superseded";
+
+export type OperatorPaymentAttentionReason = Exclude<
+  OperatorPaymentReadinessStatus,
+  "ready"
+>;
+
+export type OperatorPaymentAttentionFilter =
+  | "all"
+  | "needs_attention"
+  | "ready";
+
+export const OPERATOR_PAYMENT_STATUS_LABELS: Record<
+  OperatorPaymentReadinessStatus,
+  string
+> = {
+  ready: "Listo",
+  no_template: "Sin tarifa",
+  dual_template: "Dos tarifas a la vez",
+  no_clabe: "Sin CLABE",
+  version_superseded: "Versión reemplazada",
+};
+
+export type OperatorTemplatePayability = "active" | "superseded";

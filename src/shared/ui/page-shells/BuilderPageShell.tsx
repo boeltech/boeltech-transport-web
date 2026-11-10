@@ -59,6 +59,22 @@ export interface BuilderStatusLabels {
   empty: string;
 }
 
+/** Término de la barra de fórmula (variante `navVariant="formula"`). */
+export interface BuilderFormulaTerm {
+  id: string;
+  /** p. ej. «1 · Por cada viaje» */
+  label: string;
+  /** Valor corto: «Ruta fija o clase de ruta» / «$1,200 por semana» */
+  value: string;
+  /** Resumen con completitud: «3 rutas fijas · 2 clases» */
+  summary: string;
+  status: BuilderSectionStatus;
+  /** El 4º término (= Recibe) no navega a sección: enfoca inspector. */
+  isResult?: boolean;
+}
+
+export type BuilderNavVariant = "rail" | "formula";
+
 export interface BuilderPageShellProps {
   title: string;
   /** Subtítulo opcional bajo el título (homologa Hub/Form). */
@@ -80,6 +96,22 @@ export interface BuilderPageShellProps {
   collapseInspectorLabel?: string;
   statusLabels?: BuilderStatusLabels;
   className?: string;
+  /**
+   * `rail` (default): nav lateral de secciones.
+   * `formula`: barra de fórmula arriba del canvas+inspector (ds_evolution OK).
+   */
+  navVariant?: BuilderNavVariant;
+  /** Requerido cuando `navVariant="formula"`. */
+  formulaTerms?: BuilderFormulaTerm[];
+  formulaAriaLabel?: string;
+  /** Separadores entre términos (default + − =). */
+  formulaOperators?: Array<"+" | "−" | "=">;
+  /** Callback al elegir el término resultado (enfoca inspector). */
+  onFormulaResultFocus?: () => void;
+  /** Id del término resultado activo (resalta sin cambiar sección). */
+  formulaResultActive?: boolean;
+  /** Acciones del header a la derecha (ghost/outline/default). */
+  headerActions?: ReactNode;
 }
 
 const DEFAULT_STATUS_LABELS: BuilderStatusLabels = {
@@ -98,12 +130,121 @@ const STATUS_DOT_CLASS: Record<BuilderSectionStatus, string> = {
   empty: "bg-muted-foreground/35",
 };
 
+const FORMULA_STATUS_DOT_CLASS: Record<BuilderSectionStatus, string> = {
+  complete: "bg-success",
+  partial: "bg-warning",
+  empty: "border-[1.5px] border-muted-foreground bg-transparent",
+};
+
 function SectionStatusDot({ status }: { status: BuilderSectionStatus }) {
   return (
     <span
       className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT_CLASS[status])}
       aria-hidden
     />
+  );
+}
+
+function FormulaStatusDot({ status }: { status: BuilderSectionStatus }) {
+  return (
+    <span
+      className={cn("inline-block h-2 w-2 shrink-0 rounded-full", FORMULA_STATUS_DOT_CLASS[status])}
+      aria-hidden
+    />
+  );
+}
+
+function FormulaNav({
+  terms,
+  operators,
+  activeSectionId,
+  resultActive,
+  ariaLabel,
+  statusLabels,
+  onSelect,
+  onResultFocus,
+}: {
+  terms: BuilderFormulaTerm[];
+  operators: Array<"+" | "−" | "=">;
+  activeSectionId: string;
+  resultActive: boolean;
+  ariaLabel: string;
+  statusLabels: BuilderStatusLabels;
+  onSelect: (id: string) => void;
+  onResultFocus?: () => void;
+}) {
+  return (
+    <nav
+      aria-label={ariaLabel}
+      data-testid="builder-formula-nav"
+      className="mb-4 grid items-stretch gap-0 rounded-xl border bg-card p-2"
+      style={{
+        gridTemplateColumns: terms
+          .map((_, index) => (index === terms.length - 1 ? "1.15fr" : "1fr"))
+          .flatMap((col, index) => (index === 0 ? [col] : ["28px", col]))
+          .join(" "),
+      }}
+    >
+      {terms.map((term, index) => {
+        const isActive = term.isResult
+          ? resultActive
+          : !resultActive && term.id === activeSectionId;
+        const op = operators[index];
+        return (
+          <div key={term.id} className="contents">
+            {index > 0 ? (
+              <div
+                className="flex items-center justify-center text-xl font-medium text-muted-foreground"
+                aria-hidden
+              >
+                {op ?? "+"}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                if (term.isResult) {
+                  onResultFocus?.();
+                  return;
+                }
+                onSelect(term.id);
+              }}
+              aria-current={isActive ? "true" : undefined}
+              aria-label={`${term.label}: ${term.value} (${statusLabels[term.status]})`}
+              className={cn(
+                "flex flex-col gap-1 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors",
+                "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isActive &&
+                  "border-primary bg-primary/10 shadow-[inset_0_-3px_0_0_hsl(var(--primary))]",
+                term.isResult && !isActive && "bg-secondary",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 text-xs font-semibold text-muted-foreground",
+                  isActive && "text-primary",
+                )}
+              >
+                {term.label}
+              </span>
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  term.isResult && "font-mono text-lg leading-6",
+                  term.status === "empty" && !term.isResult && "font-medium text-muted-foreground",
+                )}
+              >
+                {term.value}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {!term.isResult ? <FormulaStatusDot status={term.status} /> : null}
+                {term.summary}
+              </span>
+            </button>
+          </div>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -190,15 +331,29 @@ function BuilderPageShellInner({
   collapseInspectorLabel = "Ocultar resumen",
   statusLabels = DEFAULT_STATUS_LABELS,
   className,
+  navVariant = "rail",
+  formulaTerms,
+  formulaAriaLabel = "Cómo se calcula el pago (secciones de la tarifa)",
+  formulaOperators = ["+", "−", "="],
+  onFormulaResultFocus,
+  formulaResultActive = false,
+  headerActions,
 }: BuilderPageShellProps) {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
   const hasInspector = Boolean(renderInspector);
+  const isFormula = navVariant === "formula";
   const reactId = useId();
   const panelId = `${reactId}-builder-panel`;
 
   const activeSection =
     sections.find((section) => section.id === activeSectionId) ?? sections[0];
+
+  const openInspector = useCallback(() => {
+    setInspectorCollapsed(false);
+    setMobileInspectorOpen(true);
+    onFormulaResultFocus?.();
+  }, [onFormulaResultFocus]);
 
   const handleTabKeyDown = useCallback(
     (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -255,12 +410,22 @@ function BuilderPageShellInner({
       {/* Header */}
       <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
-            <Link to={backHref}>
-              <ArrowLeft className="h-4 w-4" aria-hidden />
-              {backLabel}
-            </Link>
-          </Button>
+          {!isFormula ? (
+            <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
+              <Link to={backHref}>
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+                {backLabel}
+              </Link>
+            </Button>
+          ) : (
+            <nav aria-label="Migas" className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <Link to={backHref} className="hover:text-foreground hover:underline">
+                {backLabel}
+              </Link>
+              <span aria-hidden>/</span>
+              <span className="font-medium text-foreground">{title}</span>
+            </nav>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
             {statusBadge}
@@ -270,75 +435,60 @@ function BuilderPageShellInner({
           ) : null}
         </div>
 
-        {hasInspector ? (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="lg:hidden"
-              leftIcon={<PanelRight className="h-4 w-4" />}
-              onClick={() => setMobileInspectorOpen(true)}
-            >
-              {inspectorTitle}
-            </Button>
-            {inspectorCollapsed ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {headerActions}
+          {hasInspector ? (
+            <>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="hidden lg:inline-flex"
+                className="lg:hidden"
                 leftIcon={<PanelRight className="h-4 w-4" />}
-                onClick={() => setInspectorCollapsed(false)}
+                onClick={() => setMobileInspectorOpen(true)}
               >
                 {inspectorTitle}
               </Button>
-            ) : null}
-          </div>
-        ) : null}
+              {inspectorCollapsed ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="hidden lg:inline-flex"
+                  leftIcon={<PanelRight className="h-4 w-4" />}
+                  onClick={() => setInspectorCollapsed(false)}
+                >
+                  {inspectorTitle}
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       </header>
 
       {banner ? <div className="mb-4">{banner}</div> : null}
 
-      {/* Mobile section tabs */}
-      <div
-        role="tablist"
-        aria-label={sectionsAriaLabel}
-        aria-orientation="horizontal"
-        className="mb-4 flex gap-2 overflow-x-auto pb-1 lg:hidden"
-        data-testid="builder-section-nav-mobile"
-      >
-        {sections.map((section) => (
-          <SectionNavButton
-            key={section.id}
-            section={section}
-            isActive={section.id === activeSectionId}
-            onSelect={() => onSectionChange(section.id)}
-            layout="horizontal"
-            tabId={tabIdFor("horizontal", section.id)}
-            panelId={panelId}
-            statusLabels={statusLabels}
-            onKeyDown={handleTabKeyDown}
-          />
-        ))}
-      </div>
+      {isFormula && formulaTerms && formulaTerms.length > 0 ? (
+        <FormulaNav
+          terms={formulaTerms}
+          operators={formulaOperators}
+          activeSectionId={activeSectionId}
+          resultActive={formulaResultActive}
+          ariaLabel={formulaAriaLabel}
+          statusLabels={statusLabels}
+          onSelect={onSectionChange}
+          onResultFocus={openInspector}
+        />
+      ) : null}
 
-      {/* Body: nav + canvas + inspector */}
-      <div
-        className={cn(
-          "grid min-h-0 flex-1 gap-4",
-          hasInspector && !inspectorCollapsed
-            ? "lg:grid-cols-[12rem_minmax(0,1fr)_18rem]"
-            : "lg:grid-cols-[12rem_minmax(0,1fr)]",
-        )}
-      >
-        {/* Desktop section nav */}
-        <nav
+      {/* Mobile section tabs (rail only; formula usa la barra arriba) */}
+      {!isFormula ? (
+        <div
           role="tablist"
           aria-label={sectionsAriaLabel}
-          aria-orientation="vertical"
-          className="hidden flex-col gap-1 rounded-lg border bg-muted/30 p-2 lg:flex"
-          data-testid="builder-section-nav-desktop"
+          aria-orientation="horizontal"
+          className="mb-4 flex gap-2 overflow-x-auto pb-1 lg:hidden"
+          data-testid="builder-section-nav-mobile"
         >
           {sections.map((section) => (
             <SectionNavButton
@@ -346,26 +496,92 @@ function BuilderPageShellInner({
               section={section}
               isActive={section.id === activeSectionId}
               onSelect={() => onSectionChange(section.id)}
-              layout="vertical"
-              tabId={tabIdFor("vertical", section.id)}
+              layout="horizontal"
+              tabId={tabIdFor("horizontal", section.id)}
               panelId={panelId}
               statusLabels={statusLabels}
               onKeyDown={handleTabKeyDown}
             />
           ))}
-        </nav>
+        </div>
+      ) : (
+        <div
+          role="tablist"
+          aria-label={sectionsAriaLabel}
+          aria-orientation="horizontal"
+          className="mb-4 flex gap-2 overflow-x-auto pb-1 lg:hidden"
+          data-testid="builder-section-nav-mobile"
+        >
+          {sections.map((section) => (
+            <SectionNavButton
+              key={section.id}
+              section={section}
+              isActive={!formulaResultActive && section.id === activeSectionId}
+              onSelect={() => onSectionChange(section.id)}
+              layout="horizontal"
+              tabId={tabIdFor("horizontal", section.id)}
+              panelId={panelId}
+              statusLabels={statusLabels}
+              onKeyDown={handleTabKeyDown}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Body: nav + canvas + inspector */}
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 gap-4",
+          isFormula
+            ? hasInspector && !inspectorCollapsed
+              ? "lg:grid-cols-[minmax(0,1fr)_21rem]"
+              : "lg:grid-cols-[minmax(0,1fr)]"
+            : hasInspector && !inspectorCollapsed
+              ? "lg:grid-cols-[12rem_minmax(0,1fr)_18rem]"
+              : "lg:grid-cols-[12rem_minmax(0,1fr)]",
+        )}
+      >
+        {/* Desktop section nav (rail) */}
+        {!isFormula ? (
+          <nav
+            role="tablist"
+            aria-label={sectionsAriaLabel}
+            aria-orientation="vertical"
+            className="hidden flex-col gap-1 rounded-lg border bg-muted/30 p-2 lg:flex"
+            data-testid="builder-section-nav-desktop"
+          >
+            {sections.map((section) => (
+              <SectionNavButton
+                key={section.id}
+                section={section}
+                isActive={section.id === activeSectionId}
+                onSelect={() => onSectionChange(section.id)}
+                layout="vertical"
+                tabId={tabIdFor("vertical", section.id)}
+                panelId={panelId}
+                statusLabels={statusLabels}
+                onKeyDown={handleTabKeyDown}
+              />
+            ))}
+          </nav>
+        ) : null}
 
         {/* Canvas — sin card chrome; FormSectionCard de feature aporta superficie */}
         <main
           id={panelId}
           role="tabpanel"
           aria-label={activeSection?.label ?? canvasAriaLabel}
-          className="min-w-0 space-y-4"
+          className={cn(
+            "min-w-0 space-y-4",
+            isFormula && "rounded-xl border bg-card p-5 text-card-foreground",
+          )}
         >
           {activeSection ? (
-            <h2 className="text-lg font-semibold tracking-tight">
-              {activeSection.label}
-            </h2>
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold tracking-tight">
+                {activeSection.label}
+              </h2>
+            </div>
           ) : null}
           {renderCanvas(activeSectionId)}
         </main>
@@ -373,23 +589,30 @@ function BuilderPageShellInner({
         {/* Desktop inspector */}
         {hasInspector && !inspectorCollapsed ? (
           <aside
-            className="hidden min-w-0 rounded-lg border bg-card p-4 text-card-foreground shadow-sm lg:block"
+            className={cn(
+              "hidden min-w-0 text-card-foreground lg:block",
+              isFormula
+                ? "sticky top-4 self-start space-y-4"
+                : "rounded-lg border bg-card p-4 shadow-sm",
+            )}
             aria-label={inspectorTitle}
             data-testid="builder-inspector-desktop"
           >
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">{inspectorTitle}</h2>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setInspectorCollapsed(true)}
-                aria-label={collapseInspectorLabel}
-              >
-                <PanelRightClose className="h-4 w-4" />
-              </Button>
-            </div>
+            {!isFormula ? (
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">{inspectorTitle}</h2>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setInspectorCollapsed(true)}
+                  aria-label={collapseInspectorLabel}
+                >
+                  <PanelRightClose className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : null}
             {renderInspector?.()}
           </aside>
         ) : null}

@@ -6,30 +6,60 @@ import type {
   ApprovalReturnReasonCode,
 } from "@features/approvals";
 import type {
+  AdvancePeriodDeductionPlan,
   CompensationAgreement,
   DriverAdvance,
   DriverSettlement,
+  OperatorPaymentReadiness,
   SettlementPreview,
+  SettlementsNavBadges,
   SettlementWorkbenchData,
   TenantSettlementSettings,
   UpdateDriverAdvanceResult,
   UpdateSettlementResult,
 } from "../domain/entities";
-import type { AdvanceStatus, SettlementStatus } from "../domain/enums";
+import type {
+  CreateSettlementCutPayload,
+  PreviewSettlementCutPayload,
+  SettlementCutCreateResult,
+  SettlementCutPreview,
+} from "../domain/settlementCut";
+import type {
+  BatchApproveSettlementsPayload,
+  BatchDisburseSettlementsPayload,
+  BatchRejectSettlementsPayload,
+  SettlementBatchActionResult,
+} from "../domain/settlementBatch";
+import type {
+  AdvanceStatus,
+  OperatorPaymentAttentionFilter,
+  SettlementStatus,
+} from "../domain/enums";
 import type { ManualSettlementItemInput } from "../domain/settlementTotals";
 import {
   mapAgreement,
   mapAdvance,
+  mapAdvancePeriodDeductionPlan,
   mapSettlement,
   mapSettlementPreview,
   mapListAdvancesResponse,
+  mapListOperatorsResponse,
   mapListSettlementsResponse,
+  mapNavBadgesResponse,
   mapWorkbenchResponse,
   mapSettlementSettings,
+  mapSettlementCutPreview,
+  mapSettlementCutCreateResult,
+  mapSettlementBatchActionResult,
+  type ApiAdvancePeriodDeductionPlanRaw,
   type ApiCompensationAgreementRaw,
   type ApiDriverAdvanceRaw,
   type ApiDriverSettlementRaw,
+  type ApiOperatorPaymentReadinessRaw,
   type ApiPaginationRaw,
+  type ApiSettlementBatchActionRaw,
+  type ApiSettlementCutCreateRaw,
+  type ApiSettlementCutPreviewRaw,
   type ApiSettlementPreviewRaw,
   type ApiTenantSettlementSettingsRaw,
 } from "./mappers";
@@ -128,6 +158,13 @@ export interface ListWorkbenchParams {
   employeeId?: string;
   branchId?: string;
   includeContractors?: boolean;
+}
+
+export interface ListOperatorsParams {
+  attention?: OperatorPaymentAttentionFilter;
+  includeContractors?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
 export const settlementsApi = {
@@ -322,6 +359,27 @@ export const settlementsApi = {
   // ==========================================================================
   // SETTLEMENTS & PREVIEW
   // ==========================================================================
+  /** GET /settlements/operators — readiness agregado (F3 / TEC §C.3). */
+  listOperators: async (
+    params: ListOperatorsParams = {},
+  ): Promise<MappedPaginatedResult<OperatorPaymentReadiness>> => {
+    const queryParams: Record<string, string> = {
+      attention: params.attention ?? "all",
+      page: String(params.page ?? 1),
+      page_size: String(params.pageSize ?? 25),
+    };
+    if (params.includeContractors) {
+      queryParams.include_contractors = "true";
+    }
+
+    const response = await apiClient.get<{
+      data: ApiOperatorPaymentReadinessRaw[];
+      pagination: ApiPaginationRaw;
+    }>(`${BASE_ENDPOINT}/operators`, { params: queryParams });
+
+    return mapListOperatorsResponse(response);
+  },
+
   getWorkbench: async (
     params: ListWorkbenchParams = {},
   ): Promise<SettlementWorkbenchData> => {
@@ -337,6 +395,28 @@ export const settlementsApi = {
       { params: queryParams },
     );
     return mapWorkbenchResponse(response.data);
+  },
+
+  /** GET /settlements/nav-badges — TEC §C.4 / F4 */
+  getNavBadges: async (): Promise<SettlementsNavBadges> => {
+    const response = await apiClient.get<{ data: unknown }>(
+      `${BASE_ENDPOINT}/nav-badges`,
+    );
+    return mapNavBadgesResponse(response.data);
+  },
+
+  /** PUT /settlements/advances/:id/period-deduction-plan — P10 / TEC §C.9 */
+  setAdvancePeriodDeductionPlan: async (
+    id: string,
+    amountPerPeriod: number,
+  ): Promise<AdvancePeriodDeductionPlan> => {
+    const response = await apiClient.put<{
+      data: ApiAdvancePeriodDeductionPlanRaw;
+      message?: string;
+    }>(`${BASE_ENDPOINT}/advances/${id}/period-deduction-plan`, {
+      amount_per_period: amountPerPeriod,
+    });
+    return mapAdvancePeriodDeductionPlan(response.data);
   },
 
   previewSettlement: async (
@@ -407,6 +487,59 @@ export const settlementsApi = {
       cleanedPayload,
     );
     return mapSettlement(response.data);
+  },
+
+  /** F6 — preview del corte en lote. */
+  previewSettlementCut: async (
+    payload: PreviewSettlementCutPayload,
+  ): Promise<SettlementCutPreview> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementCutPreviewRaw>
+    >(`${BASE_ENDPOINT}/cuts/preview`, {
+      periodStart: payload.periodStart,
+      periodEnd: payload.periodEnd,
+      salaryPeriod: payload.salaryPeriod,
+      includeContractors: payload.includeContractors ?? false,
+      ...(payload.employeeIds && payload.employeeIds.length > 0
+        ? { employeeIds: payload.employeeIds }
+        : {}),
+    });
+    return mapSettlementCutPreview(response.data);
+  },
+
+  /** F6 — crear N settlements 1:1 (Idempotency-Key UUID obligatorio). */
+  createSettlementCut: async (
+    payload: CreateSettlementCutPayload,
+    idempotencyKey: string,
+  ): Promise<SettlementCutCreateResult> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementCutCreateRaw> & { message?: string }
+    >(
+      `${BASE_ENDPOINT}/cuts`,
+      {
+        periodStart: payload.periodStart,
+        periodEnd: payload.periodEnd,
+        salaryPeriod: payload.salaryPeriod,
+        includeContractors: payload.includeContractors ?? false,
+        submitForApproval: payload.submitForApproval ?? true,
+        rows: payload.rows.map((row) => ({
+          employeeId: row.employeeId,
+          tripIds: row.tripIds ?? [],
+          confirmedReimbursementExpenseIds:
+            row.confirmedReimbursementExpenseIds ?? [],
+          advancesToApply: row.advancesToApply ?? [],
+          customItems: row.customItems ?? [],
+          notes: row.notes?.trim() ? row.notes.trim() : undefined,
+          acknowledgeZeroKmTrips: row.acknowledgeZeroKmTrips ?? false,
+          acknowledgeZeroFreightTrips: row.acknowledgeZeroFreightTrips ?? false,
+          acknowledgeNoRuleTrips: row.acknowledgeNoRuleTrips ?? false,
+        })),
+      },
+      {
+        headers: { "Idempotency-Key": idempotencyKey },
+      },
+    );
+    return mapSettlementCutCreateResult(response.data, response.message);
   },
 
   createReimbursementSettlement: async (
@@ -554,5 +687,67 @@ export const settlementsApi = {
       cleanedPayload,
     );
     return mapSettlement(response.data);
+  },
+
+  /** POST /settlements/batch/approve — F7 TEC §C.7 */
+  batchApproveSettlements: async (
+    payload: BatchApproveSettlementsPayload,
+  ): Promise<SettlementBatchActionResult> => {
+    const body: Record<string, unknown> = {
+      settlement_ids: [...payload.settlementIds],
+    };
+    if (payload.expectedStep !== undefined) body.expected_step = payload.expectedStep;
+    if (payload.expectedRevision) body.expected_revision = payload.expectedRevision;
+
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementBatchActionRaw> & { message?: string }
+    >(`${BASE_ENDPOINT}/batch/approve`, body);
+    return mapSettlementBatchActionResult(response.data, response.message);
+  },
+
+  /** POST /settlements/batch/reject — F7 TEC §C.7 */
+  batchRejectSettlements: async (
+    payload: BatchRejectSettlementsPayload,
+  ): Promise<SettlementBatchActionResult> => {
+    const body: Record<string, unknown> = {
+      settlement_ids: [...payload.settlementIds],
+      reason: payload.reason,
+    };
+    if (payload.expectedStep !== undefined) body.expected_step = payload.expectedStep;
+    if (payload.expectedRevision) body.expected_revision = payload.expectedRevision;
+
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementBatchActionRaw> & { message?: string }
+    >(`${BASE_ENDPOINT}/batch/reject`, body);
+    return mapSettlementBatchActionResult(response.data, response.message);
+  },
+
+  /**
+   * POST /settlements/batch/disburse — F7 TEC §C.7.
+   * Sin `disbursementMethod`: API deriva SPEI/cash por hasClabe (nunca envía CLABE).
+   * `generateDispersionFile` se ignora hasta F8.
+   */
+  batchDisburseSettlements: async (
+    payload: BatchDisburseSettlementsPayload,
+  ): Promise<SettlementBatchActionResult> => {
+    const body: Record<string, unknown> = {
+      settlement_ids: [...payload.settlementIds],
+      disbursement_reference: payload.disbursementReference,
+      disbursed_at: payload.disbursedAt,
+      expected_revisions: { ...payload.expectedRevisions },
+    };
+    const notes = payload.notes?.trim();
+    if (notes) body.notes = notes;
+    if (payload.disbursementMethod) {
+      body.disbursement_method = payload.disbursementMethod;
+    }
+    if (payload.generateDispersionFile !== undefined) {
+      body.generate_dispersion_file = payload.generateDispersionFile;
+    }
+
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementBatchActionRaw> & { message?: string }
+    >(`${BASE_ENDPOINT}/batch/disburse`, body);
+    return mapSettlementBatchActionResult(response.data, response.message);
   },
 };

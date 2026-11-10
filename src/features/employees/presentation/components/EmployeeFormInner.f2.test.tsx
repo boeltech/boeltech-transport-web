@@ -6,6 +6,10 @@ import { EmployeeFormInner } from "./EmployeeFormInner";
 import { employeesCopy } from "../copy/employeesCopy";
 import type { Employee } from "../../domain/entities";
 
+vi.mock("@shared/permissions", async () =>
+  (await import("@/test/mocks/permissions")).permissionsModuleMock(),
+);
+
 vi.mock("@features/branches", () => ({
   BranchStatus: { ACTIVE: "active" },
   useBranches: () => ({ data: { data: [], meta: undefined } }),

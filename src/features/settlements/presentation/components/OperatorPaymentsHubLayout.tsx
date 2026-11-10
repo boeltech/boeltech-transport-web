@@ -19,7 +19,7 @@ import {
   SETTLEMENTS_LIST_PATH,
   isOperatorPaymentsRegistryPath,
   resolveOperatorPaymentsHubTab,
-  settlementCreatePath,
+  settlementCutsNewPath,
   type OperatorPaymentsHubTab,
 } from "../../application/settlementsRoutes";
 import { useSettlementsReadiness } from "../../application/hooks/useSettlementsReadiness";
@@ -37,6 +37,10 @@ const APPROVAL_CONCEPT_BY_TAB: Partial<
   adelantos: "driver_advance",
 };
 
+/**
+ * @deprecated F2 retira el Hub con tabs. No montar en `routes.tsx`.
+ * Conservado solo para smokes legacy hasta que se actualicen.
+ */
 export function OperatorPaymentsHubLayout() {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
@@ -67,12 +71,13 @@ export function OperatorPaymentsHubLayout() {
   const activeTab = resolveOperatorPaymentsHubTab(pathname);
   const onRegistry = isOperatorPaymentsRegistryPath(pathname);
   const approvalConcept = APPROVAL_CONCEPT_BY_TAB[activeTab];
+  // F5 R1: Hub legacy no soporta disabled+motivo → ocultar (Workbench sí lo muestra).
   const porPagarCreate =
     activeTab === "por-pagar" && !onRegistry && canCreate
       ? {
           id: "create-cut",
           label: copy.createCut,
-          onClick: () => navigate(settlementCreatePath(), { state: fromState }),
+          onClick: () => navigate(settlementCutsNewPath(), { state: fromState }),
           icon: <Plus className="mr-2 h-4 w-4" />,
           dataHelpAnchor: "stl-liquidar-periodo",
         }
