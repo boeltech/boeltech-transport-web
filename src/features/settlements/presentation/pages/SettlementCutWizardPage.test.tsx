@@ -190,4 +190,92 @@ describe("SettlementCutWizardPage (F6)", () => {
     expect(screen.getByText(/P-100/)).toBeInTheDocument();
     expect(screen.getByText(/1 pago creado/i)).toBeInTheDocument();
   });
+
+  it("C29/C30/C31: badge humano, No entraron, sin pie tras create", async () => {
+    const user = userEvent.setup();
+    renderWizard();
+
+    expect(
+      screen.getByRole("heading", { name: /Corte semanal ·/i }),
+    ).toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: "Siguiente" }));
+    await user.click(await screen.findByTestId("cut-send-n"));
+
+    expect(await screen.findByTestId("cut-step-send")).toBeInTheDocument();
+    expect(screen.getByText("En autorización")).toBeInTheDocument();
+    expect(screen.queryByText("pending_approval")).not.toBeInTheDocument();
+
+    expect(screen.getByTestId("cut-did-not-enter")).toBeInTheDocument();
+    expect(screen.getByText(/No entraron · 2/i)).toBeInTheDocument();
+    expect(screen.getByText("Sofía Ramos")).toBeInTheDocument();
+    expect(screen.getByText("Martín Salas")).toBeInTheDocument();
+
+    expect(screen.queryByRole("button", { name: "Anterior" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Ir a En autorización/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("D6: Confirmar sin km incluye fila con acknowledgeZeroKmTrips", async () => {
+    const user = userEvent.setup();
+    previewData.current = {
+      ...previewFixture,
+      eligible: [
+        previewFixture.eligible[0],
+        {
+          employeeId: "emp-zero",
+          employeeFullName: "Luis Sin Km",
+          employmentType: "employee",
+          salaryPeriod: "weekly" as const,
+          estimatedNet: 1500,
+          estimatedGross: 1500,
+          maxAdvanceDeductible: null,
+          suggestedAdvanceDeduction: null,
+          tripIds: ["t-zero"],
+          warnings: [
+            {
+              code: "missing_ack_zero_km" as const,
+              message: "Hay viajes sin km",
+            },
+          ],
+          effect: "blocking" as const,
+          primaryReason: "missing_ack_zero_km" as const,
+          periodOverlap: null,
+          suggestedPeriodStart: null,
+          openAdvancesBalance: 0,
+        },
+      ],
+      summary: {
+        ...previewFixture.summary,
+        eligibleCount: 2,
+        includableCount: 1,
+        blockingCount: 1,
+      },
+    };
+
+    renderWizard();
+    await user.click(await screen.findByRole("button", { name: "Siguiente" }));
+
+    expect(screen.getByText("Falta confirmar km")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await user.click(await screen.findByTestId("cut-send-n"));
+    await waitFor(() => {
+      expect(createMutateAsync).toHaveBeenCalled();
+    });
+
+    const rows = createMutateAsync.mock.calls[0]?.[0].payload.rows;
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        { employeeId: "emp-ready", tripIds: ["t1"] },
+        {
+          employeeId: "emp-zero",
+          tripIds: ["t-zero"],
+          acknowledgeZeroKmTrips: true,
+        },
+      ]),
+    );
+  });
 });

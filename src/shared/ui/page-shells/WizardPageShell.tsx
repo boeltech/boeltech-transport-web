@@ -158,6 +158,17 @@ export interface WizardNavigationResolveResult {
   disableSubmit?: boolean;
   secondaryAction?: WizardNavigationSecondaryAction;
   hidePrimary?: boolean;
+  /** Oculta por completo la barra Anterior/Cancelar/primaria. */
+  hideNav?: boolean;
+  /** Oculta solo el botón Anterior (si hideNav no aplica). */
+  hidePrevious?: boolean;
+  /** Si false, oculta Cancelar en este paso. Default: allowExit del shell. */
+  showCancel?: boolean;
+  /**
+   * Si true, no se puede volver a pasos previos (stepper ni goToStep atrás).
+   * Útil en un paso resultado tras mutación exitosa.
+   */
+  lockBackward?: boolean;
   primaryTestId?: string;
   /** Si false, oculta el icono Check del submit. Default true. */
   showSubmitIcon?: boolean;
@@ -221,6 +232,9 @@ export const WizardPageShell = memo(function WizardPageShell({
   const headerBackDisabled =
     navBusy ||
     (!allowExit && currentStep === 0 && !onHeaderBack);
+  const currentStepRef = useRef(currentStep);
+  currentStepRef.current = currentStep;
+  const lockBackwardRef = useRef(false);
 
   useEffect(() => {
     if (isFirstStepRenderRef.current) {
@@ -234,6 +248,11 @@ export const WizardPageShell = memo(function WizardPageShell({
   const handleHeaderBack = useCallback(() => {
     if (onHeaderBack) {
       onHeaderBack();
+      return;
+    }
+    if (lockBackwardRef.current) {
+      if (!allowExit) return;
+      navigate(header.backHref);
       return;
     }
     if (headerBackMode === "wizard" && currentStep > 0) {
@@ -273,11 +292,15 @@ export const WizardPageShell = memo(function WizardPageShell({
   }, [validateCurrentStep, currentStep, lastStepIndex]);
 
   const handlePrevious = useCallback(() => {
+    if (lockBackwardRef.current) return;
     if (currentStep > 0) setCurrentStep((s) => s - 1);
   }, [currentStep]);
 
   const handleStepClick = useCallback(
     async (stepIndex: number) => {
+      if (lockBackwardRef.current && stepIndex < currentStepRef.current) {
+        return;
+      }
       if (stepIndex <= currentStep) {
         setCurrentStep(stepIndex);
         return;
@@ -315,6 +338,9 @@ export const WizardPageShell = memo(function WizardPageShell({
   const goToStep = useCallback(
     (stepIndex: number) => {
       if (stepIndex < 0 || stepIndex > lastStepIndex) return;
+      if (lockBackwardRef.current && stepIndex < currentStepRef.current) {
+        return;
+      }
       setCurrentStep(stepIndex);
     },
     [lastStepIndex],
@@ -331,11 +357,16 @@ export const WizardPageShell = memo(function WizardPageShell({
     isSubmitting: navBusy,
     goToStep,
   });
+  lockBackwardRef.current = navigationOverrides?.lockBackward === true;
+  const hideNav = navigationOverrides?.hideNav === true;
   const footerIsLastStep = navigationOverrides?.isLastStep ?? isReview;
   const footerSubmitLabel = navigationOverrides?.submitLabel ?? submitLabel;
   const footerOnSubmit = navigationOverrides?.onSubmit ?? handleConfirm;
   const footerOnNext = navigationOverrides?.onNext ?? handleNext;
   const footerShowSubmitIcon = navigationOverrides?.showSubmitIcon !== false;
+  const footerShowCancel =
+    navigationOverrides?.showCancel ?? allowExit;
+  const footerHidePrevious = navigationOverrides?.hidePrevious === true;
 
   return (
     <div
@@ -387,7 +418,7 @@ export const WizardPageShell = memo(function WizardPageShell({
           steps={steps}
           currentStep={currentStep}
           onStepClick={handleStepClick}
-          allowNavigation
+          allowNavigation={navigationOverrides?.lockBackward !== true}
           ariaLabel={stepsAriaLabel}
         />
       </WizardProgressCard>
@@ -407,31 +438,38 @@ export const WizardPageShell = memo(function WizardPageShell({
       {/* ====================================================================
        * Navigation bar
        * ================================================================== */}
-      <WizardNavigationBar
-        canGoBack={currentStep > 0 && !navBusy}
-        isLastStep={footerIsLastStep}
-        onPrevious={handlePrevious}
-        onCancel={allowExit ? handleCancel : undefined}
-        showCancel={allowExit}
-        onNext={footerOnNext}
-        onSubmit={footerOnSubmit}
-        isSubmitting={navBusy}
-        submitLabel={footerSubmitLabel}
-        disableNext={navigationOverrides?.disableNext}
-        disableSubmit={navigationOverrides?.disableSubmit}
-        secondaryAction={navigationOverrides?.secondaryAction}
-        hidePrimary={navigationOverrides?.hidePrimary}
-        primaryTestId={navigationOverrides?.primaryTestId}
-        submittingContent={
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {submittingLabel}
-          </>
-        }
-        submitIcon={
-          footerShowSubmitIcon ? <Check className="mr-2 h-4 w-4" /> : undefined
-        }
-      />
+      {hideNav ? null : (
+        <WizardNavigationBar
+          canGoBack={
+            currentStep > 0 &&
+            !navBusy &&
+            navigationOverrides?.lockBackward !== true
+          }
+          isLastStep={footerIsLastStep}
+          onPrevious={handlePrevious}
+          onCancel={footerShowCancel ? handleCancel : undefined}
+          showCancel={footerShowCancel}
+          onNext={footerOnNext}
+          onSubmit={footerOnSubmit}
+          isSubmitting={navBusy}
+          submitLabel={footerSubmitLabel}
+          disableNext={navigationOverrides?.disableNext}
+          disableSubmit={navigationOverrides?.disableSubmit}
+          secondaryAction={navigationOverrides?.secondaryAction}
+          hidePrimary={navigationOverrides?.hidePrimary}
+          hidePrevious={footerHidePrevious}
+          primaryTestId={navigationOverrides?.primaryTestId}
+          submittingContent={
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {submittingLabel}
+            </>
+          }
+          submitIcon={
+            footerShowSubmitIcon ? <Check className="mr-2 h-4 w-4" /> : undefined
+          }
+        />
+      )}
     </div>
   );
 });

@@ -1697,8 +1697,8 @@ export const settlementsCopy = {
       authorizerHint:
         "¿Prefieres que quien lo capturó lo corrija? Usa Devolver para corregir.",
       footerTotals: (a: string, a2: string, b: string, b2: string, c: string, c2: string) =>
-        `Percepciones ${a} → ${a2} · Deducciones ${b} → ${b2} · Neto ${c} → ${c2}`,
-      perceptionsLabel: "Percepciones",
+        `Ingresos ${a} → ${a2} · Deducciones ${b} → ${b2} · Neto ${c} → ${c2}`,
+      perceptionsLabel: "Ingresos",
       deductionsLabel: "Deducciones",
       netLabel: "Neto",
       consequence: {
@@ -1890,7 +1890,8 @@ export const settlementsCopy = {
         viewTrip: "Ver viaje",
         viewHistory: "Ver en historial",
         splitAdvance: "Repartir",
-        definePayee: "Definir payee",
+        definePayee: "Definir a quién",
+        confirmZeroKm: "Confirmar",
         view: "Ver",
       },
       inspectorTitle: "Resumen del corte",
@@ -1921,8 +1922,11 @@ export const settlementsCopy = {
     send: {
       successTitle: (count: number) =>
         count === 1 ? "1 pago creado" : `${count} pagos creados`,
+      didNotEnterTitle: (count: number) =>
+        count === 1 ? "No entraron · 1" : `No entraron · ${count}`,
+      /** @deprecated usar didNotEnterTitle (C30) */
       omittedTitle: (count: number) =>
-        count === 1 ? "1 omitido" : `${count} omitidos`,
+        count === 1 ? "No entraron · 1" : `No entraron · ${count}`,
       omittedReason: "Motivo",
       replayNote: "Reenvío idempotente: se devolvió el mismo resultado del corte anterior.",
       goToApproval: "Ir a En autorización",
