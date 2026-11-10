@@ -363,6 +363,11 @@ const OperatorPaymentsOperatorsPage = lazyWithRetry(() =>
 const SettlementCreatePage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementCreateEntryPage })),
 );
+const SettlementCutWizardPage = lazyWithRetry(() =>
+  import("@features/settlements").then((m) => ({
+    default: m.SettlementCutWizardPage,
+  })),
+);
 const SettlementDetailPage = lazyWithRetry(() =>
   import("@features/settlements").then((m) => ({ default: m.SettlementDetailPage })),
 );
@@ -1135,6 +1140,10 @@ export const router = createBrowserRouter([
               {
                 element: <PermissionRoute module="settlements" action="create" />,
                 children: [
+                  {
+                    path: "/finance/operator-payments/cuts/new",
+                    element: withSuspense(SettlementCutWizardPage),
+                  },
                   {
                     path: "/finance/operator-payments/new",
                     element: withSuspense(SettlementCreatePage),

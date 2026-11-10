@@ -8,6 +8,7 @@ export * from "./pages/OperatorPaymentsOperatorsPage";
 export * from "./pages/SettlementCreatePage";
 export * from "./pages/SettlementCreateEntryPage";
 export * from "./pages/SettlementReimbursementCreatePage";
+export * from "./pages/SettlementCutWizardPage";
 export * from "./pages/SettlementDetailPage";
 export * from "./utils/settlementExportHelpers";
 export * from "./validation";
