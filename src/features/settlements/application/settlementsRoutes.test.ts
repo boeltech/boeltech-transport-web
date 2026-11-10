@@ -8,10 +8,12 @@ import {
   SETTLEMENTS_ADVANCES_PATH,
   SETTLEMENTS_CREATE_PATH,
   SETTLEMENTS_LIST_PATH,
+  SETTLEMENTS_CUTS_NEW_PATH,
   SETTLEMENTS_OPERATORS_PATH,
   resolveLegacySettlementsPath,
   resolveSettlementsListRedirect,
   settlementCreatePath,
+  settlementCutsNewPath,
   settlementDetailPath,
   settlementsAdvancesPath,
   settlementsAgreementsPath,
@@ -26,11 +28,27 @@ describe("settlementsRoutes (F2 canónicas)", () => {
     expect(OPERATOR_PAYMENTS_BASE_PATH).toBe("/finance/operator-payments");
     expect(SETTLEMENTS_LIST_PATH).toBe("/finance/operator-payments");
     expect(SETTLEMENTS_CREATE_PATH).toBe("/finance/operator-payments/new");
+    expect(SETTLEMENTS_CUTS_NEW_PATH).toBe(
+      "/finance/operator-payments/cuts/new",
+    );
     expect(SETTLEMENTS_ADVANCES_PATH).toBe(
       "/finance/operator-payments/advances",
     );
     expect(SETTLEMENTS_OPERATORS_PATH).toBe(
       "/finance/operator-payments/operators",
+    );
+  });
+
+  it("arma path del wizard Armar corte con query opcional", () => {
+    expect(settlementCutsNewPath()).toBe("/finance/operator-payments/cuts/new");
+    expect(
+      settlementCutsNewPath({
+        periodStart: "2026-11-03",
+        periodEnd: "2026-11-09",
+        salaryPeriod: "weekly",
+      }),
+    ).toBe(
+      "/finance/operator-payments/cuts/new?periodStart=2026-11-03&periodEnd=2026-11-09&salaryPeriod=weekly",
     );
   });
 

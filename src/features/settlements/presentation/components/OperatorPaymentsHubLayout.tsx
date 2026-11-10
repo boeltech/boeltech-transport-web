@@ -19,7 +19,7 @@ import {
   SETTLEMENTS_LIST_PATH,
   isOperatorPaymentsRegistryPath,
   resolveOperatorPaymentsHubTab,
-  settlementCreatePath,
+  settlementCutsNewPath,
   type OperatorPaymentsHubTab,
 } from "../../application/settlementsRoutes";
 import { useSettlementsReadiness } from "../../application/hooks/useSettlementsReadiness";
@@ -77,7 +77,7 @@ export function OperatorPaymentsHubLayout() {
       ? {
           id: "create-cut",
           label: copy.createCut,
-          onClick: () => navigate(settlementCreatePath(), { state: fromState }),
+          onClick: () => navigate(settlementCutsNewPath(), { state: fromState }),
           icon: <Plus className="mr-2 h-4 w-4" />,
           dataHelpAnchor: "stl-liquidar-periodo",
         }

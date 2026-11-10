@@ -26,6 +26,29 @@ export const SETTLEMENTS_OPERATORS_PATH = `${OPERATOR_PAYMENTS_BASE_PATH}/operat
 /** Armar corte en lote (F6) — path reservado. */
 export const SETTLEMENTS_CUTS_NEW_PATH = `${OPERATOR_PAYMENTS_BASE_PATH}/cuts/new`;
 
+export function settlementCutsNewPath(params?: {
+  periodStart?: string;
+  periodEnd?: string;
+  salaryPeriod?: string;
+}): string {
+  if (
+    !params?.periodStart &&
+    !params?.periodEnd &&
+    !params?.salaryPeriod
+  ) {
+    return SETTLEMENTS_CUTS_NEW_PATH;
+  }
+
+  const qs = new URLSearchParams();
+  if (params.periodStart) qs.set("periodStart", params.periodStart);
+  if (params.periodEnd) qs.set("periodEnd", params.periodEnd);
+  if (params.salaryPeriod) qs.set("salaryPeriod", params.salaryPeriod);
+  const query = qs.toString();
+  return query
+    ? `${SETTLEMENTS_CUTS_NEW_PATH}?${query}`
+    : SETTLEMENTS_CUTS_NEW_PATH;
+}
+
 /**
  * Historial / Pagados: canónico = bucket del workbench.
  * TEC C.2 usa `paid`; el workbench actual identifica Pagados como `closed`.

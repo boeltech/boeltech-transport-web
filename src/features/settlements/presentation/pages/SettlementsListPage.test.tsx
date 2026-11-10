@@ -159,24 +159,61 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     readiness.isLoading = false;
   });
 
-  it("usa Workbench sin header propio y deja contratistas fuera del panel", async () => {
+  it("F4: header con Pago fuera de ciclo, KPIs y pipeline chevrons", async () => {
+    workbenchCounts.summary = {
+      pending: 2,
+      draft: 0,
+      approval: 1,
+      payable: 0,
+      closed: 0,
+      openAdvances: 0,
+      approvalAgingDaysMax: 2,
+      advancesDeductibleEstimate: 1000,
+      kpis: {
+        toArm: { count: 2, amount: 10_000 },
+        inApproval: { count: 1, amount: 5_000 },
+        authorizedUnpaid: { count: 0, amount: 0 },
+        advancesToDeduct: { count: 0, amount: 0 },
+      },
+    };
+    workbench.data = {
+      backlog: [
+        {
+          employeeId: "e1",
+          employeeFullName: "Juan",
+          branchId: null,
+          branchName: null,
+          periodStart: "2026-11-02",
+          periodEnd: "2026-11-08",
+          pendingTripsCount: 1,
+          oldestTripAgeDays: 1,
+          estimatedNetAmount: 5000,
+          rowType: "trips_pending",
+          warnings: [],
+          periodOverlap: null,
+        },
+      ],
+      summary: workbenchCounts.summary,
+    };
+
     renderWithTheme(<SettlementsListPage />, {
       route: ["/finance/operator-payments?bucket=pending"],
     });
 
     expect(
+      screen.getByRole("heading", { name: settlementsCopy.hub.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("pago-fuera-de-ciclo")).toBeInTheDocument();
+    expect(screen.getByTestId("settlement-workbench-kpis")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("settlement-pipeline-chevrons"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("settlement-closed-period-banner"),
+    ).toBeInTheDocument();
+    expect(
       screen.getByLabelText(workbenchCopy.actions.includeContractors),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Filtros/ }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(workbenchCopy.filter.searchPending),
-    ).toBeInTheDocument();
-    // Hub owns the page title; nested workbench keeps showHeader=false.
-    expect(
-      screen.queryByRole("heading", { name: settlementsCopy.hub.title }),
-    ).not.toBeInTheDocument();
   });
 
   it("sucursal vive en ListingFilterPanel", async () => {

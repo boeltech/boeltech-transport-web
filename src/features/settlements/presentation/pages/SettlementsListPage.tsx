@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   History,
-  ArrowUpRight,
+  MoreHorizontal,
   Plus,
-  ShieldCheck,
   Wallet,
 } from "lucide-react";
-import {
-  WorkbenchPageShell,
-  type WorkbenchBucket,
-} from "@shared/ui/page-shells";
+import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { Label } from "@shared/ui/label";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@shared/ui/dropdown-menu";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
@@ -35,9 +37,9 @@ import {
 import {
   resolveSettlementsListRedirect,
   settlementCreatePath,
+  settlementCutsNewPath,
   settlementDetailPath,
   SETTLEMENTS_LIST_PATH,
-  settlementsAdvancesPath,
   settlementsRegistryPath,
 } from "../../application/settlementsRoutes";
 import { useSettlementQueueFromState } from "../utils/settlementWayfinding";
@@ -50,14 +52,19 @@ import {
 import {
   DisburseSettlementDialog,
   SettlementBacklogTable,
+  SettlementBulkBar,
+  SettlementClosedPeriodBanner,
+  SettlementPipelineChevrons,
   SettlementPipelineQueue,
   SettlementListFilters,
+  SettlementWorkbenchKpis,
   SettlementsSetupChecklist,
 } from "../components";
 import { filterSettlementBacklog } from "../utils/filterSettlementBacklog";
-import { mapSettlementWorkbenchBuckets } from "../utils/mapSettlementWorkbenchBuckets";
+import { resolveClosedPeriodBanner } from "../utils/closedPeriodBanner";
 import { useEmployeeFilterChipLabel } from "../hooks/useEmployeeFilterChipLabel";
 import type { DriverSettlement } from "../../domain/entities";
+import { roundCents } from "../../domain/settlementTotals";
 
 const copy = settlementsCopy;
 const workbenchCopy = settlementsCopy.workbench;
@@ -187,6 +194,7 @@ export function SettlementsListPage() {
 
   const [disburseSettlement, setDisburseSettlement] =
     useState<DriverSettlement | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const pipelineStatus =
     activeBucket !== "pending"
@@ -284,6 +292,7 @@ export function SettlementsListPage() {
       // Una sola llamada a setSearchParams: setFilters ya resetea page=1.
       // Un setPage() seguido sobrescribe la URL (RR no encadena updaters).
       // Contratistas / employeeId no aplican fuera de su bucket: limpiar.
+      setSelectedIds(new Set());
       filters.setFilters({
         bucket,
         includeContractors: "",
@@ -293,15 +302,94 @@ export function SettlementsListPage() {
     [filters],
   );
 
-  const buckets: WorkbenchBucket[] = useMemo(
+  const pipelineChevrons = useMemo(
     () =>
-      mapSettlementWorkbenchBuckets({
-        summary: workbenchSummary,
-        activeBucket,
-        onBucketChange: handleBucketChange,
+      SETTLEMENT_WORKBENCH_BUCKETS.map((bucket) => {
+        const count =
+          bucket === "pending"
+            ? workbenchSummary.pending
+            : bucket === "draft"
+              ? workbenchSummary.draft
+              : bucket === "approval"
+                ? workbenchSummary.approval
+                : bucket === "payable"
+                  ? workbenchSummary.payable
+                  : workbenchSummary.closed;
+        const amount =
+          bucket === "pending"
+            ? workbenchSummary.kpis?.toArm.amount
+            : bucket === "approval"
+              ? workbenchSummary.kpis?.inApproval.amount
+              : bucket === "payable"
+                ? workbenchSummary.kpis?.authorizedUnpaid.amount
+                : undefined;
+        return {
+          id: bucket,
+          label: workbenchCopy.buckets[bucket],
+          count,
+          amount,
+          isActive: activeBucket === bucket,
+          onClick: () => handleBucketChange(bucket),
+        };
       }),
     [activeBucket, handleBucketChange, workbenchSummary],
   );
+
+  const closedPeriod = useMemo(
+    () =>
+      resolveClosedPeriodBanner(
+        workbenchSummary,
+        workbenchData?.backlog ?? [],
+      ),
+    [workbenchData?.backlog, workbenchSummary],
+  );
+
+  const selectedSettlements = useMemo(
+    () => pipelineSettlements.filter((s) => selectedIds.has(s.id)),
+    [pipelineSettlements, selectedIds],
+  );
+  const hasSelection = selectedIds.size > 0 && activeBucket === "payable";
+  const selectedTotal = useMemo(
+    () =>
+      roundCents(
+        selectedSettlements.reduce((sum, s) => sum + s.netAmount, 0),
+      ),
+    [selectedSettlements],
+  );
+  const withoutClabeCount = useMemo(
+    () =>
+      selectedSettlements.filter(
+        (s) =>
+          (!s.disbursementMethod ||
+            s.disbursementMethod === "bank_transfer") &&
+          !s.disbursementReference,
+      ).length,
+    [selectedSettlements],
+  );
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (!checked) {
+        setSelectedIds(new Set());
+        return;
+      }
+      setSelectedIds(new Set(pipelineSettlements.map((s) => s.id)));
+    },
+    [pipelineSettlements],
+  );
+
+  useEffect(() => {
+    if (activeBucket !== "payable") setSelectedIds(new Set());
+  }, [activeBucket]);
 
   const activeLoading = useMemo(() => {
     if (activeBucket === "pending") {
@@ -467,6 +555,9 @@ export function SettlementsListPage() {
     return <Navigate to={listRedirect} replace />;
   }
 
+  const armCut = () =>
+    navigate(settlementCutsNewPath(), { state: fromState });
+
   return (
     <TooltipProvider delayDuration={0}>
       <WorkbenchPageShell
@@ -474,11 +565,10 @@ export function SettlementsListPage() {
         description={hubCopy.description}
         showHeader
         primaryAction={
-          canReadSettlements
+          canReadSettlements && !hasSelection
             ? {
                 label: hubCopy.createCut,
-                onClick: () =>
-                  navigate(settlementCreatePath(), { state: fromState }),
+                onClick: armCut,
                 icon: <Plus className="mr-2 h-4 w-4" />,
                 dataHelpAnchor: "stl-liquidar-periodo",
                 // F5 R1: Gerente ve CTA + motivo; Contador/Admin arman.
@@ -490,43 +580,96 @@ export function SettlementsListPage() {
             : undefined
         }
         secondaryActions={
-          canReadApprovalPolicies ? (
+          <>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
               className="gap-2"
-              onClick={() =>
-                navigate(approvalPoliciesPath("settlement"), {
-                  state: { from: `${location.pathname}${location.search}` },
-                })
-              }
+              onClick={() => navigate(settlementsRegistryPath())}
             >
-              <ShieldCheck className="h-4 w-4" />
-              {hubCopy.approvalPoliciesAction}
+              <History className="h-4 w-4" />
+              {workbenchCopy.actions.viewFullHistory}
             </Button>
-          ) : undefined
-        }
-        buckets={buckets}
-        bucketsAriaLabel={workbenchCopy.scorecards.settlements.ariaLabel}
-        bucketsLoading={workbenchCountsLoading}
-        afterAwareness={
-          !workbenchCountsLoading && workbenchSummary.openAdvances > 0 ? (
-            <div className="space-y-1">
-              <Link
-                to={settlementsAdvancesPath()}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            {canReadSettlements ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canCreate}
+                title={
+                  !canCreate ? hubCopy.outOfCycleDisabledReason : undefined
+                }
+                onClick={() =>
+                  navigate(settlementCreatePath(), { state: fromState })
+                }
+                data-testid="pago-fuera-de-ciclo"
               >
-                {workbenchCopy.openAdvancesBridge.linkLabel(
-                  workbenchSummary.openAdvances,
-                )}
-                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-              <p className="text-xs text-muted-foreground">
-                {workbenchCopy.openAdvancesBridge.description}
-              </p>
-            </div>
-          ) : undefined
+                {hubCopy.outOfCycle}
+              </Button>
+            ) : null}
+            {canReadSettlements && hasSelection ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={armCut}
+                disabled={!canCreate}
+                title={
+                  !canCreate ? hubCopy.createCutDisabledReason : undefined
+                }
+                data-help-anchor="stl-liquidar-periodo"
+              >
+                <Plus className="h-4 w-4" />
+                {hubCopy.createCut}
+              </Button>
+            ) : null}
+            {canReadApprovalPolicies ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Más</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() =>
+                      navigate(approvalPoliciesPath("settlement"), {
+                        state: {
+                          from: `${location.pathname}${location.search}`,
+                        },
+                      })
+                    }
+                  >
+                    {hubCopy.approvalPoliciesAction}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </>
+        }
+        buckets={[]}
+        beforeAwareness={
+          <div className="space-y-4">
+            {closedPeriod ? (
+              <SettlementClosedPeriodBanner
+                model={closedPeriod}
+                onArmCut={armCut}
+                canArmCut={canCreate}
+                armCutDisabledReason={hubCopy.createCutDisabledReason}
+              />
+            ) : null}
+            <SettlementWorkbenchKpis
+              summary={workbenchSummary}
+              isLoading={workbenchCountsLoading}
+            />
+            <SettlementPipelineChevrons
+              buckets={pipelineChevrons}
+              isLoading={workbenchCountsLoading}
+            />
+          </div>
         }
         toolbar={{
           search: {
@@ -542,18 +685,6 @@ export function SettlementsListPage() {
           activeFilterChips,
           onClearFilters: filters.clearAll,
           hasFilters: hasToolbarFilters,
-          extraActions: (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(settlementsRegistryPath())}
-              className="gap-2"
-            >
-              <History className="h-4 w-4" />
-              {workbenchCopy.actions.viewFullHistory}
-            </Button>
-          ),
           viewMode: filters.viewModeProps,
           filters: (
             <>
@@ -716,19 +847,40 @@ export function SettlementsListPage() {
               }
             />
           ) : (
-            <SettlementPipelineQueue
-              bucket={activeBucket}
-              settlements={pipelineSettlements}
-              isLoading={false}
-              viewMode={filters.viewMode}
-              onView={handleViewSettlement}
-              onDisburse={setDisburseSettlement}
-              onActionComplete={() => {
-                void refetchPipelinePrimary();
-                if (activeBucket === "draft") void refetchRejectedPipeline();
-                void refetchWorkbenchCounts();
-              }}
-            />
+            <div className="space-y-2">
+              {activeBucket === "payable" ? (
+                <SettlementBulkBar
+                  selectedCount={selectedIds.size}
+                  selectedTotal={selectedTotal}
+                  withoutClabeCount={withoutClabeCount}
+                  registerDisabledReason={workbenchCopy.bulkBar.registerSoon}
+                />
+              ) : null}
+              <SettlementPipelineQueue
+                bucket={activeBucket}
+                settlements={pipelineSettlements}
+                isLoading={false}
+                viewMode={filters.viewMode}
+                onView={handleViewSettlement}
+                onDisburse={setDisburseSettlement}
+                selectedIds={
+                  activeBucket === "payable" ? selectedIds : undefined
+                }
+                onToggleSelect={
+                  activeBucket === "payable" ? handleToggleSelect : undefined
+                }
+                onToggleSelectAll={
+                  activeBucket === "payable"
+                    ? handleToggleSelectAll
+                    : undefined
+                }
+                onActionComplete={() => {
+                  void refetchPipelinePrimary();
+                  if (activeBucket === "draft") void refetchRejectedPipeline();
+                  void refetchWorkbenchCounts();
+                }}
+              />
+            </div>
           );
         }}
         pagination={activePagination}

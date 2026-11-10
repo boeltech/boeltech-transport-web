@@ -176,18 +176,18 @@ describe("CompensationSchemeBuilderPage", () => {
       screen.getByText(/Define cuánto se paga a los operadores/i),
     ).toBeInTheDocument();
 
-    const desktopNav = screen.getByTestId("builder-section-nav-desktop");
+    const formulaNav = screen.getByTestId("builder-formula-nav");
     expect(
-      within(desktopNav).queryByRole("tab", { name: /Identidad/i }),
+      within(formulaNav).queryByRole("button", { name: /Identidad/i }),
     ).not.toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Pago por viaje/i }),
+      within(formulaNav).getByRole("button", { name: /Por cada viaje/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
+      within(formulaNav).getByRole("button", { name: /Fijos por pago/i }),
     ).toBeInTheDocument();
     expect(
-      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
+      within(formulaNav).getByRole("button", { name: /Descuentos/i }),
     ).toBeInTheDocument();
 
     expect(screen.getByLabelText("Nombre")).toHaveValue("Operador foráneo");
@@ -199,28 +199,27 @@ describe("CompensationSchemeBuilderPage", () => {
     const inspector = screen.getByTestId("builder-inspector-desktop");
     expect(within(inspector).queryByText(/Resumen en vivo/i)).not.toBeInTheDocument();
     expect(within(inspector).queryByText(/Completitud/i)).not.toBeInTheDocument();
-    expect(within(inspector).getByText(/Resumen en tiempo real/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/Cada extra fijo se suma una vez/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/no divide el monto/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
-    expect(within(inspector).getByText(/Tarifa lista para usar/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/Así le pagas/i)).toBeInTheDocument();
+    expect(within(inspector).getByText(/Semana de ejemplo/i)).toBeInTheDocument();
     expect(
       within(inspector).queryByRole("link", { name: /Vista previa/i }),
     ).not.toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: "Vista previa del pago" }),
+      screen.getByRole("button", { name: /Probar con un operador real/i }),
     ).toBeInTheDocument();
   });
 
-  it("arranca en Pago por viaje", () => {
+  it("arranca en Por cada viaje", () => {
     renderPage();
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Pago por viaje" }),
+      screen.getByRole("heading", { level: 2, name: "Por cada viaje" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Cada clase de ruta puede tener su propia regla de pago/i),
+      screen.getByText(
+        /Cada viaje se paga una sola vez\. Tlamx revisa en este orden/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -228,28 +227,33 @@ describe("CompensationSchemeBuilderPage", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const desktopNav = screen.getByTestId("builder-section-nav-desktop");
+    const formulaNav = screen.getByTestId("builder-formula-nav");
     await user.click(
-      within(desktopNav).getByRole("tab", { name: /Extras fijos/i }),
+      within(formulaNav).getByRole("button", { name: /Fijos por pago/i }),
     );
 
     expect(
       screen.getByText(/Montos fijos que se suman al pago del operador/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Descuentos al operador/i),
-    ).toBeInTheDocument();
 
     await user.click(
-      within(desktopNav).getByRole("tab", { name: /Rutas con tarifa fija/i }),
+      within(formulaNav).getByRole("button", { name: /Descuentos/i }),
     );
 
     expect(
-      screen.getByText(/Si el viaje coincide con una de estas rutas/i),
+      screen.getByText(/Montos que se descuentan del pago del operador/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(formulaNav).getByRole("button", { name: /Por cada viaje/i }),
+    );
+
+    expect(
+      screen.getByText(/¿Es una ruta con tarifa fija\?/i),
     ).toBeInTheDocument();
   });
 
-  it("muestra alert incompleto en el inspector cuando falta pago y rutas", () => {
+  it("marca Por cada viaje como vacío en la fórmula cuando falta pago y rutas", () => {
     mockUseCompensationTemplate.mockReturnValue({
       data: {
         ...template,
@@ -264,11 +268,11 @@ describe("CompensationSchemeBuilderPage", () => {
 
     renderPage();
 
-    const inspector = screen.getByTestId("builder-inspector-desktop");
+    const formulaNav = screen.getByTestId("builder-formula-nav");
     expect(
-      within(inspector).getByText(
-        /Para usar esta tarifa, agrega al menos una regla de pago/i,
-      ),
+      within(formulaNav).getByRole("button", {
+        name: /Por cada viaje:.*\(vacío\)/i,
+      }),
     ).toBeInTheDocument();
   });
 

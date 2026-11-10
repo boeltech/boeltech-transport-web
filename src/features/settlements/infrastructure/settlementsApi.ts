@@ -6,16 +6,24 @@ import type {
   ApprovalReturnReasonCode,
 } from "@features/approvals";
 import type {
+  AdvancePeriodDeductionPlan,
   CompensationAgreement,
   DriverAdvance,
   DriverSettlement,
   OperatorPaymentReadiness,
   SettlementPreview,
+  SettlementsNavBadges,
   SettlementWorkbenchData,
   TenantSettlementSettings,
   UpdateDriverAdvanceResult,
   UpdateSettlementResult,
 } from "../domain/entities";
+import type {
+  CreateSettlementCutPayload,
+  PreviewSettlementCutPayload,
+  SettlementCutCreateResult,
+  SettlementCutPreview,
+} from "../domain/settlementCut";
 import type {
   AdvanceStatus,
   OperatorPaymentAttentionFilter,
@@ -25,18 +33,25 @@ import type { ManualSettlementItemInput } from "../domain/settlementTotals";
 import {
   mapAgreement,
   mapAdvance,
+  mapAdvancePeriodDeductionPlan,
   mapSettlement,
   mapSettlementPreview,
   mapListAdvancesResponse,
   mapListOperatorsResponse,
   mapListSettlementsResponse,
+  mapNavBadgesResponse,
   mapWorkbenchResponse,
   mapSettlementSettings,
+  mapSettlementCutPreview,
+  mapSettlementCutCreateResult,
+  type ApiAdvancePeriodDeductionPlanRaw,
   type ApiCompensationAgreementRaw,
   type ApiDriverAdvanceRaw,
   type ApiDriverSettlementRaw,
   type ApiOperatorPaymentReadinessRaw,
   type ApiPaginationRaw,
+  type ApiSettlementCutCreateRaw,
+  type ApiSettlementCutPreviewRaw,
   type ApiSettlementPreviewRaw,
   type ApiTenantSettlementSettingsRaw,
 } from "./mappers";
@@ -374,6 +389,28 @@ export const settlementsApi = {
     return mapWorkbenchResponse(response.data);
   },
 
+  /** GET /settlements/nav-badges — TEC §C.4 / F4 */
+  getNavBadges: async (): Promise<SettlementsNavBadges> => {
+    const response = await apiClient.get<{ data: unknown }>(
+      `${BASE_ENDPOINT}/nav-badges`,
+    );
+    return mapNavBadgesResponse(response.data);
+  },
+
+  /** PUT /settlements/advances/:id/period-deduction-plan — P10 / TEC §C.9 */
+  setAdvancePeriodDeductionPlan: async (
+    id: string,
+    amountPerPeriod: number,
+  ): Promise<AdvancePeriodDeductionPlan> => {
+    const response = await apiClient.put<{
+      data: ApiAdvancePeriodDeductionPlanRaw;
+      message?: string;
+    }>(`${BASE_ENDPOINT}/advances/${id}/period-deduction-plan`, {
+      amount_per_period: amountPerPeriod,
+    });
+    return mapAdvancePeriodDeductionPlan(response.data);
+  },
+
   previewSettlement: async (
     params: PreviewSettlementQueryParams,
   ): Promise<SettlementPreview> => {
@@ -442,6 +479,59 @@ export const settlementsApi = {
       cleanedPayload,
     );
     return mapSettlement(response.data);
+  },
+
+  /** F6 — preview del corte en lote. */
+  previewSettlementCut: async (
+    payload: PreviewSettlementCutPayload,
+  ): Promise<SettlementCutPreview> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementCutPreviewRaw>
+    >(`${BASE_ENDPOINT}/cuts/preview`, {
+      periodStart: payload.periodStart,
+      periodEnd: payload.periodEnd,
+      salaryPeriod: payload.salaryPeriod,
+      includeContractors: payload.includeContractors ?? false,
+      ...(payload.employeeIds && payload.employeeIds.length > 0
+        ? { employeeIds: payload.employeeIds }
+        : {}),
+    });
+    return mapSettlementCutPreview(response.data);
+  },
+
+  /** F6 — crear N settlements 1:1 (Idempotency-Key UUID obligatorio). */
+  createSettlementCut: async (
+    payload: CreateSettlementCutPayload,
+    idempotencyKey: string,
+  ): Promise<SettlementCutCreateResult> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementCutCreateRaw> & { message?: string }
+    >(
+      `${BASE_ENDPOINT}/cuts`,
+      {
+        periodStart: payload.periodStart,
+        periodEnd: payload.periodEnd,
+        salaryPeriod: payload.salaryPeriod,
+        includeContractors: payload.includeContractors ?? false,
+        submitForApproval: payload.submitForApproval ?? true,
+        rows: payload.rows.map((row) => ({
+          employeeId: row.employeeId,
+          tripIds: row.tripIds ?? [],
+          confirmedReimbursementExpenseIds:
+            row.confirmedReimbursementExpenseIds ?? [],
+          advancesToApply: row.advancesToApply ?? [],
+          customItems: row.customItems ?? [],
+          notes: row.notes?.trim() ? row.notes.trim() : undefined,
+          acknowledgeZeroKmTrips: row.acknowledgeZeroKmTrips ?? false,
+          acknowledgeZeroFreightTrips: row.acknowledgeZeroFreightTrips ?? false,
+          acknowledgeNoRuleTrips: row.acknowledgeNoRuleTrips ?? false,
+        })),
+      },
+      {
+        headers: { "Idempotency-Key": idempotencyKey },
+      },
+    );
+    return mapSettlementCutCreateResult(response.data, response.message);
   },
 
   createReimbursementSettlement: async (

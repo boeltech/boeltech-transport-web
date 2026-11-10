@@ -198,7 +198,7 @@ describe("ApprovalRow", () => {
 
     expect(
       screen.getByRole("link", { name: "LIQ-202608-0001" }),
-    ).toHaveAttribute("href", "/finance/settlements/settlement-123");
+    ).toHaveAttribute("href", "/finance/operator-payments/settlement-123");
     expect(screen.getByText(/Carlos Mendoza/)).toBeInTheDocument();
     expect(screen.getAllByText("Liquidación").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(approvalsCopy.inbox.table.reimbursementSettlementBadge)).not.toBeInTheDocument();

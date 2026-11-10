@@ -23,6 +23,27 @@ const sampleNavigation: NavGroup[] = [
     ],
   },
 ];
+const operatorPaymentsNav: NavGroup[] = [
+  {
+    id: "operator-payments",
+    title: "Pagos a operadores",
+    items: [
+      {
+        id: "operator-payments-pagos",
+        label: "Pagos",
+        path: "/finance/operator-payments",
+        icon: Circle,
+      },
+      {
+        id: "operator-payments-advances",
+        label: "Anticipos",
+        path: "/finance/operator-payments/advances",
+        icon: Circle,
+      },
+    ],
+  },
+];
+
 describe("enrichNavigationWithBadges", () => {
   it("adds badge to finance-approvals when pending count is positive", () => {
     const enriched = enrichNavigationWithBadges(sampleNavigation, 5);
@@ -40,5 +61,19 @@ describe("enrichNavigationWithBadges", () => {
     expect(enrichNavigationWithBadges(sampleNavigation, undefined)).toEqual(
       sampleNavigation,
     );
+  });
+
+  it("adds F4 nav-badges to Pagos and Anticipos", () => {
+    const enriched = enrichNavigationWithBadges(operatorPaymentsNav, 0, {
+      payments: 38,
+      advances: 4,
+    });
+    expect(
+      enriched[0].items.find((i) => i.id === "operator-payments-pagos")?.badge,
+    ).toBe(38);
+    expect(
+      enriched[0].items.find((i) => i.id === "operator-payments-advances")
+        ?.badge,
+    ).toBe(4);
   });
 });

@@ -5,7 +5,7 @@ export const settlementsCopy = {
   hub: {
     title: "Pagos a operadores",
     description:
-      "Arma el pago, pide autorización cuando aplique y regístralo al operador. Es caja operativa, no un recibo de nómina.",
+      "Arma el pago del periodo, pide autorización y registra lo que ya se pagó.",
     navAriaLabel: "Secciones de pagos a operadores",
     approvalPoliciesAction: "Reglas de autorización",
     /** Wayfinding F1: sueldo + frecuencia viven en Empleados (≤2 clics desde Por pagar). */
@@ -24,14 +24,18 @@ export const settlementsCopy = {
       comoTePago: "Tarifas",
       tablaRutas: "Rutas con tarifa fija",
     },
-    createCut: "Armar pago",
+    createCut: "Armar corte",
     /**
      * F5 R1 — Gerente ve el CTA deshabilitado (Roles.dc.html): arma Contador/Admin
-     * para que el Gerente siempre pueda autorizar. Cubre Armar pago / anticipos /
+     * para que el Gerente siempre pueda autorizar. Cubre Armar corte / anticipos /
      * pago fuera de ciclo (misma permiso `settlements.create`).
      */
     createCutDisabledReason:
       "El Gerente no arma pagos ni anticipos: así siempre puede autorizar. Pídeselo a un contador o administrador.",
+    /** P5 — entry outline en Workbench Pagos → create 1:1 existente. */
+    outOfCycle: "Pago fuera de ciclo",
+    outOfCycleDisabledReason:
+      "El Gerente no arma pagos fuera de ciclo: así siempre puede autorizar. Pídeselo a un contador o administrador.",
   },
   tabs: {
     settlements: "Por pagar",
@@ -107,7 +111,7 @@ export const settlementsCopy = {
   advancesList: {
     title: "Anticipos",
     description:
-      "Anticipos en gestión: en Aprobaciones, por entregar o con saldo pendiente de descontar.",
+      "Dinero que se le adelanta al operador y se descuenta en sus siguientes pagos.",
     deductInPayment: "Descontar en pago",
     viewInApprovals: "Ver en Aprobaciones",
     loadErrorTitle: "No se pudieron cargar los anticipos",
@@ -116,13 +120,66 @@ export const settlementsCopy = {
     operatorAll: "Todos los operadores",
     deliveredLabel: "Entregado",
     balancePendingLabel: "Saldo pendiente",
+    primaryAction: "Nuevo anticipo",
+    pipeline: {
+      ariaLabel: "Etapas de anticipos",
+      pendingApproval: "Por autorizar",
+      pendingDisbursement: "Por entregar",
+      open: "Abiertos",
+      deducted: "Descontados · 30 días",
+      openHint: "Entregados con saldo: se descuentan solos en el siguiente corte.",
+    },
+    notReimbursementAlert: {
+      title: "Un anticipo no es un reembolso",
+      description:
+        "Si el operador pagó un gasto del viaje de su bolsa, regístralo en Costos: se le regresa como reembolso (+). El anticipo se descuenta (−).",
+    },
+    exceedsPaymentAlert: {
+      title: (name: string) =>
+        `El anticipo de ${name} supera su pago de la semana`,
+      description: (estimated: string, remainder: string) =>
+        `Su pago estimado es ${estimated}; si se descuenta todo, recibe ${remainder}. Reparte el descuento en varios cortes o déjalo completo.`,
+      action: "Repartir",
+    },
+    exceedsBadge: "supera su pago",
+    planPerPeriod: (amount: string, remaining: number) =>
+      remaining === 1
+        ? `${amount} por corte · falta 1`
+        : `${amount} por corte · faltan ${remaining}`,
+    repartir: {
+      title: "Repartir anticipo",
+      description: (name: string, balance: string) =>
+        `Define cuánto descontar por corte del anticipo de ${name} (saldo ${balance}). El resto queda abierto para cortes siguientes.`,
+      balanceLabel: "Saldo pendiente",
+      capLabel: "Tope por corte",
+      capHint: (cap: string) =>
+        `Tope = capacidad estimada del próximo pago (${cap}). Nunca fuerces neto $0 por exceso.`,
+      capHintNoEstimate:
+        "Tope = saldo del anticipo. Al armar el pago, el motor respeta también la capacidad del neto.",
+      amountLabel: "Monto por corte",
+      amountRequired: "Indica un monto mayor a 0.",
+      amountExceedsCap: (cap: string) =>
+        `No puede superar el tope visible (${cap}).`,
+      footerNote:
+        "Al armar el corte se descuenta el mínimo entre saldo, este plan y la capacidad del pago.",
+      cancel: "Cancelar",
+      confirm: "Guardar plan",
+      saving: "Guardando…",
+      successTitle: "Plan de descuento guardado",
+      successDescription: (amount: string, periods: number) =>
+        periods <= 1
+          ? `Se descontarán ${amount} en el próximo corte.`
+          : `Se descontarán ${amount} por corte · ~${periods} periodos.`,
+      errorTitle: "No se pudo guardar el plan",
+      actionLabel: "Repartir",
+    },
   },
   workbench: {
     buckets: {
-      pending: "Pendientes",
+      pending: "Por armar",
       draft: "En revisión",
       approval: "En autorización",
-      payable: "Listos para pago",
+      payable: "Por pagar",
       closed: "Pagados",
       openAdvances: "Anticipos abiertos",
     },
@@ -145,6 +202,66 @@ export const settlementsCopy = {
         ariaLabel: "Scorecard de pagos a operadores",
       },
     },
+    pipeline: {
+      ariaLabel: "Etapas",
+    },
+    kpis: {
+      ariaLabel: "Indicadores del periodo",
+      toArm: {
+        label: "Por armar (estimado)",
+        detail: (count: number) =>
+          count === 1 ? "1 operador" : `${count} operadores`,
+      },
+      inApproval: {
+        label: "En autorización",
+        detail: (count: number, agingDays: number | null) => {
+          const base =
+            count === 1 ? "1 pago" : `${count} pagos`;
+          if (agingDays == null || agingDays <= 0) return base;
+          return agingDays === 1
+            ? `${base} · el más antiguo hace 1 día`
+            : `${base} · el más antiguo hace ${agingDays} días`;
+        },
+      },
+      authorizedUnpaid: {
+        label: "Autorizado sin pagar",
+        detail: (count: number) =>
+          count === 1
+            ? "1 pago listo para registrar"
+            : `${count} pagos listos para registrar`,
+      },
+      advancesToDeduct: {
+        label: "Anticipos por descontar",
+        detail: (count: number) =>
+          count === 1 ? "1 operador" : `${count} operadores`,
+      },
+    },
+    closedPeriod: {
+      title: (week: string, operators: number) =>
+        operators === 1
+          ? `Semana ${week} cerró: 1 operador tiene pago pendiente`
+          : `Semana ${week} cerró: ${operators} operadores tienen pago pendiente`,
+      estimate: (amount: string) => `Estimado ${amount}`,
+      warnings: (count: number) =>
+        count === 1
+          ? "1 con avisos que revisar antes de enviar"
+          : `${count} con avisos que revisar antes de enviar`,
+      cta: (week: string) => `Armar corte de la semana ${week}`,
+    },
+    bulkBar: {
+      selected: (count: number) =>
+        count === 1 ? "1 seleccionado" : `${count} seleccionados`,
+      cashNote: (count: number) =>
+        count === 1
+          ? "· 1 sin CLABE se registra en efectivo"
+          : `· ${count} sin CLABE se registran en efectivo`,
+      downloadReceipts: "Descargar recibos",
+      register: (count: number) =>
+        count === 1 ? "Registrar 1 pago" : `Registrar ${count} pagos`,
+      registerSoon:
+        "El registro en lote llega en la siguiente entrega. Mientras, registra uno por uno desde la fila.",
+      noClabeBadge: "Sin CLABE",
+    },
     openAdvancesBridge: {
       linkLabel: (count: number) =>
         count === 1
@@ -162,6 +279,10 @@ export const settlementsCopy = {
       viewFullHistory: "Historial",
       backToWorkbench: "Volver a por pagar",
       includeContractors: "Incluir contratistas",
+      approveBatch: (count: number) =>
+        count === 1 ? "Autorizar 1" : `Autorizar ${count}`,
+      approveBatchSoon:
+        "La autorización en lote llega en la siguiente entrega. Mientras, autoriza uno por uno.",
     },
     filter: {
       searchPending: "Operador",
@@ -658,6 +779,65 @@ export const settlementsCopy = {
       preparing: "Preparando...",
       /** Suggested PDF filename stem (browser appends .pdf). Folio-first, filesystem-safe. */
       printDocumentTitle: (folio: string) => `Recibo-${folio}`,
+    },
+    formula: {
+      ariaLabel: "Fórmula del pago",
+      trips: "Por viajes",
+      tripsSub: (count: number) =>
+        count === 1 ? "1 viaje" : `${count} viajes`,
+      salaryAndFixed: "Sueldo y fijos",
+      salaryAndFixedSub: (salary: string, fixed: string) =>
+        `sueldo ${salary} · fijos ${fixed}`,
+      reimbursements: "Reembolsos",
+      reimbursementsSub: (count: number) =>
+        count === 0
+          ? "Sin reembolsos"
+          : count === 1
+            ? "1 gasto de su bolsa"
+            : `${count} gastos de su bolsa`,
+      deductions: "Anticipos y descuentos",
+      deductionsSub: (advances: string, other: string) =>
+        `anticipo ${advances} · otros ${other}`,
+      netToPay: "A pagar",
+      netToPaySub: (firstName: string) =>
+        firstName ? `lo que recibe ${firstName}` : "lo que recibe el operador",
+    },
+    inspector: {
+      whyTitle: "Por qué este monto",
+      howTitle: (firstName: string) =>
+        firstName ? `Cómo se le paga a ${firstName}` : "Cómo se le paga",
+      activityTitle: "Actividad",
+      viewPayeeCard: "Ver ficha de pago",
+      tariff: "Tarifa",
+      effectiveFrom: "Vigente desde",
+      rhythm: "Ritmo",
+      baseSalary: "Sueldo base",
+      account: "Cuenta",
+      accountMissing: "Sin CLABE",
+      whyTripFixed: (count: number, amount: string) =>
+        count === 1
+          ? `1 viaje fue ruta con tarifa fija (${amount}).`
+          : `${count} viajes fueron ruta con tarifa fija.`,
+      whyTripsCommission: (count: number) =>
+        count === 1
+          ? "1 viaje se pagó por comisión de la tarifa."
+          : `${count} viajes se pagaron por comisión de la tarifa.`,
+      whySalary: "Se suman su sueldo y los fijos del periodo.",
+      whyReimbursements: "Se suman los gastos que pagó de su bolsa.",
+      whyDeductions: "Se descuentan anticipos y descuentos de la tarifa.",
+      emptyWhy: "Sin partidas para explicar este monto.",
+    },
+    tripsSection: {
+      title: (count: number) =>
+        count === 1 ? "Por viajes · 1" : `Por viajes · ${count}`,
+      subtitle: "Cada viaje muestra la regla de la tarifa que se aplicó.",
+      colTrip: "Viaje",
+      colRoute: "Ruta",
+      colClass: "Clase",
+      colKm: "Km",
+      colRule: "Regla aplicada",
+      colPay: "Paga",
+      ruleFallback: "Estándar",
     },
     balanceStrip: {
       /** F3: desglose compensación | reembolsos | total (antes de VoBo/dispersión). */
@@ -1550,6 +1730,116 @@ export const settlementsCopy = {
     weekPrefix: (weekNum: number) => `Sem ${weekNum}`,
     prevAriaLabel: "Período anterior",
     nextAriaLabel: "Período siguiente",
+  },
+  /**
+   * F6 — Wizard Armar corte (Operate-Pagos-Corte.dc.html).
+   * Copy ≠ nómina; exceso deducciones bloquea (no neto $0).
+   */
+  cutWizard: {
+    title: "Armar corte",
+    subtitle:
+      "Calculamos el pago de todos los operadores del ritmo elegido. Revisa solo los que tienen aviso.",
+    backLabel: "Volver a pagos",
+    stepsAriaLabel: "Pasos para armar el corte",
+    steps: [
+      { id: "period", title: "Periodo", description: "Ritmo y fechas" },
+      { id: "review", title: "Revisar", description: "Avisos y montos" },
+      { id: "send", title: "Enviar", description: "Resultado" },
+    ],
+    statusDraft: "Sin enviar",
+    period: {
+      rhythmLabel: "Ritmo del corte",
+      rhythmHelp:
+        "Solo entran operadores con tarifa pagable de este ritmo. Los de otro ritmo quedan fuera.",
+      weekly: "Semanal",
+      biweekly: "Quincenal",
+      monthly: "Mensual",
+      includeContractors: "Incluir contratistas con opt-in",
+      eligibleCount: (count: number) =>
+        count === 1
+          ? "1 operador elegible en este periodo"
+          : `${count} operadores elegibles en este periodo`,
+      eligibleHint: (includable: number, blocking: number, excluded: number) =>
+        `${includable} listos para enviar · ${blocking} bloqueados · ${excluded} fuera`,
+      loadingPreview: "Calculando operadores…",
+      previewError: "No se pudo calcular el corte. Revisa el periodo e intenta de nuevo.",
+      emptyEligible:
+        "Nadie entra en este periodo con el ritmo elegido. Cambia fechas o ritmo, o asigna tarifas en Operadores.",
+    },
+    review: {
+      chipsAriaLabel: "Filtro de operadores del corte",
+      chipAll: "Todos",
+      chipWithWarning: "Con aviso",
+      chipReady: "Listos",
+      searchPlaceholder: "Buscar operador",
+      groupWithWarning: (count: number) => `Con aviso · ${count}`,
+      groupReady: (count: number) => `Listos · ${count}`,
+      expandReady: (count: number) =>
+        count === 1 ? "Ver el 1 restante" : `Ver los ${count} restantes`,
+      collapseReady: "Ocultar listos",
+      columns: {
+        operator: "Operador",
+        warning: "Aviso",
+        amount: "A pagar",
+        action: "",
+      },
+      outsideOfCut: "Fuera del corte",
+      blockedAmount: "Bloqueado",
+      noWarning: "—",
+      tripsSubtitle: (count: number) =>
+        count === 1 ? "1 viaje" : `${count} viajes`,
+      actions: {
+        assignTariff: "Asignar tarifa",
+        viewOperator: "Ver ficha",
+        review: "Revisar",
+        changeAmount: "Cambiar monto",
+        viewTrip: "Ver viaje",
+        viewHistory: "Ver en historial",
+        splitAdvance: "Repartir",
+        definePayee: "Definir payee",
+        view: "Ver",
+      },
+      inspectorTitle: "Resumen del corte",
+      inspectorIncluded: (included: number, total: number) =>
+        `${included} de ${total} operadores incluidos`,
+      inspectorNet: "A pagar",
+      inspectorNetHint: "Suma estimada de filas enviables (sin bloqueadas ni fuera)",
+      outsideTitle: (count: number) => `Fuera de este corte · ${count}`,
+      outsideEmpty: "Nadie queda fuera con el ritmo y periodo actuales.",
+      sendAlertTitle: "Qué pasa al enviar",
+      sendAlertBody: (count: number) =>
+        count === 1
+          ? "Se crea un pago por operador. Según tus reglas de autorización, va a «En autorización». Nada se paga todavía."
+          : `Se crea un pago por operador. Según tus reglas de autorización, los ${count} van a «En autorización». Nada se paga todavía.`,
+      includableNote:
+        "Los avisos marcados como «Incluido» no bloquean el envío. Las filas bloqueadas no entran en N.",
+      saveDrafts: "Guardar como borradores",
+      sendN: (count: number) =>
+        count === 1
+          ? "Enviar 1 pago a autorización"
+          : `Enviar ${count} pagos a autorización`,
+      sendDisabledEmpty: "No hay filas enviables: corrige bloqueos o cambia el periodo.",
+      sending: "Enviando…",
+    },
+    send: {
+      successTitle: (count: number) =>
+        count === 1 ? "1 pago creado" : `${count} pagos creados`,
+      omittedTitle: (count: number) =>
+        count === 1 ? "1 omitido" : `${count} omitidos`,
+      omittedReason: "Motivo",
+      replayNote: "Reenvío idempotente: se devolvió el mismo resultado del corte anterior.",
+      goToApproval: "Ir a En autorización",
+      goToPayable: "Ir a Pagos",
+      emptyCreated: "No se creó ningún pago en este envío.",
+      columns: {
+        folio: "Folio",
+        amount: "Neto",
+        status: "Estado",
+      },
+    },
+    toastErrorTitle: "No se pudo armar el corte",
+    toastDraftSuccessTitle: "Borradores guardados",
+    toastSendSuccessTitle: "Corte enviado",
   },
 } as const;
 

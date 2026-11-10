@@ -146,3 +146,19 @@ export function useDisburseDriverAdvance() {
     onSuccess: () => invalidateAdvanceQueries(queryClient),
   });
 }
+
+/** P10 — plan de descuento por periodo (`period_deduction_cap`). */
+export function useSetAdvancePeriodDeductionPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      amountPerPeriod,
+    }: {
+      id: string;
+      amountPerPeriod: number;
+    }) => settlementsApi.setAdvancePeriodDeductionPlan(id, amountPerPeriod),
+    onSuccess: () => invalidateAdvanceQueries(queryClient),
+  });
+}

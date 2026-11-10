@@ -102,12 +102,20 @@ function mockPreview(preview: SettlementPreview | undefined, state: Partial<{ is
   });
 }
 
-function renderPage(url = "/finance/settlements/new?kind=reimbursements&employeeId=emp-1") {
+function renderPage(
+  url = "/finance/operator-payments/new?kind=reimbursements&employeeId=emp-1",
+) {
   return render(
     <MemoryRouter initialEntries={[url]}>
       <Routes>
-        <Route path="/finance/settlements/new" element={<SettlementReimbursementCreatePage />} />
-        <Route path="/finance/settlements/:id" element={<div data-testid="detail-page" />} />
+        <Route
+          path="/finance/operator-payments/new"
+          element={<SettlementReimbursementCreatePage />}
+        />
+        <Route
+          path="/finance/operator-payments/:id"
+          element={<div data-testid="detail-page" />}
+        />
       </Routes>
     </MemoryRouter>,
   );
@@ -257,7 +265,7 @@ describe("SettlementReimbursementCreatePage", () => {
   });
 
   it("sin operador en la URL pide elegirlo desde Por pagar", () => {
-    renderPage("/finance/settlements/new?kind=reimbursements");
+    renderPage("/finance/operator-payments/new?kind=reimbursements");
     expect(screen.getByText(pageCopy.noEmployeeTitle)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: pageCopy.noEmployeeAction })).toBeInTheDocument();
   });
@@ -269,7 +277,9 @@ describe("SettlementReimbursementCreatePage", () => {
   });
 
   it("al venir de un pago, el regreso apunta a su folio", () => {
-    renderPage("/finance/settlements/new?kind=reimbursements&employeeId=emp-1&from=stl-prev");
+    renderPage(
+      "/finance/operator-payments/new?kind=reimbursements&employeeId=emp-1&from=stl-prev",
+    );
     expect(screen.getByLabelText(pageCopy.backToFolio("LIQ-202610-0001"))).toBeInTheDocument();
   });
 });

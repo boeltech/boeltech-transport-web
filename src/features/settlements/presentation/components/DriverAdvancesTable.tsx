@@ -17,6 +17,8 @@ import {
   TableRow,
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
+import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { DriverAdvance } from "../../domain/entities";
@@ -36,6 +38,7 @@ import { AdvanceActions } from "./AdvanceActions";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
 const copy = settlementsCopy;
+const advancesCopy = settlementsCopy.advancesList;
 
 // ============================================================================
 // TYPES
@@ -44,6 +47,8 @@ const copy = settlementsCopy;
 interface DriverAdvancesTableProps {
   advances: DriverAdvance[];
   isLoading: boolean;
+  onRepartir?: (advance: DriverAdvance) => void;
+  estimatedByEmployee?: ReadonlyMap<string, number>;
 }
 
 // ============================================================================
@@ -125,7 +130,12 @@ function LoadingSkeleton() {
 // COMPONENT
 // ============================================================================
 
-export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTableProps) {
+export function DriverAdvancesTable({
+  advances,
+  isLoading,
+  onRepartir,
+  estimatedByEmployee,
+}: DriverAdvancesTableProps) {
   if (isLoading) {
     return (
       <div className="rounded-md border bg-card overflow-x-auto">
@@ -151,6 +161,14 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
             const catLabel =
               ADVANCE_CATEGORY_LABELS[adv.category as AdvanceCategory] ??
               adv.category;
+            const balance = adv.availableBalance ?? adv.balanceRemaining;
+            const estimated = estimatedByEmployee?.get(adv.employeeId);
+            const exceeds =
+              estimated != null &&
+              balance > estimated &&
+              (adv.status === "disbursed" || adv.status === "partially_applied");
+            const hasPlan =
+              adv.periodDeductionCap != null && adv.periodDeductionCap > 0;
             return (
               <TableRow key={adv.id} className="hover:bg-muted/50 transition-colors">
                 {/* Folio */}
@@ -192,10 +210,28 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
 
                 {/* Saldo restante */}
                 <TableCell className="text-right tabular-nums font-bold text-primary">
-                  {formatMxCurrency(adv.availableBalance ?? adv.balanceRemaining)}
+                  {formatMxCurrency(balance)}
                   {adv.reservedAmount && adv.reservedAmount > 0 ? (
                     <p className="text-[10px] font-normal text-muted-foreground whitespace-normal mt-0.5">
                       {copy.createPage.summary.reservedAdvanceHint}
+                    </p>
+                  ) : null}
+                  {exceeds ? (
+                    <div className="mt-1">
+                      <Badge variant="warning" tone="soft" className="text-[10px]">
+                        {advancesCopy.exceedsBadge}
+                      </Badge>
+                    </div>
+                  ) : null}
+                  {hasPlan ? (
+                    <p className="mt-1 text-[10px] font-normal text-muted-foreground">
+                      {advancesCopy.planPerPeriod(
+                        formatMxCurrency(adv.periodDeductionCap!),
+                        Math.max(
+                          1,
+                          Math.ceil(balance / (adv.periodDeductionCap ?? 1)),
+                        ),
+                      )}
                     </p>
                   ) : null}
                 </TableCell>
@@ -222,7 +258,23 @@ export function DriverAdvancesTable({ advances, isLoading }: DriverAdvancesTable
 
                 {/* Acciones */}
                 <TableCell className="w-12 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                  <AdvanceActions advance={adv} />
+                  <div className="flex items-center justify-end gap-1">
+                    {onRepartir &&
+                    (exceeds ||
+                      adv.status === "disbursed" ||
+                      adv.status === "partially_applied") ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRepartir(adv)}
+                        data-testid={`advance-repartir-${adv.id}`}
+                      >
+                        {advancesCopy.repartir.actionLabel}
+                      </Button>
+                    ) : null}
+                    <AdvanceActions advance={adv} />
+                  </div>
                 </TableCell>
               </TableRow>
             );

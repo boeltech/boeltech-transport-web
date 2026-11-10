@@ -110,8 +110,21 @@ export interface DriverAdvance {
   readonly approvalRevision?: string | null;
   /** ADR-0099: `undefined` = API sin bloque; `null` = registro previo al motor. */
   readonly approval?: ApprovalBlock | null;
+  /**
+   * P10 — tope de descuento por periodo (`period_deduction_cap`).
+   * `null` = sin plan (se descuenta todo lo que quepa en el pago).
+   */
+  readonly periodDeductionCap?: number | null;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/** PUT /settlements/advances/:id/period-deduction-plan — P10 / TEC §C.9 */
+export interface AdvancePeriodDeductionPlan {
+  readonly advanceId: string;
+  readonly amountPerPeriod: number;
+  readonly availableBalance: number;
+  readonly projectedPeriodsEstimate: number;
 }
 
 /** ADR-0099 D17: efecto de editar un anticipo sobre su autorización. */
@@ -604,6 +617,12 @@ export interface SettlementBacklogRow {
   readonly reimbursementsRequiringPayeeCount?: number;
 }
 
+/** KPI del workbench F4: conteo + monto (Operate-Pagos-Workbench). */
+export interface WorkbenchKpiBucket {
+  readonly count: number;
+  readonly amount: number;
+}
+
 export interface SettlementWorkbenchSummary {
   readonly pending: number;
   readonly draft: number;
@@ -611,11 +630,29 @@ export interface SettlementWorkbenchSummary {
   readonly payable: number;
   readonly closed: number;
   readonly openAdvances: number;
+  /** Días del pago en autorización más antiguo; `null` si no hay. */
+  readonly approvalAgingDaysMax?: number | null;
+  /** Suma de saldos libres de anticipos abiertos (respeta tope P10). */
+  readonly advancesDeductibleEstimate?: number;
+  readonly kpis?: {
+    readonly toArm: WorkbenchKpiBucket;
+    readonly inApproval: WorkbenchKpiBucket;
+    readonly authorizedUnpaid: WorkbenchKpiBucket;
+    readonly advancesToDeduct: WorkbenchKpiBucket;
+  };
 }
 
 export interface SettlementWorkbenchData {
   readonly summary: SettlementWorkbenchSummary;
   readonly backlog: readonly SettlementBacklogRow[];
+}
+
+/** GET /settlements/nav-badges — TEC §C.4 */
+export interface SettlementsNavBadges {
+  /** `to_arm` (backlog) + `payable` (approved). */
+  readonly payments: number;
+  /** Anticipos `pending_approval` + `pending_disbursement`. */
+  readonly advances: number;
 }
 
 export interface TenantSettlementSettings {

@@ -98,11 +98,15 @@ describe("OperatorPaymentsHubLayout — acciones del hub (addendum ADR-0099-A6)"
     ).not.toBeInTheDocument();
   });
 
-  it("en historial muestra relatedConfig de vuelta a por pagar", () => {
+  it("Pagados (historial) ya no es tab: registry path = por pagar sin relatedConfig", () => {
+    expect(SETTLEMENTS_REGISTRY_PATH).toBe(SETTLEMENTS_LIST_PATH);
     renderHub(SETTLEMENTS_REGISTRY_PATH);
     expect(
-      screen.getByRole("link", { name: copy.registryRelated.label }),
-    ).toHaveAttribute("href", SETTLEMENTS_LIST_PATH);
+      screen.queryByRole("link", { name: copy.registryRelated.label }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: copy.tabs.porPagar }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   it("en por pagar no muestra relatedConfig (Tarifas ya es tab del hub)", () => {

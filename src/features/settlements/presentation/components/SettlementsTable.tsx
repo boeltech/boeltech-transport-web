@@ -13,6 +13,8 @@ import {
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
 import { Badge } from "@shared/ui/badge";
+import { Checkbox } from "@shared/ui/checkbox";
+import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { ApprovalFlowLines } from "@features/approvals/presentation/components";
 import type { DriverSettlement } from "../../domain/entities";
@@ -24,8 +26,9 @@ import { settlementsCopy } from "../copy/settlementsCopy";
 import { settlementPeriodLabel } from "../utils/reimbursementLines";
 
 const copy = settlementsCopy;
+const bulkCopy = settlementsCopy.workbench.bulkBar;
 
-export type SettlementsTableColumnMode = "pipeline" | "registry";
+export type SettlementsTableColumnMode = "pipeline" | "registry" | "payable";
 
 interface SettlementsTableProps {
   settlements: DriverSettlement[];
@@ -36,6 +39,10 @@ interface SettlementsTableProps {
   approvalLinkOnly?: boolean;
   showRejectedCorrection?: boolean;
   columnMode?: SettlementsTableColumnMode;
+  /** Selección de lote (bucket Por pagar / F4). */
+  selectedIds?: ReadonlySet<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: (checked: boolean) => void;
 }
 
 interface TableHeaderConfig {
@@ -62,6 +69,17 @@ const PIPELINE_HEADERS: TableHeaderConfig[] = [
   { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
   { key: "netAmount", label: copy.fields.netAmount, className: "text-right min-w-[130px] font-semibold text-foreground" },
   { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
+  { key: "actions", label: "", className: "w-12 text-right" },
+];
+
+const PAYABLE_HEADERS: TableHeaderConfig[] = [
+  { key: "select", label: "", className: "w-10" },
+  { key: "settlementNumber", label: copy.fields.settlementNumber, className: "min-w-[140px]" },
+  { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
+  { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
+  { key: "approvedBy", label: "Autorizó", className: "min-w-[140px]" },
+  { key: "account", label: "Cuenta", className: "min-w-[120px]" },
+  { key: "netAmount", label: "A pagar", className: "text-right min-w-[130px] font-semibold text-foreground" },
   { key: "actions", label: "", className: "w-12 text-right" },
 ];
 
@@ -147,9 +165,22 @@ export function SettlementsTable({
   approvalLinkOnly = false,
   showRejectedCorrection = false,
   columnMode = "registry",
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }: SettlementsTableProps) {
-  const headers = columnMode === "pipeline" ? PIPELINE_HEADERS : REGISTRY_HEADERS;
+  const headers =
+    columnMode === "payable"
+      ? PAYABLE_HEADERS
+      : columnMode === "pipeline"
+        ? PIPELINE_HEADERS
+        : REGISTRY_HEADERS;
   const colCount = headers.length;
+  const selectable = columnMode === "payable" && Boolean(onToggleSelect);
+  const allSelected =
+    selectable &&
+    settlements.length > 0 &&
+    settlements.every((st) => selectedIds?.has(st.id));
 
   if (isLoading) {
     return (
@@ -170,14 +201,61 @@ export function SettlementsTable({
   return (
     <div className="rounded-md border bg-card overflow-x-auto">
       <Table aria-label="Listado de pagos">
-        <TableHeaderRow headers={headers} />
+        {columnMode === "payable" ? (
+          <TableHeader>
+            <TableRow>
+              {PAYABLE_HEADERS.map((header) => (
+                <TableHead key={header.key} className={header.className}>
+                  {header.key === "select" ? (
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={(checked) =>
+                        onToggleSelectAll?.(checked === true)
+                      }
+                      aria-label="Seleccionar todos"
+                    />
+                  ) : (
+                    header.label
+                  )}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+        ) : (
+          <TableHeaderRow headers={headers} />
+        )}
         <TableBody>
-          {settlements.map((st) => (
+          {settlements.map((st) => {
+            const selected = selectedIds?.has(st.id) ?? false;
+            // Sin campo hasClabe en listado: SPEI sin referencia → badge Sin CLABE (F4).
+            const missingClabe =
+              columnMode === "payable" &&
+              (!st.disbursementMethod ||
+                st.disbursementMethod === "bank_transfer") &&
+              !st.disbursementReference;
+
+            return (
             <TableRow
               key={st.id}
-              className="cursor-pointer hover:bg-muted/50 transition-colors"
+              className={cn(
+                "cursor-pointer hover:bg-muted/50 transition-colors",
+                selected && "bg-primary/5",
+              )}
               onClick={() => onView(st.id)}
             >
+              {columnMode === "payable" ? (
+                <TableCell
+                  className="w-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    checked={selected}
+                    onCheckedChange={() => onToggleSelect?.(st.id)}
+                    aria-label={`Seleccionar ${st.settlementNumber}`}
+                  />
+                </TableCell>
+              ) : null}
+
               <TableCell className="font-semibold text-foreground font-mono tabular-nums whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5">
                   {st.settlementNumber}
@@ -192,6 +270,27 @@ export function SettlementsTable({
               <TableCell className="text-muted-foreground text-xs sm:text-sm whitespace-nowrap">
                 {settlementPeriodLabel(st)}
               </TableCell>
+
+              {columnMode === "payable" ? (
+                <>
+                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                    {st.approvedByName
+                      ? `${st.approvedByName}${st.approvedAt ? ` · ${new Date(st.approvedAt).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}` : ""}`
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {missingClabe ? (
+                      <Badge variant="warning" tone="soft" data-testid="settlement-no-clabe-badge">
+                        {bulkCopy.noClabeBadge}
+                      </Badge>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        SPEI
+                      </span>
+                    )}
+                  </TableCell>
+                </>
+              ) : null}
 
               {columnMode === "registry" ? (
                 <>
@@ -217,14 +316,16 @@ export function SettlementsTable({
                 {formatMxCurrency(st.netAmount)}
               </TableCell>
 
-              <TableCell className="whitespace-nowrap">
-                <SettlementStatusCell
-                  status={st.status}
-                  rejectionReason={st.rejectionReason}
-                  showRejectedCorrection={showRejectedCorrection}
-                  approval={st.approval}
-                />
-              </TableCell>
+              {columnMode !== "payable" ? (
+                <TableCell className="whitespace-nowrap">
+                  <SettlementStatusCell
+                    status={st.status}
+                    rejectionReason={st.rejectionReason}
+                    showRejectedCorrection={showRejectedCorrection}
+                    approval={st.approval}
+                  />
+                </TableCell>
+              ) : null}
 
               <TableCell
                 className="w-12 text-right whitespace-nowrap"
@@ -239,7 +340,8 @@ export function SettlementsTable({
                 />
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </div>

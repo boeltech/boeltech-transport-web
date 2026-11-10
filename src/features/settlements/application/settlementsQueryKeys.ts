@@ -4,6 +4,7 @@ import type {
   ListSettlementsParams,
   ListWorkbenchParams,
 } from "../infrastructure/settlementsApi";
+import type { PreviewSettlementCutPayload } from "../domain/settlementCut";
 import type { PreviewSettlementQueryParams } from "../presentation/validation/settlementSchemas";
 
 export const settlementsQueryKeys = {
@@ -34,9 +35,15 @@ export const settlementsQueryKeys = {
   reimbursementPreview: (employeeId: string) =>
     [...settlementsQueryKeys.all, "preview", "reimbursement_only", employeeId] as const,
 
+  // Cut preview (F6)
+  cutPreview: (params: PreviewSettlementCutPayload) =>
+    [...settlementsQueryKeys.all, "cut-preview", params] as const,
+
   workbench: () => [...settlementsQueryKeys.all, "workbench"] as const,
   workbenchList: (params: ListWorkbenchParams) =>
     [...settlementsQueryKeys.workbench(), params] as const,
+
+  navBadges: () => [...settlementsQueryKeys.all, "nav-badges"] as const,
 
   settings: () => [...settlementsQueryKeys.all, "settings"] as const,
 

@@ -24,6 +24,14 @@ vi.mock("@features/approvals", () => ({
   usePendingApprovalsCount: () => pendingCount(),
 }));
 
+vi.mock("@features/settlements/application", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@features/settlements/application")>()),
+  useSettlementsNavBadges: () => ({
+    data: { payments: 0, advances: 0 },
+    isLoading: false,
+  }),
+}));
+
 function renderNavigation(initialEntry: string) {
   return renderHook(() => useNavigationWithBadges(), {
     wrapper: ({ children }: { children: ReactNode }) => (
