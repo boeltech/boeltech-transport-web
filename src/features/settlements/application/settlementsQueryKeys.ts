@@ -1,5 +1,6 @@
 import type {
   ListAdvancesParams,
+  ListOperatorsParams,
   ListSettlementsParams,
   ListWorkbenchParams,
 } from "../infrastructure/settlementsApi";
@@ -38,4 +39,9 @@ export const settlementsQueryKeys = {
     [...settlementsQueryKeys.workbench(), params] as const,
 
   settings: () => [...settlementsQueryKeys.all, "settings"] as const,
+
+  // Operators readiness (F3)
+  operators: () => [...settlementsQueryKeys.all, "operators"] as const,
+  operatorsList: (params: ListOperatorsParams) =>
+    [...settlementsQueryKeys.operators(), params] as const,
 };

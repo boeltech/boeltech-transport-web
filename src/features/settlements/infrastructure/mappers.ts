@@ -10,6 +10,7 @@ import type {
   EligibleTripPreview,
   LateReimbursementsSummary,
   OpenAdvancePreview,
+  OperatorPaymentReadiness,
   PeriodicBlockPreview,
   ReimbursementPreviewLine,
   ReimbursementRequiringPayeeLine,
@@ -31,6 +32,9 @@ import {
   DEFAULT_MID_TRIP_PAYOUT_POLICY,
   DEFAULT_VOBO_THRESHOLD_MXN,
   type MidTripPayoutPolicy,
+  type OperatorPaymentAttentionReason,
+  type OperatorPaymentReadinessStatus,
+  type OperatorTemplatePayability,
 } from "../domain/enums";
 
 export interface ApiCompensationAgreementRuleRaw {
@@ -1041,5 +1045,105 @@ export function mapSettlementSettings(
           : Number(raw.vobo_threshold_mxn),
     activeApproverCount: Number(raw.active_approver_count) || 0,
     activeExecutorCount: Number(raw.active_executor_count) || 0,
+  };
+}
+
+// ============================================================================
+// OPERATOR PAYMENT READINESS (F3)
+// ============================================================================
+
+export interface ApiOperatorPaymentReadinessTemplateRaw {
+  id: string;
+  name: string;
+  version: number;
+  effective_from: string;
+  payability: string;
+}
+
+export interface ApiOperatorPaymentReadinessSalaryRaw {
+  amount: number | null;
+  period: string | null;
+}
+
+/** Snake_case de `GET /settlements/operators` — HB-T5: nunca `bank_clabe` / CLABE. */
+export interface ApiOperatorPaymentReadinessRaw {
+  employee_id: string;
+  full_name: string;
+  employment_type: string;
+  status: string;
+  template: ApiOperatorPaymentReadinessTemplateRaw | null;
+  salary: ApiOperatorPaymentReadinessSalaryRaw | null;
+  has_clabe: boolean;
+  open_advances_count: number;
+  open_advances_balance: number;
+  attention_reasons: string[];
+}
+
+const OPERATOR_STATUS_SET = new Set<OperatorPaymentReadinessStatus>([
+  "ready",
+  "no_template",
+  "dual_template",
+  "no_clabe",
+  "version_superseded",
+]);
+
+function asOperatorStatus(raw: string): OperatorPaymentReadinessStatus {
+  return OPERATOR_STATUS_SET.has(raw as OperatorPaymentReadinessStatus)
+    ? (raw as OperatorPaymentReadinessStatus)
+    : "no_template";
+}
+
+function asAttentionReasons(
+  raw: string[] | undefined,
+): OperatorPaymentAttentionReason[] {
+  if (!raw?.length) return [];
+  return raw.filter(
+    (code): code is OperatorPaymentAttentionReason =>
+      code !== "ready" && OPERATOR_STATUS_SET.has(code as OperatorPaymentReadinessStatus),
+  );
+}
+
+export function mapOperatorPaymentReadiness(
+  raw: ApiOperatorPaymentReadinessRaw,
+): OperatorPaymentReadiness {
+  const templateRaw = raw.template;
+  return {
+    employeeId: raw.employee_id,
+    fullName: raw.full_name,
+    employmentType: raw.employment_type,
+    status: asOperatorStatus(raw.status),
+    template: templateRaw
+      ? {
+          id: templateRaw.id,
+          name: templateRaw.name,
+          version: Number(templateRaw.version) || 0,
+          effectiveFrom: String(templateRaw.effective_from ?? "").slice(0, 10),
+          payability:
+            templateRaw.payability === "superseded"
+              ? ("superseded" as OperatorTemplatePayability)
+              : ("active" as OperatorTemplatePayability),
+        }
+      : null,
+    salary: {
+      amount:
+        raw.salary?.amount === undefined || raw.salary?.amount === null
+          ? null
+          : Number(raw.salary.amount),
+      period: raw.salary?.period ?? null,
+    },
+    hasClabe: Boolean(raw.has_clabe),
+    openAdvancesCount: Number(raw.open_advances_count) || 0,
+    openAdvancesBalance: Number(raw.open_advances_balance) || 0,
+    attentionReasons: asAttentionReasons(raw.attention_reasons),
+  };
+}
+
+export function mapListOperatorsResponse(response: {
+  data: ApiOperatorPaymentReadinessRaw[];
+  pagination: ApiPaginationRaw;
+}): MappedPaginatedResult<OperatorPaymentReadiness> {
+  return {
+    data: (response.data || []).map(mapOperatorPaymentReadiness),
+    pagination: extractPagination(response.pagination, 1, 25),
   };
 }

@@ -25,6 +25,13 @@ export const settlementsCopy = {
       tablaRutas: "Rutas con tarifa fija",
     },
     createCut: "Armar pago",
+    /**
+     * F5 R1 — Gerente ve el CTA deshabilitado (Roles.dc.html): arma Contador/Admin
+     * para que el Gerente siempre pueda autorizar. Cubre Armar pago / anticipos /
+     * pago fuera de ciclo (misma permiso `settlements.create`).
+     */
+    createCutDisabledReason:
+      "El Gerente no arma pagos ni anticipos: así siempre puede autorizar. Pídeselo a un contador o administrador.",
   },
   tabs: {
     settlements: "Por pagar",
@@ -36,9 +43,66 @@ export const settlementsCopy = {
     description:
       "Cómo se le paga a cada operador: tarifa, sueldo, ritmo y cuenta.",
     entityLabelPlural: "operadores",
-    comingSoonTitle: "Próximo",
-    comingSoonDescription:
-      "El listado con readiness (tarifa, sueldo y cuenta) llega en la siguiente fase.",
+    searchPlaceholder: "Buscar operador",
+    assignBatch: "Asignar tarifa a varios",
+    assignSingle: "Asignar tarifa",
+    chips: {
+      ariaLabel: "Filtro de readiness de operadores",
+      all: "Todos",
+      ready: "Listos",
+      needsAttention: "Requieren atención",
+    },
+    columns: {
+      operator: "Operador",
+      tariff: "Tarifa",
+      salary: "Sueldo",
+      advances: "Anticipos",
+      status: "Estado",
+    },
+    noTariff: "Sin tarifa",
+    tariffFrom: (date: string) => `desde ${date}`,
+    tariffVersion: (name: string, version: number) => `${name} v${version}`,
+    salaryMissing: "Sin sueldo",
+    advancesNone: "—",
+    readyGroup: (count: number) => `Listos · ${count}`,
+    loadErrorTitle: "No se pudo cargar operadores",
+    loadError: "Intenta de nuevo. Si persiste, vuelve más tarde.",
+    retry: "Reintentar",
+    emptyTitle: "Sin operadores en este filtro",
+    emptyDescription:
+      "Cambia el chip o limpia la búsqueda para ver otros operadores.",
+    emptyAllTitle: "Sin operadores",
+    emptyAllDescription:
+      "Cuando haya conductores activos aparecerán aquí con su readiness de pago.",
+    panel: {
+      emptyTitle: "Cómo se le paga",
+      emptyDescription: "Selecciona un operador para ver tarifa, sueldo y cuenta.",
+      howTitle: (name: string) => `Cómo se le paga a ${name}`,
+      blockedNoTariff: "No entra a ningún corte hasta que tenga tarifa.",
+      blockedDual: "Hay dos tarifas vigentes a la vez; resuelve antes del corte.",
+      blockedNoClabe: "Sin CLABE no se puede registrar el pago por transferencia.",
+      blockedSuperseded:
+        "La versión de tarifa ya fue reemplazada; asigna la vigente.",
+      readySubtitle: "Tarifa, sueldo y cuenta listos para el próximo corte.",
+      stepTariff: "Tarifa",
+      stepTariffEmpty: "Sin asignar.",
+      stepSalary: "Sueldo y ritmo",
+      stepSalaryEmpty: "Captura sueldo y ritmo en Empleados.",
+      stepSalaryEdit: "editar en Empleados",
+      stepAccount: "Cuenta para pagar",
+      stepAccountOk: "Cuenta registrada · SPEI",
+      stepAccountMissing: "Sin CLABE.",
+      stepAccountEdit: "capturar en Empleados",
+      assignInfoTitle: "Al asignar la tarifa",
+      assignInfoDescription:
+        "Elige desde qué fecha aplica. Si cubre el periodo abierto, el operador entra al próximo corte.",
+      pickTemplateTitle: "Elegir tarifa",
+      pickTemplateDescription:
+        "Selecciona la tarifa a asignar. Luego eliges operadores y la fecha de vigencia.",
+      pickTemplateEmpty: "No hay tarifas activas. Crea una en Tarifas.",
+      pickTemplateCancel: "Cancelar",
+      goToTariffs: "Ir a Tarifas",
+    },
   },
   advancesList: {
     title: "Anticipos",

@@ -13,6 +13,9 @@ import type {
   CompensationSalaryPeriod,
   DisbursementMethod,
   MidTripPayoutPolicy,
+  OperatorPaymentAttentionReason,
+  OperatorPaymentReadinessStatus,
+  OperatorTemplatePayability,
   SettlementItemType,
   SettlementStatus,
   TripRouteType,
@@ -625,4 +628,37 @@ export interface TenantSettlementSettings {
   readonly activeApproverCount: number;
   /** Usuarios activos con settlements.execute (live; F17a). */
   readonly activeExecutorCount: number;
+}
+
+// ============================================================================
+// OPERATOR PAYMENT READINESS (F3)
+// ============================================================================
+
+export interface OperatorPaymentReadinessTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly version: number;
+  readonly effectiveFrom: string;
+  readonly payability: OperatorTemplatePayability;
+}
+
+export interface OperatorPaymentReadinessSalary {
+  /** `null` si la ficha no tiene sueldo base. */
+  readonly amount: number | null;
+  /** `employees.salary_type` (`weekly|biweekly|monthly|daily`); null si no aplica. */
+  readonly period: string | null;
+}
+
+/** Fila de `GET /settlements/operators` (HB-T5: solo `hasClabe`, nunca CLABE completa). */
+export interface OperatorPaymentReadiness {
+  readonly employeeId: string;
+  readonly fullName: string;
+  readonly employmentType: string;
+  readonly status: OperatorPaymentReadinessStatus;
+  readonly template: OperatorPaymentReadinessTemplate | null;
+  readonly salary: OperatorPaymentReadinessSalary;
+  readonly hasClabe: boolean;
+  readonly openAdvancesCount: number;
+  readonly openAdvancesBalance: number;
+  readonly attentionReasons: readonly OperatorPaymentAttentionReason[];
 }

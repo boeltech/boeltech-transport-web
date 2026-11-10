@@ -9,13 +9,18 @@ import type {
   CompensationAgreement,
   DriverAdvance,
   DriverSettlement,
+  OperatorPaymentReadiness,
   SettlementPreview,
   SettlementWorkbenchData,
   TenantSettlementSettings,
   UpdateDriverAdvanceResult,
   UpdateSettlementResult,
 } from "../domain/entities";
-import type { AdvanceStatus, SettlementStatus } from "../domain/enums";
+import type {
+  AdvanceStatus,
+  OperatorPaymentAttentionFilter,
+  SettlementStatus,
+} from "../domain/enums";
 import type { ManualSettlementItemInput } from "../domain/settlementTotals";
 import {
   mapAgreement,
@@ -23,12 +28,14 @@ import {
   mapSettlement,
   mapSettlementPreview,
   mapListAdvancesResponse,
+  mapListOperatorsResponse,
   mapListSettlementsResponse,
   mapWorkbenchResponse,
   mapSettlementSettings,
   type ApiCompensationAgreementRaw,
   type ApiDriverAdvanceRaw,
   type ApiDriverSettlementRaw,
+  type ApiOperatorPaymentReadinessRaw,
   type ApiPaginationRaw,
   type ApiSettlementPreviewRaw,
   type ApiTenantSettlementSettingsRaw,
@@ -128,6 +135,13 @@ export interface ListWorkbenchParams {
   employeeId?: string;
   branchId?: string;
   includeContractors?: boolean;
+}
+
+export interface ListOperatorsParams {
+  attention?: OperatorPaymentAttentionFilter;
+  includeContractors?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
 export const settlementsApi = {
@@ -322,6 +336,27 @@ export const settlementsApi = {
   // ==========================================================================
   // SETTLEMENTS & PREVIEW
   // ==========================================================================
+  /** GET /settlements/operators — readiness agregado (F3 / TEC §C.3). */
+  listOperators: async (
+    params: ListOperatorsParams = {},
+  ): Promise<MappedPaginatedResult<OperatorPaymentReadiness>> => {
+    const queryParams: Record<string, string> = {
+      attention: params.attention ?? "all",
+      page: String(params.page ?? 1),
+      page_size: String(params.pageSize ?? 25),
+    };
+    if (params.includeContractors) {
+      queryParams.include_contractors = "true";
+    }
+
+    const response = await apiClient.get<{
+      data: ApiOperatorPaymentReadinessRaw[];
+      pagination: ApiPaginationRaw;
+    }>(`${BASE_ENDPOINT}/operators`, { params: queryParams });
+
+    return mapListOperatorsResponse(response);
+  },
+
   getWorkbench: async (
     params: ListWorkbenchParams = {},
   ): Promise<SettlementWorkbenchData> => {
