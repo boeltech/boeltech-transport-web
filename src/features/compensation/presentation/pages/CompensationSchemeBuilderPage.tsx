@@ -69,8 +69,6 @@ import { BuilderIdentitySection } from "../components/BuilderIdentitySection";
 import { BuilderTripLadderSection } from "../components/BuilderTripLadderSection";
 import { BuilderFixedAllowancesSection } from "../components/BuilderFixedAllowancesSection";
 import { BuilderDeductionsOnlySection } from "../components/BuilderDeductionsOnlySection";
-import { CorridorTariffSheet } from "../components/CorridorTariffSheet";
-
 const copy = compensationCopy.builder;
 const actionsCopy = compensationCopy.templateActions;
 
@@ -88,7 +86,6 @@ export function CompensationSchemeBuilderPage() {
   const [activeSectionId, setActiveSectionId] = useState<BuilderSectionId>("trips");
   const [formulaResultActive, setFormulaResultActive] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
-  const [corridorSheetOpen, setCorridorSheetOpen] = useState(false);
 
   const {
     data: template,
@@ -609,7 +606,6 @@ export function CompensationSchemeBuilderPage() {
                       removeRule={removeRule}
                       watchedRules={watchedRules}
                       readOnly={locked}
-                      onAddCorridor={() => setCorridorSheetOpen(true)}
                     />
                   );
                 case "allowances":
@@ -664,20 +660,6 @@ export function CompensationSchemeBuilderPage() {
       </form>
 
       <UnsavedChangesDialog blocker={blocker} />
-
-      <CorridorTariffSheet
-        open={corridorSheetOpen}
-        onOpenChange={setCorridorSheetOpen}
-        onSuccess={(createdId) => {
-          if (!createdId) return;
-          const current = form.getValues("corridorIds") ?? [];
-          if (!current.includes(createdId)) {
-            form.setValue("corridorIds", [...current, createdId], {
-              shouldDirty: true,
-            });
-          }
-        }}
-      />
 
       <AlertDialog open={activateOpen} onOpenChange={setActivateOpen}>
         <AlertDialogContent>

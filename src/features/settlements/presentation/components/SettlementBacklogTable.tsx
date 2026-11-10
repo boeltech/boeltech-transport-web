@@ -32,6 +32,7 @@ import {
 } from "../utils/backlogPeriodOverlap";
 import { resolveTemplateChangeTooltip } from "../utils/templateChangeNotice";
 import { resolveTemplateSupersededText } from "../utils/templateSupersededNotice";
+import { OperatorPaymentStatusBadge } from "../config/operatorPaymentStatusConfig";
 
 const copy = settlementsCopy.workbench;
 const fieldsCopy = settlementsCopy.fields;
@@ -392,11 +393,13 @@ export function SettlementBacklogTable({
                   <span className="text-xs text-muted-foreground font-medium">
                     {fieldsCopy.estimatedAmount}
                   </span>
-                  <span className="text-base font-extrabold tabular-nums text-foreground">
-                    {row.estimatedNetAmount != null
-                      ? formatMxCurrency(row.estimatedNetAmount)
-                      : copy.backlog.estimatedAmountMissing}
-                  </span>
+                  {row.estimatedNetAmount != null ? (
+                    <span className="text-base font-extrabold tabular-nums text-foreground">
+                      {formatMxCurrency(row.estimatedNetAmount)}
+                    </span>
+                  ) : (
+                    <OperatorPaymentStatusBadge status="no_template" size="sm" />
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -479,11 +482,15 @@ export function SettlementBacklogTable({
                   </p>
                 </TableCell>
                 <TableCell className="min-w-[140px] py-3 text-right">
-                  <p className="tabular-nums text-base font-bold text-foreground whitespace-nowrap">
-                    {row.estimatedNetAmount != null
-                      ? formatMxCurrency(row.estimatedNetAmount)
-                      : copy.backlog.estimatedAmountMissing}
-                  </p>
+                  {row.estimatedNetAmount != null ? (
+                    <p className="tabular-nums text-base font-bold text-foreground whitespace-nowrap">
+                      {formatMxCurrency(row.estimatedNetAmount)}
+                    </p>
+                  ) : (
+                    <div className="flex justify-end">
+                      <OperatorPaymentStatusBadge status="no_template" size="sm" />
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="min-w-[220px] py-3">
                   <div className="space-y-1.5">

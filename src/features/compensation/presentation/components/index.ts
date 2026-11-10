@@ -10,6 +10,7 @@ export * from "./BuilderFixedAllowancesSection";
 export * from "./BuilderDeductionsOnlySection";
 export * from "./BuilderCorridorsSection";
 export * from "./BuilderTripLadderSection";
+export * from "./BuilderAddCorridorsSheet";
 export * from "./BuilderRulePhraseCard";
 export * from "./BuilderPaysHowInspector";
 export * from "./BuilderInspectorPanel";

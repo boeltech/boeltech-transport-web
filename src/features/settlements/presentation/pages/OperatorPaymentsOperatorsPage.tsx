@@ -16,6 +16,7 @@ import { OperatorPaymentsTable } from "../components/OperatorPaymentsTable";
 import { OperatorPaymentReadinessPanel } from "../components/OperatorPaymentReadinessPanel";
 import { OperatorAssignTariffPicker } from "../components/OperatorAssignTariffPicker";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { sortOperatorsByAttentionPriority } from "../utils/operatorPaymentSort";
 
 const copy = settlementsCopy.operatorsList;
 const PAGE_SIZE = 25;
@@ -90,8 +91,10 @@ export function OperatorPaymentsOperatorsPage() {
 
   const filteredOperators = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
-    if (!q) return operators;
-    return operators.filter((row) => row.fullName.toLowerCase().includes(q));
+    const filtered = !q
+      ? operators
+      : operators.filter((row) => row.fullName.toLowerCase().includes(q));
+    return sortOperatorsByAttentionPriority(filtered);
   }, [operators, filters.search]);
 
   useEffect(() => {

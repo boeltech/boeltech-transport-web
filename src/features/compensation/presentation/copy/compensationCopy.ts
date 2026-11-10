@@ -274,6 +274,17 @@ export const compensationCopy = {
     tripStep1Description:
       "Si el origen y el destino coinciden, se paga el importe de la ruta y no se revisa la clase.",
     tripStep1Add: "Agregar ruta",
+    tripStep1Columns: {
+      route: "Ruta",
+      matchBy: "Coincide por",
+      pays: "Paga",
+    },
+    tripStep1Empty: "Sin rutas asignadas. Agrega una del tabulador.",
+    tripStep1Remove: "Quitar",
+    tripStep1SheetTitle: "Agregar ruta",
+    tripStep1SheetDescription:
+      "Busca y marca las rutas fijas que aplican a esta tarifa.",
+    tripStep1SheetDone: "Listo",
     tripConnector: "Si no coincide con ninguna ruta",
     tripStep2Title: "Paga según la clase de ruta del viaje",
     tripStep2Description:
