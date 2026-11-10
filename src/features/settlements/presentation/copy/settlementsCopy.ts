@@ -258,9 +258,80 @@ export const settlementsCopy = {
       downloadReceipts: "Descargar recibos",
       register: (count: number) =>
         count === 1 ? "Registrar 1 pago" : `Registrar ${count} pagos`,
+      /** @deprecated F7 cableó el Sheet; se mantiene por tests legados. */
       registerSoon:
         "El registro en lote llega en la siguiente entrega. Mientras, registra uno por uno desde la fila.",
+      approve: (count: number) =>
+        count === 1 ? "Autorizar 1" : `Autorizar ${count}`,
+      reject: "Rechazar",
       noClabeBadge: "Sin CLABE",
+      omittedLeaveBatch: (count: number, motives: string) =>
+        count === 1
+          ? `1 pago sale del lote: ${motives}`
+          : `${count} pagos salen del lote: ${motives}`,
+    },
+    /** Sheet Registrar N pagos (pieza #13 · F7 / Operate-Pagos-Registrar). */
+    batchRegister: {
+      title: (count: number) =>
+        count === 1 ? "Registrar 1 pago" : `Registrar ${count} pagos`,
+      description:
+        "Marca como pagados los pagos autorizados. Registra lo que tesorería pagó o pagará hoy; tlamx no mueve el dinero.",
+      disbursedAtLabel: "Fecha de pago",
+      referenceLabel: "Referencia",
+      referencePlaceholder: "Ej. Semana 45",
+      sourceAccountLabel: "Cuenta de origen",
+      sourceAccountPlaceholder: "Ej. Banamex empresa ·· 4417",
+      sourceAccountHint:
+        "Opcional. Queda en observaciones del lote para tu bitácora; no se envía a un ledger de caja.",
+      howPaidLabel: "Cómo se paga",
+      speiLabel: (count: number) =>
+        count === 1
+          ? "1 por transferencia (SPEI)"
+          : `${count} por transferencia (SPEI)`,
+      speiHint: "A la CLABE de cada operador",
+      cashLabel: (count: number) =>
+        count === 1 ? "1 en efectivo" : `${count} en efectivo`,
+      cashHint: (names: string) =>
+        names
+          ? `${names} no tiene CLABE`
+          : "Sin CLABE capturada",
+      cashHintPlural: (names: string) =>
+        names
+          ? `${names} no tienen CLABE`
+          : "Sin CLABE capturada",
+      captureClabe: "Capturar CLABE",
+      canRegisterAlertTitle: "Puedes registrarlos",
+      canRegisterAlertBody: (armers: string, approvers: string) =>
+        `Los armó ${armers} y los autorizó ${approvers}. Tú no hiciste ninguno de esos pasos.`,
+      totalLabel: "Total a registrar",
+      cancel: "Cancelar",
+      confirm: (count: number) =>
+        count === 1 ? "Registrar 1 pago" : `Registrar ${count} pagos`,
+      pending: "Registrando…",
+      referenceRequired: "La referencia es obligatoria",
+      disbursedAtRequired: "La fecha de pago es obligatoria",
+      successTitle: (count: number) =>
+        count === 1 ? "1 pago registrado" : `${count} pagos registrados`,
+      successPartial: (processed: number, omitted: number) =>
+        `${processed} registrados; ${omitted} omitidos`,
+      errorTitle: "No se pudo registrar el lote",
+      emptyEligible: "Ningún pago de la selección se puede registrar",
+    },
+    batchApprove: {
+      successTitle: (count: number) =>
+        count === 1 ? "1 pago autorizado" : `${count} pagos autorizados`,
+      successPartial: (processed: number, omitted: number) =>
+        `${processed} autorizados; ${omitted} omitidos`,
+      errorTitle: "No se pudo autorizar el lote",
+      emptyEligible: "Ningún pago de la selección se puede autorizar",
+    },
+    batchReject: {
+      successTitle: (count: number) =>
+        count === 1 ? "1 pago rechazado" : `${count} pagos rechazados`,
+      successPartial: (processed: number, omitted: number) =>
+        `${processed} rechazados; ${omitted} omitidos`,
+      errorTitle: "No se pudo rechazar el lote",
+      emptyEligible: "Ningún pago de la selección se puede rechazar",
     },
     openAdvancesBridge: {
       linkLabel: (count: number) =>
@@ -281,6 +352,7 @@ export const settlementsCopy = {
       includeContractors: "Incluir contratistas",
       approveBatch: (count: number) =>
         count === 1 ? "Autorizar 1" : `Autorizar ${count}`,
+      /** @deprecated F7 cableó Autorizar N; se mantiene por tests legados. */
       approveBatchSoon:
         "La autorización en lote llega en la siguiente entrega. Mientras, autoriza uno por uno.",
     },

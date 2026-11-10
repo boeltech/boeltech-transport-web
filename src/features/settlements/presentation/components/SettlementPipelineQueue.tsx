@@ -15,6 +15,7 @@ interface SettlementPipelineQueueProps {
   selectedIds?: ReadonlySet<string>;
   onToggleSelect?: (id: string) => void;
   onToggleSelectAll?: (checked: boolean) => void;
+  hasClabeByEmployeeId?: ReadonlyMap<string, boolean>;
 }
 
 export function SettlementPipelineQueue({
@@ -28,6 +29,7 @@ export function SettlementPipelineQueue({
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
+  hasClabeByEmployeeId,
 }: SettlementPipelineQueueProps) {
   const hideDisburse = bucket !== "payable";
   const showRejectedCorrection = bucket === "draft";
@@ -75,6 +77,7 @@ export function SettlementPipelineQueue({
       selectedIds={selectedIds}
       onToggleSelect={onToggleSelect}
       onToggleSelectAll={onToggleSelectAll}
+      hasClabeByEmployeeId={hasClabeByEmployeeId}
     />
   );
 }

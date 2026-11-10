@@ -120,11 +120,34 @@ vi.mock("@features/employees/application", () => ({
   }),
 }));
 
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({ user: { id: "user-1", fullName: "Tester" } }),
+}));
+
+vi.mock("@features/approvals/application", () => ({
+  useSelfApprovalPolicy: () => ({ data: null }),
+}));
+
 vi.mock("../../application/hooks", () => ({
   useSettlementWorkbench: () => workbench,
   useSettlementWorkbenchCounts: () => workbenchCounts,
   useSettlements: () => settlementsList,
   useSettlementsReadiness: () => readiness,
+  useOperatorPaymentReadiness: () => ({
+    data: { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 1 } },
+  }),
+  useBatchApproveSettlements: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useBatchRejectSettlements: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useBatchDisburseSettlements: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 describe("SettlementsListPage — F1 Por pagar", () => {

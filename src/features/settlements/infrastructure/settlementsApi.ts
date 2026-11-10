@@ -25,6 +25,12 @@ import type {
   SettlementCutPreview,
 } from "../domain/settlementCut";
 import type {
+  BatchApproveSettlementsPayload,
+  BatchDisburseSettlementsPayload,
+  BatchRejectSettlementsPayload,
+  SettlementBatchActionResult,
+} from "../domain/settlementBatch";
+import type {
   AdvanceStatus,
   OperatorPaymentAttentionFilter,
   SettlementStatus,
@@ -44,12 +50,14 @@ import {
   mapSettlementSettings,
   mapSettlementCutPreview,
   mapSettlementCutCreateResult,
+  mapSettlementBatchActionResult,
   type ApiAdvancePeriodDeductionPlanRaw,
   type ApiCompensationAgreementRaw,
   type ApiDriverAdvanceRaw,
   type ApiDriverSettlementRaw,
   type ApiOperatorPaymentReadinessRaw,
   type ApiPaginationRaw,
+  type ApiSettlementBatchActionRaw,
   type ApiSettlementCutCreateRaw,
   type ApiSettlementCutPreviewRaw,
   type ApiSettlementPreviewRaw,
@@ -679,5 +687,67 @@ export const settlementsApi = {
       cleanedPayload,
     );
     return mapSettlement(response.data);
+  },
+
+  /** POST /settlements/batch/approve — F7 TEC §C.7 */
+  batchApproveSettlements: async (
+    payload: BatchApproveSettlementsPayload,
+  ): Promise<SettlementBatchActionResult> => {
+    const body: Record<string, unknown> = {
+      settlement_ids: [...payload.settlementIds],
+    };
+    if (payload.expectedStep !== undefined) body.expected_step = payload.expectedStep;
+    if (payload.expectedRevision) body.expected_revision = payload.expectedRevision;
+
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementBatchActionRaw> & { message?: string }
+    >(`${BASE_ENDPOINT}/batch/approve`, body);
+    return mapSettlementBatchActionResult(response.data, response.message);
+  },
+
+  /** POST /settlements/batch/reject — F7 TEC §C.7 */
+  batchRejectSettlements: async (
+    payload: BatchRejectSettlementsPayload,
+  ): Promise<SettlementBatchActionResult> => {
+    const body: Record<string, unknown> = {
+      settlement_ids: [...payload.settlementIds],
+      reason: payload.reason,
+    };
+    if (payload.expectedStep !== undefined) body.expected_step = payload.expectedStep;
+    if (payload.expectedRevision) body.expected_revision = payload.expectedRevision;
+
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementBatchActionRaw> & { message?: string }
+    >(`${BASE_ENDPOINT}/batch/reject`, body);
+    return mapSettlementBatchActionResult(response.data, response.message);
+  },
+
+  /**
+   * POST /settlements/batch/disburse — F7 TEC §C.7.
+   * Sin `disbursementMethod`: API deriva SPEI/cash por hasClabe (nunca envía CLABE).
+   * `generateDispersionFile` se ignora hasta F8.
+   */
+  batchDisburseSettlements: async (
+    payload: BatchDisburseSettlementsPayload,
+  ): Promise<SettlementBatchActionResult> => {
+    const body: Record<string, unknown> = {
+      settlement_ids: [...payload.settlementIds],
+      disbursement_reference: payload.disbursementReference,
+      disbursed_at: payload.disbursedAt,
+      expected_revisions: { ...payload.expectedRevisions },
+    };
+    const notes = payload.notes?.trim();
+    if (notes) body.notes = notes;
+    if (payload.disbursementMethod) {
+      body.disbursement_method = payload.disbursementMethod;
+    }
+    if (payload.generateDispersionFile !== undefined) {
+      body.generate_dispersion_file = payload.generateDispersionFile;
+    }
+
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiSettlementBatchActionRaw> & { message?: string }
+    >(`${BASE_ENDPOINT}/batch/disburse`, body);
+    return mapSettlementBatchActionResult(response.data, response.message);
   },
 };

@@ -20,6 +20,7 @@ export * from "./SettlementWorkbenchKpis";
 export * from "./SettlementPipelineChevrons";
 export * from "./SettlementClosedPeriodBanner";
 export * from "./SettlementBulkBar";
+export * from "./SettlementBatchRegisterSheet";
 export * from "./SettlementPaymentFormula";
 export * from "./SettlementTripsRuleTable";
 export * from "./SettlementDetailInspector";

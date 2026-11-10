@@ -23,12 +23,22 @@ import {
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
+import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { useBranches } from "@features/branches";
+import { useAuth } from "@features/auth";
+import { useSelfApprovalPolicy } from "@features/approvals/application";
+import {
+  DecisionReasonSheet,
+  type DecisionReasonInput,
+} from "@features/approvals/presentation/components";
 import { useHelpEmptySupport } from "@features/help-center/presentation";
 import { approvalPoliciesPath } from "@features/approval-policies/application";
 import { COMPENSATION_TEMPLATES_PATH } from "@features/compensation/application";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
+  useBatchApproveSettlements,
+  useBatchRejectSettlements,
+  useOperatorPaymentReadiness,
   useSettlements,
   useSettlementWorkbench,
   useSettlementWorkbenchCounts,
@@ -52,6 +62,7 @@ import {
 import {
   DisburseSettlementDialog,
   SettlementBacklogTable,
+  SettlementBatchRegisterSheet,
   SettlementBulkBar,
   SettlementClosedPeriodBanner,
   SettlementPipelineChevrons,
@@ -63,6 +74,11 @@ import {
 import { filterSettlementBacklog } from "../utils/filterSettlementBacklog";
 import { resolveClosedPeriodBanner } from "../utils/closedPeriodBanner";
 import { useEmployeeFilterChipLabel } from "../hooks/useEmployeeFilterChipLabel";
+import { settlementToApprovableItem } from "../utils/settlementApprovableItem";
+import {
+  partitionSettlementsForBatch,
+  summarizeBatchOmits,
+} from "../utils/settlementBatchOmit";
 import type { DriverSettlement } from "../../domain/entities";
 import { roundCents } from "../../domain/settlementTotals";
 
@@ -96,10 +112,16 @@ export function SettlementsListPage() {
   const location = useLocation();
   const fromState = useSettlementQueueFromState();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
+  const canUpdate = hasPermission("settlements", "update");
+  const canExecute = hasPermission("settlements", "execute");
   const canReadSettlements = hasPermission("settlements", "read");
   const canReadApprovalPolicies = hasPermission("approval_policies", "read");
+  const { data: selfApprovalPolicy } = useSelfApprovalPolicy();
+  const batchApproveMutation = useBatchApproveSettlements();
+  const batchRejectMutation = useBatchRejectSettlements();
   const defaultsAppliedRef = useRef(false);
 
   const { data: branchesData } = useBranches({
@@ -195,6 +217,12 @@ export function SettlementsListPage() {
   const [disburseSettlement, setDisburseSettlement] =
     useState<DriverSettlement | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [registerSheetOpen, setRegisterSheetOpen] = useState(false);
+  const [registerEligible, setRegisterEligible] = useState<DriverSettlement[]>(
+    [],
+  );
+  const [rejectSheetOpen, setRejectSheetOpen] = useState(false);
+  const [rejectEligible, setRejectEligible] = useState<DriverSettlement[]>([]);
 
   const pipelineStatus =
     activeBucket !== "pending"
@@ -344,11 +372,29 @@ export function SettlementsListPage() {
     [workbenchData?.backlog, workbenchSummary],
   );
 
+  const selectionEnabled =
+    activeBucket === "payable" || activeBucket === "approval";
+
+  const { data: operatorsData } = useOperatorPaymentReadiness({
+    attention: "all",
+    page: 1,
+    pageSize: 100,
+    enabled: selectionEnabled,
+  });
+
+  const hasClabeByEmployeeId = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const row of operatorsData?.data ?? []) {
+      map.set(row.employeeId, row.hasClabe);
+    }
+    return map;
+  }, [operatorsData?.data]);
+
   const selectedSettlements = useMemo(
     () => pipelineSettlements.filter((s) => selectedIds.has(s.id)),
     [pipelineSettlements, selectedIds],
   );
-  const hasSelection = selectedIds.size > 0 && activeBucket === "payable";
+  const hasSelection = selectedIds.size > 0 && selectionEnabled;
   const selectedTotal = useMemo(
     () =>
       roundCents(
@@ -359,12 +405,185 @@ export function SettlementsListPage() {
   const withoutClabeCount = useMemo(
     () =>
       selectedSettlements.filter(
-        (s) =>
-          (!s.disbursementMethod ||
-            s.disbursementMethod === "bank_transfer") &&
-          !s.disbursementReference,
+        (s) => hasClabeByEmployeeId.get(s.employeeId) === false,
       ).length,
-    [selectedSettlements],
+    [hasClabeByEmployeeId, selectedSettlements],
+  );
+
+  const notifyLocalOmits = useCallback(
+    (omitted: ReturnType<typeof partitionSettlementsForBatch>["omitted"]) => {
+      if (omitted.length === 0) return;
+      toast({
+        title: workbenchCopy.bulkBar.omittedLeaveBatch(
+          omitted.length,
+          summarizeBatchOmits(omitted),
+        ),
+        variant: "warning",
+      });
+    },
+    [toast],
+  );
+
+  const handleOpenRegisterBatch = useCallback(() => {
+    const { eligible, omitted } = partitionSettlementsForBatch({
+      settlements: selectedSettlements,
+      kind: "disburse",
+      userId: user?.id,
+      selfApprovalPolicy,
+      canUpdate,
+      canExecute,
+    });
+    notifyLocalOmits(omitted);
+    if (eligible.length === 0) {
+      toast({
+        title: workbenchCopy.batchRegister.emptyEligible,
+        variant: "warning",
+      });
+      return;
+    }
+    setRegisterEligible([...eligible]);
+    setRegisterSheetOpen(true);
+  }, [
+    canExecute,
+    canUpdate,
+    notifyLocalOmits,
+    selectedSettlements,
+    selfApprovalPolicy,
+    toast,
+    user?.id,
+  ]);
+
+  const handleApproveBatch = useCallback(async () => {
+    const { eligible, omitted } = partitionSettlementsForBatch({
+      settlements: selectedSettlements,
+      kind: "approve",
+      userId: user?.id,
+      selfApprovalPolicy,
+      canUpdate,
+      canExecute,
+    });
+    notifyLocalOmits(omitted);
+    if (eligible.length === 0) {
+      toast({
+        title: workbenchCopy.batchApprove.emptyEligible,
+        variant: "warning",
+      });
+      return;
+    }
+    try {
+      const result = await batchApproveMutation.mutateAsync({
+        settlementIds: eligible.map((s) => s.id),
+      });
+      const processed = result.processed.length;
+      const apiOmitted = result.omitted.length;
+      toast({
+        title:
+          apiOmitted > 0
+            ? workbenchCopy.batchApprove.successPartial(processed, apiOmitted)
+            : workbenchCopy.batchApprove.successTitle(processed),
+        description:
+          apiOmitted > 0
+            ? result.omitted.map((o) => o.reason).slice(0, 3).join("; ")
+            : undefined,
+        variant: "success",
+      });
+      setSelectedIds(new Set());
+      void refetchPipelinePrimary();
+      void refetchWorkbenchCounts();
+    } catch (error) {
+      toast({
+        title: workbenchCopy.batchApprove.errorTitle,
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  }, [
+    batchApproveMutation,
+    canExecute,
+    canUpdate,
+    notifyLocalOmits,
+    refetchPipelinePrimary,
+    refetchWorkbenchCounts,
+    selectedSettlements,
+    selfApprovalPolicy,
+    toast,
+    user?.id,
+  ]);
+
+  const handleOpenRejectBatch = useCallback(() => {
+    const { eligible, omitted } = partitionSettlementsForBatch({
+      settlements: selectedSettlements,
+      kind: "reject",
+      userId: user?.id,
+      selfApprovalPolicy,
+      canUpdate,
+      canExecute,
+    });
+    notifyLocalOmits(omitted);
+    if (eligible.length === 0) {
+      toast({
+        title: workbenchCopy.batchReject.emptyEligible,
+        variant: "warning",
+      });
+      return;
+    }
+    setRejectEligible([...eligible]);
+    setRejectSheetOpen(true);
+  }, [
+    canExecute,
+    canUpdate,
+    notifyLocalOmits,
+    selectedSettlements,
+    selfApprovalPolicy,
+    toast,
+    user?.id,
+  ]);
+
+  const handleRejectBatchSubmit = useCallback(
+    async (input: DecisionReasonInput) => {
+      try {
+        const result = await batchRejectMutation.mutateAsync({
+          settlementIds: rejectEligible.map((s) => s.id),
+          reason: input.reason,
+        });
+        const processed = result.processed.length;
+        const apiOmitted = result.omitted.length;
+        toast({
+          title:
+            apiOmitted > 0
+              ? workbenchCopy.batchReject.successPartial(processed, apiOmitted)
+              : workbenchCopy.batchReject.successTitle(processed),
+          description:
+            apiOmitted > 0
+              ? result.omitted.map((o) => o.reason).slice(0, 3).join("; ")
+              : undefined,
+          variant: "success",
+        });
+        setRejectSheetOpen(false);
+        setRejectEligible([]);
+        setSelectedIds(new Set());
+        void refetchPipelinePrimary();
+        void refetchWorkbenchCounts();
+      } catch (error) {
+        toast({
+          title: workbenchCopy.batchReject.errorTitle,
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      }
+    },
+    [
+      batchRejectMutation,
+      refetchPipelinePrimary,
+      refetchWorkbenchCounts,
+      rejectEligible,
+      toast,
+    ],
+  );
+
+  const rejectApprovableItems = useMemo(
+    () => rejectEligible.map(settlementToApprovableItem),
+    [rejectEligible],
   );
 
   const handleToggleSelect = useCallback((id: string) => {
@@ -388,8 +607,8 @@ export function SettlementsListPage() {
   );
 
   useEffect(() => {
-    if (activeBucket !== "payable") setSelectedIds(new Set());
-  }, [activeBucket]);
+    if (!selectionEnabled) setSelectedIds(new Set());
+  }, [selectionEnabled]);
 
   const activeLoading = useMemo(() => {
     if (activeBucket === "pending") {
@@ -850,10 +1069,24 @@ export function SettlementsListPage() {
             <div className="space-y-2">
               {activeBucket === "payable" ? (
                 <SettlementBulkBar
+                  mode="payable"
                   selectedCount={selectedIds.size}
                   selectedTotal={selectedTotal}
                   withoutClabeCount={withoutClabeCount}
-                  registerDisabledReason={workbenchCopy.bulkBar.registerSoon}
+                  onRegisterBatch={handleOpenRegisterBatch}
+                />
+              ) : null}
+              {activeBucket === "approval" ? (
+                <SettlementBulkBar
+                  mode="approval"
+                  selectedCount={selectedIds.size}
+                  selectedTotal={selectedTotal}
+                  onApproveBatch={() => void handleApproveBatch()}
+                  onRejectBatch={handleOpenRejectBatch}
+                  isBusy={
+                    batchApproveMutation.isPending ||
+                    batchRejectMutation.isPending
+                  }
                 />
               ) : null}
               <SettlementPipelineQueue
@@ -863,16 +1096,15 @@ export function SettlementsListPage() {
                 viewMode={filters.viewMode}
                 onView={handleViewSettlement}
                 onDisburse={setDisburseSettlement}
-                selectedIds={
-                  activeBucket === "payable" ? selectedIds : undefined
-                }
+                selectedIds={selectionEnabled ? selectedIds : undefined}
                 onToggleSelect={
-                  activeBucket === "payable" ? handleToggleSelect : undefined
+                  selectionEnabled ? handleToggleSelect : undefined
                 }
                 onToggleSelectAll={
-                  activeBucket === "payable"
-                    ? handleToggleSelectAll
-                    : undefined
+                  selectionEnabled ? handleToggleSelectAll : undefined
+                }
+                hasClabeByEmployeeId={
+                  activeBucket === "payable" ? hasClabeByEmployeeId : undefined
                 }
                 onActionComplete={() => {
                   void refetchPipelinePrimary();
@@ -898,6 +1130,41 @@ export function SettlementsListPage() {
             void refetchPipelinePrimary();
             void refetchWorkbenchCounts();
             setDisburseSettlement(null);
+          }}
+        />
+      ) : null}
+
+      {registerSheetOpen ? (
+        <SettlementBatchRegisterSheet
+          open={registerSheetOpen}
+          onOpenChange={(open) => {
+            setRegisterSheetOpen(open);
+            if (!open) setRegisterEligible([]);
+          }}
+          settlements={registerEligible}
+          hasClabeByEmployeeId={hasClabeByEmployeeId}
+          onSuccess={() => {
+            setSelectedIds(new Set());
+            void refetchPipelinePrimary();
+            void refetchWorkbenchCounts();
+          }}
+        />
+      ) : null}
+
+      {rejectSheetOpen ? (
+        <DecisionReasonSheet
+          mode="reject"
+          open={rejectSheetOpen}
+          onOpenChange={(open) => {
+            setRejectSheetOpen(open);
+            if (!open) setRejectEligible([]);
+          }}
+          item={rejectApprovableItems[0] ?? null}
+          bulkItems={rejectApprovableItems}
+          isSubmitting={batchRejectMutation.isPending}
+          type="internal_staff_compensation"
+          onSubmit={(input) => {
+            void handleRejectBatchSubmit(input);
           }}
         />
       ) : null}

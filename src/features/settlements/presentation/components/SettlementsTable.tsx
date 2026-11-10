@@ -39,10 +39,12 @@ interface SettlementsTableProps {
   approvalLinkOnly?: boolean;
   showRejectedCorrection?: boolean;
   columnMode?: SettlementsTableColumnMode;
-  /** Selección de lote (bucket Por pagar / F4). */
+  /** Selección de lote (Por pagar / En autorización · F4/F7). */
   selectedIds?: ReadonlySet<string>;
   onToggleSelect?: (id: string) => void;
   onToggleSelectAll?: (checked: boolean) => void;
+  /** employeeId → hasClabe (HB-T5). Si falta, no inventa Sin CLABE. */
+  hasClabeByEmployeeId?: ReadonlyMap<string, boolean>;
 }
 
 interface TableHeaderConfig {
@@ -168,15 +170,20 @@ export function SettlementsTable({
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
+  hasClabeByEmployeeId,
 }: SettlementsTableProps) {
-  const headers =
+  const selectable = Boolean(onToggleSelect);
+  const baseHeaders =
     columnMode === "payable"
       ? PAYABLE_HEADERS
       : columnMode === "pipeline"
         ? PIPELINE_HEADERS
         : REGISTRY_HEADERS;
+  const headers =
+    selectable && columnMode !== "payable"
+      ? [{ key: "select", label: "", className: "w-10" }, ...baseHeaders]
+      : baseHeaders;
   const colCount = headers.length;
-  const selectable = columnMode === "payable" && Boolean(onToggleSelect);
   const allSelected =
     selectable &&
     settlements.length > 0 &&
@@ -201,10 +208,10 @@ export function SettlementsTable({
   return (
     <div className="rounded-md border bg-card overflow-x-auto">
       <Table aria-label="Listado de pagos">
-        {columnMode === "payable" ? (
+        {selectable ? (
           <TableHeader>
             <TableRow>
-              {PAYABLE_HEADERS.map((header) => (
+              {headers.map((header) => (
                 <TableHead key={header.key} className={header.className}>
                   {header.key === "select" ? (
                     <Checkbox
@@ -227,12 +234,9 @@ export function SettlementsTable({
         <TableBody>
           {settlements.map((st) => {
             const selected = selectedIds?.has(st.id) ?? false;
-            // Sin campo hasClabe en listado: SPEI sin referencia → badge Sin CLABE (F4).
             const missingClabe =
               columnMode === "payable" &&
-              (!st.disbursementMethod ||
-                st.disbursementMethod === "bank_transfer") &&
-              !st.disbursementReference;
+              hasClabeByEmployeeId?.get(st.employeeId) === false;
 
             return (
             <TableRow
@@ -243,7 +247,7 @@ export function SettlementsTable({
               )}
               onClick={() => onView(st.id)}
             >
-              {columnMode === "payable" ? (
+              {selectable ? (
                 <TableCell
                   className="w-10"
                   onClick={(e) => e.stopPropagation()}

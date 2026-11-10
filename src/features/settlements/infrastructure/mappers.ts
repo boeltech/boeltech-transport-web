@@ -43,6 +43,12 @@ import type {
   SettlementCutWarning,
   SettlementCutWarningCode,
 } from "../domain/settlementCut";
+import type {
+  SettlementBatchActionResult,
+  SettlementBatchOmittedRow,
+  SettlementBatchProcessedRow,
+  SettlementBatchReasonCode,
+} from "../domain/settlementBatch";
 import {
   DEFAULT_MID_TRIP_PAYOUT_POLICY,
   DEFAULT_VOBO_THRESHOLD_MXN,
@@ -1405,6 +1411,66 @@ export function mapSettlementCutCreateResult(
     created: (raw.created ?? []).map(mapCutCreatedRow),
     omitted: (raw.omitted ?? []).map(mapCutOmittedRow),
     idempotentReplay: Boolean(raw.idempotent_replay),
+    message,
+  };
+}
+
+// =============================================================================
+// F7 — batch approve / reject / disburse
+// =============================================================================
+
+export interface ApiSettlementBatchProcessedRowRaw {
+  settlement_id: string;
+  settlement_number: string;
+  status: string;
+  net_amount: number;
+  approval_outcome?: "approved" | "step_signed" | "rejected" | null;
+  disbursement_method?: string | null;
+}
+
+export interface ApiSettlementBatchOmittedRowRaw {
+  settlement_id: string;
+  reason_code: string;
+  reason: string;
+  http_status: number;
+}
+
+export interface ApiSettlementBatchActionRaw {
+  processed: ApiSettlementBatchProcessedRowRaw[];
+  omitted: ApiSettlementBatchOmittedRowRaw[];
+}
+
+function mapBatchProcessedRow(
+  raw: ApiSettlementBatchProcessedRowRaw,
+): SettlementBatchProcessedRow {
+  return {
+    settlementId: raw.settlement_id,
+    settlementNumber: raw.settlement_number,
+    status: raw.status,
+    netAmount: Number(raw.net_amount ?? 0),
+    approvalOutcome: raw.approval_outcome ?? null,
+    disbursementMethod: raw.disbursement_method ?? null,
+  };
+}
+
+function mapBatchOmittedRow(
+  raw: ApiSettlementBatchOmittedRowRaw,
+): SettlementBatchOmittedRow {
+  return {
+    settlementId: raw.settlement_id,
+    reasonCode: raw.reason_code as SettlementBatchReasonCode,
+    reason: raw.reason,
+    httpStatus: Number(raw.http_status ?? 0),
+  };
+}
+
+export function mapSettlementBatchActionResult(
+  raw: ApiSettlementBatchActionRaw,
+  message?: string,
+): SettlementBatchActionResult {
+  return {
+    processed: (raw.processed ?? []).map(mapBatchProcessedRow),
+    omitted: (raw.omitted ?? []).map(mapBatchOmittedRow),
     message,
   };
 }
