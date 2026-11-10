@@ -30,6 +30,8 @@ export interface WizardNavigationBarProps {
   secondaryAction?: WizardNavigationSecondaryAction;
   /** Oculta Siguiente / Enviar (paso resultado con CTAs en el cuerpo). */
   hidePrimary?: boolean;
+  /** Oculta el botón Anterior (paso terminal). */
+  hidePrevious?: boolean;
   /** data-testid del botón primario (Siguiente o submit). */
   primaryTestId?: string;
 }
@@ -51,20 +53,25 @@ export function WizardNavigationBar({
   className,
   secondaryAction,
   hidePrimary = false,
+  hidePrevious = false,
   primaryTestId,
 }: WizardNavigationBarProps) {
   return (
     <div className={`flex items-center justify-between border-t pt-6 mt-6 ${className ?? ""}`}>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onPrevious}
-        disabled={!canGoBack}
-        aria-label="Anterior"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Anterior
-      </Button>
+      {hidePrevious ? (
+        <div />
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onPrevious}
+          disabled={!canGoBack}
+          aria-label="Anterior"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Anterior
+        </Button>
+      )}
 
       <div className="flex items-center gap-2">
         {showCancel && onCancel ? (
