@@ -76,9 +76,9 @@ export function SettlementPipelineChevrons({
                 {bucket.count}
               </span>
             )}
-            {!isLoading && bucket.amount != null ? (
+            {!isLoading ? (
               <span className="truncate font-mono text-[11px] text-muted-foreground tabular-nums">
-                {formatMxCurrency(bucket.amount)}
+                {bucket.amount != null ? formatMxCurrency(bucket.amount) : "—"}
               </span>
             ) : null}
           </button>

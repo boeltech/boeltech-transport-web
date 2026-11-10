@@ -343,6 +343,7 @@ export function SettlementsListPage() {
                 : bucket === "payable"
                   ? workbenchSummary.payable
                   : workbenchSummary.closed;
+        // C8: draft/closed sin KPI de monto en API → «—» tipografiado en chevron.
         const amount =
           bucket === "pending"
             ? workbenchSummary.kpis?.toArm.amount
@@ -350,7 +351,7 @@ export function SettlementsListPage() {
               ? workbenchSummary.kpis?.inApproval.amount
               : bucket === "payable"
                 ? workbenchSummary.kpis?.authorizedUnpaid.amount
-                : undefined;
+                : null;
         return {
           id: bucket,
           label: workbenchCopy.buckets[bucket],
@@ -775,7 +776,17 @@ export function SettlementsListPage() {
   }
 
   const armCut = () =>
-    navigate(settlementCutsNewPath(), { state: fromState });
+    navigate(
+      settlementCutsNewPath(
+        closedPeriod
+          ? {
+              periodStart: closedPeriod.periodStart,
+              periodEnd: closedPeriod.periodEnd,
+            }
+          : undefined,
+      ),
+      { state: fromState },
+    );
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -1143,6 +1154,7 @@ export function SettlementsListPage() {
           }}
           settlements={registerEligible}
           hasClabeByEmployeeId={hasClabeByEmployeeId}
+          currentUserId={user?.id}
           onSuccess={() => {
             setSelectedIds(new Set());
             void refetchPipelinePrimary();

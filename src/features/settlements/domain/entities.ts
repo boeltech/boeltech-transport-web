@@ -251,6 +251,15 @@ export interface LateReimbursementsSummary {
   readonly items: readonly LateReimbursementItem[];
 }
 
+/** Snapshot de tarifa congelada en el pago (GET `template_snapshot`). */
+export interface SettlementTemplateSnapshot {
+  readonly templateId: string | null;
+  readonly templateName: string | null;
+  readonly version: number | null;
+  readonly familyId?: string | null;
+  readonly assignmentId?: string | null;
+}
+
 export interface DriverSettlement {
   readonly id: string;
   readonly tenantId: string;
@@ -259,6 +268,8 @@ export interface DriverSettlement {
   readonly employeeId: string;
   readonly employeeFullName: string;
   readonly agreementSnapshot: AgreementSnapshot;
+  /** Tarifa del pago (nombre+versión); null si liquidación legacy sin snapshot. */
+  readonly templateSnapshot?: SettlementTemplateSnapshot | null;
   readonly periodStart: string; // ISO date 'YYYY-MM-DD'
   readonly periodEnd: string;   // ISO date 'YYYY-MM-DD'
   readonly status: SettlementStatus;

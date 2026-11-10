@@ -2,6 +2,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { AgreementCommissionType, TripRouteType } from "@features/settlements/domain";
 import type {
   CompensationTemplateRule,
+  RouteCorridorTariff,
   TemplateDeduction,
   TemplateFixedAllowance,
 } from "../../domain/entities";
@@ -265,14 +266,8 @@ export interface WeekSimulationResult {
   formattedTotal: string;
 }
 
-export const DEFAULT_SAMPLE_WEEK_TRIPS: SampleWeekTrip[] = [
-  {
-    id: "sample-corridor",
-    label: "CDMX → Monterrey",
-    input: { routeType: "long_haul", distanceKm: 920, freightRevenue: 18_000 },
-    corridorFixedAmount: 6_500,
-    corridorName: "CDMX → Monterrey",
-  },
+/** Viajes genéricos por clase (sin ruta fija inventada). */
+export const GENERIC_SAMPLE_WEEK_TRIPS: SampleWeekTrip[] = [
   {
     id: "sample-long-haul",
     label: "Foráneo · 920 km",
@@ -289,6 +284,49 @@ export const DEFAULT_SAMPLE_WEEK_TRIPS: SampleWeekTrip[] = [
     input: { routeType: "local", distanceKm: 45, freightRevenue: 2_500 },
   },
 ];
+
+/**
+ * Semana de ejemplo sin corredor inventado.
+ * Preferir `buildSampleWeekTrips(corridors)` cuando hay tarifa abierta.
+ */
+export const DEFAULT_SAMPLE_WEEK_TRIPS: SampleWeekTrip[] = GENERIC_SAMPLE_WEEK_TRIPS;
+
+type SampleCorridorSource = Pick<
+  RouteCorridorTariff,
+  "id" | "name" | "fixedAmount" | "isActive"
+>;
+
+/**
+ * Arma la semana de ejemplo desde la tarifa:
+ * - Si hay rutas fijas activas con monto → una línea con **ruta real + monto real**.
+ * - Si no → solo viajes genéricos por clase (sin CDMX→MTY inventado).
+ */
+export function buildSampleWeekTrips(
+  corridors: readonly SampleCorridorSource[] = [],
+): SampleWeekTrip[] {
+  const realCorridor = corridors.find(
+    (corridor) => corridor.isActive && corridor.fixedAmount > 0,
+  );
+
+  if (!realCorridor) {
+    return [...GENERIC_SAMPLE_WEEK_TRIPS];
+  }
+
+  return [
+    {
+      id: `sample-corridor-${realCorridor.id}`,
+      label: realCorridor.name,
+      input: {
+        routeType: "long_haul",
+        distanceKm: 920,
+        freightRevenue: 18_000,
+      },
+      corridorFixedAmount: realCorridor.fixedAmount,
+      corridorName: realCorridor.name,
+    },
+    ...GENERIC_SAMPLE_WEEK_TRIPS,
+  ];
+}
 
 function whyForTrip(
   result: SimulationResult,

@@ -25,8 +25,9 @@ function ChartBody({ model }: { model: MinimumGuaranteeChartModel }) {
       <p className="mb-2.5 text-xs font-semibold">{copy.title}</p>
       <div className="relative flex h-2.5 overflow-hidden rounded-[5px]">
         <div
-          className="h-full bg-[repeating-linear-gradient(135deg,hsl(var(--warning)/0.35)_0_6px,hsl(var(--warning)/0.55)_6px_12px)]"
+          className="h-full border border-warning bg-warning-soft bg-[repeating-linear-gradient(135deg,var(--warning-soft)_0_6px,color-mix(in_oklch,var(--warning)_22%,var(--warning-soft))_6px_12px)]"
           style={{ width: `${model.minSegmentPct}%` }}
+          data-testid="minimum-guarantee-min-segment"
         />
         <div className="h-full flex-1 bg-gradient-to-r from-primary/40 to-primary" />
       </div>
@@ -52,7 +53,7 @@ function ChartBody({ model }: { model: MinimumGuaranteeChartModel }) {
       <div className="mt-1 flex flex-wrap gap-4 text-xs">
         <span className="inline-flex items-center gap-1.5">
           <span
-            className="inline-block h-2.5 w-2.5 rounded-sm border border-warning bg-warning/30"
+            className="inline-block h-2.5 w-2.5 rounded-sm border border-warning bg-warning-soft"
             aria-hidden
           />
           {model.untilLegend}

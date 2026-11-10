@@ -45,6 +45,8 @@ export type { FormPageShellHeader, FormPageShellProps } from "./FormPageShell";
 export { WizardPageShell } from "./WizardPageShell";
 export type {
   WizardFormRef,
+  WizardNavigationResolveContext,
+  WizardNavigationResolveResult,
   WizardPageShellHeader,
   WizardPageShellProps,
   WizardStepRenderHelpers,

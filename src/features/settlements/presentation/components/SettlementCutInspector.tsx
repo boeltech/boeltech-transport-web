@@ -10,6 +10,12 @@ export interface SettlementCutInspectorProps {
   includableCount: number;
   totalOperators: number;
   estimatedNetTotal: number;
+  /** Suma bruta estimada de filas enviables (C17). */
+  compensationTotal?: number;
+  /** Anticipos/descuentos estimados de filas enviables (C17). */
+  advancesTotal?: number;
+  /** Reembolsos estimados si el preview los expone; si no, 0. */
+  reimbursementsTotal?: number;
   excluded: readonly SettlementCutPreviewRow[];
 }
 
@@ -17,8 +23,14 @@ export function SettlementCutInspector({
   includableCount,
   totalOperators,
   estimatedNetTotal,
+  compensationTotal,
+  advancesTotal = 0,
+  reimbursementsTotal = 0,
   excluded,
 }: SettlementCutInspectorProps) {
+  const showBreakdown =
+    compensationTotal != null && Number.isFinite(compensationTotal);
+
   return (
     <aside
       className="flex flex-col gap-4 lg:sticky lg:top-4"
@@ -31,7 +43,35 @@ export function SettlementCutInspector({
             {copy.inspectorIncluded(includableCount, totalOperators)}
           </p>
         </div>
-        <div className="space-y-1 px-5 py-4">
+        <div className="space-y-2 px-5 py-4 text-sm">
+          {showBreakdown ? (
+            <>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {copy.inspectorCompensation}
+                </span>
+                <span className="font-mono tabular-nums">
+                  {formatMxCurrency(compensationTotal)}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {copy.inspectorReimbursements}
+                </span>
+                <span className="font-mono tabular-nums">
+                  {formatMxCurrency(reimbursementsTotal)}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-muted-foreground">
+                  {copy.inspectorAdvances}
+                </span>
+                <span className="font-mono tabular-nums">
+                  {formatMxCurrency(advancesTotal)}
+                </span>
+              </div>
+            </>
+          ) : null}
           <div className="flex items-baseline justify-between gap-3 border-t-2 border-foreground pt-3">
             <span className="font-semibold">{copy.inspectorNet}</span>
             <span className="font-mono text-xl font-semibold tabular-nums">
@@ -54,8 +94,7 @@ export function SettlementCutInspector({
           ) : (
             excluded.map((row) => {
               const ui = resolveCutRowWarningUi(row);
-              const reason =
-                row.warnings[0]?.message ?? ui?.label ?? copy.outsideOfCut;
+              const reason = ui?.label ?? copy.outsideOfCut;
               return (
                 <p key={row.employeeId}>
                   <span className="font-semibold">{row.employeeFullName}</span>

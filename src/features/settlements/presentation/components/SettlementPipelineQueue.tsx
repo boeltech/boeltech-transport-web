@@ -33,7 +33,12 @@ export function SettlementPipelineQueue({
 }: SettlementPipelineQueueProps) {
   const hideDisburse = bucket !== "payable";
   const showRejectedCorrection = bucket === "draft";
-  const columnMode = bucket === "payable" ? "payable" : "pipeline";
+  const columnMode =
+    bucket === "payable"
+      ? "payable"
+      : bucket === "approval"
+        ? "approval"
+        : "pipeline";
 
   // Empty lo resuelve SettlementsListPage (EmptyState único).
   if (!isLoading && settlements.length === 0) return null;

@@ -15,6 +15,12 @@ export interface ClosedPeriodBannerModel {
   operatorCount: number;
   estimatedAmount: number;
   warningsCount?: number;
+  /** Operadores por armar de periodos distintos al anunciado. */
+  otherPeriodsCount?: number;
+  periodStart: string;
+  periodEnd: string;
+  /** Si false, copy genérico sin número de semana (D4). */
+  namedWeek: boolean;
 }
 
 interface SettlementClosedPeriodBannerProps {
@@ -25,7 +31,7 @@ interface SettlementClosedPeriodBannerProps {
 }
 
 /**
- * Aviso periodo cerrado (pieza #10 · CA F4.2).
+ * Aviso periodo cerrado (pieza #10 · CA F4.2 · remediación C7).
  * Primary soft + CTA «Armar corte de la semana N».
  */
 export function SettlementClosedPeriodBanner({
@@ -34,6 +40,13 @@ export function SettlementClosedPeriodBanner({
   canArmCut,
   armCutDisabledReason,
 }: SettlementClosedPeriodBannerProps) {
+  const title = model.namedWeek
+    ? copy.title(model.weekLabel, model.operatorCount)
+    : copy.titleGeneric(model.operatorCount);
+  const cta = model.namedWeek
+    ? copy.cta(model.weekLabel)
+    : copy.ctaGeneric;
+
   return (
     <div
       className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4"
@@ -45,9 +58,12 @@ export function SettlementClosedPeriodBanner({
         <span className="text-[15px] text-foreground">{model.dayRange}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-foreground">
-          {copy.title(model.weekLabel, model.operatorCount)}
-        </p>
+        <p className="font-semibold text-foreground">{title}</p>
+        {model.otherPeriodsCount != null && model.otherPeriodsCount > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {copy.otherPeriods(model.otherPeriodsCount)}
+          </p>
+        ) : null}
         <p className="text-sm text-muted-foreground">
           {copy.estimate(formatMxCurrency(model.estimatedAmount))}
           {model.warningsCount != null && model.warningsCount > 0
@@ -65,7 +81,7 @@ export function SettlementClosedPeriodBanner({
         title={!canArmCut ? armCutDisabledReason : undefined}
       >
         <CalendarDays className="h-4 w-4" aria-hidden />
-        {copy.cta(model.weekLabel)}
+        {cta}
       </Button>
     </div>
   );

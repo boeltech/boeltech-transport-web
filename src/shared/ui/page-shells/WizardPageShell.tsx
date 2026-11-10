@@ -42,6 +42,7 @@ import {
   WizardNavigationBar,
   WizardProgressCard,
   WizardSteps,
+  type WizardNavigationSecondaryAction,
   type WizardStep,
 } from "@shared/ui/wizard";
 import { cn } from "@shared/lib/utils/cn";
@@ -131,6 +132,35 @@ export interface WizardPageShellProps {
    * Se clampea a `[0, steps.length - 1]`. Default 0.
    */
   initialStep?: number;
+
+  /**
+   * Overrides del pie por paso (p. ej. Revisar: Enviar + Guardar borradores, sin Siguiente).
+   * Valores omitidos conservan el comportamiento default del shell.
+   */
+  resolveNavigation?: (
+    ctx: WizardNavigationResolveContext,
+  ) => WizardNavigationResolveResult | undefined;
+}
+
+export interface WizardNavigationResolveContext {
+  currentStep: number;
+  lastStepIndex: number;
+  isSubmitting: boolean;
+  goToStep: (stepIndex: number) => void;
+}
+
+export interface WizardNavigationResolveResult {
+  isLastStep?: boolean;
+  submitLabel?: string;
+  onSubmit?: () => void;
+  onNext?: () => void;
+  disableNext?: boolean;
+  disableSubmit?: boolean;
+  secondaryAction?: WizardNavigationSecondaryAction;
+  hidePrimary?: boolean;
+  primaryTestId?: string;
+  /** Si false, oculta el icono Check del submit. Default true. */
+  showSubmitIcon?: boolean;
 }
 
 // ============================================================================
@@ -174,6 +204,7 @@ export const WizardPageShell = memo(function WizardPageShell({
   className,
   resolveContainerClassName,
   initialStep,
+  resolveNavigation,
 }: WizardPageShellProps) {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(() =>
@@ -294,6 +325,18 @@ export const WizardPageShell = memo(function WizardPageShell({
     [goToStep],
   );
 
+  const navigationOverrides = resolveNavigation?.({
+    currentStep,
+    lastStepIndex,
+    isSubmitting: navBusy,
+    goToStep,
+  });
+  const footerIsLastStep = navigationOverrides?.isLastStep ?? isReview;
+  const footerSubmitLabel = navigationOverrides?.submitLabel ?? submitLabel;
+  const footerOnSubmit = navigationOverrides?.onSubmit ?? handleConfirm;
+  const footerOnNext = navigationOverrides?.onNext ?? handleNext;
+  const footerShowSubmitIcon = navigationOverrides?.showSubmitIcon !== false;
+
   return (
     <div
       className={cn(
@@ -366,21 +409,28 @@ export const WizardPageShell = memo(function WizardPageShell({
        * ================================================================== */}
       <WizardNavigationBar
         canGoBack={currentStep > 0 && !navBusy}
-        isLastStep={isReview}
+        isLastStep={footerIsLastStep}
         onPrevious={handlePrevious}
         onCancel={allowExit ? handleCancel : undefined}
         showCancel={allowExit}
-        onNext={handleNext}
-        onSubmit={handleConfirm}
+        onNext={footerOnNext}
+        onSubmit={footerOnSubmit}
         isSubmitting={navBusy}
-        submitLabel={submitLabel}
+        submitLabel={footerSubmitLabel}
+        disableNext={navigationOverrides?.disableNext}
+        disableSubmit={navigationOverrides?.disableSubmit}
+        secondaryAction={navigationOverrides?.secondaryAction}
+        hidePrimary={navigationOverrides?.hidePrimary}
+        primaryTestId={navigationOverrides?.primaryTestId}
         submittingContent={
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {submittingLabel}
           </>
         }
-        submitIcon={<Check className="mr-2 h-4 w-4" />}
+        submitIcon={
+          footerShowSubmitIcon ? <Check className="mr-2 h-4 w-4" /> : undefined
+        }
       />
     </div>
   );

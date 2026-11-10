@@ -137,8 +137,8 @@ export const settlementsCopy = {
     exceedsPaymentAlert: {
       title: (name: string) =>
         `El anticipo de ${name} supera su pago de la semana`,
-      description: (estimated: string, remainder: string) =>
-        `Su pago estimado es ${estimated}; si se descuenta todo, recibe ${remainder}. Reparte el descuento en varios cortes o déjalo completo.`,
+      description: (capacity: string, balance: string) =>
+        `Su pago del periodo alcanza a descontar hasta ${capacity}; el anticipo tiene ${balance}. Reparte el descuento en varios cortes.`,
       action: "Repartir",
     },
     exceedsBadge: "supera su pago",
@@ -204,6 +204,11 @@ export const settlementsCopy = {
     },
     pipeline: {
       ariaLabel: "Etapas",
+      submittedBy: "Quién envió",
+      age: "Antigüedad",
+      ageDays: (days: number) =>
+        days === 1 ? "hace 1 día" : `hace ${days} días`,
+      ageToday: "hoy",
     },
     kpis: {
       ariaLabel: "Indicadores del periodo",
@@ -233,7 +238,7 @@ export const settlementsCopy = {
       advancesToDeduct: {
         label: "Anticipos por descontar",
         detail: (count: number) =>
-          count === 1 ? "1 operador" : `${count} operadores`,
+          count === 1 ? "1 anticipo" : `${count} anticipos`,
       },
     },
     closedPeriod: {
@@ -241,12 +246,21 @@ export const settlementsCopy = {
         operators === 1
           ? `Semana ${week} cerró: 1 operador tiene pago pendiente`
           : `Semana ${week} cerró: ${operators} operadores tienen pago pendiente`,
+      titleGeneric: (operators: number) =>
+        operators === 1
+          ? "1 operador con pagos pendientes de periodos anteriores"
+          : `${operators} operadores con pagos pendientes de periodos anteriores`,
+      otherPeriods: (count: number) =>
+        count === 1
+          ? "1 operador más con pagos pendientes de otros periodos"
+          : `${count} operadores más con pagos pendientes de otros periodos`,
       estimate: (amount: string) => `Estimado ${amount}`,
       warnings: (count: number) =>
         count === 1
           ? "1 con avisos que revisar antes de enviar"
           : `${count} con avisos que revisar antes de enviar`,
       cta: (week: string) => `Armar corte de la semana ${week}`,
+      ctaGeneric: "Armar corte",
     },
     bulkBar: {
       selected: (count: number) =>
@@ -303,6 +317,9 @@ export const settlementsCopy = {
       canRegisterAlertTitle: "Puedes registrarlos",
       canRegisterAlertBody: (armers: string, approvers: string) =>
         `Los armó ${armers} y los autorizó ${approvers}. Tú no hiciste ninguno de esos pasos.`,
+      soleResponsibleAlertTitle: "Eres el único que puede registrar",
+      soleResponsibleAlertBody:
+        "Quedará marcado como un solo responsable en el historial.",
       totalLabel: "Total a registrar",
       cancel: "Cancelar",
       confirm: (count: number) =>
@@ -827,6 +844,10 @@ export const settlementsCopy = {
       description:
         "No se encontró el pago solicitado o no tienes permisos para consultarlo.",
     },
+    selfConfirmNotice:
+      "Lo armaste tú: si lo autorizas quedará como autoaprobado",
+    ownBlockedNotice:
+      "Lo armaste tú; debe autorizarlo otra persona",
     fallbacks: {
       paymentTitle: "Pago",
       noAgreement: "Sin acuerdo",
@@ -910,6 +931,7 @@ export const settlementsCopy = {
       colRule: "Regla aplicada",
       colPay: "Paga",
       ruleFallback: "Estándar",
+      ruleKmTimesRate: (km: string, rate: string) => `${km} km × ${rate}`,
     },
     balanceStrip: {
       /** F3: desglose compensación | reembolsos | total (antes de VoBo/dispersión). */
@@ -1874,6 +1896,9 @@ export const settlementsCopy = {
       inspectorTitle: "Resumen del corte",
       inspectorIncluded: (included: number, total: number) =>
         `${included} de ${total} operadores incluidos`,
+      inspectorCompensation: "Compensación",
+      inspectorReimbursements: "Reembolsos",
+      inspectorAdvances: "Anticipos y descuentos",
       inspectorNet: "A pagar",
       inspectorNetHint: "Suma estimada de filas enviables (sin bloqueadas ni fuera)",
       outsideTitle: (count: number) => `Fuera de este corte · ${count}`,
@@ -1884,7 +1909,7 @@ export const settlementsCopy = {
           ? "Se crea un pago por operador. Según tus reglas de autorización, va a «En autorización». Nada se paga todavía."
           : `Se crea un pago por operador. Según tus reglas de autorización, los ${count} van a «En autorización». Nada se paga todavía.`,
       includableNote:
-        "Los avisos marcados como «Incluido» no bloquean el envío. Las filas bloqueadas no entran en N.",
+        "Los avisos marcados como «Incluido» no bloquean el envío. Las filas bloqueadas no entran en el envío.",
       saveDrafts: "Guardar como borradores",
       sendN: (count: number) =>
         count === 1

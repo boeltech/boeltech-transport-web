@@ -9,12 +9,13 @@ import {
   Truck,
 } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@shared/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@shared/ui/dialog";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
@@ -154,160 +155,155 @@ export function TariffPresetSelector({
   ]);
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-xl"
-        onFocusOutside={(e) => e.preventDefault()}
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="max-h-[90vh] max-w-xl overflow-y-auto sm:max-w-xl"
+        data-testid="tariff-preset-dialog"
       >
-        <SheetHeader className="border-b px-6 py-4 text-left">
-          <SheetTitle>{copy.title}</SheetTitle>
+        <DialogHeader>
+          <DialogTitle>{copy.title}</DialogTitle>
           {step === "select" ? (
-            <SheetDescription>{copy.subtitleDescription}</SheetDescription>
+            <DialogDescription>{copy.subtitleDescription}</DialogDescription>
           ) : null}
-        </SheetHeader>
+        </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {step === "select" ? (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-foreground">{copy.subtitle}</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {TARIFF_PRESETS.map((preset) => {
-                  const Icon = ICON_MAP[preset.iconName];
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleSelectPreset(preset)}
-                      className={cn(
-                        "group flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors",
-                        "hover:border-primary/50 hover:bg-primary/5",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                      )}
-                      data-testid={`tariff-preset-${preset.id}`}
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground group-hover:bg-primary/15 group-hover:text-primary">
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {preset.name}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {preset.description}
-                        </p>
-                      </div>
-                      <div className="mt-auto w-full rounded-md bg-background px-2 py-1.5 font-mono text-xs text-muted-foreground">
-                        {preset.formulaMini}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSelectBlank}
-                className={cn(
-                  "group flex w-full items-center gap-3 rounded-lg border border-dashed p-4 text-left transition-colors",
-                  "hover:border-primary/50 hover:bg-primary/5",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                )}
-                data-testid="tariff-preset-blank"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <Plus className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {copy.blankName}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {copy.blankDescription}
-                  </p>
-                </div>
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="-ml-2"
-                onClick={handleBack}
-              >
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                {copy.step2Back}
-              </Button>
-
-              <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
-                <div className="space-y-1.5">
-                  <Label htmlFor="preset-name">{copy.nameLabel}</Label>
-                  <Input
-                    id="preset-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={copy.namePlaceholder}
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">{copy.nameHint}</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="preset-period">{copy.paymentPeriodLabel}</Label>
-                  <Select
-                    value={paymentPeriod}
-                    onValueChange={(value) =>
-                      setPaymentPeriod(value as TemplatePaymentPeriod)
-                    }
+        {step === "select" ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-foreground">{copy.subtitle}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {TARIFF_PRESETS.map((preset) => {
+                const Icon = ICON_MAP[preset.iconName];
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset)}
+                    className={cn(
+                      "group flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors",
+                      "hover:border-primary/50 hover:bg-primary/5",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    )}
+                    data-testid={`tariff-preset-${preset.id}`}
                   >
-                    <SelectTrigger id="preset-period">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(
-                        Object.entries(TEMPLATE_PAYMENT_PERIOD_LABELS) as Array<
-                          [TemplatePaymentPeriod, string]
-                        >
-                      ).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {copy.paymentPeriodHint}
-                  </p>
-                </div>
-              </div>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-foreground group-hover:bg-primary/15 group-hover:text-primary">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {preset.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {preset.description}
+                      </p>
+                    </div>
+                    <div className="mt-auto w-full rounded-md bg-background px-2 py-1.5 font-mono text-xs text-muted-foreground">
+                      {preset.formulaMini}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
 
-        {step === "name" ? (
-          <div className="border-t px-6 py-4">
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => handleOpenChange(false)}
-                disabled={createMutation.isPending}
-              >
-                {copy.cancel}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void handleCreate()}
-                disabled={!name.trim() || createMutation.isPending}
-                isLoading={createMutation.isPending}
-              >
-                {createMutation.isPending ? copy.creating : copy.create}
-              </Button>
+            <button
+              type="button"
+              onClick={handleSelectBlank}
+              className={cn(
+                "group flex w-full items-center gap-3 rounded-lg border border-dashed p-4 text-left transition-colors",
+                "hover:border-primary/50 hover:bg-primary/5",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              )}
+              data-testid="tariff-preset-blank"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <Plus className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {copy.blankName}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {copy.blankDescription}
+                </p>
+              </div>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-ml-2"
+              onClick={handleBack}
+            >
+              <ArrowLeft className="mr-1 h-4 w-4" />
+              {copy.step2Back}
+            </Button>
+
+            <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
+              <div className="space-y-1.5">
+                <Label htmlFor="preset-name">{copy.nameLabel}</Label>
+                <Input
+                  id="preset-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={copy.namePlaceholder}
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground">{copy.nameHint}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="preset-period">{copy.paymentPeriodLabel}</Label>
+                <Select
+                  value={paymentPeriod}
+                  onValueChange={(value) =>
+                    setPaymentPeriod(value as TemplatePaymentPeriod)
+                  }
+                >
+                  <SelectTrigger id="preset-period">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      Object.entries(TEMPLATE_PAYMENT_PERIOD_LABELS) as Array<
+                        [TemplatePaymentPeriod, string]
+                      >
+                    ).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {copy.paymentPeriodHint}
+                </p>
+              </div>
             </div>
           </div>
+        )}
+
+        {step === "name" ? (
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenChange(false)}
+              disabled={createMutation.isPending}
+            >
+              {copy.cancel}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleCreate()}
+              disabled={!name.trim() || createMutation.isPending}
+              isLoading={createMutation.isPending}
+            >
+              {createMutation.isPending ? copy.creating : copy.create}
+            </Button>
+          </DialogFooter>
         ) : null}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

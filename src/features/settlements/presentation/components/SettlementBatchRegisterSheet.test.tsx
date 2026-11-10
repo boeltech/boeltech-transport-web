@@ -5,7 +5,10 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { DriverSettlement } from "../../domain/entities";
 import { settlementsCopy } from "../copy/settlementsCopy";
-import { SettlementBatchRegisterSheet } from "./SettlementBatchRegisterSheet";
+import {
+  resolveBatchRegisterActorAlertKind,
+  SettlementBatchRegisterSheet,
+} from "./SettlementBatchRegisterSheet";
 
 const mockMutateAsync = vi.fn();
 const mockToast = vi.fn();
@@ -67,6 +70,7 @@ function makeSettlement(
 function renderSheet(
   settlements: DriverSettlement[],
   hasClabeByEmployeeId: Map<string, boolean>,
+  currentUserId?: string | null,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -82,6 +86,7 @@ function renderSheet(
           onOpenChange={vi.fn()}
           settlements={settlements}
           hasClabeByEmployeeId={hasClabeByEmployeeId}
+          currentUserId={currentUserId}
           onSuccess={vi.fn()}
         />
       </MemoryRouter>
@@ -129,6 +134,9 @@ describe("SettlementBatchRegisterSheet F7", () => {
     expect(screen.getByTestId("batch-register-actor-alert")).toHaveTextContent(
       "Rosa Alcántara",
     );
+    expect(screen.getByTestId("batch-register-actor-alert")).toHaveTextContent(
+      "Tú no hiciste ninguno de esos pasos",
+    );
 
     await user.type(screen.getByLabelText(copy.referenceLabel), "Semana 45");
     await user.click(screen.getByTestId("batch-register-submit"));
@@ -141,6 +149,7 @@ describe("SettlementBatchRegisterSheet F7", () => {
       settlementIds: string[];
       disbursementReference: string;
       disbursementMethod?: string;
+      disbursedAt: string;
       expectedRevisions: Record<string, string>;
       generateDispersionFile?: boolean;
     };
@@ -149,5 +158,59 @@ describe("SettlementBatchRegisterSheet F7", () => {
     expect(payload.disbursementMethod).toBeUndefined();
     expect(payload.generateDispersionFile).toBeUndefined();
     expect(payload.expectedRevisions).toEqual({ a: "rev-1", b: "rev-2" });
+    expect(payload.disbursedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("C23: si la sesión armó/autorizó, muestra un solo responsable (no miente)", () => {
+    const own = makeSettlement({
+      id: "a",
+      employeeId: "e1",
+      createdBy: "user-session",
+      submittedBy: "user-session",
+      approvedBy: "user-session",
+      approvedByName: "Yo Mismo",
+      createdByName: "Yo Mismo",
+      submittedByName: "Yo Mismo",
+    });
+    renderSheet([own], new Map([["e1", true]]), "user-session");
+    expect(screen.getByTestId("batch-register-actor-alert")).toHaveTextContent(
+      copy.soleResponsibleAlertTitle,
+    );
+    expect(
+      screen.queryByText(/Tú no hiciste ninguno de esos pasos/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("resolveBatchRegisterActorAlertKind distingue A/B/C", () => {
+    const s = makeSettlement({
+      id: "a",
+      employeeId: "e1",
+      createdBy: "maker",
+      approvedBy: "approver",
+    });
+    expect(
+      resolveBatchRegisterActorAlertKind({
+        settlements: [s],
+        userId: "other",
+        armers: "Rosa",
+        approvers: "Mario",
+      }),
+    ).toBe("separation_ok");
+    expect(
+      resolveBatchRegisterActorAlertKind({
+        settlements: [s],
+        userId: "maker",
+        armers: "Rosa",
+        approvers: "Mario",
+      }),
+    ).toBe("sole_responsible");
+    expect(
+      resolveBatchRegisterActorAlertKind({
+        settlements: [s],
+        userId: "other",
+        armers: "",
+        approvers: "Mario",
+      }),
+    ).toBe("none");
   });
 });

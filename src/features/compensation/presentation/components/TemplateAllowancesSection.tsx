@@ -77,6 +77,8 @@ export function TemplateAllowancesSection({
     ? sheetCopy.addFixedPayment
     : sheetCopy.addAllowance;
 
+  const hideTitle = !stepPrefix.trim() && operationalLexicon;
+
   return (
     <FormSectionCard
       title={
@@ -84,6 +86,7 @@ export function TemplateAllowancesSection({
           ? `${stepPrefix} ${sectionTitle}`
           : sectionTitle
       }
+      hideTitle={hideTitle}
       icon={<Banknote className="h-4 w-4" />}
       contentClassName="space-y-4"
       action={

@@ -121,7 +121,7 @@ export function OperatorPaymentReadinessPanel({
                     {" · "}
                     <Link
                       to={employeeHref}
-                      className="font-medium text-foreground underline-offset-2 hover:underline"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
                     >
                       {copy.stepSalaryEdit}
                     </Link>
@@ -131,7 +131,7 @@ export function OperatorPaymentReadinessPanel({
                     {copy.stepSalaryEmpty}{" "}
                     <Link
                       to={employeeHref}
-                      className="font-medium text-foreground underline-offset-2 hover:underline"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
                     >
                       {copy.stepSalaryEdit}
                     </Link>
@@ -153,7 +153,7 @@ export function OperatorPaymentReadinessPanel({
                     {copy.stepAccountMissing}{" "}
                     <Link
                       to={employeeHref}
-                      className="font-medium text-foreground underline-offset-2 hover:underline"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
                       data-testid="operators-panel-clabe-link"
                     >
                       {copy.stepAccountEdit}

@@ -2,6 +2,14 @@ import type { ReactNode } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@shared/ui/button";
 
+export interface WizardNavigationSecondaryAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  /** data-testid del botón secundario. */
+  testId?: string;
+}
+
 export interface WizardNavigationBarProps {
   canGoBack: boolean;
   isLastStep: boolean;
@@ -18,6 +26,12 @@ export interface WizardNavigationBarProps {
   submittingContent?: ReactNode;
   submitIcon?: ReactNode;
   className?: string;
+  /** Acción secundaria a la izquierda de la primaria (p. ej. Guardar borradores). */
+  secondaryAction?: WizardNavigationSecondaryAction;
+  /** Oculta Siguiente / Enviar (paso resultado con CTAs en el cuerpo). */
+  hidePrimary?: boolean;
+  /** data-testid del botón primario (Siguiente o submit). */
+  primaryTestId?: string;
 }
 
 export function WizardNavigationBar({
@@ -35,6 +49,9 @@ export function WizardNavigationBar({
   submittingContent,
   submitIcon,
   className,
+  secondaryAction,
+  hidePrimary = false,
+  primaryTestId,
 }: WizardNavigationBarProps) {
   return (
     <div className={`flex items-center justify-between border-t pt-6 mt-6 ${className ?? ""}`}>
@@ -56,12 +73,25 @@ export function WizardNavigationBar({
           </Button>
         ) : null}
 
-        {isLastStep ? (
+        {secondaryAction ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={secondaryAction.onClick}
+            disabled={isSubmitting || secondaryAction.disabled}
+            data-testid={secondaryAction.testId}
+          >
+            {secondaryAction.label}
+          </Button>
+        ) : null}
+
+        {hidePrimary ? null : isLastStep ? (
           <Button
             type="button"
             onClick={onSubmit}
             disabled={isSubmitting || disableSubmit}
             aria-label={submitLabel}
+            data-testid={primaryTestId}
           >
             {isSubmitting ? (
               submittingContent ?? "Guardando..."
@@ -78,6 +108,7 @@ export function WizardNavigationBar({
             onClick={onNext}
             disabled={isSubmitting || disableNext}
             aria-label="Siguiente"
+            data-testid={primaryTestId}
           >
             Siguiente
             <ArrowRight className="ml-2 h-4 w-4" />

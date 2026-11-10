@@ -191,6 +191,23 @@ export function SettlementCutWizardPage() {
     () => (preview?.eligible ?? []).filter(isCutRowSendable),
     [preview],
   );
+  const reviewTotals = useMemo(() => {
+    let compensation = 0;
+    let advances = 0;
+    for (const row of sendableRows) {
+      compensation += row.estimatedGross ?? row.estimatedNet ?? 0;
+      const suggested = row.suggestedAdvanceDeduction;
+      if (suggested != null) advances += suggested;
+      else if (row.openAdvancesBalance > 0) {
+        const cap = row.maxAdvanceDeductible;
+        advances +=
+          cap != null
+            ? Math.min(row.openAdvancesBalance, cap)
+            : row.openAdvancesBalance;
+      }
+    }
+    return { compensation, advances, reimbursements: 0 };
+  }, [sendableRows]);
 
   const handleRhythmChange = useCallback((next: SettlementCutSalaryPeriod) => {
     setSalaryPeriod(next);
@@ -454,7 +471,7 @@ export function SettlementCutWizardPage() {
     </div>
   );
 
-  const renderReviewStep = (helpers?: WizardStepRenderHelpers) => {
+  const renderReviewStep = (_helpers?: WizardStepRenderHelpers) => {
     if (previewQuery.isLoading && !preview) {
       return (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -498,8 +515,9 @@ export function SettlementCutWizardPage() {
     return (
       <div className="space-y-4" data-testid="cut-step-review">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_336px] lg:items-start">
-          <section className="rounded-2xl border bg-card p-4 sm:p-5">
-            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/* C18: un solo nivel de superficie (el Card del WizardPageShell). */}
+          <section className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <SettlementCutFilterChips
                 value={filter}
                 onChange={setFilter}
@@ -521,6 +539,9 @@ export function SettlementCutWizardPage() {
               filter={filter}
               onAction={handleRowAction}
             />
+            <p className="text-sm text-muted-foreground">
+              {copy.review.includableNote}
+            </p>
           </section>
           <SettlementCutInspector
             includableCount={summary.includableCount}
@@ -528,46 +549,11 @@ export function SettlementCutWizardPage() {
               summary.eligibleCount + summary.excludedCount
             }
             estimatedNetTotal={summary.estimatedNetTotal}
+            compensationTotal={reviewTotals.compensation}
+            advancesTotal={reviewTotals.advances}
+            reimbursementsTotal={reviewTotals.reimbursements}
             excluded={outsideForInspector}
           />
-        </div>
-
-        <div className="flex flex-col gap-3 rounded-2xl border bg-card px-4 py-3 sm:flex-row sm:items-center">
-          <p className="text-sm text-muted-foreground">
-            {copy.review.includableNote}
-          </p>
-          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={createCut.isPending || includableCount === 0}
-              onClick={() => void handleSaveDrafts(helpers)}
-            >
-              {copy.review.saveDrafts}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={createCut.isPending || includableCount === 0}
-              title={
-                includableCount === 0
-                  ? copy.review.sendDisabledEmpty
-                  : undefined
-              }
-              onClick={() => void handleSend(helpers)}
-              data-testid="cut-send-n"
-            >
-              {createCut.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {copy.review.sending}
-                </>
-              ) : (
-                copy.review.sendN(includableCount)
-              )}
-            </Button>
-          </div>
         </div>
       </div>
     );
@@ -692,6 +678,7 @@ export function SettlementCutWizardPage() {
       previewQuery.isFetching,
       previewQuery.isLoading,
       readyExpanded,
+      reviewTotals,
       salaryPeriod,
       search,
       summary,
@@ -719,6 +706,38 @@ export function SettlementCutWizardPage() {
       resolveContainerClassName={(step) =>
         step === 1 ? "max-w-6xl" : undefined
       }
+      resolveNavigation={({ currentStep, goToStep }) => {
+        // C12: Revisar = pie único con Enviar + Guardar; sin Siguiente.
+        if (currentStep === 1) {
+          const disabled = createCut.isPending || includableCount === 0;
+          return {
+            isLastStep: true,
+            submitLabel: copy.review.sendN(includableCount),
+            showSubmitIcon: false,
+            disableSubmit: disabled,
+            primaryTestId: "cut-send-n",
+            onSubmit: () => {
+              void handleSend({ goToStep });
+            },
+            secondaryAction: {
+              label: copy.review.saveDrafts,
+              disabled,
+              testId: "cut-save-drafts",
+              onClick: () => {
+                void handleSaveDrafts({ goToStep });
+              },
+            },
+          };
+        }
+        // Paso resultado: CTAs en el cuerpo; pie sin primaria duplicada.
+        if (currentStep === 2) {
+          return {
+            isLastStep: true,
+            hidePrimary: true,
+          };
+        }
+        return undefined;
+      }}
       className="pb-28"
     />
   );

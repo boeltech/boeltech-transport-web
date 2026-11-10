@@ -24,11 +24,20 @@ import { SettlementActions } from "./SettlementActions";
 import { SettlementKindBadge } from "./SettlementKindBadge";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { settlementPeriodLabel } from "../utils/reimbursementLines";
+import {
+  approvalAgeDays,
+  isApprovalAgingWarning,
+} from "../utils/approvalAging";
 
 const copy = settlementsCopy;
 const bulkCopy = settlementsCopy.workbench.bulkBar;
+const pipelineCopy = settlementsCopy.workbench.pipeline;
 
-export type SettlementsTableColumnMode = "pipeline" | "registry" | "payable";
+export type SettlementsTableColumnMode =
+  | "pipeline"
+  | "registry"
+  | "payable"
+  | "approval";
 
 interface SettlementsTableProps {
   settlements: DriverSettlement[];
@@ -69,6 +78,18 @@ const PIPELINE_HEADERS: TableHeaderConfig[] = [
   { key: "settlementNumber", label: copy.fields.settlementNumber, className: "min-w-[140px]" },
   { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
   { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
+  { key: "netAmount", label: copy.fields.netAmount, className: "text-right min-w-[130px] font-semibold text-foreground" },
+  { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
+  { key: "actions", label: "", className: "w-12 text-right" },
+];
+
+const APPROVAL_HEADERS: TableHeaderConfig[] = [
+  { key: "select", label: "", className: "w-10" },
+  { key: "settlementNumber", label: copy.fields.settlementNumber, className: "min-w-[140px]" },
+  { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
+  { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
+  { key: "submittedBy", label: pipelineCopy.submittedBy, className: "min-w-[140px]" },
+  { key: "age", label: pipelineCopy.age, className: "min-w-[110px]" },
   { key: "netAmount", label: copy.fields.netAmount, className: "text-right min-w-[130px] font-semibold text-foreground" },
   { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
   { key: "actions", label: "", className: "w-12 text-right" },
@@ -176,11 +197,13 @@ export function SettlementsTable({
   const baseHeaders =
     columnMode === "payable"
       ? PAYABLE_HEADERS
-      : columnMode === "pipeline"
-        ? PIPELINE_HEADERS
-        : REGISTRY_HEADERS;
+      : columnMode === "approval"
+        ? APPROVAL_HEADERS
+        : columnMode === "pipeline"
+          ? PIPELINE_HEADERS
+          : REGISTRY_HEADERS;
   const headers =
-    selectable && columnMode !== "payable"
+    selectable && columnMode !== "payable" && columnMode !== "approval"
       ? [{ key: "select", label: "", className: "w-10" }, ...baseHeaders]
       : baseHeaders;
   const colCount = headers.length;
@@ -237,6 +260,11 @@ export function SettlementsTable({
             const missingClabe =
               columnMode === "payable" &&
               hasClabeByEmployeeId?.get(st.employeeId) === false;
+            const ageDays =
+              columnMode === "approval"
+                ? approvalAgeDays(st.submittedAt)
+                : null;
+            const agingWarn = isApprovalAgingWarning(ageDays);
 
             return (
             <TableRow
@@ -244,19 +272,25 @@ export function SettlementsTable({
               className={cn(
                 "cursor-pointer hover:bg-muted/50 transition-colors",
                 selected && "bg-primary/5",
+                agingWarn && "bg-warning-soft/60",
               )}
+              data-testid={
+                agingWarn ? `settlement-aging-warn-${st.id}` : undefined
+              }
               onClick={() => onView(st.id)}
             >
-              {selectable ? (
+              {selectable || columnMode === "approval" ? (
                 <TableCell
                   className="w-10"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Checkbox
-                    checked={selected}
-                    onCheckedChange={() => onToggleSelect?.(st.id)}
-                    aria-label={`Seleccionar ${st.settlementNumber}`}
-                  />
+                  {selectable ? (
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={() => onToggleSelect?.(st.id)}
+                      aria-label={`Seleccionar ${st.settlementNumber}`}
+                    />
+                  ) : null}
                 </TableCell>
               ) : null}
 
@@ -274,6 +308,31 @@ export function SettlementsTable({
               <TableCell className="text-muted-foreground text-xs sm:text-sm whitespace-nowrap">
                 {settlementPeriodLabel(st)}
               </TableCell>
+
+              {columnMode === "approval" ? (
+                <>
+                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                    {st.submittedByName ?? st.createdByName ?? "—"}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {ageDays == null ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : agingWarn ? (
+                      <Badge variant="warning" tone="soft" className="text-xs">
+                        {ageDays === 0
+                          ? pipelineCopy.ageToday
+                          : pipelineCopy.ageDays(ageDays)}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {ageDays === 0
+                          ? pipelineCopy.ageToday
+                          : pipelineCopy.ageDays(ageDays)}
+                      </span>
+                    )}
+                  </TableCell>
+                </>
+              ) : null}
 
               {columnMode === "payable" ? (
                 <>

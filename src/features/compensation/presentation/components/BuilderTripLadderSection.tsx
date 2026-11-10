@@ -1,14 +1,22 @@
-import { useMemo } from "react";
-import { useWatch } from "react-hook-form";
-import { ArrowDown, Route } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Controller, useWatch } from "react-hook-form";
+import { ArrowDown, Route, X } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { RHFSelectField } from "@shared/ui/form";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { BranchStatus, useBranches } from "@features/branches";
 import { MID_TRIP_PAYOUT_POLICY_LABELS } from "@features/settlements/domain/enums";
 import type { TripRouteType } from "@features/settlements";
 import { useFrequentCityPairs } from "../../application/hooks";
+import { useCorridorTariffs } from "../../application/hooks/useCorridors";
+import { CORRIDOR_REF_TYPE_LABELS } from "../../domain/enums";
 import type { UseCompensationTemplateFormResult } from "../hooks/useCompensationTemplateForm";
 import { compensationCopy } from "../copy/compensationCopy";
-import { TemplateCorridorsSection } from "./TemplateCorridorsSection";
+import {
+  buildBranchNameMap,
+  formatCorridorRouteHuman,
+} from "../utils/formatCorridorRoute";
+import { BuilderAddCorridorsSheet } from "./BuilderAddCorridorsSheet";
 import { BuilderRulePhraseCard } from "./BuilderRulePhraseCard";
 
 const copy = compensationCopy.builder;
@@ -24,7 +32,6 @@ type BuilderTripLadderSectionProps = Pick<
   "form" | "ruleFields" | "appendRule" | "removeRule" | "watchedRules"
 > & {
   readOnly?: boolean;
-  onAddCorridor?: () => void;
 };
 
 export function BuilderTripLadderSection({
@@ -34,13 +41,46 @@ export function BuilderTripLadderSection({
   removeRule,
   watchedRules,
   readOnly = false,
-  onAddCorridor,
 }: BuilderTripLadderSectionProps) {
-  useWatch({ control: form.control, name: "corridorIds" });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const corridorIds =
+    useWatch({ control: form.control, name: "corridorIds" }) ?? [];
   const { data: frequentPairs = [] } = useFrequentCityPairs(
     { limit: 5 },
     { enabled: true },
   );
+  const { data: corridorsData } = useCorridorTariffs({
+    isActive: true,
+    pageSize: 100,
+  });
+  const corridors = corridorsData?.data ?? [];
+
+  const { data: branchesData } = useBranches({
+    page: 1,
+    limit: 100,
+    filters: {
+      isActive: true,
+      status: BranchStatus.ACTIVE,
+    },
+    sort: {
+      field: "name",
+      direction: "asc",
+    },
+  });
+
+  const branchNameMap = useMemo(
+    () => buildBranchNameMap(branchesData?.data ?? []),
+    [branchesData?.data],
+  );
+
+  const assignedCorridors = useMemo(() => {
+    const byId = new Map(corridors.map((corridor) => [corridor.id, corridor]));
+    return corridorIds
+      .map((id) => byId.get(id))
+      .filter((corridor): corridor is NonNullable<typeof corridor> =>
+        Boolean(corridor),
+      );
+  }, [corridorIds, corridors]);
 
   const ruleIndexByType = useMemo(() => {
     const map = new Map<TripRouteType, number>();
@@ -77,15 +117,83 @@ export function BuilderTripLadderSection({
                 variant="outline"
                 size="sm"
                 leftIcon={<Route className="h-3.5 w-3.5" />}
-                onClick={onAddCorridor}
+                onClick={() => setPickerOpen(true)}
               >
                 {copy.tripStep1Add}
               </Button>
             ) : null}
           </div>
-          <TemplateCorridorsSection control={form.control} stepPrefix="" />
+
+          {assignedCorridors.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">
+              {copy.tripStep1Empty}
+            </p>
+          ) : (
+            <div
+              className="overflow-hidden rounded-md border"
+              data-testid="builder-assigned-corridors"
+            >
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30 text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">
+                      {copy.tripStep1Columns.route}
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      {copy.tripStep1Columns.matchBy}
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      {copy.tripStep1Columns.pays}
+                    </th>
+                    {!readOnly ? <th className="w-10 px-2 py-2" /> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignedCorridors.map((corridor) => (
+                    <tr key={corridor.id} className="border-b last:border-b-0">
+                      <td className="px-3 py-2">
+                        <div className="font-medium">
+                          {formatCorridorRouteHuman(corridor, branchNameMap)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {corridor.name}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {CORRIDOR_REF_TYPE_LABELS[corridor.originRefType]}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums">
+                        {formatMxCurrency(corridor.fixedAmount)}
+                      </td>
+                      {!readOnly ? (
+                        <td className="px-2 py-2 text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label={copy.tripStep1Remove}
+                            onClick={() => {
+                              form.setValue(
+                                "corridorIds",
+                                corridorIds.filter((id) => id !== corridor.id),
+                                { shouldDirty: true },
+                              );
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      ) : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {topSuggestion ? (
-            <div className="flex items-center gap-2.5 rounded-md bg-info/15 px-2.5 py-2 text-xs text-info-foreground">
+            <div className="flex items-center gap-2.5 rounded-md bg-info-soft px-2.5 py-2 text-xs text-info-soft-foreground">
               <span className="min-w-0 flex-1">
                 {copy.frequentPairSuggest(
                   `${topSuggestion.originCity} → ${topSuggestion.destinationCity}`,
@@ -95,8 +203,8 @@ export function BuilderTripLadderSection({
               {!readOnly ? (
                 <button
                   type="button"
-                  className="shrink-0 font-semibold underline-offset-2 hover:underline"
-                  onClick={onAddCorridor}
+                  className="shrink-0 font-semibold text-info-soft-foreground underline-offset-2 hover:underline"
+                  onClick={() => setPickerOpen(true)}
                 >
                   {copy.frequentPairAdd}
                 </button>
@@ -146,7 +254,6 @@ export function BuilderTripLadderSection({
               );
             })}
           </div>
-          {/* ruleFields length kept for React field array identity */}
           <span className="sr-only">{ruleFields.length} reglas</span>
         </div>
       </div>
@@ -179,6 +286,20 @@ export function BuilderTripLadderSection({
           </div>
         </div>
       </div>
+
+      <Controller
+        control={form.control}
+        name="corridorIds"
+        render={({ field }) => (
+          <BuilderAddCorridorsSheet
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            selectedIds={field.value ?? []}
+            onChange={(ids) => field.onChange(ids)}
+            readOnly={readOnly}
+          />
+        )}
+      />
     </div>
   );
 }
