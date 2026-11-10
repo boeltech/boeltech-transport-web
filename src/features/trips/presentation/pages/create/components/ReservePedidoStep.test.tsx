@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { TooltipProvider } from "@shared/ui/tooltip";
 import { canvasCopy } from "../../../copy/canvasCopy";
+import { cfdiEmissionIntentCopy } from "../../../copy/cfdiEmissionIntentCopy";
 import { ReservePedidoStep } from "./ReservePedidoStep";
 import {
   defaultWizardFormValues,
@@ -21,16 +22,27 @@ vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
 }));
 
-function Harness() {
+function Harness({
+  clientId = "",
+  profile,
+}: {
+  clientId?: string;
+  profile?: "receptor_cfdi" | "comercial_only";
+} = {}) {
   const form = useForm<TripWizardFormValues>({
-    defaultValues: defaultWizardFormValues as TripWizardFormValues,
+    defaultValues: {
+      ...(defaultWizardFormValues as TripWizardFormValues),
+      clientId,
+    },
   });
   return (
     <MemoryRouter>
       <TooltipProvider delayDuration={0}>
         <ReservePedidoStep
           form={form}
-          clients={[{ id: "c-1", legalName: "Cliente SA" }]}
+          clients={[
+            { id: "c-1", legalName: "Cliente SA", cfdiReceptorProfile: profile },
+          ]}
           isLoadingClients={false}
         />
       </TooltipProvider>
@@ -104,5 +116,39 @@ describe("ReservePedidoStep client scale", () => {
     expect(
       screen.getByRole("textbox", { name: fields.label.notes }),
     ).toBeInTheDocument();
+  });
+
+  it("eco de solo lectura Factura del viaje, sin selector", () => {
+    mockHasPermission.mockReturnValue(false);
+    const { rerender } = render(<Harness clientId="c-1" profile="receptor_cfdi" />);
+
+    expect(
+      screen.getByText(
+        `${cfdiEmissionIntentCopy.field.label}: ${cfdiEmissionIntentCopy.options.emitir_cfdi}`,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(canvasCopy.invoiceEcho.inherited),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", {
+        name: cfdiEmissionIntentCopy.field.label,
+      }),
+    ).not.toBeInTheDocument();
+
+    rerender(<Harness clientId="c-1" profile="comercial_only" />);
+    expect(
+      screen.getByText(
+        `${cfdiEmissionIntentCopy.field.label}: ${cfdiEmissionIntentCopy.options.sin_cfdi_efectivo}`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("no muestra el eco si todavía no hay cliente", () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Harness />);
+    expect(
+      screen.queryByText(canvasCopy.invoiceEcho.inherited),
+    ).not.toBeInTheDocument();
   });
 });

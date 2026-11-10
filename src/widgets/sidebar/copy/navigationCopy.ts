@@ -31,8 +31,8 @@ export const navigationCopy = {
     financeInvoiceable: "Por facturar",
     /** Cola fiscal PPD con saldo (grupo Cobranza). D7: Facturas a crédito. */
     financeCobros: "Facturas a crédito",
-    /** Efectivo sin factura con saldo (ADR-0096). D7: Efectivo sin factura. */
-    financeEfectivoPorCobrar: "Efectivo sin factura",
+    /** Cobros sin factura con saldo (ADR-0096). D3′: Cobros sin factura. Ruta sin cambio. */
+    financeEfectivoPorCobrar: "Cobros sin factura",
     financeApprovals: "Aprobaciones",
     financeSettlements: "Liquidaciones",
     financeOperatorPayments: "Pagos a operadores",

@@ -3,10 +3,15 @@
  * Espejo de `canMutateCfdiEmissionIntent` (dominio); draft de factura no bloquea.
  */
 
-import { canMutateCfdiEmissionIntent } from "@boeltech/cfdi-domain/reglas/cfdi-emission-intent";
+import {
+  canMutateCfdiEmissionIntent,
+  CFDI_EMISSION_INTENT_LOCKED_INVOICE_CODE,
+  CFDI_EMISSION_INTENT_LOCKED_OPERATIONAL_CASH_CODE,
+} from "@boeltech/cfdi-domain/reglas/cfdi-emission-intent";
 
 import {
   hasOperationalCashCollected,
+  TripStatus,
   type CfdiEmissionIntent,
   type OperationalCashSummary,
   type Trip,
@@ -59,4 +64,38 @@ export function canEditTripLiquidacionIntent(
     operationalOutcome: trip.operationalOutcome ?? "standard",
   });
   return gate.ok;
+}
+
+/**
+ * Motivo visible cuando el viaje ya tiene factura vigente o abono.
+ * El bloqueo solo por estado (en curso, completado) no lleva esta frase.
+ * Se consulta el paquete con status en ventana para no tapar abono/factura.
+ */
+export function tripLiquidacionInvoiceOrCashLockMessage(
+  trip: TripLiquidacionMutabilityInput,
+): string | null {
+  const invoiceLocked = isPrincipalInvoiceLocking(trip.invoicing);
+  const cashLocked = hasOperationalCashCollected(trip);
+  if (!invoiceLocked && !cashLocked) return null;
+
+  const current = trip.cfdiEmissionIntent ?? "emitir_cfdi";
+  const probeNext: CfdiEmissionIntent =
+    current === "emitir_cfdi" ? "sin_cfdi_efectivo" : "emitir_cfdi";
+  const gate = canMutateCfdiEmissionIntent({
+    status: TripStatus.SCHEDULED,
+    currentIntent: current,
+    nextIntent: probeNext,
+    hasLockedPrincipalInvoice: invoiceLocked,
+    hasOperationalCashCollected: cashLocked,
+    operationalOutcome: trip.operationalOutcome ?? "standard",
+  });
+  if (gate.ok) return null;
+  const failure = gate.error[0];
+  if (
+    failure?.code === CFDI_EMISSION_INTENT_LOCKED_INVOICE_CODE ||
+    failure?.code === CFDI_EMISSION_INTENT_LOCKED_OPERATIONAL_CASH_CODE
+  ) {
+    return failure.message;
+  }
+  return null;
 }

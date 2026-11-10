@@ -1,13 +1,19 @@
 /**
  * ADR-0096 addendum — helpers puros del cobro operativo (ledger).
+ * La clasificación vive en `@boeltech/cfdi-domain` (R2). Aquí solo se
+ * proyecta el resumen y el permiso de abono.
  */
 
-import type {
-  OperationalCashCollectionStatus,
-  OperationalCashSummary,
-} from "./entities";
+import {
+  classifyOperationalCashCollection,
+  operationalCashPendingAmount,
+} from "@boeltech/cfdi-domain";
+
+import type { OperationalCashSummary } from "./entities";
 
 const MXN_EPS = 0.01;
+
+export { classifyOperationalCashCollection };
 
 export type OperationalCashProjectionInput = {
   operationalCash?: OperationalCashSummary | null;
@@ -30,19 +36,9 @@ export function hasOperationalCashCollected(
   return amount != null && amount > 0;
 }
 
-export function classifyOperationalCashCollection(
-  collectedTotal: number,
-  baseRate: number,
-): OperationalCashCollectionStatus {
-  const collected = Number.isFinite(collectedTotal) ? collectedTotal : 0;
-  const rate = Number.isFinite(baseRate) ? baseRate : 0;
-  if (collected <= MXN_EPS) return "pending";
-  if (collected + MXN_EPS >= rate) return "collected";
-  return "partial";
-}
-
 /**
- * Preferir resumen API; si falta, derivar de proyección + tarifa.
+ * Preferir resumen API; si falta, derivar de proyección + tarifa
+ * con el clasificador del paquete.
  */
 export function resolveOperationalCashSummary(
   trip: OperationalCashProjectionInput,
@@ -53,13 +49,13 @@ export function resolveOperationalCashSummary(
   const baseRate = fallbackBaseRate ?? trip.baseRate ?? 0;
   const collectedTotal =
     trip.operationalCashAmount == null ? 0 : Number(trip.operationalCashAmount);
-  const pendingAmount = Math.max(0, baseRate - collectedTotal);
+  const status = classifyOperationalCashCollection(collectedTotal, baseRate);
   return {
-    status: classifyOperationalCashCollection(collectedTotal, baseRate),
+    status,
     collectedTotal,
-    pendingAmount,
+    pendingAmount: operationalCashPendingAmount(collectedTotal, baseRate),
     baseRate,
-    receiptCount: collectedTotal > MXN_EPS ? 1 : 0,
+    receiptCount: status === "pending" ? 0 : 1,
   };
 }
 

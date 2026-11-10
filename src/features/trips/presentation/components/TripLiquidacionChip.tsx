@@ -1,5 +1,6 @@
 /**
- * Chip / control Liquidación en detalle de viaje (ADR-0096).
+ * Control «Factura del viaje» en el header del detalle (ADR-0096 / D3′).
+ * Solo lectura: badge en ambos sentidos. Editable: select + confirm al ir a Sin factura.
  */
 
 import { useCallback, useState } from "react";
@@ -70,7 +71,7 @@ export function TripLiquidacionChip({
         });
       } catch (error) {
         toast({
-          title: "No se pudo actualizar la liquidación",
+          title: "No se pudo actualizar la Factura del viaje",
           description:
             error instanceof Error ? error.message : "Intenta de nuevo",
           variant: "destructive",
@@ -157,10 +158,14 @@ export function TripLiquidacionChip({
   );
 
   if (!canEdit) {
-    if (intent !== "sin_cfdi_efectivo") return null;
+    const isSinFactura = intent === "sin_cfdi_efectivo";
     return (
-      <Badge variant="warning" tone="soft" className="text-xs">
-        {copy.chip.sinCfdi}
+      <Badge
+        variant={isSinFactura ? "warning" : "outline"}
+        tone="soft"
+        className="text-xs"
+      >
+        {isSinFactura ? copy.chip.sinCfdi : copy.chip.conCfdi}
       </Badge>
     );
   }

@@ -1,6 +1,7 @@
 /**
- * Campo Liquidación (ADR-0096) para canvas de reserva y detalle.
- * Hereda del perfil del cliente; override a Sin CFDI pide confirmación.
+ * Campo Factura del viaje (ADR-0096) para el detalle.
+ * El canvas no lo monta: ahí el valor es eco de solo lectura.
+ * Hereda del perfil del cliente; pasar a Sin factura pide confirmación.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";

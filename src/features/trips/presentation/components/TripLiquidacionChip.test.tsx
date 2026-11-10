@@ -73,13 +73,13 @@ describe("TripLiquidacionChip — header meta (ADR-0096)", () => {
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
-  it("solo lectura emitir_cfdi: no renderiza nada", () => {
-    const { container } = renderChip(
-      makeTrip({ cfdiEmissionIntent: "emitir_cfdi" }),
-      false,
-    );
+  it("solo lectura emitir_cfdi: badge Con factura, sin Select", () => {
+    renderChip(makeTrip({ cfdiEmissionIntent: "emitir_cfdi" }), false);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(
+      screen.getByText(cfdiEmissionIntentCopy.chip.conCfdi),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("completed + facturado: canEdit false → sin Select (CEO)", () => {

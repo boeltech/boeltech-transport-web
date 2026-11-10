@@ -47,8 +47,8 @@ export type CfdiReceptorProfile = "receptor_cfdi" | "comercial_only";
 
 export const CFDI_RECEPTOR_PROFILE_LABELS: Record<CfdiReceptorProfile, string> =
   {
-    receptor_cfdi: "Receptor CFDI",
-    comercial_only: "Solo comercial",
+    receptor_cfdi: "Con factura",
+    comercial_only: "Sin factura",
   };
 
 /**

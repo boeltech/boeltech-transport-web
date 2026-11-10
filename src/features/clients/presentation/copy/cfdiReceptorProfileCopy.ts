@@ -1,29 +1,29 @@
 /**
  * Copy ADR-0096 — perfil de facturación (cliente).
- * Sentence-case; PRD agent c6ed85df.
+ * Pareja D3′: Con factura / Sin factura.
  */
 
 export const cfdiReceptorProfileCopy = {
   field: {
     label: "Perfil de facturación",
     hintReceptor:
-      "RFC, régimen y domicilio fiscal son obligatorios para timbrar.",
+      "Exige RFC y régimen. Si el cobro es en efectivo y necesitas Carta Porte, el efectivo va en el CFDI.",
     hintComercial:
-      "Para abasto u operación sin factura. RFC y domicilio fiscal no son obligatorios.",
+      "No hay Carta Porte. Si hace falta Carta Porte, el camino es Con factura.",
   },
   options: {
-    receptor_cfdi: "Receptor CFDI",
-    comercial_only: "Solo comercial",
+    receptor_cfdi: "Con factura",
+    comercial_only: "Sin factura",
   },
   badge: {
-    comercialOnly: "Solo comercial",
-    receptorCfdi: "Receptor CFDI",
+    comercialOnly: "Sin factura",
+    receptorCfdi: "Con factura",
     rfcNotReady: "RFC no listo para timbrar",
   },
   defaultLiquidacion: {
-    label: "Liquidación por defecto",
-    emitir: "Emitir CFDI",
-    sinCfdi: "Sin CFDI · efectivo",
+    label: "Factura del viaje",
+    emitir: "Con factura",
+    sinCfdi: "Sin factura",
   },
   paymentTermsHint:
     "Contado o crédito. No define si el viaje se factura.",
@@ -32,9 +32,9 @@ export const cfdiReceptorProfileCopy = {
   addressStep: {
     optionalTitle: "Dirección fiscal (opcional)",
     optionalHint:
-      "Puedes omitir el domicilio fiscal. Agrégalo después si el cliente pasa a Receptor CFDI.",
+      "Puedes omitir el domicilio fiscal. Agrégalo después si el cliente pasa a Con factura.",
     skipLabel: "Continuar sin domicilio fiscal",
   },
   completeProfileGuide:
-    "Completa el perfil Receptor CFDI (RFC y régimen) antes de emitir factura en un viaje.",
+    "Completa RFC y régimen (Con factura) antes de facturar un viaje.",
 } as const;

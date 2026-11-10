@@ -417,7 +417,7 @@ export function ClientCreatePage() {
             {currentStep === 0 && !isClientValid ? (
               <p className="mb-4 max-w-md text-sm text-muted-foreground">
                 {isComercialOnly
-                  ? "Completa razón social y términos de pago para continuar. RFC es opcional en Solo comercial."
+                  ? "Completa razón social y términos de pago para continuar. RFC es opcional en Sin factura."
                   : "Completa los campos obligatorios (RFC según tipo de persona y términos de pago si aplica) para continuar."}
               </p>
             ) : null}

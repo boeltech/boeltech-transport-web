@@ -594,7 +594,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
           <div className="sm:col-span-2">
             <Alert variant="warning">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Sin CFDI · efectivo</AlertTitle>
+              <AlertTitle>{profileCopy.options.comercial_only}</AlertTitle>
               <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span>{profileCopy.complianceNotice}</span>
                 <Button

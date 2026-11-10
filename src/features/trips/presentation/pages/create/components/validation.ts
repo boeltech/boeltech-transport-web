@@ -815,7 +815,7 @@ export const tripWizardSchema = z.object({
    */
   cfdiDocumentIntent: z.enum(["ingreso", "traslado"]).default("ingreso"),
   /**
-   * ADR-0096 — liquidación Emitir CFDI | Sin CFDI · efectivo.
+   * ADR-0096 — Factura del viaje: Con factura | Sin factura.
    * Default derivado del cliente en canvas; opcional al POST (API deriva).
    */
   cfdiEmissionIntent: z

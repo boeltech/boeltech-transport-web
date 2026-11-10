@@ -93,7 +93,10 @@ import { TripMidTripAdjustStrip } from "../components/TripMidTripAdjustStrip";
 import { TripLinkedInvoiceDraftsSheet } from "../components/TripLinkedInvoiceDraftsSheet";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripLiquidacionChip } from "../components/TripLiquidacionChip";
-import { canEditTripLiquidacionIntent } from "../utils/tripLiquidacionMutability";
+import {
+  canEditTripLiquidacionIntent,
+  tripLiquidacionInvoiceOrCashLockMessage,
+} from "../utils/tripLiquidacionMutability";
 import {
   resolveTripAccessDeniedCopy,
   resolveTripBackHref,
@@ -1146,6 +1149,8 @@ export function TripDetailPage() {
     canUpdateTrip,
     isLeanTripPortal,
   });
+  const liquidacionLockMessage =
+    tripLiquidacionInvoiceOrCashLockMessage(trip);
   const tripForMetrics = routeDetail?.trip ?? trip;
   const distance = calculateDistance(tripForMetrics.mileage);
   const duration = calculateTripDuration(tripForMetrics);
@@ -1405,33 +1410,33 @@ export function TripDetailPage() {
                 </p>
               ) : null}
             </div>
-            {(canEditLiquidacion ||
-            trip.cfdiEmissionIntent === "sin_cfdi_efectivo") ? (
-              <div className="flex flex-wrap items-center gap-2 text-foreground">
-                {canEditLiquidacion ? (
-                  <span className="text-xs text-muted-foreground">
-                    {cfdiEmissionIntentCopy.field.label}
-                  </span>
-                ) : null}
-                <TripLiquidacionChip
-                  trip={trip}
-                  canEdit={canEditLiquidacion}
-                />
-                {trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
-                  <Badge
-                    variant={operationalCashStatusBadgeVariant(
-                      operationalCashUiSummary.status,
-                    )}
-                    tone="soft"
-                    className="text-xs"
-                  >
-                    {operationalCashStatusLabel(
-                      operationalCashUiSummary.status,
-                    )}
-                  </Badge>
-                ) : null}
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-foreground">
+              <span className="text-xs text-muted-foreground">
+                {cfdiEmissionIntentCopy.field.label}
+              </span>
+              <TripLiquidacionChip
+                trip={trip}
+                canEdit={canEditLiquidacion}
+              />
+              {trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
+                <Badge
+                  variant={operationalCashStatusBadgeVariant(
+                    operationalCashUiSummary.status,
+                  )}
+                  tone="soft"
+                  className="text-xs"
+                >
+                  {operationalCashStatusLabel(
+                    operationalCashUiSummary.status,
+                  )}
+                </Badge>
+              ) : null}
+              {liquidacionLockMessage ? (
+                <p className="w-full text-xs text-muted-foreground">
+                  {liquidacionLockMessage}
+                </p>
+              ) : null}
+            </div>
           </div>
         ),
         actions: (

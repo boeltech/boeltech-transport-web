@@ -31,7 +31,7 @@ describe("navigationCopy", () => {
     expect(labels).toContain("Configuración");
     expect(labels).toContain("Por facturar");
     expect(labels).toContain("Facturas a crédito");
-    expect(labels).toContain("Efectivo sin factura");
+    expect(labels).toContain("Cobros sin factura");
     expect(labels).toContain("Envíos");
   });
 
@@ -143,7 +143,7 @@ describe("navigationConfig", () => {
     ]);
     expect(collections?.items.map((item) => item.label)).toEqual([
       "Facturas a crédito",
-      "Efectivo sin factura",
+      "Cobros sin factura",
     ]);
 
     expect(finance?.title).toBe("Finanzas");

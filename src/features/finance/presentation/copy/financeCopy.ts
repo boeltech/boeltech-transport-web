@@ -320,16 +320,16 @@ export const financeCopy = {
   /** Alias de compatibilidad para imports existentes. */
   cobranza: cobrosCopy,
   /**
-   * Bandeja Efectivo sin factura (ADR-0096 addendum lectura).
-   * Canal operativo ≠ Facturas a crédito / REP / cobrado_viaje.
+   * Bandeja Cobros sin factura (ADR-0096). Ruta sin cambio.
+   * El efectivo cobrado con CFDI vive en Facturas a crédito.
    */
   efectivoPorCobrar: {
-    title: "Efectivo sin factura",
+    title: "Cobros sin factura",
     description:
-      "Viajes de efectivo sin factura con saldo pendiente. Canal operativo: el abono se registra en Costos del viaje, no en Facturas a crédito.",
+      "Viajes Sin factura con saldo pendiente. El abono se registra en Costos del viaje. El efectivo cobrado con CFDI no está aquí: vive en Facturas a crédito.",
     entityLabelPlural: "viajes",
     channelHint:
-      "Esto no es la cola de Facturas a crédito (CFDI / REP). Aquí solo ves efectivo sin factura.",
+      "Esto no es Facturas a crédito. El efectivo cobrado con CFDI no aparece en esta bandeja.",
     totals: {
       pending: "Saldo operativo",
       trips: "Viajes",
@@ -363,23 +363,23 @@ export const financeCopy = {
       collected: "Cobrado",
     },
     empty: {
-      title: "Sin efectivo pendiente",
+      title: "Sin cobros pendientes",
       description:
-        "No hay viajes de efectivo sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos, el viaje sale de esta bandeja. Esto no es Facturas a crédito.",
+        "No hay viajes Sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos, el viaje sale de esta bandeja. El efectivo cobrado con CFDI no está aquí.",
     },
     emptyFiltered: {
-      title: "Sin saldo operativo para este cliente",
+      title: "Sin saldo para este cliente",
       description:
-        "Este cliente no tiene viajes de efectivo sin factura con saldo pendiente en la cohorte. Quita el filtro para ver toda la bandeja.",
+        "Este cliente no tiene viajes Sin factura con saldo pendiente en la cohorte. Quita el filtro para ver toda la bandeja.",
     },
     relatedConfig: {
       label: "Facturas a crédito",
       description:
-        "Cola fiscal de facturas a crédito (PPD) con saldo. Abonos con CFDI / REP viven ahí, no en esta bandeja.",
+        "Cola fiscal de facturas a crédito (PPD) con saldo. El efectivo cobrado con CFDI vive ahí, no en esta bandeja.",
     },
     loadErrorTitle: "No se pudo cargar",
     loadError:
-      "No se pudo consultar el efectivo sin factura. Reintenta en un momento.",
+      "No se pudieron consultar los cobros sin factura. Reintenta en un momento.",
     retry: "Reintentar",
   },
   /**

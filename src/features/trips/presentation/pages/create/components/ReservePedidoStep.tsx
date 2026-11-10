@@ -26,6 +26,7 @@ import { usePermissions } from "@shared/permissions";
 
 import type { TripWizardFormValues } from "./validation";
 import { canvasCopy } from "../../../copy/canvasCopy";
+import { cfdiEmissionIntentCopy } from "../../../copy/cfdiEmissionIntentCopy";
 import { tripScheduleDateTimeFieldProps } from "../../../scheduleDateTimeField";
 
 const fields = canvasCopy.fields;
@@ -39,7 +40,11 @@ const ROUTE_TYPE_OPTIONS = [
 interface ReservePedidoStepProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<TripWizardFormValues, any, any>;
-  clients: Array<{ id: string; legalName: string }>;
+  clients: Array<{
+    id: string;
+    legalName: string;
+    cfdiReceptorProfile?: "receptor_cfdi" | "comercial_only";
+  }>;
   isLoadingClients: boolean;
   /** Slot tras el cliente (picker de corredor en el canvas ADR-0078). */
   afterClient?: ReactNode;
@@ -51,8 +56,16 @@ export function ReservePedidoStep({
   isLoadingClients,
   afterClient,
 }: ReservePedidoStepProps) {
-  const { control } = form;
+  const { control, watch } = form;
   const { hasPermission } = usePermissions();
+  const selectedClientId = watch("clientId");
+  const selectedClient = clients.find(
+    (client) => client.id === selectedClientId,
+  );
+  const inheritedInvoiceLabel =
+    selectedClient?.cfdiReceptorProfile === "comercial_only"
+      ? cfdiEmissionIntentCopy.options.sin_cfdi_efectivo
+      : cfdiEmissionIntentCopy.options.emitir_cfdi;
   const canCreateClient = hasPermission("clients", "create");
   const scheduleFieldProps = tripScheduleDateTimeFieldProps(fields.preset);
 
@@ -129,6 +142,16 @@ export function ReservePedidoStep({
               fields.hint.newClientEscalate
             )}
           </p>
+          {selectedClientId ? (
+            <p className="text-sm text-foreground">
+              <span className="font-medium">
+                {cfdiEmissionIntentCopy.field.label}: {inheritedInvoiceLabel}
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {canvasCopy.invoiceEcho.inherited}
+              </span>
+            </p>
+          ) : null}
         </div>
         {afterClient}
       </section>

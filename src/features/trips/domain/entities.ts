@@ -155,8 +155,8 @@ export interface OperationalCashReceipt {
 }
 
 export const CFDI_EMISSION_INTENT_LABELS: Record<CfdiEmissionIntent, string> = {
-  emitir_cfdi: "Emitir CFDI",
-  sin_cfdi_efectivo: "Sin CFDI · efectivo",
+  emitir_cfdi: "Con factura",
+  sin_cfdi_efectivo: "Sin factura",
 };
 
 export interface TripInternalStaff {

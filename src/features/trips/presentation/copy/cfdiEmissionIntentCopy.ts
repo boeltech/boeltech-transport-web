@@ -5,37 +5,37 @@
 
 export const cfdiEmissionIntentCopy = {
   field: {
-    /** D8: label Operate-first; jerga CFDI solo en hint. D7 intermediario: CP ⇒ Con factura. */
-    label: "Liquidación",
-    hint: "Hereda del perfil del cliente. Si necesitas Carta Porte, usa Con factura (el efectivo va en el CFDI). Efectivo sin factura no emite CFDI ni Carta Porte.",
+    /** D3′: prefijo del viaje. Jerga CFDI solo en el hint. */
+    label: "Factura del viaje",
+    hint: "Hereda del cliente. Sin factura no lleva Carta Porte. Si necesitas Carta Porte, usa Con factura: el efectivo va en el CFDI.",
   },
   options: {
     emitir_cfdi: "Con factura",
-    sin_cfdi_efectivo: "Efectivo sin factura",
+    sin_cfdi_efectivo: "Sin factura",
   },
   chip: {
-    sinCfdi: "Efectivo sin factura",
+    sinCfdi: "Sin factura",
     conCfdi: "Con factura",
   },
   complianceNotice:
     "Este modo no emite CFDI. La responsabilidad fiscal queda en tu operación.",
   overrideConfirm: {
-    title: "¿Liquidar sin factura?",
+    title: "¿Pasar a Sin factura?",
     description:
       "Este viaje no aparecerá en Por facturar ni llevará Carta Porte. Si el patio necesita Carta Porte, elige Con factura y registra el efectivo en el CFDI.",
-    confirm: "Usar Efectivo sin factura",
+    confirm: "Usar Sin factura",
     cancel: "Cancelar",
   },
   blockEmitir: {
-    title: "No se puede emitir CFDI",
+    title: "No se puede usar Con factura",
     description:
-      "El cliente es Solo comercial. Completa RFC y régimen (perfil Receptor CFDI) antes de facturar.",
+      "El cliente está en Sin factura. Completa RFC y régimen antes de facturar.",
     goToClient: "Completar datos del cliente",
   },
   banner:
     "Este viaje no se factura. Registra el cobro en Costos.",
   /** Tooltip opcional si quedara un CTA fiscal deshabilitado. */
-  fiscalCtaDisabledTooltip: "Este viaje se liquida sin CFDI",
+  fiscalCtaDisabledTooltip: "Este viaje es Sin factura",
   /**
    * Gate de carga operativa (ADR-0096): sin_cfdi_efectivo exige ≥1 carga activa
    * antes de iniciar / completar. PRD agent 011d44c3.
@@ -49,7 +49,7 @@ export const cfdiEmissionIntentCopy = {
     ctaStartBlocked: "Agrega al menos una carga para iniciar",
     ctaCompleteBlocked: "Agrega al menos una carga para completar",
     alertSheet:
-      "Falta la carga del flete. Sin ella no se puede operar este viaje sin CFDI.",
+      "Falta la carga del flete. Sin ella no se puede operar este viaje Sin factura.",
   },
   cash: {
     sectionTitle: "Cobro en efectivo",

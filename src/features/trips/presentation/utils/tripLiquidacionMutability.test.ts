@@ -5,6 +5,7 @@ import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture"
 import {
   canEditTripLiquidacionIntent,
   isPrincipalInvoiceLocking,
+  tripLiquidacionInvoiceOrCashLockMessage,
 } from "./tripLiquidacionMutability";
 
 describe("isPrincipalInvoiceLocking", () => {
@@ -148,5 +149,54 @@ describe("canEditTripLiquidacionIntent", () => {
     expect(
       canEditTripLiquidacionIntent(base, { canUpdateTrip: false }),
     ).toBe(false);
+  });
+});
+
+describe("tripLiquidacionInvoiceOrCashLockMessage", () => {
+  const base = {
+    status: TripStatus.SCHEDULED,
+    cfdiEmissionIntent: "emitir_cfdi" as const,
+    operationalCashCollectedAt: null as Date | null,
+    operationalOutcome: "standard" as const,
+    invoicing: tripInvoicingFixture({
+      hasActivePrincipalInvoice: false,
+      invoiceStatus: null,
+    }),
+  };
+
+  it("omits a reason when only the status blocks", () => {
+    expect(
+      tripLiquidacionInvoiceOrCashLockMessage({
+        ...base,
+        status: TripStatus.IN_PROGRESS,
+      }),
+    ).toBeNull();
+  });
+
+  it("names the invoice lock", () => {
+    expect(
+      tripLiquidacionInvoiceOrCashLockMessage({
+        ...base,
+        invoicing: tripInvoicingFixture({
+          hasActivePrincipalInvoice: true,
+          invoiceStatus: "stamped",
+        }),
+      }),
+    ).toBe(
+      "No se puede cambiar la Factura del viaje: el viaje ya tiene una factura vigente.",
+    );
+  });
+
+  it("names the cash lock even when the trip is already in progress", () => {
+    expect(
+      tripLiquidacionInvoiceOrCashLockMessage({
+        ...base,
+        status: TripStatus.IN_PROGRESS,
+        cfdiEmissionIntent: "sin_cfdi_efectivo",
+        operationalCashCollectedAt: new Date("2026-09-21T12:00:00.000Z"),
+      }),
+    ).toBe(
+      "No se puede cambiar la Factura del viaje: ya hay un cobro en efectivo registrado.",
+    );
   });
 });

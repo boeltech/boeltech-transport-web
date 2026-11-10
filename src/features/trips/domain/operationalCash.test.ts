@@ -9,6 +9,7 @@ import {
 describe("classifyOperationalCashCollection", () => {
   it("classifies pending / partial / collected vs base rate", () => {
     expect(classifyOperationalCashCollection(0, 24500)).toBe("pending");
+    expect(classifyOperationalCashCollection(0.005, 24500)).toBe("partial");
     expect(classifyOperationalCashCollection(10000, 24500)).toBe("partial");
     expect(classifyOperationalCashCollection(24500, 24500)).toBe("collected");
     expect(classifyOperationalCashCollection(24499.995, 24500)).toBe(
@@ -75,6 +76,12 @@ describe("resolveOperationalCashSummary", () => {
       pendingAmount: 14500,
       baseRate: 24500,
     });
+    expect(
+      resolveOperationalCashSummary(
+        { operationalCashAmount: 0.005, operationalCash: null },
+        24500,
+      ).status,
+    ).toBe("partial");
   });
 });
 

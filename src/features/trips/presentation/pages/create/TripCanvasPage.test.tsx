@@ -59,7 +59,13 @@ describe("TripCanvasPage", () => {
     expect(screen.getByText(canvasCopy.confirmLater.title)).toBeInTheDocument();
     expect(screen.queryByText(/Siguiente/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Pasos para crear/i)).not.toBeInTheDocument();
-    // A2: Liquidación fuera del canvas (override en detalle)
+    // D4: sin selector en el canvas (eco vive en ReservePedidoStep).
     expect(screen.queryByText("Liquidación")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Factura del viaje" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: canvasCopy.submit.label }),
+    ).toHaveLength(1);
   });
 });

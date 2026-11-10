@@ -11,6 +11,10 @@ export const canvasCopy = {
     pedidoHint: "Cliente, corredor o ciudades y fecha de salida.",
     flotaHint: "Unidad, remolque si aplica y conductor.",
   },
+  /** Eco D4: el canvas no elige. Override en el detalle. */
+  invoiceEcho: {
+    inherited: "Del cliente. Se cambia en el detalle.",
+  },
   /** PD3: anti-colisión con «Confirmar reserva» del detalle. */
   confirmLater: {
     title: "Opcional ahora",

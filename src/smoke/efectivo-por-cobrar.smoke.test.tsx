@@ -226,7 +226,7 @@ describe("smoke: efectivo-por-cobrar", () => {
     );
   });
 
-  it("nav Cobranza tiene Efectivo sin factura como hermano de Facturas a crédito", () => {
+  it("nav Cobranza tiene Cobros sin factura como hermano de Facturas a crédito", () => {
     const billing = navigationConfig.find((group) => group.id === "billing");
     const collections = navigationConfig.find(
       (group) => group.id === "collections",
@@ -254,7 +254,7 @@ describe("smoke: efectivo-por-cobrar", () => {
 
     const efectivo = collections!.items[efectivoIdx];
     expect(efectivo?.label).toBe(navigationCopy.item.financeEfectivoPorCobrar);
-    expect(efectivo?.label).toBe("Efectivo sin factura");
+    expect(efectivo?.label).toBe("Cobros sin factura");
     expect(efectivo?.path).toBe(FINANCE_EFECTIVO_POR_COBRAR_PATH);
     expect(efectivo?.module).toBe("finance");
     expect(efectivo?.action).toBe("read");

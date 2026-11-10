@@ -297,14 +297,16 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps page title Efectivo sin factura (not Facturas a crédito heading)", () => {
+  it("keeps page title Cobros sin factura (not Facturas a crédito heading)", () => {
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
       route: ["/finance/operational-cash-pending"],
     });
     expect(
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
-    expect(copy.title).toBe("Efectivo sin factura");
+    expect(copy.title).toBe("Cobros sin factura");
+    expect(copy.description).toMatch(/efectivo cobrado con CFDI/i);
+    expect(copy.description).toMatch(/Facturas a crédito/);
     expect(
       within(document.body).queryByRole("heading", {
         name: "Facturas a crédito",
