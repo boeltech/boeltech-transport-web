@@ -82,6 +82,8 @@ export const compensationTemplateFormSchema = z
         "pay_only_dispatcher",
       ])
       .default("split_by_assigned_km"),
+    paymentPeriod: z.enum(["weekly", "biweekly", "monthly"]).default("weekly"),
+    salaryOnly: z.boolean().default(false),
     rules: z.array(compensationTemplateRuleSchema).default([]),
     fixedAllowances: z.array(templateFixedAllowanceSchema).default([]),
     deductions: z.array(templateDeductionSchema).default([]),
@@ -97,6 +99,8 @@ export const compensationTemplateCreateFormSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").max(120),
   description: z.string().max(2000).optional().nullable(),
   isActive: z.boolean().default(true),
+  paymentPeriod: z.enum(["weekly", "biweekly", "monthly"]).default("weekly"),
+  salaryOnly: z.boolean().default(false),
 });
 
 export type CompensationTemplateCreateFormData = z.infer<

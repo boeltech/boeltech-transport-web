@@ -25,6 +25,7 @@ import {
 } from "../../application/hooks";
 import { compensationCopy } from "../copy/compensationCopy";
 import { CorridorTariffSheet, CorridorTariffsTable } from "../components";
+import { TariffListTabs } from "../components/TariffListTabs";
 import type { RouteCorridorTariff } from "../../domain/entities";
 import { buildDuplicateCorridorIndex } from "../utils/corridorMatchKey";
 import { useRegisterCompensationHubCreateAction } from "../hooks/useRegisterCompensationHubCreateAction";
@@ -154,6 +155,10 @@ export function CorridorTariffsListPage() {
         title={copy.title}
         beforeToolbar={
           <>
+            <TariffListTabs
+              active="routes"
+              routesCount={data?.pagination.total}
+            />
             {showLoadError ? (
               <DetailAlertCard
                 severity="critical"

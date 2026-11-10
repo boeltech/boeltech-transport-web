@@ -18,10 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { MoneyInput } from "@shared/ui/form";
+import { FieldInlineError, MoneyInput } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import {
   FIXED_ALLOWANCE_PERIOD_LABELS,
+  type FixedAllowancePeriod,
   type FixedAllowanceType,
 } from "../../domain/enums";
 import { compensationCopy } from "../copy/compensationCopy";
@@ -42,6 +43,10 @@ interface TemplateAllowancesSectionProps {
   stepPrefix?: string;
   /** Léxico operativo + auto-label (default true). */
   operationalLexicon?: boolean;
+  /** Periodo por defecto al alta (hereda `payment_period` de la plantilla). */
+  defaultPeriod?: FixedAllowancePeriod;
+  /** Si el concepto no coincide, error en línea (T9). */
+  mismatchPeriod?: FixedAllowancePeriod | null;
 }
 
 function defaultLabelForType(type: FixedAllowanceType): string {
@@ -57,6 +62,8 @@ export function TemplateAllowancesSection({
   removeAllowance,
   stepPrefix = "2.",
   operationalLexicon = true,
+  defaultPeriod = "weekly",
+  mismatchPeriod = null,
 }: TemplateAllowancesSectionProps) {
   const watchedAllowances = useWatch({ control, name: "fixedAllowances" });
   const typeLabels = builderCopy.allowanceTypeLabels;
@@ -90,7 +97,7 @@ export function TemplateAllowancesSection({
               allowanceType: "meals",
               label: defaultLabelForType("meals"),
               amount: 500,
-              period: "weekly",
+              period: defaultPeriod,
               isMandatory: true,
             })
           }
@@ -206,33 +213,50 @@ export function TemplateAllowancesSection({
                 <Controller
                   control={control}
                   name={`fixedAllowances.${index}.period`}
-                  render={({ field: periodField }) => (
-                    <Select
-                      value={periodField.value}
-                      onValueChange={periodField.onChange}
-                    >
-                      <SelectTrigger
-                        id={`allowance-period-${index}`}
-                        className="h-10"
-                        aria-label={sheetCopy.allowancePeriod}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(FIXED_ALLOWANCE_PERIOD_LABELS).map(
-                          ([key, label]) => (
-                            <SelectItem key={key} value={key}>
-                              {label}
-                            </SelectItem>
-                          ),
+                  render={({ field: periodField }) => {
+                    const mismatched =
+                      mismatchPeriod != null &&
+                      periodField.value !== mismatchPeriod;
+                    return (
+                      <>
+                        <Select
+                          value={periodField.value}
+                          onValueChange={periodField.onChange}
+                        >
+                          <SelectTrigger
+                            id={`allowance-period-${index}`}
+                            className="h-10"
+                            aria-invalid={mismatched || undefined}
+                            aria-label={sheetCopy.allowancePeriod}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(FIXED_ALLOWANCE_PERIOD_LABELS).map(
+                              ([key, label]) => (
+                                <SelectItem key={key} value={key}>
+                                  {label}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {mismatched ? (
+                          <FieldInlineError
+                            fieldId={`allowance-period-${index}`}
+                            message={builderCopy.periodMismatchField(
+                              FIXED_ALLOWANCE_PERIOD_LABELS[mismatchPeriod].toLowerCase(),
+                            )}
+                          />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {sheetCopy.allowancePeriodHint}
+                          </p>
                         )}
-                      </SelectContent>
-                    </Select>
-                  )}
+                      </>
+                    );
+                  }}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {sheetCopy.allowancePeriodHint}
-                </p>
               </div>
             </div>
 

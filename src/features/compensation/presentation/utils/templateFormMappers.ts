@@ -25,6 +25,8 @@ export const DEFAULT_TEMPLATE_FORM_VALUES: CompensationTemplateFormData = {
   description: "",
   isActive: true,
   midTripPayoutPolicy: "split_by_assigned_km",
+  paymentPeriod: "weekly",
+  salaryOnly: false,
   rules: DEFAULT_TEMPLATE_RULES,
   fixedAllowances: [],
   deductions: [],
@@ -39,6 +41,8 @@ export function templateToForm(
     description: template.description ?? "",
     isActive: template.isActive,
     midTripPayoutPolicy: template.midTripPayoutPolicy ?? "split_by_assigned_km",
+    paymentPeriod: template.paymentPeriod ?? "weekly",
+    salaryOnly: template.salaryOnly ?? false,
     rules: template.rules.map((rule) => ({
       routeType: rule.routeType,
       commissionType: rule.commissionType,
@@ -74,6 +78,8 @@ export function buildDuplicateTemplatePayload(
     name,
     description: template.description ?? null,
     midTripPayoutPolicy: template.midTripPayoutPolicy,
+    paymentPeriod: template.paymentPeriod ?? "weekly",
+    salaryOnly: template.salaryOnly ?? false,
     rules: template.rules.map((rule) => ({
       routeType: rule.routeType,
       commissionType: rule.commissionType,

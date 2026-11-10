@@ -81,12 +81,18 @@ export const compensationCopy = {
       empty: "Sin otras versiones todavía.",
     },
     columns: {
-      name: "Nombre",
+      name: "Tarifa",
       status: "Estado",
-      summary: "Cómo se paga",
+      summary: "Así paga",
       operators: "Operadores",
       actions: "Acciones",
     },
+    tabs: {
+      tariffs: (n: number) => `Tarifas · ${n}`,
+      routes: (n: number) => `Rutas con tarifa fija · ${n}`,
+    },
+    listTabTariffs: "Tarifas",
+    listTabRoutes: "Rutas con tarifa fija",
     statusLine: {
       needsPayment: "Falta definir el pago",
       readyToActivate: "Lista para activar",
@@ -196,9 +202,12 @@ export const compensationCopy = {
     },
   },
   builder: {
-    backLabel: "Volver a tarifas",
+    backLabel: "Pagos a operadores / Tarifas",
+    crumbsTariffs: "Tarifas",
+    crumbsPayments: "Pagos a operadores",
     sectionsAriaLabel: "Secciones de la tarifa",
-    inspectorTitle: "Resumen",
+    formulaAriaLabel: "Cómo se calcula el pago (secciones de la tarifa)",
+    inspectorTitle: "Así le pagas",
     canvasAriaLabel: "Área de trabajo de la tarifa",
     collapseInspectorLabel: "Ocultar resumen",
     pageDescription:
@@ -210,16 +219,99 @@ export const compensationCopy = {
     },
     discard: "Descartar",
     save: "Guardar",
+    activate: "Activar tarifa",
     notFoundTitle: "Tarifa no encontrada",
     notFoundDescription: "La tarifa no existe o no tienes acceso.",
     loadingLabel: "Cargando tarifa…",
     noPermissionTitle: "Sin permiso para editar",
     noPermissionDescription: "Necesitas permiso de actualización en pagos a operadores.",
     sections: {
-      payment: "Pago por viaje",
-      allowances: "Extras fijos",
+      trips: "Por cada viaje",
+      allowances: "Fijos por pago",
+      deductions: "Descuentos",
+      /** @deprecated F1: unificado en trips */
+      payment: "Por cada viaje",
       corridors: "Rutas con tarifa fija",
     },
+    formulaTerms: {
+      tripsLabel: "1 · Por cada viaje",
+      tripsValueEmpty: "Sin configurar",
+      tripsValueConfigured: "Ruta fija o clase de ruta",
+      tripsSummary: (corridors: number, classes: number) => {
+        const parts: string[] = [];
+        if (corridors > 0) {
+          parts.push(
+            corridors === 1 ? "1 ruta fija" : `${corridors} rutas fijas`,
+          );
+        }
+        if (classes > 0) {
+          parts.push(classes === 1 ? "1 clase" : `${classes} clases`);
+        }
+        return parts.length > 0 ? parts.join(" · ") : "vacío";
+      },
+      tripsSalaryOnly: "Solo sueldo (sin pago por viaje)",
+      allowancesLabel: "2 · Fijos por pago",
+      allowancesValueEmpty: "Sin configurar",
+      allowancesValue: (amount: string) => `${amount} por periodo`,
+      allowancesSummary: (count: number) =>
+        count === 0 ? "vacío" : count === 1 ? "1 concepto" : `${count} conceptos`,
+      deductionsLabel: "3 · Descuentos",
+      deductionsValueEmpty: "Sin configurar",
+      deductionsValue: (amount: string) => `${amount} por periodo`,
+      deductionsSummary: (count: number) =>
+        count === 0 ? "opcional" : count === 1 ? "1 concepto" : `${count} conceptos`,
+      resultLabel: "Recibe el operador",
+      resultEmpty: "—",
+      resultSummary: "en la semana de ejemplo",
+      resultSummaryEmpty: "completa la fórmula",
+    },
+    tripsDescription:
+      "Cada viaje se paga una sola vez. Tlamx revisa en este orden y usa la primera regla que coincide.",
+    tripStep1Title: "¿Es una ruta con tarifa fija?",
+    tripStep1Description:
+      "Si el origen y el destino coinciden, se paga el importe de la ruta y no se revisa la clase.",
+    tripStep1Add: "Agregar ruta",
+    tripConnector: "Si no coincide con ninguna ruta",
+    tripStep2Title: "Paga según la clase de ruta del viaje",
+    tripStep2Description:
+      "La clase se elige al despachar el viaje. Una regla por clase.",
+    tripStep3Title: "Si cambia de operador a medio viaje",
+    emptyRuleCopy: "Sin regla: estos viajes pagan $0 por viaje.",
+    addRule: "Agregar regla",
+    editRule: "Editar",
+    doneRule: "Listo",
+    ruleFormaLabel: "Forma de pago",
+    ruleTarifaLabel: "Tarifa",
+    ruleMinimumLabel: "Mínimo garantizado",
+    ruleMinimumHint: "Se paga si el cálculo queda abajo.",
+    rateSuffixKm: "MXN / km",
+    rateSuffixPct: "%",
+    rateSuffixFixed: "MXN",
+    frequentPairSuggest: (route: string, count: number) =>
+      `${route} tuvo ${count} viajes en los últimos 90 días y no tiene tarifa fija.`,
+    frequentPairAdd: "Agregar",
+    minimumChart: {
+      title: "Cómo se comporta según la distancia",
+    },
+    paysHowTitle: "Así le pagas",
+    paysHowSubtitle: "Lo que esta tarifa dice, en palabras.",
+    weekExampleTitle: "Semana de ejemplo",
+    weekExampleSubtitle: "Viajes de muestra · se recalcula al editar",
+    weekChangeTrips: "Cambiar viajes",
+    weekTryOperator: "Probar con un operador real",
+    weekFooter: (n: number) =>
+      `Ejemplo con ${n} viajes de muestra. El pago real sale de la liquidación del periodo.`,
+    weekGroupTrips: "Viajes",
+    weekGroupAllowances: "Fijos por pago",
+    weekGroupDeductions: "Descuentos",
+    weekTotalLabel: "Recibe el operador",
+    salaryNoteFooter:
+      "¿Y el sueldo base? El sueldo y su ritmo viven en la ficha de cada operador (Operadores) y se suman al armar el pago.",
+    periodMismatchField: (rhythm: string) => `No coincide con el ritmo ${rhythm}`,
+    periodMismatchAlert: (count: number, rhythm: string) =>
+      count === 1
+        ? `1 operador asignado tiene ritmo ${rhythm}. Usa ese ritmo con el monto equivalente o crea una tarifa aparte.`
+        : `${count} operadores asignados tienen ritmo ${rhythm}. Usa ese ritmo con el monto equivalente o crea una tarifa aparte.`,
     paymentDescription:
       "Cada clase de ruta puede tener su propia regla de pago. Debe coincidir con la clase elegida al despachar el viaje. Ejemplo: Foráneo a $3.00 por km. Solo una regla por clase.",
     duplicateRouteType:
@@ -227,16 +319,18 @@ export const compensationCopy = {
     addRuleDisabledAllTypes: "Ya hay una regla para cada clase de ruta.",
     midTripPolicyLabel: "Si cambia de operador a medio viaje",
     midTripPolicyHint:
-      "Si un viaje lo completan dos operadores, el pago se divide según los kilómetros que hizo cada uno.",
+      "El pago del viaje se divide según los kilómetros que hizo cada operador.",
     allowancesDescription:
       "Montos fijos que se suman al pago del operador en cada pago: comidas, viáticos, casetas u otros.",
-    advancedSectionTitle: "Descuentos al operador",
+    deductionsDescription:
+      "Montos que se descuentan del pago del operador: fondo de ahorro, retenciones u otros.",
+    advancedSectionTitle: "Descuentos",
     advancedSectionHint:
       "Montos que se descuentan del pago del operador: fondo de ahorro, retenciones u otros.",
     corridorsDescription:
       "Si el viaje coincide con una de estas rutas, se paga su tarifa fija en lugar del pago configurado arriba (regla por clase de ruta). Las prestaciones fijas y los descuentos siguen aplicando.",
     reviewIncomplete:
-      "Para usar esta tarifa, agrega al menos una regla de pago por viaje o una ruta con tarifa fija.",
+      "Para usar esta tarifa, agrega al menos una regla de pago por viaje, una ruta con tarifa fija, o márcala como solo sueldo.",
     reviewEmpty: "Sin configuración todavía.",
     inspectorLiveLabel: "Resumen en tiempo real",
     inspectorAllowancesHint:
@@ -837,24 +931,39 @@ export const compensationCopy = {
     },
   },
   presets: {
-    title: "Nueva tarifa de pago",
-    subtitle: "¿Cómo quieres comenzar?",
+    title: "Tarifa nueva",
+    subtitle: "¿Cómo les pagas hoy a tus operadores?",
     subtitleDescription:
-      "La tarifa cubre pago por viaje, rutas fijas y prestaciones. El sueldo base no se captura aquí: va en Empleados.",
-    blankName: "Desde cero",
-    blankDescription: "Define tus propios conceptos de pago (sin sueldo: ese va en Empleados).",
+      "Elige el punto de partida más parecido. La tarifa cubre pago por viaje, rutas fijas y prestaciones; el sueldo base no se captura aquí: va en Empleados. Nada se aplica hasta que actives la tarifa.",
+    blankName: "Empezar en blanco",
+    blankDescription:
+      "Para esquemas combinados: arma cada parte de la fórmula a mano.",
+    salaryOnlyName: "Solo sueldo fijo",
+    salaryOnlyDescription:
+      "No se paga por viaje: el operador recibe un monto fijo cada periodo.",
+    salaryOnlyFormula: "sueldo del periodo − descuentos",
     step2Title: "Nombre de la tarifa",
     step2Back: "Cambiar plantilla",
     prefilledHint: "Se creará como borrador con:",
     customizeHint:
       "Después configurarás el pago (no el sueldo) y la activarás cuando esté lista.",
-    nameLabel: "Nombre",
-    namePlaceholder: "Ej. Operador Foráneo Norte",
+    nameLabel: "Nombre de la tarifa",
+    namePlaceholder: "Ej. Foráneo estándar",
+    nameHint: "Así la verás al asignarla a un operador.",
+    paymentPeriodLabel: "Ritmo de pago",
+    paymentPeriodHint: "Debe coincidir con el de los operadores.",
     descriptionLabel: "Nota (opcional)",
     descriptionPlaceholder: "Descripción o propósito de esta tarifa",
     cancel: "Cancelar",
-    create: "Crear y configurar",
+    create: "Crear borrador",
     creating: "Creando…",
+    formulaMini: {
+      long_haul: "km × tarifa (mín. por viaje) + fijos − descuentos",
+      percentage: "% del flete + fijos − descuentos",
+      local: "importe del viaje o de la ruta + fijos",
+      salary_only: "sueldo del periodo − descuentos",
+      blank: "arma cada parte a mano",
+    },
   },
   toasts: {
     templateCreated: "Borrador de tarifa creado",

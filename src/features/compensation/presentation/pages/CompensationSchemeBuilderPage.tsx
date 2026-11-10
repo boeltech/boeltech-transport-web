@@ -4,19 +4,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useWatch } from "react-hook-form";
-import {
-  AlertCircle,
-  Banknote,
-  FileStack,
-  Gift,
-  History,
-  Route,
-  Users,
-} from "lucide-react";
+import { AlertCircle, FileStack, History, Users } from "lucide-react";
 import {
   BuilderPageShell,
   type BuilderFooterAction,
@@ -56,7 +47,10 @@ import {
 import { useCompensationTemplateForm } from "../hooks/useCompensationTemplateForm";
 import { compensationCopy } from "../copy/compensationCopy";
 import type { CompensationTemplateFormData } from "../validation/compensationSchemas";
-import { getTemplateSectionStatuses } from "../utils/getTemplateCompleteness";
+import {
+  getTemplateSectionStatuses,
+  isTemplateActivatableClient,
+} from "../utils/getTemplateCompleteness";
 import { getCompensationLifecycleErrorMessage } from "../utils/compensationLifecycleErrors";
 import type { BuilderSectionId } from "../utils/templateCompositionTypes";
 import {
@@ -66,26 +60,21 @@ import {
   pickActiveTemplateVersion,
 } from "../utils/getTemplateDisplayStatus";
 import { CompensationTemplateDisplayStatusBadge } from "../config/compensationStatusConfig";
+import { buildFormulaTerms } from "../utils/buildFormulaTerms";
+import {
+  computeWeekTotalFormatted,
+  BuilderPaysHowInspector,
+} from "../components/BuilderPaysHowInspector";
 import { BuilderIdentitySection } from "../components/BuilderIdentitySection";
-import { BuilderPaymentRulesSection } from "../components/BuilderPaymentRulesSection";
-import { BuilderAllowancesSection } from "../components/BuilderAllowancesSection";
-import { BuilderCorridorsSection } from "../components/BuilderCorridorsSection";
-import { BuilderInspectorPanel } from "../components/BuilderInspectorPanel";
+import { BuilderTripLadderSection } from "../components/BuilderTripLadderSection";
+import { BuilderFixedAllowancesSection } from "../components/BuilderFixedAllowancesSection";
+import { BuilderDeductionsOnlySection } from "../components/BuilderDeductionsOnlySection";
+import { CorridorTariffSheet } from "../components/CorridorTariffSheet";
 
 const copy = compensationCopy.builder;
 const actionsCopy = compensationCopy.templateActions;
 
-const SECTION_IDS: BuilderSectionId[] = [
-  "payment",
-  "allowances",
-  "corridors",
-];
-
-const SECTION_ICONS: Record<BuilderSectionId, ReactNode> = {
-  payment: <Banknote className="h-4 w-4" />,
-  allowances: <Gift className="h-4 w-4" />,
-  corridors: <Route className="h-4 w-4" />,
-};
+const SECTION_IDS: BuilderSectionId[] = ["trips", "allowances", "deductions"];
 
 export function CompensationSchemeBuilderPage() {
   const { id } = useParams<{ id: string }>();
@@ -94,8 +83,10 @@ export function CompensationSchemeBuilderPage() {
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
 
-  const [activeSectionId, setActiveSectionId] = useState<BuilderSectionId>("payment");
+  const [activeSectionId, setActiveSectionId] = useState<BuilderSectionId>("trips");
+  const [formulaResultActive, setFormulaResultActive] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
+  const [corridorSheetOpen, setCorridorSheetOpen] = useState(false);
 
   const {
     data: template,
@@ -147,13 +138,10 @@ export function CompensationSchemeBuilderPage() {
   const watchedValues = useWatch({ control: form.control });
   const isDirty = form.formState.isDirty;
 
-  // Guard de cambios sin guardar (DS § Formularios largos). Bloqueada = solo lectura, sin guard.
   const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
     isDirty,
     enabled: !locked,
   });
-  // Guardar: liberar el guard mientras corre la mutación (onSuccess navega al catálogo);
-  // si falla o la validación no pasa, se vuelve a armar.
   const wasSavingRef = useRef(false);
   useEffect(() => {
     if (isSaving) {
@@ -187,32 +175,69 @@ export function CompensationSchemeBuilderPage() {
       ? compensationTemplateOperatorsPath(id)
       : null;
 
+  const weekTotalFormatted = useMemo(() => {
+    if (!template) return null;
+    return computeWeekTotalFormatted(
+      template,
+      (watchedValues ?? {}) as Partial<CompensationTemplateFormData>,
+    );
+  }, [template, watchedValues]);
+
+  const formulaTerms = useMemo(() => {
+    if (!template) return [];
+    const snapshot = {
+      name: (watchedValues.name as string | undefined) ?? template.name,
+      rules:
+        (watchedValues.rules as CompensationTemplateFormData["rules"]) ??
+        template.rules,
+      fixedAllowances:
+        (watchedValues.fixedAllowances as CompensationTemplateFormData["fixedAllowances"]) ??
+        template.fixedAllowances,
+      deductions:
+        (watchedValues.deductions as CompensationTemplateFormData["deductions"]) ??
+        template.deductions,
+      corridorIds:
+        (watchedValues.corridorIds as CompensationTemplateFormData["corridorIds"]) ??
+        template.corridorIds,
+      salaryOnly:
+        (watchedValues.salaryOnly as boolean | undefined) ?? template.salaryOnly,
+    };
+    return buildFormulaTerms(snapshot, weekTotalFormatted).terms;
+  }, [template, watchedValues, weekTotalFormatted]);
+
   const sections: BuilderSection[] = useMemo(() => {
+    if (!template) return [];
     const statuses = getTemplateSectionStatuses({
-      name: (watchedValues.name as string | undefined) ?? template?.name ?? "",
-      rules: (watchedValues.rules as CompensationTemplateFormData["rules"]) ?? [],
+      name: (watchedValues.name as string | undefined) ?? template.name,
+      rules:
+        (watchedValues.rules as CompensationTemplateFormData["rules"]) ?? [],
       fixedAllowances:
         (watchedValues.fixedAllowances as CompensationTemplateFormData["fixedAllowances"]) ??
         [],
+      deductions:
+        (watchedValues.deductions as CompensationTemplateFormData["deductions"]) ??
+        [],
       corridorIds:
-        (watchedValues.corridorIds as CompensationTemplateFormData["corridorIds"]) ?? [],
+        (watchedValues.corridorIds as CompensationTemplateFormData["corridorIds"]) ??
+        [],
+      salaryOnly:
+        (watchedValues.salaryOnly as boolean | undefined) ?? template.salaryOnly,
     });
 
     return SECTION_IDS.map((sectionId) => ({
       id: sectionId,
       label: copy.sections[sectionId],
-      icon: SECTION_ICONS[sectionId],
       status: statuses[sectionId],
     }));
-  }, [template?.name, watchedValues]);
+  }, [template, watchedValues]);
 
   const handleSectionChange = useCallback((sectionId: string) => {
     if ((SECTION_IDS as readonly string[]).includes(sectionId)) {
+      setFormulaResultActive(false);
       setActiveSectionId(sectionId as BuilderSectionId);
     }
   }, []);
 
-  // Descartar navega directo: si hay cambios, el blocker abre `UnsavedChangesDialog`.
   const handleDiscardClick = useCallback(() => {
     navigate(COMPENSATION_TEMPLATES_PATH);
   }, [navigate]);
@@ -258,34 +283,31 @@ export function CompensationSchemeBuilderPage() {
 
   const displayTitle =
     ((watchedValues.name as string | undefined) ?? template?.name ?? "").trim() ||
-    copy.sections.payment;
+    copy.sections.trips;
 
-  const isComplete =
-    ((watchedValues.rules as CompensationTemplateFormData["rules"] | undefined)?.length ??
-      0) > 0 ||
-    ((watchedValues.corridorIds as CompensationTemplateFormData["corridorIds"] | undefined)
-      ?.length ?? 0) > 0;
+  const isComplete = isTemplateActivatableClient({
+    rules:
+      (watchedValues.rules as CompensationTemplateFormData["rules"] | undefined) ??
+      template?.rules ??
+      [],
+    corridorIds:
+      (watchedValues.corridorIds as
+        | CompensationTemplateFormData["corridorIds"]
+        | undefined) ??
+      template?.corridorIds ??
+      [],
+    salaryOnly:
+      (watchedValues.salaryOnly as boolean | undefined) ?? template?.salaryOnly,
+    paymentPeriod:
+      (watchedValues.paymentPeriod as
+        | CompensationTemplateFormData["paymentPeriod"]
+        | undefined) ??
+      template?.paymentPeriod ??
+      "weekly",
+  });
 
   const footerActions: BuilderFooterAction[] = useMemo(() => {
-    const actions: BuilderFooterAction[] = [
-      {
-        id: "discard",
-        label: copy.discard,
-        variant: "outline",
-        onClick: handleDiscardClick,
-        disabled: isSaving,
-      },
-    ];
-
-    actions.push({
-      id: "preview",
-      label: copy.trySchemeTitle,
-      variant: "outline",
-      onClick: () => {
-        if (previewHref) navigate(previewHref);
-      },
-      disabled: isSaving || !previewHref,
-    });
+    const actions: BuilderFooterAction[] = [];
 
     if (locked) {
       actions.push({
@@ -297,35 +319,42 @@ export function CompensationSchemeBuilderPage() {
         disabled: createVersionMutation.isPending || !canUpdate,
         loading: createVersionMutation.isPending,
       });
-    } else {
-      const showActivate =
-        canUpdate &&
-        (template?.status === "draft" || template?.status === "inactive");
-      // Un solo primary sólido: Activar cuando la tarifa está lista (guardada y
-      // completa); si no, Guardar es el primary y Activar queda outline deshabilitado.
-      const canActivateNow = showActivate && !isDirty && isComplete;
+      return actions;
+    }
 
+    const showActivate =
+      canUpdate &&
+      (template?.status === "draft" || template?.status === "inactive");
+    const canActivateNow = showActivate && !isDirty && isComplete;
+
+    actions.push({
+      id: "discard",
+      label: copy.discard,
+      variant: "ghost",
+      onClick: handleDiscardClick,
+      disabled: isSaving,
+    });
+
+    actions.push({
+      id: "save",
+      label: copy.save,
+      variant: canActivateNow ? "outline" : "default",
+      onClick: () => {
+        void onSubmit();
+      },
+      disabled: isSaving || !canUpdate,
+      loading: isSaving,
+    });
+
+    if (showActivate) {
       actions.push({
-        id: "save",
-        label: copy.save,
-        variant: canActivateNow ? "outline" : "default",
-        onClick: () => {
-          void onSubmit();
-        },
-        disabled: isSaving || !canUpdate,
-        loading: isSaving,
+        id: "activate",
+        label: copy.activate,
+        variant: canActivateNow ? "default" : "outline",
+        onClick: () => setActivateOpen(true),
+        disabled: !canActivateNow || activateMutation.isPending,
+        loading: activateMutation.isPending,
       });
-
-      if (showActivate) {
-        actions.push({
-          id: "activate",
-          label: actionsCopy.activate,
-          variant: canActivateNow ? "default" : "outline",
-          onClick: () => setActivateOpen(true),
-          disabled: !canActivateNow || activateMutation.isPending,
-          loading: activateMutation.isPending,
-        });
-      }
     }
 
     return actions;
@@ -339,11 +368,46 @@ export function CompensationSchemeBuilderPage() {
     isDirty,
     isSaving,
     locked,
-    navigate,
     onSubmit,
-    previewHref,
     template?.status,
   ]);
+
+  const headerActions = !locked ? (
+    <div className="flex flex-wrap gap-2">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleDiscardClick}
+        disabled={isSaving}
+      >
+        {copy.discard}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => void onSubmit()}
+        disabled={isSaving || !canUpdate}
+        isLoading={isSaving}
+      >
+        {copy.save}
+      </Button>
+      {canUpdate &&
+      (template?.status === "draft" || template?.status === "inactive") ? (
+        <Button
+          type="button"
+          size="sm"
+          variant={!isDirty && isComplete ? "default" : "outline"}
+          onClick={() => setActivateOpen(true)}
+          disabled={isDirty || !isComplete || activateMutation.isPending}
+          isLoading={activateMutation.isPending}
+        >
+          {copy.activate}
+        </Button>
+      ) : null}
+    </div>
+  ) : null;
 
   if (!canUpdate) {
     return (
@@ -392,6 +456,11 @@ export function CompensationSchemeBuilderPage() {
         ? supersededCopy.activeVersionSameName(activeVersion.version)
         : supersededCopy.activeVersionRenamed(activeVersion.name, activeVersion.version);
 
+  const statusSubtitle =
+    template.status === "draft" && template.version > 1
+      ? `Reemplazará a la v${template.version - 1} activa (${template.activeAssignmentsCount} operadores) cuando la actives.`
+      : undefined;
+
   return (
     <>
       <form
@@ -403,15 +472,19 @@ export function CompensationSchemeBuilderPage() {
       >
         <BuilderPageShell
           title={displayTitle}
-          description={copy.pageDescription}
+          description={statusSubtitle ?? copy.pageDescription}
           backHref={backHref}
           backLabel={copy.backLabel}
+          navVariant="formula"
+          formulaTerms={formulaTerms}
+          formulaAriaLabel={copy.formulaAriaLabel}
+          formulaResultActive={formulaResultActive}
+          onFormulaResultFocus={() => setFormulaResultActive(true)}
+          headerActions={headerActions}
           statusBadge={
             <div className="flex flex-wrap items-center gap-2">
               <CompensationTemplateDisplayStatusBadge template={template} />
-              <Badge variant="secondary" tone="soft">
-                {copy.versionBadge(template.version)}
-              </Badge>
+              <Badge variant="outline">{copy.versionBadge(template.version)}</Badge>
               <span className="sr-only">{statusLabel}</span>
             </div>
           }
@@ -492,12 +565,14 @@ export function CompensationSchemeBuilderPage() {
                   <AlertDescription>{apiError}</AlertDescription>
                 </Alert>
               ) : null}
-              <BuilderIdentitySection
-                form={form}
-                validationMessages={validationMessages}
-                showValidation
-                readOnly={locked}
-              />
+              {!locked ? (
+                <BuilderIdentitySection
+                  form={form}
+                  validationMessages={validationMessages}
+                  showValidation
+                  readOnly={locked}
+                />
+              ) : null}
             </div>
           }
           sections={sections}
@@ -511,30 +586,36 @@ export function CompensationSchemeBuilderPage() {
           renderCanvas={(sectionId) => {
             const section = (() => {
               switch (sectionId as BuilderSectionId) {
-                case "payment":
+                case "trips":
                   return (
-                    <BuilderPaymentRulesSection
+                    <BuilderTripLadderSection
                       form={form}
                       ruleFields={ruleFields}
                       appendRule={appendRule}
                       removeRule={removeRule}
                       watchedRules={watchedRules}
+                      readOnly={locked}
+                      onAddCorridor={() => setCorridorSheetOpen(true)}
                     />
                   );
                 case "allowances":
                   return (
-                    <BuilderAllowancesSection
+                    <BuilderFixedAllowancesSection
                       form={form}
                       allowanceFields={allowanceFields}
                       appendAllowance={appendAllowance}
                       removeAllowance={removeAllowance}
+                    />
+                  );
+                case "deductions":
+                  return (
+                    <BuilderDeductionsOnlySection
+                      form={form}
                       deductionFields={deductionFields}
                       appendDeduction={appendDeduction}
                       removeDeduction={removeDeduction}
                     />
                   );
-                case "corridors":
-                  return <BuilderCorridorsSection form={form} />;
                 default:
                   return null;
               }
@@ -554,13 +635,35 @@ export function CompensationSchemeBuilderPage() {
             return section;
           }}
           renderInspector={() => (
-            <BuilderInspectorPanel control={form.control} template={template} />
+            <BuilderPaysHowInspector
+              control={form.control}
+              template={template}
+              previewHref={previewHref}
+              onPreview={() => {
+                if (previewHref) navigate(previewHref);
+              }}
+              weekTotalFormatted={weekTotalFormatted}
+            />
           )}
-          footerActions={footerActions}
+          footerActions={footerActions.length > 0 && locked ? footerActions : []}
         />
       </form>
 
       <UnsavedChangesDialog blocker={blocker} />
+
+      <CorridorTariffSheet
+        open={corridorSheetOpen}
+        onOpenChange={setCorridorSheetOpen}
+        onSuccess={(createdId) => {
+          if (!createdId) return;
+          const current = form.getValues("corridorIds") ?? [];
+          if (!current.includes(createdId)) {
+            form.setValue("corridorIds", [...current, createdId], {
+              shouldDirty: true,
+            });
+          }
+        }}
+      />
 
       <AlertDialog open={activateOpen} onOpenChange={setActivateOpen}>
         <AlertDialogContent>

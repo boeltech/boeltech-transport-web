@@ -99,6 +99,10 @@ function toTemplatePayload(payload: CreateCompensationTemplatePayload) {
     name: payload.name,
     description: payload.description ?? null,
     midTripPayoutPolicy: payload.midTripPayoutPolicy,
+    ...(payload.paymentPeriod !== undefined
+      ? { paymentPeriod: payload.paymentPeriod }
+      : {}),
+    ...(payload.salaryOnly !== undefined ? { salaryOnly: payload.salaryOnly } : {}),
     rules: (payload.rules ?? []).map(mapRuleToWire),
     fixedAllowances: (payload.fixedAllowances ?? []).map((allowance) => ({
       allowanceType: allowance.allowanceType,
@@ -141,6 +145,14 @@ function toPatchTemplatePayload(payload: UpdateCompensationTemplatePayload) {
   // Status transitions: usar activate/deactivate. No enviar isActive desde el form.
   if (payload.midTripPayoutPolicy !== undefined) {
     body.midTripPayoutPolicy = payload.midTripPayoutPolicy;
+  }
+
+  if (payload.paymentPeriod !== undefined) {
+    body.paymentPeriod = payload.paymentPeriod;
+  }
+
+  if (payload.salaryOnly !== undefined) {
+    body.salaryOnly = payload.salaryOnly;
   }
 
   if (payload.rules !== undefined) {

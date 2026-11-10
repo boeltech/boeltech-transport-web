@@ -51,6 +51,8 @@ describe("templateToForm", () => {
       description: "Notas",
       isActive: false,
       midTripPayoutPolicy: "split_by_assigned_km",
+      paymentPeriod: "weekly",
+      salaryOnly: false,
       rules: [
         {
           routeType: "long_haul",
@@ -102,6 +104,8 @@ describe("templateToForm", () => {
       name: "Esquema foráneo (copia)",
       description: "Notas",
       midTripPayoutPolicy: "split_by_assigned_km",
+      paymentPeriod: "weekly",
+      salaryOnly: false,
       rules: [
         {
           routeType: "long_haul",

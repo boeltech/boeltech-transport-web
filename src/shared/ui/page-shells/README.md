@@ -63,6 +63,8 @@ ADR-0091 D3/F5 + D3.2 · SDD: `design/sdd/hub-page-shell/`.
 
 Anatomía fija: Header (back + título) → banner? → Section nav + Canvas + Inspector → Footer sticky.
 
+**Variante `navVariant="formula"`** (`ds_evolution` · pedido pagos-operadores-rediseno): la barra de fórmula (términos + operadores + resultado) reemplaza el riel lateral; canvas + inspector en 2 columnas. Props: `formulaTerms`, `formulaAriaLabel`, `onFormulaResultFocus`, `formulaResultActive`, `headerActions`.
+
 ```tsx
 import { BuilderPageShell } from "@shared/ui/page-shells";
 
