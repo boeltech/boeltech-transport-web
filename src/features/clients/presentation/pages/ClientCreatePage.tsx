@@ -21,6 +21,8 @@ import {
   getErrorMessage,
   isApiError,
 } from "@shared/api/interceptors/error-handler";
+import { usePermissions } from "@shared/permissions";
+import { useFiscalPolicy } from "@features/settings/application";
 import { useCreateClient } from "../../application";
 import {
   CLIENT_TYPE_LABELS,
@@ -96,6 +98,11 @@ function validateAddressDraft(
 }
 
 export function ClientCreatePage() {
+  const { hasPermission } = usePermissions();
+  const fiscalPolicy = useFiscalPolicy({
+    enabled: hasPermission("fiscal_policy", "read"),
+  });
+  const sinCfdiProfileDisabled = fiscalPolicy.data?.sinCfdiMode === "disabled";
   const navigate = useNavigate();
   const createClientMutation = useCreateClient();
   const formRef = useRef<WizardFormRef | null>(null);
@@ -423,6 +430,7 @@ export function ClientCreatePage() {
             ) : null}
             <ClientForm
               ref={clientFormRef}
+              sinCfdiProfileDisabled={sinCfdiProfileDisabled}
               defaultValues={clientData ?? undefined}
               onChange={handleClientChange}
               onDirtyChange={setIsDirty}

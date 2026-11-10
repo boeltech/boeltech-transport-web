@@ -91,6 +91,8 @@ interface TripTrackingTabProps {
   operationalOutcome?: TripOperationalOutcomeType;
   /** ADR-0096: oculta Declarar viaje en falso si liquidación sin CFDI. */
   cfdiEmissionIntent?: CfdiEmissionIntent;
+  /** Solicitud Sin factura abierta: al iniciar, el API la cancela (D6). */
+  pendingSinCfdiRequest?: boolean;
   /** ADR-0079: actor del falso si el API lo envía en el viaje (fallback de bitácora). */
   falseTripDeclaredBy?: string | null;
   /**
@@ -115,6 +117,7 @@ export function TripTrackingTab({
   cargos: cargosProp = [],
   operationalOutcome,
   cfdiEmissionIntent,
+  pendingSinCfdiRequest = false,
   falseTripDeclaredBy = null,
   hasActiveSplit = false,
   requiresFiscalAttention = false,
@@ -879,6 +882,7 @@ export function TripTrackingTab({
             originStop={originStop}
             originBranchId={originBranchId}
             cfdiEmissionIntent={cfdiEmissionIntent}
+            pendingSinCfdiRequest={pendingSinCfdiRequest}
             cargos={cargos}
             open={startSheetOpen}
             onOpenChange={setStartSheetOpen}

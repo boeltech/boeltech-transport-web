@@ -131,6 +131,8 @@ export interface ClientFormProps {
   className?: string;
   /** Notifica dirty a la página para `useUnsavedChangesGuard` (D9). */
   onDirtyChange?: (isDirty: boolean) => void;
+  /** Alta: la política No permitido no deja elegir Sin factura. */
+  sinCfdiProfileDisabled?: boolean;
 }
 
 /** Firma rápida (evita `JSON.stringify` en cada tecla al notificar al padre). */
@@ -187,7 +189,8 @@ function clientFormOuterPropsAreEqual(
     prev.mode === next.mode &&
     prev.client?.id === next.client?.id &&
     prev.className === next.className &&
-    prev.onDirtyChange === next.onDirtyChange
+    prev.onDirtyChange === next.onDirtyChange &&
+    prev.sinCfdiProfileDisabled === next.sinCfdiProfileDisabled
   );
 }
 
@@ -204,6 +207,7 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
       disabled = false,
       className,
       onDirtyChange,
+      sinCfdiProfileDisabled = false,
     },
     ref,
   ) {
@@ -563,7 +567,10 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
                   <SelectItem value="receptor_cfdi">
                     {profileCopy.options.receptor_cfdi}
                   </SelectItem>
-                  <SelectItem value="comercial_only">
+                  <SelectItem
+                    value="comercial_only"
+                    disabled={mode === "create" && sinCfdiProfileDisabled}
+                  >
                     {profileCopy.options.comercial_only}
                   </SelectItem>
                 </SelectContent>
@@ -571,9 +578,11 @@ const ClientFormInner = forwardRef<ClientFormRef, ClientFormProps>(
             )}
           />
           <p className="text-xs text-muted-foreground">
-            {isComercialOnly
-              ? profileCopy.field.hintComercial
-              : profileCopy.field.hintReceptor}
+            {mode === "create" && sinCfdiProfileDisabled
+              ? "La política de la empresa no permite clientes Sin factura."
+              : isComercialOnly
+                ? profileCopy.field.hintComercial
+                : profileCopy.field.hintReceptor}
           </p>
           <FieldInlineError
             fieldId="cfdiReceptorProfile"

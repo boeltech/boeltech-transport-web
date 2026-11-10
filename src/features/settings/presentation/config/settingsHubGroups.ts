@@ -34,6 +34,7 @@ export const SETTINGS_HUB_GROUPS: readonly SettingsHubGroupDefinition[] = [
       SettingsSection.BILLING,
       SettingsSection.BILLING_SCHEMES,
       SettingsSection.SUBSCRIPTION,
+      SettingsSection.FISCAL_POLICY,
     ],
   },
   {

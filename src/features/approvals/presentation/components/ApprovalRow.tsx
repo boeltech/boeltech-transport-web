@@ -5,6 +5,7 @@ import type { ApprovalRowDecisionProps } from "./ApprovalRowCells";
 import { ApprovalRowTripExpense } from "./ApprovalRowTripExpense";
 import { ApprovalRowCompensation } from "./ApprovalRowCompensation";
 import { ApprovalRowAdvance } from "./ApprovalRowAdvance";
+import { ApprovalRowSinCfdiException } from "./ApprovalRowSinCfdiException";
 
 export interface ApprovalRowProps extends ApprovalRowDecisionProps {
   item: ApprovableItem;
@@ -24,6 +25,8 @@ export function ApprovalRow(props: ApprovalRowProps) {
       return <ApprovalRowCompensation {...props} />;
     case "driver_advance_request":
       return <ApprovalRowAdvance {...props} />;
+    case "sin_cfdi_exception":
+      return <ApprovalRowSinCfdiException {...props} />;
     default:
       return (
         <TableRow>

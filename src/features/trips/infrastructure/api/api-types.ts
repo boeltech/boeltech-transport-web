@@ -506,6 +506,19 @@ export interface ApiTripResponse {
     base_rate: number | string;
     receipt_count: number | string;
   } | null;
+  /** Detail. Solicitud de excepción Sin factura. */
+  settlement_exception?: {
+    id: string;
+    trip_id: string;
+    status: "in_progress" | "approved" | "rejected" | "cancelled" | "superseded";
+    reason: string;
+    requested_by: string;
+    approval_instance_id: string | null;
+    created_at: string;
+    updated_at: string;
+    closed_at: string | null;
+    approval?: Record<string, unknown> | null;
+  } | null;
 
   // Auditoría
   created_at: string;

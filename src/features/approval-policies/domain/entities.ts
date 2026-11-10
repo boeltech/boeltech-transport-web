@@ -10,6 +10,7 @@ export const APPROVAL_CONCEPTS = [
   "trip_expense",
   "settlement",
   "disbursement",
+  "sin_cfdi_exception",
 ] as const;
 export type ApprovalConcept = (typeof APPROVAL_CONCEPTS)[number];
 
@@ -25,15 +26,19 @@ export const CONDITIONS_BY_CONCEPT: Record<ApprovalConcept, readonly ApprovalCon
   trip_expense: ["category", "missingCfdi"],
   settlement: ["manualAdjustments"],
   disbursement: [],
+  sin_cfdi_exception: [],
 };
 
 export function isApprovalConcept(value: unknown): value is ApprovalConcept {
   return typeof value === "string" && (APPROVAL_CONCEPTS as readonly string[]).includes(value);
 }
 
-/** Solo liquidaciones admite tramos «sin autorización» (umbral VoBo). */
+/**
+ * Liquidaciones (umbral VoBo) y la excepción Sin factura (modo con motivo,
+ * cero pasos) admiten un tramo sin autorización.
+ */
 export function conceptAllowsNoApprovalTier(concept: ApprovalConcept): boolean {
-  return concept === "settlement";
+  return concept === "settlement" || concept === "sin_cfdi_exception";
 }
 
 /** La dispersión tiene un solo paso por tramo. */

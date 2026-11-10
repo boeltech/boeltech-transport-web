@@ -13,7 +13,10 @@
  */
 
 import type { ApiPaginatedResponse, MappedSingleResult } from "@shared/api";
-import { mapApprovalBlock } from "@features/approvals/infrastructure";
+import {
+  mapApprovalBlock,
+  type ApiApprovalBlockRaw,
+} from "@features/approvals/infrastructure";
 import type { ApprovalDecisionOutcome } from "@features/approvals/domain";
 import type {
   Trip,
@@ -644,6 +647,26 @@ export function mapApiStatusHistory(
 /**
  * Mapea viaje detallado de API a dominio
  */
+export function mapSettlementException(
+  raw: ApiTripResponse["settlement_exception"],
+): Trip["settlementException"] {
+  if (!raw) return null;
+  return {
+    id: raw.id,
+    tripId: raw.trip_id,
+    status: raw.status,
+    reason: raw.reason,
+    requestedBy: raw.requested_by,
+    approvalInstanceId: raw.approval_instance_id,
+    createdAt: toDate(raw.created_at),
+    updatedAt: toDate(raw.updated_at),
+    closedAt: toDateOrNull(raw.closed_at),
+    approval: raw.approval
+      ? mapApprovalBlock(raw.approval as unknown as ApiApprovalBlockRaw)
+      : null,
+  };
+}
+
 export function mapApiTrip(api: ApiTripResponse): Trip {
   return {
     id: api.id,
@@ -731,6 +754,9 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
         : toNumberOrDefault(api.operational_cash_amount),
     operationalCashNote: api.operational_cash_note ?? null,
     operationalCash: mapApiOperationalCashSummary(api.operational_cash),
+    ...(api.settlement_exception !== undefined
+      ? { settlementException: mapSettlementException(api.settlement_exception) }
+      : {}),
 
     // Auditoría
     createdAt: toDate(api.created_at),

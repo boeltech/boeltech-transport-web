@@ -24,6 +24,7 @@ const CEILING_PERMISSION: Record<ApprovalConcept, { module: Module; action: Acti
   settlement: { module: "settlements", action: "update" },
   trip_expense: { module: "finance_approvals", action: "update" },
   disbursement: { module: "settlements", action: "execute" },
+  sin_cfdi_exception: { module: "trips_settlement", action: "approve" },
 };
 
 export function getConceptCeilingRoles(concept: ApprovalConcept): UserRole[] {

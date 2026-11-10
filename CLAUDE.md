@@ -41,7 +41,7 @@ npm run typecheck:test        # tsc de los tests (tsconfig.test.json; lista de e
 | `catalogs-tenant` · `imports-workflow` | catálogos tenant · importaciones |
 | `credit-exposure` · `profitability-scope` | OP-L0.9 crédito · rentabilidad |
 | `branches-workflow` | sucursales (listado → detalle → export → baja/restaurar) |
-| `trip-multi-invoice` · `trip-false-trip` · `trip-revenue-split` · `trip-sin-cfdi` | ADR-0068 · ADR-0079 · ADR-0081 · viaje sin CFDI |
+| `trip-multi-invoice` · `trip-false-trip` · `trip-revenue-split` · `trip-sin-cfdi` · `gobierno-sin-factura` | ADR-0068 · ADR-0079 · ADR-0081 · viaje sin CFDI · gobierno Sin factura |
 | `trip-trailers` · `trip-canvas` · `trip-mid-trip` | ADR-0077 remolques · ADR-0078 canvas · ADR-0093 E1 mid-trip |
 | `trip-fleet-snapshot` | Datos para Carta Porte del viaje (tarjeta en Operación + refresco desde el catálogo) |
 | `trip-order` | Orden de viaje operativa (card en Operación: generar / descargar / regenerar PDF) |

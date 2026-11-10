@@ -77,6 +77,7 @@ export const approvalsCopy = {
       tripExpense: "Gastos de viaje",
       driverAdvance: "Anticipos a operadores",
       settlement: "Pagos a operadores",
+      sinCfdi: "Sin factura",
     },
     searchPlaceholder: "Viaje, operador o folio",
     related: {

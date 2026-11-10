@@ -98,6 +98,8 @@ export type StartTripSheetProps = {
   originBranchId?: string | null;
   /** ADR-0096 — defensa sheet si se abre sin cargas activas. */
   cfdiEmissionIntent?: CfdiEmissionIntent;
+  /** Si había solicitud abierta, el inicio la cancela y el viaje sigue Con factura. */
+  pendingSinCfdiRequest?: boolean;
   cargos?: readonly TripCargo[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -117,6 +119,7 @@ function StartTripSheetBody({
   originStop,
   originBranchId,
   cfdiEmissionIntent,
+  pendingSinCfdiRequest = false,
   cargos = [],
   onOpenChange,
   onSuccess,
@@ -203,6 +206,12 @@ function StartTripSheetBody({
         description: copy.toast.tripStartedDescription(tripCode),
         variant: "success",
       });
+      if (pendingSinCfdiRequest) {
+        toast({
+          title: cfdiEmissionIntentCopy.governance.startCancelled,
+          variant: "success",
+        });
+      }
       onSuccess?.(trip);
       onOpenChange(false);
     },
@@ -558,6 +567,7 @@ export function StartTripSheet({
   originStop,
   originBranchId,
   cfdiEmissionIntent,
+  pendingSinCfdiRequest = false,
   cargos,
   open,
   onOpenChange,
@@ -586,6 +596,7 @@ export function StartTripSheet({
             originStop={originStop}
             originBranchId={originBranchId}
             cfdiEmissionIntent={cfdiEmissionIntent}
+            pendingSinCfdiRequest={pendingSinCfdiRequest}
             cargos={cargos}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}

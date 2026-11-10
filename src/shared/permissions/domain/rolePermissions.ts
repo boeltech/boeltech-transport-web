@@ -61,6 +61,13 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Orden de viaje operativa — lockstep API trips_trip_order
       "trips_trip_order.read",
       "trips_trip_order.execute",
+      // Gobierno Sin factura — lockstep API trips_settlement / operational_cash / fiscal_policy
+      "trips_settlement.request",
+      "trips_settlement.update",
+      "trips_settlement.approve",
+      "operational_cash.create",
+      "operational_cash.void",
+      "fiscal_policy.read",
 
       // Vehículos - Control total
       "vehicles.read",
@@ -243,6 +250,12 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "trips_fleet_snapshot.read",
       // Orden de viaje operativa — lockstep API (execute: no accountant)
       "trips_trip_order.read",
+      // Gobierno Sin factura — regularizar y aprobar; no pedir
+      "trips_settlement.update",
+      "trips_settlement.approve",
+      "operational_cash.create",
+      "operational_cash.void",
+      "fiscal_policy.read",
 
       // Configuración - Lectura (incluye settings/billing GET)
       "settings.read",
@@ -314,6 +327,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Orden de viaje operativa — lockstep API trips_trip_order
       "trips_trip_order.read",
       "trips_trip_order.execute",
+      // Gobierno Sin factura — pedir y registrar abono; no anular ni aprobar
+      "trips_settlement.request",
+      "operational_cash.create",
 
       // Vehículos - Lectura y disponibilidad
       "vehicles.read",
@@ -362,6 +378,9 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       // Orden de viaje operativa — lockstep API trips_trip_order
       "trips_trip_order.read",
       "trips_trip_order.execute",
+      // Gobierno Sin factura — pedir y registrar abono; no anular ni aprobar
+      "trips_settlement.request",
+      "operational_cash.create",
 
       // Vehículos - Lectura
       "vehicles.read",

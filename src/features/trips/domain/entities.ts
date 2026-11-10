@@ -602,6 +602,26 @@ export interface TripStatusHistory {
 /**
  * Viaje (Trip) - Aggregate Root
  */
+export type TripSettlementExceptionStatus =
+  | "in_progress"
+  | "approved"
+  | "rejected"
+  | "cancelled"
+  | "superseded";
+
+export interface TripSettlementException {
+  readonly id: string;
+  readonly tripId: string;
+  readonly status: TripSettlementExceptionStatus;
+  readonly reason: string;
+  readonly requestedBy: string;
+  readonly approvalInstanceId: string | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly closedAt: Date | null;
+  readonly approval: ApprovalBlock | null;
+}
+
 export interface Trip {
   readonly id: string;
   readonly tenantId: string;
@@ -695,6 +715,12 @@ export interface Trip {
    * Null si el API no lo envía (listados / caché parcial).
    */
   readonly operationalCash: OperationalCashSummary | null;
+
+  /**
+   * Solicitud de excepción Sin factura (detail). Ausente en listados.
+   * `null` si el viaje no tiene solicitud.
+   */
+  readonly settlementException?: TripSettlementException | null;
 
   // Auditoría
   readonly createdAt: Date;

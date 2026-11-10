@@ -55,6 +55,12 @@ const BillingSubscriptionPage = lazyWithRetry(() =>
   ),
 );
 
+const FiscalPolicySettingsPage = lazyWithRetry(() =>
+  import("./pages/FiscalPolicySettingsPage").then((m) => ({
+    default: m.FiscalPolicySettingsPage,
+  })),
+);
+
 const ApprovalPoliciesPage = lazyWithRetry(() =>
   import("@features/approval-policies/presentation/pages/ApprovalPoliciesPage").then(
     (m) => ({
@@ -240,6 +246,19 @@ export function SettingsRoutes() {
 
         {/* SaaS subscription (también ruta top-level sin RBAC billing para paywall) */}
         <Route path="subscription" element={<BillingSubscriptionPage />} />
+
+        <Route
+          path="fiscal-policy"
+          element={
+            <PermissionGuard
+              module="fiscal_policy"
+              action="read"
+              fallback={<Navigate to="/forbidden" replace />}
+            >
+              <FiscalPolicySettingsPage />
+            </PermissionGuard>
+          }
+        />
 
         {/* Reglas de autorización (ADR-0099) */}
         <Route

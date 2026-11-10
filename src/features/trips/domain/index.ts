@@ -142,7 +142,8 @@ export type {
   TripStop,
   TripStatusHistory,
   Trip,
-
+  TripSettlementException,
+  TripSettlementExceptionStatus,
   // View Types
   TripListItem,
   TripDetail,

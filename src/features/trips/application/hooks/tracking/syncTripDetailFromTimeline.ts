@@ -142,7 +142,7 @@ export function patchCargosFromTrackingEvents(
     const cargoId = readCargoId(event.payload);
     if (!cargoId) continue;
 
-    const source = next ?? cargos;
+    const source: readonly TripCargo[] = next ?? cargos;
     const index = source.findIndex((cargo) => cargo.id === cargoId);
     if (index < 0 || source[index]?.status === status) continue;
 

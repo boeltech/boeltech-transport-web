@@ -487,10 +487,13 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
     expect(mockListOperationalCashReceipts).not.toHaveBeenCalled();
   });
 
-  it("sin trips.update: sin CTAs Registrar ni Anular (solo lectura)", async () => {
+  it("sin operational_cash create/void: sin CTAs Registrar ni Anular", async () => {
     mockHasPermission.mockImplementation(
       (module: string, action: string) =>
-        !(module === "trips" && action === "update"),
+        !(
+          module === "operational_cash" &&
+          (action === "create" || action === "void")
+        ),
     );
     mockListOperationalCashReceipts.mockResolvedValue([makeReceipt()]);
 

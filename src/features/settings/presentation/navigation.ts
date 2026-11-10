@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   MapPin,
   CreditCard,
+  Scale,
   FileUp,
   ShieldCheck,
   type LucideIcon,
@@ -72,6 +73,15 @@ export const settingsNavItems: SettingsNavItem[] = [
     path: "/settings/subscription",
     icon: CreditCard,
     permission: { module: "billing", action: "read" },
+  },
+  {
+    id: SettingsSection.FISCAL_POLICY,
+    label: "Sin factura",
+    description:
+      "Si un viaje puede quedar sin CFDI: no permitido, solo clientes Sin factura, o con motivo",
+    path: "/settings/fiscal-policy",
+    icon: Scale,
+    permission: { module: "fiscal_policy", action: "read" },
   },
   {
     id: SettingsSection.IMPORTS,

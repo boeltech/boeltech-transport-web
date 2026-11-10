@@ -945,4 +945,16 @@ export const platformApi = {
     const row = response.data[0];
     return row ? mapPlatformReconciliationPreview(row) : null;
   },
+
+  /** GET /platform/tenants/:id/fiscal-policy — solo lectura. */
+  getTenantFiscalPolicy: async (
+    tenantId: string,
+  ): Promise<{ sinCfdiMode: string }> => {
+    const response = await apiClient.get<{
+      data: { sin_cfdi_mode: string };
+    }>(`${BASE}/tenants/${tenantId}/fiscal-policy`, {
+      authScope: "platform",
+    });
+    return { sinCfdiMode: response.data.sin_cfdi_mode };
+  },
 };

@@ -608,6 +608,11 @@ export interface UpdateTripInput {
 
   /** ADR-0096 */
   cfdiEmissionIntent?: "emitir_cfdi" | "sin_cfdi_efectivo";
+  /**
+   * Motivo 10–500 al cambiar la Factura del viaje (bitácora).
+   * El API lo lee del body crudo; no forma parte del schema Zod del PUT.
+   */
+  reason?: string;
 
   /**
    * ADR-0086 — clase de ruta. Editable hasta liquidación pagada (`paid_lock`).

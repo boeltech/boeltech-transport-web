@@ -4,6 +4,7 @@ export type ApprovableType =
   | "trip_expense"
   | "internal_staff_compensation"
   | "driver_advance_request"
+  | "sin_cfdi_exception"
   | "fuel_transaction"
   | "maintenance_order"
   | "vehicle_doc_renewal"
@@ -63,6 +64,17 @@ export interface DriverAdvanceRequestContext {
   openAdvancesCount?: number;
 }
 
+export interface SinCfdiExceptionContext {
+  approvableType: "sin_cfdi_exception";
+  tripId: string;
+  tripCode: string;
+  clientId: string | null;
+  clientLegalName: string | null;
+  baseRate: number;
+  reason: string;
+  requestedByName: string | null;
+}
+
 export interface FuelTransactionContext {
   approvableType: "fuel_transaction";
 }
@@ -83,6 +95,7 @@ export type ApprovableContext =
   | TripExpenseContext
   | InternalStaffCompensationContext
   | DriverAdvanceRequestContext
+  | SinCfdiExceptionContext
   | FuelTransactionContext
   | MaintenanceOrderContext
   | VehicleDocRenewalContext

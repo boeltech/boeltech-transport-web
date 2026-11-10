@@ -1,4 +1,4 @@
-import { Banknote, Receipt } from "lucide-react";
+import { Banknote, FileText, Receipt } from "lucide-react";
 import type { BadgeProps } from "@shared/ui/badge";
 import type { ApprovableType } from "../../domain";
 
@@ -30,6 +30,11 @@ export const approvalTypeConfig: Record<ApprovableType, ApprovalTypeConfigEntry>
   driver_advance_request: {
     label: "Anticipo a operador",
     icon: Banknote,
+    badge: { variant: "info", tone: "soft" },
+  },
+  sin_cfdi_exception: {
+    label: "Excepción Sin factura",
+    icon: FileText,
     badge: { variant: "info", tone: "soft" },
   },
   fuel_transaction: {

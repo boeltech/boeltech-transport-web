@@ -11,11 +11,12 @@ import { approvalPoliciesApi, type SavePolicyInput } from "../../infrastructure/
 import { approvalPoliciesQueryKeys } from "../approvalPoliciesQueryKeys";
 import { invalidateApprovalPoliciesQueries } from "../invalidateApprovalPoliciesQueries";
 
-export function useApprovalPolicies() {
+export function useApprovalPolicies(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: approvalPoliciesQueryKeys.overview(),
     queryFn: approvalPoliciesApi.getOverview,
     staleTime: 30_000,
+    enabled: options?.enabled ?? true,
   });
 }
 

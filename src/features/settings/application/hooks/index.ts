@@ -45,3 +45,5 @@ export {
   useNotificationSettings,
   useUpdateNotificationSettings,
 } from "./useNotificationSettings";
+
+export { useFiscalPolicy, useUpdateFiscalPolicy } from "./useFiscalPolicy";

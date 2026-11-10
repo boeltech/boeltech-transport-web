@@ -28,6 +28,11 @@ const EXPECTED_NAV_ORDER = [
     label: "Tu plan",
   },
   {
+    id: SettingsSection.FISCAL_POLICY,
+    path: "/settings/fiscal-policy",
+    label: "Sin factura",
+  },
+  {
     id: SettingsSection.IMPORTS,
     path: "/settings/imports",
     label: "Importar padrón",

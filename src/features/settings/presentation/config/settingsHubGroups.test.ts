@@ -37,6 +37,7 @@ describe("settingsHubGroups", () => {
       SettingsSection.BILLING,
       SettingsSection.BILLING_SCHEMES,
       SettingsSection.SUBSCRIPTION,
+      SettingsSection.FISCAL_POLICY,
     ]);
   });
 

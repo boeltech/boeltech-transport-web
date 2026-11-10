@@ -14,6 +14,7 @@ import { usePermissions } from "@shared/permissions";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { isSafeSettlementReturnHref } from "@features/settlements/application/settlementReturnHref";
 import { isApprovalConcept, type ApprovalConcept } from "../../domain";
+import { useFiscalPolicy } from "@features/settings/application";
 import { useApprovalPolicies, usePolicyCandidateUsers } from "../../application";
 import { approvalPoliciesCopy } from "../copy/approvalPoliciesCopy";
 import { ApprovalPolicyCard } from "../components/ApprovalPolicyCard";
@@ -33,6 +34,13 @@ export function ApprovalPoliciesPage() {
       : null;
   const [searchParams, setSearchParams] = useSearchParams();
   const overview = useApprovalPolicies();
+  const hasSinCfdiConcept =
+    overview.data?.concepts.some((policy) => policy.concept === "sin_cfdi_exception") ??
+    false;
+  const fiscalPolicy = useFiscalPolicy({
+    enabled: hasPermission("fiscal_policy", "read") && hasSinCfdiConcept,
+  });
+  const hideSinCfdiRule = fiscalPolicy.data?.sinCfdiMode === "disabled";
   const hasUpdatePermission = hasPermission("approval_policies", "update");
   const editEnabled = overview.data?.editEnabled === true;
   const canEdit = hasUpdatePermission && editEnabled;
@@ -129,7 +137,12 @@ export function ApprovalPoliciesPage() {
               </Alert>
             ) : null}
             <div className="grid gap-4 md:grid-cols-2">
-              {overview.data.concepts.map((policy) => (
+              {overview.data.concepts
+                .filter(
+                  (policy) =>
+                    !(hideSinCfdiRule && policy.concept === "sin_cfdi_exception"),
+                )
+                .map((policy) => (
                 <ApprovalPolicyCard
                   key={policy.concept}
                   policy={policy}

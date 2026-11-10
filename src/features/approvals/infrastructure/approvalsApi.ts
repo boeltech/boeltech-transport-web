@@ -63,6 +63,7 @@ export interface PendingCountsByType {
   trip_expense: number;
   driver_advance_request: number;
   internal_staff_compensation: number;
+  sin_cfdi_exception?: number;
   total: number;
 }
 
@@ -158,17 +159,19 @@ export const approvalsApi = {
   getAllPendingCounts: async (
     queue: ApprovalQueue = "mine",
   ): Promise<PendingCountsByType> => {
-    const [expenses, advances, settlements] = await Promise.all([
+    const [expenses, advances, settlements, sinCfdi] = await Promise.all([
       approvalsApi.getPendingCount("trip_expense", queue).catch(() => 0),
       approvalsApi.getPendingCount("driver_advance_request", queue).catch(() => 0),
       approvalsApi.getPendingCount("internal_staff_compensation", queue).catch(() => 0),
+      approvalsApi.getPendingCount("sin_cfdi_exception", queue).catch(() => 0),
     ]);
 
     return {
       trip_expense: expenses,
       driver_advance_request: advances,
       internal_staff_compensation: settlements,
-      total: expenses + advances + settlements,
+      sin_cfdi_exception: sinCfdi,
+      total: expenses + advances + settlements + sinCfdi,
     };
   },
 };

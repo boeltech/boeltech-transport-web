@@ -23,7 +23,11 @@ import {
   type ApiCorridorResponse,
   type ApiRouteEstimateResponse,
 } from "./canvas-mappers";
-import { mapApiOperationalCashReceipt, mapApiTrip } from "./mappers";
+import {
+  mapApiOperationalCashReceipt,
+  mapApiTrip,
+  mapSettlementException,
+} from "./mappers";
 
 const CORRIDORS_ENDPOINT = "/trips/corridors";
 const ROUTE_ESTIMATE_ENDPOINT = "/trips/route-estimate";
@@ -211,6 +215,40 @@ export const tripsApi = {
       message?: string;
     }>(`/trips/${tripId}/operational-cash-receipts`, body);
     return mapApiOperationalCashReceipt(raw.data);
+  },
+
+  /** Excepción Sin factura (Con→Sin con paso, o fallback si el PUT exige solicitud). */
+  async requestSinCfdiException(
+    tripId: string,
+    body: { reason: string },
+  ): Promise<Trip["settlementException"]> {
+    const raw = await apiClient.post<{
+      data: NonNullable<ApiTripResponse["settlement_exception"]>;
+    }>(`/trips/${tripId}/settlement-exception`, body);
+    return mapSettlementException(raw.data);
+  },
+
+  async cancelSinCfdiException(
+    tripId: string,
+    requestId: string,
+    body: { reason: string },
+  ): Promise<Trip["settlementException"]> {
+    const raw = await apiClient.post<{
+      data: NonNullable<ApiTripResponse["settlement_exception"]>;
+    }>(`/trips/${tripId}/settlement-exception/${requestId}/cancel`, body);
+    return mapSettlementException(raw.data);
+  },
+
+  /** Sin factura → Con factura. */
+  async regularizeSinCfdi(
+    tripId: string,
+    body: { reason: string },
+  ): Promise<Trip> {
+    const raw = await apiClient.post<{ data: ApiTripResponse }>(
+      `/trips/${tripId}/settlement:regularize`,
+      body,
+    );
+    return mapApiTrip(raw.data);
   },
 
   /** ADR-0096 addendum — anular abono. */

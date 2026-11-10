@@ -21,6 +21,7 @@ import { usePlatformTenantSaasInvoices } from "../../application/hooks/usePlatfo
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { OpsTenantSaasArPanel } from "./OpsTenantSaasArPanel";
 import { OpsTenantHealthPanel } from "./OpsTenantHealthPanel";
+import { OpsTenantFiscalPolicyPanel } from "./OpsTenantFiscalPolicyPanel";
 import { OpsTenantSubscriptionPanel } from "./OpsTenantSubscriptionPanel";
 import { OpsTenantUsagePanel } from "./OpsTenantUsagePanel";
 import { OpsTenantActivationPanel } from "./OpsTenantActivationPanel";
@@ -464,6 +465,7 @@ export function PlatformTenantHubPage() {
         {activeTab === TAB.resumen ? (
           <>
             <OpsTenantHealthPanel health={health} />
+            <OpsTenantFiscalPolicyPanel tenantId={tenant.id} />
             <OpsTenantUsagePanel
               tenantId={tenant.id}
               planName={tenant.planName}

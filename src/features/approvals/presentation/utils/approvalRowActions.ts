@@ -29,6 +29,7 @@ export function isApprovableSelectable(
   currentUserId: string | null | undefined,
   selfApprovalPolicy: SelfApprovalPolicy | null | undefined,
 ): boolean {
+  if (item.approvableType === "sin_cfdi_exception") return false;
   return (
     canUpdate &&
     isApprovableActionable(item) &&

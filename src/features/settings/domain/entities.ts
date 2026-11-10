@@ -260,6 +260,7 @@ export const SettingsSection = {
   BILLING: "billing",
   BILLING_SCHEMES: "billing-schemes",
   SUBSCRIPTION: "subscription",
+  FISCAL_POLICY: "fiscal-policy",
   APPROVALS: "approvals",
   NOTIFICATIONS: "notifications",
   DASHBOARD_LAYOUTS: "dashboard-layouts",
@@ -278,6 +279,7 @@ export const SETTINGS_SECTION_LABELS: Record<SettingsSectionValue, string> = {
   [SettingsSection.BILLING]: "Datos para facturar",
   [SettingsSection.BILLING_SCHEMES]: "Frecuencias de envío",
   [SettingsSection.SUBSCRIPTION]: "Tu plan",
+  [SettingsSection.FISCAL_POLICY]: "Sin factura",
   [SettingsSection.APPROVALS]: "Reglas de autorización",
   [SettingsSection.NOTIFICATIONS]: "Avisos de la empresa",
   [SettingsSection.DASHBOARD_LAYOUTS]: "Widgets de Inicio",
@@ -304,4 +306,5 @@ export const settingsQueryKeys = {
   billingScheme: (id: string) =>
     [...settingsQueryKeys.all, "billing-schemes", id] as const,
   notifications: () => [...settingsQueryKeys.all, "notifications"] as const,
+  fiscalPolicy: () => [...settingsQueryKeys.all, "fiscal-policy"] as const,
 };

@@ -1059,6 +1059,7 @@ export function ApprovalInboxPage({
 
           return (
             <div className="space-y-4">
+              {approvalType === "sin_cfdi_exception" ? null : (
               <BulkActionsBar
                 selectedCount={selectedIds.size}
                 maxSelection={BULK_MAX}
@@ -1074,6 +1075,7 @@ export function ApprovalInboxPage({
                 onRejectSelected={() => openReasonSheet("reject", selectedItems)}
                 onClearSelection={() => setSelectedIds(new Set())}
               />
+              )}
               <ApprovalInbox
                 items={items}
                 isLoading={isLoading}
@@ -1086,7 +1088,11 @@ export function ApprovalInboxPage({
                 onToggleAll={handleToggleAll}
                 onApprove={(item) => setApproveTarget(item)}
                 onReject={(item) => openReasonSheet("reject", [item])}
-                onReturn={(item) => openReasonSheet("return", [item])}
+                onReturn={
+                  approvalType === "sin_cfdi_exception"
+                    ? undefined
+                    : (item) => openReasonSheet("return", [item])
+                }
                 onHistory={(item) => setHistoryTarget(item)}
                 maxSelection={BULK_MAX}
               />

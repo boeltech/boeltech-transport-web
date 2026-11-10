@@ -14,7 +14,9 @@ describe("mapApprovalWorkbenchBuckets", () => {
       onTypeChange,
     });
 
-    expect(buckets).toHaveLength(3);
+    expect(buckets).toHaveLength(4);
+    expect(buckets[3]?.id).toBe("sin_cfdi_exception");
+    expect(buckets[3]?.label).toBe("Sin factura");
     expect(buckets[0]?.id).toBe("trip_expense");
     expect(buckets[0]?.count).toBe(4);
     expect(buckets[1]?.isActive).toBe(true);

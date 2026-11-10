@@ -12,6 +12,7 @@ export const APPROVAL_CONCEPT_LABELS: Record<ApprovalConcept, string> = {
   trip_expense: "Gastos de viaje",
   settlement: "Liquidaciones",
   disbursement: "Dispersión",
+  sin_cfdi_exception: "Excepción Sin factura",
 };
 
 export const APPROVAL_CONCEPT_DESCRIPTIONS: Record<ApprovalConcept, string> = {
@@ -19,6 +20,8 @@ export const APPROVAL_CONCEPT_DESCRIPTIONS: Record<ApprovalConcept, string> = {
   trip_expense: "Gastos capturados en el viaje antes de contarse en costos.",
   settlement: "Cortes de liquidación a operadores antes de pagarse.",
   disbursement: "Quién puede ejecutar el pago de anticipos y liquidaciones autorizados.",
+  sin_cfdi_exception:
+    "Quién autoriza pasar un viaje Con factura a Sin factura.",
 };
 
 /** Categorías que la condición «categoría» admite por concepto. */

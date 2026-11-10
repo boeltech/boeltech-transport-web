@@ -1,165 +1,140 @@
 /**
- * Control «Factura del viaje» en el header del detalle (ADR-0096 / D3′).
- * Solo lectura: badge en ambos sentidos. Editable: select + confirm al ir a Sin factura.
+ * Factura del viaje: badge de solo lectura y, si el gobierno lo permite,
+ * diálogo con motivo para pasar a Sin factura o regularizar.
  */
-
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { defaultCfdiEmissionIntentFromProfile } from "@boeltech/cfdi-domain/reglas/cfdi-emission-intent";
+import { AlertCircle } from "lucide-react";
 
+import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@shared/ui/dialog";
+import { FieldInlineError, FormValidationSummary } from "@shared/ui/form";
+import { getFieldErrorAriaProps } from "@shared/ui/form/fieldErrorAria";
+import { Label } from "@shared/ui/label";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@shared/ui/alert-dialog";
-import { useToast } from "@shared/hooks";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@shared/ui/sheet";
+import { Textarea } from "@shared/ui/text-area";
+import { formatDateTime } from "@shared/utils/dateUtils";
 
-import { useUpdateTrip } from "@features/trips/application";
-import type { CfdiEmissionIntent, Trip } from "@features/trips/domain";
+import type {
+  CfdiEmissionIntent,
+  Trip,
+  TripSettlementException,
+} from "@features/trips/domain";
 import { cfdiEmissionIntentCopy } from "../copy/cfdiEmissionIntentCopy";
 
 const copy = cfdiEmissionIntentCopy;
+const g = copy.governance;
+
+const reasonSchema = z.object({
+  reason: z.string().trim().min(10, g.reasonMin).max(500, g.reasonMax),
+});
+
+type ReasonForm = z.infer<typeof reasonSchema>;
+type DialogMode = "sin" | "regularize" | "reject" | "cancel" | "approve";
+
+export interface TripLiquidacionGovernance {
+  canOpenSinCfdi: boolean;
+  changeKind: "apply" | "request";
+  canRegularize: boolean;
+  regularizeCashLocked: boolean;
+  openRequest: TripSettlementException | null;
+  canApprove: boolean;
+  canCancel: boolean;
+  approvalsHref: string | null;
+}
+
+export interface TripLiquidacionIntentActions {
+  pending: boolean;
+  error: string | null;
+  onApply: (reason: string) => Promise<boolean>;
+  onRequest: (reason: string) => Promise<boolean>;
+  onRegularize: (reason: string) => Promise<boolean>;
+  onCancel: (reason: string) => Promise<boolean>;
+  onApprove: () => Promise<boolean>;
+  onReject: (reason: string) => Promise<boolean>;
+  clearError: () => void;
+}
 
 interface TripLiquidacionChipProps {
   trip: Trip;
-  canEdit?: boolean;
+  governance?: TripLiquidacionGovernance | null;
+  actions?: TripLiquidacionIntentActions | null;
 }
 
 export function TripLiquidacionChip({
   trip,
-  canEdit = false,
+  governance = null,
+  actions = null,
 }: TripLiquidacionChipProps) {
-  const { toast } = useToast();
-  const updateTrip = useUpdateTrip();
   const intent = trip.cfdiEmissionIntent ?? "emitir_cfdi";
-  const isComercialOnly = trip.client?.cfdiReceptorProfile === "comercial_only";
+  const isSinFactura = intent === "sin_cfdi_efectivo";
+  const [dialog, setDialog] = useState<DialogMode | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const form = useForm<ReasonForm>({
+    resolver: zodResolver(reasonSchema),
+    defaultValues: { reason: "" },
+  });
 
-  const [pendingIntent, setPendingIntent] = useState<CfdiEmissionIntent | null>(
-    null,
-  );
-  const [blockEmitirOpen, setBlockEmitirOpen] = useState(false);
+  function openDialog(mode: DialogMode) {
+    actions?.clearError();
+    form.reset({ reason: "" });
+    setDialog(mode);
+  }
 
-  const persistIntent = useCallback(
-    async (next: CfdiEmissionIntent) => {
-      try {
-        await updateTrip.mutateAsync({
-          id: trip.id,
-          data: { cfdiEmissionIntent: next },
-        });
-        toast({
-          title:
-            next === "sin_cfdi_efectivo"
-              ? copy.chip.sinCfdi
-              : copy.chip.conCfdi,
-          description:
-            next === "sin_cfdi_efectivo" ? copy.complianceNotice : undefined,
-          variant: "success",
-        });
-      } catch (error) {
-        toast({
-          title: "No se pudo actualizar la Factura del viaje",
-          description:
-            error instanceof Error ? error.message : "Intenta de nuevo",
-          variant: "destructive",
-        });
-      }
-    },
-    [toast, trip.id, updateTrip],
-  );
+  async function submitReason(values: ReasonForm) {
+    if (!actions || !dialog || dialog === "approve") return;
+    const reason = values.reason;
+    const ok =
+      dialog === "sin"
+        ? governance?.changeKind === "request"
+          ? await actions.onRequest(reason)
+          : await actions.onApply(reason)
+        : dialog === "regularize"
+          ? await actions.onRegularize(reason)
+          : dialog === "reject"
+            ? await actions.onReject(reason)
+            : await actions.onCancel(reason);
+    if (ok) setDialog(null);
+  }
 
-  const handleChange = useCallback(
-    (next: string) => {
-      if (next !== "emitir_cfdi" && next !== "sin_cfdi_efectivo") return;
-      if (next === intent) return;
-      if (next === "emitir_cfdi" && isComercialOnly) {
-        setBlockEmitirOpen(true);
-        return;
-      }
-      if (next === "sin_cfdi_efectivo" && intent === "emitir_cfdi") {
-        setPendingIntent(next);
-        return;
-      }
-      void persistIntent(next);
-    },
-    [intent, isComercialOnly, persistIntent],
-  );
+  const primaryLabel =
+    dialog === "regularize"
+      ? g.regularizeCta
+      : dialog === "reject"
+        ? g.reject
+        : dialog === "cancel"
+          ? g.cancelRequest
+          : governance?.changeKind === "request"
+            ? g.requestSinCfdi
+            : g.useSinCfdi;
 
-  const dialogs = (
-    <>
-      <AlertDialog
-        open={pendingIntent != null}
-        onOpenChange={(open) => {
-          if (!open) setPendingIntent(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.overrideConfirm.title}</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <span className="block">{copy.overrideConfirm.description}</span>
-              <span className="block text-foreground">
-                {copy.complianceNotice}
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{copy.overrideConfirm.cancel}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingIntent) void persistIntent(pendingIntent);
-                setPendingIntent(null);
-              }}
-            >
-              {copy.overrideConfirm.confirm}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+  const exception = trip.settlementException ?? governance?.openRequest ?? null;
+  const showSinCta =
+    governance?.canOpenSinCfdi === true &&
+    !isSinFactura &&
+    governance.openRequest == null;
 
-      <AlertDialog open={blockEmitirOpen} onOpenChange={setBlockEmitirOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.blockEmitir.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {copy.blockEmitir.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cerrar</AlertDialogCancel>
-            {trip.clientId ? (
-              <Button asChild>
-                <Link
-                  to={`/clients/${trip.clientId}`}
-                  state={{ from: `/trips/${trip.id}` }}
-                  onClick={() => setBlockEmitirOpen(false)}
-                >
-                  {copy.blockEmitir.goToClient}
-                </Link>
-              </Button>
-            ) : null}
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-
-  if (!canEdit) {
-    const isSinFactura = intent === "sin_cfdi_efectivo";
-    return (
+  return (
+    <div className="flex flex-wrap items-center gap-2">
       <Badge
         variant={isSinFactura ? "warning" : "outline"}
         tone="soft"
@@ -167,31 +142,193 @@ export function TripLiquidacionChip({
       >
         {isSinFactura ? copy.chip.sinCfdi : copy.chip.conCfdi}
       </Badge>
-    );
-  }
 
-  return (
-    <>
-      <Select
-        value={intent}
-        onValueChange={handleChange}
-        disabled={updateTrip.isPending}
-      >
-        <SelectTrigger
-          aria-label={copy.field.label}
-          className="h-8 w-[min(100%,11.5rem)] text-xs"
+      {showSinCta ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => openDialog("sin")}
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="emitir_cfdi">{copy.options.emitir_cfdi}</SelectItem>
-          <SelectItem value="sin_cfdi_efectivo">
-            {copy.options.sin_cfdi_efectivo}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      {dialogs}
-    </>
+          {g.changeCta}
+        </Button>
+      ) : null}
+
+      {governance?.openRequest ? (
+        <span className="text-xs text-muted-foreground">{g.pending}</span>
+      ) : null}
+      {governance?.canApprove ? (
+        <>
+          <Button type="button" size="sm" onClick={() => openDialog("approve")}>
+            {g.approve}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => openDialog("reject")}
+          >
+            {g.reject}
+          </Button>
+        </>
+      ) : null}
+      {governance?.openRequest && !governance.canApprove && governance.approvalsHref ? (
+        <Button type="button" variant="link" size="sm" asChild>
+          <Link to={governance.approvalsHref}>{g.approvalsLink}</Link>
+        </Button>
+      ) : null}
+      {governance?.canCancel ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => openDialog("cancel")}
+        >
+          {g.cancelRequest}
+        </Button>
+      ) : null}
+
+      {governance?.canRegularize ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => openDialog("regularize")}
+        >
+          {g.regularizeCta}
+        </Button>
+      ) : null}
+      {governance?.regularizeCashLocked ? (
+        <span className="text-xs text-muted-foreground">{g.cashFreeze}</span>
+      ) : null}
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setHistoryOpen(true)}
+      >
+        {g.history}
+      </Button>
+
+      <Dialog
+        open={dialog != null}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialog === "regularize"
+                ? g.dialogTitleRegularize
+                : dialog === "reject"
+                  ? g.dialogTitleReject
+                  : dialog === "cancel"
+                    ? g.dialogTitleCancel
+                    : dialog === "approve"
+                      ? g.approveTitle
+                      : g.dialogTitleSin}
+            </DialogTitle>
+            <DialogDescription>
+              {dialog === "approve" ? g.approveBody : copy.overrideConfirm.description}
+            </DialogDescription>
+          </DialogHeader>
+          {dialog === "sin" || dialog === "approve" ? (
+            <p className="text-sm text-foreground">{copy.complianceNotice}</p>
+          ) : null}
+          {actions?.error ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{actions.error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {dialog === "approve" ? (
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialog(null)}>
+                {copy.overrideConfirm.cancel}
+              </Button>
+              <Button
+                type="button"
+                disabled={actions?.pending}
+                onClick={() => {
+                  void actions?.onApprove().then((ok) => {
+                    if (ok) setDialog(null);
+                  });
+                }}
+              >
+                {g.approve}
+              </Button>
+            </DialogFooter>
+          ) : (
+            <form
+              onSubmit={form.handleSubmit(submitReason)}
+              className="space-y-3"
+            >
+              {form.formState.submitCount > 0 ? (
+                <FormValidationSummary
+                  messages={Object.values(form.formState.errors)
+                    .map((issue) => issue?.message)
+                    .filter((message): message is string => Boolean(message))}
+                />
+              ) : null}
+              <div className="space-y-1">
+                <Label htmlFor="sin-cfdi-reason">{g.reasonLabel}</Label>
+                <Textarea
+                  id="sin-cfdi-reason"
+                  rows={4}
+                  {...form.register("reason")}
+                  {...getFieldErrorAriaProps(
+                    "sin-cfdi-reason",
+                    form.formState.errors.reason?.message,
+                  )}
+                />
+                <p className="text-xs text-muted-foreground">{g.reasonHint}</p>
+                <FieldInlineError
+                  fieldId="sin-cfdi-reason"
+                  message={form.formState.errors.reason?.message}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setDialog(null)}>
+                  {copy.overrideConfirm.cancel}
+                </Button>
+                <Button type="submit" disabled={actions?.pending}>
+                  {primaryLabel}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{g.historyTitle}</SheetTitle>
+            <SheetDescription>{g.historyEmpty}</SheetDescription>
+          </SheetHeader>
+          {exception ? (
+            <dl className="mt-4 space-y-2 text-sm">
+              <div>
+                <dt className="text-muted-foreground">Estado</dt>
+                <dd>{g.status[exception.status]}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">{g.reasonLabel}</dt>
+                <dd>{exception.reason}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Registrada</dt>
+                <dd>{formatDateTime(exception.createdAt.toISOString())}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">{g.historyEmpty}</p>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 }
 

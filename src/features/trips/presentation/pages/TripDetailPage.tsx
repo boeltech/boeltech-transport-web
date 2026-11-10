@@ -92,11 +92,8 @@ import { TripInvoicingConsole } from "../components/TripInvoicingConsole";
 import { TripMidTripAdjustStrip } from "../components/TripMidTripAdjustStrip";
 import { TripLinkedInvoiceDraftsSheet } from "../components/TripLinkedInvoiceDraftsSheet";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
-import { TripLiquidacionChip } from "../components/TripLiquidacionChip";
-import {
-  canEditTripLiquidacionIntent,
-  tripLiquidacionInvoiceOrCashLockMessage,
-} from "../utils/tripLiquidacionMutability";
+import { TripLiquidacionControl } from "../components/TripLiquidacionControl";
+import { tripLiquidacionInvoiceOrCashLockMessage } from "../utils/tripLiquidacionMutability";
 import {
   resolveTripAccessDeniedCopy,
   resolveTripBackHref,
@@ -1145,10 +1142,6 @@ export function TripDetailPage() {
     trip,
     trip.costs.baseRate,
   );
-  const canEditLiquidacion = canEditTripLiquidacionIntent(trip, {
-    canUpdateTrip,
-    isLeanTripPortal,
-  });
   const liquidacionLockMessage =
     tripLiquidacionInvoiceOrCashLockMessage(trip);
   const tripForMetrics = routeDetail?.trip ?? trip;
@@ -1414,9 +1407,9 @@ export function TripDetailPage() {
               <span className="text-xs text-muted-foreground">
                 {cfdiEmissionIntentCopy.field.label}
               </span>
-              <TripLiquidacionChip
+              <TripLiquidacionControl
                 trip={trip}
-                canEdit={canEditLiquidacion}
+                isLeanTripPortal={isLeanTripPortal}
               />
               {trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
                 <Badge
@@ -1708,6 +1701,9 @@ export function TripDetailPage() {
                   cargos={cargos}
                   operationalOutcome={trip.operationalOutcome}
                   cfdiEmissionIntent={trip.cfdiEmissionIntent}
+                  pendingSinCfdiRequest={
+                    trip.settlementException?.status === "in_progress"
+                  }
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
                   hasActiveSplit={trip.invoicing.hasActiveSplit}
                   requiresFiscalAttention={trip.requiresFiscalAttention}

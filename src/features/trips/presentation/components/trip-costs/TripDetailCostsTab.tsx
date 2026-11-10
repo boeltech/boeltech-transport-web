@@ -360,7 +360,8 @@ export function TripDetailCostsTab({
   const role = useRole();
   const isOperator = role === ROLES.OPERATOR;
   const canViewApprovalsHub = hasPermission("finance_approvals", "read");
-  const canMutateOperationalCash = hasPermission("trips", "update");
+  const canCreateOperationalCash = hasPermission("operational_cash", "create");
+  const canVoidOperationalCash = hasPermission("operational_cash", "void");
   const isSinCfdiEfectivo = cfdiEmissionIntent === "sin_cfdi_efectivo";
   const cashCopy = cfdiEmissionIntentCopy.cash;
   const cashSummary = resolveOperationalCashSummary(
@@ -879,7 +880,7 @@ export function TripDetailCostsTab({
                     {operationalCashStatusLabel(cashSummary.status)}
                   </Badge>
                 </CardTitle>
-                {canMutateOperationalCash ? (
+                {canCreateOperationalCash ? (
                   canRegisterAbono ? (
                     <Button
                       type="button"
@@ -969,7 +970,7 @@ export function TripDetailCostsTab({
                                 </p>
                               ) : null}
                             </div>
-                            {!isVoided && canMutateOperationalCash ? (
+                            {!isVoided && canVoidOperationalCash ? (
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -1214,7 +1215,7 @@ export function TripDetailCostsTab({
         />
       ) : null}
 
-      {isSinCfdiEfectivo && canMutateOperationalCash ? (
+      {isSinCfdiEfectivo && canCreateOperationalCash ? (
         <RegisterOperationalCashSheet
           tripId={tripId}
           open={cashSheetOpen}
@@ -1223,7 +1224,7 @@ export function TripDetailCostsTab({
         />
       ) : null}
 
-      {isSinCfdiEfectivo && canMutateOperationalCash ? (
+      {isSinCfdiEfectivo && canVoidOperationalCash ? (
         <VoidOperationalCashReceiptSheet
           tripId={tripId}
           receipt={voidReceipt}

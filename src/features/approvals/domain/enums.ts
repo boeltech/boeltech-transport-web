@@ -6,6 +6,7 @@ export const APPROVABLE_TYPE_LABELS: Record<ApprovableType, string> = {
   trip_expense: "Gasto de viaje",
   internal_staff_compensation: "Compensación interna",
   driver_advance_request: "Anticipo a operador",
+  sin_cfdi_exception: "Excepción Sin factura",
   fuel_transaction: "Combustible",
   maintenance_order: "Orden de mantenimiento",
   vehicle_doc_renewal: "Renovación documental",
