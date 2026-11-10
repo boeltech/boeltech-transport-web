@@ -6,6 +6,10 @@ import { TooltipProvider } from "@shared/ui/tooltip";
 import { EmployeeFormInner } from "./EmployeeFormInner";
 import { employeesCopy } from "../copy/employeesCopy";
 
+vi.mock("@shared/permissions", async () =>
+  (await import("@/test/mocks/permissions")).permissionsModuleMock(),
+);
+
 vi.mock("../../application/hooks/useEmployees", () => ({
   useCreateEmployee: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateEmployee: () => ({ mutateAsync: vi.fn(), isPending: false }),

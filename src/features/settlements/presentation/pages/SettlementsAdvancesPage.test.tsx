@@ -122,6 +122,16 @@ describe("SettlementsAdvancesPage F3", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("F5 R1: sin settlements.create no muestra Nuevo anticipo", () => {
+    mockPermissions.granted = new Set(["settlements.read"]);
+    renderWithTheme(<SettlementsAdvancesPage />);
+    expect(
+      screen.queryByRole("button", {
+        name: settlementsCopy.actions.createAdvance,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("mantiene un filtro toolbar (operador) sin ListingFilterPanel vacío", () => {
     renderWithTheme(<SettlementsAdvancesPage />);
 

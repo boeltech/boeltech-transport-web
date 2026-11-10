@@ -80,8 +80,10 @@ export function CompensationSchemeBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, role } = usePermissions();
   const canUpdate = hasPermission("settlements", "update");
+  // F5 R3: Activar tarifa solo admin|manager (lockstep API requireAdminOrManager).
+  const canActivateRole = role === "admin" || role === "manager";
 
   const [activeSectionId, setActiveSectionId] = useState<BuilderSectionId>("trips");
   const [formulaResultActive, setFormulaResultActive] = useState(false);
@@ -324,6 +326,7 @@ export function CompensationSchemeBuilderPage() {
 
     const showActivate =
       canUpdate &&
+      canActivateRole &&
       (template?.status === "draft" || template?.status === "inactive");
     const canActivateNow = showActivate && !isDirty && isComplete;
 
@@ -338,6 +341,7 @@ export function CompensationSchemeBuilderPage() {
     actions.push({
       id: "save",
       label: copy.save,
+      // R3: sin Activar (Contador), Guardar es la primaria.
       variant: canActivateNow ? "outline" : "default",
       onClick: () => {
         void onSubmit();
@@ -360,6 +364,7 @@ export function CompensationSchemeBuilderPage() {
     return actions;
   }, [
     activateMutation.isPending,
+    canActivateRole,
     canUpdate,
     createVersionMutation.isPending,
     handleCreateVersion,
@@ -385,7 +390,14 @@ export function CompensationSchemeBuilderPage() {
       </Button>
       <Button
         type="button"
-        variant="outline"
+        variant={
+          canActivateRole &&
+          (template?.status === "draft" || template?.status === "inactive") &&
+          !isDirty &&
+          isComplete
+            ? "outline"
+            : "default"
+        }
         size="sm"
         onClick={() => void onSubmit()}
         disabled={isSaving || !canUpdate}
@@ -394,6 +406,7 @@ export function CompensationSchemeBuilderPage() {
         {copy.save}
       </Button>
       {canUpdate &&
+      canActivateRole &&
       (template?.status === "draft" || template?.status === "inactive") ? (
         <Button
           type="button"
@@ -402,6 +415,7 @@ export function CompensationSchemeBuilderPage() {
           onClick={() => setActivateOpen(true)}
           disabled={isDirty || !isComplete || activateMutation.isPending}
           isLoading={activateMutation.isPending}
+          title={copy.activateDisabledReason}
         >
           {copy.activate}
         </Button>

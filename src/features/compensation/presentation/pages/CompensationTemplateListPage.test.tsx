@@ -82,6 +82,7 @@ vi.mock("@features/employees", async (importOriginal) => {
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
     hasPermission: () => true,
+    role: "admin",
   }),
 }));
 

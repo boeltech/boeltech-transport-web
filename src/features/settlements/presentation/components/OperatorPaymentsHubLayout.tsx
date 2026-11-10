@@ -71,6 +71,7 @@ export function OperatorPaymentsHubLayout() {
   const activeTab = resolveOperatorPaymentsHubTab(pathname);
   const onRegistry = isOperatorPaymentsRegistryPath(pathname);
   const approvalConcept = APPROVAL_CONCEPT_BY_TAB[activeTab];
+  // F5 R1: Hub legacy no soporta disabled+motivo → ocultar (Workbench sí lo muestra).
   const porPagarCreate =
     activeTab === "por-pagar" && !onRegistry && canCreate
       ? {

@@ -220,6 +220,9 @@ export const compensationCopy = {
     discard: "Descartar",
     save: "Guardar",
     activate: "Activar tarifa",
+    /** F5 R3 — Contador guarda; Activar solo Admin/Gerente (Roles.dc.html). */
+    activateDisabledReason:
+      "Activar cambia cuánto se le paga a la gente: lo decide quien autoriza (Administrador o Gerente).",
     notFoundTitle: "Tarifa no encontrada",
     notFoundDescription: "La tarifa no existe o no tienes acceso.",
     loadingLabel: "Cargando tarifa…",

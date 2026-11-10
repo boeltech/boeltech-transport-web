@@ -75,6 +75,7 @@ vi.mock("@features/branches", () => ({
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
     hasPermission: (...args: unknown[]) => mockHasPermission(...args),
+    role: "admin",
   }),
 }));
 

@@ -122,6 +122,7 @@ export function SettlementsAdvancesPage() {
         title={advancesCopy.title}
         description={advancesCopy.description}
         primaryAction={
+          // F5 R1: ocultar (POST /advances exige settlements.create). Motivo visible en Workbench Pagos.
           canCreate
             ? {
                 label: copy.actions.createAdvance,

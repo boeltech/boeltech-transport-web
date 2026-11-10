@@ -621,7 +621,7 @@ describe("AdvanceActions", () => {
     await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
     expect(screen.queryByText("Registrar entrega / pago")).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /Enviada por ti/i })).toHaveTextContent(
-      /Debe registrar el pago otra persona/i,
+      /Quien arma un pago no lo registra/i,
     );
   });
 

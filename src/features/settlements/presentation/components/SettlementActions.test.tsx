@@ -179,6 +179,25 @@ describe("SettlementActions", () => {
     expect(screen.queryByText("Enviar a autorización")).not.toBeInTheDocument();
   });
 
+  it("F5 R2: not_eligible (Contador fuera de system_default) no muestra Autorizar y deja motivo", () => {
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        settlement={{
+          ...sampleSettlement,
+          approval: makeApproval({
+            canAct: false,
+            cannotActReason: "not_eligible",
+            pendingFor: { roles: ["manager"], users: [] },
+          }),
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /^Autorizar$/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/Espera a/i)).toBeInTheDocument();
+  });
+
   it("ADR-0098 blocked_own: el solicitante ve «Enviada por ti» deshabilitado en el menú", async () => {
     setMockAuthUser({ id: "user-creator-123" });
     const user = userEvent.setup();

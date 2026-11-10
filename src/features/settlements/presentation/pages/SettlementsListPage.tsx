@@ -91,6 +91,7 @@ export function SettlementsListPage() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("settlements", "create");
+  const canReadSettlements = hasPermission("settlements", "read");
   const canReadApprovalPolicies = hasPermission("approval_policies", "read");
   const defaultsAppliedRef = useRef(false);
 
@@ -473,13 +474,18 @@ export function SettlementsListPage() {
         description={hubCopy.description}
         showHeader
         primaryAction={
-          canCreate
+          canReadSettlements
             ? {
                 label: hubCopy.createCut,
                 onClick: () =>
                   navigate(settlementCreatePath(), { state: fromState }),
                 icon: <Plus className="mr-2 h-4 w-4" />,
                 dataHelpAnchor: "stl-liquidar-periodo",
+                // F5 R1: Gerente ve CTA + motivo; Contador/Admin arman.
+                disabled: !canCreate,
+                disabledTitle: !canCreate
+                  ? hubCopy.createCutDisabledReason
+                  : undefined,
               }
             : undefined
         }
