@@ -283,6 +283,55 @@ describe("Settlements Infrastructure Mappers", () => {
     expect(mapped.approverCountAtApprove).toBeNull();
     expect(mapped.selfSegregatedDisbursement).toBe(false);
     expect(mapped.executorCountAtDisburse).toBeNull();
+    expect(mapped.templateSnapshot).toBeNull();
+  });
+
+  it("mapea template_snapshot a nombre+versión (C19)", () => {
+    const raw: ApiDriverSettlementRaw = {
+      id: "st-tpl",
+      tenant_id: "tenant-1",
+      settlement_number: "LIQ-202611-0001",
+      employee_id: "emp-1",
+      employee_full_name: "Adriana",
+      agreement_snapshot: { currency: "MXN", calculation_type: "per_km" },
+      template_snapshot: {
+        template_id: "tpl-1",
+        template_name: "Operador Foráneo Estándar",
+        version: 2,
+        family_id: "tpl-1",
+      },
+      period_start: "2026-11-02",
+      period_end: "2026-11-08",
+      status: "pending_approval",
+      total_trips_commission: 1000,
+      total_base_salary: 0,
+      total_reimbursable_expenses: 0,
+      total_bonuses: 0,
+      total_advances_deducted: 0,
+      total_other_deductions: 0,
+      gross_amount: 1000,
+      net_amount: 1000,
+      currency: "MXN",
+      disbursed_at: null,
+      disbursed_by: null,
+      disbursement_method: null,
+      disbursement_reference: null,
+      approved_at: null,
+      approved_by: null,
+      rejection_reason: null,
+      notes: null,
+      created_at: "2026-11-08T00:00:00Z",
+      updated_at: "2026-11-08T00:00:00Z",
+    };
+
+    const mapped = mapSettlement(raw);
+    expect(mapped.templateSnapshot).toEqual({
+      templateId: "tpl-1",
+      templateName: "Operador Foráneo Estándar",
+      version: 2,
+      familyId: "tpl-1",
+      assignmentId: null,
+    });
   });
 
   it("mapea evidencia D3′ self-segregated en liquidación", () => {

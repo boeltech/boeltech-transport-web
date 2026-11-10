@@ -38,32 +38,76 @@ function monthLabel(isoDate: string): string {
   return MONTH_SHORT_ES[month - 1] ?? "";
 }
 
+function periodKey(row: Pick<SettlementBacklogRow, "periodStart" | "periodEnd">): string {
+  return `${row.periodStart}|${row.periodEnd}`;
+}
+
 /**
  * Deriva el aviso de periodo cerrado desde backlog + summary KPIs.
- * Visible cuando hay operadores por armar (`pending` / `to_arm` > 0).
+ * El título solo cuenta operadores del periodo anunciado (D4 / C7).
  */
 export function resolveClosedPeriodBanner(
   summary: SettlementWorkbenchSummary,
   backlog: readonly SettlementBacklogRow[],
 ): ClosedPeriodBannerModel | null {
-  const count = summary.kpis?.toArm.count ?? summary.pending;
-  if (count <= 0 || backlog.length === 0) return null;
+  const kpiCount = summary.kpis?.toArm.count ?? summary.pending;
+  if (kpiCount <= 0 || backlog.length === 0) return null;
 
   const first = backlog[0]!;
-  const periodStart = first.periodStart;
-  const periodEnd = first.periodEnd;
-  const week = isoWeekNumber(periodEnd || periodStart);
-  const estimatedAmount =
-    summary.kpis?.toArm.amount ??
-    backlog.reduce((sum, row) => sum + (row.estimatedNetAmount ?? 0), 0);
-  const warningsCount = backlog.filter((row) => row.warnings.length > 0).length;
+  const announcedStart = first.periodStart;
+  const announcedEnd = first.periodEnd;
+  const announcedKey = periodKey(first);
+
+  const samePeriod = backlog.filter((row) => periodKey(row) === announcedKey);
+  const otherPeriodCount = backlog.length - samePeriod.length;
+
+  const homogeneous =
+    samePeriod.length > 0 &&
+    Boolean(announcedStart) &&
+    Boolean(announcedEnd);
+
+  const operatorCount = samePeriod.length;
+  const estimatedAmount = samePeriod.reduce(
+    (sum, row) => sum + (row.estimatedNetAmount ?? 0),
+    0,
+  );
+  const warningsCount = samePeriod.filter((row) => row.warnings.length > 0)
+    .length;
+
+  if (!homogeneous) {
+    return {
+      monthLabel: monthLabel(announcedStart || announcedEnd),
+      dayRange: announcedStart && announcedEnd
+        ? `${dayOfMonth(announcedStart)}–${dayOfMonth(announcedEnd)}`
+        : "—",
+      weekLabel: "",
+      operatorCount: backlog.length,
+      estimatedAmount:
+        summary.kpis?.toArm.amount ??
+        backlog.reduce((sum, row) => sum + (row.estimatedNetAmount ?? 0), 0),
+      warningsCount: backlog.filter((row) => row.warnings.length > 0).length,
+      otherPeriodsCount: 0,
+      periodStart: announcedStart,
+      periodEnd: announcedEnd,
+      namedWeek: false,
+    };
+  }
+
+  const week = isoWeekNumber(announcedEnd || announcedStart);
 
   return {
-    monthLabel: monthLabel(periodStart),
-    dayRange: `${dayOfMonth(periodStart)}–${dayOfMonth(periodEnd)}`,
+    monthLabel: monthLabel(announcedStart),
+    dayRange: `${dayOfMonth(announcedStart)}–${dayOfMonth(announcedEnd)}`,
     weekLabel: String(week),
-    operatorCount: count,
-    estimatedAmount,
+    operatorCount,
+    estimatedAmount:
+      otherPeriodCount === 0 && summary.kpis?.toArm.amount != null
+        ? summary.kpis.toArm.amount
+        : estimatedAmount,
     warningsCount,
+    otherPeriodsCount: otherPeriodCount,
+    periodStart: announcedStart,
+    periodEnd: announcedEnd,
+    namedWeek: true,
   };
 }

@@ -113,9 +113,18 @@ export function SettlementDetailInspector({
           <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
             <dt className="text-muted-foreground">{copy.tariff}</dt>
             <dd>
-              {snap.calculationType
-                ? String(snap.calculationType)
-                : settlementsCopy.detailPage.fallbacks.noAgreement}
+              {(() => {
+                const tpl = settlement.templateSnapshot;
+                if (tpl?.templateName) {
+                  return tpl.version != null
+                    ? settlementsCopy.operatorsList.tariffVersion(
+                        tpl.templateName,
+                        tpl.version,
+                      )
+                    : tpl.templateName;
+                }
+                return settlementsCopy.detailPage.fallbacks.noAgreement;
+              })()}
             </dd>
             <dt className="text-muted-foreground">{copy.rhythm}</dt>
             <dd>{rhythm}</dd>

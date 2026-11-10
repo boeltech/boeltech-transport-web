@@ -15,10 +15,13 @@ import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
-import { FieldInlineError, RHFDateTimeField } from "@shared/ui/form";
+import { FieldInlineError, RHFDateField } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
+import {
+  getTodayString,
+  localInputToUtcIso,
+} from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { roundCents } from "../../domain/settlementTotals";
 import type { DriverSettlement } from "../../domain/entities";
@@ -39,8 +42,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-function defaultDisbursedAtLocal(): string {
-  return utcIsoToLocalInput(new Date().toISOString());
+/** Fecha calendario local → ISO con offset (hora local actual del día). */
+function localDateToDisbursedAtIso(dateYmd: string): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return localInputToUtcIso(`${dateYmd}T${hh}:${mm}`);
 }
 
 function uniqueNames(
@@ -62,12 +69,42 @@ function formatCashNames(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
 }
 
+function sessionParticipatedInActors(
+  settlements: readonly DriverSettlement[],
+  userId: string | null | undefined,
+): boolean {
+  if (!userId) return false;
+  return settlements.some(
+    (s) =>
+      s.createdBy === userId ||
+      s.submittedBy === userId ||
+      s.approvedBy === userId,
+  );
+}
+
+export type BatchRegisterActorAlertKind = "separation_ok" | "sole_responsible" | "none";
+
+export function resolveBatchRegisterActorAlertKind(input: {
+  settlements: readonly DriverSettlement[];
+  userId: string | null | undefined;
+  armers: string;
+  approvers: string;
+}): BatchRegisterActorAlertKind {
+  if (!input.armers || !input.approvers) return "none";
+  if (sessionParticipatedInActors(input.settlements, input.userId)) {
+    return "sole_responsible";
+  }
+  return "separation_ok";
+}
+
 interface SettlementBatchRegisterSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   settlements: readonly DriverSettlement[];
   /** employeeId → hasClabe (HB-T5: solo boolean). */
   hasClabeByEmployeeId: ReadonlyMap<string, boolean>;
+  /** Sesión actual para copy R5 (C23). */
+  currentUserId?: string | null;
   onSuccess?: () => void;
 }
 
@@ -80,6 +117,7 @@ export function SettlementBatchRegisterSheet({
   onOpenChange,
   settlements,
   hasClabeByEmployeeId,
+  currentUserId = null,
   onSuccess,
 }: SettlementBatchRegisterSheetProps) {
   const { toast } = useToast();
@@ -95,7 +133,7 @@ export function SettlementBatchRegisterSheet({
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      disbursedAt: defaultDisbursedAtLocal(),
+      disbursedAt: getTodayString(),
       disbursementReference: "",
       sourceAccount: "",
     },
@@ -105,7 +143,7 @@ export function SettlementBatchRegisterSheet({
     if (!open) return;
     setApiError(null);
     reset({
-      disbursedAt: defaultDisbursedAtLocal(),
+      disbursedAt: getTodayString(),
       disbursementReference: "",
       sourceAccount: "",
     });
@@ -138,7 +176,16 @@ export function SettlementBatchRegisterSheet({
     () => uniqueNames(settlements, (s) => s.approvedByName),
     [settlements],
   );
-  const showActorAlert = Boolean(armers && approvers);
+  const actorAlertKind = useMemo(
+    () =>
+      resolveBatchRegisterActorAlertKind({
+        settlements,
+        userId: currentUserId,
+        armers,
+        approvers,
+      }),
+    [approvers, armers, currentUserId, settlements],
+  );
 
   const isPending = isSubmitting || mutation.isPending;
   const count = settlements.length;
@@ -161,7 +208,7 @@ export function SettlementBatchRegisterSheet({
       const result = await mutation.mutateAsync({
         settlementIds: settlements.map((s) => s.id),
         disbursementReference: data.disbursementReference.trim(),
-        disbursedAt: localInputToUtcIso(data.disbursedAt),
+        disbursedAt: localDateToDisbursedAtIso(data.disbursedAt),
         notes,
         // Sin disbursementMethod → API deriva SPEI/cash por hasClabe.
         expectedRevisions,
@@ -210,7 +257,7 @@ export function SettlementBatchRegisterSheet({
           noValidate
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <RHFDateTimeField
+            <RHFDateField
               control={control}
               name="disbursedAt"
               label={copy.disbursedAtLabel}
@@ -299,12 +346,18 @@ export function SettlementBatchRegisterSheet({
 
           {/* F8: casilla Banamex oculta hasta Q1 / SETTLEMENT_BANAMEX_DISPERSION_ENABLED */}
 
-          {showActorAlert ? (
+          {actorAlertKind === "separation_ok" ? (
             <Alert data-testid="batch-register-actor-alert">
               <AlertTitle>{copy.canRegisterAlertTitle}</AlertTitle>
               <AlertDescription>
                 {copy.canRegisterAlertBody(armers, approvers)}
               </AlertDescription>
+            </Alert>
+          ) : null}
+          {actorAlertKind === "sole_responsible" ? (
+            <Alert data-testid="batch-register-actor-alert">
+              <AlertTitle>{copy.soleResponsibleAlertTitle}</AlertTitle>
+              <AlertDescription>{copy.soleResponsibleAlertBody}</AlertDescription>
             </Alert>
           ) : null}
 

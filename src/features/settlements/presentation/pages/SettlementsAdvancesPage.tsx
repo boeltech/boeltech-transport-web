@@ -17,7 +17,6 @@ import {
 } from "../../application/hooks";
 import type { AdvanceStatus } from "../../domain/enums";
 import type { DriverAdvance } from "../../domain/entities";
-import { roundCents } from "../../domain/settlementTotals";
 import {
   AdvancePeriodDeductionSheet,
   DriverAdvancesTable,
@@ -138,13 +137,15 @@ export function SettlementsAdvancesPage() {
     );
   }, [advancesList, filters.search]);
 
-  const estimatedByEmployee = useMemo(() => {
+  /**
+   * C25: capacidad deductiva del próximo pago.
+   * El backlog solo expone `estimatedNetAmount` (neto), no bruto/`max_advance_deductible`.
+   * Sin campo de capacidad → no inventar; el aviso de exceso no se muestra (escala TEC).
+   */
+  const capacityByEmployee = useMemo(() => {
     const map = new Map<string, number>();
-    for (const row of workbenchData?.backlog ?? []) {
-      if (row.estimatedNetAmount != null) {
-        map.set(row.employeeId, row.estimatedNetAmount);
-      }
-    }
+    // Campo canónico pendiente en backlog (TEC). No usar estimatedNetAmount como capacidad.
+    void workbenchData?.backlog;
     return map;
   }, [workbenchData?.backlog]);
 
@@ -152,11 +153,11 @@ export function SettlementsAdvancesPage() {
     return filteredAdvances.filter((a) => {
       if (!OPEN_STATUSES.includes(a.status as AdvanceStatus)) return false;
       const balance = a.availableBalance ?? a.balanceRemaining;
-      const estimated = estimatedByEmployee.get(a.employeeId);
-      if (estimated == null) return false;
-      return balance > estimated;
+      const capacity = capacityByEmployee.get(a.employeeId);
+      if (capacity == null) return false;
+      return balance > capacity;
     });
-  }, [estimatedByEmployee, filteredAdvances]);
+  }, [capacityByEmployee, filteredAdvances]);
 
   const pipelineBuckets = useMemo(() => {
     const openCount =
@@ -246,7 +247,7 @@ export function SettlementsAdvancesPage() {
       : undefined;
 
   const repartirCapacity = repartirAdvance
-    ? (estimatedByEmployee.get(repartirAdvance.employeeId) ?? null)
+    ? (capacityByEmployee.get(repartirAdvance.employeeId) ?? null)
     : null;
 
   const isEmpty =
@@ -295,12 +296,12 @@ export function SettlementsAdvancesPage() {
                       const bal =
                         exceedsAdvances[0].availableBalance ??
                         exceedsAdvances[0].balanceRemaining;
-                      const est =
-                        estimatedByEmployee.get(exceedsAdvances[0].employeeId) ??
+                      const capacity =
+                        capacityByEmployee.get(exceedsAdvances[0].employeeId) ??
                         0;
                       return advancesCopy.exceedsPaymentAlert.description(
-                        formatMxCurrency(est),
-                        formatMxCurrency(roundCents(Math.max(0, est - bal))),
+                        formatMxCurrency(capacity),
+                        formatMxCurrency(bal),
                       );
                     })()}
                   </span>
@@ -436,7 +437,7 @@ export function SettlementsAdvancesPage() {
                   ? (advance) => setRepartirAdvance(advance)
                   : undefined
               }
-              estimatedByEmployee={estimatedByEmployee}
+              estimatedByEmployee={capacityByEmployee}
             />
           );
         }}

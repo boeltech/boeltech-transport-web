@@ -1,12 +1,20 @@
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { SettlementCutPreviewRow } from "../../domain/settlementCut";
 import {
   cutEffectAllowsNetDisplay,
+  primaryCutWarningMessage,
   resolveCutRowWarningUi,
   type SettlementCutRowAction,
 } from "../utils/settlementCutWarnings";
+import { employmentTypeLabel } from "../utils/employmentTypeLabel";
 import { settlementsCopy } from "../copy/settlementsCopy";
 
 const copy = settlementsCopy.cutWizard.review;
@@ -58,6 +66,14 @@ function RowAmount({ row }: { row: SettlementCutPreviewRow }) {
   );
 }
 
+function RowSubtitle({ row }: { row: SettlementCutPreviewRow }) {
+  if (row.tripIds.length > 0) {
+    return <>{copy.tripsSubtitle(row.tripIds.length)}</>;
+  }
+  const humanType = employmentTypeLabel(row.employmentType);
+  return <>{humanType || "—"}</>;
+}
+
 function CutRow({
   row,
   onAction,
@@ -69,6 +85,7 @@ function CutRow({
   const action = ui?.action ?? (row.effect === "includable" ? "view" : null);
   const label = actionLabel(action);
   const muted = row.effect === "excluded";
+  const longMessage = primaryCutWarningMessage(row);
 
   return (
     <tr
@@ -88,17 +105,24 @@ function CutRow({
             {row.employeeFullName}
           </span>
           <span className="text-[11px] text-muted-foreground">
-            {row.tripIds.length > 0
-              ? copy.tripsSubtitle(row.tripIds.length)
-              : row.employmentType}
+            <RowSubtitle row={row} />
           </span>
         </div>
       </td>
       <td className="px-2.5 py-2.5 align-middle">
         {ui ? (
-          <Badge variant={ui.badgeVariant} tone="soft">
-            {row.warnings[0]?.message ?? ui.label}
-          </Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant={ui.badgeVariant} tone="soft" className="max-w-full">
+                {ui.label}
+              </Badge>
+            </TooltipTrigger>
+            {longMessage ? (
+              <TooltipContent className="max-w-xs text-left">
+                {longMessage}
+              </TooltipContent>
+            ) : null}
+          </Tooltip>
         ) : (
           <span className="text-muted-foreground">{copy.noWarning}</span>
         )}
@@ -153,82 +177,84 @@ export function SettlementCutReviewTable({
       : 0;
 
   return (
-    <div className="overflow-x-auto" data-testid="cut-review-table">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr>
-            <th className="border-b px-2.5 pb-1.5 text-left text-xs font-medium text-muted-foreground">
-              {copy.columns.operator}
-            </th>
-            <th className="border-b px-2.5 pb-1.5 text-left text-xs font-medium text-muted-foreground">
-              {copy.columns.warning}
-            </th>
-            <th className="border-b px-2.5 pb-1.5 text-right text-xs font-medium text-muted-foreground">
-              {copy.columns.amount}
-            </th>
-            <th className="border-b px-2.5 pb-1.5" />
-          </tr>
-        </thead>
-        <tbody>
-          {showWithWarning && withWarning.length > 0 ? (
-            <>
-              <tr className="bg-muted">
-                <td
-                  colSpan={4}
-                  className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground"
-                >
-                  {copy.groupWithWarning(withWarning.length)}
-                </td>
-              </tr>
-              {withWarning.map((row) => (
-                <CutRow key={row.employeeId} row={row} onAction={onAction} />
-              ))}
-            </>
-          ) : null}
+    <TooltipProvider delayDuration={200}>
+      <div className="overflow-x-auto" data-testid="cut-review-table">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="border-b px-2.5 pb-1.5 text-left text-xs font-medium text-muted-foreground">
+                {copy.columns.operator}
+              </th>
+              <th className="border-b px-2.5 pb-1.5 text-left text-xs font-medium text-muted-foreground">
+                {copy.columns.warning}
+              </th>
+              <th className="border-b px-2.5 pb-1.5 text-right text-xs font-medium text-muted-foreground">
+                {copy.columns.amount}
+              </th>
+              <th className="border-b px-2.5 pb-1.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {showWithWarning && withWarning.length > 0 ? (
+              <>
+                <tr className="bg-muted">
+                  <td
+                    colSpan={4}
+                    className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground"
+                  >
+                    {copy.groupWithWarning(withWarning.length)}
+                  </td>
+                </tr>
+                {withWarning.map((row) => (
+                  <CutRow key={row.employeeId} row={row} onAction={onAction} />
+                ))}
+              </>
+            ) : null}
 
-          {showReady && ready.length > 0 ? (
-            <>
-              <tr className="bg-muted">
-                <td
-                  colSpan={4}
-                  className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground"
-                >
-                  {copy.groupReady(ready.length)}
-                </td>
-              </tr>
-              {readyVisible.map((row) => (
-                <CutRow key={row.employeeId} row={row} onAction={onAction} />
-              ))}
-              {hiddenReady > 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-2.5 py-3 text-center">
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-                      onClick={onToggleReady}
-                    >
-                      {copy.expandReady(hiddenReady)}
-                    </button>
+            {showReady && ready.length > 0 ? (
+              <>
+                <tr className="bg-muted">
+                  <td
+                    colSpan={4}
+                    className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground"
+                  >
+                    {copy.groupReady(ready.length)}
                   </td>
                 </tr>
-              ) : null}
-              {filter === "all" && readyExpanded && ready.length > READY_PREVIEW ? (
-                <tr>
-                  <td colSpan={4} className="px-2.5 py-3 text-center">
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-                      onClick={onToggleReady}
-                    >
-                      {copy.collapseReady}
-                    </button>
-                  </td>
-                </tr>
-              ) : null}
-            </>
-          ) : null}
-        </tbody>
-      </table>
-    </div>
+                {readyVisible.map((row) => (
+                  <CutRow key={row.employeeId} row={row} onAction={onAction} />
+                ))}
+                {hiddenReady > 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-2.5 py-3 text-center">
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                        onClick={onToggleReady}
+                      >
+                        {copy.expandReady(hiddenReady)}
+                      </button>
+                    </td>
+                  </tr>
+                ) : null}
+                {filter === "all" && readyExpanded && ready.length > READY_PREVIEW ? (
+                  <tr>
+                    <td colSpan={4} className="px-2.5 py-3 text-center">
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                        onClick={onToggleReady}
+                      >
+                        {copy.collapseReady}
+                      </button>
+                    </td>
+                  </tr>
+                ) : null}
+              </>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </TooltipProvider>
   );
 }

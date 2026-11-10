@@ -40,13 +40,18 @@ import { useSettlementDetail } from "../../application/hooks";
 import { useSubmitSettlement } from "../../application/hooks/useSettlements";
 import { settlementCreatePath, settlementDetailPath } from "../../application/settlementsRoutes";
 import { useAuth } from "@features/auth";
-import { showsSelfApprovedBadge } from "@features/approvals/domain";
+import {
+  resolveApprovalActionUi,
+  showsSelfApprovedBadge,
+} from "@features/approvals/domain";
+import { useSelfApprovalPolicy } from "@features/approvals/application";
 import {
   ApprovalFlowLines,
   ApprovalHistorySheet,
   ReturnedAlert,
   SelfApprovedBadge,
 } from "@features/approvals/presentation/components";
+import { Alert, AlertDescription } from "@shared/ui/alert";
 import {
   useCompanyLogoObjectUrl,
   useCompanySettings,
@@ -119,6 +124,7 @@ export function SettlementDetailPage() {
   const { data: settlement, isLoading, refetch } = useSettlementDetail(id);
 
   const { user } = useAuth();
+  const { data: selfApprovalPolicy } = useSelfApprovalPolicy();
   const { data: companySettings } = useCompanySettings();
   // Estable durante la sesión: solo se usa si el API no expone `updatedAt`.
   const [logoFallbackVersion] = useState(() => Date.now());
@@ -277,6 +283,20 @@ export function SettlementDetailPage() {
   const expandItemsByDefault =
     settlement?.status === "draft" || settlement?.status === "rejected";
   const isDisbursed = settlement?.status === "disbursed";
+
+  const selfApproveUi =
+    settlement && settlement.status === "pending_approval" && canUpdate
+      ? resolveApprovalActionUi(settlement.approval, {
+          isOwn: isSettlementMaker(settlement, user?.id),
+          selfPolicy: selfApprovalPolicy?.settlementApprove,
+          canDecide: canUpdate,
+          isPending: true,
+          userId: user?.id,
+        })
+      : null;
+  const showSelfConfirmNotice =
+    selfApproveUi?.kind === "act" && selfApproveUi.selfConfirm;
+  const showOwnBlockedNotice = selfApproveUi?.kind === "own_blocked";
 
   return (
     <>
@@ -468,6 +488,119 @@ export function SettlementDetailPage() {
               </div>
             ) : null}
 
+            {/* C28: aviso R5 before Autorizar (above-the-fold). */}
+            {showSelfConfirmNotice ? (
+              <Alert data-testid="settlement-self-confirm-notice">
+                <AlertDescription>{dCopy.selfConfirmNotice}</AlertDescription>
+              </Alert>
+            ) : null}
+            {showOwnBlockedNotice ? (
+              <Alert data-testid="settlement-own-blocked-notice">
+                <AlertDescription>{dCopy.ownBlockedNotice}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {/* C21: progreso Elaboró / Autorizó / Pagó arriba de la fórmula */}
+            <Card data-testid="settlement-workflow-progress">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">{dCopy.workflow.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-0">
+                <ol className="relative space-y-3 border-l border-border ml-1.5 pl-4 sm:flex sm:space-y-0 sm:border-l-0 sm:gap-6 sm:pl-0">
+                  <li className="relative sm:flex-1">
+                    <span
+                      className={cn(
+                        "absolute -left-[21px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-card sm:static sm:mb-1",
+                        "border-success text-success",
+                      )}
+                    >
+                      <Check className="h-2.5 w-2.5" />
+                    </span>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {dCopy.workflow.step1}
+                    </p>
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {settlement.submittedByName ?? settlement.createdByName ?? "—"}
+                    </p>
+                  </li>
+                  <li className="relative sm:flex-1">
+                    <span
+                      className={cn(
+                        "absolute -left-[21px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-card sm:static sm:mb-1",
+                        settlement.approvedByName
+                          ? "border-success text-success"
+                          : settlement.status === "rejected"
+                            ? "border-destructive text-destructive"
+                            : "border-muted-foreground/40 text-muted-foreground",
+                      )}
+                    >
+                      {settlement.approvedByName ? (
+                        <Check className="h-2.5 w-2.5" />
+                      ) : settlement.status === "rejected" ? (
+                        <X className="h-2.5 w-2.5" />
+                      ) : null}
+                    </span>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {dCopy.workflow.step2}
+                    </p>
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {settlement.approvedByName ??
+                        (settlement.status === "rejected"
+                          ? dCopy.rejection.title
+                          : dCopy.workflow.notApproved)}
+                    </p>
+                    {showsSelfApprovedBadge({
+                      kind: "settlement",
+                      status: settlement.status,
+                      selfSegregatedApproval: settlement.selfSegregatedApproval,
+                    }) ? (
+                      <>
+                        <div className="mt-1">
+                          <SelfApprovedBadge />
+                        </div>
+                        <p className="mt-0.5 text-xs italic text-muted-foreground">
+                          {settlement.approverCountAtApprove != null
+                            ? dCopy.workflow.selfSegregatedApprovalCount(
+                                settlement.approverCountAtApprove,
+                              )
+                            : dCopy.workflow.selfSegregatedApproval}
+                        </p>
+                      </>
+                    ) : null}
+                  </li>
+                  <li className="relative sm:flex-1">
+                    <span
+                      className={cn(
+                        "absolute -left-[21px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-card sm:static sm:mb-1",
+                        settlement.disbursedByName
+                          ? "border-success text-success"
+                          : "border-muted-foreground/40 text-muted-foreground",
+                      )}
+                    >
+                      {settlement.disbursedByName ? <Check className="h-2.5 w-2.5" /> : null}
+                    </span>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {dCopy.workflow.step3}
+                    </p>
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {isDisbursed
+                        ? (settlement.disbursedByName ?? "—")
+                        : dCopy.workflow.notDisbursed}
+                    </p>
+                    {isDisbursed && settlement.selfSegregatedDisbursement ? (
+                      <p className="mt-0.5 text-xs italic text-muted-foreground">
+                        {settlement.executorCountAtDisburse != null
+                          ? dCopy.workflow.selfSegregatedDisbursementCount(
+                              settlement.executorCountAtDisburse,
+                            )
+                          : dCopy.workflow.selfSegregatedDisbursement}
+                      </p>
+                    ) : null}
+                  </li>
+                </ol>
+              </CardContent>
+            </Card>
+
             {/* F4: fórmula 5 términos above-the-fold (CA F4.7) */}
             <SettlementPaymentFormula settlement={settlement} />
 
@@ -528,159 +661,26 @@ export function SettlementDetailPage() {
               <div className="lg:col-span-4 space-y-4">
                 <SettlementDetailInspector settlement={settlement} />
 
-                {/* D5 / CA F4.10: progreso Elaboró / Autorizó / Pagó */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">{dCopy.workflow.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-0">
-                    <ol className="relative space-y-3 border-l border-border ml-1.5 pl-4">
-                      <li className="relative">
-                        <span
-                          className={cn(
-                            "absolute -left-[21px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-card",
-                            "border-success text-success",
-                          )}
-                        >
-                          <Check className="h-2.5 w-2.5" />
-                        </span>
-                        <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          {dCopy.workflow.step1}
-                        </p>
-                        <p className="text-xs font-semibold text-foreground truncate">
-                          {settlement.submittedByName ?? settlement.createdByName ?? "—"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {settlement.submittedAt || settlement.createdAt
-                            ? formatDate(settlement.submittedAt || settlement.createdAt)
-                            : "—"}
-                        </p>
-                      </li>
-
-                      <li className="relative">
-                        <span
-                          className={cn(
-                            "absolute -left-[21px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-card",
-                            settlement.approvedByName
-                              ? "border-success text-success"
-                              : settlement.status === "rejected"
-                                ? "border-destructive text-destructive"
-                                : "border-muted-foreground/40 text-muted-foreground",
-                          )}
-                        >
-                          {settlement.approvedByName ? (
-                            <Check className="h-2.5 w-2.5" />
-                          ) : settlement.status === "rejected" ? (
-                            <X className="h-2.5 w-2.5" />
-                          ) : null}
-                        </span>
-                        <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          {dCopy.workflow.step2}
-                        </p>
-                        <p className="text-xs font-semibold text-foreground truncate">
-                          {settlement.approvedByName ??
-                            (settlement.status === "rejected"
-                              ? dCopy.rejection.title
-                              : dCopy.workflow.pendingManagement)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {settlement.approvedAt
-                            ? formatDate(settlement.approvedAt)
-                            : dCopy.workflow.notApproved}
-                        </p>
-                        {showsSelfApprovedBadge({
-                          kind: "settlement",
-                          status: settlement.status,
-                          selfSegregatedApproval: settlement.selfSegregatedApproval,
-                        }) ? (
-                          <>
-                            <div className="mt-1">
-                              <SelfApprovedBadge />
-                            </div>
-                            <p className="text-xs text-muted-foreground italic mt-0.5">
-                              {settlement.approverCountAtApprove != null
-                                ? dCopy.workflow.selfSegregatedApprovalCount(
-                                    settlement.approverCountAtApprove,
-                                  )
-                                : dCopy.workflow.selfSegregatedApproval}
-                            </p>
-                          </>
-                        ) : null}
-                      </li>
-
-                      <li className="relative">
-                        <span
-                          className={cn(
-                            "absolute -left-[21px] top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-card",
-                            settlement.disbursedByName
-                              ? "border-success text-success"
-                              : "border-muted-foreground/40 text-muted-foreground",
-                          )}
-                        >
-                          {settlement.disbursedByName ? <Check className="h-2.5 w-2.5" /> : null}
-                        </span>
-                        <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          {dCopy.workflow.step3}
-                        </p>
-                        {isDisbursed ? (
-                          <div className="mt-0.5 space-y-1 text-xs">
-                            <p className="font-semibold text-foreground truncate">
-                              {settlement.disbursedByName ?? "—"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {settlement.disbursedAt ? formatDate(settlement.disbursedAt) : "—"}
-                              {" · "}
-                              {settlement.disbursementMethod
-                                ? (DISBURSEMENT_METHOD_LABELS[settlement.disbursementMethod] ??
-                                  settlement.disbursementMethod)
-                                : dCopy.fallbacks.speiMethod}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {dCopy.paymentInfo.reference}:{" "}
-                              <span className="font-mono text-foreground">
-                                {settlement.disbursementReference ?? "—"}
-                              </span>
-                            </p>
-                            {settlement.selfSegregatedDisbursement ? (
-                              <p className="text-xs text-muted-foreground italic">
-                                {settlement.executorCountAtDisburse != null
-                                  ? dCopy.workflow.selfSegregatedDisbursementCount(
-                                      settlement.executorCountAtDisburse,
-                                    )
-                                  : dCopy.workflow.selfSegregatedDisbursement}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-xs font-semibold text-foreground">
-                              {dCopy.workflow.pendingDisbursement}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {dCopy.workflow.notDisbursed}
-                            </p>
-                          </>
-                        )}
-                      </li>
-                    </ol>
-                    {settlement.approval && !isReturned ? (
-                      <div className="pt-3">
+                {(settlement.approval && !isReturned) || (canReadApprovals && settlement.approval) ? (
+                  <Card>
+                    <CardContent className="space-y-2 pt-4">
+                      {settlement.approval && !isReturned ? (
                         <ApprovalFlowLines approval={settlement.approval} />
-                      </div>
-                    ) : null}
-                    {canReadApprovals && settlement.approval ? (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="mt-2 h-auto gap-1.5 px-0 text-xs"
-                        onClick={() => setHistoryOpen(true)}
-                      >
-                        <History className="h-3.5 w-3.5" />
-                        {flowCopy.header.history}
-                      </Button>
-                    ) : null}
-                  </CardContent>
-                </Card>
+                      ) : null}
+                      {canReadApprovals && settlement.approval ? (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto gap-1.5 px-0 text-xs"
+                          onClick={() => setHistoryOpen(true)}
+                        >
+                          <History className="h-3.5 w-3.5" />
+                          {flowCopy.header.history}
+                        </Button>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ) : null}
 
                 {/* D4: acuerdo terciario colapsado (un pago de reembolsos no tiene tarifa) */}
                 {isReimbursementOnly ? null : (

@@ -158,6 +158,8 @@ export interface ApiDriverSettlementRaw {
   employee_id: string;
   employee_full_name?: string;
   agreement_snapshot: Record<string, unknown>;
+  /** C19: nombre+versión de la tarifa del pago (GET detalle). */
+  template_snapshot?: Record<string, unknown> | null;
   period_start: string;
   period_end: string;
   status: string;
@@ -655,6 +657,47 @@ export function mapReimbursementRequiringPayeeLine(
   };
 }
 
+function mapTemplateSnapshot(
+  raw: Record<string, unknown> | null | undefined,
+): DriverSettlement["templateSnapshot"] {
+  if (raw == null) return null;
+  const camel = deepToCamel(raw) as Record<string, unknown>;
+  const templateName =
+    typeof camel.templateName === "string"
+      ? camel.templateName
+      : typeof raw.template_name === "string"
+        ? raw.template_name
+        : null;
+  const templateId =
+    typeof camel.templateId === "string"
+      ? camel.templateId
+      : typeof raw.template_id === "string"
+        ? raw.template_id
+        : null;
+  const versionRaw = camel.version ?? raw.version;
+  const version =
+    versionRaw === null || versionRaw === undefined
+      ? null
+      : Number(versionRaw);
+  return {
+    templateId,
+    templateName,
+    version: Number.isFinite(version) ? version : null,
+    familyId:
+      typeof camel.familyId === "string"
+        ? camel.familyId
+        : typeof raw.family_id === "string"
+          ? raw.family_id
+          : null,
+    assignmentId:
+      typeof camel.assignmentId === "string"
+        ? camel.assignmentId
+        : typeof raw.assignment_id === "string"
+          ? raw.assignment_id
+          : null,
+  };
+}
+
 export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
   const snapshot = deepToCamel(raw.agreement_snapshot) as unknown as DriverSettlement["agreementSnapshot"];
   return {
@@ -665,6 +708,7 @@ export function mapSettlement(raw: ApiDriverSettlementRaw): DriverSettlement {
     employeeId: raw.employee_id,
     employeeFullName: raw.employee_full_name ?? "",
     agreementSnapshot: snapshot,
+    templateSnapshot: mapTemplateSnapshot(raw.template_snapshot),
     periodStart: raw.period_start,
     periodEnd: raw.period_end,
     status: raw.status as DriverSettlement["status"],

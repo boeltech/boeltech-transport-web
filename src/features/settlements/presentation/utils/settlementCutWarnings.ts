@@ -37,7 +37,7 @@ export interface SettlementCutWarningUi {
 
 const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
   no_payable_template: {
-    label: "Sin tarifa asignada",
+    label: "Sin tarifa",
     badgeVariant: "destructive",
     effectHint: "excluded",
     action: "assign_tariff",
@@ -49,7 +49,7 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     action: "view_operator",
   },
   inactive_or_terminated: {
-    label: "Baja o inactivo",
+    label: "Baja",
     badgeVariant: "neutral",
     effectHint: "excluded",
     action: "view_operator",
@@ -79,7 +79,7 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     action: "change_amount",
   },
   template_version_superseded: {
-    label: "Versión de tarifa reemplazada",
+    label: "Versión reemplazada",
     badgeVariant: "warning",
     effectHint: "includable",
     action: "review",
@@ -91,13 +91,13 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     action: null,
   },
   zero_km_trips: {
-    label: "Viaje sin km: aplica mínimo",
+    label: "Viaje sin km",
     badgeVariant: "warning",
     effectHint: "includable",
     action: "view_trip",
   },
   period_partial_overlap: {
-    label: "Solape parcial de periodo",
+    label: "Solape parcial",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "view_history",
@@ -109,31 +109,31 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     action: "view_history",
   },
   missing_ack_no_rule: {
-    label: "Viaje sin regla (falta confirmar)",
+    label: "Viaje sin regla",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "review",
   },
   missing_ack_zero_km: {
-    label: "Viaje sin km (falta confirmar)",
+    label: "Viaje sin km",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "review",
   },
   missing_ack_zero_freight: {
-    label: "Viaje sin flete (falta confirmar)",
+    label: "Viaje sin flete",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "review",
   },
   deductions_exceed_capacity: {
-    label: "Descuentos superan el total",
+    label: "Anticipo mayor que su pago",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "split_advance",
   },
   reimbursement_payee_required: {
-    label: "Falta payee de reembolso",
+    label: "Falta payee",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "define_payee",
@@ -146,18 +146,50 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
   },
 };
 
+const SEVERITY_RANK: Record<SettlementCutWarningUi["effectHint"], number> = {
+  blocking: 3,
+  excluded: 2,
+  includable: 1,
+};
+
+const VARIANT_RANK: Record<SettlementCutBadgeVariant, number> = {
+  destructive: 4,
+  warning: 3,
+  info: 2,
+  neutral: 1,
+};
+
 export function resolveCutWarningUi(
   code: SettlementCutWarningCode,
 ): SettlementCutWarningUi {
   return WARNING_UI[code];
 }
 
-/** Aviso primario de la fila (primaryReason o primer warning). */
+function warningSeverityScore(code: SettlementCutWarningCode): number {
+  const ui = resolveCutWarningUi(code);
+  return SEVERITY_RANK[ui.effectHint] * 10 + VARIANT_RANK[ui.badgeVariant];
+}
+
+/**
+ * Aviso primario de la fila: `primaryReason` del API si existe;
+ * si no, el de mayor severidad (blocking gana sobre open_advance).
+ */
 export function primaryCutWarningCode(
   row: SettlementCutPreviewRow,
 ): SettlementCutWarningCode | null {
   if (row.primaryReason) return row.primaryReason;
-  return row.warnings[0]?.code ?? null;
+  if (row.warnings.length === 0) return null;
+  let best = row.warnings[0]!.code;
+  let bestScore = warningSeverityScore(best);
+  for (let i = 1; i < row.warnings.length; i += 1) {
+    const code = row.warnings[i]!.code;
+    const score = warningSeverityScore(code);
+    if (score > bestScore) {
+      best = code;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 export function resolveCutRowWarningUi(
@@ -166,6 +198,16 @@ export function resolveCutRowWarningUi(
   const code = primaryCutWarningCode(row);
   if (!code) return null;
   return resolveCutWarningUi(code);
+}
+
+/** Mensaje largo del API para el aviso primario (tooltip / inspector). */
+export function primaryCutWarningMessage(
+  row: SettlementCutPreviewRow,
+): string | null {
+  const code = primaryCutWarningCode(row);
+  if (!code) return null;
+  const match = row.warnings.find((w) => w.code === code);
+  return match?.message ?? resolveCutWarningUi(code).label;
 }
 
 export type SettlementCutReviewFilter = "all" | "with_warning" | "ready";

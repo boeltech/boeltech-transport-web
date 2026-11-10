@@ -68,7 +68,32 @@ describe("closedPeriodBanner", () => {
       operatorCount: 2,
       estimatedAmount: 390_760,
       warningsCount: 1,
+      otherPeriodsCount: 0,
+      periodStart: "2026-11-02",
+      periodEnd: "2026-11-08",
+      namedWeek: true,
     });
+  });
+
+  it("counts only the announced period and notes others (C7)", () => {
+    const mixed: typeof backlog = [
+      backlog[0]!,
+      {
+        ...backlog[1]!,
+        employeeId: "e3",
+        periodStart: "2026-10-12",
+        periodEnd: "2026-10-18",
+        estimatedNetAmount: 50_000,
+      },
+    ];
+    const model = resolveClosedPeriodBanner(
+      { ...summary, pending: 2, kpis: { ...summary.kpis!, toArm: { count: 2, amount: 250_000 } } },
+      mixed,
+    );
+    expect(model?.operatorCount).toBe(1);
+    expect(model?.otherPeriodsCount).toBe(1);
+    expect(model?.namedWeek).toBe(true);
+    expect(model?.periodStart).toBe("2026-11-02");
   });
 
   it("returns null when nothing to arm", () => {

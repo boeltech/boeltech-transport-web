@@ -71,6 +71,8 @@ export function TemplateDeductionsSection({
     ? builderCopy.noDeductions
     : detailCopy.noDeductions;
 
+  const hideTitle = !stepPrefix.trim() && operationalLexicon;
+
   return (
     <FormSectionCard
       title={
@@ -78,6 +80,7 @@ export function TemplateDeductionsSection({
           ? `${stepPrefix} ${sectionTitle}`
           : sectionTitle
       }
+      hideTitle={hideTitle}
       icon={<MinusCircle className="h-4 w-4" />}
       contentClassName="space-y-4"
       action={
@@ -263,7 +266,7 @@ export function TemplateDeductionsSection({
               );
               if (!prose) return null;
               return (
-                <p className="text-xs text-muted-foreground leading-relaxed bg-destructive/5 p-2.5 rounded-md border border-destructive/10">
+                <p className="text-xs text-muted-foreground leading-relaxed rounded-md border border-border/60 bg-muted/40 p-2.5">
                   {prose}
                 </p>
               );

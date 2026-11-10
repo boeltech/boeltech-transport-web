@@ -89,7 +89,17 @@ export function SettlementTripsRuleTable({
                       : "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs max-w-[200px]">
-                    {details?.appliedRule || copy.ruleFallback}
+                    {(() => {
+                      const km = details?.distanceKm;
+                      const rate = details?.ratePerKm;
+                      if (km != null && rate != null) {
+                        return copy.ruleKmTimesRate(
+                          Number(km).toLocaleString("es-MX"),
+                          formatMxCurrency(Number(rate)),
+                        );
+                      }
+                      return details?.appliedRule || copy.ruleFallback;
+                    })()}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums font-medium">
                     {formatMxCurrency(item.amount)}

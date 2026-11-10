@@ -6,6 +6,7 @@ import {
   isCutRowReady,
   isCutRowSendable,
   partitionCutReviewRows,
+  primaryCutWarningCode,
   resolveCutWarningUi,
   rowHasCutWarning,
 } from "./settlementCutWarnings";
@@ -38,6 +39,24 @@ describe("settlementCutWarnings — PRD §H / DOM", () => {
     expect(ui.effectHint).toBe("blocking");
     expect(ui.badgeVariant).toBe("destructive");
     expect(ui.action).toBe("split_advance");
+    expect(ui.label).toBe("Anticipo mayor que su pago");
+  });
+
+  it("elige el aviso de mayor severidad cuando hay open_advance + exceso (C16)", () => {
+    const code = primaryCutWarningCode(
+      row({
+        employeeId: "x",
+        effect: "blocking",
+        warnings: [
+          { code: "open_advance", message: "Hay anticipos abiertos…" },
+          {
+            code: "deductions_exceed_capacity",
+            message: "Supera capacidad",
+          },
+        ],
+      }),
+    );
+    expect(code).toBe("deductions_exceed_capacity");
   });
 
   it("avisos soft son includable", () => {
