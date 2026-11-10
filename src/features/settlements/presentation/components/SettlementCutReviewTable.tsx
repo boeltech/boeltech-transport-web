@@ -38,6 +38,8 @@ function actionLabel(action: SettlementCutRowAction): string | null {
       return copy.actions.splitAdvance;
     case "define_payee":
       return copy.actions.definePayee;
+    case "confirm_zero_km":
+      return copy.actions.confirmZeroKm;
     case "view":
       return copy.actions.view;
     default:

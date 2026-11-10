@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { SettlementCutPreviewRow } from "../../domain/settlementCut";
 import {
+  applyZeroKmAckToCutRow,
+  buildCutDidNotEnterRows,
+  cutDidNotEnterReasonLabel,
   cutEffectAllowsNetDisplay,
   filterCutReviewRows,
   isCutRowReady,
@@ -65,6 +68,66 @@ describe("settlementCutWarnings — PRD §H / DOM", () => {
       "includable",
     );
     expect(resolveCutWarningUi("zero_km_trips").effectHint).toBe("includable");
+    expect(resolveCutWarningUi("zero_km_trips").label).toBe("Viaje sin km");
+  });
+
+  it("D6: missing_ack_zero_km es blocking con Confirmar (no el mismo badge que incluido)", () => {
+    const ui = resolveCutWarningUi("missing_ack_zero_km");
+    expect(ui.effectHint).toBe("blocking");
+    expect(ui.badgeVariant).toBe("destructive");
+    expect(ui.label).toBe("Falta confirmar km");
+    expect(ui.action).toBe("confirm_zero_km");
+  });
+
+  it("COPY-04: payee en español", () => {
+    const ui = resolveCutWarningUi("reimbursement_payee_required");
+    expect(ui.label).toBe("Falta quién recibe el reembolso");
+    expect(ui.action).toBe("define_payee");
+  });
+
+  it("applyZeroKmAckToCutRow convierte blocking en includable soft", () => {
+    const blocked = row({
+      employeeId: "z",
+      effect: "blocking",
+      primaryReason: "missing_ack_zero_km",
+      warnings: [
+        { code: "missing_ack_zero_km", message: "API message" },
+      ],
+    });
+    const acked = applyZeroKmAckToCutRow(blocked);
+    expect(acked.effect).toBe("includable");
+    expect(acked.primaryReason).toBe("zero_km_trips");
+    expect(isCutRowSendable(acked)).toBe(true);
+  });
+
+  it("C30: buildCutDidNotEnterRows une excluded + blocking + omitted", () => {
+    const eligible = [
+      row({ employeeId: "ready", effect: "includable" }),
+      row({
+        employeeId: "block",
+        effect: "blocking",
+        primaryReason: "missing_ack_zero_km",
+        warnings: [{ code: "missing_ack_zero_km", message: "Sin km" }],
+      }),
+    ];
+    const excluded = [
+      row({
+        employeeId: "out",
+        effect: "excluded",
+        primaryReason: "no_payable_template",
+        warnings: [{ code: "no_payable_template", message: "Sin tarifa" }],
+      }),
+    ];
+    const didNot = buildCutDidNotEnterRows({
+      eligible,
+      excluded,
+      createdEmployeeIds: new Set(["ready"]),
+      omitted: [],
+    });
+    expect(didNot.map((r) => r.employeeId).sort()).toEqual(["block", "out"]);
+    expect(cutDidNotEnterReasonLabel(didNot.find((r) => r.employeeId === "block")!)).toBe(
+      "Sin km · sin confirmar",
+    );
   });
 
   it("sin tarifa / ritmo distinto son excluded", () => {

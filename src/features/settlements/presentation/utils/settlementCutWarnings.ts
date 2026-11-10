@@ -24,6 +24,7 @@ export type SettlementCutRowAction =
   | "view_history"
   | "split_advance"
   | "define_payee"
+  | "confirm_zero_km"
   | "view"
   | null;
 
@@ -33,6 +34,8 @@ export interface SettlementCutWarningUi {
   /** Categoría de efecto para footer / copy. */
   effectHint: "excluded" | "includable" | "blocking";
   action: SettlementCutRowAction;
+  /** Tooltip preferido sobre el message del API (DOM/PRD). */
+  tooltip?: string;
 }
 
 const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
@@ -95,6 +98,7 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     badgeVariant: "warning",
     effectHint: "includable",
     action: "view_trip",
+    tooltip: "Sin distancia usable; se paga el mínimo de la regla.",
   },
   period_partial_overlap: {
     label: "Solape parcial",
@@ -115,13 +119,15 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     action: "review",
   },
   missing_ack_zero_km: {
-    label: "Viaje sin km",
+    label: "Falta confirmar km",
     badgeVariant: "destructive",
     effectHint: "blocking",
-    action: "review",
+    action: "confirm_zero_km",
+    tooltip:
+      "Falta distancia en viaje(s) por km. Confirma para pagar el mínimo (o $0 si no hay), o corrige odómetro/tramos.",
   },
   missing_ack_zero_freight: {
-    label: "Viaje sin flete",
+    label: "Falta confirmar flete",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "review",
@@ -133,7 +139,7 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     action: "split_advance",
   },
   reimbursement_payee_required: {
-    label: "Falta payee",
+    label: "Falta quién recibe el reembolso",
     badgeVariant: "destructive",
     effectHint: "blocking",
     action: "define_payee",
@@ -206,8 +212,10 @@ export function primaryCutWarningMessage(
 ): string | null {
   const code = primaryCutWarningCode(row);
   if (!code) return null;
+  const ui = resolveCutWarningUi(code);
+  if (ui.tooltip) return ui.tooltip;
   const match = row.warnings.find((w) => w.code === code);
-  return match?.message ?? resolveCutWarningUi(code).label;
+  return match?.message ?? ui.label;
 }
 
 export type SettlementCutReviewFilter = "all" | "with_warning" | "ready";
@@ -222,6 +230,31 @@ export function isCutRowReady(row: SettlementCutPreviewRow): boolean {
 
 export function isCutRowSendable(row: SettlementCutPreviewRow): boolean {
   return row.effect === "includable";
+}
+
+export function rowNeedsZeroKmAck(row: SettlementCutPreviewRow): boolean {
+  return primaryCutWarningCode(row) === "missing_ack_zero_km";
+}
+
+/**
+ * Tras Confirmar en Revisar: la fila entra al lote como includable con aviso soft.
+ */
+export function applyZeroKmAckToCutRow(
+  row: SettlementCutPreviewRow,
+): SettlementCutPreviewRow {
+  if (!rowNeedsZeroKmAck(row)) return row;
+  const softMessage =
+    resolveCutWarningUi("zero_km_trips").tooltip ??
+    "Sin distancia usable; se paga el mínimo de la regla.";
+  return {
+    ...row,
+    effect: "includable",
+    primaryReason: "zero_km_trips",
+    warnings: [
+      { code: "zero_km_trips", message: softMessage },
+      ...row.warnings.filter((w) => w.code !== "missing_ack_zero_km"),
+    ],
+  };
 }
 
 export function filterCutReviewRows(
@@ -263,4 +296,53 @@ export function partitionCutReviewRows(
 
 export function cutEffectAllowsNetDisplay(effect: SettlementCutEffect): boolean {
   return effect === "includable";
+}
+
+/**
+ * C30 — operadores que no quedaron en `created`:
+ * excluded + blocking del preview + omitted del create (sin duplicar creados).
+ */
+export function buildCutDidNotEnterRows(args: {
+  eligible: readonly SettlementCutPreviewRow[];
+  excluded: readonly SettlementCutPreviewRow[];
+  createdEmployeeIds: ReadonlySet<string>;
+  omitted: readonly {
+    employeeId: string;
+    reasonCode: string;
+    message: string;
+  }[];
+}): SettlementCutPreviewRow[] {
+  const byId = new Map<string, SettlementCutPreviewRow>();
+
+  for (const row of args.excluded) {
+    if (args.createdEmployeeIds.has(row.employeeId)) continue;
+    byId.set(row.employeeId, row);
+  }
+  for (const row of args.eligible) {
+    if (args.createdEmployeeIds.has(row.employeeId)) continue;
+    if (row.effect === "blocking") {
+      byId.set(row.employeeId, row);
+    }
+  }
+  for (const omitted of args.omitted) {
+    if (args.createdEmployeeIds.has(omitted.employeeId)) continue;
+    if (byId.has(omitted.employeeId)) continue;
+    const fromPreview =
+      args.eligible.find((r) => r.employeeId === omitted.employeeId) ??
+      args.excluded.find((r) => r.employeeId === omitted.employeeId);
+    if (fromPreview) {
+      byId.set(omitted.employeeId, fromPreview);
+    }
+    // Omitidos sin fila de preview: el paso 3 los pinta aparte con message API.
+  }
+
+  return [...byId.values()];
+}
+
+/** Motivo corto C30 para filas que no entraron (badge de Revisar). */
+export function cutDidNotEnterReasonLabel(row: SettlementCutPreviewRow): string {
+  const code = primaryCutWarningCode(row);
+  if (!code) return "No entró";
+  if (code === "missing_ack_zero_km") return "Sin km · sin confirmar";
+  return resolveCutWarningUi(code).label;
 }

@@ -11,6 +11,7 @@ import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { SettlementItem } from "../../domain/entities";
 import { TRIP_ROUTE_TYPE_LABELS, type TripRouteType } from "../../domain/enums";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { formatKmTimesRateRule } from "../utils/formatAppliedRuleKm";
 
 const copy = settlementsCopy.detailPage.tripsSection;
 
@@ -88,18 +89,15 @@ export function SettlementTripsRuleTable({
                       ? Number(details.distanceKm).toLocaleString("es-MX")
                       : "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-xs max-w-[200px]">
-                    {(() => {
-                      const km = details?.distanceKm;
-                      const rate = details?.ratePerKm;
-                      if (km != null && rate != null) {
-                        return copy.ruleKmTimesRate(
-                          Number(km).toLocaleString("es-MX"),
-                          formatMxCurrency(Number(rate)),
-                        );
-                      }
-                      return details?.appliedRule || copy.ruleFallback;
-                    })()}
+                  <TableCell className="text-muted-foreground text-xs max-w-[200px] font-mono tabular-nums">
+                    {formatKmTimesRateRule({
+                      distanceKm: details?.distanceKm,
+                      ratePerKm: details?.ratePerKm,
+                      appliedRule: details?.appliedRule,
+                      formatRate: formatMxCurrency,
+                      compose: copy.ruleKmTimesRate,
+                      fallback: copy.ruleFallback,
+                    })}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums font-medium">
                     {formatMxCurrency(item.amount)}

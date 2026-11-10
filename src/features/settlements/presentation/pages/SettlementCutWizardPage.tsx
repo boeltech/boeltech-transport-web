@@ -52,17 +52,22 @@ import { PeriodStepper } from "../components/PeriodStepper";
 import { SettlementCutFilterChips } from "../components/SettlementCutFilterChips";
 import { SettlementCutInspector } from "../components/SettlementCutInspector";
 import { SettlementCutReviewTable } from "../components/SettlementCutReviewTable";
+import { SettlementStatusBadge } from "../components/SettlementStatusBadge";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { buildSuggestedSettlementPeriod } from "../utils/buildSuggestedSettlementPeriod";
+import { formatCutWizardTitle } from "../utils/formatCutWizardTitle";
 import {
-  buildSuggestedSettlementPeriod,
-  type SalaryPeriodKind,
-} from "../utils/buildSuggestedSettlementPeriod";
-import {
+  applyZeroKmAckToCutRow,
+  buildCutDidNotEnterRows,
+  cutDidNotEnterReasonLabel,
   isCutRowSendable,
   partitionCutReviewRows,
+  resolveCutRowWarningUi,
+  rowNeedsZeroKmAck,
   type SettlementCutReviewFilter,
   type SettlementCutRowAction,
 } from "../utils/settlementCutWarnings";
+import type { SettlementStatus } from "../../domain/enums";
 
 const copy = settlementsCopy.cutWizard;
 const WIZARD_STEPS = [...copy.steps];
@@ -76,6 +81,15 @@ const RHYTHM_OPTIONS: ReadonlyArray<{
   { value: "monthly", label: copy.period.monthly },
 ];
 
+const SETTLEMENT_STATUSES = new Set<SettlementStatus>([
+  "draft",
+  "pending_approval",
+  "approved",
+  "disbursed",
+  "rejected",
+  "cancelled",
+]);
+
 function parseSalaryPeriod(raw: string | null): SettlementCutSalaryPeriod {
   if (raw === "biweekly" || raw === "monthly" || raw === "weekly") return raw;
   return "weekly";
@@ -85,10 +99,22 @@ function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
-function buildCreateRows(rows: readonly SettlementCutPreviewRow[]) {
+function asSettlementStatus(raw: string): SettlementStatus | null {
+  return SETTLEMENT_STATUSES.has(raw as SettlementStatus)
+    ? (raw as SettlementStatus)
+    : null;
+}
+
+function buildCreateRows(
+  rows: readonly SettlementCutPreviewRow[],
+  zeroKmAcknowledged: ReadonlySet<string>,
+) {
   return rows.filter(isCutRowSendable).map((row) => ({
     employeeId: row.employeeId,
     tripIds: [...row.tripIds],
+    ...(zeroKmAcknowledged.has(row.employeeId)
+      ? { acknowledgeZeroKmTrips: true as const }
+      : {}),
   }));
 }
 
@@ -133,6 +159,9 @@ export function SettlementCutWizardPage() {
   const [pendingSubmitMode, setPendingSubmitMode] = useState<
     "approval" | "draft" | null
   >(null);
+  const [zeroKmAcknowledged, setZeroKmAcknowledged] = useState(
+    () => new Set<string>(),
+  );
 
   const previewParams = useMemo(
     () => ({
@@ -151,17 +180,28 @@ export function SettlementCutWizardPage() {
   useEffect(() => {
     setIdempotencyKey(newIdempotencyKey());
     setCreateResult(null);
+    setZeroKmAcknowledged(new Set());
   }, [periodStart, periodEnd, salaryPeriod, includeContractors]);
 
   const preview = previewQuery.data;
   const summary = preview?.summary;
 
+  const displayEligible = useMemo(() => {
+    const eligible = preview?.eligible ?? [];
+    if (zeroKmAcknowledged.size === 0) return eligible;
+    return eligible.map((row) =>
+      zeroKmAcknowledged.has(row.employeeId) && rowNeedsZeroKmAck(row)
+        ? applyZeroKmAckToCutRow(row)
+        : row,
+    );
+  }, [preview, zeroKmAcknowledged]);
+
   const partitioned = useMemo(() => {
     if (!preview) {
       return { withWarning: [], ready: [], outside: [] as SettlementCutPreviewRow[] };
     }
-    return partitionCutReviewRows(preview.eligible, preview.excluded);
-  }, [preview]);
+    return partitionCutReviewRows(displayEligible, preview.excluded);
+  }, [preview, displayEligible]);
 
   const filteredPartitions = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -186,11 +226,11 @@ export function SettlementCutWizardPage() {
     };
   }, [partitioned]);
 
-  const includableCount = summary?.includableCount ?? 0;
   const sendableRows = useMemo(
-    () => (preview?.eligible ?? []).filter(isCutRowSendable),
-    [preview],
+    () => displayEligible.filter(isCutRowSendable),
+    [displayEligible],
   );
+  const includableCount = sendableRows.length;
   const reviewTotals = useMemo(() => {
     let compensation = 0;
     let advances = 0;
@@ -240,7 +280,7 @@ export function SettlementCutWizardPage() {
             salaryPeriod,
             includeContractors,
             submitForApproval,
-            rows: buildCreateRows(sendableRows),
+            rows: buildCreateRows(sendableRows, zeroKmAcknowledged),
           },
           idempotencyKey,
         });
@@ -273,6 +313,7 @@ export function SettlementCutWizardPage() {
       salaryPeriod,
       sendableRows,
       toast,
+      zeroKmAcknowledged,
     ],
   );
 
@@ -308,6 +349,13 @@ export function SettlementCutWizardPage() {
   const handleRowAction = useCallback(
     (row: SettlementCutPreviewRow, action: SettlementCutRowAction) => {
       switch (action) {
+        case "confirm_zero_km":
+          setZeroKmAcknowledged((prev) => {
+            const next = new Set(prev);
+            next.add(row.employeeId);
+            return next;
+          });
+          return;
         case "assign_tariff":
           navigate(
             `${COMPENSATION_TEMPLATES_PATH}?operators=assign&assign=${row.employeeId}`,
@@ -362,14 +410,17 @@ export function SettlementCutWizardPage() {
     [runCreate],
   );
 
-  const title = useMemo(() => {
-    const kind = salaryPeriod as SalaryPeriodKind;
-    if (kind === "weekly") {
-      return `Corte semanal`;
-    }
-    if (kind === "biweekly") return "Corte quincenal";
-    return "Corte mensual";
-  }, [salaryPeriod]);
+  // C32: rango visible desde Revisar/Enviar; también en Periodo (mismo periodo elegido).
+  const title = useMemo(
+    () =>
+      formatCutWizardTitle({
+        salaryPeriod,
+        periodStart,
+        periodEnd,
+        includePeriodRange: true,
+      }),
+    [salaryPeriod, periodStart, periodEnd],
+  );
 
   const renderPeriodStep = () => (
     <div className="space-y-6" data-testid="cut-step-period">
@@ -544,7 +595,7 @@ export function SettlementCutWizardPage() {
             </p>
           </section>
           <SettlementCutInspector
-            includableCount={summary.includableCount}
+            includableCount={includableCount}
             totalOperators={
               summary.eligibleCount + summary.excludedCount
             }
@@ -576,6 +627,24 @@ export function SettlementCutWizardPage() {
       nameByEmployee.set(row.employeeId, row.employeeFullName);
     }
 
+    const createdIds = new Set(
+      createResult.created.map((row) => row.employeeId),
+    );
+    const didNotEnter = preview
+      ? buildCutDidNotEnterRows({
+          eligible: preview.eligible,
+          excluded: preview.excluded,
+          createdEmployeeIds: createdIds,
+          omitted: createResult.omitted,
+        })
+      : [];
+    const orphanOmitted = createResult.omitted.filter(
+      (row) =>
+        !createdIds.has(row.employeeId) &&
+        !didNotEnter.some((r) => r.employeeId === row.employeeId),
+    );
+    const didNotEnterCount = didNotEnter.length + orphanOmitted.length;
+
     return (
       <div className="space-y-6" data-testid="cut-step-send">
         {createResult.idempotentReplay ? (
@@ -592,38 +661,100 @@ export function SettlementCutWizardPage() {
             </p>
           ) : (
             <ul className="divide-y rounded-xl border">
-              {createResult.created.map((row) => (
-                <li
-                  key={row.settlementId}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {nameByEmployee.get(row.employeeId) ?? row.employeeId}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {copy.send.columns.folio}: {row.settlementNumber}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono tabular-nums">
-                      {formatMxCurrency(row.netAmount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{row.status}</p>
-                  </div>
-                </li>
-              ))}
+              {createResult.created.map((row) => {
+                const status = asSettlementStatus(row.status);
+                return (
+                  <li
+                    key={row.settlementId}
+                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {nameByEmployee.get(row.employeeId) ?? row.employeeId}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {copy.send.columns.folio}: {row.settlementNumber}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 text-right">
+                      <p className="font-mono tabular-nums">
+                        {formatMxCurrency(row.netAmount)}
+                      </p>
+                      {status ? (
+                        <SettlementStatusBadge status={status} size="sm" />
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
 
-        {createResult.omitted.length > 0 ? (
-          <section className="space-y-3">
+        {didNotEnterCount > 0 ? (
+          <section className="space-y-3" data-testid="cut-did-not-enter">
             <h3 className="text-base font-semibold">
-              {copy.send.omittedTitle(createResult.omitted.length)}
+              {copy.send.didNotEnterTitle(didNotEnterCount)}
             </h3>
             <ul className="divide-y rounded-xl border">
-              {createResult.omitted.map((row) => (
+              {didNotEnter.map((row) => {
+                const ui = resolveCutRowWarningUi(row);
+                // Tras enviar, Confirmar ya no aplica: misma CTA de Revisar.
+                const action: SettlementCutRowAction =
+                  ui?.action === "confirm_zero_km"
+                    ? "review"
+                    : (ui?.action ?? null);
+                const actionLabel = (() => {
+                  if (!action) return null;
+                  const labels = copy.review.actions;
+                  switch (action) {
+                    case "assign_tariff":
+                      return labels.assignTariff;
+                    case "view_operator":
+                      return labels.viewOperator;
+                    case "review":
+                      return labels.review;
+                    case "change_amount":
+                      return labels.changeAmount;
+                    case "view_trip":
+                      return labels.viewTrip;
+                    case "view_history":
+                      return labels.viewHistory;
+                    case "split_advance":
+                      return labels.splitAdvance;
+                    case "define_payee":
+                      return labels.definePayee;
+                    case "view":
+                      return labels.view;
+                    default:
+                      return null;
+                  }
+                })();
+                return (
+                  <li
+                    key={row.employeeId}
+                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{row.employeeFullName}</p>
+                      <p className="text-muted-foreground">
+                        {cutDidNotEnterReasonLabel(row)}
+                      </p>
+                    </div>
+                    {action && actionLabel ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRowAction(row, action)}
+                      >
+                        {actionLabel}
+                      </Button>
+                    ) : null}
+                  </li>
+                );
+              })}
+              {orphanOmitted.map((row) => (
                 <li
                   key={`${row.employeeId}-${row.reasonCode}`}
                   className="px-4 py-3 text-sm"
@@ -631,9 +762,7 @@ export function SettlementCutWizardPage() {
                   <p className="font-medium">
                     {nameByEmployee.get(row.employeeId) ?? row.employeeId}
                   </p>
-                  <p className="text-muted-foreground">
-                    {copy.send.omittedReason}: {row.message}
-                  </p>
+                  <p className="text-muted-foreground">{row.message}</p>
                 </li>
               ))}
             </ul>
@@ -682,8 +811,11 @@ export function SettlementCutWizardPage() {
       salaryPeriod,
       search,
       summary,
+      zeroKmAcknowledged,
     ],
   );
+
+  const resultLocked = Boolean(createResult);
 
   return (
     <WizardPageShell
@@ -702,6 +834,11 @@ export function SettlementCutWizardPage() {
       submittingLabel={copy.review.sending}
       stepsAriaLabel={copy.stepsAriaLabel}
       headerBackMode="wizard"
+      onHeaderBack={
+        resultLocked
+          ? () => navigate(SETTLEMENTS_LIST_PATH)
+          : undefined
+      }
       onCancel={() => navigate(SETTLEMENTS_LIST_PATH)}
       resolveContainerClassName={(step) =>
         step === 1 ? "max-w-6xl" : undefined
@@ -729,11 +866,21 @@ export function SettlementCutWizardPage() {
             },
           };
         }
-        // Paso resultado: CTAs en el cuerpo; pie sin primaria duplicada.
+        // C31: tras create, ocultar todo el pie y bloquear vuelta a Revisar/Periodo.
+        if (currentStep === 2 && resultLocked) {
+          return {
+            isLastStep: true,
+            hideNav: true,
+            lockBackward: true,
+            showCancel: false,
+          };
+        }
         if (currentStep === 2) {
           return {
             isLastStep: true,
             hidePrimary: true,
+            showCancel: false,
+            hidePrevious: true,
           };
         }
         return undefined;
