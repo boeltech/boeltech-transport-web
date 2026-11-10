@@ -1,6 +1,6 @@
 # Marks tlamx - v3.0
 
-Color `#2558a8` (azul-tinta). Producto: **tlamx** · Empresa: Boeltech.  
+Color `#008292` (Teal Operate, paleta v2 Patio). Producto: **tlamx** · Empresa: Boeltech.  
 Wordmark display: **Schibsted Grotesk** 700 (Opción B · unifica con `/welcome`).
 
 ## Logo de producto (lockup)
@@ -16,22 +16,23 @@ Composición canónica: **isotipo portal B + wordmark `tlamx`** (Schibsted Grote
 | Safe area exterior (exports) | 50 | 0.5 |
 
 En UI: `BrandLockup` (`brandLockupMetrics.ts`).  
-Asset de referencia: `latuno-lockup-safe-area.svg`.
+Asset de referencia: `tlamx-lockup-safe-area.svg`.
 
 ## Isotipo canónico: B — portal
 
 | Archivo | Color | Uso |
 |---------|-------|-----|
-| `latuno-mark-b-portal.svg` | tinta `#0a0a0a` | Export monocromo |
-| `latuno-mark-b-portal-ink.svg` | azul `#2558a8` | **Canónico UI** / favicon |
-| `latuno-mark-b-portal-onbrand.svg` | blanco sobre tile | Archivo (alternativa tile) |
-| `latuno-mark-b-portal-ink-email.png` | ink | Email HTML (PNG 160×160, fondo blanco; API embebe data URI) |
+| `tlamx-mark-portal.svg` | tinta `#0a0a0a` | Export monocromo |
+| `tlamx-mark-portal-ink.svg` | teal `#008292` | **Canónico UI** / favicon |
+| `tlamx-mark-portal-onbrand.svg` | blanco sobre tile teal | Archivo (alternativa tile) |
+| `tlamx-mark-portal-ink-email.png` | teal | Email HTML (PNG 160×160, fondo blanco; API embebe data URI) |
+| `latuno-mark-b-portal-ink-email.png` | teal | **Legado — no borrar.** Mismo PNG; lo siguen pidiendo correos ya enviados |
 
 viewBox ceñido `10 14 80 70` para paridad óptica.
 
 **Integrado:**
 - `public/favicon.svg` = portal ink
-- UI: `BrandLockup` (`LatunoMark` + `Wordmark` Schibsted) en sidebar, landing, auth, design-system
+- UI: `BrandLockup` (`TlamxMark` + `Wordmark` Schibsted) en sidebar, landing, auth, design-system
 - Email: API `emailBrandHeaderHtml` → PNG portal **inline** (data URI); override remoto opcional `EMAIL_BRAND_ASSET_BASE_URL`. Regenerar: `node scripts/generate-email-mark.mjs` en API.
 
 ## Archivo — propuestas / legado
@@ -48,8 +49,8 @@ viewBox ceñido `10 14 80 70` para paridad óptica.
 Con `npm run dev`:
 
 - `/favicon.svg`
-- `/brand/latuno-mark-b-portal-ink.svg`
-- `/brand/latuno-lockup-safe-area.svg`
+- `/brand/tlamx-mark-portal-ink.svg`
+- `/brand/tlamx-lockup-safe-area.svg`
 - `/welcome`, `/login`, sidebar ERP
 
 Checklist: 16px · 64px · gap 0.5×mark · Schibsted 700 (sin stroke) · centro óptico mark↔wordmark (`WORDMARK_OPTICAL_Y_OFFSET_RATIO`).

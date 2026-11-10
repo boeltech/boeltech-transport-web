@@ -16,8 +16,8 @@
 
 import { memo } from "react";
 import { cn } from "@shared/lib/utils/cn";
-import { LatunoMark } from "./LatunoMark";
-import type { LatunoMarkProps } from "./LatunoMark";
+import { TlamxMark } from "./TlamxMark";
+import type { TlamxMarkProps } from "./TlamxMark";
 import { Wordmark } from "./Wordmark";
 import type { WordmarkProps } from "./Wordmark";
 import { BRAND } from "./brandIdentity";
@@ -40,7 +40,7 @@ export interface BrandLockupProps {
    * Si no se pasa: `onBrand` → mark onBrand; `onInk` / `brand` → mark brand;
    * `muted` / `current` → mark current.
    */
-  markVariant?: LatunoMarkProps["variant"];
+  markVariant?: TlamxMarkProps["variant"];
   /** Lado del mark (= altura canónica del logo). Default 28. */
   markSize?: number;
   className?: string;
@@ -86,7 +86,7 @@ export const BrandLockup = memo(function BrandLockup({
         aria-label={decorative ? undefined : BRAND.productName}
         role={decorative ? undefined : "img"}
       >
-        <LatunoMark
+        <TlamxMark
           variant={markVariant}
           size={Math.max(markSize, 32)}
           decorative
@@ -103,7 +103,7 @@ export const BrandLockup = memo(function BrandLockup({
       aria-label={decorative ? undefined : BRAND.productName}
       role={decorative ? undefined : "img"}
     >
-      <LatunoMark variant={markVariant} size={markSize} decorative />
+      <TlamxMark variant={markVariant} size={markSize} decorative />
       <Wordmark
         variant={variant}
         decorative

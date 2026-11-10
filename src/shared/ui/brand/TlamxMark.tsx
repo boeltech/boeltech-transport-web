@@ -1,7 +1,7 @@
 /**
- * LatunoMark — isotipo canónico B (portal).
+ * TlamxMark — isotipo canónico B (portal).
  *
- * Fuente: public/brand/latuno-mark-b-portal*.svg
+ * Fuente: public/brand/tlamx-mark-portal*.svg
  * viewBox ceñido al ink para paridad óptica. Preferir este componente en UI;
  * los SVG en /public son assets estáticos (favicon, export, docs).
  *
@@ -15,7 +15,7 @@ import { memo } from "react";
 import { cn } from "@shared/lib/utils/cn";
 import { BRAND } from "./brandIdentity";
 
-export interface LatunoMarkProps {
+export interface TlamxMarkProps {
   /**
    * - "brand":   paths en primary (fondos claros o chrome ink — mark teal)
    * - "onBrand": paths en primary-foreground — solo sobre `bg-primary`
@@ -29,11 +29,8 @@ export interface LatunoMarkProps {
   decorative?: boolean;
 }
 
-/** @deprecated Use LatunoMarkProps */
-export type TlamaMarkProps = LatunoMarkProps;
-
 const VARIANT_CLASSES: Record<
-  NonNullable<LatunoMarkProps["variant"]>,
+  NonNullable<TlamxMarkProps["variant"]>,
   string
 > = {
   brand: "text-primary",
@@ -58,12 +55,12 @@ function Paths({ className }: { className?: string }) {
   );
 }
 
-export const LatunoMark = memo(function LatunoMark({
+export const TlamxMark = memo(function TlamxMark({
   variant = "brand",
   size = 28,
   className,
   decorative = false,
-}: LatunoMarkProps) {
+}: TlamxMarkProps) {
   if (variant === "tile") {
     return (
       <span
@@ -99,7 +96,4 @@ export const LatunoMark = memo(function LatunoMark({
   );
 });
 
-/** @deprecated Use LatunoMark */
-export const TlamaMark = LatunoMark;
-
-export default LatunoMark;
+export default TlamxMark;

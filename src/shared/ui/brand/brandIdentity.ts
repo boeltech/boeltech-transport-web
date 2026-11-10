@@ -13,7 +13,7 @@
 export const BRAND = {
   companyName: "Boeltech",
   productName: "tlamx",
-  /** Monograma tipográfico compact (preferir LatunoMark / portal en chrome). */
+  /** Monograma tipográfico compact (preferir TlamxMark / portal en chrome). */
   productMonogram: "t",
   productByline: "tlamx by Boeltech",
   productSubtitle: "ERP para empresas de transporte",

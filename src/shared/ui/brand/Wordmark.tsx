@@ -3,11 +3,11 @@
  *
  * Display: Schibsted Grotesk (`font-brand` / BRAND.displayFontFamily).
  * Misma familia que el display de `/welcome` (Opción B · 2026-10-15).
- * El isotipo vive en LatunoMark / BrandLockup.
+ * El isotipo vive en TlamxMark / BrandLockup.
  *
  * Variantes tipográficas:
  *   - default:  "tlamx" completo
- *   - compact:  monograma tipográfico (preferir LatunoMark en chrome)
+ *   - compact:  monograma tipográfico (preferir TlamxMark en chrome)
  *
  * Reglas de color (onBrand ≠ onInk):
  *   - Lockup icono + nombre: BrandLockup (gap 0.5 × mark)

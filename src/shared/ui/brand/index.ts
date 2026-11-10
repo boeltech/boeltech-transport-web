@@ -15,7 +15,7 @@ export {
 } from "./brandLockupMetrics";
 export { Wordmark } from "./Wordmark";
 export type { WordmarkProps } from "./Wordmark";
-export { LatunoMark, TlamaMark } from "./LatunoMark";
-export type { LatunoMarkProps, TlamaMarkProps } from "./LatunoMark";
+export { TlamxMark } from "./TlamxMark";
+export type { TlamxMarkProps } from "./TlamxMark";
 export { BrandLockup } from "./BrandLockup";
 export type { BrandLockupProps } from "./BrandLockup";
