@@ -37,6 +37,7 @@ export { employeeQueryKeys };
 /** Prefijos de React Query cross-feature (evitar import circular del barrel). */
 const COMPENSATION_ASSIGNMENTS_KEY = ["compensation", "assignments"] as const;
 const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
 
 // ============================================================================
 // LIST HOOK
@@ -176,6 +177,8 @@ export function useUpdateEmployee(id: string) {
       // F4: salaryType/frequency afectan workbench y asignaciones vigentes
       queryClient.invalidateQueries({ queryKey: COMPENSATION_ASSIGNMENTS_KEY });
       queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+      // F3 readiness: sueldo/CLABE/ritmo afectan Operadores (no_clabe / ready)
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
     },
   });
 }

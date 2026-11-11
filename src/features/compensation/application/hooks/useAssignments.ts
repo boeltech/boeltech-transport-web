@@ -22,6 +22,7 @@ import type {
 /** Prefijos de React Query en settlements (evitar import circular del barrel). */
 const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
 const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
 
 export function useTemplateAssignments(params?: {
   templateId?: string;
@@ -127,12 +128,7 @@ export function useBatchCreateTemplateAssignments() {
   return useMutation({
     mutationFn: (payload: BatchTemplateAssignmentPayload) =>
       compensationApi.batchCreateAssignments(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.assignments() });
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
-    },
+    onSuccess: () => invalidateAfterAssignmentChange(queryClient),
   });
 }
 
@@ -168,9 +164,10 @@ export function useDeleteTemplateAssignment() {
 function invalidateAfterAssignmentChange(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: compensationQueryKeys.assignments() });
   queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
-  // F2+F3: delete/update de asignación afecta preview y workbench de liquidaciones
+  // F2+F3: delete/update/batch de asignación afecta preview, workbench y readiness Operadores
   queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
   queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
 }
 
 export function useFixedAllowanceOverrides(params?: {

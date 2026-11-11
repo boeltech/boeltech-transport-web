@@ -38,6 +38,11 @@ describe("invalidateSettlementQueries", () => {
         queryKey: settlementsQueryKeys.advances(),
       }),
     );
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: settlementsQueryKeys.operators(),
+      }),
+    );
     expect(invalidateApprovalsRelatedQueries).toHaveBeenCalledWith(queryClient);
   });
 });
