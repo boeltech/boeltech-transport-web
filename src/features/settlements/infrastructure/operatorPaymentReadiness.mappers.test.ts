@@ -67,6 +67,61 @@ describe("mapOperatorPaymentReadiness", () => {
     expect(row.attentionReasons).toEqual(["no_template", "no_clabe"]);
   });
 
+  it("template_not_payable + payability draft (no colapsa a no_template)", () => {
+    const row = mapOperatorPaymentReadiness({
+      ...readyRaw,
+      status: "template_not_payable",
+      template: {
+        id: "tpl-draft",
+        name: "Tarifa-01",
+        version: 1,
+        effective_from: "2026-10-01",
+        payability: "draft",
+      },
+      attention_reasons: ["template_not_payable"],
+    });
+    expect(row.status).toBe("template_not_payable");
+    expect(row.template).toEqual({
+      id: "tpl-draft",
+      name: "Tarifa-01",
+      version: 1,
+      effectiveFrom: "2026-10-01",
+      payability: "draft",
+    });
+    expect(row.attentionReasons).toEqual(["template_not_payable"]);
+  });
+
+  it("template_scheduled + payability active", () => {
+    const row = mapOperatorPaymentReadiness({
+      ...readyRaw,
+      status: "template_scheduled",
+      template: {
+        id: "tpl-future",
+        name: "Foránea",
+        version: 2,
+        effective_from: "2026-12-01T00:00:00.000Z",
+        payability: "active",
+      },
+      attention_reasons: ["template_scheduled"],
+    });
+    expect(row.status).toBe("template_scheduled");
+    expect(row.template?.effectiveFrom).toBe("2026-12-01");
+    expect(row.template?.payability).toBe("active");
+  });
+
+  it("payability deactivated se preserva", () => {
+    const row = mapOperatorPaymentReadiness({
+      ...readyRaw,
+      status: "template_not_payable",
+      template: {
+        ...readyRaw.template!,
+        payability: "deactivated",
+      },
+      attention_reasons: ["template_not_payable"],
+    });
+    expect(row.template?.payability).toBe("deactivated");
+  });
+
   it("mapListOperatorsResponse pagina con page_size", () => {
     const result = mapListOperatorsResponse({
       data: [readyRaw],

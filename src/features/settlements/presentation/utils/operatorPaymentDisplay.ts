@@ -20,6 +20,13 @@ export function formatOperatorTariffLabel(
   }
   const title = copy.tariffVersion(row.template.name, row.template.version);
   const from = formatDate(row.template.effectiveFrom);
+  if (row.status === "template_scheduled") {
+    return {
+      title,
+      subtitle: from ? copy.panel.stepTariffScheduledFrom(from) : null,
+      muted: false,
+    };
+  }
   return {
     title,
     subtitle: from ? copy.tariffFrom(from) : null,
@@ -54,6 +61,10 @@ export function operatorPanelSubtitle(row: OperatorPaymentReadiness): string {
   switch (row.status) {
     case "no_template":
       return panel.blockedNoTariff;
+    case "template_not_payable":
+      return panel.blockedNotPayable;
+    case "template_scheduled":
+      return panel.blockedScheduled;
     case "dual_template":
       return panel.blockedDual;
     case "no_clabe":

@@ -206,10 +206,16 @@ export const DISBURSEMENT_METHOD_LABELS: Record<DisbursementMethod, string> = {
 // OPERATOR PAYMENT READINESS (F3 / TEC §C.3)
 // ============================================================================
 
-/** Badge primario; precedencia API: no_template > dual_template > no_clabe > version_superseded > ready. */
+/**
+ * Badge primario; precedencia API:
+ * template_not_payable > template_scheduled > no_template > dual_template >
+ * no_clabe > version_superseded > ready.
+ */
 export type OperatorPaymentReadinessStatus =
   | "ready"
   | "no_template"
+  | "template_not_payable"
+  | "template_scheduled"
   | "dual_template"
   | "no_clabe"
   | "version_superseded";
@@ -230,9 +236,15 @@ export const OPERATOR_PAYMENT_STATUS_LABELS: Record<
 > = {
   ready: "Listo",
   no_template: "Sin tarifa",
+  template_not_payable: "No pagable",
+  template_scheduled: "Programada",
   dual_template: "Dos tarifas a la vez",
   no_clabe: "Sin CLABE",
   version_superseded: "Versión reemplazada",
 };
 
-export type OperatorTemplatePayability = "active" | "superseded";
+export type OperatorTemplatePayability =
+  | "active"
+  | "superseded"
+  | "draft"
+  | "deactivated";

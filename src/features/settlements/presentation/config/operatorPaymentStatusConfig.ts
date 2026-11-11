@@ -1,4 +1,12 @@
-import { AlertTriangle, Ban, CheckCircle2, Layers, Link2Off } from "lucide-react";
+import {
+  AlertTriangle,
+  Ban,
+  CalendarClock,
+  CheckCircle2,
+  Layers,
+  Link2Off,
+  PauseCircle,
+} from "lucide-react";
 import {
   type StatusConfig,
   createStatusConfig,
@@ -22,6 +30,16 @@ export const OPERATOR_PAYMENT_STATUS_CONFIG: Record<
     label: OPERATOR_PAYMENT_STATUS_LABELS.no_template,
     icon: Ban,
     description: "Sin tarifa asignada; no entra a ningún corte",
+  }),
+  template_not_payable: createStatusConfig("warning", {
+    label: OPERATOR_PAYMENT_STATUS_LABELS.template_not_payable,
+    icon: PauseCircle,
+    description: "Tiene tarifa asignada, pero no es pagable (borrador o inactiva)",
+  }),
+  template_scheduled: createStatusConfig("warning", {
+    label: OPERATOR_PAYMENT_STATUS_LABELS.template_scheduled,
+    icon: CalendarClock,
+    description: "La tarifa pagable aún no entra en vigencia",
   }),
   dual_template: createStatusConfig("warning", {
     label: OPERATOR_PAYMENT_STATUS_LABELS.dual_template,

@@ -18,7 +18,7 @@ function row(
   };
 }
 
-describe("sortOperatorsByAttentionPriority (C5)", () => {
+describe("sortOperatorsByAttentionPriority (C5 + C)", () => {
   it("ordena Sin tarifa antes que Sin CLABE", () => {
     const sorted = sortOperatorsByAttentionPriority([
       row({ employeeId: "2", fullName: "Beto", status: "no_clabe" }),
@@ -28,6 +28,21 @@ describe("sortOperatorsByAttentionPriority (C5)", () => {
     expect(sorted.map((r) => r.status)).toEqual([
       "no_template",
       "no_clabe",
+      "ready",
+    ]);
+  });
+
+  it("No pagable y Programada antes que Sin tarifa", () => {
+    const sorted = sortOperatorsByAttentionPriority([
+      row({ employeeId: "3", fullName: "Carla", status: "no_template" }),
+      row({ employeeId: "1", fullName: "Ana", status: "template_scheduled" }),
+      row({ employeeId: "2", fullName: "Beto", status: "template_not_payable" }),
+      row({ employeeId: "4", fullName: "Diana", status: "ready" }),
+    ]);
+    expect(sorted.map((r) => r.status)).toEqual([
+      "template_not_payable",
+      "template_scheduled",
+      "no_template",
       "ready",
     ]);
   });

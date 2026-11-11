@@ -62,5 +62,31 @@ describe("operatorPaymentDisplay", () => {
     expect(operatorPanelSubtitle(base({ status: "ready" }))).toBe(
       settlementsCopy.operatorsList.panel.readySubtitle,
     );
+    expect(
+      operatorPanelSubtitle(base({ status: "template_not_payable" })),
+    ).toBe(settlementsCopy.operatorsList.panel.blockedNotPayable);
+    expect(operatorPanelSubtitle(base({ status: "template_scheduled" }))).toBe(
+      settlementsCopy.operatorsList.panel.blockedScheduled,
+    );
+  });
+
+  it("tarifa programada: subtítulo Vigente desde", () => {
+    const label = formatOperatorTariffLabel(
+      base({
+        status: "template_scheduled",
+        template: {
+          id: "tpl-1",
+          name: "Foránea",
+          version: 2,
+          effectiveFrom: "2026-12-01",
+          payability: "active",
+        },
+      }),
+    );
+    expect(label.title).toBe(
+      settlementsCopy.operatorsList.tariffVersion("Foránea", 2),
+    );
+    expect(label.subtitle).toMatch(/^Vigente desde /);
+    expect(label.muted).toBe(false);
   });
 });

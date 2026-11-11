@@ -1227,15 +1227,30 @@ export interface ApiOperatorPaymentReadinessRaw {
 const OPERATOR_STATUS_SET = new Set<OperatorPaymentReadinessStatus>([
   "ready",
   "no_template",
+  "template_not_payable",
+  "template_scheduled",
   "dual_template",
   "no_clabe",
   "version_superseded",
+]);
+
+const OPERATOR_TEMPLATE_PAYABILITY_SET = new Set<OperatorTemplatePayability>([
+  "active",
+  "superseded",
+  "draft",
+  "deactivated",
 ]);
 
 function asOperatorStatus(raw: string): OperatorPaymentReadinessStatus {
   return OPERATOR_STATUS_SET.has(raw as OperatorPaymentReadinessStatus)
     ? (raw as OperatorPaymentReadinessStatus)
     : "no_template";
+}
+
+function asTemplatePayability(raw: string): OperatorTemplatePayability {
+  return OPERATOR_TEMPLATE_PAYABILITY_SET.has(raw as OperatorTemplatePayability)
+    ? (raw as OperatorTemplatePayability)
+    : "active";
 }
 
 function asAttentionReasons(
@@ -1263,10 +1278,7 @@ export function mapOperatorPaymentReadiness(
           name: templateRaw.name,
           version: Number(templateRaw.version) || 0,
           effectiveFrom: String(templateRaw.effective_from ?? "").slice(0, 10),
-          payability:
-            templateRaw.payability === "superseded"
-              ? ("superseded" as OperatorTemplatePayability)
-              : ("active" as OperatorTemplatePayability),
+          payability: asTemplatePayability(templateRaw.payability),
         }
       : null,
     salary: {

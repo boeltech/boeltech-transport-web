@@ -34,7 +34,8 @@ export function OperatorAssignTariffPicker({
     { groupBy: "family", scope: "current", page: 1, pageSize: 50 },
     { enabled: open },
   );
-  const templates = data?.data ?? [];
+  /** D: solo activas; `scope=current` del catálogo Tarifas sigue listando drafts. */
+  const templates = (data?.data ?? []).filter((tpl) => tpl.status === "active");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

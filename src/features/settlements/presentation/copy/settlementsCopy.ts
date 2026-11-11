@@ -83,6 +83,10 @@ export const settlementsCopy = {
       emptyDescription: "Selecciona un operador para ver tarifa, sueldo y cuenta.",
       howTitle: (name: string) => `Cómo se le paga a ${name}`,
       blockedNoTariff: "No entra a ningún corte hasta que tenga tarifa.",
+      blockedNotPayable:
+        "Tiene tarifa asignada, pero no es pagable; no entra a un corte.",
+      blockedScheduled:
+        "La tarifa aún no está vigente; no entra al corte de hoy.",
       blockedDual: "Hay dos tarifas vigentes a la vez; resuelve antes del corte.",
       blockedNoClabe: "Sin CLABE no se puede registrar el pago por transferencia.",
       blockedSuperseded:
@@ -90,6 +94,9 @@ export const settlementsCopy = {
       readySubtitle: "Tarifa, sueldo y cuenta listos para el próximo corte.",
       stepTariff: "Tarifa",
       stepTariffEmpty: "Sin asignar.",
+      stepTariffDraftHint:
+        "Asignada en borrador. Actívala para que entre a un corte.",
+      stepTariffScheduledFrom: (date: string) => `Vigente desde ${date}.`,
       stepSalary: "Sueldo y ritmo",
       stepSalaryEmpty: "Captura sueldo y ritmo en Empleados.",
       stepSalaryEdit: "editar en Empleados",

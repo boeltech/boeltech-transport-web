@@ -4,6 +4,10 @@ import { Check } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
+import {
+  COMPENSATION_TEMPLATES_PATH,
+  compensationTemplateBuildPath,
+} from "@features/compensation/application/compensationRoutes";
 import type { OperatorPaymentReadiness } from "../../domain/entities";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
@@ -92,15 +96,30 @@ export function OperatorPaymentReadinessPanel({
   const tariff = formatOperatorTariffLabel(operator);
   const salary = formatOperatorSalaryLabel(operator);
   const employeeHref = `/employees/${operator.employeeId}`;
+  const isNotPayable = operator.status === "template_not_payable";
+  const isScheduled = operator.status === "template_scheduled";
   const tariffState: StepState =
     operator.status === "no_template"
       ? "todo"
       : operator.status === "dual_template" ||
-          operator.status === "version_superseded"
+          operator.status === "version_superseded" ||
+          isNotPayable ||
+          isScheduled
         ? "warn"
         : "ok";
   const salaryState: StepState = salary.amount ? "ok" : "warn";
   const accountState: StepState = operator.hasClabe ? "ok" : "todo";
+  /** Prohibido CTA «Asignar tarifa» cuando ya hay asignación no pagable / programada. */
+  const showAssignCta =
+    canAssign &&
+    tariffState !== "ok" &&
+    !isNotPayable &&
+    !isScheduled;
+  const tariffsHref = operator.template
+    ? compensationTemplateBuildPath(operator.template.id)
+    : COMPENSATION_TEMPLATES_PATH;
+  const isDraftNotPayable =
+    isNotPayable && operator.template?.payability === "draft";
 
   return (
     <aside className="space-y-3" data-testid="operators-readiness-panel">
@@ -120,7 +139,25 @@ export function OperatorPaymentReadinessPanel({
                 {tariff.muted ? copy.stepTariffEmpty : tariff.title}
                 {tariff.subtitle ? ` · ${tariff.subtitle}` : ""}
               </div>
-              {canAssign && tariffState !== "ok" ? (
+              {isDraftNotPayable ? (
+                <p
+                  className="mt-1 text-[13px] text-muted-foreground"
+                  data-testid="operators-panel-draft-hint"
+                >
+                  {copy.stepTariffDraftHint}
+                </p>
+              ) : null}
+              {isNotPayable ? (
+                <Button
+                  asChild
+                  size="sm"
+                  className="mt-2"
+                  data-testid="operators-panel-go-tariffs"
+                >
+                  <Link to={tariffsHref}>{copy.goToTariffs}</Link>
+                </Button>
+              ) : null}
+              {showAssignCta ? (
                 <Button
                   type="button"
                   size="sm"

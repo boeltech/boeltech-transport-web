@@ -74,5 +74,51 @@ describe("OperatorPaymentReadinessPanel", () => {
     expect(clabeLink).toHaveClass("underline");
     expect(screen.queryByText(/5521|CLABE\s*\d/i)).not.toBeInTheDocument();
   });
+
+  it("template_not_payable draft: muestra tarifa, hint y CTA Tarifas (sin Asignar)", () => {
+    renderPanel({
+      ...noTariff,
+      status: "template_not_payable",
+      template: {
+        id: "tpl-draft",
+        name: "Tarifa-01",
+        version: 1,
+        effectiveFrom: "2026-10-01",
+        payability: "draft",
+      },
+      attentionReasons: ["template_not_payable"],
+    });
+
+    expect(screen.getByText(/Tarifa-01 v1/)).toBeInTheDocument();
+    expect(screen.getByTestId("operators-panel-draft-hint")).toHaveTextContent(
+      copy.panel.stepTariffDraftHint,
+    );
+    const tariffs = screen.getByTestId("operators-panel-go-tariffs");
+    expect(tariffs).toHaveAttribute(
+      "href",
+      "/finance/operator-payments/tariffs/tpl-draft/build",
+    );
+    expect(screen.queryByTestId("operators-panel-assign")).not.toBeInTheDocument();
+  });
+
+  it("template_scheduled: vigente desde fecha y sin CTA Asignar", () => {
+    renderPanel({
+      ...noTariff,
+      status: "template_scheduled",
+      template: {
+        id: "tpl-future",
+        name: "Foránea",
+        version: 2,
+        effectiveFrom: "2026-12-01",
+        payability: "active",
+      },
+      attentionReasons: ["template_scheduled"],
+    });
+
+    expect(screen.getByText(/Foránea v2/)).toBeInTheDocument();
+    expect(screen.getByText(/Vigente desde/)).toBeInTheDocument();
+    expect(screen.queryByTestId("operators-panel-assign")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operators-panel-go-tariffs")).not.toBeInTheDocument();
+  });
 });
 
