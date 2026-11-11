@@ -704,4 +704,27 @@ describe("AdvanceActions", () => {
     expect(screen.queryByText("Autorizar anticipo")).not.toBeInTheDocument();
     expect(screen.queryByText("Registrar entrega / pago")).not.toBeInTheDocument();
   });
+
+  it("10. D4: con onRepartir muestra «Repartir» en el menú ⋯", async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    const onRepartir = vi.fn();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AdvanceActions
+            advance={{ ...sampleAdvance, status: "disbursed" }}
+            onRepartir={onRepartir}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /abrir menú de acciones/i }));
+    const item = screen.getByTestId("advance-repartir-menu-adv-1");
+    expect(item).toHaveTextContent("Repartir");
+    await user.click(item);
+    expect(onRepartir).toHaveBeenCalledTimes(1);
+  });
 });

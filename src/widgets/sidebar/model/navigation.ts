@@ -44,6 +44,7 @@ import {
   Banknote,
   FileWarning,
   HandCoins,
+  BanknoteArrowUp,
   FileSpreadsheet,
 } from "lucide-react";
 import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
@@ -220,7 +221,7 @@ export const navigationConfig: NavGroup[] = [
         id: "operator-payments-advances",
         label: copy.item.operatorPaymentsAdvances,
         path: SETTLEMENTS_ADVANCES_PATH,
-        icon: HandCoins,
+        icon: BanknoteArrowUp,
         module: "settlements",
       },
       {

@@ -12,6 +12,7 @@ import {
   Ban,
   StickyNote,
   History,
+  Split,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -91,9 +92,15 @@ const flowCopy = settlementsCopy.advanceFlow;
 interface AdvanceActionsProps {
   advance: DriverAdvance;
   onActionComplete?: () => void;
+  /** D4: Repartir en ⋯ cuando no va inline (solo si no supera pago). */
+  onRepartir?: () => void;
 }
 
-export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProps) {
+export function AdvanceActions({
+  advance,
+  onActionComplete,
+  onRepartir,
+}: AdvanceActionsProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -274,13 +281,15 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
 
   const canDecide = canUpdate && isPendingApproval;
   const showDecisions = canDecide && approvalUi.kind === "act";
+  const showRepartirInMenu = Boolean(onRepartir);
   const showWorkflowSection =
     (canUpdate && isDraft) ||
     canDecide ||
     (canExecute && isPendingDisbursement) ||
     canEdit ||
     (canUpdate && isDisbursed) ||
-    canOpenHistory;
+    canOpenHistory ||
+    showRepartirInMenu;
 
   return (
     <>
@@ -363,6 +372,16 @@ export function AdvanceActions({ advance, onActionComplete }: AdvanceActionsProp
                 {copy.actions.recordAdvanceDisbursement}
               </DropdownMenuItem>
             )
+          ) : null}
+
+          {showRepartirInMenu ? (
+            <DropdownMenuItem
+              onClick={onRepartir}
+              data-testid={`advance-repartir-menu-${advance.id}`}
+            >
+              <Split className="mr-2 h-4 w-4" />
+              {copy.advancesList.repartir.actionLabel}
+            </DropdownMenuItem>
           ) : null}
 
           {canDeductInPayment ? (
