@@ -3,6 +3,8 @@ import { FINANCE_APPROVALS_PATH } from "@features/finance/application";
 import { settlementsPendingApprovalPath } from "../../application/settlementsRoutes";
 import {
   SETTLEMENT_WORKBENCH_BUCKETS,
+  isWorkbenchBucketParam,
+  normalizeWorkbenchBucketParam,
   settlementsApprovalsInboxPath,
   settlementsDriverAdvanceApprovalsPath,
   settlementsPendingApprovalRedirectPath,
@@ -50,6 +52,14 @@ describe("settlementWorkbenchConfig", () => {
     expect(settlementsPendingApprovalRedirectPath("?driverId=emp-9")).toBe(
       "/finance/operator-payments?bucket=approval&employeeId=emp-9",
     );
+  });
+
+  it("PM-07: aliases to_pay→payable y paid→closed", () => {
+    expect(isWorkbenchBucketParam("to_pay")).toBe(true);
+    expect(isWorkbenchBucketParam("paid")).toBe(true);
+    expect(normalizeWorkbenchBucketParam("to_pay")).toBe("payable");
+    expect(normalizeWorkbenchBucketParam("paid")).toBe("closed");
+    expect(normalizeWorkbenchBucketParam("payable")).toBe("payable");
   });
 });
 

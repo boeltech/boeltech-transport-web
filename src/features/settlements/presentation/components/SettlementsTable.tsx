@@ -3,6 +3,7 @@
  * Clean Architecture - Presentation Layer (Components)
  */
 
+import { Link } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -13,6 +14,7 @@ import {
 } from "@shared/ui/table";
 import { Skeleton } from "@shared/ui/skeleton";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
@@ -341,11 +343,35 @@ export function SettlementsTable({
                       ? `${st.approvedByName}${st.approvedAt ? ` · ${new Date(st.approvedAt).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}` : ""}`
                       : "—"}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="min-w-0 whitespace-nowrap">
                     {missingClabe ? (
-                      <Badge variant="warning" tone="soft" data-testid="settlement-no-clabe-badge">
-                        {bulkCopy.noClabeBadge}
-                      </Badge>
+                      <div className="space-y-1" data-testid="settlement-no-clabe-tip">
+                        <Badge
+                          variant="warning"
+                          tone="soft"
+                          data-testid="settlement-no-clabe-badge"
+                        >
+                          {bulkCopy.noClabeBadge}
+                        </Badge>
+                        <p className="whitespace-normal text-[11px] leading-snug text-muted-foreground">
+                          {bulkCopy.noClabeCashRowTip}
+                          {" · "}
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-[11px] underline underline-offset-2"
+                            asChild
+                          >
+                            <Link
+                              to={`/employees/${st.employeeId}`}
+                              onClick={(e) => e.stopPropagation()}
+                              data-testid={`settlement-no-clabe-employees-${st.id}`}
+                            >
+                              {bulkCopy.completeClabeInEmployees}
+                            </Link>
+                          </Button>
+                        </p>
+                      </div>
                     ) : (
                       <span className="font-mono text-xs text-muted-foreground">
                         SPEI

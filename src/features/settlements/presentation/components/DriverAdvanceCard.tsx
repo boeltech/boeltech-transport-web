@@ -80,7 +80,7 @@ export function DriverAdvanceCard({ advance }: DriverAdvanceCardProps) {
             <span className="text-muted-foreground">
               {advancesCopy.balancePendingLabel}:
             </span>
-            <p className="font-bold text-primary tabular-nums">
+            <p className="font-mono font-medium tabular-nums text-foreground">
               {formatMxCurrency(advance.balanceRemaining)}
             </p>
           </div>

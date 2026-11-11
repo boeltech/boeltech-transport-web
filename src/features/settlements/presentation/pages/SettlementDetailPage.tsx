@@ -87,7 +87,6 @@ import {
   COMPENSATION_CALCULATION_TYPE_LABELS,
   COMPENSATION_SALARY_PERIOD_LABELS,
   TRIP_ROUTE_TYPE_LABELS,
-  DISBURSEMENT_METHOD_LABELS,
   type CompensationSalaryPeriod,
   type TripRouteType,
 } from "../../domain/enums";

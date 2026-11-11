@@ -13,7 +13,8 @@ export interface ClosedPeriodBannerModel {
   /** Número de semana ISO o etiqueta del periodo. */
   weekLabel: string;
   operatorCount: number;
-  estimatedAmount: number;
+  /** `null` = sin monto legible (PM-01); no publicar Estimado $0.00. */
+  estimatedAmount: number | null;
   warningsCount?: number;
   /** Operadores por armar de periodos distintos al anunciado. */
   otherPeriodsCount?: number;
@@ -65,7 +66,9 @@ export function SettlementClosedPeriodBanner({
           </p>
         ) : null}
         <p className="text-sm text-muted-foreground">
-          {copy.estimate(formatMxCurrency(model.estimatedAmount))}
+          {model.estimatedAmount != null
+            ? copy.estimate(formatMxCurrency(model.estimatedAmount))
+            : copy.estimateUnavailable}
           {model.warningsCount != null && model.warningsCount > 0
             ? ` · ${copy.warnings(model.warningsCount)}`
             : ""}

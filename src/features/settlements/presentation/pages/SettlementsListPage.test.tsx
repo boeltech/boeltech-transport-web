@@ -237,6 +237,9 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     expect(
       screen.getByLabelText(workbenchCopy.actions.includeContractors),
     ).toBeInTheDocument();
+    // V-M7: Operate fija tabla; sin toggle lista/grid en toolbar.
+    expect(screen.queryByTitle("Vista de tabla")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Vista de tarjetas")).not.toBeInTheDocument();
   });
 
   it("sucursal vive en ListingFilterPanel", async () => {
@@ -321,6 +324,30 @@ describe("SettlementsListPage — F1 Por pagar", () => {
     await waitFor(() => {
       expect(workbench.refetch).toHaveBeenCalled();
     });
+  });
+
+  it("PM-07: ?bucket=to_pay aterriza en Por pagar", async () => {
+    workbenchCounts.summary = {
+      pending: 0,
+      draft: 0,
+      approval: 0,
+      payable: 1,
+      closed: 0,
+      openAdvances: 0,
+    };
+    settlementsList.data = {
+      data: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+    };
+
+    renderWithTheme(<SettlementsListPage />, {
+      route: ["/finance/operator-payments?bucket=to_pay"],
+    });
+
+    const payableTab = await screen.findByRole("tab", {
+      name: new RegExp(workbenchCopy.buckets.payable),
+    });
+    expect(payableTab).toHaveAttribute("aria-selected", "true");
   });
 
   it("pipeline vacío usa EmptyState único (sin empty local de cola)", async () => {

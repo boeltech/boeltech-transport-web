@@ -59,6 +59,25 @@ export function resolveDefaultWorkbenchBucket(): SettlementWorkbenchNavBucket {
   return "pending";
 }
 
+/**
+ * Aliases de URL (docs / notificaciones / TEC C.2):
+ * `to_pay` → `payable` · `paid` → `closed`.
+ */
+export function isWorkbenchBucketParam(value: string): boolean {
+  if (value === "paid" || value === "to_pay") return true;
+  return SETTLEMENT_WORKBENCH_BUCKETS.includes(
+    value as SettlementWorkbenchNavBucket,
+  );
+}
+
+export function normalizeWorkbenchBucketParam(
+  value: string,
+): SettlementWorkbenchNavBucket {
+  if (value === "paid") return "closed";
+  if (value === "to_pay") return "payable";
+  return value as SettlementWorkbenchNavBucket;
+}
+
 /** Redirect canónico desde la ruta legacy del tab Por autorizar. */
 export function settlementsPendingApprovalRedirectPath(search?: string): string {
   const params = new URLSearchParams(

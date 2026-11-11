@@ -3,6 +3,7 @@ import type { SettlementCutPreviewRow } from "../../domain/settlementCut";
 import {
   applyZeroKmAckToCutRow,
   buildCutDidNotEnterRows,
+  alreadyHasPaymentTooltip,
   cutDidNotEnterReasonLabel,
   cutEffectAllowsNetDisplay,
   filterCutReviewRows,
@@ -10,6 +11,7 @@ import {
   isCutRowSendable,
   partitionCutReviewRows,
   primaryCutWarningCode,
+  resolveCutRowWarningUi,
   resolveCutWarningUi,
   rowHasCutWarning,
 } from "./settlementCutWarnings";
@@ -83,6 +85,52 @@ describe("settlementCutWarnings — PRD §H / DOM", () => {
     const ui = resolveCutWarningUi("reimbursement_payee_required");
     expect(ui.label).toBe("Falta quién recibe el reembolso");
     expect(ui.action).toBe("define_payee");
+  });
+
+  it("F-R4b: nothing_to_pay con periodOverlap → Ya tiene un pago + Ver pago", () => {
+    const covered = row({
+      employeeId: "adriana",
+      effect: "excluded",
+      primaryReason: "nothing_to_pay",
+      warnings: [
+        {
+          code: "nothing_to_pay",
+          message: "No hay viajes, sueldo ni reembolsos en este periodo",
+        },
+      ],
+      periodOverlap: {
+        settlementId: "set-1",
+        status: "pending_approval",
+        settlementNumber: "LIQ-202611-0002",
+        conflictsCount: 1,
+        overlapKind: "contained",
+      },
+    });
+    const ui = resolveCutRowWarningUi(covered);
+    expect(ui?.label).toBe("Ya tiene un pago");
+    expect(ui?.action).toBe("view_payment");
+    expect(ui?.tooltip).toBe(
+      alreadyHasPaymentTooltip(covered.periodOverlap!),
+    );
+    expect(cutDidNotEnterReasonLabel(covered)).toBe("Ya tiene un pago");
+  });
+
+  it("F-R4b: nothing_to_pay sin folio sigue Nada que pagar", () => {
+    const empty = row({
+      employeeId: "x",
+      effect: "excluded",
+      primaryReason: "nothing_to_pay",
+      warnings: [
+        {
+          code: "nothing_to_pay",
+          message: "No hay viajes, sueldo ni reembolsos en este periodo",
+        },
+      ],
+      periodOverlap: null,
+    });
+    const ui = resolveCutRowWarningUi(empty);
+    expect(ui?.label).toBe("Nada que pagar");
+    expect(ui?.action).toBe("view_operator");
   });
 
   it("applyZeroKmAckToCutRow convierte blocking en includable soft", () => {

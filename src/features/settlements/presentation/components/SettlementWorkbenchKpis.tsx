@@ -11,19 +11,11 @@ interface SettlementWorkbenchKpisProps {
   isLoading?: boolean;
 }
 
-function resolveKpis(summary: SettlementWorkbenchSummary) {
+function resolveAttentionKpis(summary: SettlementWorkbenchSummary) {
   const kpis = summary.kpis;
   return {
-    toArm: kpis?.toArm ?? {
-      count: summary.pending,
-      amount: 0,
-    },
     inApproval: kpis?.inApproval ?? {
       count: summary.approval,
-      amount: 0,
-    },
-    authorizedUnpaid: kpis?.authorizedUnpaid ?? {
-      count: summary.payable,
       amount: 0,
     },
     advancesToDeduct: kpis?.advancesToDeduct ?? {
@@ -34,38 +26,24 @@ function resolveKpis(summary: SettlementWorkbenchSummary) {
 }
 
 /**
- * 4 KPIs del workbench Pagos (CA F4.3 · Operate-Pagos-Workbench).
- * En autorización con warning si aging > 1 día.
+ * KPIs de atención del workbench Pagos (PM-04 / D-PM-1).
+ * No espeja 1:1 los buckets del riel: solo aging (En autorización) + Anticipos.
  */
 export function SettlementWorkbenchKpis({
   summary,
   isLoading = false,
 }: SettlementWorkbenchKpisProps) {
-  const kpis = resolveKpis(summary);
+  const kpis = resolveAttentionKpis(summary);
   const aging = summary.approvalAgingDaysMax;
   const approvalWarn = typeof aging === "number" && aging > 1;
 
   const cards = [
-    {
-      id: "to_arm",
-      label: copy.toArm.label,
-      amount: kpis.toArm.amount,
-      detail: copy.toArm.detail(kpis.toArm.count),
-      warn: false,
-    },
     {
       id: "in_approval",
       label: copy.inApproval.label,
       amount: kpis.inApproval.amount,
       detail: copy.inApproval.detail(kpis.inApproval.count, aging ?? null),
       warn: approvalWarn,
-    },
-    {
-      id: "authorized_unpaid",
-      label: copy.authorizedUnpaid.label,
-      amount: kpis.authorizedUnpaid.amount,
-      detail: copy.authorizedUnpaid.detail(kpis.authorizedUnpaid.count),
-      warn: false,
     },
     {
       id: "advances_to_deduct",
@@ -78,7 +56,7 @@ export function SettlementWorkbenchKpis({
 
   return (
     <div
-      className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2"
       data-testid="settlement-workbench-kpis"
       aria-label={copy.ariaLabel}
     >
@@ -97,7 +75,7 @@ export function SettlementWorkbenchKpis({
           {isLoading ? (
             <Skeleton className="h-7 w-24" />
           ) : (
-            <span className="font-mono text-[22px] font-semibold leading-7 tabular-nums">
+            <span className="font-mono text-[22px] font-semibold leading-7 tabular-nums text-foreground">
               {formatMxCurrency(card.amount)}
             </span>
           )}

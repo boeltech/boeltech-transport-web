@@ -55,15 +55,25 @@ interface DriverAdvancesTableProps {
 // CONSTANTS
 // ============================================================================
 
+/**
+ * PM-06: above-the-fold = Folio · Operador · Categoría · Saldo · Entrega.
+ * Método/ref va en 2ª línea de Entrega; estado/acciones quedan para Operate.
+ */
 const TABLE_HEADERS = [
-  { key: "folio", label: copy.fields.folio, className: "min-w-[130px]" },
-  { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
-  { key: "category", label: copy.fields.category, className: "min-w-[130px]" },
-  { key: "paymentMethod", label: copy.fields.paymentMethod, className: "min-w-[160px]" },
-  { key: "amount", label: copy.fields.amount, className: "text-right min-w-[120px]" },
-  { key: "balanceRemaining", label: copy.fields.balanceRemaining, className: "text-right min-w-[130px] font-semibold text-foreground" },
-  { key: "deliveryDate", label: copy.fields.deliveryDate, className: "min-w-[120px]" },
-  { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
+  { key: "folio", label: copy.fields.folio, className: "w-[7.5rem]" },
+  { key: "employee", label: copy.fields.employee, className: "min-w-0" },
+  { key: "category", label: copy.fields.category, className: "w-[7.5rem]" },
+  {
+    key: "balanceRemaining",
+    label: copy.fields.balanceRemaining,
+    className: "w-[8rem] text-right font-medium text-foreground",
+  },
+  {
+    key: "deliveryDate",
+    label: copy.fields.deliveryDate,
+    className: "w-[9rem]",
+  },
+  { key: "status", label: copy.fields.status, className: "w-[7.5rem]" },
   { key: "actions", label: "", className: "w-12 text-right" },
 ];
 
@@ -102,17 +112,14 @@ function LoadingSkeleton() {
           <TableCell>
             <Skeleton className="h-4 w-28" />
           </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-32" />
-          </TableCell>
-          <TableCell className="text-right">
-            <Skeleton className="h-4 w-20 ml-auto" />
-          </TableCell>
           <TableCell className="text-right">
             <Skeleton className="h-4 w-20 ml-auto" />
           </TableCell>
           <TableCell>
-            <Skeleton className="h-4 w-24" />
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-20" />
+            </div>
           </TableCell>
           <TableCell>
             <Skeleton className="h-6 w-20" />
@@ -123,6 +130,13 @@ function LoadingSkeleton() {
         </TableRow>
       ))}
     </TableBody>
+  );
+}
+
+function deliveryMethodLabel(adv: DriverAdvance): string {
+  return (
+    DISBURSEMENT_METHOD_LABELS[adv.paymentMethod as DisbursementMethod] ??
+    adv.paymentMethod
   );
 }
 
@@ -138,8 +152,8 @@ export function DriverAdvancesTable({
 }: DriverAdvancesTableProps) {
   if (isLoading) {
     return (
-      <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de anticipos">
+      <div className="rounded-md border bg-card">
+        <Table aria-label="Listado de anticipos" className="w-full table-fixed">
           <TableHeaderRow />
           <LoadingSkeleton />
         </Table>
@@ -153,8 +167,8 @@ export function DriverAdvancesTable({
   }
 
   return (
-    <div className="rounded-md border bg-card overflow-x-auto">
-      <Table aria-label="Listado de anticipos">
+    <div className="rounded-md border bg-card">
+      <Table aria-label="Listado de anticipos" className="w-full table-fixed">
         <TableHeaderRow />
         <TableBody>
           {advances.map((adv) => {
@@ -172,47 +186,31 @@ export function DriverAdvancesTable({
             return (
               <TableRow key={adv.id} className="hover:bg-muted/50 transition-colors">
                 {/* Folio */}
-                <TableCell className="font-semibold text-primary font-mono whitespace-nowrap">
+                <TableCell className="truncate font-semibold text-primary font-mono text-sm">
                   {adv.folio}
                 </TableCell>
 
                 {/* Operador / Viaje */}
-                <TableCell className="font-medium whitespace-nowrap">
-                  <div>{adv.employeeFullName ?? "—"}</div>
+                <TableCell className="min-w-0 font-medium">
+                  <div className="truncate">{adv.employeeFullName ?? "—"}</div>
                   {adv.tripCode ? (
-                    <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                    <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                       Viaje: {adv.tripCode}
                     </p>
                   ) : null}
                 </TableCell>
 
                 {/* Categoría */}
-                <TableCell className="whitespace-nowrap">{catLabel}</TableCell>
+                <TableCell className="truncate text-sm">{catLabel}</TableCell>
 
-                {/* Método / Referencia */}
-                <TableCell className="text-muted-foreground whitespace-nowrap">
-                  <span>
-                    {DISBURSEMENT_METHOD_LABELS[
-                      adv.paymentMethod as DisbursementMethod
-                    ] ?? adv.paymentMethod}
-                  </span>
-                  {adv.bankReference ? (
-                    <span className="text-xs text-muted-foreground font-mono ml-1">
-                      ({adv.bankReference})
-                    </span>
-                  ) : null}
-                </TableCell>
-
-                {/* Monto entregado */}
-                <TableCell className="text-right tabular-nums font-medium whitespace-nowrap">
-                  {formatMxCurrency(adv.amount)}
-                </TableCell>
-
-                {/* Saldo restante */}
-                <TableCell className="text-right tabular-nums font-bold text-primary">
+                {/* Saldo restante — V-M2: ink, no primary */}
+                <TableCell className="text-right font-mono text-sm font-medium tabular-nums text-foreground">
                   {formatMxCurrency(balance)}
+                  <p className="mt-0.5 text-[10px] font-normal text-muted-foreground">
+                    {formatMxCurrency(adv.amount)} entregado
+                  </p>
                   {adv.reservedAmount && adv.reservedAmount > 0 ? (
-                    <p className="text-[10px] font-normal text-muted-foreground whitespace-normal mt-0.5">
+                    <p className="mt-0.5 whitespace-normal text-[10px] font-normal text-muted-foreground">
                       {copy.createPage.summary.reservedAdvanceHint}
                     </p>
                   ) : null}
@@ -236,14 +234,20 @@ export function DriverAdvancesTable({
                   ) : null}
                 </TableCell>
 
-                {/* Fecha entrega */}
-                <TableCell className="text-muted-foreground text-xs sm:text-sm whitespace-nowrap">
-                  {adv.disbursedAt ? formatDate(adv.disbursedAt) : "—"}
+                {/* Entrega + método/ref (PM-06 2ª línea) */}
+                <TableCell className="min-w-0 text-xs text-muted-foreground sm:text-sm">
+                  <div className="truncate">
+                    {adv.disbursedAt ? formatDate(adv.disbursedAt) : "—"}
+                  </div>
+                  <span className="mt-0.5 block truncate text-[11px]">
+                    {deliveryMethodLabel(adv)}
+                    {adv.bankReference ? ` · ${adv.bankReference}` : ""}
+                  </span>
                 </TableCell>
 
                 {/* Estado */}
-                <TableCell className="whitespace-nowrap">
-                  <div className="flex items-center gap-1">
+                <TableCell className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1">
                     <AdvanceStatusBadge status={adv.status} showIcon size="sm" />
                     {showsSelfApprovedBadge({
                       kind: "advance",
@@ -257,8 +261,8 @@ export function DriverAdvancesTable({
                 </TableCell>
 
                 {/* Acciones */}
-                <TableCell className="w-12 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
+                <TableCell className="w-12 text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-0.5">
                     {onRepartir &&
                     (exceeds ||
                       adv.status === "disbursed" ||
@@ -267,6 +271,7 @@ export function DriverAdvancesTable({
                         type="button"
                         variant="ghost"
                         size="sm"
+                        className="px-1.5"
                         onClick={() => onRepartir(adv)}
                         data-testid={`advance-repartir-${adv.id}`}
                       >

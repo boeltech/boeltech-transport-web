@@ -26,6 +26,8 @@ function actionLabel(action: SettlementCutRowAction): string | null {
       return copy.actions.assignTariff;
     case "view_operator":
       return copy.actions.viewOperator;
+    case "view_payment":
+      return copy.actions.viewPayment;
     case "review":
       return copy.actions.review;
     case "change_amount":

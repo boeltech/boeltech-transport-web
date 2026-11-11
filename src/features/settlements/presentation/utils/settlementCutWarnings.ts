@@ -18,6 +18,7 @@ export type SettlementCutBadgeVariant =
 export type SettlementCutRowAction =
   | "assign_tariff"
   | "view_operator"
+  | "view_payment"
   | "review"
   | "change_amount"
   | "view_trip"
@@ -198,11 +199,43 @@ export function primaryCutWarningCode(
   return best;
 }
 
+/**
+ * F-R4b — si `nothing_to_pay` viene con `periodOverlap`, el job es «ya cubierto»,
+ * no «neto $0». Folio solo en tooltip (PRD D1).
+ */
+export function alreadyHasPaymentTooltip(
+  overlap: NonNullable<SettlementCutPreviewRow["periodOverlap"]>,
+): string {
+  const statusLabel =
+    overlap.status === "draft"
+      ? "Borrador"
+      : overlap.status === "pending_approval"
+        ? "En autorización"
+        : overlap.status === "approved"
+          ? "Autorizado"
+          : overlap.status === "disbursed"
+            ? "Pagado"
+            : null;
+  if (statusLabel) {
+    return `Ya tiene el pago ${overlap.settlementNumber} · ${statusLabel}. No vuelve a entrar en este corte.`;
+  }
+  return `Ya tiene el pago ${overlap.settlementNumber}. No vuelve a entrar en este corte.`;
+}
+
 export function resolveCutRowWarningUi(
   row: SettlementCutPreviewRow,
 ): SettlementCutWarningUi | null {
   const code = primaryCutWarningCode(row);
   if (!code) return null;
+  if (code === "nothing_to_pay" && row.periodOverlap?.settlementNumber) {
+    return {
+      label: "Ya tiene un pago",
+      badgeVariant: "neutral",
+      effectHint: "excluded",
+      action: "view_payment",
+      tooltip: alreadyHasPaymentTooltip(row.periodOverlap),
+    };
+  }
   return resolveCutWarningUi(code);
 }
 
@@ -210,11 +243,13 @@ export function resolveCutRowWarningUi(
 export function primaryCutWarningMessage(
   row: SettlementCutPreviewRow,
 ): string | null {
-  const code = primaryCutWarningCode(row);
-  if (!code) return null;
-  const ui = resolveCutWarningUi(code);
+  const ui = resolveCutRowWarningUi(row);
+  if (!ui) return null;
   if (ui.tooltip) return ui.tooltip;
-  const match = row.warnings.find((w) => w.code === code);
+  const code = primaryCutWarningCode(row);
+  const match = code
+    ? row.warnings.find((w) => w.code === code)
+    : undefined;
   return match?.message ?? ui.label;
 }
 
@@ -344,5 +379,5 @@ export function cutDidNotEnterReasonLabel(row: SettlementCutPreviewRow): string 
   const code = primaryCutWarningCode(row);
   if (!code) return "No entró";
   if (code === "missing_ack_zero_km") return "Sin km · sin confirmar";
-  return resolveCutWarningUi(code).label;
+  return resolveCutRowWarningUi(row)?.label ?? resolveCutWarningUi(code).label;
 }

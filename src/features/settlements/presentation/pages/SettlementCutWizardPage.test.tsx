@@ -153,6 +153,10 @@ describe("SettlementCutWizardPage (F6)", () => {
 
     expect(await screen.findByTestId("cut-step-period")).toBeInTheDocument();
     expect(screen.getByText(/operadores elegibles/i)).toBeInTheDocument();
+    expect(screen.getByTestId("cut-period-eligible-summary")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fuera = ritmo\/tarifa distinto; no entran al enviar/i),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Siguiente" }));
 

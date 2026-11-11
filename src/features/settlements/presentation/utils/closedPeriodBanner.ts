@@ -67,14 +67,23 @@ export function resolveClosedPeriodBanner(
     Boolean(announcedEnd);
 
   const operatorCount = samePeriod.length;
-  const estimatedAmount = samePeriod.reduce(
+  const periodEstimatedSum = samePeriod.reduce(
     (sum, row) => sum + (row.estimatedNetAmount ?? 0),
     0,
   );
   const warningsCount = samePeriod.filter((row) => row.warnings.length > 0)
     .length;
 
+  /** PM-01 / D-PM-3: no publicar Estimado $0.00 con operadores pendientes. */
+  const resolveEstimate = (
+    raw: number,
+    operators: number,
+  ): number | null => (operators > 0 && raw <= 0 ? null : raw);
+
   if (!homogeneous) {
+    const rawEstimate =
+      summary.kpis?.toArm.amount ??
+      backlog.reduce((sum, row) => sum + (row.estimatedNetAmount ?? 0), 0);
     return {
       monthLabel: monthLabel(announcedStart || announcedEnd),
       dayRange: announcedStart && announcedEnd
@@ -82,9 +91,7 @@ export function resolveClosedPeriodBanner(
         : "—",
       weekLabel: "",
       operatorCount: backlog.length,
-      estimatedAmount:
-        summary.kpis?.toArm.amount ??
-        backlog.reduce((sum, row) => sum + (row.estimatedNetAmount ?? 0), 0),
+      estimatedAmount: resolveEstimate(rawEstimate, backlog.length),
       warningsCount: backlog.filter((row) => row.warnings.length > 0).length,
       otherPeriodsCount: 0,
       periodStart: announcedStart,
@@ -94,16 +101,17 @@ export function resolveClosedPeriodBanner(
   }
 
   const week = isoWeekNumber(announcedEnd || announcedStart);
+  const rawEstimate =
+    otherPeriodCount === 0 && summary.kpis?.toArm.amount != null
+      ? summary.kpis.toArm.amount
+      : periodEstimatedSum;
 
   return {
     monthLabel: monthLabel(announcedStart),
     dayRange: `${dayOfMonth(announcedStart)}–${dayOfMonth(announcedEnd)}`,
     weekLabel: String(week),
     operatorCount,
-    estimatedAmount:
-      otherPeriodCount === 0 && summary.kpis?.toArm.amount != null
-        ? summary.kpis.toArm.amount
-        : estimatedAmount,
+    estimatedAmount: resolveEstimate(rawEstimate, operatorCount),
     warningsCount,
     otherPeriodsCount: otherPeriodCount,
     periodStart: announcedStart,

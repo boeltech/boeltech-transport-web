@@ -101,4 +101,30 @@ describe("closedPeriodBanner", () => {
       resolveClosedPeriodBanner({ ...summary, pending: 0, kpis: undefined }, []),
     ).toBeNull();
   });
+
+  it("PM-01: no publica Estimado $0.00 cuando el periodo anunciado no tiene monto", () => {
+    const zeroPeriod: typeof backlog = [
+      {
+        ...backlog[0]!,
+        estimatedNetAmount: 0,
+      },
+      {
+        ...backlog[1]!,
+        employeeId: "e3",
+        periodStart: "2026-10-12",
+        periodEnd: "2026-10-18",
+        estimatedNetAmount: 50_000,
+      },
+    ];
+    const model = resolveClosedPeriodBanner(
+      {
+        ...summary,
+        pending: 2,
+        kpis: { ...summary.kpis!, toArm: { count: 2, amount: 50_000 } },
+      },
+      zeroPeriod,
+    );
+    expect(model?.operatorCount).toBe(1);
+    expect(model?.estimatedAmount).toBeNull();
+  });
 });

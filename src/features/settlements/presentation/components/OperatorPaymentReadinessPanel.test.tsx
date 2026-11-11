@@ -45,10 +45,9 @@ describe("OperatorPaymentReadinessPanel", () => {
     expect(screen.getByText(copy.panel.stepSalary)).toBeInTheDocument();
     expect(screen.getByText(copy.panel.stepAccount)).toBeInTheDocument();
     expect(screen.getByText(copy.panel.stepAccountOk)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: copy.panel.stepSalaryEdit })).toHaveAttribute(
-      "href",
-      "/employees/emp-m",
-    );
+    const salaryLink = screen.getByTestId("operators-panel-salary-link");
+    expect(salaryLink).toHaveAttribute("href", "/employees/emp-m");
+    expect(salaryLink).toHaveClass("underline");
 
     await user.click(screen.getByTestId("operators-panel-assign"));
     expect(onAssign).toHaveBeenCalledWith("emp-m");
@@ -70,10 +69,10 @@ describe("OperatorPaymentReadinessPanel", () => {
     });
 
     expect(screen.getByText(copy.panel.stepAccountMissing)).toBeInTheDocument();
-    expect(screen.getByTestId("operators-panel-clabe-link")).toHaveAttribute(
-      "href",
-      "/employees/emp-m",
-    );
+    const clabeLink = screen.getByTestId("operators-panel-clabe-link");
+    expect(clabeLink).toHaveAttribute("href", "/employees/emp-m");
+    expect(clabeLink).toHaveClass("underline");
     expect(screen.queryByText(/5521|CLABE\s*\d/i)).not.toBeInTheDocument();
   });
 });
+

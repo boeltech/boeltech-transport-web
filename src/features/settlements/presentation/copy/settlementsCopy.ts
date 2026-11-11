@@ -128,6 +128,8 @@ export const settlementsCopy = {
       open: "Abiertos",
       deducted: "Descontados · 30 días",
       openHint: "Entregados con saldo: se descuentan solos en el siguiente corte.",
+      /** PM-03 / V-M5: count>0 sin suma de bucket en API. */
+      amountMissingSum: "Ver tabla",
     },
     notReimbursementAlert: {
       title: "Un anticipo no es un reembolso",
@@ -209,9 +211,13 @@ export const settlementsCopy = {
       ageDays: (days: number) =>
         days === 1 ? "hace 1 día" : `hace ${days} días`,
       ageToday: "hoy",
+      /** PM-02 / V-M5: count>0 sin suma de bucket en API. */
+      amountMissingSum: "Ver tabla",
     },
     kpis: {
-      ariaLabel: "Indicadores del periodo",
+      /** PM-04 / D-PM-1: atajos de atención (no espejo 1:1 del riel). */
+      ariaLabel: "Atajos de atención",
+      /** Conservado por datos API; ya no se muestra en el strip (riel = SoT). */
       toArm: {
         label: "Por armar (estimado)",
         detail: (count: number) =>
@@ -228,6 +234,7 @@ export const settlementsCopy = {
             : `${base} · el más antiguo hace ${agingDays} días`;
         },
       },
+      /** Conservado por datos API; ya no se muestra (espejaba «Por pagar»). */
       authorizedUnpaid: {
         label: "Autorizado sin pagar",
         detail: (count: number) =>
@@ -255,6 +262,8 @@ export const settlementsCopy = {
           ? "1 operador más con pagos pendientes de otros periodos"
           : `${count} operadores más con pagos pendientes de otros periodos`,
       estimate: (amount: string) => `Estimado ${amount}`,
+      /** PM-01 / D-PM-3: periodo con operadores pero sin monto legible. */
+      estimateUnavailable: "Sin monto estimable aún",
       warnings: (count: number) =>
         count === 1
           ? "1 con avisos que revisar antes de enviar"
@@ -265,10 +274,14 @@ export const settlementsCopy = {
     bulkBar: {
       selected: (count: number) =>
         count === 1 ? "1 seleccionado" : `${count} seleccionados`,
+      /** PM-05 / D-PM-4: tip efectivo (sin editor CLABE local). */
       cashNote: (count: number) =>
         count === 1
           ? "· 1 sin CLABE se registra en efectivo"
           : `· ${count} sin CLABE se registran en efectivo`,
+      completeClabeInEmployees: "Completar CLABE en Empleados",
+      /** Tip de fila Por pagar (badge Sin CLABE). */
+      noClabeCashRowTip: "Se registra en efectivo",
       downloadReceipts: "Descargar recibos",
       register: (count: number) =>
         count === 1 ? "Registrar 1 pago" : `Registrar ${count} pagos`,
@@ -1855,6 +1868,9 @@ export const settlementsCopy = {
           : `${count} operadores elegibles en este periodo`,
       eligibleHint: (includable: number, blocking: number, excluded: number) =>
         `${includable} listos para enviar · ${blocking} bloqueados · ${excluded} fuera`,
+      /** PM-08 — glosario pago/corte: «Fuera» en el resumen del Periodo. */
+      outsideHint:
+        "Fuera = ritmo/tarifa distinto; no entran al enviar.",
       loadingPreview: "Calculando operadores…",
       previewError: "No se pudo calcular el corte. Revisa el periodo e intenta de nuevo.",
       emptyEligible:
@@ -1885,6 +1901,7 @@ export const settlementsCopy = {
       actions: {
         assignTariff: "Asignar tarifa",
         viewOperator: "Ver ficha",
+        viewPayment: "Ver pago",
         review: "Revisar",
         changeAmount: "Cambiar monto",
         viewTrip: "Ver viaje",

@@ -55,6 +55,8 @@ import {
 import { useSettlementQueueFromState } from "../utils/settlementWayfinding";
 import {
   BUCKET_PIPELINE_STATUSES,
+  isWorkbenchBucketParam,
+  normalizeWorkbenchBucketParam,
   resolveDefaultWorkbenchBucket,
   SETTLEMENT_WORKBENCH_BUCKETS,
   type SettlementWorkbenchNavBucket,
@@ -85,23 +87,6 @@ import { roundCents } from "../../domain/settlementTotals";
 const copy = settlementsCopy;
 const workbenchCopy = settlementsCopy.workbench;
 const hubCopy = settlementsCopy.hub;
-
-function isWorkbenchBucket(
-  value: string,
-): value is SettlementWorkbenchNavBucket {
-  // TEC C.2: `paid` = Pagados; workbench usa `closed`.
-  if (value === "paid") return true;
-  return SETTLEMENT_WORKBENCH_BUCKETS.includes(
-    value as SettlementWorkbenchNavBucket,
-  );
-}
-
-function normalizeWorkbenchBucket(
-  value: string,
-): SettlementWorkbenchNavBucket {
-  if (value === "paid") return "closed";
-  return value as SettlementWorkbenchNavBucket;
-}
 
 /**
  * Workbench de pagos a operadores — WorkbenchPageShell (ADR-0090 / F2 sin hub tabs).
@@ -153,10 +138,10 @@ export function SettlementsListPage() {
     preserveParamsOnClear: ["bucket"],
   });
 
-  const activeBucket: SettlementWorkbenchNavBucket = isWorkbenchBucket(
+  const activeBucket: SettlementWorkbenchNavBucket = isWorkbenchBucketParam(
     filters.filters.bucket,
   )
-    ? normalizeWorkbenchBucket(filters.filters.bucket)
+    ? normalizeWorkbenchBucketParam(filters.filters.bucket)
     : "pending";
   const branchIdFilter = filters.filters.branchId || "";
   const includeContractors = filters.filters.includeContractors === "true";
@@ -343,7 +328,7 @@ export function SettlementsListPage() {
                 : bucket === "payable"
                   ? workbenchSummary.payable
                   : workbenchSummary.closed;
-        // C8: draft/closed sin KPI de monto en API → «—» tipografiado en chevron.
+        // PM-02: draft/closed sin suma API → null; chevron muestra «Ver tabla» si count>0.
         const amount =
           bucket === "pending"
             ? workbenchSummary.kpis?.toArm.amount
@@ -915,7 +900,7 @@ export function SettlementsListPage() {
           activeFilterChips,
           onClearFilters: filters.clearAll,
           hasFilters: hasToolbarFilters,
-          viewMode: filters.viewModeProps,
+          // V-M7: Operate fija tabla; toggle lista/grid fuera del toolbar.
           filters: (
             <>
               {activeBucket === "pending" ? (
@@ -955,7 +940,7 @@ export function SettlementsListPage() {
               <SettlementBacklogTable
                 rows={[]}
                 isLoading
-                viewMode={filters.viewMode}
+                viewMode="table"
                 fromState={fromState}
                 onNavigateCreate={(path) =>
                   navigate(path, { state: fromState })
@@ -966,7 +951,7 @@ export function SettlementsListPage() {
                 bucket={activeBucket}
                 settlements={[]}
                 isLoading
-                viewMode={filters.viewMode}
+                viewMode="table"
                 onView={handleViewSettlement}
               />
             );
@@ -1070,7 +1055,7 @@ export function SettlementsListPage() {
             <SettlementBacklogTable
               rows={visibleBacklogRows}
               isLoading={false}
-              viewMode={filters.viewMode}
+              viewMode="table"
               fromState={fromState}
               onNavigateCreate={(path) =>
                 navigate(path, { state: fromState })
@@ -1104,7 +1089,7 @@ export function SettlementsListPage() {
                 bucket={activeBucket}
                 settlements={pipelineSettlements}
                 isLoading={false}
-                viewMode={filters.viewMode}
+                viewMode="table"
                 onView={handleViewSettlement}
                 onDisburse={setDisburseSettlement}
                 selectedIds={selectionEnabled ? selectedIds : undefined}

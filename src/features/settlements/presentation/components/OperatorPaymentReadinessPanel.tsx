@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
@@ -38,6 +39,30 @@ function StepGlyph({ state, index }: { state: StepState; index: number }) {
     >
       {index}
     </div>
+  );
+}
+
+/** V-M6: wayfinding a Empleados como link DS (no texto bold suelto). */
+function EmployeesLink({
+  to,
+  children,
+  testId,
+}: {
+  to: string;
+  children: ReactNode;
+  testId?: string;
+}) {
+  return (
+    <Button
+      variant="link"
+      size="sm"
+      className="h-auto p-0 text-[13px] underline underline-offset-4"
+      asChild
+    >
+      <Link to={to} data-testid={testId}>
+        {children}
+      </Link>
+    </Button>
   );
 }
 
@@ -119,22 +144,22 @@ export function OperatorPaymentReadinessPanel({
                     {salary.amount}
                     {salary.period ? ` ${salary.period}` : ""}
                     {" · "}
-                    <Link
+                    <EmployeesLink
                       to={employeeHref}
-                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      testId="operators-panel-salary-link"
                     >
                       {copy.stepSalaryEdit}
-                    </Link>
+                    </EmployeesLink>
                   </>
                 ) : (
                   <>
                     {copy.stepSalaryEmpty}{" "}
-                    <Link
+                    <EmployeesLink
                       to={employeeHref}
-                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      testId="operators-panel-salary-link"
                     >
                       {copy.stepSalaryEdit}
-                    </Link>
+                    </EmployeesLink>
                   </>
                 )}
               </div>
@@ -151,13 +176,12 @@ export function OperatorPaymentReadinessPanel({
                 ) : (
                   <>
                     {copy.stepAccountMissing}{" "}
-                    <Link
+                    <EmployeesLink
                       to={employeeHref}
-                      className="font-medium text-primary underline-offset-2 hover:underline"
-                      data-testid="operators-panel-clabe-link"
+                      testId="operators-panel-clabe-link"
                     >
                       {copy.stepAccountEdit}
-                    </Link>
+                    </EmployeesLink>
                   </>
                 )}
               </div>

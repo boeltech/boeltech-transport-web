@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { settlementsCopy } from "../copy/settlementsCopy";
@@ -24,7 +25,7 @@ interface SettlementBulkBarProps {
 
 /**
  * Barra de lote oscura (pieza #9 · CA F4.5 / F7).
- * - payable: Registrar N (+ Descargar recibos)
+ * - payable: Registrar N (+ Descargar recibos) · tip Sin CLABE → efectivo + Empleados
  * - approval: Autorizar N / Rechazar (R5/R6)
  */
 export function SettlementBulkBar({
@@ -63,7 +64,22 @@ export function SettlementBulkBar({
         {formatMxCurrency(selectedTotal)}
       </span>
       {!isApproval && withoutClabeCount > 0 ? (
-        <span className="opacity-70">{copy.cashNote(withoutClabeCount)}</span>
+        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 opacity-90">
+          <span className="opacity-80">{copy.cashNote(withoutClabeCount)}</span>
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-background underline underline-offset-4 hover:text-background/90"
+            asChild
+          >
+            <Link
+              to="/employees"
+              data-testid="settlement-bulk-clabe-employees-link"
+            >
+              {copy.completeClabeInEmployees}
+            </Link>
+          </Button>
+        </span>
       ) : null}
       <span className="ml-auto flex flex-wrap items-center gap-2">
         {isApproval ? (

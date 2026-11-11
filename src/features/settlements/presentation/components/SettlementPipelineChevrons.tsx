@@ -1,8 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { Skeleton } from "@shared/ui/skeleton";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import { formatPipelineBucketAmount } from "../utils/formatPipelineBucketAmount";
 
 const copy = settlementsCopy.workbench.pipeline;
 
@@ -19,6 +19,8 @@ interface SettlementPipelineChevronsProps {
   buckets: readonly PipelineChevronBucket[];
   isLoading?: boolean;
   ariaLabel?: string;
+  /** Copy cuando count>0 y no hay suma API (default: workbench Pagos). */
+  amountMissingSumLabel?: string;
 }
 
 /**
@@ -29,6 +31,7 @@ export function SettlementPipelineChevrons({
   buckets,
   isLoading = false,
   ariaLabel = copy.ariaLabel,
+  amountMissingSumLabel = copy.amountMissingSum,
 }: SettlementPipelineChevronsProps) {
   return (
     <nav
@@ -72,13 +75,17 @@ export function SettlementPipelineChevrons({
             {isLoading ? (
               <Skeleton className="h-6 w-10" />
             ) : (
-              <span className="font-mono text-lg font-bold tabular-nums leading-6">
+              <span className="font-mono text-lg font-bold tabular-nums leading-6 text-foreground">
                 {bucket.count}
               </span>
             )}
             {!isLoading ? (
               <span className="truncate font-mono text-[11px] text-muted-foreground tabular-nums">
-                {bucket.amount != null ? formatMxCurrency(bucket.amount) : "—"}
+                {formatPipelineBucketAmount(
+                  bucket.amount,
+                  bucket.count,
+                  amountMissingSumLabel,
+                )}
               </span>
             ) : null}
           </button>

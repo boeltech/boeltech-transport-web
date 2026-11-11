@@ -118,6 +118,9 @@ describe("SettlementsAdvancesPage F4", () => {
     expect(
       screen.getByText(advancesCopy.notReimbursementAlert.title),
     ).toBeInTheDocument();
+    // V-M7: Operate fija tabla; sin toggle lista/grid en toolbar.
+    expect(screen.queryByTitle("Vista de tabla")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Vista de tarjetas")).not.toBeInTheDocument();
   });
 
   it("primaria Nuevo anticipo (CA F4.14)", () => {

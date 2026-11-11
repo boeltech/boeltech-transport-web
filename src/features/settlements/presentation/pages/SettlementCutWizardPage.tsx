@@ -42,6 +42,7 @@ import {
   settlementsPendingApprovalPath,
   settlementsRegistryPath,
   settlementCreatePath,
+  settlementDetailPath,
 } from "../../application/settlementsRoutes";
 import type {
   SettlementCutCreateResult,
@@ -364,6 +365,15 @@ export function SettlementCutWizardPage() {
         case "view_operator":
           navigate(`${SETTLEMENTS_OPERATORS_PATH}?employeeId=${row.employeeId}`);
           return;
+        case "view_payment":
+          if (row.periodOverlap?.settlementId) {
+            navigate(settlementDetailPath(row.periodOverlap.settlementId));
+          } else {
+            navigate(
+              settlementsRegistryPath({ employeeId: row.employeeId }),
+            );
+          }
+          return;
         case "change_amount":
         case "split_advance":
           navigate(settlementsAdvancesPath({ employeeId: row.employeeId }));
@@ -504,7 +514,10 @@ export function SettlementCutWizardPage() {
       ) : null}
 
       {summary ? (
-        <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
+        <div
+          className="rounded-xl border bg-muted/30 px-4 py-3 text-sm"
+          data-testid="cut-period-eligible-summary"
+        >
           <p className="font-medium">
             {copy.period.eligibleCount(
               summary.eligibleCount + summary.excludedCount,
@@ -516,6 +529,9 @@ export function SettlementCutWizardPage() {
               summary.blockingCount,
               summary.excludedCount,
             )}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {copy.period.outsideHint}
           </p>
         </div>
       ) : null}
@@ -712,6 +728,8 @@ export function SettlementCutWizardPage() {
                       return labels.assignTariff;
                     case "view_operator":
                       return labels.viewOperator;
+                    case "view_payment":
+                      return labels.viewPayment;
                     case "review":
                       return labels.review;
                     case "change_amount":

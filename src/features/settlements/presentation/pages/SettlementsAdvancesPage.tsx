@@ -20,8 +20,6 @@ import type { DriverAdvance } from "../../domain/entities";
 import {
   AdvancePeriodDeductionSheet,
   DriverAdvancesTable,
-  DriverAdvanceCard,
-  DriverAdvanceCardSkeleton,
   DriverAdvanceCreateDialog,
   SettlementPipelineChevrons,
 } from "../components";
@@ -274,6 +272,7 @@ export function SettlementsAdvancesPage() {
             <SettlementPipelineChevrons
               buckets={pipelineBuckets}
               ariaLabel={advancesCopy.pipeline.ariaLabel}
+              amountMissingSumLabel={advancesCopy.pipeline.amountMissingSum}
             />
             <p className="text-xs text-muted-foreground">
               {advancesCopy.pipeline.openHint}
@@ -340,7 +339,7 @@ export function SettlementsAdvancesPage() {
           activeFilterChips,
           onClearFilters: filters.clearAll,
           hasFilters: filters.hasFilters,
-          viewMode: filters.viewModeProps,
+          // V-M7: Operate fija tabla; toggle lista/grid fuera del toolbar.
           filters: (
             <EmployeeAsyncCombobox
               id="settlements-advances-employee-filter"
@@ -406,25 +405,6 @@ export function SettlementsAdvancesPage() {
                     : undefined
                 }
               />
-            );
-          }
-
-          if (filters.viewMode === "cards") {
-            if (isLoading) {
-              return (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <DriverAdvanceCardSkeleton key={i} />
-                  ))}
-                </div>
-              );
-            }
-            return (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {filteredAdvances.map((advance) => (
-                  <DriverAdvanceCard key={advance.id} advance={advance} />
-                ))}
-              </div>
             );
           }
 
