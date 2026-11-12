@@ -33,10 +33,14 @@ export function BuilderPaymentRulesSection({
   const midTripHint =
     (midTripPayoutPolicy && copy.midTripPolicyHints[midTripPayoutPolicy]) ||
     copy.midTripPolicyHint;
-  const midTripDescription = (
+  const showRuntimeNote =
+    midTripPayoutPolicy != null && midTripPayoutPolicy !== "pay_full_to_each";
+  const midTripDescription = showRuntimeNote ? (
     <>
       {midTripHint} {copy.midTripPolicyRuntimeNote}
     </>
+  ) : (
+    midTripHint
   );
 
   return (

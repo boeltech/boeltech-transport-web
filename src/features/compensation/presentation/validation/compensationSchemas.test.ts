@@ -203,7 +203,22 @@ describe("compensationTemplateFormSchema", () => {
 
     expect(parsed.success).toBe(true);
     if (parsed.success) {
-      expect(parsed.data.midTripPayoutPolicy).toBe("split_by_assigned_km");
+      expect(parsed.data.midTripPayoutPolicy).toBe("pay_full_to_each");
+    }
+  });
+
+  it("acepta pay_full_to_each como midTripPayoutPolicy", () => {
+    const parsed = compensationTemplateFormSchema.safeParse({
+      name: "Tarifa mid-trip full",
+      midTripPayoutPolicy: "pay_full_to_each",
+      rules: [],
+      fixedAllowances: [],
+      corridorIds: [],
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.midTripPayoutPolicy).toBe("pay_full_to_each");
     }
   });
 

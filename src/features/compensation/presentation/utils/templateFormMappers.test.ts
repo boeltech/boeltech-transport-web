@@ -99,26 +99,26 @@ describe("templateToForm", () => {
         ...sampleTemplate,
         midTripPayoutPolicy: "" as CompensationTemplate["midTripPayoutPolicy"],
       }).midTripPayoutPolicy,
-    ).toBe("split_by_assigned_km");
+    ).toBe("pay_full_to_each");
     expect(
       templateToForm({
         ...sampleTemplate,
         midTripPayoutPolicy: undefined,
       }).midTripPayoutPolicy,
-    ).toBe("split_by_assigned_km");
+    ).toBe("pay_full_to_each");
     expect(
       templateToForm({
         ...sampleTemplate,
         midTripPayoutPolicy: "not_a_policy" as CompensationTemplate["midTripPayoutPolicy"],
       }).midTripPayoutPolicy,
-    ).toBe("split_by_assigned_km");
+    ).toBe("pay_full_to_each");
   });
 
   it("exposes shared default form values for create flows", () => {
     expect(DEFAULT_TEMPLATE_FORM_VALUES.rules).toHaveLength(1);
     expect(DEFAULT_TEMPLATE_FORM_VALUES.isActive).toBe(true);
     expect(DEFAULT_TEMPLATE_FORM_VALUES.midTripPayoutPolicy).toBe(
-      "split_by_assigned_km",
+      "pay_full_to_each",
     );
     expect(DEFAULT_TEMPLATE_FORM_VALUES.deductions).toEqual([]);
   });

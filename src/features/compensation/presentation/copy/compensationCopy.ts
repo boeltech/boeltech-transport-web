@@ -333,8 +333,10 @@ export const compensationCopy = {
     addRuleDisabledAllTypes: "Ya hay una regla para cada clase de ruta.",
     midTripPolicyLabel: "Si cambia de operador a medio viaje",
     midTripPolicyHint:
-      "Hoy cada participante cobra el viaje completo.",
+      "Cada participante cobra el viaje completo.",
     midTripPolicyHints: {
+      pay_full_to_each:
+        "Cada participante cobra el viaje completo.",
       split_by_assigned_km:
         "Cuando el cálculo separta, el pago se divide según los km de cada operador.",
       equal_parts:

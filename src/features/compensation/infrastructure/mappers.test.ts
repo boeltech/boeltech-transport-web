@@ -80,7 +80,7 @@ describe("compensation mappers", () => {
     });
 
     expect(mapped.name).toBe("Operador foráneo");
-    expect(mapped.midTripPayoutPolicy).toBe("split_by_assigned_km");
+    expect(mapped.midTripPayoutPolicy).toBe("pay_full_to_each");
     expect(mapped.status).toBe("active");
     expect(mapped.version).toBe(1);
     expect(mapped.familyId).toBe("tpl-1");
@@ -107,7 +107,7 @@ describe("compensation mappers", () => {
         corridor_ids: [],
         corridors: [],
       }).midTripPayoutPolicy,
-    ).toBe("split_by_assigned_km");
+    ).toBe("pay_full_to_each");
 
     expect(
       mapTemplateFromApi({
@@ -121,7 +121,7 @@ describe("compensation mappers", () => {
         corridorIds: [],
         corridors: [],
       }).midTripPayoutPolicy,
-    ).toBe("split_by_assigned_km");
+    ).toBe("pay_full_to_each");
   });
 
   it("mapTemplate usa 0 cuando falta active_assignments_count y deductions vacías", () => {

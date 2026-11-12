@@ -91,12 +91,14 @@ export const ADVANCE_CATEGORY_LABELS: Record<AdvanceCategory, string> = {
 };
 
 export type MidTripPayoutPolicy =
+  | "pay_full_to_each"
   | "split_by_assigned_km"
   | "equal_parts"
   | "pay_only_closer"
   | "pay_only_dispatcher";
 
 export const MID_TRIP_PAYOUT_POLICIES = [
+  "pay_full_to_each",
   "split_by_assigned_km",
   "equal_parts",
   "pay_only_closer",
@@ -104,6 +106,7 @@ export const MID_TRIP_PAYOUT_POLICIES = [
 ] as const satisfies readonly MidTripPayoutPolicy[];
 
 export const MID_TRIP_PAYOUT_POLICY_LABELS: Record<MidTripPayoutPolicy, string> = {
+  pay_full_to_each: "Pago completo a cada uno",
   split_by_assigned_km: "Prorrateo por km asignados",
   equal_parts: "Partes iguales",
   pay_only_closer: "Solo quien cierra el viaje",
@@ -111,7 +114,7 @@ export const MID_TRIP_PAYOUT_POLICY_LABELS: Record<MidTripPayoutPolicy, string> 
 };
 
 export const DEFAULT_MID_TRIP_PAYOUT_POLICY: MidTripPayoutPolicy =
-  "split_by_assigned_km";
+  "pay_full_to_each";
 
 /** `""` / null / inválido → default (API o form no dejan el Select en «Seleccionar»). */
 export function normalizeMidTripPayoutPolicy(
