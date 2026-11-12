@@ -376,7 +376,10 @@ export function AdvanceActions({
 
           {showRepartirInMenu ? (
             <DropdownMenuItem
-              onClick={onRepartir}
+              onSelect={() => {
+                // Diferir apertura tras cerrar el menú (sheet-from-menu-focus).
+                setTimeout(() => onRepartir?.(), 0);
+              }}
               data-testid={`advance-repartir-menu-${advance.id}`}
             >
               <Split className="mr-2 h-4 w-4" />

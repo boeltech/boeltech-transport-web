@@ -725,6 +725,6 @@ describe("AdvanceActions", () => {
     const item = screen.getByTestId("advance-repartir-menu-adv-1");
     expect(item).toHaveTextContent("Repartir");
     await user.click(item);
-    expect(onRepartir).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onRepartir).toHaveBeenCalledTimes(1));
   });
 });

@@ -101,7 +101,13 @@ export function AdvancePeriodDeductionSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md" data-testid="advance-repartir-sheet">
+      <SheetContent
+        className="sm:max-w-md"
+        data-testid="advance-repartir-sheet"
+        // Sheet desde ⋯ «Repartir»: Radix dispara onFocusOutside al cerrar el menú.
+        // Ver .cursor/rules/sheet-from-menu-focus.mdc
+        onFocusOutside={(e) => e.preventDefault()}
+      >
         <SheetHeader>
           <SheetTitle>{copy.title}</SheetTitle>
           <SheetDescription>
