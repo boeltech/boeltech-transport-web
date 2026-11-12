@@ -1,3 +1,7 @@
+import {
+  DEFAULT_MID_TRIP_PAYOUT_POLICY,
+  normalizeMidTripPayoutPolicy,
+} from "@features/settlements/domain/enums";
 import type {
   CompensationTemplate,
   CreateCompensationTemplatePayload,
@@ -24,7 +28,7 @@ export const DEFAULT_TEMPLATE_FORM_VALUES: CompensationTemplateFormData = {
   name: "",
   description: "",
   isActive: true,
-  midTripPayoutPolicy: "split_by_assigned_km",
+  midTripPayoutPolicy: DEFAULT_MID_TRIP_PAYOUT_POLICY,
   paymentPeriod: "weekly",
   salaryOnly: false,
   rules: DEFAULT_TEMPLATE_RULES,
@@ -40,7 +44,7 @@ export function templateToForm(
     name: template.name,
     description: template.description ?? "",
     isActive: template.isActive,
-    midTripPayoutPolicy: template.midTripPayoutPolicy ?? "split_by_assigned_km",
+    midTripPayoutPolicy: normalizeMidTripPayoutPolicy(template.midTripPayoutPolicy),
     paymentPeriod: template.paymentPeriod ?? "weekly",
     salaryOnly: template.salaryOnly ?? false,
     rules: template.rules.map((rule) => ({
@@ -77,7 +81,7 @@ export function buildDuplicateTemplatePayload(
   return {
     name,
     description: template.description ?? null,
-    midTripPayoutPolicy: template.midTripPayoutPolicy,
+    midTripPayoutPolicy: normalizeMidTripPayoutPolicy(template.midTripPayoutPolicy),
     paymentPeriod: template.paymentPeriod ?? "weekly",
     salaryOnly: template.salaryOnly ?? false,
     rules: template.rules.map((rule) => ({

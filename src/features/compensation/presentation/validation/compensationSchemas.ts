@@ -1,6 +1,13 @@
 import { z } from "zod";
 
+import {
+  DEFAULT_MID_TRIP_PAYOUT_POLICY,
+  MID_TRIP_PAYOUT_POLICIES,
+} from "@features/settlements/domain/enums";
 import { normalizeCorridorRefValue } from "../utils/corridorMatchKey";
+
+const MID_TRIP_PAYOUT_POLICY_REQUIRED_MESSAGE =
+  "Selecciona cómo repartir el pago si cambia el operador a medio viaje.";
 
 export const compensationTemplateRuleSchema = z.object({
   routeType: z.enum(["local", "long_haul", "transfer"]),
@@ -74,14 +81,15 @@ export const compensationTemplateFormSchema = z
     name: z.string().min(1, "El nombre es obligatorio").max(120),
     description: z.string().max(2000).optional().nullable(),
     isActive: z.boolean().default(true),
-    midTripPayoutPolicy: z
-      .enum([
-        "split_by_assigned_km",
-        "equal_parts",
-        "pay_only_closer",
-        "pay_only_dispatcher",
-      ])
-      .default("split_by_assigned_km"),
+    midTripPayoutPolicy: z.preprocess(
+      (value) =>
+        value === "" || value == null ? DEFAULT_MID_TRIP_PAYOUT_POLICY : value,
+      z
+        .enum(MID_TRIP_PAYOUT_POLICIES, {
+          error: MID_TRIP_PAYOUT_POLICY_REQUIRED_MESSAGE,
+        })
+        .default(DEFAULT_MID_TRIP_PAYOUT_POLICY),
+    ),
     paymentPeriod: z.enum(["weekly", "biweekly", "monthly"]).default("weekly"),
     salaryOnly: z.boolean().default(false),
     rules: z.array(compensationTemplateRuleSchema).default([]),

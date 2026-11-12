@@ -96,6 +96,13 @@ export type MidTripPayoutPolicy =
   | "pay_only_closer"
   | "pay_only_dispatcher";
 
+export const MID_TRIP_PAYOUT_POLICIES = [
+  "split_by_assigned_km",
+  "equal_parts",
+  "pay_only_closer",
+  "pay_only_dispatcher",
+] as const satisfies readonly MidTripPayoutPolicy[];
+
 export const MID_TRIP_PAYOUT_POLICY_LABELS: Record<MidTripPayoutPolicy, string> = {
   split_by_assigned_km: "Prorrateo por km asignados",
   equal_parts: "Partes iguales",
@@ -105,6 +112,20 @@ export const MID_TRIP_PAYOUT_POLICY_LABELS: Record<MidTripPayoutPolicy, string> 
 
 export const DEFAULT_MID_TRIP_PAYOUT_POLICY: MidTripPayoutPolicy =
   "split_by_assigned_km";
+
+/** `""` / null / inválido → default (API o form no dejan el Select en «Seleccionar»). */
+export function normalizeMidTripPayoutPolicy(
+  value: unknown,
+): MidTripPayoutPolicy {
+  if (typeof value !== "string") return DEFAULT_MID_TRIP_PAYOUT_POLICY;
+  const trimmed = value.trim();
+  if (
+    (MID_TRIP_PAYOUT_POLICIES as readonly string[]).includes(trimmed)
+  ) {
+    return trimmed as MidTripPayoutPolicy;
+  }
+  return DEFAULT_MID_TRIP_PAYOUT_POLICY;
+}
 
 /** D13 — VoBo por defecto desde el primer peso. */
 export const DEFAULT_VOBO_THRESHOLD_MXN = 0;

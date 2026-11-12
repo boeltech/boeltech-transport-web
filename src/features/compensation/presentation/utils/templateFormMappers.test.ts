@@ -93,9 +93,33 @@ describe("templateToForm", () => {
     ).toBe("");
   });
 
+  it("normalizes empty or invalid midTripPayoutPolicy to default", () => {
+    expect(
+      templateToForm({
+        ...sampleTemplate,
+        midTripPayoutPolicy: "" as CompensationTemplate["midTripPayoutPolicy"],
+      }).midTripPayoutPolicy,
+    ).toBe("split_by_assigned_km");
+    expect(
+      templateToForm({
+        ...sampleTemplate,
+        midTripPayoutPolicy: undefined,
+      }).midTripPayoutPolicy,
+    ).toBe("split_by_assigned_km");
+    expect(
+      templateToForm({
+        ...sampleTemplate,
+        midTripPayoutPolicy: "not_a_policy" as CompensationTemplate["midTripPayoutPolicy"],
+      }).midTripPayoutPolicy,
+    ).toBe("split_by_assigned_km");
+  });
+
   it("exposes shared default form values for create flows", () => {
     expect(DEFAULT_TEMPLATE_FORM_VALUES.rules).toHaveLength(1);
     expect(DEFAULT_TEMPLATE_FORM_VALUES.isActive).toBe(true);
+    expect(DEFAULT_TEMPLATE_FORM_VALUES.midTripPayoutPolicy).toBe(
+      "split_by_assigned_km",
+    );
     expect(DEFAULT_TEMPLATE_FORM_VALUES.deductions).toEqual([]);
   });
 

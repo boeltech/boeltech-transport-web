@@ -333,7 +333,19 @@ export const compensationCopy = {
     addRuleDisabledAllTypes: "Ya hay una regla para cada clase de ruta.",
     midTripPolicyLabel: "Si cambia de operador a medio viaje",
     midTripPolicyHint:
-      "El pago del viaje se divide según los kilómetros que hizo cada operador.",
+      "Hoy cada participante cobra el viaje completo.",
+    midTripPolicyHints: {
+      split_by_assigned_km:
+        "Cuando el cálculo separta, el pago se divide según los km de cada operador.",
+      equal_parts:
+        "Cuando el cálculo separta, el pago se divide en partes iguales.",
+      pay_only_closer:
+        "Cuando el cálculo separta, solo cobra quien cierra el viaje.",
+      pay_only_dispatcher:
+        "Cuando el cálculo separta, solo cobra quien despacha.",
+    } as const,
+    midTripPolicyRuntimeNote:
+      "El cálculo aún no parte según esta opción; hoy paga el viaje completo a cada participante.",
     allowancesDescription:
       "Montos fijos que se suman al pago del operador en cada pago: comidas, viáticos, casetas u otros.",
     deductionsDescription:

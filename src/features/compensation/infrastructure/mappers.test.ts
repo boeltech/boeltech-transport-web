@@ -94,6 +94,36 @@ describe("compensation mappers", () => {
     expect(mapped.activeAssignmentsCount).toBe(3);
   });
 
+  it("mapTemplate normaliza mid_trip_payout_policy vacío o inválido al default", () => {
+    expect(
+      mapTemplate({
+        id: "tpl-empty-policy",
+        name: "Sin policy",
+        description: null,
+        is_active: true,
+        mid_trip_payout_policy: "",
+        rules: [],
+        fixed_allowances: [],
+        corridor_ids: [],
+        corridors: [],
+      }).midTripPayoutPolicy,
+    ).toBe("split_by_assigned_km");
+
+    expect(
+      mapTemplateFromApi({
+        id: "tpl-bad-policy",
+        name: "Policy rara",
+        description: null,
+        isActive: true,
+        midTripPayoutPolicy: "not_real",
+        rules: [],
+        fixedAllowances: [],
+        corridorIds: [],
+        corridors: [],
+      }).midTripPayoutPolicy,
+    ).toBe("split_by_assigned_km");
+  });
+
   it("mapTemplate usa 0 cuando falta active_assignments_count y deductions vacías", () => {
     const mapped = mapTemplate({
       id: "tpl-empty",

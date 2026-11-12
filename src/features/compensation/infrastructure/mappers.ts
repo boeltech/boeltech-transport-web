@@ -4,7 +4,7 @@ import type {
   MidTripPayoutPolicy,
   TripRouteType,
 } from "@features/settlements";
-import { DEFAULT_MID_TRIP_PAYOUT_POLICY } from "@features/settlements/domain/enums";
+import { normalizeMidTripPayoutPolicy } from "@features/settlements/domain/enums";
 import {
   BATCH_ASSIGNMENT_CONFLICT_REASONS,
   type AssignmentBlockingSettlementStatus,
@@ -345,9 +345,7 @@ export function mapTemplate(raw: ApiCompensationTemplateRaw): CompensationTempla
       supersededByTemplateId: raw.superseded_by_template_id,
       inactivatedAt: raw.inactivated_at,
     }),
-    midTripPayoutPolicy:
-      (raw.mid_trip_payout_policy as MidTripPayoutPolicy | undefined) ??
-      DEFAULT_MID_TRIP_PAYOUT_POLICY,
+    midTripPayoutPolicy: normalizeMidTripPayoutPolicy(raw.mid_trip_payout_policy),
     ...(parseTemplatePaymentPeriod(raw.payment_period)
       ? { paymentPeriod: parseTemplatePaymentPeriod(raw.payment_period) }
       : {}),
@@ -712,8 +710,7 @@ export function mapTemplateFromApi(raw: ApiCompensationTemplateCamel): Compensat
       supersededByTemplateId: raw.supersededByTemplateId,
       inactivatedAt: raw.inactivatedAt,
     }),
-    midTripPayoutPolicy:
-      raw.midTripPayoutPolicy ?? DEFAULT_MID_TRIP_PAYOUT_POLICY,
+    midTripPayoutPolicy: normalizeMidTripPayoutPolicy(raw.midTripPayoutPolicy),
     ...(parseTemplatePaymentPeriod(raw.paymentPeriod)
       ? { paymentPeriod: parseTemplatePaymentPeriod(raw.paymentPeriod) }
       : {}),

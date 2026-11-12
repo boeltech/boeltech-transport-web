@@ -5,7 +5,10 @@ import { Button } from "@shared/ui/button";
 import { RHFSelectField } from "@shared/ui/form";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { BranchStatus, useBranches } from "@features/branches";
-import { MID_TRIP_PAYOUT_POLICY_LABELS } from "@features/settlements/domain/enums";
+import {
+  MID_TRIP_PAYOUT_POLICY_LABELS,
+  type MidTripPayoutPolicy,
+} from "@features/settlements/domain/enums";
 import type { TripRouteType } from "@features/settlements";
 import { useFrequentCityPairs } from "../../application/hooks";
 import { useCorridorTariffs } from "../../application/hooks/useCorridors";
@@ -45,6 +48,13 @@ export function BuilderTripLadderSection({
   const [pickerOpen, setPickerOpen] = useState(false);
   const corridorIds =
     useWatch({ control: form.control, name: "corridorIds" }) ?? [];
+  const midTripPayoutPolicy = useWatch({
+    control: form.control,
+    name: "midTripPayoutPolicy",
+  }) as MidTripPayoutPolicy | undefined;
+  const midTripHint =
+    (midTripPayoutPolicy && copy.midTripPolicyHints[midTripPayoutPolicy]) ||
+    copy.midTripPolicyHint;
   const { data: frequentPairs = [] } = useFrequentCityPairs(
     { limit: 5 },
     { enabled: true },
@@ -282,7 +292,10 @@ export function BuilderTripLadderSection({
               fieldId="mid-trip-payout-policy"
               disabled={readOnly}
             />
-            <p className="text-xs text-muted-foreground">{copy.midTripPolicyHint}</p>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>{midTripHint}</p>
+              <p>{copy.midTripPolicyRuntimeNote}</p>
+            </div>
           </div>
         </div>
       </div>

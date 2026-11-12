@@ -192,6 +192,42 @@ describe("compensationTemplateFormSchema", () => {
     }
   });
 
+  it("normaliza midTripPayoutPolicy vacío al default sin mensaje Zod crudo", () => {
+    const parsed = compensationTemplateFormSchema.safeParse({
+      name: "Tarifa mid-trip",
+      midTripPayoutPolicy: "",
+      rules: [],
+      fixedAllowances: [],
+      corridorIds: [],
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.midTripPayoutPolicy).toBe("split_by_assigned_km");
+    }
+  });
+
+  it("rechaza midTripPayoutPolicy inválido con mensaje UX", () => {
+    const parsed = compensationTemplateFormSchema.safeParse({
+      name: "Tarifa mid-trip",
+      midTripPayoutPolicy: "not_a_policy",
+      rules: [],
+      fixedAllowances: [],
+      corridorIds: [],
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      const issue = parsed.error.issues.find(
+        (entry) => entry.path[0] === "midTripPayoutPolicy",
+      );
+      expect(issue?.message).toBe(
+        "Selecciona cómo repartir el pago si cambia el operador a medio viaje.",
+      );
+      expect(issue?.message).not.toMatch(/expected one of/i);
+    }
+  });
+
   it("acepta una regla por cada clase de ruta", () => {
     const parsed = compensationTemplateFormSchema.safeParse({
       name: "Tarifa mixta",

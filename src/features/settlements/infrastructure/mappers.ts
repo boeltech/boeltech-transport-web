@@ -50,10 +50,9 @@ import type {
   SettlementBatchReasonCode,
 } from "../domain/settlementBatch";
 import {
-  DEFAULT_MID_TRIP_PAYOUT_POLICY,
   DEFAULT_VOBO_THRESHOLD_MXN,
+  normalizeMidTripPayoutPolicy,
   type CompensationSalaryPeriod,
-  type MidTripPayoutPolicy,
   type OperatorPaymentAttentionReason,
   type OperatorPaymentReadinessStatus,
   type OperatorTemplatePayability,
@@ -470,8 +469,7 @@ export function mapAgreement(raw: ApiCompensationAgreementRaw): CompensationAgre
     effectiveTo: raw.effective_to,
     isActive: Boolean(raw.is_active),
     notes: raw.notes ?? null,
-    midTripPayoutPolicy: (raw.mid_trip_payout_policy as MidTripPayoutPolicy | undefined)
-      ?? DEFAULT_MID_TRIP_PAYOUT_POLICY,
+    midTripPayoutPolicy: normalizeMidTripPayoutPolicy(raw.mid_trip_payout_policy),
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
   };

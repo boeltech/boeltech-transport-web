@@ -1,8 +1,12 @@
+import { useWatch } from "react-hook-form";
 import type { UseCompensationTemplateFormResult } from "../hooks/useCompensationTemplateForm";
 import { compensationCopy } from "../copy/compensationCopy";
 import { TemplateRulesSection } from "./TemplateRulesSection";
 import { RHFSelectField } from "@shared/ui/form";
-import { MID_TRIP_PAYOUT_POLICY_LABELS } from "@features/settlements/domain/enums";
+import {
+  MID_TRIP_PAYOUT_POLICY_LABELS,
+  type MidTripPayoutPolicy,
+} from "@features/settlements/domain/enums";
 
 const copy = compensationCopy.builder;
 
@@ -22,6 +26,19 @@ export function BuilderPaymentRulesSection({
   removeRule,
   watchedRules,
 }: BuilderPaymentRulesSectionProps) {
+  const midTripPayoutPolicy = useWatch({
+    control: form.control,
+    name: "midTripPayoutPolicy",
+  }) as MidTripPayoutPolicy | undefined;
+  const midTripHint =
+    (midTripPayoutPolicy && copy.midTripPolicyHints[midTripPayoutPolicy]) ||
+    copy.midTripPolicyHint;
+  const midTripDescription = (
+    <>
+      {midTripHint} {copy.midTripPolicyRuntimeNote}
+    </>
+  );
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{copy.paymentDescription}</p>
@@ -29,7 +46,7 @@ export function BuilderPaymentRulesSection({
         control={form.control}
         name="midTripPayoutPolicy"
         label={copy.midTripPolicyLabel}
-        description={copy.midTripPolicyHint}
+        description={midTripDescription}
         options={MID_TRIP_OPTIONS}
         fieldId="mid-trip-payout-policy"
       />
