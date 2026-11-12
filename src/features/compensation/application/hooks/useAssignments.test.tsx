@@ -12,6 +12,7 @@ import {
   useUpdateTemplateAssignment,
 } from "./useAssignments";
 
+const SETTLEMENTS_CUT_PREVIEW_KEY = ["settlements", "cut-preview"] as const;
 const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
 
 const { mockApi } = vi.hoisted(() => ({
@@ -55,10 +56,11 @@ describe("useUpdate/DeleteTemplateAssignment — invalidación (api#63 C15)", ()
   function seed(queryClient: QueryClient) {
     queryClient.setQueryData(previewKey, emptyPreview);
     queryClient.setQueryData(templatesKey, { data: [] });
+    queryClient.setQueryData(SETTLEMENTS_CUT_PREVIEW_KEY, { data: [] });
     queryClient.setQueryData(SETTLEMENTS_OPERATORS_KEY, { data: [] });
   }
 
-  it("actualizar invalida la vista previa, los conteos y Operadores", async () => {
+  it("actualizar invalida la vista previa, los conteos, cut-preview y Operadores", async () => {
     mockApi.updateAssignment.mockResolvedValue({ id: "asg-1" });
     const { queryClient, wrapper } = createWrapper();
     seed(queryClient);
@@ -70,10 +72,11 @@ describe("useUpdate/DeleteTemplateAssignment — invalidación (api#63 C15)", ()
 
     expect(queryClient.getQueryState(previewKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(templatesKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_CUT_PREVIEW_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(true);
   });
 
-  it("eliminar invalida la vista previa, los conteos y Operadores", async () => {
+  it("eliminar invalida la vista previa, los conteos, cut-preview y Operadores", async () => {
     mockApi.deleteAssignment.mockResolvedValue(undefined);
     const { queryClient, wrapper } = createWrapper();
     seed(queryClient);
@@ -85,10 +88,11 @@ describe("useUpdate/DeleteTemplateAssignment — invalidación (api#63 C15)", ()
 
     expect(queryClient.getQueryState(previewKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(templatesKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_CUT_PREVIEW_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(true);
   });
 
-  it("batch create invalida asignaciones, plantillas y Operadores", async () => {
+  it("batch create invalida asignaciones, plantillas, cut-preview y Operadores", async () => {
     mockApi.batchCreateAssignments.mockResolvedValue({ createdCount: 1, skippedCount: 0 });
     const { queryClient, wrapper } = createWrapper();
     seed(queryClient);
@@ -106,6 +110,7 @@ describe("useUpdate/DeleteTemplateAssignment — invalidación (api#63 C15)", ()
 
     expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(templatesKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_CUT_PREVIEW_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(true);
   });
 

@@ -18,6 +18,7 @@ import type {
 
 /** Prefijos de React Query en settlements (evitar import circular del barrel). */
 const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
+const SETTLEMENTS_CUT_PREVIEW_KEY = ["settlements", "cut-preview"] as const;
 const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
 const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
 
@@ -37,11 +38,12 @@ function invalidateTemplateFamily(
   });
 }
 
-/** Activate/deactivate cambian payability → preview, workbench y readiness Operadores. */
+/** Activate/deactivate cambian payability → preview, cut-preview, workbench y Operadores. */
 function invalidateSettlementsAfterTemplateLifecycleChange(
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
   queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_CUT_PREVIEW_KEY });
   queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
   queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
 }

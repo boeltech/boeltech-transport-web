@@ -58,6 +58,12 @@ import { settlementsCopy } from "../copy/settlementsCopy";
 import { buildSuggestedSettlementPeriod } from "../utils/buildSuggestedSettlementPeriod";
 import { formatCutWizardTitle } from "../utils/formatCutWizardTitle";
 import {
+  buildCutZeroKmAckStorageKey,
+  clearCutZeroKmAcks,
+  readCutZeroKmAcks,
+  writeCutZeroKmAcks,
+} from "../utils/settlementCutZeroKmAckSession";
+import {
   applyZeroKmAckToCutRow,
   buildCutDidNotEnterRows,
   cutDidNotEnterReasonLabel,
@@ -160,8 +166,24 @@ export function SettlementCutWizardPage() {
   const [pendingSubmitMode, setPendingSubmitMode] = useState<
     "approval" | "draft" | null
   >(null);
+  const zeroKmAckStorageKey = useMemo(
+    () =>
+      buildCutZeroKmAckStorageKey({
+        periodStart,
+        periodEnd,
+        salaryPeriod,
+      }),
+    [periodStart, periodEnd, salaryPeriod],
+  );
   const [zeroKmAcknowledged, setZeroKmAcknowledged] = useState(
-    () => new Set<string>(),
+    () =>
+      readCutZeroKmAcks(
+        buildCutZeroKmAckStorageKey({
+          periodStart: initialPeriod.periodStart,
+          periodEnd: initialPeriod.periodEnd,
+          salaryPeriod: initialPeriod.salaryPeriod,
+        }),
+      ),
   );
 
   const previewParams = useMemo(
@@ -177,12 +199,12 @@ export function SettlementCutWizardPage() {
   const previewQuery = useSettlementCutPreview(previewParams);
   const createCut = useCreateSettlementCut();
 
-  // Nuevo periodo / ritmo → nueva clave de idempotencia
+  // Nuevo periodo / ritmo → nueva clave de idempotencia; acks desde sessionStorage de la sesión
   useEffect(() => {
     setIdempotencyKey(newIdempotencyKey());
     setCreateResult(null);
-    setZeroKmAcknowledged(new Set());
-  }, [periodStart, periodEnd, salaryPeriod, includeContractors]);
+    setZeroKmAcknowledged(readCutZeroKmAcks(zeroKmAckStorageKey));
+  }, [periodStart, periodEnd, salaryPeriod, includeContractors, zeroKmAckStorageKey]);
 
   const preview = previewQuery.data;
   const summary = preview?.summary;
@@ -285,6 +307,8 @@ export function SettlementCutWizardPage() {
           },
           idempotencyKey,
         });
+        clearCutZeroKmAcks(zeroKmAckStorageKey);
+        setZeroKmAcknowledged(new Set());
         setCreateResult(result);
         toast({
           title: submitForApproval
@@ -314,6 +338,7 @@ export function SettlementCutWizardPage() {
       salaryPeriod,
       sendableRows,
       toast,
+      zeroKmAckStorageKey,
       zeroKmAcknowledged,
     ],
   );
@@ -354,6 +379,7 @@ export function SettlementCutWizardPage() {
           setZeroKmAcknowledged((prev) => {
             const next = new Set(prev);
             next.add(row.employeeId);
+            writeCutZeroKmAcks(zeroKmAckStorageKey, next);
             return next;
           });
           return;
@@ -399,7 +425,7 @@ export function SettlementCutWizardPage() {
           return;
       }
     },
-    [navigate, periodEnd, periodStart],
+    [navigate, periodEnd, periodStart, zeroKmAckStorageKey],
   );
 
   const handleSend = useCallback(

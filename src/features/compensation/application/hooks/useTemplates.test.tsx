@@ -13,6 +13,7 @@ import {
 } from "./useTemplates";
 
 const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
+const SETTLEMENTS_CUT_PREVIEW_KEY = ["settlements", "cut-preview"] as const;
 const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
 const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
 
@@ -67,6 +68,7 @@ const activeTemplate = {
 function seedSettlementsCaches(queryClient: QueryClient) {
   queryClient.setQueryData(SETTLEMENTS_OPERATORS_KEY, { data: [] });
   queryClient.setQueryData(SETTLEMENTS_PREVIEW_KEY, { data: [] });
+  queryClient.setQueryData(SETTLEMENTS_CUT_PREVIEW_KEY, { data: [] });
   queryClient.setQueryData(SETTLEMENTS_WORKBENCH_KEY, { data: [] });
 }
 
@@ -160,7 +162,7 @@ describe("useActivate/DeactivateCompensationTemplate — settlements readiness",
     mockDeactivateTemplate.mockReset();
   });
 
-  it("activar invalida Operadores, preview y workbench", async () => {
+  it("activar invalida Operadores, preview, cut-preview y workbench", async () => {
     mockActivateTemplate.mockResolvedValue(activeTemplate);
     const { queryClient, wrapper } = createWrapper();
     seedSettlementsCaches(queryClient);
@@ -172,10 +174,11 @@ describe("useActivate/DeactivateCompensationTemplate — settlements readiness",
 
     expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SETTLEMENTS_PREVIEW_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_CUT_PREVIEW_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SETTLEMENTS_WORKBENCH_KEY)?.isInvalidated).toBe(true);
   });
 
-  it("desactivar invalida Operadores, preview y workbench", async () => {
+  it("desactivar invalida Operadores, preview, cut-preview y workbench", async () => {
     mockDeactivateTemplate.mockResolvedValue(activeTemplate);
     const { queryClient, wrapper } = createWrapper();
     seedSettlementsCaches(queryClient);
@@ -187,6 +190,7 @@ describe("useActivate/DeactivateCompensationTemplate — settlements readiness",
 
     expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SETTLEMENTS_PREVIEW_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_CUT_PREVIEW_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SETTLEMENTS_WORKBENCH_KEY)?.isInvalidated).toBe(true);
   });
 });
