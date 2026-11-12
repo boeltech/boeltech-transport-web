@@ -120,6 +120,11 @@ interface SettlementActionsProps {
    * En pagado es primaria; en el resto overflow responsive &lt;2xl → Más.
    */
   onReceiptClick?: () => void;
+  /**
+   * HB-T5: solo boolean. Desde mapa Por pagar o readiness del detalle.
+   * `undefined` → dialog usa default SPEI legado (CA8).
+   */
+  hasClabe?: boolean;
 }
 
 export function SettlementActions({
@@ -132,6 +137,7 @@ export function SettlementActions({
   onCorrect,
   onOpenHistory,
   onReceiptClick,
+  hasClabe,
 }: SettlementActionsProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -530,6 +536,7 @@ export function SettlementActions({
           open={disburseDialogOpen}
           onOpenChange={setDisburseDialogOpen}
           settlement={settlement}
+          hasClabe={hasClabe}
           onSuccess={() => onActionComplete?.()}
           selfConfirm={isSelfDisburse}
         />

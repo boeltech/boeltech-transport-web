@@ -269,6 +269,33 @@ describe("SettlementActions", () => {
     expect(screen.getByText(/Tú registraste este pago/i)).toBeInTheDocument();
   });
 
+  it("D1 cableado: hasClabe=false abre Registrar pago en Efectivo", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <SettlementActions
+        variant="buttons"
+        hasClabe={false}
+        settlement={{
+          ...sampleSettlement,
+          status: "approved",
+          createdBy: "user-creator-123",
+          submittedBy: "user-creator-123",
+          approvalRevision: "rev-1",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Registrar pago/i }));
+    expect(
+      await screen.findByRole("combobox", { name: /método de pago/i }),
+    ).toHaveTextContent("Efectivo");
+    expect(screen.getByTestId("disburse-no-clabe-tip")).toBeInTheDocument();
+    expect(screen.getByTestId("disburse-complete-clabe-employees")).toHaveAttribute(
+      "href",
+      "/employees/emp-1",
+    );
+  });
+
   it("ADR-0098: la política ignora los conteos de settings", () => {
     mockSettingsQuery.mockReturnValue({
       data: { voboThresholdMxn: 0, activeApproverCount: 1, activeExecutorCount: 1 },

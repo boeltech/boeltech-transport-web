@@ -1122,6 +1122,7 @@ export function SettlementsListPage() {
             if (!open) setDisburseSettlement(null);
           }}
           settlement={disburseSettlement}
+          hasClabe={hasClabeByEmployeeId.get(disburseSettlement.employeeId)}
           onSuccess={() => {
             void refetchPipelinePrimary();
             void refetchWorkbenchCounts();

@@ -36,7 +36,10 @@ import { usePrintIframe, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 
-import { useSettlementDetail } from "../../application/hooks";
+import {
+  useOperatorPaymentReadiness,
+  useSettlementDetail,
+} from "../../application/hooks";
 import { useSubmitSettlement } from "../../application/hooks/useSettlements";
 import { settlementCreatePath, settlementDetailPath } from "../../application/settlementsRoutes";
 import { useAuth } from "@features/auth";
@@ -78,7 +81,10 @@ import {
   isSettlementCorrectable,
   isSettlementReturned,
 } from "../utils/settlementEditing";
-import { isSettlementMaker } from "../utils/settlementCta";
+import {
+  isSettlementAwaitingDisbursement,
+  isSettlementMaker,
+} from "../utils/settlementCta";
 import {
   resolveSettlementBackHref,
   resolveSettlementWayfindingBackLabel,
@@ -121,6 +127,23 @@ export function SettlementDetailPage() {
   }, [printDialogOpen]);
 
   const { data: settlement, isLoading, refetch } = useSettlementDetail(id);
+
+  // HB-T5 / D6: hasClabe desde readiness F3 — no inventar campo en GET settlement.
+  const awaitingDisburse = settlement
+    ? isSettlementAwaitingDisbursement(settlement)
+    : false;
+  const { data: operatorsData } = useOperatorPaymentReadiness({
+    attention: "all",
+    page: 1,
+    pageSize: 100,
+    enabled: awaitingDisburse,
+  });
+  const hasClabe = useMemo(() => {
+    if (!settlement) return undefined;
+    return operatorsData?.data.find(
+      (row) => row.employeeId === settlement.employeeId,
+    )?.hasClabe;
+  }, [operatorsData?.data, settlement]);
 
   const { user } = useAuth();
   const { data: selfApprovalPolicy } = useSelfApprovalPolicy();
@@ -347,6 +370,7 @@ export function SettlementDetailPage() {
             <SettlementActions
               variant="buttons"
               settlement={settlement}
+              hasClabe={hasClabe}
               onReceiptClick={() => setPrintDialogOpen(true)}
               onCorrect={() => setCorrectionOpen(true)}
               onOpenHistory={() => setHistoryOpen(true)}

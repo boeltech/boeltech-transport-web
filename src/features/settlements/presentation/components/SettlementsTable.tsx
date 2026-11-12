@@ -426,6 +426,7 @@ export function SettlementsTable({
                   onDisburse={onDisburse}
                   onActionComplete={onActionComplete}
                   approvalLinkOnly={approvalLinkOnly}
+                  hasClabe={hasClabeByEmployeeId?.get(st.employeeId)}
                 />
               </TableCell>
             </TableRow>

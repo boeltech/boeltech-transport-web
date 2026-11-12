@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ApiError } from "@shared/api/interceptors/error-handler";
@@ -8,9 +9,17 @@ import { DATE_FIELD_COPY } from "@shared/ui/form";
 import { localInputToUtcIso } from "@shared/utils/dateUtils";
 
 import type { DriverSettlement } from "../../domain/entities";
+import { DISBURSEMENT_METHOD_LABELS } from "../../domain/enums";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import { disburseSettlementFormSchema } from "../validation/settlementSchemas";
 import { DisburseSettlementDialog } from "./DisburseSettlementDialog";
+
+const disburseCopy = settlementsCopy.settlementFlow.disburse;
+const bulkCopy = settlementsCopy.workbench.bulkBar;
+
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.setPointerCapture ??= () => undefined;
+Element.prototype.releasePointerCapture ??= () => undefined;
 
 const mockMutateAsync = vi.fn();
 const mockToast = vi.fn();
@@ -62,6 +71,7 @@ function renderDialog(
   settlement: DriverSettlement = sampleSettlement,
   onOpenChange = vi.fn(),
   onSuccess = vi.fn(),
+  hasClabe?: boolean,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -71,15 +81,27 @@ function renderDialog(
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>
-      <DisburseSettlementDialog
-        open={open}
-        onOpenChange={onOpenChange}
-        settlement={settlement}
-        onSuccess={onSuccess}
-      />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <DisburseSettlementDialog
+          open={open}
+          onOpenChange={onOpenChange}
+          settlement={settlement}
+          onSuccess={onSuccess}
+          hasClabe={hasClabe}
+        />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
+}
+
+async function chooseMethod(
+  user: ReturnType<typeof userEvent.setup>,
+  label: string | RegExp,
+) {
+  await user.click(screen.getByRole("combobox", { name: /método de pago/i }));
+  const listbox = await screen.findByRole("listbox");
+  await user.click(within(listbox).getByRole("option", { name: label }));
 }
 
 describe("DisburseSettlementDialog", () => {
@@ -284,5 +306,91 @@ describe("DisburseSettlementDialog", () => {
     expect(
       screen.getByLabelText(settlementsCopy.settlementFlow.disburse.referenceLabel),
     ).toBeInTheDocument();
+  });
+
+  it("D1/CA2: Sin CLABE abre en Efectivo con tip Empleados y copy de efectivo", () => {
+    renderDialog(true, sampleSettlement, vi.fn(), vi.fn(), false);
+
+    expect(screen.getByRole("combobox", { name: /método de pago/i })).toHaveTextContent(
+      DISBURSEMENT_METHOD_LABELS.cash,
+    );
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      disburseCopy.dialogDescriptionPrefixCash,
+    );
+    expect(screen.getByLabelText(/fecha y hora de pago/i)).toBeInTheDocument();
+    expect(screen.getByTestId("disburse-no-clabe-tip")).toHaveTextContent(
+      bulkCopy.noClabeCashRowTip,
+    );
+    expect(screen.getByTestId("disburse-complete-clabe-employees")).toHaveAttribute(
+      "href",
+      "/employees/emp-1",
+    );
+    expect(screen.getByText(bulkCopy.completeClabeInEmployees)).toBeInTheDocument();
+    expect(screen.queryByTestId("disburse-spei-without-clabe-warn")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /confirmar pago realizado/i }),
+    ).toBeEnabled();
+  });
+
+  it("D1/CA3: Con CLABE abre en Transferencia (SPEI)", () => {
+    renderDialog(true, sampleSettlement, vi.fn(), vi.fn(), true);
+
+    expect(screen.getByRole("combobox", { name: /método de pago/i })).toHaveTextContent(
+      DISBURSEMENT_METHOD_LABELS.bank_transfer,
+    );
+    expect(screen.queryByTestId("disburse-no-clabe-tip")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/fecha y hora de transferencia/i)).toBeInTheDocument();
+  });
+
+  it("CA8: sin hasClabe (undefined) conserva default SPEI legado", () => {
+    renderDialog(true, sampleSettlement, vi.fn(), vi.fn(), undefined);
+
+    expect(screen.getByRole("combobox", { name: /método de pago/i })).toHaveTextContent(
+      DISBURSEMENT_METHOD_LABELS.bank_transfer,
+    );
+    expect(screen.queryByTestId("disburse-no-clabe-tip")).not.toBeInTheDocument();
+  });
+
+  it("D2/CA4: Sin CLABE + SPEI muestra soft-warn y Confirm habilitado; envía bank_transfer", async () => {
+    const user = userEvent.setup();
+    renderDialog(true, sampleSettlement, vi.fn(), vi.fn(), false);
+
+    await chooseMethod(user, DISBURSEMENT_METHOD_LABELS.bank_transfer);
+
+    expect(await screen.findByTestId("disburse-spei-without-clabe-warn")).toHaveTextContent(
+      disburseCopy.noClabeSpeiWarning,
+    );
+    const confirm = screen.getByRole("button", { name: /confirmar pago realizado/i });
+    expect(confirm).toBeEnabled();
+
+    await user.type(screen.getByLabelText(/referencia bancaria/i), "SPEI-SIN-CLABE");
+    await user.click(confirm);
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    const payload = mockMutateAsync.mock.calls[0]?.[0] as {
+      data: { disbursementMethod: string };
+    };
+    expect(payload.data.disbursementMethod).toBe("bank_transfer");
+  });
+
+  it("CA5: Sin CLABE + Confirm en Efectivo envía cash", async () => {
+    const user = userEvent.setup();
+    renderDialog(true, sampleSettlement, vi.fn(), vi.fn(), false);
+
+    expect(screen.getByRole("combobox", { name: /método de pago/i })).toHaveTextContent(
+      DISBURSEMENT_METHOD_LABELS.cash,
+    );
+    await user.type(screen.getByLabelText(/referencia bancaria/i), "EFECTIVO-1");
+    await user.click(screen.getByRole("button", { name: /confirmar pago realizado/i }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    const payload = mockMutateAsync.mock.calls[0]?.[0] as {
+      data: { disbursementMethod: string };
+    };
+    expect(payload.data.disbursementMethod).toBe("cash");
   });
 });

@@ -1791,6 +1791,9 @@ export const settlementsCopy = {
       successTitle: "Pago registrado correctamente",
       dialogDescriptionPrefix:
         "Captura la referencia bancaria o folio de la transferencia efectuada para registrar el folio",
+      /** D4: descripción cuando el default / método es efectivo (Sin CLABE). */
+      dialogDescriptionPrefixCash:
+        "Captura el folio o recibo del pago en efectivo para registrar el folio",
       errorAlertTitle: "No se pudo registrar el pago",
       operatorLabel: "Operador",
       netAmountLabel: "Monto neto pagado",
@@ -1802,6 +1805,14 @@ export const settlementsCopy = {
       referenceCashHint:
         "En efectivo también captura un folio, recibo o nota del pago (obligatorio).",
       disbursedAtLabel: "Fecha y hora de transferencia",
+      /** D4: label de fecha cuando el método es efectivo. */
+      disbursedAtLabelCash: "Fecha y hora de pago",
+      /**
+       * D2 soft-warn: SPEI sin CLABE sigue permitido (registro, no mueve dinero).
+       * Confirm permanece habilitado.
+       */
+      noClabeSpeiWarning:
+        "Este operador no tiene CLABE en expediente. Si confirmas transferencia (SPEI), el historial lo registrará como SPEI aunque no haya cuenta capturada.",
       notesLabel: "Observaciones de tesorería",
       notesPlaceholder:
         "Comprobante, cuenta de destino o notas adicionales...",

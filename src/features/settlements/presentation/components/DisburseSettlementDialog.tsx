@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -48,6 +49,7 @@ import {
 import type { DriverSettlement } from "../../domain/entities";
 
 const disburseCopy = settlementsCopy.settlementFlow.disburse;
+const bulkCopy = settlementsCopy.workbench.bulkBar;
 
 interface DisburseSettlementDialogProps {
   open: boolean;
@@ -56,10 +58,20 @@ interface DisburseSettlementDialogProps {
   onSuccess?: () => void;
   /** ADR-0098: quien armó el pago lo registra (único usuario que puede). */
   selfConfirm?: boolean;
+  /**
+   * HB-T5: solo boolean (nunca CLABE).
+   * `false` → default efectivo; `true` / `undefined` → SPEI (legado).
+   */
+  hasClabe?: boolean;
 }
 
 function defaultDisbursedAtLocal(): string {
   return utcIsoToLocalInput(new Date().toISOString());
+}
+
+/** D1: Sin CLABE → cash; con CLABE o desconocido → bank_transfer. */
+function defaultDisbursementMethod(hasClabe?: boolean): DisbursementMethod {
+  return hasClabe === false ? "cash" : "bank_transfer";
 }
 
 export function DisburseSettlementDialog({
@@ -68,6 +80,7 @@ export function DisburseSettlementDialog({
   settlement,
   onSuccess,
   selfConfirm = false,
+  hasClabe,
 }: DisburseSettlementDialogProps) {
   const { toast } = useToast();
   const disburseMutation = useDisburseSettlement();
@@ -87,7 +100,7 @@ export function DisburseSettlementDialog({
   } = useForm<DisburseSettlementFormData>({
     resolver: zodResolver(disburseSettlementFormSchema),
     defaultValues: {
-      disbursementMethod: "bank_transfer",
+      disbursementMethod: defaultDisbursementMethod(hasClabe),
       disbursementReference: "",
       disbursedAt: defaultDisbursedAtLocal(),
       notes: "",
@@ -95,19 +108,30 @@ export function DisburseSettlementDialog({
   });
 
   const selectedMethod = watch("disbursementMethod");
+  const missingClabe = hasClabe === false;
+  const showSpeiWithoutClabeWarn =
+    missingClabe && selectedMethod === "bank_transfer";
+  const descriptionPrefix =
+    selectedMethod === "cash"
+      ? disburseCopy.dialogDescriptionPrefixCash
+      : disburseCopy.dialogDescriptionPrefix;
+  const disbursedAtLabel =
+    selectedMethod === "cash"
+      ? disburseCopy.disbursedAtLabelCash
+      : disburseCopy.disbursedAtLabel;
 
   useEffect(() => {
     if (open) {
       setApiError(null);
       setRevisionChanged(false);
       reset({
-        disbursementMethod: "bank_transfer",
+        disbursementMethod: defaultDisbursementMethod(hasClabe),
         disbursementReference: "",
         disbursedAt: defaultDisbursedAtLocal(),
         notes: "",
       });
     }
-  }, [open, reset]);
+  }, [open, reset, hasClabe]);
 
   if (!settlement) return null;
 
@@ -195,7 +219,7 @@ export function DisburseSettlementDialog({
               : disburseCopy.title}
           </DialogTitle>
           <DialogDescription>
-            {disburseCopy.dialogDescriptionPrefix}{" "}
+            {descriptionPrefix}{" "}
             <span className="font-semibold text-foreground">
               {settlement.settlementNumber}
             </span>
@@ -208,6 +232,38 @@ export function DisburseSettlementDialog({
             {approvalsCopy.selfApproval.confirmDisburseBody("settlement")}
           </AlertWithIcon>
         )}
+
+        {missingClabe ? (
+          <p
+            className="text-xs leading-snug text-muted-foreground"
+            data-testid="disburse-no-clabe-tip"
+          >
+            {bulkCopy.noClabeCashRowTip}
+            {" · "}
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-xs underline underline-offset-2"
+              asChild
+            >
+              <Link
+                to={`/employees/${settlement.employeeId}`}
+                data-testid="disburse-complete-clabe-employees"
+              >
+                {bulkCopy.completeClabeInEmployees}
+              </Link>
+            </Button>
+          </p>
+        ) : null}
+
+        {showSpeiWithoutClabeWarn ? (
+          <AlertWithIcon
+            variant="warning"
+            data-testid="disburse-spei-without-clabe-warn"
+          >
+            {disburseCopy.noClabeSpeiWarning}
+          </AlertWithIcon>
+        ) : null}
 
         {apiError && (
           <AlertWithIcon variant="destructive" title={apiError.title}>
@@ -297,7 +353,7 @@ export function DisburseSettlementDialog({
             control={control}
             name="disbursedAt"
             fieldId="disb-date"
-            label={disburseCopy.disbursedAtLabel}
+            label={disbursedAtLabel}
             required
             disabled={isPending}
           />

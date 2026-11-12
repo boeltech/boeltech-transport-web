@@ -50,6 +50,10 @@ vi.mock("../../infrastructure/settlementsApi", () => ({
     approveSettlement: vi.fn(),
     rejectSettlement: vi.fn(),
     disburseSettlement: vi.fn(),
+    listOperators: vi.fn().mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 100, total: 0, totalPages: 1 },
+    }),
     getSettings: vi.fn().mockResolvedValue({
       voboThresholdMxn: 0,
       activeApproverCount: 2,
