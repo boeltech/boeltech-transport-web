@@ -646,16 +646,23 @@ describe("SettlementActions", () => {
       expect(screen.queryByRole("button", { name: "Corregir" })).not.toBeInTheDocument();
     });
 
-    it("H1/H2/H3: sin hint entre CTAs; overflow 2xl; recibo en el cluster", async () => {
+    it("D1–D5/D7: pending+canApprove → Devolver·Autorizar·Más; Preview/Corregir/Historial en Más", async () => {
+      grantPermissions([
+        "settlements.update",
+        "settlements.execute",
+        "finance_approvals.read",
+      ]);
       const user = userEvent.setup();
       const onReceiptClick = vi.fn();
       const onCorrect = vi.fn();
+      const onOpenHistory = vi.fn();
       renderWithProviders(
         <SettlementActions
           variant="buttons"
           settlement={withApproval()}
           onCorrect={onCorrect}
           onReceiptClick={onReceiptClick}
+          onOpenHistory={onOpenHistory}
         />,
       );
 
@@ -663,31 +670,43 @@ describe("SettlementActions", () => {
         screen.queryByText(/Si solo hay un error corregible, devuelve el pago/i),
       ).not.toBeInTheDocument();
 
-      const previewBtn = screen.getByRole("button", { name: /Vista previa del recibo/i });
-      expect(previewBtn.className).toMatch(/hidden/);
-      expect(previewBtn.className).toMatch(/2xl:inline-flex/);
-      expect(screen.getByRole("button", { name: "Corregir" }).className).toMatch(
-        /2xl:inline-flex/,
-      );
+      expect(
+        screen.queryByRole("button", { name: /Vista previa del recibo/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Corregir" })).not.toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /Devolver para corregir/i }).className,
       ).toMatch(/2xl:inline-flex/);
       expect(screen.getByRole("button", { name: /Autorizar/i }).className).not.toMatch(
         /2xl:inline-flex/,
       );
-
-      await user.click(previewBtn);
-      expect(onReceiptClick).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("button", { name: /^Rechazar$/i })).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: /Más acciones/i }));
-      expect(
-        await screen.findByRole("menuitem", { name: /Vista previa del recibo/i }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole("menuitem", { name: "Corregir" })).toBeInTheDocument();
+      const previewItem = await screen.findByRole("menuitem", {
+        name: /Vista previa del recibo/i,
+      });
+      expect(previewItem).toBeInTheDocument();
+      expect(previewItem.className).not.toMatch(/2xl:hidden/);
+      expect(screen.getByRole("menuitem", { name: "Corregir" }).className).not.toMatch(
+        /2xl:hidden/,
+      );
       expect(
         screen.getByRole("menuitem", { name: /Devolver para corregir/i }),
       ).toBeInTheDocument();
       expect(screen.getByRole("menuitem", { name: /Rechazar/i })).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: /Cancelar pago/i })).toBeInTheDocument();
+      await user.click(screen.getByRole("menuitem", { name: /Ver historial/i }));
+      expect(onOpenHistory).toHaveBeenCalledTimes(1);
+
+      await user.click(screen.getByRole("button", { name: /Más acciones/i }));
+      await user.click(
+        await screen.findByRole("menuitem", { name: /Vista previa del recibo/i }),
+      );
+      expect(onReceiptClick).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByRole("button", { name: /Más acciones/i }));
+      await user.click(await screen.findByRole("menuitem", { name: "Corregir" }));
+      expect(onCorrect).toHaveBeenCalledTimes(1);
     });
 
     it("devuelta en menú: «Reenviar sin cambios» en lugar de «Enviar a autorización»", async () => {

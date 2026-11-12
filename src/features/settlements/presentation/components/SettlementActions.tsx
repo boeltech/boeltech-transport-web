@@ -615,12 +615,34 @@ export function SettlementActions({
       ? flowCopy.header.printReceipt
       : flowCopy.header.previewReceipt;
     const ReceiptIcon = receiptSignable ? Printer : Eye;
+    /**
+     * D3/D5 (PRD CTAs detalle): en En autorización + puede decidir,
+     * Vista previa y Corregir viven solo en Más (tope ≤1 outline + primaria).
+     */
+    const demoteReceiptAndCorrectToMore = canApprove;
+    const showReceiptOutline =
+      receiptOverflow && !demoteReceiptAndCorrectToMore;
+    const showCorrectOutline = canCorrect && !demoteReceiptAndCorrectToMore;
+    const receiptInMore = receiptOverflow;
+    const correctInMore = canCorrect;
+    const receiptAlwaysInMore = demoteReceiptAndCorrectToMore && receiptInMore;
+    const correctAlwaysInMore = demoteReceiptAndCorrectToMore && correctInMore;
 
     /** Secundarias que en &lt;2xl viven en «Más» (paridad InvoiceActions / H2). */
-    const hasResponsiveOverflow = receiptOverflow || canCorrect || canReject;
-    const hasTertiaryInMore = canReject || canCancel;
-    const showMoreMenu = hasTertiaryInMore || hasResponsiveOverflow;
-    const moreTriggerClassName = hasTertiaryInMore ? undefined : "2xl:hidden";
+    const hasResponsiveOverflow =
+      showReceiptOutline || showCorrectOutline || canReject;
+    const hasAlwaysInMore =
+      receiptAlwaysInMore ||
+      correctAlwaysInMore ||
+      canReject ||
+      canCancel ||
+      canOpenHistory;
+    const showMoreMenu = hasAlwaysInMore || hasResponsiveOverflow;
+    const moreTriggerClassName = hasAlwaysInMore ? undefined : "2xl:hidden";
+    const permanentItemsBeforeDestructive =
+      receiptAlwaysInMore || correctAlwaysInMore;
+    const showMoreSeparatorBeforeDestructive =
+      (receiptInMore || correctInMore || canReject) && (canReject || canCancel);
 
     return (
       <>
@@ -662,7 +684,7 @@ export function SettlementActions({
                 {receiptLabel}
               </Button>
             ) : null}
-            {receiptOverflow ? (
+            {showReceiptOutline ? (
               <Button
                 variant="outline"
                 className="hidden 2xl:inline-flex"
@@ -672,7 +694,7 @@ export function SettlementActions({
                 {receiptLabel}
               </Button>
             ) : null}
-            {canCorrect ? (
+            {showCorrectOutline ? (
               <Button
                 variant="outline"
                 className="hidden 2xl:inline-flex"
@@ -753,17 +775,20 @@ export function SettlementActions({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
-                  {receiptOverflow ? (
+                  {receiptInMore ? (
                     <DropdownMenuItem
-                      className="2xl:hidden"
+                      className={receiptAlwaysInMore ? undefined : "2xl:hidden"}
                       onClick={onReceiptClick}
                     >
                       <ReceiptIcon className="mr-2 h-4 w-4" />
                       {receiptLabel}
                     </DropdownMenuItem>
                   ) : null}
-                  {canCorrect ? (
-                    <DropdownMenuItem className="2xl:hidden" onClick={onCorrect}>
+                  {correctInMore ? (
+                    <DropdownMenuItem
+                      className={correctAlwaysInMore ? undefined : "2xl:hidden"}
+                      onClick={onCorrect}
+                    >
                       <Pencil className="mr-2 h-4 w-4" />
                       {flowCopy.header.correct}
                     </DropdownMenuItem>
@@ -778,8 +803,12 @@ export function SettlementActions({
                       {flowCopy.header.returnForCorrection}
                     </DropdownMenuItem>
                   ) : null}
-                  {hasResponsiveOverflow && hasTertiaryInMore ? (
-                    <DropdownMenuSeparator className="2xl:hidden" />
+                  {showMoreSeparatorBeforeDestructive ? (
+                    <DropdownMenuSeparator
+                      className={
+                        permanentItemsBeforeDestructive ? undefined : "2xl:hidden"
+                      }
+                    />
                   ) : null}
                   {canReject ? (
                     <DropdownMenuItem
@@ -799,6 +828,19 @@ export function SettlementActions({
                       <XCircle className="mr-2 h-4 w-4" />
                       {copy.actions.cancelSettlement}
                     </DropdownMenuItem>
+                  ) : null}
+                  {canOpenHistory ? (
+                    <>
+                      {canReject || canCancel ? <DropdownMenuSeparator /> : null}
+                      <DropdownMenuItem
+                        onClick={() =>
+                          onOpenHistory ? onOpenHistory() : setHistoryOpen(true)
+                        }
+                      >
+                        <History className="mr-2 h-4 w-4" />
+                        {flowCopy.header.menuHistory}
+                      </DropdownMenuItem>
+                    </>
                   ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>

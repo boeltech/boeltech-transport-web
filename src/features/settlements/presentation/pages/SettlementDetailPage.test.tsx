@@ -371,7 +371,8 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     mockSubmitSettlement.mockResolvedValue({ ...pendingSettlement });
   });
 
-  it("D25 / H1–H3: pendiente ofrece cluster Autorizar · ⋯ con Preview/Corregir/Devolver (sin hint entre CTAs)", async () => {
+  it("D25 / H1–H3: pendiente ofrece Devolver · Autorizar · Más (Preview/Corregir en ⋯)", async () => {
+    const user = userEvent.setup();
     mockGetSettlementById.mockResolvedValue(pendingSettlement);
     renderDetail();
 
@@ -381,14 +382,22 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
 
     expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Más acciones/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Corregir" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Devolver para corregir/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Vista previa del recibo/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Corregir" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Vista previa del recibo/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Rechazar$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Imprimir recibo/i })).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Si solo hay un error corregible, devuelve el pago/i),
     ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Más acciones/i }));
+    expect(
+      await screen.findByRole("menuitem", { name: /Vista previa del recibo/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Corregir" })).toBeInTheDocument();
   });
 
   it("R1: dialog en pendiente usa título y descripción de vista previa", async () => {
@@ -396,8 +405,9 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     mockGetSettlementById.mockResolvedValue(pendingSettlement);
     renderDetail();
 
+    await user.click(await screen.findByRole("button", { name: /Más acciones/i }));
     await user.click(
-      await screen.findByRole("button", { name: /Vista previa del recibo/i }),
+      await screen.findByRole("menuitem", { name: /Vista previa del recibo/i }),
     );
 
     expect(screen.getByRole("heading", { name: "Vista previa del recibo" })).toBeInTheDocument();
@@ -483,15 +493,18 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     expect(printBtn.className).toMatch(/border-input/);
   });
 
-  it("R2: en pendiente Vista previa del recibo es outline", async () => {
+  it("R2: en pendiente Vista previa del recibo vive en Más (no outline permanente)", async () => {
+    const user = userEvent.setup();
     mockGetSettlementById.mockResolvedValue(pendingSettlement);
     renderDetail();
 
-    const previewBtn = await screen.findByRole("button", {
-      name: /Vista previa del recibo/i,
-    });
-    expect(previewBtn.className).not.toMatch(/bg-primary(?!\/)/);
-    expect(previewBtn.className).toMatch(/border-input/);
+    expect(
+      screen.queryByRole("button", { name: /Vista previa del recibo/i }),
+    ).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: /Más acciones/i }));
+    expect(
+      await screen.findByRole("menuitem", { name: /Vista previa del recibo/i }),
+    ).toBeInTheDocument();
   });
 
   it("R7: Imprimir vive en el footer del dialog, no en el header", async () => {
