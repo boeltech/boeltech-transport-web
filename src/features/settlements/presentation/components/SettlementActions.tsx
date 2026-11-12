@@ -738,7 +738,7 @@ export function SettlementActions({
             ) : null}
             {canApprove ? (
               <Button onClick={requestApprove} disabled={approveMutation.isPending}>
-                <Check className="mr-2 h-4 w-4 text-success" />
+                <Check className="mr-2 h-4 w-4" aria-hidden />
                 {copy.actions.approve}
               </Button>
             ) : null}
