@@ -1868,16 +1868,19 @@ export const settlementsCopy = {
       weekly: "Semanal",
       biweekly: "Quincenal",
       monthly: "Mensual",
-      includeContractors: "Incluir contratistas con opt-in",
+      includeContractors: "Incluir contratistas",
+      /** D-CW-1 — hint bajo el checkbox del Periodo (opt-in = batch del corte). */
+      includeContractorsHint:
+        "Por defecto no entran al corte. Márcalo solo si también les armamos pago en este ritmo.",
       eligibleCount: (count: number) =>
         count === 1
-          ? "1 operador elegible en este periodo"
-          : `${count} operadores elegibles en este periodo`,
+          ? "1 operador en este periodo"
+          : `${count} operadores en este periodo`,
       eligibleHint: (includable: number, blocking: number, excluded: number) =>
-        `${includable} listos para enviar · ${blocking} bloqueados · ${excluded} fuera`,
-      /** PM-08 — glosario pago/corte: «Fuera» en el resumen del Periodo. */
+        `${includable} listos · ${blocking} con bloqueo · ${excluded} fuera`,
+      /** PM-08 + D-CW-4 — glosario Fuera / Bloqueados en el resumen del Periodo. */
       outsideHint:
-        "Fuera = ritmo/tarifa distinto; no entran al enviar.",
+        "Fuera = ritmo/tarifa distinto; no entran al enviar. Bloqueados entran a Revisar; hay que corregirlos o no se envían.",
       loadingPreview: "Calculando operadores…",
       previewError: "No se pudo calcular el corte. Revisa el periodo e intenta de nuevo.",
       emptyEligible:

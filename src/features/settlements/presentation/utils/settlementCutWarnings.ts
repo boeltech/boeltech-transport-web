@@ -59,7 +59,8 @@ const WARNING_UI: Record<SettlementCutWarningCode, SettlementCutWarningUi> = {
     action: "view_operator",
   },
   contractor_excluded: {
-    label: "Contratista sin opt-in",
+    /** Código muerto en API (nunca se emite); copy sin fingir opt-in por ficha. */
+    label: "Contratista no incluido",
     badgeVariant: "neutral",
     effectHint: "excluded",
     action: "view_operator",

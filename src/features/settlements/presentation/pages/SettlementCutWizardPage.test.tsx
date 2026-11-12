@@ -152,11 +152,23 @@ describe("SettlementCutWizardPage (F6)", () => {
     renderWizard();
 
     expect(await screen.findByTestId("cut-step-period")).toBeInTheDocument();
-    expect(screen.getByText(/operadores elegibles/i)).toBeInTheDocument();
+    expect(screen.getByText(/operadores en este periodo/i)).toBeInTheDocument();
     expect(screen.getByTestId("cut-period-eligible-summary")).toBeInTheDocument();
     expect(
-      screen.getByText(/Fuera = ritmo\/tarifa distinto; no entran al enviar/i),
+      screen.getByLabelText("Incluir contratistas"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Por defecto no entran al corte\. Márcalo solo si también les armamos pago en este ritmo\./i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Fuera = ritmo\/tarifa distinto; no entran al enviar\. Bloqueados entran a Revisar/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/opt-in/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/elegibles/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Siguiente" }));
 

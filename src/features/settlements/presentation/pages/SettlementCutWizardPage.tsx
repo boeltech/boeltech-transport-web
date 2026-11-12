@@ -476,17 +476,22 @@ export function SettlementCutWizardPage() {
         />
       </div>
 
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="cut-include-contractors"
-          checked={includeContractors}
-          onCheckedChange={(checked) =>
-            setIncludeContractors(checked === true)
-          }
-        />
-        <Label htmlFor="cut-include-contractors" className="font-normal">
-          {copy.period.includeContractors}
-        </Label>
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="cut-include-contractors"
+            checked={includeContractors}
+            onCheckedChange={(checked) =>
+              setIncludeContractors(checked === true)
+            }
+          />
+          <Label htmlFor="cut-include-contractors" className="font-normal">
+            {copy.period.includeContractors}
+          </Label>
+        </div>
+        <p className="pl-6 text-xs text-muted-foreground">
+          {copy.period.includeContractorsHint}
+        </p>
       </div>
 
       {previewQuery.isFetching ? (
