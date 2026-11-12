@@ -3,16 +3,34 @@ import type { ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "@shared/api/interceptors/error-handler";
+import type { CompensationTemplate } from "../../domain/entities";
 import { compensationQueryKeys } from "../compensationQueryKeys";
-import { useDeleteCompensationTemplate, useUpdateCompensationTemplate } from "./useTemplates";
+import {
+  useActivateCompensationTemplate,
+  useDeactivateCompensationTemplate,
+  useDeleteCompensationTemplate,
+  useUpdateCompensationTemplate,
+} from "./useTemplates";
 
-const { mockUpdateTemplate, mockDeleteTemplate } = vi.hoisted(() => ({
-  mockUpdateTemplate: vi.fn(),
-  mockDeleteTemplate: vi.fn(),
-}));
+const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
+
+const { mockUpdateTemplate, mockDeleteTemplate, mockActivateTemplate, mockDeactivateTemplate } =
+  vi.hoisted(() => ({
+    mockUpdateTemplate: vi.fn(),
+    mockDeleteTemplate: vi.fn(),
+    mockActivateTemplate: vi.fn(),
+    mockDeactivateTemplate: vi.fn(),
+  }));
 
 vi.mock("../../infrastructure/compensationApi", () => ({
-  compensationApi: { updateTemplate: mockUpdateTemplate, deleteTemplate: mockDeleteTemplate },
+  compensationApi: {
+    updateTemplate: mockUpdateTemplate,
+    deleteTemplate: mockDeleteTemplate,
+    activateTemplate: mockActivateTemplate,
+    deactivateTemplate: mockDeactivateTemplate,
+  },
 }));
 
 function setup() {
@@ -27,8 +45,29 @@ function setup() {
   return { result, invalidateSpy };
 }
 
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  return { queryClient, wrapper };
+}
+
 function invalidatedKeys(spy: ReturnType<typeof setup>["invalidateSpy"]) {
   return spy.mock.calls.map(([filters]) => filters?.queryKey);
+}
+
+const activeTemplate = {
+  id: "tpl-v1",
+  familyId: "tpl-v1",
+} as CompensationTemplate;
+
+function seedSettlementsCaches(queryClient: QueryClient) {
+  queryClient.setQueryData(SETTLEMENTS_OPERATORS_KEY, { data: [] });
+  queryClient.setQueryData(SETTLEMENTS_PREVIEW_KEY, { data: [] });
+  queryClient.setQueryData(SETTLEMENTS_WORKBENCH_KEY, { data: [] });
 }
 
 describe("useUpdateCompensationTemplate — 409 TEMPLATE_CONFIG_LOCKED (W5)", () => {
@@ -112,5 +151,42 @@ describe("useDeleteCompensationTemplate — versiones de la borrada (F2b §3.2)"
     expect(queryClient.getQueryData(compensationQueryKeys.templateVersions("tpl-v1"))).toEqual(
       [],
     );
+  });
+});
+
+describe("useActivate/DeactivateCompensationTemplate — settlements readiness", () => {
+  beforeEach(() => {
+    mockActivateTemplate.mockReset();
+    mockDeactivateTemplate.mockReset();
+  });
+
+  it("activar invalida Operadores, preview y workbench", async () => {
+    mockActivateTemplate.mockResolvedValue(activeTemplate);
+    const { queryClient, wrapper } = createWrapper();
+    seedSettlementsCaches(queryClient);
+    const { result } = renderHook(() => useActivateCompensationTemplate(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ id: "tpl-v1" });
+    });
+
+    expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_PREVIEW_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_WORKBENCH_KEY)?.isInvalidated).toBe(true);
+  });
+
+  it("desactivar invalida Operadores, preview y workbench", async () => {
+    mockDeactivateTemplate.mockResolvedValue(activeTemplate);
+    const { queryClient, wrapper } = createWrapper();
+    seedSettlementsCaches(queryClient);
+    const { result } = renderHook(() => useDeactivateCompensationTemplate(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync("tpl-v1");
+    });
+
+    expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_PREVIEW_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_WORKBENCH_KEY)?.isInvalidated).toBe(true);
   });
 });

@@ -16,6 +16,11 @@ import type {
   UpdateCompensationTemplatePayload,
 } from "../../domain/entities";
 
+/** Prefijos de React Query en settlements (evitar import circular del barrel). */
+const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
+
 function invalidateTemplateFamily(
   queryClient: ReturnType<typeof useQueryClient>,
   templateId: string,
@@ -30,6 +35,15 @@ function invalidateTemplateFamily(
   queryClient.invalidateQueries({
     queryKey: [...compensationQueryKeys.templates(), "activity", templateId],
   });
+}
+
+/** Activate/deactivate cambian payability → preview, workbench y readiness Operadores. */
+function invalidateSettlementsAfterTemplateLifecycleChange(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
 }
 
 export function useCompensationTemplates(
@@ -142,6 +156,7 @@ export function useActivateCompensationTemplate() {
       if (template.familyId !== template.id) {
         invalidateTemplateFamily(queryClient, template.familyId);
       }
+      invalidateSettlementsAfterTemplateLifecycleChange(queryClient);
     },
   });
 }
@@ -152,6 +167,7 @@ export function useDeactivateCompensationTemplate() {
     mutationFn: (id: string) => compensationApi.deactivateTemplate(id),
     onSuccess: (template) => {
       invalidateTemplateFamily(queryClient, template.id);
+      invalidateSettlementsAfterTemplateLifecycleChange(queryClient);
     },
   });
 }
