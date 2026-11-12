@@ -141,7 +141,7 @@ export function BuilderPaysHowInspector({
             size="sm"
             onClick={() => setCompactTrips((current) => !current)}
           >
-            {copy.weekChangeTrips}
+            {compactTrips ? copy.weekShowMoreTrips : copy.weekShowFewerTrips}
           </Button>
         </div>
         <div className="px-5 pb-5 pt-3">

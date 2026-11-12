@@ -311,7 +311,11 @@ export const compensationCopy = {
     paysHowSubtitle: "Lo que esta tarifa dice, en palabras.",
     weekExampleTitle: "Semana de ejemplo",
     weekExampleSubtitle: "Viajes de muestra · se recalcula al editar",
-    weekChangeTrips: "Cambiar viajes",
+    /** Toggle de la semana de ejemplo: lista corta ↔ lista completa (no edita viajes reales). */
+    weekShowFewerTrips: "Mostrar menos viajes",
+    weekShowMoreTrips: "Mostrar más viajes",
+    /** @deprecated Usar weekShowFewerTrips / weekShowMoreTrips */
+    weekChangeTrips: "Mostrar menos viajes",
     weekTryOperator: "Probar con un operador real",
     weekFooter: (n: number) =>
       `Ejemplo con ${n} viajes de muestra. El pago real sale de la liquidación del periodo.`,
@@ -338,16 +342,16 @@ export const compensationCopy = {
       pay_full_to_each:
         "Cada participante cobra el viaje completo.",
       split_by_assigned_km:
-        "Cuando el cálculo separta, el pago se divide según los km de cada operador.",
+        "El pago se divide según los kilómetros que hizo cada operador.",
       equal_parts:
-        "Cuando el cálculo separta, el pago se divide en partes iguales.",
+        "El pago se divide en partes iguales entre los operadores del viaje.",
       pay_only_closer:
-        "Cuando el cálculo separta, solo cobra quien cierra el viaje.",
+        "Solo cobra quien cierra el viaje.",
       pay_only_dispatcher:
-        "Cuando el cálculo separta, solo cobra quien despacha.",
+        "Solo cobra quien despacha el viaje.",
     } as const,
-    midTripPolicyRuntimeNote:
-      "El cálculo aún no parte según esta opción; hoy paga el viaje completo a cada participante.",
+    /** @deprecated F2 cableó el motor; no mostrar nota de “aún no parte”. */
+    midTripPolicyRuntimeNote: "",
     allowancesDescription:
       "Montos fijos que se suman al pago del operador en cada pago: comidas, viáticos, casetas u otros.",
     deductionsDescription:

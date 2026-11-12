@@ -55,8 +55,6 @@ export function BuilderTripLadderSection({
   const midTripHint =
     (midTripPayoutPolicy && copy.midTripPolicyHints[midTripPayoutPolicy]) ||
     copy.midTripPolicyHint;
-  const showRuntimeNote =
-    midTripPayoutPolicy != null && midTripPayoutPolicy !== "pay_full_to_each";
   const { data: frequentPairs = [] } = useFrequentCityPairs(
     { limit: 5 },
     { enabled: true },
@@ -294,12 +292,7 @@ export function BuilderTripLadderSection({
               fieldId="mid-trip-payout-policy"
               disabled={readOnly}
             />
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p>{midTripHint}</p>
-              {showRuntimeNote ? (
-                <p>{copy.midTripPolicyRuntimeNote}</p>
-              ) : null}
-            </div>
+            <p className="text-xs text-muted-foreground">{midTripHint}</p>
           </div>
         </div>
       </div>

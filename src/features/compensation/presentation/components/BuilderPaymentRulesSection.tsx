@@ -33,15 +33,6 @@ export function BuilderPaymentRulesSection({
   const midTripHint =
     (midTripPayoutPolicy && copy.midTripPolicyHints[midTripPayoutPolicy]) ||
     copy.midTripPolicyHint;
-  const showRuntimeNote =
-    midTripPayoutPolicy != null && midTripPayoutPolicy !== "pay_full_to_each";
-  const midTripDescription = showRuntimeNote ? (
-    <>
-      {midTripHint} {copy.midTripPolicyRuntimeNote}
-    </>
-  ) : (
-    midTripHint
-  );
 
   return (
     <div className="space-y-4">
@@ -50,7 +41,7 @@ export function BuilderPaymentRulesSection({
         control={form.control}
         name="midTripPayoutPolicy"
         label={copy.midTripPolicyLabel}
-        description={midTripDescription}
+        description={midTripHint}
         options={MID_TRIP_OPTIONS}
         fieldId="mid-trip-payout-policy"
       />
