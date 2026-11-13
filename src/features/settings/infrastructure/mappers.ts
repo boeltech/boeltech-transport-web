@@ -76,7 +76,7 @@ function resolvePublicAssetUrl(url: string | null): string | null {
   if (/^https?:\/\//i.test(url)) return url;
   if (!url.startsWith("/")) return url;
 
-  const base = new URL(config.api.baseUrl);
+  const base = new URL(config.api.baseUrl, window.location.origin);
   return `${base.origin}${url}`;
 }
 

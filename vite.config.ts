@@ -48,6 +48,12 @@ export default defineConfig({
   },
 
   server: {
+    // Dev: la web y el API comparten origen (localhost:5173) para que el navegador
+    // interno de Claude y cualquier navegador hablen con el API sin peticiones cruzadas.
+    proxy: {
+      "/api": { target: "http://localhost:3000", changeOrigin: false },
+      "/uploads": { target: "http://localhost:3000", changeOrigin: false },
+    },
     watch: {
       ignored: ["**/boeltech-cfdi-domain/dist/**"],
     },
