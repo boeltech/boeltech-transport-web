@@ -26,6 +26,10 @@ const raw = {
   updated_at: "2026-11-02T18:00:00.000Z",
   updated_by: "user-1",
   updated_by_name: "Ana López",
+  disable_impact: {
+    comercial_only_clients: 12,
+    open_exception_requests: 3,
+  },
 };
 
 describe("fiscalPolicyApi", () => {
@@ -59,5 +63,24 @@ describe("fiscalPolicyApi", () => {
     const policy = await fiscalPolicyApi.update("disabled");
     expect(policy.updatedBy).toBe("user-1");
     expect(policy.updatedByName).toBeNull();
+  });
+
+  it("mapea disableImpact desde disable_impact", async () => {
+    getMock.mockResolvedValue({ data: raw });
+    const policy = await fiscalPolicyApi.get();
+    expect(policy.disableImpact).toEqual({
+      comercialOnlyClients: 12,
+      openExceptionRequests: 3,
+    });
+  });
+
+  it("usa ceros si disable_impact falta (respuesta antigua / PUT)", async () => {
+    const { disable_impact: _omit, ...withoutImpact } = raw;
+    getMock.mockResolvedValue({ data: withoutImpact });
+    const policy = await fiscalPolicyApi.get();
+    expect(policy.disableImpact).toEqual({
+      comercialOnlyClients: 0,
+      openExceptionRequests: 0,
+    });
   });
 });
