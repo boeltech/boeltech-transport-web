@@ -206,6 +206,7 @@ const PENDING: Record<ApprovalConcept, number> = {
   trip_expense: 0,
   settlement: 2,
   disbursement: 1,
+  sin_cfdi_exception: 0,
 };
 
 function overview(

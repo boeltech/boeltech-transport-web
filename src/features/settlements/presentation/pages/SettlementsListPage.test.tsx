@@ -25,6 +25,14 @@ const {
             payable: number;
             closed: number;
             openAdvances: number;
+            approvalAgingDaysMax?: number | null;
+            advancesDeductibleEstimate?: number;
+            kpis?: {
+              toArm: { count: number; amount: number };
+              inApproval: { count: number; amount: number };
+              authorizedUnpaid: { count: number; amount: number };
+              advancesToDeduct: { count: number; amount: number };
+            };
           };
         }
       | undefined,
@@ -41,6 +49,21 @@ const {
       payable: 0,
       closed: 0,
       openAdvances: 0,
+    } as {
+      pending: number;
+      draft: number;
+      approval: number;
+      payable: number;
+      closed: number;
+      openAdvances: number;
+      approvalAgingDaysMax?: number | null;
+      advancesDeductibleEstimate?: number;
+      kpis?: {
+        toArm: { count: number; amount: number };
+        inApproval: { count: number; amount: number };
+        authorizedUnpaid: { count: number; amount: number };
+        advancesToDeduct: { count: number; amount: number };
+      };
     },
     isLoading: false,
     isFetching: false,

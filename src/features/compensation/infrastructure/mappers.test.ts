@@ -115,7 +115,7 @@ describe("compensation mappers", () => {
         name: "Policy rara",
         description: null,
         isActive: true,
-        midTripPayoutPolicy: "not_real",
+        midTripPayoutPolicy: "not_real" as never,
         rules: [],
         fixedAllowances: [],
         corridorIds: [],

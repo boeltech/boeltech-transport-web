@@ -21,12 +21,12 @@ import { FiscalPolicySettingsPage } from "@features/settings/presentation/pages/
 import { ApprovalRowSinCfdiException } from "@features/approvals/presentation/components/ApprovalRowSinCfdiException";
 import { mapApprovalWorkbenchBuckets } from "@features/approvals/presentation/utils/mapApprovalWorkbenchBuckets";
 import { approvalsCopy } from "@features/approvals/presentation/copy/approvalsCopy";
-import type { ApprovalItem } from "@features/approvals/domain";
+import type { ApprovableItem } from "@features/approvals/domain";
 import {
   checkPermission,
   getPermissionsForRole,
-  type Role,
 } from "@shared/permissions";
+import type { UserRole } from "@shared/constants/roles";
 
 const smokeState = vi.hoisted(() => ({
   role: "admin" as "admin" | "dispatcher" | "accountant",
@@ -139,7 +139,7 @@ function dialogGovernance(
   };
 }
 
-function roleAllows(role: Role, module: string, action: string): boolean {
+function roleAllows(role: UserRole, module: string, action: string): boolean {
   return checkPermission(
     role,
     getPermissionsForRole(role),
@@ -228,10 +228,14 @@ describe("gobierno Sin factura", () => {
 
   it("la bandeja tiene la pestaña Sin factura y la fila no devuelve", async () => {
     const buckets = mapApprovalWorkbenchBuckets({
-      trip_expense: 1,
-      driver_advance_request: 0,
-      internal_staff_compensation: 0,
-      sin_cfdi_exception: 2,
+      activeType: "sin_cfdi_exception",
+      counts: {
+        trip_expense: 1,
+        driver_advance_request: 0,
+        internal_staff_compensation: 0,
+        sin_cfdi_exception: 2,
+      },
+      onTypeChange: vi.fn(),
     });
     expect(buckets.map((bucket) => bucket.label)).toContain(
       approvalsCopy.inbox.tabs.sinCfdi,
@@ -259,7 +263,7 @@ describe("gobierno Sin factura", () => {
         reason: "El cliente no puede timbrar este viaje.",
         requestedByName: "Ana",
       },
-    } as ApprovalItem;
+    } as ApprovableItem;
 
     render(
       <Providers>
@@ -267,6 +271,9 @@ describe("gobierno Sin factura", () => {
           <tbody>
             <ApprovalRowSinCfdiException
               item={item}
+              selected={false}
+              selectable
+              onSelectChange={vi.fn()}
               canUpdate
               actionUi={{ kind: "act", selfConfirm: false }}
               onApprove={vi.fn()}
