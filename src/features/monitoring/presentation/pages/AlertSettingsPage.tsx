@@ -6,6 +6,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { useToast } from "@shared/hooks";
 import {
   useGpsAlertSettings,
+  useGpsTrackingEntitlement,
   useUpdateGpsAlertSettings,
 } from "../../application";
 import type {
@@ -14,7 +15,9 @@ import type {
   GpsAlertTypeCode,
 } from "../../domain";
 import { AlertSettingsCard } from "../components/AlertSettingsCard";
+import { GpsModuleNotActivatedState } from "../components/GpsModuleNotActivatedState";
 import { monitoringCopy } from "../copy/monitoringCopy";
+import { isModuleNotEntitledError } from "../utils/isModuleNotEntitledError";
 
 type DraftMap = Record<
   GpsAlertTypeCode,
@@ -35,11 +38,15 @@ function toDraft(settings: GpsAlertSetting[]): DraftMap {
 export function AlertSettingsPage() {
   const copy = monitoringCopy.alertSettings;
   const { success, error } = useToast();
-  const query = useGpsAlertSettings();
+  const entitlement = useGpsTrackingEntitlement();
+  const query = useGpsAlertSettings({ enabled: entitlement.canUseModule });
   const update = useUpdateGpsAlertSettings({
     onSuccess: () => success(copy.saved),
     onError: (err) => error(err.message || copy.errorGeneric),
   });
+  const notEntitled =
+    entitlement.showNotActivated ||
+    (query.isError && isModuleNotEntitledError(query.error));
 
   const settings = useMemo(
     () => query.data?.settings ?? [],
@@ -82,23 +89,27 @@ export function AlertSettingsPage() {
       description={copy.description}
       hideSidebar
       headerSlot={
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={!payload || update.isPending || query.isLoading}
-        >
-          {update.isPending ? copy.saving : copy.save}
-        </Button>
+        notEntitled ? null : (
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={!payload || update.isPending || query.isLoading}
+          >
+            {update.isPending ? copy.saving : copy.save}
+          </Button>
+        )
       }
     >
-      {query.isLoading ? (
+      {notEntitled ? <GpsModuleNotActivatedState variant="page" /> : null}
+
+      {!notEntitled && query.isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-32 w-full" />
         </div>
       ) : null}
 
-      {query.isError ? (
+      {!notEntitled && query.isError ? (
         <Alert variant="destructive">
           <AlertTitle>{copy.loadError}</AlertTitle>
           <AlertDescription className="flex items-center gap-3">
@@ -114,7 +125,7 @@ export function AlertSettingsPage() {
         </Alert>
       ) : null}
 
-      {draft && settings.length > 0 ? (
+      {!notEntitled && draft && settings.length > 0 ? (
         <div className="space-y-4" data-testid="alert-settings-list">
           {settings.map((setting) => (
             <AlertSettingsCard

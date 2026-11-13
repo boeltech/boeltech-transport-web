@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Settings } from "lucide-react";
+import { AlertTriangle, Radio, Settings } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells";
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
@@ -14,7 +14,11 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import { usePermissions } from "@shared/permissions";
-import { useGpsAlerts, useMarkAlertRead } from "../../application";
+import {
+  useGpsAlerts,
+  useGpsTrackingEntitlement,
+  useMarkAlertRead,
+} from "../../application";
 import {
   ALERT_SETTINGS_PATH,
   ALERTS_WINDOW_DAYS,
@@ -24,6 +28,7 @@ import {
 } from "../../domain";
 import { AlertListItem } from "../components/AlertListItem";
 import { monitoringCopy } from "../copy/monitoringCopy";
+import { isModuleNotEntitledError } from "../utils/isModuleNotEntitledError";
 
 function windowRangeIso(): { from: string; to: string } {
   const to = new Date();
@@ -37,6 +42,7 @@ export function AlertsListPage() {
   const copy = monitoringCopy.alerts;
   const { hasPermission } = usePermissions();
   const canAdmin = hasPermission("gps_tracking", "admin");
+  const entitlement = useGpsTrackingEntitlement();
 
   const [alertType, setAlertType] = useState<GpsAlertTypeCode | "all">("all");
   const [vehicleId, setVehicleId] = useState<string>("all");
@@ -45,17 +51,23 @@ export function AlertsListPage() {
 
   const range = useMemo(() => windowRangeIso(), []);
 
-  const query = useGpsAlerts({
-    from: range.from,
-    to: range.to,
-    alertType: alertType === "all" ? undefined : alertType,
-    vehicleId: vehicleId === "all" ? undefined : vehicleId,
-    unreadOnly: unreadOnly || undefined,
-    page,
-    pageSize: 50,
-  });
+  const query = useGpsAlerts(
+    {
+      from: range.from,
+      to: range.to,
+      alertType: alertType === "all" ? undefined : alertType,
+      vehicleId: vehicleId === "all" ? undefined : vehicleId,
+      unreadOnly: unreadOnly || undefined,
+      page,
+      pageSize: 50,
+    },
+    { enabled: entitlement.canUseModule },
+  );
 
   const markRead = useMarkAlertRead();
+  const notEntitled =
+    entitlement.showNotActivated ||
+    (query.isError && isModuleNotEntitledError(query.error));
 
   const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const pagination = query.data?.pagination;
@@ -83,6 +95,28 @@ export function AlertsListPage() {
       markRead.mutate(alert.id);
     }
   };
+
+  if (notEntitled) {
+    return (
+      <ListPageShell
+        title={copy.title}
+        description={copy.description}
+        entityLabelPlural="alertas"
+        items={[]}
+        isLoading={false}
+        emptyState={{
+          icon: <Radio className="h-8 w-8" />,
+          title: monitoringCopy.moduleGate.title,
+          description: (
+            <span data-testid="gps-module-not-activated">
+              {monitoringCopy.moduleGate.description}
+            </span>
+          ),
+        }}
+        renderTable={() => null}
+      />
+    );
+  }
 
   return (
     <ListPageShell

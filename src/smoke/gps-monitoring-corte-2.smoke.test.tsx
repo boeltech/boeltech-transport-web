@@ -55,6 +55,22 @@ vi.mock("@features/monitoring/infrastructure", () => ({
   },
 }));
 
+vi.mock("@features/billing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@features/billing")>();
+  return {
+    ...actual,
+    useHasBillingModule: () => ({
+      hasModule: true,
+      isSuccess: true,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isPending: false,
+      data: { effectiveModuleCodes: ["gps_tracking"] },
+    }),
+  };
+});
+
 vi.mock("@shared/permissions", async () =>
   (await import("@/test/mocks/permissions")).permissionsModuleMock(),
 );

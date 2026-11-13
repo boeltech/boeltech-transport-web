@@ -10,9 +10,11 @@ import { Skeleton } from "@shared/ui/skeleton";
 import {
   useFleetHistory,
   useFleetPositions,
+  useGpsTrackingEntitlement,
   useReverseGeocode,
 } from "../../application";
 import { FLEET_MAP_PATH } from "../../domain";
+import { GpsModuleNotActivatedState } from "../components/GpsModuleNotActivatedState";
 import { HistoryPeriodToolbar } from "../components/HistoryPeriodToolbar";
 import { HistoryPointDetailCard } from "../components/HistoryPointDetailCard";
 import { HistoryPointsTable } from "../components/HistoryPointsTable";
@@ -25,6 +27,7 @@ import {
   type HistoryPeriodPreset,
   type HistoryPeriodRange,
 } from "../utils/historyPeriod";
+import { isModuleNotEntitledError } from "../utils/isModuleNotEntitledError";
 
 const GEOCODE_DEBOUNCE_MS = 350;
 
@@ -32,6 +35,7 @@ export function FleetHistoryPage() {
   const copy = monitoringCopy.history;
   const { vehicleId = "" } = useParams<{ vehicleId: string }>();
   const mapboxToken = config.geolocation.mapboxPublicToken;
+  const entitlement = useGpsTrackingEntitlement();
 
   const [preset, setPreset] = useState<HistoryPeriodPreset>("last4h");
   const [range, setRange] = useState<HistoryPeriodRange>(() =>
@@ -39,8 +43,10 @@ export function FleetHistoryPage() {
   );
   const isoRange = useMemo(() => toIsoRange(range), [range]);
 
-  const fleetQuery = useFleetPositions();
-  const historyQuery = useFleetHistory(vehicleId, isoRange);
+  const fleetQuery = useFleetPositions({ enabled: entitlement.canUseModule });
+  const historyQuery = useFleetHistory(vehicleId, isoRange, {
+    enabled: entitlement.canUseModule,
+  });
   const points = historyQuery.data?.points ?? [];
 
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
@@ -123,6 +129,9 @@ export function FleetHistoryPage() {
     historyQuery.isError &&
     isApiError(historyQuery.error) &&
     historyQuery.error.code === "GPS_TRACCAR_UNAVAILABLE";
+  const notEntitled =
+    entitlement.showNotActivated ||
+    (historyQuery.isError && isModuleNotEntitledError(historyQuery.error));
 
   const isEmpty =
     !historyQuery.isLoading &&
@@ -241,7 +250,9 @@ export function FleetHistoryPage() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 py-3">
-          {historyQuery.isLoading ? (
+          {notEntitled ? (
+            <GpsModuleNotActivatedState variant="page" className="py-8" />
+          ) : historyQuery.isLoading ? (
             <div className="space-y-2" aria-label={copy.loadingAria}>
               <Skeleton className="h-24 w-full rounded-xl bg-white/10" />
               <Skeleton className="h-40 w-full rounded-xl bg-white/10" />

@@ -6,11 +6,16 @@ import { isApiError } from "@shared/api/interceptors/error-handler";
 import { cn } from "@shared/lib/utils/cn";
 import { Button } from "@shared/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
-import { useFleetPositions } from "../../application";
+import {
+  useFleetPositions,
+  useGpsTrackingEntitlement,
+} from "../../application";
 import type { FleetVehiclePosition } from "../../domain";
 import { FleetMapView } from "../components/FleetMapView";
 import { FleetPanel } from "../components/FleetPanel";
+import { GpsModuleNotActivatedState } from "../components/GpsModuleNotActivatedState";
 import { monitoringCopy } from "../copy/monitoringCopy";
+import { isModuleNotEntitledError } from "../utils/isModuleNotEntitledError";
 
 function isDisabledError(error: unknown): boolean {
   return isApiError(error) && error.code === "GPS_TRACKING_DISABLED";
@@ -19,7 +24,8 @@ function isDisabledError(error: unknown): boolean {
 export function FleetMapPage() {
   const copy = monitoringCopy.fleet;
   const mapboxToken = config.geolocation.mapboxPublicToken;
-  const query = useFleetPositions();
+  const entitlement = useGpsTrackingEntitlement();
+  const query = useFleetPositions({ enabled: entitlement.canUseModule });
   const [searchParams] = useSearchParams();
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [focusVehicleId, setFocusVehicleId] = useState<string | null>(null);
@@ -37,11 +43,15 @@ export function FleetMapPage() {
   );
   const summary = query.data?.summary;
   const isEmpty =
+    entitlement.canUseModule &&
     !query.isLoading &&
     !query.isError &&
     (summary?.totalLinked === 0 || positions.length === 0);
 
   const disabled = query.isError && isDisabledError(query.error);
+  const notEntitled =
+    entitlement.showNotActivated ||
+    (query.isError && isModuleNotEntitledError(query.error));
 
   const handleSelect = (position: FleetVehiclePosition) => {
     setFocusVehicleId(position.vehicleId);
@@ -65,7 +75,7 @@ export function FleetMapPage() {
         {mapboxToken ? (
           <FleetMapView
             token={mapboxToken}
-            positions={mapPositions}
+            positions={notEntitled ? [] : mapPositions}
             focusVehicleId={focusVehicleId}
             onMarkerSelect={handleSelect}
           />
@@ -95,8 +105,12 @@ export function FleetMapPage() {
         </div>
       </div>
 
+      {notEntitled ? (
+        <GpsModuleNotActivatedState variant="map" />
+      ) : null}
+
       {/* Overlay states */}
-      {query.isError ? (
+      {!notEntitled && query.isError ? (
         <div className="absolute inset-x-0 top-14 z-30 flex justify-center px-4">
           <Alert
             variant="destructive"
@@ -122,7 +136,7 @@ export function FleetMapPage() {
         </div>
       ) : null}
 
-      {isEmpty ? (
+      {!notEntitled && isEmpty ? (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-zinc-950/55 px-6 backdrop-blur-[2px]">
           <div
             className={cn(
@@ -143,7 +157,7 @@ export function FleetMapPage() {
         </div>
       ) : null}
 
-      {!isEmpty ? (
+      {!notEntitled && !isEmpty ? (
         <FleetPanel
           positions={positions}
           summary={summary}

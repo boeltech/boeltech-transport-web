@@ -3,6 +3,12 @@
  */
 
 export const monitoringCopy = {
+  /** Gate operativo por entitlement — sin CTA de compra / precios (piloto). */
+  moduleGate: {
+    title: "Módulo no activado",
+    description:
+      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+  },
   fleet: {
     title: "Mapa de flota",
     searchPlaceholder: "Buscar eco o placa…",
@@ -17,6 +23,8 @@ export const monitoringCopy = {
     errorTitle: "No se pudo conectar al servicio de rastreo",
     errorDisabled:
       "El monitoreo GPS está desactivado en este entorno. Actívalo en la API o contacta a soporte.",
+    errorNotEntitled:
+      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
     retry: "Reintentar",
     loadingAria: "Cargando posiciones de flota",
     summary: (online: number, total: number) =>
@@ -100,6 +108,8 @@ export const monitoringCopy = {
       "El servicio de rastreo no respondió. Reintenta en unos segundos.",
     errorDisabled: "El monitoreo GPS está desactivado en este entorno.",
     errorNotLinked: "Esta unidad no tiene dispositivo GPS vinculado.",
+    errorNotEntitled:
+      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
     retry: "Reintentar",
     loadingAria: "Cargando historial de ruta",
     mapUnavailable:
@@ -167,6 +177,8 @@ export const monitoringCopy = {
       name ? `${date} por ${name}` : date,
     disabledMessage:
       "El monitoreo GPS no está disponible en este entorno.",
+    notEntitledMessage:
+      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
     loadError: "No se pudo cargar el estado del GPS.",
     retry: "Reintentar",
   },
@@ -181,12 +193,16 @@ export const monitoringCopy = {
     submit: "Vincular",
     submitting: "Vinculando…",
     success: "Dispositivo GPS vinculado",
+    successDescription:
+      "Si el IMEI era nuevo, el servicio de rastreo lo registró automáticamente. La primera señal puede tardar unos minutos.",
     errorGeneric: "No se pudo vincular el dispositivo",
     errorAlreadyLinked: "Esta unidad ya tiene un dispositivo vinculado",
     errorImeiAssigned: "Este IMEI ya está asignado a otra unidad",
     errorNotInTraccar:
       "Este IMEI no está registrado en el servicio de rastreo",
     errorDisabled: "El monitoreo GPS está desactivado",
+    errorNotEntitled:
+      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
   },
   unlinkDialog: {
     title: "Desvincular dispositivo",
@@ -227,6 +243,8 @@ export const monitoringCopy = {
     emptyDescription:
       "No hay alertas registradas con los filtros actuales.",
     errorTitle: "No se pudieron cargar las alertas",
+    errorNotEntitled:
+      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
     retry: "Reintentar",
     viewOnMap: "Ver en mapa",
     settingsLink: "Configuración de alertas",
@@ -257,6 +275,8 @@ export const monitoringCopy = {
     saved: "Configuración de alertas actualizada",
     errorGeneric: "No se pudo guardar la configuración",
     loadError: "No se pudo cargar la configuración de alertas",
+    errorNotEntitled:
+      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
     retry: "Reintentar",
     unconfigured: "Sin configurar",
     unconfiguredHint:

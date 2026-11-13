@@ -15,3 +15,4 @@ export {
   useGpsAlertSettings,
   useUpdateGpsAlertSettings,
 } from "./hooks/useGpsAlertSettings";
+export { useGpsTrackingEntitlement } from "./hooks/useGpsTrackingEntitlement";

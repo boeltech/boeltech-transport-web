@@ -45,6 +45,8 @@ function linkErrorMessage(error: unknown): string {
       return copy.errorNotInTraccar;
     case "GPS_TRACKING_DISABLED":
       return copy.errorDisabled;
+    case "MODULE_NOT_ENTITLED":
+      return copy.errorNotEntitled;
     default:
       return error.message || copy.errorGeneric;
   }
@@ -66,7 +68,11 @@ export function LinkGpsDeviceSheet({
 
   const linkMutation = useLinkGpsDevice(vehicleId, {
     onSuccess: () => {
-      toast({ title: copy.success, variant: "success" });
+      toast({
+        title: copy.success,
+        description: copy.successDescription,
+        variant: "success",
+      });
       onOpenChange(false);
     },
     onError: (error) => {
@@ -84,7 +90,11 @@ export function LinkGpsDeviceSheet({
   }, [open, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
-    await linkMutation.mutateAsync({ imei: values.imei });
+    try {
+      await linkMutation.mutateAsync({ imei: values.imei });
+    } catch {
+      // Toast already shown in onError; swallow to avoid unhandled rejection.
+    }
   });
 
   const summaryErrors = collectFieldErrorMessages(form.formState.errors);

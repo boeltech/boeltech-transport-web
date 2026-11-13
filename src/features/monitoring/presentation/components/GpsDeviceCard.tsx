@@ -21,7 +21,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
-import { useGpsDevice } from "../../application";
+import {
+  useGpsDevice,
+  useGpsTrackingEntitlement,
+} from "../../application";
 import {
   FLEET_MAP_PATH,
   fleetHistoryPath,
@@ -33,6 +36,7 @@ import { monitoringCopy } from "../copy/monitoringCopy";
 import { addressDisplay } from "../utils/addressDisplay";
 import { formatAbsoluteTime } from "../utils/formatAbsoluteTime";
 import { formatCardinalHeading } from "../utils/cardinalHeading";
+import { isModuleNotEntitledError } from "../utils/isModuleNotEntitledError";
 import { movementLabel } from "../utils/movementLabel";
 import { RelativeTime } from "./RelativeTime";
 import { LinkGpsDeviceSheet } from "./LinkGpsDeviceSheet";
@@ -77,8 +81,11 @@ export function GpsDeviceCard({
   const { hasPermission } = usePermissions();
   const canExecute = hasPermission("gps_tracking", "execute");
   const mapboxToken = config.geolocation.mapboxPublicToken;
+  const entitlement = useGpsTrackingEntitlement();
 
-  const query = useGpsDevice(vehicleId);
+  const query = useGpsDevice(vehicleId, {
+    enabled: entitlement.canUseModule,
+  });
   const [linkOpen, setLinkOpen] = useState(false);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
 
@@ -87,6 +94,9 @@ export function GpsDeviceCard({
     query.isError &&
     isApiError(query.error) &&
     query.error.code === "GPS_TRACKING_DISABLED";
+  const notEntitled =
+    entitlement.showNotActivated ||
+    (query.isError && isModuleNotEntitledError(query.error));
 
   return (
     <DetailSection
@@ -124,7 +134,14 @@ export function GpsDeviceCard({
     >
       <Card data-testid="gps-device-card">
         <CardContent className="space-y-4 pt-6">
-          {query.isLoading ? (
+          {notEntitled ? (
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="gps-module-not-activated"
+            >
+              {copy.notEntitledMessage}
+            </p>
+          ) : query.isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-5 w-48" />
               <Skeleton className="h-4 w-64" />
@@ -183,7 +200,7 @@ export function GpsDeviceCard({
         </CardContent>
       </Card>
 
-      {canExecute ? (
+      {canExecute && !notEntitled ? (
         <>
           <LinkGpsDeviceSheet
             vehicleId={vehicleId}
