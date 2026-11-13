@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TemplateCorridorsSection } from "./TemplateCorridorsSection";
 import type { CompensationTemplateFormData } from "../validation/compensationSchemas";
-import { COMPENSATION_CORRIDORS_PATH } from "../../application/compensationRoutes";
+import { COMPENSATION_CORRIDORS_HREF } from "../../application/compensationRoutes";
 
 const { mockUseCorridorTariffs, mockUseBranches } = vi.hoisted(() => ({
   mockUseCorridorTariffs: vi.fn(),
@@ -90,7 +90,7 @@ describe("TemplateCorridorsSection", () => {
     const catalogLink = screen.getByRole("link", {
       name: /Ver catálogo de rutas/i,
     });
-    expect(catalogLink).toHaveAttribute("href", COMPENSATION_CORRIDORS_PATH);
+    expect(catalogLink).toHaveAttribute("href", COMPENSATION_CORRIDORS_HREF);
   });
 
   it("con corredores muestra botón crear + link Ver catálogo de rutas", () => {
@@ -122,7 +122,7 @@ describe("TemplateCorridorsSection", () => {
     const catalogLink = screen.getByRole("link", {
       name: /Ver catálogo de rutas/i,
     });
-    expect(catalogLink).toHaveAttribute("href", "/finance/compensation/corridors");
+    expect(catalogLink).toHaveAttribute("href", COMPENSATION_CORRIDORS_HREF);
   });
 
   it("con corredores muestra jerarquía ruta + monto + nombre", () => {

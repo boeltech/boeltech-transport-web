@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke ADR-0089 — Plantillas de compensación, corredores y preview de liquidación.
  *
  * Cubre:
@@ -27,13 +27,12 @@ import {
   useLocation,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
-import { CompensationHubLayout } from "@features/compensation/presentation/components/CompensationHubLayout";
-import { CompensationTemplateListPage } from "@features/compensation/presentation/pages/CompensationTemplateListPage";
+import { OperatorPaymentsTariffsPage } from "@features/compensation/presentation/pages/OperatorPaymentsTariffsPage";
 import { CompensationSchemeBuilderPage } from "@features/compensation/presentation/pages/CompensationSchemeBuilderPage";
 import { CompensationTemplateDetailRedirect } from "@features/compensation/presentation/pages/CompensationTemplateDetailRedirect";
-import { CorridorTariffsListPage } from "@features/compensation/presentation/pages/CorridorTariffsListPage";
 import { AgreementsLegacyRedirect } from "@features/compensation/presentation/routes/AgreementsLegacyRedirect";
+import { CompensationLegacyRedirect } from "@features/compensation/presentation/routes/CompensationLegacyRedirect";
+import { FinanceSettlementsLegacyRedirect } from "@features/settlements/presentation/routes/FinanceSettlementsLegacyRedirect";
 import { SettlementCreatePage } from "@features/settlements/presentation/pages/SettlementCreatePage";
 import { compensationCopy } from "@features/compensation/presentation/copy/compensationCopy";
 import { settlementsCopy } from "@features/settlements/presentation/copy/settlementsCopy";
@@ -273,21 +272,18 @@ const mockCreatedTemplate = {
   activeAssignmentsCount: 0,
 };
 
+/** Rutas canónicas bajo /finance/operator-payments/* (F2) + redirects legacy. */
+const TARIFFS_PATH = "/finance/operator-payments/tariffs";
+
 const compensationRoutes = (
   <>
-    <Route element={<OperatorPaymentsHubLayout />}>
-      <Route path="/finance/compensation" element={<CompensationHubLayout />}>
-        <Route path="templates" element={<CompensationTemplateListPage />} />
-        <Route path="templates/:id" element={<CompensationTemplateDetailRedirect />} />
-        <Route path="corridors" element={<CorridorTariffsListPage />} />
-      </Route>
-    </Route>
-    <Route
-      path="/finance/compensation/templates/:id/build"
-      element={<CompensationSchemeBuilderPage />}
-    />
+    <Route path={TARIFFS_PATH} element={<OperatorPaymentsTariffsPage />} />
+    <Route path={`${TARIFFS_PATH}/:id`} element={<CompensationTemplateDetailRedirect />} />
+    <Route path={`${TARIFFS_PATH}/:id/build`} element={<CompensationSchemeBuilderPage />} />
+    <Route path="/finance/operator-payments/new" element={<SettlementCreatePage />} />
+    <Route path="/finance/compensation/*" element={<CompensationLegacyRedirect />} />
+    <Route path="/finance/settlements/*" element={<FinanceSettlementsLegacyRedirect />} />
     <Route path="/finance/agreements" element={<AgreementsLegacyRedirect />} />
-    <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
   </>
 );
 
@@ -403,7 +399,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
 
   it("1. Lista plantillas en el hub de compensación", async () => {
     renderWithRoutes(
-      "/finance/compensation/templates",
+      TARIFFS_PATH,
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -411,8 +407,11 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       expect(screen.getAllByText("Operador foráneo").length).toBeGreaterThan(0);
     });
 
-    expect(screen.getByRole("heading", { name: /Pagos a operadores/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Tarifas$/i })).toBeInTheDocument();
+    const tabs = screen.getByTestId("tariff-list-tabs");
+    expect(within(tabs).getByRole("tab", { name: /^Tarifas/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("1b. Lista plantillas muestra paginación cuando hay más de una página", async () => {
@@ -427,7 +426,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     renderWithRoutes(
-      "/finance/compensation/templates",
+      TARIFFS_PATH,
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -442,7 +441,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
   it("1c. Crea esquema de compensación desde el hub y abre el Builder", async () => {
     const user = userEvent.setup();
     renderWithRoutes(
-      "/finance/compensation/templates",
+      TARIFFS_PATH,
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -453,14 +452,16 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     await user.click(screen.getByRole("button", { name: /Nueva tarifa/i }));
 
     expect(
-      screen.getByRole("heading", { name: /Nueva tarifa de pago/i }),
+      screen.getByRole("heading", { name: compensationCopy.presets.title }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Desde cero/i }));
+    await user.click(
+      screen.getByRole("button", { name: new RegExp(compensationCopy.presets.blankName, "i") }),
+    );
 
-    const nameInput = await screen.findByLabelText("Nombre");
+    const nameInput = await screen.findByLabelText(compensationCopy.presets.nameLabel);
     await user.type(nameInput, "Esquema nuevo smoke");
-    await user.click(screen.getByRole("button", { name: /Crear y configurar/i }));
+    await user.click(screen.getByRole("button", { name: compensationCopy.presets.create }));
 
     await waitFor(() => {
       expect(mockCreateTemplate).toHaveBeenCalledTimes(1);
@@ -484,7 +485,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       screen.queryByRole("tab", { name: /Identidad/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole("tab", { name: /Pago por viaje/i }).length,
+      screen.getAllByRole("tab", { name: new RegExp(compensationCopy.builder.sections.trips, "i") }).length,
     ).toBeGreaterThan(0);
     expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
     expect(screen.getAllByText("Borrador").length).toBeGreaterThan(0);
@@ -493,7 +494,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
   it("1d. Abre Builder desde «Editar configuración» y muestra resumen en prosa", async () => {
     const user = userEvent.setup();
     renderWithRoutes(
-      "/finance/compensation/templates",
+      TARIFFS_PATH,
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -512,21 +513,25 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
-    // Vista previa vive en el footer del Builder (botón), no como link en el inspector.
+    expect(screen.getByText(/Foráneo — Paga \$3\.00 por km recorrido/i)).toBeInTheDocument();
+    // Puente a la vista previa vive en el inspector «Así le pagas» (botón).
     expect(
-      screen.getByRole("button", { name: compensationCopy.builder.trySchemeTitle }),
+      screen.getByRole("button", { name: compensationCopy.builder.weekTryOperator }),
     ).toBeInTheDocument();
   });
 
   it("2. Lista corredores foráneos con tarifa fija", async () => {
     const user = userEvent.setup();
     renderWithRoutes(
-      "/finance/compensation/templates",
+      TARIFFS_PATH,
       <Routes>{compensationRoutes}</Routes>,
     );
 
-    await user.click(screen.getByRole("tab", { name: /Rutas con tarifa fija/i }));
+    const routesTab = within(await screen.findByTestId("tariff-list-tabs")).getByRole("tab", {
+      name: /Rutas con tarifa fija/i,
+    });
+    expect(routesTab).toHaveAttribute("href", "/finance/operator-payments/tariffs?tab=routes");
+    await user.click(routesTab);
 
     await waitFor(() => {
       expect(screen.getByText("México → MTY")).toBeInTheDocument();
@@ -536,7 +541,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     expect(screen.getByText("$1,500.00")).toBeInTheDocument();
   });
 
-  it("3. Redirige /finance/agreements al hub de plantillas", async () => {
+  it("3. Redirige /finance/agreements a Tarifas", async () => {
     renderWithRoutes(
       "/finance/agreements?employeeId=emp-1",
       <Routes>{compensationRoutes}</Routes>,
@@ -547,7 +552,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
   });
 
-  it("4. Redirect legacy detalle abre Sheet de operadores", async () => {
+  it("4. Redirect legacy /finance/compensation/templates/:id abre Sheet de operadores", async () => {
     renderWithRoutes(
       "/finance/compensation/templates/tpl-1",
       <Routes>{compensationRoutes}</Routes>,
@@ -567,7 +572,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
   it("4b. Editar desde catálogo abre Builder con reglas y prestaciones", async () => {
     const user = userEvent.setup();
     renderWithRoutes(
-      "/finance/compensation/templates",
+      TARIFFS_PATH,
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -594,14 +599,14 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Cuando viaje foráneo, pagar/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pago fijo de tarifa Comidas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Foráneo — Paga \$3\.00 por km recorrido/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cada periodo suma \$500\.00 fijos/i)).toBeInTheDocument();
   });
 
   it("5. Abre sheet de asignación masiva desde la fila del catálogo", async () => {
     const user = userEvent.setup();
     renderWithRoutes(
-      "/finance/compensation/templates",
+      TARIFFS_PATH,
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -625,7 +630,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
 
   it("6. Preview liquidación: plantilla, corredor E1 y prestaciones", async () => {
     renderWithRoutes(
-      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+      "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -675,7 +680,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     renderWithRoutes(
-      "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
+      "/finance/operator-payments/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
       <Routes>{compensationRoutes}</Routes>,
     );
 
@@ -715,7 +720,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       mockListTemplateVersions.mockResolvedValue([mockTemplate, supersededTemplate]);
 
       renderWithRoutes(
-        "/finance/compensation/templates",
+        TARIFFS_PATH,
         <Routes>{compensationRoutes}</Routes>,
       );
 
@@ -760,7 +765,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       });
 
       renderWithRoutes(
-        "/finance/compensation/templates/tpl-1/build",
+        `${TARIFFS_PATH}/tpl-1/build`,
         <Routes>{compensationRoutes}</Routes>,
       );
 
@@ -951,7 +956,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       });
 
       renderHub(
-        `/finance/compensation/templates?operators=tpl-v2&assign=${FERNANDO},${ANA},${LUIS}&assignFrom=2026-09-01`,
+        `${TARIFFS_PATH}?operators=tpl-v2&assign=${FERNANDO},${ANA},${LUIS}&assignFrom=2026-09-01`,
       );
       const exitAction = `Asignar a Fernando Castillo desde el ${formatDate("2026-10-07")}`;
 
@@ -1031,7 +1036,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       );
 
       renderHub(
-        `/finance/compensation/templates?operators=tpl-v2&assign=${FERNANDO},${ANA}&assignFrom=2026-09-01&${PAYABLES_QUERY}`,
+        `${TARIFFS_PATH}?operators=tpl-v2&assign=${FERNANDO},${ANA}&assignFrom=2026-09-01&${PAYABLES_QUERY}`,
       );
       const pendingBanner = /Este operador aún no tiene tarifa de pago/i;
       const coverageHint = /Para cubrir el pago del/i;
@@ -1147,7 +1152,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
           assignmentOf("asg-marta", MARTA, "tpl-v2", "2026-11-01"),
         ];
 
-        renderHub("/finance/compensation/templates");
+        renderHub(TARIFFS_PATH);
 
         // Criterio 8: vigentes + programadas, con tooltip accesible por teclado.
         await screen.findAllByText(TEMPLATE_NAME);
@@ -1234,7 +1239,7 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       );
 
       renderWithRoutes(
-        "/finance/compensation/templates",
+        TARIFFS_PATH,
         <Routes>{compensationRoutes}</Routes>,
       );
 

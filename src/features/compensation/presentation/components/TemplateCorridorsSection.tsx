@@ -8,7 +8,7 @@ import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Input } from "@shared/ui/input";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { BranchStatus, useBranches } from "@features/branches";
-import { COMPENSATION_CORRIDORS_PATH } from "../../application/compensationRoutes";
+import { COMPENSATION_CORRIDORS_HREF } from "../../application/compensationRoutes";
 import { useCorridorTariffs } from "../../application/hooks/useCorridors";
 import { compensationCopy } from "../copy/compensationCopy";
 import {
@@ -149,7 +149,7 @@ export function TemplateCorridorsSection({
                 {copy.createCorridorLink}
               </Button>
               <Link
-                to={COMPENSATION_CORRIDORS_PATH}
+                to={COMPENSATION_CORRIDORS_HREF}
                 className="inline-block text-sm text-primary hover:underline"
               >
                 {copy.manageCorridorsLink}

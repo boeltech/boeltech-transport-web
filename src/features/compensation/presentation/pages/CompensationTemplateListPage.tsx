@@ -50,7 +50,7 @@ import {
 } from "../utils/templateListStatusFilter";
 import { TariffPresetSelector } from "../components/TariffPresetSelector";
 import { TariffListTabs } from "../components/TariffListTabs";
-import { COMPENSATION_CORRIDORS_PATH } from "../../application/compensationRoutes";
+import { COMPENSATION_CORRIDORS_HREF } from "../../application/compensationRoutes";
 
 const copy = compensationCopy.templates;
 const hubCopy = compensationCopy.hub;
@@ -359,7 +359,7 @@ export function CompensationTemplateListPage() {
     : hubCopy.employeeAssignBanner.description;
 
   if (redirectToRoutes) {
-    return <Navigate to={COMPENSATION_CORRIDORS_PATH} replace />;
+    return <Navigate to={COMPENSATION_CORRIDORS_HREF} replace />;
   }
 
   return (

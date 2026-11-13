@@ -1,7 +1,7 @@
 /**
  * Smoke ADR-0099 AX-1 — el badge global del sidebar cuenta «Me toca», no
  * «Todas». Usa el `approvalsApi` real con el cliente HTTP simulado: 3 pendientes
- * asignadas al usuario frente a 9 en la cola completa.
+ * asignadas al usuario frente a 12 en la cola completa (4 tipos × 3).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -52,7 +52,7 @@ describe("smoke approvals ADR-0099 AX-1 badge «Me toca»", () => {
     );
   });
 
-  it("3 «Me toca» / 9 «Todas»: el sidebar muestra 3 y solo consulta la cola asignada", async () => {
+  it("4 «Me toca» / 12 «Todas»: el sidebar muestra 4 y solo consulta la cola asignada", async () => {
     const { Wrapper } = createTestWrapper({ route: "/dashboard" });
     const { result } = renderHook(() => useNavigationWithBadges(), { wrapper: Wrapper });
 
@@ -60,20 +60,30 @@ describe("smoke approvals ADR-0099 AX-1 badge «Me toca»", () => {
       const approvalsItem = result.current.navigation
         .flatMap((group) => group.items)
         .find((item) => item.id === "finance-approvals");
-      expect(approvalsItem?.badge).toBe(3);
+      expect(approvalsItem?.badge).toBe(4);
     });
 
-    expect(mockApiGet).toHaveBeenCalledTimes(3);
-    for (const [url, config] of mockApiGet.mock.calls) {
-      expect(url).toBe("/finance/approvals");
+    const mineCalls = mockApiGet.mock.calls.filter(
+      ([url, config]) =>
+        url === "/finance/approvals" &&
+        (config as { params?: Record<string, string> } | undefined)?.params
+          ?.assigned_to_me === "true",
+    );
+    expect(mineCalls.length).toBeGreaterThanOrEqual(4);
+    for (const [, config] of mineCalls) {
       expect(config.params).toMatchObject({ status: "pending", assigned_to_me: "true" });
       expect(config.params).not.toHaveProperty("include_returned");
     }
-    expect(
-      new Set(mockApiGet.mock.calls.map(([, config]) => config.params.type)),
-    ).toEqual(new Set(["trip_expense", "driver_advance_request", "internal_staff_compensation"]));
+    expect(new Set(mineCalls.map(([, config]) => config.params.type))).toEqual(
+      new Set([
+        "trip_expense",
+        "driver_advance_request",
+        "internal_staff_compensation",
+        "sin_cfdi_exception",
+      ]),
+    );
 
-    // Contraste: la cola «Todas» del mismo tenant suma 9.
-    await expect(approvalsApi.getPendingCount(undefined, "all")).resolves.toBe(9);
+    // Contraste: la cola «Todas» del mismo tenant suma 12 (4 tipos × 3).
+    await expect(approvalsApi.getPendingCount(undefined, "all")).resolves.toBe(12);
   });
 });

@@ -26,13 +26,13 @@ function Harness({ initial }: { initial: string }) {
 }
 
 describe("RHFSelectField", () => {
-  it("con value vacío muestra la primera opción, no el placeholder Seleccionar", () => {
+  it("con value vacío muestra el placeholder (no finge la primera opción)", () => {
     render(<Harness initial="" />);
 
-    expect(screen.getByRole("combobox")).toHaveTextContent(
-      "Prorrateo por km asignados",
-    );
-    expect(screen.queryByText("Seleccionar")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toHaveTextContent("Seleccionar");
+    expect(
+      screen.queryByText("Prorrateo por km asignados"),
+    ).not.toBeInTheDocument();
   });
 
   it("con value válido muestra su label", () => {

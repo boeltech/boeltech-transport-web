@@ -47,10 +47,9 @@ export function RHFSelectField<TFieldValues extends FieldValues>({
       render={({ field, fieldState }) => {
         const errorMessage = fieldState.error?.message;
         const rawValue = field.value == null ? "" : String(field.value).trim();
-        // Radix treats value="" as empty → placeholder «Seleccionar». Enums required
-        // need a real option; never bind "".
-        const resolvedValue =
-          rawValue.length > 0 ? rawValue : (options[0]?.value ?? undefined);
+        // Radix treats value="" as empty → placeholder. Keep uncontrolled empty as
+        // undefined so selecting the first option still fires onValueChange.
+        const resolvedValue = rawValue.length > 0 ? rawValue : undefined;
         return (
           <FormFieldShell
             fieldId={resolvedId}

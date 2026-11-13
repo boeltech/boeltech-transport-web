@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke ADR-0085 — Flujo de Liquidaciones y Compensación a Operadores
  *
  * Cubre:
@@ -23,7 +23,6 @@ import { TooltipProvider } from "@shared/ui/tooltip";
 import { SettlementsListPage } from "@features/settlements/presentation/pages/SettlementsListPage";
 import { SettlementsRegistryPage } from "@features/settlements/presentation/pages/SettlementsRegistryPage";
 import { SettlementsAdvancesPage } from "@features/settlements/presentation/pages/SettlementsAdvancesPage";
-import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
 import { AgreementsLegacyRedirect } from "@features/compensation/presentation/routes/AgreementsLegacyRedirect";
 import { SettlementDetailPage } from "@features/settlements/presentation/pages/SettlementDetailPage";
 import { SettlementCreatePage } from "@features/settlements/presentation/pages/SettlementCreatePage";
@@ -313,13 +312,23 @@ function renderSettlementDetail(id = "settlement-smoke-1") {
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[`/finance/settlements/${id}`]}>
+      <MemoryRouter initialEntries={[`/finance/operator-payments/${id}`]}>
         <Routes>
-          <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+          <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+/** Anticipos arranca en «Abiertos»; las demás etapas se eligen en el pipeline. */
+async function selectAdvancesBucket(label: string) {
+  await userEvent.setup().click(await screen.findByRole("tab", { name: new RegExp(label) }));
+}
+
+async function openPendingReceiptPreview(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /Más acciones/i }));
+  await user.click(await screen.findByRole("menuitem", { name: /Vista previa del recibo/i }));
 }
 
 describe("Smoke ADR-0085: Settlements Workflow", () => {
@@ -399,10 +408,10 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/registry"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments?bucket=closed"]}>
           <Routes>
             <Route
-              path="/finance/settlements/registry"
+              path="/finance/operator-payments"
               element={<SettlementsRegistryPage />}
             />
           </Routes>
@@ -426,9 +435,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/settlement-smoke-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/settlement-smoke-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -438,15 +447,17 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
     });
 
-    const perception = screen.getByTestId("settlement-perception-strip");
-    expect(perception).toHaveTextContent("Compensación");
-    expect(perception).toHaveTextContent("Reembolsos");
-    expect(perception).toHaveTextContent("Total");
-    expect(screen.getByText("Descuentos")).toBeInTheDocument();
-    expect(screen.getByText("A pagar")).toBeInTheDocument();
-    expect(screen.getAllByText(formatMxCurrency(4000)).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(`-${formatMxCurrency(1000)}`).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(formatMxCurrency(3000)).length).toBeGreaterThanOrEqual(1);
+    // F2: fórmula de 5 términos (SettlementPaymentFormula) reemplaza la tira de percepciones.
+    const formula = screen.getByTestId("settlement-payment-formula");
+    expect(formula).toHaveTextContent("Por viajes");
+    expect(formula).toHaveTextContent("Sueldo y fijos");
+    expect(formula).toHaveTextContent("Reembolsos");
+    expect(formula).toHaveTextContent("Anticipos y descuentos");
+    expect(formula).toHaveTextContent("A pagar");
+    expect(formula).toHaveTextContent(formatMxCurrency(3500));
+    expect(formula).toHaveTextContent(formatMxCurrency(500));
+    expect(formula).toHaveTextContent(`−${formatMxCurrency(1000)}`);
+    expect(formula).toHaveTextContent(formatMxCurrency(3000));
 
     // Desglose colapsado por defecto fuera de draft/rejected
     await user.click(screen.getByText(/Ver desglose/i));
@@ -482,9 +493,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/settlement-smoke-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/settlement-smoke-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -495,9 +506,8 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     });
 
     // Abrir modal de vista previa imprimible (F6 D28: pendiente = vista previa)
-    const printReceiptBtn = screen.getByRole("button", { name: /Vista previa del recibo/i });
-    expect(printReceiptBtn).toBeInTheDocument();
-    await user.click(printReceiptBtn);
+    // F2: en «En autorización» con permiso de decidir, la vista previa vive en «Más acciones».
+    await openPendingReceiptPreview(user);
 
     // Verificar que el diálogo de vista previa está abierto y la clase activa está en body
     expect(
@@ -572,7 +582,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     expect(screen.getByRole("link", { name: "LIQ-202608-0001" })).toHaveAttribute(
       "href",
-      "/finance/settlements/settlement-smoke-1",
+      "/finance/operator-payments/settlement-smoke-1",
     );
     expect(screen.getByText(/Roberto González/)).toBeInTheDocument();
     expect(screen.getByText(/1 viajes/)).toBeInTheDocument();
@@ -587,9 +597,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={0}>
-          <MemoryRouter initialEntries={["/finance/settlements"]}>
+          <MemoryRouter initialEntries={["/finance/operator-payments"]}>
             <Routes>
-              <Route path="/finance/settlements" element={<SettlementsListPage />} />
+              <Route path="/finance/operator-payments" element={<SettlementsListPage />} />
             </Routes>
           </MemoryRouter>
         </TooltipProvider>
@@ -612,14 +622,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/advances"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/advances"]}>
           <Routes>
-            <Route element={<OperatorPaymentsHubLayout />}>
-              <Route
-                path="/finance/settlements/advances"
-                element={<SettlementsAdvancesPage />}
-              />
-            </Route>
+            <Route path="/finance/operator-payments/advances" element={<SettlementsAdvancesPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -627,12 +632,14 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: /Pagos a operadores/i }),
+        screen.getByRole("heading", { name: settlementsCopy.advancesList.title }),
       ).toBeInTheDocument();
     });
 
-    // Click en Registrar anticipo (CTA del hub)
-    const createBtn = screen.getByRole("button", { name: /Registrar anticipo/i });
+    // F2: CTA primaria de la página Anticipos
+    const createBtn = screen.getByRole("button", {
+      name: settlementsCopy.advancesList.primaryAction,
+    });
     await user.click(createBtn);
 
     // Validar que se abre el Dialog con título de settlementsCopy
@@ -672,10 +679,10 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/registry"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments?bucket=closed"]}>
           <Routes>
             <Route
-              path="/finance/settlements/registry"
+              path="/finance/operator-payments"
               element={<SettlementsRegistryPage />}
             />
           </Routes>
@@ -762,9 +769,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/settlement-smoke-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/settlement-smoke-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -775,10 +782,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     });
 
     // F6 D28: pendiente de autorización = documento de revisión, sin firmas.
-    const printBtn = screen.getByRole("button", { name: /Vista previa del recibo/i });
-    expect(printBtn).toBeInTheDocument();
-
-    await user.click(printBtn);
+    await openPendingReceiptPreview(user);
 
     expect(
       screen.getByRole("heading", { name: /Vista previa del recibo/i }),
@@ -803,9 +807,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/settlement-smoke-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/settlement-smoke-1"]}>
           <Routes>
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -828,11 +832,11 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={0}>
-          <MemoryRouter initialEntries={["/finance/settlements?tab=agreements"]}>
+          <MemoryRouter initialEntries={["/finance/operator-payments?tab=agreements"]}>
             <Routes>
-              <Route path="/finance/settlements" element={<SettlementsListPage />} />
+              <Route path="/finance/operator-payments" element={<SettlementsListPage />} />
               <Route
-                path="/finance/compensation/templates"
+                path="/finance/operator-payments/tariffs"
                 element={<div>compensation-templates-hub</div>}
               />
             </Routes>
@@ -855,7 +859,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
           <Routes>
             <Route path="/finance/agreements" element={<AgreementsLegacyRedirect />} />
             <Route
-              path="/finance/compensation/templates"
+              path="/finance/operator-payments/tariffs"
               element={<div data-testid="compensation-templates-hub">hub</div>}
             />
           </Routes>
@@ -949,10 +953,10 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     render(
       <QueryClientProvider client={createTestQueryClient()}>
         <TooltipProvider delayDuration={0}>
-          <MemoryRouter initialEntries={["/finance/settlements"]}>
+          <MemoryRouter initialEntries={["/finance/operator-payments"]}>
             <Routes>
-              <Route path="/finance/settlements" element={<SettlementsListPage />} />
-              <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
+              <Route path="/finance/operator-payments" element={<SettlementsListPage />} />
+              <Route path="/finance/operator-payments/new" element={<SettlementCreatePage />} />
             </Routes>
           </MemoryRouter>
         </TooltipProvider>
@@ -1059,10 +1063,10 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     render(
       <QueryClientProvider client={createTestQueryClient()}>
         <TooltipProvider delayDuration={0}>
-          <MemoryRouter initialEntries={["/finance/settlements"]}>
+          <MemoryRouter initialEntries={["/finance/operator-payments"]}>
             <Routes>
-              <Route path="/finance/settlements" element={<SettlementsListPage />} />
-              <Route path="/finance/settlements/new" element={<SettlementCreatePage />} />
+              <Route path="/finance/operator-payments" element={<SettlementsListPage />} />
+              <Route path="/finance/operator-payments/new" element={<SettlementCreatePage />} />
             </Routes>
           </MemoryRouter>
         </TooltipProvider>
@@ -1217,14 +1221,9 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
         const queryClient = createTestQueryClient();
         return render(
           <QueryClientProvider client={queryClient}>
-            <MemoryRouter initialEntries={["/finance/settlements/advances"]}>
+            <MemoryRouter initialEntries={["/finance/operator-payments/advances"]}>
               <Routes>
-                <Route element={<OperatorPaymentsHubLayout />}>
-                  <Route
-                    path="/finance/settlements/advances"
-                    element={<SettlementsAdvancesPage />}
-                  />
-                </Route>
+                <Route path="/finance/operator-payments/advances" element={<SettlementsAdvancesPage />} />
               </Routes>
             </MemoryRouter>
           </QueryClientProvider>,
@@ -1258,6 +1257,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
           makePolicy({ advanceApprove: true }),
         );
         renderAdvances();
+        await selectAdvancesBucket(settlementsCopy.advancesList.pipeline.pendingDisbursement);
 
         await waitFor(() => expect(mockGetSelfApprovalPolicy).toHaveBeenCalled());
         await openRowMenu(user, "ANT-OWN-001");
@@ -1274,6 +1274,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
         const user = userEvent.setup();
         mockGetSelfApprovalPolicy.mockResolvedValue(ADMIN_SOLO_POLICY);
         renderAdvances();
+        await selectAdvancesBucket(settlementsCopy.advancesList.pipeline.pendingDisbursement);
 
         await waitFor(() => expect(mockGetSelfApprovalPolicy).toHaveBeenCalled());
         await openRowMenu(user, "ANT-OWN-001");
@@ -1288,6 +1289,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       it("«Autoaprobado» solo en el anticipo autorizado, no en el autorrechazado", async () => {
         mockGetSelfApprovalPolicy.mockResolvedValue(ADMIN_SOLO_POLICY);
         renderAdvances();
+        await selectAdvancesBucket(settlementsCopy.advancesList.pipeline.pendingDisbursement);
 
         const approvedRow = (await screen.findByText("ANT-OWN-001")).closest("tr");
         const rejectedRow = screen.getByText("ANT-OWN-002").closest("tr");
@@ -1456,10 +1458,10 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
     const queryClient = createTestQueryClient();
     return render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/settlement-smoke-1"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/settlement-smoke-1"]}>
           <Routes>
-            <Route path="/finance/settlements/new" element={<CreateProbe />} />
-            <Route path="/finance/settlements/:id" element={<SettlementDetailPage />} />
+            <Route path="/finance/operator-payments/new" element={<CreateProbe />} />
+            <Route path="/finance/operator-payments/:id" element={<SettlementDetailPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1470,11 +1472,9 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
     const queryClient = createTestQueryClient();
     return render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/finance/settlements/advances"]}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/advances"]}>
           <Routes>
-            <Route element={<OperatorPaymentsHubLayout />}>
-              <Route path="/finance/settlements/advances" element={<SettlementsAdvancesPage />} />
-            </Route>
+            <Route path="/finance/operator-payments/advances" element={<SettlementsAdvancesPage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
@@ -1682,6 +1682,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
   it("ST-5a: editar el monto de un anticipo autorizado pide confirmación con antes/después", async () => {
     const user = userEvent.setup();
     renderAdvancesPage();
+    await selectAdvancesBucket(settlementsCopy.advancesList.pipeline.pendingDisbursement);
 
     const menu = await openAdvanceMenu(user, "ANT-AUTH-001");
     await user.click(within(menu).getByText(advanceFlow.menu.edit));
@@ -1712,6 +1713,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
   it("ST-5b: cambiar solo la nota guarda sin diálogo", async () => {
     const user = userEvent.setup();
     renderAdvancesPage();
+    await selectAdvancesBucket(settlementsCopy.advancesList.pipeline.pendingDisbursement);
 
     const menu = await openAdvanceMenu(user, "ANT-AUTH-001");
     await user.click(within(menu).getByText(advanceFlow.menu.edit));
@@ -1744,6 +1746,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
   it("ST-5d: cancelar un anticipo pendiente exige motivo", async () => {
     const user = userEvent.setup();
     renderAdvancesPage();
+    await selectAdvancesBucket(settlementsCopy.advancesList.pipeline.pendingApproval);
 
     const menu = await openAdvanceMenu(user, "ANT-PEND-001");
     await user.click(within(menu).getByText(advanceFlow.menu.cancel));
@@ -1786,7 +1789,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
       }),
     );
     const target = screen.getByTestId("create-probe").textContent ?? "";
-    expect(target).toContain("/finance/settlements/new?");
+    expect(target).toContain("/finance/operator-payments/new?");
     expect(target).toContain("employeeId=emp-smoke-1");
     expect(target).toContain("periodStart=2026-08-01");
     expect(target).toContain("periodEnd=2026-08-15");
