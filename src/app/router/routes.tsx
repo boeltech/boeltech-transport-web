@@ -297,6 +297,11 @@ const FinanceEfectivoPorCobrarPage = lazyWithRetry(() =>
     default: m.FinanceEfectivoPorCobrarPage,
   })),
 );
+const OperationalReceiptBatchCreatePage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.OperationalReceiptBatchCreatePage,
+  })),
+);
 const FinanceApprovalsPage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({ default: m.FinanceApprovalsPage })),
 );
@@ -949,6 +954,17 @@ export const router = createBrowserRouter([
               {
                 path: "/clients/:id/edit",
                 element: withSuspense(ClientEditPage),
+              },
+            ],
+          },
+          {
+            element: (
+              <PermissionRoute module="operational_cash" action="create" />
+            ),
+            children: [
+              {
+                path: "/clients/:id/operational-receipt-batches/new",
+                element: withSuspense(OperationalReceiptBatchCreatePage),
               },
             ],
           },

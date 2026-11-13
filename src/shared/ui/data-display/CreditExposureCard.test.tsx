@@ -15,7 +15,12 @@ function buildSummary(
     paymentTerms: status === "no_credit_terms" ? "cash" : "credit",
     creditDays: 30,
     creditLimit: status === "no_limit" ? null : 100_000,
-    breakdown: { invoiced: 45_000, unbilled: 12_000, pendingDraft: 3_000 },
+    breakdown: {
+      invoiced: 45_000,
+      unbilled: 12_000,
+      pendingDraft: 3_000,
+      operationalPending: 0,
+    },
     totalExposure: 60_000,
     availableCredit: status === "exceeded" ? 0 : 40_000,
     utilizationPct:
@@ -114,7 +119,12 @@ describe("CreditExposureCard", () => {
       <MemoryRouter>
         <CreditExposureCard
           summary={buildSummary("ok", {
-            breakdown: { invoiced: 0, unbilled: 12_000, pendingDraft: 3_000 },
+            breakdown: {
+              invoiced: 0,
+              unbilled: 12_000,
+              pendingDraft: 3_000,
+              operationalPending: 0,
+            },
           })}
           showBreakdown
           collectHref="/finance/payments?rfc=XAXX010101000"
@@ -124,6 +134,65 @@ describe("CreditExposureCard", () => {
 
     expect(
       screen.queryByRole("link", { name: creditExposureCopy.collectCtaAria }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra renglón Cobros sin factura solo si operationalPending > 0", () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <CreditExposureCard
+          summary={buildSummary("ok", {
+            breakdown: {
+              invoiced: 45_000,
+              unbilled: 12_000,
+              pendingDraft: 3_000,
+              operationalPending: 8_000,
+            },
+          })}
+          showBreakdown
+        />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.getByText(creditExposureCopy.breakdown.operationalPending),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(creditExposureCopy.breakdown.operationalPendingCaption),
+    ).toBeInTheDocument();
+    expect(screen.getByText(creditExposureCopy.breakdown.invoiced)).toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter>
+        <CreditExposureCard
+          summary={buildSummary("ok")}
+          showBreakdown
+        />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByText(creditExposureCopy.breakdown.operationalPending),
+    ).not.toBeInTheDocument();
+  });
+
+  it("compact no agrega renglón operativo aunque haya saldo", () => {
+    render(
+      <MemoryRouter>
+        <CreditExposureCard
+          summary={buildSummary("ok", {
+            breakdown: {
+              invoiced: 45_000,
+              unbilled: 12_000,
+              pendingDraft: 3_000,
+              operationalPending: 8_000,
+            },
+          })}
+          variant="compact"
+          showBreakdown
+        />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByText(creditExposureCopy.breakdown.operationalPending),
     ).not.toBeInTheDocument();
   });
 });

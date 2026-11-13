@@ -1,7 +1,8 @@
 /**
- * Tabla agrupada por cliente — bandeja Efectivo por cobrar.
+ * Tabla agrupada por cliente — bandeja Cobros sin factura.
  */
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
@@ -17,14 +18,23 @@ import {
 } from "@shared/ui/table";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { buildTripCostsHref } from "@features/finance/application";
-import type { OperationalCashPendingTrip } from "@features/finance/domain/operationalCashPending";
+import { usePermissions } from "@shared/permissions";
+import {
+  buildOperationalReceiptBatchCreatePath,
+  buildTripCostsHref,
+} from "@features/finance/application";
+import {
+  OPERATIONAL_PAYMENT_INSTRUMENT_LABELS,
+  type OperationalCashPendingTrip,
+} from "@features/finance/domain";
 import type { TripStatusType } from "@features/trips/domain";
 import { TripStatusBadge } from "@features/trips/presentation";
-import { financeCopy } from "../copy";
+import { financeCopy, operationalReceiptBatchCopy } from "../copy";
 import type { OperationalCashPendingClientGroup } from "../utils/groupOperationalCashPending";
+import { OperationalReceiptBatchSheet } from "./OperationalReceiptBatchSheet";
 
 const copy = financeCopy.efectivoPorCobrar;
+const trayCopy = operationalReceiptBatchCopy.tray;
 
 function cashStatusLabel(
   status: OperationalCashPendingTrip["operationalCash"]["status"],
@@ -84,6 +94,10 @@ export function OperationalCashPendingTable({
   groups: OperationalCashPendingClientGroup[];
   isLoading: boolean;
 }) {
+  const { hasPermission } = usePermissions();
+  const canCreateBatch = hasPermission("operational_cash", "create");
+  const [batchId, setBatchId] = useState<string | null>(null);
+
   return (
     <div className="space-y-6">
       {isLoading ? (
@@ -123,9 +137,22 @@ export function OperationalCashPendingTable({
               className="space-y-2"
               aria-label={name}
             >
-              <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between">
-                <h2 className="text-sm font-semibold text-foreground">{name}</h2>
-                <p className="text-xs text-muted-foreground">{subtotalLabel}</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {name}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">{subtotalLabel}</p>
+                </div>
+                {canCreateBatch && group.clientId ? (
+                  <Button type="button" size="sm" variant="outline" asChild>
+                    <Link
+                      to={buildOperationalReceiptBatchCreatePath(group.clientId)}
+                    >
+                      {trayCopy.registerBatchCta}
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
               <div className="rounded-md border">
                 <Table>
@@ -172,9 +199,40 @@ export function OperationalCashPendingTable({
                             {formatMxCurrency(trip.baseRate)}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {formatMxCurrency(
-                              trip.operationalCash.collectedTotal,
-                            )}
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span>
+                                {formatMxCurrency(
+                                  trip.operationalCash.collectedTotal,
+                                )}
+                              </span>
+                              {trip.lastActiveReceipt &&
+                              trip.operationalCash.collectedTotal > 0 ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {trayCopy.lastReceipt(
+                                    OPERATIONAL_PAYMENT_INSTRUMENT_LABELS[
+                                      trip.lastActiveReceipt.paymentInstrument
+                                    ],
+                                    trip.lastActiveReceipt.reference,
+                                  )}
+                                  {trip.lastActiveReceipt.batchId ? (
+                                    <>
+                                      {" · "}
+                                      <button
+                                        type="button"
+                                        className="text-primary underline-offset-2 hover:underline"
+                                        onClick={() =>
+                                          setBatchId(
+                                            trip.lastActiveReceipt!.batchId,
+                                          )
+                                        }
+                                      >
+                                        {trayCopy.batchLink}
+                                      </button>
+                                    </>
+                                  ) : null}
+                                </span>
+                              ) : null}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right tabular-nums font-medium">
                             {formatMxCurrency(
@@ -214,6 +272,13 @@ export function OperationalCashPendingTable({
           );
         })
       )}
+      <OperationalReceiptBatchSheet
+        batchId={batchId}
+        open={Boolean(batchId)}
+        onOpenChange={(open) => {
+          if (!open) setBatchId(null);
+        }}
+      />
     </div>
   );
 }

@@ -139,6 +139,20 @@ export function mapApiOperationalCashSummary(
   };
 }
 
+function mapPaymentInstrument(
+  value: string | undefined,
+): OperationalCashReceipt["paymentInstrument"] {
+  if (
+    value === "cash" ||
+    value === "transfer" ||
+    value === "check" ||
+    value === "other"
+  ) {
+    return value;
+  }
+  return "cash";
+}
+
 export function mapApiOperationalCashReceipt(
   api: ApiOperationalCashReceiptResponse,
 ): OperationalCashReceipt {
@@ -148,6 +162,9 @@ export function mapApiOperationalCashReceipt(
     amount: toNumberOrDefault(api.amount),
     collectedAt: toDate(api.collected_at),
     note: api.note ?? null,
+    paymentInstrument: mapPaymentInstrument(api.payment_instrument),
+    reference: api.reference ?? null,
+    batchId: api.batch_id ?? null,
     createdBy: api.created_by,
     createdAt: toDate(api.created_at),
     voidedAt: toDateOrNull(api.voided_at),

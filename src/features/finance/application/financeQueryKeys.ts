@@ -70,4 +70,25 @@ export const financeQueryKeys = {
     limit: number;
   }) =>
     [...financeQueryKeys.operationalCashPendingRoot(), filters] as const,
+  /** Prefijo cobro por lote (candidatos, detalle, lista por cliente). */
+  operationalReceiptBatchesRoot: () =>
+    [...financeQueryKeys.all, "operational-receipt-batches"] as const,
+  operationalReceiptBatchCandidates: (clientId: string) =>
+    [
+      ...financeQueryKeys.operationalReceiptBatchesRoot(),
+      "candidates",
+      clientId,
+    ] as const,
+  operationalReceiptBatch: (batchId: string) =>
+    [...financeQueryKeys.operationalReceiptBatchesRoot(), "detail", batchId] as const,
+  clientOperationalReceiptBatches: (
+    clientId: string,
+    filters: { page: number; limit: number; includeVoided: boolean },
+  ) =>
+    [
+      ...financeQueryKeys.operationalReceiptBatchesRoot(),
+      "by-client",
+      clientId,
+      filters,
+    ] as const,
 };

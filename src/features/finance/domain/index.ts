@@ -5,11 +5,28 @@ export type {
   OperationalCashPendingResult,
   OperationalCashPendingQueryParams,
   OperationalCashPendingTripStatus,
+  OperationalCashPendingLastReceipt,
 } from "./operationalCashPending";
 export {
   FINANCE_EFECTIVO_CLIENT_ID_PARAM,
   OPERATIONAL_CASH_PENDING_PAGE_SIZE,
 } from "./operationalCashPending";
+export type {
+  OperationalPaymentInstrument,
+  OperationalReceiptBatchCandidate,
+  OperationalReceiptBatchCandidatesResult,
+  OperationalReceiptBatchDetail,
+  OperationalReceiptBatchSummary,
+  OperationalReceiptBatchListResult,
+  OperationalReceiptBatchReceiptLine,
+  CreateOperationalReceiptBatchInput,
+  CreateOperationalReceiptBatchAllocation,
+  VoidOperationalReceiptBatchInput,
+} from "./operationalReceiptBatch";
+export {
+  OPERATIONAL_PAYMENT_INSTRUMENT_LABELS,
+  formatOperationalReceiptBatchLabel,
+} from "./operationalReceiptBatch";
 export type {
   ProfitabilityStatus,
   ProfitabilityScope,

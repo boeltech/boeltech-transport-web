@@ -47,7 +47,12 @@ const OK_SUMMARY: ClientCreditSummary = {
   paymentTerms: "credit",
   creditDays: 30,
   creditLimit: 100_000,
-  breakdown: { invoiced: 45_000, unbilled: 12_000, pendingDraft: 3_000 },
+  breakdown: {
+    invoiced: 45_000,
+    unbilled: 12_000,
+    pendingDraft: 3_000,
+    operationalPending: 0,
+  },
   totalExposure: 60_000,
   availableCredit: 40_000,
   utilizationPct: 0.6,

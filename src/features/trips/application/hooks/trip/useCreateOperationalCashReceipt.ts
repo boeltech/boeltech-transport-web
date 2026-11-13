@@ -9,12 +9,15 @@ import {
   type OperationalCashReceipt,
 } from "@features/trips/domain";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";
+import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
 
 export type CreateOperationalCashReceiptInput = {
   amount: number;
   /** ISO 8601 con offset; si se omite, el API usa now UTC. */
   collectedAt?: string;
   note?: string;
+  paymentInstrument?: "cash" | "transfer" | "check" | "other";
+  reference?: string | null;
 };
 
 async function invalidateOperationalCashSurface(
@@ -30,6 +33,12 @@ async function invalidateOperationalCashSurface(
     }),
     queryClient.invalidateQueries({
       queryKey: tripQueryKeys.lists(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: financeQueryKeys.operationalCashPendingRoot(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: financeQueryKeys.operationalReceiptBatchesRoot(),
     }),
   ]);
 }

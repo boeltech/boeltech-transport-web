@@ -101,6 +101,8 @@ export interface ClientCreditSummaryBreakdown {
   invoiced: number;
   unbilled: number;
   pendingDraft: number;
+  /** B2 — saldo Sin factura (scheduled|in_progress|completed). */
+  operationalPending: number;
 }
 
 export interface ClientCreditSummary {

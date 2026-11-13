@@ -17,6 +17,14 @@ export interface OperationalCashPendingCash {
   receiptCount: number;
 }
 
+/** Último abono activo del viaje (bandeja B2). */
+export interface OperationalCashPendingLastReceipt {
+  paymentInstrument: "cash" | "transfer" | "check" | "other";
+  reference: string | null;
+  batchId: string | null;
+  collectedAt: string;
+}
+
 export interface OperationalCashPendingTrip {
   id: string;
   code: string;
@@ -26,6 +34,7 @@ export interface OperationalCashPendingTrip {
   baseRate: number;
   scheduledDeparture: string;
   operationalCash: OperationalCashPendingCash;
+  lastActiveReceipt: OperationalCashPendingLastReceipt | null;
 }
 
 export interface OperationalCashPendingByClient {

@@ -129,13 +129,13 @@ export const clientDetailCopy = {
   },
   /**
    * Card operativa (ADR-0096): Cobros sin factura ≠ Facturas a crédito.
-   * Visible solo con finance.read y pending_amount > 0. Título = menú.
+   * Visible con finance.read u operational_cash.create; también con lotes.
    * Sin la sigla CFDI: el test de léxico del detalle la prohíbe en este archivo.
    */
   operationalCashPending: {
     title: "Cobros sin factura",
     description:
-      "Saldo de viajes Sin factura. El abono se registra en Costos del viaje. El cobro con factura vive en Facturas a crédito, no aquí.",
+      "Saldo de viajes Sin factura. Registra un cobro por lote o el abono en Costos del viaje. El cobro con factura vive en Facturas a crédito, no aquí.",
     pendingLabel: "Por cobrar operativo",
     tripsSummary: (tripCount: number) =>
       tripCount === 1 ? "1 viaje con saldo" : `${tripCount} viajes con saldo`,

@@ -147,6 +147,11 @@ export interface OperationalCashReceipt {
   readonly amount: number;
   readonly collectedAt: Date;
   readonly note: string | null;
+  /** B2 — default `cash` en abonos previos a migr. 266. */
+  readonly paymentInstrument: "cash" | "transfer" | "check" | "other";
+  readonly reference: string | null;
+  /** B2 — abono perteneciente a un lote. */
+  readonly batchId: string | null;
   readonly createdBy: string;
   readonly createdAt: Date;
   readonly voidedAt: Date | null;

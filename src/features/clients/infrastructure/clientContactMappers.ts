@@ -114,6 +114,7 @@ export function mapClientCreditSummary(
       invoiced: d.breakdown.invoiced,
       unbilled: d.breakdown.unbilled,
       pendingDraft: d.breakdown.pendingDraft,
+      operationalPending: d.breakdown.operationalPending ?? 0,
     },
     totalExposure: d.totalExposure,
     availableCredit: d.availableCredit,

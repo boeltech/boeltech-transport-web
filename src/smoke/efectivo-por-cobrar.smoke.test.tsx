@@ -30,6 +30,7 @@ const copy = financeCopy.efectivoPorCobrar;
 const cardCopy = clientDetailCopy.operationalCashPending;
 
 const useOperationalCashPendingMock = vi.fn();
+const useOperationalReceiptBatchCandidatesMock = vi.fn();
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
@@ -85,6 +86,22 @@ vi.mock("@features/finance/application", async (importOriginal) => {
     useOperationalCashPending: (
       ...args: Parameters<typeof actual.useOperationalCashPending>
     ) => useOperationalCashPendingMock(...args),
+    useOperationalReceiptBatchCandidates: (
+      ...args: Parameters<typeof actual.useOperationalReceiptBatchCandidates>
+    ) => useOperationalReceiptBatchCandidatesMock(...args),
+    useClientOperationalReceiptBatches: () => ({
+      data: {
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
+      },
+      isLoading: false,
+      isError: false,
+    }),
+    useOperationalReceiptBatch: () => ({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    }),
   };
 });
 
@@ -108,6 +125,7 @@ function pendingListResult(): OperationalCashPendingResult {
           pendingAmount: 10000,
           receiptCount: 0,
         },
+        lastActiveReceipt: null,
       },
       {
         id: "trip-2",
@@ -122,6 +140,12 @@ function pendingListResult(): OperationalCashPendingResult {
           collectedTotal: 2000,
           pendingAmount: 3000,
           receiptCount: 1,
+        },
+        lastActiveReceipt: {
+          paymentInstrument: "transfer",
+          reference: "SPEI 99",
+          batchId: null,
+          collectedAt: "2026-11-02T15:00:00.000Z",
         },
       },
     ],
@@ -376,9 +400,28 @@ describe("smoke: efectivo-por-cobrar", () => {
   });
 
   it("card cliente con saldo enlaza a bandeja ?clientId= (no Cobros)", () => {
-    useOperationalCashPendingMock.mockReturnValue(
-      hookResult(pendingClientResult()),
-    );
+    useOperationalReceiptBatchCandidatesMock.mockReturnValue({
+      data: {
+        data: [
+          {
+            tripId: "trip-1",
+            tripCode: "V-100",
+            status: "completed",
+            scheduledDeparture: "2026-11-01T12:00:00.000Z",
+            baseRate: 10000,
+            collectedTotal: 0,
+            pendingAmount: 10000,
+          },
+        ],
+        meta: {
+          totals: { pendingAmount: 10000, tripCount: 1 },
+          batchCount: 0,
+          truncated: false,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
 
     render(
       <TestProviders initialEntry={`/clients/${CLIENT_A}`}>
@@ -396,6 +439,15 @@ describe("smoke: efectivo-por-cobrar", () => {
       buildFinanceEfectivoPorCobrarPath(CLIENT_A),
     );
     expect(cta).toHaveTextContent(cardCopy.viewCta);
+
+    expect(
+      screen.getByRole("link", {
+        name: /Registrar cobro por lote/i,
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/clients/${CLIENT_A}/operational-receipt-batches/new`,
+    );
 
     expect(screen.queryByRole("link", { name: "Cobrar" })).toBeNull();
     expect(

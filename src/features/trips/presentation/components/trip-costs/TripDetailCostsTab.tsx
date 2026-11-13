@@ -52,6 +52,8 @@ import {
   type TripOperationalOutcomeType,
   type TripStop,
 } from "@features/trips/domain";
+import { OPERATIONAL_PAYMENT_INSTRUMENT_LABELS } from "@features/finance/domain";
+import { OperationalReceiptBatchSheet } from "@features/finance/presentation/components";
 import { useVehicle } from "@features/vehicles/application";
 import { ROLES } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
@@ -374,6 +376,7 @@ export function TripDetailCostsTab({
   );
   const canRegisterAbono = canRegisterOperationalCashAbono(cashSummary);
   const [cashSheetOpen, setCashSheetOpen] = useState(false);
+  const [batchSheetId, setBatchSheetId] = useState<string | null>(null);
   const [voidReceipt, setVoidReceipt] = useState<OperationalCashReceipt | null>(
     null,
   );
@@ -930,6 +933,11 @@ export function TripDetailCostsTab({
                     <ul className="divide-y divide-border rounded-md border border-border">
                       {sortedCashReceipts.map((receipt) => {
                         const isVoided = receipt.voidedAt != null;
+                        const inBatch = Boolean(receipt.batchId);
+                        const instrumentLabel =
+                          OPERATIONAL_PAYMENT_INSTRUMENT_LABELS[
+                            receipt.paymentInstrument
+                          ] ?? "Efectivo";
                         return (
                           <li
                             key={receipt.id}
@@ -955,9 +963,24 @@ export function TripDetailCostsTab({
                                     ? cashCopy.receiptVoided
                                     : cashCopy.receiptActive}
                                 </Badge>
+                                {inBatch ? (
+                                  <Badge
+                                    variant="neutral"
+                                    tone="soft"
+                                    className="text-xs"
+                                  >
+                                    {cashCopy.batchChip}
+                                  </Badge>
+                                ) : null}
                               </div>
                               <p className="text-xs text-muted-foreground">
                                 {formatDateTime(receipt.collectedAt.toISOString())}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {cashCopy.instrumentLine(
+                                  instrumentLabel,
+                                  receipt.reference,
+                                )}
                               </p>
                               {receipt.note ? (
                                 <p className="text-xs text-muted-foreground">
@@ -970,7 +993,18 @@ export function TripDetailCostsTab({
                                 </p>
                               ) : null}
                             </div>
-                            {!isVoided && canVoidOperationalCash ? (
+                            {inBatch ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setBatchSheetId(receipt.batchId)
+                                }
+                              >
+                                {cashCopy.viewBatchCta}
+                              </Button>
+                            ) : !isVoided && canVoidOperationalCash ? (
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -1221,6 +1255,7 @@ export function TripDetailCostsTab({
           open={cashSheetOpen}
           onOpenChange={setCashSheetOpen}
           pendingAmount={cashSummary.pendingAmount}
+          onOpenBatch={(id) => setBatchSheetId(id)}
         />
       ) : null}
 
@@ -1234,6 +1269,14 @@ export function TripDetailCostsTab({
           }}
         />
       ) : null}
+
+      <OperationalReceiptBatchSheet
+        batchId={batchSheetId}
+        open={Boolean(batchSheetId)}
+        onOpenChange={(open) => {
+          if (!open) setBatchSheetId(null);
+        }}
+      />
     </div>
   );
 }

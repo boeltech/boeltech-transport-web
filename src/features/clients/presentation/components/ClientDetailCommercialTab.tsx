@@ -11,6 +11,9 @@ import { Separator } from "@shared/ui/separator";
 import { InfoRow, CreditExposureCard } from "@shared/ui/data-display";
 import { CreditCard } from "lucide-react";
 
+import { buildOperationalReceiptBatchCreatePath } from "@features/finance/application";
+import { usePermissions } from "@shared/permissions";
+
 import { useClientCreditSummary } from "../../application";
 import type { Client } from "../../domain";
 import type { PaymentTermsConfig } from "../config/clientConfig";
@@ -33,6 +36,7 @@ export function ClientDetailCommercialTab({
   PaymentIcon,
   collectHref,
 }: ClientDetailCommercialTabProps) {
+  const { hasPermission } = usePermissions();
   const creditSummaryQuery = useClientCreditSummary(client.id);
 
   return (
@@ -81,6 +85,11 @@ export function ClientDetailCommercialTab({
         isLoading={creditSummaryQuery.isLoading}
         isError={creditSummaryQuery.isError}
         collectHref={collectHref}
+        registerBatchHref={
+          hasPermission("operational_cash", "create")
+            ? buildOperationalReceiptBatchCreatePath(client.id)
+            : undefined
+        }
       />
     </div>
   );

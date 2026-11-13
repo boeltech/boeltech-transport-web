@@ -18,3 +18,9 @@ export {
   mapOperationalCashPendingResponse,
   mapOperationalCashPendingTrip,
 } from "./operationalCashPendingMappers";
+export { operationalReceiptBatchApi } from "./operationalReceiptBatchApi";
+export {
+  mapOperationalReceiptBatchCandidates,
+  mapOperationalReceiptBatchDetail,
+  mapOperationalReceiptBatchList,
+} from "./operationalReceiptBatchMappers";

@@ -16,9 +16,16 @@ export const creditExposureCopy = {
     invoiced: "Facturas a crédito",
     unbilled: "Viajes por facturar",
     pendingDraft: "Facturas en borrador",
+    operationalPending: "Cobros sin factura",
+    operationalPendingCaption:
+      "Incluye viajes programados, en curso y completados",
+    operationalPendingTooltip:
+      "En Sin factura el viaje programado ya es saldo comprometido con el cliente. En Viajes por facturar solo cuentan los completados.",
   },
   collectCta: "Cobrar",
   collectCtaAria: "Cobrar facturas de este cliente",
+  registerBatchCta: "Registrar cobro por lote",
+  registerBatchCtaAria: "Registrar cobro por lote de este cliente",
   nextDue: (dateLabel: string) => `Próximo vencimiento: ${dateLabel}`,
   loading: "Calculando crédito disponible…",
   unavailable: "No se pudo cargar el crédito disponible",
@@ -44,6 +51,6 @@ export const creditExposureCopy = {
       "El cliente ha usado al menos el 80% de su límite. Revisa el detalle en Crédito disponible.",
     exceededTitle: "Cliente excede su límite de crédito",
     exceededBody:
-      "Lo usado supera el límite autorizado. Revisa el saldo de facturas a crédito, viajes por facturar y borradores.",
+      "Lo usado supera el límite autorizado. Revisa el saldo de facturas a crédito, viajes por facturar, borradores y cobros sin factura.",
   },
 } as const;

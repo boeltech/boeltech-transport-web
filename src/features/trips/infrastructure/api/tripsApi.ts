@@ -208,7 +208,13 @@ export const tripsApi = {
   /** ADR-0096 addendum — registrar abono (delta). */
   async createOperationalCashReceipt(
     tripId: string,
-    body: { amount: number; collectedAt?: string; note?: string },
+    body: {
+      amount: number;
+      collectedAt?: string;
+      note?: string;
+      paymentInstrument?: "cash" | "transfer" | "check" | "other";
+      reference?: string | null;
+    },
   ): Promise<OperationalCashReceipt> {
     const raw = await apiClient.post<{
       data: ApiOperationalCashReceiptResponse;

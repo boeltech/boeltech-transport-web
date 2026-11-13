@@ -305,8 +305,9 @@ describe("FinanceEfectivoPorCobrarPage", () => {
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
     expect(copy.title).toBe("Cobros sin factura");
-    expect(copy.description).toMatch(/efectivo cobrado con CFDI/i);
+    expect(copy.description).toMatch(/Sin factura/i);
     expect(copy.description).toMatch(/Facturas a crédito/);
+    expect(copy.description).not.toMatch(/efectivo cobrado/i);
     expect(
       within(document.body).queryByRole("heading", {
         name: "Facturas a crédito",

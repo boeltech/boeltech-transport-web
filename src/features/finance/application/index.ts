@@ -65,6 +65,14 @@ export {
   useRetryFinanceRepStamp,
 } from "./hooks/useFinancePayments";
 export { useOperationalCashPending } from "./hooks/useOperationalCashPending";
+export {
+  useOperationalReceiptBatchCandidates,
+  useOperationalReceiptBatch,
+  useClientOperationalReceiptBatches,
+  useCreateOperationalReceiptBatch,
+  useVoidOperationalReceiptBatch,
+  invalidateOperationalReceiptBatchSurface,
+} from "./hooks/useOperationalReceiptBatch";
 export { useFinanceListingFilters } from "./hooks/useFinanceListingFilters";
 export { useAnalysisPeriod } from "./hooks/useAnalysisPeriod";
 export { OPERATIONAL_CASH_PENDING_PAGE_SIZE } from "../domain/operationalCashPending";
@@ -134,6 +142,7 @@ export {
   buildFinanceAnalysisSearchParams,
   buildFinanceCobrosPath,
   buildFinanceEfectivoPorCobrarPath,
+  buildOperationalReceiptBatchCreatePath,
   buildTripCostsHref,
   buildFinanceMarginMonthHref,
   resolveLegacyFinanceLocation,

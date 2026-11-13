@@ -5,12 +5,20 @@
 import type {
   OperationalCashPendingByClient,
   OperationalCashPendingEligibility,
+  OperationalCashPendingLastReceipt,
   OperationalCashPendingResult,
   OperationalCashPendingTotals,
   OperationalCashPendingTrip,
   OperationalCashPendingTripStatus,
 } from "@features/finance/domain/operationalCashPending";
 import type { OperationalCashCollectionStatus } from "@features/trips/domain";
+
+export interface ApiOperationalCashPendingLastReceiptRaw {
+  payment_instrument?: string;
+  reference?: string | null;
+  batch_id?: string | null;
+  collected_at?: string;
+}
 
 export interface ApiOperationalCashPendingTripRaw {
   id: string;
@@ -26,6 +34,7 @@ export interface ApiOperationalCashPendingTripRaw {
     pending_amount: number;
     receipt_count: number;
   };
+  last_active_receipt?: ApiOperationalCashPendingLastReceiptRaw | null;
 }
 
 export interface ApiOperationalCashPendingByClientRaw {
@@ -81,6 +90,32 @@ function asTripStatus(value: string): OperationalCashPendingTripStatus {
   return "scheduled";
 }
 
+function asInstrument(
+  value: string | undefined,
+): OperationalCashPendingLastReceipt["paymentInstrument"] {
+  if (
+    value === "cash" ||
+    value === "transfer" ||
+    value === "check" ||
+    value === "other"
+  ) {
+    return value;
+  }
+  return "cash";
+}
+
+function mapLastActiveReceipt(
+  raw: ApiOperationalCashPendingLastReceiptRaw | null | undefined,
+): OperationalCashPendingLastReceipt | null {
+  if (!raw) return null;
+  return {
+    paymentInstrument: asInstrument(raw.payment_instrument),
+    reference: raw.reference ?? null,
+    batchId: raw.batch_id ?? null,
+    collectedAt: String(raw.collected_at ?? ""),
+  };
+}
+
 export function mapOperationalCashPendingTrip(
   raw: ApiOperationalCashPendingTripRaw,
 ): OperationalCashPendingTrip {
@@ -104,6 +139,7 @@ export function mapOperationalCashPendingTrip(
       pendingAmount: asFiniteNumber(cash.pending_amount, 0),
       receiptCount: asFiniteNumber(cash.receipt_count, 0),
     },
+    lastActiveReceipt: mapLastActiveReceipt(raw.last_active_receipt),
   };
 }
 

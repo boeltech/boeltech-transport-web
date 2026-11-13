@@ -39,6 +39,25 @@ describe("mapOperationalCashPendingTrip", () => {
         pendingAmount: 14500,
         receiptCount: 1,
       },
+      lastActiveReceipt: null,
+    });
+  });
+
+  it("maps last_active_receipt when present", () => {
+    const trip = mapOperationalCashPendingTrip({
+      ...rawTrip,
+      last_active_receipt: {
+        payment_instrument: "transfer",
+        reference: "SPEI 1",
+        batch_id: "batch-1",
+        collected_at: "2026-11-01T18:00:00.000Z",
+      },
+    });
+    expect(trip.lastActiveReceipt).toEqual({
+      paymentInstrument: "transfer",
+      reference: "SPEI 1",
+      batchId: "batch-1",
+      collectedAt: "2026-11-01T18:00:00.000Z",
     });
   });
 });

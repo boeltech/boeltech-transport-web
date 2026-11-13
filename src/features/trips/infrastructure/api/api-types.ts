@@ -548,6 +548,9 @@ export interface ApiOperationalCashReceiptResponse {
   amount: number | string;
   collected_at: string;
   note: string | null;
+  payment_instrument?: string;
+  reference?: string | null;
+  batch_id?: string | null;
   created_by: string;
   created_at: string;
   voided_at: string | null;

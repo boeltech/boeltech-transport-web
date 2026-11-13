@@ -42,6 +42,7 @@ import { formatBillingSchemeCadenceSummary } from "@features/settings/presentati
 import { useAuth } from "@features/auth";
 import {
   FINANCE_COBROS_RFC_PARAM,
+  buildOperationalReceiptBatchCreatePath,
   isFinanceCobrosTabEnabled,
 } from "@features/finance/application";
 import { isClientPortalRole } from "@shared/constants/roles";
@@ -250,7 +251,26 @@ export function ClientDetailPage() {
         {copy.actions.edit}
       </Button>
     ) : null;
-    const creditRiskAction = collectHref ? (
+    const operationalPending =
+      creditSummary?.breakdown.operationalPending ?? 0;
+    const preferBatchAlert =
+      (creditSummary?.breakdown.invoiced ?? 0) <= 0 &&
+      operationalPending > 0 &&
+      hasPermission("operational_cash", "create");
+    const creditRiskAction = preferBatchAlert ? (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() =>
+          navigate(buildOperationalReceiptBatchCreatePath(client.id), {
+            state: fromState,
+          })
+        }
+      >
+        {creditExposureCopy.registerBatchCta}
+      </Button>
+    ) : collectHref ? (
       <Button
         type="button"
         size="sm"
@@ -409,6 +429,7 @@ export function ClientDetailPage() {
     creditSummaryQuery.data,
     setActiveTab,
     canUpdate,
+    hasPermission,
     navigate,
     fromState,
     taxRegimeCatalogLabel,

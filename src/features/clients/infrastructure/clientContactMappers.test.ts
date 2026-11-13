@@ -96,9 +96,10 @@ describe("clientContactMappers", () => {
         invoiced: 45000,
         unbilled: 12000,
         pending_draft: 3000,
+        operational_pending: 8000,
       },
-      total_exposure: 60000,
-      available_credit: 40000,
+      total_exposure: 68000,
+      available_credit: 32000,
       utilization_pct: 0.6,
       status: "ok",
       next_invoice_due_at: "2026-07-15",
@@ -107,6 +108,7 @@ describe("clientContactMappers", () => {
     expect(summary.clientId).toBe("client-1");
     expect(summary.breakdown.pendingDraft).toBe(3000);
     expect(summary.breakdown.invoiced).toBe(45000);
+    expect(summary.breakdown.operationalPending).toBe(8000);
     expect(summary.utilizationPct).toBe(0.6);
     expect(summary.status).toBe("ok");
     expect(summary.nextInvoiceDueAt).toBe("2026-07-15");

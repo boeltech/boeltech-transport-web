@@ -24,4 +24,16 @@ describe("cfdiEmissionIntentCopy — Factura del viaje (D3′)", () => {
     );
     expect(cfdiEmissionIntentCopy.blockEmitir.description).toMatch(/RFC y régimen/);
   });
+
+  it("D10: canal Sin factura sin «Cobro en efectivo» / «Efectivo acumulado»", () => {
+    const cash = cfdiEmissionIntentCopy.cash;
+    expect(cash.sectionTitle).toBe("Cobro sin factura");
+    expect(cash.scorecardAccumulatedLabel).toBe("Cobrado");
+    expect(cash.sheet.description).toMatch(/Sin factura/);
+    expect(cash.toast.notAllowed).toMatch(/cobros sin factura/i);
+    const blob = JSON.stringify(cash);
+    expect(blob).not.toMatch(/Cobro en efectivo/);
+    expect(blob).not.toMatch(/Efectivo acumulado/);
+    expect(blob).not.toMatch(/\bREP\b/);
+  });
 });

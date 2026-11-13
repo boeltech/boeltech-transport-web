@@ -561,6 +561,7 @@ export interface ClientCreditSummaryApiResponse {
     invoiced: number;
     unbilled: number;
     pending_draft: number;
+    operational_pending?: number;
   };
   total_exposure: number;
   available_credit: number | null;

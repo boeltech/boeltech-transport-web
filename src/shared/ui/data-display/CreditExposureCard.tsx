@@ -6,7 +6,7 @@
  */
 
 import { Link } from "react-router-dom";
-import { Wallet } from "lucide-react";
+import { Info, Wallet } from "lucide-react";
 
 import type { ClientCreditSummary } from "@features/clients/domain/entities";
 import { Badge } from "@shared/ui/badge";
@@ -14,6 +14,12 @@ import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { Progress } from "@shared/ui/progress";
 import { Skeleton } from "@shared/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 import { InfoRow } from "@shared/ui/data-display/InfoRow";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { cn } from "@shared/lib/utils/cn";
@@ -63,6 +69,11 @@ export interface CreditExposureCardProps {
   showBreakdown?: boolean;
   /** When set and invoiced breakdown > 0, shows CTA to Cobros. */
   collectHref?: string;
+  /**
+   * B2: si invoiced = 0 y operationalPending > 0, sustituye «Cobrar»
+   * por «Registrar cobro por lote».
+   */
+  registerBatchHref?: string;
   className?: string;
 }
 
@@ -73,6 +84,7 @@ export function CreditExposureCard({
   variant = "full",
   showBreakdown = false,
   collectHref,
+  registerBatchHref,
   className,
 }: CreditExposureCardProps) {
   const copy = creditExposureCopy;
@@ -159,6 +171,7 @@ export function CreditExposureCard({
     const showsOverLimit = summary.status === "exceeded" && overLimitAmount > 0;
     const heroAmount = showsOverLimit ? overLimitAmount : summary.availableCredit;
 
+    const operationalPending = summary.breakdown.operationalPending ?? 0;
     const breakdownRows = [
       { key: "invoiced", label: copy.breakdown.invoiced, amount: summary.breakdown.invoiced },
       { key: "unbilled", label: copy.breakdown.unbilled, amount: summary.breakdown.unbilled },
@@ -168,6 +181,11 @@ export function CreditExposureCard({
         amount: summary.breakdown.pendingDraft,
       },
     ];
+    const showOperationalRow = showBreakdown && !isCompact && operationalPending > 0;
+    const preferBatchCta =
+      Boolean(registerBatchHref) &&
+      summary.breakdown.invoiced <= 0 &&
+      operationalPending > 0;
 
     return (
       <div className="space-y-4">
@@ -218,10 +236,53 @@ export function CreditExposureCard({
                 }
               />
             ))}
+            {showOperationalRow ? (
+              <>
+                <div className="my-2 border-t border-border/60" />
+                <InfoRow
+                  variant="inline"
+                  label={
+                    <span className="inline-flex items-center gap-1">
+                      {copy.breakdown.operationalPending}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex text-muted-foreground"
+                              aria-label={copy.breakdown.operationalPendingTooltip}
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            {copy.breakdown.operationalPendingTooltip}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </span>
+                  }
+                  value={
+                    <span className="tabular-nums">
+                      {formatMxCurrency(operationalPending)}
+                    </span>
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  {copy.breakdown.operationalPendingCaption}
+                </p>
+              </>
+            ) : null}
           </div>
         ) : null}
 
-        {collectHref && summary.breakdown.invoiced > 0 ? (
+        {preferBatchCta && registerBatchHref ? (
+          <Button type="button" size="sm" asChild>
+            <Link to={registerBatchHref} aria-label={copy.registerBatchCtaAria}>
+              {copy.registerBatchCta}
+            </Link>
+          </Button>
+        ) : collectHref && summary.breakdown.invoiced > 0 ? (
           <Button type="button" size="sm" asChild>
             <Link to={collectHref} aria-label={copy.collectCtaAria}>
               {copy.collectCta}

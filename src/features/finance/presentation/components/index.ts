@@ -36,6 +36,8 @@ export { DispatchRunCutBar } from "./DispatchRunCutBar";
 export { DispatchRunConfirmSheet } from "./DispatchRunConfirmSheet";
 export { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
 export { OperationalCashPendingTable } from "./OperationalCashPendingTable";
+export { OperationalReceiptBatchSheet } from "./OperationalReceiptBatchSheet";
+export { ClientOperationalReceiptBatchesSheet } from "./ClientOperationalReceiptBatchesSheet";
 export {
   DispatchRunClientReceipts,
   DispatchRunRecipientsEditor,

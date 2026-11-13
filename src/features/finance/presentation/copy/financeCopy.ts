@@ -321,15 +321,15 @@ export const financeCopy = {
   cobranza: cobrosCopy,
   /**
    * Bandeja Cobros sin factura (ADR-0096). Ruta sin cambio.
-   * El efectivo cobrado con CFDI vive en Facturas a crédito.
+   * El cobro con factura vive en Facturas a crédito.
    */
   efectivoPorCobrar: {
     title: "Cobros sin factura",
     description:
-      "Viajes Sin factura con saldo pendiente. El abono se registra en Costos del viaje. El efectivo cobrado con CFDI no está aquí: vive en Facturas a crédito.",
+      "Viajes Sin factura con saldo pendiente. Registra el abono en Costos del viaje o un cobro por lote desde aquí o desde la ficha del cliente. El cobro con factura vive en Facturas a crédito.",
     entityLabelPlural: "viajes",
     channelHint:
-      "Esto no es Facturas a crédito. El efectivo cobrado con CFDI no aparece en esta bandeja.",
+      "Esto no es Facturas a crédito. El cobro con factura no aparece en esta bandeja.",
     totals: {
       pending: "Saldo operativo",
       trips: "Viajes",
@@ -365,7 +365,7 @@ export const financeCopy = {
     empty: {
       title: "Sin cobros pendientes",
       description:
-        "No hay viajes Sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos, el viaje sale de esta bandeja. El efectivo cobrado con CFDI no está aquí.",
+        "No hay viajes Sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos o un cobro por lote, el viaje sale de esta bandeja. El cobro con factura no está aquí.",
     },
     emptyFiltered: {
       title: "Sin saldo para este cliente",
@@ -375,7 +375,7 @@ export const financeCopy = {
     relatedConfig: {
       label: "Facturas a crédito",
       description:
-        "Cola fiscal de facturas a crédito (PPD) con saldo. El efectivo cobrado con CFDI vive ahí, no en esta bandeja.",
+        "Cola fiscal de facturas a crédito (PPD) con saldo. El cobro con factura vive ahí, no en esta bandeja.",
     },
     loadErrorTitle: "No se pudo cargar",
     loadError:

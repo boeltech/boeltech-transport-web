@@ -61,6 +61,11 @@ export const FINANCE_EFECTIVO_POR_COBRAR_PATH =
 export const FINANCE_EFECTIVO_POR_COBRAR_LEGACY_PATH =
   "/finance/efectivo-por-cobrar";
 
+/** Página Registrar cobro por lote (B2). */
+export function buildOperationalReceiptBatchCreatePath(clientId: string): string {
+  return `/clients/${clientId}/operational-receipt-batches/new`;
+}
+
 /** Bandeja de aprobaciones (finanzas). */
 export const FINANCE_APPROVALS_PATH = "/finance/approvals";
 

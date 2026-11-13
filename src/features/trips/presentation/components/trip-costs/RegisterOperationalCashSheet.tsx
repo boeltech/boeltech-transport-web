@@ -1,6 +1,6 @@
 /**
- * Sheet — Registrar abono de cobro operativo (ADR-0096 addendum F4).
- * Solo viajes `sin_cfdi_efectivo`. POST `/trips/:id/operational-cash-receipts`.
+ * Sheet — Registrar abono de cobro sin factura (ADR-0096 + B2).
+ * Instrumento, referencia y fecha no futura (paquete 0.51.0).
  */
 
 import { useEffect, useMemo } from "react";
@@ -8,6 +8,10 @@ import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Banknote } from "lucide-react";
+import {
+  operationalReceiptReferenceRequired,
+  type OperationalPaymentInstrument,
+} from "@boeltech/cfdi-domain";
 
 import {
   Sheet,
@@ -22,6 +26,7 @@ import {
   FormFieldShell,
   FormValidationSummary,
   MoneyInput,
+  RHFSelect,
   RHFTextareaField,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
@@ -32,6 +37,7 @@ import { isApiError } from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
 
 import { useCreateOperationalCashReceipt } from "@features/trips/application";
+import { OPERATIONAL_PAYMENT_INSTRUMENT_LABELS } from "@features/finance/domain";
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { operationalCashErrorToast } from "../../utils/operationalCashUi";
 import { formatMxCurrency } from "../trip-financial/financialSummary";
@@ -46,23 +52,60 @@ const SHEET_BODY_CLASS = "min-h-0 flex-1 space-y-4 overflow-y-auto py-2";
 const SHEET_FOOTER_CLASS =
   "mt-auto shrink-0 flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end sm:space-x-2";
 
+const INSTRUMENT_OPTIONS = (
+  Object.keys(OPERATIONAL_PAYMENT_INSTRUMENT_LABELS) as OperationalPaymentInstrument[]
+).map((value) => ({
+  value,
+  label: OPERATIONAL_PAYMENT_INSTRUMENT_LABELS[value],
+}));
+
 function buildSchema(pendingAmount: number) {
-  return z.object({
-    amount: z
-      .number({ error: cashCopy.validation.amountRequired })
-      .positive(cashCopy.validation.amountPositive)
-      .refine((value) => value <= pendingAmount + MXN_EPS, {
-        message: cashCopy.validation.amountExceedsPending,
-      }),
-    collectedAtLocal: z
-      .string()
-      .min(1, cashCopy.validation.collectedAtRequired),
-    note: z
-      .string()
-      .max(250, cashCopy.validation.noteMax)
-      .optional()
-      .or(z.literal("")),
-  });
+  return z
+    .object({
+      amount: z
+        .number({ error: cashCopy.validation.amountRequired })
+        .positive(cashCopy.validation.amountPositive)
+        .refine((value) => value <= pendingAmount + MXN_EPS, {
+          message: cashCopy.validation.amountExceedsPending,
+        }),
+      paymentInstrument: z.enum(["cash", "transfer", "check", "other"]),
+      reference: z
+        .string()
+        .max(120, cashCopy.validation.referenceMax)
+        .optional()
+        .or(z.literal("")),
+      collectedAtLocal: z
+        .string()
+        .min(1, cashCopy.validation.collectedAtRequired),
+      note: z
+        .string()
+        .max(250, cashCopy.validation.noteMax)
+        .optional()
+        .or(z.literal("")),
+    })
+    .superRefine((values, ctx) => {
+      const collectedIso = localInputToUtcIso(values.collectedAtLocal);
+      if (new Date(collectedIso).getTime() > Date.now() + 5 * 60_000) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["collectedAtLocal"],
+          message: cashCopy.validation.collectedAtFuture,
+        });
+      }
+      if (operationalReceiptReferenceRequired(values.paymentInstrument)) {
+        const ref = values.reference?.trim() ?? "";
+        if (!ref) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["reference"],
+            message:
+              values.paymentInstrument === "check"
+                ? cashCopy.validation.referenceRequiredCheck
+                : cashCopy.validation.referenceRequiredTransfer,
+          });
+        }
+      }
+    });
 }
 
 type OperationalCashFormValues = z.infer<ReturnType<typeof buildSchema>>;
@@ -73,6 +116,8 @@ export interface RegisterOperationalCashSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Default monto = saldo por cobrar (no tarifa completa si ya hay abonos). */
   pendingAmount: number;
+  /** Abre el Sheet del lote si el abono pertenece a uno (422). */
+  onOpenBatch?: (batchId: string) => void;
 }
 
 function defaultCollectedAtLocal(): string {
@@ -83,6 +128,7 @@ function RegisterOperationalCashSheetBody({
   tripId,
   onOpenChange,
   pendingAmount,
+  onOpenBatch,
 }: Omit<RegisterOperationalCashSheetProps, "open">) {
   const { toast } = useToast();
   const schema = useMemo(() => buildSchema(pendingAmount), [pendingAmount]);
@@ -92,6 +138,8 @@ function RegisterOperationalCashSheetBody({
     resolver: zodResolver(schema) as Resolver<OperationalCashFormValues>,
     defaultValues: {
       amount: defaultAmount,
+      paymentInstrument: "cash",
+      reference: "",
       collectedAtLocal: defaultCollectedAtLocal(),
       note: "",
     },
@@ -104,11 +152,14 @@ function RegisterOperationalCashSheetBody({
     setValue,
     watch,
     reset,
+    setError,
   } = form;
 
   useEffect(() => {
     reset({
       amount: pendingAmount > MXN_EPS ? pendingAmount : undefined,
+      paymentInstrument: "cash",
+      reference: "",
       collectedAtLocal: defaultCollectedAtLocal(),
       note: "",
     });
@@ -120,6 +171,37 @@ function RegisterOperationalCashSheetBody({
       onOpenChange(false);
     },
     onError: (error) => {
+      if (isApiError(error)) {
+        if (error.code === "OPERATIONAL_RECEIPT_REFERENCE_REQUIRED") {
+          setError("reference", {
+            message: cashCopy.validation.referenceRequiredTransfer,
+          });
+          return;
+        }
+        if (error.code === "OPERATIONAL_RECEIPT_COLLECTED_AT_FUTURE") {
+          setError("collectedAtLocal", {
+            message: cashCopy.validation.collectedAtFuture,
+          });
+          return;
+        }
+        if (error.code === "TRIP_OPERATIONAL_CASH_RECEIPT_IN_BATCH") {
+          const batchId = (
+            error.details as { batch_id?: string } | undefined
+          )?.batch_id;
+          toast({
+            title: cashCopy.toast.inBatch,
+            variant: "error",
+            action:
+              batchId && onOpenBatch
+                ? {
+                    label: cashCopy.toast.viewBatchCta,
+                    onClick: () => onOpenBatch(batchId),
+                  }
+                : undefined,
+          });
+          return;
+        }
+      }
       const payload = operationalCashErrorToast(
         isApiError(error)
           ? { code: error.code, message: error.message }
@@ -135,9 +217,14 @@ function RegisterOperationalCashSheetBody({
   });
 
   const amount = watch("amount");
+  const paymentInstrument = watch("paymentInstrument");
   const collectedAtLocal = watch("collectedAtLocal");
   const amountError = errors.amount?.message;
+  const referenceError = errors.reference?.message;
   const collectedAtError = errors.collectedAtLocal?.message;
+  const referenceRequired = operationalReceiptReferenceRequired(
+    paymentInstrument ?? "cash",
+  );
 
   const pendingLabel = formatMxCurrency(pendingAmount);
   const showPartialWarning =
@@ -149,8 +236,11 @@ function RegisterOperationalCashSheetBody({
 
   const onValid = (values: OperationalCashFormValues) => {
     const note = values.note?.trim();
+    const reference = values.reference?.trim();
     mutation.mutate({
       amount: values.amount,
+      paymentInstrument: values.paymentInstrument,
+      reference: reference || null,
       collectedAt: localInputToUtcIso(values.collectedAtLocal),
       ...(note ? { note } : {}),
     });
@@ -162,6 +252,7 @@ function RegisterOperationalCashSheetBody({
 
   const summaryMessages = [
     amountError,
+    referenceError,
     collectedAtError,
     errors.note?.message,
   ].filter((m): m is string => Boolean(m));
@@ -216,6 +307,43 @@ function RegisterOperationalCashSheetBody({
             </AlertDescription>
           </Alert>
         ) : null}
+
+        <FormFieldShell
+          fieldId="operational-cash-instrument"
+          label={cashCopy.sheet.paymentInstrument}
+          required
+          errorMessage={errors.paymentInstrument?.message}
+        >
+          <RHFSelect
+            control={form.control}
+            name="paymentInstrument"
+            triggerId="operational-cash-instrument"
+            options={INSTRUMENT_OPTIONS}
+            allowNone={false}
+            showFieldError={false}
+          />
+        </FormFieldShell>
+
+        <FormFieldShell
+          fieldId="operational-cash-reference"
+          label={cashCopy.sheet.reference}
+          required={referenceRequired}
+          errorMessage={referenceError}
+        >
+          <Input
+            id="operational-cash-reference"
+            placeholder={
+              cashCopy.sheet.referencePlaceholder[paymentInstrument ?? "cash"]
+            }
+            disabled={mutation.isPending}
+            error={Boolean(referenceError)}
+            {...form.register("reference")}
+            {...getFieldErrorAriaProps(
+              "operational-cash-reference",
+              referenceError,
+            )}
+          />
+        </FormFieldShell>
 
         <FormFieldShell
           fieldId="operational-cash-collected-at"
@@ -284,6 +412,7 @@ export function RegisterOperationalCashSheet({
   open,
   onOpenChange,
   pendingAmount,
+  onOpenBatch,
 }: RegisterOperationalCashSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -301,6 +430,7 @@ export function RegisterOperationalCashSheet({
             tripId={tripId}
             onOpenChange={onOpenChange}
             pendingAmount={pendingAmount}
+            onOpenBatch={onOpenBatch}
           />
         ) : null}
       </SheetContent>
