@@ -76,10 +76,7 @@ export function CompensationTemplateListPage() {
   const listTab = searchParams.get("tab")?.trim() || "tariffs";
   const paymentPeriodStart = searchParams.get("periodStart")?.trim() || undefined;
   const paymentPeriodEnd = searchParams.get("periodEnd")?.trim() || undefined;
-
-  if (listTab === "routes") {
-    return <Navigate to={COMPENSATION_CORRIDORS_PATH} replace />;
-  }
+  const redirectToRoutes = listTab === "routes";
   const focusAssignmentId =
     searchParams.get(TEMPLATE_OPERATORS_PARAMS.focus)?.trim() || undefined;
   const returnTemplateId =
@@ -360,6 +357,10 @@ export function CompensationTemplateListPage() {
         employeeName,
       )
     : hubCopy.employeeAssignBanner.description;
+
+  if (redirectToRoutes) {
+    return <Navigate to={COMPENSATION_CORRIDORS_PATH} replace />;
+  }
 
   return (
     <>
