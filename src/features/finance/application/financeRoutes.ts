@@ -66,6 +66,22 @@ export function buildOperationalReceiptBatchCreatePath(clientId: string): string
   return `/clients/${clientId}/operational-receipt-batches/new`;
 }
 
+/**
+ * Query param deep-link a Sheet «Cobro por lote» en ficha cliente (Datos).
+ * Patrón ERP: igual que `?download=` en facturas.
+ */
+export const OPERATIONAL_RECEIPT_BATCH_PARAM = "batch";
+
+/** Ficha cliente + abre Sheet del lote (`?batch=`). Tab Datos = default (sin `tab=`). */
+export function buildClientOperationalReceiptBatchHref(
+  clientId: string,
+  batchId: string,
+): string {
+  const params = new URLSearchParams();
+  params.set(OPERATIONAL_RECEIPT_BATCH_PARAM, batchId);
+  return `/clients/${clientId}?${params.toString()}`;
+}
+
 /** Bandeja de aprobaciones (finanzas). */
 export const FINANCE_APPROVALS_PATH = "/finance/approvals";
 

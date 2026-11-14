@@ -11,9 +11,12 @@ import {
   buildFinanceAnalysisHref,
   buildFinanceAnalysisSearchParams,
   buildFinanceCobrosPath,
+  buildClientOperationalReceiptBatchHref,
   buildFinanceEfectivoPorCobrarPath,
   buildFinanceMarginMonthHref,
+  buildOperationalReceiptBatchCreatePath,
   buildTripCostsHref,
+  OPERATIONAL_RECEIPT_BATCH_PARAM,
   resolveLegacyFinanceLocation,
 } from "./financeRoutes";
 
@@ -60,6 +63,18 @@ describe("financeRoutes", () => {
 
   it("buildTripCostsHref opens the Costos tab", () => {
     expect(buildTripCostsHref("trip-1")).toBe("/trips/trip-1?tab=costs");
+  });
+
+  it("buildClientOperationalReceiptBatchHref deep-links ?batch= on client ficha", () => {
+    const clientId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const batchId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    expect(OPERATIONAL_RECEIPT_BATCH_PARAM).toBe("batch");
+    expect(buildOperationalReceiptBatchCreatePath(clientId)).toBe(
+      `/clients/${clientId}/operational-receipt-batches/new`,
+    );
+    expect(buildClientOperationalReceiptBatchHref(clientId, batchId)).toBe(
+      `/clients/${clientId}?batch=${batchId}`,
+    );
   });
 
   it("resolveLegacyFinanceLocation maps summary to /finance", () => {

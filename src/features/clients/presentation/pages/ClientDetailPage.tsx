@@ -9,7 +9,7 @@
  * Ubicación: src/features/clients/presentation/pages/ClientDetailPage.tsx
  */
 
-import { useMemo, type ReactElement } from "react";
+import { useCallback, useMemo, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { GENERIC_RECEIVER_TAX_REGIME } from "@boeltech/cfdi-domain";
 import {
@@ -63,6 +63,7 @@ import {
   ClientDetailCommercialTab,
   ClientDetailDataTab,
   ClientDetailHeaderSubtitle,
+  ClientOperationalReceiptBatchDeepLinkHost,
   ClientTripHistoryTab,
 } from "../components";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
@@ -225,6 +226,11 @@ export function ClientDetailPage() {
     CLIENT_DETAIL_TABS,
     TAB.client,
   );
+
+  /** A3: deep-link `?batch=` aterriza en tab Datos (comercial). */
+  const ensureDatosTabForBatch = useCallback(() => {
+    if (activeTab !== TAB.client) setActiveTab(TAB.client);
+  }, [activeTab, setActiveTab]);
 
   const clientStats = useMemo((): StatCardProps[] => {
     if (!client) return [];
@@ -438,37 +444,47 @@ export function ClientDetailPage() {
 
   if (isLoading) {
     return (
-      <DetailPageShell
-        isLoading
-        header={{
-          backHref,
-          backLabel,
-          icon: <Building2 className="h-6 w-6" />,
-          title: copy.title.fallback,
-        }}
-      />
+      <>
+        <DetailPageShell
+          isLoading
+          header={{
+            backHref,
+            backLabel,
+            icon: <Building2 className="h-6 w-6" />,
+            title: copy.title.fallback,
+          }}
+        />
+        <ClientOperationalReceiptBatchDeepLinkHost
+          onBatchPresent={ensureDatosTabForBatch}
+        />
+      </>
     );
   }
 
   if (isError || clientUnavailable) {
     return (
-      <DetailPageShell
-        isLoading={false}
-        notFound
-        notFoundConfig={{
-          icon: <AlertCircle />,
-          title: copy.state.notFoundTitle,
-          description: copy.state.notFoundDescription,
-          backHref: "/clients",
-          backLabel: copy.state.backToList,
-        }}
-        header={{
-          backHref,
-          backLabel,
-          icon: <Building2 className="h-6 w-6" />,
-          title: copy.title.fallback,
-        }}
-      />
+      <>
+        <DetailPageShell
+          isLoading={false}
+          notFound
+          notFoundConfig={{
+            icon: <AlertCircle />,
+            title: copy.state.notFoundTitle,
+            description: copy.state.notFoundDescription,
+            backHref: "/clients",
+            backLabel: copy.state.backToList,
+          }}
+          header={{
+            backHref,
+            backLabel,
+            icon: <Building2 className="h-6 w-6" />,
+            title: copy.title.fallback,
+          }}
+        />
+        <ClientOperationalReceiptBatchDeepLinkHost
+          onBatchPresent={ensureDatosTabForBatch}
+        />
+      </>
     );
   }
 
@@ -480,103 +496,108 @@ export function ClientDetailPage() {
   const isComercialOnly = client.cfdiReceptorProfile === "comercial_only";
 
   return (
-    <DetailPageShell
-      isLoading={false}
-      header={{
-        backHref,
-        backLabel,
-        icon: <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />,
-        iconVariant: client.isActive ? "primary" : "muted",
-        iconShape: client.type === "individual" ? "circle" : "rounded",
-        title: (
-          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="shrink-0">{getClientDisplayName(client)}</span>
-            <ClientStatusBadge
-              status={operationalStatusFromClient(client.isActive)}
-              showIcon
-              size="sm"
+    <>
+      <DetailPageShell
+        isLoading={false}
+        header={{
+          backHref,
+          backLabel,
+          icon: <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />,
+          iconVariant: client.isActive ? "primary" : "muted",
+          iconShape: client.type === "individual" ? "circle" : "rounded",
+          title: (
+            <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="shrink-0">{getClientDisplayName(client)}</span>
+              <ClientStatusBadge
+                status={operationalStatusFromClient(client.isActive)}
+                showIcon
+                size="sm"
+              />
+              {isComercialOnly ? (
+                <Badge variant="secondary" tone="soft" className="text-xs">
+                  {cfdiReceptorProfileCopy.badge.comercialOnly}
+                </Badge>
+              ) : null}
+            </span>
+          ),
+          subtitle: (
+            <ClientDetailHeaderSubtitle
+              clientCode={client.clientCode}
+              typeLabel={typeConfig.label}
+              rfc={rfc}
             />
-            {isComercialOnly ? (
-              <Badge variant="secondary" tone="soft" className="text-xs">
-                {cfdiReceptorProfileCopy.badge.comercialOnly}
-              </Badge>
-            ) : null}
-          </span>
-        ),
-        subtitle: (
-          <ClientDetailHeaderSubtitle
-            clientCode={client.clientCode}
-            typeLabel={typeConfig.label}
-            rfc={rfc}
-          />
-        ),
-        actions: <ClientActions client={client} variant="buttons" />,
-      }}
-      alerts={clientAlerts}
-      stats={clientStats}
-      tabs={{
-        defaultValue: TAB.client,
-        value: activeTab,
-        onValueChange: setActiveTab,
-        items: [
-          {
-            value: TAB.client,
-            label: copy.tabs.client,
-            content: (
-              <ClientDetailDataTab
-                client={client}
-                taxRegimeLabel={taxRegimeLabel}
-                billingSchemeLabel={billingSchemeLabel}
-                billingSchemeCadence={billingSchemeCadence}
-                onGoToContacts={() => setActiveTab(TAB.contacts)}
-                commercialSection={
-                  <ClientDetailCommercialTab
-                    client={client}
-                    paymentConfig={paymentConfig}
-                    PaymentIcon={PaymentIcon}
-                    collectHref={collectHref}
-                  />
-                }
-              />
-            ),
-          },
-          {
-            value: TAB.contacts,
-            label: copy.tabs.contacts,
-            content: (
-              <ClientContactsMasterDetail
-                clientId={client.id}
-                readOnly={!canUpdate}
-              />
-            ),
-          },
-          {
-            value: TAB.addresses,
-            label: copy.tabs.addresses,
-            content: (
-              <ClientAddressMasterDetail
-                clientId={client.id}
-                clientRfc={client.taxId ?? ""}
-                clientName={client.legalName}
-                readOnly={!canUpdate}
-              />
-            ),
-          },
-          {
-            value: TAB.trips,
-            label: copy.tabs.trips,
-            content: <ClientTripHistoryTab clientId={client.id} />,
-          },
-        ],
-      }}
-      metadata={{
-        createdAt: client.createdAt,
-        updatedAt: client.updatedAt,
-        createdBy:
-          client.createdByName?.trim() || client.createdBy?.trim() || undefined,
-        updatedBy: client.updatedByName?.trim() || undefined,
-      }}
-    />
+          ),
+          actions: <ClientActions client={client} variant="buttons" />,
+        }}
+        alerts={clientAlerts}
+        stats={clientStats}
+        tabs={{
+          defaultValue: TAB.client,
+          value: activeTab,
+          onValueChange: setActiveTab,
+          items: [
+            {
+              value: TAB.client,
+              label: copy.tabs.client,
+              content: (
+                <ClientDetailDataTab
+                  client={client}
+                  taxRegimeLabel={taxRegimeLabel}
+                  billingSchemeLabel={billingSchemeLabel}
+                  billingSchemeCadence={billingSchemeCadence}
+                  onGoToContacts={() => setActiveTab(TAB.contacts)}
+                  commercialSection={
+                    <ClientDetailCommercialTab
+                      client={client}
+                      paymentConfig={paymentConfig}
+                      PaymentIcon={PaymentIcon}
+                      collectHref={collectHref}
+                    />
+                  }
+                />
+              ),
+            },
+            {
+              value: TAB.contacts,
+              label: copy.tabs.contacts,
+              content: (
+                <ClientContactsMasterDetail
+                  clientId={client.id}
+                  readOnly={!canUpdate}
+                />
+              ),
+            },
+            {
+              value: TAB.addresses,
+              label: copy.tabs.addresses,
+              content: (
+                <ClientAddressMasterDetail
+                  clientId={client.id}
+                  clientRfc={client.taxId ?? ""}
+                  clientName={client.legalName}
+                  readOnly={!canUpdate}
+                />
+              ),
+            },
+            {
+              value: TAB.trips,
+              label: copy.tabs.trips,
+              content: <ClientTripHistoryTab clientId={client.id} />,
+            },
+          ],
+        }}
+        metadata={{
+          createdAt: client.createdAt,
+          updatedAt: client.updatedAt,
+          createdBy:
+            client.createdByName?.trim() || client.createdBy?.trim() || undefined,
+          updatedBy: client.updatedByName?.trim() || undefined,
+        }}
+      />
+      <ClientOperationalReceiptBatchDeepLinkHost
+        onBatchPresent={ensureDatosTabForBatch}
+      />
+    </>
   );
 }
 

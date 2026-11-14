@@ -143,6 +143,8 @@ export {
   buildFinanceCobrosPath,
   buildFinanceEfectivoPorCobrarPath,
   buildOperationalReceiptBatchCreatePath,
+  buildClientOperationalReceiptBatchHref,
+  OPERATIONAL_RECEIPT_BATCH_PARAM,
   buildTripCostsHref,
   buildFinanceMarginMonthHref,
   resolveLegacyFinanceLocation,

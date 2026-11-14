@@ -17,6 +17,7 @@ export { ClientActions } from "./ClientActions";
 export { ClientDetailDataTab } from "./ClientDetailDataTab";
 export { ClientDetailCommercialTab } from "./ClientDetailCommercialTab";
 export { ClientOperationalCashPendingCard } from "./ClientOperationalCashPendingCard";
+export { ClientOperationalReceiptBatchDeepLinkHost } from "./ClientOperationalReceiptBatchDeepLinkHost";
 export { ClientDetailHeaderSubtitle } from "./ClientDetailHeaderSubtitle";
 
 // Contact components (WS-B)
