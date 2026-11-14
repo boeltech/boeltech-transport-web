@@ -19,6 +19,7 @@ import {
 
 import { useClient } from "@features/clients/application";
 import {
+  buildClientOperationalReceiptBatchHref,
   useCreateOperationalReceiptBatch,
   useOperationalReceiptBatchCandidates,
 } from "@features/finance/application";
@@ -61,13 +62,32 @@ import {
   formatDate,
 } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 
 import { operationalReceiptBatchCopy } from "../copy/operationalReceiptBatchCopy";
-import { OperationalReceiptBatchSheet } from "../components/OperationalReceiptBatchSheet";
+import {
+  resolveOperationalReceiptBatchCreateBackHref,
+  resolveOperationalReceiptBatchCreateSuccessHref,
+} from "../utils/operationalCashPendingWayfinding";
 
 const copy = operationalReceiptBatchCopy;
 const MXN_EPS = 0.01;
+/** Identidad estable mientras candidatesQuery aún no tiene data (evita loop de renders). */
+const EMPTY_CANDIDATES: OperationalReceiptBatchCandidate[] = [];
+
+function amountsRecordsEqual(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): boolean {
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
 
 const INSTRUMENT_OPTIONS = [
   { value: "cash", label: copy.instruments.cash },
@@ -147,7 +167,11 @@ export function OperationalReceiptBatchCreatePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fromState = useMasterActionFrom("/clients");
-  const backHref = `/clients/${clientId}`;
+  const incomingFrom = useIncomingFrom();
+  const backHref = resolveOperationalReceiptBatchCreateBackHref(
+    incomingFrom,
+    clientId,
+  );
   const clientQuery = useClient(clientId);
   const candidatesQuery = useOperationalReceiptBatchCandidates(clientId);
   const idempotencyKeyRef = useRef(
@@ -163,10 +187,9 @@ export function OperationalReceiptBatchCreatePage() {
   const [balanceAlert, setBalanceAlert] = useState<string | null>(null);
   const [excessAlert, setExcessAlert] = useState<string | null>(null);
   const [disabledTrips, setDisabledTrips] = useState<Set<string>>(new Set());
-  const [batchSheetId, setBatchSheetId] = useState<string | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
 
-  const candidates = candidatesQuery.data?.data ?? [];
+  const candidates = candidatesQuery.data?.data ?? EMPTY_CANDIDATES;
 
   useEffect(() => {
     if (!candidates.length) return;
@@ -202,10 +225,10 @@ export function OperationalReceiptBatchCreatePage() {
 
   // Modo sugerido: rellenar montos al cambiar monto o selección
   useEffect(() => {
-    if (edited) return;
+    if (edited || candidatesQuery.isLoading) return;
     const amt = typeof amount === "number" && amount > 0 ? amount : 0;
     if (!selectedCandidates.length || amt <= 0) {
-      setAmounts({});
+      setAmounts((prev) => (Object.keys(prev).length === 0 ? prev : {}));
       return;
     }
     const plan = suggestOperationalReceiptAllocation(
@@ -219,8 +242,14 @@ export function OperationalReceiptBatchCreatePage() {
     for (const c of selectedCandidates) {
       if (!(c.tripId in next)) next[c.tripId] = 0;
     }
-    setAmounts(next);
-  }, [amount, selectedCandidates, edited, clientId]);
+    setAmounts((prev) => (amountsRecordsEqual(prev, next) ? prev : next));
+  }, [
+    amount,
+    selectedCandidates,
+    edited,
+    clientId,
+    candidatesQuery.isLoading,
+  ]);
 
   const allocatedTotal = useMemo(
     () =>
@@ -273,15 +302,24 @@ export function OperationalReceiptBatchCreatePage() {
   const createMutation = useCreateOperationalReceiptBatch(clientId, {
     onSuccess: (batch) => {
       allowLeave();
+      const landingHref = resolveOperationalReceiptBatchCreateSuccessHref(
+        incomingFrom,
+        clientId,
+        batch.id,
+      );
+      const batchHref = buildClientOperationalReceiptBatchHref(
+        clientId,
+        batch.id,
+      );
       toast({
         title: copy.toast.success(batch.receiptCount),
         variant: "success",
         action: {
           label: copy.toast.viewBatch,
-          onClick: () => setBatchSheetId(batch.id),
+          onClick: () => navigate(batchHref, { replace: true }),
         },
       });
-      navigate(backHref, { state: fromState, replace: true });
+      navigate(landingHref, { state: fromState, replace: true });
     },
     onError: (error) => {
       if (!isApiError(error)) {
@@ -908,13 +946,6 @@ export function OperationalReceiptBatchCreatePage() {
       </FormPageShell>
 
       <UnsavedChangesDialog blocker={blocker} />
-      <OperationalReceiptBatchSheet
-        batchId={batchSheetId}
-        open={Boolean(batchSheetId)}
-        onOpenChange={(open) => {
-          if (!open) setBatchSheetId(null);
-        }}
-      />
     </>
   );
 }

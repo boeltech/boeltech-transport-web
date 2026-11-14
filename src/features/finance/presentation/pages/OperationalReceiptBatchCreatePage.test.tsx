@@ -7,7 +7,10 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { buildOperationalReceiptBatchCreatePath } from "@features/finance/application";
+import {
+  buildClientOperationalReceiptBatchHref,
+  buildOperationalReceiptBatchCreatePath,
+} from "@features/finance/application";
 import type { UserRole } from "@shared/constants/roles";
 
 import { OperationalReceiptBatchCreatePage } from "./OperationalReceiptBatchCreatePage";
@@ -155,26 +158,52 @@ function candidatesData() {
   };
 }
 
-function renderPage() {
+function renderPage(options?: {
+  from?: string;
+  initialPath?: string;
+}) {
+  const createPath =
+    options?.initialPath ?? buildOperationalReceiptBatchCreatePath(CLIENT_ID);
+  const initialEntry = options?.from
+    ? {
+        pathname: createPath.split("?")[0]!,
+        search: createPath.includes("?")
+          ? `?${createPath.split("?")[1]}`
+          : "",
+        state: { from: options.from },
+      }
+    : createPath;
+
   const router = createMemoryRouter(
     [
       {
         path: "/clients/:id/operational-receipt-batches/new",
         element: <OperationalReceiptBatchCreatePage />,
       },
+      {
+        path: "/clients/:id",
+        element: <div data-testid="client-detail">ficha</div>,
+      },
+      {
+        path: "/finance/operational-cash-pending",
+        element: <div data-testid="cash-pending-tray">bandeja</div>,
+      },
     ],
     {
-      initialEntries: [buildOperationalReceiptBatchCreatePath(CLIENT_ID)],
+      initialEntries: [initialEntry],
     },
   );
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
-    <QueryClientProvider client={qc}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  );
+  return {
+    router,
+    ...render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 async function typeAmount(user: ReturnType<typeof userEvent.setup>, value: string) {
@@ -217,6 +246,38 @@ describe("OperationalReceiptBatchCreatePage", () => {
       mutate: vi.fn(),
       isPending: false,
     }));
+  });
+
+  it("query cold (data undefined + isLoading) monta sin Maximum update depth", async () => {
+    useOperationalReceiptBatchCandidatesMock.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      dataUpdatedAt: 0,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: copy.page.title }),
+    ).toBeInTheDocument();
+    // Skeletons de la zona de viajes (query aún loading).
+    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+  });
+
+  it("tras load con candidatos, monto vacío no entra en loop de setAmounts", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: copy.page.title });
+
+    // Sin monto (o ≤0): la página sigue estable y no crashea el Error Boundary.
+    expect(screen.getByText(copy.page.zoneTrips)).toBeInTheDocument();
+    expect(screen.getByLabelText("V-001")).toBeInTheDocument();
+    expect(screen.getByLabelText("V-002")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Maximum update depth/i)).not.toBeInTheDocument();
+    });
   });
 
   it("excedente (monto > saldo elegidos) muestra Alert y no envía", async () => {
@@ -325,6 +386,191 @@ describe("OperationalReceiptBatchCreatePage", () => {
             (restored as HTMLInputElement).value,
         ),
       ).toMatch(/8[,.]?000/);
+    });
+  });
+
+  it("desde bandeja, Cancel vuelve a la bandeja conservando query", async () => {
+    const user = userEvent.setup();
+    const trayFrom =
+      "/finance/operational-cash-pending?clientId=client-batch&page=2";
+    const { router } = renderPage({ from: trayFrom });
+    await screen.findByRole("heading", { name: copy.page.title });
+
+    await user.click(screen.getByRole("link", { name: copy.page.cancel }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(
+        "/finance/operational-cash-pending",
+      );
+      expect(router.state.location.search).toBe(
+        "?clientId=client-batch&page=2",
+      );
+    });
+    expect(screen.getByTestId("cash-pending-tray")).toBeInTheDocument();
+  });
+
+  it("sin origen (ficha), Cancel vuelve a la ficha del cliente", async () => {
+    const user = userEvent.setup();
+    const { router } = renderPage();
+    await screen.findByRole("heading", { name: copy.page.title });
+
+    await user.click(screen.getByRole("link", { name: copy.page.cancel }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/clients/${CLIENT_ID}`);
+    });
+    expect(screen.getByTestId("client-detail")).toBeInTheDocument();
+  });
+
+  it("éxito desde bandeja aterriza en bandeja (query) y toast «Ver lote» abre ficha ?batch=", async () => {
+    const batchId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const trayFrom =
+      "/finance/operational-cash-pending?clientId=client-batch&page=2";
+    const expectedBatchHref = buildClientOperationalReceiptBatchHref(
+      CLIENT_ID,
+      batchId,
+    );
+
+    useCreateOperationalReceiptBatchMock.mockImplementation(
+      (_clientId, options) => ({
+        mutate: () => {
+          options?.onSuccess?.({
+            id: batchId,
+            clientId: CLIENT_ID,
+            clientName: "Cliente Lote",
+            amount: 10000,
+            paymentInstrument: "cash",
+            reference: null,
+            collectedAt: "2026-11-12T18:00:00.000Z",
+            note: null,
+            receiptCount: 2,
+            voidedAt: null,
+            voidReason: null,
+            voidedBy: null,
+            voidedByName: null,
+            createdAt: "2026-11-12T18:00:00.000Z",
+            createdBy: "u-1",
+            createdByName: "Ana",
+            receipts: [],
+          });
+        },
+        isPending: false,
+      }),
+    );
+
+    const user = userEvent.setup();
+    const { router } = renderPage({ from: trayFrom });
+    await screen.findByRole("heading", { name: copy.page.title });
+    await typeAmount(user, "10000");
+    await user.click(
+      screen.getByRole("button", { name: /Registrar \$10,000\.00/ }),
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(
+        "/finance/operational-cash-pending",
+      );
+      expect(router.state.location.search).toBe(
+        "?clientId=client-batch&page=2",
+      );
+    });
+    expect(screen.getByTestId("cash-pending-tray")).toBeInTheDocument();
+
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.toast.success(2),
+        variant: "success",
+        action: expect.objectContaining({
+          label: copy.toast.viewBatch,
+          onClick: expect.any(Function),
+        }),
+      }),
+    );
+
+    const toastArg = toastMock.mock.calls[0]?.[0] as {
+      action?: { onClick?: () => void };
+    };
+    toastArg.action?.onClick?.();
+
+    await waitFor(() => {
+      expect(router.state.location.pathname + router.state.location.search).toBe(
+        expectedBatchHref,
+      );
+    });
+    expect(screen.getByTestId("client-detail")).toBeInTheDocument();
+  });
+
+  it("éxito desde ficha navega a ?batch= y toast «Ver lote» repone el deep link", async () => {
+    const batchId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const expectedHref = buildClientOperationalReceiptBatchHref(
+      CLIENT_ID,
+      batchId,
+    );
+
+    useCreateOperationalReceiptBatchMock.mockImplementation(
+      (_clientId, options) => ({
+        mutate: () => {
+          options?.onSuccess?.({
+            id: batchId,
+            clientId: CLIENT_ID,
+            clientName: "Cliente Lote",
+            amount: 10000,
+            paymentInstrument: "cash",
+            reference: null,
+            collectedAt: "2026-11-12T18:00:00.000Z",
+            note: null,
+            receiptCount: 2,
+            voidedAt: null,
+            voidReason: null,
+            voidedBy: null,
+            voidedByName: null,
+            createdAt: "2026-11-12T18:00:00.000Z",
+            createdBy: "u-1",
+            createdByName: "Ana",
+            receipts: [],
+          });
+        },
+        isPending: false,
+      }),
+    );
+
+    const user = userEvent.setup();
+    const { router } = renderPage();
+    await screen.findByRole("heading", { name: copy.page.title });
+    await typeAmount(user, "10000");
+
+    await user.click(
+      screen.getByRole("button", { name: /Registrar \$10,000\.00/ }),
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/clients/${CLIENT_ID}`);
+      expect(router.state.location.search).toBe(`?batch=${batchId}`);
+    });
+    expect(screen.getByTestId("client-detail")).toBeInTheDocument();
+
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: copy.toast.success(2),
+        variant: "success",
+        action: expect.objectContaining({
+          label: copy.toast.viewBatch,
+          onClick: expect.any(Function),
+        }),
+      }),
+    );
+
+    // Simula cierre del Sheet (limpia query) y CTA del toast.
+    await router.navigate(`/clients/${CLIENT_ID}`, { replace: true });
+    const toastArg = toastMock.mock.calls[0]?.[0] as {
+      action?: { onClick?: () => void };
+    };
+    toastArg.action?.onClick?.();
+
+    await waitFor(() => {
+      expect(router.state.location.pathname + router.state.location.search).toBe(
+        expectedHref,
+      );
     });
   });
 });

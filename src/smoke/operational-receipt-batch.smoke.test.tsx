@@ -310,6 +310,44 @@ describe("smoke: operational-receipt-batch", () => {
     );
   });
 
+  it("mount create con query cold no crashea (Maximum update depth)", async () => {
+    useOperationalReceiptBatchCandidatesMock.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      dataUpdatedAt: 0,
+      refetch: vi.fn(),
+    });
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/clients/:id/operational-receipt-batches/new",
+          element: <OperationalReceiptBatchCreatePage />,
+        },
+      ],
+      {
+        initialEntries: [
+          buildOperationalReceiptBatchCreatePath(CLIENT_ID),
+        ],
+      },
+    );
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: copy.page.title }),
+    ).toBeInTheDocument();
+    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+  });
+
   it("página sugiere reparto por antigüedad al capturar monto", async () => {
     const user = userEvent.setup();
     const router = createMemoryRouter(
