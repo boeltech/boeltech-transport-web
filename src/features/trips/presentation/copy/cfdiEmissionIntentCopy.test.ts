@@ -16,8 +16,11 @@ describe("cfdiEmissionIntentCopy — Factura del viaje (D3′)", () => {
     );
     expect(cfdiEmissionIntentCopy.chip.conCfdi).toBe("Con factura");
     expect(cfdiEmissionIntentCopy.chip.sinCfdi).toBe("Sin factura");
-    expect(cfdiEmissionIntentCopy.overrideConfirm.description).toMatch(
-      /Carta Porte/,
+    expect(cfdiEmissionIntentCopy.overrideConfirm.description).toBe(
+      cfdiEmissionIntentCopy.governance.dialogBodySin,
+    );
+    expect(cfdiEmissionIntentCopy.overrideConfirm.description).not.toMatch(
+      /efectivo/i,
     );
     expect(cfdiEmissionIntentCopy.overrideConfirm.confirm).toBe(
       "Usar Sin factura",
@@ -35,5 +38,54 @@ describe("cfdiEmissionIntentCopy — Factura del viaje (D3′)", () => {
     expect(blob).not.toMatch(/Cobro en efectivo/);
     expect(blob).not.toMatch(/Efectivo acumulado/);
     expect(blob).not.toMatch(/\bREP\b/);
+  });
+
+  it("D7=A: cashFreeze es copy A sin «congelado» ambiguo", () => {
+    expect(cfdiEmissionIntentCopy.governance.cashFreeze).toBe(
+      "No se puede pasar a Con factura mientras haya abonos activos. Anula los abonos primero.",
+    );
+    expect(cfdiEmissionIntentCopy.governance.cashFreeze).not.toMatch(
+      /congelado/i,
+    );
+    expect(cfdiEmissionIntentCopy.governance.cashFreeze).not.toMatch(
+      /Cobro en efectivo/i,
+    );
+  });
+
+  it("dialog bodies: un description por caso; regularize no reusa copy Sin", () => {
+    const g = cfdiEmissionIntentCopy.governance;
+    expect(g.dialogBodySin).toBe(
+      "Este viaje no aparecerá en Por facturar ni llevará Carta Porte. Si el patio necesita Carta Porte, elige Con factura.",
+    );
+    expect(g.dialogBodyRegularize).toBe(
+      "El viaje volverá a Con factura y podrá aparecer en Por facturar. Podrás emitir CFDI y Carta Porte según el acuerdo.",
+    );
+    expect(g.dialogBodyReject).toBe(
+      "La solicitud de Sin factura se rechazará. El viaje seguirá Con factura.",
+    );
+    expect(g.dialogBodyCancel).toBe(
+      "Se cancelará la solicitud de Sin factura. El viaje seguirá Con factura.",
+    );
+    expect(g.approveBody).toBe(
+      "El viaje pasará a Sin factura. No emitirá CFDI ni Carta Porte.",
+    );
+
+    expect(g.dialogBodyRegularize).not.toMatch(/no aparecerá en Por facturar/i);
+    expect(g.dialogBodyRegularize).not.toMatch(/no llevará Carta Porte/i);
+    expect(g.dialogBodyRegularize).toMatch(/Con factura/);
+    expect(g.dialogBodyRegularize).toMatch(/Por facturar/);
+    expect(g.dialogBodyReject).toMatch(/seguirá Con factura/);
+    expect(g.dialogBodyCancel).toMatch(/seguirá Con factura/);
+
+    const dialogBlob = [
+      g.dialogBodySin,
+      g.dialogBodyRegularize,
+      g.dialogBodyReject,
+      g.dialogBodyCancel,
+      g.approveBody,
+      cfdiEmissionIntentCopy.complianceNotice,
+    ].join("\n");
+    expect(dialogBlob).not.toMatch(/congelado/i);
+    expect(dialogBlob).not.toMatch(/\befectivo\b/i);
   });
 });

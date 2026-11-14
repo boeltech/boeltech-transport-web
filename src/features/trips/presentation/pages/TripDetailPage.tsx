@@ -66,7 +66,7 @@ import {
   StopStatus,
   canReassignTripFleet,
   getOrderedStops,
-  resolveOperationalCashSummary,
+  hasOperationalCashCollected,
 } from "@features/trips/domain";
 
 import {
@@ -93,7 +93,6 @@ import { TripMidTripAdjustStrip } from "../components/TripMidTripAdjustStrip";
 import { TripLinkedInvoiceDraftsSheet } from "../components/TripLinkedInvoiceDraftsSheet";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripLiquidacionControl } from "../components/TripLiquidacionControl";
-import { tripLiquidacionInvoiceOrCashLockMessage } from "../utils/tripLiquidacionMutability";
 import {
   resolveTripAccessDeniedCopy,
   resolveTripBackHref,
@@ -120,10 +119,6 @@ import { computeTripReadiness } from "../hooks/useTripReadiness";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 import { tripDetailCopy } from "../copy";
 import { cfdiEmissionIntentCopy } from "../copy/cfdiEmissionIntentCopy";
-import {
-  operationalCashStatusBadgeVariant,
-  operationalCashStatusLabel,
-} from "../utils/operationalCashUi";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { getTripDetailAccess } from "./tripDetailAccess";
@@ -980,6 +975,38 @@ export function TripDetailPage() {
           <p>{cfdiEmissionIntentCopy.complianceNotice}</p>
         </DetailAlertCard>,
       );
+
+      if (hasOperationalCashCollected(trip)) {
+        cards.push(
+          <DetailAlertCard
+            key="sin-cfdi-cash-freeze"
+            severity="warning"
+            icon={<AlertCircle className="h-5 w-5" />}
+            title={cfdiEmissionIntentCopy.governance.cashFreeze}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchParams(
+                    (prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.set("tab", "costs");
+                      // Deep-link al historial de abonos (D7=A); scroll en CostsTab.
+                      next.set("focus", "operational-cash");
+                      return next;
+                    },
+                    { replace: true },
+                  );
+                }}
+              >
+                {cfdiEmissionIntentCopy.governance.history}
+              </Button>
+            }
+          />,
+        );
+      }
     }
 
     if (cards.length === 0) return undefined;
@@ -1138,12 +1165,6 @@ export function TripDetailPage() {
 
   /** Tras cargar `trip`, el estado operativo siempre está definido. */
   const resolvedDisplayStatus: TripStatusType = trip.status;
-  const operationalCashUiSummary = resolveOperationalCashSummary(
-    trip,
-    trip.costs.baseRate,
-  );
-  const liquidacionLockMessage =
-    tripLiquidacionInvoiceOrCashLockMessage(trip);
   const tripForMetrics = routeDetail?.trip ?? trip;
   const distance = calculateDistance(tripForMetrics.mileage);
   const duration = calculateTripDuration(tripForMetrics);
@@ -1387,7 +1408,8 @@ export function TripDetailPage() {
           </span>
         ),
         subtitle: (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
+            {/* L1 ruta · L2 cliente — sin chips/CTAs/bloqueo */}
             <div className="space-y-0.5">
               <p className="truncate text-sm text-muted-foreground">
                 {formatTripRouteSubtitle(orderedStops, {
@@ -1403,33 +1425,11 @@ export function TripDetailPage() {
                 </p>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-foreground">
-              <span className="text-xs text-muted-foreground">
-                {cfdiEmissionIntentCopy.field.label}
-              </span>
-              <TripLiquidacionControl
-                trip={trip}
-                isLeanTripPortal={isLeanTripPortal}
-              />
-              {trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
-                <Badge
-                  variant={operationalCashStatusBadgeVariant(
-                    operationalCashUiSummary.status,
-                  )}
-                  tone="soft"
-                  className="text-xs"
-                >
-                  {operationalCashStatusLabel(
-                    operationalCashUiSummary.status,
-                  )}
-                </Badge>
-              ) : null}
-              {liquidacionLockMessage ? (
-                <p className="w-full text-xs text-muted-foreground">
-                  {liquidacionLockMessage}
-                </p>
-              ) : null}
-            </div>
+            {/* Franja bajo subtítulo (Conform: sin slot shell dedicado) */}
+            <TripLiquidacionControl
+              trip={trip}
+              isLeanTripPortal={isLeanTripPortal}
+            />
           </div>
         ),
         actions: (

@@ -188,15 +188,16 @@ describe("tripLiquidacionInvoiceOrCashLockMessage", () => {
   });
 
   it("names the cash lock even when the trip is already in progress", () => {
-    expect(
-      tripLiquidacionInvoiceOrCashLockMessage({
-        ...base,
-        status: TripStatus.IN_PROGRESS,
-        cfdiEmissionIntent: "sin_cfdi_efectivo",
-        operationalCashCollectedAt: new Date("2026-09-21T12:00:00.000Z"),
-      }),
-    ).toBe(
-      "No se puede cambiar la Factura del viaje: ya hay un cobro en efectivo registrado.",
+    const message = tripLiquidacionInvoiceOrCashLockMessage({
+      ...base,
+      status: TripStatus.IN_PROGRESS,
+      cfdiEmissionIntent: "sin_cfdi_efectivo",
+      operationalCashCollectedAt: new Date("2026-09-21T12:00:00.000Z"),
+    });
+    expect(message).toBe(
+      "No se puede cambiar la Factura del viaje: ya hay abonos de cobro sin factura registrados.",
     );
+    expect(message).not.toMatch(/congelado/i);
+    expect(message).not.toMatch(/Cobro en efectivo/i);
   });
 });

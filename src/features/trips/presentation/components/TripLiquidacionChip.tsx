@@ -11,7 +11,6 @@ import { defaultCfdiEmissionIntentFromProfile } from "@boeltech/cfdi-domain/regl
 import { AlertCircle } from "lucide-react";
 
 import { Alert, AlertDescription } from "@shared/ui/alert";
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
   Dialog,
@@ -40,6 +39,7 @@ import type {
   TripSettlementException,
 } from "@features/trips/domain";
 import { cfdiEmissionIntentCopy } from "../copy/cfdiEmissionIntentCopy";
+import { TripLiquidacionHeaderStrip } from "./TripLiquidacionHeaderStrip";
 
 const copy = cfdiEmissionIntentCopy;
 const g = copy.governance;
@@ -133,16 +133,8 @@ export function TripLiquidacionChip({
     !isSinFactura &&
     governance.openRequest == null;
 
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Badge
-        variant={isSinFactura ? "warning" : "outline"}
-        tone="soft"
-        className="text-xs"
-      >
-        {isSinFactura ? copy.chip.sinCfdi : copy.chip.conCfdi}
-      </Badge>
-
+  const stripActions = (
+    <>
       {showSinCta ? (
         <Button
           type="button"
@@ -198,18 +190,17 @@ export function TripLiquidacionChip({
           {g.regularizeCta}
         </Button>
       ) : null}
-      {governance?.regularizeCashLocked ? (
-        <span className="text-xs text-muted-foreground">{g.cashFreeze}</span>
-      ) : null}
+    </>
+  );
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={() => setHistoryOpen(true)}
-      >
-        {g.history}
-      </Button>
+  return (
+    <>
+      <TripLiquidacionHeaderStrip
+        mode={isSinFactura ? "sin_factura" : "con_factura"}
+        lockReason={null}
+        actions={stripActions}
+        onOpenHistory={() => setHistoryOpen(true)}
+      />
 
       <Dialog
         open={dialog != null}
@@ -228,10 +219,20 @@ export function TripLiquidacionChip({
                     ? g.dialogTitleCancel
                     : dialog === "approve"
                       ? g.approveTitle
-                      : g.dialogTitleSin}
+                      : governance?.changeKind === "request"
+                        ? g.requestSinCfdi
+                        : g.dialogTitleSin}
             </DialogTitle>
             <DialogDescription>
-              {dialog === "approve" ? g.approveBody : copy.overrideConfirm.description}
+              {dialog === "approve"
+                ? g.approveBody
+                : dialog === "regularize"
+                  ? g.dialogBodyRegularize
+                  : dialog === "reject"
+                    ? g.dialogBodyReject
+                    : dialog === "cancel"
+                      ? g.dialogBodyCancel
+                      : g.dialogBodySin}
             </DialogDescription>
           </DialogHeader>
           {dialog === "sin" || dialog === "approve" ? (
@@ -328,7 +329,7 @@ export function TripLiquidacionChip({
           )}
         </SheetContent>
       </Sheet>
-    </div>
+    </>
   );
 }
 

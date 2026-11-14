@@ -22,7 +22,7 @@ export const cfdiEmissionIntentCopy = {
   overrideConfirm: {
     title: "¿Pasar a Sin factura?",
     description:
-      "Este viaje no aparecerá en Por facturar ni llevará Carta Porte. Si el patio necesita Carta Porte, elige Con factura y registra el efectivo en el CFDI.",
+      "Este viaje no aparecerá en Por facturar ni llevará Carta Porte. Si el patio necesita Carta Porte, elige Con factura.",
     confirm: "Usar Sin factura",
     cancel: "Cancelar",
   },
@@ -63,6 +63,8 @@ export const cfdiEmissionIntentCopy = {
     ctaRegister: "Registrar abono",
     ctaDisabledCollected: "El cobro ya cubre la tarifa",
     emptyHistory: "Aún no hay abonos registrados.",
+    historyLoadError: "No se pudo cargar el historial de abonos.",
+    historyRetry: "Reintentar",
     historyTitle: "Historial de abonos",
     receiptVoided: "Anulado",
     receiptActive: "Activo",
@@ -147,6 +149,14 @@ export const cfdiEmissionIntentCopy = {
     dialogTitleRegularize: "Pasar a Con factura",
     dialogTitleReject: "Rechazar solicitud",
     dialogTitleCancel: "Cancelar solicitud",
+    dialogBodySin:
+      "Este viaje no aparecerá en Por facturar ni llevará Carta Porte. Si el patio necesita Carta Porte, elige Con factura.",
+    dialogBodyRegularize:
+      "El viaje volverá a Con factura y podrá aparecer en Por facturar. Podrás emitir CFDI y Carta Porte según el acuerdo.",
+    dialogBodyReject:
+      "La solicitud de Sin factura se rechazará. El viaje seguirá Con factura.",
+    dialogBodyCancel:
+      "Se cancelará la solicitud de Sin factura. El viaje seguirá Con factura.",
     pending: "Solicitud pendiente de autorización",
     approve: "Aprobar",
     reject: "Rechazar",
@@ -156,7 +166,7 @@ export const cfdiEmissionIntentCopy = {
     approveBody:
       "El viaje pasará a Sin factura. No emitirá CFDI ni Carta Porte.",
     cashFreeze:
-      "No se puede pasar a Con factura: ya hay abonos y el cobro queda congelado.",
+      "No se puede pasar a Con factura mientras haya abonos activos. Anula los abonos primero.",
     history: "Historial",
     historyTitle: "Historial de Factura del viaje",
     historyEmpty: "Aún no hay una solicitud de Sin factura en este viaje.",

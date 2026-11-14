@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   Banknote,
@@ -380,11 +380,34 @@ export function TripDetailCostsTab({
   const [voidReceipt, setVoidReceipt] = useState<OperationalCashReceipt | null>(
     null,
   );
-  const { data: cashReceipts = [], isLoading: isLoadingCashReceipts } =
-    useOperationalCashReceipts(tripId, {
-      includeVoided: true,
-      enabled: isSinCfdiEfectivo,
-    });
+  const {
+    data: cashReceipts = [],
+    isLoading: isLoadingCashReceipts,
+    isError: isCashReceiptsError,
+    refetch: refetchCashReceipts,
+  } = useOperationalCashReceipts(tripId, {
+    includeVoided: true,
+    enabled: isSinCfdiEfectivo,
+  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (!isSinCfdiEfectivo) return;
+    if (searchParams.get("focus") !== "operational-cash") return;
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById("trip-operational-cash")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("focus");
+          return next;
+        },
+        { replace: true },
+      );
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [isSinCfdiEfectivo, searchParams, setSearchParams]);
   const sortedCashReceipts = useMemo(() => {
     return [...cashReceipts].sort(
       (a, b) => b.collectedAt.getTime() - a.collectedAt.getTime(),
@@ -868,7 +891,7 @@ export function TripDetailCostsTab({
           />
 
           {isSinCfdiEfectivo ? (
-            <Card>
+            <Card id="trip-operational-cash">
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
                 <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
                   <Banknote className="h-5 w-5 shrink-0" />
@@ -925,6 +948,24 @@ export function TripDetailCostsTab({
                   </p>
                   {isLoadingCashReceipts ? (
                     <Skeleton className="h-16 w-full" />
+                  ) : isCashReceiptsError ? (
+                    <DetailAlertCard
+                      severity="critical"
+                      icon={<AlertCircle className="h-4 w-4" />}
+                      title={cashCopy.historyLoadError}
+                      action={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            void refetchCashReceipts();
+                          }}
+                        >
+                          {cashCopy.historyRetry}
+                        </Button>
+                      }
+                    />
                   ) : sortedCashReceipts.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       {cashCopy.emptyHistory}

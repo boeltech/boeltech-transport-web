@@ -1,6 +1,6 @@
 /**
  * Sheet — Registrar abono de cobro sin factura (ADR-0096 + B2).
- * Instrumento, referencia y fecha no futura (paquete 0.51.0).
+ * Instrumento, referencia y fecha no futura (paquete 0.51.1).
  */
 
 import { useEffect, useMemo } from "react";
@@ -26,6 +26,7 @@ import {
   FormFieldShell,
   FormValidationSummary,
   MoneyInput,
+  RHFDateTimeField,
   RHFSelect,
   RHFTextareaField,
   getFieldErrorAriaProps,
@@ -173,8 +174,12 @@ function RegisterOperationalCashSheetBody({
     onError: (error) => {
       if (isApiError(error)) {
         if (error.code === "OPERATIONAL_RECEIPT_REFERENCE_REQUIRED") {
+          const instrument = form.getValues("paymentInstrument");
           setError("reference", {
-            message: cashCopy.validation.referenceRequiredTransfer,
+            message:
+              instrument === "check"
+                ? cashCopy.validation.referenceRequiredCheck
+                : cashCopy.validation.referenceRequiredTransfer,
           });
           return;
         }
@@ -218,7 +223,6 @@ function RegisterOperationalCashSheetBody({
 
   const amount = watch("amount");
   const paymentInstrument = watch("paymentInstrument");
-  const collectedAtLocal = watch("collectedAtLocal");
   const amountError = errors.amount?.message;
   const referenceError = errors.reference?.message;
   const collectedAtError = errors.collectedAtLocal?.message;
@@ -345,30 +349,15 @@ function RegisterOperationalCashSheetBody({
           />
         </FormFieldShell>
 
-        <FormFieldShell
+        <RHFDateTimeField
+          control={form.control}
+          name="collectedAtLocal"
           fieldId="operational-cash-collected-at"
           label={cashCopy.sheet.collectedAt}
           required
-          errorMessage={collectedAtError}
-        >
-          <Input
-            id="operational-cash-collected-at"
-            type="datetime-local"
-            value={collectedAtLocal}
-            onChange={(e) =>
-              setValue("collectedAtLocal", e.target.value, {
-                shouldValidate: isSubmitted,
-                shouldDirty: true,
-              })
-            }
-            disabled={mutation.isPending}
-            error={Boolean(collectedAtError)}
-            {...getFieldErrorAriaProps(
-              "operational-cash-collected-at",
-              collectedAtError,
-            )}
-          />
-        </FormFieldShell>
+          disabled={mutation.isPending}
+          defaultTimeOnDateSelect="12:00"
+        />
 
         <RHFTextareaField
           control={form.control}
