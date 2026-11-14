@@ -41,7 +41,8 @@ import {
 } from "../config/vehicleStatusConfig";
 import { vehiclesCopy } from "../copy";
 
-const formatMileage = vehiclesCopy.detail.format.statMileage;
+/** Alineado a T4: cifra mono/tabular sin «km» en la celda (unidad en contexto). */
+const mileageFormatter = new Intl.NumberFormat("es-MX");
 const cardCopy = vehiclesCopy.list.card;
 
 // ============================================================================
@@ -184,10 +185,12 @@ export function VehicleCard({
             <span className="font-mono">{vehicle.licensePlate}</span>
           </div>
 
-          {/* Mileage */}
+          {/* Mileage — número sin «km» (T4; unidad implícita) */}
           <div className="flex items-center gap-2 text-muted-foreground">
             <Gauge className="h-4 w-4 shrink-0" />
-            <span>{formatMileage(vehicle.currentMileage)}</span>
+            <span className="font-mono tabular-nums">
+              {mileageFormatter.format(vehicle.currentMileage)}
+            </span>
           </div>
         </div>
       </CardContent>

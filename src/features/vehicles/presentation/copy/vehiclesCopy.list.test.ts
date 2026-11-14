@@ -13,6 +13,16 @@ describe("vehiclesCopy.list", () => {
     expect(copy.actions.import).toBe("Importar");
   });
 
+  it("headers ancla F4 y CTA en sentence case", () => {
+    expect(copy.actions.create).toBe("Nuevo vehículo");
+    expect(copy.table.brandModel).toBe("Marca y modelo");
+    expect(copy.table.mileage).toBe("Kilometraje (km)");
+    expect(copy.table.unit).toBe("Unidad");
+    expect(copy.table.plate).toBe("Placa");
+    expect(copy.table.branch).toBe("Sucursal");
+    expect(copy.table.status).toBe("Estado");
+  });
+
   it("no promete sucursal, kilometraje, teléfono, año ni seguro en el placeholder", () => {
     expect(copy.filter.searchPlaceholder).not.toMatch(
       /sucursal|kilometraje|\bkm\b|teléfono|año|seguro/i,

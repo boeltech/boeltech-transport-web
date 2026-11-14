@@ -30,7 +30,7 @@ principio, actualizar este bloque en el mismo cambio.
 |---|-----------|------------------|
 | P1 | Paridad de negocio, no de cromo | Estados de dominio vía `StatusBadge` + config; no inventar estados ni copiar UI a Android |
 | P2 | Una primaria; la marca actúa, el ámbar avisa | Una sola `Button` sólida (`--primary`, teal) por vista; ámbar solo señal (riel, warning). Excepción: CTA ámbar en `/welcome` (D-M2) |
-| P3 | Densidad según el contexto | Operate = alta densidad (tablas, workbenches, KPIs) |
+| P3 | Densidad según el contexto | Operate = alta densidad; tablas → contrato **Tablas** (T1–T10) + `EntityListTable` (SoT `platforms/web/design.md` §7); workbenches, KPIs |
 | P4 | Primero el job, después el componente | Elegir el page shell por job (tabla de taxonomía abajo) |
 | P5 | Rol antes que valor | Solo tokens semánticos; nunca colores Tailwind crudos |
 | P6 | Ninguna pantalla sin sus estados | Empty vía shell · `LoadingPageState` · error → `DetailAlertCard` + Reintentar |
@@ -450,12 +450,43 @@ ADR-0090: `design/adr/0090-…` · ADR-0091: `design/adr/0091-…` · Hub SDD: `
 />
 ```
 
+### Tablas Operate (SoT §7 — T1–T10)
+
+Texto canónico: `design/tlamx/platforms/web/design.md` §7. Resumen vinculante:
+
+- Contenedor card `rounded-xl border bg-card shadow-sm`; toolbar **fuera**; resumen +
+  paginación en el **pie** de la card (T1).
+- Densidades: lista `h-11` / compacta `h-9` (solo embebida); head
+  `h-9 text-xs font-medium text-muted-foreground bg-muted`; selected `bg-primary-50` (T2).
+- Columnas vía `columns[].kind` (`primary`, `text`, `meta`, `stacked`, `code`, `number`,
+  `money`, `date`, `status`, `actions`); números/dinero a la derecha mono +
+  `tabular-nums`; unidad en el header (T3–T4).
+- Máx. **7** cols de datos + `actions`; vacío = «—» muted; sentence case; link real en
+  `primary` (T5–T7).
+- Paginación: página actual `secondary`; **sin** Primera/Última; 10 filas listado / 25
+  cola (T8).
+- Empty solo shell (`null` desde la tabla); skeleton por columns; error =
+  `DetailAlertCard` (P6 / T1).
+- Checkbox + lote **solo** Workbench (T9). Sort con sentido + `aria-sort` + URL;
+  sticky thead si > 25 filas (T10).
+- **Opt-in (Q1):** el estándar vive en `EntityListTable` (siempre pasa `density`).
+  Primitivos `Table*` sin `density` = **legado** hasta migrar; no añadir listado nuevo
+  en legado.
+
+**Regla de revisión:** listado Operate **nuevo** (padrón / cola bajo `ListPageShell` o
+equivalente) **sin** `EntityListTable` **no pasa revisión**. Excepciones: tablas
+embebidas compactas aún no migradas (ola F5 / barrido); Platform; Marketing.
+
+Implementación: `@shared/ui/table` (`EntityListTable` post-F2) · README
+`src/shared/ui/table/README.md` · demo `/design-system`.
+
 ### Listado — empty, filtros y cards (padrón canónico)
 
-**Empty (contrato EntityListTable):** el `EmptyState` lo monta **solo** `ListPageShell`
-vía `emptyState`. La tabla/feature **no** debe renderizar un empty local: con
-`items.length === 0` retornar `null` (o no filas). Canónico: `VehicleTable` +
-`VehicleListPage`.
+**Empty (contrato EntityListTable / T1–T6):** el `EmptyState` lo monta **solo**
+`ListPageShell` vía `emptyState` (idealmente dentro de la misma card que la tabla).
+La tabla/feature **no** debe renderizar un empty local: con `items.length === 0`
+retornar `null` (o no filas). Canónico: `VehicleTable` + `VehicleListPage` (ancla F4 →
+`EntityListTable`).
 
 **Filtros — `ListingFilterPanel`** (`@shared/ui/listing`):
 
@@ -810,7 +841,19 @@ Demo viva: `/design-system` → sección Charts (`ChartPaletteSection.tsx`).
 
 ❌ Badge de notificaciones hardcodeado en header — usar API `unread-count`.
 
-❌ Empty local en tabla de listado — empty solo vía `ListPageShell.emptyState`.
+❌ Empty local en tabla de listado — empty solo vía `ListPageShell.emptyState` (T1/P6).
+
+❌ Listado Operate nuevo sin `EntityListTable` — SoT §7; legado solo hasta migrar (F5).
+
+❌ Contenedor `rounded-md border` sin card `rounded-xl bg-card shadow-sm` en listado (T1).
+
+❌ `onClick` en `<tr>` sin `<Link>` real en celda `primary` (T7).
+
+❌ Paginación con Primera/Última o página actual `variant="default"` (T8 / P2).
+
+❌ Más de 7 columnas de datos sin `stacked`; unidad («km») dentro de la celda (T4–T5).
+
+❌ Checkboxes de selección en `ListPageShell` — solo Workbench (T9).
 
 ❌ Menú ⋯ de card con `opacity-0 group-hover:opacity-100` sin media hover —
 usar `entityListCardMenuTriggerClassName` (touch no ve el menú).
@@ -818,6 +861,8 @@ usar `entityListCardMenuTriggerClassName` (touch no ve el menú).
 ❌ Clonar Collapsible+Card «Filtros (n)» en cada feature — usar `ListingFilterPanel`.
 
 ❌ Card-en-Card en tabs de detalle — usar `DetailSection` + un solo Card de body.
+
+❌ Card-en-card de tabla: `EntityListTable` + envoltorio card del shell duplicados (T1).
 
 ---
 
@@ -876,6 +921,7 @@ README: `src/shared/ui/location/README.md` · Guía: `docs/direcciones/patron-lo
 | Mapas + embeds (dark) | `src/shared/geolocation/README.md` |
 | Overlays + toast | `src/shared/ui/toast/README.md` |
 | Listados (filtros, cards) | `src/shared/ui/listing/README.md` |
+| Tablas Operate (T1–T10, kinds) | SoT `platforms/web/design.md` §7 · `@shared/ui/table` |
 | Location / direcciones | `src/shared/ui/location/README.md` · `src/shared/ui/address-input/README.md` |
 | Inbox notificaciones (usuario) | `D:\cowork\boeltech\erp-transport\docs\notificaciones\inbox-usuario.md` |
 | Charts (ADR-0045) | `D:\cowork\boeltech\erp-transport\design\adr\0045-charts-library-y-patron-chartcard.md` |

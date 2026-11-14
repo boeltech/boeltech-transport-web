@@ -1,215 +1,152 @@
 /**
- * VehicleTable
- * Clean Architecture - Presentation Layer (Components)
+ * VehicleTable — ancla Operate (`EntityListTable`, SoT §7 T1–T10).
  *
- * Componente de tabla para listar vehículos.
- * Homologado con TripTable y DriverTable.
- * Empty state: solo vía ListPageShell (contrato EntityListTable / D5) —
- * este componente no renderiza empty local; con items=[] retorna null.
- *
- * Ubicación: src/features/vehicles/presentation/components/VehicleTable.tsx
+ * 7 cols: Unidad+tipo · Marca y modelo+año · Placa · Sucursal ·
+ * Kilometraje (km) · Estado · ⋯. Sort solo `unit_number` (Q2: sin km).
+ * Empty → null (ListPageShell). Bajo shell: `framed={false}`.
  */
 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListSortState,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
+import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import type { VehicleListItem } from "../../domain";
 import { VEHICLE_TYPE_LABELS } from "../../domain";
 import {
   VehicleLifecycleBadge,
   VehicleStatusBadge,
 } from "../config/vehicleStatusConfig";
-import { VehicleActions } from "./VehicleActions";
-import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import { vehiclesCopy } from "../copy";
+import { VehicleActions } from "./VehicleActions";
 
 const listCopy = vehiclesCopy.list.table;
-const formatMileage = vehiclesCopy.detail.format.statMileage;
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface VehicleTableProps {
+export interface VehicleTableProps {
   vehicles: VehicleListItem[];
   isLoading: boolean;
+  /** Href del detalle (link primario + fila). */
+  primaryTo: (vehicle: VehicleListItem) => string;
+  /** Cola del listado (`location.state.from`). */
+  primaryState?: (vehicle: VehicleListItem) => unknown;
+  sort: EntityListSortState;
+  onSortChange: (next: EntityListSortState) => void;
   onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDeactivate?: (id: string) => void;
   onRestore?: (id: string) => void;
 }
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+function buildColumns(
+  props: Pick<
+    VehicleTableProps,
+    "onView" | "onEdit" | "onDeactivate" | "onRestore"
+  >,
+): EntityListColumnDef<VehicleListItem>[] {
+  const { onView, onEdit, onDeactivate, onRestore } = props;
 
-const TABLE_HEADERS: { key: string; label: string; className?: string }[] = [
-  { key: "unit", label: listCopy.unit },
-  { key: "brand", label: listCopy.brandModel },
-  { key: "year", label: listCopy.year },
-  { key: "type", label: listCopy.type },
-  { key: "plate", label: listCopy.plate },
-  { key: "branch", label: listCopy.branch },
-  { key: "mileage", label: listCopy.mileage, className: "text-right" },
-  { key: "status", label: listCopy.status },
-  { key: "actions", label: "", className: "w-12" },
-];
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-
-function TableHeaderRow() {
-  return (
-    <TableHeader>
-      <TableRow>
-        {TABLE_HEADERS.map((header) => (
-          <TableHead key={header.key} className={header.className}>
-            {header.label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  );
+  return [
+    {
+      id: "unit",
+      header: listCopy.unit,
+      kind: "primary",
+      sortable: true,
+      sortField: "unit_number",
+      accessor: (vehicle): EntityListStackedValue => ({
+        primary: vehicle.unitNumber,
+        secondary: VEHICLE_TYPE_LABELS[vehicle.type],
+      }),
+    },
+    {
+      id: "brandModel",
+      header: listCopy.brandModel,
+      kind: "stacked",
+      accessor: (vehicle): EntityListStackedValue => ({
+        primary: `${vehicle.brand} ${vehicle.model}`.trim(),
+        secondary:
+          vehicle.year != null ? String(vehicle.year) : undefined,
+      }),
+    },
+    {
+      id: "plate",
+      header: listCopy.plate,
+      kind: "code",
+      accessor: (vehicle) => vehicle.licensePlate,
+    },
+    {
+      id: "branch",
+      header: listCopy.branch,
+      kind: "meta",
+      accessor: (vehicle) =>
+        formatBranchLabel(vehicle.branchName, vehicle.branchCode),
+    },
+    {
+      id: "mileage",
+      header: listCopy.mileage,
+      kind: "number",
+      accessor: (vehicle) => vehicle.currentMileage,
+    },
+    {
+      id: "status",
+      header: listCopy.status,
+      kind: "status",
+      accessor: (vehicle) =>
+        vehicle.isActive === false ? (
+          <VehicleLifecycleBadge status="deactivated" size="sm" showIcon />
+        ) : (
+          <VehicleStatusBadge status={vehicle.status} size="sm" showIcon />
+        ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (vehicle) => (
+        <VehicleActions
+          vehicle={vehicle}
+          onView={onView}
+          onEdit={onEdit}
+          onDeactivate={onDeactivate}
+          onRestore={onRestore}
+        />
+      ),
+    },
+  ];
 }
-
-function LoadingSkeleton() {
-  return (
-    <TableBody>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <TableRow key={i}>
-          <TableCell>
-            <Skeleton className="h-4 w-16" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-32" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-12" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-28" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-20 ml-auto" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-6 w-16" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-8 w-8" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  );
-}
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export function VehicleTable({
   vehicles,
   isLoading,
+  primaryTo,
+  primaryState,
+  sort,
+  onSortChange,
   onView,
   onEdit,
   onDeactivate,
   onRestore,
 }: VehicleTableProps) {
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeaderRow />
-          <LoadingSkeleton />
-        </Table>
-      </div>
-    );
-  }
-
-  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D5).
-  if (vehicles.length === 0) {
-    return null;
-  }
+  const columns = buildColumns({
+    onView,
+    onEdit,
+    onDeactivate,
+    onRestore,
+  });
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeaderRow />
-        <TableBody>
-          {vehicles.map((vehicle) => (
-            <TableRow
-              key={vehicle.id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => onView(vehicle.id)}
-            >
-              <TableCell className="font-medium">
-                {vehicle.unitNumber}
-              </TableCell>
-
-              <TableCell>
-                {vehicle.brand} {vehicle.model}
-              </TableCell>
-
-              <TableCell>{vehicle.year}</TableCell>
-
-              <TableCell>{VEHICLE_TYPE_LABELS[vehicle.type]}</TableCell>
-
-              <TableCell className="font-mono">
-                {vehicle.licensePlate}
-              </TableCell>
-
-              <TableCell className="text-muted-foreground">
-                {formatBranchLabel(vehicle.branchName, vehicle.branchCode) ??
-                  "—"}
-              </TableCell>
-
-              <TableCell className="text-right">
-                {formatMileage(vehicle.currentMileage)}
-              </TableCell>
-
-              <TableCell>
-                {vehicle.isActive === false ? (
-                  <VehicleLifecycleBadge
-                    status="deactivated"
-                    size="sm"
-                    showIcon
-                  />
-                ) : (
-                  <VehicleStatusBadge
-                    status={vehicle.status}
-                    size="sm"
-                    showIcon
-                  />
-                )}
-              </TableCell>
-
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <VehicleActions
-                  vehicle={vehicle}
-                  onView={onView}
-                  onEdit={onEdit}
-                  onDeactivate={onDeactivate}
-                  onRestore={onRestore}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={vehicles}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={primaryTo}
+      primaryState={primaryState}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
   );
 }

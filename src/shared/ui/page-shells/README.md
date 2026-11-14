@@ -16,7 +16,7 @@ Builder 4/6): SoT `D:\cowork\boeltech\erp-transport\design\tlamx\platforms\web\d
 | `FormPageShell` | Edición en una sola vista (sin pasos) | `DriverEditPage`, `EmployeeEditPage`, `ClientEditPage`, `EditVehiclePage` |
 | `DetailPageShell` | Detalle de entidad: header, alerts, KPIs, tabs, metadata | `InvoiceDetailPage` (canónico), `TripDetailPage`, `VehicleDetailPage` |
 | `SettingsPageShell` | Configuración con sidebar de secciones (wrapper de `SettingsLayout`) | `GeneralSettingsPage` |
-| `ListPageShell` | CRUD / registry: búsqueda, filtros, tabla/cards, paginación | Vehículos, clientes, registry de liquidaciones |
+| `ListPageShell` | CRUD / registry: búsqueda, filtros, tabla/cards; pie T8 (summary+pagination) en card de resultados | Vehículos, clientes, registry de liquidaciones |
 | `HubPageShell` | Landing de módulo de config: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation` |
 | `BuilderPageShell` | Construcción no lineal: section nav + canvas + inspector + footer (ADR-0091) | `CompensationSchemeBuilderPage` |
 | `WorkbenchPageShell` | Centro operativo: estado → triage por buckets → actuar (ADR-0090) | `SettlementsListPage`, `ApprovalInboxPage` |
@@ -108,6 +108,29 @@ import { WorkbenchPageShell } from "@shared/ui/page-shells";
 ```
 
 Tests: `WorkbenchPageShell.test.tsx`. Showcase: `/design-system` → Patrones.
+
+---
+
+## `ListPageShell` — card de resultados (T1 / T8)
+
+Anatomía table-mode:
+
+```
+[header]
+[toolbar + chips]          ← fuera de la card
+┌─ rounded-xl border bg-card shadow-sm ─────────────┐
+│  renderTable()  |  EmptyState (si !loading && 0)   │
+│  ─ border-t ───────────────────────────────────── │
+│  ListingResultsSummary + ListingPagination (T8)   │
+└────────────────────────────────────────────────────┘
+```
+
+- Paginación: Anterior / números / Siguiente; página actual `secondary`; sin Primera/Última.
+- `EntityListTable` bajo este shell: `framed={false}` (F4+); el shell aporta el marco.
+- Cards-mode: grid sin card xl; pie summary+pagination debajo (misma T8).
+- Firma pública: `renderTable: () => ReactNode` sin cambio.
+
+Tests: `ListPageShell.test.tsx`.
 
 ---
 

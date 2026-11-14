@@ -175,7 +175,7 @@ export const vehiclesCopy = {
       refreshSuccess: "Lista actualizada",
     },
     actions: {
-      create: "Nuevo Vehículo",
+      create: "Nuevo vehículo",
       import: "Importar",
       importAria: "Importar vehículos desde archivo",
       clearFilters: "Limpiar filtros",
@@ -190,12 +190,12 @@ export const vehiclesCopy = {
     },
     table: {
       unit: "Unidad",
-      brandModel: "Marca / Modelo",
+      brandModel: "Marca y modelo",
       year: "Año",
       type: "Tipo",
       plate: "Placa",
       branch: "Sucursal",
-      mileage: "Kilometraje",
+      mileage: "Kilometraje (km)",
       status: "Estado",
     },
     card: {

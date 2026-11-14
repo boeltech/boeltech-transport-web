@@ -32,7 +32,7 @@ export const VEHICLE_STATUS_CONFIG: Record<VehicleStatusType, StatusConfig> = {
     description: "Vehículo operativo y disponible para asignación",
   }),
 
-  [VehicleStatus.RESERVED]: createStatusConfig("warning", {
+  [VehicleStatus.RESERVED]: createStatusConfig("info", {
     label: VEHICLE_STATUS_LABELS[VehicleStatus.RESERVED],
     icon: Truck,
     description: "Vehículo reservado para un viaje programado",
@@ -42,6 +42,7 @@ export const VEHICLE_STATUS_CONFIG: Record<VehicleStatusType, StatusConfig> = {
     label: VEHICLE_STATUS_LABELS[VehicleStatus.ON_TRIP],
     icon: Truck,
     description: "Vehículo actualmente en un viaje",
+    tone: "solid",
   }),
 
   //   [VehicleStatus.PENDING_INSPECTION]: createStatusConfig("orange", {

@@ -122,6 +122,26 @@ describe("VehicleListPage toolbar", () => {
     expect(screen.getByText(copy.empty.descriptionFiltered)).toBeInTheDocument();
   });
 
+  it("sortBy/sortOrder en URL alimentan useVehicles (solo unit_number)", () => {
+    renderPage("/vehicles?sortBy=unit_number&sortOrder=desc");
+
+    expect(mockUseVehicles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sort: { field: "unit_number", direction: "desc" },
+      }),
+    );
+  });
+
+  it("sortBy no habilitado (p. ej. km) cae a unit_number", () => {
+    renderPage("/vehicles?sortBy=current_mileage&sortOrder=desc");
+
+    expect(mockUseVehicles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sort: { field: "unit_number", direction: "desc" },
+      }),
+    );
+  });
+
   it("sin recortes no filtra y no pone estado, tipo ni sucursal en el riel", () => {
     renderPage();
 
@@ -133,6 +153,7 @@ describe("VehicleListPage toolbar", () => {
           type: undefined,
           isActive: true,
         }),
+        sort: { field: "unit_number", direction: "asc" },
       }),
     );
     expect(screen.getByRole("button", { name: /^Filtros$/ })).toBeInTheDocument();

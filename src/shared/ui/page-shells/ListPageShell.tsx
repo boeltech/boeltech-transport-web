@@ -8,12 +8,11 @@
  *
  * Estructura:
  *   1. Header (título + descripción + acción primaria)
- *   2. Toolbar (search + filtros + acciones extras + refresh + viewMode)
+ *   2. Toolbar (search + filtros + acciones extras + refresh + viewMode) — fuera de la card
  *   3. Active filter chips
- *   4. Results summary
- *   5. Contenido (table o cards grid; viewMode lo decide)
- *   6. Empty state cuando items vacío
- *   7. Pagination
+ *   4. Bloque de resultados:
+ *      - table: una card (tabla|empty + pie summary+pagination)
+ *      - cards: grid + pie compartido debajo (sin card xl del grid)
  *
  * El shell NO maneja queries ni permisos. La página inyecta:
  * - data (`items`, `pagination`, `isLoading`)
@@ -170,6 +169,43 @@ function ListPageShellPrimaryActionButton({
   return button;
 }
 
+function ResultsFooter({
+  entityLabelPlural,
+  pagination,
+  onPageChange,
+  variant,
+}: {
+  entityLabelPlural: string;
+  pagination: ListPageShellPagination;
+  onPageChange?: (page: number) => void;
+  /** `card` = pie Anatomía dentro de rounded-xl; `plain` = bajo grid cards */
+  variant: "card" | "plain";
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+        variant === "card" ? "border-t px-4 py-2.5" : "border-t pt-4",
+      )}
+    >
+      <ListingResultsSummary
+        entityLabelPlural={entityLabelPlural}
+        total={pagination.total}
+        page={pagination.page}
+        limit={pagination.limit}
+      />
+      {onPageChange ? (
+        <ListingPagination
+          embedded
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          onPageChange={onPageChange}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -197,6 +233,16 @@ function ListPageShellInner<TItem>({
   const viewMode = toolbar?.viewMode?.value ?? "table";
   const hasItems = items.length > 0;
 
+  const resultsFooter =
+    pagination != null ? (
+      <ResultsFooter
+        entityLabelPlural={entityLabelPlural}
+        pagination={pagination}
+        onPageChange={onPageChange}
+        variant={viewMode === "table" ? "card" : "plain"}
+      />
+    ) : null;
+
   return (
     <div className={cn("space-y-6", className)}>
       {/* ====================================================================
@@ -219,7 +265,7 @@ function ListPageShellInner<TItem>({
       {beforeToolbar}
 
       {/* ====================================================================
-       * Toolbar
+       * Toolbar (fuera de la card de resultados)
        * ================================================================== */}
       {toolbar ? (
         <div className="flex flex-col gap-4">
@@ -280,52 +326,31 @@ function ListPageShellInner<TItem>({
       ) : null}
 
       {/* ====================================================================
-       * Results summary
-       * ================================================================== */}
-      {pagination ? (
-        <ListingResultsSummary
-          entityLabelPlural={entityLabelPlural}
-          total={pagination.total}
-          page={pagination.page}
-          limit={pagination.limit}
-        />
-      ) : null}
-
-      {/* ====================================================================
-       * Content
+       * Content + pie
        * ================================================================== */}
       {viewMode === "table" ? (
-        isLoading || hasItems ? (
-          renderTable()
-        ) : (
-          <EmptyState {...emptyState} />
-        )
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {isLoading && renderCardSkeleton ? (
-            Array.from({ length: cardSkeletonCount }).map((_, i) => (
-              <span key={i}>{renderCardSkeleton()}</span>
-            ))
-          ) : !hasItems ? (
-            <div className="col-span-full">
-              <EmptyState {...emptyState} />
-            </div>
-          ) : (
-            renderCards?.()
-          )}
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          {isLoading || hasItems ? renderTable() : <EmptyState {...emptyState} />}
+          {resultsFooter}
         </div>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {isLoading && renderCardSkeleton ? (
+              Array.from({ length: cardSkeletonCount }).map((_, i) => (
+                <span key={i}>{renderCardSkeleton()}</span>
+              ))
+            ) : !hasItems ? (
+              <div className="col-span-full">
+                <EmptyState {...emptyState} />
+              </div>
+            ) : (
+              renderCards?.()
+            )}
+          </div>
+          {resultsFooter}
+        </>
       )}
-
-      {/* ====================================================================
-       * Pagination
-       * ================================================================== */}
-      {pagination && onPageChange ? (
-        <ListingPagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          onPageChange={onPageChange}
-        />
-      ) : null}
     </div>
   );
 }

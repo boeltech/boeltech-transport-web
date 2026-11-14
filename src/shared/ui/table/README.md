@@ -1,0 +1,99 @@
+# `@shared/ui/table` — Tablas Operate
+
+Contrato SoT: `design/tlamx/platforms/web/design.md` §7 (T1–T10).
+Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
+
+## Qué exporta
+
+| Export | Uso |
+|--------|-----|
+| `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`, … | Primitivos. Con `density` = Anatomía; **sin** `density` = legado. |
+| `EntityListTable` | Listado Operate canónico (card opcional + kinds + sort + empty null). |
+| Tipos `EntityListColumn*`, `EntityListSort*`, `EntityListTableProps` | Contrato de columnas / sort. |
+
+## `EntityListTable`
+
+### Props
+
+```tsx
+<EntityListTable
+  columns={columns}
+  rows={rows}
+  getRowId={(r) => r.id}
+  isLoading={isLoading}
+  density="list" // default; o "compact" embebida
+  primaryTo={(r) => `/vehicles/${r.id}`}
+  sort={sort} // caller ↔ URL
+  onSortChange={setSort}
+  stickyHeader // o automático si rows.length > 25
+  framed={false} // bajo ListPageShell (el shell aporta la card + pie)
+  footer={optionalDemoFooter} // demos / embebido fuera del shell
+/>
+```
+
+| Prop | Default | Notas |
+|------|---------|-------|
+| `density` | `"list"` | **Siempre** se pasa a `<Table density={…}>`. Nunca omitir. |
+| `framed` | `true` | Card propia. Con `ListPageShell` table-mode → `framed={false}` (F4 `/vehicles`). |
+| `footer` | — | Slot bajo la tabla (`border-t`). Demos / uso fuera del shell. El pie de padrón lo monta `ListPageShell`. |
+| `stickyHeader` | auto > 25 | Sticky `thead` si `true` **o** `rows.length > 25`. |
+| `sort` / `onSortChange` | — | UI + `aria-sort`; **la URL la cablea el caller**. |
+| `primaryTo` / `primaryState` | — | Href (+ `location.state` opcional) del link primario. |
+
+### Kinds (`columns[].kind`)
+
+| Kind | Alineación | Tipografía / formato |
+|------|------------|----------------------|
+| `primary` | izq. | `<Link to={primaryTo(row)} state={primaryState?.(row)}>` real; fila extiende hit-area. Accessor puede ser `EntityListStackedValue` (link solo en línea 1; p. ej. Unidad+tipo) |
+| `text` | izq. | `text-sm`; truncate |
+| `meta` | izq. | `text-muted-foreground` |
+| `stacked` | izq. | línea 1 medium + línea 2 `text-xs` muted (`EntityListStackedValue`) |
+| `code` | izq. | `font-mono` ~13 px |
+| `number` | der. | `font-mono tabular-nums`; `number` → es-MX |
+| `money` | der. | `font-mono tabular-nums` + `formatMxCurrency`; negativo destructive |
+| `date` | izq. | `formatDate` si ISO/`Date`; nodo ya formateado se respeta |
+| `status` | izq. | nodo del accessor (`StatusBadge`); no mapa local |
+| `actions` | der. | menú ⋯ del caller; `stopPropagation`; no cuenta en tope de 7 |
+
+**Vacío:** `null` / `undefined` / string vacío → «—» `text-muted-foreground` (T6), excepto `actions`. `status` renderiza el badge si el accessor lo devolvió.
+
+**Convención T5:** máx. **7** columnas de datos + `actions`. No hard-fail en runtime; revisión / skill.
+
+### Empty / loading
+
+| Estado | Comportamiento |
+|--------|----------------|
+| `!isLoading && rows.length === 0` | `return null` — el **shell** monta `emptyState` |
+| `isLoading` | Misma card + thead; ~5 filas skeleton **por** `columns` / kinds |
+
+### Densidad (T2)
+
+- `list` (default): fila `h-11` (44 px).
+- `compact`: fila `h-9` (36 px) — detalle / Sheet / Dialog.
+- Encabezado siempre `h-9` muted cuando hay density.
+
+### Composición con `ListPageShell` (F3)
+
+`ListPageShell` **posee** la card del bloque de resultados en table-mode (toolbar fuera; empty + pie summary/pagination dentro).
+
+- Bajo el shell: `framed={false}` y **sin** `footer` en `EntityListTable`.
+- Fuera del shell / demo: `framed` default (`true`) + `footer` opcional.
+- Anti-patrón: card-dentro-de-card (`framed` default dentro del shell).
+
+## Anti-patrones
+
+- `onClick` en `<tr>` que **sustituye** al link (sin `<Link>` real en `primary`) — T7.
+- Empty local (`EmptyState` dentro de la feature table) — empty = shell; tabla → `null`.
+- Omitir `density` en listado nuevo / usar primitivos legado en padrón nuevo.
+- Card-dentro-de-card: `EntityListTable` con `framed` default dentro de `ListPageShell` (usar `framed={false}`).
+- Checkboxes de selección en listado CRUD (solo Workbench — T9; no en v1).
+- Más de 7 columnas de datos sin `stacked` / detalle.
+- Sort solo en memoria sin reflejar URL cuando el listado ya filtra por query.
+
+## Primitivos `Table*`
+
+Sin `density` = **legado** (`h-10` / `p-2` / selected `bg-muted`) hasta migrar. No añadir listados Operate nuevos en legado.
+
+## Demo
+
+`/design-system` → sección **Tablas** (`TablesSection`).

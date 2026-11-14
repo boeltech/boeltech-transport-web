@@ -6,11 +6,12 @@
  * (precedente sucursales) y deja solo «Ver detalles» y «Restaurar» por fila.
  */
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
 import type { ActiveFilterChip } from "@shared/ui/listing";
+import type { EntityListSortState } from "@shared/ui/table";
 import { ROLES } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
@@ -25,6 +26,7 @@ import { FileUp, Plus, Search, Users } from "lucide-react";
 import { useVehicles } from "../../application";
 import {
   type VehicleListItem,
+  type VehicleSortOptions,
   type VehicleStatusType,
   type VehicleTypeValue,
   VEHICLE_TYPE_LABELS,
@@ -43,8 +45,26 @@ import { countVehiclePanelFilters } from "../utils/vehicleListFilters";
 
 const copy = vehiclesCopy.list;
 
+/** Q2: solo Unidad en UI; default alineado al API. */
+const DEFAULT_SORT_FIELD: VehicleSortOptions["field"] = "unit_number";
+const SORTABLE_FIELDS = new Set<VehicleSortOptions["field"]>(["unit_number"]);
+
+function parseSortFromUrl(
+  sortBy: string | null,
+  sortOrder: string | null,
+): VehicleSortOptions {
+  const field =
+    sortBy && SORTABLE_FIELDS.has(sortBy as VehicleSortOptions["field"])
+      ? (sortBy as VehicleSortOptions["field"])
+      : DEFAULT_SORT_FIELD;
+  const direction: VehicleSortOptions["direction"] =
+    sortOrder === "desc" ? "desc" : "asc";
+  return { field, direction };
+}
+
 export function VehicleListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const fromState = useListQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
@@ -100,6 +120,15 @@ export function VehicleListPage() {
     : (filters.filters.status as VehicleStatusType | "");
   const typeFilter = filters.filters.type as VehicleTypeValue | "";
   const branchIdFilter = filters.filters.branchId || "";
+  const sort = useMemo(
+    () =>
+      parseSortFromUrl(
+        searchParams.get("sortBy"),
+        searchParams.get("sortOrder"),
+      ),
+    [searchParams],
+  );
+  const tableSort: EntityListSortState = sort;
   const activePanelFilterCount = countVehiclePanelFilters({
     status: statusFilter,
     type: typeFilter,
@@ -117,7 +146,7 @@ export function VehicleListPage() {
       branchId: branchIdFilter || undefined,
       isActive: !showDeactivated,
     },
-    sort: { field: "unit_number", direction: "asc" },
+    sort,
   });
 
   const vehicles = useMemo(() => data?.data ?? [], [data?.data]);
@@ -153,6 +182,29 @@ export function VehicleListPage() {
   const handleView = useCallback(
     (id: string) => navigate(`/vehicles/${id}`, { state: fromState }),
     [fromState, navigate],
+  );
+
+  const primaryTo = useCallback(
+    (vehicle: VehicleListItem) => `/vehicles/${vehicle.id}`,
+    [],
+  );
+
+  const primaryState = useCallback(() => fromState, [fromState]);
+
+  const handleSortChange = useCallback(
+    (next: EntityListSortState) => {
+      if (!SORTABLE_FIELDS.has(next.field as VehicleSortOptions["field"])) {
+        return;
+      }
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        params.set("sortBy", next.field);
+        params.set("sortOrder", next.direction);
+        params.set("page", "1");
+        return params;
+      });
+    },
+    [setSearchParams],
   );
 
   const handleEdit = useCallback(
@@ -299,6 +351,10 @@ export function VehicleListPage() {
           <VehicleTable
             vehicles={vehicles}
             isLoading={isLoading}
+            primaryTo={primaryTo}
+            primaryState={primaryState}
+            sort={tableSort}
+            onSortChange={handleSortChange}
             onView={handleView}
             onEdit={canEdit && !showDeactivated ? handleEdit : undefined}
             onDeactivate={

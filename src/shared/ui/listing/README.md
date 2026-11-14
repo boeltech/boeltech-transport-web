@@ -8,14 +8,15 @@ Patrón reusable para pantallas de listado (clientes, viajes, vehículos, conduc
 - `ViewModeToggle`: toggle table/cards
 - `ActiveFilterChips`: chips de filtros activos con acción de remover
 - `ListingResultsSummary`: texto de rango mostrado y total
-- `ListingPagination`: paginación estándar (Primera/Anterior/números/Siguiente/Última)
+- `ListingPagination`: paginación T8 (Anterior / números / Siguiente; página actual `secondary`; sin Primera/Última). Prop `embedded` para pie de card (sin `border-t` propio).
 - `ListingFilterPanel`: trigger «Filtros (n)» + Collapsible + Card/grid (recortes del padrón)
 - `EntityListCard` + `entityListCardMenuTriggerClassName`: card de listado; menú ⋯ usable sin hover
 
 ### Empty state (contrato)
 
-El empty del padrón vive **solo** en `ListPageShell` (`emptyState`). Las tablas
-(`VehicleTable`, etc.) deben devolver `null` (o no montar filas) cuando
+El empty del padrón vive **solo** en `ListPageShell` (`emptyState`), **dentro**
+de la card de resultados en `viewMode=table`. Las tablas (`EntityListTable`,
+`VehicleTable`, etc.) deben devolver `null` (o no montar filas) cuando
 `items.length === 0` — **no** renderizar un segundo `EmptyState` local.
 
 ### Mutaciones de estado operativo
@@ -56,10 +57,12 @@ const { searchInput, setSearchInput } = useDebouncedSearchParam(
   limit={pagination.limit}
 />
 
+{/* Pie de card (ListPageShell ya lo monta): embedded evita border-t doble */}
 <ListingPagination
   page={page}
   totalPages={pagination.totalPages}
   onPageChange={handlePageChange}
+  embedded
 />
 ```
 
@@ -101,12 +104,12 @@ Usa estas reglas para mantener consistencia visual y de texto entre módulos.
 ### 4) Resumen de resultados y paginación
 
 - Usar siempre `ListingResultsSummary` para el texto de rango/total.
-- Usar siempre `ListingPagination` para navegación entre páginas.
-- Patrón esperado:
-  - Tabla o cards
-  - Estado vacío
-  - Resumen
-  - Paginación
+- Usar siempre `ListingPagination` para navegación entre páginas (T8: sin Primera/Última; página actual `secondary`).
+- En `ListPageShell` table-mode el patrón es **una card**:
+  - Toolbar **fuera**
+  - Interior: tabla | empty
+  - Pie `border-t`: summary + pagination (`embedded`)
+- Fuera del shell (workbench, sheets): `ListingPagination` standalone (con `border-t` propio salvo `embedded`).
 
 ### 5) Estado vacío (empty state)
 

@@ -30,6 +30,7 @@ import {
   Map,
   Truck,
   AlignLeft,
+  Table2,
 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -49,6 +50,7 @@ import { PadronCanonicalSection } from "./sections/PadronCanonicalSection";
 import { LongFormCanonicalSection } from "./sections/LongFormCanonicalSection";
 import { AppShellSection } from "./sections/AppShellSection";
 import { MapsEmbedsSection } from "./sections/MapsEmbedsSection";
+import { TablesSection } from "./sections/TablesSection";
 
 type SectionKey =
   | "colors"
@@ -61,6 +63,7 @@ type SectionKey =
   | "charts"
   | "app-shell"
   | "patterns"
+  | "tables"
   | "padron"
   | "long-form"
   | "maps-embeds";
@@ -145,6 +148,14 @@ const SECTIONS: readonly SectionConfig[] = [
     icon: LayoutTemplate,
     description:
       "Page shells, jerarquía tipográfica, spacing y master-detail",
+    group: "Patterns",
+  },
+  {
+    key: "tables",
+    label: "Tablas",
+    icon: Table2,
+    description:
+      "EntityListTable: kinds, density, sort aria-sort, skeleton y empty null (SoT §7)",
     group: "Patterns",
   },
   {
@@ -277,6 +288,7 @@ export function DesignSystemPage() {
         {activeSection === "charts" && <ChartPaletteSection />}
         {activeSection === "app-shell" && <AppShellSection />}
         {activeSection === "patterns" && <PatternsSection />}
+        {activeSection === "tables" && <TablesSection />}
         {activeSection === "padron" && <PadronCanonicalSection />}
         {activeSection === "long-form" && <LongFormCanonicalSection />}
         {activeSection === "maps-embeds" && <MapsEmbedsSection />}
