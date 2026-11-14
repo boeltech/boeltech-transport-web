@@ -7,6 +7,7 @@ import {
   mapPlatformUser,
   mapPlatformAuditLogItem,
   mapPlatformPlanChangePreview,
+  mapPlatformSubscriptionUpsertPreview,
   mapPlatformEntitlementMutationPreview,
   mapPlatformTenantStampUsage,
   mapPlatformTenantSubscription,
@@ -88,6 +89,29 @@ describe("platform mappers", () => {
     expect(item.healthScore).toBeNull();
     expect(item.lifecycleStage).toBe("provisioning");
     expect(item.healthAsOf).toBeNull();
+    expect(item.activeModuleCount).toBe(0);
+    expect(item.activeModuleCodes).toEqual([]);
+  });
+
+  it("mapPlatformTenantListItem maps active_module_count / codes (S5)", () => {
+    const item = mapPlatformTenantListItem({
+      id: "t1",
+      name: "Demo",
+      subdomain: "demo",
+      status: "active",
+      plan_code: "operacion_micro",
+      plan_name: "Micro",
+      user_count: 1,
+      branch_count: 1,
+      trip_count: 0,
+      created_at: "2026-06-01T12:00:00.000Z",
+      suspended_at: null,
+      active_module_count: 2,
+      active_module_codes: ["gps_tracking", "pack_ops"],
+    });
+
+    expect(item.activeModuleCount).toBe(2);
+    expect(item.activeModuleCodes).toEqual(["gps_tracking", "pack_ops"]);
   });
 
   it("mapPlatformTenantListItem maps health and lifecycle", () => {
@@ -514,6 +538,29 @@ describe("platform mappers", () => {
     expect(preview.priceEstimate.estimateAvailable).toBe(false);
     expect(preview.capacityDelta.maxUsers.delta).toBe(7);
     expect(preview.warnings).toEqual(["PLAN_UNCHANGED"]);
+  });
+
+  it("mapPlatformSubscriptionUpsertPreview maps revoke list (S8b)", () => {
+    const preview = mapPlatformSubscriptionUpsertPreview({
+      current_status: "active",
+      target_status: "paused",
+      current_plan_code: "operacion_micro",
+      target_plan_code: "operacion_micro",
+      loses_operational_motriz: true,
+      modules_to_revoke: [
+        {
+          module_code: "gps_tracking",
+          module_name: "Seguimiento GPS móvil",
+        },
+      ],
+      warnings: ["ADDONS_WILL_BE_REVOKED", "PERIOD_IN_PROGRESS_BILLED_FULL"],
+      effective_at: "2026-11-13T18:00:00.000Z",
+    });
+    expect(preview.losesOperationalMotriz).toBe(true);
+    expect(preview.modulesToRevoke).toEqual([
+      { moduleCode: "gps_tracking", moduleName: "Seguimiento GPS móvil" },
+    ]);
+    expect(preview.warnings).toContain("PERIOD_IN_PROGRESS_BILLED_FULL");
   });
 
   it("mapPlatformEntitlementMutationPreview maps modules gained", () => {

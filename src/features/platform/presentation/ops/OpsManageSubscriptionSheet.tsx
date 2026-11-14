@@ -1,16 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getRegisterFieldErrorProps } from "@shared/ui/form";
 import { useToast } from "@shared/hooks";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { mapBackendError } from "@shared/utils/errorMapper";
 import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
-import type { PlatformTenantListItem } from "../../domain/entities";
+import type {
+  PlatformSubscriptionUpsertPreview,
+  PlatformTenantListItem,
+} from "../../domain/entities";
 import {
   usePlatformTenantSubscription,
   useUpsertPlatformTenantSubscription,
 } from "../../application/hooks/usePlatformBilling";
 import { usePlatformPlans } from "../../application/hooks/usePlatformTenants";
+import { platformApi } from "../../infrastructure/platformApi";
 import {
   managePlatformSubscriptionSchema,
   type ManagePlatformSubscriptionFormData,
@@ -24,6 +29,7 @@ import {
   isDeclaredFleetBand,
   recommendOperationalPlanCode,
 } from "../utils/recommendOperationalPlan";
+import { previewWarningLabel } from "./previewFormatters";
 import {
   OpsButton,
   OpsFieldError,
@@ -75,6 +81,11 @@ export function OpsManageSubscriptionSheet({
   const { toast } = useToast();
   const { data: plans } = usePlatformPlans();
   const { data: subscription } = usePlatformTenantSubscription(tenant?.id ?? "");
+  const [preview, setPreview] =
+    useState<PlatformSubscriptionUpsertPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
   const upsertMutation = useUpsertPlatformTenantSubscription({
     onSuccess: () => {
       toast({
@@ -110,7 +121,11 @@ export function OpsManageSubscriptionSheet({
 
   useEffect(() => {
     if (!open || !tenant) {
-      if (!open) hydrateSessionRef.current = null;
+      if (!open) {
+        hydrateSessionRef.current = null;
+        setPreview(null);
+        setPreviewError(null);
+      }
       return;
     }
 
@@ -146,10 +161,65 @@ export function OpsManageSubscriptionSheet({
   }, [open, tenant, subscription, form]);
 
   const status = useWatch({ control: form.control, name: "status" });
+  const planCode = useWatch({ control: form.control, name: "planCode" });
+  const billingCycle = useWatch({ control: form.control, name: "billingCycle" });
+  const trialEndsAt = useWatch({ control: form.control, name: "trialEndsAt" });
+  const notes = useWatch({ control: form.control, name: "notes" });
+
+  const shouldPreview = open && Boolean(tenant && planCode && status);
+
+  useEffect(() => {
+    if (!shouldPreview || !tenant || !planCode || !status) {
+      setPreview(null);
+      setPreviewError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    const trialIso =
+      status === "trialing" && trialEndsAt
+        ? localInputToUtcIso(trialEndsAt)
+        : null;
+
+    void platformApi
+      .previewTenantSubscription(tenant.id, {
+        planCode,
+        status,
+        billingCycle,
+        trialEndsAt: trialIso,
+        notes: notes?.trim() || null,
+      })
+      .then((data) => {
+        if (!cancelled) setPreview(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setPreview(null);
+          setPreviewError(mapBackendError(error).message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    shouldPreview,
+    tenant,
+    planCode,
+    status,
+    billingCycle,
+    trialEndsAt,
+    notes,
+  ]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     if (!tenant) return;
-    const trialEndsAt =
+    const trialEndsAtIso =
       values.status === "trialing" && values.trialEndsAt
         ? localInputToUtcIso(values.trialEndsAt)
         : null;
@@ -159,7 +229,7 @@ export function OpsManageSubscriptionSheet({
         planCode: values.planCode,
         status: values.status,
         billingCycle: values.billingCycle,
-        trialEndsAt,
+        trialEndsAt: trialEndsAtIso,
         notes: values.notes?.trim() || null,
       },
     });
@@ -177,6 +247,10 @@ export function OpsManageSubscriptionSheet({
       : null;
   const suggestedPlanCode = recommendOperationalPlanCode({ band: fleetBand });
   const suggestedPlanName = resolvePlanDisplayName(suggestedPlanCode, plans);
+
+  const modulesToRevoke = preview?.modulesToRevoke ?? [];
+  const showRevokePreview =
+    Boolean(preview?.losesOperationalMotriz) || modulesToRevoke.length > 0;
 
   return (
     <OpsSheet open={open} onOpenChange={onOpenChange}>
@@ -312,6 +386,48 @@ export function OpsManageSubscriptionSheet({
               </div>
             ) : null}
           </div>
+
+          {previewLoading ? (
+            <p className="text-xs ops-text-muted" role="status">
+              {copy.loadingPreview}
+            </p>
+          ) : null}
+          {previewError ? (
+            <p className="text-xs ops-text-danger" role="alert">
+              {copy.previewError}: {previewError}
+            </p>
+          ) : null}
+          {preview && (showRevokePreview || modulesToRevoke.length > 0) ? (
+            <div
+              className="space-y-2 rounded-md border ops-border p-3"
+              data-testid="ops-subscription-revoke-preview"
+            >
+              <p className="text-xs font-medium ops-text-muted">
+                {copy.modulesToRevoke}
+              </p>
+              <p className="text-sm ops-text">
+                {modulesToRevoke.length
+                  ? modulesToRevoke
+                      .map((m) => m.moduleName || m.moduleCode)
+                      .join(", ")
+                  : copy.none}
+              </p>
+              {modulesToRevoke.length > 0 ? (
+                <p className="text-xs ops-text-warn">{copy.periodBilledFull}</p>
+              ) : null}
+              {preview.warnings.filter(
+                (w) => w !== "PERIOD_IN_PROGRESS_BILLED_FULL",
+              ).length > 0 ? (
+                <ul className="space-y-1 text-xs ops-text-warn">
+                  {preview.warnings
+                    .filter((w) => w !== "PERIOD_IN_PROGRESS_BILLED_FULL")
+                    .map((w) => (
+                      <li key={w}>{previewWarningLabel(w)}</li>
+                    ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <p className="text-sm font-medium">{copy.sectionNotes}</p>

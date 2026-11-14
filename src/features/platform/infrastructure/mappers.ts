@@ -30,6 +30,7 @@ import type {
   PlatformReconciliationPreview,
   PlatformPlanChangePreview,
   PlatformEntitlementMutationPreview,
+  PlatformSubscriptionUpsertPreview,
   PlatformPlanPriceEstimate,
   PlatformPreviewCapacityMetric,
   AssignPlatformPlanResult,
@@ -126,6 +127,8 @@ export interface ApiPlatformTenantListItem {
   health_score?: number | null;
   lifecycle_stage?: string;
   health_as_of?: string | null;
+  active_module_count?: number;
+  active_module_codes?: string[];
 }
 
 export interface ApiPlatformPulse {
@@ -306,6 +309,10 @@ export const mapPlatformTenantListItem = (
   lifecycleStage: (raw.lifecycle_stage ??
     "provisioning") as PlatformLifecycleStageType,
   healthAsOf: raw.health_as_of ?? null,
+  activeModuleCount: Number(raw.active_module_count ?? 0),
+  activeModuleCodes: Array.isArray(raw.active_module_codes)
+    ? raw.active_module_codes
+    : [],
 });
 
 export const mapAdminActivation = (
@@ -1080,6 +1087,17 @@ export type ApiPlatformPlanChangePreview = {
   warnings: string[];
 };
 
+export type ApiPlatformSubscriptionUpsertPreview = {
+  current_status: string | null;
+  target_status: string;
+  current_plan_code: string | null;
+  target_plan_code: string;
+  loses_operational_motriz: boolean;
+  modules_to_revoke: Array<{ module_code: string; module_name: string }>;
+  warnings: string[];
+  effective_at: string;
+};
+
 export type ApiPlatformEntitlementMutationPreview = {
   current: {
     module_code: string;
@@ -1132,6 +1150,22 @@ const mapCapacityMetric = (
   from: raw.from,
   to: raw.to,
   delta: raw.delta,
+});
+
+export const mapPlatformSubscriptionUpsertPreview = (
+  raw: ApiPlatformSubscriptionUpsertPreview,
+): PlatformSubscriptionUpsertPreview => ({
+  currentStatus: raw.current_status,
+  targetStatus: raw.target_status,
+  currentPlanCode: raw.current_plan_code,
+  targetPlanCode: raw.target_plan_code,
+  losesOperationalMotriz: Boolean(raw.loses_operational_motriz),
+  modulesToRevoke: (raw.modules_to_revoke ?? []).map((item) => ({
+    moduleCode: item.module_code,
+    moduleName: item.module_name,
+  })),
+  warnings: raw.warnings ?? [],
+  effectiveAt: raw.effective_at,
 });
 
 export const mapPlatformPlanChangePreview = (

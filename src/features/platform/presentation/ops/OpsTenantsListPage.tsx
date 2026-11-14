@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import {
   PLATFORM_TENANT_STATUS_LABELS,
@@ -7,9 +7,14 @@ import {
   isPlatformOwner,
   type PlatformTenantStatusType,
 } from "../../domain/entities";
+import { usePlatformModules } from "../../application/hooks/usePlatformBilling";
 import { usePlatformTenants } from "../../application/hooks/usePlatformTenants";
 import { usePlatformAuth } from "../providers/PlatformAuthProvider";
 import { getLifecycleStageLabel } from "../config/platformLifecycleConfig";
+import {
+  formatActiveModulesCell,
+  TENANTS_MODULE_FILTER_PARAM,
+} from "./formatActiveModulesCell";
 import { opsCopy } from "./opsCopy";
 import { lifecycleStageSealTone, tenantListTick } from "./opsStatusTones";
 import { OpsButton } from "./ui/OpsButton";
@@ -35,19 +40,25 @@ import { OpsEmptyState } from "./patterns/OpsEmptyState";
 import { OpsTableSkeleton } from "./patterns/OpsTableSkeleton";
 
 const ACCESS_ALL = "__all__";
+const MODULE_ALL = "__all__";
 
 /**
  * Listado Empresas Ops (flag ON) — OpsTable + thead (PROP-T1 A).
+ * Fase C: columna Complementos + filtro por código (cliente sobre S5).
  */
 export function OpsTenantsListPage() {
   const copy = opsCopy.tenants;
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = usePlatformAuth();
   const canMutate = isPlatformOwner(user?.platformRole);
 
   const [search, setSearch] = useState("");
   const [access, setAccess] = useState<string>(ACCESS_ALL);
   const [page, setPage] = useState(1);
+
+  const moduleFromUrl = searchParams.get(TENANTS_MODULE_FILTER_PARAM)?.trim() || "";
+  const moduleFilter = moduleFromUrl || MODULE_ALL;
 
   const statusFilter =
     access === ACCESS_ALL
@@ -60,10 +71,30 @@ export function OpsTenantsListPage() {
     search: search.trim() || undefined,
     status: statusFilter,
   });
+  const { data: modules = [] } = usePlatformModules();
 
-  const tenants = data?.data ?? [];
+  const moduleNameByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const mod of modules) {
+      map.set(mod.code, mod.name);
+    }
+    return map;
+  }, [modules]);
+
+  const resolveModuleName = (code: string) =>
+    moduleNameByCode.get(code) ?? code;
+
+  const tenantsRaw = data?.data ?? [];
+  const tenants =
+    moduleFilter === MODULE_ALL
+      ? tenantsRaw
+      : tenantsRaw.filter((t) =>
+          (t.activeModuleCodes ?? []).includes(moduleFilter),
+        );
   const pagination = data?.pagination;
-  const hasFilter = Boolean(search.trim() || statusFilter);
+  const hasFilter = Boolean(
+    search.trim() || statusFilter || moduleFilter !== MODULE_ALL,
+  );
 
   const accessOptions = useMemo(
     () =>
@@ -73,6 +104,17 @@ export function OpsTenantsListPage() {
       })),
     [],
   );
+
+  const setModuleFilter = (value: string) => {
+    setPage(1);
+    const next = new URLSearchParams(searchParams);
+    if (value === MODULE_ALL) {
+      next.delete(TENANTS_MODULE_FILTER_PARAM);
+    } else {
+      next.set(TENANTS_MODULE_FILTER_PARAM, value);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   return (
     <div data-testid="platform-ops-tenants" className="space-y-3">
@@ -137,6 +179,35 @@ export function OpsTenantsListPage() {
             </OpsSelectContent>
           </OpsSelect>
         </div>
+        <div className="w-[12rem] space-y-1">
+          <label className="ops-label" id="ops-tenants-module-label">
+            {copy.filterModule}
+          </label>
+          <OpsSelect value={moduleFilter} onValueChange={setModuleFilter}>
+            <OpsSelectTrigger
+              aria-labelledby="ops-tenants-module-label"
+              data-testid="ops-tenants-module-filter"
+            >
+              <OpsSelectValue />
+            </OpsSelectTrigger>
+            <OpsSelectContent>
+              <OpsSelectItem value={MODULE_ALL}>
+                {copy.filterAll}
+              </OpsSelectItem>
+              {modules.map((mod) => (
+                <OpsSelectItem key={mod.code} value={mod.code}>
+                  {mod.name}
+                </OpsSelectItem>
+              ))}
+              {moduleFilter !== MODULE_ALL &&
+              !modules.some((m) => m.code === moduleFilter) ? (
+                <OpsSelectItem value={moduleFilter}>
+                  {moduleFilter}
+                </OpsSelectItem>
+              ) : null}
+            </OpsSelectContent>
+          </OpsSelect>
+        </div>
         <OpsButton
           variant="ghost"
           size="sm"
@@ -165,7 +236,7 @@ export function OpsTenantsListPage() {
           title={hasFilter ? copy.emptyFiltered : copy.empty}
           description={
             hasFilter
-              ? "Prueba otro texto o limpia el filtro de acceso."
+              ? "Prueba otro texto o limpia el filtro de acceso o complemento."
               : "Crea una empresa para empezar."
           }
         />
@@ -178,6 +249,7 @@ export function OpsTenantsListPage() {
               <OpsTableHead>{copy.columns.name}</OpsTableHead>
               <OpsTableHead>{copy.columns.plan}</OpsTableHead>
               <OpsTableHead>{copy.columns.stage}</OpsTableHead>
+              <OpsTableHead>{copy.columns.modules}</OpsTableHead>
               <OpsTableHead>{copy.columns.date}</OpsTableHead>
               <OpsTableHead>{copy.columns.action}</OpsTableHead>
             </OpsTableRow>
@@ -185,6 +257,11 @@ export function OpsTenantsListPage() {
           <OpsTableBody>
             {tenants.map((tenant) => {
               const tick = tenantListTick(tenant);
+              const modulesLabel = formatActiveModulesCell(
+                tenant.activeModuleCount ?? 0,
+                tenant.activeModuleCodes ?? [],
+                resolveModuleName,
+              );
               return (
                 <OpsTableRow key={tenant.id} tick={tick}>
                   <OpsTableCell>
@@ -209,6 +286,14 @@ export function OpsTenantsListPage() {
                     >
                       {getLifecycleStageLabel(tenant.lifecycleStage)}
                     </OpsLifecycleSeal>
+                  </OpsTableCell>
+                  <OpsTableCell>
+                    <span
+                      className="ops-type-caption ops-text-muted"
+                      data-testid="ops-tenant-modules-cell"
+                    >
+                      {modulesLabel}
+                    </span>
                   </OpsTableCell>
                   <OpsTableCell>
                     <span className="ops-font-mono ops-type-caption ops-text-muted tabular-nums">

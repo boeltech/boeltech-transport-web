@@ -166,6 +166,12 @@ export const opsCopy = {
       activation: {
         label: "Activación",
       },
+      modules: {
+        label: "Complementos",
+        caption: (n: number) =>
+          n === 1 ? "1 complemento activo" : `${n} complementos activos`,
+        empty: "0",
+      },
     },
     strip: {
       accessLabel: "Acceso",
@@ -317,10 +323,19 @@ export const opsCopy = {
         "Hay más sucursales activas que el tope del plan destino",
       MODULES_REQUIRE_OPERACION_PLAN:
         "Hay complementos que requieren plan Operación",
+      MODULES_REQUIRE_OPERATIONAL_MOTRIZ:
+        "Hay complementos que requieren suscripción operativa motriz",
+      ADDONS_WILL_BE_REVOKED:
+        "Se quitarán los complementos activos de esta empresa",
+      PERIOD_IN_PROGRESS_BILLED_FULL:
+        "El periodo en curso se cobra completo. A partir del siguiente ya no.",
       PLAN_PREREQUISITE_NOT_MET: "El plan actual no admite este complemento",
       ENTITLEMENT_ALREADY_ACTIVE: "El complemento ya está activo",
       ENTITLEMENT_NOT_FOUND: "El complemento no está activo",
     },
+    periodBilledFull:
+      "El periodo en curso se cobra completo. A partir del siguiente ya no.",
+    modulesToRevoke: "Complementos que se quitan",
     effectiveAt: (iso: string) => `Efectivo: ${iso}`,
   },
   ar: {
@@ -350,9 +365,13 @@ export const opsCopy = {
       capacity: "Capacidad",
       stamps: "Timbres",
       price: "Precio",
+      activeTenants: "Empresas activas",
       action: "Acción",
     },
     useInTenant: "Usar en empresa…",
+    activeTenantsLink: (count: number) =>
+      count === 1 ? "1 empresa" : `${count} empresas`,
+    activeTenantsEmpty: "Ninguna",
     empty: "No hay ítems en el catálogo.",
     loading: "Cargando catálogo…",
     error: "No se pudo cargar el catálogo",
@@ -429,17 +448,23 @@ export const opsCopy = {
       name: "Empresa",
       plan: "Plan",
       stage: "Etapa",
+      modules: "Complementos",
       date: "Fecha",
       action: "Acción",
       health: "Salud",
       access: "Acceso",
       commercial: "Comercial",
     },
+    modulesEmpty: "—",
+    modulesCell: (count: number, names: string) =>
+      names ? `${count} · ${names}` : String(count),
+    modulesMore: (extra: number) => ` +${extra}`,
     empty: "No hay empresas.",
     emptyFiltered: "Ninguna empresa coincide con el filtro.",
     loading: "Cargando empresas…",
     readOnly: "Solo lectura: no puedes crear ni mutar empresas.",
     filterAccess: "Acceso",
+    filterModule: "Complemento",
     filterAll: "Todos",
     commercialEmpty: "Sin suscripción",
     viewAr: "Cobros",

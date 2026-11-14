@@ -90,6 +90,19 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
     listTenantSaasInvoices: (...args: unknown[]) =>
       mockListTenantSaasInvoices(...args),
     listAuditLog: (...args: unknown[]) => mockListAuditLog(...args),
+    listModules: vi.fn().mockResolvedValue([
+      { code: "gps_tracking", name: "Seguimiento GPS", kind: "addon" },
+    ]),
+    previewTenantSubscription: vi.fn().mockResolvedValue({
+      currentStatus: "active",
+      targetStatus: "active",
+      currentPlanCode: "operacion_pequena",
+      targetPlanCode: "operacion_pequena",
+      losesOperationalMotriz: false,
+      modulesToRevoke: [],
+      warnings: [],
+      effectiveAt: "2026-11-13T18:00:00.000Z",
+    }),
   },
 }));
 
@@ -246,6 +259,8 @@ function createActiveTenant(): PlatformTenantDetail {
     healthScore: 72,
     lifecycleStage: "active",
     healthAsOf: "2026-09-21T12:00:00.000Z",
+    activeModuleCount: 1,
+    activeModuleCodes: ["gps_tracking"],
     usage: { userCount: 8, branchCount: 1, tripCount: 12 },
     adminActivation: {
       status: "activated",

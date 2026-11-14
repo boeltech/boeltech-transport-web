@@ -144,6 +144,10 @@ export interface PlatformTenantListItem {
   healthScore: number | null;
   lifecycleStage: PlatformLifecycleStageType;
   healthAsOf: string | null;
+  /** Direct active entitlements count (pack = 1). S5. */
+  activeModuleCount: number;
+  /** Direct active module codes, ORDER BY activated_at ASC, module_code ASC. */
+  activeModuleCodes: string[];
 }
 
 /** Derived admin-activation status from platform GET/POST tenants (ADR-0073). */
@@ -405,6 +409,23 @@ export interface UpsertPlatformTenantSubscriptionPayload {
   billingCycle?: string;
   trialEndsAt?: string | null;
   notes?: string | null;
+}
+
+/** Preview de upsert subscription (S8b / D8 cascade revoke). */
+export interface PlatformSubscriptionUpsertPreviewModule {
+  moduleCode: string;
+  moduleName: string;
+}
+
+export interface PlatformSubscriptionUpsertPreview {
+  currentStatus: string | null;
+  targetStatus: string;
+  currentPlanCode: string | null;
+  targetPlanCode: string;
+  losesOperationalMotriz: boolean;
+  modulesToRevoke: PlatformSubscriptionUpsertPreviewModule[];
+  warnings: string[];
+  effectiveAt: string;
 }
 
 export interface MutatePlatformEntitlementPayload {

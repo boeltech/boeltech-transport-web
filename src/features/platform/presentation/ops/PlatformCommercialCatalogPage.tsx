@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   usePlatformModules,
   usePlatformStampPackCatalog,
 } from "../../application/hooks/usePlatformBilling";
-import { usePlatformPlans } from "../../application/hooks/usePlatformTenants";
+import {
+  usePlatformPlans,
+  usePlatformTenants,
+} from "../../application/hooks/usePlatformTenants";
+import { TENANTS_MODULE_FILTER_PARAM } from "./formatActiveModulesCell";
 import { opsCopy } from "./opsCopy";
 import { OpsUseInTenantSheet } from "./OpsUseInTenantSheet";
 import { OpsEmptyState } from "./patterns/OpsEmptyState";
@@ -24,6 +28,7 @@ type CatalogTab = "plans" | "modules" | "packs";
 /**
  * Catálogo comercial ops (planes / add-ons / stamp packs).
  * Sin inventar $ (HB-G2): copy «Lista pendiente de calibración».
+ * Fase C: «Empresas activas» por addon → deep link al filtro del listado (P2).
  */
 export function PlatformCommercialCatalogPage() {
   const copy = opsCopy.catalog;
@@ -37,10 +42,22 @@ export function PlatformCommercialCatalogPage() {
   const plansQuery = usePlatformPlans();
   const modulesQuery = usePlatformModules();
   const packsQuery = usePlatformStampPackCatalog();
+  /** Conteo cliente sobre S5 (sin filtro API por módulo). Límite alto: pocos tenants plataforma. */
+  const tenantsQuery = usePlatformTenants({ page: 1, limit: 100 });
 
   const plans = (plansQuery.data ?? []).filter((p) => p.isActive);
   const modules = modulesQuery.data ?? [];
   const packs = (packsQuery.data ?? []).filter((p) => p.isActive);
+
+  const activeCountByModule = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tenant of tenantsQuery.data?.data ?? []) {
+      for (const code of tenant.activeModuleCodes ?? []) {
+        counts.set(code, (counts.get(code) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [tenantsQuery.data?.data]);
 
   const isLoading =
     (tab === "plans" && plansQuery.isLoading) ||
@@ -163,33 +180,53 @@ export function PlatformCommercialCatalogPage() {
               <OpsTableRow>
                 <OpsTableHead>{copy.columns.name}</OpsTableHead>
                 <OpsTableHead>{copy.columns.code}</OpsTableHead>
+                <OpsTableHead>{copy.columns.activeTenants}</OpsTableHead>
                 <OpsTableHead>{copy.columns.action}</OpsTableHead>
               </OpsTableRow>
             </OpsTableHeader>
             <OpsTableBody>
-              {modules.map((mod) => (
-                <OpsTableRow key={mod.code}>
-                  <OpsTableCell className="ops-text">{mod.name}</OpsTableCell>
-                  <OpsTableCell className="ops-text-muted">
-                    {mod.code}
-                  </OpsTableCell>
-                  <OpsTableCell>
-                    <OpsButton
-                      variant="primary"
-                      size="sm"
-                      onClick={() =>
-                        setUseIn({
-                          kind: "module",
-                          code: mod.code,
-                          label: mod.name,
-                        })
-                      }
-                    >
-                      {copy.useInTenant}
-                    </OpsButton>
-                  </OpsTableCell>
-                </OpsTableRow>
-              ))}
+              {modules.map((mod) => {
+                const count = activeCountByModule.get(mod.code) ?? 0;
+                const filterHref = `/platform/tenants?${TENANTS_MODULE_FILTER_PARAM}=${encodeURIComponent(mod.code)}`;
+                return (
+                  <OpsTableRow key={mod.code}>
+                    <OpsTableCell className="ops-text">{mod.name}</OpsTableCell>
+                    <OpsTableCell className="ops-text-muted">
+                      {mod.code}
+                    </OpsTableCell>
+                    <OpsTableCell>
+                      {count > 0 ? (
+                        <Link
+                          to={filterHref}
+                          className="text-xs ops-text-accent hover:underline"
+                          data-testid={`ops-catalog-active-tenants-${mod.code}`}
+                        >
+                          {copy.activeTenantsLink(count)}
+                        </Link>
+                      ) : (
+                        <span className="ops-text-muted text-xs">
+                          {copy.activeTenantsEmpty}
+                        </span>
+                      )}
+                    </OpsTableCell>
+                    <OpsTableCell>
+                      <OpsButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() =>
+                          setUseIn({
+                            kind: "module",
+                            code: mod.code,
+                            label: mod.name,
+                          })
+                        }
+                      >
+                        {copy.useInTenant}
+                      </OpsButton>
+                    </OpsTableCell>
+                  </OpsTableRow>
+                );
+              })}
             </OpsTableBody>
           </OpsTable>
         )

@@ -43,6 +43,7 @@ import type {
   PlatformPlanChangePreview,
   PlatformEntitlementMutationPreview,
   PlatformEntitlementPreviewAction,
+  PlatformSubscriptionUpsertPreview,
   AssignPlatformPlanPayload,
   AssignPlatformPlanResult,
   IssuePlatformSaasInvoicePayload,
@@ -78,6 +79,7 @@ import {
   mapPlatformChargeRun,
   mapPlatformReconciliationPreview,
   mapPlatformPlanChangePreview,
+  mapPlatformSubscriptionUpsertPreview,
   mapPlatformEntitlementMutationPreview,
   mapAssignPlatformPlanResult,
   mapAdminActivation,
@@ -103,6 +105,7 @@ import {
   type ApiPlatformChargeRun,
   type ApiPlatformReconciliationRow,
   type ApiPlatformPlanChangePreview,
+  type ApiPlatformSubscriptionUpsertPreview,
   type ApiPlatformEntitlementMutationPreview,
   type ApiAssignPlatformPlanResult,
   type ApiPlatformLoginData,
@@ -531,6 +534,26 @@ export const platformApi = {
       { authScope: "platform" },
     );
     return mapPlatformTenantSubscription(response.data);
+  },
+
+  previewTenantSubscription: async (
+    tenantId: string,
+    payload: UpsertPlatformTenantSubscriptionPayload,
+  ): Promise<PlatformSubscriptionUpsertPreview> => {
+    const response = await apiClient.post<
+      ApiSingleResponse<ApiPlatformSubscriptionUpsertPreview>
+    >(
+      `${BASE}/tenants/${tenantId}/subscription:preview`,
+      {
+        plan_code: payload.planCode,
+        status: payload.status,
+        billing_cycle: payload.billingCycle,
+        trial_ends_at: payload.trialEndsAt,
+        notes: payload.notes,
+      },
+      { authScope: "platform" },
+    );
+    return mapPlatformSubscriptionUpsertPreview(response.data);
   },
 
   upsertTenantSubscription: async (

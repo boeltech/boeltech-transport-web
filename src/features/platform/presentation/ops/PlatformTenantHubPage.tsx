@@ -287,6 +287,12 @@ export function PlatformTenantHubPage() {
         ],
       tone: activationPending ? "warn" : undefined,
     },
+    {
+      id: "modules",
+      label: kpiCopy.modules.label,
+      value: tenant.activeModuleCount ?? 0,
+      caption: kpiCopy.modules.caption(tenant.activeModuleCount ?? 0),
+    },
   ];
 
   return (

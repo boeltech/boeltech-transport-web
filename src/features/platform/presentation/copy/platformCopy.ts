@@ -796,6 +796,12 @@ export const platformCopy = {
       submitting: "Guardando…",
       success: "Cambios guardados",
       error: "No se pudieron guardar los cambios",
+      loadingPreview: "Calculando impacto en complementos…",
+      previewError: "No se pudo calcular el impacto",
+      modulesToRevoke: "Complementos que se quitan",
+      periodBilledFull:
+        "El periodo en curso se cobra completo. A partir del siguiente ya no.",
+      none: "Ninguno",
     },
     suspend: {
       suspendTitle: "Suspender empresa",

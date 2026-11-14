@@ -22,14 +22,27 @@ vi.mock("../../application/hooks/usePlatformTenants", () => ({
     refetch: vi.fn(),
   }),
   usePlatformTenants: () => ({
-    data: { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
+    data: {
+      data: [
+        {
+          id: "t1",
+          name: "Con GPS",
+          activeModuleCodes: ["gps_tracking"],
+          activeModuleCount: 1,
+        },
+      ],
+      pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },
+    },
     isLoading: false,
   }),
 }));
 
 vi.mock("../../application/hooks/usePlatformBilling", () => ({
   usePlatformModules: () => ({
-    data: [{ code: "liquidaciones", name: "Liquidaciones" }],
+    data: [
+      { code: "gps_tracking", name: "Seguimiento GPS" },
+      { code: "orphan_addon", name: "Sin empresas" },
+    ],
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -72,6 +85,34 @@ describe("PlatformCommercialCatalogPage", () => {
     expect(
       screen.getByRole("button", { name: opsCopy.catalog.useInTenant }),
     ).toBeInTheDocument();
+  });
+
+  it("shows Empresas activas deep link on modules tab", async () => {
+    const user = userEvent.setup();
+    renderWithTheme(<PlatformCommercialCatalogPage />, {
+      route: ["/platform/plans"],
+    });
+
+    await user.click(
+      screen.getByRole("tab", { name: opsCopy.catalog.tabs.modules }),
+    );
+
+    const table = screen.getByTestId("ops-table");
+    const heads = within(table).getAllByRole("columnheader");
+    expect(heads.map((h) => h.textContent)).toEqual([
+      opsCopy.catalog.columns.name,
+      opsCopy.catalog.columns.code,
+      opsCopy.catalog.columns.activeTenants,
+      opsCopy.catalog.columns.action,
+    ]);
+
+    const link = screen.getByTestId("ops-catalog-active-tenants-gps_tracking");
+    expect(link).toHaveAttribute(
+      "href",
+      "/platform/tenants?module=gps_tracking",
+    );
+    expect(link).toHaveTextContent(opsCopy.catalog.activeTenantsLink(1));
+    expect(within(table).getByText(opsCopy.catalog.activeTenantsEmpty)).toBeInTheDocument();
   });
 
   it("shows Precio column on packs tab (not Acción)", async () => {

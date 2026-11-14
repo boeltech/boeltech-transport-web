@@ -4,14 +4,20 @@ import { renderWithTheme } from "@/test/renderWithTheme";
 import { OpsTenantsListPage } from "./OpsTenantsListPage";
 import { opsCopy } from "./opsCopy";
 
-const { mockUsePlatformTenants, mockUsePlatformAuth } = vi.hoisted(() => ({
-  mockUsePlatformTenants: vi.fn(),
-  mockUsePlatformAuth: vi.fn(),
-}));
+const { mockUsePlatformTenants, mockUsePlatformAuth, mockUsePlatformModules } =
+  vi.hoisted(() => ({
+    mockUsePlatformTenants: vi.fn(),
+    mockUsePlatformAuth: vi.fn(),
+    mockUsePlatformModules: vi.fn(),
+  }));
 
 vi.mock("../../application/hooks/usePlatformTenants", () => ({
   usePlatformTenants: (...args: unknown[]) => mockUsePlatformTenants(...args),
   usePlatformPlans: () => ({ data: [] }),
+}));
+
+vi.mock("../../application/hooks/usePlatformBilling", () => ({
+  usePlatformModules: (...args: unknown[]) => mockUsePlatformModules(...args),
 }));
 
 vi.mock("../providers/PlatformAuthProvider", () => ({
@@ -30,6 +36,8 @@ const baseTenant = {
   subscriptionStatus: "active",
   createdAt: "2026-10-01T18:00:00.000Z",
   suspendedAt: null,
+  activeModuleCount: 1,
+  activeModuleCodes: ["gps_tracking"],
 };
 
 describe("OpsTenantsListPage", () => {
@@ -42,6 +50,11 @@ describe("OpsTenantsListPage", () => {
         scope: "platform",
         email: "o@t.com",
       },
+    });
+    mockUsePlatformModules.mockReturnValue({
+      data: [{ code: "gps_tracking", name: "Seguimiento GPS" }],
+      isLoading: false,
+      isError: false,
     });
     mockUsePlatformTenants.mockReturnValue({
       data: {
@@ -68,6 +81,9 @@ describe("OpsTenantsListPage", () => {
     expect(screen.getByRole("columnheader", { name: cols.name })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: cols.plan })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: cols.stage })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: cols.modules }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: cols.date })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: cols.action })).toBeInTheDocument();
     expect(
@@ -79,12 +95,44 @@ describe("OpsTenantsListPage", () => {
       within(table).getByRole("link", { name: "Transportes Norte" }),
     ).toHaveAttribute("href", "/platform/tenants/t1");
     expect(within(table).getByText("Crecimiento")).toBeInTheDocument();
+    expect(screen.getByTestId("ops-tenant-modules-cell")).toHaveTextContent(
+      "1 · Seguimiento GPS",
+    );
     expect(
       screen.getByRole("button", { name: opsCopy.tenants.create }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: opsCopy.tenants.viewAr }),
     ).not.toBeInTheDocument();
+  });
+
+  it("filters by module from URL deep link", async () => {
+    mockUsePlatformTenants.mockReturnValue({
+      data: {
+        data: [
+          baseTenant,
+          {
+            ...baseTenant,
+            id: "t2",
+            name: "Sin GPS",
+            subdomain: "sin",
+            activeModuleCount: 0,
+            activeModuleCodes: [],
+          },
+        ],
+        pagination: { page: 1, totalPages: 1, total: 2, limit: 20 },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderWithTheme(<OpsTenantsListPage />, {
+      route: ["/platform/tenants?module=gps_tracking"],
+    });
+
+    expect(screen.getByText("Transportes Norte")).toBeInTheDocument();
+    expect(screen.queryByText("Sin GPS")).not.toBeInTheDocument();
   });
 
   it("shows Cobros action when subscription is past_due", () => {
@@ -157,4 +205,5 @@ describe("OpsTenantsListPage", () => {
       screen.queryByRole("link", { name: opsCopy.tenants.viewAr }),
     ).not.toBeInTheDocument();
   });
+
 });
