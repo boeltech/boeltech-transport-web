@@ -21,18 +21,9 @@ vi.mock("../../application/hooks/usePlatformTenants", () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  /** OpsUseInTenantSheet still lists tenants; page no longer uses this for counts. */
   usePlatformTenants: () => ({
-    data: {
-      data: [
-        {
-          id: "t1",
-          name: "Con GPS",
-          activeModuleCodes: ["gps_tracking"],
-          activeModuleCount: 1,
-        },
-      ],
-      pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },
-    },
+    data: { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
     isLoading: false,
   }),
 }));
@@ -40,8 +31,16 @@ vi.mock("../../application/hooks/usePlatformTenants", () => ({
 vi.mock("../../application/hooks/usePlatformBilling", () => ({
   usePlatformModules: () => ({
     data: [
-      { code: "gps_tracking", name: "Seguimiento GPS" },
-      { code: "orphan_addon", name: "Sin empresas" },
+      {
+        code: "gps_tracking",
+        name: "Seguimiento GPS",
+        activeTenantCount: 1,
+      },
+      {
+        code: "orphan_addon",
+        name: "Sin empresas",
+        activeTenantCount: 0,
+      },
     ],
     isLoading: false,
     isError: false,

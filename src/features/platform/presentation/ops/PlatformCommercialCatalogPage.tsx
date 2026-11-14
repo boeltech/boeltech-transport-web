@@ -1,13 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   usePlatformModules,
   usePlatformStampPackCatalog,
 } from "../../application/hooks/usePlatformBilling";
-import {
-  usePlatformPlans,
-  usePlatformTenants,
-} from "../../application/hooks/usePlatformTenants";
+import { usePlatformPlans } from "../../application/hooks/usePlatformTenants";
 import { TENANTS_MODULE_FILTER_PARAM } from "./formatActiveModulesCell";
 import { opsCopy } from "./opsCopy";
 import { OpsUseInTenantSheet } from "./OpsUseInTenantSheet";
@@ -28,7 +25,7 @@ type CatalogTab = "plans" | "modules" | "packs";
 /**
  * Catálogo comercial ops (planes / add-ons / stamp packs).
  * Sin inventar $ (HB-G2): copy «Lista pendiente de calibración».
- * Fase C: «Empresas activas» por addon → deep link al filtro del listado (P2).
+ * S10: «Empresas activas» = `activeTenantCount` del GET modules; deep link `?module=`.
  */
 export function PlatformCommercialCatalogPage() {
   const copy = opsCopy.catalog;
@@ -42,22 +39,10 @@ export function PlatformCommercialCatalogPage() {
   const plansQuery = usePlatformPlans();
   const modulesQuery = usePlatformModules();
   const packsQuery = usePlatformStampPackCatalog();
-  /** Conteo cliente sobre S5 (sin filtro API por módulo). Límite alto: pocos tenants plataforma. */
-  const tenantsQuery = usePlatformTenants({ page: 1, limit: 100 });
 
   const plans = (plansQuery.data ?? []).filter((p) => p.isActive);
   const modules = modulesQuery.data ?? [];
   const packs = (packsQuery.data ?? []).filter((p) => p.isActive);
-
-  const activeCountByModule = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const tenant of tenantsQuery.data?.data ?? []) {
-      for (const code of tenant.activeModuleCodes ?? []) {
-        counts.set(code, (counts.get(code) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [tenantsQuery.data?.data]);
 
   const isLoading =
     (tab === "plans" && plansQuery.isLoading) ||
@@ -186,7 +171,7 @@ export function PlatformCommercialCatalogPage() {
             </OpsTableHeader>
             <OpsTableBody>
               {modules.map((mod) => {
-                const count = activeCountByModule.get(mod.code) ?? 0;
+                const count = mod.activeTenantCount ?? 0;
                 const filterHref = `/platform/tenants?${TENANTS_MODULE_FILTER_PARAM}=${encodeURIComponent(mod.code)}`;
                 return (
                   <OpsTableRow key={mod.code}>

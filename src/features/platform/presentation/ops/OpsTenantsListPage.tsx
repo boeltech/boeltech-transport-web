@@ -44,7 +44,7 @@ const MODULE_ALL = "__all__";
 
 /**
  * Listado Empresas Ops (flag ON) — OpsTable + thead (PROP-T1 A).
- * Fase C: columna Complementos + filtro por código (cliente sobre S5).
+ * S10: filtro Complementos / `?module=` → API `module_code` (paginación server).
  */
 export function OpsTenantsListPage() {
   const copy = opsCopy.tenants;
@@ -70,6 +70,7 @@ export function OpsTenantsListPage() {
     limit: 20,
     search: search.trim() || undefined,
     status: statusFilter,
+    moduleCode: moduleFilter === MODULE_ALL ? undefined : moduleFilter,
   });
   const { data: modules = [] } = usePlatformModules();
 
@@ -84,17 +85,14 @@ export function OpsTenantsListPage() {
   const resolveModuleName = (code: string) =>
     moduleNameByCode.get(code) ?? code;
 
-  const tenantsRaw = data?.data ?? [];
-  const tenants =
-    moduleFilter === MODULE_ALL
-      ? tenantsRaw
-      : tenantsRaw.filter((t) =>
-          (t.activeModuleCodes ?? []).includes(moduleFilter),
-        );
+  const tenants = data?.data ?? [];
   const pagination = data?.pagination;
   const hasFilter = Boolean(
     search.trim() || statusFilter || moduleFilter !== MODULE_ALL,
   );
+  const isEmptyList = pagination
+    ? pagination.total === 0
+    : tenants.length === 0;
 
   const accessOptions = useMemo(
     () =>
@@ -231,7 +229,7 @@ export function OpsTenantsListPage() {
 
       {isLoading ? <OpsTableSkeleton /> : null}
 
-      {!isLoading && !isError && tenants.length === 0 ? (
+      {!isLoading && !isError && isEmptyList ? (
         <OpsEmptyState
           title={hasFilter ? copy.emptyFiltered : copy.empty}
           description={
@@ -242,7 +240,7 @@ export function OpsTenantsListPage() {
         />
       ) : null}
 
-      {!isLoading && !isError && tenants.length > 0 ? (
+      {!isLoading && !isError && !isEmptyList ? (
         <OpsTable>
           <OpsTableHeader>
             <OpsTableRow>

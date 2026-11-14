@@ -106,21 +106,11 @@ describe("OpsTenantsListPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("filters by module from URL deep link", async () => {
+  it("passes moduleCode from URL deep link to the tenants hook", () => {
     mockUsePlatformTenants.mockReturnValue({
       data: {
-        data: [
-          baseTenant,
-          {
-            ...baseTenant,
-            id: "t2",
-            name: "Sin GPS",
-            subdomain: "sin",
-            activeModuleCount: 0,
-            activeModuleCodes: [],
-          },
-        ],
-        pagination: { page: 1, totalPages: 1, total: 2, limit: 20 },
+        data: [baseTenant],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 20 },
       },
       isLoading: false,
       isError: false,
@@ -131,8 +121,33 @@ describe("OpsTenantsListPage", () => {
       route: ["/platform/tenants?module=gps_tracking"],
     });
 
+    expect(mockUsePlatformTenants).toHaveBeenCalledWith(
+      expect.objectContaining({
+        moduleCode: "gps_tracking",
+        page: 1,
+        limit: 20,
+      }),
+    );
     expect(screen.getByText("Transportes Norte")).toBeInTheDocument();
-    expect(screen.queryByText("Sin GPS")).not.toBeInTheDocument();
+  });
+
+  it("shows filtered empty state from pagination.total", () => {
+    mockUsePlatformTenants.mockReturnValue({
+      data: {
+        data: [],
+        pagination: { page: 1, totalPages: 0, total: 0, limit: 20 },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderWithTheme(<OpsTenantsListPage />, {
+      route: ["/platform/tenants?module=gps_tracking"],
+    });
+
+    expect(screen.getByText(opsCopy.tenants.emptyFiltered)).toBeInTheDocument();
+    expect(screen.queryByTestId("ops-table")).not.toBeInTheDocument();
   });
 
   it("shows Cobros action when subscription is past_due", () => {

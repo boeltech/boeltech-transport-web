@@ -284,6 +284,8 @@ export interface PlatformTenantsQueryParams {
   subscriptionStatus?: PlatformSubscriptionStatusType;
   planCode?: string;
   search?: string;
+  /** S10 — direct active entitlement; API query `module_code`. Deep link UI stays `?module=`. */
+  moduleCode?: string;
   /** ADR-0097 additive filters */
   lifecycleStage?: PlatformLifecycleStageType;
   healthMin?: number;
@@ -399,6 +401,8 @@ export interface PlatformModuleCatalogItem {
   priceEaCents: number | null;
   priceGaCents: number | null;
   memberCodes: string[];
+  /** S10 — direct active entitlements on this code (non-platform tenants). */
+  activeTenantCount: number;
 }
 
 export type PlatformTenantEntitlements = BillingEntitlements;

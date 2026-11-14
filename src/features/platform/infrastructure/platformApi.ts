@@ -290,6 +290,7 @@ export const platformApi = {
     if (params?.healthMax != null) queryParams.health_max = params.healthMax;
     if (params?.atRisk === true) queryParams.at_risk = true;
     if (params?.atRisk === false) queryParams.at_risk = false;
+    if (params?.moduleCode) queryParams.module_code = params.moduleCode;
 
     const response = await apiClient.get<
       ApiPaginatedResponse<ApiPlatformTenantListItem>
@@ -619,6 +620,7 @@ export const platformApi = {
           price_ea_cents: number | null;
           price_ga_cents: number | null;
           member_codes: string[];
+          active_tenant_count?: number | null;
         }>
       >
     >(`${BASE}/modules`, { authScope: "platform" });

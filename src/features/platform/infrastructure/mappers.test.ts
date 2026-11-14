@@ -723,10 +723,25 @@ describe("platform mappers", () => {
       price_ea_cents: null,
       price_ga_cents: 150000,
       member_codes: ["fuel_management", "maintenance"],
+      active_tenant_count: 3,
     });
 
     expect(item.memberCodes).toHaveLength(2);
     expect(item.priceGaCents).toBe(150000);
+    expect(item.activeTenantCount).toBe(3);
+  });
+
+  it("mapPlatformModuleCatalogItem defaults activeTenantCount to 0", () => {
+    const item = mapPlatformModuleCatalogItem({
+      code: "gps_tracking",
+      name: "Seguimiento GPS",
+      kind: "module",
+      price_ea_cents: null,
+      price_ga_cents: 9900,
+      member_codes: [],
+    });
+
+    expect(item.activeTenantCount).toBe(0);
   });
 
   it("mapPlatformSaasArRow maps cartera fields", () => {

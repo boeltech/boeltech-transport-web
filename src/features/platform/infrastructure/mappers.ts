@@ -612,6 +612,7 @@ export const mapPlatformModuleCatalogItem = (raw: {
   price_ea_cents: number | null;
   price_ga_cents: number | null;
   member_codes: string[];
+  active_tenant_count?: number | null;
 }): PlatformModuleCatalogItem => ({
   code: raw.code,
   name: raw.name,
@@ -619,6 +620,11 @@ export const mapPlatformModuleCatalogItem = (raw: {
   priceEaCents: raw.price_ea_cents,
   priceGaCents: raw.price_ga_cents,
   memberCodes: raw.member_codes,
+  activeTenantCount:
+    typeof raw.active_tenant_count === "number" &&
+    Number.isFinite(raw.active_tenant_count)
+      ? raw.active_tenant_count
+      : 0,
 });
 
 export interface ApiPlatformSaasInvoiceItem {

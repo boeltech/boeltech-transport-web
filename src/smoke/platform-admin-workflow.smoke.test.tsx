@@ -91,7 +91,15 @@ vi.mock("@features/platform/infrastructure/platformApi", () => ({
       mockListTenantSaasInvoices(...args),
     listAuditLog: (...args: unknown[]) => mockListAuditLog(...args),
     listModules: vi.fn().mockResolvedValue([
-      { code: "gps_tracking", name: "Seguimiento GPS", kind: "addon" },
+      {
+        code: "gps_tracking",
+        name: "Seguimiento GPS",
+        kind: "addon",
+        priceEaCents: null,
+        priceGaCents: 5900,
+        memberCodes: [],
+        activeTenantCount: 0,
+      },
     ]),
     previewTenantSubscription: vi.fn().mockResolvedValue({
       currentStatus: "active",
