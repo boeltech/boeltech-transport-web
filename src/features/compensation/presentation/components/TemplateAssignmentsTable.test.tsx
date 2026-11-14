@@ -119,10 +119,12 @@ describe("TemplateAssignmentsTable", () => {
     ]);
 
     const [row] = bodyRows();
-    const from = within(row).getByText(formatDate("2026-07-01"));
-    const to = within(row).getByText(formatDate("2026-08-31"));
-    expect(from).toHaveClass("whitespace-nowrap");
-    expect(to).toHaveClass("whitespace-nowrap");
+    const cells = within(row).getAllByRole("cell");
+    // EntityListTable: whitespace-nowrap vive en la celda (kind date + className)
+    expect(cells[1]).toHaveClass("whitespace-nowrap");
+    expect(cells[2]).toHaveClass("whitespace-nowrap");
+    expect(within(row).getByText(formatDate("2026-07-01"))).toBeInTheDocument();
+    expect(within(row).getByText(formatDate("2026-08-31"))).toBeInTheDocument();
     expect(within(row).queryByText("2026-07-01")).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,12 @@
-import { Fragment, useMemo, type ReactNode } from "react";
+/**
+ * ProfitabilityMasterDetailTable — agregados + detalle viaje (`EntityListTable`).
+ *
+ * Master: expand · dimensión · viajes · ingreso · costo · margen · % (7 cols).
+ * Detail: densidades variables por scope — T4 excepción si pipeline/margen añaden cols.
+ * density compact · framed false (borde en Card). Empty = emptyState del host.
+ */
+
+import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
@@ -19,14 +27,12 @@ import {
   SelectValue,
 } from "@shared/ui/select";
 import {
-  Table,
-  TableBody,
+  EntityListTable,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import {
   MARGIN_ANALYSIS_DIMENSIONS,
@@ -115,6 +121,145 @@ interface ProfitabilityMasterDetailTableProps {
   queriesEnabled?: boolean;
 }
 
+function buildDetailColumns(
+  dimension: MarginAnalysisDimension,
+  scope: ProfitabilityScope,
+  operational: boolean,
+): EntityListColumnDef<ProfitabilityTripItem>[] {
+  const showPipelineColumn = scope === "pipeline";
+  const showMarginColumns = scope !== "pipeline" && scope !== "cancelled";
+  const costLabel = operational
+    ? financeCopy.profitability.table.operationalCost
+    : financeCopy.profitability.table.actualTotal;
+  const marginLabel = operational
+    ? financeCopy.profitability.table.operationalMargin
+    : financeCopy.profitability.table.margin;
+
+  const columns: EntityListColumnDef<ProfitabilityTripItem>[] = [
+    {
+      id: "trip",
+      header: financeCopy.profitability.table.trip,
+      kind: "stacked",
+      accessor: (row): EntityListStackedValue => {
+        const missingCommission = shouldShowMissingCommissionChip(row);
+        return {
+          primary: row.tripId ? (
+            <Link
+              to={`/trips/${row.tripId}`}
+              className="font-mono font-medium text-primary hover:underline"
+              aria-label={financeCopy.profitability.masterDetail.viewTrip(
+                row.tripCode,
+              )}
+            >
+              {row.tripCode}
+            </Link>
+          ) : (
+            <span className="font-mono font-medium">{row.tripCode}</span>
+          ),
+          secondary: missingCommission ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-normal"
+              data-testid="missing-commission-chip"
+            >
+              {financeCopy.profitability.missingCommissionChip}
+            </Badge>
+          ) : undefined,
+        };
+      },
+    },
+  ];
+
+  if (dimension !== "client") {
+    columns.push({
+      id: "client",
+      header: financeCopy.profitability.table.client,
+      kind: "text",
+      accessor: (row) =>
+        row.clientName ?? financeCopy.profitability.table.noClient,
+    });
+  }
+
+  columns.push(
+    {
+      id: "bucket",
+      header: financeCopy.profitability.table.bucket,
+      kind: "status",
+      accessor: (row) =>
+        row.financialBucket ? (
+          <Badge variant="outline" className="text-xs">
+            {FINANCIAL_BUCKET_LABELS[row.financialBucket] ??
+              row.financialBucket}
+          </Badge>
+        ) : null,
+    },
+    {
+      id: "revenue",
+      header: financeCopy.profitability.table.revenue,
+      kind: "status",
+      headerClassName: "text-right",
+      className: "text-right",
+      accessor: (row) => <ProfitabilityRevenueCell row={row} />,
+    },
+    {
+      id: "cost",
+      header: costLabel,
+      kind: "money",
+      accessor: (row) => tripDisplayCost(row, operational),
+    },
+  );
+
+  if (showPipelineColumn) {
+    columns.push({
+      id: "projected",
+      header: financeCopy.profitability.table.projected,
+      kind: "money",
+      accessor: (row) => row.projectedRevenue ?? 0,
+    });
+  }
+
+  if (showMarginColumns) {
+    columns.push(
+      {
+        id: "margin",
+        header: marginLabel,
+        kind: "money",
+        accessor: (row) => tripDisplayMargin(row, operational),
+      },
+      {
+        id: "marginPct",
+        header: financeCopy.profitability.table.marginPct,
+        kind: "meta",
+        headerClassName: "text-right",
+        className: "text-right",
+        accessor: (row) => {
+          const pct = tripDisplayMarginPct(row, operational);
+          return pct == null ? null : `${pct.toFixed(2)}%`;
+        },
+      },
+      {
+        id: "status",
+        header: financeCopy.profitability.table.status,
+        kind: "status",
+        headerClassName: "text-right",
+        className: "text-right",
+        accessor: (row) => {
+          const displayStatus = tripDisplayStatus(row, operational);
+          if (displayStatus == null) return null;
+          const cfg = getProfitabilityStatusConfig(displayStatus);
+          return (
+            <Badge variant={cfg.badge.variant} tone={cfg.badge.tone}>
+              {cfg.label ?? displayStatus}
+            </Badge>
+          );
+        },
+      },
+    );
+  }
+
+  return columns;
+}
+
 function ProfitabilityTripDetailPanel({
   dimension,
   groupKey,
@@ -159,158 +304,119 @@ function ProfitabilityTripDetailPanel({
     );
   }
 
-  const showPipelineColumn = scope === "pipeline";
-  const showMarginColumns = scope !== "pipeline" && scope !== "cancelled";
   const operational = tripsUseOperationalBasis(data);
-  const costLabel = operational
-    ? financeCopy.profitability.table.operationalCost
-    : financeCopy.profitability.table.actualTotal;
-  const marginLabel = operational
-    ? financeCopy.profitability.table.operationalMargin
-    : financeCopy.profitability.table.margin;
 
   return (
     <div className="overflow-x-auto border-t bg-muted/20 px-2 py-2 md:px-4">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="h-8 text-xs">
-              {financeCopy.profitability.table.trip}
-            </TableHead>
-            {dimension !== "client" ? (
-              <TableHead className="h-8 text-xs">
-                {financeCopy.profitability.table.client}
-              </TableHead>
-            ) : null}
-            <TableHead className="h-8 text-xs">
-              {financeCopy.profitability.table.bucket}
-            </TableHead>
-            <TableHead className="h-8 text-right text-xs">
-              {financeCopy.profitability.table.revenue}
-            </TableHead>
-            <TableHead className="h-8 text-right text-xs">{costLabel}</TableHead>
-            {showPipelineColumn ? (
-              <TableHead className="h-8 text-right text-xs">
-                {financeCopy.profitability.table.projected}
-              </TableHead>
-            ) : null}
-            {showMarginColumns ? (
-              <>
-                <TableHead className="h-8 text-right text-xs">
-                  {marginLabel}
-                </TableHead>
-                <TableHead className="h-8 text-right text-xs">
-                  {financeCopy.profitability.table.marginPct}
-                </TableHead>
-                <TableHead className="h-8 text-right text-xs">
-                  {financeCopy.profitability.table.status}
-                </TableHead>
-              </>
-            ) : null}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, index) => {
-            const displayMargin = tripDisplayMargin(row, operational);
-            const displayMarginPct = tripDisplayMarginPct(row, operational);
-            const displayStatus = tripDisplayStatus(row, operational);
-            const missingCommission = shouldShowMissingCommissionChip(row);
-            return (
-              <TableRow
-                key={row.tripId || `${row.tripCode}-${index}`}
-                className="hover:bg-muted/40"
-              >
-                <TableCell className="py-2 text-sm">
-                  <div className="flex flex-col items-start gap-1">
-                    {row.tripId ? (
-                      <Link
-                        to={`/trips/${row.tripId}`}
-                        className="font-mono font-medium text-primary hover:underline"
-                        aria-label={financeCopy.profitability.masterDetail.viewTrip(
-                          row.tripCode,
-                        )}
-                      >
-                        {row.tripCode}
-                      </Link>
-                    ) : (
-                      <span className="font-mono font-medium">{row.tripCode}</span>
-                    )}
-                    {missingCommission ? (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-normal"
-                        data-testid="missing-commission-chip"
-                      >
-                        {financeCopy.profitability.missingCommissionChip}
-                      </Badge>
-                    ) : null}
-                  </div>
-                </TableCell>
-                {dimension !== "client" ? (
-                  <TableCell className="py-2 text-sm">
-                    {row.clientName ?? financeCopy.profitability.table.noClient}
-                  </TableCell>
-                ) : null}
-                <TableCell className="py-2 text-sm">
-                  {row.financialBucket ? (
-                    <Badge variant="outline" className="text-xs">
-                      {FINANCIAL_BUCKET_LABELS[row.financialBucket] ??
-                        row.financialBucket}
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell className="py-2 text-right text-sm">
-                  <ProfitabilityRevenueCell row={row} />
-                </TableCell>
-                <TableCell className="py-2 text-right text-sm">
-                  {formatMxCurrency(tripDisplayCost(row, operational))}
-                </TableCell>
-                {showPipelineColumn ? (
-                  <TableCell className="py-2 text-right text-sm">
-                    {formatMxCurrency(row.projectedRevenue ?? 0)}
-                  </TableCell>
-                ) : null}
-                {showMarginColumns ? (
-                  <>
-                    <TableCell className="py-2 text-right text-sm">
-                      {displayMargin == null
-                        ? "—"
-                        : formatMxCurrency(displayMargin)}
-                    </TableCell>
-                    <TableCell className="py-2 text-right text-sm">
-                      {displayMarginPct == null
-                        ? "—"
-                        : `${displayMarginPct.toFixed(2)}%`}
-                    </TableCell>
-                    <TableCell className="py-2 text-right">
-                      {displayStatus == null ? (
-                        "—"
-                      ) : (
-                        <Badge
-                          variant={
-                            getProfitabilityStatusConfig(displayStatus).badge
-                              .variant
-                          }
-                          tone={
-                            getProfitabilityStatusConfig(displayStatus).badge.tone
-                          }
-                        >
-                          {getProfitabilityStatusConfig(displayStatus).label ??
-                            displayStatus}
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </>
-                ) : null}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      <EntityListTable
+        framed={false}
+        density="compact"
+        columns={buildDetailColumns(dimension, scope, operational)}
+        rows={rows}
+        getRowId={(row) => row.tripId || row.tripCode}
+      />
     </div>
   );
+}
+
+function buildMasterColumns(
+  dimension: MarginAnalysisDimension,
+  operational: boolean,
+  expandedKey: string | null,
+  canExpand: (key: string) => boolean,
+  toggleRow: (key: string) => void,
+): EntityListColumnDef<ProfitabilityAggregateItem>[] {
+  const costLabel = operational
+    ? financeCopy.profitability.aggregateTable.operationalCost
+    : financeCopy.profitability.aggregateTable.actualTotal;
+  const marginLabel = operational
+    ? financeCopy.profitability.aggregateTable.operationalMargin
+    : financeCopy.profitability.aggregateTable.margin;
+
+  return [
+    {
+      id: "expand",
+      header: "",
+      kind: "status",
+      className: "w-10 py-2",
+      accessor: (item) => {
+        if (!canExpand(item.key)) return null;
+        const isExpanded = expandedKey === item.key;
+        return (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            aria-expanded={isExpanded}
+            aria-label={
+              isExpanded
+                ? financeCopy.profitability.masterDetail.collapseRow
+                : financeCopy.profitability.masterDetail.expandRow
+            }
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleRow(item.key);
+            }}
+          >
+            {isExpanded ? (
+              <ChevronDown
+                className="h-4 w-4 text-muted-foreground"
+                aria-hidden
+              />
+            ) : (
+              <ChevronRight
+                className="h-4 w-4 text-muted-foreground"
+                aria-hidden
+              />
+            )}
+          </Button>
+        );
+      },
+    },
+    {
+      id: "label",
+      header: DIMENSION_LABELS[dimension],
+      kind: "text",
+      className: "font-medium",
+      accessor: (item) => item.label,
+    },
+    {
+      id: "trips",
+      header: financeCopy.profitability.aggregateTable.trips,
+      kind: "number",
+      accessor: (item) => item.tripCount,
+    },
+    {
+      id: "revenue",
+      header: financeCopy.profitability.aggregateTable.revenue,
+      kind: "money",
+      accessor: (item) => item.totalRevenue,
+    },
+    {
+      id: "cost",
+      header: costLabel,
+      kind: "money",
+      accessor: (item) => aggregateDisplayCost(item, operational),
+    },
+    {
+      id: "margin",
+      header: marginLabel,
+      kind: "money",
+      accessor: (item) => aggregateDisplayMargin(item, operational),
+    },
+    {
+      id: "marginPct",
+      header: financeCopy.profitability.aggregateTable.marginPct,
+      kind: "meta",
+      headerClassName: "text-right",
+      className: "text-right",
+      accessor: (item) => {
+        const pct = aggregateDisplayMarginPct(item, operational);
+        return pct == null ? null : `${pct.toFixed(2)}%`;
+      },
+    },
+  ];
 }
 
 export function ProfitabilityMasterDetailTable({
@@ -343,16 +449,15 @@ export function ProfitabilityMasterDetailTable({
   const items = aggregate ?? [];
   const showEmpty = !aggregateLoading && items.length === 0;
   const operational = aggregateUsesOperationalBasis(items);
-  const costLabel = operational
-    ? financeCopy.profitability.aggregateTable.operationalCost
-    : financeCopy.profitability.aggregateTable.actualTotal;
-  const marginLabel = operational
-    ? financeCopy.profitability.aggregateTable.operationalMargin
-    : financeCopy.profitability.aggregateTable.margin;
 
   const toggleRow = (key: string) => {
     onExpandedKeyChange(expandedKey === key ? null : key);
   };
+
+  const canExpand = (key: string) =>
+    Boolean(
+      buildProfitabilityTripsFiltersForExpand(dimension, key, expandContext),
+    );
 
   return (
     <Card>
@@ -406,125 +511,47 @@ export function ProfitabilityMasterDetailTable({
           emptyState
         ) : (
           <div className="overflow-x-auto rounded-md border">
-            <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10" aria-hidden />
-            <TableHead>{DIMENSION_LABELS[dimension]}</TableHead>
-            <TableHead className="text-right">
-              {financeCopy.profitability.aggregateTable.trips}
-            </TableHead>
-            <TableHead className="text-right">
-              {financeCopy.profitability.aggregateTable.revenue}
-            </TableHead>
-            <TableHead className="text-right">{costLabel}</TableHead>
-            <TableHead className="text-right">{marginLabel}</TableHead>
-            <TableHead className="text-right">
-              {financeCopy.profitability.aggregateTable.marginPct}
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item, index) => {
-                const rowKey = `${dimension}-${item.key || item.label}-${index}`;
-                const isExpanded = expandedKey === item.key;
-                const canExpand = Boolean(
-                  buildProfitabilityTripsFiltersForExpand(
-                    dimension,
-                    item.key,
-                    expandContext,
-                  ),
-                );
-                const displayMarginPct = aggregateDisplayMarginPct(
-                  item,
-                  operational,
-                );
-
+            <EntityListTable
+              framed={false}
+              density="compact"
+              columns={buildMasterColumns(
+                dimension,
+                operational,
+                expandedKey,
+                canExpand,
+                toggleRow,
+              )}
+              rows={items}
+              getRowId={(item) => item.key}
+              getRowClassName={(item) =>
+                [
+                  canExpand(item.key) ? "cursor-pointer hover:bg-muted/50" : "",
+                  expandedKey === item.key ? "bg-muted/30" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+              onRowActivate={(item) => {
+                if (canExpand(item.key)) toggleRow(item.key);
+              }}
+              renderAfterRow={(item) => {
+                if (expandedKey !== item.key || !expandedFilters) return null;
                 return (
-                  <Fragment key={rowKey}>
-                    <TableRow
-                      className={cn(
-                        canExpand && "cursor-pointer hover:bg-muted/50",
-                        isExpanded && "bg-muted/30",
-                      )}
-                      onClick={
-                        canExpand ? () => toggleRow(item.key) : undefined
-                      }
-                    >
-                      <TableCell className="w-10 py-2">
-                        {canExpand ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            aria-expanded={isExpanded}
-                            aria-label={
-                              isExpanded
-                                ? financeCopy.profitability.masterDetail
-                                    .collapseRow
-                                : financeCopy.profitability.masterDetail
-                                    .expandRow
-                            }
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              toggleRow(item.key);
-                            }}
-                          >
-                            {isExpanded ? (
-                              <ChevronDown
-                                className="h-4 w-4 text-muted-foreground"
-                                aria-hidden
-                              />
-                            ) : (
-                              <ChevronRight
-                                className="h-4 w-4 text-muted-foreground"
-                                aria-hidden
-                              />
-                            )}
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="font-medium">{item.label}</TableCell>
-                      <TableCell className="text-right">{item.tripCount}</TableCell>
-                      <TableCell className="text-right">
-                        {formatMxCurrency(item.totalRevenue)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMxCurrency(
-                          aggregateDisplayCost(item, operational),
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMxCurrency(
-                          aggregateDisplayMargin(item, operational),
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {displayMarginPct == null
-                          ? "—"
-                          : `${displayMarginPct.toFixed(2)}%`}
-                      </TableCell>
-                    </TableRow>
-                    {isExpanded && expandedFilters ? (
-                      <TableRow key={`${rowKey}-detail`} className="hover:bg-transparent">
-                        <TableCell colSpan={MASTER_COL_COUNT} className="p-0">
-                          <ProfitabilityTripDetailPanel
-                            dimension={dimension}
-                            groupKey={item.key}
-                            filters={expandedFilters}
-                            scope={scope}
-                            lossOnly={lossOnly}
-                            queriesEnabled={queriesEnabled}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                  </Fragment>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={MASTER_COL_COUNT} className="p-0">
+                      <ProfitabilityTripDetailPanel
+                        dimension={dimension}
+                        groupKey={item.key}
+                        filters={expandedFilters}
+                        scope={scope}
+                        lossOnly={lossOnly}
+                        queriesEnabled={queriesEnabled}
+                      />
+                    </TableCell>
+                  </TableRow>
                 );
-              })}
-        </TableBody>
-      </Table>
+              }}
+            />
           </div>
         )}
       </CardContent>

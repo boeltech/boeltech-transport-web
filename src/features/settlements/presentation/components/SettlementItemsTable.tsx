@@ -1,14 +1,18 @@
+/**
+ * SettlementItemsTable — partidas del detalle de liquidación (`EntityListTable`).
+ *
+ * Dos bloques: percepciones (6 cols) · deducciones (4 cols).
+ * density compact · framed false (borde del host). Empty texto del detalle (sin EmptyState).
+ * T4: 6 cols en percepciones — detalle denso de negocio (≤7).
+ */
+
 import { Link } from "react-router-dom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
 import { Badge } from "@shared/ui/badge";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { SettlementItem } from "../../domain/entities";
 import {
@@ -146,6 +150,169 @@ export function formatItemTitleAndSubtitle(item: SettlementItem, copy: typeof se
   };
 }
 
+function earningsColumns(
+  copy: typeof settlementsCopy.detailPage.items,
+  agreementCalculationType: SettlementItemsTableProps["agreementCalculationType"],
+  tripLinkFrom: string | undefined,
+  participationBadgeLabel: string,
+): EntityListColumnDef<SettlementItem>[] {
+  return [
+    {
+      id: "concept",
+      header: copy.headerConcept,
+      kind: "stacked",
+      className: "max-w-[340px]",
+      accessor: (item): EntityListStackedValue => {
+        const { title, subtitle, badgeTag } = formatItemTitleAndSubtitle(item, copy);
+        const tripLine = reimbursementItemTripLine(item);
+        const manualPayee = isManualPayeeReimbursement(item);
+        const showSupportBadge =
+          item.itemType === "trip_commission" &&
+          shouldShowSupportParticipationBadge(
+            item.calculationDetails?.appliedRule as string | undefined,
+            agreementCalculationType,
+          );
+
+        const hasSecondary = Boolean(subtitle || tripLine || manualPayee);
+
+        return {
+          primary: (
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              <span>{title}</span>
+              {showSupportBadge ? (
+                <Badge
+                  variant="neutral"
+                  tone="soft"
+                  className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                >
+                  {participationBadgeLabel}
+                </Badge>
+              ) : null}
+              {badgeTag ? (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] py-0 px-1.5 h-4 font-normal"
+                >
+                  {badgeTag}
+                </Badge>
+              ) : null}
+            </span>
+          ),
+          secondary: hasSecondary ? (
+            <span className="flex flex-col gap-0.5 whitespace-normal">
+              {subtitle ? <span>{subtitle}</span> : null}
+              {tripLine ? (
+                <span data-testid="reimbursement-trip-line">{tripLine}</span>
+              ) : null}
+              {manualPayee ? (
+                <span className="text-warning">
+                  {settlementsCopy.reimbursements.manualPayeeLine}
+                </span>
+              ) : null}
+            </span>
+          ) : undefined,
+        };
+      },
+    },
+    {
+      id: "category",
+      header: copy.headerCategory,
+      kind: "status",
+      accessor: (item) => (
+        <Badge variant="neutral" tone="soft">
+          {getSettlementItemCategoryLabel(item)}
+        </Badge>
+      ),
+    },
+    {
+      id: "trip",
+      header: copy.headerTripReference,
+      kind: "code",
+      accessor: (item) => {
+        if (item.tripId) {
+          return (
+            <Link
+              to={`/trips/${item.tripId}`}
+              state={tripLinkFrom ? { from: tripLinkFrom } : undefined}
+              className="font-medium text-primary hover:underline"
+            >
+              {item.tripCode ?? copy.viewTripFallback}
+            </Link>
+          );
+        }
+        return item.tripCode ?? null;
+      },
+    },
+    {
+      id: "quantity",
+      header: copy.headerQuantity,
+      kind: "number",
+      accessor: (item) => item.quantity,
+    },
+    {
+      id: "unitRate",
+      header: copy.headerUnitRate,
+      kind: "money",
+      accessor: (item) => item.unitRate,
+    },
+    {
+      id: "amount",
+      header: copy.headerAmount,
+      kind: "money",
+      accessor: (item) => item.amount,
+    },
+  ];
+}
+
+function deductionsColumns(
+  copy: typeof settlementsCopy.detailPage.items,
+): EntityListColumnDef<SettlementItem>[] {
+  return [
+    {
+      id: "concept",
+      header: copy.headerConcept,
+      kind: "stacked",
+      className: "max-w-[340px]",
+      accessor: (item): EntityListStackedValue => {
+        const { title, subtitle } = formatItemTitleAndSubtitle(item, copy);
+        return {
+          primary: title,
+          secondary: subtitle ?? undefined,
+        };
+      },
+    },
+    {
+      id: "category",
+      header: copy.headerCategory,
+      kind: "status",
+      accessor: (item) => (
+        <Badge variant="warning" tone="soft">
+          {getSettlementItemCategoryLabel(item)}
+        </Badge>
+      ),
+    },
+    {
+      id: "reference",
+      header: copy.headerReference,
+      kind: "code",
+      accessor: (item) => {
+        if (item.advanceId) {
+          return (
+            item.calculationDetails?.advanceFolio ?? copy.linkedAdvanceFallback
+          );
+        }
+        return null;
+      },
+    },
+    {
+      id: "amount",
+      header: copy.headerDeductedAmount,
+      kind: "money",
+      accessor: (item) => (item.amount > 0 ? -item.amount : item.amount),
+    },
+  ];
+}
+
 export function SettlementItemsTable({
   items,
   agreementCalculationType,
@@ -198,132 +365,35 @@ export function SettlementItemsTable({
         </div>
 
         <div className="rounded-md border overflow-hidden">
-          <Table aria-label={copy.earningsTableAriaLabel}>
-            <TableHeader className="bg-muted/40">
-              <TableRow>
-                <TableHead>{copy.headerConcept}</TableHead>
-                <TableHead>{copy.headerCategory}</TableHead>
-                <TableHead>{copy.headerTripReference}</TableHead>
-                <TableHead className="text-right">{copy.headerQuantity}</TableHead>
-                <TableHead className="text-right">{copy.headerUnitRate}</TableHead>
-                <TableHead className="text-right">{copy.headerAmount}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {earnings.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="py-6 text-center text-xs text-muted-foreground italic"
-                  >
-                    {copy.emptyEarnings}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                earnings.map((item, index) => {
-                  const itemTypeLabel = getSettlementItemCategoryLabel(item);
-                  const { title, subtitle, badgeTag } = formatItemTitleAndSubtitle(item, copy);
-                  const tripLine = reimbursementItemTripLine(item);
-                  const manualPayee = isManualPayeeReimbursement(item);
-                  const showSupportBadge =
-                    item.itemType === "trip_commission" &&
-                    shouldShowSupportParticipationBadge(
-                      item.calculationDetails?.appliedRule as string | undefined,
-                      agreementCalculationType,
-                    );
-
-                  return (
-                    <TableRow key={item.id ?? index}>
-                      <TableCell className="max-w-[340px]">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-foreground text-xs sm:text-sm">
-                              {title}
-                            </span>
-                            {showSupportBadge ? (
-                              <Badge
-                                variant="neutral"
-                                tone="soft"
-                                className="text-[10px] py-0 px-1.5 h-4 font-normal"
-                              >
-                                {participationBadgeLabel}
-                              </Badge>
-                            ) : null}
-                            {badgeTag && (
-                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 font-normal">
-                                {badgeTag}
-                              </Badge>
-                            )}
-                          </div>
-                          {subtitle && (
-                            <span className="text-xs text-muted-foreground leading-snug">
-                              {subtitle}
-                            </span>
-                          )}
-                          {tripLine ? (
-                            <span
-                              className="text-xs text-muted-foreground leading-snug"
-                              data-testid="reimbursement-trip-line"
-                            >
-                              {tripLine}
-                            </span>
-                          ) : null}
-                          {manualPayee ? (
-                            <span className="text-xs text-warning leading-snug">
-                              {settlementsCopy.reimbursements.manualPayeeLine}
-                            </span>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="neutral" tone="soft">
-                          {itemTypeLabel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {item.tripId ? (
-                          <Link
-                            to={`/trips/${item.tripId}`}
-                            state={tripLinkFrom ? { from: tripLinkFrom } : undefined}
-                            className="font-medium text-primary hover:underline font-mono text-xs"
-                          >
-                            {item.tripCode ?? copy.viewTripFallback}
-                          </Link>
-                        ) : item.tripCode ? (
-                          <span className="font-medium text-foreground font-mono text-xs">
-                            {item.tripCode}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {item.quantity}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatMxCurrency(item.unitRate)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-foreground">
-                        {formatMxCurrency(item.amount)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+          {earnings.length === 0 ? (
+            <div className="py-6 text-center text-xs text-muted-foreground italic">
+              {copy.emptyEarnings}
+            </div>
+          ) : (
+            <EntityListTable
+              framed={false}
+              density="compact"
+              columns={earningsColumns(
+                copy,
+                agreementCalculationType,
+                tripLinkFrom,
+                participationBadgeLabel,
               )}
-            </TableBody>
-            {earnings.length > 0 && (
-              <TableFooter className="bg-muted/50 border-t font-semibold">
-                <TableRow>
-                  <TableCell colSpan={5} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
+              rows={[...earnings]}
+              getRowId={(row) => row.id}
+              aria-label={copy.earningsTableAriaLabel}
+              footer={
+                <div className="flex justify-end gap-6 font-semibold">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">
                     {copy.subtotalEarnings}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-foreground font-bold">
+                  </span>
+                  <span className="tabular-nums font-mono text-foreground font-bold">
                     {formatMxCurrency(totalEarnings)}
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            )}
-          </Table>
+                  </span>
+                </div>
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -344,100 +414,52 @@ export function SettlementItemsTable({
         </div>
 
         <div className="rounded-md border overflow-hidden">
-          <Table aria-label={copy.deductionsTableAriaLabel}>
-            <TableHeader className="bg-muted/40">
-              <TableRow>
-                <TableHead>{copy.headerConcept}</TableHead>
-                <TableHead>{copy.headerCategory}</TableHead>
-                <TableHead>{copy.headerReference}</TableHead>
-                <TableHead className="text-right">{copy.headerDeductedAmount}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {deductions.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="py-6 text-center text-xs text-muted-foreground italic"
-                  >
-                    {copy.emptyDeductions}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                deductions.map((item, index) => {
-                  const itemTypeLabel = getSettlementItemCategoryLabel(item);
-                  const { title, subtitle } = formatItemTitleAndSubtitle(item, copy);
-
-                  return (
-                    <TableRow key={item.id ?? index}>
-                      <TableCell className="max-w-[340px]">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold text-foreground text-xs sm:text-sm">
-                            {title}
-                          </span>
-                          {subtitle && (
-                            <span className="text-xs text-muted-foreground leading-snug">
-                              {subtitle}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="warning" tone="soft">
-                          {itemTypeLabel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {item.advanceId ? (
-                          <span className="font-mono text-xs">
-                            {item.calculationDetails?.advanceFolio ?? copy.linkedAdvanceFallback}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-destructive">
-                        {item.amount > 0 ? "-" : ""}
-                        {formatMxCurrency(item.amount)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-            {deductions.length > 0 && (
-              <TableFooter className="bg-muted/50 border-t font-semibold">
-                {showDeductionsBreakdown ? (
-                  <>
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-right text-xs text-muted-foreground font-medium">
-                        {copy.subtotalAdvances}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-destructive font-medium">
-                        -{formatMxCurrency(totalAdvances)}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-right text-xs text-muted-foreground font-medium">
-                        {copy.subtotalOtherDeductions}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-destructive font-medium">
-                        -{formatMxCurrency(totalOtherDeductions)}
-                      </TableCell>
-                    </TableRow>
-                  </>
-                ) : null}
-                <TableRow>
-                  <TableCell colSpan={3} className="text-right text-xs uppercase tracking-wider text-muted-foreground">
-                    {copy.subtotalDeductions}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-destructive font-bold">
-                    -{formatMxCurrency(totalDeductions)}
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            )}
-          </Table>
+          {deductions.length === 0 ? (
+            <div className="py-6 text-center text-xs text-muted-foreground italic">
+              {copy.emptyDeductions}
+            </div>
+          ) : (
+            <EntityListTable
+              framed={false}
+              density="compact"
+              columns={deductionsColumns(copy)}
+              rows={[...deductions]}
+              getRowId={(row) => row.id}
+              aria-label={copy.deductionsTableAriaLabel}
+              footer={
+                <div className="space-y-1.5 font-semibold">
+                  {showDeductionsBreakdown ? (
+                    <>
+                      <div className="flex justify-end gap-6">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {copy.subtotalAdvances}
+                        </span>
+                        <span className="tabular-nums font-mono text-destructive font-medium">
+                          -{formatMxCurrency(totalAdvances)}
+                        </span>
+                      </div>
+                      <div className="flex justify-end gap-6">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {copy.subtotalOtherDeductions}
+                        </span>
+                        <span className="tabular-nums font-mono text-destructive font-medium">
+                          -{formatMxCurrency(totalOtherDeductions)}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
+                  <div className="flex justify-end gap-6">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {copy.subtotalDeductions}
+                    </span>
+                    <span className="tabular-nums font-mono text-destructive font-bold">
+                      -{formatMxCurrency(totalDeductions)}
+                    </span>
+                  </div>
+                </div>
+              }
+            />
+          )}
         </div>
       </div>
     </div>

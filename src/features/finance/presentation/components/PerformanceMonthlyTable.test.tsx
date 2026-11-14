@@ -81,11 +81,12 @@ function renderTable(
 }
 
 describe("PerformanceMonthlyTable", () => {
-  it("merges the three variation cells of the month in progress", () => {
+  it("defers comparison for the month in progress (EntityListTable: no colspan)", () => {
     renderTable(true);
     const inProgressRow = screen.getByRole("row", { name: /oct 2026 \(en curso\)/ });
-    const merged = within(inProgressRow).getByText("Se compara cuando termine el mes");
-    expect(merged.closest("td")).toHaveAttribute("colspan", "3");
+    expect(
+      within(inProgressRow).getByText("Se compara cuando termine el mes"),
+    ).toBeInTheDocument();
     expect(within(inProgressRow).queryByText("—")).not.toBeInTheDocument();
     expect(within(inProgressRow).queryByText("Nuevo")).not.toBeInTheDocument();
     expect(inProgressRow.textContent).not.toMatch(/[+−]\d/);

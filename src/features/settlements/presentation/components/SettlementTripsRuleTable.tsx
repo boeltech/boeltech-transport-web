@@ -1,11 +1,14 @@
+/**
+ * SettlementTripsRuleTable — viajes del detalle de liquidación (`EntityListTable`).
+ *
+ * Viaje · Ruta · Clase · Km · Regla · Pago. density compact · framed false (card host).
+ * Empty → null.
+ */
+
 import { Link } from "react-router-dom";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
 } from "@shared/ui/table";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { SettlementItem } from "../../domain/entities";
@@ -20,6 +23,89 @@ interface SettlementTripsRuleTableProps {
   tripLinkFrom?: string;
 }
 
+function buildColumns(
+  tripLinkFrom?: string,
+): EntityListColumnDef<SettlementItem>[] {
+  return [
+    {
+      id: "trip",
+      header: copy.colTrip,
+      kind: "code",
+      accessor: (item) => {
+        if (item.tripId) {
+          return (
+            <Link
+              to={`/trips/${item.tripId}`}
+              state={tripLinkFrom ? { from: tripLinkFrom } : undefined}
+              className="text-primary hover:underline"
+            >
+              {item.tripCode ?? "—"}
+            </Link>
+          );
+        }
+        return item.tripCode ?? "—";
+      },
+    },
+    {
+      id: "route",
+      header: copy.colRoute,
+      kind: "text",
+      accessor: (item) => {
+        let routeDesc = item.description;
+        const parenMatch = item.description.match(
+          /\(([^·)]+)(?:·\s*([^)]+))?\)/,
+        );
+        if (parenMatch?.[1]) routeDesc = parenMatch[1].trim();
+        return routeDesc;
+      },
+    },
+    {
+      id: "class",
+      header: copy.colClass,
+      kind: "meta",
+      accessor: (item) => {
+        const routeType = item.calculationDetails?.routeType as
+          | TripRouteType
+          | undefined;
+        return routeType
+          ? (TRIP_ROUTE_TYPE_LABELS[routeType] ?? routeType)
+          : null;
+      },
+    },
+    {
+      id: "km",
+      header: copy.colKm,
+      kind: "number",
+      accessor: (item) => {
+        const km = item.calculationDetails?.distanceKm;
+        return km != null ? Number(km) : null;
+      },
+    },
+    {
+      id: "rule",
+      header: copy.colRule,
+      kind: "code",
+      accessor: (item) => {
+        const details = item.calculationDetails;
+        return formatKmTimesRateRule({
+          distanceKm: details?.distanceKm,
+          ratePerKm: details?.ratePerKm,
+          appliedRule: details?.appliedRule,
+          formatRate: formatMxCurrency,
+          compose: copy.ruleKmTimesRate,
+          fallback: copy.ruleFallback,
+        });
+      },
+    },
+    {
+      id: "pay",
+      header: copy.colPay,
+      kind: "money",
+      accessor: (item) => item.amount,
+    },
+  ];
+}
+
 /** Tabla de viajes con columna Regla aplicada (CA F4.8). */
 export function SettlementTripsRuleTable({
   items,
@@ -29,7 +115,10 @@ export function SettlementTripsRuleTable({
   if (trips.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border bg-card" data-testid="settlement-trips-rule-table">
+    <div
+      className="rounded-2xl border bg-card"
+      data-testid="settlement-trips-rule-table"
+    >
       <div className="px-5 pt-4 pb-1">
         <h2 className="text-base font-semibold leading-6">
           {copy.title(trips.length)}
@@ -37,76 +126,14 @@ export function SettlementTripsRuleTable({
         <p className="text-sm text-muted-foreground">{copy.subtitle}</p>
       </div>
       <div className="overflow-x-auto px-2 pb-3">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{copy.colTrip}</TableHead>
-              <TableHead>{copy.colRoute}</TableHead>
-              <TableHead>{copy.colClass}</TableHead>
-              <TableHead className="text-right">{copy.colKm}</TableHead>
-              <TableHead>{copy.colRule}</TableHead>
-              <TableHead className="text-right">{copy.colPay}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {trips.map((item) => {
-              const details = item.calculationDetails;
-              const routeType = details?.routeType as TripRouteType | undefined;
-              const routeLabel = routeType
-                ? (TRIP_ROUTE_TYPE_LABELS[routeType] ?? routeType)
-                : "—";
-              let routeDesc = item.description;
-              const parenMatch = item.description.match(
-                /\(([^·)]+)(?:·\s*([^)]+))?\)/,
-              );
-              if (parenMatch?.[1]) routeDesc = parenMatch[1].trim();
-
-              return (
-                <TableRow key={item.id}>
-                  <TableCell className="font-mono text-xs">
-                    {item.tripId ? (
-                      <Link
-                        to={`/trips/${item.tripId}`}
-                        state={
-                          tripLinkFrom ? { from: tripLinkFrom } : undefined
-                        }
-                        className="text-primary hover:underline"
-                      >
-                        {item.tripCode ?? "—"}
-                      </Link>
-                    ) : (
-                      (item.tripCode ?? "—")
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium max-w-[220px] truncate">
-                    {routeDesc}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {routeLabel}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-muted-foreground tabular-nums">
-                    {details?.distanceKm != null
-                      ? Number(details.distanceKm).toLocaleString("es-MX")
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs max-w-[200px] font-mono tabular-nums">
-                    {formatKmTimesRateRule({
-                      distanceKm: details?.distanceKm,
-                      ratePerKm: details?.ratePerKm,
-                      appliedRule: details?.appliedRule,
-                      formatRate: formatMxCurrency,
-                      compose: copy.ruleKmTimesRate,
-                      fallback: copy.ruleFallback,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums font-medium">
-                    {formatMxCurrency(item.amount)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <EntityListTable
+          framed={false}
+          density="compact"
+          columns={buildColumns(tripLinkFrom)}
+          rows={[...trips]}
+          getRowId={(row) => row.id}
+          aria-label={copy.title(trips.length)}
+        />
       </div>
     </div>
   );

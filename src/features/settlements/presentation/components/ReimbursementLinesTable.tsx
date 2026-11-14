@@ -1,14 +1,16 @@
+/**
+ * ReimbursementLinesTable — reembolsos embebidos (`EntityListTable`).
+ *
+ * Viaje · Concepto · Aprobado · Monto. density compact · framed false (borde host).
+ * Empty → null (host). Footer opcional con total.
+ */
+
 import { Link } from "react-router-dom";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { TripSettledInRef } from "../../domain/entities";
 import { roundCents } from "../../domain/settlementTotals";
@@ -42,6 +44,52 @@ export interface ReimbursementLinesTableProps {
   tripLinkFrom?: string;
 }
 
+function buildColumns(
+  showTripLine: boolean,
+  tripLinkFrom?: string,
+): EntityListColumnDef<ReimbursementTableLine>[] {
+  return [
+    {
+      id: "trip",
+      header: copy.trip,
+      kind: "stacked",
+      accessor: (line): EntityListStackedValue => ({
+        primary: (
+          <Link
+            to={tripCostsPath(line.tripId)}
+            state={tripLinkFrom ? { from: tripLinkFrom } : undefined}
+            className="font-mono font-semibold text-primary hover:underline"
+          >
+            {line.tripCode}
+          </Link>
+        ),
+        secondary: showTripLine
+          ? reimbursementTripLine(line.tripCode, line.tripSettledIn ?? null)
+          : undefined,
+      }),
+    },
+    {
+      id: "concept",
+      header: copy.concept,
+      kind: "text",
+      accessor: (line) =>
+        reimbursementConcept(line.category, line.description),
+    },
+    {
+      id: "approvedAt",
+      header: copy.approvedAt,
+      kind: "date",
+      accessor: (line) => line.approvedAt,
+    },
+    {
+      id: "amount",
+      header: copy.amount,
+      kind: "money",
+      accessor: (line) => line.amount,
+    },
+  ];
+}
+
 /** Reembolsos de solo lectura: viaje (enlace a Costos), concepto, aprobado el y monto. */
 export function ReimbursementLinesTable({
   lines,
@@ -50,60 +98,30 @@ export function ReimbursementLinesTable({
   showTotal = false,
   tripLinkFrom,
 }: ReimbursementLinesTableProps) {
+  if (lines.length === 0) return null;
+
   const total = roundCents(lines.reduce((sum, line) => sum + line.amount, 0));
+
   return (
     <div className="rounded-md border overflow-x-auto">
-      <Table aria-label={ariaLabel}>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{copy.trip}</TableHead>
-            <TableHead>{copy.concept}</TableHead>
-            <TableHead>{copy.approvedAt}</TableHead>
-            <TableHead className="text-right">{copy.amount}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {lines.map((line) => (
-            <TableRow key={line.tripExpenseId}>
-              <TableCell className="text-xs">
-                <Link
-                  to={tripCostsPath(line.tripId)}
-                  state={tripLinkFrom ? { from: tripLinkFrom } : undefined}
-                  className="font-mono font-semibold text-primary hover:underline"
-                >
-                  {line.tripCode}
-                </Link>
-                {showTripLine ? (
-                  <span className="block text-[11px] text-muted-foreground mt-0.5">
-                    {reimbursementTripLine(line.tripCode, line.tripSettledIn ?? null)}
-                  </span>
-                ) : null}
-              </TableCell>
-              <TableCell className="text-xs text-foreground">
-                {reimbursementConcept(line.category, line.description)}
-              </TableCell>
-              <TableCell className="text-xs text-muted-foreground">
-                {line.approvedAt ? formatDate(line.approvedAt) : "—"}
-              </TableCell>
-              <TableCell className="text-right text-xs font-medium tabular-nums">
-                {formatMxCurrency(line.amount)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-        {showTotal ? (
-          <TableFooter>
-            <TableRow>
-              <TableCell colSpan={3} className="text-xs font-semibold">
-                {copy.total}
-              </TableCell>
-              <TableCell className="text-right text-xs font-semibold tabular-nums">
+      <EntityListTable
+        framed={false}
+        density="compact"
+        columns={buildColumns(showTripLine, tripLinkFrom)}
+        rows={[...lines]}
+        getRowId={(row) => row.tripExpenseId}
+        aria-label={ariaLabel}
+        footer={
+          showTotal ? (
+            <div className="flex justify-between gap-4 font-semibold text-xs">
+              <span>{copy.total}</span>
+              <span className="tabular-nums font-mono">
                 {formatMxCurrency(total)}
-              </TableCell>
-            </TableRow>
-          </TableFooter>
-        ) : null}
-      </Table>
+              </span>
+            </div>
+          ) : undefined
+        }
+      />
     </div>
   );
 }

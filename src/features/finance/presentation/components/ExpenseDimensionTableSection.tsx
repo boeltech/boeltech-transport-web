@@ -1,3 +1,10 @@
+/**
+ * ExpenseDimensionTableSection — gastos por dimensión (`EntityListTable`).
+ *
+ * Dimensión · Viajes · Total · Promedio/viaje. density compact · framed false (borde en Card).
+ * Empty = EmptyState de la sección (no duplicar).
+ */
+
 import { Receipt } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@shared/ui/skeleton";
@@ -9,12 +16,8 @@ import {
   CardTitle,
 } from "@shared/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
 } from "@shared/ui/table";
 import { EmptyState } from "@shared/ui/feedback-states";
 import {
@@ -24,8 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@shared/ui/select";
-import { cn } from "@shared/lib/utils/cn";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { ExpensesByDimensionItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
 
@@ -75,6 +76,53 @@ function drillTargetForRow(
     };
   }
   return null;
+}
+
+function buildColumns(
+  dimension: ExpenseDimension,
+  dimensionLabel: string,
+): EntityListColumnDef<ExpensesByDimensionItem>[] {
+  return [
+    {
+      id: "dimension",
+      header: dimensionLabel,
+      kind: "text",
+      className: "font-medium",
+      accessor: (item) => {
+        const drill = drillTargetForRow(dimension, item);
+        if (drill) {
+          return (
+            <Link
+              to={drill.to}
+              className="text-primary underline-offset-4 hover:underline"
+              aria-label={drill.ariaLabel}
+            >
+              {item.label}
+            </Link>
+          );
+        }
+        return item.label;
+      },
+    },
+    {
+      id: "trips",
+      header: financeCopy.expenses.table.dimensionTripCount,
+      kind: "number",
+      accessor: (item) => item.tripCount,
+    },
+    {
+      id: "total",
+      header: financeCopy.expenses.table.totalExpense,
+      kind: "money",
+      accessor: (item) => item.totalExpenses,
+    },
+    {
+      id: "avg",
+      header: financeCopy.expenses.table.avgExpensePerTrip,
+      kind: "money",
+      accessor: (item) => item.avgExpensePerTrip,
+    },
+  ];
 }
 
 export function ExpenseDimensionTableSection({
@@ -135,56 +183,16 @@ export function ExpenseDimensionTableSection({
           />
         ) : (
           <div className="overflow-x-auto rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{dimensionLabel}</TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.expenses.table.dimensionTripCount}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.expenses.table.totalExpense}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.expenses.table.avgExpensePerTrip}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((item, index) => {
-                  const drill = drillTargetForRow(dimension, item);
-                  return (
-                    <TableRow
-                      key={`${dimension}-${item.key}`}
-                      className={cn(index === 0 && "bg-primary/5")}
-                    >
-                      <TableCell className="font-medium">
-                        {drill ? (
-                          <Link
-                            to={drill.to}
-                            className="text-primary underline-offset-4 hover:underline"
-                            aria-label={drill.ariaLabel}
-                          >
-                            {item.label}
-                          </Link>
-                        ) : (
-                          item.label
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {item.tripCount}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatMxCurrency(item.totalExpenses)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatMxCurrency(item.avgExpensePerTrip)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <EntityListTable
+              framed={false}
+              density="compact"
+              columns={buildColumns(dimension, dimensionLabel)}
+              rows={rows}
+              getRowId={(row) => `${dimension}-${row.key}`}
+              getRowClassName={(row) =>
+                rows[0]?.key === row.key ? "bg-primary/5" : undefined
+              }
+            />
           </div>
         )}
       </CardContent>

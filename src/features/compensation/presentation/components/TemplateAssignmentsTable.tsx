@@ -1,17 +1,22 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+/**
+ * TemplateAssignmentsTable — operadores asignados a una tarifa (`EntityListTable`).
+ *
+ * [expand?] · Operador · Desde · Hasta · Estado · Acciones.
+ * density compact · framed false. Empty = EmptyState del detalle (host no aporta).
+ * Foco D20 vía `data-focused` + querySelector (sin ref en EntityListTable).
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
 import { Button } from "@shared/ui/button";
-import { Skeleton } from "@shared/ui/skeleton";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { formatDate, getTodayString } from "@shared/utils/dateUtils";
+import {
+  EntityListTable,
+  TableCell,
+  TableRow,
+  type EntityListColumnDef,
+} from "@shared/ui/table";
+import { getTodayString } from "@shared/utils/dateUtils";
 import type { TemplateAssignment, TemplateFixedAllowance } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
 import { AssignmentDisplayStatusBadge } from "../config/compensationStatusConfig";
@@ -30,6 +35,11 @@ const STATUS_ORDER: Record<AssignmentDisplayStatus, number> = {
   scheduled: 1,
   concluded: 2,
   deactivated: 3,
+};
+
+type AssignmentRow = {
+  assignment: TemplateAssignment;
+  status: AssignmentDisplayStatus;
 };
 
 /** PRD D12: por estado y, dentro de cada uno, «Desde» descendente. */
@@ -59,64 +69,96 @@ interface TemplateAssignmentsTableProps {
 }
 
 /** Botón «···» de la fila; si no hay menú (sin permisos), la fila misma recibe el foco. */
-function focusRowMenu(row: HTMLTableRowElement) {
+function focusRowMenu(row: HTMLElement) {
   row.scrollIntoView?.({ block: "center" });
   const trigger = row.querySelector<HTMLElement>("[data-assignment-menu-trigger]");
   (trigger ?? row).focus();
 }
 
-function AssignmentsTableHeader({ showOverrides }: { showOverrides: boolean }) {
-  return (
-    <TableHeader>
-      <TableRow>
-        {showOverrides ? <TableHead className="w-10" /> : null}
-        <TableHead>{copy.columns.operator}</TableHead>
-        <TableHead>{copy.columns.effectiveFrom}</TableHead>
-        <TableHead>{copy.columns.effectiveTo}</TableHead>
-        <TableHead>{copy.columns.status}</TableHead>
-        <TableHead className="w-12" />
-      </TableRow>
-    </TableHeader>
-  );
-}
+function buildColumns(
+  showOverrides: boolean,
+  expandedId: string | null,
+  setExpandedId: (id: string | null) => void,
+  onActionComplete?: () => void,
+): EntityListColumnDef<AssignmentRow>[] {
+  const columns: EntityListColumnDef<AssignmentRow>[] = [];
 
-function AssignmentsLoadingSkeleton({ showOverrides }: { showOverrides: boolean }) {
-  return (
-    <>
-      {Array.from({ length: 3 }).map((_, index) => (
-        <TableRow key={index}>
-          {showOverrides ? (
-            <TableCell>
-              <Skeleton className="h-7 w-7" />
-            </TableCell>
-          ) : null}
-          <TableCell>
-            <Skeleton className="h-4 w-32" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-5 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-8 w-8" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
-  );
-}
+  if (showOverrides) {
+    columns.push({
+      id: "expand",
+      header: "",
+      kind: "status",
+      className: "w-10 py-2",
+      accessor: ({ assignment }) => {
+        const isExpanded = expandedId === assignment.id;
+        return (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? copy.collapseRow : copy.expandRow}
+            onClick={() =>
+              setExpandedId(isExpanded ? null : assignment.id)
+            }
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        );
+      },
+    });
+  }
 
-function AssignmentsTableFrame({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-md border bg-card overflow-x-auto">
-      <Table aria-label={TABLE_ARIA_LABEL}>{children}</Table>
-    </div>
+  columns.push(
+    {
+      id: "operator",
+      header: copy.columns.operator,
+      kind: "text",
+      accessor: ({ assignment }) =>
+        assignment.employeeFullName ?? assignment.employeeId.slice(0, 8),
+    },
+    {
+      id: "effectiveFrom",
+      header: copy.columns.effectiveFrom,
+      kind: "date",
+      className: "whitespace-nowrap",
+      accessor: ({ assignment }) => assignment.effectiveFrom,
+    },
+    {
+      id: "effectiveTo",
+      header: copy.columns.effectiveTo,
+      kind: "date",
+      className: "whitespace-nowrap",
+      accessor: ({ assignment }) => assignment.effectiveTo,
+    },
+    {
+      id: "status",
+      header: copy.columns.status,
+      kind: "status",
+      accessor: ({ assignment, status }) => (
+        <AssignmentDisplayStatusBadge assignment={assignment} status={status} />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: ({ assignment, status }) => (
+        <TemplateAssignmentActions
+          assignment={assignment}
+          displayStatus={status}
+          onActionComplete={onActionComplete}
+        />
+      ),
+    },
   );
+
+  return columns;
 }
 
 export function TemplateAssignmentsTable({
@@ -158,7 +200,6 @@ export function TemplateAssignmentsTable({
     canCollapseDeactivated && !showDeactivated
       ? rows.filter(({ status }) => status !== "deactivated")
       : rows;
-  const focusedRowRef = useRef<HTMLTableRowElement>(null);
   const focusedOnceRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -166,23 +207,16 @@ export function TemplateAssignmentsTable({
       focusedOnceRef.current = null;
       return;
     }
-    if (focusedOnceRef.current === focusedAssignmentId || !focusedRowRef.current) return;
+    if (focusedOnceRef.current === focusedAssignmentId) return;
+    const row = document.querySelector<HTMLElement>(
+      `[data-focused="true"][data-assignment-id="${focusedAssignmentId}"]`,
+    );
+    if (!row) return;
     focusedOnceRef.current = focusedAssignmentId;
-    focusRowMenu(focusedRowRef.current);
+    focusRowMenu(row);
   }, [focusedAssignmentId, visibleRows, isLoading]);
 
-  if (isLoading) {
-    return (
-      <AssignmentsTableFrame>
-        <AssignmentsTableHeader showOverrides={showOverrides} />
-        <TableBody>
-          <AssignmentsLoadingSkeleton showOverrides={showOverrides} />
-        </TableBody>
-      </AssignmentsTableFrame>
-    );
-  }
-
-  if (assignments.length === 0) {
+  if (!isLoading && assignments.length === 0) {
     return (
       <EmptyState
         icon={<Users className="h-8 w-8 text-muted-foreground" />}
@@ -193,83 +227,56 @@ export function TemplateAssignmentsTable({
     );
   }
 
+  const colSpan = showOverrides ? 6 : 5;
+
   return (
     <div className="space-y-2">
-      <AssignmentsTableFrame>
-        <AssignmentsTableHeader showOverrides={showOverrides} />
-        <TableBody>
-          {visibleRows.map(({ assignment, status }) => {
-            const isExpanded = expandedId === assignment.id;
+      <div className="rounded-md border bg-card overflow-x-auto">
+        <EntityListTable
+          framed={false}
+          density="compact"
+          columns={buildColumns(
+            showOverrides,
+            expandedId,
+            setExpandedId,
+            onActionComplete,
+          )}
+          rows={visibleRows}
+          getRowId={(row) => row.assignment.id}
+          isLoading={Boolean(isLoading)}
+          aria-label={TABLE_ARIA_LABEL}
+          getRowClassName={({ assignment }) =>
+            assignment.id === focusedAssignmentId
+              ? "bg-accent hover:bg-accent"
+              : undefined
+          }
+          getRowProps={({ assignment }) => {
             const isFocused = assignment.id === focusedAssignmentId;
-
+            return {
+              "data-focused": isFocused ? "true" : undefined,
+              "data-assignment-id": assignment.id,
+              tabIndex: isFocused ? -1 : undefined,
+            };
+          }}
+          renderAfterRow={({ assignment }) => {
+            if (!showOverrides || expandedId !== assignment.id) return null;
             return (
-              <Fragment key={assignment.id}>
-                <TableRow
-                  ref={isFocused ? focusedRowRef : undefined}
-                  data-focused={isFocused ? "true" : undefined}
-                  tabIndex={isFocused ? -1 : undefined}
-                  className={isFocused ? "bg-accent hover:bg-accent" : undefined}
-                >
-                  {showOverrides ? (
-                    <TableCell className="py-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        aria-expanded={isExpanded}
-                        aria-label={isExpanded ? copy.collapseRow : copy.expandRow}
-                        onClick={() =>
-                          setExpandedId(isExpanded ? null : assignment.id)
-                        }
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TableCell>
-                  ) : null}
-                  <TableCell>
-                    {assignment.employeeFullName ?? assignment.employeeId.slice(0, 8)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDate(assignment.effectiveFrom)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDate(assignment.effectiveTo)}
-                  </TableCell>
-                  <TableCell>
-                    <AssignmentDisplayStatusBadge assignment={assignment} status={status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <TemplateAssignmentActions
+              <TableRow>
+                <TableCell colSpan={colSpan} className="bg-muted/20 p-0">
+                  <div className="p-4">
+                    <FixedAllowanceOverridePanel
                       assignment={assignment}
-                      displayStatus={status}
-                      onActionComplete={onActionComplete}
+                      fixedAllowances={fixedAllowances}
+                      paymentPeriodStart={paymentPeriodStart}
+                      paymentPeriodEnd={paymentPeriodEnd}
                     />
-                  </TableCell>
-                </TableRow>
-                {showOverrides && isExpanded ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="bg-muted/20 p-0">
-                      <div className="p-4">
-                        <FixedAllowanceOverridePanel
-                          assignment={assignment}
-                          fixedAllowances={fixedAllowances}
-                          paymentPeriodStart={paymentPeriodStart}
-                          paymentPeriodEnd={paymentPeriodEnd}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </Fragment>
+                  </div>
+                </TableCell>
+              </TableRow>
             );
-          })}
-        </TableBody>
-      </AssignmentsTableFrame>
+          }}
+        />
+      </div>
       {canCollapseDeactivated ? (
         <Button
           type="button"

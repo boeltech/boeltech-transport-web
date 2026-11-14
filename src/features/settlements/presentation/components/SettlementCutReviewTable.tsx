@@ -1,3 +1,11 @@
+/**
+ * SettlementCutReviewTable — revisión del corte (`EntityListTable` compact).
+ *
+ * Operador · Aviso · Monto · Acción. Grupos con/ready fuera de la tabla.
+ * density compact · framed false. Empty → null por grupo.
+ */
+
+import type { HTMLAttributes, ReactNode } from "react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import {
@@ -6,6 +14,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@shared/ui/tooltip";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { SettlementCutPreviewRow } from "../../domain/settlementCut";
 import {
@@ -70,51 +83,39 @@ function RowAmount({ row }: { row: SettlementCutPreviewRow }) {
   );
 }
 
-function RowSubtitle({ row }: { row: SettlementCutPreviewRow }) {
+function rowSubtitle(row: SettlementCutPreviewRow): string {
   if (row.tripIds.length > 0) {
-    return <>{copy.tripsSubtitle(row.tripIds.length)}</>;
+    return copy.tripsSubtitle(row.tripIds.length);
   }
-  const humanType = employmentTypeLabel(row.employmentType);
-  return <>{humanType || "—"}</>;
+  return employmentTypeLabel(row.employmentType) || "—";
 }
 
-function CutRow({
-  row,
-  onAction,
-}: {
-  row: SettlementCutPreviewRow;
-  onAction: (row: SettlementCutPreviewRow, action: SettlementCutRowAction) => void;
-}) {
-  const ui = resolveCutRowWarningUi(row);
-  const action = ui?.action ?? (row.effect === "includable" ? "view" : null);
-  const label = actionLabel(action);
-  const muted = row.effect === "excluded";
-  const longMessage = primaryCutWarningMessage(row);
-
-  return (
-    <tr
-      className={muted ? "text-muted-foreground" : undefined}
-      data-testid={`cut-row-${row.employeeId}`}
-      data-effect={row.effect}
-    >
-      <td className="px-2.5 py-2.5 align-middle">
-        <div className="flex flex-col">
-          <span
-            className={
-              muted
-                ? "whitespace-nowrap font-medium text-foreground"
-                : "whitespace-nowrap font-medium"
-            }
-          >
-            {row.employeeFullName}
-          </span>
-          <span className="text-[11px] text-muted-foreground">
-            <RowSubtitle row={row} />
-          </span>
-        </div>
-      </td>
-      <td className="px-2.5 py-2.5 align-middle">
-        {ui ? (
+function buildColumns(
+  onAction: (row: SettlementCutPreviewRow, action: SettlementCutRowAction) => void,
+): EntityListColumnDef<SettlementCutPreviewRow>[] {
+  return [
+    {
+      id: "operator",
+      header: copy.columns.operator,
+      kind: "stacked",
+      accessor: (row): EntityListStackedValue => ({
+        primary: row.employeeFullName,
+        secondary: rowSubtitle(row),
+      }),
+    },
+    {
+      id: "warning",
+      header: copy.columns.warning,
+      kind: "status",
+      accessor: (row) => {
+        const ui = resolveCutRowWarningUi(row);
+        const longMessage = primaryCutWarningMessage(row);
+        if (!ui) {
+          return (
+            <span className="text-muted-foreground">{copy.noWarning}</span>
+          );
+        }
+        return (
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge variant={ui.badgeVariant} tone="soft" className="max-w-full">
@@ -127,15 +128,27 @@ function CutRow({
               </TooltipContent>
             ) : null}
           </Tooltip>
-        ) : (
-          <span className="text-muted-foreground">{copy.noWarning}</span>
-        )}
-      </td>
-      <td className="px-2.5 py-2.5 text-right align-middle">
-        <RowAmount row={row} />
-      </td>
-      <td className="px-2.5 py-2.5 text-right align-middle whitespace-nowrap">
-        {label && action ? (
+        );
+      },
+    },
+    {
+      id: "amount",
+      header: copy.columns.amount,
+      kind: "status",
+      headerClassName: "text-right",
+      className: "text-right",
+      accessor: (row) => <RowAmount row={row} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (row) => {
+        const ui = resolveCutRowWarningUi(row);
+        const action = ui?.action ?? (row.effect === "includable" ? "view" : null);
+        const label = actionLabel(action);
+        if (!label || !action) return null;
+        return (
           <Button
             type="button"
             variant="ghost"
@@ -144,10 +157,10 @@ function CutRow({
           >
             {label}
           </Button>
-        ) : null}
-      </td>
-    </tr>
-  );
+        );
+      },
+    },
+  ];
 }
 
 export interface SettlementCutReviewTableProps {
@@ -160,6 +173,14 @@ export interface SettlementCutReviewTableProps {
 }
 
 const READY_PREVIEW = 3;
+
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="bg-muted px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
+      {children}
+    </div>
+  );
+}
 
 export function SettlementCutReviewTable({
   withWarning,
@@ -180,84 +201,83 @@ export function SettlementCutReviewTable({
       ? Math.max(0, ready.length - READY_PREVIEW)
       : 0;
 
+  const columns = buildColumns(onAction);
+  const hasAny =
+    (showWithWarning && withWarning.length > 0) ||
+    (showReady && ready.length > 0);
+
+  if (!hasAny) return null;
+
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="overflow-x-auto" data-testid="cut-review-table">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="border-b px-2.5 pb-1.5 text-left text-xs font-medium text-muted-foreground">
-                {copy.columns.operator}
-              </th>
-              <th className="border-b px-2.5 pb-1.5 text-left text-xs font-medium text-muted-foreground">
-                {copy.columns.warning}
-              </th>
-              <th className="border-b px-2.5 pb-1.5 text-right text-xs font-medium text-muted-foreground">
-                {copy.columns.amount}
-              </th>
-              <th className="border-b px-2.5 pb-1.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {showWithWarning && withWarning.length > 0 ? (
-              <>
-                <tr className="bg-muted">
-                  <td
-                    colSpan={4}
-                    className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground"
-                  >
-                    {copy.groupWithWarning(withWarning.length)}
-                  </td>
-                </tr>
-                {withWarning.map((row) => (
-                  <CutRow key={row.employeeId} row={row} onAction={onAction} />
-                ))}
-              </>
-            ) : null}
+      <div className="overflow-x-auto space-y-3" data-testid="cut-review-table">
+        {showWithWarning && withWarning.length > 0 ? (
+          <div>
+            <GroupLabel>{copy.groupWithWarning(withWarning.length)}</GroupLabel>
+            <EntityListTable
+              framed={false}
+              density="compact"
+              columns={columns}
+              rows={[...withWarning]}
+              getRowId={(row) => row.employeeId}
+              getRowClassName={(row) =>
+                row.effect === "excluded" ? "text-muted-foreground" : undefined
+              }
+              getRowProps={(row) =>
+                ({
+                  "data-testid": `cut-row-${row.employeeId}`,
+                  "data-effect": row.effect,
+                }) as HTMLAttributes<HTMLTableRowElement>
+              }
+            />
+          </div>
+        ) : null}
 
-            {showReady && ready.length > 0 ? (
-              <>
-                <tr className="bg-muted">
-                  <td
-                    colSpan={4}
-                    className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground"
-                  >
-                    {copy.groupReady(ready.length)}
-                  </td>
-                </tr>
-                {readyVisible.map((row) => (
-                  <CutRow key={row.employeeId} row={row} onAction={onAction} />
-                ))}
-                {hiddenReady > 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-2.5 py-3 text-center">
-                      <button
-                        type="button"
-                        className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-                        onClick={onToggleReady}
-                      >
-                        {copy.expandReady(hiddenReady)}
-                      </button>
-                    </td>
-                  </tr>
-                ) : null}
-                {filter === "all" && readyExpanded && ready.length > READY_PREVIEW ? (
-                  <tr>
-                    <td colSpan={4} className="px-2.5 py-3 text-center">
-                      <button
-                        type="button"
-                        className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
-                        onClick={onToggleReady}
-                      >
-                        {copy.collapseReady}
-                      </button>
-                    </td>
-                  </tr>
-                ) : null}
-              </>
+        {showReady && ready.length > 0 ? (
+          <div>
+            <GroupLabel>{copy.groupReady(ready.length)}</GroupLabel>
+            <EntityListTable
+              framed={false}
+              density="compact"
+              columns={columns}
+              rows={[...readyVisible]}
+              getRowId={(row) => row.employeeId}
+              getRowClassName={(row) =>
+                row.effect === "excluded" ? "text-muted-foreground" : undefined
+              }
+              getRowProps={(row) =>
+                ({
+                  "data-testid": `cut-row-${row.employeeId}`,
+                  "data-effect": row.effect,
+                }) as HTMLAttributes<HTMLTableRowElement>
+              }
+            />
+            {hiddenReady > 0 ? (
+              <div className="px-2.5 py-3 text-center">
+                <button
+                  type="button"
+                  className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                  onClick={onToggleReady}
+                >
+                  {copy.expandReady(hiddenReady)}
+                </button>
+              </div>
             ) : null}
-          </tbody>
-        </table>
+            {filter === "all" &&
+            readyExpanded &&
+            ready.length > READY_PREVIEW ? (
+              <div className="px-2.5 py-3 text-center">
+                <button
+                  type="button"
+                  className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                  onClick={onToggleReady}
+                >
+                  {copy.collapseReady}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </TooltipProvider>
   );
