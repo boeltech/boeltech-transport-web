@@ -1,19 +1,15 @@
 /**
- * CatalogItemsTable Component
- * Clean Architecture - Presentation Layer
+ * CatalogItemsTable — items de catálogo (`EntityListTable`).
  *
- * Tabla para mostrar items de un catálogo.
- * Con `embedded`, solo renderiza la tabla (búsqueda/paginación en el padre).
+ * Código · Nombre · Descripción? · Padre? · Estado? · Acciones?.
+ * Empty → null (CatalogDetailPage EmptyState). `framed={false}` bajo SettingsCard.
+ * Con `embedded`, búsqueda/paginación viven en el padre.
  */
 
-import { useCallback, useState, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
 } from "@shared/ui/table";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -32,10 +28,6 @@ import type { CatalogItem } from "../../domain";
 
 const copy = catalogsCopy.table;
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 export interface CatalogItemsTableProps {
   items: CatalogItem[];
   isLoading?: boolean;
@@ -48,10 +40,6 @@ export interface CatalogItemsTableProps {
   /** Columna de acciones por fila (permisos resueltos en el padre). */
   renderRowActions?: (item: CatalogItem) => ReactNode;
 }
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
 
 export function CatalogItemsTable({
   items,
@@ -85,7 +73,6 @@ export function CatalogItemsTable({
     ? items
     : filteredItems.slice(startIndex, endIndex);
 
-  // El estado solo aporta cuando hay algún valor dado de baja.
   const showStatusColumn = useMemo(
     () => paginatedItems.some((item) => !item.isActive),
     [paginatedItems],
@@ -96,14 +83,28 @@ export function CatalogItemsTable({
     setCurrentPage(1);
   };
 
+  const columns = useMemo(
+    () =>
+      buildColumns({
+        showDescription,
+        showParentCode,
+        showStatus: showStatusColumn,
+        renderRowActions,
+      }),
+    [showDescription, showParentCode, showStatusColumn, renderRowActions],
+  );
+
   if (isLoading) {
     return (
       <div className={cn(embedded ? undefined : "space-y-4", className)}>
         {!embedded ? <Skeleton className="h-10 w-64" /> : null}
-        <CatalogItemsTableSkeleton
-          showDescription={showDescription}
-          showParentCode={showParentCode}
-          showActions={Boolean(renderRowActions)}
+        <EntityListTable
+          framed={false}
+          density="list"
+          columns={columns}
+          rows={[]}
+          getRowId={(row) => row.id}
+          isLoading
         />
       </div>
     );
@@ -133,12 +134,13 @@ export function CatalogItemsTable({
         </div>
       ) : null}
 
-      <CatalogItemsTableBody
-        items={paginatedItems}
-        showDescription={showDescription}
-        showParentCode={showParentCode}
-        showStatus={showStatusColumn}
-        renderRowActions={renderRowActions}
+      <EntityListTable
+        framed={false}
+        density="list"
+        aria-label={copy.name}
+        columns={columns}
+        rows={paginatedItems}
+        getRowId={(row) => row.id}
       />
 
       {!embedded && totalPages > 1 ? (
@@ -152,100 +154,88 @@ export function CatalogItemsTable({
   );
 }
 
-// ============================================================================
-// TABLE BODY
-// ============================================================================
-
-interface CatalogItemsTableBodyProps {
-  items: CatalogItem[];
+function buildColumns(args: {
   showDescription: boolean;
   showParentCode: boolean;
   showStatus: boolean;
   renderRowActions?: (item: CatalogItem) => ReactNode;
-}
+}): EntityListColumnDef<CatalogItem>[] {
+  const { showDescription, showParentCode, showStatus, renderRowActions } =
+    args;
 
-function CatalogItemsTableBody({
-  items,
-  showDescription,
-  showParentCode,
-  showStatus,
-  renderRowActions,
-}: CatalogItemsTableBodyProps) {
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[160px]">{copy.code}</TableHead>
-            <TableHead>{copy.name}</TableHead>
-            {showDescription ? (
-              <TableHead className="hidden md:table-cell">
-                {copy.description}
-              </TableHead>
-            ) : null}
-            {showParentCode ? (
-              <TableHead className="w-[120px]">{copy.parent}</TableHead>
-            ) : null}
-            {showStatus ? (
-              <TableHead className="w-[100px] text-center">
-                {copy.status}
-              </TableHead>
-            ) : null}
-            {renderRowActions ? (
-              <TableHead className="w-[72px] text-right">
-                {copy.actions}
-              </TableHead>
-            ) : null}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                <CopyableCode code={item.code} />
-              </TableCell>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              {showDescription ? (
-                <TableCell className="hidden md:table-cell text-muted-foreground max-w-[300px] truncate">
-                  {item.description || "—"}
-                </TableCell>
-              ) : null}
-              {showParentCode ? (
-                <TableCell className="font-mono text-sm">
-                  {item.parentCode || "—"}
-                </TableCell>
-              ) : null}
-              {showStatus ? (
-                <TableCell className="text-center">
-                  {item.isActive ? (
-                    <Badge variant="success" tone="soft">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      {copy.active}
-                    </Badge>
-                  ) : (
-                    <Badge variant="neutral" tone="soft">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      {copy.inactive}
-                    </Badge>
-                  )}
-                </TableCell>
-              ) : null}
-              {renderRowActions ? (
-                <TableCell className="text-right">
-                  {renderRowActions(item)}
-                </TableCell>
-              ) : null}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
+  const columns: EntityListColumnDef<CatalogItem>[] = [
+    {
+      id: "code",
+      header: copy.code,
+      kind: "code",
+      className: "w-[160px]",
+      headerClassName: "w-[160px]",
+      accessor: (item) => <CopyableCode code={item.code} />,
+    },
+    {
+      id: "name",
+      header: copy.name,
+      kind: "text",
+      className: "font-medium",
+      accessor: (item) => item.name,
+    },
+  ];
 
-// ============================================================================
-// COPYABLE CODE
-// ============================================================================
+  if (showDescription) {
+    columns.push({
+      id: "description",
+      header: copy.description,
+      kind: "meta",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell max-w-[300px] truncate",
+      accessor: (item) => item.description || "—",
+    });
+  }
+
+  if (showParentCode) {
+    columns.push({
+      id: "parent",
+      header: copy.parent,
+      kind: "code",
+      className: "w-[120px]",
+      headerClassName: "w-[120px]",
+      accessor: (item) => item.parentCode || "—",
+    });
+  }
+
+  if (showStatus) {
+    columns.push({
+      id: "status",
+      header: copy.status,
+      kind: "status",
+      className: "w-[100px]",
+      headerClassName: "w-[100px] text-center",
+      accessor: (item) =>
+        item.isActive ? (
+          <Badge variant="success" tone="soft">
+            <CheckCircle className="mr-1 h-3 w-3" />
+            {copy.active}
+          </Badge>
+        ) : (
+          <Badge variant="neutral" tone="soft">
+            <XCircle className="mr-1 h-3 w-3" />
+            {copy.inactive}
+          </Badge>
+        ),
+    });
+  }
+
+  if (renderRowActions) {
+    columns.push({
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (item) => renderRowActions(item),
+    });
+  }
+
+  return columns;
+}
 
 function CopyableCode({ code }: { code: string }) {
   const { toast } = useToast();
@@ -272,63 +262,6 @@ function CopyableCode({ code }: { code: string }) {
       >
         <Copy className="h-3.5 w-3.5" />
       </Button>
-    </div>
-  );
-}
-
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-function CatalogItemsTableSkeleton({
-  showDescription,
-  showParentCode,
-  showActions = false,
-}: {
-  showDescription: boolean;
-  showParentCode: boolean;
-  showActions?: boolean;
-}) {
-  return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{copy.code}</TableHead>
-            <TableHead>{copy.name}</TableHead>
-            {showDescription ? <TableHead>{copy.description}</TableHead> : null}
-            {showParentCode ? <TableHead>{copy.parent}</TableHead> : null}
-            {showActions ? <TableHead>{copy.actions}</TableHead> : null}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <TableRow key={i}>
-              <TableCell>
-                <Skeleton className="h-4 w-20" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-40" />
-              </TableCell>
-              {showDescription ? (
-                <TableCell>
-                  <Skeleton className="h-4 w-60" />
-                </TableCell>
-              ) : null}
-              {showParentCode ? (
-                <TableCell>
-                  <Skeleton className="h-4 w-16" />
-                </TableCell>
-              ) : null}
-              {showActions ? (
-                <TableCell>
-                  <Skeleton className="h-5 w-8" />
-                </TableCell>
-              ) : null}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
     </div>
   );
 }

@@ -1,13 +1,18 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
+/**
+ * OperatorPaymentsTable — listado Operate (`EntityListTable`).
+ *
+ * Operador · Tarifa · Sueldo · Anticipos · Estado. Selección puntual
+ * (`bg-primary-50`) vía `onRowActivate` + `getRowClassName`. Empty → null.
+ * `framed={false}` bajo ListPageShell.
+ */
+
+import type { HTMLAttributes } from "react";
 import { cn } from "@shared/lib/utils/cn";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
 import type { OperatorPaymentReadiness } from "../../domain/entities";
 import { OperatorPaymentStatusBadge } from "../config/operatorPaymentStatusConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
@@ -26,98 +31,113 @@ interface OperatorPaymentsTableProps {
   onSelect: (row: OperatorPaymentReadiness) => void;
 }
 
+function buildColumns(): EntityListColumnDef<OperatorPaymentReadiness>[] {
+  return [
+    {
+      id: "operator",
+      header: copy.columns.operator,
+      kind: "primary",
+      accessor: (row) => row.fullName,
+    },
+    {
+      id: "tariff",
+      header: copy.columns.tariff,
+      kind: "stacked",
+      accessor: (row): EntityListStackedValue => {
+        const tariff = formatOperatorTariffLabel(row);
+        return {
+          primary: (
+            <span className={cn(tariff.muted && "text-muted-foreground")}>
+              {tariff.title}
+            </span>
+          ),
+          secondary: tariff.subtitle,
+        };
+      },
+    },
+    {
+      id: "salary",
+      header: copy.columns.salary,
+      kind: "stacked",
+      className: "text-right",
+      headerClassName: "text-right",
+      accessor: (row): EntityListStackedValue => {
+        const salary = formatOperatorSalaryLabel(row);
+        if (!salary.amount) {
+          return {
+            primary: (
+              <span className="text-muted-foreground">{copy.salaryMissing}</span>
+            ),
+          };
+        }
+        return {
+          primary: (
+            <span className="font-mono tabular-nums">{salary.amount}</span>
+          ),
+          secondary: salary.period,
+        };
+      },
+    },
+    {
+      id: "advances",
+      header: copy.columns.advances,
+      kind: "number",
+      accessor: (row) => {
+        const advances = formatOperatorAdvancesLabel(row);
+        return (
+          <span
+            className={cn(
+              advances === copy.advancesNone && "text-muted-foreground",
+            )}
+          >
+            {advances}
+          </span>
+        );
+      },
+    },
+    {
+      id: "status",
+      header: copy.columns.status,
+      kind: "status",
+      accessor: (row) => (
+        <OperatorPaymentStatusBadge status={row.status} size="sm" />
+      ),
+    },
+  ];
+}
+
 export function OperatorPaymentsTable({
   operators,
   isLoading,
   selectedEmployeeId,
   onSelect,
 }: OperatorPaymentsTableProps) {
-  if (isLoading) {
-    return (
-      <div className="rounded-xl border bg-card" data-testid="operators-table-loading">
-        <div className="space-y-3 p-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const columns = buildColumns();
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <Table data-testid="operators-table">
-        <TableHeader>
-          <TableRow>
-            <TableHead>{copy.columns.operator}</TableHead>
-            <TableHead>{copy.columns.tariff}</TableHead>
-            <TableHead className="text-right">{copy.columns.salary}</TableHead>
-            <TableHead className="text-right">{copy.columns.advances}</TableHead>
-            <TableHead>{copy.columns.status}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {operators.map((row) => {
-            const tariff = formatOperatorTariffLabel(row);
-            const salary = formatOperatorSalaryLabel(row);
-            const advances = formatOperatorAdvancesLabel(row);
-            const selected = row.employeeId === selectedEmployeeId;
-            return (
-              <TableRow
-                key={row.employeeId}
-                data-testid={`operators-row-${row.employeeId}`}
-                data-selected={selected ? "true" : "false"}
-                className={cn(
-                  "cursor-pointer",
-                  selected && "bg-primary-50",
-                )}
-                onClick={() => onSelect(row)}
-              >
-                <TableCell className="whitespace-nowrap font-medium">
-                  {row.fullName}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className={cn(tariff.muted && "text-muted-foreground")}>
-                      {tariff.title}
-                    </span>
-                    {tariff.subtitle ? (
-                      <span className="text-[11px] text-muted-foreground">
-                        {tariff.subtitle}
-                      </span>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-mono tabular-nums">
-                  {salary.amount ? (
-                    <div className="flex flex-col items-end">
-                      <span>{salary.amount}</span>
-                      {salary.period ? (
-                        <span className="font-sans text-[11px] text-muted-foreground">
-                          {salary.period}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">{copy.salaryMissing}</span>
-                  )}
-                </TableCell>
-                <TableCell
-                  className={cn(
-                    "text-right font-mono tabular-nums",
-                    advances === copy.advancesNone && "text-muted-foreground",
-                  )}
-                >
-                  {advances}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  <OperatorPaymentStatusBadge status={row.status} size="sm" />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+    <div data-testid="operators-table">
+      <EntityListTable
+        framed={false}
+        density="list"
+        columns={columns}
+        rows={[...operators]}
+        getRowId={(row) => row.employeeId}
+        isLoading={isLoading}
+        onRowActivate={onSelect}
+        getRowClassName={(row) =>
+          row.employeeId === selectedEmployeeId ? "bg-primary-50" : undefined
+        }
+        getRowProps={(row) =>
+          ({
+            "data-testid": `operators-row-${row.employeeId}`,
+          }) as HTMLAttributes<HTMLTableRowElement>
+        }
+      />
+      {isLoading ? (
+        <span className="sr-only" data-testid="operators-table-loading">
+          Cargando
+        </span>
+      ) : null}
     </div>
   );
 }

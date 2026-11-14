@@ -1,17 +1,15 @@
 /**
- * FinanceDispatchRunsTable — Correo del periodo (hub Finanzas).
+ * FinanceDispatchRunsTable — Correo del periodo (`EntityListTable`).
+ *
+ * Periodo · Esquema · Origen · Estado · Creada · Acciones.
+ * Empty → null (FinanceDispatchPeriodPage / ListPageShell). `framed={false}`.
+ * Fechas con `formatDate`. Sin sort API nuevo.
  */
 
-import { Skeleton } from "@shared/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
 } from "@shared/ui/table";
-import { formatDate } from "@shared/utils/dateUtils";
 import type { BillingDispatchRunListItem } from "../../domain/billingDispatchRun.types";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
 import { DispatchRunStatusBadge } from "./DispatchRunStatusBadge";
@@ -22,20 +20,66 @@ import { DispatchRunActions } from "./DispatchRunActions";
 const copy = dispatchRunsCopy.tab;
 const PAGE_SIZE = 20;
 
-const TABLE_HEADERS = [
-  { key: "period", label: copy.table.period },
-  { key: "scheme", label: copy.table.scheme },
-  { key: "origin", label: copy.table.origin },
-  { key: "status", label: copy.table.status },
-  { key: "createdAt", label: copy.table.createdAt },
-  { key: "actions", label: copy.table.actions },
-] as const;
-
 interface FinanceDispatchRunsTableProps {
   runs: BillingDispatchRunListItem[];
   isLoading: boolean;
   schemeName: (id: string | null) => string;
   onView: (id: string) => void;
+}
+
+function buildColumns(
+  schemeName: (id: string | null) => string,
+  onView: (id: string) => void,
+): EntityListColumnDef<BillingDispatchRunListItem>[] {
+  return [
+    {
+      id: "period",
+      header: copy.table.period,
+      kind: "text",
+      className: "text-sm",
+      accessor: (run) => formatDispatchPeriodListLabel(run),
+    },
+    {
+      id: "scheme",
+      header: copy.table.scheme,
+      kind: "text",
+      accessor: (run) => schemeName(run.billingSchemeId),
+    },
+    {
+      id: "origin",
+      header: copy.table.origin,
+      kind: "status",
+      accessor: (run) => <DispatchRunOriginBadge origin={run.origin} />,
+    },
+    {
+      id: "status",
+      header: copy.table.status,
+      kind: "status",
+      accessor: (run) => (
+        <DispatchRunStatusBadge status={run.status} origin={run.origin} />
+      ),
+    },
+    {
+      id: "createdAt",
+      header: copy.table.createdAt,
+      kind: "date",
+      accessor: (run) => run.createdAt,
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (run) => (
+        <DispatchRunActions
+          variant="dropdown"
+          runId={run.id}
+          status={run.status}
+          periodLabel={formatDispatchPeriodListLabel(run)}
+          onView={onView}
+        />
+      ),
+    },
+  ];
 }
 
 export function FinanceDispatchRunsTable({
@@ -44,78 +88,19 @@ export function FinanceDispatchRunsTable({
   schemeName,
   onView,
 }: FinanceDispatchRunsTableProps) {
+  const columns = buildColumns(schemeName, onView);
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {TABLE_HEADERS.map((header) => (
-              <TableHead
-                key={header.key}
-                className={header.key === "actions" ? "w-12 text-right" : undefined}
-              >
-                {header.key === "actions" ? (
-                  <span className="sr-only">{header.label}</span>
-                ) : (
-                  header.label
-                )}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        {isLoading ? (
-          <TableBody>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <TableRow key={index}>
-                {TABLE_HEADERS.map((header) => (
-                  <TableCell key={header.key}>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        ) : (
-          <TableBody>
-            {runs.map((run) => {
-              const periodLabel = formatDispatchPeriodListLabel(run);
-              return (
-                <TableRow
-                  key={run.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => onView(run.id)}
-                >
-                  <TableCell className="text-sm">{periodLabel}</TableCell>
-                  <TableCell>{schemeName(run.billingSchemeId)}</TableCell>
-                  <TableCell>
-                    <DispatchRunOriginBadge origin={run.origin} />
-                  </TableCell>
-                  <TableCell>
-                    <DispatchRunStatusBadge
-                      status={run.status}
-                      origin={run.origin}
-                    />
-                  </TableCell>
-                  <TableCell>{formatDate(run.createdAt)}</TableCell>
-                  <TableCell
-                    className="text-right"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <DispatchRunActions
-                      variant="dropdown"
-                      runId={run.id}
-                      status={run.status}
-                      periodLabel={periodLabel}
-                      onView={onView}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        )}
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      aria-label={copy.entityLabelPlural}
+      columns={columns}
+      rows={runs}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      onRowActivate={(run) => onView(run.id)}
+    />
   );
 }
 

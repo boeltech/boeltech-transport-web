@@ -1,23 +1,23 @@
 /**
- * Tabla agrupada por cliente — bandeja Cobros sin factura.
+ * OperationalCashPendingTable — bandeja Cobros sin factura (`EntityListTable`).
+ *
+ * Agrupada por cliente. Viaje · Salida · Estado · Tarifa · Cobrado · Pendiente ·
+ * Efectivo · Acciones. Empty → null (shell). `framed={false}` bajo ListPageShell.
+ * Solo migración de tabla — no WIP cobranza/wayfinding.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
-import { Skeleton } from "@shared/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { usePermissions } from "@shared/permissions";
 import {
   buildOperationalReceiptBatchCreatePath,
@@ -52,39 +52,113 @@ function cashStatusVariant(
   return "neutral";
 }
 
-function LoadingSkeleton({ rows = 5 }: { rows?: number }) {
-  return (
-    <TableBody>
-      {Array.from({ length: rows }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-28" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-5 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="ml-auto h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="ml-auto h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="ml-auto h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-5 w-16" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-8 w-28" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  );
+function buildColumns(
+  setBatchId: (id: string) => void,
+): EntityListColumnDef<OperationalCashPendingTrip>[] {
+  return [
+    {
+      id: "trip",
+      header: copy.columns.trip,
+      kind: "primary",
+      accessor: (trip) => trip.code,
+    },
+    {
+      id: "departure",
+      header: copy.columns.departure,
+      kind: "date",
+      accessor: (trip) => trip.scheduledDeparture,
+    },
+    {
+      id: "status",
+      header: copy.columns.status,
+      kind: "status",
+      accessor: (trip) => (
+        <TripStatusBadge status={trip.status as TripStatusType} />
+      ),
+    },
+    {
+      id: "baseRate",
+      header: copy.columns.baseRate,
+      kind: "money",
+      accessor: (trip) => trip.baseRate,
+    },
+    {
+      id: "collected",
+      header: copy.columns.collected,
+      kind: "stacked",
+      headerClassName: "text-right",
+      className: "text-right",
+      accessor: (trip): EntityListStackedValue => {
+        const receipt = trip.lastActiveReceipt;
+        const showReceipt =
+          Boolean(receipt) && trip.operationalCash.collectedTotal > 0;
+        return {
+          primary: (
+            <span className="font-mono tabular-nums">
+              {formatMxCurrency(trip.operationalCash.collectedTotal)}
+            </span>
+          ),
+          secondary: showReceipt && receipt ? (
+            <span>
+              {trayCopy.lastReceipt(
+                OPERATIONAL_PAYMENT_INSTRUMENT_LABELS[receipt.paymentInstrument],
+                receipt.reference,
+              )}
+              {receipt.batchId ? (
+                <>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="text-primary underline-offset-2 hover:underline"
+                    onClick={() => {
+                      if (receipt.batchId) setBatchId(receipt.batchId);
+                    }}
+                  >
+                    {trayCopy.batchLink}
+                  </button>
+                </>
+              ) : null}
+            </span>
+          ) : undefined,
+        };
+      },
+    },
+    {
+      id: "pending",
+      header: copy.columns.pending,
+      kind: "money",
+      className: "font-medium",
+      accessor: (trip) => trip.operationalCash.pendingAmount,
+    },
+    {
+      id: "cashStatus",
+      header: copy.columns.cashStatus,
+      kind: "status",
+      accessor: (trip) => (
+        <Badge variant={cashStatusVariant(trip.operationalCash.status)}>
+          {cashStatusLabel(trip.operationalCash.status)}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      className: "w-auto",
+      headerClassName: "w-0",
+      accessor: (trip) => {
+        const href = buildTripCostsHref(trip.id);
+        return (
+          <Button variant="outline" size="sm" asChild>
+            <Link to={href} aria-label={copy.openCostsAria(trip.code)}>
+              {copy.openCostsCta}
+              <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" aria-hidden />
+            </Link>
+          </Button>
+        );
+      },
+    },
+  ];
 }
 
 export function OperationalCashPendingTable({
@@ -96,40 +170,37 @@ export function OperationalCashPendingTable({
 }) {
   const { hasPermission } = usePermissions();
   const canCreateBatch = hasPermission("operational_cash", "create");
+  const fromState = useListQueueFromState();
   const [batchId, setBatchId] = useState<string | null>(null);
+
+  const columns = useMemo(
+    () =>
+      buildColumns((id) => {
+        setBatchId(id);
+      }),
+    [],
+  );
 
   return (
     <div className="space-y-6">
       {isLoading ? (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{copy.columns.trip}</TableHead>
-                <TableHead>{copy.columns.departure}</TableHead>
-                <TableHead>{copy.columns.status}</TableHead>
-                <TableHead className="text-right">
-                  {copy.columns.baseRate}
-                </TableHead>
-                <TableHead className="text-right">
-                  {copy.columns.collected}
-                </TableHead>
-                <TableHead className="text-right">
-                  {copy.columns.pending}
-                </TableHead>
-                <TableHead>{copy.columns.cashStatus}</TableHead>
-                <TableHead className="w-0" />
-              </TableRow>
-            </TableHeader>
-            <LoadingSkeleton />
-          </Table>
-        </div>
+        <EntityListTable
+          framed={false}
+          density="list"
+          aria-label={copy.entityLabelPlural}
+          columns={columns}
+          rows={[]}
+          getRowId={(row) => row.id}
+          isLoading
+        />
       ) : (
         groups.map((group) => {
           const name = group.clientName?.trim() || copy.clientUnknown;
+          const visibleTripCount = group.trips.length;
           const subtotalLabel = copy.clientSubtotal(
             formatMxCurrency(group.pendingAmount),
             group.tripCount,
+            visibleTripCount,
           );
           return (
             <section
@@ -148,126 +219,22 @@ export function OperationalCashPendingTable({
                   <Button type="button" size="sm" variant="outline" asChild>
                     <Link
                       to={buildOperationalReceiptBatchCreatePath(group.clientId)}
+                      state={fromState}
                     >
                       {trayCopy.registerBatchCta}
                     </Link>
                   </Button>
                 ) : null}
               </div>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{copy.columns.trip}</TableHead>
-                      <TableHead>{copy.columns.departure}</TableHead>
-                      <TableHead>{copy.columns.status}</TableHead>
-                      <TableHead className="text-right">
-                        {copy.columns.baseRate}
-                      </TableHead>
-                      <TableHead className="text-right">
-                        {copy.columns.collected}
-                      </TableHead>
-                      <TableHead className="text-right">
-                        {copy.columns.pending}
-                      </TableHead>
-                      <TableHead>{copy.columns.cashStatus}</TableHead>
-                      <TableHead className="w-0" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.trips.map((trip) => {
-                      const href = buildTripCostsHref(trip.id);
-                      return (
-                        <TableRow key={trip.id}>
-                          <TableCell className="font-mono font-medium">
-                            <Link
-                              to={href}
-                              className="text-foreground underline-offset-2 hover:underline"
-                            >
-                              {trip.code}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {formatDate(trip.scheduledDeparture)}
-                          </TableCell>
-                          <TableCell>
-                            <TripStatusBadge
-                              status={trip.status as TripStatusType}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {formatMxCurrency(trip.baseRate)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span>
-                                {formatMxCurrency(
-                                  trip.operationalCash.collectedTotal,
-                                )}
-                              </span>
-                              {trip.lastActiveReceipt &&
-                              trip.operationalCash.collectedTotal > 0 ? (
-                                <span className="text-xs text-muted-foreground">
-                                  {trayCopy.lastReceipt(
-                                    OPERATIONAL_PAYMENT_INSTRUMENT_LABELS[
-                                      trip.lastActiveReceipt.paymentInstrument
-                                    ],
-                                    trip.lastActiveReceipt.reference,
-                                  )}
-                                  {trip.lastActiveReceipt.batchId ? (
-                                    <>
-                                      {" · "}
-                                      <button
-                                        type="button"
-                                        className="text-primary underline-offset-2 hover:underline"
-                                        onClick={() =>
-                                          setBatchId(
-                                            trip.lastActiveReceipt!.batchId,
-                                          )
-                                        }
-                                      >
-                                        {trayCopy.batchLink}
-                                      </button>
-                                    </>
-                                  ) : null}
-                                </span>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums font-medium">
-                            {formatMxCurrency(
-                              trip.operationalCash.pendingAmount,
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={cashStatusVariant(
-                                trip.operationalCash.status,
-                              )}
-                            >
-                              {cashStatusLabel(trip.operationalCash.status)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm" asChild>
-                              <Link
-                                to={href}
-                                aria-label={copy.openCostsAria(trip.code)}
-                              >
-                                {copy.openCostsCta}
-                                <ArrowUpRight
-                                  className="ml-1.5 h-3.5 w-3.5"
-                                  aria-hidden
-                                />
-                              </Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <EntityListTable
+                framed={false}
+                density="list"
+                aria-label={name}
+                columns={columns}
+                rows={group.trips}
+                getRowId={(row) => row.id}
+                primaryTo={(trip) => buildTripCostsHref(trip.id)}
+              />
             </section>
           );
         })

@@ -686,7 +686,11 @@ describe("CompensationTemplatesTable — familias (PRD D15–D20, D25)", () => {
     await user.click(toggle());
 
     const container = screen.getByTestId("template-family-versions");
-    expect(within(container).getAllByRole("row")).toHaveLength(1);
+    expect(toggle()).toHaveAttribute("aria-controls", container.id);
+    // EntityListTable: expansión = filas hermanas (sin tbody anidado).
+    const skeletonRow = container.nextElementSibling;
+    expect(skeletonRow).toBeTruthy();
+    expect(skeletonRow?.querySelector(".animate-pulse")).toBeTruthy();
     expect(screen.queryByTestId("template-family-version-row")).not.toBeInTheDocument();
   });
 

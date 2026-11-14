@@ -1,23 +1,22 @@
 /**
- * SettlementsTable
- * Clean Architecture - Presentation Layer (Components)
+ * SettlementsTable — listado Operate (`EntityListTable`).
+ *
+ * Modos registry / pipeline / payable / approval. ≤7 cols datos + actions
+ * (registry: Viajes apilado en Periodo). Empty → null. `framed={false}`.
+ * Selección de lote existente vía columna checkbox (T9 no nuevo).
  */
 
+import type { HTMLAttributes, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Checkbox } from "@shared/ui/checkbox";
-import { cn } from "@shared/lib/utils/cn";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
+import { formatDate } from "@shared/utils/dateUtils";
 import { ApprovalFlowLines } from "@features/approvals/presentation/components";
 import type { DriverSettlement } from "../../domain/entities";
 import { roundCents } from "../../domain/settlementTotals";
@@ -56,86 +55,6 @@ interface SettlementsTableProps {
   onToggleSelectAll?: (checked: boolean) => void;
   /** employeeId → hasClabe (HB-T5). Si falta, no inventa Sin CLABE. */
   hasClabeByEmployeeId?: ReadonlyMap<string, boolean>;
-}
-
-interface TableHeaderConfig {
-  key: string;
-  label: string;
-  className?: string;
-}
-
-const REGISTRY_HEADERS: TableHeaderConfig[] = [
-  { key: "settlementNumber", label: copy.fields.settlementNumber, className: "min-w-[140px]" },
-  { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
-  { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
-  { key: "trips", label: copy.fields.tripsCount, className: "text-center min-w-[90px]" },
-  { key: "grossAmount", label: copy.fields.grossAmount, className: "text-right min-w-[120px]" },
-  { key: "totalDiscounts", label: copy.fields.totalDiscounts, className: "text-right min-w-[130px]" },
-  { key: "netAmount", label: copy.fields.netAmount, className: "text-right min-w-[130px] font-semibold text-foreground" },
-  { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
-  { key: "actions", label: "", className: "w-12 text-right" },
-];
-
-const PIPELINE_HEADERS: TableHeaderConfig[] = [
-  { key: "settlementNumber", label: copy.fields.settlementNumber, className: "min-w-[140px]" },
-  { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
-  { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
-  { key: "netAmount", label: copy.fields.netAmount, className: "text-right min-w-[130px] font-semibold text-foreground" },
-  { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
-  { key: "actions", label: "", className: "w-12 text-right" },
-];
-
-const APPROVAL_HEADERS: TableHeaderConfig[] = [
-  { key: "select", label: "", className: "w-10" },
-  { key: "settlementNumber", label: copy.fields.settlementNumber, className: "min-w-[140px]" },
-  { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
-  { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
-  { key: "submittedBy", label: pipelineCopy.submittedBy, className: "min-w-[140px]" },
-  { key: "age", label: pipelineCopy.age, className: "min-w-[110px]" },
-  { key: "netAmount", label: copy.fields.netAmount, className: "text-right min-w-[130px] font-semibold text-foreground" },
-  { key: "status", label: copy.fields.status, className: "min-w-[110px]" },
-  { key: "actions", label: "", className: "w-12 text-right" },
-];
-
-const PAYABLE_HEADERS: TableHeaderConfig[] = [
-  { key: "select", label: "", className: "w-10" },
-  { key: "settlementNumber", label: copy.fields.settlementNumber, className: "min-w-[140px]" },
-  { key: "employee", label: copy.fields.employee, className: "min-w-[160px]" },
-  { key: "period", label: copy.fields.period, className: "min-w-[160px]" },
-  { key: "approvedBy", label: "Autorizó", className: "min-w-[140px]" },
-  { key: "account", label: "Cuenta", className: "min-w-[120px]" },
-  { key: "netAmount", label: "A pagar", className: "text-right min-w-[130px] font-semibold text-foreground" },
-  { key: "actions", label: "", className: "w-12 text-right" },
-];
-
-function TableHeaderRow({ headers }: { headers: TableHeaderConfig[] }) {
-  return (
-    <TableHeader>
-      <TableRow>
-        {headers.map((header) => (
-          <TableHead key={header.key} className={header.className}>
-            {header.label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  );
-}
-
-function LoadingSkeleton({ colCount }: { colCount: number }) {
-  return (
-    <TableBody>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <TableRow key={i}>
-          {Array.from({ length: colCount }).map((__, j) => (
-            <TableCell key={j}>
-              <Skeleton className="h-4 w-full" />
-            </TableCell>
-          ))}
-        </TableRow>
-      ))}
-    </TableBody>
-  );
 }
 
 function SettlementStatusCell({
@@ -181,6 +100,262 @@ function getTotalDiscounts(st: DriverSettlement): number {
   return roundCents(st.totalAdvancesDeducted + st.totalOtherDeductions);
 }
 
+function settlementNumberCell(st: DriverSettlement): ReactNode {
+  return (
+    <span className="inline-flex items-center gap-1.5 font-mono tabular-nums whitespace-nowrap">
+      {st.settlementNumber}
+      <SettlementKindBadge kind={st.settlementKind} className="font-sans text-xs" />
+    </span>
+  );
+}
+
+function buildColumns(
+  props: SettlementsTableProps & {
+    selectable: boolean;
+    allSelected: boolean;
+  },
+): EntityListColumnDef<DriverSettlement>[] {
+  const {
+    columnMode = "registry",
+    selectable,
+    allSelected,
+    selectedIds,
+    onToggleSelect,
+    onToggleSelectAll,
+    showRejectedCorrection = false,
+    onView,
+    onDisburse,
+    onActionComplete,
+    approvalLinkOnly = false,
+    hasClabeByEmployeeId,
+  } = props;
+
+  const columns: EntityListColumnDef<DriverSettlement>[] = [];
+
+  if (selectable) {
+    columns.push({
+      id: "select",
+      // EntityListTable tipa header como string; Checkbox en thead (lote existente).
+      header: (
+        <Checkbox
+          checked={allSelected}
+          onCheckedChange={(checked) => onToggleSelectAll?.(checked === true)}
+          aria-label="Seleccionar todos"
+        />
+      ) as unknown as string,
+      kind: "text",
+      className: "w-10",
+      headerClassName: "w-10",
+      accessor: (st) => (
+        <span data-no-row-nav="" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selectedIds?.has(st.id) ?? false}
+            onCheckedChange={() => onToggleSelect?.(st.id)}
+            aria-label={`Seleccionar ${st.settlementNumber}`}
+          />
+        </span>
+      ),
+    });
+  }
+
+  columns.push({
+    id: "settlementNumber",
+    header: copy.fields.settlementNumber,
+    kind: "primary",
+    className: "min-w-[140px]",
+    accessor: settlementNumberCell,
+  });
+
+  columns.push({
+    id: "employee",
+    header: copy.fields.employee,
+    kind: "text",
+    className: "min-w-[160px] font-medium whitespace-nowrap",
+    accessor: (st) => st.employeeFullName ?? "—",
+  });
+
+  if (columnMode === "registry") {
+    columns.push({
+      id: "period",
+      header: copy.fields.period,
+      kind: "stacked",
+      className: "min-w-[160px]",
+      accessor: (st): EntityListStackedValue => ({
+        primary: settlementPeriodLabel(st),
+        secondary: `${copy.fields.tripsCount}: ${getTripsCount(st)}`,
+      }),
+    });
+    columns.push({
+      id: "grossAmount",
+      header: copy.fields.grossAmount,
+      kind: "money",
+      className: "min-w-[120px]",
+      accessor: (st) => st.grossAmount,
+    });
+    columns.push({
+      id: "totalDiscounts",
+      header: copy.fields.totalDiscounts,
+      kind: "money",
+      className: "min-w-[130px]",
+      accessor: (st) => {
+        const discounts = getTotalDiscounts(st);
+        if (discounts <= 0) {
+          return (
+            <span className="text-muted-foreground font-normal">—</span>
+          );
+        }
+        return -discounts;
+      },
+    });
+  } else {
+    columns.push({
+      id: "period",
+      header: copy.fields.period,
+      kind: "meta",
+      className: "min-w-[160px] whitespace-nowrap text-xs sm:text-sm",
+      accessor: (st) => settlementPeriodLabel(st),
+    });
+  }
+
+  if (columnMode === "approval") {
+    columns.push({
+      id: "submittedBy",
+      header: pipelineCopy.submittedBy,
+      kind: "meta",
+      className: "min-w-[140px] text-xs whitespace-nowrap",
+      accessor: (st) => st.submittedByName ?? st.createdByName ?? "—",
+    });
+    columns.push({
+      id: "age",
+      header: pipelineCopy.age,
+      kind: "status",
+      className: "min-w-[110px] whitespace-nowrap",
+      accessor: (st) => {
+        const ageDays = approvalAgeDays(st.submittedAt);
+        if (ageDays == null) {
+          return <span className="text-muted-foreground">—</span>;
+        }
+        const label =
+          ageDays === 0
+            ? pipelineCopy.ageToday
+            : pipelineCopy.ageDays(ageDays);
+        if (isApprovalAgingWarning(ageDays)) {
+          return (
+            <Badge variant="warning" tone="soft" className="text-xs">
+              {label}
+            </Badge>
+          );
+        }
+        return (
+          <span className="text-xs text-muted-foreground">{label}</span>
+        );
+      },
+    });
+  }
+
+  if (columnMode === "payable") {
+    columns.push({
+      id: "approvedBy",
+      header: "Autorizó",
+      kind: "meta",
+      className: "min-w-[140px] text-xs whitespace-nowrap",
+      accessor: (st) => {
+        if (!st.approvedByName) return "—";
+        const when = st.approvedAt ? ` · ${formatDate(st.approvedAt)}` : "";
+        return `${st.approvedByName}${when}`;
+      },
+    });
+    columns.push({
+      id: "account",
+      header: "Cuenta",
+      kind: "text",
+      className: "min-w-[120px] whitespace-nowrap",
+      accessor: (st) => {
+        const missingClabe =
+          hasClabeByEmployeeId?.get(st.employeeId) === false;
+        if (!missingClabe) {
+          return (
+            <span className="font-mono text-xs text-muted-foreground">SPEI</span>
+          );
+        }
+        return (
+          <div className="space-y-1" data-testid="settlement-no-clabe-tip">
+            <Badge
+              variant="warning"
+              tone="soft"
+              data-testid="settlement-no-clabe-badge"
+            >
+              {bulkCopy.noClabeBadge}
+            </Badge>
+            <p className="whitespace-normal text-[11px] leading-snug text-muted-foreground">
+              {bulkCopy.noClabeCashRowTip}
+              {" · "}
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-[11px] underline underline-offset-2"
+                asChild
+              >
+                <Link
+                  to={`/employees/${st.employeeId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`settlement-no-clabe-employees-${st.id}`}
+                >
+                  {bulkCopy.completeClabeInEmployees}
+                </Link>
+              </Button>
+            </p>
+          </div>
+        );
+      },
+    });
+  }
+
+  columns.push({
+    id: "netAmount",
+    header:
+      columnMode === "payable" ? "A pagar" : copy.fields.netAmount,
+    kind: "money",
+    className: "min-w-[130px] font-semibold text-foreground",
+    accessor: (st) => st.netAmount,
+  });
+
+  if (columnMode !== "payable") {
+    columns.push({
+      id: "status",
+      header: copy.fields.status,
+      kind: "status",
+      className: "min-w-[110px] whitespace-nowrap",
+      accessor: (st) => (
+        <SettlementStatusCell
+          status={st.status}
+          rejectionReason={st.rejectionReason}
+          showRejectedCorrection={showRejectedCorrection}
+          approval={st.approval}
+        />
+      ),
+    });
+  }
+
+  columns.push({
+    id: "actions",
+    header: "",
+    kind: "actions",
+    accessor: (st) => (
+      <SettlementActions
+        settlement={st}
+        onView={onView}
+        onDisburse={onDisburse}
+        onActionComplete={onActionComplete}
+        approvalLinkOnly={approvalLinkOnly}
+        hasClabe={hasClabeByEmployeeId?.get(st.employeeId)}
+      />
+    ),
+  });
+
+  return columns;
+}
+
 export function SettlementsTable({
   settlements,
   isLoading,
@@ -196,244 +371,60 @@ export function SettlementsTable({
   hasClabeByEmployeeId,
 }: SettlementsTableProps) {
   const selectable = Boolean(onToggleSelect);
-  const baseHeaders =
-    columnMode === "payable"
-      ? PAYABLE_HEADERS
-      : columnMode === "approval"
-        ? APPROVAL_HEADERS
-        : columnMode === "pipeline"
-          ? PIPELINE_HEADERS
-          : REGISTRY_HEADERS;
-  const headers =
-    selectable && columnMode !== "payable" && columnMode !== "approval"
-      ? [{ key: "select", label: "", className: "w-10" }, ...baseHeaders]
-      : baseHeaders;
-  const colCount = headers.length;
   const allSelected =
     selectable &&
     settlements.length > 0 &&
     settlements.every((st) => selectedIds?.has(st.id));
 
-  if (isLoading) {
-    return (
-      <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label="Listado de pagos">
-          <TableHeaderRow headers={headers} />
-          <LoadingSkeleton colCount={colCount} />
-        </Table>
-      </div>
-    );
-  }
-
-  // Empty lo resuelve el shell (ListPageShell / WorkbenchPageShell): EmptyState único.
-  if (settlements.length === 0) {
-    return null;
-  }
+  const columns = buildColumns({
+    settlements,
+    isLoading,
+    onView,
+    onDisburse,
+    onActionComplete,
+    approvalLinkOnly,
+    showRejectedCorrection,
+    columnMode,
+    selectedIds,
+    onToggleSelect,
+    onToggleSelectAll,
+    hasClabeByEmployeeId,
+    selectable,
+    allSelected,
+  });
 
   return (
-    <div className="rounded-md border bg-card overflow-x-auto">
-      <Table aria-label="Listado de pagos">
-        {selectable ? (
-          <TableHeader>
-            <TableRow>
-              {headers.map((header) => (
-                <TableHead key={header.key} className={header.className}>
-                  {header.key === "select" ? (
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={(checked) =>
-                        onToggleSelectAll?.(checked === true)
-                      }
-                      aria-label="Seleccionar todos"
-                    />
-                  ) : (
-                    header.label
-                  )}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-        ) : (
-          <TableHeaderRow headers={headers} />
-        )}
-        <TableBody>
-          {settlements.map((st) => {
-            const selected = selectedIds?.has(st.id) ?? false;
-            const missingClabe =
-              columnMode === "payable" &&
-              hasClabeByEmployeeId?.get(st.employeeId) === false;
-            const ageDays =
-              columnMode === "approval"
-                ? approvalAgeDays(st.submittedAt)
-                : null;
-            const agingWarn = isApprovalAgingWarning(ageDays);
-
-            return (
-            <TableRow
-              key={st.id}
-              className={cn(
-                "cursor-pointer hover:bg-muted/50 transition-colors",
-                selected && "bg-primary/5",
-                agingWarn && "bg-warning-soft/60",
-              )}
-              data-testid={
-                agingWarn ? `settlement-aging-warn-${st.id}` : undefined
-              }
-              onClick={() => onView(st.id)}
-            >
-              {selectable || columnMode === "approval" ? (
-                <TableCell
-                  className="w-10"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {selectable ? (
-                    <Checkbox
-                      checked={selected}
-                      onCheckedChange={() => onToggleSelect?.(st.id)}
-                      aria-label={`Seleccionar ${st.settlementNumber}`}
-                    />
-                  ) : null}
-                </TableCell>
-              ) : null}
-
-              <TableCell className="font-semibold text-foreground font-mono tabular-nums whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5">
-                  {st.settlementNumber}
-                  <SettlementKindBadge kind={st.settlementKind} className="font-sans text-xs" />
-                </span>
-              </TableCell>
-
-              <TableCell className="font-medium whitespace-nowrap">
-                {st.employeeFullName ?? "—"}
-              </TableCell>
-
-              <TableCell className="text-muted-foreground text-xs sm:text-sm whitespace-nowrap">
-                {settlementPeriodLabel(st)}
-              </TableCell>
-
-              {columnMode === "approval" ? (
-                <>
-                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                    {st.submittedByName ?? st.createdByName ?? "—"}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {ageDays == null ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : agingWarn ? (
-                      <Badge variant="warning" tone="soft" className="text-xs">
-                        {ageDays === 0
-                          ? pipelineCopy.ageToday
-                          : pipelineCopy.ageDays(ageDays)}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {ageDays === 0
-                          ? pipelineCopy.ageToday
-                          : pipelineCopy.ageDays(ageDays)}
-                      </span>
-                    )}
-                  </TableCell>
-                </>
-              ) : null}
-
-              {columnMode === "payable" ? (
-                <>
-                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                    {st.approvedByName
-                      ? `${st.approvedByName}${st.approvedAt ? ` · ${new Date(st.approvedAt).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}` : ""}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="min-w-0 whitespace-nowrap">
-                    {missingClabe ? (
-                      <div className="space-y-1" data-testid="settlement-no-clabe-tip">
-                        <Badge
-                          variant="warning"
-                          tone="soft"
-                          data-testid="settlement-no-clabe-badge"
-                        >
-                          {bulkCopy.noClabeBadge}
-                        </Badge>
-                        <p className="whitespace-normal text-[11px] leading-snug text-muted-foreground">
-                          {bulkCopy.noClabeCashRowTip}
-                          {" · "}
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 text-[11px] underline underline-offset-2"
-                            asChild
-                          >
-                            <Link
-                              to={`/employees/${st.employeeId}`}
-                              onClick={(e) => e.stopPropagation()}
-                              data-testid={`settlement-no-clabe-employees-${st.id}`}
-                            >
-                              {bulkCopy.completeClabeInEmployees}
-                            </Link>
-                          </Button>
-                        </p>
-                      </div>
-                    ) : (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        SPEI
-                      </span>
-                    )}
-                  </TableCell>
-                </>
-              ) : null}
-
-              {columnMode === "registry" ? (
-                <>
-                  <TableCell className="text-center tabular-nums font-medium whitespace-nowrap">
-                    {getTripsCount(st)}
-                  </TableCell>
-
-                  <TableCell className="text-right tabular-nums whitespace-nowrap">
-                    {formatMxCurrency(st.grossAmount)}
-                  </TableCell>
-
-                  <TableCell className="text-right tabular-nums text-destructive font-medium whitespace-nowrap">
-                    {getTotalDiscounts(st) > 0 ? (
-                      `-${formatMxCurrency(getTotalDiscounts(st))}`
-                    ) : (
-                      <span className="text-muted-foreground font-normal">—</span>
-                    )}
-                  </TableCell>
-                </>
-              ) : null}
-
-              <TableCell className="text-right tabular-nums font-bold text-foreground whitespace-nowrap">
-                {formatMxCurrency(st.netAmount)}
-              </TableCell>
-
-              {columnMode !== "payable" ? (
-                <TableCell className="whitespace-nowrap">
-                  <SettlementStatusCell
-                    status={st.status}
-                    rejectionReason={st.rejectionReason}
-                    showRejectedCorrection={showRejectedCorrection}
-                    approval={st.approval}
-                  />
-                </TableCell>
-              ) : null}
-
-              <TableCell
-                className="w-12 text-right whitespace-nowrap"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <SettlementActions
-                  settlement={st}
-                  onView={onView}
-                  onDisburse={onDisburse}
-                  onActionComplete={onActionComplete}
-                  approvalLinkOnly={approvalLinkOnly}
-                  hasClabe={hasClabeByEmployeeId?.get(st.employeeId)}
-                />
-              </TableCell>
-            </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      aria-label="Listado de pagos"
+      columns={columns}
+      rows={settlements}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      onRowActivate={(st) => onView(st.id)}
+      getRowClassName={(st) => {
+        const selected = selectedIds?.has(st.id) ?? false;
+        const ageDays =
+          columnMode === "approval"
+            ? approvalAgeDays(st.submittedAt)
+            : null;
+        const agingWarn = isApprovalAgingWarning(ageDays);
+        if (selected && agingWarn) return "bg-primary/5 bg-warning-soft/60";
+        if (selected) return "bg-primary/5";
+        if (agingWarn) return "bg-warning-soft/60";
+        return undefined;
+      }}
+      getRowProps={(st) => {
+        const ageDays =
+          columnMode === "approval"
+            ? approvalAgeDays(st.submittedAt)
+            : null;
+        if (!isApprovalAgingWarning(ageDays)) return undefined;
+        return {
+          "data-testid": `settlement-aging-warn-${st.id}`,
+        } as HTMLAttributes<HTMLTableRowElement>;
+      }}
+    />
   );
 }

@@ -79,11 +79,34 @@ export interface EntityListTableProps<TRow> {
   primaryTo?: (row: TRow) => string;
   /** `location.state` del Link primario (p. ej. cola `from` del listado) */
   primaryState?: (row: TRow) => unknown;
+  /**
+   * Master-detail / selección puntual sin navegación.
+   * Solo se usa si no hay `primaryTo` (T7: con link primario gana el Link).
+   */
+  onRowActivate?: (row: TRow) => void;
+  /** Clases extra por fila (p. ej. selección `bg-primary-50`, aging). */
+  getRowClassName?: (row: TRow) => string | undefined;
+  /**
+   * Attrs extra por fila (`data-testid`, `data-selected`, …).
+   * No usar para `className`/`onClick` — van por `getRowClassName` / activate.
+   */
+  getRowProps?: (
+    row: TRow,
+  ) =>
+    | Omit<React.HTMLAttributes<HTMLTableRowElement>, "className" | "onClick">
+    | undefined;
+  /**
+   * Filas extra tras cada row (expansión de familia, detalle inline).
+   * Debe devolver `TableRow` / fragmento de rows — no `<tbody>`.
+   */
+  renderAfterRow?: (row: TRow) => React.ReactNode;
   sort?: EntityListSortState | null;
   onSortChange?: (next: EntityListSortState) => void;
   /** Sticky thead si true o rows.length > 25 (T10) */
   stickyHeader?: boolean;
   className?: string;
+  /** `aria-label` del `<table>` (tests / a11y de listados con nombre). */
+  "aria-label"?: string;
   /**
    * Si true (default), envuelve en card `rounded-xl border bg-card shadow-sm`.
    * Bajo `ListPageShell` table-mode pasar `framed={false}`: el shell aporta el marco
@@ -369,10 +392,15 @@ export function EntityListTable<TRow>({
   density: densityProp,
   primaryTo,
   primaryState,
+  onRowActivate,
+  getRowClassName,
+  getRowProps,
+  renderAfterRow,
   sort = null,
   onSortChange,
   stickyHeader,
   className,
+  "aria-label": ariaLabel,
   framed = true,
   footer,
 }: EntityListTableProps<TRow>) {
@@ -400,6 +428,7 @@ export function EntityListTable<TRow>({
 
   const handleRowClick = (
     event: React.MouseEvent<HTMLTableRowElement>,
+    row: TRow,
   ) => {
     if (isInteractiveTarget(event.target)) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -410,12 +439,14 @@ export function EntityListTable<TRow>({
     );
     if (link instanceof HTMLAnchorElement) {
       link.click();
+      return;
     }
+    onRowActivate?.(row);
   };
 
   const tableBlock = (
     <>
-      <Table density={density}>
+      <Table density={density} aria-label={ariaLabel}>
         <TableHeader
           className={cn(sticky && "sticky top-0 z-10 [&_th]:bg-muted")}
         >
@@ -502,35 +533,47 @@ export function EntityListTable<TRow>({
               const hasPrimaryLink = Boolean(
                 primaryTo && columns.some((c) => c.kind === "primary"),
               );
+              const rowInteractive = hasPrimaryLink || Boolean(onRowActivate);
+              const rowProps = getRowProps?.(row);
               return (
-                <TableRow
-                  key={getRowId(row)}
-                  className={cn(hasPrimaryLink && "cursor-pointer")}
-                  onClick={hasPrimaryLink ? handleRowClick : undefined}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.id}
-                      className={cn(
-                        cellAlignClass(column.kind),
-                        cellKindClass(column.kind),
-                        column.className,
-                      )}
-                      onClick={
-                        column.kind === "actions"
-                          ? (e) => e.stopPropagation()
-                          : undefined
-                      }
-                    >
-                      {renderCellContent(
-                        column,
-                        row,
-                        primaryTo,
-                        primaryState,
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                <React.Fragment key={getRowId(row)}>
+                  <TableRow
+                    {...rowProps}
+                    className={cn(
+                      rowInteractive && "cursor-pointer",
+                      getRowClassName?.(row),
+                    )}
+                    onClick={
+                      rowInteractive
+                        ? (event) => handleRowClick(event, row)
+                        : undefined
+                    }
+                  >
+                    {columns.map((column) => (
+                      <TableCell
+                        key={column.id}
+                        className={cn(
+                          cellAlignClass(column.kind),
+                          cellKindClass(column.kind),
+                          column.className,
+                        )}
+                        onClick={
+                          column.kind === "actions"
+                            ? (e) => e.stopPropagation()
+                            : undefined
+                        }
+                      >
+                        {renderCellContent(
+                          column,
+                          row,
+                          primaryTo,
+                          primaryState,
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {renderAfterRow?.(row)}
+                </React.Fragment>
               );
             })}
           </TableBody>

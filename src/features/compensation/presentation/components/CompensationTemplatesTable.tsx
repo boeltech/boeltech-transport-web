@@ -1,13 +1,18 @@
+/**
+ * CompensationTemplatesTable — listado Operate (`EntityListTable`).
+ *
+ * Nombre · Estado · Cómo se paga · Operadores · ⋯. Familias vía `renderAfterRow`.
+ * Empty → null (ListPageShell). `framed={false}`. Layout `cards` = móvil (sin EntityListTable).
+ */
+
 import { useCallback, useState } from "react";
 import { cn } from "@shared/lib/utils/cn";
 import { Card, CardContent } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
-  Table,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
@@ -200,73 +205,93 @@ function TemplateCatalogCard({
   );
 }
 
-function TemplateFamilyTableGroup({
-  template,
-  expanded,
-  pendingEmployeeId,
-  branchNameMap,
-  onExpandedChange,
-  onOpenOperators,
-  onDeleted,
-}: FamilyRowProps) {
-  const isOpen = expanded && hasOtherVersions(template);
-  const containerId = familyVersionsContainerId(template);
+function buildColumns(
+  props: Pick<
+    CompensationTemplatesTableProps,
+    "pendingEmployeeId" | "branchNameMap" | "onOpenOperators" | "onDeleted"
+  > & {
+    expanded: ReadonlySet<string>;
+    setExpanded: (familyId: string, expanded: boolean) => void;
+  },
+): EntityListColumnDef<CompensationTemplate>[] {
+  const {
+    pendingEmployeeId,
+    branchNameMap,
+    onOpenOperators,
+    onDeleted,
+    expanded,
+    setExpanded,
+  } = props;
 
-  return (
-    <>
-      <tbody>
-        <TableRow
-          className="cursor-pointer hover:bg-muted/50"
-          onClick={() => onOpenOperators(template.id)}
-        >
-          <TableCell className="max-w-64">
-            <div className="flex min-w-0 flex-col items-start gap-0.5">
-              <TemplateNameButton template={template} onOpenOperators={onOpenOperators} />
-              <FamilyVersionsToggle
-                template={template}
-                expanded={isOpen}
-                controlsId={containerId}
-                onToggle={() => onExpandedChange(template.familyId, !isOpen)}
-              />
-            </div>
-          </TableCell>
-          <TableCell>
-            <TemplateStatusCell
+  return [
+    {
+      id: "name",
+      header: copy.columns.name,
+      kind: "primary",
+      className: "max-w-64",
+      accessor: (template): EntityListStackedValue => {
+        const isOpen =
+          expanded.has(template.familyId) && hasOtherVersions(template);
+        return {
+          primary: (
+            <TemplateNameButton
               template={template}
-              onExpandFamily={() => onExpandedChange(template.familyId, true)}
-            />
-          </TableCell>
-          <TableCell className="min-w-72">
-            <TemplateSummaryCell template={template} branchNameMap={branchNameMap} />
-          </TableCell>
-          <TableCell className="text-right">
-            <TemplateOperatorsCount template={template} />
-          </TableCell>
-          <TableCell
-            className="w-56 text-right"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <CompensationTemplateActions
-              template={template}
-              pendingEmployeeId={pendingEmployeeId}
               onOpenOperators={onOpenOperators}
-              onDeleted={onDeleted}
             />
-          </TableCell>
-        </TableRow>
-      </tbody>
-      {isOpen ? (
-        <TemplateFamilyVersionRows
-          row={template}
-          containerId={containerId}
+          ),
+          secondary: hasOtherVersions(template) ? (
+            <FamilyVersionsToggle
+              template={template}
+              expanded={isOpen}
+              controlsId={familyVersionsContainerId(template)}
+              onToggle={() => setExpanded(template.familyId, !isOpen)}
+            />
+          ) : undefined,
+        };
+      },
+    },
+    {
+      id: "status",
+      header: copy.columns.status,
+      kind: "status",
+      accessor: (template) => (
+        <TemplateStatusCell
+          template={template}
+          onExpandFamily={() => setExpanded(template.familyId, true)}
+        />
+      ),
+    },
+    {
+      id: "summary",
+      header: copy.columns.summary,
+      kind: "text",
+      className: "min-w-72",
+      accessor: (template) => (
+        <TemplateSummaryCell template={template} branchNameMap={branchNameMap} />
+      ),
+    },
+    {
+      id: "operators",
+      header: copy.columns.operators,
+      kind: "number",
+      accessor: (template) => <TemplateOperatorsCount template={template} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      className: "w-56",
+      headerClassName: "w-56",
+      accessor: (template) => (
+        <CompensationTemplateActions
+          template={template}
           pendingEmployeeId={pendingEmployeeId}
-          branchNameMap={branchNameMap}
           onOpenOperators={onOpenOperators}
           onDeleted={onDeleted}
         />
-      ) : null}
-    </>
-  );
+      ),
+    },
+  ];
 }
 
 export function CompensationTemplatesTable({
@@ -285,8 +310,8 @@ export function CompensationTemplatesTable({
     onFamilyExpandedChange,
   );
 
-  if (isLoading) {
-    if (layout === "cards") {
+  if (layout === "cards") {
+    if (isLoading) {
       return (
         <div className="grid gap-3">
           {Array.from({ length: 3 }).map((_, index) => (
@@ -295,16 +320,7 @@ export function CompensationTemplatesTable({
         </div>
       );
     }
-    return (
-      <div className="space-y-2 rounded-md border bg-card p-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-10 w-full" />
-        ))}
-      </div>
-    );
-  }
 
-  if (layout === "cards") {
     return (
       <div className="grid gap-3">
         {templates.map((template) => (
@@ -323,31 +339,39 @@ export function CompensationTemplatesTable({
     );
   }
 
+  const columns = buildColumns({
+    pendingEmployeeId,
+    branchNameMap,
+    onOpenOperators,
+    onDeleted,
+    expanded,
+    setExpanded,
+  });
+
   return (
-    <div className="overflow-x-auto rounded-md border bg-card">
-      <Table className="[&>tbody:last-child>tr:last-child]:border-0">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-64">{copy.columns.name}</TableHead>
-            <TableHead>{copy.columns.status}</TableHead>
-            <TableHead>{copy.columns.summary}</TableHead>
-            <TableHead className="w-28 text-right">{copy.columns.operators}</TableHead>
-            <TableHead className="w-56 text-right">{copy.columns.actions}</TableHead>
-          </TableRow>
-        </TableHeader>
-        {templates.map((template) => (
-          <TemplateFamilyTableGroup
-            key={rowKey(template)}
-            template={template}
-            expanded={expanded.has(template.familyId)}
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={templates}
+      getRowId={rowKey}
+      isLoading={isLoading}
+      onRowActivate={(template) => onOpenOperators(template.id)}
+      renderAfterRow={(template) => {
+        const isOpen =
+          expanded.has(template.familyId) && hasOtherVersions(template);
+        if (!isOpen) return null;
+        return (
+          <TemplateFamilyVersionRows
+            row={template}
+            containerId={familyVersionsContainerId(template)}
             pendingEmployeeId={pendingEmployeeId}
             branchNameMap={branchNameMap}
-            onExpandedChange={setExpanded}
             onOpenOperators={onOpenOperators}
             onDeleted={onDeleted}
           />
-        ))}
-      </Table>
-    </div>
+        );
+      }}
+    />
   );
 }

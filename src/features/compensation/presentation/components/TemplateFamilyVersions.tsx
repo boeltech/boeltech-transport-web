@@ -137,7 +137,24 @@ function LoadErrorMessage({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** Subfilas de la familia dentro de la tabla (PRD D16/D20). */
+/**
+ * Ancla aria-controls / testid del bloque expandido.
+ * EntityListTable exige filas sueltas (no `<tbody>`).
+ */
+function FamilyVersionsAnchor({ containerId }: { containerId: string }) {
+  return (
+    <TableRow
+      id={containerId}
+      data-testid="template-family-versions"
+      aria-hidden
+      className="pointer-events-none h-0 border-0 hover:bg-transparent"
+    >
+      <TableCell colSpan={TABLE_COLUMN_COUNT} className="h-0 border-0 p-0" />
+    </TableRow>
+  );
+}
+
+/** Subfilas de la familia dentro de EntityListTable (`renderAfterRow`). */
 export function TemplateFamilyVersionRows({
   row,
   containerId,
@@ -149,7 +166,8 @@ export function TemplateFamilyVersionRows({
   const family = useFamilyVersions(row);
 
   return (
-    <tbody id={containerId} data-testid="template-family-versions">
+    <>
+      <FamilyVersionsAnchor containerId={containerId} />
       {family.status === "loading" ? (
         <TableRow className="bg-muted/40 hover:bg-muted/40">
           <TableCell colSpan={TABLE_COLUMN_COUNT}>
@@ -206,7 +224,7 @@ export function TemplateFamilyVersionRows({
           </TableRow>
         ))
       )}
-    </tbody>
+    </>
   );
 }
 

@@ -1,18 +1,17 @@
 /**
- * ImportsJobsTable — historial de cargas desde archivo (columnas operativas).
+ * ImportsJobsTable — historial de cargas desde archivo (`EntityListTable`).
+ *
+ * Tipo · Estado · Archivo · Resultado · Cuándo · Acciones.
+ * Empty → null (ImportsHubPage / ListPageShell). `framed={false}`.
+ * Fechas con `formatDateTime`. Sin sort API.
  */
 
 import { Download, Loader2 } from "lucide-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
 } from "@shared/ui/table";
 import { Button } from "@shared/ui/button";
-import { Skeleton } from "@shared/ui/skeleton";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
 import { formatDateTime } from "@shared/utils/dateUtils";
@@ -30,11 +29,86 @@ export interface ImportsJobsTableProps {
   isLoading?: boolean;
 }
 
+function buildColumns(args: {
+  canRead: boolean;
+  isDownloadPending: boolean;
+  downloadingId: string | undefined;
+  onDownload: (id: string) => void;
+}): EntityListColumnDef<ImportJob>[] {
+  const { canRead, isDownloadPending, downloadingId, onDownload } = args;
+  const copy = importsCopy.table;
+
+  return [
+    {
+      id: "entityType",
+      header: copy.entityType,
+      kind: "text",
+      accessor: (job) =>
+        IMPORT_ENTITY_TYPE_LABELS[job.entityType] ?? job.entityType,
+    },
+    {
+      id: "status",
+      header: copy.status,
+      kind: "status",
+      accessor: (job) => <ImportJobStatusBadge status={job.status} />,
+    },
+    {
+      id: "filename",
+      header: copy.filename,
+      kind: "meta",
+      className: "max-w-[220px] truncate",
+      accessor: (job) => job.originalFilename ?? "—",
+    },
+    {
+      id: "result",
+      header: copy.result,
+      kind: "meta",
+      className: "tabular-nums",
+      accessor: (job) => copy.resultSummary(job),
+    },
+    {
+      id: "when",
+      header: copy.when,
+      kind: "meta",
+      className: "whitespace-nowrap",
+      accessor: (job) => formatDateTime(job.committedAt ?? job.createdAt),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (job) => {
+        const showDownload = canRead && job.errorCount > 0;
+        if (!showDownload) return null;
+        const isDownloading =
+          isDownloadPending && downloadingId === job.id;
+        return (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={copy.downloadErrorsAria(job.originalFilename)}
+            title={copy.downloadErrors}
+            disabled={isDownloadPending}
+            onClick={() => onDownload(job.id)}
+          >
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+          </Button>
+        );
+      },
+    },
+  ];
+}
+
 export function ImportsJobsTable({
   jobs,
   isLoading = false,
 }: ImportsJobsTableProps) {
-  const copy = importsCopy.table;
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const canRead = hasPermission("imports", "read");
@@ -49,80 +123,22 @@ export function ImportsJobsTable({
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="space-y-2 rounded-md border p-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
-    );
-  }
+  const columns = buildColumns({
+    canRead,
+    isDownloadPending: downloadErrors.isPending,
+    downloadingId: downloadErrors.variables,
+    onDownload: (id) => downloadErrors.mutate(id),
+  });
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{copy.entityType}</TableHead>
-            <TableHead>{copy.status}</TableHead>
-            <TableHead>{copy.filename}</TableHead>
-            <TableHead>{copy.result}</TableHead>
-            <TableHead>{copy.when}</TableHead>
-            <TableHead className="w-12">
-              <span className="sr-only">{copy.actions}</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {jobs.map((job) => {
-            const showDownload = canRead && job.errorCount > 0;
-            const isDownloading =
-              downloadErrors.isPending && downloadErrors.variables === job.id;
-            const when = job.committedAt ?? job.createdAt;
-
-            return (
-              <TableRow key={job.id}>
-                <TableCell>
-                  {IMPORT_ENTITY_TYPE_LABELS[job.entityType] ?? job.entityType}
-                </TableCell>
-                <TableCell>
-                  <ImportJobStatusBadge status={job.status} />
-                </TableCell>
-                <TableCell className="max-w-[220px] truncate text-sm">
-                  {job.originalFilename ?? "—"}
-                </TableCell>
-                <TableCell className="text-sm tabular-nums">
-                  {copy.resultSummary(job)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                  {formatDateTime(when)}
-                </TableCell>
-                <TableCell>
-                  {showDownload ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      aria-label={copy.downloadErrorsAria(job.originalFilename)}
-                      title={copy.downloadErrors}
-                      disabled={downloadErrors.isPending}
-                      onClick={() => downloadErrors.mutate(job.id)}
-                    >
-                      {isDownloading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                    </Button>
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      aria-label="Historial de cargas"
+      columns={columns}
+      rows={jobs}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+    />
   );
 }
