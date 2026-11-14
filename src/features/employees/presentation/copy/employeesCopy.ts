@@ -12,7 +12,7 @@ export const employeesCopy = {
       refreshSuccess: "Lista actualizada",
     },
     actions: {
-      create: "Nuevo Empleado",
+      create: "Nuevo empleado",
       import: "Importar",
       importAria: "Importar empleados desde archivo",
       clearFilters: "Limpiar filtros",
@@ -26,6 +26,14 @@ export const employeesCopy = {
       typeAll: "Todos",
       positionLabel: "Puesto",
       positionAll: "Todos",
+    },
+    table: {
+      employee: "Empleado",
+      contact: "Contacto",
+      department: "Departamento / puesto",
+      contract: "Contrato",
+      hireDate: "Ingreso",
+      status: "Estado",
     },
     chip: {
       status: (label: string) => `Estado: ${label}`,

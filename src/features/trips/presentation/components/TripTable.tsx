@@ -1,20 +1,18 @@
 /**
- * TripTable
- * Clean Architecture - Presentation Layer (Components)
+ * TripTable — listado Operate workbench (`EntityListTable`, SoT §7).
  *
- * Tabla del listado de viajes: operación primero, factura secundaria.
+ * ≤7 cols datos + actions. T4: Unidad apila conductor (antes 8 cols con Cliente).
+ * Empty → null (WorkbenchPageShell pinta empty). Sin checkboxes (T9: no hay lote).
+ * `framed` default: Workbench no envuelve card de tabla.
  */
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
 import { Badge } from "@shared/ui/badge";
-import { Skeleton } from "@shared/ui/skeleton";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
+import { formatDate, formatTime } from "@shared/utils/dateUtils";
 import type { TripListItem } from "../../domain";
 import { TripStatusBadge } from "../config/tripStatusConfig";
 import { tripsListCopy } from "../copy/listCopy";
@@ -22,11 +20,16 @@ import { getTripInvoicingBadgeConfig } from "../uiHelpers";
 import { TripActions } from "./TripActions";
 import { TripListRouteLabel } from "./TripListRouteLabel";
 import { TripOverdueBadge } from "./TripOverdueBadge";
-import { formatDate, formatTime } from "@shared/utils/dateUtils";
 
-interface TripTableProps {
+const copy = tripsListCopy.columns;
+
+export interface TripTableProps {
   trips: TripListItem[];
   isLoading: boolean;
+  /** Href del detalle (link primario + fila). */
+  primaryTo: (trip: TripListItem) => string;
+  /** Cola del listado (`location.state.from`). */
+  primaryState?: (trip: TripListItem) => unknown;
   onView: (id: string) => void;
   onDelete?: (id: string) => void;
   onSchedule?: (id: string) => void;
@@ -37,86 +40,132 @@ interface TripTableProps {
   hideFiscalAttentionBadge?: boolean;
 }
 
-const copy = tripsListCopy.columns;
+function buildColumns(
+  props: Pick<
+    TripTableProps,
+    | "onView"
+    | "onDelete"
+    | "onSchedule"
+    | "onCancel"
+    | "hideClientColumn"
+    | "hideFiscalAttentionBadge"
+  >,
+): EntityListColumnDef<TripListItem>[] {
+  const {
+    onView,
+    onDelete,
+    onSchedule,
+    onCancel,
+    hideClientColumn = false,
+    hideFiscalAttentionBadge = false,
+  } = props;
 
-type HeaderKey =
-  | "code"
-  | "client"
-  | "route"
-  | "vehicle"
-  | "driver"
-  | "departure"
-  | "status"
-  | "invoice"
-  | "actions";
-
-function getTableHeaders(hideClientColumn: boolean) {
-  const headers: { key: HeaderKey; label: string; className?: string }[] = [
-    { key: "code", label: copy.code },
+  const columns: EntityListColumnDef<TripListItem>[] = [
+    {
+      id: "code",
+      header: copy.code,
+      kind: "primary",
+      accessor: (trip) => trip.tripCode,
+    },
   ];
+
   if (!hideClientColumn) {
-    headers.push({ key: "client", label: copy.client });
+    columns.push({
+      id: "client",
+      header: copy.client,
+      kind: "meta",
+      accessor: (trip) => trip.client?.legalName ?? copy.noClient,
+    });
   }
-  headers.push(
-    { key: "route", label: copy.route },
-    { key: "vehicle", label: copy.vehicle },
-    { key: "driver", label: copy.driver },
-    { key: "departure", label: copy.departure },
-    { key: "status", label: copy.status },
-    { key: "invoice", label: copy.invoice },
-    { key: "actions", label: "", className: "w-12" },
-  );
-  return headers;
-}
 
-function TableHeaderRow({ hideClientColumn }: { hideClientColumn: boolean }) {
-  const headers = getTableHeaders(hideClientColumn);
-  return (
-    <TableHeader>
-      <TableRow>
-        {headers.map((header) => (
-          <TableHead key={header.key} className={header.className}>
-            {header.label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
+  columns.push(
+    {
+      id: "route",
+      header: copy.route,
+      kind: "text",
+      accessor: (trip) => (
+        <TripListRouteLabel trip={trip} className="leading-snug" />
+      ),
+    },
+    {
+      id: "fleet",
+      header: copy.fleet,
+      kind: "stacked",
+      accessor: (trip): EntityListStackedValue => ({
+        primary: trip.vehicle?.unitNumber,
+        secondary:
+          trip.driver?.fullName ??
+          trip.vehicle?.licensePlate ??
+          undefined,
+      }),
+    },
+    {
+      id: "departure",
+      header: copy.departure,
+      kind: "stacked",
+      accessor: (trip): EntityListStackedValue => {
+        const iso = trip.scheduledDeparture.toISOString();
+        return {
+          primary: formatDate(iso),
+          secondary: formatTime(iso),
+        };
+      },
+    },
+    {
+      id: "status",
+      header: copy.status,
+      kind: "status",
+      accessor: (trip) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <TripStatusBadge status={trip.status} size="sm" showIcon />
+          <TripOverdueBadge trip={trip} />
+        </div>
+      ),
+    },
+    {
+      id: "invoice",
+      header: copy.invoice,
+      kind: "status",
+      accessor: (trip) => {
+        const invoicingConfig = getTripInvoicingBadgeConfig(trip);
+        return (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {!hideFiscalAttentionBadge && trip.requiresFiscalAttention ? (
+              <Badge variant="destructive" tone="soft">
+                {tripsListCopy.badge.fiscalAttention}
+              </Badge>
+            ) : null}
+            <Badge variant={invoicingConfig.variant}>
+              {invoicingConfig.label}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (trip) => (
+        <TripActions
+          trip={trip}
+          onView={onView}
+          onDelete={onDelete}
+          onSchedule={onSchedule}
+          onCancel={onCancel}
+        />
+      ),
+    },
   );
-}
 
-function LoadingSkeleton({ hideClientColumn }: { hideClientColumn: boolean }) {
-  const headers = getTableHeaders(hideClientColumn);
-  return (
-    <TableBody>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <TableRow key={i}>
-          {headers.map((header) => (
-            <TableCell key={header.key}>
-              <Skeleton className="h-4 w-20" />
-            </TableCell>
-          ))}
-        </TableRow>
-      ))}
-    </TableBody>
-  );
-}
-
-function EmptyState({ hideClientColumn }: { hideClientColumn: boolean }) {
-  const headers = getTableHeaders(hideClientColumn);
-  return (
-    <TableBody>
-      <TableRow>
-        <TableCell colSpan={headers.length} className="h-24 text-center">
-          {tripsListCopy.empty.table}
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  );
+  return columns;
 }
 
 export function TripTable({
   trips,
   isLoading,
+  primaryTo,
+  primaryState,
   onView,
   onDelete,
   onSchedule,
@@ -124,124 +173,24 @@ export function TripTable({
   hideClientColumn = false,
   hideFiscalAttentionBadge = false,
 }: TripTableProps) {
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeaderRow hideClientColumn={hideClientColumn} />
-          <LoadingSkeleton hideClientColumn={hideClientColumn} />
-        </Table>
-      </div>
-    );
-  }
-
-  if (trips.length === 0) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeaderRow hideClientColumn={hideClientColumn} />
-          <EmptyState hideClientColumn={hideClientColumn} />
-        </Table>
-      </div>
-    );
-  }
+  const columns = buildColumns({
+    onView,
+    onDelete,
+    onSchedule,
+    onCancel,
+    hideClientColumn,
+    hideFiscalAttentionBadge,
+  });
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeaderRow hideClientColumn={hideClientColumn} />
-        <TableBody>
-          {trips.map((trip) => {
-            const invoicingConfig = getTripInvoicingBadgeConfig(trip);
-
-            return (
-              <TableRow
-                key={trip.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => onView(trip.id)}
-              >
-                <TableCell className="font-mono font-medium">
-                  {trip.tripCode}
-                </TableCell>
-
-                {!hideClientColumn ? (
-                  <TableCell>
-                    {trip.client?.legalName ?? copy.noClient}
-                  </TableCell>
-                ) : null}
-
-                <TableCell>
-                  <TripListRouteLabel
-                    trip={trip}
-                    className="font-medium leading-snug"
-                  />
-                </TableCell>
-
-                <TableCell>
-                  {trip.vehicle?.unitNumber ? (
-                    <div className="space-y-0.5">
-                      <p>{trip.vehicle.unitNumber}</p>
-                      {trip.vehicle.licensePlate ? (
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {trip.vehicle.licensePlate}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    copy.emptyCell
-                  )}
-                </TableCell>
-
-                <TableCell>
-                  {trip.driver?.fullName || copy.emptyCell}
-                </TableCell>
-
-                <TableCell>
-                  <div className="space-y-0.5">
-                    <p>
-                      {formatDate(trip.scheduledDeparture.toISOString())}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatTime(trip.scheduledDeparture.toISOString())}
-                    </p>
-                  </div>
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <TripStatusBadge status={trip.status} size="sm" showIcon />
-                    <TripOverdueBadge trip={trip} />
-                  </div>
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {!hideFiscalAttentionBadge &&
-                    trip.requiresFiscalAttention ? (
-                      <Badge variant="destructive" tone="soft">
-                        {tripsListCopy.badge.fiscalAttention}
-                      </Badge>
-                    ) : null}
-                    <Badge variant={invoicingConfig.variant}>
-                      {invoicingConfig.label}
-                    </Badge>
-                  </div>
-                </TableCell>
-
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <TripActions
-                    trip={trip}
-                    onView={onView}
-                    onDelete={onDelete}
-                    onSchedule={onSchedule}
-                    onCancel={onCancel}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      density="list"
+      columns={columns}
+      rows={trips}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={primaryTo}
+      primaryState={primaryState}
+    />
   );
 }

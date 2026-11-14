@@ -67,7 +67,7 @@ import {
   useCancelTrip,
   useTripWorkbenchSummary,
 } from "../../application";
-import { type TripStatusType } from "../../domain";
+import { type TripListItem, type TripStatusType } from "../../domain";
 import {
   TripTable,
   TripCard,
@@ -377,6 +377,16 @@ export function TripsListPage() {
         state: { from: tripsListHref(searchParams) },
       }),
     [navigate, searchParams],
+  );
+
+  const primaryTo = useCallback(
+    (trip: TripListItem) => `/trips/${trip.id}`,
+    [],
+  );
+
+  const primaryState = useCallback(
+    () => ({ from: tripsListHref(searchParams) }),
+    [searchParams],
   );
 
   const handleDelete = useCallback((id: string) => {
@@ -853,6 +863,8 @@ export function TripsListPage() {
             <TripTable
               trips={trips}
               isLoading={isLoading}
+              primaryTo={primaryTo}
+              primaryState={primaryState}
               onView={handleView}
               onDelete={canDelete ? handleDelete : undefined}
               onCancel={canEdit ? handleCancel : undefined}

@@ -1,218 +1,134 @@
 /**
- * EmployeeTable
- * Clean Architecture - Presentation Layer (Components)
+ * EmployeeTable — listado Operate (`EntityListTable`, SoT §7 T1–T10).
  *
- * Tabla del listado de empleados. Empty lo posee ListPageShell (D4).
+ * 6 cols: Empleado · Contacto · Departamento / puesto · Contrato ·
+ * Ingreso · Estado · ⋯. Sort solo campos API (`first_name`, `department`,
+ * `hire_date`, `status`). Empty → null (ListPageShell). `framed={false}`.
  */
 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListSortState,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
-import { formatDate } from "@shared/utils/dateUtils";
-import { cn } from "@shared/lib/utils/cn";
 import type { EmployeeListItem, EmployeeSortOptions } from "../../domain/entities";
 import { EmployeeStatusBadge } from "../config/employeeStatusConfig";
 import { EMPLOYMENT_TYPE_LABELS } from "../config/employeeConfig";
+import { employeesCopy } from "../copy/employeesCopy";
 import { EmployeeActions } from "./EmployeeActions";
+
+const listCopy = employeesCopy.list.table;
 
 export type EmployeeSortableColumn = EmployeeSortOptions["field"];
 
-interface EmployeeTableProps {
+export interface EmployeeTableProps {
   employees: EmployeeListItem[];
   isLoading: boolean;
-  onView: (id: string) => void;
-  sortField?: EmployeeSortableColumn;
-  sortDirection?: "asc" | "desc";
-  onSortChange?: (field: EmployeeSortableColumn) => void;
+  /** Href del detalle (link primario + fila). */
+  primaryTo: (employee: EmployeeListItem) => string;
+  /** Cola del listado (`location.state.from`). */
+  primaryState?: (employee: EmployeeListItem) => unknown;
+  sort: EntityListSortState;
+  onSortChange: (next: EntityListSortState) => void;
 }
 
-function EmployeeTableHeaderRow({
-  sortField,
-  sortDirection,
-  onSortChange,
-}: {
-  sortField?: EmployeeSortableColumn;
-  sortDirection?: "asc" | "desc";
-  onSortChange?: (field: EmployeeSortableColumn) => void;
-}) {
-  const renderSortableHead = (
-    field: EmployeeSortableColumn,
-    label: string,
-    className?: string,
-  ) => {
-    const active = sortField === field;
-    const asc = sortDirection === "asc";
-    return (
-      <TableHead
-        className={cn(
-          onSortChange ? "cursor-pointer select-none hover:bg-muted/50" : undefined,
-          className,
-        )}
-        onClick={onSortChange ? () => onSortChange(field) : undefined}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          {active && onSortChange ? (
-            <span className="text-xs tabular-nums">{asc ? "↑" : "↓"}</span>
-          ) : null}
-        </div>
-      </TableHead>
-    );
-  };
-
-  /** Columnas sin `sort_by` en API (`employeeQuerySchema`): contacto y tipo de contrato. */
-  const renderPlainHead = (label: string, className?: string) => (
-    <TableHead className={className}>{label}</TableHead>
-  );
-
-  return (
-    <TableHeader>
-      <TableRow>
-        {renderSortableHead("first_name", "Empleado")}
-        {renderPlainHead("Contacto", "hidden md:table-cell")}
-        {renderSortableHead(
-          "department",
-          "Departamento / Puesto",
-          "hidden lg:table-cell",
-        )}
-        {renderPlainHead("Contrato", "hidden lg:table-cell")}
-        {renderSortableHead("hire_date", "Ingreso", "hidden xl:table-cell")}
-        {renderSortableHead("status", "Estado")}
-        <TableHead className="w-12" />
-      </TableRow>
-    </TableHeader>
-  );
-}
-
-function LoadingSkeleton() {
-  return (
-    <TableBody>
-      {Array.from({ length: 6 }).map((_, i) => (
-        <TableRow key={i}>
-          <TableCell>
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-          </TableCell>
-          <TableCell className="hidden md:table-cell">
-            <Skeleton className="h-4 w-32" />
-          </TableCell>
-          <TableCell className="hidden lg:table-cell">
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          </TableCell>
-          <TableCell className="hidden lg:table-cell">
-            <Skeleton className="h-4 w-20" />
-          </TableCell>
-          <TableCell className="hidden xl:table-cell">
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-6 w-16" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-8 w-8" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  );
+function buildColumns(): EntityListColumnDef<EmployeeListItem>[] {
+  return [
+    {
+      id: "employee",
+      header: listCopy.employee,
+      kind: "primary",
+      sortable: true,
+      sortField: "first_name",
+      accessor: (emp): EntityListStackedValue => ({
+        primary: emp.fullName,
+        secondary: emp.employeeNumber,
+      }),
+    },
+    {
+      id: "contact",
+      header: listCopy.contact,
+      kind: "stacked",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell",
+      accessor: (emp): EntityListStackedValue => ({
+        primary: emp.email || undefined,
+        secondary: emp.phone || undefined,
+      }),
+    },
+    {
+      id: "department",
+      header: listCopy.department,
+      kind: "stacked",
+      sortable: true,
+      sortField: "department",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (emp): EntityListStackedValue => ({
+        primary: emp.department || undefined,
+        secondary: emp.position || undefined,
+      }),
+    },
+    {
+      id: "contract",
+      header: listCopy.contract,
+      kind: "meta",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (emp) => EMPLOYMENT_TYPE_LABELS[emp.employmentType],
+    },
+    {
+      id: "hireDate",
+      header: listCopy.hireDate,
+      kind: "date",
+      sortable: true,
+      sortField: "hire_date",
+      headerClassName: "hidden xl:table-cell",
+      className: "hidden xl:table-cell",
+      accessor: (emp) => emp.hireDate,
+    },
+    {
+      id: "status",
+      header: listCopy.status,
+      kind: "status",
+      sortable: true,
+      sortField: "status",
+      accessor: (emp) => (
+        <EmployeeStatusBadge status={emp.status} size="sm" showIcon />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (emp) => <EmployeeActions employee={emp} />,
+    },
+  ];
 }
 
 export function EmployeeTable({
   employees,
   isLoading,
-  onView,
-  sortField,
-  sortDirection,
+  primaryTo,
+  primaryState,
+  sort,
   onSortChange,
 }: EmployeeTableProps) {
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <EmployeeTableHeaderRow
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSortChange={onSortChange}
-          />
-          <LoadingSkeleton />
-        </Table>
-      </div>
-    );
-  }
-
-  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D4).
-  if (employees.length === 0) {
-    return null;
-  }
+  const columns = buildColumns();
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <EmployeeTableHeaderRow
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSortChange={onSortChange}
-        />
-        <TableBody>
-          {employees.map((emp) => (
-            <TableRow
-              key={emp.id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => onView(emp.id)}
-            >
-              <TableCell>
-                <div className="space-y-0.5">
-                  <p className="font-medium">{emp.fullName}</p>
-                  <p className="font-mono text-sm text-muted-foreground">
-                    {emp.employeeNumber}
-                  </p>
-                </div>
-              </TableCell>
-
-              <TableCell className="hidden md:table-cell">
-                <div className="space-y-0.5 text-sm">
-                  <p>{emp.email || "—"}</p>
-                  <p className="text-muted-foreground">{emp.phone || ""}</p>
-                </div>
-              </TableCell>
-
-              <TableCell className="hidden lg:table-cell">
-                <div className="space-y-0.5 text-sm">
-                  <p>{emp.department || "—"}</p>
-                  <p className="text-muted-foreground">{emp.position || ""}</p>
-                </div>
-              </TableCell>
-
-              <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
-                {EMPLOYMENT_TYPE_LABELS[emp.employmentType]}
-              </TableCell>
-
-              <TableCell className="hidden text-sm text-muted-foreground xl:table-cell">
-                {formatDate(emp.hireDate)}
-              </TableCell>
-
-              <TableCell>
-                <EmployeeStatusBadge status={emp.status} size="sm" showIcon />
-              </TableCell>
-
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <EmployeeActions employee={emp} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={employees}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={primaryTo}
+      primaryState={primaryState}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
   );
 }

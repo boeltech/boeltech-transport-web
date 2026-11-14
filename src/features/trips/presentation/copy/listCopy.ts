@@ -46,6 +46,8 @@ export const tripsListCopy = {
     code: "Código",
     client: "Cliente",
     route: "Ruta",
+    /** T4: unidad + conductor apilados (antes columnas separadas). */
+    fleet: "Unidad",
     vehicle: "Unidad",
     driver: "Conductor",
     departure: "Salida",

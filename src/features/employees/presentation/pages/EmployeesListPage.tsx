@@ -10,6 +10,7 @@ import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import type { EntityListSortState } from "@shared/ui/table";
 import { ROLES } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import { FileUp, Plus, Search } from "lucide-react";
@@ -17,6 +18,7 @@ import { FileUp, Plus, Search } from "lucide-react";
 import { MasterImportWizard } from "@features/imports";
 import { useEmployees } from "../../application/hooks/useEmployees";
 import type {
+  EmployeeListItem,
   EmployeeSortOptions,
   EmployeeStatus,
   EmploymentType,
@@ -32,12 +34,19 @@ import {
   EmployeeCard,
   EmployeeCardSkeleton,
   EmployeeListFilters,
-  type EmployeeSortableColumn,
 } from "../components";
 import { employeesCopy } from "../copy/employeesCopy";
 import { countEmployeePanelFilters } from "../utils/employeeListFilters";
 
 const copy = employeesCopy.list;
+
+/** Campos `sort_by` expuestos en la tabla (paridad API). */
+const SORTABLE_FIELDS = new Set<EmployeeSortOptions["field"]>([
+  "first_name",
+  "department",
+  "hire_date",
+  "status",
+]);
 
 export function EmployeesListPage() {
   const navigate = useNavigate();
@@ -74,18 +83,25 @@ export function EmployeesListPage() {
   });
   const hasPanelFilters = activePanelFilterCount > 0;
 
+  /** Sort en estado local (no había URL sort; no inventar query). */
   const [sort, setSort] = useState<EmployeeSortOptions>({
     field: "hire_date",
     direction: "desc",
   });
 
+  const tableSort: EntityListSortState = {
+    field: sort.field,
+    direction: sort.direction,
+  };
+
   const handleSortChange = useCallback(
-    (field: EmployeeSortableColumn) => {
-      setSort((prev) => {
-        if (prev.field === field) {
-          return { field, direction: prev.direction === "asc" ? "desc" : "asc" };
-        }
-        return { field, direction: "asc" };
+    (next: EntityListSortState) => {
+      if (!SORTABLE_FIELDS.has(next.field as EmployeeSortOptions["field"])) {
+        return;
+      }
+      setSort({
+        field: next.field as EmployeeSortOptions["field"],
+        direction: next.direction,
       });
       filters.setPage(1);
     },
@@ -114,6 +130,11 @@ export function EmployeesListPage() {
     (id: string) => navigate(`/employees/${id}`, { state: fromState }),
     [fromState, navigate],
   );
+  const primaryTo = useCallback(
+    (employee: EmployeeListItem) => `/employees/${employee.id}`,
+    [],
+  );
+  const primaryState = useCallback(() => fromState, [fromState]);
   const handleCreate = useCallback(() => {
     navigate("/employees/new", { state: fromState });
   }, [fromState, navigate]);
@@ -190,9 +211,9 @@ export function EmployeesListPage() {
           <EmployeeTable
             employees={employees}
             isLoading={isLoading}
-            onView={handleView}
-            sortField={sort.field}
-            sortDirection={sort.direction}
+            primaryTo={primaryTo}
+            primaryState={primaryState}
+            sort={tableSort}
             onSortChange={handleSortChange}
           />
         )}

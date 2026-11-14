@@ -57,10 +57,30 @@ function listTrip(
   };
 }
 
+const primaryTo = (trip: TripListItem) => `/trips/${trip.id}`;
+
 describe("TripTable", () => {
+  it("retorna null cuando no hay filas (empty del shell)", () => {
+    const { container } = renderWithProviders(
+      <TripTable
+        trips={[]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("muestra la columna Cliente con el nombre del list DTO", () => {
     renderWithProviders(
-      <TripTable trips={[listTrip()]} isLoading={false} onView={vi.fn()} />,
+      <TripTable
+        trips={[listTrip()]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
     );
 
     expect(
@@ -69,11 +89,33 @@ describe("TripTable", () => {
     expect(screen.getByText("Transportes del Norte SA")).toBeInTheDocument();
   });
 
+  it("link primario en Código y conductor apilado bajo Unidad (T4)", () => {
+    renderWithProviders(
+      <TripTable
+        trips={[listTrip()]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "T-100" });
+    expect(link).toHaveAttribute("href", "/trips/t1");
+    expect(screen.getByText("U-12")).toBeInTheDocument();
+    expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", {
+        name: tripsListCopy.columns.driver,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("muestra Sin cliente cuando no hay cliente", () => {
     renderWithProviders(
       <TripTable
         trips={[listTrip({ client: null })]}
         isLoading={false}
+        primaryTo={primaryTo}
         onView={vi.fn()}
       />,
     );
@@ -86,6 +128,7 @@ describe("TripTable", () => {
       <TripTable
         trips={[listTrip()]}
         isLoading={false}
+        primaryTo={primaryTo}
         onView={vi.fn()}
         hideClientColumn
       />,
@@ -106,6 +149,7 @@ describe("TripTable", () => {
       <TripTable
         trips={[listTrip({ requiresFiscalAttention: true })]}
         isLoading={false}
+        primaryTo={primaryTo}
         onView={vi.fn()}
       />,
     );
@@ -126,6 +170,7 @@ describe("TripTable", () => {
           }),
         ]}
         isLoading={false}
+        primaryTo={primaryTo}
         onView={vi.fn()}
       />,
     );
