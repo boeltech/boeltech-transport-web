@@ -335,10 +335,27 @@ export const financeCopy = {
       trips: "Viajes",
       clients: "Clientes",
     },
-    clientSubtotal: (amount: string, tripCount: number) =>
-      tripCount === 1
-        ? `Subtotal ${amount} · 1 viaje`
-        : `Subtotal ${amount} · ${tripCount} viajes`,
+    /**
+     * Subtotal del universo filtrado del cliente (meta.by_client), no de la página.
+     * Si hay menos filas visibles que tripCount, aclara «mostrando k de n».
+     */
+    clientSubtotal: (
+      amount: string,
+      tripCount: number,
+      visibleTripCount?: number,
+    ) => {
+      const tripsLabel =
+        tripCount === 1 ? "1 viaje" : `${tripCount} viajes`;
+      const base = `Subtotal del cliente ${amount} · ${tripsLabel}`;
+      if (
+        visibleTripCount != null &&
+        visibleTripCount > 0 &&
+        visibleTripCount < tripCount
+      ) {
+        return `${base} (mostrando ${visibleTripCount} de ${tripCount})`;
+      }
+      return base;
+    },
     clientUnknown: "Sin cliente",
     clientChip: (name: string) => `Cliente: ${name}`,
     clearClientFilter: "Quitar filtro de cliente",
